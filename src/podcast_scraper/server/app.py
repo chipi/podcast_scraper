@@ -127,6 +127,62 @@ def _default_static_dir() -> Path | None:
     return dist if dist.is_dir() else None
 
 
+# Operator/read ``/api/*`` routers — mounted only when NOT app-only (#1163).
+_OPERATOR_READ_ROUTES = (
+    resilience_routes,
+    usage_routes,
+    artifacts,
+    index_stats,
+    index_rebuild,
+    search,
+    relational,
+    query_activity,
+    explore,
+    corpus_library,
+    corpus_binary,
+    corpus_media,
+    corpus_text_file,
+    corpus_metrics,
+    corpus_coverage,
+    corpus_persons,
+    corpus_digest,
+    corpus_enrichments,
+    corpus_topic_clusters,
+    corpus_theme_clusters,
+    corpus_trending,
+    cil,
+    ops,
+)
+# Consumer Learning Platform API (RFC-098): slug-addressed routes under their own
+# ``/api/app`` namespace, auth-gated (#1063/#1066). Always mounted.
+_APP_ROUTES = (
+    app_auth,
+    app_admin,
+    app_artwork,
+    app_episodes,
+    app_graph_events,
+    app_relational,
+    app_discover,
+    app_search,
+    app_user_state,
+    app_capture,
+    app_enrichment,
+    app_consolidation,
+)
+
+
+def _mount_api_routers(app: FastAPI, *, app_only: bool) -> None:
+    """Mount HTTP routers. ``health`` + the consumer ``/api/app/*`` plane always mount;
+    the operator/read ``/api/*`` routes mount only when NOT app-only — the low-privilege
+    public player backend (#1163 / ADR-116)."""
+    app.include_router(health.router, prefix="/api")
+    if not app_only:
+        for module in _OPERATOR_READ_ROUTES:
+            app.include_router(module.router, prefix="/api")
+    for module in _APP_ROUTES:
+        app.include_router(module.router, prefix="/api/app")
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -238,45 +294,20 @@ def create_app(
                 "(or add that package explicitly in minimal images)."
             )
 
-    app.include_router(health.router, prefix="/api")
-    app.include_router(resilience_routes.router, prefix="/api")
-    app.include_router(usage_routes.router, prefix="/api")
-    app.include_router(artifacts.router, prefix="/api")
-    app.include_router(index_stats.router, prefix="/api")
-    app.include_router(index_rebuild.router, prefix="/api")
-    app.include_router(search.router, prefix="/api")
-    app.include_router(relational.router, prefix="/api")
-    app.include_router(query_activity.router, prefix="/api")
-    app.include_router(explore.router, prefix="/api")
-    app.include_router(corpus_library.router, prefix="/api")
-    app.include_router(corpus_binary.router, prefix="/api")
-    app.include_router(corpus_media.router, prefix="/api")
-    app.include_router(corpus_text_file.router, prefix="/api")
-    app.include_router(corpus_metrics.router, prefix="/api")
-    app.include_router(corpus_coverage.router, prefix="/api")
-    app.include_router(corpus_persons.router, prefix="/api")
-    app.include_router(corpus_digest.router, prefix="/api")
-    app.include_router(corpus_enrichments.router, prefix="/api")
-    app.include_router(corpus_topic_clusters.router, prefix="/api")
-    app.include_router(corpus_theme_clusters.router, prefix="/api")
-    app.include_router(corpus_trending.router, prefix="/api")
-    app.include_router(cil.router, prefix="/api")
-    app.include_router(ops.router, prefix="/api")
-    # Consumer Learning Platform API (RFC-098): slug-addressed read routes under their
-    # own /api/app namespace, separate from the operator routes. Read-only over the
-    # shared corpus; access becomes auth-gated in later Epic-1 tasks (#1063/#1066).
-    app.include_router(app_auth.router, prefix="/api/app")
-    app.include_router(app_admin.router, prefix="/api/app")
-    app.include_router(app_artwork.router, prefix="/api/app")
-    app.include_router(app_episodes.router, prefix="/api/app")
-    app.include_router(app_graph_events.router, prefix="/api/app")
-    app.include_router(app_relational.router, prefix="/api/app")
-    app.include_router(app_discover.router, prefix="/api/app")
-    app.include_router(app_search.router, prefix="/api/app")
-    app.include_router(app_user_state.router, prefix="/api/app")
-    app.include_router(app_capture.router, prefix="/api/app")
-    app.include_router(app_enrichment.router, prefix="/api/app")
-    app.include_router(app_consolidation.router, prefix="/api/app")
+    # #1163 / ADR-116: app-only public serve mode. When ``PODCAST_SERVE_APP_ONLY``
+    # is set, mount ONLY health + the consumer ``/api/app/*`` plane — none of the
+    # operator/read ``/api/*`` routes. This is the low-privilege backend the public
+    # consumer player proxies to (deployed with no ``docker.sock`` and no provider
+    # keys). Operator flag-gated routers (jobs/operator-config/feeds) are forced off
+    # here too, belt-and-suspenders, so the privileged surface can never mount on a
+    # public deployment even if a flag env leaks in.
+    app_only = _env_truthy("PODCAST_SERVE_APP_ONLY")
+    if app_only:
+        enable_feeds_api = False
+        enable_operator_config_api = False
+        enable_jobs_api = False
+
+    _mount_api_routers(app, app_only=app_only)
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output

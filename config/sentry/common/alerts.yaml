@@ -1,0 +1,3 @@
+# Common (box/edge) Sentry issue-alert rules (ADR-117). The box itself emits few errors
+# (app errors are per-tenant). Add box-level rules here if useful. Starter: empty.
+rules: []

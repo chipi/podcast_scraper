@@ -1361,7 +1361,7 @@ ssh deploy@prod-podcast.<tailnet> \
 
 Pipeline runs with cloud profiles emit structured JSON log lines (`event_type: llm_cost`; Loki
 `| json` when Grafana Agent or docker log shipping is enabled). Import
-`config/grafana/grafana-dashboard-llm-cost.json` into the Grafana Cloud **podcast-scraper**
+`config/grafana/dashboards/common/grafana-dashboard-llm-cost.json` into the Grafana Cloud **podcast-scraper**
 folder. Per-run soft caps and per-run Sentry cost alerts are configured via profile fields
 `cost_soft_cap_usd_per_run`, `cost_soft_cap_action`, and `cost_daily_alert_usd` (override with
 `COST_SOFT_CAP_USD_PER_RUN`, `COST_SOFT_CAP_ACTION`, `COST_DAILY_ALERT_USD` env vars when needed).

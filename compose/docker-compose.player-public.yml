@@ -1,0 +1,97 @@
+# Public consumer player (#1163 / ADR-116 — player-first launch).
+#
+# A STANDALONE composition (do NOT merge with the privileged operator stack): the
+# consumer player + a LOW-PRIVILEGE app-only backend. The backend runs with
+# PODCAST_SERVE_APP_ONLY=1 so it mounts ONLY /api/app/* + health — no operator/read
+# /api/* surface — and therefore carries **no docker.sock and no provider keys**. That
+# is what makes it safe to expose on the public edge (ADR-114) behind the player domain.
+#
+#   docker compose -f compose/docker-compose.player-public.yml up -d --build
+#
+# The operator/kg-gi surface stays on the tailnet stack, untouched. Corpus is shared
+# read-only from the operator stack's volume.
+
+services:
+  # Low-privilege consumer API backend. Named `api` so the player's baked nginx upstream
+  # (http://api:8000) resolves to it — NOT the privileged operator api (absent here).
+  api:
+    image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    restart: unless-stopped
+    environment:
+      PODCAST_SERVE_APP_ONLY: "1"
+      # Real Google OIDC in prod (NEVER APP_OAUTH_PROVIDER=mock). provider_from_env()
+      # selects Google when these creds are present. Redirect URI to register in Google:
+      #   https://<player-domain>/api/app/auth/callback
+      # The two SECRET values (session secret, Google client secret) are staged securely
+      # at deploy (GH secret -> env now; ADR-115 sops file-mounts later). client_id is
+      # not secret. APP_ADMIN_EMAILS is unset — player users are listeners/creators.
+      # Explicit provider switch (this is the prod player — always Google, never mock).
+      APP_OAUTH_PROVIDER: google
+      APP_OAUTH_GOOGLE_CLIENT_ID: ${APP_OAUTH_GOOGLE_CLIENT_ID:-}
+      APP_OAUTH_GOOGLE_CLIENT_SECRET: ${APP_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET:-}
+      APP_SESSION_COOKIE_SECURE: "true"
+      # Trust X-Forwarded-* — this backend is only reachable via its own nginx proxy on
+      # the compose network, so uvicorn can honor the forwarded scheme/host and derive the
+      # OAuth callback as https://<player-domain>/... (#1163).
+      FORWARDED_ALLOW_IPS: "*"
+      APP_DATA_DIR: /app/appdata
+      PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+    volumes:
+      # Corpus is READ-ONLY here — the consumer plane reads it; per-user data is separate.
+      - corpus_data:/app/output:ro
+      # Per-user consumer data (playback/notes/favorites) — a HOST bind mount (like the
+      # corpus) so it lives on the host FS: backupable (backup-player-appdata-prod.yml),
+      # survives a container/volume prune, and operator-visible. #3.
+      - ${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}:/app/appdata
+    # Hardening (#1160 T-04): no sock, no keys, drop caps. NOT read_only (entrypoint
+    # chown + app-data writes). Boot profile matches the operator api (verified there).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+
+  # Consumer player PWA (static SPA + nginx proxying ONLY /api/app/* to `api`).
+  learning-app:
+    build:
+      context: ../web/learning-player
+      dockerfile: Dockerfile
+    image: podcast-scraper-learning-app:latest
+    restart: unless-stopped
+    ports:
+      # Loopback only — the Caddy edge (player.caddy) is the public front (ADR-114).
+      - "127.0.0.1:${PLAYER_PORT:-8092}:80"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+      - /etc/nginx/conf.d
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  # Shared read-only with the operator stack. Set PODCAST_CORPUS_VOLUME to that stack's
+  # external volume name on the VPS (e.g. compose_corpus_data).
+  corpus_data:
+    external: true
+    name: ${PODCAST_CORPUS_VOLUME:-compose_corpus_data}
+  # (player_appdata is now a HOST bind mount on the api service — see above — so it is
+  # backupable and durable; no Docker-managed volume declaration.)

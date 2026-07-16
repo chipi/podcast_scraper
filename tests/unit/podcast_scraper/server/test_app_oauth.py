@@ -80,11 +80,30 @@ def test_provider_from_env_mock_wins_over_google_creds(monkeypatch: pytest.Monke
     assert isinstance(provider_from_env(), MockOAuthProvider)
 
 
-def test_provider_from_env_selects_google_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("APP_OAUTH_PROVIDER", raising=False)
+def test_provider_from_env_selects_google_when_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_OAUTH_PROVIDER", "google")
     monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_ID", "cid")
     monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", "csecret")
     assert isinstance(provider_from_env(), GoogleProvider)
+
+
+def test_provider_from_env_google_creds_without_selector_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Explicit-by-design: Google creds alone must NOT silently enable a real provider.
+    monkeypatch.delenv("APP_OAUTH_PROVIDER", raising=False)
+    monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_ID", "cid")
+    monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", "csecret")
+    assert provider_from_env() is None
+
+
+def test_provider_from_env_google_selector_without_creds_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_OAUTH_PROVIDER", "google")
+    monkeypatch.delenv("APP_OAUTH_GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", raising=False)
+    assert provider_from_env() is None
 
 
 def test_provider_from_env_none_when_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -95,8 +114,8 @@ def test_provider_from_env_none_when_unconfigured(monkeypatch: pytest.MonkeyPatc
 
 
 def test_provider_from_env_ignores_unknown_selector(monkeypatch: pytest.MonkeyPatch) -> None:
-    # An unrecognised selector falls through to Google creds (here: absent -> None).
+    # An unrecognised selector disables auth — even with Google creds present (explicit only).
     monkeypatch.setenv("APP_OAUTH_PROVIDER", "bogus")
-    monkeypatch.delenv("APP_OAUTH_GOOGLE_CLIENT_ID", raising=False)
-    monkeypatch.delenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", raising=False)
+    monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_ID", "cid")
+    monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", "csecret")
     assert provider_from_env() is None

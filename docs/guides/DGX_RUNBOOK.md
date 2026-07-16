@@ -516,7 +516,7 @@ overlay.
 
 ### Dashboard
 
-Importable: `config/grafana/grafana-dashboard-dgx.json`. 11 panels in
+Importable: `config/grafana/dashboards/common/grafana-dashboard-dgx.json`. 11 panels in
 4 rows (GPU / System / Containers / App). The DGX panels reference the
 existing Prometheus datasource — no new datasource setup needed.
 
@@ -545,7 +545,7 @@ verbatim — same DSN, same tags, same `before_send` filter.
 4. Verify scrape from the pipeline VPS:
    `curl http://dgx-llm-1.tail6d0ed4.ts.net:9400/metrics | head` (DCGM),
    same for `:9100`, `:8080`, `:8001/metrics`.
-5. Import `config/grafana/grafana-dashboard-dgx.json` into Grafana
+5. Import `config/grafana/dashboards/common/grafana-dashboard-dgx.json` into Grafana
    Cloud (Dashboards → New → Import → upload JSON).
 
 ### When to break the free-tier budget

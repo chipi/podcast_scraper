@@ -137,6 +137,13 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
     _sync_reload_environ(args, out)
     static_kw: bool | None = False if getattr(args, "no_static", False) else None
 
+    # Honor X-Forwarded-Proto/Host so request-derived URLs (e.g. the OAuth callback,
+    # ``request.url_for``) resolve to the public https origin when running behind a
+    # reverse proxy (Caddy edge -> nginx -> uvicorn). Default trusts loopback only;
+    # a proxied deployment opts in via ``FORWARDED_ALLOW_IPS`` (e.g. ``*`` when the
+    # backend is only reachable through its own trusted proxy — see player-public).
+    forwarded_allow_ips = os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1")
+
     if args.reload:
         uvicorn.run(
             "podcast_scraper.server.app:create_app_for_uvicorn",
@@ -144,6 +151,8 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
             host=args.host,
             port=args.port,
             reload=True,
+            proxy_headers=True,
+            forwarded_allow_ips=forwarded_allow_ips,
         )
         return 0
 
@@ -160,5 +169,12 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
         operator_config_file=cast(str | os.PathLike[str] | None, kw["operator_config_file"]),
     )
     # _load_create_app is typed as Callable[..., Any]; uvicorn expects an ASGI callable.
-    uvicorn.run(cast(Any, app), host=args.host, port=args.port, reload=False)
+    uvicorn.run(
+        cast(Any, app),
+        host=args.host,
+        port=args.port,
+        reload=False,
+        proxy_headers=True,
+        forwarded_allow_ips=forwarded_allow_ips,
+    )
     return 0

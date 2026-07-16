@@ -209,8 +209,17 @@ class MockOAuthProvider:
 def provider_from_env() -> OAuthProvider | None:
     """Build the configured provider from env, or ``None`` when unconfigured.
 
-    Selection: ``APP_OAUTH_PROVIDER=mock`` → :class:`MockOAuthProvider` (dev/e2e only,
-    logged loudly). Otherwise the Google provider when its creds are present.
+    Selection is one explicit switch — ``APP_OAUTH_PROVIDER`` — set by the deployment
+    (its compose/profile), never inferred:
+
+    * ``mock``   → :class:`MockOAuthProvider` (dev/e2e only, logged loudly; never prod).
+    * ``google`` → :class:`GoogleProvider`; needs ``APP_OAUTH_GOOGLE_CLIENT_ID`` +
+      ``APP_OAUTH_GOOGLE_CLIENT_SECRET`` (``None`` + a warning when they are absent).
+    * anything else / unset → ``None`` (consumer auth disabled).
+
+    Explicit by design: Google creds alone never silently enable a real provider — the
+    deployment names its provider in one place, so switching mock↔google is a single
+    config change and a half-set env can't accidentally go live.
     """
     selected = os.environ.get("APP_OAUTH_PROVIDER", "").strip().lower()
     if selected == "mock":
@@ -219,9 +228,14 @@ def provider_from_env() -> OAuthProvider | None:
             "This MUST NOT be set in production."
         )
         return MockOAuthProvider.from_env()
-
-    client_id = os.environ.get("APP_OAUTH_GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.environ.get("APP_OAUTH_GOOGLE_CLIENT_SECRET", "").strip()
-    if client_id and client_secret:
-        return GoogleProvider(client_id, client_secret)
+    if selected == "google":
+        client_id = os.environ.get("APP_OAUTH_GOOGLE_CLIENT_ID", "").strip()
+        client_secret = os.environ.get("APP_OAUTH_GOOGLE_CLIENT_SECRET", "").strip()
+        if client_id and client_secret:
+            return GoogleProvider(client_id, client_secret)
+        logger.warning(
+            "APP_OAUTH_PROVIDER=google but APP_OAUTH_GOOGLE_CLIENT_ID/SECRET are missing "
+            "— consumer auth disabled."
+        )
+        return None
     return None

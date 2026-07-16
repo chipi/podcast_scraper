@@ -185,6 +185,10 @@ jobs:
               grafana_cloud_metrics_password         = ""
               podcast_tailscale_serve_body = indent(6, chomp(file("infra/cloud-init/podcast-tailscale-serve.sh")))
               orrery_tailscale_serve_body  = indent(6, chomp(file("infra/cloud-init/orrery-tailscale-serve.sh")))
+              grafana_cloud_logs_url       = ""
+              grafana_cloud_logs_username  = ""
+              decrypt_secrets_body = indent(6, chomp(file("infra/cloud-init/decrypt-secrets.sh")))
+              caddy_base_body      = indent(6, chomp(file("infra/cloud-init/Caddyfile")))
             })
           }
           TF

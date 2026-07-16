@@ -1,0 +1,19 @@
+{
+  "title": "orrery — edge",
+  "uid": "orrery-edge",
+  "tags": ["tenant:orrery"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "text",
+      "title": "orrery vhost",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "**Placeholder** — orrery's Caddy vhost access/error view (tenant=orrery). Populate when orrery's vhost is live (ADR-117). orrery starts in the `common` Grafana account; move to its own account for full independence."
+      }
+    }
+  ]
+}

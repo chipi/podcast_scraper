@@ -61,6 +61,32 @@ resource "hcloud_firewall" "main" {
     protocol   = "icmp"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
+
+  # Public edge (ADR-114 / #1158): the shared Caddy reverse proxy terminates TLS
+  # on :443 and redirects :80 -> https. This is the first world-facing ingress on
+  # this box — everything else stays tailnet-only. Adding these is an in-place
+  # ``~`` update of the firewall resource; it MUST NOT show a server ``-/+``
+  # replace in ``tofu plan`` (verify before apply). Reversible: remove + apply.
+  #
+  # :80 stays world-open even under the Cloudflare origin lock — Let's Encrypt
+  # HTTP-01 challenges validate from LE's own IPs (not through CF), and it only
+  # ever serves the ACME challenge + an HTTP->HTTPS redirect, no app content.
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "80"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+
+  # T-05 / ADR-118: when cloudflare_origin_lock is true, :443 is reachable only
+  # from Cloudflare's ranges — no direct-IP bypass of CF's WAF/rate-limit/DDoS.
+  # Default (false) keeps :443 world-open so the edge works before CF is fronted.
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "443"
+    source_ips = var.cloudflare_origin_lock ? var.cloudflare_ip_ranges : ["0.0.0.0/0", "::/0"]
+  }
 }
 
 # === Optional detached Volume for corpus bind-mount ===
@@ -121,10 +147,23 @@ resource "hcloud_server" "prod" {
     grafana_cloud_metrics_username         = var.grafana_cloud_metrics_username
     grafana_cloud_metrics_password         = var.grafana_cloud_metrics_password
 
+    # T-11 / ADR-117: Loki push endpoint for the Alloy security-log pipeline.
+    grafana_cloud_logs_url      = var.grafana_cloud_logs_url
+    grafana_cloud_logs_username = var.grafana_cloud_logs_username
+
     # Shell script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
     # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS).
     podcast_tailscale_serve_body = indent(6, chomp(file("${path.module}/../cloud-init/podcast-tailscale-serve.sh")))
     orrery_tailscale_serve_body  = indent(6, chomp(file("${path.module}/../cloud-init/orrery-tailscale-serve.sh")))
+
+    # ADR-115: shared secret-decrypt helper injected via file() (its ``$${..}``
+    # shell syntax must not pass through templatefile twice — same reason as the
+    # tailscale-serve bodies above).
+    decrypt_secrets_body = indent(6, chomp(file("${path.module}/../cloud-init/decrypt-secrets.sh")))
+
+    # ADR-114 / #1158: shared Caddy edge base Caddyfile injected via file() — its
+    # Caddy ``{..}`` / ``{$..}`` syntax must not be interpreted by templatefile.
+    caddy_base_body = indent(6, chomp(file("${path.module}/../cloud-init/Caddyfile")))
   })
 
   labels = {

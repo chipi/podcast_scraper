@@ -140,7 +140,7 @@ def load_hf_system_prompt(
             return None
 
         if response.status_code == 200:
-            content = response.text
+            content: str = response.text
             try:
                 cache_path.write_text(content, encoding="utf-8")
             except OSError as exc:

@@ -1,0 +1,62 @@
+# Shared multi-tenant public edge (ADR-114 / #1158). Owned by podcast_scraper
+# infra; each tenant drops its own vhost into /etc/caddy/sites/<app>.caddy and
+# reloads via the narrow sudoers grant. Injected into cloud-init via file() so
+# Caddy's {..} / {$..} syntax is not mangled by Terraform templatefile.
+{
+	# ACME account contact for expiry notices (not public-facing, not in certs).
+	email marko.dragoljevic@gmail.com
+	# T-02: disable the admin API (default localhost:2019) — no live-config surface.
+	admin off
+	# on-demand TLS is left OFF (the default): Caddy issues certs only for the
+	# explicit hostnames tenants declare — no arbitrary-hostname issuance (T-03).
+
+	# T-05 (ADR-118): Cloudflare is the additive front. Trust CF's proxy ranges so
+	# `client_ip` / the access log / the XFF forwarded downstream reflect the real
+	# visitor, not a CF edge. No-op until CF fronts the box (direct clients are
+	# never in these ranges). Refresh from https://www.cloudflare.com/ips/ (~yearly)
+	# and keep in sync with `cloudflare_ip_ranges` in terraform/variables.tf.
+	servers {
+		client_ip_headers Cf-Connecting-Ip X-Forwarded-For
+		trusted_proxies static \
+			173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+			141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+			197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+			104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
+			2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
+			2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+	}
+}
+
+# Shared hardened snippet — tenants `import hardened` instead of copy-pasting
+# (ADR-114 §3). One place to ramp HSTS / change compression / logging fleet-wide.
+(hardened) {
+	# T-12: start short; ramp to `max-age=31536000; includeSubDomains; preload`
+	# once HTTPS is proven on the first live vhost.
+	header Strict-Transport-Security "max-age=86400; includeSubDomains"
+	encode zstd gzip
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		# JSON + ISO8601 ts: deterministic for the fail2ban caddy-access filter
+		# (T-11) and the Alloy->Loki pipeline. Pinned so a Caddy default change
+		# can't silently break log parsing / banning.
+		format json {
+			time_format iso8601
+		}
+	}
+}
+
+# T-03: catch-all for unknown Host. Explicit tenant vhosts (host-specific
+# matchers) take precedence; anything else gets a self-signed handshake and the
+# connection is aborted — no default vhost, no public-CA cert attempt for random
+# hostnames pointed at the IP. NOTE: :80 is deliberately left to Caddy's built-in
+# handling so ACME HTTP-01 challenges + auto HTTP->HTTPS redirects still work.
+:443 {
+	tls internal
+	abort
+}
+
+# Per-tenant vhosts — each app owns its own file; infra owns this engine.
+import /etc/caddy/sites/*.caddy

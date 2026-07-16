@@ -152,7 +152,50 @@ variable "grafana_cloud_metrics_username" {
 
 variable "grafana_cloud_metrics_password" {
   type        = string
-  description = "Grafana Cloud access policy token with metrics:write (or legacy API key) for remote_write basic-auth password."
+  description = "Grafana Cloud access policy token with metrics:write (or legacy API key) for remote_write basic-auth password. Reused for Loki logs:write (same token needs logs:write scope — see T-11 / ADR-117)."
   default     = ""
   sensitive   = true
+}
+
+variable "grafana_cloud_logs_url" {
+  type        = string
+  description = "Grafana Cloud Loki push URL (…/loki/api/v1/push) for the Alloy security-log pipeline (T-11 / ADR-117: sshd/fail2ban/Caddy). Empty = Alloy ships metrics only."
+  default     = ""
+}
+
+variable "grafana_cloud_logs_username" {
+  type        = string
+  description = "Grafana Cloud Loki basic-auth username (numeric Loki instance id). Password reuses grafana_cloud_metrics_password (token needs logs:write)."
+  default     = ""
+}
+
+variable "cloudflare_origin_lock" {
+  type        = bool
+  description = <<-EOT
+    T-05 / ADR-118. When true, the Hetzner firewall restricts inbound :443 to
+    Cloudflare's published ranges (cloudflare_ip_ranges) so attackers can't
+    bypass CF by hitting the origin IP directly. :80 stays world-open for ACME
+    HTTP-01 (Let's Encrypt validates from its own IPs, not through CF).
+    Default false. FLIP TO TRUE ONLY AFTER DNS is orange-clouded and the site is
+    verified loading through CF (ADR-118 rollout step 5) — flipping early with
+    grey-cloud DNS makes :443 unreachable. Rollback: set false + apply.
+  EOT
+  default     = false
+}
+
+variable "cloudflare_ip_ranges" {
+  type        = list(string)
+  description = <<-EOT
+    Cloudflare proxy IP ranges allowed to reach :443 when cloudflare_origin_lock
+    is true. Refresh from https://www.cloudflare.com/ips/ (~yearly) and keep in
+    sync with the `trusted_proxies` list in infra/cloud-init/Caddyfile.
+  EOT
+  default = [
+    "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22",
+    "141.101.64.0/18", "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20",
+    "197.234.240.0/22", "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+    "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+    "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32",
+    "2405:8100::/32", "2a06:98c0::/29", "2c0f:f248::/32",
+  ]
 }

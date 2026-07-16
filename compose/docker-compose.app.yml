@@ -22,7 +22,7 @@ services:
 
   learning-app:
     build:
-      context: ../app
+      context: ../web/learning-player
       dockerfile: Dockerfile
     image: podcast-scraper-learning-app:latest
     ports:
