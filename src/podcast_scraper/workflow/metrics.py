@@ -1438,6 +1438,17 @@ class Metrics:
             "episodes_skipped_total": self.episodes_skipped_total,
             "errors_total": self.errors_total,
             "bytes_downloaded_total": self.bytes_downloaded_total,
+            # #1129/#1130 gap 5: forward-compatible canonical name for the retry-event
+            # counter. Backed today by the same urllib3-based downloader as
+            # ``http_urllib3_retry_events``. When RSS eventually moves to httpx (open
+            # follow-up), the semantics can broaden to include httpx retries without
+            # changing the exposed key. Dashboards should read this key.
+            "http_retry_events": http_urllib3_retry_events,
+            # DEPRECATED alias — same value as ``http_retry_events``. Removal
+            # criterion: no Grafana / alerting query has referenced
+            # ``http_urllib3_retry_events`` for 30 days AND at least one major
+            # release has shipped with both keys present. Track by grep of the
+            # observability repo + Loki / Prometheus query history.
             "http_urllib3_retry_events": http_urllib3_retry_events,
             "episode_download_retries": self.episode_download_retries,
             "episode_download_retry_sleep_seconds": round(

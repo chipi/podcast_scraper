@@ -5,11 +5,20 @@ RSS feed fetches use :func:`fetch_rss_feed_url`, which applies a dedicated urlli
 :func:`fetch_url`) for flaky feed hosts. Transcripts and episode media still use
 :func:`fetch_url` / :func:`http_download_to_file`.
 
-The urllib3 retry event counter (see :func:`get_http_retry_event_count`) is
-**process-wide**. It is reset in :func:`configure_downloader`, which ``run_pipeline``
-calls at startup. Concurrent ``run_pipeline`` invocations in one process can
-interleave counts; use one pipeline at a time per process for meaningful
-``metrics.json`` export of ``http_urllib3_retry_events``.
+The retry event counter (see :func:`get_http_retry_event_count`) is
+**process-wide**. It is reset in :func:`configure_downloader`, which
+``run_pipeline`` calls at startup. Concurrent ``run_pipeline`` invocations in
+one process can interleave counts; use one pipeline at a time per process for
+meaningful ``metrics.json`` export.
+
+The counter is exposed under two keys in the run summary JSON:
+
+- ``http_retry_events`` — canonical name. Dashboards should read this.
+- ``http_urllib3_retry_events`` — DEPRECATED alias for the same value. Marked
+  in :mod:`podcast_scraper.workflow.metrics`; removal is gated on no
+  Grafana / alerting query referencing the alias for 30 days plus one
+  release overlap. Underlying implementation is still urllib3 today; the
+  canonical key stays valid whenever RSS moves to httpx.
 """
 
 from __future__ import annotations

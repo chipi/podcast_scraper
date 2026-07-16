@@ -300,6 +300,10 @@ class TestFinish(unittest.TestCase):
             m._start_time = 100.0
             result = m.finish()
         self.assertEqual(result["http_urllib3_retry_events"], 7)
+        # #1129/#1130 gap 5: canonical name is identical to the deprecated alias
+        # today. Both must carry the same value while both keys coexist.
+        self.assertEqual(result["http_retry_events"], 7)
+        self.assertEqual(result["http_urllib3_retry_events"], result["http_retry_events"])
         self.assertEqual(result["episode_download_retries"], 2)
         self.assertEqual(result["episode_download_retry_sleep_seconds"], 3.0)
 
@@ -392,6 +396,9 @@ class TestFinish(unittest.TestCase):
             "episodes_skipped_total",
             "errors_total",
             "bytes_downloaded_total",
+            # #1129/#1130 gap 5: both keys must be present while the alias is
+            # still supported.
+            "http_retry_events",
             "http_urllib3_retry_events",
             "host_throttle_wait_seconds",
             "host_throttle_events",
