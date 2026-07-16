@@ -1376,6 +1376,12 @@ def _resolve_insight_specs(
         max_insights = getattr(
             cfg, "gi_max_insights", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
         )
+    # Scale the ceiling with episode length (#1191 interim): gi_max_insights is the FLOOR (~<=1h),
+    # rising +25 per 30 min up to 200 at 4h, so a long episode is not truncated at a flat cap and a
+    # short one is not invited to pad. The value gate still removes filler.
+    max_insights = config_constants.duration_scaled_max_insights(
+        len(transcript_text or ""), base=int(max_insights)
+    )
 
     if insight_texts:
         resolved = [(s.strip(), "unknown") for s in insight_texts if (s and s.strip())][

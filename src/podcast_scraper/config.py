@@ -812,23 +812,27 @@ class Config(BaseModel):
     # calls/episode, and the per-pair entailment fallback is already separately capped at 200.
     # ------------------------------------------------------------------
     llm_max_calls_per_episode: int = Field(
-        default=500,
+        default=1500,
         alias="llm_max_calls_per_episode",
         ge=0,
         le=100000,
         description=(
             "Hard ceiling on LLM calls while grounding/summarising ONE episode; 0 disables. "
-            "Catches a single runaway episode (the gpt-5.5 storm hit ~3,500) before it burns $."
+            "Catches a single runaway episode (the gpt-5.5 storm hit ~3,500) before it burns $. "
+            "Calibrated (2026-07): a legit 4h episode at the 200-insight ceiling costs ~200 calls "
+            "bundled / ~1,650 staged; 1,500 clears the worst legit case yet stays below the storm."
         ),
     )
     llm_max_calls_per_run: int = Field(
-        default=8000,
+        default=40000,
         alias="llm_max_calls_per_run",
         ge=0,
         le=1000000,
         description=(
             "Hard ceiling on LLM calls across a whole run/session; 0 disables. Catches "
-            "cumulative overspend even when no single episode looks pathological."
+            "cumulative overspend even when no single episode looks pathological. Calibrated "
+            "(2026-07) for a ~100-200 episode reprocess of long episodes (bundled ~200/ep) with "
+            "headroom; the per-episode fuse is the finer single-episode guard."
         ),
     )
     llm_circuit_breaker_enabled: bool = Field(
