@@ -34,11 +34,14 @@ side effect of the merge.
 
 ## The sequence (each step gates the next)
 
+**Now: at step C** — PR [#1196](https://github.com/chipi/podcast_scraper/pull/1196)
+open, GitHub CI running; `make ci-fast` green locally. Awaiting CI green + operator merge.
+
 | # | Step | Owner | Gate before proceeding |
 |---|------|-------|------------------------|
-| A | **harden audit** → apply safe fixes, surface decisions | 🤝 | findings triaged |
-| B | **push** `production` (`--force-with-lease` after currency check) | 🧑 approves | push authorized |
-| C | **PR → main**, green CI | 🤝 | all required checks green |
+| A | ✅ **harden audit** — fixes applied, findings triaged, follow-up tests added | 🤝 | done |
+| B | ✅ **push** `production` (force-with-lease, currency-checked) | 🧑 | done |
+| C | 🔄 **PR → main** ([#1196](https://github.com/chipi/podcast_scraper/pull/1196)) | 🤝 | CI green (running) |
 | D | **merge to main** (fires main CI cascade: stack-test rebuild + push) | 🧑 | — |
 | E | **DR drill GREEN end-to-end** — the trust anchor (see below) | 🧑 runs | deploy+restore+smoke all green |
 | F | **Go-live Phase 0→7** — per `GOAL1-GO-LIVE-PLAN.md` | 🤝 | each phase's own gate |
@@ -68,6 +71,15 @@ provisions a throwaway drill VPS → **operator-run, not agent-triggered.**
 
 - Main CI cascade: `stack-test` rebuilds + pushes `:main` + `:sha-<7>` images.
 - No deploy, no infra apply (see invariant above).
+
+## Issue auto-close
+
+- **#1088** (DR-drill bug) auto-closes on merge — it's fully fixed in code.
+- **#1158 / #1160 / #1161 / #1163** are **Part of**, NOT auto-close: their
+  definition-of-done is *live* (firewall applied, Caddy on the box, player
+  deployed, pre-public gate walked). They close as the gated go-live steps below
+  complete — closing them at merge would be false. Add `Closes #N` to the commit
+  or PR that makes each one live.
 
 ## My immediate to-dos (once the apply path is locked)
 
