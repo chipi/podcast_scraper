@@ -527,9 +527,12 @@ test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
 - **The eval harness needs the same parity assertion the profiles have** (§D). `TestEvalMatchesProduction`
   compares *configs*; it did not notice that the harness passed no `transcript_segments` at all, so
   every voice gate was dead in eval while live in production. Fixed for GI
-  (`gi_transcript_and_segments`, guarded by mutation-tested wiring contracts), but the **KG** branch
-  of `run_experiment.py` should be audited for the same omission before it is trusted to score
-  anything.
+  (`gi_transcript_and_segments`, guarded by mutation-tested wiring contracts). **KG branch audited
+  (2026-07-16): no parity gap.** `kg.build_artifact` has no `transcript_segments` parameter and
+  production KG (`metadata_generation.py`) never passes one — KG extracts entities/topics from the
+  full transcript text plus `detected_hosts`/`detected_guests` names, and has no per-speaker voice
+  gate like GI's evidence grounding. So the eval KG branch correctly passes no segments; there is
+  nothing to wire, and adding the argument would be dead weight. Item closed.
 
 - **The 6.39% nobody-names-them bucket.** Now honestly classified as `unidentified` rather than
   counted as our defect (§E2). It is a real ceiling, not a bug — but it is worth revisiting whether
