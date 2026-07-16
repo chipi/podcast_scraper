@@ -18,39 +18,74 @@ describe('useGraphLensesStore (RFC-080)', () => {
     setActivePinia(createPinia())
   })
 
-  it('defaults: V1 off, V5 on (graph-v3 C)', async () => {
+  it('defaults: V1 off, V5 on (graph-v3 C), V6 off, V7 on', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(false)
-    // graph-v3 C — nodeSizeByDegree promoted to default-on. Explicit user
-    // toggle persists via localStorage; the "never touched" default reads
-    // hub structure at a glance.
+    // graph-v3 C — nodeSizeByDegree promoted to default-on.
     expect(s.nodeSizeByDegree).toBe(true)
+    // graph-v3 V — theme-cluster regions opt-in during rollout.
+    expect(s.themeClusterRegions).toBe(false)
+    // graph-v3 K — bridge ring validated on prod-v2, default-on.
+    expect(s.bridgeRing).toBe(true)
   })
 
-  it('persists toggles to localStorage as a single JSON blob', async () => {
+  it('persists all four toggles to localStorage as a single JSON blob', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
-    s.setNodeSizeByDegree(true)
+    s.setNodeSizeByDegree(false)
+    s.setThemeClusterRegions(true)
+    s.setBridgeRing(false)
     await nextTick()
     const raw = storage.get('ps_graph_lenses')
     expect(raw).toBeTruthy()
     const parsed = JSON.parse(raw!) as Record<string, boolean>
     expect(parsed.aggregatedEdges).toBe(true)
-    expect(parsed.nodeSizeByDegree).toBe(true)
+    expect(parsed.nodeSizeByDegree).toBe(false)
+    expect(parsed.themeClusterRegions).toBe(true)
+    expect(parsed.bridgeRing).toBe(false)
   })
 
-  it('rehydrates from localStorage on store creation', async () => {
+  it('rehydrates all four flags from localStorage on store creation', async () => {
     storage.set(
       'ps_graph_lenses',
-      JSON.stringify({ aggregatedEdges: true, nodeSizeByDegree: false }),
+      JSON.stringify({
+        aggregatedEdges: true,
+        nodeSizeByDegree: false,
+        themeClusterRegions: true,
+        bridgeRing: false,
+      }),
     )
     setActivePinia(createPinia())
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(true)
     expect(s.nodeSizeByDegree).toBe(false)
+    expect(s.themeClusterRegions).toBe(true)
+    expect(s.bridgeRing).toBe(false)
+  })
+
+  it('migrates legacy communityColours key into themeClusterRegions', async () => {
+    // graph-v3 R — the MCL iteration used communityColours; when we
+    // pivoted to theme-cluster regions the flag was renamed. Users who
+    // opted into the earlier flag keep their opt-in through the rename.
+    storage.set('ps_graph_lenses', JSON.stringify({ communityColours: true }))
+    setActivePinia(createPinia())
+    const { useGraphLensesStore } = await import('./graphLenses')
+    const s = useGraphLensesStore()
+    expect(s.themeClusterRegions).toBe(true)
+  })
+
+  it('themeClusterRegions in localStorage takes precedence over legacy communityColours', async () => {
+    storage.set(
+      'ps_graph_lenses',
+      JSON.stringify({ communityColours: true, themeClusterRegions: false }),
+    )
+    setActivePinia(createPinia())
+    const { useGraphLensesStore } = await import('./graphLenses')
+    const s = useGraphLensesStore()
+    expect(s.themeClusterRegions).toBe(false)
   })
 
   it('falls back to defaults when localStorage payload is malformed', async () => {
@@ -60,6 +95,8 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(false)
     expect(s.nodeSizeByDegree).toBe(true)
+    expect(s.themeClusterRegions).toBe(false)
+    expect(s.bridgeRing).toBe(true)
   })
 
   it('falls back to default for missing keys in a partial blob', async () => {
@@ -70,22 +107,33 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(true)
     expect(s.nodeSizeByDegree).toBe(true)
+    expect(s.themeClusterRegions).toBe(false)
+    expect(s.bridgeRing).toBe(true)
   })
 
-  it('resetToDefaults clears aggregatedEdges and restores V5 default (on)', async () => {
+  it('resetToDefaults restores V5 + V7 on, V1 + V6 off', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
     s.setNodeSizeByDegree(false)
+    s.setThemeClusterRegions(true)
+    s.setBridgeRing(false)
     s.resetToDefaults()
     expect(s.aggregatedEdges).toBe(false)
     expect(s.nodeSizeByDegree).toBe(true)
+    expect(s.themeClusterRegions).toBe(false)
+    expect(s.bridgeRing).toBe(true)
   })
 
-  it('exposes a flags computed that reads both flags atomically', async () => {
+  it('exposes a flags computed that reads all four flags atomically', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
-    expect(s.flags).toEqual({ aggregatedEdges: true, nodeSizeByDegree: true })
+    expect(s.flags).toEqual({
+      aggregatedEdges: true,
+      nodeSizeByDegree: true,
+      themeClusterRegions: false,
+      bridgeRing: true,
+    })
   })
 })

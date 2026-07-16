@@ -33,6 +33,7 @@ import { useActiveSearchContextStore } from '../../stores/activeSearchContext'
 import { useShellStore } from '../../stores/shell'
 import { useThemeStore } from '../../stores/theme'
 import type { RawGraphNode } from '../../types/artifact'
+import type { TopicClustersDocument } from '../../api/corpusTopicClustersApi'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
 import {
   findEpisodeGraphNodeIdForMetadataPath,
@@ -996,6 +997,140 @@ function applyGraphSelectionDimFromNode(core: Core, node: NodeSingular): void {
   })
 }
 
+/** graph-v3 U — number of theme-region colour classes emitted by the
+ *  stylesheet. Cluster IDs hash into `[0, THEME_REGION_PALETTE_SIZE)` so
+ *  different corpora reuse the same palette deterministically. Kept
+ *  small (8) so the canvas doesn't paint dozens of near-identical hues. */
+const THEME_REGION_PALETTE_SIZE = 8
+
+/** Stable, cheap hash → palette index. Djb2-style so the same
+ *  `thc:...` id always maps to the same colour across sessions and
+ *  browsers (no `Math.random`, no `Date.now`). */
+function themeRegionIndex(clusterId: string): number {
+  let h = 0
+  for (let i = 0; i < clusterId.length; i++) {
+    h = (h * 31 + clusterId.charCodeAt(i)) | 0
+  }
+  return Math.abs(h) % THEME_REGION_PALETTE_SIZE
+}
+
+/** Extract the bare topic id suffix from a merged-graph node id so we
+ *  can match against `topic_theme_clusters.json` member ids that come
+ *  without the `g:` / `k:` layer prefix. */
+function bareTopicIdFromNode(n: NodeSingular): string {
+  const id = String(n.id() ?? '')
+  const colon = id.lastIndexOf(':topic:')
+  if (colon >= 0) return id.slice(colon + 1)
+  return id.startsWith('topic:') ? id : id
+}
+
+/** Extract the bare episode id suffix. Merged graph episodes are keyed
+ *  as `__unified_ep__:<episode_id>`; the artifact stores raw ids. */
+function bareEpisodeIdFromNode(n: NodeSingular): string {
+  const id = String(n.id() ?? '')
+  const prefix = '__unified_ep__:'
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id
+}
+
+/** graph-v3 R-V — paint theme-cluster regions using the corpus
+ *  `topic_theme_clusters.json` artifact (already loaded by the
+ *  artifacts store). The enricher emits deterministic, labelled
+ *  discourse clusters (co-occurrence lift + average-linkage); the
+ *  viewer's job is to propagate that membership from Topics + Episodes
+ *  (both fields present in the artifact) to their connected Insights,
+ *  Persons, Orgs, and Podcasts, then apply a hash-based `theme-region-N`
+ *  class the stylesheet paints as a soft underlay tint.
+ *
+ *  Multi-membership: cluster iteration order (doc order = member_count
+ *  desc from the enricher) is stable and deterministic; first cluster
+ *  a node touches wins, so a node that spans two themes joins the
+ *  larger one. Enricher-gated: no-op when the artifact is absent. */
+function applyThemeRegionClasses(
+  core: Core,
+  doc: TopicClustersDocument | null,
+): void {
+  if (!doc?.clusters?.length) return
+  const clusters = doc.clusters
+
+  core.batch(() => {
+    // Clear all region classes first (idempotent — safe to call after a toggle).
+    for (let i = 0; i < THEME_REGION_PALETTE_SIZE; i++) {
+      core.nodes().removeClass(`theme-region-${i}`)
+    }
+
+    const tagged = new Set<string>()
+
+    for (const cluster of clusters) {
+      const clusterId = cluster?.graph_compound_parent_id?.trim() ?? ''
+      if (!clusterId) continue
+      const cls = `theme-region-${themeRegionIndex(clusterId)}`
+
+      // Seed: Topics (matched by suffix) + Episodes (matched by id from
+      // member.episode_ids). Both fields are present in the artifact.
+      const seed = new Set<string>()
+      const memberTopicIds = new Set<string>()
+      const memberEpisodeIds = new Set<string>()
+      for (const m of cluster.members ?? []) {
+        const tid = typeof m?.topic_id === 'string' ? m.topic_id.trim() : ''
+        if (tid) memberTopicIds.add(tid)
+        for (const eid of m?.episode_ids ?? []) {
+          if (typeof eid === 'string' && eid.trim()) memberEpisodeIds.add(eid.trim())
+        }
+      }
+      core.nodes('[type = "Topic"]').forEach((n) => {
+        if (memberTopicIds.has(bareTopicIdFromNode(n))) seed.add(n.id())
+      })
+      core.nodes('[type = "Episode"]').forEach((n) => {
+        if (memberEpisodeIds.has(bareEpisodeIdFromNode(n))) seed.add(n.id())
+      })
+
+      // One-hop propagation to Insights via ABOUT/HAS_INSIGHT edges;
+      // two-hop to Persons/Orgs via MENTIONS_* + to Podcasts via
+      // HAS_EPISODE. Neighborhood() traverses without direction so both
+      // ABOUT (Insight→Topic) and HAS_INSIGHT (Episode→Insight) fire.
+      const toTag = new Set(seed)
+      seed.forEach((seedId) => {
+        const seedNode = core.$id(seedId)
+        if (seedNode.empty()) return
+        const seedType = seedNode.data('type')
+        if (seedType === 'Topic') {
+          seedNode.neighborhood('node[type = "Insight"]').forEach((insight) => {
+            toTag.add(insight.id())
+            insight
+              .neighborhood(
+                'node[type = "Entity_person"], node[type = "Entity_organization"]',
+              )
+              .forEach((entity) => toTag.add(entity.id()))
+          })
+        } else if (seedType === 'Episode') {
+          seedNode
+            .neighborhood('node[type = "Podcast"]')
+            .forEach((pod) => toTag.add(pod.id()))
+          seedNode
+            .neighborhood('node[type = "Insight"]')
+            .forEach((insight) => toTag.add(insight.id()))
+        }
+      })
+
+      // First-cluster-wins tagging (see fn docstring for multi-membership rule).
+      toTag.forEach((id) => {
+        if (tagged.has(id)) return
+        tagged.add(id)
+        const n = core.$id(id)
+        if (!n.empty()) n.addClass(cls)
+      })
+    }
+  })
+}
+
+function clearThemeRegionClasses(core: Core): void {
+  core.batch(() => {
+    for (let i = 0; i < THEME_REGION_PALETTE_SIZE; i++) {
+      core.nodes().removeClass(`theme-region-${i}`)
+    }
+  })
+}
+
 /** graph-v3 K — bridge nodes via normalized betweenness centrality.
  *  Runs once post-layout. Semantically-eligible node types (Topic,
  *  Podcast, Entity_person, Entity_organization) with betweenness above
@@ -1526,7 +1661,16 @@ function finishLayoutPass(core: Core): void {
 
   recomputeDegreeHistogram(cy)
   applyTopicDegreeHeat(cy)
-  applyBridgeNodeClass(cy)
+  if (lenses.bridgeRing) {
+    applyBridgeNodeClass(cy)
+  } else {
+    cy.nodes().removeClass('graph-bridge')
+  }
+  if (lenses.themeClusterRegions) {
+    applyThemeRegionClasses(cy, artifacts.themeClustersDoc)
+  } else {
+    clearThemeRegionClasses(cy)
+  }
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
   // Clear the fit request flag after applying viewport (fit or preserve)
@@ -3842,6 +3986,48 @@ watch(
       applyViewportPreserveOrFit(c, snap)
       lastZoomLevel = c.zoom()
       updateZoomPercentDisplay(c)
+    })
+  },
+)
+
+/* graph-v3 R-V — lens toggles for theme-cluster regions + bridge take
+   effect without a full re-layout. Class add/remove only, so pan / zoom /
+   selection state is preserved. Also watches the theme-cluster doc
+   itself: switching corpora reloads the artifact, so the region tint
+   needs to refresh even if the lens flag hasn't changed. */
+watch(
+  () => lenses.themeClusterRegions,
+  (on) => {
+    safeGraphWatch('themeClusterRegions', () => {
+      const c = cy
+      if (!c) return
+      if (on) applyThemeRegionClasses(c, artifacts.themeClustersDoc)
+      else clearThemeRegionClasses(c)
+    })
+  },
+)
+
+watch(
+  () => artifacts.themeClustersDoc,
+  () => {
+    safeGraphWatch('themeClustersDoc', () => {
+      const c = cy
+      if (!c) return
+      if (lenses.themeClusterRegions) {
+        applyThemeRegionClasses(c, artifacts.themeClustersDoc)
+      }
+    })
+  },
+)
+
+watch(
+  () => lenses.bridgeRing,
+  (on) => {
+    safeGraphWatch('bridgeRing', () => {
+      const c = cy
+      if (!c) return
+      if (on) applyBridgeNodeClass(c)
+      else c.nodes().removeClass('graph-bridge')
     })
   },
 )

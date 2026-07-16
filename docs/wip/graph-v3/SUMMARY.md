@@ -110,7 +110,30 @@ already at idealEdgeLength 120.
 ## Not done (still)
 
 - Speaker + Quote shape live-verify — pending a corpus that emits either.
-- Community detection / Louvain colour blobs — user directed to defer this to after
-  I/J/K/L/M land. Next candidate tier.
 - Halo colour on light-theme graph canvas is still `--ps-graph-canvas` = `--ps-canvas`
   (i.e. same as canvas). That's correct; noting for completeness.
+
+## Tier 4 — N (dropped MCL), R/S/T/U/V/Q — theme-cluster regions + lens menu
+
+Reused the enrichment layer's existing `topic_theme_clusters` output instead
+of reinventing community detection in the browser. Operator recognised the
+overlap: our "community" concept ≈ their existing "themed topics", already
+built as an enricher (co-occurrence lift + average-linkage → `thc:...` compound
+ids with human labels like "AI-and-jobs", "energy storyline"). MCL prototype
+(N/O) was reverted; visual + UX target stayed the same.
+
+| # | Change | Files | Notes |
+|---|---|---|---|
+| N (reverted) | MCL client-side community detection | (deleted in R) | Proved the wrong signal on a bipartite graph — 94 mini-clusters, top-8 covered only 27% of nodes. Kept the palette + stylesheet shape, threw away the algorithm. |
+| R | Delete `applyCommunityClasses` / `clearCommunityClasses` + `community-N` selectors | `components/graph/GraphCanvas.vue`, `utils/cyGraphStylesheet.ts` | Straight refactor into theme-region form. |
+| S | Copy `topic_theme_clusters.json` from sibling worktree | `.test_outputs/manual/prod-v2/corpus/enrichments/` (gitignored data) | Sibling `podcast_scraper-ai-ml-improvements/` had run the enricher against prod-v2; our worktree hadn't. Same corpus data, one-line `cp`. API confirmed 6 clusters (interest rates, ai agents, future of work, quantum computing, employee engagement, tech industry). |
+| T | Propagate `theme-region-N` class from Topic + Episode seeds to Insights → Persons/Orgs, Episode → Podcasts | `components/graph/GraphCanvas.vue` `applyThemeRegionClasses` | Seed uses both `member.topic_id` matching and `member.episode_ids` from the artifact. First-cluster-wins tagging. 161 nodes tagged on prod-v2 across 4 hash-buckets. |
+| U | Palette + underlay selectors renamed `community-N` → `theme-region-N`, keyed by hash of `graph_compound_parent_id` | `utils/cyGraphStylesheet.ts` | 8 pastel hues around HSL, sat 45% / light 65%, opacity 0.14. Same `thc:...` id maps to the same colour across sessions (djb2-style hash). |
+| V | Rename lens flag `communityColours` → `themeClusterRegions` + legacy-key migration | `stores/graphLenses.ts` + tests | Users who opted into the earlier flag retain their opt-in through the rename. |
+| Q | `GraphLensesChip` popover in the graph bottom bar | `components/graph/chips/GraphLensesChip.vue` + `GraphBottomBar.vue` | 4 lens rows (Size by connectivity, Bridge nodes, Theme regions, Aggregated edges) with description text + reset. Theme regions row is **hidden entirely** when `artifacts.themeClustersDoc === null` — enricher-gated per operator direction. |
+
+Enricher-gated pattern: `GET /api/corpus/theme-clusters` already returns 404 /
+missing when the artifact isn't present; the viewer artifacts store surfaces
+that as `themeClustersDoc === null`; the chip filters the row out. Same
+pattern extends naturally to future lens/enricher pairs (`aggregatedEdges` V1
+could gate on aggregate-edge presence in the artifact — deferred).

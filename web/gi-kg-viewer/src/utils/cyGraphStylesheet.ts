@@ -827,6 +827,43 @@ export function buildGiKgCyStylesheet(options?: {
     },
   })
 
+  /* graph-v3 U — theme-cluster region underlay tint. Cytoscape
+     `underlay-*` renders a translucent disc BEHIND the node body, so
+     type colour + shape + size stay 100% legible on top. High padding
+     + low opacity makes adjacent same-region nodes' underlays overlap
+     into blob-like regions (InfraNodus feel).
+     Classes `theme-region-0..7` are assigned by GraphCanvas'
+     applyThemeRegionClasses via a stable hash of the cluster's
+     `graph_compound_parent_id`, so the same thc:… id always paints the
+     same colour across sessions. Palette: 8 pastel hues evenly spaced
+     around HSL, saturation ~45%, lightness ~65% — at 0.14 opacity
+     they read as soft coloured mist against the darker canvas.
+     Selectors ordered before interaction-state rules so search-hit /
+     selection borders still win visually. */
+  const themeRegionPalette = [
+    '#7ba3d9', // 210° cool blue
+    '#d9d97b', // 60°  warm yellow
+    '#d97ba3', // 330° warm pink
+    '#7bd9a3', // 150° cool green
+    '#d9a37b', // 30°  warm orange
+    '#a37bd9', // 270° cool purple
+    '#a3d97b', // 90°  cool lime
+    '#7bd9d9', // 180° cool cyan
+  ]
+  const underlayOpacity = compact ? 0.1 : 0.14
+  const underlayPadding = compact ? 8 : 14
+  themeRegionPalette.forEach((hex, i) => {
+    style.push({
+      selector: `node.theme-region-${i}`,
+      style: {
+        'underlay-color': hex,
+        'underlay-opacity': underlayOpacity,
+        'underlay-padding': underlayPadding,
+        'underlay-shape': 'ellipse',
+      },
+    })
+  })
+
   if (options?.includeSearchHit) {
     style.push({
       selector: 'node.search-hit',
