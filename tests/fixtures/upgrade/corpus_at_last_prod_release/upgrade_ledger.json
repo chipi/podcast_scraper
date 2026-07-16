@@ -1,0 +1,20 @@
+{
+  "applied": [
+    {
+      "at": "2026-07-11T00:00:00Z",
+      "id": "0001_faiss_to_lance",
+      "to_version": "2.7.0"
+    },
+    {
+      "at": "2026-07-11T00:00:00Z",
+      "id": "0002_two_tier_native_reindex",
+      "to_version": "2.7.0"
+    },
+    {
+      "at": "2026-07-11T00:00:00Z",
+      "id": "0003_gi_v3_typed_mentions",
+      "to_version": "2.7.1"
+    }
+  ],
+  "version": "2.7.1"
+}

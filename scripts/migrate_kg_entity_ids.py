@@ -4,6 +4,14 @@
 Idempotent. Back up your corpus before running. Example:
 
   python scripts/migrate_kg_entity_ids.py input.kg.json -o output.kg.json
+
+Status (see #1176): historical one-shot for the pre-RFC-097 KG id / kind
+normalisation (v1.x → v1.2). The read-time shim ``migrate_kg_document`` in
+``src/podcast_scraper/migrations/gil_kg_identity_migrations.py`` handles the
+same rewrite transparently at read time; ``migrate_kg_document_v2`` chains
+this into the RFC-097 v2 KG shape. No framework migration wraps this
+script yet — add one (``upgrade/migrations/mNNNN_kg_v2_entity_typing.py``)
+if you find corpora in the wild that need it in place.
 """
 
 from __future__ import annotations

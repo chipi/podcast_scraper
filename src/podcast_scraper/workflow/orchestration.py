@@ -956,6 +956,23 @@ def _both_providers_use_mps(
             # API providers don't use MPS (API-based)
             transcription_uses_mps = False
 
+    # Short-circuit: if the transcription side already resolved to not-MPS
+    # (post-#1145 transformers-v5 fix, Whisper local is coerced to CPU so
+    # this is now the common case), skip the summarization probe. Avoids
+    # emitting the #1180 fallback WARNING for a decision the function has
+    # already made. Also brings the function back under the cognitive-
+    # complexity budget.
+    if not transcription_uses_mps:
+        return False
+    return _summarization_uses_mps(cfg, summary_provider)
+
+
+def _summarization_uses_mps(cfg: config.Config, summary_provider: Any) -> bool:
+    """Probe whether the summarization stage will run on MPS (Issue #387).
+
+    Extracted from ``_both_providers_use_mps`` (see #1180 audit) so the parent
+    stays under the cognitive-complexity budget; behaviour is unchanged.
+    """
     # Check summarization stage device (Issue #387)
     # Stage-level device overrides provider-specific device
     summarization_uses_mps = False
@@ -981,30 +998,49 @@ def _both_providers_use_mps(
                 # Fallback: check summary_device from config
                 if not summarization_uses_mps and cfg.summary_device:
                     summarization_uses_mps = cfg.summary_device == "mps"
-                # Final fallback: auto-detect if MPS is available (when device not explicitly set)
+                # Final fallback: auto-detect if MPS is available (when device not explicitly set).
+                # #1180 gap 5: models may be unloaded at pipeline setup time, so we cannot query
+                # their actual device. Assuming MPS-when-available prevents crashes but silently
+                # over-serializes when the provider will resolve to CPU. Log a WARNING so the
+                # operator can trace a low processing_overlap_ratio back to this decision.
                 if not summarization_uses_mps and not cfg.summary_device:
                     try:
                         import torch
 
                         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
                             summarization_uses_mps = True
+                            logger.warning(
+                                "MPS-exclusive check: summarization provider models "
+                                "unloaded at setup time; falling back to "
+                                "torch.backends.mps.is_available()=True. If the provider "
+                                "will actually run on CPU, this over-serializes and disables "
+                                "audio↔LLM overlap. Set cfg.summarization_device or "
+                                "cfg.summary_device explicitly, or cfg.mps_exclusive=False, "
+                                "to override. See #1180 audit."
+                            )
                     except ImportError:
                         summarization_uses_mps = False
             except Exception:
                 # If attributes don't exist or fail, check config
                 if cfg.summary_device:
                     summarization_uses_mps = cfg.summary_device == "mps"
-                # Final fallback: auto-detect if MPS is available
+                # Final fallback: auto-detect if MPS is available (see #1180 gap 5 comment
+                # above — the same over-serialize / silent-overlap-loss risk applies here).
                 elif not cfg.summary_device:
                     try:
                         import torch
 
                         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
                             summarization_uses_mps = True
+                            logger.warning(
+                                "MPS-exclusive check: summarization provider raised while "
+                                "probing model device; falling back to "
+                                "torch.backends.mps.is_available()=True. See #1180 audit."
+                            )
                     except ImportError:
                         summarization_uses_mps = False
 
-    return transcription_uses_mps and summarization_uses_mps
+    return summarization_uses_mps
 
 
 class _FeedMetadata(NamedTuple):
@@ -1629,6 +1665,19 @@ def _finalize_pipeline(
         Tuple of (count, summary) from generate_pipeline_summary
     """
     wf_helpers.cleanup_pipeline(temp_dir=transcription_resources.temp_dir)
+    # #1180: compute overlap / busy ratios BEFORE log_metrics + save so both
+    # export paths see the final numbers. finalize_parallelism_snapshot is
+    # idempotent — safe if a caller ever calls this twice.
+    try:
+        pipeline_metrics.finalize_parallelism_snapshot(
+            pipeline_wall_seconds=pipeline_metrics.run_duration_seconds or None
+        )
+        # #1180 gap 4: single INFO line so the ratios show up in normal logs,
+        # not just the DEBUG dump inside log_metrics. Guarded so the run
+        # completes even if the summary emission itself raises.
+        pipeline_metrics.log_parallelism_summary()
+    except Exception:  # pragma: no cover - observability must never break the run
+        logger.debug("finalize_parallelism_snapshot failed (non-fatal)", exc_info=True)
     pipeline_metrics.log_metrics()
     _log_episode_results(pipeline_metrics, episodes)
     metrics_path = _finalize_metrics_path(cfg, effective_output_dir)

@@ -329,6 +329,40 @@ pools.
 
 **It helps:** GPU vs CPU isolation; **backlog** isolation across queues.
 
+### B.6a Per-feed concurrency model (audio↔LLM overlap) (#1180)
+
+Within a single `run_pipeline(feed)` invocation the code already runs three
+concurrent threads with two queue handoffs:
+
+- **Main thread** — downloads + audio preprocessing. Backpressure via
+  `cfg.transcription_queue_size` on the transcription queue.
+- **TranscriptionProcessor thread** — consumes the transcription queue at
+  `cfg.transcription_parallelism` (default 1; local Whisper stays at 1,
+  API providers can scale).
+- **ProcessingProcessor thread** — consumes the LLM queue at
+  `cfg.processing_parallelism` (default 2). Runs metadata + summary + GI +
+  KG per episode. **Concurrent with audio work by design.**
+
+**Handoff:** the moment a transcript is saved, `stages/transcription.py`
+enqueues a `ProcessingJob` and the ProcessingProcessor picks it up while the
+next audio episode is still being transcribed. Not a stage barrier.
+
+**When audio and LLM DO serialize:** only when both run on Apple MPS
+(`should_serialize_mps`). On dedicated hardware (GPU + API/DGX) they overlap
+in full.
+
+**Cross-feed pipelining is currently OUT of scope.** `corpus_operations.py`
+runs feeds sequentially; feed-2 downloads do not start until feed-1's LLM
+tail has drained. Bigger change; separate RFC when we get there.
+
+**Observability of the overlap** — `workflow/metrics.py` reports
+`processing_overlap_ratio`, `processing_thread_busy_ratio`,
+`processing_thread_queue_idle_seconds`, `inline_processed_episodes_count`,
+`safety_net_processed_episodes_count`, and
+`handoff_latency_seconds_per_episode` on every run. Reader guides:
+[Pipeline and workflow](../guides/PIPELINE_AND_WORKFLOW.md#parallelism-observability-1180)
+and [Performance](../guides/PERFORMANCE.md#tuning-parallelism-1180).
+
 ### B.7 Named queues vs pipeline *steps* — two tiers
 
 This section defines two deployment tiers that coexist. The simple tier runs from day one; the

@@ -4,6 +4,15 @@
 Idempotent. Back up your corpus before running. Example:
 
   python scripts/migrate_gi_speaker_to_person.py input.gi.json -o output.gi.json
+
+Status (see #1176): historical one-shot for the pre-RFC-097 Speaker → Person
+naming migration (v1.x → v2.0 GI schema). The read-time shim
+``migrate_gil_document`` in
+``src/podcast_scraper/migrations/gil_kg_identity_migrations.py`` handles the same
+rewrite transparently at server / graph-build time, so serving a legacy corpus
+does not require running this script. Prefer ``make upgrade-corpus`` (framework
+path) when you own the corpus and can rewrite files. This script stays for
+one-off surgery on individual files.
 """
 
 from __future__ import annotations

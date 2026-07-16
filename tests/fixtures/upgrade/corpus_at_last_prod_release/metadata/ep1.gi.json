@@ -1,0 +1,63 @@
+{
+  "edges": [
+    {
+      "from": "insight:prod-1",
+      "to": "org:central-bank",
+      "type": "MENTIONS_ORG"
+    },
+    {
+      "from": "insight:prod-2",
+      "to": "person:priya-nair",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:prod-2",
+      "to": "quote:q1",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "insight:prod-1",
+      "properties": {
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "The central bank signaled a policy shift."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:prod-2",
+      "properties": {
+        "insight_type": "observation",
+        "position_hint": 0.5,
+        "text": "Analysts liked the decision."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:priya-nair",
+      "properties": {
+        "canonical_name": "Priya Nair"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "org:central-bank",
+      "properties": {
+        "canonical_name": "Central Bank"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "quote:q1",
+      "properties": {
+        "text": "a decisive move",
+        "timestamp_end_ms": 5000,
+        "timestamp_start_ms": 3000
+      },
+      "type": "Quote"
+    }
+  ],
+  "schema_version": "3.0"
+}

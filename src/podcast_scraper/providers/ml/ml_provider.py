@@ -50,6 +50,47 @@ logger = logging.getLogger(__name__)
 # from ..transcription.base import TranscriptionProvider  # noqa: F401
 
 
+_whisper_dtw_patched = False
+
+
+def _patch_whisper_dtw_for_mps(whisper_lib: ModuleType) -> None:
+    """Make ``word_timestamps=True`` work on Apple MPS.
+
+    ``openai-whisper``'s :func:`whisper.timing.dtw` (openai-whisper) calls
+    ``x.double().cpu().numpy()`` on the alignment tensor. MPS rejects the
+    ``.double()`` step ("Cannot convert a MPS Tensor to float64 dtype…")
+    which is why the Whisper provider previously coerced MPS → CPU whenever
+    the pipeline uses ``word_timestamps=True`` (needed for #1173
+    segment-timestamp fidelity).
+
+    Swap the operation order: ``.cpu()`` first (MPS → CPU is cheap and
+    lossless), then ``.double()`` on the CPU tensor. Behaviour-neutral for
+    CUDA (untouched) and CPU (``.cpu()`` is a no-op there); enables MPS.
+
+    Idempotent — safe to call multiple times.
+    """
+    global _whisper_dtw_patched
+    if _whisper_dtw_patched:
+        return
+    try:
+        timing = importlib.import_module("whisper.timing")
+    except ImportError:
+        return
+    orig_dtw = getattr(timing, "dtw", None)
+    dtw_cpu = getattr(timing, "dtw_cpu", None)
+    if orig_dtw is None or dtw_cpu is None:
+        return
+
+    def _dtw_mps_safe(x):  # type: ignore[no-untyped-def]
+        if x.is_cuda:
+            return orig_dtw(x)
+        return dtw_cpu(x.cpu().double().numpy())
+
+    timing.dtw = _dtw_mps_safe
+    _whisper_dtw_patched = True
+    logger.debug("Patched whisper.timing.dtw for MPS float64 compatibility")
+
+
 def _import_third_party_whisper() -> ModuleType:
     """Import the external whisper library from openai-whisper package."""
     # Check if whisper is already imported
@@ -57,6 +98,12 @@ def _import_third_party_whisper() -> ModuleType:
     if existing is not None:
         # Verify it's the real library by checking for load_model function
         if hasattr(existing, "load_model"):
+            # #1180 MPS: apply the DTW patch every time, not just on first import.
+            # Tests / other callers may import whisper directly before we get
+            # here; without this call the patch would silently skip and the
+            # MPS float64 crash would re-surface (idempotent-safe — guarded by
+            # ``_whisper_dtw_patched``).
+            _patch_whisper_dtw_for_mps(existing)
             return existing
         # If it's not the real library, remove it and try again
         sys.modules.pop("whisper", None)
@@ -70,6 +117,7 @@ def _import_third_party_whisper() -> ModuleType:
                 "Imported 'whisper' module does not have 'load_model' function. "
                 "Make sure 'openai-whisper' is installed: pip install openai-whisper"
             )
+        _patch_whisper_dtw_for_mps(whisper_lib)
         return whisper_lib
     except ImportError as exc:
         # Re-raise with clearer error message
@@ -450,45 +498,43 @@ class MLProvider:
         Updated to check stage-level device config (transcription_device) first,
         which overrides provider-specific device (whisper_device).
 
+        The historical ``_no_mps`` coercion was removed once the underlying
+        cause of the "Cannot convert a MPS Tensor to float64" crash was traced
+        to ``openai-whisper``'s DTW alignment step doing ``.double().cpu()``
+        instead of ``.cpu().double()``. That single re-ordering is now patched
+        in :func:`_patch_whisper_dtw_for_mps` at import time, so MPS is a
+        valid Whisper device again — including with ``word_timestamps=True``
+        (needed for #1173 segment-timestamp fidelity).
+
         Returns:
             Device string: 'mps', 'cuda', or 'cpu'
         """
-
-        # transformers-v5 Whisper (#1145) requests float64 during feature extraction, which Apple's
-        # Metal (MPS) backend rejects ("Cannot convert a MPS Tensor to float64"). So MPS is NOT a
-        # valid Whisper device: coerce any mps → cpu (a Mac dev box transcribes on CPU, slower, but
-        # does not crash). CUDA / CPU are unaffected, so CI (Linux/CUDA) and the DGX are unchanged.
-        def _no_mps(dev: str) -> str:
-            if dev == "mps":
-                logger.warning(
-                    "Whisper does not support MPS (transformers-v5 uses float64, which Metal "
-                    "rejects); transcribing on CPU instead"
-                )
-                return "cpu"
-            return dev
-
         # Stage-level device config takes precedence (Issue #387)
         if self.cfg.transcription_device:
             logger.debug(
                 "Using stage-level transcription_device: %s", self.cfg.transcription_device
             )
-            return _no_mps(self.cfg.transcription_device.lower())
+            return self.cfg.transcription_device.lower()
         # Fallback to provider-specific device config
         if self.cfg.whisper_device:
             logger.debug("Using configured whisper_device: %s", self.cfg.whisper_device)
-            return _no_mps(self.cfg.whisper_device.lower())
+            return self.cfg.whisper_device.lower()
 
-        # Auto-detect: CUDA (NVIDIA) > CPU. MPS is skipped (see _no_mps).
+        # Auto-detect: CUDA (NVIDIA) > MPS (Apple Silicon) > CPU.
         try:
             import torch
 
             if torch.cuda.is_available():
                 logger.debug("Auto-detected CUDA for Whisper")
                 return "cuda"
+            mps_backend = getattr(torch.backends, "mps", None)
+            if mps_backend is not None and mps_backend.is_available():
+                logger.debug("Auto-detected MPS (Apple Silicon) for Whisper")
+                return "mps"
         except ImportError:
             pass
 
-        logger.debug("Using CPU for Whisper (no CUDA GPU; MPS unsupported for Whisper)")
+        logger.debug("Using CPU for Whisper (no CUDA GPU / MPS backend)")
         return "cpu"
 
     def _initialize_whisper(self) -> None:  # noqa: C901

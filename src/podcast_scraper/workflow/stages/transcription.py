@@ -59,6 +59,17 @@ from . import metadata as metadata_stage
 logger = logging.getLogger(__name__)
 
 
+def _stamp_tx_active(pm: Optional[Any], start: float) -> None:
+    """Emit the (start, now) transcription-thread interval to metrics (#1180).
+
+    Extracted so `_process_single_job` can call it inline at each return site
+    without pushing its cognitive complexity up. A no-op when metrics is None
+    (test paths, dry-run).
+    """
+    if pm is not None:
+        pm.record_transcription_thread_active(start, time.monotonic())
+
+
 def setup_transcription_resources(
     cfg: config.Config,
     effective_output_dir: str,
@@ -390,7 +401,14 @@ def process_transcription_jobs_concurrent(  # noqa: C901
 
         Returns:
             Tuple of (success, transcript_path, bytes_downloaded)
+
+        #1180: brackets the actual work with a monotonic-clock interval so the
+        end-of-run overlap ratio can be computed. Works for both the sequential
+        (max_workers <= 1) and ThreadPoolExecutor paths — every job goes through
+        here. The interval record fires from a helper (``_stamp_tx_active``) so
+        this function's cognitive complexity is unchanged by the addition.
         """
+        _tx_active_start = time.monotonic()
         try:
             success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                 job,
@@ -425,6 +443,8 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                             transcript_source="whisper_transcription",
                             detected_names=detected_names_for_ep,
                             whisper_model=cfg.whisper_model,
+                            # #1180: stamp for handoff-latency measurement.
+                            queued_at=time.monotonic(),
                         )
                         # Queue processing job (processing thread will pick it up)
                         if processing_resources.processing_jobs_lock:
@@ -436,6 +456,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                             "Queued processing job for episode %s (whisper_transcription)",
                             episode_obj.idx,
                         )
+            _stamp_tx_active(pipeline_metrics, _tx_active_start)
             return success, transcript_path, bytes_downloaded
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
@@ -458,6 +479,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                         error_type=type(exc).__name__,
                         error_message=redact_for_log(str(exc), max_len=500),
                     )
+            _stamp_tx_active(pipeline_metrics, _tx_active_start)
             return False, None, 0
 
     # Process jobs as they become available from the queue

@@ -11,7 +11,7 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, Callable, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
 
@@ -76,6 +76,42 @@ from ..types import (
 from . import metadata as metadata_stage
 
 logger = logging.getLogger(__name__)
+
+
+def _sleep_and_tally_idle(pm: Optional[Any], seconds: float) -> None:
+    """Sleep then record the elapsed time as processing-thread queue-idle (#1180).
+
+    Extracted so ``process_processing_jobs_concurrent`` stays within its
+    cognitive-complexity budget. A no-op on the metrics side when ``pm`` is
+    ``None``.
+    """
+    start = time.monotonic()
+    time.sleep(seconds)
+    if pm is not None:
+        pm.record_processing_queue_idle_time(time.monotonic() - start)
+
+
+def _time_processing_job(
+    pm: Optional[Any],
+    job: ProcessingJob,
+    run: "Callable[[ProcessingJob], bool]",
+) -> bool:
+    """Wrap a per-episode processing invocation with #1180 instrumentation.
+
+    Records: (a) the ProcessingProcessor thread's active interval around the
+    call, (b) an inline-processed episode counter, and (c) the handoff latency
+    from ``job.queued_at`` to now. Kept as a module-level helper so both the
+    sequential and parallel call sites stay inside their cognitive-complexity
+    budgets — see #1180 audit.
+    """
+    start = time.monotonic()
+    if pm is not None and job.queued_at is not None:
+        pm.record_handoff_latency(start - job.queued_at)
+    result = run(job)
+    if pm is not None:
+        pm.record_processing_thread_active(start, time.monotonic())
+        pm.record_inline_processed_episode()
+    return result
 
 
 def _enforce_cost_soft_cap_after_episode(
@@ -910,6 +946,7 @@ def _handle_episode_download_result(
                 transcript_source=transcript_source_typed,
                 detected_names=detected_names,
                 whisper_model=None,  # Direct downloads don't use Whisper
+                queued_at=time.monotonic(),  # #1180 handoff-latency stamp
             )
             # Queue processing job (processing thread will pick it up)
             if processing_resources.processing_jobs_lock:
@@ -1100,6 +1137,7 @@ def _process_episodes_concurrent(
                                 transcript_source=transcript_source_typed,
                                 detected_names=detected_names_for_ep,
                                 whisper_model=None,  # Direct downloads don't use Whisper
+                                queued_at=time.monotonic(),  # #1180 handoff-latency stamp
                             )
                             # Queue processing job (processing thread will pick it up)
                             if processing_resources.processing_jobs_lock:
@@ -1434,8 +1472,13 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     break
 
                 # Wait a bit before checking again
-                # Track queue wait time (Issue #387)
+                # Track queue wait time (Issue #387) and, when the whole worker
+                # pool is idle (no futures pending), the #1180 processing-thread
+                # queue-idle counter. `len(futures) == 0` here means _submit_new_jobs
+                # found nothing to submit AND no future is in-flight — the
+                # ProcessingProcessor genuinely has no work.
                 queue_wait_start = time.time()
+                workers_all_idle = len(futures) == 0
                 if not (transcription_complete_event and transcription_complete_event.is_set()):
                     time.sleep(0.1)
                     queue_wait_duration = time.time() - queue_wait_start
@@ -1444,6 +1487,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     queue_wait_duration = time.time() - queue_wait_start
                 if pipeline_metrics is not None:
                     pipeline_metrics.record_queue_wait_time(queue_wait_duration)
+                    if workers_all_idle:
+                        pipeline_metrics.record_processing_queue_idle_time(queue_wait_duration)
 
         return (jobs_processed_ok[0], jobs_processed_failed[0])
 
@@ -1602,13 +1647,18 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 )
             return False
 
+    # #1180: bind the wrapper once so both call sites (sequential + parallel
+    # via _run_parallel_processing_loop) go through the same instrumentation.
+    def _timed(job: ProcessingJob) -> bool:
+        return _time_processing_job(pipeline_metrics, job, _process_single_processing_job)
+
     # Process jobs as they become available
     if max_workers <= 1:
         # Sequential processing
         while True:
             current_job = _find_next_unprocessed_job()
             if current_job:
-                success = _process_single_processing_job(current_job)
+                success = _timed(current_job)
                 if success:
                     jobs_processed_ok += 1
                 else:
@@ -1644,18 +1694,23 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     # All jobs processed, exit
                     break
 
-            # Wait a bit before checking again
-            if not (transcription_complete_event and transcription_complete_event.is_set()):
-                time.sleep(0.1)
-            else:
-                time.sleep(0.05)
+            # Wait a bit before checking again. #1180: helper records the idle
+            # interval so this loop's cognitive complexity stays under budget.
+            _sleep_and_tally_idle(
+                pipeline_metrics,
+                (
+                    0.05
+                    if (transcription_complete_event and transcription_complete_event.is_set())
+                    else 0.1
+                ),
+            )
     else:
         # Parallel processing
         parallel_jobs_ok, parallel_jobs_failed = _run_parallel_processing_loop(
             processing_resources,
             processed_job_indices,
             processed_job_indices_lock,
-            _process_single_processing_job,
+            _timed,  # #1180: instrument every job through the sequential + parallel loops
             transcription_complete_event,
             max_workers,
         )

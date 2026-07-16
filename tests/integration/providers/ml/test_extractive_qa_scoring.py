@@ -99,8 +99,8 @@ class _FakeModel:
 
 def _backend(outside_logit: float = 0.0) -> QAEvidenceBackend:
     be = object.__new__(QAEvidenceBackend)
-    be.tokenizer = _FakeTokenizer()  # type: ignore[attr-defined]
-    be.model = _FakeModel(outside_logit)  # type: ignore[attr-defined]
+    be.tokenizer = _FakeTokenizer()  # type: ignore[attr-defined, assignment]
+    be.model = _FakeModel(outside_logit)  # type: ignore[attr-defined, assignment]
     return be
 
 

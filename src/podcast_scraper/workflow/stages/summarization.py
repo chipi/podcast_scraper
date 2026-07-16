@@ -35,6 +35,17 @@ from ..types import FeedMetadata, HostDetectionResult
 logger = logging.getLogger(__name__)
 
 
+def _tally_safety_net(pm: Optional[Any]) -> None:
+    """Bump the #1180 safety-net counter when metrics is available.
+
+    Extracted so ``summarize_single_episode`` — which is the safety-net
+    entry point — keeps its cognitive complexity budget while still surfacing
+    the "inline path silently skipped an episode" signal.
+    """
+    if pm is not None:
+        pm.record_safety_net_processed_episode()
+
+
 def _collect_episodes_for_summarization(
     episodes: List[Episode],  # type: ignore[valid-type]  # type: ignore[valid-type]
     download_args: Optional[List[Tuple]],
@@ -197,6 +208,13 @@ def summarize_single_episode(
         detected_names: Detected guest names for this episode (optional)
         pipeline_metrics: Metrics collector
     """
+    # #1180: this path is the safety-net summarizer. Any episode entering here
+    # was NOT summarized inline by the ProcessingProcessor — surface that so
+    # `finalize_parallelism_snapshot` can warn the operator (inline path silently
+    # skipping episodes is a real bug we want visibility on). Hidden in a helper
+    # so this function's cognitive complexity is unchanged.
+    _tally_safety_net(pipeline_metrics)
+
     # #1053: set the episode correlation id for THIS worker context so the summary's
     # LLM calls (via the provider cost choke point) stamp episode_id onto the Langfuse
     # span. A ContextVar (not a global) because episodes summarise in parallel workers.

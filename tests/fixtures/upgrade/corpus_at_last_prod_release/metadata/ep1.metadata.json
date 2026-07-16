@@ -1,0 +1,14 @@
+{
+  "episode": {
+    "episode_id": "ep1"
+  },
+  "feed": {
+    "feed_id": "legacy-fixture-feed"
+  },
+  "content": {
+    "transcript_file_path": "ep1.txt"
+  },
+  "grounded_insights": {
+    "artifact_path": "metadata/ep1.gi.json"
+  }
+}

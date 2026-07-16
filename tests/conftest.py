@@ -511,6 +511,12 @@ class MockHTTPResponse:
         for chunk in self._chunks:
             yield chunk
 
+    def iter_bytes(self, chunk_size=1):
+        # httpx.Response streaming API — the RSS downloader migrated to httpx
+        # in #1194, so its production streaming loop calls ``iter_bytes``.
+        for chunk in self._chunks:
+            yield chunk
+
     def close(self):
         return None
 

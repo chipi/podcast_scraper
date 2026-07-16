@@ -366,7 +366,9 @@ class TailnetDgxWhisperTranscriptionProvider:
             }
             if language:
                 data["language"] = language
-            with hardened_http_client(timeout_sec or self._timeout_sec) as client:
+            with hardened_http_client(
+                timeout_sec or self._timeout_sec, subsystem="dgx_whisper"
+            ) as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()

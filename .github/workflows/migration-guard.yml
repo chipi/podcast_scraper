@@ -1,0 +1,127 @@
+name: Migration guard
+
+# GitHub #1176 — sentinel check on PRs that touch on-disk artifact shapes
+# (schemas, format version, reader-support range) but do not add a matching
+# framework migration under ``src/podcast_scraper/upgrade/migrations/mNNNN_*.py``.
+#
+# Fail-closed to force the author to justify. Override via a PR-body line
+# ``migration-not-required: <reason>`` when the change is genuinely additive.
+#
+# See docs/guides/CORPUS_UPGRADE.md → "When is a migration required?" and
+# AGENTS.md → "Migrations — WHEN to add one" for the trigger surfaces.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - 'docs/architecture/gi/gi.schema.json'
+      - 'docs/architecture/kg/kg.schema.json'
+      - 'src/podcast_scraper/enrichment/_schema/enrichment.schema.json'
+      - 'config/corpus_snapshot_format.json'
+      - 'config/corpus_snapshot_reader_support.json'
+      - 'src/podcast_scraper/corpus_version.py'
+      - 'src/podcast_scraper/upgrade/migrations/**'
+      - 'src/podcast_scraper/upgrade/registry.py'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: migration-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need the merge-base for the diff below
+
+      - name: Detect sentinel touches + migration additions
+        id: detect
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Sentinel files: any change to these triggers the guard unless the
+          # PR also adds a migration or explicitly opts out.
+          SENTINELS=(
+            'docs/architecture/gi/gi.schema.json'
+            'docs/architecture/kg/kg.schema.json'
+            'src/podcast_scraper/enrichment/_schema/enrichment.schema.json'
+            'config/corpus_snapshot_format.json'
+            'config/corpus_snapshot_reader_support.json'
+            'src/podcast_scraper/corpus_version.py'
+          )
+
+          # Use the PR's own diff range so a merge queue re-run sees the same set.
+          DIFF="$(git diff --name-status "$BASE_SHA" "$HEAD_SHA")"
+          echo "PR diff (name-status):"
+          echo "$DIFF"
+          echo "---"
+
+          touched_sentinel=0
+          for f in "${SENTINELS[@]}"; do
+            if grep -qE "^[AM].*\s${f}$" <<<"$DIFF"; then
+              echo "SENTINEL TOUCHED: $f"
+              touched_sentinel=1
+            fi
+          done
+
+          # A "migration was added" iff a NEW file matches the mNNNN_ pattern
+          # under upgrade/migrations/. Regex must match `A src/.../mNNNN_*.py`.
+          if grep -qE '^A\s+src/podcast_scraper/upgrade/migrations/m[0-9]{4}_[^/]+\.py$' <<<"$DIFF"; then
+            echo "NEW MIGRATION ADDED (satisfies guard)"
+            migration_added=1
+          else
+            migration_added=0
+          fi
+
+          # Override marker in PR body: a single line `migration-not-required: <reason>`
+          # (case-insensitive; reason must be non-empty).
+          override=0
+          if grep -qiE '^\s*migration-not-required:\s*\S+' <<<"${PR_BODY:-}"; then
+            echo "OVERRIDE PRESENT: migration-not-required line in PR body"
+            override=1
+          fi
+
+          {
+            echo "touched_sentinel=$touched_sentinel"
+            echo "migration_added=$migration_added"
+            echo "override=$override"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Enforce
+        if: steps.detect.outputs.touched_sentinel == '1' && steps.detect.outputs.migration_added != '1' && steps.detect.outputs.override != '1'
+        run: |
+          cat <<'EOF' >&2
+          ::error::Migration guard: this PR changes a schema or corpus-format sentinel file
+          but does not add a matching framework migration under
+          src/podcast_scraper/upgrade/migrations/mNNNN_<name>.py.
+
+          Options to unblock:
+            1. Add a mNNNN_<name>.py migration + register it in registry.py.
+               See docs/guides/CORPUS_UPGRADE.md → "Adding a migration".
+            2. If the change is genuinely additive (a new optional field, a
+               new sidecar with tolerant reader), add this line to the PR
+               body to opt out:
+                   migration-not-required: <one-line reason>
+
+          The full trigger criteria are in AGENTS.md → "Migrations — WHEN to
+          add one" and docs/guides/CORPUS_UPGRADE.md → "When is a migration
+          required?".
+          EOF
+          exit 1
+
+      - name: Report
+        if: steps.detect.outputs.touched_sentinel == '1'
+        run: |
+          echo "Migration guard: sentinel touched;" \
+               "migration_added=${{ steps.detect.outputs.migration_added }}," \
+               "override=${{ steps.detect.outputs.override }}. Passing."

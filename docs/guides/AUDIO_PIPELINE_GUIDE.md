@@ -182,6 +182,35 @@ Full guide: [Troubleshooting](TROUBLESHOOTING.md).
 
 ---
 
+## Overlap with the LLM stage (#1180)
+
+Audio work (Whisper, diarization, screenplay formatting) does NOT block LLM
+work (metadata, summary, GI, KG) at the pipeline level. The orchestration
+starts a dedicated **ProcessingProcessor** thread that consumes a
+`processing_jobs` queue populated by the transcription thread the moment a
+transcript is saved. So `transcript(ep1) → LLM(ep1)` runs concurrently with
+`transcript(ep2)`.
+
+- **Knob:** `transcription_parallelism` (default 1) drives how many episodes
+  are transcribed simultaneously. **Whisper local is safest at 1** (GPU/CPU
+  contention). **API providers** (OpenAI, Deepgram, DGX) can safely go higher.
+- **Knob:** `processing_parallelism` (default 2) drives how many episodes are
+  in LLM work simultaneously. Rate-limit-bounded for API summarizers.
+
+**MPS exclusive mode** is the one place we deliberately serialize. When both
+Whisper AND local summarization run on Apple MPS (single GPU), the pipeline
+holds LLM work until all transcription is done (`stages/processing.py`
+`should_serialize_mps`). On dedicated hardware (Whisper on GPU + LLM via
+API/DGX) the two overlap in full.
+
+**How to check whether overlap is actually happening** — every run's summary
+JSON reports `processing_overlap_ratio`, `processing_thread_busy_ratio`,
+`processing_thread_queue_idle_seconds`, `inline_processed_episodes_count`,
+`safety_net_processed_episodes_count`, and
+`handoff_latency_seconds_per_episode`. Cross-referenced in
+[Pipeline and workflow](PIPELINE_AND_WORKFLOW.md#parallelism-observability-1180)
+and [Performance](PERFORMANCE.md#tuning-parallelism-1180).
+
 ## Related documents
 
 - [DEPENDENCIES_GUIDE.md](DEPENDENCIES_GUIDE.md) — `[ml]` / `[dev]` pyannote pins

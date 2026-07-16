@@ -87,7 +87,12 @@ def keepalive_socket_options(
     return opts
 
 
-def hardened_http_client(timeout: Any, *, headers: "Optional[dict[str, str]]" = None) -> Any:
+def hardened_http_client(
+    timeout: Any,
+    *,
+    headers: "Optional[dict[str, str]]" = None,
+    subsystem: str = "dgx_inference",
+) -> Any:
     """An ``httpx.Client`` hardened for long-blocking calls to a contended inference service.
 
     On top of the per-request fresh client + :func:`run_with_watchdog` deadline, this adds
@@ -102,19 +107,33 @@ def hardened_http_client(timeout: Any, *, headers: "Optional[dict[str, str]]" = 
     multi-minute GPU run, so any read deadline shorter than processing would false-abort a
     healthy call — the duration-scaled watchdog is the correct backstop.
 
+    Delegates transport construction to
+    :func:`podcast_scraper.net.outbound_http.create_client` so the DGX Whisper +
+    diarize multipart POSTs (this helper's only production consumers) honor
+    admin-configured proxy (#1129) and TLS trust (#1130) — including
+    ``verify=False`` and mTLS (``client_cert``/``client_key``) which env-mirror
+    doesn't cover. Before that wiring, those largest-egress requests silently
+    bypassed the outbound registry.
+
     Was named ``dgx_http_client`` until 2026-06-15; renamed to reflect that the helper
     has nothing DGX-specific in it.
     """
     try:
-        import httpx
+        import httpx  # noqa: F401 - fail loud on missing dep before touching factory
     except ImportError as exc:  # friendly, actionable error
         raise RuntimeError("httpx required for hardened_http_client") from exc
+
+    from podcast_scraper.net.outbound_http import create_client
 
     merged: dict[str, str] = {"Connection": "close"}
     if headers:
         merged.update(headers)
-    transport = httpx.HTTPTransport(socket_options=keepalive_socket_options())
-    return httpx.Client(timeout=timeout, transport=transport, headers=merged)
+    return create_client(
+        subsystem=subsystem,
+        socket_options=keepalive_socket_options(),
+        timeout=timeout,
+        headers=merged,
+    )
 
 
 __all__ = [

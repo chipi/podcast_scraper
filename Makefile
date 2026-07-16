@@ -228,6 +228,22 @@ help:
 	@echo "  make stack-test-cloud-thin  Stack-test (one-shot): cloud-thin (LLM) pipeline — build + pipeline-llm → up → seed → Playwright (cloud_thin); needs .env keys"
 	@echo "  make stack-test-down        Stack-test: tear down (STACK_TEST_DOWN_VOLUMES=1 to also drop corpus_data)"
 	@echo "  make stack-test-export      Stack-test: copy corpus_data volume → .stack-test-corpus/ for debug inspection"
+	@echo "  make restore-corpus         Pull a codespace-layout snapshot release from backup repo (via gh); extract to .codespace_corpus/"
+	@echo "  make restore-corpus-prod    Pull a prod-layout snapshot release from backup repo (via gh); extract to WORKSPACE_DIR/corpus/"
+	@echo "  make export-corpus          Pack a live corpus → portable snapshot.tgz + sibling manifest (no CI, no gh)"
+	@echo "                                Usage: make export-corpus CORPUS_DIR=<path> OUT=<file.tgz> [LAYOUT=codespace|prod]"
+	@echo "  make import-corpus          Validate + extract a local snapshot.tgz into a workspace (no network)"
+	@echo "                                Usage: make import-corpus FILE=<file.tgz> WORKSPACE_DIR=<parent> [LAYOUT=codespace|prod]"
+	@echo "  make upgrade-status         Show pending corpus-upgrade migrations (human-readable)"
+	@echo "                                Usage: make upgrade-status CORPUS_DIR=<path>"
+	@echo "  make upgrade-check          Same as upgrade-status but --json; exits 2 when migrations are pending (CI-gate)"
+	@echo "                                Usage: make upgrade-check CORPUS_DIR=<path>"
+	@echo "  make upgrade-dry-run        Preview what upgrade-corpus would do without writing anything"
+	@echo "                                Usage: make upgrade-dry-run CORPUS_DIR=<path>"
+	@echo "  make upgrade-corpus         Apply pending migrations (non-interactive, --yes); idempotent"
+	@echo "                                Usage: make upgrade-corpus CORPUS_DIR=<path>"
+	@echo "  make upgrade-verify         Verify applied migrations against the ledger"
+	@echo "                                Usage: make upgrade-verify CORPUS_DIR=<path>"
 	@echo "  make docker-test        Build and test Docker image"
 	@echo "  make docker-clean       Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
@@ -610,7 +626,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1031,10 +1047,10 @@ corpus-snapshot-select-tag:
 	bash scripts/ops/corpus_snapshot/select_release_tag.sh
 
 corpus-snapshot-selftest:
-	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_stack_contract_restore_scripts.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
+	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_stack_contract_restore_scripts.py tests/unit/scripts/test_corpus_local_export_import.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
 
 corpus-snapshot-integration:
-	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_corpus_snapshot_integration.py tests/unit/scripts/test_stack_contract_restore_scripts.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
+	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_corpus_snapshot_integration.py tests/unit/scripts/test_stack_contract_restore_scripts.py tests/unit/scripts/test_corpus_local_export_import.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
 
 # Pull a corpus snapshot from chipi/podcast_scraper-backup (or PODCAST_BACKUP_REPO)
 # and untar into ``.codespace_corpus/`` (the workspace-survives-suspend path that
@@ -1064,6 +1080,28 @@ restore-corpus-prod:
 	@WORKSPACE_DIR="$${WORKSPACE_DIR:-/srv/podcast-scraper}"; \
 	export WORKSPACE_DIR PODCAST_BACKUP_REPO PODCAST_BACKUP_TAG TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; \
 	bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout prod
+
+# Local, instance-to-instance corpus portability (#1175). Same tarball format as
+# backup-corpus.yml — the resulting artifact is consumable by the CI restore path
+# and vice versa. No `gh` dependency on either side; user owns the transport.
+# See docs/guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md for the SSOT matrix.
+export-corpus:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus root — parent containing feeds.spec.yaml)"; exit 1); \
+	test -n "$${OUT:-}" || (echo "OUT required (output tarball path — e.g. /tmp/snapshot.tgz)"; exit 1); \
+	LAYOUT="$${LAYOUT:-codespace}"; \
+	bash scripts/ops/corpus_snapshot/pack_corpus_local.sh \
+	  --corpus-dir "$${CORPUS_DIR}" \
+	  --out "$${OUT}" \
+	  --layout "$${LAYOUT}"
+
+import-corpus:
+	@test -n "$${FILE:-}" || (echo "FILE required (path to snapshot.tgz)"; exit 1); \
+	test -n "$${WORKSPACE_DIR:-}" || (echo "WORKSPACE_DIR required (target parent directory)"; exit 1); \
+	LAYOUT="$${LAYOUT:-codespace}"; \
+	bash scripts/ops/corpus_snapshot/import_local_snapshot.sh \
+	  --file "$${FILE}" \
+	  --workspace-dir "$${WORKSPACE_DIR}" \
+	  --layout "$${LAYOUT}"
 
 # Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
 # Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).

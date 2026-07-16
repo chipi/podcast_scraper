@@ -15,6 +15,13 @@ Examples:
   python scripts/migrate_gi_to_v3.py --corpus /path/to/corpus
 
 Wraps ``podcast_scraper.migrations.gil_kg_identity_migrations.migrate_gi_document_v3``.
+
+Status (see #1176): **superseded by** the framework migration
+``upgrade/migrations/m0003_gi_v3_typed_mentions.py`` — running
+``make upgrade-corpus`` walks the corpus, applies this transform per-file, and
+records the step in the ledger. This standalone script stays as an escape
+hatch for one-off surgery on a single ``.gi.json`` outside the framework
+(e.g. rehearsing a migration on a copy before running framework-wide).
 """
 
 from __future__ import annotations
