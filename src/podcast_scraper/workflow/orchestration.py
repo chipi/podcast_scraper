@@ -956,6 +956,23 @@ def _both_providers_use_mps(
             # API providers don't use MPS (API-based)
             transcription_uses_mps = False
 
+    # Short-circuit: if the transcription side already resolved to not-MPS
+    # (post-#1145 transformers-v5 fix, Whisper local is coerced to CPU so
+    # this is now the common case), skip the summarization probe. Avoids
+    # emitting the #1180 fallback WARNING for a decision the function has
+    # already made. Also brings the function back under the cognitive-
+    # complexity budget.
+    if not transcription_uses_mps:
+        return False
+    return _summarization_uses_mps(cfg, summary_provider)
+
+
+def _summarization_uses_mps(cfg: config.Config, summary_provider: Any) -> bool:
+    """Probe whether the summarization stage will run on MPS (Issue #387).
+
+    Extracted from ``_both_providers_use_mps`` (see #1180 audit) so the parent
+    stays under the cognitive-complexity budget; behaviour is unchanged.
+    """
     # Check summarization stage device (Issue #387)
     # Stage-level device overrides provider-specific device
     summarization_uses_mps = False
@@ -1023,7 +1040,7 @@ def _both_providers_use_mps(
                     except ImportError:
                         summarization_uses_mps = False
 
-    return transcription_uses_mps and summarization_uses_mps
+    return summarization_uses_mps
 
 
 class _FeedMetadata(NamedTuple):

@@ -80,6 +80,33 @@ in `tests/integration/workflow/test_mps_exclusive_integration.py`. Asserts
 the warning fires when MPS is available; asserts a clean False otherwise so
 the test runs on both Mac and Linux CI.
 
+## Context shift: transformers-v5 disables Whisper-on-MPS entirely (#1145)
+
+After the `transformers>=5.0.0` upgrade, Whisper feature extraction requests
+float64 — which Apple's Metal backend rejects. Fix landed in
+`_detect_whisper_device` (ml_provider.py): any `mps` device request is
+coerced to `cpu` with a warning ("Whisper does not support MPS (transformers-v5
+uses float64, which Metal rejects); transcribing on CPU instead").
+
+**Consequence for `should_serialize_mps`:** Whisper local now always resolves
+to CPU, so the transcription side of `_both_providers_use_mps` always returns
+False on Apple Silicon. That means:
+
+- `should_serialize_mps` is effectively always False for Whisper local.
+- The summarization-side fallback + WARNING I added would fire wastefully —
+  the check would run and log even though the return value is preordained by
+  the transcription side.
+
+Small follow-up fix (also in this branch): short-circuit
+`_both_providers_use_mps` — return False immediately when the transcription
+side already resolved to not-MPS. Avoids the noisy fallback WARNING and skips
+work we don't need.
+
+The MPS-exclusive machinery is still meaningful for **non-Whisper** local
+transcription providers that use MPS (e.g. a future transformers-based
+Whisper alternative, or any local ML transcription that predates or works
+around the float64 issue). Kept intact for that reason.
+
 ## What was NOT changed (and why)
 
 - **The fallback itself.** Removing it would trade "silent over-serialize"
