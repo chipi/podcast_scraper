@@ -1,6 +1,6 @@
 # ADR-114: Shared multi-tenant public edge (host-level Caddy + Let's Encrypt)
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-07-08
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related RFCs**: [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) (always-on hosting), [RFC-087](../rfc/RFC-087-vps-public-edge-multi-compose.md) (broader public-edge ambition — remains deferred; this ADR ships only the shared-engine slice)

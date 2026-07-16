@@ -22,7 +22,7 @@ from podcast_scraper.server import cli_handlers
 pytestmark = [pytest.mark.integration]
 
 
-def _run(monkeypatch, tmp_path, forwarded_env: str | None) -> dict:
+def _run(monkeypatch, tmp_path, forwarded_env: str | None, *, reload: bool = False) -> dict:
     captured: dict = {}
 
     def _fake_run(app, **kwargs):  # noqa: ANN001
@@ -38,7 +38,7 @@ def _run(monkeypatch, tmp_path, forwarded_env: str | None) -> dict:
         monkeypatch.setenv("FORWARDED_ALLOW_IPS", forwarded_env)
 
     args = Namespace(
-        output_dir=str(tmp_path), host="0.0.0.0", port=8000, reload=False, no_static=True
+        output_dir=str(tmp_path), host="0.0.0.0", port=8000, reload=reload, no_static=True
     )
     rc = cli_handlers.run_serve(args, logging.getLogger("test"))
     assert rc == 0
@@ -53,5 +53,15 @@ def test_serve_passes_proxy_headers_default_loopback(monkeypatch, tmp_path) -> N
 
 def test_serve_honors_forwarded_allow_ips_env(monkeypatch, tmp_path) -> None:
     kw = _run(monkeypatch, tmp_path, forwarded_env="*")
+    assert kw.get("proxy_headers") is True
+    assert kw.get("forwarded_allow_ips") == "*"
+
+
+def test_serve_reload_mode_also_passes_proxy_headers(monkeypatch, tmp_path) -> None:
+    # The --reload branch (factory mode) must carry the same proxy/forwarded wiring —
+    # a refactor that drops it from the reload path would otherwise pass silently.
+    kw = _run(monkeypatch, tmp_path, forwarded_env="*", reload=True)
+    assert kw.get("reload") is True
+    assert kw.get("factory") is True
     assert kw.get("proxy_headers") is True
     assert kw.get("forwarded_allow_ips") == "*"

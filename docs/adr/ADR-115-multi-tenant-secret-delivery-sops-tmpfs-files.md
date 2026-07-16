@@ -1,6 +1,6 @@
 # ADR-115: Multi-tenant secret delivery — sops/age at rest, tmpfs + file mounts at runtime
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-07-08
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related ADRs**: [ADR-114](ADR-114-shared-multi-tenant-public-edge-caddy.md) (the ownership-split precedent this mirrors), [ADR-011](ADR-011-secure-credential-injection.md) (credential injection — extended to file-based)

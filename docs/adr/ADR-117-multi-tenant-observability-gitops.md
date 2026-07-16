@@ -1,6 +1,6 @@
 # ADR-117: Multi-tenant observability — common box/edge plane + per-tenant app telemetry, GitOps
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-07-09
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related ADRs**: [ADR-114](ADR-114-shared-multi-tenant-public-edge-caddy.md) (edge
@@ -154,3 +154,9 @@ secrets — never committed. A workflow can run `obs-sync` on merge.
 Goal 1 builds the **common plane only** (GitOps mechanism + Alloy security-log pipeline +
 common security alert rules + the tenant-scoping scaffold), plus **orrery's minimal part**.
 `podcast-player` and `podcast-operator` o11y land with Goals 2 and 3.
+
+**Deferred (tracked under [#1160](https://github.com/chipi/podcast_scraper/issues/1160)):**
+per-tenant *app-security* alerting — auth-failure spikes, per-app 4xx/5xx and egress
+anomalies, and each tenant's own `remote_write`/`loki.write` routing — is out of Goal-1
+scope (T-11 covers only the common box/edge plane here). It gets its own alert rules +
+routing when each tenant's o11y lands (Goals 2/3).

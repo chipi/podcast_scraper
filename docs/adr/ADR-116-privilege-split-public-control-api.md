@@ -1,6 +1,6 @@
 # ADR-116: Privilege-split API — public-api (no sock/keys) vs control-api (tailnet), enqueue→drain
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-07-08
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related**: [ADR-114](ADR-114-shared-multi-tenant-public-edge-caddy.md) (public edge),
