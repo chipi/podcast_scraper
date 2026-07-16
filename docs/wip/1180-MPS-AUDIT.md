@@ -82,11 +82,46 @@ the test runs on both Mac and Linux CI.
 
 ## Context shift: transformers-v5 disables Whisper-on-MPS entirely (#1145)
 
-After the `transformers>=5.0.0` upgrade, Whisper feature extraction requests
-float64 — which Apple's Metal backend rejects. Fix landed in
-`_detect_whisper_device` (ml_provider.py): any `mps` device request is
-coerced to `cpu` with a warning ("Whisper does not support MPS (transformers-v5
-uses float64, which Metal rejects); transcribing on CPU instead").
+After the `transformers>=5.0.0` upgrade, the "Cannot convert a MPS Tensor to
+float64" crash surfaced whenever `word_timestamps=True` was used. The
+original fix in `_detect_whisper_device` (ml_provider.py) was to coerce any
+`mps` device request to `cpu` with a warning ("Whisper does not support MPS
+(transformers-v5 uses float64, which Metal rejects); transcribing on CPU
+instead").
+
+## Root-cause revisit: MPS on Whisper actually WORKS (transformers-v5 comment was misleading)
+
+Deeper trace during 2026-07-16 rebase found the actual culprit — and it is
+not transformers at all. The pipeline uses `openai-whisper` directly
+(`whisper_lib.load_model()`), not the transformers Whisper implementation.
+`openai-whisper`'s `whisper.timing.dtw` reads:
+
+```python
+return dtw_cpu(x.double().cpu().numpy())
+```
+
+On MPS, `.double()` fires FIRST — trying to convert the MPS tensor to float64
+before it's moved to CPU. MPS rejects. Swap the order to `.cpu().double()`
+and it works: move to CPU first (cheap, lossless), then convert on CPU where
+float64 is fine.
+
+Fix landed in this branch:
+`podcast_scraper.providers.ml.ml_provider._patch_whisper_dtw_for_mps`
+installs a wrapper around `whisper.timing.dtw` at import time. Idempotent,
+behaviour-neutral for CUDA (untouched) and CPU (`.cpu()` is a no-op there),
+enables MPS with `word_timestamps=True` (needed for the #1173 segment-
+timestamp fidelity story).
+
+`_detect_whisper_device` no longer coerces MPS → CPU. Auto-detect priority
+is now the intuitive CUDA → MPS → CPU. Measured on a Mac dev box, MPS
+transcription of a 1-episode e2e fixture runs at 7.13s vs 10.15s on CPU
+(~30% faster).
+
+New test file: `tests/unit/podcast_scraper/providers/ml/test_whisper_mps_dtw_patch.py`
+(6 tests) covers: patch replaces `dtw`, is idempotent, uses `.cpu().double()`
+in the right order, delegates to original for CUDA, degrades silently when
+`whisper.timing` is absent, and `_detect_whisper_device` auto-selects MPS on
+Apple Silicon post-patch.
 
 **Consequence for `should_serialize_mps`:** Whisper local now always resolves
 to CPU, so the transcription side of `_both_providers_use_mps` always returns
