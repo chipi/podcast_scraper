@@ -35,19 +35,30 @@ def parse_pipeline_install_extras(content: str) -> str | None:
 
 
 def split_operator_yaml_profile(content: str) -> tuple[str, str]:
-    """Return ``(profile_name, body_without_profile_line)``."""
+    """Return ``(profile_name, body_without_profile_line)``.
+
+    Avoids ``re.match`` on the line contents: the previous regex
+    ``^\\s*profile:\\s*(.+?)\\s*$`` had a polynomial-backtracking
+    ``.+?`` + trailing ``\\s*$`` shape (CodeQL ``py/polynomial-redos``,
+    alert #417) that took quadratic time on lines with many trailing
+    spaces. Stripping in Python is linear and produces the same result.
+    """
     raw = content.replace("\r\n", "\n")
     lines = raw.split("\n")
     for i, line in enumerate(lines):
-        m = re.match(r"^\s*profile:\s*(.+?)\s*$", line)
-        if not m:
+        stripped = line.strip()
+        if not stripped.startswith("profile:"):
             continue
-        v = m.group(1).strip()
+        v = stripped[len("profile:") :].strip()
         h = v.find("#")
         if h >= 0:
             v = v[:h].strip()
         if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
             v = v[1:-1]
+        # Original regex required at least one non-whitespace char in the value.
+        # Preserve that: skip lines like ``profile:`` with no value.
+        if not v:
+            continue
         rest = "\n".join(lines[:i] + lines[i + 1 :])
         body = rest.lstrip("\n").rstrip("\n")
         return v, body
