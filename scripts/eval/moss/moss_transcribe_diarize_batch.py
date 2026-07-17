@@ -29,6 +29,9 @@ def _cpu_audio_prepare(processor, messages, **kw):
 _iu.prepare_inputs = _cpu_audio_prepare
 
 MODEL = "OpenMOSS-Team/MOSS-Transcribe-Diarize"
+# Pin the download to a revision (matches the prod MOSS_MODEL_REVISION default) so the eval is
+# reproducible and bandit's B615 unpinned-download check is satisfied.
+MODEL_REVISION = os.environ.get("MOSS_MODEL_REVISION", "main")
 audio_dir = sys.argv[1]
 out_dir = sys.argv[2]
 max_new = int(sys.argv[3]) if len(sys.argv) > 3 else 16384
@@ -37,12 +40,14 @@ os.makedirs(out_dir, exist_ok=True)
 device = resolve_device("auto")
 dtype = torch.bfloat16 if device.type == "cuda" else torch.float32
 model = (
-    AutoModelForCausalLM.from_pretrained(MODEL, trust_remote_code=True, dtype="auto")
+    AutoModelForCausalLM.from_pretrained(
+        MODEL, revision=MODEL_REVISION, trust_remote_code=True, dtype="auto"
+    )
     .to(dtype=dtype)
     .to(device)
     .eval()
 )
-processor = AutoProcessor.from_pretrained(MODEL, trust_remote_code=True)
+processor = AutoProcessor.from_pretrained(MODEL, revision=MODEL_REVISION, trust_remote_code=True)
 print(f"model loaded on {device}", flush=True)
 
 mp3s = sorted(glob.glob(os.path.join(audio_dir, "*.mp3")))

@@ -41,6 +41,9 @@ def _cpu_audio(processor, messages, **kw):  # stubbed cuFFT -> CPU mel-STFT
 _iu.prepare_inputs = _cpu_audio
 
 MODEL = "OpenMOSS-Team/MOSS-Transcribe-Diarize"
+# Pin the download to a revision (matches the prod MOSS_MODEL_REVISION default) so the eval is
+# reproducible and bandit's B615 unpinned-download check is satisfied.
+MODEL_REVISION = os.environ.get("MOSS_MODEL_REVISION", "main")
 SR = 16000
 
 
@@ -133,12 +136,16 @@ def main():
     device = resolve_device("auto")
     dtype = torch.bfloat16 if device.type == "cuda" else torch.float32
     model = (
-        AutoModelForCausalLM.from_pretrained(MODEL, trust_remote_code=True, dtype="auto")
+        AutoModelForCausalLM.from_pretrained(
+            MODEL, revision=MODEL_REVISION, trust_remote_code=True, dtype="auto"
+        )
         .to(dtype=dtype)
         .to(device)
         .eval()
     )
-    processor = AutoProcessor.from_pretrained(MODEL, trust_remote_code=True)
+    processor = AutoProcessor.from_pretrained(
+        MODEL, revision=MODEL_REVISION, trust_remote_code=True
+    )
     print(f"model loaded on {device}; window={window}s overlap={overlap}s", flush=True)
     with tempfile.TemporaryDirectory() as td:
         for mp3 in sorted(glob.glob(os.path.join(audio_dir, "*.mp3"))):

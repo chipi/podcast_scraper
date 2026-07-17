@@ -23,6 +23,9 @@ from moss_transcribe_diarize.inference_utils import (  # noqa: E402
 from transformers import AutoModelForCausalLM, AutoProcessor  # noqa: E402
 
 MODEL = os.environ.get("MOSS_MODEL", "OpenMOSS-Team/MOSS-Transcribe-Diarize")
+# Pin the download to a revision (matches the prod MOSS_MODEL_REVISION default) so the eval is
+# reproducible and bandit's B615 unpinned-download check is satisfied.
+MODEL_REVISION = os.environ.get("MOSS_MODEL_REVISION", "main")
 audio = sys.argv[1]
 max_new = int(sys.argv[2]) if len(sys.argv) > 2 else 2048
 
@@ -48,12 +51,14 @@ print(f"device={device} dtype={dtype} loading {MODEL} ...", flush=True)
 
 t0 = time.time()
 model = (
-    AutoModelForCausalLM.from_pretrained(MODEL, trust_remote_code=True, dtype="auto")
+    AutoModelForCausalLM.from_pretrained(
+        MODEL, revision=MODEL_REVISION, trust_remote_code=True, dtype="auto"
+    )
     .to(dtype=dtype)
     .to(device)
     .eval()
 )
-processor = AutoProcessor.from_pretrained(MODEL, trust_remote_code=True)
+processor = AutoProcessor.from_pretrained(MODEL, revision=MODEL_REVISION, trust_remote_code=True)
 print(
     f"loaded in {time.time()-t0:.1f}s  " f"sr={processor.feature_extractor.sampling_rate}",
     flush=True,
