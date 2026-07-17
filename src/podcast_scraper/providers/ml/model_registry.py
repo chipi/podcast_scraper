@@ -833,14 +833,14 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         model="Systran/faster-whisper-large-v3",
         endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
         extra_settings={"WHISPER__COMPUTE_TYPE": "default"},
-        research_ref="docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md",
+        research_ref="docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md",
         headline_metric=(
-            "mean WER 0.083 / 2.38× realtime on v2 — "
-            "speaches:latest-cuda-gb10 (#948 source-built ctranslate2) "
-            "+ #968 Thread B temperature-fallback patch"
+            "DGX transcription winner (#952): 10.23% WER vs Deepgram silver on real "
+            "podcasts — beats whisper-openai (:8002) by 2.74pp AND ~20% faster. "
+            "speaches:latest-cuda-gb10 int8 (#948) + #968 Thread B temperature fallback"
         ),
-        measured_at="2026-06-12",
-        tier="fallback",
+        measured_at="2026-06-16",
+        tier="primary",
         resident_memory_gb=3.0,
         realtime_multiple=2.38,
     ),
@@ -1738,7 +1738,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
-        transcription="tailnet_dgx_whisper_openai",  # post-#929/#966 winner
+        transcription="tailnet_dgx_speaches_thread_b",  # #952 winner (:8000 faster-whisper)
         summary="gemini_flash_lite",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
@@ -1746,9 +1746,10 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes=(
-            "Production hybrid: DGX whisper-openai for transcription, cloud Gemini for summary. "
-            "Was previously tailnet_dgx_speaches; flipped after #968 Thread B confirmed "
-            "speaches viability but with 5× speed cost vs whisper-openai."
+            "Production hybrid: DGX faster-whisper (:8000 Speaches) for transcription, cloud "
+            "Gemini for summary. Routing flipped :8002 whisper-openai -> :8000 Speaches on "
+            "2026-06-16 (#952): int8 Speaches wins WER (10.23% vs 12.97% on Deepgram silver) "
+            "and speed. :8002 stays a comparison sibling only, not the prod path."
         ),
     ),
     "local_dgx_balanced": ProfilePreset(
@@ -1784,7 +1785,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     # have not reached.
     "experiment_dgx_only": ProfilePreset(
         name="experiment_dgx_only",
-        transcription="tailnet_dgx_whisper_openai",
+        transcription="tailnet_dgx_speaches_thread_b",
         summary="ollama_qwen35_35b",
         kg="provider_n10_15",
         ner="ollama_speaker_detector",
@@ -1800,7 +1801,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
-        transcription="tailnet_dgx_whisper_openai",  # #929 winner + cloud Whisper fallback
+        transcription="tailnet_dgx_speaches_thread_b",  # #952 winner (:8000) + cloud fallback
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1837,7 +1838,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_balanced": ProfilePreset(
         name="prod_dgx_balanced",
-        transcription="tailnet_dgx_whisper_openai",
+        transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1870,7 +1871,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "eval_default": ProfilePreset(
         name="eval_default",
-        transcription="tailnet_dgx_whisper_openai",
+        transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
