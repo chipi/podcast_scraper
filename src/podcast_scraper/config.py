@@ -1172,6 +1172,27 @@ class Config(BaseModel):
             "(mandatory for DGX-primary prod profiles per ADR-096)."
         ),
     )
+    # RFC-105 (#1198): ordered per-stage failover ladders, registry-governed and emitted into the
+    # profile by the resolver. Tried in order after the primary on an infrastructure failure. The
+    # legacy singular transcription_fallback_provider is a one-element chain. Empty = no fallback.
+    transcription_fallback_providers: List[str] = Field(
+        default_factory=list,
+        alias="transcription_fallback_providers",
+        description=(
+            "Ordered transcription failover ladder (RFC-105): on-prem tiers first, then cloud. "
+            "Tried after transcription_provider on infra failure."
+        ),
+    )
+    diarization_fallback_providers: List[str] = Field(
+        default_factory=list,
+        alias="diarization_fallback_providers",
+        description="Ordered diarization failover ladder (RFC-105).",
+    )
+    summary_fallback_providers: List[str] = Field(
+        default_factory=list,
+        alias="summary_fallback_providers",
+        description="Ordered summary failover ladder (RFC-105); DGX LLM -> cloud.",
+    )
     dgx_tailnet_host: Optional[str] = Field(
         default=None,
         alias="dgx_tailnet_host",

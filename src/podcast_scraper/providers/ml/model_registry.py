@@ -1628,6 +1628,14 @@ class ProfilePreset:
     # Who finds the quote that backs an insight. Writing the insight and grounding it are different
     # jobs, and until this stage existed the choice was made by a config fallback nobody could see.
     grounding: str = "llm_matched_to_summary"  # key into _GROUNDING_OPTIONS
+    # Ordered failover ladders per stage (StageOption ids, tried after the primary on an infra
+    # failure). Registry-governed: the resolver emits <stage>_fallback_providers into the
+    # materialized profile so the chain is in the YAML, not inferred at runtime (RFC-105 / #1198).
+    # Convention (DGX profiles): remaining on-prem tiers first, then the cloud_balanced option for
+    # that stage. Empty = no fallback. Tuples because ProfilePreset is frozen.
+    transcription_fallback: Tuple[str, ...] = ()
+    diarization_fallback: Tuple[str, ...] = ()
+    summary_fallback: Tuple[str, ...] = ()
     notes: Optional[str] = None
 
 
@@ -1716,6 +1724,11 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "diarization_model",
     "dgx_diarize_model",
     "deepgram_diarization_model",
+    # RFC-105 (#1198): the ordered per-stage failover ladders are registry-governed too, so a stale
+    # chain in a profile is caught by profiles-check like any other drift.
+    "transcription_fallback_providers",
+    "diarization_fallback_providers",
+    "summary_fallback_providers",
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
     # two different configurations.
@@ -1769,6 +1782,10 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
+        # RFC-105 (#1198): MOSS down -> DGX faster-whisper -> cloud whisper; pyannote -> deepgram.
+        # summary is already the cloud tier (gemini) so it needs no fallback.
+        transcription_fallback=("tailnet_dgx_speaches_thread_b", "openai_whisper_1"),
+        diarization_fallback=("deepgram_diarization_nova3",),
         notes=(
             "Production hybrid: DGX faster-whisper (:8000 Speaches) for transcription, cloud "
             "Gemini for summary. Routing flipped :8002 whisper-openai -> :8000 Speaches on "
@@ -1833,6 +1850,11 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
+        # RFC-105 (#1198): MOSS -> DGX faster-whisper -> cloud whisper; DGX pyannote -> deepgram;
+        # DGX vLLM summary -> cloud gemini (the cloud_balanced summary tier).
+        transcription_fallback=("tailnet_dgx_speaches_thread_b", "openai_whisper_1"),
+        diarization_fallback=("deepgram_diarization_nova3",),
+        summary_fallback=("gemini_flash_lite",),
         notes=(
             "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
             "Gemini for the cheap speaker-detect, cloud Gemini as the summary "
@@ -1870,6 +1892,11 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
+        # RFC-105 (#1198): MOSS -> DGX faster-whisper -> cloud whisper; DGX pyannote -> deepgram;
+        # DGX vLLM summary -> cloud gemini (the cloud_balanced summary tier).
+        transcription_fallback=("tailnet_dgx_speaches_thread_b", "openai_whisper_1"),
+        diarization_fallback=("deepgram_diarization_nova3",),
+        summary_fallback=("gemini_flash_lite",),
         notes=(
             "Prod variant of prod_dgx_full_with_fallback that swaps the summary "
             "stage to vLLM-served Moonlight-16B-A3B (#1016 Round 3 safe pick). "
@@ -2174,6 +2201,28 @@ def resolve_endpoint(
     return template.format(dgx_tailnet_host=host)
 
 
+def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> None:
+    """RFC-105 (#1198): map each stage's ordered fallback StageOption ids to their provider values
+    and emit ``<stage>_fallback_providers`` into ``settings``.
+
+    Keeps the failover ladder in the materialized profile (the runtime FallbackChain reads it) and
+    lets ``profiles-check`` guard it like every other registry-governed field. Empty ladder -> no
+    key emitted (a stage with no fallback stays absent rather than emitting ``[]``).
+    """
+    chains = (
+        (
+            preset.transcription_fallback,
+            get_transcription_option,
+            "transcription_fallback_providers",
+        ),
+        (preset.diarization_fallback, get_diarization_option, "diarization_fallback_providers"),
+        (preset.summary_fallback, get_summary_option, "summary_fallback_providers"),
+    )
+    for ids, get_option, key in chains:
+        if ids:
+            settings[key] = [get_option(oid).provider for oid in ids]
+
+
 def resolve_profile_to_settings(
     name: str,
     dgx_tailnet_host: Optional[str] = None,
@@ -2221,6 +2270,8 @@ def resolve_profile_to_settings(
         settings["summary_endpoint"] = resolved_sm_endpoint
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
+
+    _emit_fallback_chains(preset, settings)
 
     # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
     #
