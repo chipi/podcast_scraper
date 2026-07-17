@@ -42,10 +42,15 @@ _MODEL_NAME = os.environ.get("MOSS_MODEL", "OpenMOSS-Team/MOSS-Transcribe-Diariz
 # Pin the Hub revision (a tag/branch/commit) so a silent upstream change can't alter what we serve.
 # Default ``main``; set MOSS_MODEL_REVISION to a commit SHA for a hard pin.
 _MODEL_REVISION = os.environ.get("MOSS_MODEL_REVISION", "main")
-_DEVICE = os.environ.get("MOSS_DEVICE", "cuda")
+_DEVICE = os.environ.get("MOSS_DEVICE", "auto")
+# The pipeline chunks long audio UPSTREAM (episode_processor + AudioChunker, #1174), so each
+# request is a <=25 min window that fits the 128k context in one pass; size generation for that.
+_MAX_NEW_TOKENS = int(os.environ.get("MOSS_MAX_NEW_TOKENS", "16384"))
 
 _model: Any = None
 _processor: Any = None
+_torch_device: Any = None
+_torch_dtype: Any = None
 
 # The pipeline calls transcription and diarization as separate stages. Caching the last few
 # inferences by audio digest means the second stage costs nothing, without the providers having to
@@ -56,17 +61,35 @@ _cache: "OrderedDict[str, List[Dict[str, Any]]]" = OrderedDict()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global _model, _processor
+    global _model, _processor, _torch_device, _torch_dtype
+    import moss_transcribe_diarize.inference_utils as _iu
+    import torch
+    from moss_transcribe_diarize.inference_utils import resolve_device
     from transformers import AutoModelForCausalLM, AutoProcessor
 
-    logger.info("Loading %s on %s", _MODEL_NAME, _DEVICE)
+    # The NGC vLLM base image ships a STUB cuFFT, so whisper's GPU mel-spectrogram (torch.stft)
+    # fails with "cuFFT error 50". Force feature extraction onto CPU (device=None -> the moss
+    # processor skips the cuda audio_kwargs); mel-extraction is cheap even for a 25 min window,
+    # and the model still runs on GPU.
+    _orig_prepare = _iu.prepare_inputs
+
+    def _cpu_audio_prepare(processor: Any, messages: Any, **kw: Any) -> Any:
+        kw["device"] = None
+        return _orig_prepare(processor, messages, **kw)
+
+    _iu.prepare_inputs = _cpu_audio_prepare
+
+    _torch_device = resolve_device(_DEVICE)
+    _torch_dtype = torch.bfloat16 if _torch_device.type == "cuda" else torch.float32
+    logger.info("Loading %s on %s (%s)", _MODEL_NAME, _torch_device, _torch_dtype)
     started = time.time()
     _processor = AutoProcessor.from_pretrained(
-        _MODEL_NAME, revision=_MODEL_REVISION, trust_remote_code=True
+        _MODEL_NAME, revision=_MODEL_REVISION, trust_remote_code=True, fix_mistral_regex=True
     )
     _model = AutoModelForCausalLM.from_pretrained(
-        _MODEL_NAME, revision=_MODEL_REVISION, trust_remote_code=True, torch_dtype="bfloat16"
-    ).to(_DEVICE)
+        _MODEL_NAME, revision=_MODEL_REVISION, trust_remote_code=True, dtype="auto"
+    )
+    _model = _model.to(dtype=_torch_dtype).to(_torch_device)
     _model.eval()
     logger.info("Loaded in %.1fs", time.time() - started)
     yield
@@ -93,13 +116,37 @@ def models() -> Dict[str, Any]:
 
 
 def _infer(audio_path: str) -> List[Dict[str, Any]]:
-    """Run MOSS once and parse its SATS stream into segments."""
-    from sats import parse_sats  # vendored next to this file at build time
+    """Run MOSS once and return segments (start/end/speaker/text).
 
-    inputs = _processor(audio=audio_path, return_tensors="pt").to(_DEVICE)
-    output = _model.generate(**inputs, max_new_tokens=8192)
-    raw = _processor.batch_decode(output, skip_special_tokens=True)[0]
-    return parse_sats(raw)
+    Uses the upstream package's helpers (verified against the model's real API during the #1174
+    bake-off): ``build_transcription_messages`` renders the chat/audio prompt,
+    ``generate_transcription`` runs the pass, ``parse_transcript`` splits the SATS stream.
+    """
+    from moss_transcribe_diarize import parse_transcript
+    from moss_transcribe_diarize.inference_utils import (
+        build_transcription_messages,
+        generate_transcription,
+    )
+
+    messages = build_transcription_messages(audio_path)
+    result = generate_transcription(
+        _model,
+        _processor,
+        messages,
+        max_new_tokens=_MAX_NEW_TOKENS,
+        do_sample=False,
+        device=_torch_device,
+        dtype=_torch_dtype,
+    )
+    return [
+        {
+            "start": float(s.start),
+            "end": float(s.end),
+            "speaker": str(s.speaker),
+            "text": str(s.text),
+        }
+        for s in parse_transcript(result["text"])
+    ]
 
 
 @app.post("/v1/transcribe")
