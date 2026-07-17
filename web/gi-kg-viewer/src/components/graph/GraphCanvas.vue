@@ -25,6 +25,7 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
+import { useGraphLoadModeStore } from '../../stores/graphLoadMode'
 import { useGraphThemeFocusStore } from '../../stores/graphThemeFocus'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
@@ -114,6 +115,7 @@ const emit = defineEmits<{
 const gf = useGraphFilterStore()
 const lenses = useGraphLensesStore()
 const themeFocus = useGraphThemeFocusStore()
+const loadMode = useGraphLoadModeStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
@@ -4320,6 +4322,25 @@ function attachRadialKeydown(): void {
       const target = sel.empty() ? null : sel.first()
       if (!target) return
       enterRadialMode(target.id())
+    }
+    /* graph-v3 tier 8-5 — Shift+E toggles load-mode (Top-down ↔ Everything).
+     * `key === 'E'` because Shift is held; guard against Alt/Ctrl/Meta so
+     * this doesn't collide with browser / OS shortcuts. Ignore when focus
+     * is in an input to preserve capital E typing. */
+    if (
+      e.key === 'E' &&
+      e.shiftKey &&
+      !e.altKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !(
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      )
+    ) {
+      e.preventDefault()
+      loadMode.toggleMode()
     }
   }
   window.addEventListener('keydown', radialKeydownHandler, true)

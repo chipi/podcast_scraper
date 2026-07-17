@@ -7,6 +7,7 @@ import {
 } from '../../stores/graphExplorer'
 import GraphStatusLine from './GraphStatusLine.vue'
 import GraphLensesChip from './chips/GraphLensesChip.vue'
+import GraphLoadModeChip from './chips/GraphLoadModeChip.vue'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
 
 const BOTTOM_BAR_COLLAPSED_KEY = 'ps_graph_bottom_bar_collapsed'
@@ -199,6 +200,7 @@ onMounted(() => {
           <span class="truncate">{{ preferredLayout }}</span>
         </button>
         <GraphLensesChip />
+        <GraphLoadModeChip />
       </div>
 
       <div
