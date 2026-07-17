@@ -2481,6 +2481,56 @@ function animateCameraToFocusedNode(
 }
 
 /** @returns ``true`` when pending focus was applied (camera + selection); caller may skip episode-strip camera. */
+/** graph-v3 tier 8-3 — walk the full artifact + theme doc to find the
+ *  super-theme housing a pending-focus node id; expand it so the next
+ *  redraw's `tryApplyPendingFocus` can resolve the target. Safe to call
+ *  with any raw id (fallback ids, bare ids, prefixed ids) — the id
+ *  lookup is best-effort and returns silently on miss. */
+function maybeExpandTopDownForPendingFocus(rawId: string): void {
+  const full = artifacts.displayArtifact?.data
+  if (!full) return
+  const themeDoc = artifacts.themeClustersDoc
+  if (!themeDoc?.clusters?.length) return
+  const clusterToSuper = new Map<string, string>()
+  for (const cl of themeDoc.clusters) {
+    const cid =
+      typeof cl?.graph_compound_parent_id === 'string'
+        ? cl.graph_compound_parent_id.trim()
+        : ''
+    const sid = typeof cl?.super_theme_id === 'string' ? cl.super_theme_id.trim() : ''
+    if (cid && sid) clusterToSuper.set(cid, sid)
+  }
+  if (clusterToSuper.size === 0) return
+  const nodes = Array.isArray(full.nodes) ? full.nodes : []
+  const findNode = (id: string) => {
+    const wanted = id.trim()
+    if (!wanted) return undefined
+    for (const n of nodes) {
+      if (n && n.id != null && String(n.id) === wanted) return n
+    }
+    return undefined
+  }
+  let target = findNode(rawId)
+  if (!target) {
+    /* Try common id-prefix normalizations before giving up. */
+    if (rawId.startsWith('g:') || rawId.startsWith('k:')) {
+      target = findNode(rawId.slice(2))
+    } else {
+      target = findNode(`g:${rawId}`) ?? findNode(`k:${rawId}`)
+    }
+  }
+  if (!target) return
+  const tcid =
+    typeof (target as { themeClusterId?: unknown }).themeClusterId === 'string'
+      ? String((target as { themeClusterId?: unknown }).themeClusterId).trim()
+      : ''
+  if (!tcid) return
+  const sid = clusterToSuper.get(tcid)
+  if (!sid) return
+  if (topDown.isExpanded(sid)) return
+  topDown.expandSuperTheme(sid)
+}
+
 function tryApplyPendingFocus(core: Core): boolean {
   // F3a — generation-token check point #6 (FSM spec § 8 sites). If a newer
   // handoff has bumped generation since this watcher fired, abandon the apply.
@@ -2496,6 +2546,15 @@ function tryApplyPendingFocus(core: Core): boolean {
   }
   /** Do not clear pending: ``redraw`` can leave the graph mid-rebuild; a later ``finishLayoutPass`` / watcher applies. */
   if (!cyId) {
+    /* graph-v3 tier 8-3 — search reveals hidden. In top-down mode the
+     * search target may live under a collapsed super-theme. Look up
+     * the target's themeClusterId in the FULL display artifact,
+     * roll it up to super_theme_id, and expand that super-theme.
+     * The store change re-derives topDownDisplayArtifact and the
+     * next redraw's tryApplyPendingFocus call succeeds. */
+    if (loadMode.isTopDown) {
+      maybeExpandTopDownForPendingFocus(rawId)
+    }
     return false
   }
   if (graphHandoff.isStale(entryGen)) {
