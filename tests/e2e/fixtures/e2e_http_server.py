@@ -72,6 +72,45 @@ def _gemini_text_response_data(request_data: Dict[str, Any], text_prompt: str) -
     generation_config = request_data.get("generationConfig", {})
     response_mime_type = generation_config.get("response_mime_type", "")
 
+    # #698 bundled GIL evidence stack. The bundled quote/NLI calls send a
+    # different prompt shape than the staged ones and expect a JSON object keyed
+    # by insight/pair index; without these branches the mock returns a plain-text
+    # summary → JSON parse fails → grounder emits 0 quotes (GI invariant).
+    bundled_json: Optional[str] = None
+    if (
+        "Return JSON only." in text_prompt
+        and "Insights:" in text_prompt
+        and "Transcript (excerpt):" in text_prompt
+    ):
+        # extract_quotes_bundled: map each insight index to a VERBATIM transcript
+        # snippet so the grounder aligns it (mirrors the staged handler's excerpt).
+        transcript = text_prompt.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
+        snippet = transcript[:60].strip() or "Evidence from transcript."
+        insights_block = text_prompt.split("Insights:")[1].split("Return JSON only.")[0]
+        idxs = re.findall(r"^\s*(\d+):", insights_block, re.MULTILINE) or ["0"]
+        bundled_json = json.dumps({i: [snippet] for i in idxs})
+    elif (
+        "Return JSON only." in text_prompt and "Pairs:" in text_prompt and "premise:" in text_prompt
+    ):
+        # score_entailment_bundled: index -> support score in [0,1].
+        pairs_block = text_prompt.split("Pairs:")[1].split("Return JSON only.")[0]
+        idxs = re.findall(r"^\s*(\d+):", pairs_block, re.MULTILINE) or ["0"]
+        bundled_json = json.dumps({i: 0.9 for i in idxs})
+    if bundled_json is not None:
+        return {
+            "candidates": [
+                {
+                    "content": {"parts": [{"text": bundled_json}], "role": "model"},
+                    "finishReason": "STOP",
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 40,
+                "totalTokenCount": 140,
+            },
+        }
+
     if "Insight:" in text_prompt and (
         "quote_text" in text_prompt or "Transcript (excerpt):" in text_prompt
     ):
@@ -1727,18 +1766,26 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                             mime_type = part.get("mime_type", "")
                             if mime_type.startswith("audio/"):
                                 has_audio = True
+                        elif isinstance(part, dict) and "text" in part:
+                            # The google-genai SDK serializes text parts as
+                            # {"text": ...} dicts, not raw strings — extract those too
+                            # (accumulate; otherwise JSON calls saw an empty prompt and
+                            # got the default text summary, failing every JSON parse).
+                            text_prompt += str(part["text"])
                         elif isinstance(part, str):
-                            text_prompt = part
+                            text_prompt += part
                 elif isinstance(content, list):
                     for part in content:
                         if isinstance(part, dict) and "mime_type" in part:
                             mime_type = part.get("mime_type", "")
                             if mime_type.startswith("audio/"):
                                 has_audio = True
+                        elif isinstance(part, dict) and "text" in part:
+                            text_prompt += str(part["text"])
                         elif isinstance(part, str):
-                            text_prompt = part
+                            text_prompt += part
                 elif isinstance(content, str):
-                    text_prompt = content
+                    text_prompt += content
 
             # Determine response type
             if has_audio:
