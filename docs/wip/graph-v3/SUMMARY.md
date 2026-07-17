@@ -110,6 +110,14 @@ already at idealEdgeLength 120.
 ## Not done (still)
 
 - Speaker + Quote shape live-verify — pending a corpus that emits either.
+  Tracked here; when a corpus with Speaker / Quote nodes lands, one screenshot
+  each closes it.
+- `aggregatedEdges` V1 enricher-gate — the ABOUT_AGG / SPOKE_IN_AGG edges are
+  a runtime roll-up in `toCytoElements`, not a per-corpus artifact, so gating
+  on artifact presence doesn't apply. If we want to hide the lens when the
+  roll-up would be empty (no Insight+Topic+Episode triples in the artifact),
+  the check is a small computed on `fullArtifact` counts. Not tracked as a
+  GH issue.
 - Halo colour on light-theme graph canvas is still `--ps-graph-canvas` = `--ps-canvas`
   (i.e. same as canvas). That's correct; noting for completeness.
 - **Insight sentiment lens** (originally scoped as Tier 5C-3) — deferred. Sentiment
@@ -140,6 +148,42 @@ Every enricher-driven lens composes with the others: a Topic can carry the theme
 underlay + velocity border + degree size + bridge ring simultaneously. Cytoscape
 selectors resolve by source order; interaction states (`.search-hit`, `:selected`)
 still win over lens overlays.
+
+## Tier 5 harden follow-ups (post-audit fixes)
+
+Ran the `harden` skill after tier 5C/5D committed. Its findings applied here:
+
+- Deduped the theme-region palette: `THEME_REGION_PALETTE` in
+  `utils/themeRegionPalette.ts` is now imported by `cyGraphStylesheet.ts` too
+  (was duplicated by hand). Legend + graph now cannot drift from a manual
+  hex edit.
+- Fixed `REPRODUCIBILITY.md` — the enricher table no longer claims the
+  `insightSentiment` lens is shipped; call-out reflects the deferral. The
+  "longer-term escape" section now records that the bundle-discovery bug is
+  verifiably fixed in this worktree (`discover_episode_bundles` returns 99
+  bundles on prod-v2 today).
+- Task #36 (Insight sentiment lens) re-opened / re-labelled as **DEFERRED**
+  to match the SUMMARY + commit message + store comment.
+- `aggregatedEdges` V1 enricher-gate examined and left as-is: the ABOUT_AGG /
+  SPOKE_IN_AGG edges are a runtime roll-up in `toCytoElements`, not a per-corpus
+  artifact, so gating on artifact presence doesn't apply. Recorded in the "Not
+  done" section above.
+- Test coverage backfill: **+33 tests, +1 test file** (2626 → 2659, 193 → 194):
+  - `utils/cyGraphLensOverlays.test.ts` (new, 21 tests) — all 8 apply/clear
+    functions with a hand-rolled MockCore covering null/happy paths, threshold
+    boundaries, dedupe rules, and weight preservation.
+  - `utils/topicClustersOverlay.test.ts` (+6) — episode_ids tagging with
+    `__unified_ep__:` prefix stripping, one-hop propagation to Insights,
+    two-hop to Persons + Podcasts, first-cluster-wins on multi-membership,
+    type allowlist enforcement, Person/Entity variant coverage.
+  - `utils/cyGraphStylesheet.test.ts` (+4) — velocity / credibility / consensus /
+    coguest selector hex + shape assertions.
+  - `utils/colors.test.ts` (+2) — brand-palette collision guard: Entity_person
+    != TopicCluster, plus a general "every type has a unique background"
+    invariant with the deliberate Entity/Entity_person alias whitelisted.
+  - `tests/integration/server/test_operator_yaml_profile.py` (+1) — CodeQL
+    #417 fix's bare `profile:` branch: value-absent line skipped, later real
+    `profile:` line wins.
 
 ## Tier 4 — N (dropped MCL), R/S/T/U/V/Q — theme-cluster regions + lens menu
 

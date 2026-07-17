@@ -74,6 +74,27 @@ def test_split_profile_strips_inline_comment_and_quoted_value() -> None:
     assert body == "k: v"
 
 
+def test_split_profile_skips_bare_profile_line_with_no_value() -> None:
+    """CodeQL #417 fix (harden follow-up): the regex-free helper now has an
+    explicit ``if not v: continue`` branch that treats a bare ``profile:``
+    line (no value after the colon, possibly with trailing spaces or a comment)
+    the same way the original regex did — as a non-match, so the parser keeps
+    scanning and falls through to the empty-name return. Previously untested.
+    """
+    # Bare `profile:` alone → no name, whole content is the body.
+    assert split_operator_yaml_profile("profile:\nk: v\n") == ("", "profile:\nk: v")
+    # Bare `profile:` with trailing spaces + inline comment (value collapses
+    # to empty after the # strip) → same behaviour.
+    assert split_operator_yaml_profile("profile:   # nothing here\nk: v\n") == (
+        "",
+        "profile:   # nothing here\nk: v",
+    )
+    # The parser keeps scanning if a later `profile:` line has a real value.
+    name, body = split_operator_yaml_profile("profile:\nprofile: cloud_balanced\nk: v\n")
+    assert name == "cloud_balanced"
+    assert body == "profile:\nk: v"
+
+
 def test_merge_operator_yaml_profile_empty_profile_returns_body_only() -> None:
     assert merge_operator_yaml_profile("", "k: 1") == "k: 1\n"
     assert merge_operator_yaml_profile("   ", "") == ""

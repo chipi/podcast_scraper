@@ -4,6 +4,7 @@
 import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import { graphNodeFill } from './colors'
 import { aboutConfidenceOpacity, aboutConfidenceWidth } from './cyEdgeWeight'
+import { THEME_REGION_PALETTE } from './themeRegionPalette'
 
 export function cytoscapeNodeLabelColorFromTheme(): string {
   try {
@@ -840,19 +841,13 @@ export function buildGiKgCyStylesheet(options?: {
      they read as soft coloured mist against the darker canvas.
      Selectors ordered before interaction-state rules so search-hit /
      selection borders still win visually. */
-  const themeRegionPalette = [
-    '#7ba3d9', // 210° cool blue
-    '#d9d97b', // 60°  warm yellow
-    '#d97ba3', // 330° warm pink
-    '#7bd9a3', // 150° cool green
-    '#d9a37b', // 30°  warm orange
-    '#a37bd9', // 270° cool purple
-    '#a3d97b', // 90°  cool lime
-    '#7bd9d9', // 180° cool cyan
-  ]
+  // graph-v3 tier 5A harden fix #2: palette imported from the shared util
+  // so legend + graph render identical hex for the same `thc:...` id.
+  // Drifting them independently would silently mismatch — see the comment
+  // in themeRegionPalette.ts.
   const underlayOpacity = compact ? 0.1 : 0.14
   const underlayPadding = compact ? 8 : 14
-  themeRegionPalette.forEach((hex, i) => {
+  THEME_REGION_PALETTE.forEach((hex, i) => {
     style.push({
       selector: `node.theme-region-${i}`,
       style: {

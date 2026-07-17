@@ -56,7 +56,7 @@ matches the sibling worktree's output, confirming determinism.
 | `grounding_rate` | `enrichments/grounding_rate.json` | `personCredibility` lens (tier 5C-2); Person node detail |
 | `guest_coappearance` | `enrichments/guest_coappearance.json` | `coGuestEdges` lens (tier 5D-2); Person node detail |
 | `insight_density` | `metadata/enrichments/{stem}.insight_density.json` | Episode enrichment section — no graph lens |
-| `insight_sentiment` | `metadata/enrichments/{stem}.insight_sentiment.json` | `insightSentiment` lens (tier 5C-3); player conversation-arc |
+| `insight_sentiment` | `metadata/enrichments/{stem}.insight_sentiment.json` | Player conversation-arc + position-arc tints. Tier 5C-3 graph lens is **deferred** — needs a corpus-scope aggregation endpoint (currently ships per-episode sidecars only, and 99 per-episode fetches to render is unreasonable). |
 
 ## Notes
 
@@ -72,7 +72,20 @@ matches the sibling worktree's output, confirming determinism.
 
 The right final state is: the enrichment pipeline runs against prod-v2 in
 this worktree (not just the sibling) so the artifacts live at the same
-path they'd land on any fresh clone. The barrier per handover-theme-clusters.md
-was "prod-v2 discovers 0 bundles" (bundle-discovery bug); since fixed on the
-sibling per the artifacts we copied. Re-running the enrichers here should
-just work. Track as follow-up when convenient.
+path they'd land on any fresh clone.
+
+**Verified 2026-07-17**: the bundle-discovery bug from the original
+`handover-theme-clusters.md` is fixed here too. Direct check:
+
+```bash
+PYTHONPATH=src python3 -c "
+from podcast_scraper.enrichment.paths import discover_episode_bundles
+from pathlib import Path
+print(len(discover_episode_bundles(Path('.test_outputs/manual/prod-v2/corpus'))))
+"
+# → 99
+```
+
+So running `make enrich CORPUS=.test_outputs/manual/prod-v2/corpus CORPUS_ONLY=1`
+should now produce the artifacts locally. Nothing beyond a green enrichment
+run stands between the sibling-worktree `cp` and full local reproducibility.

@@ -10,8 +10,10 @@ export const THEME_REGION_PALETTE_SIZE = 8
 
 /** 8 pastel hues, roughly evenly spaced around HSL, saturation ~45%,
  *  lightness ~65%. At the stylesheet's default 0.14 underlay opacity
- *  they read as soft coloured mist against the darker canvas. Kept in
- *  sync with the theme-region-N selectors in `cyGraphStylesheet.ts`. */
+ *  they read as soft coloured mist against the darker canvas.
+ *  Imported by `cyGraphStylesheet.ts` (as the single source of truth
+ *  for the theme-region-N selectors), by GraphThemeLegend (swatch
+ *  colours), and by tests. */
 export const THEME_REGION_PALETTE: readonly string[] = [
   '#7ba3d9', // 210° cool blue
   '#d9d97b', // 60°  warm yellow
