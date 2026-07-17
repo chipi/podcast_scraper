@@ -227,6 +227,7 @@ help:
 	@echo "  make stack-test-ml          Stack-test (one-shot): ml pipeline — build → up → seed → Playwright (airgapped_thin)"
 	@echo "  make stack-test-cloud-thin  Stack-test (one-shot): cloud-thin (LLM) pipeline — build + pipeline-llm → up → seed → Playwright (cloud_thin); needs .env keys"
 	@echo "  make stack-test-down        Stack-test: tear down (STACK_TEST_DOWN_VOLUMES=1 to also drop corpus_data)"
+	@echo "  make stack-test-reap        Stack-test: reap ALL leftovers (stack + orphan build/Playwright), this repo only"
 	@echo "  make stack-test-export      Stack-test: copy corpus_data volume → .stack-test-corpus/ for debug inspection"
 	@echo "  make restore-corpus         Pull a codespace-layout snapshot release from backup repo (via gh); extract to .codespace_corpus/"
 	@echo "  make restore-corpus-prod    Pull a prod-layout snapshot release from backup repo (via gh); extract to WORKSPACE_DIR/corpus/"
@@ -879,11 +880,12 @@ stack-test-cloud-thin:
 # at the failed step, then the EXIT trap fires before the recipe
 # returns the captured non-zero status.
 stack-test-ml-ci:
-	@# Wipe the corpus volume both before (clean slate — a stale/partial LanceDB index
-	@# from a prior run yields false "no_index" search failures; ephemeral CI runners
-	@# never hit it, local re-runs do) and on EXIT (leave a clean laptop, no carryover).
+	@# Wipe the corpus volume before (clean slate — a stale/partial LanceDB index from a
+	@# prior run yields false "no_index" search failures; ephemeral CI runners never hit
+	@# it, local re-runs do) and REAP on any exit (EXIT/INT/TERM) so an interrupted run
+	@# never leaves a runaway build / Playwright runner thrashing the machine.
 	@set -u; \
-	trap '$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 >/dev/null 2>&1 || true' EXIT; \
+	trap '$(MAKE) stack-test-reap >/dev/null 2>&1 || true' EXIT INT TERM; \
 	$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 >/dev/null 2>&1 || true; \
 	$(MAKE) stack-test-build \
 		&& $(MAKE) stack-test-up \
@@ -1406,6 +1408,28 @@ cleanup-processes:
 	@pkill -f "python.*ml_model_cache_helpers" 2>/dev/null || true
 	@pkill -f "python.*calculate_test_workers" 2>/dev/null || true
 	@echo "Process cleanup complete"
+
+# Reliable teardown of ALL stack-test artifacts — the compose stack AND the orphan
+# build / Playwright / browser processes a killed or interrupted run leaves behind.
+# THIS is what was missing: cleanup-processes only reaps pytest workers, so an
+# interrupted ``stack-test-*`` left runaway ``make stack-test-build`` + buildx +
+# Playwright node runners thrashing the machine (they starved the api → 502s).
+#
+# Scoped to THIS repo via ``$(CURDIR)`` so it NEVER touches another worktree's
+# processes (orrery, podcast_scraper-FUTURE, -infra). Idempotent + safe anytime.
+# pkill defaults to SIGTERM, so the Playwright runner cleans up its own browsers.
+stack-test-reap:
+	@echo "Reaping stack-test artifacts (this repo only)..."
+	@$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 >/dev/null 2>&1 || true
+	@# Playwright runner + node launched from THIS repo's stack-test dir.
+	@pkill -f "$(CURDIR)/tests/stack-test/node_modules/.bin/playwright" 2>/dev/null || true
+	@pkill -f "$(CURDIR)/tests/stack-test/node_modules/.bin/playwright-core" 2>/dev/null || true
+	@# Orphan docker build for THIS project's stack (make + buildx bake + compose build).
+	@pkill -f "$(CURDIR).*make stack-test-build" 2>/dev/null || true
+	@pkill -f "docker-buildx bake.*$(notdir $(CURDIR))" 2>/dev/null || true
+	@pkill -f "compose.*$(CURDIR)/compose/docker-compose.stack-test" 2>/dev/null || true
+	@$(MAKE) cleanup-processes >/dev/null 2>&1 || true
+	@echo "Reap complete."
 
 check-zombie:
 	# Detect unkillable (UE state) Python processes that require reboot
