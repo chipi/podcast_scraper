@@ -844,6 +844,30 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         resident_memory_gb=3.0,
         realtime_multiple=2.38,
     ),
+    # DGX MOSS-Transcribe-Diarize (:8004) — the #1174 bake-off transcription winner.
+    # Single 0.9B model does transcribe+diarize in one pass; we use it for TRANSCRIPTION
+    # and keep pyannote community-1 for diarization (MOSS lost diarization on real audio).
+    # Long audio is chunked upstream (AudioChunker, #1174) so a request never exceeds the
+    # model's ~30 min single-pass ceiling. The moss provider defaults moss_port=8004 +
+    # moss_model, so the profile needs only transcription_provider=moss.
+    "moss_transcribe_diarize": StageOption(
+        stage="transcription",
+        option_id="moss_transcribe_diarize",
+        provider="moss",
+        model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        endpoint="http://{dgx_tailnet_host}:8004/v1/transcribe",
+        research_ref="docs/guides/eval-reports/EVAL_MOSS_BAKEOFF_2026_07.md",
+        headline_metric=(
+            "DGX transcription winner (#1174): 5.2% WER vs Deepgram silver on 10 real "
+            "prod episodes — beats faster-whisper (8.5%) on all 10. Diarization loses to "
+            "pyannote on real audio, so pair with pyannote. 2.1-3.8x realtime (bare "
+            "transformers, no speed win vs large-v3). English quality resolved: excellent."
+        ),
+        measured_at="2026-07-16",
+        tier="primary",
+        resident_memory_gb=16.0,
+        realtime_multiple=2.7,
+    ),
     # Laptop MPS — local production default for cloud_with_dgx fallback or no-DGX.
     "local_mps_large_v3": StageOption(
         stage="transcription",
@@ -1738,7 +1762,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
-        transcription="tailnet_dgx_speaches_thread_b",  # #952 winner (:8000 faster-whisper)
+        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004; whisper fallback)
         summary="gemini_flash_lite",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
@@ -1801,7 +1825,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
-        transcription="tailnet_dgx_speaches_thread_b",  # #952 winner (:8000) + cloud fallback
+        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004) + cloud fallback
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1838,7 +1862,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_balanced": ProfilePreset(
         name="prod_dgx_balanced",
-        transcription="tailnet_dgx_speaches_thread_b",
+        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004)
         # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",

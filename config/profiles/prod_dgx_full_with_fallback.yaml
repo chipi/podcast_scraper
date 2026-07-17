@@ -174,7 +174,7 @@ quote_extraction_provider: openai
 entailment_provider: openai
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
-transcription_provider: tailnet_dgx_whisper
+transcription_provider: moss
 summary_model: autoresearch
 topic_cluster_threshold: 0.75
 insight_cluster_threshold: 0.75
