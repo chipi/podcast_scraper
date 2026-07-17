@@ -63,11 +63,21 @@ trap 'rm -rf "$STAGE"' EXIT
 
 bash "$SCRIPT_DIR/download_and_verify_snapshot.sh" --tag "$TAG" --output-dir "$STAGE"
 
+# Refuse to clobber an existing corpus tree (may be live data) — mirrors the
+# guard in import_local_snapshot.sh that this path lacked (review low/restore-overwrite).
 if [[ "$LAYOUT" == "codespace" ]]; then
+  if [[ -e "$WORKSPACE_DIR/.codespace_corpus" ]]; then
+    echo "ERROR: $WORKSPACE_DIR/.codespace_corpus already exists; refusing to overwrite (may be live data)." >&2
+    exit 1
+  fi
   mkdir -p "$WORKSPACE_DIR/.codespace_corpus"
   tar -xzf "$STAGE/snapshot.tgz" -C "$WORKSPACE_DIR" --strip-components=0
   echo "OK: corpus restored from $TAG into $WORKSPACE_DIR/.codespace_corpus/"
 else
+  if [[ -e "$WORKSPACE_DIR/corpus" ]]; then
+    echo "ERROR: $WORKSPACE_DIR/corpus already exists; refusing to overwrite (may be live data)." >&2
+    exit 1
+  fi
   mkdir -p "$WORKSPACE_DIR"
   tar -xzf "$STAGE/snapshot.tgz" -C "$WORKSPACE_DIR" --strip-components=0
   if [[ ! -d "$WORKSPACE_DIR/corpus" ]]; then

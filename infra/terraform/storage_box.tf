@@ -17,6 +17,13 @@ resource "hcloud_storage_box" "audio_archive" {
 
   # SFTP (used by rclone) runs over the SSH subsystem. Keep the box reachable
   # from the VPS and the operator's laptop; leave Samba/WebDAV/ZFS off.
+  #
+  # SECURITY (review 2026-07-17 low/storage-box): reachable_externally=true makes
+  # this SFTP endpoint INTERNET-FACING with password-only auth (the Storage Box is
+  # a separate Hetzner product — the VPS firewall does NOT protect it, and it has
+  # no server-side IP allowlist). Mitigation: make audio_storage_box_password
+  # high-entropy (>=32 random chars). Consider key-only auth (add ssh_keys) once
+  # the operator pre-registers a key with Hetzner.
   access_settings = {
     ssh_enabled          = true
     reachable_externally = true

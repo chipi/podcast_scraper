@@ -108,14 +108,17 @@ def is_retryable_error(error: Exception, *, error_context: str = "default") -> b
     ):
         return True
 
-    # Server errors (5xx) - retryable
+    # Server errors (5xx) - retryable. The bare digit-substring checks ("500" in
+    # str) only run when structured extraction FAILED (http_code is None) — else a
+    # token count / timestamp like "5001.2s" would false-match a 5xx (review
+    # low/retryable-5xx). Well-formed errors take the structured path above.
     if (
-        "500" in str(error)
-        or "501" in str(error)
-        or "502" in str(error)
-        or "503" in str(error)
-        or "504" in str(error)
-        or "505" in str(error)
+        (http_code is None and "500" in str(error))
+        or (http_code is None and "501" in str(error))
+        or (http_code is None and "502" in str(error))
+        or (http_code is None and "503" in str(error))
+        or (http_code is None and "504" in str(error))
+        or (http_code is None and "505" in str(error))
         or "internal server error" in error_str
         or (error_context != "ollama_local" and "server error" in error_str)
         or "bad gateway" in error_str

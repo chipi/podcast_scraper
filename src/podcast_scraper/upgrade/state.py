@@ -89,13 +89,30 @@ class FilesystemStateStore:
         return [e for e in applied if isinstance(e, dict)] if isinstance(applied, list) else []
 
     def record_applied(self, migration_id: str, *, to_version: str, at: str) -> None:
-        """Append *migration_id* to the ledger and advance the recorded version."""
-        ledger = self._read_ledger()
-        applied = ledger.get("applied")
-        if not isinstance(applied, list):
-            applied = []
-        applied = [e for e in applied if not (isinstance(e, dict) and e.get("id") == migration_id)]
-        applied.append({"id": migration_id, "to_version": to_version, "at": at})
-        ledger["applied"] = applied
-        ledger["version"] = to_version
-        self._write_ledger(ledger)
+        """Append *migration_id* to the ledger and advance the recorded version.
+
+        The read-modify-write is guarded by an exclusive ``flock`` on a sidecar
+        lock file so two concurrent ``upgrade run`` invocations (a manual run
+        overlapping the CI boot-gate) can't clobber each other's applied entries
+        (review 2026-07-17 low/ledger-lock). Best-effort — degrades on non-POSIX.
+        """
+        import fcntl
+
+        self.corpus_root.mkdir(parents=True, exist_ok=True)
+        lock_path = self.ledger_path.with_suffix(self.ledger_path.suffix + ".lock")
+        with open(lock_path, "w", encoding="utf-8") as lock_f:
+            try:
+                fcntl.flock(lock_f, fcntl.LOCK_EX)
+            except OSError:
+                pass  # best-effort: unsupported fs / platform
+            ledger = self._read_ledger()
+            applied = ledger.get("applied")
+            if not isinstance(applied, list):
+                applied = []
+            applied = [
+                e for e in applied if not (isinstance(e, dict) and e.get("id") == migration_id)
+            ]
+            applied.append({"id": migration_id, "to_version": to_version, "at": at})
+            ledger["applied"] = applied
+            ledger["version"] = to_version
+            self._write_ledger(ledger)

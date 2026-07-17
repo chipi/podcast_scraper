@@ -80,6 +80,10 @@ def _rel_path_for_name(name: str) -> Path:
 
 def _resolve_template_path(prompt_dir: Path, rel_path: Path) -> Path:
     """Resolve template path, with shared summarization fallback."""
+    # Containment guard (review low/prompt-store): the prompt-version name is
+    # config-driven, so reject any ``..`` traversal before touching the fs.
+    if ".." in rel_path.parts:
+        raise ValueError(f"prompt template name escapes the prompt dir: {rel_path}")
     primary = prompt_dir / rel_path
     if primary.is_file():
         return primary

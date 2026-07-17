@@ -111,7 +111,11 @@ def diarization_sponsor_signals(
 
     before = _speakers_in_time_range(spans, t_start - _CONTEXT_WINDOW_S, t_start)
     after = _speakers_in_time_range(spans, t_end, t_end + _CONTEXT_WINDOW_S)
-    if before and after and before != {host_speaker_id}:
+    # Require the host to RESUME after the candidate (host_speaker_id in after),
+    # not just "someone speaks after" — the old condition boosted whenever any
+    # non-host spoke before, regardless of who followed, over-firing the
+    # topic-discontinuity signal (review 2026-07-17 low/diar-discontinuity).
+    if before and before != {host_speaker_id} and host_speaker_id in after:
         delta += TOPIC_DISCONTINUITY_BOOST
 
     return DiarizationSignals(confidence_delta=delta)

@@ -164,7 +164,15 @@ class AudioChunker:
                 str(target_bitrate),
                 out_path,
             ]
-            _run_text_subprocess(cmd, timeout=300.0, check=True)
+            try:
+                _run_text_subprocess(cmd, timeout=300.0, check=True)
+            except Exception:
+                # Don't leak the tmpdir we created on a per-chunk ffmpeg failure;
+                # re-raise (fail-fast — silently dropping a chunk would truncate
+                # the transcript) (review 2026-07-17 low/chunker-cleanup).
+                if work_dir is None:
+                    shutil.rmtree(out_dir, ignore_errors=True)
+                raise
             out_size = os.path.getsize(out_path) if os.path.exists(out_path) else 0
             if out_size <= 0:
                 # Don't silently lose a window — a 0-byte output drops that span

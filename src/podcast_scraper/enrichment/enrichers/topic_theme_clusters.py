@@ -54,6 +54,10 @@ def _slugify(label: str) -> str:
     return slug or "cluster"
 
 
+# Above this many topics, skip average-linkage clustering (see the guard below).
+_MAX_LINKAGE_TOPICS = 400
+
+
 def _average_linkage(
     n: int,
     weight: "Any",
@@ -66,6 +70,13 @@ def _average_linkage(
     weight while that mean stays ``>= threshold``. Mirrors the semantic
     clusterer's average-linkage to avoid single-linkage chaining.
     """
+    # Bound the O(n^4)-worst-case average-linkage (per-merge pair-scan × pairwise
+    # mean) on pathologically large topic sets: above the cap, degrade to
+    # no-clustering rather than burning a CPU core past the timeout in a sync
+    # thread that can't be cancelled (review 2026-07-17 low/theme-linkage).
+    if n > _MAX_LINKAGE_TOPICS:
+        return [{i} for i in range(n)]
+
     clusters: list[set[int]] = [{i} for i in range(n)]
 
     def mean_inter(ci: set[int], cj: set[int]) -> float:

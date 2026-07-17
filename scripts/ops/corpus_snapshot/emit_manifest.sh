@@ -134,6 +134,9 @@ doc="$(jq -n \
   }')"
 
 if [[ -n "$WORKFLOW_NAME" && -n "$WORKFLOW_RUN_ID" ]]; then
+  # jq --argjson requires valid JSON; a non-integer attempt aborts jq with a
+  # cryptic error. Coerce anything non-numeric to 1 (review low/emit-manifest).
+  [[ "$WORKFLOW_ATTEMPT" =~ ^[0-9]+$ ]] || WORKFLOW_ATTEMPT=1
   doc="$(jq -n --argjson base "$doc" \
     --arg name "$WORKFLOW_NAME" \
     --arg run_id "$WORKFLOW_RUN_ID" \
