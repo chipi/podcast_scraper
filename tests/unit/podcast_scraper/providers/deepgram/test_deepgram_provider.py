@@ -542,13 +542,16 @@ class TestDeepgramTranscribeWrapper:
 
 
 class TestCreateDeepgramClient:
-    def test_base_url_override_failure_falls_back_to_hosted(self) -> None:
-        """When the SDK lacks the environment override, _create_deepgram_client logs a
-        warning and falls back to the default hosted client (best-effort, lines 127-133).
+    def test_base_url_override_failure_raises_never_hosted(self) -> None:
+        """When a base_url override is configured but the SDK can't apply it,
+        _create_deepgram_client FAILS LOUD — it must never silently fall back to the
+        hosted Deepgram endpoint. The CI mock / a self-hosted endpoint must be honored
+        or error; a silent fallback is how CI reached real Deepgram (401) and how prod
+        would leak audio + spend.
 
         deepgram-sdk may not be installed in the unit env, so inject fake modules: the
-        environment constructor raises, and we assert the fallback DeepgramClient is
-        built with just the api_key."""
+        environment constructor raises, and we assert a RuntimeError propagates and the
+        hosted DeepgramClient is NEVER built."""
         fake_deepgram = types.ModuleType("deepgram")
         fake_client = MagicMock(return_value="HOSTED_CLIENT")
         fake_deepgram.DeepgramClient = fake_client  # type: ignore[attr-defined]
@@ -563,7 +566,8 @@ class TestCreateDeepgramClient:
         with patch.dict(
             sys.modules, {"deepgram": fake_deepgram, "deepgram.environment": fake_env_mod}
         ):
-            client = _create_deepgram_client("dg-key", base_url="http://self-hosted:8080")
+            with pytest.raises(RuntimeError, match="could not be applied"):
+                _create_deepgram_client("dg-key", base_url="http://self-hosted:8080")
 
-        assert client == "HOSTED_CLIENT"
-        fake_deepgram.DeepgramClient.assert_called_once_with(api_key="dg-key")
+        # The hosted client must NEVER be constructed when a base was configured.
+        fake_deepgram.DeepgramClient.assert_not_called()

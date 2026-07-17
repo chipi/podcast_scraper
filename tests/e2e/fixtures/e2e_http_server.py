@@ -67,35 +67,39 @@ def _anthropic_system_text(system: Any) -> str:
     return str(system)
 
 
+def _bundled_gil_json(text: str) -> Optional[str]:
+    """Shared #698 bundled-GIL response for EVERY provider mock (gemini/openai/anthropic).
+
+    The bundled extract_quotes / score_entailment calls send an index-numbered prompt and
+    expect a JSON object keyed by index — a shape the staged handlers don't emit. Returning
+    it here uniformly keeps the bundled path exercised for ALL providers, not just whichever
+    one an acceptance arm happens to use; without it the bundled call fails and silently
+    degrades to the staged fallback, hiding the coverage gap (the Gemini incident).
+    """
+    if "Return JSON only." not in text:
+        return None
+    if "Insights:" in text and "Transcript (excerpt):" in text:
+        # extract_quotes_bundled -> {index: [verbatim transcript snippet]} so quotes ground.
+        transcript = text.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
+        snippet = transcript[:60].strip() or "Evidence from transcript."
+        block = text.split("Insights:")[1].split("Return JSON only.")[0]
+        idxs = re.findall(r"^\s*(\d+):", block, re.MULTILINE) or ["0"]
+        return json.dumps({i: [snippet] for i in idxs})
+    if "Pairs:" in text and "premise:" in text:
+        # score_entailment_bundled -> {index: support score in [0,1]}.
+        block = text.split("Pairs:")[1].split("Return JSON only.")[0]
+        idxs = re.findall(r"^\s*(\d+):", block, re.MULTILINE) or ["0"]
+        return json.dumps({i: 0.9 for i in idxs})
+    return None
+
+
 def _gemini_text_response_data(request_data: Dict[str, Any], text_prompt: str) -> Dict[str, Any]:
     """Build Gemini generateContent response body for non-audio text requests."""
     generation_config = request_data.get("generationConfig", {})
     response_mime_type = generation_config.get("response_mime_type", "")
 
-    # #698 bundled GIL evidence stack. The bundled quote/NLI calls send a
-    # different prompt shape than the staged ones and expect a JSON object keyed
-    # by insight/pair index; without these branches the mock returns a plain-text
-    # summary → JSON parse fails → grounder emits 0 quotes (GI invariant).
-    bundled_json: Optional[str] = None
-    if (
-        "Return JSON only." in text_prompt
-        and "Insights:" in text_prompt
-        and "Transcript (excerpt):" in text_prompt
-    ):
-        # extract_quotes_bundled: map each insight index to a VERBATIM transcript
-        # snippet so the grounder aligns it (mirrors the staged handler's excerpt).
-        transcript = text_prompt.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
-        snippet = transcript[:60].strip() or "Evidence from transcript."
-        insights_block = text_prompt.split("Insights:")[1].split("Return JSON only.")[0]
-        idxs = re.findall(r"^\s*(\d+):", insights_block, re.MULTILINE) or ["0"]
-        bundled_json = json.dumps({i: [snippet] for i in idxs})
-    elif (
-        "Return JSON only." in text_prompt and "Pairs:" in text_prompt and "premise:" in text_prompt
-    ):
-        # score_entailment_bundled: index -> support score in [0,1].
-        pairs_block = text_prompt.split("Pairs:")[1].split("Return JSON only.")[0]
-        idxs = re.findall(r"^\s*(\d+):", pairs_block, re.MULTILINE) or ["0"]
-        bundled_json = json.dumps({i: 0.9 for i in idxs})
+    # #698 bundled GIL evidence stack (shared across every provider mock).
+    bundled_json = _bundled_gil_json(text_prompt)
     if bundled_json is not None:
         return {
             "candidates": [
@@ -898,8 +902,24 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 system_content = raw_sys if isinstance(raw_sys, str) else ""
             response_format = request_data.get("response_format", {})
 
-            # Determine response type: speaker (json_object), GIL evidence, or summarization
-            if response_format.get("type") == "json_object":
+            # Determine response type: bundled GIL, speaker, GIL evidence, or summarization
+            bundled_json = _bundled_gil_json(user_content)
+            if bundled_json is not None:
+                response_data = {
+                    "id": "chatcmpl-test-bundled",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request_data.get("model", config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": bundled_json},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 100, "completion_tokens": 40, "total_tokens": 140},
+                }
+            elif response_format.get("type") == "json_object":
                 # Speaker detection response
                 response_data = {
                     "id": "chatcmpl-test-speaker",
@@ -1596,7 +1616,19 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             system = request_data.get("system", "")
 
             # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
-            if "Insight:" in user_content and (
+            bundled_json = _bundled_gil_json(user_content)
+            if bundled_json is not None:
+                response_data = {
+                    "id": "msg-test-bundled",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": bundled_json}],
+                    "model": request_data.get("model", "claude-haiku-4-5"),
+                    "stop_reason": "end_turn",
+                    "stop_sequence": None,
+                    "usage": {"input_tokens": 100, "output_tokens": 40},
+                }
+            elif "Insight:" in user_content and (
                 "quote_text" in user_content or "Transcript (excerpt):" in user_content
             ):
                 if "Transcript (excerpt):" in user_content:
