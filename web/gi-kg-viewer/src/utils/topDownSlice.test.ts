@@ -73,11 +73,59 @@ describe('buildTopDownSlice (graph-v3 tier 8-1)', () => {
       },
       fullArtifact: null,
     })
-    // 3 super-themes → 3 pairs (a-b, a-c, b-c).
-    expect(out.edges.length).toBe(3)
+    /* No fullArtifact → no bridge edges available → fallback ring of
+     * N-1 chained edges (each super-theme linked to the next). */
+    expect(out.edges.length).toBe(2)
     for (const e of out.edges) {
       expect(e.type).toBe('_topdown_link')
+      expect(
+        (e as { properties?: { source?: string } }).properties?.source,
+      ).toBe('fallback_ring')
     }
+  })
+
+  it('emits bridge-derived cross-super-theme edges when the artifact carries them', () => {
+    const out = buildTopDownSlice({
+      themeDoc: {
+        clusters: [
+          { graph_compound_parent_id: 'thc:a', super_theme_id: 'sth:a' },
+          { graph_compound_parent_id: 'thc:b', super_theme_id: 'sth:b' },
+          { graph_compound_parent_id: 'thc:c', super_theme_id: 'sth:c' },
+        ],
+      },
+      fullArtifact: {
+        nodes: [
+          { id: 'topic:a1', type: 'Topic', themeClusterId: 'thc:a' } as never,
+          { id: 'topic:b1', type: 'Topic', themeClusterId: 'thc:b' } as never,
+          { id: 'topic:c1', type: 'Topic', themeClusterId: 'thc:c' } as never,
+        ],
+        edges: [
+          /* Two edges between a and b — should collapse into one bridge
+             edge with weight=2. */
+          { type: 'RELATED', from: 'topic:a1', to: 'topic:b1' },
+          { type: 'RELATED', from: 'topic:a1', to: 'topic:b1' },
+          /* One edge a↔c. */
+          { type: 'RELATED', from: 'topic:a1', to: 'topic:c1' },
+          /* Self-super edge (a1↔a1 doesn't happen, but a1↔a2 would;
+             ignored because both endpoints roll up to the same super). */
+        ],
+      },
+    })
+    const bridgeEdges = out.edges.filter(
+      (e) =>
+        (e as { properties?: { source?: string } }).properties?.source === 'bridge',
+    )
+    expect(bridgeEdges.length).toBe(2) // {a,b} and {a,c}, not {b,c}
+    const ab = bridgeEdges.find(
+      (e) =>
+        (e.from === 'sth:a' && e.to === 'sth:b') || (e.from === 'sth:b' && e.to === 'sth:a'),
+    )
+    expect((ab as { properties?: { weight?: number } })?.properties?.weight).toBe(2)
+    const noFallback = out.edges.every(
+      (e) =>
+        (e as { properties?: { source?: string } }).properties?.source !== 'fallback_ring',
+    )
+    expect(noFallback).toBe(true)
   })
 
   it('deduplicates edges when the same super_theme_id spans multiple clusters', () => {
@@ -92,9 +140,22 @@ describe('buildTopDownSlice (graph-v3 tier 8-1)', () => {
       },
       fullArtifact: null,
     })
-    // 2 super-themes → 1 edge; the extra child clusters don't duplicate.
+    // 2 super-themes → 1 fallback-ring edge (N-1 chain); duplicate child
+    // clusters don't add extra edges since dedup happens per super_theme_id.
     expect(out.nodes.length).toBe(2)
     expect(out.edges.length).toBe(1)
+  })
+
+  it('caps super-theme node count at VIEWER_SUPER_THEME_MAX (gap-4)', () => {
+    const clusters = Array.from({ length: 12 }, (_, i) => ({
+      graph_compound_parent_id: `thc:${i}`,
+      super_theme_id: `sth:${i}`,
+      super_theme_label: `S${i}`,
+      member_count: i, // ascending so higher ids are "bigger"
+    }))
+    const out = buildTopDownSlice({ themeDoc: { clusters }, fullArtifact: null })
+    const superNodes = out.nodes.filter((n) => n.type === 'SuperTheme')
+    expect(superNodes.length).toBe(8) // clamped
   })
 
   it('marks top_down_expanded true on nodes whose super_theme_id is in the expanded set', () => {

@@ -33,6 +33,17 @@ export default defineConfig({
        those relative fetches hang for the 120s httpClient timeout and
        bleed between test files in the same worker. See src/test/setup.ts. */
     setupFiles: ['src/test/setup.ts'],
+    /* USERPREFS-1 side-effect — the `userPreferences` store opens a
+       BroadcastChannel on construction. happy-dom + vitest's default
+       worker-thread pool don't tear that channel down cleanly, so
+       any test file that reaches the userPreferences store leaves
+       a live handle that stalls vitest's own shutdown for ~10s and
+       occasionally deadlocks the whole run when many files share
+       a worker. Pinning to `forks` gives each file its own process,
+       so channel teardown is process-exit — instant and reliable.
+       Ratcheted verification: 12/12 store tests + 9/9 slice tests +
+       4/4 enricher tests all green with this default. */
+    pool: 'forks',
     // Ensure Vitest never initializes PostHog (no token); avoids flaky network side effects.
     env: {
       VITE_POSTHOG_PROJECT_TOKEN: '',

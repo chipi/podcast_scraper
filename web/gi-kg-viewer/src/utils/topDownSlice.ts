@@ -28,6 +28,15 @@
 import type { ArtifactData } from '../types/artifact'
 import type { TopicClustersDocument } from '../api/corpusTopicClustersApi'
 
+/* graph-v3 tier 8-1 viewer clamp (gap-4 harden). The enricher already caps
+ * `super_theme_count` at 8 (_SUPER_THEME_MAX in
+ * topic_theme_clusters.py), but a stale / hand-crafted / bad artifact
+ * could still ship a doc with more. Belt-and-suspenders: the viewer
+ * truncates to the top-N super-themes by `child_cluster_count` so a
+ * pathological artifact can't overwhelm the layout. Mirrors the
+ * enricher's own [MIN, MAX] band. */
+export const VIEWER_SUPER_THEME_MAX = 8
+
 export interface BuildTopDownSliceOptions {
   themeDoc: TopicClustersDocument | null | undefined
   /** Full merged artifact used to project expanded super-themes'
@@ -67,6 +76,21 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
 
   if (superById.size === 0) return { nodes: [], edges: [] }
 
+  /* Viewer-side clamp (gap-4). Keep the largest N super-themes by child
+   * count; drop the rest so a bad artifact can't blow up the layout.
+   * Deterministic order: (-child_cluster_count, super_theme_id) so
+   * repeated calls with the same input produce the same slice. */
+  if (superById.size > VIEWER_SUPER_THEME_MAX) {
+    const ranked = Array.from(superById.entries()).sort((a, b) => {
+      const sizeDelta = b[1].clusterIds.size - a[1].clusterIds.size
+      if (sizeDelta !== 0) return sizeDelta
+      return a[0].localeCompare(b[0])
+    })
+    const kept = new Map(ranked.slice(0, VIEWER_SUPER_THEME_MAX))
+    superById.clear()
+    for (const [k, v] of kept) superById.set(k, v)
+  }
+
   // cluster_id → super_theme_id lookup (drives expansion projection).
   const clusterToSuper = new Map<string, string>()
   for (const [sid, entry] of superById) {
@@ -96,15 +120,69 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
     emittedIds.add(sid)
   }
 
-  // Structural inter-super-theme edges keep fcose from scattering the
-  // ~6-8 bubbles.
+  /* graph-v3 tier 8-1 → gap-3 harden — inter-super-theme edges.
+   *
+   * Replaces the scaffolding "all-pairs" edges with edges derived from
+   * REAL bridge topics: for each edge in the full artifact that
+   * connects two nodes whose themeClusterIds roll up to DIFFERENT
+   * super-themes, we count that as one bridge signal between those two
+   * super-themes. Deduped by unordered super-theme pair with a `weight`
+   * = number of underlying bridge edges (a proxy for "how strongly
+   * these two super-themes talk to each other").
+   *
+   * Fallback: if the artifact carries no bridge edges (small corpus /
+   * theme propagation hasn't fanned out yet), we still emit a single
+   * ring of edges so fcose has enough structure to lay the ~6-8
+   * bubbles out cohesively instead of drifting apart. Ring beats
+   * all-pairs — same layout cost, less visual noise, still connected.
+   */
   const superIds = Array.from(superById.keys())
-  for (let i = 0; i < superIds.length; i++) {
-    for (let j = i + 1; j < superIds.length; j++) {
+  const superIdSet = new Set(superIds)
+  const bridgeSignal = new Map<string, number>()
+  const fullNodesForBridges = opts.fullArtifact?.nodes ?? []
+  const fullEdgesForBridges = opts.fullArtifact?.edges ?? []
+  const nodeSuperById = new Map<string, string>()
+  for (const n of fullNodesForBridges) {
+    if (!n || n.id == null) continue
+    const tcid =
+      typeof (n as { themeClusterId?: unknown }).themeClusterId === 'string'
+        ? String((n as { themeClusterId?: unknown }).themeClusterId).trim()
+        : ''
+    if (!tcid) continue
+    const sid = clusterToSuper.get(tcid)
+    if (sid && superIdSet.has(sid)) nodeSuperById.set(String(n.id), sid)
+  }
+  for (const e of fullEdgesForBridges) {
+    if (!e || e.from == null || e.to == null) continue
+    const sSuper = nodeSuperById.get(String(e.from))
+    const tSuper = nodeSuperById.get(String(e.to))
+    if (!sSuper || !tSuper || sSuper === tSuper) continue
+    const [lo, hi] = sSuper < tSuper ? [sSuper, tSuper] : [tSuper, sSuper]
+    const key = `${lo}|${hi}`
+    bridgeSignal.set(key, (bridgeSignal.get(key) ?? 0) + 1)
+  }
+  if (bridgeSignal.size > 0) {
+    for (const [key, weight] of bridgeSignal) {
+      const [a, b] = key.split('|')
       edges.push({
         type: '_topdown_link',
-        from: superIds[i]!,
-        to: superIds[j]!,
+        from: a!,
+        to: b!,
+        properties: { weight, source: 'bridge' },
+      })
+    }
+  } else if (superIds.length > 1) {
+    /* Fallback ring: N-1 edges chain (not N² all-pairs) — enough for
+     * layout structure, minimal visual noise. Ordered path so no two
+     * edges duplicate the same unordered pair. */
+    for (let i = 0; i < superIds.length - 1; i++) {
+      const a = superIds[i]!
+      const b = superIds[i + 1]!
+      edges.push({
+        type: '_topdown_link',
+        from: a,
+        to: b,
+        properties: { weight: 0, source: 'fallback_ring' },
       })
     }
   }

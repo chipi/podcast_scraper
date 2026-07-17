@@ -1,10 +1,26 @@
 # graph-v3 tier 8 — top-down default graph load (design)
 
-**Status:** design — not started
+**Status:** shipped 2026-07-17 (all six sub-tiers landed on `feat/graph-v3`)
 **Owner:** operator (Marko)
 **Branch:** `feat/graph-v3` (same as tier 6 + tier 7 stack)
 **Depends on:** tier 7 shipped (super-theme rollup lives in
                 `topic_theme_clusters` v1.1.0 + hierarchical legend)
+
+## Sub-tier commit map
+
+| # | Commit | Sub-tier |
+|---|---|---|
+| 8-5 | `c32ac8f1` | load-mode opt-in flag (plumbing) |
+| 8-1 | `cfe3a49c` | top-down synthetic slice mount |
+| 8-2 | `24ab3fa4` | expand-on-tap for SuperTheme nodes |
+| 8-3 | `07f24096` | search reveals hidden |
+| 8-4 | `422457e6` | filter re-scope over expanded slice |
+| 8-6 | `9e304d39` | ego + cross-episode re-scope |
+
+The `DEFAULT_MODE` constant in `web/gi-kg-viewer/src/stores/graphLoadMode.ts`
+still ships as `'everything'` per the design's "flip after 8-2 stabilises"
+rule. Flipping it to `'topDown'` is a one-line change once the branch has
+been kicked-the-tires in a real corpus.
 
 ---
 
