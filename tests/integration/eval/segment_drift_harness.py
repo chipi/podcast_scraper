@@ -3,8 +3,10 @@
 Transcribes a v3 fixture mp3 with word timestamps and measures turn-boundary drift against the
 RTTM ground truth (see :mod:`podcast_scraper.evaluation.segment_time_drift`). Two uses:
 
-* ``regenerate_cache`` — transcribe a subset once (local ``base.en``) and write a compact
-  words-cache so the regression test needs no model. Run manually / nightly::
+* ``regenerate_cache`` — transcribe a subset once (local ``large-v3``, the prod model) and write a
+  compact words-cache so the regression test needs no model. large-v3 word timestamps (~50 ms) are
+  what make the strict AC2 bound genuinely hold on the clean fixtures; a small model (base.en,
+  ~320 ms word granularity) inflates the measured p95 above AC2 as a model artifact. Run manually::
 
       python -m tests.integration.eval.segment_drift_harness --regen
 
@@ -88,7 +90,7 @@ def rttm_onsets(stem: str) -> List[float]:
     return onsets
 
 
-def transcribe_segments(stem: str, model_name: str = "base.en") -> List[Dict]:
+def transcribe_segments(stem: str, model_name: str = "large-v3") -> List[Dict]:
     """Transcribe a fixture mp3 with word timestamps → ``[{start, words:[[key, ms], ...]}]``."""
     import whisper  # local import: only the regen path needs the model
 
@@ -136,7 +138,7 @@ def load_cache() -> Dict[str, List[Dict]]:
     return json.loads(CACHE_PATH.read_text(encoding="utf-8")) if CACHE_PATH.exists() else {}
 
 
-def regenerate_cache(stems: Tuple[str, ...] = DEFAULT_SUBSET, model_name: str = "base.en") -> None:
+def regenerate_cache(stems: Tuple[str, ...] = DEFAULT_SUBSET, model_name: str = "large-v3") -> None:
     cache = {stem: transcribe_segments(stem, model_name) for stem in stems}
     CACHE_PATH.write_text(json.dumps(cache), encoding="utf-8")
     print(f"wrote {CACHE_PATH} ({len(cache)} fixtures)")
@@ -147,7 +149,7 @@ def main() -> int:
     ap.add_argument(
         "--regen", action="store_true", help="transcribe the subset and write the cache"
     )
-    ap.add_argument("--model", default="base.en")
+    ap.add_argument("--model", default="large-v3")
     args = ap.parse_args()
     if args.regen:
         regenerate_cache(model_name=args.model)
