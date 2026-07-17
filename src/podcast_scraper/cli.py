@@ -3689,6 +3689,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         index_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_index_argv(index_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "archive":
+        from .archive.cli_handlers import parse_archive_argv
+
+        archive_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_archive_argv(archive_argv)
+
     if argv and len(argv) > 0 and argv[0] == "index-two-tier":
         from .search.cli_handlers import parse_index_two_tier_argv
 
@@ -4745,6 +4751,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         and len(argv) > 0
         and argv[0]
         in (
+            "archive",
             "cache",
             "corpus-status",
             "corpus-cost",
@@ -4832,6 +4839,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_search_cli
 
         return run_search_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "archive":
+        from .archive.cli_handlers import run_archive
+
+        return run_archive(args)
 
     if hasattr(args, "command") and args.command == "index":
         from .search.cli_handlers import run_index_cli

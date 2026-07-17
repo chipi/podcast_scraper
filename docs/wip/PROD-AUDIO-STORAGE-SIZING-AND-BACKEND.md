@@ -144,17 +144,30 @@ Box support (2026-07-17). So we are not limited to a host mount.
   existence. Tests: `test_storage_backend.py`, `test_audio_cache.py`
   (backend layer). Full lint/type/policy green.
 
-## Follow-ups (loop-closing — need use-case definition, per operator)
+## Read-back access (the two use cases)
 
-- **Access-back mechanism.** The download-path fetch-on-hit works, but the richer
-  reprocess-access story needs use cases scoped: (a) bulk reprocess pulling many
-  episodes from remote (download-local vs stream), (b) reprocess-in-place on the
-  box, (c) the corpus-media hardlink source is local-only today (remote → copy).
-  Identify the concrete reprocess workflows and close each.
-- **rclone in the pipeline image.** `remote` needs the `rclone` binary on the
-  prod host/container — add to the pipeline Dockerfile + document the `rclone
-  config` (a Hetzner Storage Box SFTP remote) as a deploy secret, staged like the
-  corpus secrets.
+Two flows, both reusing the backend + the archive-aware download path:
+
+- **Flow A — pull audio to laptop: DONE.** `podcast-scraper archive pull` resolves
+  episode→guid→key from corpus metadata (`episode.guid` is stored) and downloads
+  via the backend with human names (`<feed>/<NNNN> - <title>.<ext>`); selectors
+  `--all/--feed/--episode/--since`, `--dry-run`, `--force`; source `--rclone-remote`
+  or `--local-root`. Standalone (no full pipeline config). Also enables
+  reprocess-on-laptop (set `audio_storage_backend=remote`).
+- **Flow B — one-off reprocess in prod: pipeline half DONE.** `--reprocess-existing-only`
+  re-runs episode processing, which calls `download_media_for_transcription` →
+  `audio_cache.fetch_into` → pulls each episode's audio from the remote before
+  re-diarize/re-transcribe. No feed re-fetch. Remaining plumbing below.
+
+## Remaining follow-ups
+
+- **rclone in the pipeline image** (both flows' prereq): add the `rclone` binary
+  to the pipeline Dockerfile + stage the `rclone config` (Storage Box SFTP remote)
+  as a deploy secret, like the corpus secrets.
+- **`reprocess-prod.yml` workflow** (`workflow_dispatch`, inputs scope +
+  reprocess-source) + a documented `docker exec` recipe in the runbook.
 - **Provision** a BX11 Storage Box (operator action) + the rclone remote.
+- Corpus-media hardlink source is local-only today (remote → falls back to copy);
+  revisit if remote reprocess needs the link optimisation.
 - Optional RFC/ADR to ratify the storage boundary + the rclone system dep.
 - Tier-2 sizing guard so the footprint projection stays honest as feeds grow.
