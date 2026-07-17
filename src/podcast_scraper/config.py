@@ -3150,6 +3150,42 @@ class Config(BaseModel):
             "corpus. Default False keeps it external so backup tarballs stay small."
         ),
     )
+    audio_storage_backend: Literal["local", "remote"] = Field(
+        default="local",
+        alias="audio_storage_backend",
+        description=(
+            "#1199: where the #947 raw-audio archive lives. ``local`` (default) is the "
+            "filesystem (``audio_cache_dir`` / ``audio_cache_in_corpus``). ``remote`` is "
+            "object storage via rclone (see ``audio_remote_*``) — a Hetzner Storage Box "
+            "(SFTP) or any S3/rclone remote. A misconfigured remote fails loud at load; "
+            "per-episode upload/download is best-effort (ERROR-logged, never silent)."
+        ),
+    )
+    audio_remote_rclone_remote: Optional[str] = Field(
+        default=None,
+        alias="audio_remote_rclone_remote",
+        description=(
+            "#1199: rclone remote NAME (as in ``rclone config``, e.g. ``hetzner-box`` or "
+            "``s3-audio``) for ``audio_storage_backend='remote'``. Required when remote. "
+            "Secret-free: credentials live in the host's rclone config, never here."
+        ),
+    )
+    audio_remote_base_path: str = Field(
+        default="podcast-audio-archive",
+        alias="audio_remote_base_path",
+        description=(
+            "#1199: base path / bucket-prefix under the rclone remote for the audio "
+            "archive. The sharded ``sha256/aa/bb/<digest><ext>`` key is appended."
+        ),
+    )
+    audio_remote_rclone_bin: str = Field(
+        default="rclone",
+        alias="audio_remote_rclone_bin",
+        description=(
+            "#1199: rclone binary name/path. Must be on PATH in the pipeline image/host "
+            "when ``audio_storage_backend='remote'``."
+        ),
+    )
     persist_episode_media: bool = Field(
         default=True,
         alias="persist_episode_media",
@@ -5445,6 +5481,23 @@ class Config(BaseModel):
     @classmethod
     def _validate_audio_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
         return cls._validate_path_no_traversal(v, "audio_cache_dir")
+
+    @model_validator(mode="after")
+    def _validate_remote_audio_storage(self) -> "Config":
+        """#1199: a 'remote' audio archive must name its rclone remote — fail loud, not silent.
+
+        A configured-but-unusable remote is the Deepgram trap (#1195): better to
+        refuse at config load than to silently drop audio at runtime.
+        """
+        if (
+            getattr(self, "audio_storage_backend", "local") == "remote"
+            and not (getattr(self, "audio_remote_rclone_remote", None) or "").strip()
+        ):
+            raise ValueError(
+                "audio_storage_backend='remote' requires audio_remote_rclone_remote "
+                "(the rclone remote name). Set it, or use audio_storage_backend='local'."
+            )
+        return self
 
     @field_validator("preprocessing_mp3_bitrate_kbps", mode="before")
     @classmethod

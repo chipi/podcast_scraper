@@ -23,11 +23,14 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .. import config_constants
 from .corpus_media import AUDIO_MEDIA_EXTENSIONS
 from .path_validation import safe_relpath_under_corpus_root
+
+if TYPE_CHECKING:
+    from .storage_backend import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -139,3 +142,80 @@ def copy_into(cached_path: str, dest_path: str) -> bool:
     except OSError as exc:
         logger.warning("audio cache: failed to copy %s -> %s: %s", cached_path, dest_path, exc)
         return False
+
+
+# ---------------------------------------------------------------------------
+# #1199: pluggable local-vs-remote archive backend.
+#
+# The functions above are the LOCAL implementation, retained for the reprocess
+# hardlink-source path (local-only) and existing callers. Below is the
+# transport-agnostic layer: resolve a StorageBackend from config, then fetch /
+# store by the same sharded GUID key. A ``local`` backend is byte-compatible with
+# the layout above, so existing on-disk caches stay findable.
+# ---------------------------------------------------------------------------
+
+
+def rel_key_for_guid(guid: Optional[str], ext: str) -> Optional[str]:
+    """POSIX archive key for a GUID + extension: ``sha256/<aa>/<bb>/<digest><ext>``."""
+    digest = _guid_digest(guid)
+    if digest is None:
+        return None
+    ext = ext if ext.startswith(".") else f".{ext}"
+    return f"sha256/{digest[:2]}/{digest[2:4]}/{digest}{ext}"
+
+
+def resolve_backend(cfg, effective_output_dir: Optional[str]) -> Optional["StorageBackend"]:
+    """Resolve the archive :class:`StorageBackend` for this run, or None when disabled.
+
+    ``audio_storage_backend='remote'`` -> rclone backend (``audio_remote_*``);
+    otherwise a local filesystem backend rooted at :func:`resolve_cache_root`.
+    A misconfigured remote raises ``StorageBackendError`` (fail loud, #1199).
+    """
+    if not getattr(cfg, "audio_cache_enabled", True):
+        return None
+    from .storage_backend import LocalStorageBackend, RcloneStorageBackend
+
+    if getattr(cfg, "audio_storage_backend", "local") == "remote":
+        return RcloneStorageBackend(
+            remote=getattr(cfg, "audio_remote_rclone_remote", "") or "",
+            base_path=getattr(cfg, "audio_remote_base_path", "") or "",
+            rclone_bin=getattr(cfg, "audio_remote_rclone_bin", "rclone") or "rclone",
+        )
+    root = resolve_cache_root(cfg, effective_output_dir)
+    return LocalStorageBackend(root) if root is not None else None
+
+
+def fetch_into(backend: Optional["StorageBackend"], guid: Optional[str], dest_path: str) -> bool:
+    """Fetch archived audio for ``guid`` into ``dest_path`` (probes known exts). Miss -> False."""
+    if backend is None or not guid:
+        return False
+    for ext in _LOOKUP_EXTENSIONS:
+        rel = rel_key_for_guid(guid, ext)
+        if rel is None:
+            return False
+        try:
+            if backend.exists(rel):
+                return backend.download(rel, dest_path)
+        except Exception as exc:  # noqa: BLE001 - a backend hiccup must not block ingestion
+            logger.error("audio archive: fetch failed for guid=%s (%s): %s", guid, ext, exc)
+            return False
+    return False
+
+
+def store_via(
+    backend: Optional["StorageBackend"], guid: Optional[str], src_path: str
+) -> Optional[str]:
+    """Archive ``src_path`` for ``guid`` via ``backend`` (dedupe). Return the rel-key or None."""
+    if backend is None or not guid:
+        return None
+    if not src_path or not os.path.isfile(src_path):
+        return None
+    ext = os.path.splitext(src_path)[1] or ".bin"
+    rel = rel_key_for_guid(guid, ext)
+    if rel is None:
+        return None
+    try:
+        return rel if backend.upload(src_path, rel) else None
+    except Exception as exc:  # noqa: BLE001 - archiving is best-effort per episode
+        logger.error("audio archive: store failed for guid=%s: %s", guid, exc)
+        return None

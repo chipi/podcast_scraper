@@ -31,3 +31,17 @@ output "volume_id" {
   description = "Attached Volume ID, or null if no Volume was provisioned."
   value       = var.volume_size_gb > 0 ? hcloud_volume.corpus[0].id : null
 }
+
+# #1199 audio archive — feed these into the rclone remote config on prod/laptop:
+#   RCLONE_CONFIG_<NAME>_HOST = audio_storage_box_server
+#   RCLONE_CONFIG_<NAME>_USER = audio_storage_box_username
+#   RCLONE_CONFIG_<NAME>_PASS = rclone obscure <the audio_storage_box_password>
+output "audio_storage_box_server" {
+  description = "Storage Box FQDN for rclone SFTP host, or null if not provisioned."
+  value       = var.audio_storage_box_type != "" ? hcloud_storage_box.audio_archive[0].server : null
+}
+
+output "audio_storage_box_username" {
+  description = "Storage Box primary username for rclone SFTP, or null if not provisioned."
+  value       = var.audio_storage_box_type != "" ? hcloud_storage_box.audio_archive[0].username : null
+}

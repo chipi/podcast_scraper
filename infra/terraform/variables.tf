@@ -84,6 +84,31 @@ variable "volume_size_gb" {
   }
 }
 
+# === #1199 remote audio archive (cloud-native Hetzner Storage Box) ===
+variable "audio_storage_box_type" {
+  type        = string
+  description = "hcloud Storage Box type for the #1199 audio archive: bx11 (1 TB, ~EUR3.20/mo), bx21 (5 TB), bx31 (10 TB), bx41 (20 TB). Empty string = not provisioned (default). ~18x cheaper than a Cloud Volume for the cold audio archive — see docs/wip/PROD-AUDIO-STORAGE-SIZING-AND-BACKEND.md."
+  default     = ""
+
+  validation {
+    condition     = var.audio_storage_box_type == "" || contains(["bx11", "bx21", "bx31", "bx41"], var.audio_storage_box_type)
+    error_message = "audio_storage_box_type must be empty or one of bx11/bx21/bx31/bx41."
+  }
+}
+
+variable "audio_storage_box_location" {
+  type        = string
+  description = "Storage Box location: fsn1 (Falkenstein/DE), nbg1, or hel1 (Helsinki/FI). Independent of the server location."
+  default     = "fsn1"
+}
+
+variable "audio_storage_box_password" {
+  type        = string
+  description = "SFTP password Hetzner sets on the Storage Box (must meet Hetzner's password policy). Required when audio_storage_box_type is set. rclone uses the SAME value, obscured, for RCLONE_CONFIG_<NAME>_PASS. Provide via TF_VAR_audio_storage_box_password (a secret) — never commit."
+  default     = ""
+  sensitive   = true
+}
+
 variable "tailnet_hostname" {
   type        = string
   description = "Hostname the VPS registers with Tailscale. Final URL: https://<tailnet_hostname>.<tailscale_tailnet>/."

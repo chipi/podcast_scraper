@@ -222,13 +222,17 @@ ENV PYTHONUNBUFFERED=1 \
 #     so ffmpeg is required there too. Earlier versions skipped it for
 #     LLM-only and stack-test cloud-thin runs failed with ``ffmpeg is
 #     not installed or not in PATH``.
+# rclone (#1199): the remote audio-archive backend
+# (audio_storage_backend='remote') shells out to it to push/pull episode audio
+# to a Hetzner Storage Box (SFTP) or S3 remote. Harmless when unused (local
+# backend is the default); ~50 MB. Config is injected at deploy time, not baked.
 ARG INSTALL_EXTRAS
 # Debian CDN can serve truncated .deb during mirror sync (CI Snyk/docker flakes).
 RUN set -ux; \
     for attempt in 1 2 3 4 5; do \
       if apt-get update \
          && apt-get upgrade -y --no-install-recommends \
-         && apt-get install -y --no-install-recommends ffmpeg supervisor \
+         && apt-get install -y --no-install-recommends ffmpeg supervisor rclone \
          && apt-get clean \
          && rm -rf /var/lib/apt/lists/*; then \
         exit 0; \

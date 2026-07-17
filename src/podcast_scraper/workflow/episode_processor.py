@@ -209,22 +209,24 @@ def _download_or_reuse_media(
     if pipeline_metrics is not None:
         pipeline_metrics.record_download_media_attempt()
 
-    # #947 audio cache lookup (GUID-keyed) — highest priority source.
+    # #947 audio archive lookup (GUID-keyed) — highest priority source.
+    # #1199: the archive is local (default) or remote object storage (rclone).
     from ..rss import extract_item_guid
     from ..utils import audio_cache
 
     guid = extract_item_guid(episode.item) if getattr(episode, "item", None) is not None else None
-    cache_root = audio_cache.resolve_cache_root(cfg, effective_output_dir)
-    if cache_root is not None and guid:
-        cached = audio_cache.lookup_by_guid(cache_root, guid)
-        if cached and audio_cache.copy_into(cached, temp_media):
+    archive = audio_cache.resolve_backend(cfg, effective_output_dir)
+    if archive is not None and guid:
+        if audio_cache.fetch_into(archive, guid, temp_media):
             try:
                 size = os.path.getsize(temp_media)
             except OSError:
                 size = 0
             if size > 0:
                 logger.info(
-                    "    [#947] audio cache HIT (guid=%s) -> %s (no feed fetch)", guid, cached
+                    "    [#947] audio archive HIT (guid=%s) via %s (no feed fetch)",
+                    guid,
+                    archive.describe(),
                 )
                 return True, size, 0.0
 
@@ -256,11 +258,16 @@ def _download_or_reuse_media(
             logger.info("    downloaded %.2f MB in %.1fs", mb, dl_elapsed)
         except (ValueError, ZeroDivisionError, TypeError):
             pass
-    # #947: persist the freshly-downloaded raw audio for future reprocessing (best-effort).
-    if cache_root is not None and guid:
-        stored = audio_cache.store(cache_root, guid, temp_media)
+    # #947/#1199: archive the freshly-downloaded raw audio for future reprocessing (best-effort).
+    if archive is not None and guid:
+        stored = audio_cache.store_via(archive, guid, temp_media)
         if stored:
-            logger.info("    [#947] audio cache STORE (guid=%s) -> %s", guid, stored)
+            logger.info(
+                "    [#947] audio archive STORE (guid=%s) -> %s via %s",
+                guid,
+                stored,
+                archive.describe(),
+            )
     return True, total_bytes, dl_elapsed
 
 
@@ -678,6 +685,10 @@ def _resolve_audio_cache_entry(
         item = getattr(episode, "item", None)
         guid = extract_item_guid(item) if item is not None else None
         if not guid:
+            return None
+        # #1199: the hardlink/symlink source is a LOCAL cache path; a remote
+        # archive has no local file to link, so corpus media falls back to copy.
+        if getattr(cfg, "audio_storage_backend", "local") == "remote":
             return None
         cache_root = audio_cache.resolve_cache_root(cfg, effective_output_dir)
         return audio_cache.lookup_by_guid(cache_root, guid)

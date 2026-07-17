@@ -782,6 +782,20 @@ class TestCorpusStatus506(unittest.TestCase):
             self.assertIn("corpus_parent", payload)
             self.assertIn("feeds_subdirs", payload)
 
+    @patch("podcast_scraper.upgrade.cli_handlers.run_upgrade_cli", return_value=0)
+    @patch.object(cli, "_validate_python_version")
+    @patch.object(cli, "_validate_ffmpeg")
+    def test_upgrade_run_does_not_require_ffmpeg(
+        self, mock_ff: object, _mock_py: object, _mock_run: object
+    ) -> None:
+        """#1088-drill regression: ``upgrade run`` (corpus migration, metadata-only) runs
+        in the ffmpeg-less ``api`` container during restore. It MUST skip the ffmpeg
+        check — requiring it broke prod + drill corpus restore ("ffmpeg is not installed")."""
+        with tempfile.TemporaryDirectory() as corpus:
+            code = cli.main(["upgrade", "run", "--corpus-dir", corpus, "--yes"])
+        self.assertEqual(code, 0)
+        mock_ff.assert_not_called()  # skip-list membership, not a mocked no-op
+
 
 class TestBuildConfig(unittest.TestCase):
     """Test _build_config function."""

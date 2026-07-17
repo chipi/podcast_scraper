@@ -18,6 +18,42 @@ def _cfg(**kw):
 
 
 @pytest.mark.unit
+class TestBackendResolution:
+    """#1199: resolve_backend + transport-agnostic fetch/store."""
+
+    def test_disabled_returns_no_backend(self):
+        assert audio_cache.resolve_backend(_cfg(audio_cache_enabled=False), "/tmp/c") is None
+
+    def test_local_backend_roundtrip(self, tmp_path):
+        from podcast_scraper.utils.storage_backend import LocalStorageBackend
+
+        cfg = _cfg(audio_cache_dir=str(tmp_path / "arch"), audio_storage_backend="local")
+        be = audio_cache.resolve_backend(cfg, None)
+        assert isinstance(be, LocalStorageBackend)
+
+        src = tmp_path / "e.mp3"
+        src.write_bytes(b"bytes")
+        rel = audio_cache.store_via(be, "guid-1", str(src))
+        assert rel and rel.startswith("sha256/")
+        dest = tmp_path / "back.mp3"
+        assert audio_cache.fetch_into(be, "guid-1", str(dest)) is True
+        assert dest.read_bytes() == b"bytes"
+        assert audio_cache.fetch_into(be, "guid-absent", str(tmp_path / "no.mp3")) is False
+
+    def test_rel_key_shape(self):
+        rel = audio_cache.rel_key_for_guid("g", ".mp3")
+        assert rel is not None and rel.startswith("sha256/") and rel.endswith(".mp3")
+        assert audio_cache.rel_key_for_guid(None, ".mp3") is None
+
+    def test_remote_without_remote_name_fails_loud(self):
+        from podcast_scraper.utils.storage_backend import StorageBackendError
+
+        cfg = _cfg(audio_storage_backend="remote", audio_remote_rclone_remote=None)
+        with pytest.raises(StorageBackendError):
+            audio_cache.resolve_backend(cfg, None)
+
+
+@pytest.mark.unit
 class TestResolveCacheRoot:
     def test_disabled_returns_none(self):
         assert audio_cache.resolve_cache_root(_cfg(audio_cache_enabled=False), "/tmp/c") is None

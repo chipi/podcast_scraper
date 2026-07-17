@@ -1,0 +1,88 @@
+name: Reprocess prod corpus (#1199)
+
+# One-off reprocess of the live prod corpus, reading episode audio from the
+# remote archive (audio_storage_backend=remote) instead of re-fetching feeds.
+# Manual only, confirm-gated, mirrors deploy-prod.yml's tailnet + ssh pattern.
+#
+# PREREQUISITE: the remote archive must be configured on the box (rclone creds in
+# /srv/podcast-scraper/.env + audio_storage_backend=remote in the profile) — see
+# docs/recipes/prod-audio-archive.md. Reprocess REWRITES artifacts: take a
+# corpus backup (backup-corpus-prod.yml) first.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_REPROCESS" to confirm reprocessing the live prod corpus'
+        required: true
+      reprocess_source:
+        description: "Which already-on-disk episodes to reprocess"
+        type: choice
+        options:
+          - whisper_transcription
+          - direct_download
+        default: whisper_transcription
+      profile:
+        description: "Config profile (repo path)"
+        default: config/profiles/cloud_balanced.yaml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  reprocess:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm PROD_REPROCESS
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PROD_REPROCESS" ]; then
+            echo "::error::confirm must be exactly PROD_REPROCESS (got '${{ github.event.inputs.confirm }}')"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags: tag:gha-deployer
+          # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Reprocess (reads audio from the remote archive; REWRITES artifacts)
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          REPROCESS_SOURCE: ${{ github.event.inputs.reprocess_source }}
+          PROFILE: ${{ github.event.inputs.profile }}
+        run: |
+          set -euo pipefail
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && docker compose \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               run --rm pipeline-llm \
+               python -m podcast_scraper.cli \
+                 --config '${PROFILE}' \
+                 --feeds-spec /app/output/feeds.spec.yaml \
+                 --output-dir /app/output \
+                 --reprocess-existing-only \
+                 --reprocess-source '${REPROCESS_SOURCE}'"
