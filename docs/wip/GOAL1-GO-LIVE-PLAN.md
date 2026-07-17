@@ -71,9 +71,9 @@ open the door.
 
 | # | Step | Owner | Rollback |
 |---|---|---|---|
-| 1.1 | I write idempotent `apply-edge.sh` (mirrors cloud-init runcmd; safe re-run) | 🤖 | — |
-| 1.2 | Run it on the box over tailnet (Caddy+hardening+Alloy+jails) | 🤝 | `systemctl stop caddy`; rm config |
-| 1.3 | Verify **over tailnet**: `caddy validate` ok, engine up, fail2ban jails active, Alloy shipping | 🤝 | still tailnet-only — no public exposure yet |
+| 1.1 | ✅ **DONE** — `scripts/ops/apply-edge.sh` (idempotent, `--dry-run`, mirrors cloud-init edge/hardening/o11y; firewall + corpus explicitly out of scope). Folds in 3.3. | 🤖 | — |
+| 1.2 | Run `sudo apply-edge.sh --dry-run` then a real run on the box over tailnet (Caddy+hardening+Alloy+jails) | 🤝 | `systemctl stop caddy`; rm config |
+| 1.3 | Verify **over tailnet** with `sudo scripts/ops/verify-edge.sh` (read-only): `caddy validate` ok, engine up, both fail2ban jails active, metadata DROP present, Alloy shipping-or-staged | 🤝 | still tailnet-only — no public exposure yet |
 
 At the end of Phase 1 the edge is running but the **firewall is still closed** →
 the box is still tailnet-only. Nothing is public. This is the safe rehearsal.
@@ -92,7 +92,7 @@ the box is still tailnet-only. Nothing is public. This is the safe rehearsal.
 |---|---|---|
 | 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) checklist | 🤝 |
 | 3.2 | Sign off: orrery clears it (static, no `docker.sock`, no keys) | 🧑 |
-| 3.3 | **Apply the metadata-egress guard on the LIVE box** — `block-metadata-egress.service` is cloud-init-only (rebuild), so the running box can still reach `169.254.169.254` (Hetzner metadata + the Tailscale key in user-data). Install the script+unit + `systemctl enable --now`; verify `iptables -L DOCKER-USER`. Fold into `apply-edge.sh` (1.1). (review 2026-07-17 H8 / T-07) | 🤝 |
+| 3.3 | ✅ **Folded into `apply-edge.sh`** (1.1) — the metadata-egress guard (script + unit + `enable --now` + live `iptables -C DOCKER-USER` re-assert) is applied by `apply-edge.sh §3` and asserted by `verify-edge.sh §3`. Nothing separate to run; converges when 1.2 runs. (review 2026-07-17 H8 / T-07) | 🤝 |
 | 3.4 | **Complete the ADR-115 secrets cutover** (T-08) — the 6 LLM keys are still plaintext container env (`docker-compose.prod.yml`); provision the VPS age key + `prod.enc.yaml`, add `-f docker-compose.secrets.yml` to the deploy chain, drop the keys from `.env`. Blocks public exposure of the api. (review M26 / #1162) | 🧑 |
 
 **No firewall opens until 3.2 is signed off.**
@@ -101,7 +101,7 @@ the box is still tailnet-only. Nothing is public. This is the safe rehearsal.
 
 | # | Step | Owner | Rollback |
 |---|---|---|---|
-| 4.1 | I pre-review `tofu plan` — MUST be in-place `~`, **not** a server `-/+` replace | 🤖 | abort if replace |
+| 4.1 | ✅ **Static pre-review done** — see [PHASE4-FIREWALL-PREREVIEW](GOAL1-PHASE4-FIREWALL-PREREVIEW.md): the `:80`/`:443` rules are an in-place `~` update of `hcloud_firewall.main`; `hcloud_server.prod` is protected by `lifecycle { ignore_changes = [user_data, ssh_keys] }` + a stable `firewall_ids` id ref, so it must show **no change**. Still confirm the live `tofu plan` matches before 4.2; **abort if the server shows `-/+`**. | 🤖 | abort if replace |
 | 4.2 | `tofu apply` the 80/443 rules | 🧑 | remove rules + apply (<2 min) |
 | 4.3 | Confirm :443 reachable from outside; box otherwise still locked down | 🤝 | 4.2 rollback |
 
