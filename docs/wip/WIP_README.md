@@ -48,6 +48,7 @@ WIP file is removed.
 | `RUNBOOK-876-corpus-rediarization.md` | #876 DGX re-diarization operational runbook (health gate → pilot → backup → full run → rollback); gated on #944 | Ready |
 | `diarize-full-corpus-run.md` | Queued: run the winning diarization pipeline (community-1) across every episode in prod-v2 so downstream enrichers (host/guest #1169, Speaker/Quote surfaces, person-quality) can consume real speaker counts / RTTM uniformly. Related #1170. | Queued |
 | `super-theme-signal-comparison.md` | Queued: compare 3 signals for the super-theme rollup on top of `topic_theme_clusters` — cross-cluster topic-lift (shipped default in v1.1.0), centroid cosine, member Jaccard on 1-hop lift neighbourhood. Pick winner by editorial-read of super-theme labels on prod-v2. graph-v3 tier 7-1a follow-up. | Queued |
+| `graph-v3-tier-8-top-down-load-design.md` | Design for graph-v3 tier 8 — top-down default graph load (Palantir / InfraNodus pattern). Six sub-tiers 8-1..8-6; sequencing lands the opt-in flag first, then mount, expand, search-reveals-hidden, filter re-scope, ego re-scope. Depends on tier 7 super-theme rollup already shipped. | Design |
 | `MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` | Multi-user/FSM analysis + graph-viewer diarization-support gaps | Backlog |
 | `AUTORESEARCH_LEARNINGS_FOR_V3.md` | Rolling failure-mode catalogue from #907 children — spec input for v3 (#921) | Reference |
 | `DGX_NEXT_STEPS.md` | Living strategic doc on what runs on DGX vs local, vLLM vs Ollama, offload decision frame | Living |
