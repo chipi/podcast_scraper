@@ -1,0 +1,133 @@
+# Prod audio storage — sizing, cost, and write-path backend
+
+**Status:** Active (plan) · **Date:** 2026-07-17 · Part of the Goal-1 prod go-live work.
+**Tracking issue:** [#1199](https://github.com/chipi/podcast_scraper/issues/1199)
+— configurable local-vs-remote object-storage backend (audio archive primary use case).
+
+## Why this exists
+
+Prod (`prod-podcast`) currently stores **no audio** — the pipeline transcribes,
+then discards the media. Reprocessing (new diarization models, re-transcription,
+bitrate experiments) therefore requires **re-downloading** every episode, which
+is what we did to build the local `prod-v2` corpus. Going forward we want to
+**persist audio** so reprocessing is a local read, not a re-fetch (and so we're
+resilient to feeds pruning old episodes — dynamic-ad-insertion feeds like acast
+mutate/expire).
+
+This note sizes that storage, prices it, and picks the write-path backend.
+
+## Ground-truth sizing (measured, not estimated)
+
+Measured from the real re-downloaded audio in
+`podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus` (90 episodes, 9
+feeds) and cross-checked against prod corpus metadata (`episode.duration_seconds`
++ the `size=` param embedded in `content.media_url`):
+
+| metric | value |
+| --- | --- |
+| audio per episode (mean) | **48 MB** (median 46, min 1.2, max 152) |
+| duration per episode (mean) | **45 min** (~128 kbps MP3 ≈ 0.96 MB/min) |
+| current prod corpus | **100 unique episodes** (dedup by `content.media_id` sha256; 110 metadata files incl. re-runs), 10 feeds |
+| current audio footprint | **~4.8 GB** (100 × 48 MB; measured 90-ep sample = 4.23 GB) |
+
+**Planning constant: 48 MB/episode** (use 50 MB for headroom).
+
+### Growth projection
+
+10 feeds today, mixed cadence (daily news → weekly interview). Bands:
+
+| cadence assumption | new eps/mo | audio/mo | audio/yr |
+| --- | --- | --- | --- |
+| light (weekly-only) | ~43 | ~2 GB | ~25 GB |
+| **mid (mixed)** | **~130** | **~6.2 GB** | **~75 GB** |
+| heavy (all-daily) | ~300 | ~14 GB | ~170 GB |
+
+Plus one-off backfill: deepening all 10 feeds to ~100 eps each = 1,000 eps ≈
+**48 GB**.
+
+## Cost (verified July 2026 — Hetzner)
+
+Hetzner raised Cloud Volume prices on 2026-04-01 (€0.044 → **€0.0572/GB/mo**),
+which widens the gap vs the flat-rate Storage Box.
+
+| option | product | rate | 100 GB | 500 GB | 1 TB |
+| --- | --- | --- | --- | --- | --- |
+| Block Volume | Hetzner Cloud Volume | €0.0572/GB/mo | €5.72/mo | €28.60/mo | €57.20/mo |
+| **Object store** | **Hetzner Storage Box BX11** | flat 1 TB | — | — | **€3.20/mo** |
+| Object store | Hetzner Storage Box BX21 | flat 5 TB | — | — | €11.40/mo (5 TB) |
+
+*(Prices +VAT; Storage Box includes unlimited traffic, hourly billing capped
+monthly, no setup fee, no minimum term.)*
+
+**A 1 TB Storage Box (€3.20/mo) holds ~21,000 episodes (≈ 13 years of
+mid-cadence growth) and is ~18× cheaper than a 1 TB Volume.** Audio is a *cold*
+archive (reprocess-only, never hot-served), so it does not need block-device
+performance.
+
+## Capability gap (why this needs a decision, not just a bucket)
+
+The pipeline has **no native remote-storage backend** — grep of `src/` for
+`boto3|s3|rclone|sftp|fsspec|smb` is empty. Audio persistence is **local
+filesystem only**:
+
+- `audio_cache_enabled` / `audio_cache_dir` (default `.cache/audio`, kept
+  external to the corpus so corpus backups stay lean)
+- `audio_cache_in_corpus` + `corpus_media_link_mode` (`copy` | `hardlink` |
+  `symlink`) — places audio under `corpus/media/`
+
+Storage Box speaks **SFTP/SSH, Samba/CIFS, WebDAV, rsync, BorgBackup** (not S3).
+Hetzner **Object Storage** (a separate product) is S3-compatible if we prefer
+`boto3`.
+
+Corpus durability is already handled separately: `backup-corpus-prod.yml` tars
+`/srv/podcast-scraper/corpus` and uploads it as GitHub Release snapshots on the
+backup repo (7 daily + 4 weekly). That's fine for the 116 MB corpus but a poor
+fit for GBs of audio (GH release asset limits + churn), so audio needs its own
+path.
+
+## Write-path options
+
+Operator has green-lit **evolving the write path** if it means better Storage
+Box support (2026-07-17). So we are not limited to a host mount.
+
+| # | approach | code change | pros | cons |
+| --- | --- | --- | --- | --- |
+| A | **Mount** the Storage Box (SSHFS / rclone-mount / CIFS) → pipeline writes to the mount path | none | zero code; go-live today | host-mount fragility; network on the write path; a stalled mount can hang the pipeline |
+| B1 | **Native SFTP backend** (paramiko) for the audio cache / media placement | medium | no host mount; direct to Storage Box; testable | new dep (paramiko); we own ret/timeout logic |
+| **B2** | **rclone-backed backend** (shell out to `rclone copy`) | medium | one backend covers Storage Box **and** S3/Object Storage; battle-tested retries; no host mount | rclone binary dependency on the host |
+| B3 | **S3 backend** (boto3) → Hetzner **Object Storage** | medium | S3 semantics; native `boto3` | Object Storage is per-GB (pricier than Storage Box); another product to run |
+| C | **Decoupled sync** — pipeline writes audio to local cache; a post-run `rclone`/`rsync` ships it to the box; reprocess pulls back | low–medium | keeps hot path local; box is pure archive | audio not durable until the sync runs; two-step |
+
+## Recommendation
+
+1. **Storage: Hetzner Storage Box BX11 (1 TB, €3.20/mo)** for the audio archive.
+   18× cheaper than a Volume, ample for a decade, cold-archive fit.
+2. **Write path: evolve to a pluggable remote audio backend, `rclone`-backed
+   (B2).** One backend serves Storage Box now and S3/Object Storage later if we
+   ever move; avoids host-mount fragility. If we need go-live *before* the code
+   lands, mount (A) is the stopgap — but treat it as temporary.
+3. **Dedup by `content.media_id` (sha256)** so re-runs don't re-store the same
+   audio — the metadata already carries it.
+4. **Corpus stays as-is** (hot, 116 MB, already snapshot-backed). The boot-disk
+   risk for the *corpus* is mitigated by `backup-corpus-prod.yml`; a dedicated
+   corpus Volume is optional, not urgent.
+
+## Open decisions (operator)
+
+- [ ] Storage Box (SFTP/cheap/flat) vs Object Storage (S3/boto3/per-GB) — this
+      note recommends Storage Box.
+- [ ] Backend now (B2) vs mount-stopgap (A) for the first live cut.
+- [ ] Retention: keep **all** audio forever (dedup'd) vs a rolling window
+      (e.g. keep N months, re-fetchable on demand).
+- [ ] Whether to promote the backend design to an RFC/ADR before implementing
+      (new dep + a storage boundary = design-change territory).
+
+## Next steps (all planning / read-only until decided)
+
+- Draft the RFC/ADR for the pluggable audio-storage backend (interface:
+  `write(local_path, key) / read(key, dest) / exists(key)`; local-fs + rclone
+  implementations; `media_id` as the key).
+- Provision a BX11 (operator action) + an `rclone` remote config as a Hetzner
+  secret; wire into the deploy `.env` staging the same way corpus secrets flow.
+- Add a Tier-2 sizing guard so the audio footprint projection stays honest as
+  feeds grow.
