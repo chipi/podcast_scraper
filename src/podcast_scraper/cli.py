@@ -4765,6 +4765,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "search",
             "serve",
             "topic-clusters",
+            # ``upgrade`` runs corpus format migrations (metadata only, no audio
+            # decode) and runs in the ffmpeg-less ``api`` container during restore
+            # (restore_corpus_from_tarball_host.sh). Requiring ffmpeg there broke
+            # prod + drill corpus restore ("ffmpeg is not installed"). #1088-drill.
+            "upgrade",
             "verify-gil-chunk-offsets",
         )
     ):
