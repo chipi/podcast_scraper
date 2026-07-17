@@ -57,7 +57,12 @@ class FilesystemStateStore:
 
     def _write_ledger(self, data: dict) -> None:
         self.corpus_root.mkdir(parents=True, exist_ok=True)
-        self.ledger_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        # Atomic tmp + replace: a mid-write kill otherwise truncates the ledger,
+        # which _read_ledger treats as "no migrations applied" -> full replay
+        # (review 2026-07-17 low/ledger-atomic).
+        tmp = self.ledger_path.with_suffix(self.ledger_path.suffix + ".tmp")
+        tmp.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(self.ledger_path)
 
     def current_version(self) -> Optional[str]:
         """Ledger version if set, else the manifest produced-by code version."""

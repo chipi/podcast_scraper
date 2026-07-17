@@ -39,7 +39,13 @@ SECRET_KEY_PATTERNS: Set[str] = {
 # - sk-... (OpenAI-style keys)
 # - Bearer tokens
 # - Long alphanumeric strings (potential tokens)
-API_KEY_PATTERN = re.compile(r"^(sk-[a-zA-Z0-9]{20,}|Bearer\s+[a-zA-Z0-9]{20,}|[a-zA-Z0-9]{32,})$")
+# Includes hyphenated key formats (sk-ant-…, xai-…) and hf_ tokens so the
+# value-guard (second-line, for generically-named fields) doesn't miss them
+# (review 2026-07-17 low/redaction).
+API_KEY_PATTERN = re.compile(
+    r"^(sk-[a-zA-Z0-9-]{20,}|hf_[a-zA-Z0-9]{10,}|xai-[a-zA-Z0-9-]{10,}"
+    r"|Bearer\s+[a-zA-Z0-9]{20,}|[a-zA-Z0-9]{32,})$"
+)
 
 
 def _is_secret_key(key: str) -> bool:

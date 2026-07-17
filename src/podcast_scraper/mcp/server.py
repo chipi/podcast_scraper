@@ -8,8 +8,11 @@ without it installed (the SDK rides in the ``[dev]`` extra).
 from __future__ import annotations
 
 import functools
+import logging
 from pathlib import Path
 from typing import Any, Callable, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def _safe(call: Callable[[], Any]) -> dict:
@@ -23,7 +26,11 @@ def _safe(call: Callable[[], Any]) -> dict:
     try:
         result = call()
     except Exception as exc:  # noqa: BLE001 — a tool error must reach the agent as ok=False
-        return {"ok": False, "data": {}, "note": f"{type(exc).__name__}: {exc}"}
+        # Only the exception CLASS goes to the MCP client — the full str(exc) can
+        # carry absolute host paths / corpus layout that fingerprints the box
+        # (review 2026-07-17 low/mcp-leak). Full detail is logged server-side.
+        logger.debug("MCP tool error", exc_info=True)
+        return {"ok": False, "data": {}, "note": type(exc).__name__}
     if isinstance(result, dict) and "ok" in result:
         return result
     return {"ok": True, "data": result, "note": ""}

@@ -106,8 +106,13 @@ class LocalStorageBackend(StorageBackend):
             # Stage to a sibling ``.tmp`` then atomic-rename so a partial or
             # racing write never leaves a torn archive file.
             tmp = dest.with_suffix(dest.suffix + ".tmp")
-            shutil.copy2(src_path, tmp)
-            os.replace(tmp, dest)
+            try:
+                shutil.copy2(src_path, tmp)
+                os.replace(tmp, dest)
+            finally:
+                # Don't leak a .tmp sibling on a mid-copy failure (review low/tmp-leak).
+                if tmp.exists():
+                    tmp.unlink(missing_ok=True)
             return True
         except OSError as exc:
             logger.error("audio archive (local): failed to store %s -> %s: %s", src_path, dest, exc)
