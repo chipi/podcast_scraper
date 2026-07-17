@@ -433,6 +433,16 @@ Tests alone are not a substitute. See `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`.
 - If a rebase produces conflicts, STOP and show the user the conflict files
   alongside `git status` output before resolving. Don't attempt resolution
   unilaterally on files outside the branch's own scope.
+- **After EVERY rebase, re-align the venv to CI's dependency set** — a rebase
+  can pull `pyproject.toml` changes from main, and with floating pins (`>=x,<y`)
+  a fresh CI resolve may also have drifted to newer wheels than your stale venv
+  holds. Run `pip install --upgrade -e ".[dev,ml,llm,search]"` (the exact extras
+  CI installs — not just `.[dev]`) so local == CI *before* you trust a local
+  green. Skipping this is how "green locally, red in CI" happens: a missing
+  extra (e.g. `search`/lancedb absent → no vector index built → a native
+  index-build crash can't reproduce) or a drifted native wheel
+  (transformers / torchcodec / sentencepiece) silently diverges local from CI.
+  See "Update venv after dependency changes" below.
 
 ### Active-merge safety (when `.git/MERGE_HEAD` exists)
 
@@ -491,6 +501,14 @@ SIGKILL (exit 137). Easy to misread as user-canceled or OOM.
 After ANY edit to `[project.dependencies]` or `[project.optional-dependencies]`
 in `pyproject.toml`, run `pip install --upgrade -e .[dev]` BEFORE running
 tests or committing.
+
+**Match CI's extras when validating pipeline/ML/search behavior.** `.[dev]`
+alone omits `ml`/`llm`/`search`, so ML- or index-dependent paths won't run (or
+won't crash) the way CI does. For acceptance / e2e / stack-test parity install
+`pip install --upgrade -e ".[dev,ml,llm,search]"` — the same set the acceptance
+CI job installs. Also run this after every rebase (see the rebase section):
+floating pins mean CI re-resolves native wheels fresh each run, so a stale venv
+can hide a drift-induced native crash that only surfaces in CI.
 
 ---
 

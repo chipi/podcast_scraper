@@ -115,8 +115,16 @@ ml = [
   # question-answering — call sites rewritten to AutoModel*.from_pretrained + generate() /
   # QA-head forward. Also picks up the CVE-2026-1839 fix (Trainer rng_state / torch.load
   # weights_only) that shipped in >=5.0.0rc3. See docs/wip/ISSUE-382-*.md + ADR-068 post-impl.
-  "transformers>=5.0.0,<6.0.0",
-  "sentencepiece>=0.2.1,<1.0.0",
+  # Native-wheel drift guard (2026-07-17): the acceptance job was green on
+  # 84b17ab (07-11, transformers 5.13.1 / sentencepiece 0.2.1 / torchcodec
+  # 0.14.0) and started SIGSEGV/SIGBUS-ing at ML-stack teardown on 2174be4
+  # (07-16) with ZERO code cause — the only change was these floating native
+  # wheels re-resolving to newer builds (transformers 5.14.1, sentencepiece
+  # 0.2.2, torchcodec 0.15.0). Cap below the crashing builds until the upstream
+  # teardown regression is isolated + fixed. macOS/arm64 can't mirror the linux
+  # crash (it segfaults even on the green stack), so CI is the only valid oracle.
+  "transformers>=5.0.0,<5.14",
+  "sentencepiece>=0.2.1,<0.2.2",
   # sentence-transformers 5.6.0 fixes silent causal-LM reranker scoring bug + restores
   # TSDAE on transformers v5. Dual v4/v5 compat since ST 5.2.1 — safe floor for #382.
   "sentence-transformers>=5.6.0,<6.0.0",
@@ -135,6 +143,10 @@ ml = [
   # with torch>=2.11/torchaudio>=2.9; 3.x is import-broken against that torchaudio.
   "pyannote.audio>=4.0,<5.0",
   "torchaudio",
+  # torchcodec is transitive (torchaudio 4.x / pyannote 4.x). Cap <0.15: 0.15.0
+  # is part of the 2026-07-17 native teardown SIGSEGV drift (see transformers
+  # note above). Explicit line so the cap survives transitive re-resolution.
+  "torchcodec<0.15",
 ]
 # Streamlit run comparison UI (RFC-047, Issue #373)
 compare = [
@@ -164,8 +176,9 @@ llm = [
 search = [
   "torch>=2.11.0,<3.0.0",
   # Kept aligned with [ml] pin (#382): transformers v5 + sentence-transformers 5.6+.
-  "transformers>=5.0.0,<6.0.0",
-  "sentencepiece>=0.2.1,<1.0.0",
+  # Native-wheel drift caps mirror [ml] (2026-07-17 teardown SIGSEGV; see note there).
+  "transformers>=5.0.0,<5.14",
+  "sentencepiece>=0.2.1,<0.2.2",
   "sentence-transformers>=5.6.0,<6.0.0",
   # RFC-090 two-tier hybrid backend: embedded vector + native FTS (BM25) in one store.
   "lancedb>=0.33.0,<1.0.0",
