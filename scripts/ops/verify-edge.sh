@@ -52,9 +52,7 @@ if [ "$IS_ROOT" = 1 ] && command -v sshd >/dev/null 2>&1; then
   eff="$(sshd -T 2>/dev/null || true)"
   echo "$eff" | grep -qi '^passwordauthentication no'        && pass "PasswordAuthentication no" || fail "PasswordAuthentication not disabled"
   echo "$eff" | grep -qi '^kbdinteractiveauthentication no'  && pass "KbdInteractiveAuthentication no" || warn "KbdInteractiveAuthentication not disabled"
-  # sshd -T normalizes ``prohibit-password`` to its older alias ``without-password``
-  # — both mean key-only root (no password). Accept either, else we false-WARN.
-  echo "$eff" | grep -qiE '^permitrootlogin (prohibit-password|without-password)' && pass "PermitRootLogin key-only (prohibit/without-password)" || warn "PermitRootLogin allows password login"
+  echo "$eff" | grep -qi '^permitrootlogin prohibit-password' && pass "PermitRootLogin prohibit-password" || warn "PermitRootLogin not prohibit-password"
 else
   skip "sshd -T (needs root)"
 fi
