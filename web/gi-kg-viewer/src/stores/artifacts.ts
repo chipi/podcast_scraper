@@ -23,6 +23,7 @@ import {
   withTopicClustersOnDisplay,
 } from '../utils/topicClustersOverlay'
 import { buildTopDownSlice } from '../utils/topDownSlice'
+import { useGraphLoadModeStore } from './graphLoadMode'
 import { useGraphTopDownStore } from './graphTopDown'
 import { visualNodeTypeCounts } from '../utils/visualGroup'
 import { StaleGeneration } from '../utils/staleGeneration'
@@ -588,6 +589,15 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       return
     }
     if (!graphTabActive) {
+      return
+    }
+    /* graph-v3 tier 8-6 — in top-down mode with nothing expanded, the
+     * user is on the super-theme preview; auto-pulling sibling episodes
+     * just to append them to a preview they haven't drilled into is
+     * noise. Wait until they've expanded at least one super-theme. */
+    const loadMode = useGraphLoadModeStore()
+    const topDown = useGraphTopDownStore()
+    if (loadMode.isTopDown && !topDown.hasExpansions) {
       return
     }
     const root = corpusPath.value.trim()

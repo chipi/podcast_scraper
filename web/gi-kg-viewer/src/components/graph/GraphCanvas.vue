@@ -3772,6 +3772,21 @@ function redraw(): void {
     const t = evt.target
     if (typeof t.isNode === 'function' && t.isNode()) {
       const id = t.id()
+      /* graph-v3 tier 8-6 — dbltap on a SuperTheme in top-down mode is
+       * semantically the same as tapping it: expand. Ego-expansion
+       * (double-tap on a projected child) also needs the super-theme
+       * expanded so the ego neighbourhood surfaces; this is a no-op
+       * when it already is. */
+      if (loadMode.isTopDown) {
+        if (t.data('type') === 'SuperTheme') {
+          topDown.toggleSuperTheme(id)
+          return
+        }
+        const tcid = t.data('themeClusterId')
+        if (typeof tcid === 'string' && tcid.trim()) {
+          maybeExpandTopDownForPendingFocus(id)
+        }
+      }
       if (shift) {
         const c = cy
         const cur = focusNodeId.value
