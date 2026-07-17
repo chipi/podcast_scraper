@@ -5067,13 +5067,20 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def _validate_tailnet_dgx_transcription_contract(self) -> "Config":
-        """ADR-096: DGX-primary transcription requires fallback and host."""
+        """ADR-096: DGX-primary transcription requires a fallback and a host.
+
+        RFC-105 (#1198): the requirement is satisfied by the plural
+        ``transcription_fallback_providers`` chain as well as the legacy singular
+        ``transcription_fallback_provider`` — either one keeps the "no hard-required-DGX path"
+        guarantee that ADR-096 exists to enforce.
+        """
         if self.transcription_provider != "tailnet_dgx_whisper":
             return self
-        if not self.transcription_fallback_provider:
+        if not self.transcription_fallback_provider and not self.transcription_fallback_providers:
             raise ValueError(
-                "transcription_fallback_provider is required when "
-                "transcription_provider is tailnet_dgx_whisper (ADR-096)."
+                "A transcription fallback is required when transcription_provider is "
+                "tailnet_dgx_whisper (ADR-096 / RFC-105): set transcription_fallback_providers "
+                "(preferred) or the legacy transcription_fallback_provider."
             )
         if not self.dgx_tailnet_host or not str(self.dgx_tailnet_host).strip():
             raise ValueError(

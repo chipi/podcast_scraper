@@ -84,23 +84,14 @@ def test_nested_transcription_yaml_flattens() -> None:
     assert cfg.transcription_fallback_provider == "openai"
 
 
-def test_initialize_constructs_real_cloud_fallback() -> None:
-    # The other tests mock provider._fallback and force _initialized; this is the only
-    # test that drives the REAL initialize() round-trip: model_dump() -> swap
-    # transcription_provider to the fallback name -> model_validate() -> the real
-    # create_transcription_provider() factory. It guards two regressions the mocked
-    # tests can't see: (1) the re-validated fallback config failing to construct
-    # (validation drift), and (2) the fallback resolving back to tailnet_dgx_whisper
-    # and recursing. OpenAIProvider.initialize() is a no-op (no network), so this is
-    # offline.
-    from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
-
+def test_initialize_is_pure_dgx_no_self_fallback() -> None:
+    """RFC-105 (#1198): the provider no longer builds or owns a cloud fallback — the FallbackChain
+    that wraps it does. initialize() just validates the host is present and marks it ready; it must
+    not construct any provider (that would recreate the double-fallback we retired)."""
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     provider.initialize()
-
     assert provider._initialized is True
-    assert isinstance(provider._fallback, OpenAIProvider)
-    assert provider._fallback.cfg.transcription_provider == "openai"
+    assert not hasattr(provider, "_fallback") or provider.__dict__.get("_fallback") is None
 
 
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
@@ -109,31 +100,25 @@ def test_initialize_constructs_real_cloud_fallback() -> None:
     return_value=False,
 )
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
-def test_falls_back_when_dgx_unhealthy(
+def test_raises_when_dgx_unhealthy(
     mock_sleep: MagicMock,
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
+    """RFC-105: a persistently unhealthy DGX exhausts this tier and RAISES (the chain, not this
+    provider, decides whether to fall back). The DGX-try resilience is unchanged: it still rides
+    out transient health blips with 2 backoff sleeps before giving up."""
     audio = tmp_path / "ep.mp3"
     audio.write_bytes(b"\x00\x01")
 
-    cfg = _dgx_cfg()
-    provider = TailnetDgxWhisperTranscriptionProvider(cfg)
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {"text": "cloud text", "segments": [], "language": "en"},
-        1.0,
-    )
-    provider._fallback = fallback
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     provider._initialized = True
 
-    text = provider.transcribe(str(audio))
-    assert text == "cloud text"
-    fallback.transcribe_with_segments.assert_called_once()
+    with pytest.raises(RuntimeError, match="DGX Whisper unavailable"):
+        provider.transcribe(str(audio))
     _breadcrumb.assert_called_once()
-    # #876 resilience: default dgx_max_attempts=3 → 2 backoff sleeps (5s, 10s) before
-    # falling back when DGX is persistently unhealthy (rides out transient health blips).
+    # #876 resilience: default dgx_max_attempts=3 → 2 backoff sleeps (5s, 10s) before giving up.
     assert mock_sleep.call_count == 2
     assert [c.args[0] for c in mock_sleep.call_args_list] == [5.0, 10.0]
 
@@ -195,27 +180,25 @@ def test_healthy_dgx_path(
 )
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
 @patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
-def test_falls_back_when_ollama_returns_empty(
+def test_raises_when_dgx_returns_empty(
     mock_ollama: MagicMock,
     _mock_sleep: MagicMock,
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
+    """A DGX-side error (empty/garbage) exhausts this tier and re-raises the underlying error so
+    the chain can classify it (is_infra_failure -> cascade) and try the next tier."""
     audio = tmp_path / "ep.mp3"
     audio.write_bytes(b"\x00\x01")
-    mock_ollama.side_effect = ValueError("empty transcription from DGX faster-whisper-server")
+    err = ValueError("empty transcription from DGX faster-whisper-server")
+    mock_ollama.side_effect = err
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {"text": "fallback", "segments": [], "language": "en"},
-        2.0,
-    )
-    provider._fallback = fallback
     provider._initialized = True
 
-    assert provider.transcribe(str(audio)) == "fallback"
+    with pytest.raises(ValueError, match="empty transcription"):
+        provider.transcribe(str(audio))
     _breadcrumb.assert_called_once()
 
 
@@ -240,12 +223,11 @@ def test_transcribe_dgx_parses_response(mock_client_cls: MagicMock, tmp_path) ->
     assert len(segments) == 1
 
 
-def test_whisper_provider_cleanup_calls_fallback() -> None:
+def test_whisper_provider_cleanup_is_noop() -> None:
+    """RFC-105: the provider owns no fallback, so cleanup() has nothing to release and must not
+    raise (the chain cleans up its own tiers)."""
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    provider._fallback = fallback
-    provider.cleanup()
-    fallback.cleanup.assert_called_once()
+    provider.cleanup()  # must not raise (no owned resources)
 
 
 # ---------------------------------------------------------------------------
@@ -455,77 +437,6 @@ def test_transcribe_with_segments_default_path_records_default_model(
     assert result["model_used"] == "Systran/faster-whisper-large-v3"
 
 
-@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
-@patch.object(wp, "check_faster_whisper_health", return_value=False)
-def test_transcribe_with_segments_fallback_records_cloud_model_used(
-    mock_health: MagicMock,
-    mock_breadcrumb: MagicMock,
-    tmp_path,
-) -> None:
-    """When DGX is unhealthy and we fall back to cloud Whisper, ``model_used``
-    must attribute the transcript to the cloud provider — NOT the DGX model
-    that didn't run. ``model_requested`` still records what was asked for.
-    Pre-fix the provider lied: it reported the DGX model on fallback.
-    """
-    audio = tmp_path / "clip.mp3"
-    audio.write_bytes(b"abc")
-
-    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {
-            "text": "cloud transcript",
-            "segments": [],
-            "language": "en",
-            "model_used": "whisper-1",
-        },
-        2.5,
-    )
-    provider._fallback = fallback
-    provider._initialized = True
-
-    result, _dur = provider.transcribe_with_segments(
-        str(audio),
-        language="en",
-        model_override="Systran/faster-whisper-small.en",
-    )
-
-    # We REQUESTED the DGX small.en model.
-    assert result["model_requested"] == "Systran/faster-whisper-small.en"
-    # But what actually RAN was the cloud fallback. Attribution must say so.
-    assert result["model_used"] == "openai:whisper-1"
-    assert result["text"] == "cloud transcript"
-
-
-@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
-@patch.object(wp, "check_faster_whisper_health", return_value=False)
-def test_transcribe_with_segments_fallback_without_cloud_model_marks_default(
-    mock_health: MagicMock,
-    mock_breadcrumb: MagicMock,
-    tmp_path,
-) -> None:
-    """When the cloud fallback doesn't expose ``model_used`` (older provider
-    shape), provenance still attributes to the fallback PROVIDER and marks
-    the model slot as ``default`` — never as the DGX model.
-    """
-    audio = tmp_path / "clip.mp3"
-    audio.write_bytes(b"abc")
-
-    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {"text": "x", "segments": [], "language": "en"},  # no model_used key
-        1.0,
-    )
-    provider._fallback = fallback
-    provider._initialized = True
-
-    result, _dur = provider.transcribe_with_segments(str(audio), language="en")
-
-    assert result["model_requested"] == "Systran/faster-whisper-large-v3"
-    assert result["model_used"] == "openai:default"
-
-
 def test_transcribe_dgx_requires_httpx(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     import builtins
 
@@ -563,7 +474,7 @@ def test_effective_timeout_scales_with_audio_duration() -> None:
 )
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
 @patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
-def test_timeout_falls_back_without_repiling(
+def test_timeout_raises_without_repiling(
     mock_dgx: MagicMock,
     mock_sleep: MagicMock,
     _health: MagicMock,
@@ -571,7 +482,8 @@ def test_timeout_falls_back_without_repiling(
     tmp_path,
 ) -> None:
     """A DGX timeout (busy GPU) must NOT retry the POST — that would pile a duplicate
-    request onto the overloaded server. It falls back after a single DGX attempt."""
+    request onto the overloaded server. It raises after a single DGX attempt; the timeout is
+    cascade-worthy (is_infra_failure), so the chain moves on."""
     import httpx
 
     audio = tmp_path / "ep.mp3"
@@ -579,15 +491,10 @@ def test_timeout_falls_back_without_repiling(
     mock_dgx.side_effect = httpx.ReadTimeout("timed out")
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {"text": "cloud", "segments": [], "language": "en"},
-        1.0,
-    )
-    provider._fallback = fallback
     provider._initialized = True
 
-    assert provider.transcribe(str(audio)) == "cloud"
+    with pytest.raises(httpx.ReadTimeout):
+        provider.transcribe(str(audio))
     mock_dgx.assert_called_once()  # no re-queue on timeout
     mock_sleep.assert_not_called()  # broke immediately, no backoff sleep
     _breadcrumb.assert_called_once()
@@ -600,7 +507,7 @@ def test_timeout_falls_back_without_repiling(
 )
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
 @patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
-def test_connection_error_retries_with_backoff_then_falls_back(
+def test_connection_error_retries_with_backoff_then_raises(
     mock_dgx: MagicMock,
     mock_sleep: MagicMock,
     _health: MagicMock,
@@ -608,7 +515,7 @@ def test_connection_error_retries_with_backoff_then_falls_back(
     tmp_path,
 ) -> None:
     """A connection blip (no duplicate work in flight) is retried up to
-    dgx_max_attempts with exponential backoff before falling back."""
+    dgx_max_attempts with exponential backoff before raising for the chain."""
     import httpx
 
     audio = tmp_path / "ep.mp3"
@@ -616,15 +523,10 @@ def test_connection_error_retries_with_backoff_then_falls_back(
     mock_dgx.side_effect = httpx.ConnectError("connection refused")
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {"text": "cloud", "segments": [], "language": "en"},
-        1.0,
-    )
-    provider._fallback = fallback
     provider._initialized = True
 
-    assert provider.transcribe(str(audio)) == "cloud"
+    with pytest.raises(httpx.ConnectError):
+        provider.transcribe(str(audio))
     assert mock_dgx.call_count == provider._max_attempts  # retried each attempt
     # exponential backoff between attempts (max_attempts-1 sleeps)
     assert mock_sleep.call_count == provider._max_attempts - 1
@@ -641,21 +543,16 @@ def test_open_breaker_skips_dgx_entirely(
     tmp_path,
 ) -> None:
     """While the breaker is open, transcription must not probe health or hit DGX —
-    it goes straight to the cloud fallback (#954)."""
+    it raises immediately (circuit-open) so the chain fails over without a wasted probe (#954)."""
     audio = tmp_path / "ep.mp3"
     audio.write_bytes(b"\x00\x01")
     wp._whisper_breaker.record_failure(hard=True)  # force open
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {"text": "cloud", "segments": [], "language": "en"},
-        1.0,
-    )
-    provider._fallback = fallback
     provider._initialized = True
 
-    assert provider.transcribe(str(audio)) == "cloud"
+    with pytest.raises(RuntimeError, match="dgx_whisper_circuit_open"):
+        provider.transcribe(str(audio))
     mock_health.assert_not_called()
     mock_dgx.assert_not_called()
     assert _breadcrumb.call_args.kwargs["failure_reason"] == "dgx_whisper_circuit_open"
@@ -666,25 +563,22 @@ def test_open_breaker_skips_dgx_entirely(
     "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
     return_value=True,
 )
-def test_watchdog_hard_deadline_forces_fallback(
+def test_watchdog_hard_deadline_raises(
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
     """A request that hangs past the hard deadline (httpx's own timeout never fires
-    under a co-tenant GPU stall) is abandoned by the watchdog and fails over (#954)."""
+    under a co-tenant GPU stall) is abandoned by the watchdog, which raises a TimeoutLike error
+    for the chain to fail over on, and trips the breaker (#954)."""
     import time as _time
+
+    from podcast_scraper.providers.resilience import TimeoutLike
 
     audio = tmp_path / "ep.mp3"
     audio.write_bytes(b"\x00\x01")
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    fallback = MagicMock()
-    fallback.transcribe_with_segments.return_value = (
-        {"text": "cloud", "segments": [], "language": "en"},
-        1.0,
-    )
-    provider._fallback = fallback
     provider._initialized = True
 
     def _hang(*_a, **_k):
@@ -696,7 +590,8 @@ def test_watchdog_hard_deadline_forces_fallback(
         patch.object(provider, "_transcribe_dgx", side_effect=_hang),
         patch.object(provider, "_effective_timeout_sec", return_value=0.05),
         patch.object(wp.resilience, "WATCHDOG_GRACE_SEC", 0.1),
+        pytest.raises(TimeoutLike),
     ):
-        assert provider.transcribe(str(audio)) == "cloud"
+        provider.transcribe(str(audio))
     assert _time.monotonic() - started < 0.8  # bailed at ~0.15s, not the 1s hang
     assert wp._whisper_breaker.state == "open"  # watchdog timeout trips the breaker

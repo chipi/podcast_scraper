@@ -81,7 +81,9 @@ def _diarize_provider(e2e_server, **overrides):
     return p
 
 
-def _whisper_provider(e2e_server, fallback_text="cloud", **overrides):
+def _whisper_provider(e2e_server, **overrides):
+    # RFC-105 (#1198): whisper is a pure DGX tier now — it raises on failure and the FallbackChain
+    # (unit-tested) fails over. These e2e tests assert the tier's own socket-level reaction.
     host, port = e2e_server.urls.dgx_host_port()
     cfg = Config.model_validate(
         {
@@ -98,13 +100,7 @@ def _whisper_provider(e2e_server, fallback_text="cloud", **overrides):
         }
     )
     p = TailnetDgxWhisperTranscriptionProvider(cfg)
-    fb = MagicMock()
-    fb.transcribe_with_segments.return_value = (
-        {"text": fallback_text, "segments": [], "language": "en"},
-        1.0,
-    )
-    p._fallback = fb
-    p._initialized = True  # skip building the real cloud fallback
+    p._initialized = True
     return p
 
 
@@ -117,22 +113,27 @@ class TestDGXWhisperE2E:
         assert "test transcription" in text.lower()
         assert wp._whisper_breaker.state == "closed"
 
-    def test_http_503_fails_over_to_cloud(self, e2e_server):
+    def test_http_503_raises_for_the_chain(self, e2e_server):
+        import httpx
+
         from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
         E2EHTTPRequestHandler.set_error_behavior(_TRANSCRIBE_PATH, status=503)
-        provider = _whisper_provider(e2e_server, fallback_text="cloud-after-503")
+        provider = _whisper_provider(e2e_server)
         with patch.object(wp.time, "sleep"):  # skip retry backoff
-            assert provider.transcribe(str(_AUDIO)) == "cloud-after-503"
+            with pytest.raises(httpx.HTTPStatusError):
+                provider.transcribe(str(_AUDIO))
 
-    def test_hanging_socket_watchdog_fails_over(self, e2e_server):
+    def test_hanging_socket_watchdog_raises(self, e2e_server):
+        from podcast_scraper.providers.resilience import TimeoutLike
         from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
         # status is irrelevant — the client bails during the injected delay.
         E2EHTTPRequestHandler.set_error_behavior(_TRANSCRIBE_PATH, status=200, delay=10.0)
-        provider = _whisper_provider(e2e_server, fallback_text="cloud-after-hang")
+        provider = _whisper_provider(e2e_server)
         with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
-            assert provider.transcribe(str(_AUDIO)) == "cloud-after-hang"
+            with pytest.raises(TimeoutLike):
+                provider.transcribe(str(_AUDIO))
         assert wp._whisper_breaker.state == "open"
 
 

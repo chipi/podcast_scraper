@@ -5,9 +5,10 @@ Architecture (RFC-089 / ADR-096 / #814):
 - Whisper service on DGX: faster-whisper-server (#814), OpenAI-compatible,
   listening on ``:8000``. Installed by ``infra/dgx/converge/deploy.py`` via
   pyinfra. Speaks ``POST /v1/audio/transcriptions`` with multipart audio.
-- Fallback: ``transcription_fallback_provider`` (default ``openai``) when
-  DGX is unhealthy or the request fails. Mandatory per ADR-096 — no
-  hard-required-DGX paths.
+- Fallback: owned by the stage factory's ``FallbackChainTranscriptionProvider``
+  (RFC-105 / #1198), not by this provider. This tier tries DGX and RAISES on
+  failure; the chain advances to the next tier (DGX-whisper -> cloud). ADR-096's
+  "no hard-required-DGX path" still holds — it is just enforced one layer up now.
 
 Pre-#814 history: this provider targeted ``POST /api/transcribe`` on Ollama's
 port ``:11434``. Ollama doesn't actually serve Whisper — that endpoint never
@@ -24,8 +25,6 @@ from pathlib import Path
 from typing import Any, cast, List, Optional
 
 from ... import config
-from ...transcription.base import TranscriptionProvider
-from ...transcription.factory import create_transcription_provider
 from ...utils.log_redaction import format_exception_for_log
 from .. import guardrails, resilience
 from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
@@ -76,7 +75,8 @@ def _refine_segment_times(
 
 
 class TailnetDgxWhisperTranscriptionProvider:
-    """Transcribe on DGX faster-whisper-server; fall back to cloud on failure."""
+    """Transcribe on DGX faster-whisper-server. A pure DGX tier: raises on failure so the wrapping
+    FallbackChain (RFC-105) can advance to the next tier."""
 
     def __init__(self, cfg: config.Config) -> None:
         """Store config and DGX connection parameters."""
@@ -89,21 +89,21 @@ class TailnetDgxWhisperTranscriptionProvider:
         self._timeout_sec = float(cfg.dgx_request_timeout_sec or 600.0)
         self._timeout_per_audio_min = float(getattr(cfg, "dgx_timeout_per_audio_minute_sec", 20.0))
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        self._fallback_name = (cfg.transcription_fallback_provider or "openai").strip()
-        self._fallback: Optional[TranscriptionProvider] = None
         self._initialized = False
 
     def initialize(self) -> None:
-        """Load fallback transcription provider (cloud) per ADR-096."""
+        """Mark the DGX Whisper tier ready.
+
+        RFC-105 (#1198): this provider is now a **pure DGX tier**. It no longer builds or owns a
+        cloud fallback — the stage factory wraps it in a ``FallbackChainTranscriptionProvider`` and
+        the chain owns the failover ladder. On a DGX failure this tier RAISES (classified); the
+        chain decides whether to advance. Retiring the self-wrap is what stops the double-fallback
+        that promoting MOSS above whisper would otherwise create.
+        """
         if self._initialized:
             return
         if not self._host:
             raise ValueError("dgx_tailnet_host is required for tailnet_dgx_whisper")
-        fb_data = self.cfg.model_dump()
-        fb_data["transcription_provider"] = self._fallback_name
-        fb_cfg = config.Config.model_validate(fb_data)
-        self._fallback = create_transcription_provider(fb_cfg)
-        self._fallback.initialize()
         self._initialized = True
 
     def _ensure_init(self) -> None:
@@ -129,7 +129,7 @@ class TailnetDgxWhisperTranscriptionProvider:
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         """Return transcript text, using DGX or fallback provider."""
         self._ensure_init()
-        text, _segments, _dur, _actual = self._transcribe_with_fallback(audio_path, language)
+        text, _segments, _dur, _actual = self._transcribe_via_dgx(audio_path, language)
         return text
 
     def transcribe_with_segments(
@@ -140,9 +140,8 @@ class TailnetDgxWhisperTranscriptionProvider:
         # cloud providers. Speaches doesn't use them directly (we have our own
         # breadcrumb emission via emit_dgx_fallback_breadcrumb), but accepting
         # them keeps the signature compatible with the rest of the provider
-        # protocol so the workflow can pass them uniformly. When fallback
-        # fires, we forward them to the cloud provider so its metrics +
-        # cost tracking still work end-to-end.
+        # protocol so the workflow can pass them uniformly. RFC-105: the wrapping
+        # FallbackChain forwards them to whichever tier ultimately serves the call.
         pipeline_metrics: Any | None = None,
         episode_duration_seconds: int | None = None,
         call_metrics: Any | None = None,
@@ -158,7 +157,7 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[dict[str, object], float]:
         """Return transcript dict with segments and elapsed seconds."""
         self._ensure_init()
-        text, segments, duration, actual_model = self._transcribe_with_fallback(
+        text, segments, duration, actual_model = self._transcribe_via_dgx(
             audio_path,
             language,
             pipeline_metrics=pipeline_metrics,
@@ -181,12 +180,12 @@ class TailnetDgxWhisperTranscriptionProvider:
             duration,
         )
 
-    def _transcribe_with_fallback(
+    def _transcribe_via_dgx(
         self,
         audio_path: str,
         language: str | None,
-        # Forwarded to the fallback provider when DGX is unhealthy and we
-        # route to cloud Whisper. DGX-side call doesn't use them.
+        # Accepted for protocol symmetry; the DGX-side call doesn't use them (the
+        # FallbackChain forwards them to whichever tier ultimately serves the request).
         pipeline_metrics: Any | None = None,
         episode_duration_seconds: int | None = None,
         call_metrics: Any | None = None,
@@ -195,7 +194,6 @@ class TailnetDgxWhisperTranscriptionProvider:
         # ``self._model`` (the prod default).
         model_override: str | None = None,
     ) -> tuple[str, list[dict[str, object]], float, str]:
-        assert self._fallback is not None
         last_err: Optional[Exception] = None
         timed_out = False
         # Effective model for THIS call — the override wins when present, else
@@ -292,43 +290,19 @@ class TailnetDgxWhisperTranscriptionProvider:
             model=self._model,
             failure_reason=reason,
         )
-        logger.warning(
-            "Falling back from DGX Whisper to %s (%s)",
-            self._fallback_name,
-            reason,
-        )
-        # Forward metrics kwargs so the cloud fallback's cost + provider metrics
-        # tracking still works when DGX is denied / unhealthy.
-        result = self._fallback.transcribe_with_segments(
-            audio_path,
-            language,
-            pipeline_metrics=pipeline_metrics,
-            episode_duration_seconds=episode_duration_seconds,
-            call_metrics=call_metrics,
-        )
-        raw_segments = result[0].get("segments") or []
-        segments = cast(List[dict[str, object]], raw_segments)
-        # Fallback path won: attribute the actual model to the cloud provider.
-        # If the cloud provider populated ``model_used`` in its own dict we
-        # surface it; otherwise we mark the model as the fallback provider's
-        # default. Either way the answer is NOT the DGX model that wasn't used.
-        cloud_model = result[0].get("model_used")
-        actual_model = (
-            f"{self._fallback_name}:{cloud_model}"
-            if cloud_model
-            else f"{self._fallback_name}:default"
-        )
-        return (
-            str(result[0].get("text", "")),
-            segments,
-            float(result[1]),
-            actual_model,
-        )
+        # RFC-105 (#1198): this tier is exhausted. RAISE rather than self-serving a cloud fallback —
+        # the FallbackChain that wraps this provider owns the ladder and decides whether to advance
+        # to the next tier. ``is_infra_failure`` treats the errors raised here (timeouts, guardrail
+        # garbage, connection blips) as cascade-worthy, so the chain moves on; a content failure
+        # (payload limit) raised from _transcribe_dgx propagates unwrapped and stops the chain.
+        logger.warning("DGX Whisper tier exhausted (%s); raising for the fallback chain", reason)
+        if last_err is not None:
+            raise last_err
+        raise RuntimeError(f"DGX Whisper unavailable: {reason}")
 
     def cleanup(self) -> None:
-        """Release fallback provider resources."""
-        if self._fallback is not None:
-            self._fallback.cleanup()
+        """No owned resources to release (the chain owns the fallback tiers)."""
+        return None
 
     def _transcribe_dgx(
         self,

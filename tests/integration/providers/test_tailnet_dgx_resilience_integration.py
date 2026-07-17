@@ -184,14 +184,11 @@ def _diarize_provider(port: int):
     return p
 
 
-def _whisper_provider(port: int, fallback_text: str = "cloud"):
+def _whisper_provider(port: int):
+    # RFC-105 (#1198): the whisper provider is a pure DGX tier and owns no fallback — it raises on
+    # failure and the FallbackChain (exercised in the unit suite) fails over. These socket-level
+    # tests assert the tier's own reaction: detect the hang/503 and raise the classified error.
     p = TailnetDgxWhisperTranscriptionProvider(_whisper_cfg(port))
-    fb = MagicMock()
-    fb.transcribe_with_segments.return_value = (
-        {"text": fallback_text, "segments": [], "language": "en"},
-        1.0,
-    )
-    p._fallback = fb
     p._initialized = True
     return p
 
@@ -268,20 +265,24 @@ class TestWhisperRealSocket:
         assert text == "hello from the stub"
         assert wp._whisper_breaker.state == "closed"
 
-    def test_hanging_socket_watchdog_fails_over(self, dgx_stub, tmp_path):
+    def test_hanging_socket_watchdog_raises(self, dgx_stub, tmp_path):
+        from podcast_scraper.providers.resilience import TimeoutLike
+
         _DGXStubHandler.mode = "hang"
-        provider = _whisper_provider(dgx_stub, fallback_text="cloud-after-hang")
+        provider = _whisper_provider(dgx_stub)
         started = time.monotonic()
         with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
-            text = provider.transcribe(_audio(tmp_path))
+            with pytest.raises(TimeoutLike):
+                provider.transcribe(_audio(tmp_path))
         elapsed = time.monotonic() - started
-        assert text == "cloud-after-hang"  # failed over to cloud
         assert elapsed < 5.0  # bailed fast, not the 30s hang
-        assert wp._whisper_breaker.state == "open"
+        assert wp._whisper_breaker.state == "open"  # hard timeout tripped the breaker
 
-    def test_http_503_fails_over(self, dgx_stub, tmp_path):
+    def test_http_503_raises(self, dgx_stub, tmp_path):
+        import httpx
+
         _DGXStubHandler.mode = "503"
-        provider = _whisper_provider(dgx_stub, fallback_text="cloud-after-503")
+        provider = _whisper_provider(dgx_stub)
         with patch.object(wp.time, "sleep"):  # skip retry backoff
-            text = provider.transcribe(_audio(tmp_path))
-        assert text == "cloud-after-503"
+            with pytest.raises(httpx.HTTPStatusError):
+                provider.transcribe(_audio(tmp_path))
