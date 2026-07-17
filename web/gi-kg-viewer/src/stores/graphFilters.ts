@@ -53,13 +53,20 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     const full = fullArtifact.value
     const st = state.value
     if (!full || !st) return null
-    /* graph-v3 tier 8-1 — top-down slice is already the browse-surface
-     * (SuperTheme nodes only). Skip type-filtering so the filter chip
-     * doesn't hide the whole graph when the user hasn't opted `SuperTheme`
-     * into `allowedTypes` yet. Tier 8-4 will re-introduce filter semantics
-     * that reason over the expanded slice. */
+    /* graph-v3 tier 8-4 — in top-down mode we still run the type filter
+     * but always let `SuperTheme` and the synthetic `_topdown_link`
+     * edges through, regardless of the user's `allowedTypes` toggles.
+     * The rationale: the SuperTheme bubbles ARE the navigation surface
+     * in top-down mode; hiding them via the Types chip would strand
+     * the user with an empty canvas. Everything else (Topic / Insight /
+     * Person / …) filters normally so users can, say, toggle Insights
+     * off and read the underlying topic map. */
     if (loadMode.isTopDown && artifacts.topDownDisplayArtifact === full) {
-      return full
+      const forced = {
+        ...st,
+        allowedTypes: { ...st.allowedTypes, SuperTheme: true },
+      }
+      return applyGraphFilters(full, forced)
     }
     return applyGraphFilters(full, st)
   })
