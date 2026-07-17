@@ -162,24 +162,32 @@ class GiV3TypedMentionsMigration(Migration):
         )
 
     def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
-        """Confirm every ``.gi.json`` parses and is at schema_version 3.0.
+        """Confirm every ``.gi.json`` parses and has nothing left to migrate.
 
         The base no-op verify() would report a partially-applied / mid-write-killed
-        migration as green; this surfaces unparsable or not-yet-v3 files (M20).
+        migration as green (M20). The post-condition is *idempotency*, not a hard
+        ``schema_version == 3.0``: apply() only rewrites docs whose content actually
+        changes, and ``migrate_gi_document_v3`` intentionally bumps the version only
+        for known-legacy 1.0/2.0 envelopes — a doc with no ``schema_version`` (or a
+        newer one) is left untouched by design, so asserting 3.0 would false-fail it.
+        Re-running the migration and requiring ``before == after`` surfaces exactly
+        the failure we care about: an unparsable (truncated) file, or one still
+        carrying pending v3 changes because apply() was killed mid-run.
         """
-        checked = unparsable = wrong_version = 0
+        checked = unparsable = pending = 0
         for f in _iter_gi_files(ctx.corpus_root):
             checked += 1
             try:
-                doc = json.loads(f.read_text(encoding="utf-8"))
+                before = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 unparsable += 1
                 continue
-            if str(doc.get("schema_version")) != "3.0":
-                wrong_version += 1
-        if unparsable or wrong_version:
+            if migrate_gi_document_v3(copy.deepcopy(before)) != before:
+                pending += 1
+        if unparsable or pending:
             return (
                 False,
-                f"{unparsable} unparsable + {wrong_version} not-at-3.0 of {checked} .gi.json",
+                f"{unparsable} unparsable + {pending} with pending v3 changes "
+                f"of {checked} .gi.json",
             )
-        return True, f"all {checked} .gi.json parse at schema_version 3.0"
+        return True, f"all {checked} .gi.json parse and are fully migrated to v3"

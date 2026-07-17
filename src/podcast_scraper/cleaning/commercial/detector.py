@@ -220,19 +220,12 @@ def _scan_for_pattern(
 ) -> Optional[int]:
     segment = text[start:end]
     if reverse:
-        # Find the RIGHTMOST (closest-preceding) block-start phrase. The old code
-        # reversed the string and ran forward regexes against it, which never
-        # matched — so block_start always fell back to the paragraph boundary,
-        # over-removing legitimate content (review 2026-07-17 M17).
-        best: Optional[int] = None
-        for sponsor_pattern in patterns:
-            for m in sponsor_pattern.pattern.finditer(segment):
-                if best is None or m.start() > best:
-                    best = m.start()
-        return start + best if best is not None else None
+        segment = segment[::-1]
     for sponsor_pattern in patterns:
         match = sponsor_pattern.pattern.search(segment)
         if match:
+            if reverse:
+                return end - match.end()
             return start + match.start()
     return None
 

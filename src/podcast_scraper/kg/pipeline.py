@@ -103,8 +103,7 @@ def _apply_kg_filters(
         # entity list was replaced with {name, entity_kind}, dropping descriptions
         # for the entire batch whenever any kind was repaired (review H6).
         llm_partial["entities"] = [
-            {**orig, "entity_kind": r["kind"]}
-            for orig, r in zip(orig_entities, repaired_entities)
+            {**orig, "entity_kind": r["kind"]} for orig, r in zip(orig_entities, repaired_entities)
         ]
         if pipeline_metrics is not None and hasattr(
             pipeline_metrics, "record_entity_kinds_repaired"

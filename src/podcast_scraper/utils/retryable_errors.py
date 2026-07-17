@@ -207,11 +207,7 @@ def is_non_retryable_http_error(error: Exception) -> bool:
     # "invalid chunk in response" non-retryable, dropping legit retries. Specific
     # "invalid api key" signals live in llm_error_taxonomy._TERMINAL_SIGNALS
     # (review 2026-07-17 low/retryable-invalid).
-    if (
-        "400" in str(error)
-        or "bad request" in error_str
-        or "validation" in error_str
-    ):
+    if "400" in str(error) or "bad request" in error_str or "validation" in error_str:
         return True
 
     # Not found errors (404) - not retryable
