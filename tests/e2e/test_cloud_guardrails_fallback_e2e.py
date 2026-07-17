@@ -68,7 +68,7 @@ def _openai_primary_with_anthropic_fallback(e2e_server):
     primary.initialize()
     wrapped = FallbackAwareSummarizationProvider(
         primary=primary,
-        fallback_provider_name="anthropic",
+        fallback_provider_names="anthropic",
         cfg=cfg,
     )
     return wrapped
@@ -96,7 +96,7 @@ def _gemini_primary_with_openai_fallback(e2e_server):
     primary.initialize()
     wrapped = FallbackAwareSummarizationProvider(
         primary=primary,
-        fallback_provider_name="openai",
+        fallback_provider_names="openai",
         cfg=cfg,
     )
     return wrapped
