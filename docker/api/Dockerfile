@@ -18,6 +18,21 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PODCAST_STACK_OUTPUT_DIR=/app/output
 
+# Cap native math thread pools to 1. The digest route fans out up to 8 concurrent
+# semantic searches (server/routes/corpus_digest.py), each running a torch/BERT
+# query embedding AND a LanceDB hybrid search whose score-normalize calls native
+# pyarrow.compute. With the default (each pool sizes to the full CPU count) the
+# 8 workers oversubscribe torch/OpenMP + BLAS + pyarrow's C++ pool and the native
+# layers race — observed as a hard SIGSEGV in pyarrow.compute while torch runs in
+# a sibling thread (stack-test, api container). Request-level parallelism (the 8
+# workers) is retained; only per-thread native oversubscription is removed. These
+# MUST be set as env before import — the pools initialise at import time, so a
+# runtime set_num_threads() call is too late. Heavy pipeline ML is unaffected: it
+# runs in separate containers via PODCAST_PIPELINE_EXEC_MODE=docker, not in-process.
+ENV OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1
+
 # Pull latest Debian security patches on top of whatever the base image
 # was built with. Closes the lag between python:3.12-slim-bookworm's last
 # rebuild and the latest Debian advisories. Won't fix CVEs Debian hasn't
