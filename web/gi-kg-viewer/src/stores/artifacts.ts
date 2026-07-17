@@ -22,6 +22,8 @@ import {
   withThemeClustersOnDisplay,
   withTopicClustersOnDisplay,
 } from '../utils/topicClustersOverlay'
+import { buildTopDownSlice } from '../utils/topDownSlice'
+import { visualNodeTypeCounts } from '../utils/visualGroup'
 import { StaleGeneration } from '../utils/staleGeneration'
 import { useGraphExpansionStore } from './graphExpansion'
 import { useGraphExplorerStore } from './graphExplorer'
@@ -105,6 +107,32 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       themeClustersDoc.value,
     ),
   )
+
+  /* graph-v3 tier 8-1 — top-down synthetic slice. Derived from the theme
+   * clusters doc (super_theme_id rollup) + the full displayArtifact (for
+   * future bridge-derived cross-super-theme edges). Consumed by
+   * GraphCanvas only when `useGraphLoadModeStore().isTopDown`. Null when
+   * the theme doc hasn't loaded yet or has no super-themes. */
+  const topDownDisplayArtifact = computed<ParsedArtifact | null>(() => {
+    const themeDoc = themeClustersDoc.value
+    if (!themeDoc || !Array.isArray(themeDoc.clusters) || themeDoc.clusters.length === 0) {
+      return null
+    }
+    const data = buildTopDownSlice({
+      themeDoc,
+      fullArtifact: displayArtifact.value?.data ?? null,
+    })
+    if (data.nodes.length === 0) return null
+    return {
+      name: 'top-down',
+      kind: 'both',
+      episodeId: null,
+      nodes: data.nodes.length,
+      edges: data.edges.length,
+      nodeTypes: visualNodeTypeCounts(data.nodes),
+      data,
+    }
+  })
 
   // #769 — memoize the topic-clusters HTTP fetch per corpus root.
   //
@@ -798,6 +826,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     giArts,
     kgArts,
     displayArtifact,
+    topDownDisplayArtifact,
     loadSelected,
     loadRelativeArtifacts,
     loadFromLocalFiles,

@@ -572,6 +572,50 @@ export function buildGiKgCyStylesheet(options?: {
     },
   })
 
+  /* graph-v3 tier 8-1 — SuperTheme nodes.
+     Big soft filled circles labelled by super_theme_label; the whole point
+     of top-down mode is to make these bubbles the reader's first surface.
+     Colour: teal (--ps-kg) at higher opacity than TopicCluster so they
+     stand out as tier-0 anchors. Size: large (~ 3× a normal Topic). */
+  style.push({
+    selector: 'node[type = "SuperTheme"]',
+    style: {
+      'background-color': psKg,
+      'background-opacity': 0.22,
+      'border-width': compact ? 2 : 2.5,
+      'border-style': 'solid',
+      'border-color': psKg,
+      'border-opacity': 0.85,
+      shape: 'ellipse',
+      width: compact ? 100 : 140,
+      height: compact ? 100 : 140,
+      label: 'data(label)',
+      'text-valign': 'center',
+      'text-halign': 'center',
+      color: '#fff',
+      'font-size': compact ? 12 : 14,
+      'font-weight': 600,
+      'text-outline-color': psKg,
+      'text-outline-width': 2,
+      'text-outline-opacity': 0.85,
+      'text-wrap': 'wrap',
+      'text-max-width': compact ? 84 : 116,
+    },
+  })
+  /* Synthetic inter-super-theme links — dashed light lines just for
+     layout structure, not analytic edges. */
+  style.push({
+    selector: 'edge[edgeType = "_topdown_link"], edge[type = "_topdown_link"]',
+    style: {
+      'line-color': psKg,
+      'line-opacity': 0.2,
+      'line-style': 'dashed',
+      width: 1,
+      'curve-style': 'straight',
+      'target-arrow-shape': 'none',
+    },
+  })
+
   // Cytoscape 3.x core does not support `shadow-*` style properties (would
   // emit "shadow-blur: 8 is invalid" warnings on every load). The depth cue
   // they were intended to provide is already carried by border-color +
