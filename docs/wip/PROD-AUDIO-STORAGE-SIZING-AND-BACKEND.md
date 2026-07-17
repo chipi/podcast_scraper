@@ -122,12 +122,39 @@ Box support (2026-07-17). So we are not limited to a host mount.
 - [ ] Whether to promote the backend design to an RFC/ADR before implementing
       (new dep + a storage boundary = design-change territory).
 
-## Next steps (all planning / read-only until decided)
+## Implementation status (#1199)
 
-- Draft the RFC/ADR for the pluggable audio-storage backend (interface:
-  `write(local_path, key) / read(key, dest) / exists(key)`; local-fs + rclone
-  implementations; `media_id` as the key).
-- Provision a BX11 (operator action) + an `rclone` remote config as a Hetzner
-  secret; wire into the deploy `.env` staging the same way corpus secrets flow.
-- Add a Tier-2 sizing guard so the audio footprint projection stays honest as
-  feeds grow.
+**Write path — DONE** (on `production`):
+
+- `utils/storage_backend.py` — `StorageBackend` interface + `LocalStorageBackend`
+  (byte-compatible with the existing #947 layout) + `RcloneStorageBackend`
+  (rclone-backed; transport chosen in `rclone config`, credentials never in our
+  config). Injectable runner so CI drives rclone with an in-memory fake — no real
+  remote, no binary in CI.
+- Config: `audio_storage_backend: local|remote` + `audio_remote_rclone_remote` /
+  `audio_remote_base_path` / `audio_remote_rclone_bin`. A `remote` backend with no
+  remote name **fails loud at config load** (the Deepgram trap, #1195); a missing
+  rclone binary fails loud at construction. Per-episode upload/download is
+  best-effort (ERROR-logged, never silent).
+- `audio_cache.resolve_backend` / `fetch_into` / `store_via` wired into the
+  download path in `episode_processor.py`: archive on download, fetch-back on
+  cache-hit (so the "avoid re-fetch" loop closes, not write-only). `local`
+  default → **zero behaviour change**.
+- Keyed by the sharded GUID digest (`sha256/aa/bb/<digest><ext>`), dedupe by
+  existence. Tests: `test_storage_backend.py`, `test_audio_cache.py`
+  (backend layer). Full lint/type/policy green.
+
+## Follow-ups (loop-closing — need use-case definition, per operator)
+
+- **Access-back mechanism.** The download-path fetch-on-hit works, but the richer
+  reprocess-access story needs use cases scoped: (a) bulk reprocess pulling many
+  episodes from remote (download-local vs stream), (b) reprocess-in-place on the
+  box, (c) the corpus-media hardlink source is local-only today (remote → copy).
+  Identify the concrete reprocess workflows and close each.
+- **rclone in the pipeline image.** `remote` needs the `rclone` binary on the
+  prod host/container — add to the pipeline Dockerfile + document the `rclone
+  config` (a Hetzner Storage Box SFTP remote) as a deploy secret, staged like the
+  corpus secrets.
+- **Provision** a BX11 Storage Box (operator action) + the rclone remote.
+- Optional RFC/ADR to ratify the storage boundary + the rclone system dep.
+- Tier-2 sizing guard so the footprint projection stays honest as feeds grow.
