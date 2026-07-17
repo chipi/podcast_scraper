@@ -159,14 +159,24 @@ Two flows, both reusing the backend + the archive-aware download path:
   `audio_cache.fetch_into` → pulls each episode's audio from the remote before
   re-diarize/re-transcribe. No feed re-fetch. Remaining plumbing below.
 
-## Remaining follow-ups
+## Landed (build pieces 2 & 3)
 
-- **rclone in the pipeline image** (both flows' prereq): add the `rclone` binary
-  to the pipeline Dockerfile + stage the `rclone config` (Storage Box SFTP remote)
-  as a deploy secret, like the corpus secrets.
-- **`reprocess-prod.yml` workflow** (`workflow_dispatch`, inputs scope +
-  reprocess-source) + a documented `docker exec` recipe in the runbook.
-- **Provision** a BX11 Storage Box (operator action) + the rclone remote.
+- **rclone in the pipeline image** — `docker/pipeline/Dockerfile` installs the
+  `rclone` binary (harmless when unused; local backend is the default).
+- **`reprocess-prod.yml`** — confirm-gated (`PROD_REPROCESS`) `workflow_dispatch`
+  that joins the tailnet, SSHes to prod, and runs
+  `--reprocess-existing-only --reprocess-source <…>` reading audio from the remote
+  archive. Plus the manual `docker exec` recipe.
+- **Recipe** — `docs/recipes/prod-audio-archive.md`: provisioning, the
+  **password + env-var** rclone injection (one obscured-password secret, no mount,
+  no compose change), and both read-back flows end to end.
+
+## Remaining (operator provisioning)
+
+- **Provision** a BX11 Storage Box + `rclone obscure` the password → GH secret
+  `PROD_RCLONE_STORAGEBOX_PASS`; add the `RCLONE_CONFIG_HETZNERBOX_*` lines to the
+  `deploy-prod.yml` `.env` staging; set `audio_storage_backend: remote` in the
+  prod profile. All in the recipe.
 - Corpus-media hardlink source is local-only today (remote → falls back to copy);
   revisit if remote reprocess needs the link optimisation.
 - Optional RFC/ADR to ratify the storage boundary + the rclone system dep.

@@ -16,6 +16,7 @@ nav:
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
+      - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
       - DGX Spark runbook (RFC-089): guides/DGX_RUNBOOK.md
       - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
