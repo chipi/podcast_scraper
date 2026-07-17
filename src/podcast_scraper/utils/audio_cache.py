@@ -23,11 +23,14 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .. import config_constants
 from .corpus_media import AUDIO_MEDIA_EXTENSIONS
 from .path_validation import safe_relpath_under_corpus_root
+
+if TYPE_CHECKING:
+    from .storage_backend import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +164,7 @@ def rel_key_for_guid(guid: Optional[str], ext: str) -> Optional[str]:
     return f"sha256/{digest[:2]}/{digest[2:4]}/{digest}{ext}"
 
 
-def resolve_backend(cfg, effective_output_dir: Optional[str]):
+def resolve_backend(cfg, effective_output_dir: Optional[str]) -> Optional["StorageBackend"]:
     """Resolve the archive :class:`StorageBackend` for this run, or None when disabled.
 
     ``audio_storage_backend='remote'`` -> rclone backend (``audio_remote_*``);
@@ -174,7 +177,7 @@ def resolve_backend(cfg, effective_output_dir: Optional[str]):
 
     if getattr(cfg, "audio_storage_backend", "local") == "remote":
         return RcloneStorageBackend(
-            remote=getattr(cfg, "audio_remote_rclone_remote", None),
+            remote=getattr(cfg, "audio_remote_rclone_remote", "") or "",
             base_path=getattr(cfg, "audio_remote_base_path", "") or "",
             rclone_bin=getattr(cfg, "audio_remote_rclone_bin", "rclone") or "rclone",
         )
@@ -182,7 +185,7 @@ def resolve_backend(cfg, effective_output_dir: Optional[str]):
     return LocalStorageBackend(root) if root is not None else None
 
 
-def fetch_into(backend, guid: Optional[str], dest_path: str) -> bool:
+def fetch_into(backend: Optional["StorageBackend"], guid: Optional[str], dest_path: str) -> bool:
     """Fetch archived audio for ``guid`` into ``dest_path`` (probes known exts). Miss -> False."""
     if backend is None or not guid:
         return False
@@ -199,7 +202,9 @@ def fetch_into(backend, guid: Optional[str], dest_path: str) -> bool:
     return False
 
 
-def store_via(backend, guid: Optional[str], src_path: str) -> Optional[str]:
+def store_via(
+    backend: Optional["StorageBackend"], guid: Optional[str], src_path: str
+) -> Optional[str]:
     """Archive ``src_path`` for ``guid`` via ``backend`` (dedupe). Return the rel-key or None."""
     if backend is None or not guid:
         return None
