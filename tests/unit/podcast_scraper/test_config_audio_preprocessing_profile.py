@@ -131,3 +131,28 @@ class TestMLPreprocessingProfile:
             ml_preprocessing_profile="cleaning_v3",
         )
         assert c.ml_preprocessing_profile == "cleaning_v3"
+
+
+class TestSilenceThresholdValidator:
+    """preprocessing_silence_threshold is interpolated into the ffmpeg -af chain,
+    so it must be a bare dB value — reject filter-injection payloads (low/ffmpeg-inject)."""
+
+    @pytest.mark.parametrize("val", ["-30dB", "-30", "-30.5dB", "0", "12dB"])
+    def test_accepts_bare_db_values(self, val):
+        c = Config(rss_url="https://example.com/feed.xml", preprocessing_silence_threshold=val)
+        assert c.preprocessing_silence_threshold == val
+
+    @pytest.mark.parametrize(
+        "val",
+        [
+            "-50dB:stop_periods=0,aecho=0.8",  # extra filter nodes
+            "-30dB; rm -rf",
+            "loud",
+            "-30dBx",
+        ],
+    )
+    def test_rejects_injection_payloads(self, val):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            Config(rss_url="https://example.com/feed.xml", preprocessing_silence_threshold=val)

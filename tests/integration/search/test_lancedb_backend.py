@@ -94,3 +94,31 @@ def test_health_and_delete(backend):
     assert h["status"] == "ok" and h["segments"] == 2 and h["insights"] == 1
     backend.delete("s1", "segment")
     assert backend.health()["segments"] == 1
+
+
+@pytest.mark.critical_path
+def test_create_indices_skips_ann_on_small_tables(backend):
+    # 2 segment / 1 insight rows are far below _MIN_VECTOR_INDEX_ROWS, so the IVF
+    # ANN build (which can SIGSEGV on too-few rows) is skipped — FTS still builds
+    # and the tables stay searchable via brute force. Must not raise.
+    assert backend._MIN_VECTOR_INDEX_ROWS > 2
+    backend.create_indices()
+    res = backend.search_bm25(SearchQuery(text="OpenAI", embedding=[0, 0, 0, 0], tier="segment"))
+    assert "s1" in {r.doc_id for r in res}  # brute-force FTS still finds the row
+
+
+@pytest.mark.critical_path
+def test_create_indices_noop_when_no_tables(tmp_path):
+    # A fresh backend has no tier tables on disk: every tier short-circuits on the
+    # ``table is None`` branch — create_indices() is a clean no-op.
+    empty = LanceDBBackend(str(tmp_path / "empty"), embed_dim=4)
+    empty.create_indices()  # must not raise
+
+
+@pytest.mark.critical_path
+def test_sql_str_escapes_and_to_sql_builds_clause(backend):
+    assert LanceDBBackend._sql_str("O'Brien") == "O''Brien"
+    assert backend._to_sql({}) is None
+    assert backend._to_sql({"show_id": "A"}) == "show_id = 'A'"
+    # Embedded quote is escaped so it cannot break out of the literal.
+    assert backend._to_sql({"id": "x'y"}) == "id = 'x''y'"
