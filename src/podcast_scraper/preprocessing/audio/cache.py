@@ -51,9 +51,20 @@ def save_to_cache(
     os.makedirs(cache_dir, exist_ok=True)
     cache_path = os.path.join(cache_dir, f"{cache_key}.mp3")
 
-    # Copy to cache
+    # Atomic write: copy to a same-dir tempfile then os.replace onto the canonical
+    # path. A crash mid-copy or two workers racing on the same cache_key otherwise
+    # leaves a truncated .mp3 that os.path.exists treats as a valid hit, feeding a
+    # corrupt/silent transcript downstream (review 2026-07-17 M21).
     import shutil
+    import tempfile
 
-    shutil.copy2(source_path, cache_path)
+    fd, tmp_path = tempfile.mkstemp(dir=cache_dir, suffix=".mp3.tmp")
+    os.close(fd)
+    try:
+        shutil.copy2(source_path, tmp_path)
+        os.replace(tmp_path, cache_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
     logger.debug("Saved preprocessed audio to cache: %s", cache_path)
     return cache_path

@@ -249,14 +249,21 @@ def create_app(
     ) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
+    # CORS origins: default to the local Vue dev-server ports, but let prod pin
+    # the real public hostname(s) via PODCAST_SERVE_CORS_ORIGINS (comma-separated)
+    # — auth is cookie-based, so credentialed localhost origins must not be the
+    # only allowlist on a public box (review 2026-07-17 M11).
+    _default_cors = [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
+    ]
+    _cors_env = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
+    _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _default_cors
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://127.0.0.1:5173",
-            "http://localhost:5173",
-            "http://127.0.0.1:5174",
-            "http://localhost:5174",
-        ],
+        allow_origins=_cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

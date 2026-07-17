@@ -53,12 +53,12 @@ jobs:
             MISSING="$MISSING BACKUP_REPO_TOKEN"
           fi
           if [ -n "$MISSING" ]; then
-            echo "::warning::Missing prereqs:$MISSING — skipping."
-            echo "::warning::Stage them per #714 then re-run."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            # Fail loud, not fake-green: a missing secret must not exit 0 and look
+            # like a successful backup that never ran (review 2026-07-17 M25).
+            echo "::error::Missing required prereqs:$MISSING — stage them per #714 then re-run."
+            exit 1
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Checkout (resolver script; GH-744)
         if: steps.preflight.outputs.skip != 'true'

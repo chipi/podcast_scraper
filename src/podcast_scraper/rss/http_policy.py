@@ -269,7 +269,12 @@ class HostThrottle:
                 if wait > 0:
                     time.sleep(wait)
                     record_host_throttle_wait(wait)
-                # last_finish updated on release
+                # Stamp the start time under the lock so a second worker with no
+                # concurrency semaphore (max_concurrent=0) computes its wait from
+                # THIS request instead of both reading a stale last_finish and
+                # firing simultaneously (review 2026-07-17 M23). release() refines
+                # this to the finish time afterwards.
+                slot.last_finish = time.monotonic()
 
     def release(self, url: str) -> None:
         """Update interval bookkeeping and release the concurrency slot for ``url``."""

@@ -70,12 +70,15 @@ jobs:
           [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
           [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
           if [ -n "$MISSING" ]; then
-            echo "::warning::Missing prereqs:$MISSING"
-            echo "::warning::Stage them per #714 then re-run this workflow."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            # Fail loud, not fake-green: a soft skip=true here exited 0 and marked
+            # the GH Environment deployment "successful" while deploying NOTHING —
+            # an operator who rotated a secret would think the deploy worked
+            # (review 2026-07-17 M25). The environment:prod gate + typed confirm
+            # already make this a deliberate run, so failing fast is safe.
+            echo "::error::Missing required prereqs:$MISSING — stage them per #714 then re-run."
+            exit 1
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Checkout (resolver script; GH-744)
         if: steps.preflight.outputs.skip != 'true'
