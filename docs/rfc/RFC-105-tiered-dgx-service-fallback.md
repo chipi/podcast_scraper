@@ -72,14 +72,39 @@ Mirror `tailnet_dgx_whisper`'s existing preflight: if a tier exposes a health en
 reports down, skip straight to the next tier instead of eating the request timeout. Registry
 `StageOption.endpoint` already carries the health surface.
 
-### Config + registry
+### The registry owns the chain; materialize emits it (source of truth)
 
-- Config: add `<stage>_fallback_providers: list[str]`. The legacy singular
+The failover ladder is **registry-governed data**, exactly like the primary provider — not a
+runtime default. This keeps the "profiles are views, the registry is the source of truth"
+invariant (RFC-046) intact for fallback too.
+
+- **`ProfilePreset`** gains a per-stage **`<stage>_fallback: list[str]`** — an ordered list of
+  `StageOption` ids after the primary. Example (a DGX prod preset):
+
+  ```python
+  transcription="moss_transcribe_diarize",
+  transcription_fallback=["tailnet_dgx_speaches_thread_b", "openai_whisper_1"],
+  diarization="tailnet_dgx_diarization_community1",
+  diarization_fallback=["deepgram_diarization_nova3"],
+  ```
+
+- **The resolver** maps that list of ids to their `StageOption.provider` values and emits
+  **`<stage>_fallback_providers: list[str]`** into the materialized profile. The chain is therefore
+  **present in the YAML** — no runtime inference, and `make profiles-check` guards it like every
+  other registry-governed field.
+
+- Because each tier is a `StageOption`, the chain is **eval-backed**: every entry carries its own
+  `headline_metric`, `research_ref`, `realtime_multiple`, `resident_memory_gb`, and
+  `tier` (`primary`/`fallback`). The ladder is a list of measured options, not opaque strings.
+
+- **Config**: add `<stage>_fallback_providers: list[str]`. The legacy singular
   `<stage>_fallback_provider` maps to a **one-element chain** (full back-compat; no profile churn
-  required to keep today's behaviour).
-- Registry: a `ProfilePreset` may name a `<stage>_fallback` **list** of `StageOption` ids; the
-  resolver emits the ordered provider list into the materialized profile. DGX presets get the chains
-  above; cloud presets keep their single cloud fallback (a one-element chain).
+  required to keep today's behaviour). Cloud presets keep their single cloud fallback (a
+  one-element chain).
+
+- **`allow_cloud_fallback`** (per profile): when false, the resolver refuses to emit a cloud
+  `StageOption` into any chain — the ladder ends at the last on-prem tier and fails closed. This is
+  what makes the `all-DGX / no-cloud` profiles safe to give a fallback at all.
 
 ## Migration
 
