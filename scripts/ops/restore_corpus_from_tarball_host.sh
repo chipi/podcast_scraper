@@ -21,10 +21,20 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 if [ -d corpus ]; then
   mv corpus "corpus.bak.$STAMP"
 fi
-tar -xzf "$TARBALL" -C "$REPO_DIR"
-if [ ! -d corpus ]; then
-  echo "ERROR: expected top-level corpus/ after prod layout extract under $REPO_DIR" >&2
+# Roll the timestamped backup back on any extract failure — otherwise a corrupt
+# tarball / disk-full / bad layout leaves the host with NO corpus/ and the api
+# can't boot (review 2026-07-17 H7).
+_restore_backup_and_die() {
+  echo "ERROR: $1 — restoring prior corpus." >&2
+  rm -rf corpus 2>/dev/null || true
+  [ -d "corpus.bak.$STAMP" ] && mv "corpus.bak.$STAMP" corpus
   exit 1
+}
+if ! tar -xzf "$TARBALL" -C "$REPO_DIR"; then
+  _restore_backup_and_die "tar extraction failed"
+fi
+if [ ! -d corpus ]; then
+  _restore_backup_and_die "expected top-level corpus/ after prod layout extract under $REPO_DIR"
 fi
 if [ "${RESTORE_EXTRACT_ONLY:-}" = "1" ]; then
   echo "Restore extract OK under $REPO_DIR/corpus"
@@ -47,9 +57,15 @@ COMPOSE=(
 if ! "${COMPOSE[@]}" run --rm --no-deps --entrypoint "" api \
   python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --yes; then
   echo "ERROR: corpus upgrade failed — rolling back to prior corpus." >&2
-  rm -rf corpus
+  # Only destroy the freshly-extracted corpus if we actually have a backup to
+  # restore. On a first deploy (no prior corpus → no .bak) the old code did an
+  # unconditional ``rm -rf corpus`` and then found nothing to restore, deleting
+  # the corpus with no recovery (review 2026-07-17 M10).
   if [ -d "corpus.bak.$STAMP" ]; then
+    rm -rf corpus
     mv "corpus.bak.$STAMP" corpus
+  else
+    echo "ERROR: no prior corpus backup (first deploy?); leaving the extracted corpus in place for manual inspection/retry." >&2
   fi
   exit 1
 fi

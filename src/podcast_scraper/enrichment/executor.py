@@ -621,7 +621,11 @@ class EnrichmentExecutor:
                 attempt += 1
                 continue
 
-            # Success path (or terminal result from enricher).
+            # Success path (or terminal result from enricher). Reset the circuit's
+            # consecutive-failure counter — without this, spread-out transient
+            # failures across bundles accumulate monotonically and falsely
+            # quarantine a healthy enricher (review 2026-07-17 H9).
+            circuit.record_success()
             final_result = result
             break
 
