@@ -166,6 +166,6 @@ gi_insight_chunk_chars: 30000
 gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
-transcription_fallback_providers: [tailnet_dgx_whisper, openai]
-diarization_fallback_providers: [deepgram]
+transcription_fallback_providers: [tailnet_dgx_whisper, whisper, openai]
+diarization_fallback_providers: [local, deepgram]
 summary_fallback_providers: [gemini]

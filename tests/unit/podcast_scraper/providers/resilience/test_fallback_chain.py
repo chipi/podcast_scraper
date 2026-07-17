@@ -13,7 +13,9 @@ import httpx
 import pytest
 
 from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
 from podcast_scraper.providers.resilience.fallback import (
+    FallbackChainDiarizationProvider,
     FallbackChainTranscriptionProvider,
     is_infra_failure,
 )
@@ -182,3 +184,102 @@ def test_cleanup_releases_only_initialized_tiers() -> None:
 def test_empty_chain_is_rejected() -> None:
     with pytest.raises(ValueError, match="at least one tier"):
         FallbackChainTranscriptionProvider([])
+
+
+# --- diarization chain ---------------------------------------------------------------------------
+
+
+class _FakeDiarTier:
+    def __init__(
+        self,
+        model_name: str = "",
+        raises: Optional[BaseException] = None,
+    ) -> None:
+        self._model_name = model_name
+        self._raises = raises
+        self.initialized = 0
+        self.calls = 0
+
+    def initialize(self) -> None:
+        self.initialized += 1
+
+    def diarize(
+        self,
+        audio_path: str,
+        *,
+        num_speakers: Optional[int] = None,
+        min_speakers: int = 2,
+        max_speakers: int = 20,
+    ) -> DiarizationResult:
+        self.calls += 1
+        if self._raises is not None:
+            raise self._raises
+        return DiarizationResult(
+            segments=[DiarizationSegment(0.0, 1.0, "SPEAKER_00")],
+            num_speakers=1,
+            model_name=self._model_name,
+        )
+
+
+def _diar_chain(tiers: List[Tuple[str, _FakeDiarTier]]) -> FallbackChainDiarizationProvider:
+    return FallbackChainDiarizationProvider(cast(Any, tiers))
+
+
+def test_diar_primary_success_never_touches_fallbacks() -> None:
+    primary = _FakeDiarTier(model_name="dgx")
+    fb = _FakeDiarTier(model_name="local")
+    chain = _diar_chain([("tailnet_dgx", primary), ("local", fb)])
+    chain.initialize()
+
+    result = chain.diarize("a.wav", num_speakers=2)
+    assert result.model_name == "dgx"
+    assert fb.calls == 0 and fb.initialized == 0  # lazy: unused tier untouched
+
+
+def test_diar_infra_failure_advances_to_next_tier() -> None:
+    primary = _FakeDiarTier(raises=httpx.ConnectError("dgx down"))
+    fb = _FakeDiarTier(model_name="local")
+    chain = _diar_chain([("tailnet_dgx", primary), ("local", fb)])
+    chain.initialize()
+
+    result = chain.diarize("a.wav")
+    assert result.model_name == "local"
+    assert primary.calls == 1 and fb.calls == 1 and fb.initialized == 1
+
+
+def test_diar_content_failure_does_not_cascade() -> None:
+    req = httpx.Request("POST", "http://x")
+    resp = httpx.Response(400, request=req)
+    primary = _FakeDiarTier(raises=httpx.HTTPStatusError("bad", request=req, response=resp))
+    fb = _FakeDiarTier(model_name="local")
+    chain = _diar_chain([("tailnet_dgx", primary), ("local", fb)])
+    chain.initialize()
+
+    with pytest.raises(httpx.HTTPStatusError):
+        chain.diarize("a.wav")
+    assert fb.calls == 0
+
+
+def test_diar_exhausted_chain_raises_last_error() -> None:
+    primary = _FakeDiarTier(raises=httpx.ConnectError("dgx down"))
+    local = _FakeDiarTier(raises=RuntimeError("no pyannote installed"))
+    deepgram = _FakeDiarTier(raises=httpx.ReadTimeout("cloud slow"))
+    chain = _diar_chain([("tailnet_dgx", primary), ("local", local), ("deepgram", deepgram)])
+    chain.initialize()
+
+    with pytest.raises(httpx.ReadTimeout):
+        chain.diarize("a.wav")
+    assert primary.calls == 1 and local.calls == 1 and deepgram.calls == 1
+
+
+def test_diar_full_ladder_dgx_then_local_then_deepgram() -> None:
+    """The prod ladder: DGX down, local pyannote can't run here, deepgram serves."""
+    primary = _FakeDiarTier(raises=httpx.ConnectError("dgx down"))
+    local = _FakeDiarTier(raises=RuntimeError("no pyannote installed on this VPS"))
+    deepgram = _FakeDiarTier(model_name="nova-3")
+    chain = _diar_chain([("tailnet_dgx", primary), ("local", local), ("deepgram", deepgram)])
+    chain.initialize()
+
+    result = chain.diarize("a.wav")
+    assert result.model_name == "nova-3"
+    assert deepgram.calls == 1

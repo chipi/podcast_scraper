@@ -26,20 +26,26 @@ _DGX_PRESETS = ["cloud_with_dgx_primary", "prod_dgx_full_with_fallback", "prod_d
 
 
 @pytest.mark.parametrize("name", _DGX_PRESETS)
-def test_transcription_ladder_is_moss_then_dgx_whisper_then_cloud(name: str) -> None:
-    """MOSS down -> DGX faster-whisper (same box, no cloud egress) -> cloud whisper."""
+def test_transcription_ladder_prefers_free_tiers_before_paid_cloud(name: str) -> None:
+    """MOSS -> DGX faster-whisper -> local in-process whisper -> cloud whisper: the free/on-prem
+    tiers are exhausted before the ladder pays for openai."""
     resolved = resolve_profile_to_settings(name)
     assert (
         resolved["transcription_provider"]
         == get_transcription_option("moss_transcribe_diarize").provider
     )
-    assert resolved["transcription_fallback_providers"] == ["tailnet_dgx_whisper", "openai"]
+    assert resolved["transcription_fallback_providers"] == [
+        "tailnet_dgx_whisper",
+        "whisper",
+        "openai",
+    ]
 
 
 @pytest.mark.parametrize("name", _DGX_PRESETS)
-def test_diarization_ladder_is_dgx_pyannote_then_deepgram(name: str) -> None:
+def test_diarization_ladder_is_dgx_then_local_pyannote_then_deepgram(name: str) -> None:
+    """DGX pyannote -> local in-process pyannote (free) -> deepgram (paid) only if local can't run."""
     resolved = resolve_profile_to_settings(name)
-    assert resolved["diarization_fallback_providers"] == ["deepgram"]
+    assert resolved["diarization_fallback_providers"] == ["local", "deepgram"]
 
 
 def test_cloud_summary_stage_gets_no_fallback() -> None:
@@ -74,9 +80,11 @@ def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
     resolved = resolve_profile_to_settings("prod_dgx_full_with_fallback")
     assert resolved["transcription_fallback_providers"] == [
         get_transcription_option("tailnet_dgx_speaches_thread_b").provider,
+        get_transcription_option("local_mps_large_v3").provider,
         get_transcription_option("openai_whisper_1").provider,
     ]
     assert resolved["diarization_fallback_providers"] == [
+        get_diarization_option("pyannote_diarization_community1").provider,
         get_diarization_option("deepgram_diarization_nova3").provider,
     ]
     assert resolved["summary_fallback_providers"] == [

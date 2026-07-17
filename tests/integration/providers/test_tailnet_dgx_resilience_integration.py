@@ -21,7 +21,7 @@ import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -204,55 +204,40 @@ class TestDiarizeRealSocket:
         assert {s.speaker for s in result.segments} == {"SPEAKER_00", "SPEAKER_01"}
         assert dp._diarize_breaker.state == "closed"
 
-    def test_hanging_socket_watchdog_fails_over(self, dgx_stub, tmp_path):
+    def test_hanging_socket_watchdog_raises(self, dgx_stub, tmp_path):
+        from podcast_scraper.providers.resilience import TimeoutLike
+
         _DGXStubHandler.mode = "hang"
         provider = _diarize_provider(dgx_stub)
-        local = MagicMock()
-        local.diarize.return_value = DiarizationResult(
-            segments=[], num_speakers=1, model_name="local"
-        )
         started = time.monotonic()
-        with (
-            patch.object(provider, "_get_local_fallback", return_value=local),
-            patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2),
-        ):
-            result = provider.diarize(_audio(tmp_path))
+        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
+            with pytest.raises(TimeoutLike):
+                provider.diarize(_audio(tmp_path))
         elapsed = time.monotonic() - started
-        assert result.model_name == "local"  # failed over
         assert elapsed < 5.0  # bailed at ~0.7s, NOT the 30s stub hang
         assert dp._diarize_breaker.state == "open"  # hard timeout tripped the breaker
 
-    def test_http_503_fails_over(self, dgx_stub, tmp_path):
+    def test_http_503_raises(self, dgx_stub, tmp_path):
+        import httpx
+
         _DGXStubHandler.mode = "503"
         provider = _diarize_provider(dgx_stub)
-        local = MagicMock()
-        local.diarize.return_value = DiarizationResult(
-            segments=[], num_speakers=1, model_name="local"
-        )
-        with (
-            patch.object(provider, "_get_local_fallback", return_value=local),
-            patch.object(dp.time, "sleep"),  # skip retry backoff
-        ):
-            result = provider.diarize(_audio(tmp_path))
-        assert result.model_name == "local"
+        with patch.object(dp.time, "sleep"):  # skip retry backoff
+            with pytest.raises(httpx.HTTPStatusError):
+                provider.diarize(_audio(tmp_path))
 
     def test_open_breaker_skips_socket_entirely(self, dgx_stub, tmp_path):
-        # First call hangs → trips the breaker; second call must not touch the socket.
+        # First call hangs → trips the breaker; second call must not touch the socket (raises fast).
         _DGXStubHandler.mode = "hang"
         provider = _diarize_provider(dgx_stub)
-        local = MagicMock()
-        local.diarize.return_value = DiarizationResult(
-            segments=[], num_speakers=1, model_name="local"
-        )
-        with (
-            patch.object(provider, "_get_local_fallback", return_value=local),
-            patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2),
-        ):
-            provider.diarize(_audio(tmp_path))  # trips breaker
+        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
+            with pytest.raises(Exception):
+                provider.diarize(_audio(tmp_path))  # trips breaker
             assert dp._diarize_breaker.state == "open"
-            # Even though the stub would still hang, this returns immediately (no probe).
+            # Even though the stub would still hang, this raises immediately (no probe).
             started = time.monotonic()
-            provider.diarize(_audio(tmp_path))
+            with pytest.raises(RuntimeError, match="dgx_diarize_circuit_open"):
+                provider.diarize(_audio(tmp_path))
             assert time.monotonic() - started < 0.5
 
 

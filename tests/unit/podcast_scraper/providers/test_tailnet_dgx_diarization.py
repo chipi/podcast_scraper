@@ -38,16 +38,6 @@ def _dgx_cfg() -> Config:
     )
 
 
-def _local_fallback(model_name: str) -> MagicMock:
-    fb = MagicMock()
-    fb.diarize.return_value = DiarizationResult(
-        segments=[DiarizationSegment(start=0.0, end=4.5, speaker="SPEAKER_00")],
-        num_speakers=1,
-        model_name=model_name,
-    )
-    return fb
-
-
 def test_config_requires_host_for_tailnet_dgx() -> None:
     provider = TailnetDgxDiarizationProvider(
         Config.model_validate(
@@ -76,26 +66,24 @@ def test_provider_defaults_port_and_model() -> None:
     return_value=False,
 )
 @patch("podcast_scraper.providers.tailnet_dgx.diarization_provider.time.sleep")
-def test_falls_back_to_local_when_dgx_unhealthy(
+def test_raises_when_dgx_unhealthy(
     mock_sleep: MagicMock,
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
+    """RFC-105: a persistently unhealthy DGX exhausts this tier and RAISES; the FallbackChain (not
+    this provider) fails over. The DGX-try resilience is unchanged (retries before giving up)."""
     audio = tmp_path / "ep.wav"
     audio.write_bytes(b"\x00\x00")
 
     provider = TailnetDgxDiarizationProvider(_dgx_cfg())
     provider.initialize()
 
-    local_fallback = _local_fallback("local-fallback")
-    with patch.object(provider, "_get_local_fallback", return_value=local_fallback):
-        result = provider.diarize(str(audio))
-
-    assert result.model_name == "local-fallback"
-    local_fallback.diarize.assert_called_once()
+    with pytest.raises(RuntimeError, match="DGX diarize unavailable"):
+        provider.diarize(str(audio))
     _breadcrumb.assert_called_once()
-    # Unhealthy → retried each attempt then fell back: max_attempts-1 backoff sleeps.
+    # Unhealthy → retried each attempt before giving up: max_attempts-1 backoff sleeps.
     assert mock_sleep.call_count == provider._max_attempts - 1
 
 
@@ -136,7 +124,7 @@ def test_healthy_dgx_path(
 )
 @patch.object(TailnetDgxDiarizationProvider, "_diarize_dgx")
 @patch("podcast_scraper.providers.tailnet_dgx.diarization_provider.time.sleep")
-def test_dgx_raises_then_falls_back(
+def test_dgx_error_raises_after_retries(
     mock_sleep: MagicMock,
     mock_dgx_call: MagicMock,
     _health: MagicMock,
@@ -150,13 +138,10 @@ def test_dgx_raises_then_falls_back(
     provider = TailnetDgxDiarizationProvider(_dgx_cfg())
     provider.initialize()
 
-    local_fallback = _local_fallback("local-after-dgx-error")
-    with patch.object(provider, "_get_local_fallback", return_value=local_fallback):
-        result = provider.diarize(str(audio))
-
-    assert result.model_name == "local-after-dgx-error"
+    with pytest.raises(ValueError, match="empty diarization result"):
+        provider.diarize(str(audio))
     _breadcrumb.assert_called_once()
-    # A non-timeout error is retried each attempt before falling back.
+    # A non-timeout error is retried each attempt before raising for the chain.
     assert mock_dgx_call.call_count == provider._max_attempts
 
 
@@ -167,15 +152,15 @@ def test_dgx_raises_then_falls_back(
 )
 @patch.object(TailnetDgxDiarizationProvider, "_diarize_dgx")
 @patch("podcast_scraper.providers.tailnet_dgx.diarization_provider.time.sleep")
-def test_timeout_does_not_requeue_and_falls_back(
+def test_timeout_does_not_requeue_and_raises(
     mock_sleep: MagicMock,
     mock_dgx_call: MagicMock,
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
-    """A genuine timeout fails over immediately (no duplicate request) and trips
-    the breaker so the next call skips DGX."""
+    """A genuine timeout raises immediately (no duplicate request) and trips the breaker so the
+    next call skips DGX; the timeout is cascade-worthy, so the chain fails over."""
     audio = tmp_path / "ep.wav"
     audio.write_bytes(b"\x00\x00")
     mock_dgx_call.side_effect = TimeoutError("read timed out")
@@ -183,11 +168,8 @@ def test_timeout_does_not_requeue_and_falls_back(
     provider = TailnetDgxDiarizationProvider(_dgx_cfg())
     provider.initialize()
 
-    local_fallback = _local_fallback("local-after-timeout")
-    with patch.object(provider, "_get_local_fallback", return_value=local_fallback):
-        result = provider.diarize(str(audio))
-
-    assert result.model_name == "local-after-timeout"
+    with pytest.raises(TimeoutError):
+        provider.diarize(str(audio))
     mock_dgx_call.assert_called_once()  # no re-queue on timeout
     mock_sleep.assert_not_called()  # broke immediately, no backoff
     assert dp._diarize_breaker.state == "open"  # hard timeout trips immediately
@@ -202,7 +184,8 @@ def test_open_breaker_skips_dgx_entirely(
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
-    """While the breaker is open, diarize() must not probe health or hit DGX."""
+    """While the breaker is open, diarize() must not probe health or hit DGX — it raises
+    immediately (circuit-open) so the chain fails over without a wasted probe."""
     audio = tmp_path / "ep.wav"
     audio.write_bytes(b"\x00\x00")
     dp._diarize_breaker.record_failure(hard=True)  # force open
@@ -210,11 +193,8 @@ def test_open_breaker_skips_dgx_entirely(
     provider = TailnetDgxDiarizationProvider(_dgx_cfg())
     provider.initialize()
 
-    local_fallback = _local_fallback("local-circuit-open")
-    with patch.object(provider, "_get_local_fallback", return_value=local_fallback):
-        result = provider.diarize(str(audio))
-
-    assert result.model_name == "local-circuit-open"
+    with pytest.raises(RuntimeError, match="dgx_diarize_circuit_open"):
+        provider.diarize(str(audio))
     mock_health.assert_not_called()
     mock_dgx_call.assert_not_called()
     assert _breadcrumb.call_args.kwargs["failure_reason"] == "dgx_diarize_circuit_open"
@@ -225,13 +205,16 @@ def test_open_breaker_skips_dgx_entirely(
     "podcast_scraper.providers.tailnet_dgx.diarization_provider.check_pyannote_diarize_health",
     return_value=True,
 )
-def test_watchdog_hard_deadline_forces_fallback(
+def test_watchdog_hard_deadline_raises(
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
-    """A request that hangs past the hard deadline (httpx timeout never fires) is
-    abandoned by the watchdog and fails over to local pyannote."""
+    """A request that hangs past the hard deadline (httpx timeout never fires) is abandoned by the
+    watchdog, which raises a TimeoutLike error for the chain to fail over on, and trips the breaker.
+    """
+    from podcast_scraper.providers.resilience import TimeoutLike
+
     audio = tmp_path / "ep.wav"
     audio.write_bytes(b"\x00\x00")
 
@@ -242,17 +225,15 @@ def test_watchdog_hard_deadline_forces_fallback(
         time.sleep(3.0)  # longer than the (shrunk) deadline; daemon thread is abandoned
         return DiarizationResult(segments=[], num_speakers=0, model_name="never")
 
-    local_fallback = _local_fallback("local-after-watchdog")
     started = time.monotonic()
     with (
         patch.object(provider, "_diarize_dgx", side_effect=_hang),
         patch.object(provider, "_effective_timeout_sec", return_value=0.05),
         patch.object(dp.resilience, "WATCHDOG_GRACE_SEC", 0.1),
-        patch.object(provider, "_get_local_fallback", return_value=local_fallback),
+        pytest.raises(TimeoutLike),
     ):
-        result = provider.diarize(str(audio))
+        provider.diarize(str(audio))
     elapsed = time.monotonic() - started
 
-    assert result.model_name == "local-after-watchdog"
     assert elapsed < 2.0  # bailed at ~0.15s, did NOT wait for the 3s hang
     assert dp._diarize_breaker.state == "open"  # watchdog timeout trips the breaker

@@ -1541,7 +1541,10 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
     "pyannote_diarization_community1": StageOption(
         stage="diarization",
         option_id="pyannote_diarization_community1",
-        provider="pyannote",
+        # 'local' matches the diarization_provider config Literal (in-process pyannote); the DGX
+        # sibling uses 'tailnet_dgx'. The registry provider IS the dispatchable backend so the
+        # RFC-105 fallback chain can construct this tier directly.
+        provider="local",
         model="pyannote/speaker-diarization-community-1",
         research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric=(
@@ -1570,7 +1573,7 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
     "pyannote_diarization_31": StageOption(
         stage="diarization",
         option_id="pyannote_diarization_31",
-        provider="pyannote",
+        provider="local",  # in-process pyannote; matches the diarization_provider Literal
         model="pyannote/speaker-diarization-3.1",
         research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric="prior default; wins brief-cameo count, merges panels. Gated (HF token).",
@@ -1782,10 +1785,17 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # RFC-105 (#1198): MOSS down -> DGX faster-whisper -> cloud whisper; pyannote -> deepgram.
-        # summary is already the cloud tier (gemini) so it needs no fallback.
-        transcription_fallback=("tailnet_dgx_speaches_thread_b", "openai_whisper_1"),
-        diarization_fallback=("deepgram_diarization_nova3",),
+        # RFC-105 (#1198): free tiers first, paid cloud last. Transcription: MOSS -> DGX
+        # faster-whisper -> local in-process whisper -> cloud whisper. Diarization: DGX pyannote ->
+        # local in-process pyannote -> deepgram. summary is already the cloud tier (gemini) so it
+        # needs no fallback. The local-whisper id is referenced for its provider ('whisper'); the
+        # actual device is resolved from the profile, not the StageOption's mps measurement hint.
+        transcription_fallback=(
+            "tailnet_dgx_speaches_thread_b",
+            "local_mps_large_v3",
+            "openai_whisper_1",
+        ),
+        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
         notes=(
             "Production hybrid: DGX faster-whisper (:8000 Speaches) for transcription, cloud "
             "Gemini for summary. Routing flipped :8002 whisper-openai -> :8000 Speaches on "
@@ -1850,10 +1860,16 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # RFC-105 (#1198): MOSS -> DGX faster-whisper -> cloud whisper; DGX pyannote -> deepgram;
-        # DGX vLLM summary -> cloud gemini (the cloud_balanced summary tier).
-        transcription_fallback=("tailnet_dgx_speaches_thread_b", "openai_whisper_1"),
-        diarization_fallback=("deepgram_diarization_nova3",),
+        # RFC-105 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
+        # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
+        # summary -> cloud gemini (the cloud_balanced summary tier). All-DGX intent = exhaust the
+        # free/on-prem ladder before paying cloud.
+        transcription_fallback=(
+            "tailnet_dgx_speaches_thread_b",
+            "local_mps_large_v3",
+            "openai_whisper_1",
+        ),
+        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
         summary_fallback=("gemini_flash_lite",),
         notes=(
             "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
@@ -1892,10 +1908,15 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # RFC-105 (#1198): MOSS -> DGX faster-whisper -> cloud whisper; DGX pyannote -> deepgram;
-        # DGX vLLM summary -> cloud gemini (the cloud_balanced summary tier).
-        transcription_fallback=("tailnet_dgx_speaches_thread_b", "openai_whisper_1"),
-        diarization_fallback=("deepgram_diarization_nova3",),
+        # RFC-105 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
+        # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
+        # summary -> cloud gemini (the cloud_balanced summary tier).
+        transcription_fallback=(
+            "tailnet_dgx_speaches_thread_b",
+            "local_mps_large_v3",
+            "openai_whisper_1",
+        ),
+        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
         summary_fallback=("gemini_flash_lite",),
         notes=(
             "Prod variant of prod_dgx_full_with_fallback that swaps the summary "

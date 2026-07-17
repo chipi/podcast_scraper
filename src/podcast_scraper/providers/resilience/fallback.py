@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 from typing import Any, List, Optional, Tuple
 
+from ...providers.ml.diarization.base import DiarizationProvider, DiarizationResult
 from ...transcription.base import TranscriptionProvider
 from ...utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ...utils.log_redaction import format_exception_for_log
@@ -154,4 +155,81 @@ class FallbackChainTranscriptionProvider:
                 provider.cleanup()
 
 
-__all__ = ["FallbackChainTranscriptionProvider", "is_infra_failure"]
+class FallbackChainDiarizationProvider:
+    """Try an ordered list of diarization providers, advancing on infra failure (RFC-105 / #1198).
+
+    The diarization analogue of :class:`FallbackChainTranscriptionProvider`. Tier 0 is the primary
+    (e.g. DGX pyannote); the rest are the ladder (e.g. local in-process pyannote, then a cloud
+    diarizer). Fallback tiers initialize lazily so a healthy primary never pays the in-process
+    pyannote model-load cost the DGX-primary path was designed to avoid (#926).
+    """
+
+    name = "fallback_chain"
+
+    def __init__(self, tiers: List[Tuple[str, DiarizationProvider]]) -> None:
+        """``tiers`` is ``[(provider_name, provider_instance), ...]``, primary first (>= 1 tier)."""
+        if not tiers:
+            raise ValueError("FallbackChainDiarizationProvider requires at least one tier")
+        self._tiers = tiers
+        self._inited = [False] * len(tiers)
+
+    def initialize(self) -> None:
+        """Eagerly initialize the primary; fallback tiers stay lazy (initialized on first use)."""
+        self._ensure_tier(0)
+
+    def _ensure_tier(self, i: int) -> None:
+        if not self._inited[i]:
+            provider = self._tiers[i][1]
+            init = getattr(provider, "initialize", None)
+            if callable(init):
+                init()
+            self._inited[i] = True
+
+    def diarize(
+        self,
+        audio_path: str,
+        *,
+        num_speakers: Optional[int] = None,
+        min_speakers: int = 2,
+        max_speakers: int = 20,
+    ) -> DiarizationResult:
+        """Return the first tier's result, advancing on infra failure and re-raising on a content
+        failure or once the chain is exhausted."""
+        last = len(self._tiers) - 1
+        last_exc: Optional[BaseException] = None
+        for i, (pname, provider) in enumerate(self._tiers):
+            try:
+                self._ensure_tier(i)
+                return provider.diarize(
+                    audio_path,
+                    num_speakers=num_speakers,
+                    min_speakers=min_speakers,
+                    max_speakers=max_speakers,
+                )
+            except Exception as exc:  # noqa: BLE001 - classified below; re-raised if not infra
+                last_exc = exc
+                if i == last or not is_infra_failure(exc):
+                    raise
+                logger.warning(
+                    "diarization tier %r failed (infra); advancing to %r: %s",
+                    pname,
+                    self._tiers[i + 1][0],
+                    format_exception_for_log(exc),
+                )
+        assert last_exc is not None  # unreachable; the last tier returns or raises above
+        raise last_exc
+
+    def cleanup(self) -> None:
+        """Release every initialized tier's resources (tiers may omit cleanup)."""
+        for i, (_name, provider) in enumerate(self._tiers):
+            if self._inited[i]:
+                cleanup = getattr(provider, "cleanup", None)
+                if callable(cleanup):
+                    cleanup()
+
+
+__all__ = [
+    "FallbackChainDiarizationProvider",
+    "FallbackChainTranscriptionProvider",
+    "is_infra_failure",
+]
