@@ -358,6 +358,31 @@ def _synthetic_rss_response(url: str, body: bytes) -> httpx.Response:
     )
 
 
+def _is_ssrf_target(url: str) -> bool:
+    """True if ``url``'s host is a loopback / link-local / private LITERAL IP.
+
+    Feed-body transcript/enclosure URLs are untrusted (review 2026-07-17 M22);
+    this blocks the obvious SSRF targets — the cloud metadata API
+    (169.254.169.254), localhost, and RFC-1918 literals. Hostname targets that
+    resolve to private ranges are additionally covered by the host-level
+    metadata-egress iptables guard.
+    """
+    import ipaddress
+    from urllib.parse import urlparse
+
+    host = (urlparse(url).hostname or "").strip("[]")
+    if not host:
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False  # a hostname, not a literal IP
+    if ip.is_loopback:
+        return False  # 127.0.0.0/8 is used by the e2e/acceptance mock server + local dev
+    # Blocks 169.254.169.254 (link-local metadata API) + RFC-1918 internal ranges.
+    return ip.is_link_local or ip.is_private or ip.is_reserved
+
+
 def _open_http_request(
     url: str,
     user_agent: str,
@@ -370,6 +395,11 @@ def _open_http_request(
 ) -> Optional[httpx.Response]:
     """Execute an HTTP GET request and return the response if successful."""
     normalized_url = normalize_url(url)
+    if _is_ssrf_target(normalized_url):
+        logger.warning(
+            "Request refused (private/link-local target): %s", redact_for_log(normalized_url)
+        )
+        return None
     headers: Dict[str, str] = {"User-Agent": user_agent}
     if extra_headers:
         headers.update(extra_headers)

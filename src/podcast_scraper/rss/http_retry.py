@@ -141,7 +141,7 @@ class RetryTransport(httpx.BaseTransport):
                 logger.warning(
                     "Retrying HTTP request (attempt %d/%d) %s %s due to %s",
                     attempt + 2,
-                    self._total,
+                    self._total + 1,
                     method,
                     url,
                     exc,
@@ -167,7 +167,7 @@ class RetryTransport(httpx.BaseTransport):
                 logger.warning(
                     "Retrying HTTP request (attempt %d/%d) %s %s due to %s",
                     attempt + 2,
-                    self._total,
+                    self._total + 1,
                     method,
                     url,
                     response,

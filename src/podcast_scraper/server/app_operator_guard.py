@@ -42,7 +42,11 @@ _OPERATOR_BASES = (
     "/api/ops",
     "/api/jobs",
     "/api/scheduled-jobs",
-    "/api/enrichment/config",
+    # Cover the WHOLE /api/enrichment namespace, not just /config — the
+    # status/health/metrics/events GETs + the health re-enable POST are operator
+    # surface too, and were unguarded (gated only on the internal
+    # jobs_api_enabled flag). Whole-codebase review 2026-07-17 (H5).
+    "/api/enrichment",
 )
 
 

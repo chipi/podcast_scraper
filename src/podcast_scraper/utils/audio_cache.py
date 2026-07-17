@@ -125,8 +125,12 @@ def store(root: Optional[Path], guid: Optional[str], src_path: str) -> Optional[
             return str(dest)  # already cached
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_suffix(dest.suffix + ".tmp")
-        shutil.copy2(src_path, tmp)
-        os.replace(tmp, dest)
+        try:
+            shutil.copy2(src_path, tmp)
+            os.replace(tmp, dest)
+        finally:
+            if tmp.exists():
+                tmp.unlink(missing_ok=True)  # don't leak .tmp on failure (review low/tmp-leak)
     except OSError as exc:
         logger.warning("audio cache: failed to store %s: %s", src_path, exc)
         return None

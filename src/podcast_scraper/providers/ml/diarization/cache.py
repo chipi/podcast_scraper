@@ -47,11 +47,19 @@ def diarization_audio_hash(audio_path: str) -> str:
 
 def diarization_config_fingerprint(cfg: config.Config) -> str:
     """Stable hash of diarization settings that affect model output."""
+    # Include the pyannote tuning knobs that actually change the model output
+    # (review 2026-07-17 H1): re-tuning clustering_threshold / min_cluster_size /
+    # min_segment_ms against a warm cache otherwise silently served the old, wrong
+    # result. getattr defaults keep Deepgram/Gemini paths (which ignore these)
+    # stable. Device is deliberately excluded — it doesn't affect output.
     parts = (
         cfg.diarization_model,
         str(cfg.diarization_num_speakers),
         str(cfg.diarization_min_speakers),
         str(cfg.diarization_max_speakers),
+        str(getattr(cfg, "diarization_clustering_threshold", None)),
+        str(getattr(cfg, "diarization_min_cluster_size", None)),
+        str(getattr(cfg, "diarization_min_segment_ms", None)),
     )
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:12]
 

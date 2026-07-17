@@ -559,7 +559,9 @@ def _save_transcript_segments_file(
             json.dump(segments, f, indent=0, allow_nan=False)
         logger.debug("Saved transcription segments for GIL timestamps: %s", segments_path)
     except OSError as e:
-        logger.debug("Could not save segments file %s: %s", segments_path, e)
+        # WARNING, not debug: a missing .segments.json silently zeroes GI quote
+        # timestamps downstream (#542) with no operator signal (review M16).
+        logger.warning("Could not save segments file %s: %s", segments_path, e)
 
 
 def _save_speaker_diagnostics_file(
@@ -583,7 +585,7 @@ def _save_speaker_diagnostics_file(
             json.dump(diagnostics, f, indent=2, allow_nan=False)
         logger.debug("Saved speaker diagnostics: %s", diag_path)
     except OSError as e:
-        logger.debug("Could not save speaker diagnostics %s: %s", diag_path, e)
+        logger.warning("Could not save speaker diagnostics %s: %s", diag_path, e)
 
 
 def _maybe_produce_adfree(
@@ -1974,7 +1976,13 @@ def process_transcript_download(
                         episode.idx,
                         rel_path,
                     )
-                    return False, rel_path, "direct_download", 0
+                    # success=True so the result handlers ENQUEUE the summarization
+                    # / metadata ProcessingJob — they gate that on `if success`, and
+                    # returning False here silently skipped summarization for every
+                    # direct-download episode with a pre-existing transcript (review
+                    # 2026-07-17 H4). Cost: transcripts_downloaded is +1 high for a
+                    # reused transcript (cosmetic metric only).
+                    return True, rel_path, "direct_download", 0
         return False, None, None, 0
 
     planned_ext = derive_transcript_extension(transcript_type, None, transcript_url)

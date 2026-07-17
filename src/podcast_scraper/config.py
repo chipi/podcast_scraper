@@ -5482,6 +5482,22 @@ class Config(BaseModel):
     def _validate_audio_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
         return cls._validate_path_no_traversal(v, "audio_cache_dir")
 
+    @field_validator("preprocessing_silence_threshold", mode="after")
+    @classmethod
+    def _validate_silence_threshold_format(cls, v: str) -> str:
+        """Reject anything that isn't a bare dB threshold — the value is
+        f-string-interpolated into the ffmpeg ``-af`` filter chain, so a crafted
+        value (``-50dB:stop_periods=0,aecho=...``) would inject extra filter nodes
+        (review 2026-07-17 low/ffmpeg-inject)."""
+        import re as _re
+
+        if not _re.fullmatch(r"-?\d+(\.\d+)?(dB)?", str(v)):
+            raise ValueError(
+                "preprocessing_silence_threshold must be a dB value like "
+                f"'-30dB' or '-30', got: {v!r}"
+            )
+        return v
+
     @model_validator(mode="after")
     def _validate_remote_audio_storage(self) -> "Config":
         """#1199: a 'remote' audio archive must name its rclone remote — fail loud, not silent.

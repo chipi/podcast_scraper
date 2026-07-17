@@ -91,16 +91,19 @@ def _apply_kg_filters(
         if pipeline_metrics is not None and hasattr(pipeline_metrics, "record_topics_normalized"):
             pipeline_metrics.record_topics_normalized(topics_changed)
 
+    orig_entities = [e for e in (llm_partial.get("entities") or []) if isinstance(e, dict)]
     entities_for_repair = [
-        {"name": e.get("name"), "kind": e.get("entity_kind")}
-        for e in (llm_partial.get("entities") or [])
-        if isinstance(e, dict)
+        {"name": e.get("name"), "kind": e.get("entity_kind")} for e in orig_entities
     ]
     repaired_entities, ents_repaired = repair_entity_kind(entities_for_repair)
     if ents_repaired:
         llm_partial = dict(llm_partial)
+        # Merge the repaired kind back into the FULL original dict (parallel order)
+        # so ``description`` and any other fields survive — previously the whole
+        # entity list was replaced with {name, entity_kind}, dropping descriptions
+        # for the entire batch whenever any kind was repaired (review H6).
         llm_partial["entities"] = [
-            {"name": r["name"], "entity_kind": r["kind"]} for r in repaired_entities
+            {**orig, "entity_kind": r["kind"]} for orig, r in zip(orig_entities, repaired_entities)
         ]
         if pipeline_metrics is not None and hasattr(
             pipeline_metrics, "record_entity_kinds_repaired"
@@ -369,9 +372,11 @@ def build_artifact(
         resolved_model = "stub"
 
     merge_pipe = _merge_pipeline_default(cfg)
-    if llm_partial and not merge_pipe:
-        pass
-    else:
+    # Respect kg_merge_pipeline_entities unconditionally. The old guard
+    # (`if llm_partial and not merge_pipe: pass`) still injected pipeline
+    # hosts/guests whenever the LLM call FAILED (llm_partial falsy), silently
+    # ignoring the flag (review 2026-07-17 M15).
+    if merge_pipe:
         _append_pipeline_entities(
             ep_node_id,
             detected_hosts,

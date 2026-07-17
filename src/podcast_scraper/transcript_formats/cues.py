@@ -11,11 +11,13 @@ import re
 from typing import Any, Dict, List, Tuple
 
 # WebVTT cue timing: optional hours; comma or dot for fractional seconds.
+# hours are ``\d+`` (not ``\d{1,2}``) so a >99h recording's later cues aren't
+# silently dropped by a non-matching line (review 2026-07-17 low/cues).
 _WEBVTT_CUE_LINE = re.compile(
-    r"^(\d{1,2}:\d{2}(?::\d{2})?[.,]\d{3})\s*-->\s*(\d{1,2}:\d{2}(?::\d{2})?[.,]\d{3})"
+    r"^(\d+:\d{2}(?::\d{2})?[.,]\d{3})\s*-->\s*(\d+:\d{2}(?::\d{2})?[.,]\d{3})"
 )
 # SRT typical line (hours optional in some files; require full h:m:s)
-_SRT_CUE_LINE = re.compile(r"^(\d{1,2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{1,2}:\d{2}:\d{2},\d{3})")
+_SRT_CUE_LINE = re.compile(r"^(\d+:\d{2}:\d{2},\d{3})\s*-->\s*(\d+:\d{2}:\d{2},\d{3})")
 _HTML_TAG = re.compile(r"<[^>]+>")
 
 

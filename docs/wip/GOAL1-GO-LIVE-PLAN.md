@@ -92,6 +92,8 @@ the box is still tailnet-only. Nothing is public. This is the safe rehearsal.
 |---|---|---|
 | 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) checklist | 🤝 |
 | 3.2 | Sign off: orrery clears it (static, no `docker.sock`, no keys) | 🧑 |
+| 3.3 | **Apply the metadata-egress guard on the LIVE box** — `block-metadata-egress.service` is cloud-init-only (rebuild), so the running box can still reach `169.254.169.254` (Hetzner metadata + the Tailscale key in user-data). Install the script+unit + `systemctl enable --now`; verify `iptables -L DOCKER-USER`. Fold into `apply-edge.sh` (1.1). (review 2026-07-17 H8 / T-07) | 🤝 |
+| 3.4 | **Complete the ADR-115 secrets cutover** (T-08) — the 6 LLM keys are still plaintext container env (`docker-compose.prod.yml`); provision the VPS age key + `prod.enc.yaml`, add `-f docker-compose.secrets.yml` to the deploy chain, drop the keys from `.env`. Blocks public exposure of the api. (review M26 / #1162) | 🧑 |
 
 **No firewall opens until 3.2 is signed off.**
 

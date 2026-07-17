@@ -137,7 +137,9 @@ def bridge(ctx: CorpusContext, entity_a: str, entity_b: str) -> Dict[str, Any]:
     if graph.get_node(entity_a) is None or graph.get_node(entity_b) is None:
         return _err("bridge", f"{entity_a}|{entity_b}", "one or both entities not in corpus")
     shared = rq.shared_topics(graph, entity_a, entity_b)
-    co = entity_b in {p.id for p in rq.co_speakers(graph, entity_a, k=10_000)}
+    # Short-circuit on the first match instead of materialising a 10k-id set for a
+    # single membership test (review 2026-07-17 low/connectivity).
+    co = any(p.id == entity_b for p in rq.co_speakers(graph, entity_a, k=10_000))
     subject = {
         "a": {"id": entity_a, "label": rq.node_label(graph, entity_a)},
         "b": {"id": entity_b, "label": rq.node_label(graph, entity_b)},

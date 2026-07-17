@@ -23,7 +23,11 @@ on:
           - direct_download
         default: whisper_transcription
       profile:
-        description: "Config profile (repo path)"
+        description: "Config profile"
+        type: choice
+        options:
+          - config/profiles/cloud_balanced.yaml
+          - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
 
 permissions:
@@ -33,11 +37,30 @@ permissions:
 jobs:
   reprocess:
     runs-on: ubuntu-latest
+    # Required-reviewer gate (same as deploy-prod / prod-restore): this rewrites
+    # all prod corpus artifacts, so the typed confirm string alone is not enough.
+    environment: prod
     steps:
       - name: Confirm PROD_REPROCESS
         run: |
           if [ "${{ github.event.inputs.confirm }}" != "PROD_REPROCESS" ]; then
             echo "::error::confirm must be exactly PROD_REPROCESS (got '${{ github.event.inputs.confirm }}')"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_AUTHKEY:-}" ]           && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
             exit 1
           fi
 

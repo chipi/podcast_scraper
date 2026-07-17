@@ -521,6 +521,10 @@ class EnrichmentExecutor:
         # Reset per attempt so retries get a fresh window.
         watchdog = HeartbeatWatchdog(enricher_id=eid, expected_interval_s=float(timeout_s))
 
+        # Bind before the loop so a cancel-before-first-attempt still yields a real
+        # (near-zero) duration rather than the fragile ``locals()`` guard below
+        # silently reporting 0 after any refactor (review low/executor-tstart).
+        t_start = time.monotonic()
         while True:
             if cancel_event.is_set():
                 final_result = EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
@@ -621,13 +625,17 @@ class EnrichmentExecutor:
                 attempt += 1
                 continue
 
-            # Success path (or terminal result from enricher).
+            # Success path (or terminal result from enricher). Reset the circuit's
+            # consecutive-failure counter — without this, spread-out transient
+            # failures across bundles accumulate monotonically and falsely
+            # quarantine a healthy enricher (review 2026-07-17 H9).
+            circuit.record_success()
             final_result = result
             break
 
         assert final_result is not None
         finished_at = utc_iso_now()
-        duration_ms = int((time.monotonic() - t_start) * 1000) if "t_start" in locals() else 0
+        duration_ms = int((time.monotonic() - t_start) * 1000)
         # Soft stall detection: if the enricher ran longer than the
         # heartbeat watchdog's window without calling record_heartbeat,
         # emit stall_warning. (Hard timeout is already handled by
@@ -670,16 +678,14 @@ class EnrichmentExecutor:
         # (chunk 5 LLM enrichers). The cost_state is consulted between
         # enrichers in _run_one_enricher.
 
-        # Write envelope to disk on success.
-        if final_result.status == STATUS_OK:
-            self._write_envelope(
-                enricher=enricher,
-                bundle=bundle,
-                result=final_result,
-                schema_version=schema_version,
-            )
-
-        # Per-enricher cost cap check.
+        # Per-enricher cost cap check — BEFORE writing the envelope, so a
+        # quarantined enricher never leaves a valid-looking output file on disk
+        # for consumers to read (review 2026-07-17 M30).
+        #
+        # NOTE: this cap is currently INERT — CostCapState.record_cost() is not
+        # wired yet (deferred to the chunk-5 LLM enrichers), so it never fires.
+        # It is kept here as the enforcement point but must NOT be mistaken for
+        # active cost enforcement until record_cost() is called (review M13).
         if cost_state.per_enricher_cap_exceeded(eid, manifest):
             self._mark_quarantined(metrics, reason="per_enricher_cost_cap")
             self._safe_append_event(
@@ -702,6 +708,16 @@ class EnrichmentExecutor:
                 ),
             )
             return
+
+        # Write envelope to disk on success (only after the per-enricher cap
+        # check passed — see M30 above).
+        if final_result.status == STATUS_OK:
+            self._write_envelope(
+                enricher=enricher,
+                bundle=bundle,
+                result=final_result,
+                schema_version=schema_version,
+            )
 
         # Run-wide cap check after this enricher's contribution.
         if cost_state.run_wide_cap_exceeded(cost_opts.max_total_cost_usd_per_run):

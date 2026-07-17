@@ -8,6 +8,10 @@ terraform/*.tfplan.bin
 terraform/terraform.drill.tfvars
 
 # Local operator overrides (host .env staging, scratch notes)
+# ``.env.*.local`` backstops the root .gitignore so infra-local secret files
+# (e.g. .env.drill.local holding HCLOUD_TOKEN_DRILL) can't be committed even if
+# the root rule changes (review 2026-07-17 low/gitignore).
 .env.local
+.env.*.local
 .env.dgx.local
 .scratch/

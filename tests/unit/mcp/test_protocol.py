@@ -115,5 +115,8 @@ def test_uniform_envelope_and_error_path(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("podcast_scraper.search.corpus_graph.get_corpus_graph", _boom)
     out = _call(build_server(tmp_path), "person_positions", {"person_id": "person:x"})
     assert out["ok"] is False
-    assert "kaboom" in out["note"]
+    # Only the exception CLASS is surfaced to the MCP client — the message
+    # (which can carry host paths / corpus layout) is not leaked (review low/mcp-leak).
+    assert out["note"] == "RuntimeError"
+    assert "kaboom" not in out["note"]
     assert out["data"] == {}

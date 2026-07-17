@@ -114,6 +114,11 @@ class LanceDBBackend:
 
     TABLES = {"segment": _SEGMENT_TABLE, "insight": _INSIGHT_TABLE, "aux": _AUX_TABLE}
 
+    # Minimum rows before building the IVF vector ANN index. Below this the native
+    # index build can SIGSEGV (too few rows to train IVF centroids) and LanceDB
+    # falls back to brute-force search anyway — so skip it (review / segfault fix).
+    _MIN_VECTOR_INDEX_ROWS = 256
+
     INDEX_META_FILE = "index_meta.json"
 
     def __init__(self, path: str, *, embed_dim: int = DEFAULT_EMBED_DIM) -> None:
@@ -207,12 +212,29 @@ class LanceDBBackend:
         return table
 
     def create_indices(self) -> None:
-        """Create FTS (required for BM25) + vector indices on all tables that exist."""
+        """Create FTS (required for BM25) + vector indices on all tables that exist.
+
+        The vector ANN (IVF) index is built only above ``_MIN_VECTOR_INDEX_ROWS``:
+        training an IVF index on too few rows can **SIGSEGV** in the native lance
+        layer — an uncatchable crash that the ``try/except`` below cannot stop (it
+        segfaulted the ``cloud_balanced_single`` acceptance arm, leaving an
+        ``empty_vector_index``). Below the threshold, LanceDB uses brute-force
+        search anyway, so the ANN index is unnecessary. An empty table is skipped
+        entirely.
+        """
         for tier in ("segment", "insight", "aux"):
             table = self._open_if_exists(tier)
             if table is None:
                 continue  # tier never populated (e.g. a corpus with no kg/quote rows)
+            try:
+                n_rows = int(table.count_rows())
+            except Exception:  # noqa: BLE001 - defensive: treat unknown as empty
+                n_rows = 0
+            if n_rows <= 0:
+                continue  # nothing to index; a native build on 0 rows can SIGSEGV
             table.create_fts_index("text", replace=True)
+            if n_rows < self._MIN_VECTOR_INDEX_ROWS:
+                continue  # brute-force search below the ANN training floor
             try:
                 table.create_index(vector_column_name="embedding", replace=True)
             except Exception:  # noqa: BLE001 - small tables use brute force; index optional
@@ -245,12 +267,18 @@ class LanceDBBackend:
 
     # --- retrieval -------------------------------------------------------------
 
+    @staticmethod
+    def _sql_str(v: object) -> str:
+        # Escape single quotes so a value can't break out of the literal even if a
+        # caller ever passes user data (review low/lancedb-sql). OQ-3 stop-gap.
+        return str(v).replace("'", "''")
+
     def _to_sql(self, filters: Dict) -> str | None:
         # OQ-3 (RFC-090): naive interpolation — parameterise before any user-facing
         # free-text filter reaches it. Filters today are internal canonical ids.
         if not filters:
             return None
-        return " AND ".join(f"{k} = '{v}'" for k, v in filters.items())
+        return " AND ".join(f"{k} = '{self._sql_str(v)}'" for k, v in filters.items())
 
     def _run(self, query: SearchQuery, *, query_type: str, score_key: str) -> List[ScoredResult]:
         where = self._to_sql(query.filters)
@@ -389,7 +417,7 @@ class LanceDBBackend:
         for t in tiers:
             table = self._open_if_exists(t)
             if table is not None:
-                table.delete(f"id = '{doc_id}'")
+                table.delete(f"id = '{self._sql_str(doc_id)}'")
 
     def health(self) -> Dict:
         """Return backend status + per-table row counts."""

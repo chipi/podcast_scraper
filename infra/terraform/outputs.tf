@@ -39,9 +39,13 @@ output "volume_id" {
 output "audio_storage_box_server" {
   description = "Storage Box FQDN for rclone SFTP host, or null if not provisioned."
   value       = var.audio_storage_box_type != "" ? hcloud_storage_box.audio_archive[0].server : null
+  # host+user are half the SFTP credential pair — keep them out of CI apply logs
+  # (review 2026-07-17 low/tf-outputs).
+  sensitive = true
 }
 
 output "audio_storage_box_username" {
   description = "Storage Box primary username for rclone SFTP, or null if not provisioned."
   value       = var.audio_storage_box_type != "" ? hcloud_storage_box.audio_archive[0].username : null
+  sensitive   = true
 }

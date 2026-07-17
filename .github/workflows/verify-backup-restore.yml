@@ -88,6 +88,12 @@ jobs:
             echo "PODCAST_CORPUS_HOST_PATH=${RESTORE_ROOT}/corpus"
             echo "PODCAST_DEFAULT_CORPUS_PATH=/app/output"
             echo "VIEWER_PORT=${VIEWER_PORT}"
+            # NOTE (review low/verify-image-skew): this smoke test runs against the
+            # floating :main image, NOT the exact sha-<7> image prod is running, so
+            # it answers "can we restore + boot some current image?" — not "does the
+            # restored corpus work with the DEPLOYED prod binary?". The DR drill
+            # (drill-exercise.yml) exercises the real restore→deploy→smoke path
+            # against the published image and is the authoritative prod-image check.
             echo "PODCAST_IMAGE_TAG=main"
             echo "PODCAST_ENV=preprod"
             echo "COMPOSE_PROJECT_NAME=verify-restore"

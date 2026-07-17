@@ -104,6 +104,15 @@ resource "hcloud_volume" "corpus" {
   # two-step ratchet to destroy. PROD keeps this true (default); the drill
   # workspace sets enable_delete_protection=false so its teardown can destroy.
   delete_protection = var.enable_delete_protection
+
+  # Never let a size change plan a destroy+create of the corpus volume (Hetzner
+  # treats a size decrease as ForceNew). Resize is done out-of-band via
+  # ``hcloud volume resize`` + filesystem expand (review 2026-07-17 low/tf-volume).
+  # (``prevent_destroy`` can't be used — it must be a literal and would block the
+  # drill workspace's own teardown.)
+  lifecycle {
+    ignore_changes = [size]
+  }
 }
 
 # === The VPS itself ===
