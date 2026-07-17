@@ -65,10 +65,16 @@ class DeepgramDiarizationProvider(DiarizationProvider):
                     DeepgramClientEnvironment,
                 )
 
+                # Mirror the transcription provider's env EXACTLY — the SDK routes
+                # the /v1/listen call off ``base``/``production``; the old
+                # ``nightly``/``legacy`` kwargs aren't valid fields, so this raised
+                # and silently fell back to a no-base client hitting real Deepgram
+                # (401 in CI, where DEEPGRAM_API_BASE points at the E2E stub).
                 env = DeepgramClientEnvironment(  # type: ignore[call-arg]
+                    base=self.api_base,
                     production=self.api_base,
-                    nightly=self.api_base,
-                    legacy=self.api_base,
+                    agent=self.api_base,
+                    agent_rest=self.api_base,
                 )
                 self._client = DeepgramClient(api_key=self.api_key, environment=env)
             except Exception as exc:  # noqa: BLE001 - SDK shape can vary
