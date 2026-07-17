@@ -26,13 +26,19 @@ SCORE_PY = REPO_ROOT / "autoresearch/initial_prompt_tuning/prompt_tuning/eval/sc
 
 
 def _run_score(*extra_args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    # score.py eagerly imports the autoresearch eval stack (~12 s cold — the transitive eval
+    # dependency graph, not the flags being tested). Even --help pays it. Under the full parallel
+    # suite (xdist, many workers each loading ML models) that cold import contends for CPU and blows
+    # a tight timeout non-deterministically — the flake this generous ceiling removes. A genuinely
+    # hung CLI still fails, just later. (A faster fix would defer score.py's module-level imports;
+    # tracked separately as an eval-tooling cleanup.)
     return subprocess.run(
         [sys.executable, str(SCORE_PY), *extra_args],
         cwd=str(cwd or REPO_ROOT),
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-        timeout=30,
+        timeout=180,
     )
 
 
