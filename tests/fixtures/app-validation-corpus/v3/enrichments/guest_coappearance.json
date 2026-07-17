@@ -1,8 +1,8 @@
 {
   "derived": true,
-  "computed_at": "2026-07-06T16:42:16Z",
+  "computed_at": "2026-07-17T12:35:55Z",
   "enricher_id": "guest_coappearance",
-  "enricher_version": "1.0.0",
+  "enricher_version": "1.1.0",
   "schema_version": "1.0",
   "status": "ok",
   "data": {
@@ -197,7 +197,67 @@
         "episode_count": 1
       }
     ],
-    "episode_count": 36
+    "episode_count": 36,
+    "community_method": "connected_components_threshold",
+    "community_min_pair": 2,
+    "community_count": 6,
+    "communities": [
+      {
+        "community_id": "pco:dr-elena-fischer",
+        "community_label": "Dr. Elena Fischer",
+        "member_ids": [
+          "person:alex-morgan",
+          "person:dr-elena-fischer",
+          "person:sam"
+        ],
+        "member_count": 3
+      },
+      {
+        "community_id": "pco:renee-montagne-park",
+        "community_label": "Renee Montagne-Park",
+        "member_ids": [
+          "person:a-correspondent",
+          "person:renee-montagne-park"
+        ],
+        "member_count": 2
+      },
+      {
+        "community_id": "pco:leo",
+        "community_label": "Leo",
+        "member_ids": [
+          "person:ava-lemoine",
+          "person:leo"
+        ],
+        "member_count": 2
+      },
+      {
+        "community_id": "pco:jordan-park",
+        "community_label": "Jordan Park",
+        "member_ids": [
+          "person:cam",
+          "person:jordan-park"
+        ],
+        "member_count": 2
+      },
+      {
+        "community_id": "pco:nora",
+        "community_label": "Nora",
+        "member_ids": [
+          "person:daniel-cho",
+          "person:nora"
+        ],
+        "member_count": 2
+      },
+      {
+        "community_id": "pco:priya-nair",
+        "community_label": "Priya Nair",
+        "member_ids": [
+          "person:ethan",
+          "person:priya-nair"
+        ],
+        "member_count": 2
+      }
+    ]
   },
   "error": null,
   "error_class": null,
