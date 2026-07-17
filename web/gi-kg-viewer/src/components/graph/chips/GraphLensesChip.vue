@@ -81,6 +81,7 @@ interface LensRow {
     | 'personCredibility'
     | 'consensusEdges'
     | 'coGuestEdges'
+    | 'personCommunities'
   label: string
   description: string
   testid: string
@@ -139,6 +140,13 @@ const rows = computed<LensRow[]>(() => {
       available: coguestAvailable.value,
     },
     {
+      key: 'personCommunities',
+      label: 'Person communities',
+      description: 'Soft underlay grouping Persons who repeatedly co-appear (guest_coappearance).',
+      testid: 'lens-person-communities',
+      available: coguestAvailable.value,
+    },
+    {
       key: 'aggregatedEdges',
       label: 'Aggregated edges',
       description: 'Roll per-Insight edges up to Episode↔Topic / Episode↔Person aggregates.',
@@ -170,6 +178,7 @@ function setLens(key: LensRow['key'], value: boolean): void {
   else if (key === 'personCredibility') lenses.setPersonCredibility(value)
   else if (key === 'consensusEdges') lenses.setConsensusEdges(value)
   else if (key === 'coGuestEdges') lenses.setCoGuestEdges(value)
+  else if (key === 'personCommunities') lenses.setPersonCommunities(value)
 }
 
 function reset(): void {

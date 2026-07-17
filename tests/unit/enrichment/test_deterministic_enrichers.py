@@ -663,6 +663,98 @@ def test_guest_coappearance_ranks_by_shared_episodes(tmp_path: Path) -> None:
     assert pairs[1]["episode_count"] == 1
 
 
+def test_guest_coappearance_person_communities_via_connected_components(tmp_path: Path) -> None:
+    """graph-v3 tier 7-4 — person community rollup.
+
+    Three co-appearing persons (a-b twice, b-c once, a-c once) all end up in
+    the same community at default threshold=2 via the a-b edge — b and c
+    ride in transitively through connected-components even though b-c alone
+    is below threshold. Person d never co-appears, so is dropped (no
+    singleton community). Anchor label goes to the highest-degree member.
+    """
+
+    def _gi_with_speakers(speakers: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Person", "id": pid, "properties": {"name": pid.split(":")[-1]}}
+                for pid in speakers
+            ]
+            + [{"type": "Quote", "id": f"quote:{i}"} for i in range(len(speakers))],
+            "edges": [
+                {"type": "SPOKEN_BY", "from": f"quote:{i}", "to": pid}
+                for i, pid in enumerate(speakers)
+            ],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", gi=_gi_with_speakers(["person:a", "person:b"])),
+        _bundle(tmp_path / "metadata", "ep2", gi=_gi_with_speakers(["person:a", "person:b"])),
+        # A single co-appearance edge — below default threshold=2 alone but
+        # keeps a & b in the same component regardless.
+        _bundle(tmp_path / "metadata", "ep3", gi=_gi_with_speakers(["person:a", "person:c"])),
+        # Isolated person — no co-appearances, must NOT get a community.
+        _bundle(tmp_path / "metadata", "ep4", gi=_gi_with_speakers(["person:d"])),
+    ]
+    data = _run(
+        GuestCoappearanceEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={},
+        ctx=_ctx("guest_coappearance"),
+    )
+    assert data["community_method"] == "connected_components_threshold"
+    assert data["community_min_pair"] == 2
+    # Only 1 community (a+b via the 2-episode edge); c doesn't qualify at
+    # default threshold, d is isolated.
+    assert data["community_count"] == 1
+    (community,) = data["communities"]
+    assert community["community_id"].startswith("pco:")
+    assert set(community["member_ids"]) == {"person:a", "person:b"}
+    assert community["member_count"] == 2
+
+
+def test_guest_coappearance_community_threshold_1_bridges_transitively(tmp_path: Path) -> None:
+    """At threshold=1 every co-appearance links people; connected-components
+    then produce fewer, larger communities. Verifies the ``community_min_pair``
+    config knob threads through and the union-find bridges chains."""
+
+    def _gi(speakers: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Person", "id": pid, "properties": {"name": pid.split(":")[-1]}}
+                for pid in speakers
+            ]
+            + [{"type": "Quote", "id": f"quote:{i}"} for i in range(len(speakers))],
+            "edges": [
+                {"type": "SPOKEN_BY", "from": f"quote:{i}", "to": pid}
+                for i, pid in enumerate(speakers)
+            ],
+        }
+
+    # a—b—c chain via single co-appearances; d—e in a separate component.
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", gi=_gi(["person:a", "person:b"])),
+        _bundle(tmp_path / "metadata", "ep2", gi=_gi(["person:b", "person:c"])),
+        _bundle(tmp_path / "metadata", "ep3", gi=_gi(["person:d", "person:e"])),
+    ]
+    data = _run(
+        GuestCoappearanceEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"community_min_pair": 1},
+        ctx=_ctx("guest_coappearance"),
+    )
+    assert data["community_min_pair"] == 1
+    assert data["community_count"] == 2
+    by_size = sorted(data["communities"], key=lambda c: -c["member_count"])
+    assert by_size[0]["member_count"] == 3  # a-b-c
+    assert set(by_size[0]["member_ids"]) == {"person:a", "person:b", "person:c"}
+    assert by_size[1]["member_count"] == 2  # d-e
+    assert set(by_size[1]["member_ids"]) == {"person:d", "person:e"}
+
+
 # ---------------------------------------------------------------------------
 # insight_density (episode scope)
 # ---------------------------------------------------------------------------

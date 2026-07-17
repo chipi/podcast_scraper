@@ -907,6 +907,25 @@ export function buildGiKgCyStylesheet(options?: {
       },
     })
   })
+  /* graph-v3 tier 7-4 — Person community regions. Same palette + shape
+     as theme regions but slightly higher opacity (Person nodes are
+     smaller than Topic hubs, so the underlay needs to read a beat more
+     strongly to be visible as a group tint). Classes person-region-0..7
+     assigned by applyPersonCommunityRegions from
+     guest_coappearance.communities[]. */
+  const personUnderlayOpacity = compact ? 0.14 : 0.18
+  const personUnderlayPadding = compact ? 6 : 10
+  THEME_REGION_PALETTE.forEach((hex, i) => {
+    style.push({
+      selector: `node.person-region-${i}`,
+      style: {
+        'underlay-color': hex,
+        'underlay-opacity': personUnderlayOpacity,
+        'underlay-padding': personUnderlayPadding,
+        'underlay-shape': 'ellipse',
+      },
+    })
+  })
 
   /* graph-v3 Tier 5C-1 — velocity halo. Bright coloured border on
      Topic + Person nodes when the temporal_velocity envelope classes

@@ -43,10 +43,12 @@ import {
   applyCoGuestEdges,
   applyConsensusEdges,
   applyCredibilityBorder,
+  applyPersonCommunityRegions,
   applyVelocityHalo,
   clearCoGuestEdges,
   clearConsensusEdges,
   clearCredibilityBorder,
+  clearPersonCommunityRegions,
   clearVelocityHalo,
   type CoGuestEnvelopeData,
   type ConsensusEnvelopeData,
@@ -1154,6 +1156,19 @@ function refreshEnricherLensOverlays(): void {
       })
   } else {
     clearCoGuestEdges(core)
+  }
+  // graph-v3 tier 7-4 — Person community underlay regions
+  if (lenses.personCommunities && root) {
+    void fetchCachedCorpusEnvelope<CoGuestEnvelopeData>(root, 'guest_coappearance')
+      .then((env) => {
+        if (!cy) return
+        applyPersonCommunityRegions(cy, env?.data ?? null)
+      })
+      .catch(() => {
+        /* silently degrade */
+      })
+  } else {
+    clearPersonCommunityRegions(core)
   }
 }
 
@@ -4158,6 +4173,7 @@ watch(
     lenses.personCredibility,
     lenses.consensusEdges,
     lenses.coGuestEdges,
+    lenses.personCommunities,
   ] as const,
   () => {
     safeGraphWatch('enricherLenses', () => refreshEnricherLensOverlays())

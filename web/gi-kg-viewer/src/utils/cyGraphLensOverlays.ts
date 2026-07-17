@@ -52,8 +52,16 @@ export interface CoGuestPairRow {
   person_b_id?: string
   episode_count?: number
 }
+export interface CoGuestCommunityRow {
+  community_id?: string
+  community_label?: string
+  member_ids?: string[]
+  member_count?: number
+}
 export interface CoGuestEnvelopeData {
   pairs?: CoGuestPairRow[]
+  /* graph-v3 tier 7-4 — enricher v1.1.0+ optional field. */
+  communities?: CoGuestCommunityRow[]
 }
 
 export interface ConsensusRow {
@@ -292,5 +300,69 @@ export function clearCoGuestEdges(core: Core): void {
     core
       .edges(`.${COGUEST_EDGE_CLASS}`)
       .forEach((e: EdgeSingular) => core.remove(e))
+  })
+}
+
+/** ---------------------------------------------------------------- */
+/** Tier 7-4 — Person community underlay (guest_coappearance v1.1.0). */
+/** Reads the enricher's `communities[]` and paints a soft underlay   */
+/** tint on every Person node that belongs to a community. Palette    */
+/** is the shared 8-hue theme palette (see themeRegionPalette.ts) so  */
+/** person communities visually rhyme with theme regions without      */
+/** colliding on the same axis (Person nodes are almost never the     */
+/** same node as a Topic that owns a theme region).                   */
+/** ---------------------------------------------------------------- */
+
+export const PERSON_COMMUNITY_PALETTE_SIZE = 8
+const PERSON_COMMUNITY_CLASSES: string[] = Array.from(
+  { length: PERSON_COMMUNITY_PALETTE_SIZE },
+  (_, i) => `person-region-${i}`,
+)
+
+function personCommunityHashIndex(cid: string): number {
+  // Same djb2-ish hash as themeRegionIndex, inlined to keep this file
+  // dep-free from the theme palette module.
+  let h = 5381
+  for (let i = 0; i < cid.length; i++) {
+    h = ((h << 5) + h + cid.charCodeAt(i)) | 0
+  }
+  const idx = ((h % PERSON_COMMUNITY_PALETTE_SIZE) + PERSON_COMMUNITY_PALETTE_SIZE) %
+    PERSON_COMMUNITY_PALETTE_SIZE
+  return idx
+}
+
+export function applyPersonCommunityRegions(
+  core: Core,
+  envelope: CoGuestEnvelopeData | null | undefined,
+): void {
+  clearPersonCommunityRegions(core)
+  if (!envelope?.communities?.length) return
+  core.batch(() => {
+    for (const c of envelope.communities ?? []) {
+      const cid = typeof c?.community_id === 'string' ? c.community_id.trim() : ''
+      if (!cid) continue
+      const cls = `person-region-${personCommunityHashIndex(cid)}`
+      for (const raw of c.member_ids ?? []) {
+        const pid = typeof raw === 'string' ? raw.trim() : ''
+        if (!pid) continue
+        const node = findNodeByBareId(core, pid)
+        if (!node || node.empty()) continue
+        node.addClass(cls)
+        node.data('personCommunityId', cid)
+      }
+    }
+  })
+}
+
+export function clearPersonCommunityRegions(core: Core): void {
+  core.batch(() => {
+    for (const c of PERSON_COMMUNITY_CLASSES) core.nodes().removeClass(c)
+    core.nodes().forEach((n) => {
+      try {
+        n.removeData('personCommunityId')
+      } catch {
+        /* removeData missing on some cy versions */
+      }
+    })
   })
 }

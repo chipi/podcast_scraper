@@ -48,6 +48,9 @@ export interface GraphLensFlags {
   /* graph-v3 Tier 5D — enricher-based edge overlays. */
   consensusEdges: boolean
   coGuestEdges: boolean
+  /* graph-v3 Tier 7-4 — person co-appearance community underlay
+     (guest_coappearance enricher v1.1.0+, `communities[]`). */
+  personCommunities: boolean
 }
 
 const DEFAULT_FLAGS: GraphLensFlags = {
@@ -72,6 +75,9 @@ const DEFAULT_FLAGS: GraphLensFlags = {
   personCredibility: false,
   consensusEdges: false,
   coGuestEdges: false,
+  /* graph-v3 Tier 7-4 — opt-in during rollout; enricher-gated on
+     `guest_coappearance.communities[]` presence in the artifact. */
+  personCommunities: false,
 }
 
 function readBool(v: unknown, fallback: boolean): boolean {
@@ -101,6 +107,7 @@ function readInitialFlags(): GraphLensFlags {
       personCredibility: readBool(parsed.personCredibility, DEFAULT_FLAGS.personCredibility),
       consensusEdges: readBool(parsed.consensusEdges, DEFAULT_FLAGS.consensusEdges),
       coGuestEdges: readBool(parsed.coGuestEdges, DEFAULT_FLAGS.coGuestEdges),
+      personCommunities: readBool(parsed.personCommunities, DEFAULT_FLAGS.personCommunities),
     }
   } catch {
     return { ...DEFAULT_FLAGS }
@@ -117,6 +124,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   const personCredibility = ref(initial.personCredibility)
   const consensusEdges = ref(initial.consensusEdges)
   const coGuestEdges = ref(initial.coGuestEdges)
+  const personCommunities = ref(initial.personCommunities)
 
   const flags = computed<GraphLensFlags>(() => ({
     aggregatedEdges: aggregatedEdges.value,
@@ -127,6 +135,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     personCredibility: personCredibility.value,
     consensusEdges: consensusEdges.value,
     coGuestEdges: coGuestEdges.value,
+    personCommunities: personCommunities.value,
   }))
 
   function setAggregatedEdges(v: boolean): void { aggregatedEdges.value = v }
@@ -137,6 +146,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   function setPersonCredibility(v: boolean): void { personCredibility.value = v }
   function setConsensusEdges(v: boolean): void { consensusEdges.value = v }
   function setCoGuestEdges(v: boolean): void { coGuestEdges.value = v }
+  function setPersonCommunities(v: boolean): void { personCommunities.value = v }
 
   function resetToDefaults(): void {
     aggregatedEdges.value = DEFAULT_FLAGS.aggregatedEdges
@@ -147,6 +157,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     personCredibility.value = DEFAULT_FLAGS.personCredibility
     consensusEdges.value = DEFAULT_FLAGS.consensusEdges
     coGuestEdges.value = DEFAULT_FLAGS.coGuestEdges
+    personCommunities.value = DEFAULT_FLAGS.personCommunities
   }
 
   /* USERPREFS-1 — cross-device write-through. Every flags mutation writes
@@ -201,6 +212,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
         personCredibility.value = readBool(remote.personCredibility, personCredibility.value)
         consensusEdges.value = readBool(remote.consensusEdges, consensusEdges.value)
         coGuestEdges.value = readBool(remote.coGuestEdges, coGuestEdges.value)
+        personCommunities.value = readBool(remote.personCommunities, personCommunities.value)
       } finally {
         applyingRemote = false
       }
@@ -217,6 +229,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     personCredibility,
     consensusEdges,
     coGuestEdges,
+    personCommunities,
     flags,
     setAggregatedEdges,
     setNodeSizeByDegree,
@@ -226,6 +239,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     setPersonCredibility,
     setConsensusEdges,
     setCoGuestEdges,
+    setPersonCommunities,
     resetToDefaults,
   }
 })
