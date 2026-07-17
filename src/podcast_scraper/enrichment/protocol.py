@@ -269,6 +269,13 @@ def sync_enricher(
     async machinery flows uninterrupted. Sync deterministic enrichers
     use this so authors don't pay the async ceremony tax.
 
+    .. warning:: **Not cancellation-safe.** A sync body running in the thread
+       cannot observe ``ctx.cancel_event`` (an ``asyncio.Event``) mid-computation,
+       so ``wait_for``/timeout cancels the *awaitable wrapper* but the thread runs
+       to completion, wasting a CPU core (review 2026-07-17 M14). Bodies with
+       O(n^2)+ inner loops over large corpora SHOULD periodically check
+       ``ctx.cancel_event.is_set()`` (``is_set()`` is thread-safe) and bail early.
+
     Behaviour:
 
     * If the wrapped function returns a ``dict``, the decorator wraps

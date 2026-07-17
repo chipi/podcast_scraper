@@ -1976,7 +1976,13 @@ def process_transcript_download(
                         episode.idx,
                         rel_path,
                     )
-                    return False, rel_path, "direct_download", 0
+                    # success=True so the result handlers ENQUEUE the summarization
+                    # / metadata ProcessingJob — they gate that on `if success`, and
+                    # returning False here silently skipped summarization for every
+                    # direct-download episode with a pre-existing transcript (review
+                    # 2026-07-17 H4). Cost: transcripts_downloaded is +1 high for a
+                    # reused transcript (cosmetic metric only).
+                    return True, rel_path, "direct_download", 0
         return False, None, None, 0
 
     planned_ext = derive_transcript_extension(transcript_type, None, transcript_url)
