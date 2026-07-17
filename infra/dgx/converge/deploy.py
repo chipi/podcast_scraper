@@ -595,3 +595,118 @@ server.shell(
     commands=[f"cd {OBS_INSTALL_ROOT} && docker compose up -d"],
     _sudo=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# #1177 — MOSS-Transcribe-Diarize service. Single-pass transcribe + diarize on
+# :8004, alongside faster-whisper (:8000) and pyannote (:8001). The pipeline
+# chunks long audio upstream (episode_processor + AudioChunker), so each request
+# is a <=25 min window and the service never chunks. Same Docker shape as the
+# sibling services. Validated end-to-end during the #1174 bake-off.
+# ---------------------------------------------------------------------------
+
+MOSS_INSTALL_ROOT = "/opt/moss-server"
+MOSS_COMPOSE_FILE = f"{MOSS_INSTALL_ROOT}/docker-compose.yml"
+MOSS_BUILD_CTX = f"{MOSS_INSTALL_ROOT}/build"
+MOSS_IMAGE = "podcast-moss:0.1.0"
+MOSS_PORT = 8004
+MOSS_MODEL = "OpenMOSS-Team/MOSS-Transcribe-Diarize"
+# Pin the model weights revision — a silent upstream change would alter what we
+# transcribe. ``main`` until a commit SHA is chosen.
+MOSS_MODEL_REVISION = "main"
+
+_MOSS_SRC = _Path(__file__).resolve().parents[1] / "moss-server"
+
+files.directory(
+    name="dir: /opt/moss-server (install root)",
+    path=MOSS_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.directory(
+    name="dir: /opt/moss-server/build (Docker build context)",
+    path=MOSS_BUILD_CTX,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: moss-server/Dockerfile",
+    src=str(_MOSS_SRC / "Dockerfile"),
+    dest=f"{MOSS_BUILD_CTX}/Dockerfile",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: moss-server/app.py",
+    src=str(_MOSS_SRC / "app.py"),
+    dest=f"{MOSS_BUILD_CTX}/app.py",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+# MOSS loads the model + its trust_remote_code from the shared HF cache (already
+# populated during the #1174 bake-off). ``ipc: host`` mirrors the validated
+# docker run — the vLLM base image wants shared memory for torch. ``network_mode:
+# host`` binds :8004 directly, like the sibling services. HF_HOME points at the
+# shared cache so the 0.9B weights are not re-downloaded.
+MOSS_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.py instead.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
+
+services:
+  moss:
+    build:
+      context: {MOSS_BUILD_CTX}
+      dockerfile: Dockerfile
+    image: {MOSS_IMAGE}
+    container_name: moss
+    restart: unless-stopped
+    network_mode: host
+    runtime: nvidia
+    ipc: host
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    environment:
+      - MOSS_MODEL={MOSS_MODEL}
+      - MOSS_MODEL_REVISION={MOSS_MODEL_REVISION}
+      - MOSS_DEVICE=auto
+      - MOSS_MAX_NEW_TOKENS=16384
+      - HF_HOME={HF_CACHE_HOST}
+      - LOG_LEVEL=INFO
+    volumes:
+      - /opt/llm-models:/opt/llm-models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+"""
+
+server.shell(
+    name="compose: write /opt/moss-server/docker-compose.yml",
+    commands=[
+        f"cat > {MOSS_COMPOSE_FILE} <<'EOF'\n{MOSS_COMPOSE_CONTENT}EOF",
+        f"chmod 644 {MOSS_COMPOSE_FILE}",
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="build: moss image (one-time + on Dockerfile/app changes)",
+    commands=[f"cd {MOSS_INSTALL_ROOT} && docker compose build"],
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart moss service)",
+    commands=[f"cd {MOSS_INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)
