@@ -171,10 +171,21 @@ Two flows, both reusing the backend + the archive-aware download path:
   **password + env-var** rclone injection (one obscured-password secret, no mount,
   no compose change), and both read-back flows end to end.
 
-## Remaining (operator provisioning)
+## Landed — provisioning as code
 
-- **Provision** a BX11 Storage Box + `rclone obscure` the password → GH secret
-  `PROD_RCLONE_STORAGEBOX_PASS`; add the `RCLONE_CONFIG_HETZNERBOX_*` lines to the
+- **`infra/terraform/storage_box.tf`** — `hcloud_storage_box "audio_archive"`,
+  gated on `audio_storage_box_type` (empty = not provisioned, so PROD is
+  unaffected until opt-in). Cloud-native, TF-managed (provider 1.62 has it GA);
+  SFTP enabled, weekly snapshot, delete-protected. Outputs `audio_storage_box_server`
+  + `_username` for the rclone config. `tofu validate` green. (BX11 = current
+  offering: 1 TB / ~€3.20/mo; bx11/bx21/bx31/bx41 map to `storage_box_type`.)
+
+## Remaining (operator action)
+
+- **`tofu apply`** with `audio_storage_box_type = "bx11"` +
+  `TF_VAR_audio_storage_box_password` (a per-instance apply — operator's call).
+- `rclone obscure` that password → GH secret `PROD_RCLONE_STORAGEBOX_PASS`; add
+  the `RCLONE_CONFIG_HETZNERBOX_*` lines (host/user from `tofu output`) to the
   `deploy-prod.yml` `.env` staging; set `audio_storage_backend: remote` in the
   prod profile. All in the recipe.
 - Corpus-media hardlink source is local-only today (remote → falls back to copy);

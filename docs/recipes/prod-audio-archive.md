@@ -21,19 +21,28 @@ archive instead. This recipe wires it up and runs the two read-back flows:
 | One-off reprocess (workflow) | dispatch `reprocess-prod.yml` (`PROD_REPROCESS` confirm) |
 | One-off reprocess (manual) | `docker compose … run --rm pipeline-llm python -m podcast_scraper.cli … --reprocess-existing-only --reprocess-source whisper_transcription` |
 
-## 1. Provision the Storage Box + rclone remote (operator, one-time)
+## 1. Provision the Storage Box with OpenTofu (operator, one-time)
 
-1. Order a **Hetzner Storage Box BX11** (1 TB, ~€3.20/mo). Note the SFTP host,
-   username, and set a sub-account or SSH key.
-2. On any machine with rclone, create the remote:
-   ```bash
-   rclone config create hetzner-box sftp \
-     host <uXXXXXX>.your-storagebox.de user <uXXXXXX> \
-     key_file ~/.ssh/storagebox_ed25519   # or: pass <obscured-password>
-   rclone mkdir hetzner-box:podcast-audio-archive
-   ```
-3. Copy the resulting stanza from `rclone config file` (the
-   `[hetzner-box] … ` block) — that is the secret to inject on prod.
+The Storage Box is now infrastructure-as-code (`infra/terraform/storage_box.tf`,
+`hcloud_storage_box`). Set the type + a password and apply:
+
+```hcl
+# infra/terraform/<your>.tfvars
+audio_storage_box_type = "bx11"           # 1 TB, ~€3.20/mo (bx21=5TB, bx31=10TB, bx41=20TB)
+# audio_storage_box_location = "fsn1"      # default; or nbg1 / hel1
+```
+```bash
+cd infra/terraform
+export TF_VAR_audio_storage_box_password='<a-strong-password>'   # meets Hetzner's policy; keep it
+tofu apply        # provisions the box, enables SFTP, weekly snapshot, delete-protected
+tofu output audio_storage_box_server     # -> the SFTP host (uXXXXXX.your-storagebox.de)
+tofu output audio_storage_box_username   # -> the SFTP username (uXXXXXX)
+```
+
+No `rclone config` file is needed — the env-var injection in step 2 *is* the
+remote definition. rclone creates the `podcast-audio-archive` base path on first
+upload. The password you set in `TF_VAR_audio_storage_box_password` is the same
+value you obscure for rclone in step 2.
 
 ## 2. Inject the rclone config on prod
 
