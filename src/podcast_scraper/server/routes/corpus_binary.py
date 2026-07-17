@@ -11,7 +11,10 @@ from fastapi.responses import FileResponse
 
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    resolves_under_root,
+    safe_relpath_under_corpus_root,
+)
 
 router = APIRouter(tags=["corpus"])
 
@@ -55,6 +58,12 @@ async def corpus_binary(
         )
 
     target = _safe_artwork_target_str(root, relpath)
+
+    # Symlink-escape guard (review 2026-07-17): the string-level safe_relpath
+    # can't catch a symlink INSIDE the corpus pointing at a host file, which
+    # FileResponse would follow. Reject anything resolving outside the root.
+    if not resolves_under_root(target, str(root)):
+        raise HTTPException(status_code=400, detail="Invalid path.")
 
     # codeql[py/path-injection] -- target from normpath+startswith in safe_relpath.
     if not os.path.isfile(target):

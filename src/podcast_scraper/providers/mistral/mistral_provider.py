@@ -225,11 +225,11 @@ class MistralProvider:
         if cfg.mistral_api_base:
             client_kwargs["server_url"] = cfg.mistral_api_base
 
-        # Configure HTTP timeouts with separate connect/read timeouts
-        # Note: Mistral SDK does not support timeout parameter in __init__
-        # Timeout configuration would need to be handled at the HTTP client level
-        # if needed in the future. For now, we skip timeout configuration.
-        # timeout_config = get_http_timeout(cfg)  # Not supported by Mistral SDK
+        # Per-request timeout so a hung Voxtral / large-context call can't block a
+        # pipeline worker forever (review 2026-07-17 M12). The mistralai SDK takes
+        # ``timeout_ms`` (int milliseconds) in __init__ — the old "SDK does not
+        # support timeout" comment was wrong.
+        client_kwargs["timeout_ms"] = int(float(getattr(cfg, "mistral_timeout", 600)) * 1000)
 
         self.client = Mistral(**client_kwargs)
 

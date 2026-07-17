@@ -171,6 +171,19 @@ def is_resolved_path_under_root(candidate: Path, root: Path) -> bool:
     return normpath_if_under_root(str(candidate), str(root)) is not None
 
 
+def resolves_under_root(candidate: "str | Path", root: "str | Path") -> bool:
+    """True if ``candidate`` resolves (FOLLOWING symlinks) to inside ``root``.
+
+    Stronger than :func:`is_resolved_path_under_root` / ``normpath_if_under_root``
+    (both string-level): catches a symlink *inside* the tree that points outside
+    it. Use before serving a file that ``FileResponse`` would follow (review
+    2026-07-17 — corpus_binary / corpus_text_file symlink-escape gap).
+    """
+    real = os.path.realpath(str(candidate))
+    root_real = os.path.realpath(str(root))
+    return real == root_real or real.startswith(root_real + os.sep)
+
+
 def safe_relpath_under_corpus_root(root: Path, relative: str) -> Optional[str]:
     """Join *relative* under resolved *root*; return normpath string only if under *root*.
 

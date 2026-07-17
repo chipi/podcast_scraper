@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import (
     normpath_if_under_root,
+    resolves_under_root,
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
 )
@@ -188,6 +189,13 @@ async def corpus_text_file(
     root_s = os.path.normpath(str(root))
     verified_path = normpath_if_under_root(safe_file, root_s)
     if not verified_path:
+        raise HTTPException(status_code=400, detail="Invalid path.")
+
+    # Symlink-escape guard (review 2026-07-17): normpath_if_under_root is
+    # string-level; a symlink inside the corpus (e.g. a .json pointing at host
+    # secrets) would pass it but FileResponse would follow it. Reject if it
+    # resolves outside the corpus root.
+    if not resolves_under_root(verified_path, root_s):
         raise HTTPException(status_code=400, detail="Invalid path.")
 
     # codeql[py/path-injection] -- verified_path from normpath_if_under_root(safe_file, root_s).

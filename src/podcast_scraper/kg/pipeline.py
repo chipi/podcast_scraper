@@ -373,9 +373,11 @@ def build_artifact(
         resolved_model = "stub"
 
     merge_pipe = _merge_pipeline_default(cfg)
-    if llm_partial and not merge_pipe:
-        pass
-    else:
+    # Respect kg_merge_pipeline_entities unconditionally. The old guard
+    # (`if llm_partial and not merge_pipe: pass`) still injected pipeline
+    # hosts/guests whenever the LLM call FAILED (llm_partial falsy), silently
+    # ignoring the flag (review 2026-07-17 M15).
+    if merge_pipe:
         _append_pipeline_entities(
             ep_node_id,
             detected_hosts,
