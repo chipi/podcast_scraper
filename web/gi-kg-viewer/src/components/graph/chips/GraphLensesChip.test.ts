@@ -23,6 +23,21 @@ vi.mock('../../../composables/useFilterChipPopover', () => ({
   }),
 }))
 
+/* USERPREFS-1 — the chip probes enricher availability via
+   fetchCachedCorpusEnvelope AND uses the graphLenses store which
+   write-through PATCHes to /api/app/preferences. Stub both so the tests
+   stay hermetic (happy-dom otherwise attempts localhost:3000 for every
+   fetch). */
+vi.mock('../../../composables/useEnrichmentEnvelopeCache', () => ({
+  fetchCachedCorpusEnvelope: vi.fn().mockResolvedValue(null),
+}))
+
+vi.mock('../../../api/userPreferencesApi', () => ({
+  fetchUserPreferences: vi.fn().mockResolvedValue(null),
+  patchUserPreferences: vi.fn().mockResolvedValue(null),
+  replaceUserPreferences: vi.fn().mockResolvedValue(null),
+}))
+
 async function loadChip() {
   const mod = await import('./GraphLensesChip.vue')
   return mod.default

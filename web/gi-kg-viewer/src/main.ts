@@ -74,6 +74,17 @@ if (SENTRY_DSN_VIEWER) {
 
 app.use(createPinia())
 
+// USERPREFS-1 — kick off cross-device preference hydration before mount so
+// stores that check `useUserPreferencesStore().get(...)` at init time see
+// the server-supplied values (falls through to localStorage / local defaults
+// silently when the user isn't authenticated or the network is unavailable).
+// Fire-and-forget: mount doesn't wait on the hydrate to avoid delaying first
+// paint; consuming stores react when the promise resolves.
+void (async () => {
+  const { useUserPreferencesStore } = await import('./stores/userPreferences')
+  await useUserPreferencesStore().hydrate()
+})()
+
 const vueErrorHandler = app.config.errorHandler
 app.config.errorHandler = (err, instance, info) => {
   if (POSTHOG_TOKEN) {

@@ -12,6 +12,16 @@ vi.stubGlobal('localStorage', {
   clear: () => storage.clear(),
 })
 
+/* USERPREFS-1 — the graphLenses store now wires into useUserPreferencesStore
+   for cross-device sync (write-through PATCH to /api/app/preferences). Stub
+   the API here so the flag-mutation watcher doesn't fire real network calls
+   at happy-dom's default localhost:3000. */
+vi.mock('../api/userPreferencesApi', () => ({
+  fetchUserPreferences: vi.fn().mockResolvedValue(null),
+  patchUserPreferences: vi.fn().mockResolvedValue(null),
+  replaceUserPreferences: vi.fn().mockResolvedValue(null),
+}))
+
 describe('useGraphLensesStore (RFC-080)', () => {
   beforeEach(() => {
     storage.clear()

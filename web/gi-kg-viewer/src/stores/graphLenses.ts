@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { useUserPreferencesStore } from './userPreferences'
+
 /**
  * RFC-080 — graph visualization lens flags.
  *
@@ -147,6 +149,16 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     coGuestEdges.value = DEFAULT_FLAGS.coGuestEdges
   }
 
+  /* USERPREFS-1 — cross-device write-through. Every flags mutation writes
+     to localStorage (offline / anonymous baseline) AND fires a PATCH to
+     `/api/app/preferences` under the `graphLenses` key. The server call is
+     silent-on-failure — the localStorage mirror is authoritative until the
+     user preferences endpoint responds. Suppressed by `applyingRemote` so
+     the "server pushed a new value onto local refs" round doesn't echo the
+     same payload back to the server. */
+  const userPrefs = useUserPreferencesStore()
+  let applyingRemote = false
+
   watch(
     flags,
     (v) => {
@@ -157,8 +169,43 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
       } catch {
         /* ignore quota / private mode */
       }
+      if (applyingRemote) return
+      // Fire-and-forget; store handles auth/offline failure by flipping its
+      // `available` flag off, so subsequent writes stay local-only.
+      void userPrefs.set('graphLenses', v)
     },
     { deep: false },
+  )
+
+  /* Once the user preferences store hydrates from the server, apply any
+     `graphLenses` payload it fetched onto the local refs. Server value wins
+     over the localStorage snapshot only when it's actually present — an
+     empty / undefined payload means "user hasn't sync'd yet", so the
+     localStorage fallback stays intact. */
+  watch(
+    () => userPrefs.hydrated,
+    (ready) => {
+      if (!ready) return
+      const remote = userPrefs.get<Partial<GraphLensFlags>>('graphLenses')
+      if (!remote || typeof remote !== 'object') return
+      applyingRemote = true
+      try {
+        aggregatedEdges.value = readBool(remote.aggregatedEdges, aggregatedEdges.value)
+        nodeSizeByDegree.value = readBool(remote.nodeSizeByDegree, nodeSizeByDegree.value)
+        themeClusterRegions.value = readBool(
+          remote.themeClusterRegions,
+          themeClusterRegions.value,
+        )
+        bridgeRing.value = readBool(remote.bridgeRing, bridgeRing.value)
+        velocityHalo.value = readBool(remote.velocityHalo, velocityHalo.value)
+        personCredibility.value = readBool(remote.personCredibility, personCredibility.value)
+        consensusEdges.value = readBool(remote.consensusEdges, consensusEdges.value)
+        coGuestEdges.value = readBool(remote.coGuestEdges, coGuestEdges.value)
+      } finally {
+        applyingRemote = false
+      }
+    },
+    { immediate: true },
   )
 
   return {
