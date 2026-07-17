@@ -119,6 +119,7 @@ def _backend_from_args(args: argparse.Namespace):
 
 
 def run_archive(args: argparse.Namespace) -> int:
+    """Execute ``archive pull``: select episodes, then fetch each from the backend."""
     from ..utils import audio_cache
 
     if getattr(args, "archive_subcommand", None) != "pull":

@@ -75,12 +75,14 @@ class LocalStorageBackend(StorageBackend):
         self.root = Path(root)
 
     def describe(self) -> str:
+        """Human label, e.g. ``local:/path/to/archive``."""
         return f"local:{self.root}"
 
     def _path(self, rel_key: str) -> Path:
         return self.root / rel_key
 
     def exists(self, rel_key: str) -> bool:
+        """True if a non-empty file is stored at ``rel_key`` under the root."""
         p = self._path(rel_key)
         try:
             return p.is_file() and p.stat().st_size > 0
@@ -88,6 +90,7 @@ class LocalStorageBackend(StorageBackend):
             return False
 
     def upload(self, src_path: str, rel_key: str) -> bool:
+        """Atomic-copy ``src_path`` to ``rel_key`` (dedupe by existence). Return success."""
         if not src_path or not os.path.isfile(src_path):
             return False
         try:
@@ -111,6 +114,7 @@ class LocalStorageBackend(StorageBackend):
             return False
 
     def download(self, rel_key: str, dest_path: str) -> bool:
+        """Copy the file at ``rel_key`` into ``dest_path``. Return success."""
         src = self._path(rel_key)
         try:
             if not (src.is_file() and src.stat().st_size > 0):
@@ -178,6 +182,7 @@ class RcloneStorageBackend(StorageBackend):
             )
 
     def describe(self) -> str:
+        """Human label, e.g. ``rclone:remote:base/path``."""
         return f"rclone:{self.remote}:{self.base_path}"
 
     def _target(self, rel_key: str) -> str:
@@ -190,6 +195,7 @@ class RcloneStorageBackend(StorageBackend):
         return self._run(cmd, self.timeout_s)
 
     def exists(self, rel_key: str) -> bool:
+        """True if ``rclone lsjson`` reports a non-empty object at ``rel_key``."""
         target = self._target(rel_key)
         try:
             proc = self._rclone("lsjson", "--no-modtime", "--files-only", target)
@@ -209,6 +215,7 @@ class RcloneStorageBackend(StorageBackend):
         return any(e.get("Size", 0) and not e.get("IsDir", False) for e in entries)
 
     def upload(self, src_path: str, rel_key: str) -> bool:
+        """``rclone copyto`` ``src_path`` to ``rel_key`` (dedupe by existence). Return success."""
         if not src_path or not os.path.isfile(src_path):
             return False
         try:
@@ -241,6 +248,7 @@ class RcloneStorageBackend(StorageBackend):
         return True
 
     def download(self, rel_key: str, dest_path: str) -> bool:
+        """``rclone copyto`` the object at ``rel_key`` into ``dest_path``. Return success."""
         target = self._target(rel_key)
         try:
             os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
