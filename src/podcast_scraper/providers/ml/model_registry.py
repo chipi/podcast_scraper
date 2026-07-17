@@ -1639,6 +1639,11 @@ class ProfilePreset:
     transcription_fallback: Tuple[str, ...] = ()
     diarization_fallback: Tuple[str, ...] = ()
     summary_fallback: Tuple[str, ...] = ()
+    # RFC-105 (#1198) fail-closed switch. When False, the resolver refuses to emit any cloud
+    # StageOption into a fallback chain — the ladder ends at the last on-prem tier. This is what
+    # makes a no-cloud / airgapped profile safe to give a chain at all: it can degrade across its
+    # DGX/local tiers but never phones out.
+    allow_cloud_fallback: bool = True
     notes: Optional[str] = None
 
 
@@ -2014,6 +2019,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
+        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-105).
+        allow_cloud_fallback=False,
         notes=(
             "Airgapped quality default: medium.en Whisper + SummLlama 3.2-3B "
             "paragraph + spaCy trf. No network, no Ollama. SummLlama is "
@@ -2033,6 +2040,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
+        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-105).
+        allow_cloud_fallback=False,
         notes=(
             "Airgapped thin: tiny.en Whisper + bart-small+long-fast "
             "(ml_small_authority mode) + spaCy sm. Lowest RAM / startup "
@@ -2222,6 +2231,27 @@ def resolve_endpoint(
     return template.format(dgx_tailnet_host=host)
 
 
+# Cloud vendors a fallback tier can reach. A cloud vendor pointed at a DGX/local endpoint (e.g.
+# vLLM served over the openai protocol) is on-prem, not cloud — see _is_cloud_option.
+_CLOUD_FALLBACK_VENDORS: Final = frozenset(
+    {"openai", "gemini", "anthropic", "deepgram", "mistral", "deepseek", "grok", "cohere"}
+)
+
+
+def _is_cloud_option(opt: StageOption) -> bool:
+    """Whether ``opt`` is a hosted-cloud tier (RFC-105 fail-closed classification).
+
+    A cloud vendor served from a DGX/local endpoint (vLLM over the openai protocol, a localhost
+    Ollama, etc.) is on-prem despite the vendor name, so it is NOT treated as cloud.
+    """
+    if opt.provider not in _CLOUD_FALLBACK_VENDORS:
+        return False
+    endpoint = opt.endpoint or ""
+    if "{dgx_tailnet_host}" in endpoint or "localhost" in endpoint or "127.0.0.1" in endpoint:
+        return False
+    return True
+
+
 def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> None:
     """RFC-105 (#1198): map each stage's ordered fallback StageOption ids to their provider values
     and emit ``<stage>_fallback_providers`` into ``settings``.
@@ -2229,6 +2259,9 @@ def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> No
     Keeps the failover ladder in the materialized profile (the runtime FallbackChain reads it) and
     lets ``profiles-check`` guard it like every other registry-governed field. Empty ladder -> no
     key emitted (a stage with no fallback stays absent rather than emitting ``[]``).
+
+    Fail-closed: when ``preset.allow_cloud_fallback`` is False, cloud tiers are dropped so the
+    ladder ends at the last on-prem tier and a no-cloud profile never phones out.
     """
     chains = (
         (
@@ -2240,8 +2273,11 @@ def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> No
         (preset.summary_fallback, get_summary_option, "summary_fallback_providers"),
     )
     for ids, get_option, key in chains:
-        if ids:
-            settings[key] = [get_option(oid).provider for oid in ids]
+        options = [get_option(oid) for oid in ids]
+        if not preset.allow_cloud_fallback:
+            options = [opt for opt in options if not _is_cloud_option(opt)]
+        if options:
+            settings[key] = [opt.provider for opt in options]
 
 
 def resolve_profile_to_settings(

@@ -1,6 +1,6 @@
 # RFC-105: Tiered fallback for DGX-backed pipeline stages
 
-- **Status**: Proposed
+- **Status**: Implemented (all migration steps landed under #1198)
 - **Tracking issue**: #1198
 - **Authors**: Marko
 - **Stakeholders**: Core Pipeline, Providers, DGX Infra, Cost/Resilience
@@ -106,15 +106,24 @@ invariant (RFC-046) intact for fallback too.
   `StageOption` into any chain — the ladder ends at the last on-prem tier and fails closed. This is
   what makes the `all-DGX / no-cloud` profiles safe to give a fallback at all.
 
-## Migration
+## Migration — landed under #1198
 
-1. Land `FallbackChainProvider` + `is_infra_failure` + the config field (singular → 1-chain shim).
-2. Move `tailnet_dgx_whisper` / `tailnet_dgx`-diarization fallback into the generic wrapper; delete
-   the self-wrapping.
-3. Add the LLM-stage chain (ollama → cloud) — new capability.
-4. Set the DGX presets' chains in the registry; re-materialize.
-5. Tests per tier: infra-failure cascades, content-failure does not, health-down skips, chain
-   exhaustion raises the last error.
+1. ✅ Registry emits the chains (increment 1): `ProfilePreset.<stage>_fallback`, resolver emits
+   `<stage>_fallback_providers`, `REGISTRY_GOVERNED_FIELDS` + config fields, `profiles-check` guard.
+2. ✅ Transcription (increment 2a): `FallbackChainTranscriptionProvider` + `is_infra_failure`;
+   `tailnet_dgx_whisper` self-wrap retired → pure DGX tier that raises. Closes the #1174 MOSS gap.
+3. ✅ Diarization (increment 2b): `FallbackChainDiarizationProvider`; `tailnet_dgx` diarization
+   self-wrap (local pyannote) retired onto the chain.
+4. ✅ LLM/summary (increment 2c): `FallbackAwareSummarizationProvider` extended to an ordered
+   chain, sourced from `summary_fallback_providers`; covers ollama and vLLM primaries.
+5. ✅ Fail-closed (increment 3): `ProfilePreset.allow_cloud_fallback`; the resolver strips cloud
+   tiers when False; airgapped presets declare it.
+
+**Free-before-paid (operator directive).** Both stages prefer on-prem tiers before paid cloud:
+`transcription: moss → dgx-whisper → local whisper → openai`;
+`diarization: dgx pyannote → local pyannote → deepgram`. `is_infra_failure` cascades on
+timeouts/5xx/connection-blips/guardrail-garbage and stops on content-deterministic failures
+(payload-limit, non-429 4xx). The LLM chain keeps RFC-089's cascade-on-any contract.
 
 ## Non-goals
 
@@ -133,10 +142,11 @@ invariant (RFC-046) intact for fallback too.
 - **Pipeline-level try/except around each stage call.** Spreads fallback policy across the workflow
   instead of the provider layer; harder to test and to keep consistent with the registry.
 
-## Open questions
+## Open questions — resolved
 
-- Diarization cloud tier: `deepgram` (paid, strong) vs `gemini` (already used for other stages)?
-- LLM-stage cloud tier per profile: `gemini` (cloud_with_dgx) vs `openai`?
-- Does `all-DGX / no-cloud` intent (some profiles forbid cloud) need a chain that ends at the
-  last DGX tier and **fails closed** rather than reaching cloud? Likely yes — a per-profile
-  `allow_cloud_fallback` flag.
+- **Diarization cloud tier**: `deepgram`, but only after a free local in-process pyannote tier
+  (`dgx pyannote → local pyannote → deepgram`) so a caller that can run pyannote never pays.
+- **LLM-stage cloud tier**: `gemini` (the `cloud_balanced` summary tier) for the DGX prod profiles.
+- **`all-DGX / no-cloud` fail-closed**: yes — implemented as `ProfilePreset.allow_cloud_fallback`
+  (default True). When False the resolver drops cloud tiers from every chain; the airgapped presets
+  set it.

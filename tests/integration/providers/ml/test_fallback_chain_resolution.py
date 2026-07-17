@@ -12,9 +12,13 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.providers.ml.model_registry import (
+    _emit_fallback_chains,
+    _is_cloud_option,
+    _PROFILE_PRESETS,
     get_diarization_option,
     get_summary_option,
     get_transcription_option,
+    ProfilePreset,
     resolve_profile_to_settings,
 )
 
@@ -90,3 +94,72 @@ def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
     assert resolved["summary_fallback_providers"] == [
         get_summary_option("gemini_flash_lite").provider,
     ]
+
+
+# --- allow_cloud_fallback fail-closed (RFC-105 increment 3) ---------------------------------------
+
+
+def test_is_cloud_option_classification() -> None:
+    """Hosted cloud vendors are cloud; DGX/local-served options (even openai-protocol vLLM) are
+    not — the endpoint decides, not the vendor name."""
+    assert _is_cloud_option(get_transcription_option("openai_whisper_1")) is True
+    assert _is_cloud_option(get_diarization_option("deepgram_diarization_nova3")) is True
+    assert _is_cloud_option(get_summary_option("gemini_flash_lite")) is True
+    # On-prem tiers.
+    assert _is_cloud_option(get_transcription_option("tailnet_dgx_speaches_thread_b")) is False
+    assert _is_cloud_option(get_transcription_option("local_mps_large_v3")) is False
+    assert _is_cloud_option(get_diarization_option("pyannote_diarization_community1")) is False
+
+
+def test_fail_closed_strips_cloud_tiers_but_keeps_on_prem() -> None:
+    """A no-cloud preset with a cloud-terminated ladder emits only its on-prem tiers — the chain
+    ends at the last DGX/local tier and never phones out."""
+    preset = ProfilePreset(
+        name="synthetic_no_cloud",
+        transcription="moss_transcribe_diarize",
+        summary="summllama_3_2_3b_paragraph",
+        kg="provider_n10_15",
+        ner="spacy_sm",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v3",
+        diarization="tailnet_dgx_diarization_community1",
+        transcription_fallback=(
+            "tailnet_dgx_speaches_thread_b",
+            "local_mps_large_v3",
+            "openai_whisper_1",
+        ),
+        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
+        allow_cloud_fallback=False,
+    )
+    settings: dict = {}
+    _emit_fallback_chains(preset, settings)
+    # openai + deepgram (cloud) dropped; dgx-whisper, local whisper, local pyannote kept.
+    assert settings["transcription_fallback_providers"] == ["tailnet_dgx_whisper", "whisper"]
+    assert settings["diarization_fallback_providers"] == ["local"]
+
+
+def test_allow_cloud_fallback_true_by_default_keeps_cloud() -> None:
+    """The same ladder with the default (True) keeps every tier, including cloud."""
+    preset = ProfilePreset(
+        name="synthetic_cloud_ok",
+        transcription="moss_transcribe_diarize",
+        summary="summllama_3_2_3b_paragraph",
+        kg="provider_n10_15",
+        ner="spacy_sm",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v3",
+        diarization="tailnet_dgx_diarization_community1",
+        transcription_fallback=("tailnet_dgx_speaches_thread_b", "openai_whisper_1"),
+        diarization_fallback=("deepgram_diarization_nova3",),
+    )
+    assert preset.allow_cloud_fallback is True
+    settings: dict = {}
+    _emit_fallback_chains(preset, settings)
+    assert settings["transcription_fallback_providers"] == ["tailnet_dgx_whisper", "openai"]
+    assert settings["diarization_fallback_providers"] == ["deepgram"]
+
+
+def test_airgapped_presets_declare_no_cloud() -> None:
+    """The offline presets are fail-closed so any future ladder cannot reach cloud."""
+    for name in ("airgapped", "airgapped_thin"):
+        assert _PROFILE_PRESETS[name].allow_cloud_fallback is False
