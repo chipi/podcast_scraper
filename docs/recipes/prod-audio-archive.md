@@ -31,6 +31,7 @@ The Storage Box is now infrastructure-as-code (`infra/terraform/storage_box.tf`,
 audio_storage_box_type = "bx11"           # 1 TB, ~€3.20/mo (bx21=5TB, bx31=10TB, bx41=20TB)
 # audio_storage_box_location = "fsn1"      # default; or nbg1 / hel1
 ```
+
 ```bash
 cd infra/terraform
 export TF_VAR_audio_storage_box_password='<a-strong-password>'   # meets Hetzner's policy; keep it
