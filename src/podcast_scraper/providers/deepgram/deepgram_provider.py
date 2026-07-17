@@ -133,13 +133,16 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
                 agent_rest=base_url,
             )
             return DeepgramClient(api_key=api_key, environment=env)
-        except Exception as exc:  # noqa: BLE001 - override is best-effort
-            logger.warning(
-                "Could not apply deepgram_api_base=%s (SDK lacks environment override: %s); "
-                "using the hosted endpoint.",
-                base_url,
-                format_exception_for_log(exc),
-            )
+        except Exception as exc:  # noqa: BLE001
+            # A base was explicitly configured (self-hosted / on-prem / the CI mock
+            # server). If the SDK can't honor it, FAIL LOUD — never silently fall
+            # through to the hosted Deepgram endpoint. Silent fallback is exactly how
+            # CI reached real Deepgram (401); in prod it would leak audio + spend.
+            raise RuntimeError(
+                f"deepgram_api_base={base_url!r} is set but could not be applied to the "
+                f"Deepgram SDK ({format_exception_for_log(exc)}); refusing to fall back to "
+                "the hosted endpoint."
+            ) from exc
     return DeepgramClient(api_key=api_key)
 
 

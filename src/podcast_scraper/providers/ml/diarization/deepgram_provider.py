@@ -78,13 +78,14 @@ class DeepgramDiarizationProvider(DiarizationProvider):
                 )
                 self._client = DeepgramClient(api_key=self.api_key, environment=env)
             except Exception as exc:  # noqa: BLE001 - SDK shape can vary
-                logger.debug(
-                    "Could not apply deepgram_api_base=%s (SDK lacks environment "
-                    "override: %s); using SDK defaults.",
-                    self.api_base,
-                    exc,
-                )
-                self._client = DeepgramClient(api_key=self.api_key)
+                # FAIL LOUD when a base was configured but can't be applied — never
+                # silently fall back to real Deepgram. Silent fallback here is what
+                # sent CI to the hosted endpoint (401); in prod it leaks audio + spend.
+                raise RuntimeError(
+                    f"deepgram_api_base={self.api_base!r} is set but could not be applied "
+                    f"to the Deepgram SDK ({exc}); refusing to fall back to the hosted "
+                    "endpoint."
+                ) from exc
         else:
             self._client = DeepgramClient(api_key=self.api_key)
 
