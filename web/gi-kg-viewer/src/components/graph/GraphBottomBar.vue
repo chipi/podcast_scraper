@@ -7,7 +7,11 @@ import {
 } from '../../stores/graphExplorer'
 import GraphStatusLine from './GraphStatusLine.vue'
 import GraphLensesChip from './chips/GraphLensesChip.vue'
+import { useUserPreferencesStore } from '../../stores/userPreferences'
+
 const BOTTOM_BAR_COLLAPSED_KEY = 'ps_graph_bottom_bar_collapsed'
+/** USERPREFS-1 cross-device sync key. */
+const PREF_BOTTOM_BAR_COLLAPSED = 'graphBottomBarCollapsed'
 
 const props = withDefaults(
   defineProps<{
@@ -67,9 +71,26 @@ function persistCollapsed(v: boolean): void {
   }
 }
 
+const userPrefs = useUserPreferencesStore()
+let applyingRemoteCollapsed = false
+
 watch(collapsed, (v) => {
   persistCollapsed(v)
+  if (applyingRemoteCollapsed) return
+  void userPrefs.set(PREF_BOTTOM_BAR_COLLAPSED, v)
 })
+
+/* USERPREFS-1 — apply server-hydrated collapse state (+ cross-tab
+   BroadcastChannel updates via the same reactive path). */
+watch(
+  () => userPrefs.get<boolean>(PREF_BOTTOM_BAR_COLLAPSED),
+  (v) => {
+    if (typeof v !== 'boolean' || v === collapsed.value) return
+    applyingRemoteCollapsed = true
+    try { collapsed.value = v } finally { applyingRemoteCollapsed = false }
+  },
+  { immediate: true },
+)
 
 watch(
   () => props.searchHighlightCount,

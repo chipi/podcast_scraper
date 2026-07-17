@@ -9,23 +9,27 @@
  *
  * Collapsible; state persisted in localStorage.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { TopicClustersCluster } from '../../api/corpusTopicClustersApi'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphLensesStore } from '../../stores/graphLenses'
+import { useUserPreferencesStore } from '../../stores/userPreferences'
 import { themeRegionColor } from '../../utils/themeRegionPalette'
 
 const artifacts = useArtifactsStore()
 const lenses = useGraphLensesStore()
+const userPrefs = useUserPreferencesStore()
 
 const COLLAPSED_KEY = 'ps_graph_theme_legend_collapsed'
+/** USERPREFS-1 cross-device sync key. */
+const PREF_KEY = 'graphThemeLegendCollapsed'
 const collapsed = ref(false)
+let applyingRemoteCollapsed = false
 
 onMounted(() => {
   try {
     collapsed.value =
-      typeof localStorage !== 'undefined' &&
-      localStorage.getItem(COLLAPSED_KEY) === '1'
+      typeof localStorage !== 'undefined' && localStorage.getItem(COLLAPSED_KEY) === '1'
   } catch {
     /* ignore */
   }
@@ -40,7 +44,21 @@ function toggleCollapsed(): void {
   } catch {
     /* ignore */
   }
+  if (applyingRemoteCollapsed) return
+  void userPrefs.set(PREF_KEY, collapsed.value)
 }
+
+/* USERPREFS-1 — apply server-hydrated collapse state (+ cross-tab
+   BroadcastChannel updates via the same reactive path). */
+watch(
+  () => userPrefs.get<boolean>(PREF_KEY),
+  (v) => {
+    if (typeof v !== 'boolean' || v === collapsed.value) return
+    applyingRemoteCollapsed = true
+    try { collapsed.value = v } finally { applyingRemoteCollapsed = false }
+  },
+  { immediate: true },
+)
 
 const visible = computed(() => {
   return lenses.themeClusterRegions && artifacts.themeClustersDoc != null

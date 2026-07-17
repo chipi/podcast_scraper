@@ -29,6 +29,27 @@ import {
  */
 
 const HYDRATION_TIMEOUT_MS = 5000
+/** Same-browser cross-tab broadcast channel name (BroadcastChannel API).
+ *  Every tab writes on `set()` and listens for other tabs' writes so
+ *  toggling a lens in tab A propagates to tab B without waiting for the
+ *  next hydrate. Independent of the server round-trip — same-browser
+ *  sync works even when the user is offline / unauthenticated. */
+const CROSS_TAB_CHANNEL = 'ps_user_preferences_sync'
+
+interface CrossTabMessage {
+  /** Random per-tab id so the sender ignores its own echo. */
+  senderId: string
+  key: string
+  /** `null` = delete key (matches server + set() semantics). */
+  value: unknown
+}
+
+/** Per-tab id survives one tab lifetime — no need to persist. */
+function makeTabId(): string {
+  const bytes = new Uint8Array(6)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
 
 export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const local = ref<Record<string, unknown>>({})
@@ -39,6 +60,40 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const available = ref(true)
 
   const state = computed(() => ({ ...local.value }))
+
+  /* BroadcastChannel setup — happy-dom and older browsers may lack the
+     API; skip silently. */
+  const tabId = makeTabId()
+  let channel: BroadcastChannel | null = null
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      channel = new BroadcastChannel(CROSS_TAB_CHANNEL)
+      channel.addEventListener('message', (ev: MessageEvent<CrossTabMessage>) => {
+        const msg = ev.data
+        if (!msg || typeof msg !== 'object') return
+        if (msg.senderId === tabId) return
+        if (typeof msg.key !== 'string') return
+        if (msg.value === null || msg.value === undefined) {
+          const next = { ...local.value }
+          delete next[msg.key]
+          local.value = next
+        } else {
+          local.value = { ...local.value, [msg.key]: msg.value }
+        }
+      })
+    }
+  } catch {
+    /* not supported / permission denied — cross-tab is opportunistic */
+  }
+
+  function broadcast(key: string, value: unknown): void {
+    if (!channel) return
+    try {
+      channel.postMessage({ senderId: tabId, key, value } as CrossTabMessage)
+    } catch {
+      /* postMessage can throw for un-cloneable payloads; drop silently */
+    }
+  }
 
   function apply(payload: UserPreferencesResponse | null): void {
     if (payload == null) {
@@ -71,15 +126,17 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   }
 
   /** Write-through: updates the local mirror synchronously (so subsequent
-   *  reads see the change immediately) AND fires a PATCH to the server.
-   *  Pass `null` to delete the key server-side (server contract). Never
-   *  rejects — logs on failure and moves on. */
+   *  reads see the change immediately), broadcasts to other tabs via
+   *  BroadcastChannel (same-browser cross-tab), AND fires a PATCH to the
+   *  server. Pass `null` to delete the key server-side (server contract).
+   *  Never rejects — logs on failure and moves on. */
   async function set(key: string, value: unknown): Promise<void> {
     if (value === null || value === undefined) {
       delete local.value[key]
     } else {
       local.value = { ...local.value, [key]: value }
     }
+    broadcast(key, value ?? null)
     if (!available.value) return
     const patched = await patchUserPreferences({ [key]: value ?? null })
     if (patched == null) {
@@ -93,6 +150,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     for (const [k, v] of Object.entries(updates)) {
       if (v === null || v === undefined) delete local.value[k]
       else local.value = { ...local.value, [k]: v }
+      broadcast(k, v ?? null)
     }
     if (!available.value) return
     const normalised: Record<string, unknown> = {}

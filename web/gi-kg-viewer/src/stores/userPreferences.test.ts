@@ -127,3 +127,83 @@ describe('useUserPreferencesStore (USERPREFS-1)', () => {
     expect(s.get<{ key: string }>('nested')).toEqual({ key: 'v' })
   })
 })
+
+describe('useUserPreferencesStore — cross-tab BroadcastChannel (USERPREFS-1)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    api.fetchUserPreferences.mockReset()
+    api.patchUserPreferences.mockReset()
+  })
+
+  it('set() posts a message on the ps_user_preferences_sync channel', async () => {
+    api.fetchUserPreferences.mockResolvedValueOnce({ preferences: {} })
+    api.patchUserPreferences.mockResolvedValue({ preferences: {} })
+    // Listen on a sibling channel — simulates a second tab.
+    const otherTab = new BroadcastChannel('ps_user_preferences_sync')
+    const received: unknown[] = []
+    otherTab.onmessage = (ev) => received.push(ev.data)
+    try {
+      const useStore = await loadStore()
+      const s = useStore()
+      await s.hydrate()
+      await s.set('theme', 'dark')
+      // Give the browser a microtask tick to deliver the message.
+      await new Promise((r) => setTimeout(r, 20))
+      expect(received.length).toBeGreaterThan(0)
+      const msg = received[0] as { key?: string; value?: unknown; senderId?: string }
+      expect(msg.key).toBe('theme')
+      expect(msg.value).toBe('dark')
+      expect(typeof msg.senderId).toBe('string')
+    } finally {
+      otherTab.close()
+    }
+  })
+
+  it('incoming broadcast from another tab updates local state without a network call', async () => {
+    api.fetchUserPreferences.mockResolvedValueOnce({ preferences: { theme: 'light' } })
+    const useStore = await loadStore()
+    const s = useStore()
+    await s.hydrate()
+    expect(s.get<string>('theme')).toBe('light')
+    // Simulate another tab broadcasting.
+    const otherTab = new BroadcastChannel('ps_user_preferences_sync')
+    try {
+      otherTab.postMessage({ senderId: 'other-tab', key: 'theme', value: 'dark' })
+      await new Promise((r) => setTimeout(r, 20))
+      expect(s.get<string>('theme')).toBe('dark')
+      // Cross-tab receive path must NOT re-broadcast (no additional PATCH).
+      expect(api.patchUserPreferences).not.toHaveBeenCalled()
+    } finally {
+      otherTab.close()
+    }
+  })
+
+  it('incoming broadcast with null deletes the key locally', async () => {
+    api.fetchUserPreferences.mockResolvedValueOnce({ preferences: { theme: 'dark', foo: 'bar' } })
+    const useStore = await loadStore()
+    const s = useStore()
+    await s.hydrate()
+    const otherTab = new BroadcastChannel('ps_user_preferences_sync')
+    try {
+      otherTab.postMessage({ senderId: 'other-tab', key: 'theme', value: null })
+      await new Promise((r) => setTimeout(r, 20))
+      expect(s.get('theme')).toBeUndefined()
+      // Other keys preserved.
+      expect(s.get<string>('foo')).toBe('bar')
+    } finally {
+      otherTab.close()
+    }
+  })
+
+  it('own broadcast is ignored (echo suppression via senderId)', async () => {
+    api.fetchUserPreferences.mockResolvedValueOnce({ preferences: {} })
+    api.patchUserPreferences.mockResolvedValue({ preferences: {} })
+    const useStore = await loadStore()
+    const s = useStore()
+    await s.hydrate()
+    await s.set('theme', 'dark')
+    // Poll: local value stays 'dark' (echo would erase it via null / re-set loop).
+    await new Promise((r) => setTimeout(r, 30))
+    expect(s.get<string>('theme')).toBe('dark')
+  })
+})
