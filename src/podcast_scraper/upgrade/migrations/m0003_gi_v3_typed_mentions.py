@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
 from typing import Iterable, Tuple
 
@@ -124,9 +125,13 @@ class GiV3TypedMentionsMigration(Migration):
             changed_files.append(str(f.relative_to(ctx.corpus_root)))
             if ctx.dry_run:
                 continue
-            # Pretty-print + trailing newline, matching how the standalone
-            # ``migrate_gi_to_v3.py`` writes (json.dumps(..., indent=2)).
-            f.write_text(json.dumps(after, indent=2) + "\n", encoding="utf-8")
+            # Atomic write (tmp + os.replace): a kill mid-write otherwise leaves a
+            # truncated, unparsable .gi.json that is silently abandoned on replay
+            # (review 2026-07-17 M19). Pretty-print + trailing newline, matching
+            # the standalone ``migrate_gi_to_v3.py``.
+            tmp = f.with_suffix(f.suffix + ".tmp")
+            tmp.write_text(json.dumps(after, indent=2) + "\n", encoding="utf-8")
+            os.replace(tmp, f)
 
         message = (
             f"{'would write' if ctx.dry_run else 'wrote'} {len(changed_files)} files "
@@ -155,3 +160,26 @@ class GiV3TypedMentionsMigration(Migration):
             message=message,
             details=details,
         )
+
+    def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
+        """Confirm every ``.gi.json`` parses and is at schema_version 3.0.
+
+        The base no-op verify() would report a partially-applied / mid-write-killed
+        migration as green; this surfaces unparsable or not-yet-v3 files (M20).
+        """
+        checked = unparsable = wrong_version = 0
+        for f in _iter_gi_files(ctx.corpus_root):
+            checked += 1
+            try:
+                doc = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                unparsable += 1
+                continue
+            if str(doc.get("schema_version")) != "3.0":
+                wrong_version += 1
+        if unparsable or wrong_version:
+            return (
+                False,
+                f"{unparsable} unparsable + {wrong_version} not-at-3.0 of {checked} .gi.json",
+            )
+        return True, f"all {checked} .gi.json parse at schema_version 3.0"
