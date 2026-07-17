@@ -1172,6 +1172,27 @@ class Config(BaseModel):
             "(mandatory for DGX-primary prod profiles per ADR-096)."
         ),
     )
+    # RFC-106 (#1198): ordered per-stage failover ladders, registry-governed and emitted into the
+    # profile by the resolver. Tried in order after the primary on an infrastructure failure. The
+    # legacy singular transcription_fallback_provider is a one-element chain. Empty = no fallback.
+    transcription_fallback_providers: List[str] = Field(
+        default_factory=list,
+        alias="transcription_fallback_providers",
+        description=(
+            "Ordered transcription failover ladder (RFC-106): on-prem tiers first, then cloud. "
+            "Tried after transcription_provider on infra failure."
+        ),
+    )
+    diarization_fallback_providers: List[str] = Field(
+        default_factory=list,
+        alias="diarization_fallback_providers",
+        description="Ordered diarization failover ladder (RFC-106).",
+    )
+    summary_fallback_providers: List[str] = Field(
+        default_factory=list,
+        alias="summary_fallback_providers",
+        description="Ordered summary failover ladder (RFC-106); DGX LLM -> cloud.",
+    )
     dgx_tailnet_host: Optional[str] = Field(
         default=None,
         alias="dgx_tailnet_host",
@@ -5046,13 +5067,32 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def _validate_tailnet_dgx_transcription_contract(self) -> "Config":
-        """ADR-096: DGX-primary transcription requires fallback and host."""
+        """ADR-096: DGX-primary transcription requires a fallback and a host.
+
+        RFC-106 (#1198): the requirement is satisfied by the plural
+        ``transcription_fallback_providers`` chain as well as the legacy singular
+        ``transcription_fallback_provider`` — either one keeps the "no hard-required-DGX path"
+        guarantee that ADR-096 exists to enforce.
+        """
         if self.transcription_provider != "tailnet_dgx_whisper":
             return self
-        if not self.transcription_fallback_provider:
+        if not self.transcription_fallback_provider and not self.transcription_fallback_providers:
             raise ValueError(
-                "transcription_fallback_provider is required when "
-                "transcription_provider is tailnet_dgx_whisper (ADR-096)."
+                "A transcription fallback is required when transcription_provider is "
+                "tailnet_dgx_whisper (ADR-096 / RFC-106): set transcription_fallback_providers "
+                "(preferred) or the legacy transcription_fallback_provider."
+            )
+        # ADR-096's guarantee is a NON-DGX escape hatch. A plural chain made only of DGX tiers
+        # (tailnet_dgx_whisper / moss) has "a fallback" on paper but preserves a hard-required-DGX
+        # path in fact — reject it. The singular fallback is always a non-DGX cloud/local provider.
+        _dgx_transcription = {"tailnet_dgx_whisper", "moss"}
+        if self.transcription_fallback_providers and all(
+            p in _dgx_transcription for p in self.transcription_fallback_providers
+        ):
+            raise ValueError(
+                "transcription_fallback_providers must include at least one non-DGX tier "
+                "(cloud or local whisper) — a DGX-only chain re-introduces the hard-required-DGX "
+                "path ADR-096 forbids."
             )
         if not self.dgx_tailnet_host or not str(self.dgx_tailnet_host).strip():
             raise ValueError(

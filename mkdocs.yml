@@ -53,6 +53,8 @@ nav:
           - "Finale Smoke v2 (Jun 2026)": guides/eval-reports/EVAL_FINALE_SMOKE_V2_2026_06.md
           - "R1 as Judge (Jun 2026)": guides/eval-reports/EVAL_R1_AS_JUDGE_2026_06.md
           - "Silver Opus 4.7 Generation (Jun 2026)": guides/eval-reports/SILVER_OPUS47_GENERATION_2026_06.md
+          - "Segment-Time Drift (Jul 2026)": guides/eval-reports/EVAL_SEGMENT_TIME_DRIFT_2026_07.md
+          - "MOSS Bake-off (Jul 2026)": guides/eval-reports/EVAL_MOSS_BAKEOFF_2026_07.md
       - Performance Reports:
           - guides/performance-reports/index.md
           - "E2E WIP v1 (Apr 2026)": guides/performance-reports/PERF_E2E_WIP_V1_2026_04.md
@@ -382,6 +384,7 @@ nav:
       - RFC-103 Momentum Layer (Trending): rfc/RFC-103-momentum-layer.md
       - RFC-104 Operator Shows Library: rfc/RFC-104-operator-shows-library.md
       - RFC-105 Cross-feed audio↔LLM pipelining: rfc/RFC-105-cross-feed-audio-llm-pipelining.md
+      - RFC-106 Tiered DGX Service Fallback: rfc/RFC-106-tiered-dgx-service-fallback.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

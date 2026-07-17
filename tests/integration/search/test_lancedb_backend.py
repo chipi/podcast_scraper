@@ -122,3 +122,87 @@ def test_sql_str_escapes_and_to_sql_builds_clause(backend):
     assert backend._to_sql({"show_id": "A"}) == "show_id = 'A'"
     # Embedded quote is escaped so it cannot break out of the literal.
     assert backend._to_sql({"id": "x'y"}) == "id = 'x''y'"
+
+
+# --- stale-index reopen (#stack-test search flake) ---------------------------------------------
+# The API holds a long-lived LanceDBBackend while the pipeline container runs compact() on the
+# shared corpus volume. A cached table handle then references pruned data fragments and reads throw
+# "Not found: .../segments.lance/data/<frag>". The backend must reopen the table and retry.
+
+from podcast_scraper.search.backends.lancedb_backend import (  # noqa: E402
+    _is_stale_index_error,
+)
+
+
+def test_is_stale_index_error_classification() -> None:
+    assert _is_stale_index_error(
+        RuntimeError("Not found: /app/output/search/lance_index/segments.lance/data/ab12")
+    )
+    assert _is_stale_index_error(
+        RuntimeError("LanceError(IO): Object at location /app/output/x not found")
+    )
+    # Not a stale-fragment error -> must NOT reopen (would mask real failures).
+    assert not _is_stale_index_error(RuntimeError("connection refused"))
+    assert not _is_stale_index_error(ValueError("some other error"))
+    assert not _is_stale_index_error(
+        RuntimeError("segments.lance/data/ab12 exists")
+    )  # no "not found"
+
+
+def test_read_tier_reopens_once_on_stale_fragment(backend, monkeypatch) -> None:
+    """A read that hits a compacted-away fragment reopens the table exactly once and returns the
+    fresh result — the search does not fail."""
+    stale = RuntimeError("Not found: /app/output/search/lance_index/segments.lance/data/ab12")
+    stale_table, fresh_table = object(), object()
+    calls = {"reopen": 0}
+    monkeypatch.setattr(backend, "_open_if_exists", lambda tier: stale_table)
+
+    def _reopen(tier):
+        calls["reopen"] += 1
+        return fresh_table
+
+    monkeypatch.setattr(backend, "_reopen_table", _reopen)
+
+    def run(table):
+        if table is stale_table:
+            raise stale
+        return [{"id": "recovered"}]
+
+    assert backend._read_tier("segment", run) == [{"id": "recovered"}]
+    assert calls["reopen"] == 1
+
+
+def test_read_tier_propagates_non_stale_error(backend, monkeypatch) -> None:
+    """A non-stale error must propagate (reopening would hide a real bug)."""
+    monkeypatch.setattr(backend, "_open_if_exists", lambda tier: object())
+    monkeypatch.setattr(
+        backend, "_reopen_table", lambda tier: pytest.fail("must not reopen on a non-stale error")
+    )
+
+    def run(table):
+        raise ValueError("genuine failure")
+
+    with pytest.raises(ValueError, match="genuine failure"):
+        backend._read_tier("segment", run)
+
+
+def test_search_survives_cross_backend_compaction(tmp_path) -> None:
+    """Real scenario: the API's cached handle survives a compaction done by a SECOND backend on the
+    same path (the pipeline). Search must still return the row after the compaction."""
+    path = str(tmp_path / "lance")
+    api = LanceDBBackend(path, embed_dim=4)
+    api.upsert_segment(_seg("s1", "Sam Altman OpenAI", "A", [0.1, 0.2, 0.3, 0.4]))
+    api.create_indices()
+    # API reads once -> caches the segment table handle at the current version.
+    assert api.search_bm25(SearchQuery(text="Altman", embedding=[0, 0, 0, 0], tier="segment"))
+
+    # "pipeline": a separate backend writes more rows + compacts (prunes superseded fragments).
+    pipeline = LanceDBBackend(path, embed_dim=4)
+    for i in range(6):
+        pipeline.upsert_segment(_seg(f"x{i}", f"filler text {i}", "A", [0.1, 0.1, 0.1, 0.1]))
+    pipeline.create_indices()
+    pipeline.compact()
+
+    # API reads again with its (now stale) cached handle -> reopens + still finds s1.
+    res = api.search_bm25(SearchQuery(text="Altman", embedding=[0, 0, 0, 0], tier="segment"))
+    assert any(r.doc_id == "s1" for r in res)

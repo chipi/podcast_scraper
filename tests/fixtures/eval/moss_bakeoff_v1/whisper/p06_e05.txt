@@ -1,0 +1,1 @@
+This is an edge case fixture used for parser and processor robustness tests. Welcome back. We are now back. End of edge case episode E05.

@@ -13,7 +13,7 @@ import dataclasses
 import logging
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,25 @@ LANCE_SCHEMA_VERSION = 2
 _SEGMENT_TABLE = "segments"
 _INSIGHT_TABLE = "insights"
 _AUX_TABLE = "aux"
+
+
+def _is_stale_index_error(exc: BaseException) -> bool:
+    """A read failed because a data fragment/version the (cached) table handle referenced was
+    compacted away by ANOTHER process (the pipeline runs ``compact()`` on the shared corpus volume
+    while the API holds a long-lived handle). Reopening the table against the current manifest fixes
+    it — this predicate says when to do that. Matches LanceDB's pruned-fragment messages, e.g.
+    ``Not found: .../segments.lance/data/<frag>`` and ``Object at location ... not found``.
+    """
+    msg = str(exc).lower()
+    if "not found" not in msg:
+        return False
+    return (
+        ".lance/data" in msg
+        or "segments.lance" in msg
+        or "insights.lance" in msg
+        or "aux.lance" in msg
+        or "object at location" in msg
+    )
 
 
 def _segment_schema(dim: int) -> "pa.Schema":
@@ -200,6 +219,44 @@ class LanceDBBackend:
         self._tables[tier] = table
         return table
 
+    def _reopen_table(self, tier: str):
+        """Drop the cached handle and reopen the tier's table against the CURRENT manifest.
+
+        Reconnecting is cheap (it just points at the path) and guarantees the reopened table sees
+        versions another process wrote/compacted since this backend was constructed — the API holds
+        a long-lived backend while the pipeline container runs ``compact()`` on the shared volume.
+        """
+        import lancedb
+
+        self._tables.pop(tier, None)
+        try:
+            self.db = lancedb.connect(self.path)
+        except Exception:  # noqa: BLE001 - best-effort; the open_table below surfaces real failures
+            pass
+        return self._open_if_exists(tier)
+
+    def _read_tier(self, tier: str, run: "Callable[[Any], List[Dict[str, Any]]]"):
+        """Run a read ``run(table) -> rows`` on a tier's table, reopening the table ONCE on a
+        stale-fragment error (the index was compacted under this cached handle). Returns None when
+        the tier has no table on disk."""
+        table = self._open_if_exists(tier)
+        if table is None:
+            return None
+        try:
+            return run(table)
+        except (
+            Exception
+        ) as exc:  # noqa: BLE001 - only stale-index errors reopen+retry; else re-raise
+            if not _is_stale_index_error(exc):
+                raise
+            logger.info(
+                "lancedb tier %r index compacted under a cached handle; reopening + retrying", tier
+            )
+            table = self._reopen_table(tier)
+            if table is None:
+                return None
+            return run(table)
+
     _SCHEMAS = {"segment": _segment_schema, "insight": _insight_schema, "aux": _aux_schema}
 
     def _ensure_table(self, tier: str):
@@ -283,15 +340,19 @@ class LanceDBBackend:
     def _run(self, query: SearchQuery, *, query_type: str, score_key: str) -> List[ScoredResult]:
         where = self._to_sql(query.filters)
         hits: List[tuple[float, Dict[str, Any], str]] = []
-        for tier in self._tables_for_tier(query.tier):
-            table = self._open_if_exists(tier)  # read must not create empty tables on disk
-            if table is None:
-                continue
-            search_target = query.text if query_type == "fts" else query.embedding
+        search_target = query.text if query_type == "fts" else query.embedding
+
+        def _run_tier(table: Any) -> List[Dict[str, Any]]:
             req = table.search(search_target, query_type=query_type)
             if where:
                 req = req.where(where)
-            for row in req.limit(query.k).to_list():
+            return list(req.limit(query.k).to_list())
+
+        for tier in self._tables_for_tier(query.tier):
+            rows_list = self._read_tier(tier, _run_tier)  # reopens once if the index was compacted
+            if rows_list is None:
+                continue
+            for row in rows_list:
                 raw = float(row.get(score_key, 0.0) or 0.0)
                 # BM25 _score: higher is better; vector _distance: lower is better.
                 score = raw if query_type == "fts" else 1.0 / (1.0 + raw)
@@ -333,10 +394,8 @@ class LanceDBBackend:
         reranker = RRFReranker()
         where = self._to_sql(query.filters)
         hits: List[tuple[float, Dict[str, Any], str]] = []
-        for tier in self._tables_for_tier(query.tier):
-            table = self._open_if_exists(tier)  # read must not create empty tables on disk
-            if table is None:
-                continue
+
+        def _run_hybrid_tier(table: Any) -> List[Dict[str, Any]]:
             payload_cols = [c for c in table.schema.names if c != "embedding"]
             req = (
                 table.search(query_type="hybrid")
@@ -348,7 +407,13 @@ class LanceDBBackend:
                 req = req.select(payload_cols)
             if where:
                 req = req.where(where)
-            for row in req.limit(query.k).to_list():
+            return list(req.limit(query.k).to_list())
+
+        for tier in self._tables_for_tier(query.tier):
+            rows_list = self._read_tier(tier, _run_hybrid_tier)  # reopens once if index compacted
+            if rows_list is None:
+                continue
+            for row in rows_list:
                 score = float(row.get("_relevance_score", 0.0) or 0.0)
                 row.pop("embedding", None)  # never shipped back; keep the payload lean
                 hits.append((score, row, tier))

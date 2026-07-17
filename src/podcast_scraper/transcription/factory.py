@@ -25,9 +25,38 @@ else:
 from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
 
 
+def _transcription_fallback_tiers(cfg: "config.Config") -> list[str]:
+    """The ordered transcription failover ladder for ``cfg`` (RFC-106 / #1198).
+
+    Prefers the registry-emitted plural ``transcription_fallback_providers``. Falls back to the
+    legacy singular ``transcription_fallback_provider`` as a one-element chain (full back-compat:
+    an existing DGX-primary profile keeps its single cloud fallback with no profile churn).
+    """
+    plural = [
+        str(p).strip()
+        for p in (getattr(cfg, "transcription_fallback_providers", None) or [])
+        if str(p).strip()
+    ]
+    if plural:
+        return plural
+    singular = (getattr(cfg, "transcription_fallback_provider", None) or "").strip()
+    return [singular] if singular else []
+
+
+def _build_chain_tier(cfg: "config.Config", provider_type: str) -> TranscriptionProvider:
+    """Build one chain tier: the same provider ``create_transcription_provider`` would build for
+    ``provider_type``, but with fallback-wrapping suppressed so tiers do not recursively re-wrap."""
+    data = cfg.model_dump()
+    data["transcription_provider"] = provider_type
+    sub = config.Config.model_validate(data)
+    return create_transcription_provider(sub, _wrap_fallback=False)
+
+
 def create_transcription_provider(  # noqa: C901
     cfg_or_provider_type: Union[config.Config, str],
     params: Optional[Union[TranscriptionParams, Dict[str, Any]]] = None,
+    *,
+    _wrap_fallback: bool = True,
 ) -> TranscriptionProvider:
     """Create a transcription provider based on configuration or experiment params.
 
@@ -77,6 +106,28 @@ def create_transcription_provider(  # noqa: C901
         cfg = cfg_or_provider_type
         provider_type = cfg.transcription_provider
         experiment_mode = False
+
+        # RFC-106 (#1198): if the profile declares a failover ladder, wrap the primary + each tier
+        # in a FallbackChainTranscriptionProvider. Suppressed via ``_wrap_fallback=False`` while
+        # assembling the individual tiers, so a tier never recursively re-wraps itself.
+        if _wrap_fallback:
+            tiers = _transcription_fallback_tiers(cfg)
+            if tiers:
+                from ..providers.resilience.fallback import (
+                    FallbackChainTranscriptionProvider,
+                )
+
+                # Pass BUILDERS, not instances: the chain constructs each tier lazily on first use,
+                # so a never-reached fallback tier (and its API-key requirement) never crashes a
+                # healthy-primary run. Default-arg binds the loop var per closure.
+                chain: list[tuple[str, Any]] = [
+                    (provider_type, lambda pt=provider_type: _build_chain_tier(cfg, pt))
+                ]
+                for tier_name in tiers:
+                    chain.append((tier_name, lambda tn=tier_name: _build_chain_tier(cfg, tn)))
+                wrapped = cast(TranscriptionProvider, FallbackChainTranscriptionProvider(chain))
+                verify_protocol_compliance(wrapped, TranscriptionProvider, "TranscriptionProvider")
+                return wrapped
     else:
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)

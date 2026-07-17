@@ -1,10 +1,12 @@
-"""DGX-hosted pyannote diarization with mandatory local fallback (#926).
+"""DGX-hosted pyannote diarization — a pure DGX tier (RFC-106 / #1198).
 
-Mirrors the architecture of ``TailnetDgxWhisperTranscriptionProvider`` (#814):
-the laptop / prod VPS uploads an audio file to a pyannote service running on
-DGX, gets back diarization segments, and falls back to running pyannote
-in-process if DGX is unreachable. Local fallback (not cloud) because there
-is no reasonably-priced cloud diarize service to bill against.
+Mirrors ``TailnetDgxWhisperTranscriptionProvider`` (#814): the laptop / prod VPS
+uploads an audio file to a pyannote service running on DGX and gets back
+diarization segments. On failure it RAISES; the stage factory's
+``FallbackChainDiarizationProvider`` owns the ladder and fails over (DGX pyannote
+-> local in-process pyannote -> deepgram). #926 originally self-wrapped straight
+to local pyannote; RFC-106 moved that into the shared chain and added a cloud
+tier for callers that cannot run pyannote in-process (e.g. a lightweight VPS).
 
 Resilience (#954). The client carries the shared DGX defences from
 ``resilience.py`` — the same ones the #946 Whisper path uses — plus a circuit
@@ -18,8 +20,8 @@ breaker borrowed from the battle-tested RSS downloader (``rss/http_policy``):
   from a connection blip (retry with backoff).
 - Hard wall-clock watchdog so a wedged request (httpx's own timeout has been seen
   to never fire under a co-tenant GPU stall, #954) always fails over.
-- Circuit breaker: once DGX has failed, skip it for a cooldown and go straight to
-  local pyannote; a half-open probe re-tests so it self-heals on recovery.
+- Circuit breaker: once DGX has failed, skip it for a cooldown and raise immediately
+  (the chain fails over); a half-open probe re-tests so it self-heals on recovery.
 
 Service contract (DGX-side, deploy.py / infra/dgx/pyannote-server/app.py):
 
@@ -38,11 +40,10 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, NoReturn, Optional
 
 from ... import config
 from ...providers.ml.diarization.base import (
-    DiarizationProvider,
     DiarizationResult,
     DiarizationSegment,
 )
@@ -71,11 +72,8 @@ _diarize_breaker = CircuitBreaker(
 
 
 class TailnetDgxDiarizationProvider:
-    """Diarize on DGX pyannote service; fall back to local pyannote on failure.
-
-    Construction is cheap — the actual local fallback provider is built lazily
-    so DGX-only paths don't pay the in-process pyannote model load cost.
-    """
+    """Diarize on the DGX pyannote service. A pure DGX tier: raises on failure so the wrapping
+    FallbackChain (RFC-106) can advance to the next tier."""
 
     def __init__(self, cfg: config.Config) -> None:
         self.cfg = cfg
@@ -95,11 +93,10 @@ class TailnetDgxDiarizationProvider:
         )
         # Retry budget is generic; reuse the shared knob for parity with Whisper.
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        self._fallback: Optional[DiarizationProvider] = None
         self._initialized = False
 
     def initialize(self) -> None:
-        """Validate host config; defer local-fallback build until first failure."""
+        """Validate host config and mark ready. RFC-106: this tier owns no fallback."""
         if self._initialized:
             return
         if not self._host:
@@ -122,20 +119,15 @@ class TailnetDgxDiarizationProvider:
         min_speakers: int = 2,
         max_speakers: int = 20,
     ) -> DiarizationResult:
-        """Diarize against DGX; fall back to in-process pyannote on failure."""
+        """Diarize against DGX. Raise on failure so the wrapping FallbackChain can advance."""
         if not self._initialized:
             self.initialize()
 
-        # Circuit breaker: if DGX diarize is in its cooldown, don't even probe —
-        # go straight to local pyannote so a wedged batch isn't paced by timeouts.
+        # Circuit breaker: if DGX diarize is in its cooldown, don't even probe — raise immediately
+        # so the FallbackChain fails over without a wasted probe (a wedged batch isn't paced by
+        # timeouts).
         if not _diarize_breaker.allow():
-            return self._fall_back(
-                audio_path,
-                "dgx_diarize_circuit_open",
-                num_speakers=num_speakers,
-                min_speakers=min_speakers,
-                max_speakers=max_speakers,
-            )
+            self._raise_exhausted("dgx_diarize_circuit_open")
 
         # Health-check matches the prefix portion of the model id so we don't
         # fail on minor naming drift between client config and server install.
@@ -210,39 +202,25 @@ class TailnetDgxDiarizationProvider:
         # enough); other failures accrue toward the rolling-window threshold.
         _diarize_breaker.record_failure(hard=timed_out)
         reason = format_exception_for_log(last_err) if last_err else "health_check_failed"
-        return self._fall_back(
-            audio_path,
-            reason,
-            num_speakers=num_speakers,
-            min_speakers=min_speakers,
-            max_speakers=max_speakers,
-        )
+        self._raise_exhausted(reason, last_err)
 
-    def _fall_back(
-        self,
-        audio_path: str,
-        reason: str,
-        *,
-        num_speakers: Optional[int],
-        min_speakers: int,
-        max_speakers: int,
-    ) -> DiarizationResult:
-        """Emit the fallback breadcrumb and run in-process pyannote."""
+    def _raise_exhausted(self, reason: str, last_err: Optional[Exception] = None) -> NoReturn:
+        """Emit the fallback breadcrumb and RAISE (RFC-106 / #1198).
+
+        This tier no longer runs in-process pyannote itself — the FallbackChain that wraps it owns
+        the ladder (DGX pyannote -> local pyannote -> deepgram) and decides whether to advance.
+        ``is_infra_failure`` treats the errors raised here (timeouts, guardrail garbage, connection
+        blips, circuit-open) as cascade-worthy, so the chain moves on to the next tier.
+        """
         emit_dgx_fallback_breadcrumb(
             stage="diarization",
             model=self._model,
             failure_reason=reason,
         )
-        logger.warning(
-            "Falling back from DGX diarize to in-process pyannote (%s)",
-            reason,
-        )
-        return self._get_local_fallback().diarize(
-            audio_path,
-            num_speakers=num_speakers,
-            min_speakers=min_speakers,
-            max_speakers=max_speakers,
-        )
+        logger.warning("DGX diarize tier exhausted (%s); raising for the fallback chain", reason)
+        if last_err is not None:
+            raise last_err
+        raise RuntimeError(f"DGX diarize unavailable: {reason}")
 
     def _diarize_dgx_guarded(
         self,
@@ -326,14 +304,3 @@ class TailnetDgxDiarizationProvider:
             num_speakers=int(payload.get("num_speakers") or len({s.speaker for s in segments})),
             model_name=str(payload.get("model_name") or self._model),
         )
-
-    def _get_local_fallback(self) -> DiarizationProvider:
-        """Build the in-process pyannote provider lazily on first failure."""
-        if self._fallback is None:
-            from ...providers.ml.diarization.factory import (
-                create_local_pyannote_provider,
-            )
-
-            logger.info("Building local pyannote diarize fallback on first DGX failure")
-            self._fallback = create_local_pyannote_provider(self.cfg)
-        return self._fallback

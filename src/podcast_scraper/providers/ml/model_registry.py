@@ -833,16 +833,40 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         model="Systran/faster-whisper-large-v3",
         endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
         extra_settings={"WHISPER__COMPUTE_TYPE": "default"},
-        research_ref="docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md",
+        research_ref="docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md",
         headline_metric=(
-            "mean WER 0.083 / 2.38× realtime on v2 — "
-            "speaches:latest-cuda-gb10 (#948 source-built ctranslate2) "
-            "+ #968 Thread B temperature-fallback patch"
+            "DGX transcription winner (#952): 10.23% WER vs Deepgram silver on real "
+            "podcasts — beats whisper-openai (:8002) by 2.74pp AND ~20% faster. "
+            "speaches:latest-cuda-gb10 int8 (#948) + #968 Thread B temperature fallback"
         ),
-        measured_at="2026-06-12",
-        tier="fallback",
+        measured_at="2026-06-16",
+        tier="primary",
         resident_memory_gb=3.0,
         realtime_multiple=2.38,
+    ),
+    # DGX MOSS-Transcribe-Diarize (:8004) — the #1174 bake-off transcription winner.
+    # Single 0.9B model does transcribe+diarize in one pass; we use it for TRANSCRIPTION
+    # and keep pyannote community-1 for diarization (MOSS lost diarization on real audio).
+    # Long audio is chunked upstream (AudioChunker, #1174) so a request never exceeds the
+    # model's ~30 min single-pass ceiling. The moss provider defaults moss_port=8004 +
+    # moss_model, so the profile needs only transcription_provider=moss.
+    "moss_transcribe_diarize": StageOption(
+        stage="transcription",
+        option_id="moss_transcribe_diarize",
+        provider="moss",
+        model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        endpoint="http://{dgx_tailnet_host}:8004/v1/transcribe",
+        research_ref="docs/guides/eval-reports/EVAL_MOSS_BAKEOFF_2026_07.md",
+        headline_metric=(
+            "DGX transcription winner (#1174): 5.2% WER vs Deepgram silver on 10 real "
+            "prod episodes — beats faster-whisper (8.5%) on all 10. Diarization loses to "
+            "pyannote on real audio, so pair with pyannote. 2.1-3.8x realtime (bare "
+            "transformers, no speed win vs large-v3). English quality resolved: excellent."
+        ),
+        measured_at="2026-07-16",
+        tier="primary",
+        resident_memory_gb=16.0,
+        realtime_multiple=2.7,
     ),
     # Laptop MPS — local production default for cloud_with_dgx fallback or no-DGX.
     "local_mps_large_v3": StageOption(
@@ -1517,7 +1541,10 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
     "pyannote_diarization_community1": StageOption(
         stage="diarization",
         option_id="pyannote_diarization_community1",
-        provider="pyannote",
+        # 'local' matches the diarization_provider config Literal (in-process pyannote); the DGX
+        # sibling uses 'tailnet_dgx'. The registry provider IS the dispatchable backend so the
+        # RFC-106 fallback chain can construct this tier directly.
+        provider="local",
         model="pyannote/speaker-diarization-community-1",
         research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric=(
@@ -1546,7 +1573,7 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
     "pyannote_diarization_31": StageOption(
         stage="diarization",
         option_id="pyannote_diarization_31",
-        provider="pyannote",
+        provider="local",  # in-process pyannote; matches the diarization_provider Literal
         model="pyannote/speaker-diarization-3.1",
         research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric="prior default; wins brief-cameo count, merges panels. Gated (HF token).",
@@ -1604,6 +1631,19 @@ class ProfilePreset:
     # Who finds the quote that backs an insight. Writing the insight and grounding it are different
     # jobs, and until this stage existed the choice was made by a config fallback nobody could see.
     grounding: str = "llm_matched_to_summary"  # key into _GROUNDING_OPTIONS
+    # Ordered failover ladders per stage (StageOption ids, tried after the primary on an infra
+    # failure). Registry-governed: the resolver emits <stage>_fallback_providers into the
+    # materialized profile so the chain is in the YAML, not inferred at runtime (RFC-106 / #1198).
+    # Convention (DGX profiles): remaining on-prem tiers first, then the cloud_balanced option for
+    # that stage. Empty = no fallback. Tuples because ProfilePreset is frozen.
+    transcription_fallback: Tuple[str, ...] = ()
+    diarization_fallback: Tuple[str, ...] = ()
+    summary_fallback: Tuple[str, ...] = ()
+    # RFC-106 (#1198) fail-closed switch. When False, the resolver refuses to emit any cloud
+    # StageOption into a fallback chain — the ladder ends at the last on-prem tier. This is what
+    # makes a no-cloud / airgapped profile safe to give a chain at all: it can degrade across its
+    # DGX/local tiers but never phones out.
+    allow_cloud_fallback: bool = True
     notes: Optional[str] = None
 
 
@@ -1692,6 +1732,11 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "diarization_model",
     "dgx_diarize_model",
     "deepgram_diarization_model",
+    # RFC-106 (#1198): the ordered per-stage failover ladders are registry-governed too, so a stale
+    # chain in a profile is caught by profiles-check like any other drift.
+    "transcription_fallback_providers",
+    "diarization_fallback_providers",
+    "summary_fallback_providers",
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
     # two different configurations.
@@ -1738,17 +1783,29 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
-        transcription="tailnet_dgx_whisper_openai",  # post-#929/#966 winner
+        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004; whisper fallback)
         summary="gemini_flash_lite",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
+        # RFC-106 (#1198): free tiers first, paid cloud last. Transcription: MOSS -> DGX
+        # faster-whisper -> local in-process whisper -> cloud whisper. Diarization: DGX pyannote ->
+        # local in-process pyannote -> deepgram. summary is already the cloud tier (gemini) so it
+        # needs no fallback. The local-whisper id is referenced for its provider ('whisper'); the
+        # actual device is resolved from the profile, not the StageOption's mps measurement hint.
+        transcription_fallback=(
+            "tailnet_dgx_speaches_thread_b",
+            "local_mps_large_v3",
+            "openai_whisper_1",
+        ),
+        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
         notes=(
-            "Production hybrid: DGX whisper-openai for transcription, cloud Gemini for summary. "
-            "Was previously tailnet_dgx_speaches; flipped after #968 Thread B confirmed "
-            "speaches viability but with 5× speed cost vs whisper-openai."
+            "Production hybrid: DGX faster-whisper (:8000 Speaches) for transcription, cloud "
+            "Gemini for summary. Routing flipped :8002 whisper-openai -> :8000 Speaches on "
+            "2026-06-16 (#952): int8 Speaches wins WER (10.23% vs 12.97% on Deepgram silver) "
+            "and speed. :8002 stays a comparison sibling only, not the prod path."
         ),
     ),
     "local_dgx_balanced": ProfilePreset(
@@ -1784,7 +1841,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     # have not reached.
     "experiment_dgx_only": ProfilePreset(
         name="experiment_dgx_only",
-        transcription="tailnet_dgx_whisper_openai",
+        transcription="tailnet_dgx_speaches_thread_b",
         summary="ollama_qwen35_35b",
         kg="provider_n10_15",
         ner="ollama_speaker_detector",
@@ -1800,7 +1857,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
-        transcription="tailnet_dgx_whisper_openai",  # #929 winner + cloud Whisper fallback
+        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004) + cloud fallback
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1808,6 +1865,17 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
+        # RFC-106 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
+        # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
+        # summary -> cloud gemini (the cloud_balanced summary tier). All-DGX intent = exhaust the
+        # free/on-prem ladder before paying cloud.
+        transcription_fallback=(
+            "tailnet_dgx_speaches_thread_b",
+            "local_mps_large_v3",
+            "openai_whisper_1",
+        ),
+        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
+        summary_fallback=("gemini_flash_lite",),
         notes=(
             "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
             "Gemini for the cheap speaker-detect, cloud Gemini as the summary "
@@ -1837,7 +1905,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_balanced": ProfilePreset(
         name="prod_dgx_balanced",
-        transcription="tailnet_dgx_whisper_openai",
+        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004)
         # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1845,6 +1913,16 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
+        # RFC-106 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
+        # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
+        # summary -> cloud gemini (the cloud_balanced summary tier).
+        transcription_fallback=(
+            "tailnet_dgx_speaches_thread_b",
+            "local_mps_large_v3",
+            "openai_whisper_1",
+        ),
+        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
+        summary_fallback=("gemini_flash_lite",),
         notes=(
             "Prod variant of prod_dgx_full_with_fallback that swaps the summary "
             "stage to vLLM-served Moonlight-16B-A3B (#1016 Round 3 safe pick). "
@@ -1870,7 +1948,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "eval_default": ProfilePreset(
         name="eval_default",
-        transcription="tailnet_dgx_whisper_openai",
+        transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1941,6 +2019,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
+        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-106).
+        allow_cloud_fallback=False,
         notes=(
             "Airgapped quality default: medium.en Whisper + SummLlama 3.2-3B "
             "paragraph + spaCy trf. No network, no Ollama. SummLlama is "
@@ -1960,6 +2040,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
+        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-106).
+        allow_cloud_fallback=False,
         notes=(
             "Airgapped thin: tiny.en Whisper + bart-small+long-fast "
             "(ml_small_authority mode) + spaCy sm. Lowest RAM / startup "
@@ -2149,6 +2231,55 @@ def resolve_endpoint(
     return template.format(dgx_tailnet_host=host)
 
 
+# Cloud vendors a fallback tier can reach. A cloud vendor pointed at a DGX/local endpoint (e.g.
+# vLLM served over the openai protocol) is on-prem, not cloud — see _is_cloud_option.
+_CLOUD_FALLBACK_VENDORS: Final = frozenset(
+    {"openai", "gemini", "anthropic", "deepgram", "mistral", "deepseek", "grok", "cohere"}
+)
+
+
+def _is_cloud_option(opt: StageOption) -> bool:
+    """Whether ``opt`` is a hosted-cloud tier (RFC-106 fail-closed classification).
+
+    A cloud vendor served from a DGX/local endpoint (vLLM over the openai protocol, a localhost
+    Ollama, etc.) is on-prem despite the vendor name, so it is NOT treated as cloud.
+    """
+    if opt.provider not in _CLOUD_FALLBACK_VENDORS:
+        return False
+    endpoint = opt.endpoint or ""
+    if "{dgx_tailnet_host}" in endpoint or "localhost" in endpoint or "127.0.0.1" in endpoint:
+        return False
+    return True
+
+
+def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> None:
+    """RFC-106 (#1198): map each stage's ordered fallback StageOption ids to their provider values
+    and emit ``<stage>_fallback_providers`` into ``settings``.
+
+    Keeps the failover ladder in the materialized profile (the runtime FallbackChain reads it) and
+    lets ``profiles-check`` guard it like every other registry-governed field. Empty ladder -> no
+    key emitted (a stage with no fallback stays absent rather than emitting ``[]``).
+
+    Fail-closed: when ``preset.allow_cloud_fallback`` is False, cloud tiers are dropped so the
+    ladder ends at the last on-prem tier and a no-cloud profile never phones out.
+    """
+    chains = (
+        (
+            preset.transcription_fallback,
+            get_transcription_option,
+            "transcription_fallback_providers",
+        ),
+        (preset.diarization_fallback, get_diarization_option, "diarization_fallback_providers"),
+        (preset.summary_fallback, get_summary_option, "summary_fallback_providers"),
+    )
+    for ids, get_option, key in chains:
+        options = [get_option(oid) for oid in ids]
+        if not preset.allow_cloud_fallback:
+            options = [opt for opt in options if not _is_cloud_option(opt)]
+        if options:
+            settings[key] = [opt.provider for opt in options]
+
+
 def resolve_profile_to_settings(
     name: str,
     dgx_tailnet_host: Optional[str] = None,
@@ -2196,6 +2327,8 @@ def resolve_profile_to_settings(
         settings["summary_endpoint"] = resolved_sm_endpoint
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
+
+    _emit_fallback_chains(preset, settings)
 
     # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
     #

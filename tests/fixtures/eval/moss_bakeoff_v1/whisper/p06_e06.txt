@@ -1,0 +1,1 @@
+This is an edge case fixture used for parser and processor robustness tests. Welcome. Hola. Inverted question mark. Como estas? A bit of code switching to test transcription robustness. End of edge case episode E06.

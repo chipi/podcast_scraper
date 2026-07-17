@@ -1,0 +1,4 @@
+=== transcription WER on 45 fixtures (ref = source text) ===
+MOSS    mean WER:   9.0%   median: 3.1%
+whisper mean WER:   8.4%   median: 4.3%
+MOSS beats whisper on 25/45 fixtures

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from .... import config
 from .base import DiarizationProvider
@@ -59,18 +59,70 @@ def create_local_pyannote_provider(cfg: config.Config) -> PyAnnoteDiarizationPro
     )
 
 
-def create_diarization_provider(cfg: config.Config) -> DiarizationProvider:
+def _diarization_fallback_tiers(cfg: config.Config) -> list[str]:
+    """The ordered diarization failover ladder for ``cfg`` (RFC-106 / #1198), each a
+    ``diarization_provider`` backend string."""
+    return [
+        str(p).strip()
+        for p in (getattr(cfg, "diarization_fallback_providers", None) or [])
+        if str(p).strip()
+    ]
+
+
+def _build_diarization_tier(cfg: config.Config, backend: str) -> DiarizationProvider:
+    """Build one chain tier for ``backend``, with fallback-wrapping suppressed so tiers do not
+    recursively re-wrap."""
+    data = cfg.model_dump()
+    data["diarization_provider"] = backend
+    sub = config.Config.model_validate(data)
+    return create_diarization_provider(sub, _wrap_fallback=False)
+
+
+def _diarization_tier_builder(
+    cfg: config.Config, backend: str
+) -> Callable[[], DiarizationProvider]:
+    """A zero-arg closure that constructs the ``backend`` tier on demand (lazy chain construction).
+    Binds ``backend`` per call, so a loop over tiers gets distinct builders."""
+    return lambda: _build_diarization_tier(cfg, backend)
+
+
+def create_diarization_provider(
+    cfg: config.Config, *, _wrap_fallback: bool = True
+) -> DiarizationProvider:
     """Dispatch to the configured diarization backend.
 
     ``cfg.diarization_provider``:
 
     - ``local`` (default) — in-process pyannote.audio on the pipeline host.
     - ``tailnet_dgx`` — POST audio to the DGX-hosted pyannote service over
-      the tailnet (#926). Falls back to local pyannote on DGX failure.
+      the tailnet (#926).
     - ``gemini`` — Gemini 2.5 audio understanding (#962). Cloud-only path
       with no local pyannote install required.
+
+    RFC-106 (#1198): when the profile declares ``diarization_fallback_providers``, the primary and
+    each tier are wrapped in a ``FallbackChainDiarizationProvider`` that owns the failover ladder
+    (DGX pyannote -> local pyannote -> deepgram). The per-provider self-wrap in
+    ``TailnetDgxDiarizationProvider`` is retired in favour of that chain.
     """
     backend = getattr(cfg, "diarization_provider", "local")
+
+    if _wrap_fallback:
+        tiers = _diarization_fallback_tiers(cfg)
+        if tiers:
+            from ...resilience.fallback import FallbackChainDiarizationProvider
+
+            # Pass BUILDERS, not instances: the chain constructs each tier lazily on first use, so a
+            # never-reached fallback tier never crashes a healthy-DGX run when its credential (HF
+            # token / DEEPGRAM_API_KEY) is absent — preserving #926's lazy fallback.
+            chain: list[tuple[str, Callable[[], DiarizationProvider]]] = [
+                (backend, _diarization_tier_builder(cfg, backend))
+            ]
+            for tier_backend in tiers:
+                chain.append((tier_backend, _diarization_tier_builder(cfg, tier_backend)))
+            wrapped = FallbackChainDiarizationProvider(chain)
+            wrapped.initialize()
+            return wrapped
+
     if backend == "tailnet_dgx":
         # Import lazily so the local path doesn't need the tailnet_dgx package
         # to even exist on systems that won't use DGX.

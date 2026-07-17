@@ -1,13 +1,16 @@
 """Unit tests for provider audio payload limit detection (GitHub #557)."""
 
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
+from podcast_scraper.config import Config
 from podcast_scraper.exceptions import ProviderRuntimeError
 from podcast_scraper.utils.audio_payload_limits import (
     is_provider_audio_payload_limit_error,
     MISTRAL_VOXTRAL_LOOP_MAX_DURATION_SECONDS,
+    MOSS_CONTEXT_MAX_DURATION_SECONDS,
     OPENAI_GPT4O_TRANSCRIBE_MAX_DURATION_SECONDS,
     transcription_max_bytes,
     transcription_max_chunk_duration_seconds,
@@ -51,6 +54,7 @@ def test_is_provider_audio_payload_limit_exception() -> None:
         ("deepgram", 2 * _GIB),
         ("gemini", 64 * _MIB),  # F1: inline limit raised to 100 MB (2026-01-12)
         ("mistral", 500 * _MIB),  # F1: Voxtral API accepts up to 500 MB
+        ("moss", 2 * _GIB),  # local DGX service, no byte cap → duration governs (#1174)
         ("whisper", 25 * _MIB),  # unconfirmed → conservative OpenAI default
         ("", 25 * _MIB),  # unset provider → default
     ],
@@ -82,6 +86,8 @@ def test_gemini_cap_exceeds_default_but_stays_under_inline_limit() -> None:
         ("mistral", "voxtral-mini-transcribe-2", None),
         ("deepgram", None, None),
         ("gemini", None, None),
+        # MOSS chat-style multimodal truncates past ~30 min → duration-capped (#1174).
+        ("moss", None, MOSS_CONTEXT_MAX_DURATION_SECONDS),
     ],
 )
 def test_transcription_max_chunk_duration_seconds(provider, model, expected) -> None:
@@ -91,6 +97,21 @@ def test_transcription_max_chunk_duration_seconds(provider, model, expected) -> 
         mistral_transcription_model=model,
     )
     assert transcription_max_chunk_duration_seconds(cfg) == expected
+
+
+def test_moss_chunks_by_duration_not_bytes() -> None:
+    """MOSS: high byte cap + a duration cap, so long episodes chunk on duration (#1174)."""
+    cfg = SimpleNamespace(transcription_provider="moss")
+    assert transcription_max_bytes(cfg) == 2 * _GIB
+    assert transcription_max_chunk_duration_seconds(cfg) == MOSS_CONTEXT_MAX_DURATION_SECONDS
+
+
+def test_moss_supports_chunking() -> None:
+    """episode_processor must route MOSS through the AudioChunker path (#1174/#1177)."""
+    from podcast_scraper.workflow.episode_processor import _transcription_provider_supports_chunking
+
+    cfg = cast(Config, SimpleNamespace(transcription_provider="moss"))
+    assert _transcription_provider_supports_chunking(cfg)
 
 
 def test_mistral_voxtral_exposes_both_byte_and_duration_caps() -> None:

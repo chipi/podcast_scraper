@@ -14,6 +14,14 @@ OPENAI_GPT4O_TRANSCRIBE_MAX_DURATION_SECONDS = 1400.0
 # handle long-form natively are exempt (see transcription_max_chunk_duration_seconds).
 MISTRAL_VOXTRAL_LOOP_MAX_DURATION_SECONDS = 1500.0
 
+# MOSS-Transcribe-Diarize is a chat-style multimodal model: audio features and the
+# generated transcript share a 128k context, so a single call truncates episodes over
+# ~30 min (the context fills with audio, then generation stops). Measured on prod audio:
+# a 68-min episode reached only 40% coverage in one pass. Like the Voxtral loop, this is
+# a quality ceiling that behaves like a hard duration limit — cap at 25 min so long
+# episodes are chunked through the shared AudioChunker path (#1174/#1177).
+MOSS_CONTEXT_MAX_DURATION_SECONDS = 1500.0
+
 # Conservative single-request audio byte cap (OpenAI's 25 MiB). Used as the default
 # for every API transcription provider when sizing audio chunks.
 _DEFAULT_MAX_AUDIO_BYTES = 25 * 1024 * 1024
@@ -41,6 +49,11 @@ _GEMINI_MAX_AUDIO_BYTES = 64 * 1024 * 1024
 # from firing prematurely; the duration governor handles long-audio quality.
 _MISTRAL_MAX_AUDIO_BYTES = 500 * 1024 * 1024
 
+# MOSS runs as a local DGX service with no upload/byte cap — the real constraint is
+# context DURATION (see MOSS_CONTEXT_MAX_DURATION_SECONDS), so keep the byte limit high
+# to stop byte-based chunking from firing prematurely; the duration governor handles it.
+_MOSS_MAX_AUDIO_BYTES = 2 * 1024 * 1024 * 1024
+
 # Per-provider overrides go here as each API's real limit is confirmed. Keep the
 # conservative default rather than an unverified higher value — an over-small cap
 # just chunks more (works); an over-large cap risks an oversize upload that fails.
@@ -49,6 +62,7 @@ _PROVIDER_MAX_AUDIO_BYTES: dict[str, int] = {
     "deepgram": _DEEPGRAM_MAX_AUDIO_BYTES,
     "gemini": _GEMINI_MAX_AUDIO_BYTES,
     "mistral": _MISTRAL_MAX_AUDIO_BYTES,
+    "moss": _MOSS_MAX_AUDIO_BYTES,
 }
 
 
@@ -81,6 +95,9 @@ def transcription_max_chunk_duration_seconds(cfg: Any) -> Optional[float]:
         if "transcribe" in model.lower():
             return None
         return MISTRAL_VOXTRAL_LOOP_MAX_DURATION_SECONDS
+    if provider == "moss":
+        # Chat-style multimodal model — a single pass truncates past ~30 min (#1174).
+        return MOSS_CONTEXT_MAX_DURATION_SECONDS
     return None
 
 

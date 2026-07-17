@@ -136,12 +136,13 @@ def test_both_factories_resolve_to_moss() -> None:
     from podcast_scraper.providers.ml.diarization.factory import create_diarization_provider
     from podcast_scraper.transcription.factory import create_transcription_provider
 
+    # No fallback ladder here: with one configured the factory would (correctly) wrap this in a
+    # FallbackChain (RFC-106); this test isolates the moss wiring itself, so it stays bare.
     cfg = config.Config(
         rss="https://example.com/feed.xml",
         transcription_provider="moss",
         diarization_provider="moss",
         dgx_tailnet_host="dgx-llm-1",
-        transcription_fallback_provider="whisper",
     )
     assert isinstance(create_transcription_provider(cfg), MossTranscriptionProvider)
     assert isinstance(create_diarization_provider(cfg), MossDiarizationProvider)

@@ -71,9 +71,9 @@ openai_summary_model: autoresearch  # served-model-name on the vLLM slot
 openai_api_key_env: VLLM_API_KEY
 llm_pipeline_mode: staged
 
-# Cloud fallback for summary if DGX is down.
+# Cloud fallback for summary if DGX is down — the tier is driven by the
+# registry-emitted summary_fallback_providers below (RFC-106 / #1198).
 degradation_policy:
-  fallback_provider_on_failure: gemini
   continue_on_stage_failure: true
 gemini_summary_model: gemini-2.5-flash-lite
 
@@ -158,7 +158,7 @@ quote_extraction_provider: openai
 entailment_provider: openai
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
-transcription_provider: tailnet_dgx_whisper
+transcription_provider: moss
 summary_model: autoresearch
 topic_cluster_threshold: 0.75
 insight_cluster_threshold: 0.75
@@ -166,3 +166,6 @@ gi_insight_chunk_chars: 30000
 gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
+transcription_fallback_providers: [tailnet_dgx_whisper, whisper, openai]
+diarization_fallback_providers: [local, deepgram]
+summary_fallback_providers: [gemini]

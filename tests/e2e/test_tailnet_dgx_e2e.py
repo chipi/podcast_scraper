@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -26,10 +26,7 @@ if PACKAGE_ROOT not in sys.path:
 
 from podcast_scraper import Config  # noqa: E402
 from podcast_scraper.providers import resilience  # noqa: E402
-from podcast_scraper.providers.ml.diarization.base import (  # noqa: E402
-    DiarizationResult,
-    DiarizationSegment,
-)
+from podcast_scraper.providers.ml.diarization.base import DiarizationResult  # noqa: E402
 from podcast_scraper.providers.tailnet_dgx import (  # noqa: E402
     diarization_provider as dp,
     whisper_provider as wp,
@@ -81,7 +78,9 @@ def _diarize_provider(e2e_server, **overrides):
     return p
 
 
-def _whisper_provider(e2e_server, fallback_text="cloud", **overrides):
+def _whisper_provider(e2e_server, **overrides):
+    # RFC-106 (#1198): whisper is a pure DGX tier now — it raises on failure and the FallbackChain
+    # (unit-tested) fails over. These e2e tests assert the tier's own socket-level reaction.
     host, port = e2e_server.urls.dgx_host_port()
     cfg = Config.model_validate(
         {
@@ -98,13 +97,7 @@ def _whisper_provider(e2e_server, fallback_text="cloud", **overrides):
         }
     )
     p = TailnetDgxWhisperTranscriptionProvider(cfg)
-    fb = MagicMock()
-    fb.transcribe_with_segments.return_value = (
-        {"text": fallback_text, "segments": [], "language": "en"},
-        1.0,
-    )
-    p._fallback = fb
-    p._initialized = True  # skip building the real cloud fallback
+    p._initialized = True
     return p
 
 
@@ -117,22 +110,27 @@ class TestDGXWhisperE2E:
         assert "test transcription" in text.lower()
         assert wp._whisper_breaker.state == "closed"
 
-    def test_http_503_fails_over_to_cloud(self, e2e_server):
+    def test_http_503_raises_for_the_chain(self, e2e_server):
+        import httpx
+
         from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
         E2EHTTPRequestHandler.set_error_behavior(_TRANSCRIBE_PATH, status=503)
-        provider = _whisper_provider(e2e_server, fallback_text="cloud-after-503")
+        provider = _whisper_provider(e2e_server)
         with patch.object(wp.time, "sleep"):  # skip retry backoff
-            assert provider.transcribe(str(_AUDIO)) == "cloud-after-503"
+            with pytest.raises(httpx.HTTPStatusError):
+                provider.transcribe(str(_AUDIO))
 
-    def test_hanging_socket_watchdog_fails_over(self, e2e_server):
+    def test_hanging_socket_watchdog_raises(self, e2e_server):
+        from podcast_scraper.providers.resilience import TimeoutLike
         from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
         # status is irrelevant — the client bails during the injected delay.
         E2EHTTPRequestHandler.set_error_behavior(_TRANSCRIBE_PATH, status=200, delay=10.0)
-        provider = _whisper_provider(e2e_server, fallback_text="cloud-after-hang")
+        provider = _whisper_provider(e2e_server)
         with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
-            assert provider.transcribe(str(_AUDIO)) == "cloud-after-hang"
+            with pytest.raises(TimeoutLike):
+                provider.transcribe(str(_AUDIO))
         assert wp._whisper_breaker.state == "open"
 
 
@@ -149,37 +147,24 @@ class TestDGXDiarizeE2E:
         assert {s.speaker for s in result.segments} == {"SPEAKER_00", "SPEAKER_01"}
         assert dp._diarize_breaker.state == "closed"
 
-    def test_http_503_fails_over_to_local(self, e2e_server):
+    def test_http_503_raises_for_the_chain(self, e2e_server):
+        import httpx
+
         from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
         E2EHTTPRequestHandler.set_error_behavior(_DIARIZE_PATH, status=503)
         provider = _diarize_provider(e2e_server)
-        local = MagicMock()
-        local.diarize.return_value = DiarizationResult(
-            segments=[DiarizationSegment(0.0, 1.0, "SPEAKER_00")],
-            num_speakers=1,
-            model_name="local",
-        )
-        with (
-            patch.object(provider, "_get_local_fallback", return_value=local),
-            patch.object(dp.time, "sleep"),
-        ):
-            assert provider.diarize(str(_AUDIO)).model_name == "local"
+        with patch.object(dp.time, "sleep"):
+            with pytest.raises(httpx.HTTPStatusError):
+                provider.diarize(str(_AUDIO))
 
-    def test_hanging_socket_watchdog_fails_over(self, e2e_server):
+    def test_hanging_socket_watchdog_raises(self, e2e_server):
+        from podcast_scraper.providers.resilience import TimeoutLike
         from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
         E2EHTTPRequestHandler.set_error_behavior(_DIARIZE_PATH, status=200, delay=10.0)
         provider = _diarize_provider(e2e_server)
-        local = MagicMock()
-        local.diarize.return_value = DiarizationResult(
-            segments=[DiarizationSegment(0.0, 1.0, "SPEAKER_00")],
-            num_speakers=1,
-            model_name="local-after-hang",
-        )
-        with (
-            patch.object(provider, "_get_local_fallback", return_value=local),
-            patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2),
-        ):
-            assert provider.diarize(str(_AUDIO)).model_name == "local-after-hang"
+        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
+            with pytest.raises(TimeoutLike):
+                provider.diarize(str(_AUDIO))
         assert dp._diarize_breaker.state == "open"

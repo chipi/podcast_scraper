@@ -17,8 +17,10 @@ Wrapped methods:
   evidence stack (insights with ``gi_require_grounding: true`` would all
   drop out).
 
-Wrapping is opt-in via ``degradation_policy.fallback_provider_on_failure`` in
-the profile/config. If unset, no wrapping happens and behavior is unchanged.
+Wrapping is opt-in via the failover ladder in the profile/config. RFC-106 (#1198): the source of
+truth is the registry-emitted ``summary_fallback_providers`` (an ordered chain); the legacy
+``degradation_policy.fallback_provider_on_failure`` is honoured as a one-element chain for profiles
+that predate it. If neither is set, no wrapping happens and behavior is unchanged.
 
 Call-site coverage. The wrapper kicks in at every place a provider instance is
 constructed for a fallback-eligible role:
@@ -38,7 +40,7 @@ The wrapper is transparent to callers: pass-through of non-protocol attributes
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Sequence, Union
 
 from .. import config
 from .base import SummarizationProvider
@@ -90,26 +92,37 @@ class FallbackAwareSummarizationProvider:
     def __init__(
         self,
         primary: SummarizationProvider,
-        fallback_provider_name: str,
+        fallback_provider_names: Union[str, Sequence[str]],
         cfg: config.Config,
     ) -> None:
+        # RFC-106 (#1198): the fallback is an ORDERED chain, tried in sequence. A bare string is
+        # accepted for back-compat (the RFC-089 single-fallback shape) and normalised to one tier.
+        if isinstance(fallback_provider_names, str):
+            fallback_provider_names = [fallback_provider_names]
         self._primary = primary
-        self._fallback_name = str(fallback_provider_name).strip().lower()
+        self._fallback_names: List[str] = [
+            str(n).strip().lower() for n in fallback_provider_names if str(n).strip()
+        ]
         self._cfg = cfg
-        self._fallback: Optional[SummarizationProvider] = None
+        self._fallbacks: Dict[str, SummarizationProvider] = {}
         self._fallback_recorded = False
 
     def initialize(self) -> None:
-        """Initialize the primary provider. Fallback is built lazily on first failure."""
+        """Initialize the primary provider. Fallback tiers are built lazily on first failure."""
         self._primary.initialize()
 
     def cleanup(self) -> None:
-        """Release primary, then fallback (if it was built). Runs both even if primary raises."""
+        """Release primary, then every built fallback tier. Each release is independent — one tier
+        raising on cleanup does not leak the others."""
         try:
             self._primary.cleanup()
         finally:
-            if self._fallback is not None and hasattr(self._fallback, "cleanup"):
-                self._fallback.cleanup()
+            for name, fb in self._fallbacks.items():
+                if hasattr(fb, "cleanup"):
+                    try:
+                        fb.cleanup()
+                    except Exception as exc:  # noqa: BLE001 - best-effort cleanup
+                        logger.warning("fallback tier '%s' cleanup failed: %s", name, exc)
 
     def warmup(self, timeout_s: int = 600) -> None:
         """Warm up the primary if it supports it. Fallback is cloud, no warmup needed."""
@@ -129,56 +142,59 @@ class FallbackAwareSummarizationProvider:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return primary_fn(*args, **kwargs)
-            except Exception as primary_exc:  # noqa: BLE001 — fallback contract
-                logger.warning(
-                    "Primary summarization provider failed on %s; attempting fallback "
-                    "to '%s'. Primary error: %s",
-                    method_name,
-                    self._fallback_name,
-                    primary_exc,
-                )
-                try:
-                    fallback = self._get_or_build_fallback()
-                    fallback_fn = getattr(fallback, method_name, None)
-                    if fallback_fn is None:
-                        logger.error(
-                            "Fallback provider '%s' does not implement %s; re-raising primary",
-                            self._fallback_name,
-                            method_name,
-                        )
-                        raise primary_exc
-                    result = fallback_fn(*args, **kwargs)
-                    self._record_fallback_once(kwargs.get("pipeline_metrics"))
-                    return result
-                except Exception as fallback_exc:  # noqa: BLE001
-                    logger.error(
-                        "Fallback provider '%s' also failed on %s: %s; re-raising primary",
-                        self._fallback_name,
+            except Exception as primary_exc:  # noqa: BLE001 — fallback contract (RFC-089/RFC-106)
+                # Walk the ordered chain; the first tier that succeeds wins. This preserves the
+                # RFC-089 contract of falling back on ANY primary failure (the LLM stage does not
+                # apply is_infra_failure — a DGX-down summary retries on cloud regardless).
+                for fb_name in self._fallback_names:
+                    logger.warning(
+                        "Primary summarization provider failed on %s; trying fallback tier '%s'. "
+                        "Primary error: %s",
                         method_name,
-                        fallback_exc,
+                        fb_name,
+                        primary_exc,
                     )
-                    raise primary_exc
+                    try:
+                        fallback = self._get_or_build_fallback(fb_name)
+                        fallback_fn = getattr(fallback, method_name, None)
+                        if fallback_fn is None:
+                            logger.error(
+                                "Fallback tier '%s' does not implement %s; trying next tier",
+                                fb_name,
+                                method_name,
+                            )
+                            continue
+                        result = fallback_fn(*args, **kwargs)
+                        self._record_fallback_once(kwargs.get("pipeline_metrics"), fb_name)
+                        return result
+                    except Exception as fallback_exc:  # noqa: BLE001
+                        logger.error(
+                            "Fallback tier '%s' also failed on %s: %s; trying next tier",
+                            fb_name,
+                            method_name,
+                            fallback_exc,
+                        )
+                        continue
+                # Chain exhausted (or empty): surface the primary error so the existing degradation
+                # policy applies.
+                raise primary_exc
 
         wrapper.__name__ = method_name
         return wrapper
 
-    def _get_or_build_fallback(self) -> SummarizationProvider:
-        if self._fallback is None:
+    def _get_or_build_fallback(self, name: str) -> SummarizationProvider:
+        fallback = self._fallbacks.get(name)
+        if fallback is None:
             from .factory import create_summarization_provider
 
-            logger.info(
-                "Building fallback summarization provider '%s' on first failure",
-                self._fallback_name,
-            )
-            fallback = create_summarization_provider(
-                self._cfg, provider_type_override=self._fallback_name
-            )
+            logger.info("Building fallback summarization provider '%s' on first failure", name)
+            fallback = create_summarization_provider(self._cfg, provider_type_override=name)
             if hasattr(fallback, "initialize"):
                 fallback.initialize()
-            self._fallback = fallback
-        return self._fallback
+            self._fallbacks[name] = fallback
+        return fallback
 
-    def _record_fallback_once(self, pipeline_metrics: Any) -> None:
+    def _record_fallback_once(self, pipeline_metrics: Any, fallback_name: str) -> None:
         if self._fallback_recorded:
             return
         if pipeline_metrics is None:
@@ -186,32 +202,48 @@ class FallbackAwareSummarizationProvider:
         record_fn = getattr(pipeline_metrics, "record_llm_summary_fallback_active", None)
         if callable(record_fn):
             try:
-                record_fn(self._fallback_name)
+                record_fn(fallback_name)
                 self._fallback_recorded = True
             except Exception as exc:  # noqa: BLE001 — metrics are best-effort
                 logger.debug("Failed to record fallback metric: %s", exc)
+
+
+def _summary_fallback_chain(cfg: config.Config) -> List[str]:
+    """The ordered LLM/summary failover ladder for ``cfg`` (RFC-106 / #1198).
+
+    Prefers the registry-emitted ``summary_fallback_providers`` (the source of truth). Falls back to
+    the legacy ``degradation_policy.fallback_provider_on_failure`` (RFC-089) as a one-element chain
+    for profiles that predate the registry chain. Any tier equal to the primary is dropped — there
+    is no point failing over to the provider that just failed.
+    """
+    primary_name = str(cfg.summary_provider or "").strip().lower()
+    chain = [
+        str(p).strip().lower()
+        for p in (getattr(cfg, "summary_fallback_providers", None) or [])
+        if str(p).strip()
+    ]
+    if not chain:
+        policy: Dict[str, Any] = getattr(cfg, "degradation_policy", None) or {}
+        legacy = policy.get("fallback_provider_on_failure") if isinstance(policy, dict) else None
+        if legacy:
+            chain = [str(legacy).strip().lower()]
+    return [name for name in chain if name and name != primary_name]
 
 
 def wrap_with_fallback_if_configured(
     primary: SummarizationProvider,
     cfg: config.Config,
 ) -> SummarizationProvider:
-    """Wrap ``primary`` in ``FallbackAwareSummarizationProvider`` if the config
-    declares ``degradation_policy.fallback_provider_on_failure``.
+    """Wrap ``primary`` in ``FallbackAwareSummarizationProvider`` if the config declares an LLM
+    failover ladder (registry-emitted ``summary_fallback_providers`` or the legacy
+    ``degradation_policy.fallback_provider_on_failure``).
 
-    Returns the primary unchanged when no fallback is configured. The returned
-    object satisfies the same protocol as the primary.
+    Returns the primary unchanged when no fallback is configured. The returned object satisfies the
+    same protocol as the primary. Provider-agnostic: it wraps whatever the summary primary is —
+    DGX-served vLLM (an ``openai``-protocol provider) or ``ollama`` — and fails over to the cloud
+    tier(s) in the chain.
     """
-    policy: Dict[str, Any] = getattr(cfg, "degradation_policy", None) or {}
-    fallback_name = policy.get("fallback_provider_on_failure") if isinstance(policy, dict) else None
-    if not fallback_name:
+    chain = _summary_fallback_chain(cfg)
+    if not chain:
         return primary
-    if str(fallback_name).strip().lower() == str(cfg.summary_provider or "").strip().lower():
-        logger.warning(
-            "degradation_policy.fallback_provider_on_failure (%s) matches summary_provider "
-            "(%s); skipping fallback wrapper (no point falling back to the same provider).",
-            fallback_name,
-            cfg.summary_provider,
-        )
-        return primary
-    return FallbackAwareSummarizationProvider(primary, fallback_name, cfg)
+    return FallbackAwareSummarizationProvider(primary, chain, cfg)

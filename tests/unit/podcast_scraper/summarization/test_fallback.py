@@ -375,5 +375,59 @@ class TestWrapWithFallbackIfConfigured:
         # No point falling back to the same provider.
         cfg = MagicMock()
         cfg.summary_provider = "ollama"
+        cfg.summary_fallback_providers = []
         cfg.degradation_policy = {"fallback_provider_on_failure": "ollama"}
         assert wrap_with_fallback_if_configured(primary_ok, cfg) is primary_ok
+
+
+class TestRegistryChainSourcing:
+    """RFC-106 (#1198): the registry-emitted ``summary_fallback_providers`` is the source of truth
+    for the LLM failover ladder; the legacy ``degradation_policy`` is back-compat only."""
+
+    def test_registry_chain_wraps(self, primary_ok: _FakeProvider) -> None:
+        cfg = MagicMock()
+        cfg.summary_provider = "openai"  # vLLM served over the openai protocol
+        cfg.summary_fallback_providers = ["gemini"]
+        cfg.degradation_policy = None
+        wrapped = wrap_with_fallback_if_configured(primary_ok, cfg)
+        assert isinstance(wrapped, FallbackAwareSummarizationProvider)
+        assert wrapped._fallback_names == ["gemini"]
+
+    def test_registry_chain_takes_precedence_over_legacy_policy(
+        self, primary_ok: _FakeProvider
+    ) -> None:
+        cfg = MagicMock()
+        cfg.summary_provider = "ollama"
+        cfg.summary_fallback_providers = ["gemini"]
+        cfg.degradation_policy = {"fallback_provider_on_failure": "openai"}  # ignored
+        wrapped = wrap_with_fallback_if_configured(primary_ok, cfg)
+        assert isinstance(wrapped, FallbackAwareSummarizationProvider)
+        assert wrapped._fallback_names == ["gemini"]
+
+    def test_chain_drops_the_tier_equal_to_primary(self, primary_ok: _FakeProvider) -> None:
+        cfg = MagicMock()
+        cfg.summary_provider = "gemini"
+        cfg.summary_fallback_providers = ["gemini"]  # same as primary -> dropped -> no wrap
+        cfg.degradation_policy = None
+        assert wrap_with_fallback_if_configured(primary_ok, cfg) is primary_ok
+
+    def test_ordered_chain_tries_second_tier_when_first_fails(
+        self, primary_broken: _FakeProvider, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        tier1 = _FakeProvider("gemini", raises=ValueError("gemini quota"))
+        tier2 = _FakeProvider("openai")
+        built: dict[str, _FakeProvider] = {"gemini": tier1, "openai": tier2}
+
+        def fake_create(cfg: Any, provider_type_override: Optional[str] = None) -> Any:
+            return built[str(provider_type_override)]
+
+        monkeypatch.setattr(
+            "podcast_scraper.summarization.factory.create_summarization_provider", fake_create
+        )
+        wrapped = FallbackAwareSummarizationProvider(
+            primary_broken, ["gemini", "openai"], MagicMock()
+        )
+        metrics = _FakeMetrics()
+        result = wrapped.summarize("text", pipeline_metrics=metrics)
+        assert result == {"summary": "from-openai"}  # first tier failed, second served
+        assert metrics.calls == ["openai"]  # attribution names the tier that actually won

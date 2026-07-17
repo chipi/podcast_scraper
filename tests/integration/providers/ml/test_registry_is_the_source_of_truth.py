@@ -180,6 +180,34 @@ def test_the_profile_never_contradicts_the_registry(
     )
 
 
+# Fields the resolver OMITS when empty (no chain, or fully stripped by allow_cloud_fallback=False).
+# For these, absence-in-the-registry must mean absence-in-the-YAML — a stale key left behind would
+# otherwise inject a fallback (including a cloud tier a fail-closed profile forbids) that the
+# registry never emitted, and the contradiction test above skips it because it is not in `resolved`.
+_OMITTED_WHEN_EMPTY = (
+    "transcription_fallback_providers",
+    "diarization_fallback_providers",
+    "summary_fallback_providers",
+)
+
+
+@pytest.mark.parametrize("name,path,data", GOVERNED_PROFILES, ids=_IDS)
+def test_no_orphan_fallback_chain_in_the_profile(
+    name: str, path: Path, data: Dict[str, Any]
+) -> None:
+    """A ``*_fallback_providers`` key must never appear in a profile the registry did not emit it for
+    (RFC-106 #1198). Guards the fail-closed invariant: a hand-added or stale chain — e.g. a cloud
+    tier in an ``allow_cloud_fallback=False`` profile — is caught even though the registry omits the
+    key (so the general contradiction check cannot see it)."""
+    resolved = resolve_profile_to_settings(name)
+    orphans = {k: data[k] for k in _OMITTED_WHEN_EMPTY if k in data and k not in resolved}
+    assert not orphans, (
+        f"{path.name} carries fallback chains the registry did not emit: {orphans}. "
+        f"Remove them (or set them on the ProfilePreset) and run `make profiles-materialize` — a "
+        f"stale/hand-added chain bypasses the registry and can defeat allow_cloud_fallback."
+    )
+
+
 # ---------------------------------------------------------------------------------------------
 # 3. THE DEFAULT IS THE DEFAULT — a code path with no profile must not run a different pipeline.
 # ---------------------------------------------------------------------------------------------
