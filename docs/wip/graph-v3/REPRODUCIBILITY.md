@@ -86,6 +86,36 @@ print(len(discover_episode_bundles(Path('.test_outputs/manual/prod-v2/corpus')))
 # → 99
 ```
 
-So running `make enrich CORPUS=.test_outputs/manual/prod-v2/corpus CORPUS_ONLY=1`
-should now produce the artifacts locally. Nothing beyond a green enrichment
-run stands between the sibling-worktree `cp` and full local reproducibility.
+## End-to-end reproducibility run (2026-07-17)
+
+Ran the full enrichment set locally to prove reproducibility.
+
+```bash
+make enrich CORPUS=.test_outputs/manual/prod-v2/corpus \
+    WITH_ML=1 CORPUS_ONLY=1 PROFILE=cloud_balanced
+```
+
+**Result: 8 of 9 corpus-scope enrichers regenerated cleanly**, replacing the
+sibling-worktree `cp`s under `.test_outputs/manual/prod-v2/corpus/enrichments/`.
+
+| Enricher | Result | Notes |
+|---|---|---|
+| `topic_cooccurrence_corpus` | ✓ | 1.54 MB, deterministic |
+| `topic_theme_clusters` | ✓ | 6 clusters — semantically identical to the sibling copy |
+| `grounding_rate` | ✓ | 125 persons |
+| `guest_coappearance` | ✓ | 87 pairs |
+| `topic_similarity` | ✓ | 1 MB, ML tier (sentence-transformers `all-MiniLM-L6-v2` local) |
+| `topic_consensus` | ✓ | 22 rows, ML tier (`all-MiniLM-L6-v2` + `deberta-v3-small` NLI local, ~2 min) |
+| `temporal_velocity` | **✗** | Enricher v1.2.0 in this repo (vs v1.0.0 that produced the sibling copy); v1.2.0 fails silently on prod-v2 after 183 ms. Separate bug — not in graph-v3 scope. The pre-existing v1.0.0 output stays in place and the viewer velocity-halo lens keeps working against it. |
+| `insight_density` | (skipped) | Episode-scope, filtered out by `--corpus-only` |
+| `insight_sentiment` | (skipped) | Same |
+
+**Delta from sibling `cp`**: nothing structural. Only `temporal_velocity`
+remains from the sibling until its v1.2.0 regression is investigated. Also
+`nli_contradiction.json` (deprecated by ADR-108, superseded by `topic_consensus`)
+is left untouched.
+
+**Follow-up (separate arc)**: fix or revert `temporal_velocity` v1.2.0. The
+error record has `status:failed` + `duration_ms:183` but no `failure_message`
+— add one to the enrichment framework so future regressions surface
+diagnostics automatically.
