@@ -71,9 +71,9 @@ openai_summary_model: autoresearch  # served-model-name on the vLLM slot
 openai_api_key_env: VLLM_API_KEY
 llm_pipeline_mode: staged
 
-# Cloud fallback for summary if DGX is down.
+# Cloud fallback for summary if DGX is down — the tier is driven by the
+# registry-emitted summary_fallback_providers below (RFC-105 / #1198).
 degradation_policy:
-  fallback_provider_on_failure: gemini
   continue_on_stage_failure: true
 gemini_summary_model: gemini-2.5-flash-lite
 
