@@ -1,7 +1,19 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+/* USERPREFS-1 — NodeDetail transitively pulls in stores that write through
+ *  to /api/app/preferences. Under happy-dom those fetches resolve against
+ *  http://localhost:3000 and hang for the httpClient's 120s timeout; the
+ *  dangling promises then bleed into whichever test file the worker runs
+ *  next (bit GraphLensesChip 4x in the graph-scoped suite). Hoisted mock
+ *  keeps every fetch inside this file's boundary. */
+vi.mock('../../api/userPreferencesApi', () => ({
+  fetchUserPreferences: vi.fn().mockResolvedValue(null),
+  patchUserPreferences: vi.fn().mockResolvedValue(null),
+  replaceUserPreferences: vi.fn().mockResolvedValue(null),
+}))
 
 import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
 import { useShellStore } from '../../stores/shell'
@@ -19,7 +31,18 @@ const STUBS = {
   TranscriptViewerDialog: true,
   PodcastCover: true,
   TopicEntityView: { name: 'TopicEntityView', template: '<div data-testid="topic-entity-view" />' },
-  NodeEnrichmentSection: true,
+  /* Explicit stub (not `true`) because `nodeType` is a native DOM getter on
+   *  every Element; the auto-stub renders as `<node-enrichment-section-stub>`
+   *  and setProp fires setAttribute on the DOM node, which explodes with
+   *  "Cannot set property nodeType of [object Object] which has only a
+   *  getter". Declaring the prop on a real component sinks the write into
+   *  the component instance instead of the DOM element. */
+  NodeEnrichmentSection: {
+    name: 'NodeEnrichmentSection',
+    props: ['nodeId', 'nodeType'],
+    emits: ['has-content'],
+    template: '<div data-testid="node-enrichment-section-stub" />',
+  },
   // Keep HelpTip rendering its default slot so trigger labels are assertable,
   // but stub the popover machinery to a passthrough.
   HelpTip: {

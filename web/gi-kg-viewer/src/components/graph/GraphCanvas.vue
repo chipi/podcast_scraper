@@ -70,7 +70,10 @@ import {
 } from '../../utils/graphHandoffInvariant'
 import { resolveHandoffCandidateNode } from '../../utils/graphHandoffRestore'
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
-import { syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
+import {
+  syncGraphLabelTierClasses,
+  syncGraphNodeVisibilityTierClasses,
+} from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import {
   computeRadialPositions,
@@ -1167,6 +1170,41 @@ function annotateBridgesWithThemes(
   })
 }
 
+/** graph-v3 Tier 6-4 — bridge hover tooltip.
+ *  When the cursor lands on a `.graph-bridge` node, mutate the canvas
+ *  container's native `title` attribute so the OS tooltip surfaces the
+ *  themes this bridge spans (populated by `annotateBridgesWithThemes`).
+ *  Native `title` gives the ~0.5s hover delay users expect and zero
+ *  extra DOM/JS surface — Cytoscape draws to canvas so there is no
+ *  per-node element to hang tippy off cheaply. Non-bridge hovers clear
+ *  the attribute so we never leave a stale tooltip attached. */
+function maybeSetBridgeHoverTitle(
+  el: HTMLElement | null,
+  node: NodeSingular,
+): void {
+  if (!el) return
+  if (!node.hasClass('graph-bridge')) {
+    if (el.hasAttribute('title')) el.removeAttribute('title')
+    return
+  }
+  const raw = node.data('bridgedThemeLabels')
+  const labels = Array.isArray(raw)
+    ? raw.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    : []
+  if (labels.length < 2) {
+    /* Bridge without theme-cluster context (theme regions lens off or
+       artifact missing) — still surface a minimal tooltip so users
+       understand the rose ring. */
+    el.setAttribute('title', 'Bridge node — connects distinct neighbourhoods')
+    return
+  }
+  el.setAttribute('title', `Bridge: ${labels.join(' ↔ ')}`)
+}
+
+function clearBridgeHoverTitle(el: HTMLElement | null): void {
+  if (el && el.hasAttribute('title')) el.removeAttribute('title')
+}
+
 /** graph-v3 K — bridge nodes via normalized betweenness centrality.
  *  Runs once post-layout. Semantically-eligible node types (Topic,
  *  Podcast, Entity_person, Entity_organization) with betweenness above
@@ -1592,6 +1630,7 @@ function attachZoomRecenter(core: Core): void {
       lastZoomLevel = z
       updateZoomPercentDisplay(c)
       syncGraphLabelTierClasses(c)
+      syncGraphNodeVisibilityTierClasses(c)
       return
     }
 
@@ -1623,6 +1662,7 @@ function attachZoomRecenter(core: Core): void {
     lastZoomLevel = c.zoom()
     updateZoomPercentDisplay(c)
     syncGraphLabelTierClasses(c)
+    syncGraphNodeVisibilityTierClasses(c)
     if (!zoomedOut) return
     if (selectedNodeId.value) {
       return
@@ -1723,6 +1763,7 @@ function finishLayoutPass(core: Core): void {
   lastZoomLevel = cy.zoom()
   updateZoomPercentDisplay(cy)
   syncGraphLabelTierClasses(cy)
+  syncGraphNodeVisibilityTierClasses(cy)
   attachZoomRecenter(core)
   applySearchHighlights(core)
   /** ``tryApplyPendingFocus`` first so Library/Digest **Open in graph** camera wins; episode strip skips
@@ -3536,14 +3577,17 @@ function redraw(): void {
        stylesheet smooths the flicker as the cursor slides between nodes. */
     core.on('mouseover', 'node', (e) => {
       try {
+        const target = e.target as NodeSingular
+        maybeSetBridgeHoverTitle(container.value, target)
         if (core.nodes(':selected').length > 0) return
-        applyGraphSelectionDimFromNode(core, e.target as NodeSingular)
+        applyGraphSelectionDimFromNode(core, target)
       } catch {
         /* ignore */
       }
     })
     core.on('mouseout', 'node', () => {
       try {
+        clearBridgeHoverTitle(container.value)
         if (core.nodes(':selected').length > 0) return
         clearGraphSelectionDim(core)
       } catch {
@@ -4234,6 +4278,7 @@ onMounted(() => {
       try {
         c.style().fromJson(buildCyStyle() as never).update()
         syncGraphLabelTierClasses(c)
+        syncGraphNodeVisibilityTierClasses(c)
       } catch {
         /* ignore */
       }

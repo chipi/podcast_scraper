@@ -87,19 +87,36 @@ const LABEL_SHORT_TIER_TYPES = [
 ] as const
 
 /** Main profile node diameters (WIP §3.1), before compact scale.
- *  graph-v3 H — Episode bumped 18 → 22 so its round-rectangle has room
- *  to read as a card without dominating the graph. Paired with an aspect
- *  scale (see NODE_ASPECT_W below). */
+ *
+ *  graph-v3 tier 6-1 (2026-07-17) — explicit 4-tier hierarchy so the
+ *  graph reads as "knowledge nodes with plumbing connectors" rather than
+ *  "everyone is medium-sized":
+ *
+ *    Compound     TopicCluster 48   (must dominate; wraps others)
+ *    Value        Insight 44, Topic 40   (the thinking + what it's about)
+ *    Container    Episode 22 (aspect 1.35 → 30w × 22h card)
+ *    Plumbing     Entity_person, Entity_organization, Speaker,
+ *                 Podcast, Quote   → 12 flat dots
+ *
+ *  Plumbing dots preserve degreeHeat scaling (V5), so a hub Entity_person
+ *  with heat=1 still reads at ~18px — small enough to recede, large
+ *  enough that important connectors don't disappear. Prior sizes at 18-34
+ *  for KG connectors made the whole canvas feel same-weight; this puts
+ *  Insights + Topics on top of a low-visual-weight connectivity fabric.
+ *
+ *  Previous:
+ *    Insight 44 · Topic 40 · TopicCluster 48 · Entity_person 34 ·
+ *    Entity_organization 26 · Quote 22 · Speaker 18 · Episode 22 · Podcast 18 */
 const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
   Insight: 44,
   Topic: 40,
   TopicCluster: 48,
-  Entity_person: 34,
-  Entity_organization: 26,
-  Quote: 22,
-  Speaker: 18,
   Episode: 22,
-  Podcast: 18,
+  Entity_person: 12,
+  Entity_organization: 12,
+  Quote: 12,
+  Speaker: 12,
+  Podcast: 12,
 }
 
 /** graph-v3 H+I — width multiplier for rectangular shapes so they read as
@@ -416,21 +433,26 @@ export function buildGiKgCyStylesheet(options?: {
     },
   ]
 
-  /* graph-v3 F — semantic shape per node type so "same-size circles" stop
-     dominating the read. Person + Topic stay ellipse (humans + concepts are
-     the mental-model default); everything else gets a shape that carries
-     meaning:
-       - Podcast → hexagon (container-of-episodes, distinct silhouette)
-       - Episode → round-rectangle (content card, familiar UI paradigm)
-       - Insight → diamond (proposition, stands out at neighbourhood zoom)
-       - Quote → round-tag (attributed snippet)
-       - Speaker → round-diamond (small speech-act marker, disjoint from Insight)
-       - Entity_organization → round-rectangle (institution)
+  /* graph-v3 F + tier 6-1a — semantic shape per node type. Operator UX
+     call 2026-07-17: **circles for big green knowledge, squares for
+     smaller purple concepts** — Insight becomes ellipse (was diamond)
+     and Topic becomes round-rectangle (was ellipse). The visual grammar
+     now reads:
+       Insight (green ellipse, big)     — the thinking (circles = knowledge)
+       Topic   (purple round-rect, med) — what it's about (squares = concepts)
+       Podcast → hexagon (container-of-episodes, distinct silhouette)
+       Episode → round-rectangle (aspect 1.35 → card feel; distinct
+                                  from Topic's square via aspect)
+       Quote → round-tag (attributed snippet)
+       Speaker → round-diamond (small speech-act marker)
+       Entity_organization → round-rectangle (institution; small dot after tier 6-1)
+     Person + Entity_person stay ellipse (humans-as-circles default).
      TopicCluster keeps its existing `roundrectangle` compound shape. */
   const shapeByType: Partial<Record<(typeof VISUAL_TYPES)[number], string>> = {
+    Topic: 'round-rectangle',
+    Insight: 'ellipse',
     Podcast: 'hexagon',
     Episode: 'round-rectangle',
-    Insight: 'diamond',
     Quote: 'round-tag',
     Speaker: 'round-diamond',
     Entity_organization: 'round-rectangle',
@@ -458,6 +480,14 @@ export function buildGiKgCyStylesheet(options?: {
     // for elements carrying the field, so Quote / Speaker / Insight /
     // Podcast stay at their fixed base. Aspect ratio preserved by
     // scaling width and height independently against per-type base.
+    //
+    // graph-v3 tier 6-1b (2026-07-17) — plumbing types (Entity_person,
+    // Entity_organization) use a tighter min so a low-heat plumbing node
+    // never drops below ~10px. 12 base × 0.7 = 8.4px was borderline
+    // invisible on DPR-2; 0.85 × 12 = 10.2px stays legible while still
+    // shrinking the least-connected connectors relative to hubs.
+    // Value tier (Topic + Episode) keeps the wider 0.7–1.5 range so
+    // degree emphasis stays dramatic.
     if (
       sizeByDegree &&
       (t === 'Topic' ||
@@ -465,9 +495,11 @@ export function buildGiKgCyStylesheet(options?: {
         t === 'Entity_person' ||
         t === 'Entity_organization')
     ) {
-      const wLo = Math.round(w * 0.7)
+      const isPlumbing = t === 'Entity_person' || t === 'Entity_organization'
+      const loScale = isPlumbing ? 0.85 : 0.7
+      const wLo = Math.round(w * loScale)
       const wHi = Math.round(w * 1.5)
-      const hLo = Math.round(h * 0.7)
+      const hLo = Math.round(h * loScale)
       const hHi = Math.round(h * 1.5)
       style.push({
         selector: `node[type = "${t}"][degreeHeat]`,
@@ -550,6 +582,23 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'node.graph-label-tier-none',
     style: {
       'text-opacity': 0,
+    },
+  })
+
+  /* graph-v3 tier 6-2 — zoom-gated Insight + Quote visibility. Applied
+     by `syncGraphNodeVisibilityTierClasses` when zoom drops below
+     GRAPH_NODE_ZOOM_INSIGHT_MIN. Hides the body + labels + disables
+     interaction so hovering / clicking passes through to Topics /
+     Persons underneath — the initial fit-all view stops being 400+
+     green dots and reads as a topic-and-episode map. Above the
+     threshold the class is removed and Insights / Quotes fade back in
+     (opacity transition already declared on the base `node` rule). */
+  style.push({
+    selector: 'node.graph-node-zoom-hidden',
+    style: {
+      opacity: 0,
+      'text-opacity': 0,
+      events: 'no',
     },
   })
   style.push({

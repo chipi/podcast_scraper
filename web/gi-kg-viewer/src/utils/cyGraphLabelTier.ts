@@ -41,3 +41,27 @@ export function syncGraphLabelTierClasses(core: Core): void {
     core.nodes().addClass(tier)
   })
 }
+
+/** graph-v3 tier 6-2 — hide Insight + Quote nodes below this zoom.
+ *  At the initial fit-all zoom (~0.3 on prod-v2) the canvas holds 400+
+ *  green Insight dots that visually dominate before the user has zoomed
+ *  in to actually read anything. Above this threshold they fade in so
+ *  the neighbourhood-read is preserved. Chosen slightly lower than the
+ *  label short/full threshold so Insight bodies appear a beat before
+ *  their labels do. */
+export const GRAPH_NODE_ZOOM_INSIGHT_MIN = 0.9
+
+/** Class the stylesheet paints as `opacity: 0` + `events: no` + `visibility: hidden`. */
+export type GraphNodeVisibilityClass = 'graph-node-zoom-hidden'
+
+/** graph-v3 tier 6-2 — apply the zoom-gated visibility class to Insight + Quote
+ *  nodes. Called from the same zoom listener that drives `syncGraphLabelTierClasses`. */
+export function syncGraphNodeVisibilityTierClasses(core: Core): void {
+  const z = core.zoom()
+  const shouldHide = z < GRAPH_NODE_ZOOM_INSIGHT_MIN
+  core.batch(() => {
+    const targets = core.nodes('[type = "Insight"], [type = "Quote"]')
+    if (shouldHide) targets.addClass('graph-node-zoom-hidden')
+    else targets.removeClass('graph-node-zoom-hidden')
+  })
+}

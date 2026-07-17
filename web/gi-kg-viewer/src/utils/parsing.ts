@@ -1275,6 +1275,13 @@ function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
   return allowedEdgeTypes
 }
 
+/** graph-v3 tier 6-3 — types whose filter defaults to OFF so the initial
+ *  canvas isn't drowned by evidence / diarization plumbing. Users can
+ *  re-enable via the Types chip. Deliberately conservative: only the
+ *  highest-count evidence types default off; anything a viewer might
+ *  reasonably expect to see on first load stays on. */
+const DEFAULT_HIDDEN_TYPES: ReadonlySet<string> = new Set(['Quote', 'Speaker'])
+
 export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState | null {
   if (!art) return null
   const allowedTypes: Record<string, boolean> = {}
@@ -1285,7 +1292,7 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
     const t = n.type || '?'
     if (!seen.has(t)) {
       seen.add(t)
-      allowedTypes[t] = true
+      allowedTypes[t] = !DEFAULT_HIDDEN_TYPES.has(t)
     }
   }
   return {

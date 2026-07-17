@@ -27,6 +27,12 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.test.ts'],
+    /* USERPREFS-1 — global mock for /api/app/preferences write-through.
+       Every feature store (graphLenses, theme, panels, corpus path, …)
+       PATCHes the user-prefs endpoint on state change; under happy-dom
+       those relative fetches hang for the 120s httpClient timeout and
+       bleed between test files in the same worker. See src/test/setup.ts. */
+    setupFiles: ['src/test/setup.ts'],
     // Ensure Vitest never initializes PostHog (no token); avoids flaky network side effects.
     env: {
       VITE_POSTHOG_PROJECT_TOKEN: '',
