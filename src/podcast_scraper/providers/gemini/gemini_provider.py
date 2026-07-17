@@ -273,9 +273,14 @@ class GeminiProvider:
             if http_options_kwargs:
                 client_kwargs["http_options"] = genai_types.HttpOptions(**http_options_kwargs)
         elif gemini_api_base:
-            logger.warning(
-                "gemini_api_base is set but google.genai.types not available; "
-                "requests will use default API."
+            # gemini_api_base is set but the SDK's types aren't importable to apply it.
+            # FAIL LOUD instead of silently building a client against the hosted Gemini
+            # API (same trap as the Deepgram provider): a configured base — the CI mock
+            # server or a self-hosted endpoint — must be honored or error, never quietly
+            # fall through to production.
+            raise RuntimeError(
+                "gemini_api_base is set but google.genai.types is unavailable to apply "
+                "it; refusing to build a client against the default hosted Gemini API."
             )
         self.client = genai.Client(**client_kwargs)
 

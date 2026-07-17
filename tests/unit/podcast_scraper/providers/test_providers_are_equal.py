@@ -75,6 +75,25 @@ def test_every_provider_has_every_capability(provider: str, capability: str) -> 
     )
 
 
+@pytest.mark.parametrize("provider", LLM_PROVIDERS)
+def test_every_provider_honors_its_api_base(provider: str) -> None:
+    """Uniform contract: every provider reads ``<provider>_api_base`` to route the client.
+
+    The Deepgram/Gemini incident: a configured base (the CI mock server or a self-hosted
+    endpoint) that the SDK couldn't apply was SILENTLY dropped, and the client hit the
+    REAL hosted API — a 401 in CI, and in prod audio leak + spend. The base-application
+    code legitimately differs by SDK (OpenAI ``base_url`` vs Mistral ``server_url`` vs
+    Gemini ``HttpOptions`` vs Deepgram env), but the contract must not: no provider may
+    ignore its base, and when it can't honor a configured base it must fail loud rather
+    than fall through to production.
+    """
+    src = (SRC / provider / f"{provider}_provider.py").read_text()
+    assert f"{provider}_api_base" in src, (
+        f"{provider} never reads {provider}_api_base — the CI mock / self-hosted base is "
+        f"ignored, so the client silently hits the real hosted API (the Deepgram trap)."
+    )
+
+
 @pytest.mark.parametrize(
     "family",
     [
