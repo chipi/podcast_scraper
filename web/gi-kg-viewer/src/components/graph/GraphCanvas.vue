@@ -25,6 +25,7 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
+import { useGraphThemeFocusStore } from '../../stores/graphThemeFocus'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -110,6 +111,7 @@ const emit = defineEmits<{
 
 const gf = useGraphFilterStore()
 const lenses = useGraphLensesStore()
+const themeFocus = useGraphThemeFocusStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
@@ -766,6 +768,38 @@ function clearGraphSelectionDim(core: Core): void {
   core.batch(() => {
     core.nodes().removeClass('graph-dimmed graph-focused graph-neighbour')
     core.edges().removeClass('graph-edge-dimmed graph-edge-neighbour')
+  })
+}
+
+/** graph-v3 tier 7-3 — theme-focus dim.
+ *  Called from the legend focus bus (`useGraphThemeFocusStore`). Every node
+ *  whose `themeClusterId` is IN the provided set is treated as focused;
+ *  everything else is dimmed. Edges are dimmed unless BOTH endpoints are in
+ *  the focus set. `themeClusterId` is propagated onto Insight / Episode /
+ *  Person / Podcast / Org nodes upstream (see graph-v3 tier T), so the
+ *  focus signal reaches the whole community, not just its TopicCluster
+ *  parent. Empty set clears back to the default view.  */
+function applyGraphSelectionDimFromThemeIds(core: Core, themeIds: Set<string>): void {
+  if (themeIds.size === 0) {
+    clearGraphSelectionDim(core)
+    return
+  }
+  core.batch(() => {
+    core.nodes().addClass('graph-dimmed')
+    core.edges().addClass('graph-edge-dimmed')
+    core.nodes().forEach((n) => {
+      const tid = n.data('themeClusterId')
+      if (typeof tid === 'string' && themeIds.has(tid)) {
+        n.addClass('graph-neighbour').removeClass('graph-dimmed')
+      }
+    })
+    core.edges().forEach((ee) => {
+      const sDim = ee.source().hasClass('graph-dimmed')
+      const tDim = ee.target().hasClass('graph-dimmed')
+      if (!sDim && !tDim) {
+        ee.addClass('graph-edge-neighbour').removeClass('graph-edge-dimmed')
+      }
+    })
   })
 }
 
@@ -3603,9 +3637,14 @@ function redraw(): void {
       selectedNodeId.value = null
       subject.clearSubject()
       clearSelectedNodeZoomAnchor()
+      // graph-v3 tier 7-3 — tapping the empty canvas clears legend focus too.
+      themeFocus.clearFocus()
       return
     }
     if (typeof t.isNode === 'function' && t.isNode()) {
+      // Tapping a node hands control back to the selection-dim path; drop
+      // any active theme focus so the two dim sources don't fight.
+      themeFocus.clearFocus()
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = t.id()
@@ -4133,6 +4172,22 @@ watch(
       if (!c) return
       if (on) applyBridgeNodeClass(c)
       else c.nodes().removeClass('graph-bridge')
+    })
+  },
+)
+
+/** graph-v3 tier 7-3 — legend focus bus.
+ *  React to `useGraphThemeFocusStore` changes. Skip when a node is
+ *  currently :selected (existing selection-dim wins) so a legend click
+ *  can't strip the user's node-selection context. */
+watch(
+  () => themeFocus.focusedThemeIds,
+  (ids) => {
+    safeGraphWatch('themeFocus', () => {
+      const c = cy
+      if (!c) return
+      if (c.nodes(':selected').length > 0) return
+      applyGraphSelectionDimFromThemeIds(c, ids)
     })
   },
 )

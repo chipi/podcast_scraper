@@ -20,6 +20,11 @@ export type TopicClustersCluster = {
   canonical_topic_id?: string
   member_count?: number
   members?: TopicClustersMember[]
+  /** graph-v3 tier 7 — super-theme rollup id (`sth:…`). Optional; absent on
+   *  outputs produced by enricher v1.0.x. */
+  super_theme_id?: string
+  /** Human-readable label for `super_theme_id`. */
+  super_theme_label?: string
 }
 
 export type TopicClustersDocument = {

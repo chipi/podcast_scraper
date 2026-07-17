@@ -47,6 +47,7 @@ WIP file is removed.
 | `DASHBOARD-PERF-ANALYSIS-digest-99ep.md` | Dashboard perf root-cause: `corpus/digest` runs ~6 sequential topic-band semantic searches (4.6s, no cache); ranked options (parallelise + cache + lazy-load) + cold-init segfault caveat | Active |
 | `RUNBOOK-876-corpus-rediarization.md` | #876 DGX re-diarization operational runbook (health gate → pilot → backup → full run → rollback); gated on #944 | Ready |
 | `diarize-full-corpus-run.md` | Queued: run the winning diarization pipeline (community-1) across every episode in prod-v2 so downstream enrichers (host/guest #1169, Speaker/Quote surfaces, person-quality) can consume real speaker counts / RTTM uniformly. Related #1170. | Queued |
+| `super-theme-signal-comparison.md` | Queued: compare 3 signals for the super-theme rollup on top of `topic_theme_clusters` — cross-cluster topic-lift (shipped default in v1.1.0), centroid cosine, member Jaccard on 1-hop lift neighbourhood. Pick winner by editorial-read of super-theme labels on prod-v2. graph-v3 tier 7-1a follow-up. | Queued |
 | `MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` | Multi-user/FSM analysis + graph-viewer diarization-support gaps | Backlog |
 | `AUTORESEARCH_LEARNINGS_FOR_V3.md` | Rolling failure-mode catalogue from #907 children — spec input for v3 (#921) | Reference |
 | `DGX_NEXT_STEPS.md` | Living strategic doc on what runs on DGX vs local, vLLM vs Ollama, offload decision frame | Living |
