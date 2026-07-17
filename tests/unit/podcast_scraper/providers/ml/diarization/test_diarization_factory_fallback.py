@@ -1,4 +1,4 @@
-"""RFC-105 (#1198): the diarization factory wraps the primary + ladder in a FallbackChain.
+"""RFC-106 (#1198): the diarization factory wraps the primary + ladder in a FallbackChain.
 
 Tier construction is patched so the test exercises the factory's wiring (does it build a chain, in
 the right backend order?) without loading pyannote or hitting Deepgram.

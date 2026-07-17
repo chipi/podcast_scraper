@@ -72,7 +72,7 @@ def test_raises_when_dgx_unhealthy(
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
-    """RFC-105: a persistently unhealthy DGX exhausts this tier and RAISES; the FallbackChain (not
+    """RFC-106: a persistently unhealthy DGX exhausts this tier and RAISES; the FallbackChain (not
     this provider) fails over. The DGX-try resilience is unchanged (retries before giving up)."""
     audio = tmp_path / "ep.wav"
     audio.write_bytes(b"\x00\x00")

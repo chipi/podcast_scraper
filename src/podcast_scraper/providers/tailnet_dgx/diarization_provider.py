@@ -1,11 +1,11 @@
-"""DGX-hosted pyannote diarization — a pure DGX tier (RFC-105 / #1198).
+"""DGX-hosted pyannote diarization — a pure DGX tier (RFC-106 / #1198).
 
 Mirrors ``TailnetDgxWhisperTranscriptionProvider`` (#814): the laptop / prod VPS
 uploads an audio file to a pyannote service running on DGX and gets back
 diarization segments. On failure it RAISES; the stage factory's
 ``FallbackChainDiarizationProvider`` owns the ladder and fails over (DGX pyannote
 -> local in-process pyannote -> deepgram). #926 originally self-wrapped straight
-to local pyannote; RFC-105 moved that into the shared chain and added a cloud
+to local pyannote; RFC-106 moved that into the shared chain and added a cloud
 tier for callers that cannot run pyannote in-process (e.g. a lightweight VPS).
 
 Resilience (#954). The client carries the shared DGX defences from
@@ -73,7 +73,7 @@ _diarize_breaker = CircuitBreaker(
 
 class TailnetDgxDiarizationProvider:
     """Diarize on the DGX pyannote service. A pure DGX tier: raises on failure so the wrapping
-    FallbackChain (RFC-105) can advance to the next tier."""
+    FallbackChain (RFC-106) can advance to the next tier."""
 
     def __init__(self, cfg: config.Config) -> None:
         self.cfg = cfg
@@ -96,7 +96,7 @@ class TailnetDgxDiarizationProvider:
         self._initialized = False
 
     def initialize(self) -> None:
-        """Validate host config and mark ready. RFC-105: this tier owns no fallback."""
+        """Validate host config and mark ready. RFC-106: this tier owns no fallback."""
         if self._initialized:
             return
         if not self._host:
@@ -205,7 +205,7 @@ class TailnetDgxDiarizationProvider:
         self._raise_exhausted(reason, last_err)
 
     def _raise_exhausted(self, reason: str, last_err: Optional[Exception] = None) -> NoReturn:
-        """Emit the fallback breadcrumb and RAISE (RFC-105 / #1198).
+        """Emit the fallback breadcrumb and RAISE (RFC-106 / #1198).
 
         This tier no longer runs in-process pyannote itself — the FallbackChain that wraps it owns
         the ladder (DGX pyannote -> local pyannote -> deepgram) and decides whether to advance.

@@ -1,4 +1,4 @@
-"""Unit tests for the RFC-105 (#1198) tiered transcription failover chain.
+"""Unit tests for the RFC-106 (#1198) tiered transcription failover chain.
 
 Covers the contract that matters: an infra failure cascades to the next tier, a content failure does
 not, the last tier's error propagates once the chain is exhausted, fallback tiers initialize lazily,

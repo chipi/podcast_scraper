@@ -196,7 +196,7 @@ def test_no_orphan_fallback_chain_in_the_profile(
     name: str, path: Path, data: Dict[str, Any]
 ) -> None:
     """A ``*_fallback_providers`` key must never appear in a profile the registry did not emit it for
-    (RFC-105 #1198). Guards the fail-closed invariant: a hand-added or stale chain — e.g. a cloud
+    (RFC-106 #1198). Guards the fail-closed invariant: a hand-added or stale chain — e.g. a cloud
     tier in an ``allow_cloud_fallback=False`` profile — is caught even though the registry omits the
     key (so the general contradiction check cannot see it)."""
     resolved = resolve_profile_to_settings(name)

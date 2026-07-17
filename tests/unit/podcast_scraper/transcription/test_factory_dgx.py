@@ -21,7 +21,7 @@ def _dgx_cfg() -> Config:
 
 
 def test_factory_wraps_dgx_primary_in_a_fallback_chain() -> None:
-    """RFC-105 (#1198): a DGX-primary cfg with a fallback is wrapped in a FallbackChain — the DGX
+    """RFC-106 (#1198): a DGX-primary cfg with a fallback is wrapped in a FallbackChain — the DGX
     provider is the primary tier and the (legacy singular) fallback becomes the second tier."""
     from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
     from podcast_scraper.providers.resilience.fallback import (

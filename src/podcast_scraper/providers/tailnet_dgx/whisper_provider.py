@@ -6,7 +6,7 @@ Architecture (RFC-089 / ADR-096 / #814):
   listening on ``:8000``. Installed by ``infra/dgx/converge/deploy.py`` via
   pyinfra. Speaks ``POST /v1/audio/transcriptions`` with multipart audio.
 - Fallback: owned by the stage factory's ``FallbackChainTranscriptionProvider``
-  (RFC-105 / #1198), not by this provider. This tier tries DGX and RAISES on
+  (RFC-106 / #1198), not by this provider. This tier tries DGX and RAISES on
   failure; the chain advances to the next tier (DGX-whisper -> cloud). ADR-096's
   "no hard-required-DGX path" still holds — it is just enforced one layer up now.
 
@@ -76,7 +76,7 @@ def _refine_segment_times(
 
 class TailnetDgxWhisperTranscriptionProvider:
     """Transcribe on DGX faster-whisper-server. A pure DGX tier: raises on failure so the wrapping
-    FallbackChain (RFC-105) can advance to the next tier."""
+    FallbackChain (RFC-106) can advance to the next tier."""
 
     def __init__(self, cfg: config.Config) -> None:
         """Store config and DGX connection parameters."""
@@ -94,7 +94,7 @@ class TailnetDgxWhisperTranscriptionProvider:
     def initialize(self) -> None:
         """Mark the DGX Whisper tier ready.
 
-        RFC-105 (#1198): this provider is now a **pure DGX tier**. It no longer builds or owns a
+        RFC-106 (#1198): this provider is now a **pure DGX tier**. It no longer builds or owns a
         cloud fallback — the stage factory wraps it in a ``FallbackChainTranscriptionProvider`` and
         the chain owns the failover ladder. On a DGX failure this tier RAISES (classified); the
         chain decides whether to advance. Retiring the self-wrap is what stops the double-fallback
@@ -140,7 +140,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         # cloud providers. Speaches doesn't use them directly (we have our own
         # breadcrumb emission via emit_dgx_fallback_breadcrumb), but accepting
         # them keeps the signature compatible with the rest of the provider
-        # protocol so the workflow can pass them uniformly. RFC-105: the wrapping
+        # protocol so the workflow can pass them uniformly. RFC-106: the wrapping
         # FallbackChain forwards them to whichever tier ultimately serves the call.
         pipeline_metrics: Any | None = None,
         episode_duration_seconds: int | None = None,
@@ -290,7 +290,7 @@ class TailnetDgxWhisperTranscriptionProvider:
             model=self._model,
             failure_reason=reason,
         )
-        # RFC-105 (#1198): this tier is exhausted. RAISE rather than self-serving a cloud fallback —
+        # RFC-106 (#1198): this tier is exhausted. RAISE rather than self-serving a cloud fallback —
         # the FallbackChain that wraps this provider owns the ladder and decides whether to advance
         # to the next tier. ``is_infra_failure`` treats the errors raised here (timeouts, guardrail
         # garbage, connection blips) as cascade-worthy, so the chain moves on; a content failure

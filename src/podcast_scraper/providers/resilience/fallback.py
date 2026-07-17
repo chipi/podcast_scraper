@@ -1,4 +1,4 @@
-"""Provider-agnostic tiered failover (RFC-105 / #1198).
+"""Provider-agnostic tiered failover (RFC-106 / #1198).
 
 A DGX-backed stage degrades through an **ordered chain** of providers, not a single fallback. The
 chain is registry-governed data (``<stage>_fallback_providers`` in the materialized profile) and is
@@ -41,7 +41,7 @@ def is_infra_failure(exc: BaseException) -> bool:
     False -> content failure (deterministic in the input); every tier would reject it identically,
              so stay here and raise.
 
-    The default is **cascade** (True): it preserves the pre-RFC-105 ``tailnet_dgx_whisper``
+    The default is **cascade** (True): it preserves the pre-RFC-106 ``tailnet_dgx_whisper``
     behaviour, which fell back on connection blips, transient 5xx, timeouts, and garbage-response
     guardrail violations alike. Only the explicitly content-deterministic cases below return False.
     """
@@ -72,7 +72,7 @@ def is_infra_failure(exc: BaseException) -> bool:
 
 
 class FallbackChainTranscriptionProvider:
-    """Try an ordered list of transcription providers, advancing on infra failure (RFC-105).
+    """Try an ordered list of transcription providers, advancing on infra failure (RFC-106).
 
     Tier 0 is the primary; the rest are the failover ladder. Each tier is initialized lazily, right
     before it is first used, so a healthy primary never pays for the cloud tiers' client setup (and
@@ -179,7 +179,7 @@ class FallbackChainTranscriptionProvider:
 
 
 class FallbackChainDiarizationProvider:
-    """Try an ordered list of diarization providers, advancing on infra failure (RFC-105 / #1198).
+    """Try an ordered list of diarization providers, advancing on infra failure (RFC-106 / #1198).
 
     The diarization analogue of :class:`FallbackChainTranscriptionProvider`. Tier 0 is the primary
     (e.g. DGX pyannote); the rest are the ladder (e.g. local in-process pyannote, then a cloud

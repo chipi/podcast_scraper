@@ -1,4 +1,4 @@
-# RFC-105: Tiered fallback for DGX-backed pipeline stages
+# RFC-106: Tiered fallback for DGX-backed pipeline stages
 
 - **Status**: Implemented (all migration steps landed under #1198)
 - **Tracking issue**: #1198

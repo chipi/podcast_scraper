@@ -60,7 +60,7 @@ def create_local_pyannote_provider(cfg: config.Config) -> PyAnnoteDiarizationPro
 
 
 def _diarization_fallback_tiers(cfg: config.Config) -> list[str]:
-    """The ordered diarization failover ladder for ``cfg`` (RFC-105 / #1198), each a
+    """The ordered diarization failover ladder for ``cfg`` (RFC-106 / #1198), each a
     ``diarization_provider`` backend string."""
     return [
         str(p).strip()
@@ -99,7 +99,7 @@ def create_diarization_provider(
     - ``gemini`` — Gemini 2.5 audio understanding (#962). Cloud-only path
       with no local pyannote install required.
 
-    RFC-105 (#1198): when the profile declares ``diarization_fallback_providers``, the primary and
+    RFC-106 (#1198): when the profile declares ``diarization_fallback_providers``, the primary and
     each tier are wrapped in a ``FallbackChainDiarizationProvider`` that owns the failover ladder
     (DGX pyannote -> local pyannote -> deepgram). The per-provider self-wrap in
     ``TailnetDgxDiarizationProvider`` is retired in favour of that chain.

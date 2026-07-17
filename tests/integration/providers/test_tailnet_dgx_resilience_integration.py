@@ -185,7 +185,7 @@ def _diarize_provider(port: int):
 
 
 def _whisper_provider(port: int):
-    # RFC-105 (#1198): the whisper provider is a pure DGX tier and owns no fallback — it raises on
+    # RFC-106 (#1198): the whisper provider is a pure DGX tier and owns no fallback — it raises on
     # failure and the FallbackChain (exercised in the unit suite) fails over. These socket-level
     # tests assert the tier's own reaction: detect the hang/503 and raise the classified error.
     p = TailnetDgxWhisperTranscriptionProvider(_whisper_cfg(port))

@@ -17,7 +17,7 @@ Wrapped methods:
   evidence stack (insights with ``gi_require_grounding: true`` would all
   drop out).
 
-Wrapping is opt-in via the failover ladder in the profile/config. RFC-105 (#1198): the source of
+Wrapping is opt-in via the failover ladder in the profile/config. RFC-106 (#1198): the source of
 truth is the registry-emitted ``summary_fallback_providers`` (an ordered chain); the legacy
 ``degradation_policy.fallback_provider_on_failure`` is honoured as a one-element chain for profiles
 that predate it. If neither is set, no wrapping happens and behavior is unchanged.
@@ -95,7 +95,7 @@ class FallbackAwareSummarizationProvider:
         fallback_provider_names: Union[str, Sequence[str]],
         cfg: config.Config,
     ) -> None:
-        # RFC-105 (#1198): the fallback is an ORDERED chain, tried in sequence. A bare string is
+        # RFC-106 (#1198): the fallback is an ORDERED chain, tried in sequence. A bare string is
         # accepted for back-compat (the RFC-089 single-fallback shape) and normalised to one tier.
         if isinstance(fallback_provider_names, str):
             fallback_provider_names = [fallback_provider_names]
@@ -142,7 +142,7 @@ class FallbackAwareSummarizationProvider:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return primary_fn(*args, **kwargs)
-            except Exception as primary_exc:  # noqa: BLE001 — fallback contract (RFC-089/RFC-105)
+            except Exception as primary_exc:  # noqa: BLE001 — fallback contract (RFC-089/RFC-106)
                 # Walk the ordered chain; the first tier that succeeds wins. This preserves the
                 # RFC-089 contract of falling back on ANY primary failure (the LLM stage does not
                 # apply is_infra_failure — a DGX-down summary retries on cloud regardless).
@@ -209,7 +209,7 @@ class FallbackAwareSummarizationProvider:
 
 
 def _summary_fallback_chain(cfg: config.Config) -> List[str]:
-    """The ordered LLM/summary failover ladder for ``cfg`` (RFC-105 / #1198).
+    """The ordered LLM/summary failover ladder for ``cfg`` (RFC-106 / #1198).
 
     Prefers the registry-emitted ``summary_fallback_providers`` (the source of truth). Falls back to
     the legacy ``degradation_policy.fallback_provider_on_failure`` (RFC-089) as a one-element chain

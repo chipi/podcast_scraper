@@ -85,7 +85,7 @@ def test_nested_transcription_yaml_flattens() -> None:
 
 
 def test_initialize_is_pure_dgx_no_self_fallback() -> None:
-    """RFC-105 (#1198): the provider no longer builds or owns a cloud fallback — the FallbackChain
+    """RFC-106 (#1198): the provider no longer builds or owns a cloud fallback — the FallbackChain
     that wraps it does. initialize() just validates the host is present and marks it ready; it must
     not construct any provider (that would recreate the double-fallback we retired)."""
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
@@ -106,7 +106,7 @@ def test_raises_when_dgx_unhealthy(
     _breadcrumb: MagicMock,
     tmp_path,
 ) -> None:
-    """RFC-105: a persistently unhealthy DGX exhausts this tier and RAISES (the chain, not this
+    """RFC-106: a persistently unhealthy DGX exhausts this tier and RAISES (the chain, not this
     provider, decides whether to fall back). The DGX-try resilience is unchanged: it still rides
     out transient health blips with 2 backoff sleeps before giving up."""
     audio = tmp_path / "ep.mp3"
@@ -224,7 +224,7 @@ def test_transcribe_dgx_parses_response(mock_client_cls: MagicMock, tmp_path) ->
 
 
 def test_whisper_provider_cleanup_is_noop() -> None:
-    """RFC-105: the provider owns no fallback, so cleanup() has nothing to release and must not
+    """RFC-106: the provider owns no fallback, so cleanup() has nothing to release and must not
     raise (the chain cleans up its own tiers)."""
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     provider.cleanup()  # must not raise (no owned resources)

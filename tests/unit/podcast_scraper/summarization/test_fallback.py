@@ -381,7 +381,7 @@ class TestWrapWithFallbackIfConfigured:
 
 
 class TestRegistryChainSourcing:
-    """RFC-105 (#1198): the registry-emitted ``summary_fallback_providers`` is the source of truth
+    """RFC-106 (#1198): the registry-emitted ``summary_fallback_providers`` is the source of truth
     for the LLM failover ladder; the legacy ``degradation_policy`` is back-compat only."""
 
     def test_registry_chain_wraps(self, primary_ok: _FakeProvider) -> None:

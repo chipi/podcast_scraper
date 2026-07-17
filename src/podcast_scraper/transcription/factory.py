@@ -26,7 +26,7 @@ from podcast_scraper.utils.protocol_verification import verify_protocol_complian
 
 
 def _transcription_fallback_tiers(cfg: "config.Config") -> list[str]:
-    """The ordered transcription failover ladder for ``cfg`` (RFC-105 / #1198).
+    """The ordered transcription failover ladder for ``cfg`` (RFC-106 / #1198).
 
     Prefers the registry-emitted plural ``transcription_fallback_providers``. Falls back to the
     legacy singular ``transcription_fallback_provider`` as a one-element chain (full back-compat:
@@ -107,7 +107,7 @@ def create_transcription_provider(  # noqa: C901
         provider_type = cfg.transcription_provider
         experiment_mode = False
 
-        # RFC-105 (#1198): if the profile declares a failover ladder, wrap the primary + each tier
+        # RFC-106 (#1198): if the profile declares a failover ladder, wrap the primary + each tier
         # in a FallbackChainTranscriptionProvider. Suppressed via ``_wrap_fallback=False`` while
         # assembling the individual tiers, so a tier never recursively re-wraps itself.
         if _wrap_fallback:

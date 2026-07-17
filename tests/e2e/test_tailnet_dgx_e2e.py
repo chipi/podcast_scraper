@@ -79,7 +79,7 @@ def _diarize_provider(e2e_server, **overrides):
 
 
 def _whisper_provider(e2e_server, **overrides):
-    # RFC-105 (#1198): whisper is a pure DGX tier now — it raises on failure and the FallbackChain
+    # RFC-106 (#1198): whisper is a pure DGX tier now — it raises on failure and the FallbackChain
     # (unit-tested) fails over. These e2e tests assert the tier's own socket-level reaction.
     host, port = e2e_server.urls.dgx_host_port()
     cfg = Config.model_validate(

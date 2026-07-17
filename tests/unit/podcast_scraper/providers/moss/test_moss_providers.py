@@ -137,7 +137,7 @@ def test_both_factories_resolve_to_moss() -> None:
     from podcast_scraper.transcription.factory import create_transcription_provider
 
     # No fallback ladder here: with one configured the factory would (correctly) wrap this in a
-    # FallbackChain (RFC-105); this test isolates the moss wiring itself, so it stays bare.
+    # FallbackChain (RFC-106); this test isolates the moss wiring itself, so it stays bare.
     cfg = config.Config(
         rss="https://example.com/feed.xml",
         transcription_provider="moss",

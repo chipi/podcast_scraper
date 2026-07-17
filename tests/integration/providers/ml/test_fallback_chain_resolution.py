@@ -1,7 +1,7 @@
-"""RFC-105 (#1198): the registry owns the per-stage failover ladder, and the resolver emits it.
+"""RFC-106 (#1198): the registry owns the per-stage failover ladder, and the resolver emits it.
 
 The bug this guards: promoting MOSS as the DGX transcription default (#1174) silently dropped the
-fallback, because the ``moss`` provider has none of its own. Under RFC-105 the ladder is
+fallback, because the ``moss`` provider has none of its own. Under RFC-106 the ladder is
 registry-governed data — an ordered list of ``StageOption`` ids on the preset — and the resolver
 maps it to provider values and writes ``<stage>_fallback_providers`` into the profile. These tests
 prove the mapping is correct and that a cloud-primary stage is not handed a redundant fallback.
@@ -62,7 +62,7 @@ def test_cloud_summary_stage_gets_no_fallback() -> None:
 @pytest.mark.parametrize("name", ["prod_dgx_full_with_fallback", "prod_dgx_balanced"])
 def test_dgx_llm_summary_falls_back_to_cloud(name: str) -> None:
     """A DGX-served (vLLM) summary stage degrades to the cloud_balanced summary tier when the box
-    is unreachable — the one thing an all-DGX LLM stage could not do before RFC-105."""
+    is unreachable — the one thing an all-DGX LLM stage could not do before RFC-106."""
     resolved = resolve_profile_to_settings(name)
     assert resolved["summary_fallback_providers"] == ["gemini"]
 
@@ -96,7 +96,7 @@ def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
     ]
 
 
-# --- allow_cloud_fallback fail-closed (RFC-105 increment 3) ---------------------------------------
+# --- allow_cloud_fallback fail-closed (RFC-106 increment 3) ---------------------------------------
 
 
 def test_is_cloud_option_classification() -> None:

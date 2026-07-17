@@ -1543,7 +1543,7 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         option_id="pyannote_diarization_community1",
         # 'local' matches the diarization_provider config Literal (in-process pyannote); the DGX
         # sibling uses 'tailnet_dgx'. The registry provider IS the dispatchable backend so the
-        # RFC-105 fallback chain can construct this tier directly.
+        # RFC-106 fallback chain can construct this tier directly.
         provider="local",
         model="pyannote/speaker-diarization-community-1",
         research_ref=_DIARIZATION_RESEARCH_REF,
@@ -1633,13 +1633,13 @@ class ProfilePreset:
     grounding: str = "llm_matched_to_summary"  # key into _GROUNDING_OPTIONS
     # Ordered failover ladders per stage (StageOption ids, tried after the primary on an infra
     # failure). Registry-governed: the resolver emits <stage>_fallback_providers into the
-    # materialized profile so the chain is in the YAML, not inferred at runtime (RFC-105 / #1198).
+    # materialized profile so the chain is in the YAML, not inferred at runtime (RFC-106 / #1198).
     # Convention (DGX profiles): remaining on-prem tiers first, then the cloud_balanced option for
     # that stage. Empty = no fallback. Tuples because ProfilePreset is frozen.
     transcription_fallback: Tuple[str, ...] = ()
     diarization_fallback: Tuple[str, ...] = ()
     summary_fallback: Tuple[str, ...] = ()
-    # RFC-105 (#1198) fail-closed switch. When False, the resolver refuses to emit any cloud
+    # RFC-106 (#1198) fail-closed switch. When False, the resolver refuses to emit any cloud
     # StageOption into a fallback chain — the ladder ends at the last on-prem tier. This is what
     # makes a no-cloud / airgapped profile safe to give a chain at all: it can degrade across its
     # DGX/local tiers but never phones out.
@@ -1732,7 +1732,7 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "diarization_model",
     "dgx_diarize_model",
     "deepgram_diarization_model",
-    # RFC-105 (#1198): the ordered per-stage failover ladders are registry-governed too, so a stale
+    # RFC-106 (#1198): the ordered per-stage failover ladders are registry-governed too, so a stale
     # chain in a profile is caught by profiles-check like any other drift.
     "transcription_fallback_providers",
     "diarization_fallback_providers",
@@ -1790,7 +1790,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # RFC-105 (#1198): free tiers first, paid cloud last. Transcription: MOSS -> DGX
+        # RFC-106 (#1198): free tiers first, paid cloud last. Transcription: MOSS -> DGX
         # faster-whisper -> local in-process whisper -> cloud whisper. Diarization: DGX pyannote ->
         # local in-process pyannote -> deepgram. summary is already the cloud tier (gemini) so it
         # needs no fallback. The local-whisper id is referenced for its provider ('whisper'); the
@@ -1865,7 +1865,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # RFC-105 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
+        # RFC-106 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
         # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
         # summary -> cloud gemini (the cloud_balanced summary tier). All-DGX intent = exhaust the
         # free/on-prem ladder before paying cloud.
@@ -1913,7 +1913,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # RFC-105 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
+        # RFC-106 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
         # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
         # summary -> cloud gemini (the cloud_balanced summary tier).
         transcription_fallback=(
@@ -2019,7 +2019,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
-        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-105).
+        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-106).
         allow_cloud_fallback=False,
         notes=(
             "Airgapped quality default: medium.en Whisper + SummLlama 3.2-3B "
@@ -2040,7 +2040,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
-        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-105).
+        # Airgapped: never phone out. Fail-closed so any fallback ladder ends on-prem (RFC-106).
         allow_cloud_fallback=False,
         notes=(
             "Airgapped thin: tiny.en Whisper + bart-small+long-fast "
@@ -2239,7 +2239,7 @@ _CLOUD_FALLBACK_VENDORS: Final = frozenset(
 
 
 def _is_cloud_option(opt: StageOption) -> bool:
-    """Whether ``opt`` is a hosted-cloud tier (RFC-105 fail-closed classification).
+    """Whether ``opt`` is a hosted-cloud tier (RFC-106 fail-closed classification).
 
     A cloud vendor served from a DGX/local endpoint (vLLM over the openai protocol, a localhost
     Ollama, etc.) is on-prem despite the vendor name, so it is NOT treated as cloud.
@@ -2253,7 +2253,7 @@ def _is_cloud_option(opt: StageOption) -> bool:
 
 
 def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> None:
-    """RFC-105 (#1198): map each stage's ordered fallback StageOption ids to their provider values
+    """RFC-106 (#1198): map each stage's ordered fallback StageOption ids to their provider values
     and emit ``<stage>_fallback_providers`` into ``settings``.
 
     Keeps the failover ladder in the materialized profile (the runtime FallbackChain reads it) and
