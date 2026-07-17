@@ -836,7 +836,10 @@ def modify_config_for_fixtures(
             os.environ["DEEPGRAM_API_KEY"] = "test-dummy-key-for-bulk-tests"
         if "ANTHROPIC_API_KEY" not in os.environ:
             # Prefix must satisfy AnthropicProvider key-format check (sk-ant-…).
-            os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api03-acceptance-ci-dummy-key"
+            # Dummy CI value, not a real secret; the sk-ant-api03- shape trips the scanner.
+            os.environ["ANTHROPIC_API_KEY"] = (
+                "sk-ant-api03-acceptance-ci-dummy-key"  # noqa: secret-scan
+            )
 
     # Effective feed URLs: fixture replacement or YAML (session-wide mode is in main()).
     feed_list = config_dict.get("feeds") or config_dict.get("rss_urls")
@@ -1814,6 +1817,23 @@ def _extract_episodes_from_index_json(index_json_path: Path) -> int:
     return 0
 
 
+# Native math thread-pool caps for the per-config pipeline subprocesses. This mirrors the api
+# container's Dockerfile ENV (commit 5e9d33bb): the acceptance job runs the same in-process
+# torch/BERT embedding + LanceDB hybrid search (whose score-normalize calls native pyarrow.compute)
+# NATIVELY on the runner, where the container ENV never reaches it. With no caps the pools each size
+# to the full CPU count, so torch/OpenMP + BLAS + pyarrow's C++ pool oversubscribe and the native
+# layers race — an intermittent hard SIGSEGV (exit_code -11) in the multi-feed rows that do the most
+# embedding. Must be set in the child's env BEFORE it imports (pools initialise at import time), so
+# we inject here at spawn rather than via runtime set_num_threads(). setdefault leaves an explicit
+# operator override untouched; the tiny fixture corpora make single-threaded native math a non-issue
+# for wall time.
+def _acceptance_subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+        env.setdefault(var, "1")
+    return env
+
+
 def _execute_process_with_streaming(
     cmd: list[str],
     stdout_path: Path,
@@ -1842,7 +1862,7 @@ def _execute_process_with_streaming(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=os.environ.copy(),
+        env=_acceptance_subprocess_env(),
         text=True,
         bufsize=1,  # Line buffered
     )
@@ -1944,7 +1964,7 @@ def _execute_process_without_streaming(
             cmd,
             stdout=stdout_file,
             stderr=stderr_file,
-            env=os.environ.copy(),
+            env=_acceptance_subprocess_env(),
         )
 
         # Monitor resources continuously
