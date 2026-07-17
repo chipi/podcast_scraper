@@ -23,6 +23,7 @@ import {
   withTopicClustersOnDisplay,
 } from '../utils/topicClustersOverlay'
 import { buildTopDownSlice } from '../utils/topDownSlice'
+import { useGraphTopDownStore } from './graphTopDown'
 import { visualNodeTypeCounts } from '../utils/visualGroup'
 import { StaleGeneration } from '../utils/staleGeneration'
 import { useGraphExpansionStore } from './graphExpansion'
@@ -113,6 +114,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * future bridge-derived cross-super-theme edges). Consumed by
    * GraphCanvas only when `useGraphLoadModeStore().isTopDown`. Null when
    * the theme doc hasn't loaded yet or has no super-themes. */
+  const topDown = useGraphTopDownStore()
   const topDownDisplayArtifact = computed<ParsedArtifact | null>(() => {
     const themeDoc = themeClustersDoc.value
     if (!themeDoc || !Array.isArray(themeDoc.clusters) || themeDoc.clusters.length === 0) {
@@ -121,6 +123,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     const data = buildTopDownSlice({
       themeDoc,
       fullArtifact: displayArtifact.value?.data ?? null,
+      expandedSuperThemeIds: topDown.expandedSuperThemeIds,
     })
     if (data.nodes.length === 0) return null
     return {

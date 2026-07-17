@@ -27,6 +27,7 @@ import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
 import { useGraphLoadModeStore } from '../../stores/graphLoadMode'
 import { useGraphThemeFocusStore } from '../../stores/graphThemeFocus'
+import { useGraphTopDownStore } from '../../stores/graphTopDown'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -116,6 +117,7 @@ const gf = useGraphFilterStore()
 const lenses = useGraphLensesStore()
 const themeFocus = useGraphThemeFocusStore()
 const loadMode = useGraphLoadModeStore()
+const topDown = useGraphTopDownStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
@@ -3659,6 +3661,14 @@ function redraw(): void {
       return
     }
     if (typeof t.isNode === 'function' && t.isNode()) {
+      /* graph-v3 tier 8-2 — tapping a SuperTheme node in top-down mode
+       * toggles its expand state instead of running the normal select
+       * flow. The store change re-derives `topDownDisplayArtifact`
+       * which re-renders the graph with the projected children. */
+      if (loadMode.isTopDown && t.data('type') === 'SuperTheme') {
+        topDown.toggleSuperTheme(t.id())
+        return
+      }
       // Tapping a node hands control back to the selection-dim path; drop
       // any active theme focus so the two dim sources don't fight.
       themeFocus.clearFocus()
@@ -4191,6 +4201,17 @@ watch(
       if (on) applyBridgeNodeClass(c)
       else c.nodes().removeClass('graph-bridge')
     })
+  },
+)
+
+/** graph-v3 tier 8-2 — reset expansions when leaving top-down mode.
+ *  Not persisted across mode flips: entering top-down again starts at
+ *  the clean super-theme preview. USERPREFS-1 still remembers the
+ *  overall mode so cross-tab / cross-device state carries. */
+watch(
+  () => loadMode.isTopDown,
+  (isTopDown, wasTopDown) => {
+    if (wasTopDown && !isTopDown) topDown.clearExpanded()
   },
 )
 

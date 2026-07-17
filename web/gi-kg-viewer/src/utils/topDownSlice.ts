@@ -30,9 +30,16 @@ import type { TopicClustersDocument } from '../api/corpusTopicClustersApi'
 
 export interface BuildTopDownSliceOptions {
   themeDoc: TopicClustersDocument | null | undefined
-  /** Full merged artifact used ONLY to discover bridge Topics between
-   *  super-themes; we don't project the full graph into the slice. */
+  /** Full merged artifact used to project expanded super-themes'
+   *  children (TopicClusters + Topics + one-hop Insights/Persons)
+   *  into the slice. Also used to discover bridge Topics. */
   fullArtifact: ArtifactData | null | undefined
+  /** graph-v3 tier 8-2 — super-theme ids the user has tapped to expand.
+   *  When a super_theme_id is in this set, `buildTopDownSlice` injects
+   *  its child TopicClusters + tagged Topics + one-hop Insights /
+   *  Persons under the SuperTheme node. Empty (or omitted) → the
+   *  slice is the tier-8-1 static preview of super-theme bubbles. */
+  expandedSuperThemeIds?: ReadonlySet<string> | null
 }
 
 /** graph-v3 tier 8-1 — emit an ArtifactData for the top-down initial view. */
@@ -60,68 +67,145 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
 
   if (superById.size === 0) return { nodes: [], edges: [] }
 
-  // Build inter-super-theme edges from the full artifact:
-  // for each node in the full artifact, look at its themeClusterId. If it
-  // participates in ≥2 super-themes (via cluster → super lookup), it's a
-  // bridge — link every pair of super-themes it touches.
+  // cluster_id → super_theme_id lookup (drives expansion projection).
   const clusterToSuper = new Map<string, string>()
   for (const [sid, entry] of superById) {
     for (const cid of entry.clusterIds) clusterToSuper.set(cid, sid)
   }
 
-  const pairSeen = new Set<string>()
-  const edges: ArtifactData['edges'] = []
-  const fullNodes = opts.fullArtifact?.nodes ?? []
-  for (const n of fullNodes) {
-    const tcid =
-      n && typeof (n as { themeClusterId?: unknown }).themeClusterId === 'string'
-        ? String((n as { themeClusterId?: unknown }).themeClusterId).trim()
-        : ''
-    if (!tcid) continue
-    // Nodes carry ONE themeClusterId (first-cluster-wins); a bridge is a
-    // node whose neighbour set spans multiple super-themes. Cheap proxy:
-    // any node type that our tier T propagation covers can act as a
-    // bridge candidate; we detect actual bridging by looking at edges.
-    // Skip that expense here — the shared-bridge structural signal from
-    // tier 7 already grouped clusters into super-themes, so at this layer
-    // the cross-super-theme links come from re-grouped Topic clusters.
-    // (Left as a TODO for tier 8-6 to refine once ego-expansion re-scope
-    // has to reason about bridges too.)
-    void tcid
-  }
-
-  // Fallback structural pass: link every super-theme to every other in a
-  // radial pattern via a single "hub" edge. Not semantic, but ensures the
-  // fcose layout keeps the 6-8 nodes together instead of drifting apart.
-  // Real bridge-derived edges land in a follow-up when the algorithmic
-  // work in tier 8-6 lands.
-  const ids = Array.from(superById.keys())
-  for (let i = 0; i < ids.length; i++) {
-    for (let j = i + 1; j < ids.length; j++) {
-      const a = ids[i]!
-      const b = ids[j]!
-      const key = `${a}|${b}`
-      if (pairSeen.has(key)) continue
-      pairSeen.add(key)
-      edges.push({
-        type: '_topdown_link',
-        from: a,
-        to: b,
-      })
-    }
-  }
+  const expanded: ReadonlySet<string> = opts.expandedSuperThemeIds ?? new Set<string>()
 
   const nodes: ArtifactData['nodes'] = []
+  const edges: ArtifactData['edges'] = []
+  const emittedIds = new Set<string>()
+
+  // Emit the SuperTheme bubbles first — these are always visible in
+  // top-down mode regardless of expansion.
   for (const [sid, entry] of superById) {
     nodes.push({
       id: sid,
       type: 'SuperTheme',
       properties: {
         label: entry.label,
-        // Count of child theme-clusters — useful for downstream badge / label.
         child_cluster_count: entry.clusterIds.size,
+        /* Expand state on the node itself so the stylesheet can differentiate
+         * (a faint outline on expanded supers reads as "you've drilled here"). */
+        top_down_expanded: expanded.has(sid),
       },
     })
+    emittedIds.add(sid)
+  }
+
+  // Structural inter-super-theme edges keep fcose from scattering the
+  // ~6-8 bubbles.
+  const superIds = Array.from(superById.keys())
+  for (let i = 0; i < superIds.length; i++) {
+    for (let j = i + 1; j < superIds.length; j++) {
+      edges.push({
+        type: '_topdown_link',
+        from: superIds[i]!,
+        to: superIds[j]!,
+      })
+    }
+  }
+
+  if (expanded.size === 0) {
+    return { nodes, edges }
+  }
+
+  // graph-v3 tier 8-2 — project every expanded super-theme's children
+  // into the slice. Pipeline:
+  //   1. For each expanded super_theme_id, collect its child cluster_ids
+  //      from the theme doc.
+  //   2. Pull every node in the full artifact whose themeClusterId is
+  //      in that child set — these become the projected sub-graph.
+  //   3. Also pull one-hop neighbours in the full artifact so Insights /
+  //      Persons connected to the projected Topics come along.
+  //   4. Attach every projected node to its super-theme via `parent`
+  //      so Cytoscape renders them inside the SuperTheme compound.
+  const fullNodes = opts.fullArtifact?.nodes ?? []
+  const fullEdges = opts.fullArtifact?.edges ?? []
+  const nodeById = new Map<string, ArtifactData['nodes'][number]>()
+  for (const n of fullNodes) {
+    if (n?.id != null) nodeById.set(String(n.id), n)
+  }
+
+  // Adjacency for one-hop expansion.
+  const adjacency = new Map<string, Set<string>>()
+  for (const e of fullEdges) {
+    if (!e || e.from == null || e.to == null) continue
+    const f = String(e.from)
+    const t = String(e.to)
+    if (!adjacency.has(f)) adjacency.set(f, new Set())
+    if (!adjacency.has(t)) adjacency.set(t, new Set())
+    adjacency.get(f)!.add(t)
+    adjacency.get(t)!.add(f)
+  }
+
+  // Node id → super_theme_id it belongs under (first-cluster-wins).
+  const projected = new Map<string, string>()
+  for (const n of fullNodes) {
+    if (!n || n.id == null) continue
+    const tcid =
+      typeof (n as { themeClusterId?: unknown }).themeClusterId === 'string'
+        ? String((n as { themeClusterId?: unknown }).themeClusterId).trim()
+        : ''
+    if (!tcid) continue
+    const sid = clusterToSuper.get(tcid)
+    if (!sid || !expanded.has(sid)) continue
+    projected.set(String(n.id), sid)
+  }
+
+  // One-hop expansion — pull direct neighbours that either have no
+  // themeClusterId of their own (Insights, Persons, Podcasts w/o a tag)
+  // OR whose themeClusterId also rolls up to an expanded super-theme.
+  // This respects the boundary: expanding sth:a doesn't leak into sth:b
+  // via cross-super-theme edges.
+  const seeded = new Set(projected.keys())
+  for (const nodeId of seeded) {
+    const sid = projected.get(nodeId)!
+    const neighbours = adjacency.get(nodeId)
+    if (!neighbours) continue
+    for (const nb of neighbours) {
+      if (projected.has(nb)) continue
+      const nbNode = nodeById.get(nb)
+      if (!nbNode) continue
+      const nbTcid =
+        typeof (nbNode as { themeClusterId?: unknown }).themeClusterId === 'string'
+          ? String((nbNode as { themeClusterId?: unknown }).themeClusterId).trim()
+          : ''
+      if (nbTcid) {
+        const nbSid = clusterToSuper.get(nbTcid)
+        if (nbSid && !expanded.has(nbSid)) continue
+      }
+      projected.set(nb, sid)
+    }
+  }
+
+  for (const [nodeId, sid] of projected) {
+    if (emittedIds.has(nodeId)) continue
+    const src = nodeById.get(nodeId)
+    if (!src) continue
+    /* Clone + attach `parent` so the projected node renders inside the
+     * SuperTheme compound. Keep the original type intact so the existing
+     * stylesheet rules (Topic / Insight / Person / …) all apply. */
+    nodes.push({
+      ...src,
+      parent: sid,
+    })
+    emittedIds.add(nodeId)
+  }
+
+  // Include edges whose BOTH endpoints landed in the projected set. This
+  // keeps the visible edges meaningful — no dangling half-edges pointing
+  // at nodes hidden under a collapsed super-theme.
+  for (const e of fullEdges) {
+    if (!e || e.from == null || e.to == null) continue
+    const f = String(e.from)
+    const t = String(e.to)
+    if (!emittedIds.has(f) || !emittedIds.has(t)) continue
+    if (f === t) continue
+    edges.push(e)
   }
 
   return { nodes, edges }
