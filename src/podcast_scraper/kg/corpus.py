@@ -43,9 +43,9 @@ def scan_kg_artifact_paths(output_dir: Path) -> List[Path]:
     metadata_dir = out / "metadata"
     if metadata_dir.is_dir():
         paths.extend(metadata_dir.glob("*.kg.json"))
-    # ``sorted(set(...))`` below already dedups, so the old O(n^2) `if p not in
-    # paths` list-membership guard was redundant work (review low/kg-corpus).
-    paths.extend(out.rglob("*.kg.json"))
+    for p in out.rglob("*.kg.json"):
+        if p not in paths:
+            paths.append(p)
     return sorted(set(paths))
 
 
