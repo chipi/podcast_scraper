@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from .... import config
 from .base import DiarizationProvider
@@ -78,6 +78,14 @@ def _build_diarization_tier(cfg: config.Config, backend: str) -> DiarizationProv
     return create_diarization_provider(sub, _wrap_fallback=False)
 
 
+def _diarization_tier_builder(
+    cfg: config.Config, backend: str
+) -> Callable[[], DiarizationProvider]:
+    """A zero-arg closure that constructs the ``backend`` tier on demand (lazy chain construction).
+    Binds ``backend`` per call, so a loop over tiers gets distinct builders."""
+    return lambda: _build_diarization_tier(cfg, backend)
+
+
 def create_diarization_provider(
     cfg: config.Config, *, _wrap_fallback: bool = True
 ) -> DiarizationProvider:
@@ -103,11 +111,14 @@ def create_diarization_provider(
         if tiers:
             from ...resilience.fallback import FallbackChainDiarizationProvider
 
-            chain: list[tuple[str, DiarizationProvider]] = [
-                (backend, _build_diarization_tier(cfg, backend))
+            # Pass BUILDERS, not instances: the chain constructs each tier lazily on first use, so a
+            # never-reached fallback tier never crashes a healthy-DGX run when its credential (HF
+            # token / DEEPGRAM_API_KEY) is absent — preserving #926's lazy fallback.
+            chain: list[tuple[str, Callable[[], DiarizationProvider]]] = [
+                (backend, _diarization_tier_builder(cfg, backend))
             ]
             for tier_backend in tiers:
-                chain.append((tier_backend, _build_diarization_tier(cfg, tier_backend)))
+                chain.append((tier_backend, _diarization_tier_builder(cfg, tier_backend)))
             wrapped = FallbackChainDiarizationProvider(chain)
             wrapped.initialize()
             return wrapped

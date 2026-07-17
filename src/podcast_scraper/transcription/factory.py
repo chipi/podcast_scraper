@@ -117,11 +117,14 @@ def create_transcription_provider(  # noqa: C901
                     FallbackChainTranscriptionProvider,
                 )
 
-                chain: list[tuple[str, TranscriptionProvider]] = [
-                    (provider_type, _build_chain_tier(cfg, provider_type))
+                # Pass BUILDERS, not instances: the chain constructs each tier lazily on first use,
+                # so a never-reached fallback tier (and its API-key requirement) never crashes a
+                # healthy-primary run. Default-arg binds the loop var per closure.
+                chain: list[tuple[str, Any]] = [
+                    (provider_type, lambda pt=provider_type: _build_chain_tier(cfg, pt))
                 ]
                 for tier_name in tiers:
-                    chain.append((tier_name, _build_chain_tier(cfg, tier_name)))
+                    chain.append((tier_name, lambda tn=tier_name: _build_chain_tier(cfg, tn)))
                 wrapped = cast(TranscriptionProvider, FallbackChainTranscriptionProvider(chain))
                 verify_protocol_compliance(wrapped, TranscriptionProvider, "TranscriptionProvider")
                 return wrapped

@@ -57,8 +57,10 @@ class _FakeTier:
 
 
 def _chain(tiers: List[Tuple[str, _FakeTier]]) -> FallbackChainTranscriptionProvider:
+    # The chain takes (name, builder) — wrap each pre-made fake tier in a builder that returns it.
     # _FakeTier is a structural stand-in for TranscriptionProvider (duck-typed by the chain).
-    return FallbackChainTranscriptionProvider(cast(Any, tiers))
+    built = [(name, (lambda inst=inst: inst)) for name, inst in tiers]
+    return FallbackChainTranscriptionProvider(cast(Any, built))
 
 
 # --- is_infra_failure classification -------------------------------------------------------------
@@ -80,9 +82,11 @@ def test_5xx_cascades_but_4xx_does_not() -> None:
     for code in (400, 401, 404, 422):
         resp = httpx.Response(code, request=req)
         assert is_infra_failure(httpx.HTTPStatusError("x", request=req, response=resp)) is False
-    # 429 is transient pressure, not a content fault -> cascade.
-    resp429 = httpx.Response(429, request=req)
-    assert is_infra_failure(httpx.HTTPStatusError("x", request=req, response=resp429)) is True
+    # 408 (Request Timeout) and 429 (Too Many Requests) are transient/pressure, not content faults
+    # -> cascade.
+    for code in (408, 429):
+        resp = httpx.Response(code, request=req)
+        assert is_infra_failure(httpx.HTTPStatusError("x", request=req, response=resp)) is True
 
 
 # --- chain behaviour -----------------------------------------------------------------------------
@@ -222,7 +226,8 @@ class _FakeDiarTier:
 
 
 def _diar_chain(tiers: List[Tuple[str, _FakeDiarTier]]) -> FallbackChainDiarizationProvider:
-    return FallbackChainDiarizationProvider(cast(Any, tiers))
+    built = [(name, (lambda inst=inst: inst)) for name, inst in tiers]
+    return FallbackChainDiarizationProvider(cast(Any, built))
 
 
 def test_diar_primary_success_never_touches_fallbacks() -> None:

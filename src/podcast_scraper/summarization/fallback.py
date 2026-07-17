@@ -112,13 +112,17 @@ class FallbackAwareSummarizationProvider:
         self._primary.initialize()
 
     def cleanup(self) -> None:
-        """Release primary, then every built fallback tier. Runs all even if one raises."""
+        """Release primary, then every built fallback tier. Each release is independent — one tier
+        raising on cleanup does not leak the others."""
         try:
             self._primary.cleanup()
         finally:
-            for fb in self._fallbacks.values():
+            for name, fb in self._fallbacks.items():
                 if hasattr(fb, "cleanup"):
-                    fb.cleanup()
+                    try:
+                        fb.cleanup()
+                    except Exception as exc:  # noqa: BLE001 - best-effort cleanup
+                        logger.warning("fallback tier '%s' cleanup failed: %s", name, exc)
 
     def warmup(self, timeout_s: int = 600) -> None:
         """Warm up the primary if it supports it. Fallback is cloud, no warmup needed."""

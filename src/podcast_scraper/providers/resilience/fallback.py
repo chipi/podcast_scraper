@@ -22,7 +22,7 @@ on this tier and raise.
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from ...providers.ml.diarization.base import DiarizationProvider, DiarizationResult
 from ...transcription.base import TranscriptionProvider
@@ -50,14 +50,16 @@ def is_infra_failure(exc: BaseException) -> bool:
     if is_provider_audio_payload_limit_error(exc):
         return False
 
-    # A deterministic client error (4xx other than 429) is the request's fault, not the tier's.
-    # 429 (rate limit) is transient infra pressure, so it stays cascade-worthy.
+    # A deterministic client error is the request's fault, not the tier's — do not cascade. The
+    # exceptions are the transient/infra 4xx: 408 (Request Timeout) and 429 (Too Many Requests) are
+    # a slow/pressured tier, not a bad request, so they stay cascade-worthy like a timeout.
+    _TRANSIENT_4XX = frozenset({408, 429})
     try:  # pragma: no cover - import guard mirrors resilience.exceptions
         import httpx
 
         if isinstance(exc, httpx.HTTPStatusError):
             status = exc.response.status_code
-            if 400 <= status < 500 and status != 429:
+            if 400 <= status < 500 and status not in _TRANSIENT_4XX:
                 return False
     except ImportError:  # pragma: no cover
         pass
@@ -79,22 +81,35 @@ class FallbackChainTranscriptionProvider:
 
     name = "fallback_chain"
 
-    def __init__(self, tiers: List[Tuple[str, TranscriptionProvider]]) -> None:
-        """``tiers`` is ``[(provider_name, provider_instance), ...]``, primary first (>= 1 tier)."""
+    def __init__(self, tiers: List[Tuple[str, Callable[[], TranscriptionProvider]]]) -> None:
+        """``tiers`` is ``[(provider_name, builder), ...]``, primary first (>= 1 tier).
+
+        Each ``builder`` is a zero-arg callable that CONSTRUCTS the tier's provider. Tiers are built
+        lazily — a fallback tier's provider is not constructed until the chain actually reaches it,
+        so a healthy primary never pays for (and a missing cloud API key never crashes) a tier that
+        is never used. This is what preserves the #926 lazy-fallback guarantee.
+        """
         if not tiers:
             raise ValueError("FallbackChainTranscriptionProvider requires at least one tier")
-        self._tiers = tiers
+        self._names = [n for n, _ in tiers]
+        self._builders = [b for _, b in tiers]
+        self._providers: List[Optional[TranscriptionProvider]] = [None] * len(tiers)
         self._inited = [False] * len(tiers)
 
     def initialize(self) -> None:
-        """Eagerly initialize the primary so its config errors surface at startup; fallbacks stay
-        lazy (initialized on first use)."""
+        """Eagerly construct + initialize the primary so its config errors surface at startup;
+        fallback tiers stay lazy (constructed + initialized on first use)."""
         self._ensure_tier(0)
 
-    def _ensure_tier(self, i: int) -> None:
+    def _ensure_tier(self, i: int) -> TranscriptionProvider:
+        provider = self._providers[i]
+        if provider is None:
+            provider = self._builders[i]()  # lazy construct: never-reached tiers never built
+            self._providers[i] = provider
         if not self._inited[i]:
-            self._tiers[i][1].initialize()
+            provider.initialize()
             self._inited[i] = True
+        return provider
 
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         """Return transcript text from the first tier that succeeds."""
@@ -116,11 +131,11 @@ class FallbackChainTranscriptionProvider:
         (``model_used`` is prefixed with it when the tier did not already attribute a model), so
         post-fallback provenance is preserved (#1046).
         """
-        last = len(self._tiers) - 1
+        last = len(self._names) - 1
         last_exc: Optional[BaseException] = None
-        for i, (pname, provider) in enumerate(self._tiers):
+        for i, pname in enumerate(self._names):
             try:
-                self._ensure_tier(i)
+                provider = self._ensure_tier(i)
                 result, elapsed = provider.transcribe_with_segments(
                     audio_path,
                     language,
@@ -135,7 +150,7 @@ class FallbackChainTranscriptionProvider:
                 logger.warning(
                     "transcription tier %r failed (infra); advancing to %r: %s",
                     pname,
-                    self._tiers[i + 1][0],
+                    self._names[i + 1],
                     format_exception_for_log(exc),
                 )
                 continue
@@ -149,10 +164,18 @@ class FallbackChainTranscriptionProvider:
         raise last_exc
 
     def cleanup(self) -> None:
-        """Release every initialized tier's resources."""
-        for i, (_name, provider) in enumerate(self._tiers):
-            if self._inited[i]:
-                provider.cleanup()
+        """Release every built tier's resources; a tier that raises on cleanup does not prevent the
+        others from being released."""
+        for i, provider in enumerate(self._providers):
+            if provider is not None and self._inited[i]:
+                try:
+                    provider.cleanup()
+                except Exception as exc:  # noqa: BLE001 - best-effort cleanup
+                    logger.warning(
+                        "transcription tier %r cleanup failed: %s",
+                        self._names[i],
+                        format_exception_for_log(exc),
+                    )
 
 
 class FallbackChainDiarizationProvider:
@@ -166,24 +189,36 @@ class FallbackChainDiarizationProvider:
 
     name = "fallback_chain"
 
-    def __init__(self, tiers: List[Tuple[str, DiarizationProvider]]) -> None:
-        """``tiers`` is ``[(provider_name, provider_instance), ...]``, primary first (>= 1 tier)."""
+    def __init__(self, tiers: List[Tuple[str, Callable[[], DiarizationProvider]]]) -> None:
+        """``tiers`` is ``[(provider_name, builder), ...]``, primary first (>= 1 tier).
+
+        Each ``builder`` CONSTRUCTS the tier's provider, called lazily on first use — a fallback
+        tier that is never reached is never built, so a healthy DGX primary never pays the
+        in-process pyannote model-load cost (#926) and a missing cloud/HF credential for a
+        never-used tier never crashes provider creation.
+        """
         if not tiers:
             raise ValueError("FallbackChainDiarizationProvider requires at least one tier")
-        self._tiers = tiers
+        self._names = [n for n, _ in tiers]
+        self._builders = [b for _, b in tiers]
+        self._providers: List[Optional[DiarizationProvider]] = [None] * len(tiers)
         self._inited = [False] * len(tiers)
 
     def initialize(self) -> None:
-        """Eagerly initialize the primary; fallback tiers stay lazy (initialized on first use)."""
+        """Eagerly construct + initialize the primary; fallback tiers stay lazy."""
         self._ensure_tier(0)
 
-    def _ensure_tier(self, i: int) -> None:
+    def _ensure_tier(self, i: int) -> DiarizationProvider:
+        provider = self._providers[i]
+        if provider is None:
+            provider = self._builders[i]()  # lazy construct: never-reached tiers never built
+            self._providers[i] = provider
         if not self._inited[i]:
-            provider = self._tiers[i][1]
             init = getattr(provider, "initialize", None)
             if callable(init):
                 init()
             self._inited[i] = True
+        return provider
 
     def diarize(
         self,
@@ -195,11 +230,11 @@ class FallbackChainDiarizationProvider:
     ) -> DiarizationResult:
         """Return the first tier's result, advancing on infra failure and re-raising on a content
         failure or once the chain is exhausted."""
-        last = len(self._tiers) - 1
+        last = len(self._names) - 1
         last_exc: Optional[BaseException] = None
-        for i, (pname, provider) in enumerate(self._tiers):
+        for i, pname in enumerate(self._names):
             try:
-                self._ensure_tier(i)
+                provider = self._ensure_tier(i)
                 return provider.diarize(
                     audio_path,
                     num_speakers=num_speakers,
@@ -213,19 +248,28 @@ class FallbackChainDiarizationProvider:
                 logger.warning(
                     "diarization tier %r failed (infra); advancing to %r: %s",
                     pname,
-                    self._tiers[i + 1][0],
+                    self._names[i + 1],
                     format_exception_for_log(exc),
                 )
         assert last_exc is not None  # unreachable; the last tier returns or raises above
         raise last_exc
 
     def cleanup(self) -> None:
-        """Release every initialized tier's resources (tiers may omit cleanup)."""
-        for i, (_name, provider) in enumerate(self._tiers):
-            if self._inited[i]:
-                cleanup = getattr(provider, "cleanup", None)
-                if callable(cleanup):
+        """Release every built tier's resources (tiers may omit cleanup); one tier raising on
+        cleanup does not prevent the others from being released."""
+        for i, provider in enumerate(self._providers):
+            if provider is None or not self._inited[i]:
+                continue
+            cleanup = getattr(provider, "cleanup", None)
+            if callable(cleanup):
+                try:
                     cleanup()
+                except Exception as exc:  # noqa: BLE001 - best-effort cleanup
+                    logger.warning(
+                        "diarization tier %r cleanup failed: %s",
+                        self._names[i],
+                        format_exception_for_log(exc),
+                    )
 
 
 __all__ = [

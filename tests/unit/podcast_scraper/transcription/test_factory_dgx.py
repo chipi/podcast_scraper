@@ -33,10 +33,10 @@ def test_factory_wraps_dgx_primary_in_a_fallback_chain() -> None:
 
     provider = create_transcription_provider(_dgx_cfg())
     assert isinstance(provider, FallbackChainTranscriptionProvider)
-    names = [name for name, _ in provider._tiers]
-    assert names == ["tailnet_dgx_whisper", "openai"]
-    assert isinstance(provider._tiers[0][1], TailnetDgxWhisperTranscriptionProvider)
-    assert isinstance(provider._tiers[1][1], OpenAIProvider)
+    assert provider._names == ["tailnet_dgx_whisper", "openai"]
+    # Tiers are built lazily (builders, not instances). Build each via the chain to check its type.
+    assert isinstance(provider._ensure_tier(0), TailnetDgxWhisperTranscriptionProvider)
+    assert isinstance(provider._ensure_tier(1), OpenAIProvider)
 
 
 def test_factory_wraps_moss_primary_with_full_ladder() -> None:
@@ -57,8 +57,30 @@ def test_factory_wraps_moss_primary_with_full_ladder() -> None:
     )
     provider = create_transcription_provider(cfg)
     assert isinstance(provider, FallbackChainTranscriptionProvider)
-    assert [name for name, _ in provider._tiers] == ["moss", "tailnet_dgx_whisper", "openai"]
-    assert isinstance(provider._tiers[0][1], MossTranscriptionProvider)
+    assert provider._names == ["moss", "tailnet_dgx_whisper", "openai"]
+    assert isinstance(provider._ensure_tier(0), MossTranscriptionProvider)
+
+
+def test_chain_builds_when_a_fallback_tier_key_is_absent() -> None:
+    """Regression (hardening): tiers are built LAZILY, so a healthy MOSS primary must construct its
+    chain even when the openai fallback tier has no OPENAI_API_KEY — the key is only needed if that
+    tier is actually reached. Eager construction used to crash the whole run here."""
+    from podcast_scraper.providers.resilience.fallback import (
+        FallbackChainTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "moss",
+            "transcription_fallback_providers": ["tailnet_dgx_whisper", "openai"],
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            # NO openai_api_key — the openai tier must not be constructed at factory time.
+        }
+    )
+    provider = create_transcription_provider(cfg)  # must NOT raise
+    assert isinstance(provider, FallbackChainTranscriptionProvider)
+    assert provider._providers == [None, None, None]  # nothing built yet
 
 
 def test_factory_leaves_a_no_fallback_provider_unwrapped() -> None:

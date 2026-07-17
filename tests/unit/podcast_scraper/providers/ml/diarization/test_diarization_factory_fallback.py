@@ -33,9 +33,33 @@ def test_factory_wraps_dgx_diarization_in_a_chain() -> None:
         provider = diar_factory.create_diarization_provider(_dgx_cfg_with_ladder())
 
     assert isinstance(provider, FallbackChainDiarizationProvider)
-    assert [name for name, _ in provider._tiers] == ["tailnet_dgx", "local", "deepgram"]
-    # primary + two fallback tiers were each built once.
-    assert [c.args[1] for c in build.call_args_list] == ["tailnet_dgx", "local", "deepgram"]
+    assert provider._names == ["tailnet_dgx", "local", "deepgram"]
+    # LAZY: only the primary (tier 0) is built at factory time (via chain.initialize()); the
+    # fallback tiers are constructed on first use, not up-front.
+    assert [c.args[1] for c in build.call_args_list] == ["tailnet_dgx"]
+    assert provider._providers[1] is None and provider._providers[2] is None
+
+
+def test_chain_builds_when_a_fallback_tier_credential_is_absent() -> None:
+    """Regression (hardening #1198): a healthy DGX diarization primary must construct its chain even
+    when the deepgram fallback tier has no DEEPGRAM_API_KEY — that tier is only built if reached.
+    Eager construction (the diarization factory's deepgram branch raises at build time on a missing
+    key) used to crash every episode despite a healthy primary."""
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "diarization_provider": "tailnet_dgx",
+            "diarize": True,
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "hf_token": "hf_test",
+            "diarization_fallback_providers": ["local", "deepgram"],
+            # NO deepgram_api_key — the deepgram tier must not be constructed at factory time.
+        }
+    )
+    provider = diar_factory.create_diarization_provider(cfg)  # must NOT raise
+    assert isinstance(provider, FallbackChainDiarizationProvider)
+    # local + deepgram deferred — no deepgram key needed to construct the chain.
+    assert provider._providers[1] is None and provider._providers[2] is None
 
 
 def test_factory_leaves_a_no_ladder_diarization_unwrapped() -> None:

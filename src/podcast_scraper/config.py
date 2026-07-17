@@ -5082,6 +5082,18 @@ class Config(BaseModel):
                 "tailnet_dgx_whisper (ADR-096 / RFC-105): set transcription_fallback_providers "
                 "(preferred) or the legacy transcription_fallback_provider."
             )
+        # ADR-096's guarantee is a NON-DGX escape hatch. A plural chain made only of DGX tiers
+        # (tailnet_dgx_whisper / moss) has "a fallback" on paper but preserves a hard-required-DGX
+        # path in fact — reject it. The singular fallback is always a non-DGX cloud/local provider.
+        _dgx_transcription = {"tailnet_dgx_whisper", "moss"}
+        if self.transcription_fallback_providers and all(
+            p in _dgx_transcription for p in self.transcription_fallback_providers
+        ):
+            raise ValueError(
+                "transcription_fallback_providers must include at least one non-DGX tier "
+                "(cloud or local whisper) — a DGX-only chain re-introduces the hard-required-DGX "
+                "path ADR-096 forbids."
+            )
         if not self.dgx_tailnet_host or not str(self.dgx_tailnet_host).strip():
             raise ValueError(
                 "dgx_tailnet_host is required when transcription_provider is tailnet_dgx_whisper."
