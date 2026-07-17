@@ -18,22 +18,29 @@ def get_schema_path() -> Optional[Path]:
         return None
 
 
+_SCHEMA_LOCK = __import__("threading").Lock()
+
+
 def load_schema() -> Optional[Dict[str, Any]]:
     """Load kg.schema.json; returns None if file not found.
 
-    Uses a module-level cache so the file is read at most once.
+    Uses a module-level cache so the file is read at most once. The load-and-set
+    is locked so two threads don't both read the file (review low/kg-schema).
     """
     global _SCHEMA_CACHE
     if _SCHEMA_CACHE is not None:
         return _SCHEMA_CACHE
-    path = get_schema_path()
-    if not path:
-        return None
-    import json
+    with _SCHEMA_LOCK:
+        if _SCHEMA_CACHE is not None:
+            return _SCHEMA_CACHE
+        path = get_schema_path()
+        if not path:
+            return None
+        import json
 
-    with open(path, encoding="utf-8") as f:
-        schema = cast(Dict[str, Any], json.load(f))
-    _SCHEMA_CACHE = schema
+        with open(path, encoding="utf-8") as f:
+            schema = cast(Dict[str, Any], json.load(f))
+        _SCHEMA_CACHE = schema
     return schema
 
 

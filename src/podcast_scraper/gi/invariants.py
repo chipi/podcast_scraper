@@ -23,6 +23,7 @@ violation is always a bug and never a judgement call. That is what makes them sa
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
@@ -93,7 +94,13 @@ def check_artifact_invariants(
                 continue
             if text in transcript_text:
                 cs = p.get("char_start")
-                if isinstance(cs, int) and abs(transcript_text.find(text) - cs) > _OFFSET_SLACK:
+                # Check ANY occurrence within slack, not just the first: a repeated
+                # phrase whose char_start legitimately points at a later occurrence
+                # was wrongly counted misplaced by find() (review low/gi-invariants).
+                if isinstance(cs, int) and not any(
+                    abs(m.start() - cs) <= _OFFSET_SLACK
+                    for m in re.finditer(re.escape(text), transcript_text)
+                ):
                     misplaced += 1
             elif " ".join(text.split()) not in norm:
                 missing += 1

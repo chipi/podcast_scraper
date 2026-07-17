@@ -521,6 +521,10 @@ class EnrichmentExecutor:
         # Reset per attempt so retries get a fresh window.
         watchdog = HeartbeatWatchdog(enricher_id=eid, expected_interval_s=float(timeout_s))
 
+        # Bind before the loop so a cancel-before-first-attempt still yields a real
+        # (near-zero) duration rather than the fragile ``locals()`` guard below
+        # silently reporting 0 after any refactor (review low/executor-tstart).
+        t_start = time.monotonic()
         while True:
             if cancel_event.is_set():
                 final_result = EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
@@ -631,7 +635,7 @@ class EnrichmentExecutor:
 
         assert final_result is not None
         finished_at = utc_iso_now()
-        duration_ms = int((time.monotonic() - t_start) * 1000) if "t_start" in locals() else 0
+        duration_ms = int((time.monotonic() - t_start) * 1000)
         # Soft stall detection: if the enricher ran longer than the
         # heartbeat watchdog's window without calling record_heartbeat,
         # emit stall_warning. (Hard timeout is already handled by

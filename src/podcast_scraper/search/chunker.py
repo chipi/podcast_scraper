@@ -187,9 +187,13 @@ def chunk_transcript(
                 break
 
         sent_slice = sentences[i:j]
-        joined = " ".join(s[0] for s in sent_slice)
         c_start = sent_slice[0][1]
         c_end = sent_slice[-1][2]
+        # Slice the ORIGINAL text so chunk.text exactly matches the char span it
+        # claims (char_start:char_end). The old space-join diverged from the source
+        # on multi-space whitespace (review low/chunker). FTS tokenization is
+        # whitespace-insensitive, so BM25 is unaffected.
+        joined = text[c_start:c_end]
         ts0, ts1 = _merge_time_for_span(c_start, c_end, timestamps or [])
         chunks.append(
             TranscriptChunk(

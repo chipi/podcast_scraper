@@ -86,7 +86,10 @@ class LLMBasedCleaner:
                         ratio,
                     )
                     return text
-            return cast(str, cleaned)
+            # Return the already-computed stripped form (review low/llm-clean):
+            # returning un-stripped ``cleaned`` leaked model leading/trailing
+            # whitespace into downstream summarization/GI.
+            return cast(str, stripped)
         except Exception as e:
             logger.error("LLM cleaning failed: %s", format_exception_for_log(e), exc_info=True)
             # Fallback to original text if cleaning fails

@@ -245,12 +245,18 @@ class LanceDBBackend:
 
     # --- retrieval -------------------------------------------------------------
 
+    @staticmethod
+    def _sql_str(v: object) -> str:
+        # Escape single quotes so a value can't break out of the literal even if a
+        # caller ever passes user data (review low/lancedb-sql). OQ-3 stop-gap.
+        return str(v).replace("'", "''")
+
     def _to_sql(self, filters: Dict) -> str | None:
         # OQ-3 (RFC-090): naive interpolation — parameterise before any user-facing
         # free-text filter reaches it. Filters today are internal canonical ids.
         if not filters:
             return None
-        return " AND ".join(f"{k} = '{v}'" for k, v in filters.items())
+        return " AND ".join(f"{k} = '{self._sql_str(v)}'" for k, v in filters.items())
 
     def _run(self, query: SearchQuery, *, query_type: str, score_key: str) -> List[ScoredResult]:
         where = self._to_sql(query.filters)
@@ -389,7 +395,7 @@ class LanceDBBackend:
         for t in tiers:
             table = self._open_if_exists(t)
             if table is not None:
-                table.delete(f"id = '{doc_id}'")
+                table.delete(f"id = '{self._sql_str(doc_id)}'")
 
     def health(self) -> Dict:
         """Return backend status + per-table row counts."""
