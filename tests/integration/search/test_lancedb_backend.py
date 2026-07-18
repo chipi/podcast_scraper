@@ -124,85 +124,100 @@ def test_sql_str_escapes_and_to_sql_builds_clause(backend):
     assert backend._to_sql({"id": "x'y"}) == "id = 'x''y'"
 
 
-# --- stale-index reopen (#stack-test search flake) ---------------------------------------------
-# The API holds a long-lived LanceDBBackend while the pipeline container runs compact() on the
-# shared corpus volume. A cached table handle then references pruned data fragments and reads throw
-# "Not found: .../segments.lance/data/<frag>". The backend must reopen the table and retry.
+# --- concurrency + cross-process compaction (documented LanceDB server pattern) ----------------
+# The api holds a long-lived backend and serves search from many threads while the pipeline — a
+# SEPARATE process/backend on the same path — writes and compact()s. The backend opens every table
+# FRESH per read (never caches a handle), so a compaction can neither strand a read with a
+# pruned-fragment "not found" nor corrupt a sibling read (the native use-after-free that segfaulted
+# the api when a cached handle was swapped under concurrent readers). These exercise that at the
+# integration tier so a regression surfaces here, not only in the full stack test.
 
-from podcast_scraper.search.backends.lancedb_backend import (  # noqa: E402
-    _is_stale_index_error,
-)
-
-
-def test_is_stale_index_error_classification() -> None:
-    assert _is_stale_index_error(
-        RuntimeError("Not found: /app/output/search/lance_index/segments.lance/data/ab12")
-    )
-    assert _is_stale_index_error(
-        RuntimeError("LanceError(IO): Object at location /app/output/x not found")
-    )
-    # Not a stale-fragment error -> must NOT reopen (would mask real failures).
-    assert not _is_stale_index_error(RuntimeError("connection refused"))
-    assert not _is_stale_index_error(ValueError("some other error"))
-    assert not _is_stale_index_error(
-        RuntimeError("segments.lance/data/ab12 exists")
-    )  # no "not found"
+import threading  # noqa: E402
+from concurrent.futures import ThreadPoolExecutor  # noqa: E402
 
 
-def test_read_tier_reopens_once_on_stale_fragment(backend, monkeypatch) -> None:
-    """A read that hits a compacted-away fragment reopens the table exactly once and returns the
-    fresh result — the search does not fail."""
-    stale = RuntimeError("Not found: /app/output/search/lance_index/segments.lance/data/ab12")
-    stale_table, fresh_table = object(), object()
-    calls = {"reopen": 0}
-    monkeypatch.setattr(backend, "_open_if_exists", lambda tier: stale_table)
-
-    def _reopen(tier):
-        calls["reopen"] += 1
-        return fresh_table
-
-    monkeypatch.setattr(backend, "_reopen_table", _reopen)
-
-    def run(table):
-        if table is stale_table:
-            raise stale
-        return [{"id": "recovered"}]
-
-    assert backend._read_tier("segment", run) == [{"id": "recovered"}]
-    assert calls["reopen"] == 1
-
-
-def test_read_tier_propagates_non_stale_error(backend, monkeypatch) -> None:
-    """A non-stale error must propagate (reopening would hide a real bug)."""
-    monkeypatch.setattr(backend, "_open_if_exists", lambda tier: object())
-    monkeypatch.setattr(
-        backend, "_reopen_table", lambda tier: pytest.fail("must not reopen on a non-stale error")
-    )
-
-    def run(table):
-        raise ValueError("genuine failure")
-
-    with pytest.raises(ValueError, match="genuine failure"):
-        backend._read_tier("segment", run)
-
-
-def test_search_survives_cross_backend_compaction(tmp_path) -> None:
-    """Real scenario: the API's cached handle survives a compaction done by a SECOND backend on the
-    same path (the pipeline). Search must still return the row after the compaction."""
+def test_fresh_open_sees_a_second_backends_writes(tmp_path) -> None:
+    """A read opens the table fresh, so rows another backend committed after this one was built are
+    visible on the next read — no reopen/reconnect needed."""
     path = str(tmp_path / "lance")
     api = LanceDBBackend(path, embed_dim=4)
     api.upsert_segment(_seg("s1", "Sam Altman OpenAI", "A", [0.1, 0.2, 0.3, 0.4]))
     api.create_indices()
-    # API reads once -> caches the segment table handle at the current version.
     assert api.search_bm25(SearchQuery(text="Altman", embedding=[0, 0, 0, 0], tier="segment"))
 
-    # "pipeline": a separate backend writes more rows + compacts (prunes superseded fragments).
+    # A second backend (the pipeline) appends a new row after `api` already served a query.
+    pipeline = LanceDBBackend(path, embed_dim=4)
+    pipeline.upsert_segment(_seg("s2", "Sundar Pichai Google", "A", [0.4, 0.3, 0.2, 0.1]))
+    pipeline.create_indices()
+
+    # `api` sees s2 on its next read — no cached-handle staleness.
+    res = api.search_bm25(SearchQuery(text="Pichai", embedding=[0, 0, 0, 0], tier="segment"))
+    assert any(r.doc_id == "s2" for r in res)
+
+
+def test_search_survives_cross_process_compaction(tmp_path) -> None:
+    """A compaction (optimize + prune) run by a SECOND backend must not strand this backend's
+    search — the fresh handle points at the current version, never the pruned fragments."""
+    path = str(tmp_path / "lance")
+    api = LanceDBBackend(path, embed_dim=4)
+    api.upsert_segment(_seg("s1", "Sam Altman OpenAI", "A", [0.1, 0.2, 0.3, 0.4]))
+    api.create_indices()
+    assert api.search_bm25(SearchQuery(text="Altman", embedding=[0, 0, 0, 0], tier="segment"))
+
     pipeline = LanceDBBackend(path, embed_dim=4)
     for i in range(6):
         pipeline.upsert_segment(_seg(f"x{i}", f"filler text {i}", "A", [0.1, 0.1, 0.1, 0.1]))
     pipeline.create_indices()
-    pipeline.compact()
+    pipeline.compact()  # prunes the fragments/versions the earlier writes created
 
-    # API reads again with its (now stale) cached handle -> reopens + still finds s1.
     res = api.search_bm25(SearchQuery(text="Altman", embedding=[0, 0, 0, 0], tier="segment"))
     assert any(r.doc_id == "s1" for r in res)
+
+
+def test_concurrent_hybrid_reads_during_compaction(tmp_path) -> None:
+    """Regression guard for the api SIGSEGV: many threads run hybrid search on one backend while a
+    second backend compacts the same path in a loop. With fresh-per-read handles nothing shared is
+    mutated, so every read returns cleanly (no raise) and finds the always-present target row.
+
+    (A native segfault is timing/platform dependent and may not reproduce here; this pins the
+    correct behaviour — no stale-fragment errors, no shared-handle corruption — at the integration
+    tier so a regression to cached handles is caught long before the stack test.)
+    """
+    path = str(tmp_path / "lance")
+    api = LanceDBBackend(path, embed_dim=4)
+    api.upsert_segment(_seg("s1", "Sam Altman OpenAI keynote", "A", [0.1, 0.2, 0.3, 0.4]))
+    for i in range(12):
+        api.upsert_segment(_seg(f"f{i}", f"filler passage number {i}", "A", [0.2, 0.2, 0.2, 0.2]))
+    api.create_indices()
+
+    pipeline = LanceDBBackend(path, embed_dim=4)
+    stop = threading.Event()
+    errors: list[BaseException] = []
+
+    def _compactor() -> None:
+        while not stop.is_set():
+            try:
+                pipeline.upsert_segment(
+                    _seg("s1", "Sam Altman OpenAI keynote", "A", [0.1, 0.2, 0.3, 0.4])
+                )
+                pipeline.create_indices()
+                pipeline.compact()
+            except BaseException as exc:  # noqa: BLE001 - record; the reads are what we assert on
+                errors.append(exc)
+                return
+
+    def _reader(_i: int) -> bool:
+        q = SearchQuery(text="Altman keynote", embedding=[0.1, 0.2, 0.3, 0.4], tier="segment")
+        return any(r.doc_id == "s1" for r in api.search_hybrid(q))
+
+    compactor = threading.Thread(target=_compactor, daemon=True)
+    compactor.start()
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            results = list(ex.map(_reader, range(48)))
+    finally:
+        stop.set()
+        compactor.join(timeout=10)
+
+    # Every concurrent read completed without raising; s1 is always present so every read finds it.
+    assert all(results)

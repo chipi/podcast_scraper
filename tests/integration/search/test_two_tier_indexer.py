@@ -7,6 +7,8 @@ LanceDB index with real MiniLM embeddings.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -14,6 +16,7 @@ pytestmark = pytest.mark.integration
 pytest.importorskip("lancedb")
 
 from podcast_scraper.search import hybrid_search as hs, two_tier_indexer as tti  # noqa: E402
+from podcast_scraper.search.backends import lancedb_backend as lancedb_backend  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
 
 
@@ -320,10 +323,15 @@ def test_limit_episodes_caps_walk(tmp_path, monkeypatch):
 def test_repeated_reindex_stays_bounded_via_compaction(tmp_path, monkeypatch):
     """Repeated (incremental) reindex must not grow the index unboundedly.
 
-    LanceDB is MVCC and the indexer upserts per-document, so without compaction every
-    build piles up fragments + versions (observed in prod: 8k fragments / 2.7G on one
-    table). Each build now compacts + prunes old versions, so the retained-version
-    count stays bounded no matter how many times we reindex.
+    LanceDB is MVCC and the indexer upserts per-document, so without compaction every build piles up
+    tiny one-row fragments (observed in prod: 8k fragments / 2.7G on one table). ``compact()`` MERGES
+    those fragments, so the *current version's* fragment count stays bounded however many times we
+    reindex — the real size win, and it lands immediately regardless of version retention.
+
+    Superseded VERSIONS then linger only for the reader grace window ``_COMPACT_RETENTION`` (that
+    window's reader-safety is covered by ``test_concurrent_hybrid_reads_during_compaction``); once
+    older than it a later compaction reclaims them, which we assert by collapsing the window to zero
+    (safe here — this test has no concurrent reader).
     """
     rows = [
         ("insight:1", "central bank policy", {"doc_type": "insight", "episode_id": "ep1"}),
@@ -338,18 +346,34 @@ def test_repeated_reindex_stays_bounded_via_compaction(tmp_path, monkeypatch):
     (corpus / "metadata").mkdir(parents=True)
     lance = corpus / "search" / "lance_index"
 
-    def _max_retained_versions() -> int:
-        return max(
-            (len(list(p.glob("*"))) for p in lance.glob("*.lance/_versions")),
-            default=0,
-        )
+    def _stats() -> tuple[int, int]:
+        """(max num_fragments, max retained versions) across the tiers."""
+        b = LanceDBBackend(str(lance))
+        frags = versions = 0
+        for tier in ("segment", "insight", "aux"):
+            t = b._open_if_exists(tier)
+            if t is None:
+                continue
+            frags = max(frags, int(t.stats()["fragment_stats"]["num_fragments"]))
+            versions = max(versions, len(t.list_versions()))
+        return frags, versions
 
     # Five incremental reindexes — the path the pipeline runs after each batch.
     for _ in range(5):
         tti.build_two_tier_index(corpus, lance)
 
-    # Compaction keeps retained versions tiny (a handful, not one-per-build-per-doc).
-    assert _max_retained_versions() <= 4, f"versions unbounded: {_max_retained_versions()}"
+    # Size win: per-doc fragments are MERGED, so the live version stays at a handful — not
+    # five-builds-worth — no matter how many reindexes ran. This is what bounds the 2.7G growth.
+    frags, _versions = _stats()
+    assert frags <= 4, f"fragments unbounded (compaction not merging): {frags}"
+
+    # Versions linger for the grace window but ARE reclaimable: collapse the window to zero and one
+    # more compaction prunes back to a couple — proving the window is a delay, not a leak.
+    monkeypatch.setattr(lancedb_backend, "_COMPACT_RETENTION", timedelta(0))
+    LanceDBBackend(str(lance)).compact()
+    _frags2, versions2 = _stats()
+    assert versions2 <= 4, f"versions not reclaimed past the grace window: {versions2}"
+
     # Data is still correct + queryable after compaction.
     backend = LanceDBBackend(str(lance))
     health = backend.health()

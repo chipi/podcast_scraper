@@ -13,7 +13,7 @@ import dataclasses
 import logging
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -48,24 +48,15 @@ _SEGMENT_TABLE = "segments"
 _INSIGHT_TABLE = "insights"
 _AUX_TABLE = "aux"
 
-
-def _is_stale_index_error(exc: BaseException) -> bool:
-    """A read failed because a data fragment/version the (cached) table handle referenced was
-    compacted away by ANOTHER process (the pipeline runs ``compact()`` on the shared corpus volume
-    while the API holds a long-lived handle). Reopening the table against the current manifest fixes
-    it — this predicate says when to do that. Matches LanceDB's pruned-fragment messages, e.g.
-    ``Not found: .../segments.lance/data/<frag>`` and ``Object at location ... not found``.
-    """
-    msg = str(exc).lower()
-    if "not found" not in msg:
-        return False
-    return (
-        ".lance/data" in msg
-        or "segments.lance" in msg
-        or "insights.lance" in msg
-        or "aux.lance" in msg
-        or "object at location" in msg
-    )
+# How long compaction keeps superseded versions before reclaiming their files. This is a READER
+# grace window: a concurrent process (the api) may be mid-read on a version the moment compaction
+# supersedes it, and deleting that version's fragments out from under the in-flight read strands it
+# with a "fragment not found" (and, under the retired cached-handle path, segfaulted the api). It
+# must comfortably exceed the longest single search (sub-second to a few seconds); 10 minutes is
+# ~100x that with margin for a loaded host, while still bounding on-disk size (the next compaction
+# reclaims anything now older than the window). LanceDB's own default is 7 days for this reason —
+# our earlier ``timedelta(0)`` opted out of that safety for disk and stranded concurrent readers.
+_COMPACT_RETENTION = timedelta(minutes=10)
 
 
 def _segment_schema(dim: int) -> "pa.Schema":
@@ -144,9 +135,14 @@ class LanceDBBackend:
         import lancedb
 
         self.path = path
+        # One long-lived connection, reused by every request/thread (the api holds this backend for
+        # the process lifetime). Table HANDLES are NOT cached: every read/write opens the table
+        # fresh via ``self.db.open_table`` so it sees the latest committed version — LanceDB's
+        # documented server pattern. A cached handle keeps pointing at old fragments that another
+        # process's ``optimize()``/``compact()`` then deletes, which is both the stale-"not found"
+        # bug and (when a handle is swapped under concurrent readers) a native use-after-free crash.
         self.db = lancedb.connect(path)
         self.embed_dim = embed_dim
-        self._tables: Dict[str, Any] = {}  # tier -> open table (list_tables() is cached)
 
     # --- index metadata sidecar ------------------------------------------------
 
@@ -209,53 +205,17 @@ class LanceDBBackend:
     # --- table lifecycle -------------------------------------------------------
 
     def _open_if_exists(self, tier: str):
-        cached = self._tables.get(tier)
-        if cached is not None:
-            return cached
+        """Open the tier's table FRESH against the current version, or None if it doesn't exist.
+
+        Never cached: a reused handle would keep pointing at fragments a concurrent ``optimize()``
+        later prunes. Opening fresh is LanceDB's documented per-request pattern and is what makes
+        reads correct under a compacting writer and safe under concurrent readers (each caller gets
+        its own handle — nothing shared is mutated on the read path).
+        """
         try:
-            table = self.db.open_table(self.TABLES[tier])
+            return self.db.open_table(self.TABLES[tier])
         except Exception:  # noqa: BLE001 - table does not exist yet
             return None
-        self._tables[tier] = table
-        return table
-
-    def _reopen_table(self, tier: str):
-        """Drop the cached handle and reopen the tier's table against the CURRENT manifest.
-
-        Reconnecting is cheap (it just points at the path) and guarantees the reopened table sees
-        versions another process wrote/compacted since this backend was constructed — the API holds
-        a long-lived backend while the pipeline container runs ``compact()`` on the shared volume.
-        """
-        import lancedb
-
-        self._tables.pop(tier, None)
-        try:
-            self.db = lancedb.connect(self.path)
-        except Exception:  # noqa: BLE001 - best-effort; the open_table below surfaces real failures
-            pass
-        return self._open_if_exists(tier)
-
-    def _read_tier(self, tier: str, run: "Callable[[Any], List[Dict[str, Any]]]"):
-        """Run a read ``run(table) -> rows`` on a tier's table, reopening the table ONCE on a
-        stale-fragment error (the index was compacted under this cached handle). Returns None when
-        the tier has no table on disk."""
-        table = self._open_if_exists(tier)
-        if table is None:
-            return None
-        try:
-            return run(table)
-        except (
-            Exception
-        ) as exc:  # noqa: BLE001 - only stale-index errors reopen+retry; else re-raise
-            if not _is_stale_index_error(exc):
-                raise
-            logger.info(
-                "lancedb tier %r index compacted under a cached handle; reopening + retrying", tier
-            )
-            table = self._reopen_table(tier)
-            if table is None:
-                return None
-            return run(table)
 
     _SCHEMAS = {"segment": _segment_schema, "insight": _insight_schema, "aux": _aux_schema}
 
@@ -264,9 +224,7 @@ class LanceDBBackend:
         if table is not None:
             return table
         schema = self._SCHEMAS[tier](self.embed_dim)
-        table = self.db.create_table(self.TABLES[tier], schema=schema)
-        self._tables[tier] = table
-        return table
+        return self.db.create_table(self.TABLES[tier], schema=schema)
 
     def create_indices(self) -> None:
         """Create FTS (required for BM25) + vector indices on all tables that exist.
@@ -298,22 +256,23 @@ class LanceDBBackend:
                 pass
 
     def compact(self) -> None:
-        """Compact data fragments + prune superseded versions on every table.
+        """Compact data fragments + prune old versions on every table.
 
         LanceDB is MVCC and the indexer upserts **one document at a time**, so each
         build (and every incremental post-pipeline reindex) appends thousands of tiny
         fragments + versions that are never reclaimed — the index grows unbounded
         (observed: a single ``aux`` table at 8k fragments / 2.7G). ``optimize`` merges
-        the fragments and ``cleanup_older_than=0`` drops every version but the current
-        one, bounding the on-disk size and keeping reads fast (fewer fragments to scan).
-        Best-effort: a compaction failure must never fail the build.
+        the fragments (the main disk win) and prunes versions older than
+        ``_COMPACT_RETENTION``, which keeps that grace window for any in-flight reader
+        on the just-superseded version (see the constant). Best-effort: a compaction
+        failure must never fail the build.
         """
         for tier in ("segment", "insight", "aux"):
             table = self._open_if_exists(tier)
             if table is None:
                 continue
             try:
-                table.optimize(cleanup_older_than=timedelta(0))
+                table.optimize(cleanup_older_than=_COMPACT_RETENTION)
             except Exception as exc:  # noqa: BLE001 - optimize is best-effort
                 logger.warning("LanceDB compaction skipped for %s table: %s", tier, exc)
 
@@ -349,10 +308,10 @@ class LanceDBBackend:
             return list(req.limit(query.k).to_list())
 
         for tier in self._tables_for_tier(query.tier):
-            rows_list = self._read_tier(tier, _run_tier)  # reopens once if the index was compacted
-            if rows_list is None:
+            table = self._open_if_exists(tier)  # fresh handle: sees the latest compacted version
+            if table is None:
                 continue
-            for row in rows_list:
+            for row in _run_tier(table):
                 raw = float(row.get(score_key, 0.0) or 0.0)
                 # BM25 _score: higher is better; vector _distance: lower is better.
                 score = raw if query_type == "fts" else 1.0 / (1.0 + raw)
@@ -410,10 +369,10 @@ class LanceDBBackend:
             return list(req.limit(query.k).to_list())
 
         for tier in self._tables_for_tier(query.tier):
-            rows_list = self._read_tier(tier, _run_hybrid_tier)  # reopens once if index compacted
-            if rows_list is None:
+            table = self._open_if_exists(tier)  # fresh handle: sees the latest compacted version
+            if table is None:
                 continue
-            for row in rows_list:
+            for row in _run_hybrid_tier(table):
                 score = float(row.get("_relevance_score", 0.0) or 0.0)
                 row.pop("embedding", None)  # never shipped back; keep the payload lean
                 hits.append((score, row, tier))
