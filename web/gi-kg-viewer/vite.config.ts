@@ -42,7 +42,11 @@ export default defineConfig({
        a worker. Pinning to `forks` gives each file its own process,
        so channel teardown is process-exit — instant and reliable.
        Ratcheted verification: 12/12 store tests + 9/9 slice tests +
-       4/4 enricher tests all green with this default. */
+       4/4 enricher tests all green with this default.
+       Kept as defense-in-depth even after the store now closes the
+       BroadcastChannel on scope dispose (see userPreferences.ts): fork
+       teardown is more permissive when a store transitively leaks
+       another handle than threads. */
     pool: 'forks',
     // Ensure Vitest never initializes PostHog (no token); avoids flaky network side effects.
     env: {

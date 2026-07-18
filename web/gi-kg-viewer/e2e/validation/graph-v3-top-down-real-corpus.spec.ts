@@ -23,9 +23,10 @@
  */
 import { expect, test } from '@playwright/test'
 import {
+  SHELL_HEADING_RE,
   dismissGraphGestureOverlayIfPresent,
   mainViewsNav,
-  SHELL_HEADING_RE,
+  signInIsolated,
   statusBarCorpusPathInput,
 } from '../helpers'
 
@@ -40,28 +41,13 @@ if (!CORPUS_PATH) {
 
 const IGNORE_CONSOLE = [
   /^Failed to load resource: the server responded with a status of 404 \(Not Found\)$/,
-  /* Background API call fires before the mock-OAuth sign-in redirect
-   * completes and lands a 401 — expected during the pre-auth window and
-   * not a real regression. Real auth failures surface as visible sign-in
-   * errors on the page, not as backgrounded 401s. */
-  /^Failed to load resource: the server responded with a status of 401 \(Unauthorized\)$/,
 ]
 
 test.describe('Tier-3 graph-v3 tier 8 — top-down mount + expand-on-tap (real corpus)', () => {
   test('V-G1 — top-down opt-in swaps mount to SuperTheme bubbles + tap expands children', async ({
     page,
     request,
-  }) => {
-    // Console-error harness (matches real-corpus.spec.ts).
-    const errors: string[] = []
-    page.on('console', (msg) => {
-      if (msg.type() !== 'error') return
-      const text = msg.text()
-      if (IGNORE_CONSOLE.some((r) => r.test(text))) return
-      errors.push(text)
-    })
-    page.on('pageerror', (err) => errors.push(err.message))
-
+  }, testInfo) => {
     // Sanity: the corpus must carry an enricher v1.1.0 theme_clusters
     // artifact. Fail LOUDLY here (not skip) — the operator's fixture is
     // committed and enriched deterministically, so a miss means the
@@ -91,16 +77,22 @@ test.describe('Tier-3 graph-v3 tier 8 — top-down mount + expand-on-tap (real c
         'Re-run the enricher on this corpus.',
     ).toBeGreaterThan(0)
 
-    // === Boot + drive to the graph tab ===
-    await page.goto('/')
-    /* Mock OAuth is enabled on `make serve` — sign in as Ada Admin before
-     * anything else. Idempotent: if we're already signed in, the button
-     * simply won't be visible. */
-    const signIn = page.getByRole('button', { name: /Ada Admin/ })
-    if (await signIn.isVisible().catch(() => false)) {
-      await signIn.click()
-    }
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    // === Boot + sign in, THEN attach the console-error harness ===
+    // ``signInIsolated`` blocks until the callback resolves + the
+    // shell heading is up, so any console error captured AFTER this
+    // returns is definitely inside the authenticated app — not a
+    // pre-auth artefact.
+    await signInIsolated(page, 'graph-v3-top-down', testInfo)
+
+    const errors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() !== 'error') return
+      const text = msg.text()
+      if (IGNORE_CONSOLE.some((r) => r.test(text))) return
+      errors.push(text)
+    })
+    page.on('pageerror', (err) => errors.push(err.message))
+
     const corpusInput = statusBarCorpusPathInput(page)
     await corpusInput.waitFor({ state: 'visible', timeout: 15_000 })
     await corpusInput.fill(CORPUS_PATH)

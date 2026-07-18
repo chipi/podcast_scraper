@@ -8,11 +8,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertHandoffApplied,
   captureConsoleErrors,
@@ -20,6 +16,10 @@ import {
 import { setupProductionShapedMocks } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Digest pill (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('P1.2 — Digest recent-row CIL pill resolves to a real cy topic node', async ({ page }) => {
     // D1 in the catalog. Recent-row pills target ``cil_digest_topics[]``
     // entries which ARE present in the episode's GI artifact. Targets

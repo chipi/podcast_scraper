@@ -200,22 +200,26 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
       const remote = userPrefs.get<Partial<GraphLensFlags>>('graphLenses')
       if (!remote || typeof remote !== 'object') return
       applyingRemote = true
-      try {
-        aggregatedEdges.value = readBool(remote.aggregatedEdges, aggregatedEdges.value)
-        nodeSizeByDegree.value = readBool(remote.nodeSizeByDegree, nodeSizeByDegree.value)
-        themeClusterRegions.value = readBool(
-          remote.themeClusterRegions,
-          themeClusterRegions.value,
-        )
-        bridgeRing.value = readBool(remote.bridgeRing, bridgeRing.value)
-        velocityHalo.value = readBool(remote.velocityHalo, velocityHalo.value)
-        personCredibility.value = readBool(remote.personCredibility, personCredibility.value)
-        consensusEdges.value = readBool(remote.consensusEdges, consensusEdges.value)
-        coGuestEdges.value = readBool(remote.coGuestEdges, coGuestEdges.value)
-        personCommunities.value = readBool(remote.personCommunities, personCommunities.value)
-      } finally {
+      aggregatedEdges.value = readBool(remote.aggregatedEdges, aggregatedEdges.value)
+      nodeSizeByDegree.value = readBool(remote.nodeSizeByDegree, nodeSizeByDegree.value)
+      themeClusterRegions.value = readBool(
+        remote.themeClusterRegions,
+        themeClusterRegions.value,
+      )
+      bridgeRing.value = readBool(remote.bridgeRing, bridgeRing.value)
+      velocityHalo.value = readBool(remote.velocityHalo, velocityHalo.value)
+      personCredibility.value = readBool(remote.personCredibility, personCredibility.value)
+      consensusEdges.value = readBool(remote.consensusEdges, consensusEdges.value)
+      coGuestEdges.value = readBool(remote.coGuestEdges, coGuestEdges.value)
+      personCommunities.value = readBool(remote.personCommunities, personCommunities.value)
+      /* Same async-guard concern as theme.ts / graphLoadMode.ts /
+       * graphTopDown.ts: the individual flag-watches above are async
+       * (default 'pre' flush), so clearing ``applyingRemote`` in a
+       * finally-block would let each remote-applied write loop back
+       * into ``userPrefs.set``. Defer the clear to the next microtask. */
+      void Promise.resolve().then(() => {
         applyingRemote = false
-      }
+      })
     },
     { immediate: true },
   )

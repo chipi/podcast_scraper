@@ -236,7 +236,9 @@ export function clearConsensusEdges(core: Core): void {
   core.batch(() => {
     core
       .edges(`.${CONSENSUS_EDGE_CLASS}`)
-      .forEach((e: EdgeSingular) => core.remove(e))
+      .forEach((e: EdgeSingular) => {
+        core.remove(e)
+      })
   })
 }
 
@@ -299,7 +301,9 @@ export function clearCoGuestEdges(core: Core): void {
   core.batch(() => {
     core
       .edges(`.${COGUEST_EDGE_CLASS}`)
-      .forEach((e: EdgeSingular) => core.remove(e))
+      .forEach((e: EdgeSingular) => {
+        core.remove(e)
+      })
   })
 }
 
@@ -320,8 +324,9 @@ const PERSON_COMMUNITY_CLASSES: string[] = Array.from(
 )
 
 function personCommunityHashIndex(cid: string): number {
-  // Same djb2-ish hash as themeRegionIndex, inlined to keep this file
-  // dep-free from the theme palette module.
+  // djb2 hash (different from themeRegionIndex which uses multiplier-31).
+  // Inlined to keep this file dep-free from the theme palette module.
+  // Person-community palette slots are independent of theme-region palette slots.
   let h = 5381
   for (let i = 0; i < cid.length; i++) {
     h = ((h << 5) + h + cid.charCodeAt(i)) | 0

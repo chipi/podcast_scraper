@@ -1,8 +1,135 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page, type TestInfo } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
+
+/**
+ * Mocked-API sign-in for tests that route `**\/api/**` themselves instead of
+ * booting a real backend. Mirrors the ``signInAs`` helper first written
+ * inline in ``auth-roles.spec.ts`` — every mocked-API spec since the
+ * ``#1128`` auth gate landed must set up ``/api/app/auth/status`` or the
+ * app boots to ``<LoginView>`` and every ``getByTestId(...)`` on the
+ * shell times out (the failure mode found in ci-ui-full 2026-07-18:
+ * 152/158 mocked-API specs timing out at 15 s).
+ *
+ * Roles — canonical vocabulary from ``src/podcast_scraper/server/app_roles.py``,
+ * validated against ``stores/auth.ts`` and the ``v-if`` gates in ``App.vue``:
+ *
+ * - ``listener`` — Learning Player only. Renders ``<NoAccessView>`` in the
+ *   viewer. Use this only when a spec asserts the no-access flow.
+ * - ``creator`` — viewer base shell: digest / library / graph. Does NOT
+ *   see Dashboard / Ops / Admin (those are ``v-if="auth.isAdmin"`` in
+ *   ``App.vue`` lines 675/682/696). Use this for the majority of
+ *   mocked-API specs.
+ * - ``admin`` — creator + Dashboard / Ops / Admin tabs. Use this for specs
+ *   that click any admin-only surface.
+ *
+ * The generic ``API_FALLBACK`` route below matches any host-rooted
+ * ``/api/`` path (but NOT the viewer's own ``/src/api/*.ts`` module URLs)
+ * so boot calls (``/api/health``, ``/api/artifacts``, ``/api/app/preferences``,
+ * …) do not hang while the spec's own more-specific ``page.route(...)``
+ * mocks take precedence per Playwright's LIFO route ordering.
+ */
+type MockRole = 'admin' | 'creator' | 'listener'
+
+const MOCK_ROLE_USER = (role: MockRole) => ({
+  user_id: `u_${role}`,
+  email: `${role}@x.io`,
+  name: role[0]!.toUpperCase() + role.slice(1),
+  role,
+  disabled: false,
+})
+
+/** Host-rooted `/api/` only — must NOT match viewer's own `/src/api/*.ts` module URLs. */
+const MOCK_API_FALLBACK = /^https?:\/\/[^/]+\/api\//
+
+export async function mockSignIn(page: Page, role: MockRole): Promise<void> {
+  /* Fallback FIRST (least specific). Playwright routes are LIFO so any
+   * per-test ``page.route(...)`` set up after this call wins. */
+  await page.route(MOCK_API_FALLBACK, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  )
+  /* Auth gate: enabled=true + the role's user. The App.vue gate reads
+   * ``auth.enabled`` and ``auth.canUseViewer``/``auth.isAdmin`` to pick
+   * between LoginView / NoAccessView / shell (see App.vue:611-696). */
+  await page.route('**/api/app/auth/status', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ enabled: true, user: MOCK_ROLE_USER(role) }),
+    }),
+  )
+}
 
 /** Shell `<h1>` product title; v2 lives in a child span (accessible name includes it). */
 export const SHELL_HEADING_RE = /Podcast Intelligence Platform/i
+
+/**
+ * Sign in as an ISOLATED mock identity, unique per (spec, project).
+ * Same shape as ``web/learning-player/e2e/helpers.ts::signInIsolated`` —
+ * the player and viewer tier-3 walks share this pattern.
+ *
+ * The mock OAuth provider honours the ``?as=`` hint (dev/e2e only) and
+ * self-completes as ``e2e-<hint>`` — so parallel specs don't share one
+ * mock user (which would race on the shared per-user server files).
+ * ``who`` should be the spec's name.
+ *
+ * Server-side redirect only: no UI click, no post-goto timing race. The
+ * ``user-menu-button`` testid becoming visible is the post-auth marker
+ * — it is the always-visible avatar in the authenticated header
+ * (``UserMenu.vue``) and does NOT render on the ``NoAccessView`` screen
+ * a role-gated user would land on. The ``user-menu-signout`` marker
+ * used by the learning-player's version of this helper does NOT work
+ * for the viewer — the viewer's Sign out lives inside a click-to-open
+ * menu (``v-if="open"``), so it isn't rendered until the avatar is
+ * clicked. The avatar button IS.
+ *
+ * ``make serve`` must be started with:
+ *   APP_OAUTH_PROVIDER=mock
+ *   APP_SIGNUP_MODE=open
+ *   APP_ADMIN_EMAILS=e2e-<hint>@e2e.local  (or the exact email the
+ *     mock provider synthesizes — see ``MockOAuthProvider.exchange_code``
+ *     in ``src/podcast_scraper/server/app_oauth.py``)
+ *   APP_SEED_USERS_FILE=config/dev-seed-users.json
+ * Otherwise the ``access_policy`` gate returns 403 or the
+ * ``NoAccessView`` renders.
+ */
+export async function signInIsolated(
+  page: Page,
+  who: string,
+  testInfo: TestInfo,
+): Promise<void> {
+  const id = `${who}-${testInfo.project.name}`.toLowerCase().replace(/[^a-z0-9-]/g, '')
+  /* ``?grant=creator`` promotes a new/listener identity to ``creator`` at
+   * callback (see ``app_auth.py::app_auth_login``) — enough for the base
+   * shell (digest/library/graph) that tier-3 walks exercise. Only
+   * ``creator`` is grantable this way; ``admin`` still requires an
+   * explicit ``APP_ADMIN_EMAILS`` entry and is never needed for these
+   * walks. */
+  await page.goto(
+    `/api/app/auth/login?as=${encodeURIComponent(id)}&grant=creator`,
+  )
+  await expect(page.getByTestId('user-menu-button')).toBeVisible()
+}
+
+/**
+ * Sign in as the fixed ADMIN identity — needed by tests that click the
+ * Dashboard / Ops / Admin nav buttons, which are gated on
+ * ``auth.isAdmin`` in ``App.vue`` (see ``main-tab-dashboard`` etc.).
+ *
+ * The ``ada-admin`` hint maps to ``ada-admin@e2e.local`` (see the
+ * ``MockOAuthProvider`` synth rule). ``make serve-for-validation``
+ * bakes that email into ``APP_ADMIN_EMAILS`` — the callback then
+ * lands the session in the ``admin`` role. ``?grant=creator`` is
+ * ignored for admin-listed emails (the admin role wins).
+ *
+ * All admin-gated tests share this ONE identity because parallel
+ * mutations against admin-only surfaces would race. The v4 dashboard
+ * walk / P5.x / P7.x tab-switch patterns only READ (nav click + chip
+ * pick), so a shared admin identity is safe.
+ */
+export async function signInAsAdmin(page: Page): Promise<void> {
+  await page.goto('/api/app/auth/login?as=ada-admin')
+  await expect(page.getByTestId('user-menu-button')).toBeVisible()
+}
 
 /** Header nav (Digest / Library / Graph / Dashboard) — scope clicks to avoid substring clashes (e.g. main-tab Library vs “Load into graph”). */
 export function mainViewsNav(page: Page) {

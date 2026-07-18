@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { setupDashboardApiMocks, setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * #656 Stage B + Stage D — behaviour tests for the two pipeline metrics
@@ -88,6 +88,10 @@ async function navigateToPipelineTab(page: Page): Promise<void> {
 }
 
 test.describe('Dashboard pipeline metrics (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test.describe.configure({ mode: 'serial' })
 
   test('populated run renders Stage B cleanup counters + Stage D ad-excision counters', async ({ page }) => {

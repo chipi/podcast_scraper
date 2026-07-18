@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -99,6 +99,10 @@ async function mockCorpusGraphBaseline(page: Page): Promise<void> {
 }
 
 test.describe('Topic-cluster sibling merge (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('resolve failure shows alert banner and dismiss clears it', async ({ page }) => {
     await mockCorpusGraphBaseline(page)
 

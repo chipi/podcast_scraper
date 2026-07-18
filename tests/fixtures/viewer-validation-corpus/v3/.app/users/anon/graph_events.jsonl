@@ -1,0 +1,794 @@
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "ae912b54-429f-4b63-ad26-fbf3acf8b572", "ts": 1784365048170, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "8566e772-fadf-44cc-a5c9-f4391ec45e23", "ts": 1784365048325, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:cluster-x", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "8f46b27e-da5b-405a-a487-bb1098a17071", "ts": 1784365050393, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "8f46b27e-da5b-405a-a487-bb1098a17071", "ts": 1784365050476, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:mock-topic-band", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "2d2e625c-be5e-4f83-8f50-e8aa7f5d0204", "ts": 1784365050414, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "2d2e625c-be5e-4f83-8f50-e8aa7f5d0204", "ts": 1784365050469, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "f08c00b4-5c80-4f98-aa46-a39304306aff", "ts": 1784365052576, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "c1231cfd-9d73-46af-8ba1-2d0d38485d7a", "ts": 1784365052042, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "6ad149fa-55e5-4a5c-a480-8e50f1cb7284", "ts": 1784365053433, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "e122bb1f-5e53-4825-b544-369a9cf489a5", "ts": 1784365053512, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "40a2e972-c260-48db-a259-d4eb66b03eb8", "ts": 1784365054501, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "969075ad-4a5b-4317-9124-de283326a1d9", "ts": 1784365055298, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "f3631fb6-4044-4f8e-ad59-94b2b355983c", "ts": 1784365055958, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f3631fb6-4044-4f8e-ad59-94b2b355983c", "ts": 1784365056001, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "93b936b2-348e-45f8-8bd6-f91802cc9721", "ts": 1784365057493, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "93b936b2-348e-45f8-8bd6-f91802cc9721", "ts": 1784365057547, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "93b936b2-348e-45f8-8bd6-f91802cc9721", "ts": 1784365057553, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "93b936b2-348e-45f8-8bd6-f91802cc9721", "ts": 1784365058177, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "420a5d56-9a6e-4790-b073-776708f80b92", "ts": 1784365058762, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "420a5d56-9a6e-4790-b073-776708f80b92", "ts": 1784365058808, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "66a6c9f0-e400-498d-a689-991d891472ee", "ts": 1784365053366, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "66a6c9f0-e400-498d-a689-991d891472ee", "ts": 1784365059950, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "66a6c9f0-e400-498d-a689-991d891472ee", "ts": 1784365059951, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "72c867be-e1c2-4adc-afcc-23e9db893093", "ts": 1784365059946, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "72c867be-e1c2-4adc-afcc-23e9db893093", "ts": 1784365059991, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "72c867be-e1c2-4adc-afcc-23e9db893093", "ts": 1784365060614, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "2d419515-0cb9-4569-9716-f43d483d17d6", "ts": 1784365061293, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "2d419515-0cb9-4569-9716-f43d483d17d6", "ts": 1784365061498, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "2d419515-0cb9-4569-9716-f43d483d17d6", "ts": 1784365061516, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "2d419515-0cb9-4569-9716-f43d483d17d6", "ts": 1784365061910, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "9563adcc-aef1-4471-a175-c6cfb84be86d", "ts": 1784365062851, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "9563adcc-aef1-4471-a175-c6cfb84be86d", "ts": 1784365062924, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "ffc27e6c-e8da-4712-a071-ea2f0dacd91d", "ts": 1784365060637, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "ffc27e6c-e8da-4712-a071-ea2f0dacd91d", "ts": 1784365067231, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "ffc27e6c-e8da-4712-a071-ea2f0dacd91d", "ts": 1784365067232, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 6, "trail_size": 0, "session_id": "ffc27e6c-e8da-4712-a071-ea2f0dacd91d", "ts": 1784365067257, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "b9782a26-245e-4410-a116-ac9ec4748ced", "ts": 1784365067857, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "b9782a26-245e-4410-a116-ac9ec4748ced", "ts": 1784365074429, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "b9782a26-245e-4410-a116-ac9ec4748ced", "ts": 1784365074430, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "subject-rail", "kind": "graph-node", "load_source": "subject-external", "session_id": "0c8ee5e4-6c38-4632-ace6-07cf25aec5ac", "ts": 1784365081023, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "8743c293-f29c-4f8e-9e5e-b2ae4677a650", "ts": 1784365075010, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "8743c293-f29c-4f8e-9e5e-b2ae4677a650", "ts": 1784365081576, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "8743c293-f29c-4f8e-9e5e-b2ae4677a650", "ts": 1784365081577, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "status-bar", "kind": "graph-node", "load_source": "subject-external", "session_id": "020fbb03-c713-4294-a32a-b66804ac1e39", "ts": 1784365081576, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "a3a81e28-7633-4e13-93bb-2aa4708ec11f", "ts": 1784365082013, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "a3a81e28-7633-4e13-93bb-2aa4708ec11f", "ts": 1784365082075, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "minimap", "kind": "graph-node", "load_source": "graph-internal", "session_id": "a3a81e28-7633-4e13-93bb-2aa4708ec11f", "ts": 1784365083535, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "5f77f554-3978-4746-9837-84fb5d604b7b", "ts": 1784365082597, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "5f77f554-3978-4746-9837-84fb5d604b7b", "ts": 1784365082650, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "b23b9a5c-24f6-4de8-897d-40c75853230f", "ts": 1784365083780, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "b23b9a5c-24f6-4de8-897d-40c75853230f", "ts": 1784365083830, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "fd8ac1ea-4e3d-4593-84f8-f87eae8ae578", "ts": 1784365085315, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "fd8ac1ea-4e3d-4593-84f8-f87eae8ae578", "ts": 1784365085362, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "5c20dab4-6ff8-4ae9-aac0-81c7353ee1cf", "ts": 1784365086734, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "fb1ea79c-6e06-48b1-8b93-043fc4b8e299", "ts": 1784365086548, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "fb1ea79c-6e06-48b1-8b93-043fc4b8e299", "ts": 1784365086608, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "89979dc7-8b45-4c91-813d-99b7ef49ed37", "ts": 1784365086267, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "89979dc7-8b45-4c91-813d-99b7ef49ed37", "ts": 1784365086346, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "89979dc7-8b45-4c91-813d-99b7ef49ed37", "ts": 1784365086502, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "89979dc7-8b45-4c91-813d-99b7ef49ed37", "ts": 1784365086633, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "89979dc7-8b45-4c91-813d-99b7ef49ed37", "ts": 1784365086786, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "89979dc7-8b45-4c91-813d-99b7ef49ed37", "ts": 1784365086916, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "a574d484-367e-4d3c-9401-05a75f8b7504", "ts": 1784365087546, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "0bf3282c-5eeb-4f07-af66-f7fe73f77a84", "ts": 1784365087651, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "70752ee1-b1ce-446b-9f19-19fa597e32c1", "ts": 1784365088380, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "canvas-tap", "kind": "episode", "load_source": "graph-internal", "session_id": "70752ee1-b1ce-446b-9f19-19fa597e32c1", "ts": 1784365088429, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "7fb0b6a7-eceb-4947-8424-b303a8402699", "ts": 1784365088629, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "8ac34e5d-d0a1-467a-9ef5-228bdbf7aedc", "ts": 1784365088735, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "8ac34e5d-d0a1-467a-9ef5-228bdbf7aedc", "ts": 1784365088792, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "cf7388b9-82b8-4649-bae2-3154b9df02aa", "ts": 1784365090034, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "cf7388b9-82b8-4649-bae2-3154b9df02aa", "ts": 1784365090034, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "cf7388b9-82b8-4649-bae2-3154b9df02aa", "ts": 1784365090034, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "94aba797-ee63-4092-8b63-383d13b5097a", "ts": 1784365089355, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "94aba797-ee63-4092-8b63-383d13b5097a", "ts": 1784365089412, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "94aba797-ee63-4092-8b63-383d13b5097a", "ts": 1784365090185, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "94aba797-ee63-4092-8b63-383d13b5097a", "ts": 1784365090204, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "94aba797-ee63-4092-8b63-383d13b5097a", "ts": 1784365090380, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "94aba797-ee63-4092-8b63-383d13b5097a", "ts": 1784365090931, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f801462c-fdc2-42c5-a49d-ac8fa7fb5e39", "ts": 1784365091002, "user_id": "anon"}
+{"action": "graph_broke", "reason": "episode not found (test-injected)", "where": "handoff_failed", "session_id": "f801462c-fdc2-42c5-a49d-ac8fa7fb5e39", "ts": 1784365091468, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "6ddb0c0b-ec60-4f51-8928-96b005207c63", "ts": 1784365092476, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "6ddb0c0b-ec60-4f51-8928-96b005207c63", "ts": 1784365092480, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "6ddb0c0b-ec60-4f51-8928-96b005207c63", "ts": 1784365092512, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "7d6faed6-7deb-40dd-8d5d-8a344819fcfc", "ts": 1784365091831, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "e9a83f71-8d81-4c71-9bdd-636b2e6c050d", "ts": 1784365093471, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "e9a83f71-8d81-4c71-9bdd-636b2e6c050d", "ts": 1784365093521, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:this-node-definitely-does-not-exist", "source": "restore-preference", "kind": "graph-node", "load_source": "graph-internal", "session_id": "e9a83f71-8d81-4c71-9bdd-636b2e6c050d", "ts": 1784365094992, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "8cda24a6-d692-4fc3-8952-4c7d3a5b5d34", "ts": 1784365089423, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "8cda24a6-d692-4fc3-8952-4c7d3a5b5d34", "ts": 1784365089495, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "8cda24a6-d692-4fc3-8952-4c7d3a5b5d34", "ts": 1784365090337, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "8cda24a6-d692-4fc3-8952-4c7d3a5b5d34", "ts": 1784365090371, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "8cda24a6-d692-4fc3-8952-4c7d3a5b5d34", "ts": 1784365091186, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "8cda24a6-d692-4fc3-8952-4c7d3a5b5d34", "ts": 1784365091199, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "8cda24a6-d692-4fc3-8952-4c7d3a5b5d34", "ts": 1784365091369, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f5329ac2-3ccf-4784-b9b0-1084b71eb886", "ts": 1784365093133, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "f5329ac2-3ccf-4784-b9b0-1084b71eb886", "ts": 1784365099812, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "canvas-tap", "kind": "graph-node", "load_source": "graph-internal", "session_id": "f5329ac2-3ccf-4784-b9b0-1084b71eb886", "ts": 1784365100069, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "9c71e985-9f50-40d7-8187-25793ce58bd9", "ts": 1784365099893, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "9c71e985-9f50-40d7-8187-25793ce58bd9", "ts": 1784365099937, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "9c71e985-9f50-40d7-8187-25793ce58bd9", "ts": 1784365101466, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c66feeff-50bf-4a31-9c28-55bada3a41f9", "ts": 1784365100894, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "c66feeff-50bf-4a31-9c28-55bada3a41f9", "ts": 1784365100941, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "c66feeff-50bf-4a31-9c28-55bada3a41f9", "ts": 1784365102468, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "a461c157-9d67-46aa-b260-8d06a2f00777", "ts": 1784365104080, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "a461c157-9d67-46aa-b260-8d06a2f00777", "ts": 1784365104121, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "b260ff99-f4f3-43f3-b17f-fd35dd8c61e2", "ts": 1784365105131, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "b260ff99-f4f3-43f3-b17f-fd35dd8c61e2", "ts": 1784365105174, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "55b1004a-f83d-4968-a144-d7a62858045a", "ts": 1784365107100, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "55b1004a-f83d-4968-a144-d7a62858045a", "ts": 1784365107146, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "55b1004a-f83d-4968-a144-d7a62858045a", "ts": 1784365107283, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "c0d30a35-7dbe-42a0-92f1-a2b539c6fcdd", "ts": 1784365108201, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "c0d30a35-7dbe-42a0-92f1-a2b539c6fcdd", "ts": 1784365108262, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "c0d30a35-7dbe-42a0-92f1-a2b539c6fcdd", "ts": 1784365108269, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "c0d30a35-7dbe-42a0-92f1-a2b539c6fcdd", "ts": 1784365108879, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "c0d30a35-7dbe-42a0-92f1-a2b539c6fcdd", "ts": 1784365108968, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "c0d30a35-7dbe-42a0-92f1-a2b539c6fcdd", "ts": 1784365108970, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "c0d30a35-7dbe-42a0-92f1-a2b539c6fcdd", "ts": 1784365108981, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "c23a1f23-979b-4e96-abe9-10d32f3b8aab", "ts": 1784365110139, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "c23a1f23-979b-4e96-abe9-10d32f3b8aab", "ts": 1784365110140, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "76c7a469-b514-4eb9-87a9-448faee974c9", "ts": 1784365100860, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "76c7a469-b514-4eb9-87a9-448faee974c9", "ts": 1784365107528, "user_id": "anon"}
+{"action": "graph_broke", "reason": "stuck-timeout", "where": "handoff_stuck", "source": "restore-preference", "kind": "graph-node", "session_id": "af0cd0e1-5514-4dda-9bad-500120f8cf8a", "ts": 1784365110667, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "94a3dd6c-e6f2-4090-be8e-f40a130b0d78", "ts": 1784365110153, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "94a3dd6c-e6f2-4090-be8e-f40a130b0d78", "ts": 1784365110206, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "94a3dd6c-e6f2-4090-be8e-f40a130b0d78", "ts": 1784365110320, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "557d498f-a20b-4d2d-b9ae-735b54ec32e7", "ts": 1784365111205, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "557d498f-a20b-4d2d-b9ae-735b54ec32e7", "ts": 1784365111289, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "557d498f-a20b-4d2d-b9ae-735b54ec32e7", "ts": 1784365111299, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "557d498f-a20b-4d2d-b9ae-735b54ec32e7", "ts": 1784365111911, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "557d498f-a20b-4d2d-b9ae-735b54ec32e7", "ts": 1784365112254, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "557d498f-a20b-4d2d-b9ae-735b54ec32e7", "ts": 1784365112296, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "d4f97f4c-6595-4f1c-8a85-0df914b4afcb", "ts": 1784365113308, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "d4f97f4c-6595-4f1c-8a85-0df914b4afcb", "ts": 1784365113308, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "aa5a4f8d-f87c-42e5-bb57-e7da6bafbbfc", "ts": 1784365114305, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "aa5a4f8d-f87c-42e5-bb57-e7da6bafbbfc", "ts": 1784365114351, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "89b7cbbd-d7e0-48b4-b74c-30991cfbc4be", "ts": 1784365113605, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "89b7cbbd-d7e0-48b4-b74c-30991cfbc4be", "ts": 1784365113654, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:episode:e1", "source": "restore-preference", "kind": "graph-node", "load_source": "subject-external", "session_id": "89b7cbbd-d7e0-48b4-b74c-30991cfbc4be", "ts": 1784365115128, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365116244, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365116315, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365116322, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365116940, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365117005, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365117007, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365117017, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 2, "session_id": "80518619-b9a6-4e55-b092-968a5c585228", "ts": 1784365117565, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "fe5c82b5-bce3-40e8-a33f-82b5291d837d", "ts": 1784365118118, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "canvas-tap", "kind": "episode", "load_source": "graph-internal", "session_id": "fe5c82b5-bce3-40e8-a33f-82b5291d837d", "ts": 1784365118152, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "3148621f-a774-4a1f-a0f9-e8139dca6600", "ts": 1784365116241, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "3148621f-a774-4a1f-a0f9-e8139dca6600", "ts": 1784365116306, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "3148621f-a774-4a1f-a0f9-e8139dca6600", "ts": 1784365116445, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "5c447f52-0f04-4da8-9716-ad286317f29b", "ts": 1784365118688, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "5c447f52-0f04-4da8-9716-ad286317f29b", "ts": 1784365118731, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "641bce2a-eadf-48ff-bfca-e3ca405191fd", "ts": 1784365111481, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "episode:ci-fixture", "kind": "Episode", "session_id": "641bce2a-eadf-48ff-bfca-e3ca405191fd", "ts": 1784365118871, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "641bce2a-eadf-48ff-bfca-e3ca405191fd", "ts": 1784365118872, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "0235bf6c-c00d-46f6-bf5f-051f42bf8811", "ts": 1784365119062, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "0235bf6c-c00d-46f6-bf5f-051f42bf8811", "ts": 1784365119111, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "e1dd9050-e77e-4b37-9ef9-a1adf5037869", "ts": 1784365112238, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "e1dd9050-e77e-4b37-9ef9-a1adf5037869", "ts": 1784365112300, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "e1dd9050-e77e-4b37-9ef9-a1adf5037869", "ts": 1784365113190, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "e1dd9050-e77e-4b37-9ef9-a1adf5037869", "ts": 1784365113209, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "e1dd9050-e77e-4b37-9ef9-a1adf5037869", "ts": 1784365113382, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "f177b7eb-4b1e-4cb8-a752-8773dbd26b94", "ts": 1784365120027, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "f177b7eb-4b1e-4cb8-a752-8773dbd26b94", "ts": 1784365121059, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:science-research", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "1b5e14f9-69b4-4b5b-8203-f9ab31739218", "ts": 1784365122852, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "43314f3f-5072-45b2-874d-d036f1e4fd7a", "ts": 1784365121429, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "43314f3f-5072-45b2-874d-d036f1e4fd7a", "ts": 1784365122764, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "a0c6b4e5-1624-4514-b347-1b2f6d075180", "ts": 1784365119567, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "a0c6b4e5-1624-4514-b347-1b2f6d075180", "ts": 1784365126756, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "a0c6b4e5-1624-4514-b347-1b2f6d075180", "ts": 1784365126758, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "5e470b4c-4fbe-4732-b1a0-dc601a7f15a8", "ts": 1784365125322, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "5e470b4c-4fbe-4732-b1a0-dc601a7f15a8", "ts": 1784365125639, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "5e470b4c-4fbe-4732-b1a0-dc601a7f15a8", "ts": 1784365125639, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:urban-planning", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "5e470b4c-4fbe-4732-b1a0-dc601a7f15a8", "ts": 1784365125640, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "93d857c4-47da-4524-8861-d50741e8b016", "ts": 1784365125607, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "93d857c4-47da-4524-8861-d50741e8b016", "ts": 1784365125822, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "93d857c4-47da-4524-8861-d50741e8b016", "ts": 1784365125822, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "93d857c4-47da-4524-8861-d50741e8b016", "ts": 1784365125822, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "c23c7a72-894a-4402-bd6c-ca2060298679", "ts": 1784365128889, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 0, "session_id": "c23c7a72-894a-4402-bd6c-ca2060298679", "ts": 1784365129085, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:public-investment", "to_kind": "topic", "trail_size": 1, "session_id": "c23c7a72-894a-4402-bd6c-ca2060298679", "ts": 1784365129089, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 1, "session_id": "c23c7a72-894a-4402-bd6c-ca2060298679", "ts": 1784365129759, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "b4334afb-95c2-4c38-b958-c262e2a535df", "ts": 1784365129550, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "b4334afb-95c2-4c38-b958-c262e2a535df", "ts": 1784365129747, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:public-investment", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "b4334afb-95c2-4c38-b958-c262e2a535df", "ts": 1784365129747, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:urban-planning", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "b4334afb-95c2-4c38-b958-c262e2a535df", "ts": 1784365129747, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "0ab8258b-852d-4c79-8c57-a93c049b137a", "ts": 1784365130031, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 0, "session_id": "0ab8258b-852d-4c79-8c57-a93c049b137a", "ts": 1784365130258, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:public-investment", "to_kind": "topic", "trail_size": 1, "session_id": "0ab8258b-852d-4c79-8c57-a93c049b137a", "ts": 1784365130262, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "0ab8258b-852d-4c79-8c57-a93c049b137a", "ts": 1784365130590, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 1, "session_id": "0ab8258b-852d-4c79-8c57-a93c049b137a", "ts": 1784365131968, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 8, "trail_size": 0, "session_id": "d069dd28-da57-432c-bd9f-a7bc4ed9ca61", "ts": 1784365127873, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "person:gxexp-e2e", "kind": "Entity_person", "session_id": "d069dd28-da57-432c-bd9f-a7bc4ed9ca61", "ts": 1784365134484, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "person:gxexp-e2e", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "d069dd28-da57-432c-bd9f-a7bc4ed9ca61", "ts": 1784365134487, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "org:gxexp-e2e", "kind": "Entity_person", "session_id": "d069dd28-da57-432c-bd9f-a7bc4ed9ca61", "ts": 1784365137515, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c7aa3c50-c01a-438a-9fc8-5282919684ad", "ts": 1784365133422, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "c7aa3c50-c01a-438a-9fc8-5282919684ad", "ts": 1784365134636, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c7aa3c50-c01a-438a-9fc8-5282919684ad", "ts": 1784365136268, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "796d3318-76b6-4e41-95e1-d67b99ee6de7", "ts": 1784365138660, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "796d3318-76b6-4e41-95e1-d67b99ee6de7", "ts": 1784365140012, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "796d3318-76b6-4e41-95e1-d67b99ee6de7", "ts": 1784365141666, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "65402c66-c460-422e-ac3e-698b009ba575", "ts": 1784365138157, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "65402c66-c460-422e-ac3e-698b009ba575", "ts": 1784365144732, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "65402c66-c460-422e-ac3e-698b009ba575", "ts": 1784365144733, "user_id": "anon"}
+{"action": "graph_broke", "reason": "stuck-timeout", "where": "handoff_stuck", "source": "restore-preference", "kind": "graph-node", "session_id": "cdb450dc-d12d-45e2-b497-2cddb7329a08", "ts": 1784365148018, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "baf49b57-cdfa-4bc0-a274-73c134b706da", "ts": 1784365143997, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "baf49b57-cdfa-4bc0-a274-73c134b706da", "ts": 1784365145291, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "baf49b57-cdfa-4bc0-a274-73c134b706da", "ts": 1784365147424, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "823e89c8-94e4-477f-b1a4-5c63d4c863f6", "ts": 1784365150190, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:public-investment", "source": "restore-preference", "kind": "graph-node", "load_source": "subject-external", "session_id": "823e89c8-94e4-477f-b1a4-5c63d4c863f6", "ts": 1784365150457, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "70cd23fe-31a5-4466-babb-b763e8230499", "ts": 1784365151293, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "18075429-7ce2-4801-ab0c-c5cae233204b", "ts": 1784365145796, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "18075429-7ce2-4801-ab0c-c5cae233204b", "ts": 1784365152533, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "18075429-7ce2-4801-ab0c-c5cae233204b", "ts": 1784365152534, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 6, "trail_size": 0, "session_id": "18075429-7ce2-4801-ab0c-c5cae233204b", "ts": 1784365152565, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "2794f832-0600-45dd-8dff-7d18717cf33c", "ts": 1784365154852, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "261dd819-c815-43e0-a84b-58e08d1da5fa", "ts": 1784365151505, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "261dd819-c815-43e0-a84b-58e08d1da5fa", "ts": 1784365152844, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "261dd819-c815-43e0-a84b-58e08d1da5fa", "ts": 1784365154698, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "3a4684b7-d601-47e6-a962-7ba04b1d0fd2", "ts": 1784365159007, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "3364dd8d-a307-4393-994c-075e48e51c83", "ts": 1784365159994, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "3364dd8d-a307-4393-994c-075e48e51c83", "ts": 1784365161366, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "af799994-96eb-44a0-b530-dd343083dac3", "ts": 1784365162491, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "de697265-962c-46c7-9688-62895e940a8a", "ts": 1784365163979, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "92d9dc6b-f791-473c-96aa-77221831f38c", "ts": 1784365163979, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "088c0255-e0d2-4613-adfc-f2f206d7c0ff", "ts": 1784365160977, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "088c0255-e0d2-4613-adfc-f2f206d7c0ff", "ts": 1784365162385, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "088c0255-e0d2-4613-adfc-f2f206d7c0ff", "ts": 1784365163839, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "088c0255-e0d2-4613-adfc-f2f206d7c0ff", "ts": 1784365164928, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "041d339f-bb84-46f7-885b-1e5936809513", "ts": 1784365165305, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "69328fb6-393b-4f32-bd0b-9114f314dcce", "ts": 1784365167633, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "c0bd235e-335d-4a5d-a168-f8b75846b87d", "ts": 1784365168426, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "effac7b5-8343-4dd3-979c-ff94bd81bd89", "ts": 1784365168545, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "effac7b5-8343-4dd3-979c-ff94bd81bd89", "ts": 1784365168934, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "4b349107-37d1-4052-a065-d91671d35cd4", "ts": 1784365169537, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "28dd4ebb-e0e4-4fb3-ba6d-d08f1174a8d0", "ts": 1784365170383, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "ff33de45-809f-48c1-bb4a-b416ee4bf00f", "ts": 1784365174525, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "a84c461b-f83b-44b5-9f93-6b2638943f18", "ts": 1784365175163, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "9358cb67-b780-4972-b08d-6efc7aaa7061", "ts": 1784365179529, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "b0e89fe1-6df7-4086-b61e-9ac704300b0d", "ts": 1784369774328, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "2859f71b-2fd4-4c64-8c81-2a1f41d665be", "ts": 1784369774976, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "9086bab1-5867-46c2-8369-6cecfe89339e", "ts": 1784371193601, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "d5a21c82-a970-4f21-a8c1-47305b248a9e", "ts": 1784371195726, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 0, "session_id": "d5a21c82-a970-4f21-a8c1-47305b248a9e", "ts": 1784371195845, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "f80d384d-e2ca-4f22-878d-5df6c1b87cae", "ts": 1784371196828, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "61a342df-ea65-49c6-9e57-9f4a86bbeac9", "ts": 1784371196544, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "557493ea-ec43-4f50-bded-7fee4e68451a", "ts": 1784371196770, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 0, "session_id": "557493ea-ec43-4f50-bded-7fee4e68451a", "ts": 1784371196993, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "557493ea-ec43-4f50-bded-7fee4e68451a", "ts": 1784371197283, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "557493ea-ec43-4f50-bded-7fee4e68451a", "ts": 1784371197286, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 1, "session_id": "557493ea-ec43-4f50-bded-7fee4e68451a", "ts": 1784371197613, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "2011090c-024f-4df7-8fe8-1bc8da3b0981", "ts": 1784371223368, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "ba2ef61f-5887-41e2-afb4-ce9b396a75d5", "ts": 1784371222872, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 0, "session_id": "ba2ef61f-5887-41e2-afb4-ce9b396a75d5", "ts": 1784371223017, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "9bbb69f9-f3d4-4232-a327-1d82767becd1", "ts": 1784371224283, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "a70aec59-9d0c-41ed-8b86-3c7f859fbcc9", "ts": 1784371224344, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "person:jane-doe", "to_kind": "person", "trail_size": 1, "session_id": "a70aec59-9d0c-41ed-8b86-3c7f859fbcc9", "ts": 1784371224645, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "9538f092-a06c-4944-8c61-9901b07ad80c", "ts": 1784371877806, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "c47ba259-a81a-4c3d-82dc-b5736ed5bf04", "ts": 1784371878458, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:cluster-x", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "69714b71-6acd-414f-ab19-a9e134036fa0", "ts": 1784371879928, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "69714b71-6acd-414f-ab19-a9e134036fa0", "ts": 1784371880028, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:mock-topic-band", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "516b45cb-ae12-4ae6-a321-9938da938f23", "ts": 1784371880071, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "516b45cb-ae12-4ae6-a321-9938da938f23", "ts": 1784371880111, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "2a95c92b-6969-446a-9e98-5be688a916b9", "ts": 1784371881327, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "73506c1c-74d4-44ba-b347-7d5fa19d4c0d", "ts": 1784371881341, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "243c9c9f-854e-4f13-b250-314ce54848d4", "ts": 1784371881167, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "62e44561-06ca-481a-83a9-2b1241773100", "ts": 1784371881875, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "97825d89-639b-46d5-848f-eaec539603ae", "ts": 1784371882475, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "c061693d-0e70-45e5-98c4-1a379ba19fed", "ts": 1784371882514, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "0df4f508-0f32-479b-aa1b-df43a217719e", "ts": 1784371883539, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "9452f863-dd64-4bac-a5e3-31885f0db47d", "ts": 1784371882808, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "9452f863-dd64-4bac-a5e3-31885f0db47d", "ts": 1784371882895, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "9452f863-dd64-4bac-a5e3-31885f0db47d", "ts": 1784371882901, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "9452f863-dd64-4bac-a5e3-31885f0db47d", "ts": 1784371883518, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "5b3b07ef-c438-4968-a859-a80236404ca1", "ts": 1784371883091, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "5b3b07ef-c438-4968-a859-a80236404ca1", "ts": 1784371883154, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "a96fa985-f497-4f9c-9d98-2b7784e1a5ac", "ts": 1784371882906, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "a96fa985-f497-4f9c-9d98-2b7784e1a5ac", "ts": 1784371882964, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "acc2cd67-fbad-4dca-8f9d-3f079e9d6bea", "ts": 1784371883572, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "acc2cd67-fbad-4dca-8f9d-3f079e9d6bea", "ts": 1784371883616, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "acb4ea99-54ce-4756-a790-07e4a91cc0cf", "ts": 1784371883596, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "acb4ea99-54ce-4756-a790-07e4a91cc0cf", "ts": 1784371883777, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "acb4ea99-54ce-4756-a790-07e4a91cc0cf", "ts": 1784371883799, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "acb4ea99-54ce-4756-a790-07e4a91cc0cf", "ts": 1784371884221, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "subject-rail", "kind": "graph-node", "load_source": "subject-external", "session_id": "b14944a0-c759-49d9-b2c3-7f06537a890c", "ts": 1784371884861, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "62668f9e-1f1e-4afd-86be-26116b9340b3", "ts": 1784371884374, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 0, "session_id": "62668f9e-1f1e-4afd-86be-26116b9340b3", "ts": 1784371884511, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c464d23b-dbae-4e85-ad8c-beb685181730", "ts": 1784371884375, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "c464d23b-dbae-4e85-ad8c-beb685181730", "ts": 1784371884442, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "status-bar", "kind": "graph-node", "load_source": "subject-external", "session_id": "5d4c4b8b-dbc4-40c2-bbb8-2eab95ff29a1", "ts": 1784371885158, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "aab816fc-5636-42ff-ba7f-a7ae20261e41", "ts": 1784371886141, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "aab816fc-5636-42ff-ba7f-a7ae20261e41", "ts": 1784371886185, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "aab816fc-5636-42ff-ba7f-a7ae20261e41", "ts": 1784371886305, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "aab816fc-5636-42ff-ba7f-a7ae20261e41", "ts": 1784371886424, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "aab816fc-5636-42ff-ba7f-a7ae20261e41", "ts": 1784371886541, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "aab816fc-5636-42ff-ba7f-a7ae20261e41", "ts": 1784371886674, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "005bbf16-b56b-413f-a753-f05afd0c30da", "ts": 1784371886177, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "005bbf16-b56b-413f-a753-f05afd0c30da", "ts": 1784371886217, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "cb06149e-da90-4393-80f8-962867dc6487", "ts": 1784371885039, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "cb06149e-da90-4393-80f8-962867dc6487", "ts": 1784371885079, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "minimap", "kind": "graph-node", "load_source": "graph-internal", "session_id": "cb06149e-da90-4393-80f8-962867dc6487", "ts": 1784371886557, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "51c98217-9159-4096-b5ea-793ed373d24f", "ts": 1784371885073, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "51c98217-9159-4096-b5ea-793ed373d24f", "ts": 1784371885113, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "481a5225-4975-4a00-b799-bf1e13fe2495", "ts": 1784371887477, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "6b946963-533e-43ee-9601-102f9172a122", "ts": 1784371887361, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "6b946963-533e-43ee-9601-102f9172a122", "ts": 1784371887409, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "09bd974b-ff68-435c-bd8e-e5410603dee4", "ts": 1784371887626, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "09bd974b-ff68-435c-bd8e-e5410603dee4", "ts": 1784371887671, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "2526b9e2-f85a-4021-8491-08cbfee8aeee", "ts": 1784371887713, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "874f372e-8fee-48c0-9404-8114eea4f43c", "ts": 1784371885890, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "874f372e-8fee-48c0-9404-8114eea4f43c", "ts": 1784371885938, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "bade6c18-de89-4450-82b4-f59e41cf4d10", "ts": 1784371881498, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "bade6c18-de89-4450-82b4-f59e41cf4d10", "ts": 1784371888110, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "bade6c18-de89-4450-82b4-f59e41cf4d10", "ts": 1784371888111, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "33c7eae4-a9c7-42d7-abf4-bae760d540e7", "ts": 1784371888190, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "canvas-tap", "kind": "episode", "load_source": "graph-internal", "session_id": "33c7eae4-a9c7-42d7-abf4-bae760d540e7", "ts": 1784371888254, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "9f659f1f-e91b-4a6c-815a-72c24dabab9a", "ts": 1784371888490, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "9f659f1f-e91b-4a6c-815a-72c24dabab9a", "ts": 1784371888577, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "233a2829-77e9-45c4-bf89-bcd4837e6761", "ts": 1784371888647, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "4e4c24c1-d4b4-46f2-8355-ee8066ab87e6", "ts": 1784371889357, "user_id": "anon"}
+{"action": "graph_broke", "reason": "episode not found (test-injected)", "where": "handoff_failed", "session_id": "4e4c24c1-d4b4-46f2-8355-ee8066ab87e6", "ts": 1784371889821, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "081f8b1a-17ad-4fef-a515-212569f2b03c", "ts": 1784371889572, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "081f8b1a-17ad-4fef-a515-212569f2b03c", "ts": 1784371889572, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "081f8b1a-17ad-4fef-a515-212569f2b03c", "ts": 1784371889572, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "45470251-4840-44c7-a10a-13124a39ae89", "ts": 1784371889455, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "d47766fd-b5ee-4531-bf5c-35fe86ad7ba1", "ts": 1784371888897, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "d47766fd-b5ee-4531-bf5c-35fe86ad7ba1", "ts": 1784371888948, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "d47766fd-b5ee-4531-bf5c-35fe86ad7ba1", "ts": 1784371889726, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "d47766fd-b5ee-4531-bf5c-35fe86ad7ba1", "ts": 1784371889740, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "d47766fd-b5ee-4531-bf5c-35fe86ad7ba1", "ts": 1784371889909, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "d47766fd-b5ee-4531-bf5c-35fe86ad7ba1", "ts": 1784371890460, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "e444edf6-2362-4d25-ad1f-364758814638", "ts": 1784371890632, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "e444edf6-2362-4d25-ad1f-364758814638", "ts": 1784371890677, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:this-node-definitely-does-not-exist", "source": "restore-preference", "kind": "graph-node", "load_source": "graph-internal", "session_id": "e444edf6-2362-4d25-ad1f-364758814638", "ts": 1784371892148, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "b9d928e3-4508-4902-b82e-2ec9b63571b2", "ts": 1784371885890, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 0, "session_id": "b9d928e3-4508-4902-b82e-2ec9b63571b2", "ts": 1784371885957, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "b9d928e3-4508-4902-b82e-2ec9b63571b2", "ts": 1784371886125, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "b9d928e3-4508-4902-b82e-2ec9b63571b2", "ts": 1784371886126, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 1, "session_id": "b9d928e3-4508-4902-b82e-2ec9b63571b2", "ts": 1784371886586, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "aaab44f4-e631-48df-8c7e-4f6b1d7d044d", "ts": 1784371889110, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "aaab44f4-e631-48df-8c7e-4f6b1d7d044d", "ts": 1784371895717, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "aaab44f4-e631-48df-8c7e-4f6b1d7d044d", "ts": 1784371895719, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 6, "trail_size": 0, "session_id": "aaab44f4-e631-48df-8c7e-4f6b1d7d044d", "ts": 1784371895738, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "d303b76e-ff2c-4930-b149-384b9eeaefde", "ts": 1784371893496, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "d303b76e-ff2c-4930-b149-384b9eeaefde", "ts": 1784371893537, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "d303b76e-ff2c-4930-b149-384b9eeaefde", "ts": 1784371895066, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "664cd924-783e-41af-b8f9-2e5105ead736", "ts": 1784371894797, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "664cd924-783e-41af-b8f9-2e5105ead736", "ts": 1784371894840, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "b27fa40f-a27f-4dd4-b639-bd58e091bb46", "ts": 1784371894814, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "b27fa40f-a27f-4dd4-b639-bd58e091bb46", "ts": 1784371894854, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "9bce2d73-455e-4c76-821c-13f25d8f60dd", "ts": 1784371893945, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "9bce2d73-455e-4c76-821c-13f25d8f60dd", "ts": 1784371893984, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "9bce2d73-455e-4c76-821c-13f25d8f60dd", "ts": 1784371895571, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "33c567d6-e1f2-4b71-9efe-01e1d58c2137", "ts": 1784371898321, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "33c567d6-e1f2-4b71-9efe-01e1d58c2137", "ts": 1784371898321, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "96626afd-39bc-4c83-94fa-46a1a2b1a611", "ts": 1784371897737, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "96626afd-39bc-4c83-94fa-46a1a2b1a611", "ts": 1784371897794, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "96626afd-39bc-4c83-94fa-46a1a2b1a611", "ts": 1784371897801, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "96626afd-39bc-4c83-94fa-46a1a2b1a611", "ts": 1784371898420, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "96626afd-39bc-4c83-94fa-46a1a2b1a611", "ts": 1784371898483, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "96626afd-39bc-4c83-94fa-46a1a2b1a611", "ts": 1784371898485, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "96626afd-39bc-4c83-94fa-46a1a2b1a611", "ts": 1784371898492, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c3eb950f-310c-443b-842e-4bb8106f2b5d", "ts": 1784371897802, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "c3eb950f-310c-443b-842e-4bb8106f2b5d", "ts": 1784371897849, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c3eb950f-310c-443b-842e-4bb8106f2b5d", "ts": 1784371897966, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "37c3a5b8-d8c2-463c-8992-b373accdf23f", "ts": 1784371898266, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "37c3a5b8-d8c2-463c-8992-b373accdf23f", "ts": 1784371898306, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "37c3a5b8-d8c2-463c-8992-b373accdf23f", "ts": 1784371898433, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "b4fd51d4-4847-429a-956d-80a6d266ed1d", "ts": 1784371900097, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "b4fd51d4-4847-429a-956d-80a6d266ed1d", "ts": 1784371900097, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "101244e7-2eed-4c91-8d37-4671669eea6f", "ts": 1784371899134, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "101244e7-2eed-4c91-8d37-4671669eea6f", "ts": 1784371899187, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "101244e7-2eed-4c91-8d37-4671669eea6f", "ts": 1784371899192, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "101244e7-2eed-4c91-8d37-4671669eea6f", "ts": 1784371899801, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "101244e7-2eed-4c91-8d37-4671669eea6f", "ts": 1784371900136, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "101244e7-2eed-4c91-8d37-4671669eea6f", "ts": 1784371900161, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "ab3b1de3-5ace-4890-b3df-80cb9fb07d6b", "ts": 1784371900953, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "ab3b1de3-5ace-4890-b3df-80cb9fb07d6b", "ts": 1784371901001, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "13d85a76-9d74-46d0-accd-9f00f170f7cc", "ts": 1784371900401, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "13d85a76-9d74-46d0-accd-9f00f170f7cc", "ts": 1784371900445, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:episode:e1", "source": "restore-preference", "kind": "graph-node", "load_source": "subject-external", "session_id": "13d85a76-9d74-46d0-accd-9f00f170f7cc", "ts": 1784371901922, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371901235, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371901285, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371901290, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371901908, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371901987, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371901989, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371901995, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 2, "session_id": "b5150283-b5de-4b0f-be7c-905b93c36135", "ts": 1784371902527, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "b2f15fcd-68f7-4971-87d3-07949551a646", "ts": 1784371902685, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "canvas-tap", "kind": "episode", "load_source": "graph-internal", "session_id": "b2f15fcd-68f7-4971-87d3-07949551a646", "ts": 1784371902720, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "d6a56711-7b20-4b1e-b020-cb01d6022090", "ts": 1784371896277, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "d6a56711-7b20-4b1e-b020-cb01d6022090", "ts": 1784371902851, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "d6a56711-7b20-4b1e-b020-cb01d6022090", "ts": 1784371902851, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "7fbbae97-e7a1-41b6-a785-272ce433fd86", "ts": 1784371901085, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "7fbbae97-e7a1-41b6-a785-272ce433fd86", "ts": 1784371901130, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "7fbbae97-e7a1-41b6-a785-272ce433fd86", "ts": 1784371901251, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "a019fb6f-8759-41b7-9c2c-3d4023212a0d", "ts": 1784371903148, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "a019fb6f-8759-41b7-9c2c-3d4023212a0d", "ts": 1784371903198, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "d64484dc-7cce-463f-ab1f-5a93b6937b86", "ts": 1784371903494, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "d64484dc-7cce-463f-ab1f-5a93b6937b86", "ts": 1784371903676, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:science-research", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "99545f38-baf8-4c1c-9bf1-17beb76a1280", "ts": 1784371904783, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "aa5917dc-55b9-4f8c-abe6-5fbc16833aec", "ts": 1784371904173, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "aa5917dc-55b9-4f8c-abe6-5fbc16833aec", "ts": 1784371905157, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "42db4ae9-2fe2-4d25-b1f3-5f2c8209d513", "ts": 1784371904104, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "42db4ae9-2fe2-4d25-b1f3-5f2c8209d513", "ts": 1784371905066, "user_id": "anon"}
+{"action": "graph_broke", "reason": "stuck-timeout", "where": "handoff_stuck", "source": "restore-preference", "kind": "graph-node", "session_id": "7ea9e007-4382-4d15-9b36-d63c51da1caf", "ts": 1784371906926, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "571efc42-96b0-41fd-8220-75c7f43ee2d5", "ts": 1784371899735, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "571efc42-96b0-41fd-8220-75c7f43ee2d5", "ts": 1784371899774, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "571efc42-96b0-41fd-8220-75c7f43ee2d5", "ts": 1784371900669, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "571efc42-96b0-41fd-8220-75c7f43ee2d5", "ts": 1784371900684, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "571efc42-96b0-41fd-8220-75c7f43ee2d5", "ts": 1784371900852, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "66e84afe-f3be-408d-ba88-9ca62684baa7", "ts": 1784371908134, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 0, "session_id": "66e84afe-f3be-408d-ba88-9ca62684baa7", "ts": 1784371908280, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:public-investment", "to_kind": "topic", "trail_size": 1, "session_id": "66e84afe-f3be-408d-ba88-9ca62684baa7", "ts": 1784371908282, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 1, "session_id": "66e84afe-f3be-408d-ba88-9ca62684baa7", "ts": 1784371908942, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "1de8993a-ed3f-4ee3-bff6-c2ed67aa1c94", "ts": 1784371906914, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "1de8993a-ed3f-4ee3-bff6-c2ed67aa1c94", "ts": 1784371907053, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "1de8993a-ed3f-4ee3-bff6-c2ed67aa1c94", "ts": 1784371907053, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "1de8993a-ed3f-4ee3-bff6-c2ed67aa1c94", "ts": 1784371907053, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "8598b2e8-da7f-47f5-a023-983a502b4502", "ts": 1784371907495, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "8598b2e8-da7f-47f5-a023-983a502b4502", "ts": 1784371907662, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "8598b2e8-da7f-47f5-a023-983a502b4502", "ts": 1784371907662, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:urban-planning", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "8598b2e8-da7f-47f5-a023-983a502b4502", "ts": 1784371907662, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "7ffe6fb6-2f1f-4509-ab41-46adf697e393", "ts": 1784371908077, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 0, "session_id": "7ffe6fb6-2f1f-4509-ab41-46adf697e393", "ts": 1784371908243, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:public-investment", "to_kind": "topic", "trail_size": 1, "session_id": "7ffe6fb6-2f1f-4509-ab41-46adf697e393", "ts": 1784371908246, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "7ffe6fb6-2f1f-4509-ab41-46adf697e393", "ts": 1784371908446, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 1, "session_id": "7ffe6fb6-2f1f-4509-ab41-46adf697e393", "ts": 1784371909802, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "ba196e26-f357-4aa6-a296-36e72578a90b", "ts": 1784371903618, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "ba196e26-f357-4aa6-a296-36e72578a90b", "ts": 1784371910227, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "ba196e26-f357-4aa6-a296-36e72578a90b", "ts": 1784371910228, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "2e8b2ddc-b60a-4841-83fb-33ab612f1f5a", "ts": 1784371909666, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "2e8b2ddc-b60a-4841-83fb-33ab612f1f5a", "ts": 1784371909934, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:public-investment", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "2e8b2ddc-b60a-4841-83fb-33ab612f1f5a", "ts": 1784371909934, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:urban-planning", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "2e8b2ddc-b60a-4841-83fb-33ab612f1f5a", "ts": 1784371909935, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "aa75af43-0926-40eb-8ac0-e608c526a217", "ts": 1784371912672, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "407a9052-f20f-47cb-979a-925ad3aba2c5", "ts": 1784371913949, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:public-investment", "source": "restore-preference", "kind": "graph-node", "load_source": "subject-external", "session_id": "407a9052-f20f-47cb-979a-925ad3aba2c5", "ts": 1784371914122, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "4037b105-3a5a-49bf-b1b4-ab7a8c56e270", "ts": 1784371910987, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "4037b105-3a5a-49bf-b1b4-ab7a8c56e270", "ts": 1784371912506, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "4037b105-3a5a-49bf-b1b4-ab7a8c56e270", "ts": 1784371914256, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "574385d2-457d-40e6-a116-30c0c8a44092", "ts": 1784371911321, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "574385d2-457d-40e6-a116-30c0c8a44092", "ts": 1784371912578, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "574385d2-457d-40e6-a116-30c0c8a44092", "ts": 1784371914442, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "9bcf15f8-c370-4dbe-b9ee-0116a2bd35d9", "ts": 1784371911553, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "9bcf15f8-c370-4dbe-b9ee-0116a2bd35d9", "ts": 1784371912786, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "9bcf15f8-c370-4dbe-b9ee-0116a2bd35d9", "ts": 1784371914689, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "871c783e-d2a8-4583-a005-4e450bd674e9", "ts": 1784371917093, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "96f55933-620e-480f-a811-d8c35a84f716", "ts": 1784371915334, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "96f55933-620e-480f-a811-d8c35a84f716", "ts": 1784371916412, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "96f55933-620e-480f-a811-d8c35a84f716", "ts": 1784371918179, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "9bac8500-9054-4b7c-8a75-cf0ccc8effa7", "ts": 1784371918307, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "86401f35-3cd3-46e0-9a12-1b580b3c578e", "ts": 1784371920235, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "bd8c6f1c-0e37-489a-92e7-e30acd277015", "ts": 1784371921681, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "bd8c6f1c-0e37-489a-92e7-e30acd277015", "ts": 1784371921686, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "4c9dfed6-8c75-4cc5-a0c6-4be281a6c909", "ts": 1784371921199, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "52ab8f20-3af4-4fa0-89e7-965ac7d34422", "ts": 1784371921381, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c77cf548-a3f3-4a6b-bd81-5d0ed85a8c5e", "ts": 1784371921288, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "c77cf548-a3f3-4a6b-bd81-5d0ed85a8c5e", "ts": 1784371922495, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "d65e58e2-64ef-45de-a036-ada2ea4df529", "ts": 1784371922925, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "bcde7643-f386-4925-abd7-571f46f23f15", "ts": 1784371923108, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "83f22747-2165-41d5-8110-771a5c0b313d", "ts": 1784371921305, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "83f22747-2165-41d5-8110-771a5c0b313d", "ts": 1784371922499, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "83f22747-2165-41d5-8110-771a5c0b313d", "ts": 1784371924030, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "83f22747-2165-41d5-8110-771a5c0b313d", "ts": 1784371925225, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "f4b3b292-ac96-4fea-93c6-c3d419abc9c0", "ts": 1784371925892, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "4aa9279b-8db2-4516-9b58-787abc989461", "ts": 1784371926235, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "c6f5b490-e9d1-4e86-a154-035bb5c6a9ec", "ts": 1784371926225, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "c6f5b490-e9d1-4e86-a154-035bb5c6a9ec", "ts": 1784371926654, "user_id": "anon"}
+{"action": "graph_broke", "reason": "stuck-timeout", "where": "handoff_stuck", "source": "restore-preference", "kind": "graph-node", "session_id": "0139d988-fc58-471c-87c2-3a64ea39cfa6", "ts": 1784371926674, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "a4876d3b-bbe4-4a7e-bd0c-f44df65a6fb8", "ts": 1784371926897, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "d5a58b86-06cc-43b3-b662-81e36ddb0439", "ts": 1784371927532, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "2191e7f4-81c8-4af0-95ea-97a0a4786be2", "ts": 1784371927218, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "2191e7f4-81c8-4af0-95ea-97a0a4786be2", "ts": 1784371927539, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "2191e7f4-81c8-4af0-95ea-97a0a4786be2", "ts": 1784371927703, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "2191e7f4-81c8-4af0-95ea-97a0a4786be2", "ts": 1784371927751, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "2191e7f4-81c8-4af0-95ea-97a0a4786be2", "ts": 1784371927754, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "f59fceef-0c39-44b0-8d82-3bb3a8e7767b", "ts": 1784371928705, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "cc2a35f8-739d-4750-94a0-a29d3d91eb18", "ts": 1784371928691, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371926596, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371926872, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371927218, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371928412, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371928413, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 1, "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371928586, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371928815, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "insight:b72dafa3f874480d", "to_kind": "insight", "trail_size": 2, "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371928815, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:insight:b72dafa3f874480d", "to_kind": "insight", "trail_size": 3, "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371928818, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 3, "session_id": "23f71661-1475-431b-977b-c7ae461f41de", "ts": 1784371929227, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "e7df6a3d-83e3-4da5-9de9-be046ced839f", "ts": 1784371922474, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "e7df6a3d-83e3-4da5-9de9-be046ced839f", "ts": 1784371929221, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "canvas-tap", "kind": "graph-node", "load_source": "graph-internal", "session_id": "e7df6a3d-83e3-4da5-9de9-be046ced839f", "ts": 1784371929479, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "1443e9bc-0afe-4a4d-886c-a6cf07c2aba7", "ts": 1784371929951, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "821bc54f-a450-41ce-b6f2-3fb3977003b0", "ts": 1784371929922, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "person:jane-doe", "to_kind": "person", "trail_size": 1, "session_id": "821bc54f-a450-41ce-b6f2-3fb3977003b0", "ts": 1784371930339, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "17ba9e1e-7106-4c22-9d4d-131440a4c80f", "ts": 1784371930420, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "924a9a26-c9db-4364-8b66-287ebcabf486", "ts": 1784371930712, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "quote:4729aa32a95c9ca1", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "924a9a26-c9db-4364-8b66-287ebcabf486", "ts": 1784371930917, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "fb2bbbc2-5e33-40d2-9cbc-44d5e27b858b", "ts": 1784371930624, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "quote:4729aa32a95c9ca1", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "fb2bbbc2-5e33-40d2-9cbc-44d5e27b858b", "ts": 1784371931104, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "fb2bbbc2-5e33-40d2-9cbc-44d5e27b858b", "ts": 1784371931266, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "02ef5e31-6a01-4e2e-8586-6fbad406a0be", "ts": 1784371930669, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "02ef5e31-6a01-4e2e-8586-6fbad406a0be", "ts": 1784371937277, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "0267342f-5454-43d6-83e8-70267e48e3f7", "ts": 1784371940855, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "episode:ci-fixture", "kind": "Episode", "session_id": "0267342f-5454-43d6-83e8-70267e48e3f7", "ts": 1784371948122, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "0267342f-5454-43d6-83e8-70267e48e3f7", "ts": 1784371948123, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "37e70d4c-69de-4aea-8e84-2769fe4e922d", "ts": 1784371948684, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "37e70d4c-69de-4aea-8e84-2769fe4e922d", "ts": 1784371955855, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "37e70d4c-69de-4aea-8e84-2769fe4e922d", "ts": 1784371955855, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 8, "trail_size": 0, "session_id": "0a4e1295-50c7-4439-ac01-5061be703562", "ts": 1784371956406, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "person:gxexp-e2e", "kind": "Entity_person", "session_id": "0a4e1295-50c7-4439-ac01-5061be703562", "ts": 1784371962965, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "person:gxexp-e2e", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "0a4e1295-50c7-4439-ac01-5061be703562", "ts": 1784371962966, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "org:gxexp-e2e", "kind": "Entity_person", "session_id": "0a4e1295-50c7-4439-ac01-5061be703562", "ts": 1784371965983, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "77e35487-5346-46f7-b9d4-ca4eed9a5b51", "ts": 1784371966541, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "77e35487-5346-46f7-b9d4-ca4eed9a5b51", "ts": 1784371973118, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "77e35487-5346-46f7-b9d4-ca4eed9a5b51", "ts": 1784371973119, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "b7205111-b2c7-4de5-a651-bf14f31a76fd", "ts": 1784371973792, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "b7205111-b2c7-4de5-a651-bf14f31a76fd", "ts": 1784371980361, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "b7205111-b2c7-4de5-a651-bf14f31a76fd", "ts": 1784371980362, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 6, "trail_size": 0, "session_id": "b7205111-b2c7-4de5-a651-bf14f31a76fd", "ts": 1784371980381, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "e7633aa6-e333-4de8-a51c-1d4e1917f166", "ts": 1784382358047, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "3064bba9-4a36-4fac-948d-799fc88ca84b", "ts": 1784382358435, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:mock-topic-band", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "96df732a-2e12-4096-ac5b-2be30b31144e", "ts": 1784382359891, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "96df732a-2e12-4096-ac5b-2be30b31144e", "ts": 1784382359977, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:cluster-x", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "ecc3894a-47c9-4a43-a378-00728279f4f1", "ts": 1784382360024, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "ecc3894a-47c9-4a43-a378-00728279f4f1", "ts": 1784382360129, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "48231ea1-8183-4e7d-aed0-70b458e3bf3f", "ts": 1784382361499, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "fd0d8668-93cc-49bc-94a6-392ee946cc15", "ts": 1784382361484, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "1a440b31-9532-4cf2-9e34-955ee7a1c3d6", "ts": 1784382361424, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "01df296d-feb1-4381-99c1-daa219aba790", "ts": 1784382361763, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "d28a0a1e-595b-4216-8ad7-b59d63e72680", "ts": 1784382362187, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "eed04612-5a7e-48b2-b500-006435d5a3f5", "ts": 1784382362595, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "242ef86b-3916-4df4-bdb7-853b0de7393c", "ts": 1784382362927, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "242ef86b-3916-4df4-bdb7-853b0de7393c", "ts": 1784382362995, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "242ef86b-3916-4df4-bdb7-853b0de7393c", "ts": 1784382363002, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "242ef86b-3916-4df4-bdb7-853b0de7393c", "ts": 1784382363620, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "0780503f-ac6a-4100-979f-d7ac1f9031f6", "ts": 1784382363701, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "57364862-22a7-4e14-a09c-97d7b535c475", "ts": 1784382363210, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "57364862-22a7-4e14-a09c-97d7b535c475", "ts": 1784382363266, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "b0421101-10e4-440c-9edf-7e38eccbc5a2", "ts": 1784382363376, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "b0421101-10e4-440c-9edf-7e38eccbc5a2", "ts": 1784382363420, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "af9f4bba-d3f2-470e-9647-5acfbc705d32", "ts": 1784382363173, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "af9f4bba-d3f2-470e-9647-5acfbc705d32", "ts": 1784382363221, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "e91ed393-132a-42fa-b775-383bf7e7db81", "ts": 1784382363741, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "e91ed393-132a-42fa-b775-383bf7e7db81", "ts": 1784382363939, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "e91ed393-132a-42fa-b775-383bf7e7db81", "ts": 1784382363951, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "e91ed393-132a-42fa-b775-383bf7e7db81", "ts": 1784382364365, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "e53f3935-f559-488b-ac2f-23f947190301", "ts": 1784382364495, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 0, "session_id": "e53f3935-f559-488b-ac2f-23f947190301", "ts": 1784382364575, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "subject-rail", "kind": "graph-node", "load_source": "subject-external", "session_id": "70829711-5c48-477f-a2dd-fce30912ac34", "ts": 1784382365113, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "ba22a4a1-0e6b-4d2a-b177-4401e65a7775", "ts": 1784382364460, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "ba22a4a1-0e6b-4d2a-b177-4401e65a7775", "ts": 1784382364509, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "status-bar", "kind": "graph-node", "load_source": "subject-external", "session_id": "f11eadbb-2484-48bc-b7cc-db14ec39283c", "ts": 1784382365205, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "42882d6b-8ebd-4cdc-a469-aa95361398fe", "ts": 1784382366225, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "42882d6b-8ebd-4cdc-a469-aa95361398fe", "ts": 1784382366270, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "42882d6b-8ebd-4cdc-a469-aa95361398fe", "ts": 1784382366390, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "42882d6b-8ebd-4cdc-a469-aa95361398fe", "ts": 1784382366510, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "42882d6b-8ebd-4cdc-a469-aa95361398fe", "ts": 1784382366626, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "42882d6b-8ebd-4cdc-a469-aa95361398fe", "ts": 1784382366760, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "4a19ba6e-973e-4eb3-8cca-8f5e0f6c4eb1", "ts": 1784382365075, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "4a19ba6e-973e-4eb3-8cca-8f5e0f6c4eb1", "ts": 1784382365117, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "minimap", "kind": "graph-node", "load_source": "graph-internal", "session_id": "4a19ba6e-973e-4eb3-8cca-8f5e0f6c4eb1", "ts": 1784382366597, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "d29a220a-c4e5-4a5d-a6d1-88bdebceff57", "ts": 1784382366327, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "d29a220a-c4e5-4a5d-a6d1-88bdebceff57", "ts": 1784382366368, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "0cba2beb-74a6-487e-8354-94ec0ae09eb3", "ts": 1784382365191, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "0cba2beb-74a6-487e-8354-94ec0ae09eb3", "ts": 1784382365233, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "b6e7c116-04df-45e0-8916-74e767b587d2", "ts": 1784382367577, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "33e44e8a-2eb3-42ab-8a6e-247b8f9c9ab2", "ts": 1784382367597, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "f4762283-fa26-4420-8aab-3ba0660475a1", "ts": 1784382367430, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f4762283-fa26-4420-8aab-3ba0660475a1", "ts": 1784382367478, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "6847ddd7-fa45-4327-8fcc-51f3de6e089f", "ts": 1784382365895, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "6847ddd7-fa45-4327-8fcc-51f3de6e089f", "ts": 1784382365945, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f898b039-58f1-42ed-a8ce-68f25fbe59b0", "ts": 1784382367844, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "27b4b441-7ac8-4627-8796-31f157a26170", "ts": 1784382368355, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "canvas-tap", "kind": "episode", "load_source": "graph-internal", "session_id": "27b4b441-7ac8-4627-8796-31f157a26170", "ts": 1784382368403, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "1a64c471-0ca2-41ae-b84d-26496d84c39d", "ts": 1784382361722, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "1a64c471-0ca2-41ae-b84d-26496d84c39d", "ts": 1784382368365, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "1a64c471-0ca2-41ae-b84d-26496d84c39d", "ts": 1784382368366, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "e94f646b-5ca7-47f3-ae4d-8b3e9213a38b", "ts": 1784382368423, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "e94f646b-5ca7-47f3-ae4d-8b3e9213a38b", "ts": 1784382368498, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "d681605b-ddb5-4b1d-9a9e-ea9069954dfb", "ts": 1784382368554, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "55974c9c-a90b-4462-93c1-17341547ce5e", "ts": 1784382369409, "user_id": "anon"}
+{"action": "graph_broke", "reason": "episode not found (test-injected)", "where": "handoff_failed", "session_id": "55974c9c-a90b-4462-93c1-17341547ce5e", "ts": 1784382369877, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "4be3cf54-da4e-4dc9-a45c-9020aa4557d9", "ts": 1784382369702, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "4be3cf54-da4e-4dc9-a45c-9020aa4557d9", "ts": 1784382369702, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "4be3cf54-da4e-4dc9-a45c-9020aa4557d9", "ts": 1784382369702, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "a41746b7-42ac-4e83-9b45-e13671367e8b", "ts": 1784382369445, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "10746ce5-8a19-4acf-8b30-d8c6a9e9e5c2", "ts": 1784382368848, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "10746ce5-8a19-4acf-8b30-d8c6a9e9e5c2", "ts": 1784382368933, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "10746ce5-8a19-4acf-8b30-d8c6a9e9e5c2", "ts": 1784382369695, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "10746ce5-8a19-4acf-8b30-d8c6a9e9e5c2", "ts": 1784382369712, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "10746ce5-8a19-4acf-8b30-d8c6a9e9e5c2", "ts": 1784382369883, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "10746ce5-8a19-4acf-8b30-d8c6a9e9e5c2", "ts": 1784382370429, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "edc5ae18-454d-49a5-ac20-c16f41b396bc", "ts": 1784382370763, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "edc5ae18-454d-49a5-ac20-c16f41b396bc", "ts": 1784382370807, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:this-node-definitely-does-not-exist", "source": "restore-preference", "kind": "graph-node", "load_source": "graph-internal", "session_id": "edc5ae18-454d-49a5-ac20-c16f41b396bc", "ts": 1784382372278, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "dashboard", "kind": "graph-node", "load_source": "subject-external", "session_id": "f454a6b8-4f55-48c6-a191-62f881c003e5", "ts": 1784382366259, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 0, "session_id": "f454a6b8-4f55-48c6-a191-62f881c003e5", "ts": 1784382366320, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "f454a6b8-4f55-48c6-a191-62f881c003e5", "ts": 1784382366462, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "f454a6b8-4f55-48c6-a191-62f881c003e5", "ts": 1784382366463, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 5, "edges": 4, "trail_size": 1, "session_id": "f454a6b8-4f55-48c6-a191-62f881c003e5", "ts": 1784382366940, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "c4c4b189-3902-414d-8124-90613ac54257", "ts": 1784382369356, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "c4c4b189-3902-414d-8124-90613ac54257", "ts": 1784382375981, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "c4c4b189-3902-414d-8124-90613ac54257", "ts": 1784382375983, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 6, "trail_size": 0, "session_id": "c4c4b189-3902-414d-8124-90613ac54257", "ts": 1784382376000, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "88b65236-0a64-480f-94e1-c9f05e57ce5e", "ts": 1784382373464, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "88b65236-0a64-480f-94e1-c9f05e57ce5e", "ts": 1784382373506, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "88b65236-0a64-480f-94e1-c9f05e57ce5e", "ts": 1784382375037, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "f4ec9d3f-205a-40e1-bf10-a518b3a86062", "ts": 1784382374899, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f4ec9d3f-205a-40e1-bf10-a518b3a86062", "ts": 1784382374939, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "58fb69c5-a1e6-4c78-9362-f34266ce69f6", "ts": 1784382375150, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "58fb69c5-a1e6-4c78-9362-f34266ce69f6", "ts": 1784382375188, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "11583a39-6e91-4852-bf7b-a4d381c6f196", "ts": 1784382374063, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "11583a39-6e91-4852-bf7b-a4d381c6f196", "ts": 1784382374102, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "11583a39-6e91-4852-bf7b-a4d381c6f196", "ts": 1784382375641, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "1301b411-011e-463a-bc5a-7e56fdee231e", "ts": 1784382378609, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "1301b411-011e-463a-bc5a-7e56fdee231e", "ts": 1784382378609, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382377770, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382377830, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382377835, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382378449, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382378519, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382378521, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382378527, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 2, "session_id": "7b29ea01-a171-4735-bfb2-48d9c2a36d51", "ts": 1784382379060, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "04930cdb-57a1-431f-805a-88989cb98bf8", "ts": 1784382369264, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "04930cdb-57a1-431f-805a-88989cb98bf8", "ts": 1784382369307, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "04930cdb-57a1-431f-805a-88989cb98bf8", "ts": 1784382370196, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "04930cdb-57a1-431f-805a-88989cb98bf8", "ts": 1784382370233, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "04930cdb-57a1-431f-805a-88989cb98bf8", "ts": 1784382371044, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "04930cdb-57a1-431f-805a-88989cb98bf8", "ts": 1784382371059, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "04930cdb-57a1-431f-805a-88989cb98bf8", "ts": 1784382371220, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c4e27be7-51b3-4472-a156-dd14c39566c0", "ts": 1784382377684, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "c4e27be7-51b3-4472-a156-dd14c39566c0", "ts": 1784382377728, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c4e27be7-51b3-4472-a156-dd14c39566c0", "ts": 1784382377853, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "4ca7260f-0660-4b93-82c1-ce8b2a93fdf2", "ts": 1784382378369, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "4ca7260f-0660-4b93-82c1-ce8b2a93fdf2", "ts": 1784382378407, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "4ca7260f-0660-4b93-82c1-ce8b2a93fdf2", "ts": 1784382378535, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "8e4fd98e-24a8-4355-a3fe-a951c9ee1772", "ts": 1784382380199, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "tc:ci-policy-cluster", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "8e4fd98e-24a8-4355-a3fe-a951c9ee1772", "ts": 1784382380199, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "7e681d11-4b5d-4cdc-abe6-afa19d5c8f42", "ts": 1784382379455, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "7e681d11-4b5d-4cdc-abe6-afa19d5c8f42", "ts": 1784382379509, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "7e681d11-4b5d-4cdc-abe6-afa19d5c8f42", "ts": 1784382379514, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "7e681d11-4b5d-4cdc-abe6-afa19d5c8f42", "ts": 1784382380129, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "7e681d11-4b5d-4cdc-abe6-afa19d5c8f42", "ts": 1784382380471, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "7e681d11-4b5d-4cdc-abe6-afa19d5c8f42", "ts": 1784382380498, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "222e4c1e-a890-4926-aafd-6dd70b12cbf9", "ts": 1784382381004, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "222e4c1e-a890-4926-aafd-6dd70b12cbf9", "ts": 1784382381048, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "9e0122cb-5693-48d6-aeff-a091f049c7e2", "ts": 1784382380303, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "9e0122cb-5693-48d6-aeff-a091f049c7e2", "ts": 1784382380344, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:episode:e1", "source": "restore-preference", "kind": "graph-node", "load_source": "subject-external", "session_id": "9e0122cb-5693-48d6-aeff-a091f049c7e2", "ts": 1784382381822, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "e11ad0f6-e4ea-4dc2-bfb4-752f45a52efa", "ts": 1784382382729, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "canvas-tap", "kind": "episode", "load_source": "graph-internal", "session_id": "e11ad0f6-e4ea-4dc2-bfb4-752f45a52efa", "ts": 1784382382765, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382381555, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382381605, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382381611, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382382222, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382382289, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382382290, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 2, "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382382297, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 2, "session_id": "d5855688-742e-4041-bb99-f73c8ad9d745", "ts": 1784382382833, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "eda60965-4a2a-43e6-84fd-72d517471f5b", "ts": 1784382382865, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "eda60965-4a2a-43e6-84fd-72d517471f5b", "ts": 1784382382901, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "162e5c60-da5a-49a5-8066-b2550d64070a", "ts": 1784382376551, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "162e5c60-da5a-49a5-8066-b2550d64070a", "ts": 1784382383146, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "162e5c60-da5a-49a5-8066-b2550d64070a", "ts": 1784382383147, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "002be6d6-078a-4808-ad03-04c3feeb5caa", "ts": 1784382381155, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "002be6d6-078a-4808-ad03-04c3feeb5caa", "ts": 1784382381199, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "002be6d6-078a-4808-ad03-04c3feeb5caa", "ts": 1784382381320, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "dccdeed9-9521-46fd-89e8-237c48a55ea6", "ts": 1784382383654, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "dccdeed9-9521-46fd-89e8-237c48a55ea6", "ts": 1784382383724, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:science-research", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "f95f0422-1cbd-41bf-a27f-b2a12453c973", "ts": 1784382385064, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "04bd2f4c-20e9-45bf-8226-d4df003c9ad1", "ts": 1784382384161, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "04bd2f4c-20e9-45bf-8226-d4df003c9ad1", "ts": 1784382385092, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "5ef47f60-2247-4991-977b-5d7401344d60", "ts": 1784382384292, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "5ef47f60-2247-4991-977b-5d7401344d60", "ts": 1784382385223, "user_id": "anon"}
+{"action": "graph_broke", "reason": "stuck-timeout", "where": "handoff_stuck", "source": "restore-preference", "kind": "graph-node", "session_id": "8099fccb-f7d7-42a3-8ee9-43f19661d9a7", "ts": 1784382386880, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "17290812-c7a1-4ee8-8b27-768830e4e854", "ts": 1784382386875, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 0, "session_id": "17290812-c7a1-4ee8-8b27-768830e4e854", "ts": 1784382387084, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:public-investment", "to_kind": "topic", "trail_size": 1, "session_id": "17290812-c7a1-4ee8-8b27-768830e4e854", "ts": 1784382387086, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "17290812-c7a1-4ee8-8b27-768830e4e854", "ts": 1784382387280, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 1, "session_id": "17290812-c7a1-4ee8-8b27-768830e4e854", "ts": 1784382388431, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "6c77ddd4-5b73-442f-8250-0a6a1e93dfdd", "ts": 1784382379852, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "6c77ddd4-5b73-442f-8250-0a6a1e93dfdd", "ts": 1784382379895, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "6c77ddd4-5b73-442f-8250-0a6a1e93dfdd", "ts": 1784382380788, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "6c77ddd4-5b73-442f-8250-0a6a1e93dfdd", "ts": 1784382380805, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 1, "session_id": "6c77ddd4-5b73-442f-8250-0a6a1e93dfdd", "ts": 1784382380972, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "841ac58f-5cb7-4ee5-b6c5-7a076a4e26bd", "ts": 1784382387412, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "841ac58f-5cb7-4ee5-b6c5-7a076a4e26bd", "ts": 1784382387636, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "841ac58f-5cb7-4ee5-b6c5-7a076a4e26bd", "ts": 1784382387636, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:urban-planning", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "841ac58f-5cb7-4ee5-b6c5-7a076a4e26bd", "ts": 1784382387636, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "digest", "kind": "topic", "load_source": "digest-external", "session_id": "030b5cb8-afa0-4c90-bad0-9c32d643a4af", "ts": 1784382388346, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 0, "session_id": "030b5cb8-afa0-4c90-bad0-9c32d643a4af", "ts": 1784382388497, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:public-investment", "to_kind": "topic", "trail_size": 1, "session_id": "030b5cb8-afa0-4c90-bad0-9c32d643a4af", "ts": 1784382388502, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 41, "edges": 62, "trail_size": 1, "session_id": "030b5cb8-afa0-4c90-bad0-9c32d643a4af", "ts": 1784382389162, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "4908f6a5-461a-4ad9-b33e-7442918f7783", "ts": 1784382387472, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "4908f6a5-461a-4ad9-b33e-7442918f7783", "ts": 1784382387678, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "4908f6a5-461a-4ad9-b33e-7442918f7783", "ts": 1784382387678, "user_id": "anon"}
+{"action": "graph_recenter", "source": "library", "kind": "episode", "load_source": "subject-external", "session_id": "4908f6a5-461a-4ad9-b33e-7442918f7783", "ts": 1784382387678, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "979d843f-41ad-4731-9aa0-ea24bc5bfd4b", "ts": 1784382388633, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:public-investment", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "979d843f-41ad-4731-9aa0-ea24bc5bfd4b", "ts": 1784382388801, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:public-investment", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "979d843f-41ad-4731-9aa0-ea24bc5bfd4b", "ts": 1784382388801, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:urban-planning", "source": "search", "kind": "topic", "load_source": "subject-external", "session_id": "979d843f-41ad-4731-9aa0-ea24bc5bfd4b", "ts": 1784382388801, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f03a9d81-3459-4aa8-aa76-bebf7ad070e4", "ts": 1784382383995, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "f03a9d81-3459-4aa8-aa76-bebf7ad070e4", "ts": 1784382390614, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "f03a9d81-3459-4aa8-aa76-bebf7ad070e4", "ts": 1784382390615, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "e6ebbd6a-8ad2-4f97-8980-35a52fbf863a", "ts": 1784382392835, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:public-investment", "source": "restore-preference", "kind": "graph-node", "load_source": "subject-external", "session_id": "e6ebbd6a-8ad2-4f97-8980-35a52fbf863a", "ts": 1784382393026, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "44f4664a-8f42-4495-9136-fa562e23f8f6", "ts": 1784382392874, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "b1bca61d-d0d4-45c5-aeec-661ba6b8072d", "ts": 1784382390499, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "b1bca61d-d0d4-45c5-aeec-661ba6b8072d", "ts": 1784382391749, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "b1bca61d-d0d4-45c5-aeec-661ba6b8072d", "ts": 1784382393860, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "684aa70c-b0a7-4e2c-b7cf-26cef013769c", "ts": 1784382390732, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "684aa70c-b0a7-4e2c-b7cf-26cef013769c", "ts": 1784382392245, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "684aa70c-b0a7-4e2c-b7cf-26cef013769c", "ts": 1784382394138, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "4762f857-24fc-44af-a05d-afb7b6db51fe", "ts": 1784382391542, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "4762f857-24fc-44af-a05d-afb7b6db51fe", "ts": 1784382392886, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "4762f857-24fc-44af-a05d-afb7b6db51fe", "ts": 1784382394753, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "372aaa1b-431e-4f45-88bf-abe02db09be6", "ts": 1784382394974, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "a952b4aa-e01d-4abe-9de2-84e7b414fd41", "ts": 1784382397148, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c13ca2b7-480b-4e9c-a135-72cc7e8a0fb7", "ts": 1784382394918, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "c13ca2b7-480b-4e9c-a135-72cc7e8a0fb7", "ts": 1784382396065, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "c13ca2b7-480b-4e9c-a135-72cc7e8a0fb7", "ts": 1784382397713, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "cccd5b30-7e0c-4ce3-9a7c-16c19d3b25b3", "ts": 1784382399399, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "7355d0a5-16d7-4ebc-9d68-987f079252f7", "ts": 1784382400415, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "981b7ac6-9ae4-4b32-b6f4-c61fe60b24d5", "ts": 1784382400578, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "48e17583-ad38-4c5a-967d-07cb587a0883", "ts": 1784382401986, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "48e17583-ad38-4c5a-967d-07cb587a0883", "ts": 1784382401991, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "48e17583-ad38-4c5a-967d-07cb587a0883", "ts": 1784382402036, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "cc6cce42-a9fd-4ec6-8326-339934e61e7e", "ts": 1784382400288, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "cc6cce42-a9fd-4ec6-8326-339934e61e7e", "ts": 1784382401603, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "2bc3c502-a594-4b9e-9f48-42acaf1f8e95", "ts": 1784382402408, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "1689614e-fa2f-4af9-8e92-a406de80eb68", "ts": 1784382402330, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "8cae1297-385e-46b7-88b3-60d001319293", "ts": 1784382400405, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 372, "edges": 760, "trail_size": 0, "session_id": "8cae1297-385e-46b7-88b3-60d001319293", "ts": 1784382401635, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "8cae1297-385e-46b7-88b3-60d001319293", "ts": 1784382403613, "user_id": "anon"}
+{"action": "graph_recenter", "source": "episode-panel", "kind": "episode", "load_source": "subject-external", "session_id": "8cae1297-385e-46b7-88b3-60d001319293", "ts": 1784382404708, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "73f2f7ac-f14c-4280-bb4c-99e2eeacf453", "ts": 1784382405371, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "8446c122-a925-4796-b1f2-e0e9b8c8980f", "ts": 1784382405713, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "7fa95b70-8cd3-406c-b06f-2202a0692e20", "ts": 1784382405990, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "cc21b123-403c-450c-a9d7-7016f13a8cd2", "ts": 1784382405732, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "cc21b123-403c-450c-a9d7-7016f13a8cd2", "ts": 1784382406396, "user_id": "anon"}
+{"action": "graph_broke", "reason": "stuck-timeout", "where": "handoff_stuck", "source": "restore-preference", "kind": "graph-node", "session_id": "fa9521c5-ddc8-4b4d-b316-1be19654df9e", "ts": 1784382406425, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "5a772fcd-e4f8-4c27-a939-5b05f75768bf", "ts": 1784382406237, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "5a772fcd-e4f8-4c27-a939-5b05f75768bf", "ts": 1784382406485, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "5a772fcd-e4f8-4c27-a939-5b05f75768bf", "ts": 1784382406662, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "5a772fcd-e4f8-4c27-a939-5b05f75768bf", "ts": 1784382406700, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "5a772fcd-e4f8-4c27-a939-5b05f75768bf", "ts": 1784382406701, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "df7b0855-9e74-4382-8c15-eaba7c19960f", "ts": 1784382406728, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "f4593b51-acc2-4394-89b6-2c6d792c8caf", "ts": 1784382408387, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382405818, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382406285, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382406452, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "g:topic:ci-policy", "source": "node-detail", "kind": "graph-node", "load_source": "graph-internal", "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382407718, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:topic:ci-policy", "to_kind": "topic", "trail_size": 1, "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382407720, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 1, "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382407894, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "insight:b72dafa3f874480d", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382408170, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "insight:b72dafa3f874480d", "to_kind": "insight", "trail_size": 2, "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382408170, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "g:insight:b72dafa3f874480d", "to_kind": "insight", "trail_size": 3, "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382408175, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 3, "session_id": "b6f508db-fe7f-4e7f-be76-a7af756f1bc2", "ts": 1784382408540, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 2, "trail_size": 0, "session_id": "2e28388a-edab-4a28-b087-01b112da4e5e", "ts": 1784382408266, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "1f2032f0-e573-4b3a-8ed1-e769434f6923", "ts": 1784382409385, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "0af1ed95-720e-45c2-b5f4-486777443aa1", "ts": 1784382409426, "user_id": "anon"}
+{"action": "graph_rail_nav", "to_id": "person:jane-doe", "to_kind": "person", "trail_size": 1, "session_id": "0af1ed95-720e-45c2-b5f4-486777443aa1", "ts": 1784382409631, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 2, "edges": 0, "trail_size": 0, "session_id": "934aaf64-47f2-42cd-85df-52d33a9fdb3d", "ts": 1784382409491, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "dee9219e-86f8-4b29-9c96-4e15db132430", "ts": 1784382409658, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "quote:4729aa32a95c9ca1", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "dee9219e-86f8-4b29-9c96-4e15db132430", "ts": 1784382409888, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "eef3f7d6-212e-469b-8f42-ddde43e35a19", "ts": 1784382403258, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "eef3f7d6-212e-469b-8f42-ddde43e35a19", "ts": 1784382409949, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "canvas-tap", "kind": "graph-node", "load_source": "graph-internal", "session_id": "eef3f7d6-212e-469b-8f42-ddde43e35a19", "ts": 1784382410210, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "93d21f82-84ca-4211-b828-5311050b6ad4", "ts": 1784382409623, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "quote:4729aa32a95c9ca1", "source": "search", "kind": "graph-node", "load_source": "subject-external", "session_id": "93d21f82-84ca-4211-b828-5311050b6ad4", "ts": 1784382409838, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "93d21f82-84ca-4211-b828-5311050b6ad4", "ts": 1784382410237, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "08c994d3-806b-4df2-b154-982ffba1cf70", "ts": 1784382410961, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "08c994d3-806b-4df2-b154-982ffba1cf70", "ts": 1784382417536, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "69339811-d0d1-4875-abbf-1f58a50cd195", "ts": 1784382421082, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "episode:ci-fixture", "kind": "Episode", "session_id": "69339811-d0d1-4875-abbf-1f58a50cd195", "ts": 1784382428361, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "episode:ci-fixture", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "69339811-d0d1-4875-abbf-1f58a50cd195", "ts": 1784382428361, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 3, "edges": 2, "trail_size": 0, "session_id": "9ba6098d-a9b6-4e6d-93bc-574742662aaa", "ts": 1784382428889, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "9ba6098d-a9b6-4e6d-93bc-574742662aaa", "ts": 1784382436070, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "9ba6098d-a9b6-4e6d-93bc-574742662aaa", "ts": 1784382436070, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 8, "trail_size": 0, "session_id": "4edd5760-2e7e-49e9-b8ee-407db768fd6d", "ts": 1784382436605, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "person:gxexp-e2e", "kind": "Entity_person", "session_id": "4edd5760-2e7e-49e9-b8ee-407db768fd6d", "ts": 1784382443209, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "person:gxexp-e2e", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "4edd5760-2e7e-49e9-b8ee-407db768fd6d", "ts": 1784382443210, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "org:gxexp-e2e", "kind": "Entity_person", "session_id": "4edd5760-2e7e-49e9-b8ee-407db768fd6d", "ts": 1784382446233, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "f58c4f34-6a31-4456-a236-c9a9d33e6c71", "ts": 1784382446775, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "f58c4f34-6a31-4456-a236-c9a9d33e6c71", "ts": 1784382453357, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "f58c4f34-6a31-4456-a236-c9a9d33e6c71", "ts": 1784382453358, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 4, "edges": 4, "trail_size": 0, "session_id": "48a67133-0cf5-4b0a-a086-7e25f9141e6e", "ts": 1784382453976, "user_id": "anon"}
+{"action": "graph_node_tap", "id": "topic:ci-policy", "kind": "Topic", "session_id": "48a67133-0cf5-4b0a-a086-7e25f9141e6e", "ts": 1784382460537, "user_id": "anon"}
+{"action": "graph_recenter", "target_id": "topic:ci-policy", "source": "double-tap-expand", "kind": "graph-node", "load_source": "graph-internal", "session_id": "48a67133-0cf5-4b0a-a086-7e25f9141e6e", "ts": 1784382460538, "user_id": "anon"}
+{"action": "graph_redraw", "nodes": 6, "edges": 6, "trail_size": 0, "session_id": "48a67133-0cf5-4b0a-a086-7e25f9141e6e", "ts": 1784382460553, "user_id": "anon"}

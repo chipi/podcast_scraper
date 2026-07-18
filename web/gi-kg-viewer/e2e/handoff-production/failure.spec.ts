@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput, mainViewsNav } from '../helpers'
+import { SHELL_HEADING_RE, statusBarCorpusPathInput, mainViewsNav, mockSignIn } from '../helpers'
 import {
   assertFsmEventEnvelope,
   captureConsoleErrors,
@@ -14,6 +14,10 @@ import {
 import { setupProductionShapedMocks } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Failure modes (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('P6.2 — Non-existent cy id surfaces handoffFailed cleanly', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     await setupProductionShapedMocks(page)

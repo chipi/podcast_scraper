@@ -179,6 +179,9 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | --- | --- | --- |
 | [ADR-055](ADR-055-adaptive-summarization-routing.md) | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | No episode profiling / routing in pipeline yet |
 | [ADR-104](ADR-104-enrichment-layer-boundary-vs-kg-direct.md) | [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md), [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) | Settles enrichment-layer ↔ KG-direct boundary (RFC-097 chunk 9 `RELATED_TO` is core, not enrichment violation). Doc-only; promoted to Accepted in RFC-088 implementation chunk 8 ([#1110](https://github.com/chipi/podcast_scraper/issues/1110)). |
+| [ADR-109](ADR-109-per-episode-quality-telemetry.md) | [ADR-053](ADR-053-grounding-contract-for-evidence-backed-insights.md) | Per-episode GI quality telemetry; must catch known failures before 100-episode reprocess |
+| [ADR-110](ADR-110-resolve-speaker-identity-after-diarization.md) | [#876](https://github.com/chipi/podcast_scraper/issues/876), [#1169](https://github.com/chipi/podcast_scraper/issues/1169) | Resolve speaker identity after diarization; delete positional talk-time painting |
+| [ADR-111](ADR-111-eval-and-pipeline-are-one-set-of-bricks.md) | [ADR-110](ADR-110-resolve-speaker-identity-after-diarization.md), [#1169](https://github.com/chipi/podcast_scraper/issues/1169) | Unify eval + pipeline into ONE set of bricks; delete the allowlist triple-copy |
 
 **Superseded**
 
@@ -212,7 +215,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 | --- | --- |
 | **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
 | **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. **Prod failover** design: **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)**; decisions **ADR-089**–**ADR-091**. Corpus **snapshot** backup manifest + restore defaults: **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)**; **ADR-092**. **Cross-surface stack contract vs adapters:** **ADR-093** ([#762](https://github.com/chipi/podcast_scraper/issues/762)). |
-| **Proposed ADRs** | Promote **ADR-055** to **Accepted** (or supersede) when **RFC-053** ships end-to-end. **ADR-056** already Superseded (2026-06-26) — the centralized router this ADR drafted was replaced by per-provider mock clients + per-concern unit suites; no further action needed. |
+| **Proposed ADRs** | Promote **ADR-055** to **Accepted** (or supersede) when **RFC-053** ships end-to-end. **ADR-056** already Superseded (2026-06-26) — the centralized router this ADR drafted was replaced by per-provider mock clients + per-concern unit suites; no further action needed. **ADR-109**, **ADR-110**, **ADR-111** are Pending — promote each when the corresponding implementation lands. |
 
 ### Future triggers
 

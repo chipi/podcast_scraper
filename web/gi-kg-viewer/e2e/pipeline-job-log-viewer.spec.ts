@@ -1,10 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { setupDashboardApiMocks } from './dashboardApiMocks'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 const LOG_TEXT = 'pipeline step 1 starting\npipeline step 2 running\nlast line of the tail'
 
@@ -13,6 +9,10 @@ const LOG_TEXT = 'pipeline step 1 starting\npipeline step 2 running\nlast line o
  * download links with a modal that tails the log, refreshes, and copies.
  */
 test.describe('Pipeline job log viewer (#695)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test('opens a modal, refreshes, copies, and closes', async ({ page }) => {
     let tailCalls = 0
 

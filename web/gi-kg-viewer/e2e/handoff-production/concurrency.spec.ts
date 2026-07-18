@@ -6,11 +6,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertHandoffApplied,
   captureConsoleErrors,
@@ -22,6 +18,10 @@ import {
 } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Concurrency (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('P5.1 — Rapid handoffRequested supersession (dev-hook, last wins)', async ({ page }) => {
     // Mirrors Tier 1 H5.1 but on the production-shaped graph where layout
     // takes real time. Drives envelopes via ``__GIKG_HANDOFF_STORE__``

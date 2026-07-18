@@ -151,6 +151,7 @@ describe('useGraphLensesStore (RFC-080)', () => {
       personCredibility: false,
       consensusEdges: false,
       coGuestEdges: false,
+      personCommunities: false,
     })
   })
 })

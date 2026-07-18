@@ -55,7 +55,14 @@ export const useThemeStore = defineStore('theme', () => {
   /* USERPREFS-1 — apply server-hydrated value once the preferences store
      resolves. Server wins over localStorage; missing → keep the local
      fallback. Cross-tab BroadcastChannel updates flow through the same
-     path because userPrefs.state reactively updates. */
+     path because userPrefs.state reactively updates.
+
+     Guard note: the choice-watch above is default-async (Vue 'pre'
+     flush), so clearing ``applyingRemote`` synchronously in a
+     finally-block would clear it BEFORE the choice-watch fires, letting
+     the remote-applied write loop right back into ``userPrefs.set``.
+     Defer the clear to the next microtask so it lands AFTER the
+     choice-watch callback has run. */
   watch(
     () => userPrefs.get<ThemeChoice>(PREF_KEY),
     (remote) => {
@@ -63,11 +70,10 @@ export const useThemeStore = defineStore('theme', () => {
       const next = coerceThemeChoice(remote, choice.value)
       if (next === choice.value) return
       applyingRemote = true
-      try {
-        choice.value = next
-      } finally {
+      choice.value = next
+      void Promise.resolve().then(() => {
         applyingRemote = false
-      }
+      })
     },
     { immediate: true },
   )

@@ -1,0 +1,8 @@
+{
+  "email": "cleo-creator@e2e.local",
+  "name": "Cleo Creator",
+  "provider": "mock",
+  "subject": "e2e-cleo-creator",
+  "disabled": false,
+  "role": "creator"
+}

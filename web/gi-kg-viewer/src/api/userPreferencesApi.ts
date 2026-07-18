@@ -21,23 +21,31 @@ export interface UserPreferencesResponse {
 const PREFS_URL = '/api/app/preferences'
 
 async function safeParseJson(res: Response): Promise<UserPreferencesResponse | null> {
+  let doc: unknown
   try {
-    const doc = (await res.json()) as UserPreferencesResponse
-    if (!doc || typeof doc.preferences !== 'object' || doc.preferences === null) {
-      return { preferences: {} }
-    }
-    return { preferences: doc.preferences }
+    doc = await res.json()
   } catch {
     return null
   }
+  if (!doc || typeof doc !== 'object') {
+    return { preferences: {} }
+  }
+  const prefs = (doc as { preferences?: unknown }).preferences
+  if (!prefs || typeof prefs !== 'object') {
+    return { preferences: {} }
+  }
+  return { preferences: prefs as Record<string, unknown> }
 }
 
 /** GET the current user's preferences payload; returns null when the endpoint
  *  is unreachable (401 unauthenticated / 404 / network). Callers should treat
- *  a null result the same as "no preferences yet" — the local defaults win. */
-export async function fetchUserPreferences(): Promise<UserPreferencesResponse | null> {
+ *  a null result the same as "no preferences yet" — the local defaults win.
+ *  `signal` lets callers cap the request client-side (hydrate() uses a 5 s cap). */
+export async function fetchUserPreferences(
+  signal?: AbortSignal,
+): Promise<UserPreferencesResponse | null> {
   try {
-    const res = await fetchWithTimeout(PREFS_URL, undefined, {
+    const res = await fetchWithTimeout(PREFS_URL, { signal }, {
       timeoutDetail: 'app/preferences',
     })
     if (res.status === 401 || res.status === 404) return null

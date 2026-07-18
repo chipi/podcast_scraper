@@ -1,0 +1,8 @@
+{
+  "email": "handoff-matrix-chromium@e2e.local",
+  "name": "handoff-matrix-chromium",
+  "provider": "mock",
+  "subject": "e2e-handoff-matrix-chromium",
+  "disabled": false,
+  "role": "creator"
+}

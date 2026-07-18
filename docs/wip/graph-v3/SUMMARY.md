@@ -209,3 +209,83 @@ missing when the artifact isn't present; the viewer artifacts store surfaces
 that as `themeClustersDoc === null`; the chip filters the row out. Same
 pattern extends naturally to future lens/enricher pairs (`aggregatedEdges` V1
 could gate on aggregate-edge presence in the artifact — deferred).
+
+## Tier 6 — declutter (plumbing dots, zoom-gated Insights/Quotes, default-hide Quotes, bridge tooltip)
+
+Operator's tier-6 direction: *"the graph is still too busy on first paint,
+declutter without hiding structure"*. Four small, orthogonal changes, each
+gated on a heuristic the user can override.
+
+| # | Change | Files | Notes |
+|---|---|---|---|
+| 6-1 | Node-size tier reshape — small "plumbing" node types (Speaker, Person cameo, empty Insight) render as **dots** below zoom 0.8 | `utils/cyGraphLabelTier.ts`, `utils/cyGraphStylesheet.ts` | Zoom threshold `GRAPH_NODE_ZOOM_INSIGHT_MIN=0.9` — below it, Insight/Quote render as compact tiles; above, full labels. |
+| 6-2 | Zoom-gated Insight/Quote visibility | `utils/cyGraphLabelTier.ts::syncGraphNodeVisibilityTierClasses` | New sibling to `syncGraphLabelTierClasses`. Insights and Quotes get a `graph-node-hidden-below-zoom` class below 0.9 so the canvas isn't drowned in evidence dots at overview zoom. |
+| 6-3 | Default-hide Quotes filter | `utils/parsing.ts::DEFAULT_HIDDEN_TYPES = ['Quote','Speaker']` | Rather than hide *all* Quotes forever, the initial `allowedTypes` map starts with Quote/Speaker off. User re-enables via the Types chip; `filtersActive` computes deviation-from-default so the "Reset" indicator only lights up on user action. |
+| 6-4 | Bridge hover tooltip | `components/graph/GraphCanvas.vue` bridge hover handler | Hovering a bridge node surfaces the two theme regions it connects. Reuses the theme-region-N class hash from tier 4/U. |
+
+Post-audit test-coverage backfill for tier-6 landed later as follow-up
+(see "Tier 6/7/8 follow-ups" below).
+
+## Tier 7 — hierarchical + searchable legend, super-theme rollup
+
+Tier 6 declutters within the graph; Tier 7 declutters the legend itself.
+`topic_theme_clusters.json` schema v1.1.0 gained a `super_theme_id`
+rollup (cross-cluster lift) so we can present a **two-level** legend:
+6–8 super-themes on top, dozens of themes as expandable children.
+
+| # | Change | Files | Notes |
+|---|---|---|---|
+| 7-1 | Hierarchical legend — super_theme rollup | `components/graph/ThemeClusterLegend.vue`, `utils/topicClustersOverlay.ts` | Uses `super_theme_id` from enricher v1.1.0; falls back to flat listing if the field is absent (backward-compat with pre-v1.1.0 corpora). |
+| 7-1a | Extend enricher to emit `super_theme_id` via cross-cluster lift | `src/podcast_scraper/enrichment/enrichers/topic_theme_clusters.py` | v1.1.0 rev. Deterministic connected-components on inter-cluster co-occurrence, average-linkage grouping. |
+| 7-2 | Searchable legend — typeahead over super-themes and their children | `components/graph/ThemeClusterLegend.vue` | Filters the tree in-place; keeps super-theme headers when any child matches. |
+| 7-3 | Legend focus interaction — click a legend entry → dim all other regions | `stores/graphThemeFocus.ts` (new), `components/graph/GraphCanvas.vue` | Single focus bus; clears on second click or Escape. |
+| 7-4 | Person co-appearance MCL overlay lens | `enrichment/enrichers/guest_coappearance.py` v1.1.0 (union-find person communities), `utils/cyGraphLensOverlays.ts::applyPersonCommunityClasses` | Person community classes surface as underlay tint on Person nodes when the lens is on. |
+
+## Tier 8 — top-down default graph load
+
+The full graph on prod-v2 is ~830 nodes; the top-down slice mounts as
+6–8 SuperTheme bubbles, and expansion is per-super-theme on tap.
+
+| # | Change | Files | Notes |
+|---|---|---|---|
+| 8-1 | Top-down synthetic slice mount | `utils/topDownSlice.ts` (new), `stores/artifacts.ts::topDownDisplayArtifact` | Derives a slice from `themeClustersDoc.super_themes`; bridge-derived cross-super-theme edges (Gap 3). |
+| 8-2 | Expand-on-tap for SuperTheme nodes | `stores/graphTopDown.ts` (new), `components/graph/GraphCanvas.vue` tap handler | Tap toggles `expandedSuperThemeIds`; the slice re-derives with projected children under the tapped super-theme. |
+| 8-3 | Search reveals hidden | `components/graph/GraphCanvas.vue::maybeExpandTopDownForPendingFocus` | When a search-pending focus target lives under a collapsed super-theme, auto-expand it so `tryApplyPendingFocus` succeeds on the next redraw. |
+| 8-4 | Filter re-scope over expanded slice | `stores/graphFilters.ts` | `filteredArtifact` forces `allowedTypes.SuperTheme = true` when in top-down mode so the canvas isn't emptied. |
+| 8-5 | Load-mode opt-in flag (plumbing) | `stores/graphLoadMode.ts` (new) | localStorage-first, USERPREFS-1 sync. Default `'everything'` — the flip is one-line when tier-8 UX is proven. |
+| 8-6 | Ego / cross-episode re-scope | `stores/graphExplorer.ts` (ego integration) | Ego expansion uses the full `displayArtifact` (not the top-down slice) — walking a super-theme's ego neighbourhood surfaces cross-episode structure. |
+
+Viewer clamp (Gap 4): if super_themes count exceeds 8, the mount trims to the 8 largest by member weight so the tier-8 mount stays legible.
+
+## Post-tier-8 harden follow-ups (Gaps 1–6)
+
+Second harden pass surfaced 6 gaps closed on this branch:
+
+- Gap 1 — vitest teardown BroadcastChannel hang → `vite.config.ts` `pool: 'forks'`.
+- Gap 2 — graph-v3 tier-8 top-down design doc `status: shipped` marker.
+- Gap 3 — bridge-derived cross-super-theme edges wired into `topDownSlice`.
+- Gap 4 — viewer clamp for >8 SuperTheme nodes.
+- Gap 5 — playwright stack-test: top-down mount + expand.
+- Gap 6 — playwright stack-test: search reveals hidden.
+
+## Tier-3 real-corpus walk (2026-07-17)
+
+Full validation walk against the synthetic `viewer-validation-corpus/v3`
+fixture: **38 tests passed** after this branch's fixes landed:
+
+- graph-analytics-replay path fix — event log lives at
+  `<CORPUS>/.app/users/u_<hash>/graph_events.jsonl` (per-user under auth),
+  not `<repo>/.app/users/anon/`.
+- V4 / P5.2 / P7.2 — Dashboard tab is admin-only (`auth.isAdmin`); added
+  `signInAsAdmin()` helper that uses the `ada-admin` hint (matches serve
+  `APP_ADMIN_EMAILS`).
+- P1.3 / P4.2 — digest topic-band hit rows need a LanceDB vector index;
+  built one over the synthetic corpus.
+- Corpus also needed a `search/topic_clusters.json` at threshold 0.35
+  (default 0.75 gave 0 clusters on this small fixture).
+- V4 specifically: V-G1 flips graph-load-mode to Top-down under
+  `ada-admin` and persists it via USERPREFS-1 → V4 was inheriting
+  Top-down and finding no cluster compound. V4 now normalizes the mode
+  chip to "Everything" before clicking the topic-cluster chip.
+
+Full log: `/tmp/tier3-json7.log` (38 passed, 0 failed, 0 skipped).

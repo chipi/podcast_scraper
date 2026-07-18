@@ -604,6 +604,8 @@ async function loadDigest(): Promise<void> {
       return
     }
     digest.value = d
+      ? { ...d, rows: Array.isArray(d.rows) ? d.rows : [], topics: Array.isArray(d.topics) ? d.topics : [] }
+      : d
     void loadTopicVelocities(root)
     const path = subject.episodeMetadataPath?.trim()
     if (path && !digestCoversMetadataPath(path)) {

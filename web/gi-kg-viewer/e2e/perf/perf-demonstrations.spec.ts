@@ -14,15 +14,15 @@
  */
 
 import { expect, test } from '@playwright/test'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import { captureConsoleErrors, readFsmState } from '../handoff/_handoff-helpers'
 import { setupProductionShapedMocks } from '../handoff-production/_helpers'
 
 test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   /**
    * #768 — parallel artifact fetches.
    *

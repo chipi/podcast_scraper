@@ -10,6 +10,7 @@ import { graphNodeTypeChrome } from '../../utils/colors'
 import { truncate } from '../../utils/formatting'
 import {
   findRawNodeInArtifact,
+  findRawNodeInArtifactByIdOrPrefixed,
   fullPrimaryNodeLabel,
 } from '../../utils/parsing'
 import {
@@ -18,6 +19,7 @@ import {
   resolveEpisodeMetadataFromLoadedArtifacts,
 } from '../../utils/graphEpisodeMetadata'
 import { graphNeighborsForNode, type GraphNeighborRow } from '../../utils/graphNeighbors'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import { graphTypeAvatarLetter } from '../../utils/graphTypeAvatar'
 import {
   SEARCH_RESULT_GRAPH_BUTTON_CLASS,
@@ -99,7 +101,7 @@ const neighborListUlClass = computed((): string =>
 const centerInView = computed(() => {
   const a = props.viewArtifact
   const id = props.nodeId
-  return Boolean(a && id && findRawNodeInArtifact(a, id))
+  return Boolean(a && id && findRawNodeInArtifactByIdOrPrefixed(a, id))
 })
 
 const graphButtonTooltip =
@@ -238,7 +240,7 @@ function neighborViaLine(nb: GraphNeighborRow): string {
         v-for="nb in neighbors"
         :key="`${nb.id}-${nb.direction}-${nb.edgeType}`"
         class="flex items-center gap-1.5 rounded px-0.5 py-0.5 hover:bg-overlay/60"
-        :data-connection-node-id="nb.id"
+        :data-connection-node-id="stripLayerPrefixesForCil(nb.id)"
       >
         <div
           class="flex size-7 shrink-0 items-center justify-center rounded-xl text-[11px] font-extrabold shadow-sm ring-1 ring-black/10 dark:ring-white/10"

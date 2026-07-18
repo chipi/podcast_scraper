@@ -1,0 +1,8 @@
+{
+  "email": "real-corpus-chromium@e2e.local",
+  "name": "real-corpus-chromium",
+  "provider": "mock",
+  "subject": "e2e-real-corpus-chromium",
+  "disabled": false,
+  "role": "creator"
+}

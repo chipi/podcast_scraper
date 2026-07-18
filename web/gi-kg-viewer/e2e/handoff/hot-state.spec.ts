@@ -6,7 +6,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertFsmEventEnvelope,
   assertHandoffApplied,
@@ -17,6 +17,10 @@ import {
 } from './_handoff-helpers'
 
 test.describe('Handoff matrix § Section 2 — Hot state', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('H2.1 — Library row re-click: generation supersedes [F4c]', async ({ page }) => {
     // F4c — H2.1: the canonical "second Library G" reproducer. With C1's
     // synchronous setLoadSource patch + F1.1 FSM event, repeat clicks bump

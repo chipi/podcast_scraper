@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { loadGraphViaFilePicker } from './helpers'
+import { loadGraphViaFilePicker, mockSignIn } from './helpers'
 
 test.describe('Graph export', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('Export PNG triggers download', async ({ page }) => {
     await loadGraphViaFilePicker(page)
 

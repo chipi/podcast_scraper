@@ -3,8 +3,10 @@
 A single identity store spans both apps; each user carries one ``role``:
 
 - ``listener`` — the Learning Player only (the pre-#1128 default; no viewer access).
-- ``creator`` — viewer access (KG curation: digest / library / graph / dashboard).
-- ``admin`` — everything ``creator`` has, plus ops, configuration, and user management.
+- ``creator`` — viewer base shell only (KG curation: digest / library / graph).
+- ``admin`` — everything ``creator`` has, plus dashboard, ops, configuration, and user
+  management. Dashboard is admin-only in ``App.vue`` (``v-if="auth.isAdmin"``); the earlier
+  version of this docstring listed it under ``creator`` and drifted from the code.
 
 Roles are totally ordered ``listener < creator < admin`` so "at least creator" checks are a
 simple rank comparison. ``admin`` bootstrap is by email allowlist (``APP_ADMIN_EMAILS``); there is

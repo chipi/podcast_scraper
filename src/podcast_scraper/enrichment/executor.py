@@ -745,6 +745,8 @@ class EnrichmentExecutor:
                 duration_ms=duration_ms,
                 records_written=final_result.records_written,
                 retries=attempt - 1,
+                error=final_result.error,
+                error_class=final_result.error_class,
             ),
         )
         # Cancelled outcome: emit cancel event (in addition to completed).

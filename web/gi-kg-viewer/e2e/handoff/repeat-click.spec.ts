@@ -6,7 +6,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertHandoffApplied,
   captureConsoleErrors,
@@ -15,6 +15,10 @@ import {
 } from './_handoff-helpers'
 
 test.describe('Handoff matrix § Section 3 — Repeated click', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('H3.1 — Library row × 2 (same episode) [F4d]', async ({ page }) => {
     // F4d — handoffRequested always supersedes; second click bumps generation.
     const errs = captureConsoleErrors(page)

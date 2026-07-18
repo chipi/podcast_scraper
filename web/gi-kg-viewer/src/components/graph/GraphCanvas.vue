@@ -3747,6 +3747,9 @@ function redraw(): void {
     const t = evt.target
     if (typeof t.isNode === 'function' && t.isNode()) {
       const id = t.id()
+      // graph-v3 tier 8-2 — SuperTheme tap is handled by the `tap` handler
+      // (expand toggle); don't open the detail rail for synthetic nodes.
+      if (loadMode.isTopDown && t.data('type') === 'SuperTheme') return
       // F1.2 — fire FSM canvasTapped before opening rail. The tap is direct
       // (no load barriers needed); FSM transitions to `applying` then `ready`
       // via supersession or finishLayoutPass apply phase.
@@ -3773,19 +3776,14 @@ function redraw(): void {
     if (typeof t.isNode === 'function' && t.isNode()) {
       const id = t.id()
       /* graph-v3 tier 8-6 — dbltap on a SuperTheme in top-down mode is
-       * semantically the same as tapping it: expand. Ego-expansion
-       * (double-tap on a projected child) also needs the super-theme
-       * expanded so the ego neighbourhood surfaces; this is a no-op
-       * when it already is. */
-      if (loadMode.isTopDown) {
-        if (t.data('type') === 'SuperTheme') {
-          topDown.toggleSuperTheme(id)
-          return
-        }
-        const tcid = t.data('themeClusterId')
-        if (typeof tcid === 'string' && tcid.trim()) {
-          maybeExpandTopDownForPendingFocus(id)
-        }
+       * semantically the same as tapping it: expand. Projected children
+       * are already visible (their super-theme is already expanded, or
+       * they wouldn't render), and the ego path uses `displayArtifact`
+       * (the FULL artifact), not the top-down slice — so there's no
+       * super-theme-expansion work to do for children here. */
+      if (loadMode.isTopDown && t.data('type') === 'SuperTheme') {
+        topDown.toggleSuperTheme(id)
+        return
       }
       if (shift) {
         const c = cy

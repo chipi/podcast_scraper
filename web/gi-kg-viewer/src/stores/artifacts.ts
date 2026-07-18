@@ -126,14 +126,20 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       fullArtifact: displayArtifact.value?.data ?? null,
       expandedSuperThemeIds: topDown.expandedSuperThemeIds,
     })
-    if (data.nodes.length === 0) return null
+    /* ``ArtifactData.nodes/edges`` are typed as optional even though
+     * ``buildTopDownSlice`` always fills them — normalize once so
+     * downstream reads (visualNodeTypeCounts + the counts below) don't
+     * need their own ``?? []`` gymnastics. */
+    const nodes = data.nodes ?? []
+    const edges = data.edges ?? []
+    if (nodes.length === 0) return null
     return {
       name: 'top-down',
       kind: 'both',
       episodeId: null,
-      nodes: data.nodes.length,
-      edges: data.edges.length,
-      nodeTypes: visualNodeTypeCounts(data.nodes),
+      nodes: nodes.length,
+      edges: edges.length,
+      nodeTypes: visualNodeTypeCounts(nodes),
       data,
     }
   })

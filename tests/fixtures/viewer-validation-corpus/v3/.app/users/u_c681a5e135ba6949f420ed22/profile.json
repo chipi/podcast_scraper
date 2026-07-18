@@ -1,0 +1,8 @@
+{
+  "email": "graph-analytics-replay-chromium@e2e.local",
+  "name": "graph-analytics-replay-chromium",
+  "provider": "mock",
+  "subject": "e2e-graph-analytics-replay-chromium",
+  "disabled": false,
+  "role": "creator"
+}

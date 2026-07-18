@@ -25,7 +25,7 @@
  * against the theme cluster doc). No cytoscape dependency here — pure
  * data transform, easy to test.
  */
-import type { ArtifactData } from '../types/artifact'
+import type { ArtifactData, RawGraphNode } from '../types/artifact'
 import type { TopicClustersDocument } from '../api/corpusTopicClustersApi'
 
 /* graph-v3 tier 8-1 viewer clamp (gap-4 harden). The enricher already caps
@@ -203,7 +203,7 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
   //      so Cytoscape renders them inside the SuperTheme compound.
   const fullNodes = opts.fullArtifact?.nodes ?? []
   const fullEdges = opts.fullArtifact?.edges ?? []
-  const nodeById = new Map<string, ArtifactData['nodes'][number]>()
+  const nodeById = new Map<string, RawGraphNode>()
   for (const n of fullNodes) {
     if (n?.id != null) nodeById.set(String(n.id), n)
   }

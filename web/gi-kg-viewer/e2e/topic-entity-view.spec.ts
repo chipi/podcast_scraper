@@ -22,7 +22,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 const TOPIC_LABEL = 'Mock TEV Topic'
 const GRAPH_TOPIC_ID = 'topic:mock-tev'
@@ -55,6 +55,10 @@ const GI_BODY = JSON.stringify({
 })
 
 test.describe('Topic / Entity rail panel (TEV)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

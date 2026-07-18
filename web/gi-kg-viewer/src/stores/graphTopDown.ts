@@ -105,11 +105,14 @@ export const useGraphTopDownStore = defineStore('graphTopDown', () => {
         return
       }
       applyingRemote = true
-      try {
-        expandedSuperThemeIds.value = remote
-      } finally {
+      expandedSuperThemeIds.value = remote
+      /* Same async-guard concern as theme.ts / graphLoadMode.ts: the
+       * expandedSuperThemeIds-watch above is default-async, so clearing
+       * ``applyingRemote`` synchronously would let the remote-applied
+       * write loop back into ``userPrefs.set``. Defer to next microtask. */
+      void Promise.resolve().then(() => {
         applyingRemote = false
-      }
+      })
     },
     { immediate: true },
   )

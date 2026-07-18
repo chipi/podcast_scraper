@@ -79,18 +79,20 @@ export const useGraphLoadModeStore = defineStore('graphLoadMode', () => {
 
   /* Apply server-hydrated value once the preferences store lands one.
      Same guard pattern as the graphLenses store: `applyingRemote`
-     suppresses the write-through echo. */
+     suppresses the write-through echo. Defer the clear to the next
+     microtask so it lands AFTER the mode-watch (default 'pre' flush =
+     async) — clearing it synchronously in a finally-block would let
+     the remote-applied write loop right back into ``userPrefs.set``. */
   watch(
     () => userPrefs.get<GraphLoadMode>(PREF_KEY),
     (v) => {
       if (v !== 'topDown' && v !== 'everything') return
       if (v === mode.value) return
       applyingRemote = true
-      try {
-        mode.value = v
-      } finally {
+      mode.value = v
+      void Promise.resolve().then(() => {
         applyingRemote = false
-      }
+      })
     },
     { immediate: true },
   )

@@ -2558,7 +2558,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           {{ inlineTimelineError }}
         </p>
         <p
-          v-else-if="inlineTimelinePayload && inlineTimelinePayload.episodes.length === 0"
+          v-else-if="inlineTimelinePayload && (inlineTimelinePayload.episodes?.length ?? 0) === 0"
           class="text-[10px] text-muted"
           data-testid="node-detail-inline-timeline-empty"
         >

@@ -1,0 +1,8 @@
+{
+  "email": "ada-admin@e2e.local",
+  "name": "Ada Admin",
+  "provider": "mock",
+  "subject": "e2e-ada-admin",
+  "disabled": false,
+  "role": "admin"
+}

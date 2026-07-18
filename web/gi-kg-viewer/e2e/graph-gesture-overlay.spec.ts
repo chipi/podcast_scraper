@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { loadGraphViaFilePicker } from './helpers'
+import { loadGraphViaFilePicker, mockSignIn } from './helpers'
 
 test.describe('Graph gesture overlay', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem('ps_graph_hints_seen')
@@ -38,6 +42,10 @@ test.describe('Graph gesture overlay', () => {
 })
 
 test.describe('Graph gesture overlay persistence across reload', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('does not auto-open after dismiss, reload, and load graph again', async ({ page }) => {
     await page.addInitScript(() => {
       if (sessionStorage.getItem('ps_e2e_gesture_persist') === '1') {

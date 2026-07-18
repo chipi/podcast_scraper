@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertFsmEventEnvelope,
   assertHandoffApplied,
@@ -18,6 +18,10 @@ import {
 } from './_handoff-helpers'
 
 test.describe('Handoff matrix § Section 1 — Cold-start', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test('H1.1 — Library row "Open in graph" (cold start) [F4b]', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     await setupHandoffMatrixMocks(page)

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * UXS-015 / RFC-104 — the operator Library tab's shows-first browse.
@@ -64,6 +64,10 @@ const ALPHA_SIGNALS = {
 }
 
 test.describe('Operator Shows Library (shows-first browse)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

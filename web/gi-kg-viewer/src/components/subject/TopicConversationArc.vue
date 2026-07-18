@@ -75,9 +75,9 @@ async function load(): Promise<void> {
       fetchTopicConversationArc(root, tid),
       fetchTopicTimeline(root, tid),
     ])
-    weeks.value = arc.weeks
+    weeks.value = Array.isArray(arc.weeks) ? arc.weeks : []
     const flat: typeof rows.value = []
-    for (const block of tl.episodes) {
+    for (const block of tl.episodes ?? []) {
       const wk = isoWeek(block.publish_date)
       if (!wk) continue
       for (const n of block.insights) {

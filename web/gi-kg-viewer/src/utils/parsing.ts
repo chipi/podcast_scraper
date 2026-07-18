@@ -11,6 +11,7 @@ import type {
 } from '../types/artifact'
 import { humanizeSlug, shortPhrase, truncate } from './formatting'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
+import { stripLayerPrefixesForCil } from './mergeGiKg'
 import { visualGroupForNode } from './visualGroup'
 
 export { visualGroupForNode, visualNodeTypeCounts } from './visualGroup'
@@ -1053,12 +1054,14 @@ export function insightSupportingQuoteRows(
   if (!art?.data?.edges || insightGraphId == null) return []
   const sid = String(insightGraphId).trim()
   if (!sid) return []
+  const sidBare = stripLayerPrefixesForCil(sid)
   const toIds: string[] = []
   for (const e of art.data.edges) {
     if (!e) continue
     const etNorm = normalizeGiEdgeType(e.type).replace(/_/g, '')
     if (etNorm !== 'supportedby') continue
-    if (String(e.from) !== sid) continue
+    const from = String(e.from ?? '').trim()
+    if (from !== sid && stripLayerPrefixesForCil(from) !== sidBare) continue
     const to = String(e.to ?? '').trim()
     if (!to) continue
     const qn = findRawNodeInArtifact(art, to)
@@ -1185,6 +1188,7 @@ export function insightRelatedTopicRows(
   if (!art?.data?.edges || insightGraphId == null) return []
   const sid = String(insightGraphId).trim()
   if (!sid) return []
+  const sidBare = stripLayerPrefixesForCil(sid)
   const nodes = Array.isArray(art.data.nodes) ? art.data.nodes : []
   const idSet = new Set(
     nodes.map((n) => (n?.id != null ? String(n.id) : '')).filter(Boolean),
@@ -1196,10 +1200,12 @@ export function insightRelatedTopicRows(
     if (!INSIGHT_TOPIC_EDGE_TYPES.has(t)) continue
     const from = String(e.from ?? '').trim()
     const to = String(e.to ?? '').trim()
+    const fromBare = stripLayerPrefixesForCil(from)
+    const toBare = stripLayerPrefixesForCil(to)
     let topicId: string | null = null
-    if (from === sid && idSet.has(to)) {
+    if ((from === sid || fromBare === sidBare) && idSet.has(to)) {
       topicId = to
-    } else if (to === sid && idSet.has(from)) {
+    } else if ((to === sid || toBare === sidBare) && idSet.has(from)) {
       topicId = from
     } else {
       continue
@@ -1376,9 +1382,14 @@ export function filtersActive(
   state: GraphFilterState | null,
 ): boolean {
   if (!fullArt || !state) return false
+  /* Tier 6-3: Quote / Speaker default to hidden. A user who hasn't touched
+   * anything shouldn't see the "filters active" indicator light up just
+   * because these defaults are false — so only count a type as "active"
+   * when it deviates from its default-visibility. */
   const keys = Object.keys(state.allowedTypes)
   for (const k of keys) {
-    if (state.allowedTypes[k] === false) return true
+    const defaultVisible = !DEFAULT_HIDDEN_TYPES.has(k)
+    if (state.allowedTypes[k] !== defaultVisible) return true
   }
   if (
     (fullArt.kind === 'gi' || fullArt.kind === 'both') &&

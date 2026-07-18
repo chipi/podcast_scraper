@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
 import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -10,6 +10,10 @@ const TRANSCRIPT_BODY =
   'Hello world transcript sample for CI quality metrics fixture.\nExtra line for scroll.'
 
 test.describe('Search → graph (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({
@@ -176,7 +180,7 @@ test.describe('Search → graph (mocked API)', () => {
       })
     })
 
-    await page.route('**/api/topics/topic%3Aci-policy/timeline?**', async (route) => {
+    await page.route(/\/api\/topics\/(?:g%3A)?topic%3Aci-policy\/timeline\?/, async (route) => {
       const url = new URL(route.request().url())
       const path = url.searchParams.get('path') || '/mock/corpus'
       await route.fulfill({
@@ -339,8 +343,10 @@ test.describe('Search → graph (mocked API)', () => {
       'Grounded',
     )
     await expect(page.getByTestId('node-detail-insight-details-tooltip-body')).toContainText('stub')
+    // Merged GI+KG view: provenance shows the merged label rather than the source
+    // filename (art.name is set by mergeGiKg to "Merged GI + KG (N GI · M KG)").
     await expect(page.getByTestId('node-detail-insight-details-tooltip-body')).toContainText(
-      'ci_sample',
+      'Merged GI',
     )
     await expect(page.getByTestId('node-detail-insight-related-topics')).toBeVisible()
     await expect(page.getByTestId('node-detail-insight-related-topics')).toContainText(

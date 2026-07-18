@@ -18,10 +18,14 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import { setupHandoffMatrixMocks } from './_handoff-helpers'
 
 test.describe('HandoffErrorStrip § T4', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('renders with reason on handoffFailed; dismiss removes it', async ({
     page,
   }) => {

@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
-import {
-  dismissGraphGestureOverlayIfPresent,
-  loadGraphViaFilePicker,
-  statusBarCorpusPathInput,
-} from './helpers'
+import { dismissGraphGestureOverlayIfPresent, loadGraphViaFilePicker, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 test.describe('Keyboard shortcuts', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('/ focuses semantic search when API is healthy', async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

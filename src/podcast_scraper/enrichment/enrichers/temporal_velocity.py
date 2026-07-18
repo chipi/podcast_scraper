@@ -282,9 +282,18 @@ def _full_week_axis(dates: list[str]) -> list[str]:
     parsed: list[datetime] = []
     for d in dates:
         try:
-            parsed.append(datetime.fromisoformat(d.replace("Z", "+00:00")))
+            dt = datetime.fromisoformat(d.replace("Z", "+00:00"))
         except (ValueError, TypeError):
             continue
+        # Publish dates in the corpus mix ISO date-only strings
+        # (``2026-06-27`` → naive) with ISO datetimes carrying ``Z`` or
+        # ``+00:00`` (aware). ``min`` / ``max`` on the mixed list raises
+        # ``TypeError: can't compare offset-naive and offset-aware
+        # datetimes`` (v1.2.0 prod-v2 regression, 2026-07-17). Coerce
+        # naive → UTC so the axis is uniformly aware.
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        parsed.append(dt)
     if not parsed:
         return []
     lo, hi = min(parsed), max(parsed)

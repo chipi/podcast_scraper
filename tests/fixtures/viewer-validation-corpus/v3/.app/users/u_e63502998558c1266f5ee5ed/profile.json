@@ -1,0 +1,8 @@
+{
+  "email": "graph-v3-top-down-chromium@e2e.local",
+  "name": "graph-v3-top-down-chromium",
+  "provider": "mock",
+  "subject": "e2e-graph-v3-top-down-chromium",
+  "disabled": false,
+  "role": "creator"
+}

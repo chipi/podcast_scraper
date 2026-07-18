@@ -542,10 +542,18 @@ function newestJobByCreatedAt(jobs: JobRow[]): JobRow | undefined {
   })[jobs.length - 1]
 }
 
-/** Poll ``GET /api/jobs`` until the newest job reaches ``succeeded``; validate status each loop. */
+/** Poll ``GET /api/jobs`` until the newest job reaches ``succeeded``; validate status each loop.
+ *
+ * ``pollSinceIso`` (ISO wall-clock) filters out jobs created before this cutoff.
+ * Prior stack-test cases (``stack-enrichment-job-flow.spec.ts:76`` cancel test) leave
+ * ``cancelled`` corpus_enrichment jobs in the shared ``/api/jobs`` registry. Without
+ * this cutoff the very first poll (fired ~10ms after the UI's fire-and-forget POST
+ * click, before the POST persists) picks the stale cancelled job as the "newest by
+ * created_at" and throws immediately with ``cancelled_before_start``. */
 async function waitForLatestJobSucceeded(
   request: import('@playwright/test').APIRequestContext,
   timeoutMs: number,
+  pollSinceIso: string,
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs
   const q = new URLSearchParams({ path: CORPUS })
@@ -556,17 +564,22 @@ async function waitForLatestJobSucceeded(
   let lastBeat = Date.now()
   let lastLoggedSignature = ''
   stackTestProgress(
-    `poll GET /api/jobs until newest job succeeded (every ${pollMs}ms, timeout ${timeoutMs}ms); docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs -f`,
+    `poll GET /api/jobs until newest job succeeded (every ${pollMs}ms, timeout ${timeoutMs}ms, since ${pollSinceIso}); docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs -f`,
   )
   while (Date.now() < deadline) {
     const res = await request.get(`/api/jobs?${q.toString()}`)
     expect(res.ok()).toBeTruthy()
     const data = (await res.json()) as { jobs?: JobRow[] }
-    const jobs = Array.isArray(data.jobs) ? data.jobs : []
+    const allJobs = Array.isArray(data.jobs) ? data.jobs : []
+    // Drop pre-cutoff jobs (leftover cancelled enrichment from earlier tests).
+    const jobs = allJobs.filter((j) => {
+      const c = typeof j.created_at === 'string' ? j.created_at : ''
+      return c && c >= pollSinceIso
+    })
     const left = Math.max(0, Math.round((deadline - Date.now()) / 1000))
     if (jobs.length === 0) {
       if (Date.now() - lastBeat >= 15_000) {
-        stackTestProgress(`job poll: no jobs yet under ${CORPUS}; ~${left}s left`)
+        stackTestProgress(`job poll: no jobs yet under ${CORPUS} since ${pollSinceIso}; ~${left}s left`)
         lastBeat = Date.now()
       }
       await new Promise((r) => setTimeout(r, pollMs))
@@ -727,10 +740,13 @@ test.describe('stack test — feeds UI + job + data', () => {
     await expect(page.getByTestId('pipeline-jobs-card')).toBeVisible({ timeout: 60_000 })
 
     stackTestProgress('browser: click Run pipeline job')
+    // Capture cutoff BEFORE the click so newly-created pipeline job passes the filter
+    // but stale enrichment cancelled jobs from earlier tests are dropped.
+    const pipelinePollSinceIso = new Date(Date.now() - 500).toISOString()
     await page.getByTestId('pipeline-jobs-run').click()
 
     stackTestProgress('polling /api/jobs until newest job succeeded (long step)')
-    await waitForLatestJobSucceeded(request, 800_000)
+    await waitForLatestJobSucceeded(request, 800_000, pipelinePollSinceIso)
 
     stackTestProgress('browser: reload after job so Graph/search pick up new corpus artifacts')
     await page.reload()

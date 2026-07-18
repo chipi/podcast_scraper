@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -9,6 +9,10 @@ const TRANSCRIPT_BODY =
   'Hello world transcript sample for CI quality metrics fixture.\nExtra line for scroll.'
 
 test.describe('Transcript viewer dialog (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({
@@ -176,6 +180,10 @@ test.describe('Transcript viewer dialog — ad-free base (#974)', () => {
   // Ad-free body: ads already removed, so the quote sits at char 0 of THIS text.
   const ADFREE_BODY =
     'Hello world transcript sample for CI quality metrics fixture.\nAd-free base line.'
+
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
 
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {

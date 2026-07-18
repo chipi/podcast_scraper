@@ -1,0 +1,8 @@
+{
+  "email": "pip-player@e2e.local",
+  "name": "Pip Player",
+  "provider": "mock",
+  "subject": "e2e-pip-player",
+  "disabled": false,
+  "role": "listener"
+}

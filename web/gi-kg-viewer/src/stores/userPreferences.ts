@@ -1,5 +1,33 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
+
+/* Test-only registry of live BroadcastChannel instances opened by this
+ * store. Real browser tabs close the channel implicitly on unload; in
+ * tests, however, the pinia store is retained across test files in the
+ * same worker, so channels leak → worker event loop stays busy →
+ * happy-dom's AsyncTaskManager teardown fires against live handles →
+ * vitest can't finalize → v8 coverage aggregation stalls.
+ *
+ * ``__closeAllUserPreferencesChannels`` (invoked by ``vitest`` via
+ * ``vi.hooks`` or a per-file afterEach only when needed) drains the
+ * registry so no live channel escapes a test scope. Not exported from
+ * the main index; consumed only by tests that mount components which
+ * transitively construct this store. */
+const openChannels = new Set<BroadcastChannel>()
+if (typeof globalThis !== 'undefined') {
+  ;(
+    globalThis as unknown as { __closeAllUserPreferencesChannels?: () => void }
+  ).__closeAllUserPreferencesChannels = () => {
+    for (const ch of openChannels) {
+      try {
+        ch.close()
+      } catch {
+        /* channel may already be closed by GC; ignore */
+      }
+    }
+    openChannels.clear()
+  }
+}
 
 import {
   fetchUserPreferences,
@@ -62,12 +90,21 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const state = computed(() => ({ ...local.value }))
 
   /* BroadcastChannel setup — happy-dom and older browsers may lack the
-     API; skip silently. */
+     API; skip silently.
+     Teardown: register onScopeDispose to close the channel when the
+     enclosing Pinia scope is disposed. Without this, tests that mount
+     any component transitively importing this store leave the channel
+     open across worker teardown → happy-dom's AsyncTaskManager.abortAll
+     fires against a still-live handle and vitest can't finalize the
+     worker, stalling coverage aggregation. Real browser tabs closing
+     the tab GCs the channel anyway; this only fires in test / SSR
+     dispose paths. */
   const tabId = makeTabId()
   let channel: BroadcastChannel | null = null
   try {
     if (typeof BroadcastChannel !== 'undefined') {
       channel = new BroadcastChannel(CROSS_TAB_CHANNEL)
+      openChannels.add(channel)
       channel.addEventListener('message', (ev: MessageEvent<CrossTabMessage>) => {
         const msg = ev.data
         if (!msg || typeof msg !== 'object') return
@@ -85,6 +122,18 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   } catch {
     /* not supported / permission denied — cross-tab is opportunistic */
   }
+
+  onScopeDispose(() => {
+    if (channel) {
+      try {
+        channel.close()
+      } catch {
+        /* channel may already be closed by GC; ignore */
+      }
+      openChannels.delete(channel)
+      channel = null
+    }
+  })
 
   function broadcast(key: string, value: unknown): void {
     if (!channel) return
@@ -110,7 +159,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
       const controller = new AbortController()
       const t = setTimeout(() => controller.abort(), HYDRATION_TIMEOUT_MS)
       try {
-        const payload = await fetchUserPreferences()
+        const payload = await fetchUserPreferences(controller.signal)
         apply(payload)
       } finally {
         clearTimeout(t)

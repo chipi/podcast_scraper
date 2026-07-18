@@ -6,11 +6,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertFsmEventEnvelope,
   captureConsoleErrors,
@@ -20,6 +16,10 @@ import {
 import { setupProductionShapedMocks } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Cross-entry (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('P4.1 — Library → Digest → Search (3 envelopes, no contamination)', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     await setupProductionShapedMocks(page, { search: true })

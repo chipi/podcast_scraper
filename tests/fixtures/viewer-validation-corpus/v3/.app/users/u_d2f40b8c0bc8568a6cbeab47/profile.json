@@ -1,0 +1,8 @@
+{
+  "email": "cory-creator@e2e.local",
+  "name": "Cory Creator",
+  "provider": "mock",
+  "subject": "e2e-cory-creator",
+  "disabled": false,
+  "role": "creator"
+}

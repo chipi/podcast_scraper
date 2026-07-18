@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * #709 — live cron preview + validation under the Job Configuration editor.
@@ -42,6 +42,10 @@ async function stubCompanionApis(page: Page): Promise<void> {
 }
 
 test.describe('Cron schedule preview (#709)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test('previews valid schedules and flags an invalid cron in the editor', async ({ page }) => {
     await page.route(matchExactApiPath('/api/health'), async (route) => {
       await route.fulfill({

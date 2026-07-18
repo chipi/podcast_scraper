@@ -106,16 +106,21 @@ sibling-worktree `cp`s under `.test_outputs/manual/prod-v2/corpus/enrichments/`.
 | `guest_coappearance` | ✓ | 87 pairs |
 | `topic_similarity` | ✓ | 1 MB, ML tier (sentence-transformers `all-MiniLM-L6-v2` local) |
 | `topic_consensus` | ✓ | 22 rows, ML tier (`all-MiniLM-L6-v2` + `deberta-v3-small` NLI local, ~2 min) |
-| `temporal_velocity` | **✗** | Enricher v1.2.0 in this repo (vs v1.0.0 that produced the sibling copy); v1.2.0 fails silently on prod-v2 after 183 ms. Separate bug — not in graph-v3 scope. The pre-existing v1.0.0 output stays in place and the viewer velocity-halo lens keeps working against it. |
+| `temporal_velocity` | ✓ | v1.2.0 datetime-tz bug fixed on this branch (2026-07-17); re-verified locally against prod-v2 → `status=ok records=833`. Framework's `enrichment.enricher.completed` event now carries `error` / `error_class` when status ≠ ok. |
 | `insight_density` | (skipped) | Episode-scope, filtered out by `--corpus-only` |
 | `insight_sentiment` | (skipped) | Same |
 
-**Delta from sibling `cp`**: nothing structural. Only `temporal_velocity`
-remains from the sibling until its v1.2.0 regression is investigated. Also
+**Delta from sibling `cp`**: nothing structural.
 `nli_contradiction.json` (deprecated by ADR-108, superseded by `topic_consensus`)
 is left untouched.
 
-**Follow-up (separate arc)**: fix or revert `temporal_velocity` v1.2.0. The
-error record has `status:failed` + `duration_ms:183` but no `failure_message`
-— add one to the enrichment framework so future regressions surface
-diagnostics automatically.
+**Fixed on this branch (2026-07-17):** `temporal_velocity` v1.2.0 was
+raising `TypeError: can't compare offset-naive and offset-aware datetimes`
+inside `_full_week_axis` on prod-v2 because publish-date strings mix
+date-only ISO (`2026-06-27` → naive) with datetime-plus-Z (`…Z` → aware).
+Fix: coerce naive → UTC before the `min`/`max`. Re-verified against prod-v2
+locally: `status=ok records=833`. Alongside, the enrichment framework's
+`build_enricher_completed` event builder now propagates `error` /
+`error_class` from `EnricherResult` on non-ok terminal outcomes so future
+silent regressions surface with a diagnostic payload (was: framework
+dropped them on the floor).
