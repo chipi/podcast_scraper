@@ -90,10 +90,10 @@ the box is still tailnet-only. Nothing is public. This is the safe rehearsal.
 
 | # | Step | Owner |
 |---|---|---|
-| 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) checklist | 🤝 |
+| 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) checklist — **pre-walked** in [GOAL1-PHASE3-PREP.md](GOAL1-PHASE3-PREP.md) (substrate items done; open: orrery cap_drop / digest-pin / rollback rehearsal) | 🤝 |
 | 3.2 | Sign off: orrery clears it (static, no `docker.sock`, no keys) | 🧑 |
 | 3.3 | ✅ **Folded into `apply-edge.sh`** (1.1) — the metadata-egress guard (script + unit + `enable --now` + live `iptables -C DOCKER-USER` re-assert) is applied by `apply-edge.sh §3` and asserted by `verify-edge.sh §3`. Nothing separate to run; converges when 1.2 runs. (review 2026-07-17 H8 / T-07) | 🤝 |
-| 3.4 | **Complete the ADR-115 secrets cutover** (T-08) — the 6 LLM keys are still plaintext container env (`docker-compose.prod.yml`); provision the VPS age key + `prod.enc.yaml`, add `-f docker-compose.secrets.yml` to the deploy chain, drop the keys from `.env`. Blocks public exposure of the api. (review M26 / #1162) | 🧑 |
+| 3.4 | **Complete the ADR-115 secrets cutover** (T-08) — 6 LLM keys still plaintext container env; steps in [GOAL1-PHASE3-PREP.md](GOAL1-PHASE3-PREP.md) §3.4 (age key → `prod.enc.yaml` → decrypt on box → add `-f docker-compose.secrets.yml` → drop keys from `.env`). Blocks public exposure of the **api** (not orrery). (review M26 / #1162) | 🧑 |
 
 **No firewall opens until 3.2 is signed off.**
 
@@ -127,6 +127,16 @@ verify through CF (real `client_ip` in logs) → **only then** flip
 - **T-12**: ramp HSTS to `max-age=31536000; includeSubDomains; preload` once
   HTTPS is proven on the live vhost; verify orrery's CSP.
 - Watch o11y for a few days; capture learnings for Goals 2 (player) / 3 (operator UI).
+
+### Phase 8 — Audio archive transition (#1199)
+
+Move audio to the Storage Box; **gated on DR-drill green + corpus backup verified**.
+Touches only the podcast_scraper tenant's storage, not the shared edge. Full
+sequence + data-at-risk analysis + new-command runbook:
+[GOAL1-AUDIO-ARCHIVE-ROLLOUT.md](GOAL1-AUDIO-ARCHIVE-ROLLOUT.md). Short form:
+provision Storage Box (TF, plan-reviewed) → verify rclone → backfill + integrity
+check → flip `audio_storage_backend=remote` → e2e (`archive pull` / reprocess-prod)
+→ decide archive backup policy → prune local.
 
 ---
 
