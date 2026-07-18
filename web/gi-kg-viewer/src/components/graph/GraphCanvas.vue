@@ -2091,9 +2091,32 @@ function finishLayoutPass(core: Core): void {
     if (appliedCyId) {
       graphHandoff.recordApplied(appliedCyId)
     } else {
-      graphHandoff.handoffFailed(
-        `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
-      )
+      // Race window: ``filteredArtifact`` (pinia) has the target episode but
+      // cy hasn't yet rendered it on this ``layoutstop`` — happens under
+      // parallel-worker CPU pressure (Tier-2 P2.5 flake on ci-ui-full). If
+      // the artifact-side resolver can find the target Episode by
+      // ``metadataPath`` / ``episodeId``, don't fail synchronously; leave
+      // the FSM in ``applying`` with the current ``pending`` and let the
+      // next ``layoutstop`` re-scan cy (the stuck-timer at ``STUCK_TIMEOUT_MS``
+      // still bounds pathological cases). Only fail synchronously when the
+      // artifact ALSO doesn't have the target — that's a genuine miss.
+      const pending = graphHandoff.pending
+      const artifactHasTarget =
+        pending &&
+        pending.kind === 'episode' &&
+        !!findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+          gf.filteredArtifact,
+          pending.metadataPath ?? '',
+          pending.episodeId,
+        )
+      if (!artifactHasTarget) {
+        graphHandoff.handoffFailed(
+          `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
+        )
+      }
+      // If artifactHasTarget: the graphFilters watcher will fire another
+      // redraw + layoutstop shortly; ``finishLayoutPass`` will re-run and
+      // this time the cy-side resolver should succeed.
     }
   } else if (
     graphHandoff.state === 'applying' ||
@@ -4155,7 +4178,13 @@ watch(
     // will never load) do we resolve the fallback (``tryApplyPendingFocus`` tries primary then
     // fallback) or fail fast — instead of waiting out the 15s stuck-timeout.
     let framesWaited = 0
-    const FOCUS_RESOLVE_FRAME_BUDGET = 40 // ~650ms: covers a redraw + fcose layout adding the node
+    /* ~650ms is fine when the render loop is uncontended, but on ci-ui-full's
+       parallel-worker runs the same test surface (Tier-2 P2.5) intermittently
+       needs more time. Widen to ~2 s (120 frames at 60 Hz) so the polling
+       loop stays alive long enough for the eventual layoutstop that adds the
+       target node under CPU pressure. The stuck-timer at STUCK_TIMEOUT_MS
+       (15 s) still bounds pathological cases. */
+    const FOCUS_RESOLVE_FRAME_BUDGET = 120
     const pollForFocusTarget = (): void => {
       if (!cy || !graphHandoff.pending) return // resolved / failed elsewhere
       if (resolveCyNodeId(cy, newFocusId)) {
