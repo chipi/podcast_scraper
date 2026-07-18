@@ -32,14 +32,13 @@ const themeClustersAvailable = computed(() => artifacts.themeClustersDoc != null
 
 /* aggregatedEdges lens is data-gated: it renders Episode↔Topic (`ABOUT_AGG`)
    + Episode↔Person (`SPOKE_IN_AGG`) roll-ups on top of the per-Insight
-   edges. If the current merged artifact has zero source Insight→Topic
+   edges. If the current display artifact has zero source Insight→Topic
    ABOUT edges AND zero Quote→Person SPOKEN_BY edges then the toggle
    would render nothing at all — hide the row to avoid a dead control
    (RFC-080 V1). FU2 in graph-v3/HARDEN-FOLLOWUPS-2026-07-17.md. */
 const aggregatedEdgesAvailable = computed(() => {
-  const art = artifacts.fullArtifact
-  const edges = art?.data?.edges
-  if (!art || !Array.isArray(edges) || edges.length === 0) return false
+  const edges = artifacts.displayArtifact?.data?.edges
+  if (!Array.isArray(edges) || edges.length === 0) return false
   for (const e of edges) {
     if (!e) continue
     const raw = e.type
