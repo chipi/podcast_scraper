@@ -299,8 +299,16 @@ async def corpus_digest(
                 )
 
             if topics_cfg:
-                with ThreadPoolExecutor(max_workers=min(len(topics_cfg), 8)) as ex:
-                    topics = [band for band in ex.map(_band, topics_cfg) if band is not None]
+                # #1205: warm the native search stack (query-embedding model + LanceDB) with ONE
+                # serial query before fanning out. Concurrent first-touch of the native layers is
+                # the fragile moment; one inline query initialises them before the parallel bands
+                # hit them. Run the first band inline, then the rest concurrently (order kept).
+                warmed = _band(topics_cfg[0])
+                topics = [warmed] if warmed is not None else []
+                rest = topics_cfg[1:]
+                if rest:
+                    with ThreadPoolExecutor(max_workers=min(len(rest), 8)) as ex:
+                        topics += [band for band in ex.map(_band, rest) if band is not None]
 
     return CorpusDigestResponse(
         path=str(root),

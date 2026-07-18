@@ -65,19 +65,14 @@ class RetrievalLayer:
         """
         query = SearchQuery(text=text, embedding=embedding, filters=filters or {}, k=k, tier=tier)
 
-        # ADR-099 Stage 2 (#995): native LanceDB hybrid — vector + BM25 + RRF fused
-        # in-engine, one query per tier — replaces the Python-side fan-out for the default
-        # ``hybrid`` signal. Kept off when an explicit bm25/vector-only signal is requested
-        # or when the KG-proximity signal is wired (it composes a third ranked list that the
-        # native reranker does not know about). Drops the router's per-intent tier/signal
-        # weighting; validated to not regress top-k relevance before rollout.
-        if (
-            signals == "hybrid"
-            and self.kg_proximity is None
-            and hasattr(self.backend, "search_hybrid")
-        ):
-            return deduplicate(self.backend.search_hybrid(query))
-
+        # #1205: LanceDB's native in-engine hybrid (``backend.search_hybrid``, ADR-099 Stage 2)
+        # hard-crashes the api — its score-normalize step calls native ``pyarrow.compute`` and
+        # SIGSEGVs the worker under the digest route's search fan-out (confirmed in the stack-test
+        # api faulthandler: pyarrow.compute <- lancedb ``_normalize_scores`` <- ``_combine_hybrid_
+        # results``). Route the default ``hybrid`` signal through the Python-side vector+BM25+RRF
+        # fan-out below (the pre-Stage-2 path) instead: two single-modality queries fused by
+        # ``rrf_fuse`` never touch the crashing native combine, and this restores the router's
+        # per-intent tier/signal weighting the in-engine reranker had dropped.
         intent = intent or self._classify(text)
 
         ranked_lists = []
