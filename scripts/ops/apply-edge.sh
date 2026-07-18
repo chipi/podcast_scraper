@@ -92,11 +92,23 @@ need_root() {
   fi
 }
 
+# apt-get update at most once per run, and only when we actually need to install
+# something (a fresh/idle box may have stale or pruned lists — cloud-init's
+# package_update happens at first boot, not on every convergence).
+_APT_REFRESHED=0
+_apt_refresh() {
+  [ "$_APT_REFRESHED" = 1 ] && return 0
+  change "  apt-get update (refresh package lists)"
+  run apt-get update -qq
+  _APT_REFRESHED=1
+}
+
 ensure_pkg() {
   local pkg="$1"
   if dpkg -s "$pkg" >/dev/null 2>&1; then
     skip "  package $pkg"
   else
+    _apt_refresh
     change "  apt-get install $pkg"
     run apt-get install -y "$pkg"
   fi
@@ -229,6 +241,7 @@ if command -v caddy >/dev/null 2>&1; then
   skip "  caddy installed"
 else
   change "  install caddy (Cloudsmith stable apt repo)"
+  _apt_refresh
   run apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
   if [ "$DRY_RUN" != 1 ]; then
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
