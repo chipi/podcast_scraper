@@ -350,6 +350,60 @@ def test_topic_theme_clusters_super_theme_rollup_merges_at_target(tmp_path: Path
         assert c["super_theme_label"]
 
 
+def test_topic_theme_clusters_super_theme_rollup_merges_above_min(tmp_path: Path) -> None:
+    """graph-v3 tier 7-1a — with cluster_count > _SUPER_THEME_MIN the rollup
+    actually executes ``_average_linkage_to_target`` and merges clusters
+    down to (or toward) the target. Six disjoint themes yield six clusters;
+    a target of 5 (the min) forces exactly one merge, exercising the
+    inner mean-lift + argmax + merge loop that noop/at-min-target tests
+    skipped."""
+
+    def _kg(topic_ids: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [{"type": "Topic", "id": t, "properties": {"label": t}} for t in topic_ids],
+            "edges": [],
+        }
+
+    themes = [
+        ("topic:a1", "topic:a2"),
+        ("topic:b1", "topic:b2"),
+        ("topic:c1", "topic:c2"),
+        ("topic:d1", "topic:d2"),
+        ("topic:e1", "topic:e2"),
+        ("topic:f1", "topic:f2"),
+    ]
+    bundles: list[Any] = []
+    # Two episodes per theme to fix each pair as its own cluster.
+    for label, (t1, t2) in zip("abcdef", themes):
+        bundles.append(_bundle(tmp_path / "metadata", f"ep-{label}1", kg=_kg([t1, t2])))
+        bundles.append(_bundle(tmp_path / "metadata", f"ep-{label}2", kg=_kg([t1, t2])))
+    # Strong cross-cluster bridge between themes A and B so their inter-
+    # cluster lift dominates and they merge first when target < N.
+    bundles.append(_bundle(tmp_path / "metadata", "ep-ab1", kg=_kg(["topic:a1", "topic:b1"])))
+    bundles.append(_bundle(tmp_path / "metadata", "ep-ab2", kg=_kg(["topic:a2", "topic:b2"])))
+
+    data = _run(
+        TopicThemeClustersEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        # Target = 5 forces exactly one merge from 6 clusters. Higher targets
+        # would leave 6 clusters untouched (n <= target early-return in
+        # _average_linkage_to_target).
+        config={"super_theme_target": 5},
+        ctx=_ctx("topic_theme_clusters"),
+    )
+    assert data["cluster_count"] == 6
+    assert data["super_theme_target"] == 5
+    # Distinct super-theme ids ≤ target (linkage collapsed at least one pair).
+    super_ids = {c["super_theme_id"] for c in data["clusters"]}
+    assert 1 <= len(super_ids) <= 5
+    assert data["super_theme_count"] == len(super_ids)
+    for c in data["clusters"]:
+        assert c["super_theme_id"].startswith("sth:")
+        assert c["super_theme_label"]
+
+
 # temporal_velocity (corpus scope)
 # ---------------------------------------------------------------------------
 
