@@ -1,7 +1,18 @@
 # /api/corpus/digest topic-band thread-unsafety on arm64 — followup
 
-Status: **workaround-in-place** (unconditional single-thread), root cause **not fixed**.
-Owner: unassigned. File: `src/podcast_scraper/server/routes/corpus_digest.py`.
+Status: **fixed on main via warmup shape** (#1205 + siblings on
+`origin/main`; commits `b6955854` → `8b5a1c07` → `62c049e5` →
+`0fe0854b`). Superseded my earlier unconditional-single-thread
+workaround from `feat/graph-v3`; the rebase onto main took main's
+shape, my regression test (`tests/integration/server/test_corpus_digest_topics_warmup.py`)
+was rewritten to lock the new invariant in. File:
+`src/podcast_scraper/server/routes/corpus_digest.py`.
+
+Left in `docs/wip/` because the underlying arm64 first-touch fragility
+in sentence-transformers / sentencepiece / LanceDB is **not fixed
+upstream** — the warmup shape works around it. Future PRs that want
+concurrency-from-t=0 must either verify the upstream fix landed or
+add their own warmup + regression test.
 
 ## Symptom
 
