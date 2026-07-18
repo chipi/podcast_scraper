@@ -36,7 +36,7 @@ async function loadFeeds(): Promise<void> {
   error.value = null
   try {
     const resp = await fetchCorpusFeeds(path)
-    feeds.value = resp.feeds
+    feeds.value = Array.isArray(resp.feeds) ? resp.feeds : []
   }
   catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
