@@ -1268,15 +1268,26 @@ enrich:
 # lenses and the tier-3 walks consume. The output is committed to git
 # (see tests/fixtures/viewer-validation-corpus/v3/enrichments/) so a
 # clean clone works without running this — but anyone touching an
-# enricher schema must rerun this and commit the diff.
+# enricher's output schema must rerun this and commit the intended
+# diff.
 #
-# Runs every deterministic + local-ML corpus-scope enricher (topic_similarity
-# and topic_consensus need `[ml,search]` extras installed in the venv).
+# Requires the ``.[ml,search]`` extras installed in the venv (for
+# ``topic_similarity`` + ``topic_consensus`` — sentence-transformers
+# + a local NLI checkpoint). Matches the invocation that seeded the
+# fixture originally (see commit 2ab47388): ``cloud_balanced``
+# profile is what enables ``topic_consensus`` (packaged
+# ``airgapped_thin`` does not). No ``--corpus-only`` — we want the
+# per-episode ``insight_density`` + ``insight_sentiment`` sidecars
+# regenerated too.
 enrich-viewer-fixture:
 	@echo "Regenerating tests/fixtures/viewer-validation-corpus/v3/enrichments/ …"
 	@$(MAKE) enrich CORPUS=tests/fixtures/viewer-validation-corpus/v3 \
-		WITH_ML=1 CORPUS_ONLY=1
-	@echo "Done. Diff the enrichments/*.json to see what changed and commit if intended."
+		WITH_ML=1 PROFILE=cloud_balanced
+	@echo ""
+	@echo "Done. Re-run diffs against tests/fixtures/viewer-validation-corpus/v3/:"
+	@echo "  git diff --stat tests/fixtures/viewer-validation-corpus/v3/"
+	@echo "  # only ``computed_at`` / ``run_id`` / timestamp fields should"
+	@echo "  # differ if no enricher output schema changed."
 
 # Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
 # Optional: SMOKE_CORPUS_PATH (in-container corpus root for API path=, e.g. /app/output on prod).

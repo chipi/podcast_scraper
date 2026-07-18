@@ -88,9 +88,14 @@ git diff tests/fixtures/viewer-validation-corpus/v3/enrichments/
 # review the diff, then either commit or investigate the drift
 ```
 
-The target is `.PHONY` and wraps `make enrich CORPUS=... WITH_ML=1
-CORPUS_ONLY=1`. Requires the venv to have `.[ml,search]` extras
-installed (for `topic_similarity` and `topic_consensus`).
+The target is `.PHONY` and wraps
+`make enrich CORPUS=tests/fixtures/viewer-validation-corpus/v3
+WITH_ML=1 PROFILE=cloud_balanced`. Requires the venv to have
+`.[ml,search]` extras installed (for `topic_similarity` and
+`topic_consensus`). The `cloud_balanced` profile is what enables
+`topic_consensus` — the packaged `airgapped_thin` profile does
+not — matching the invocation that seeded the fixture originally
+(see commit `2ab47388`).
 
 **Verified 2026-07-17**: the bundle-discovery bug from the original
 `handover-theme-clusters.md` is fixed here too. Direct check:
