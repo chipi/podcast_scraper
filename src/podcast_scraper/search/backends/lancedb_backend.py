@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import threading
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,15 @@ _AUX_TABLE = "aux"
 # reclaims anything now older than the window). LanceDB's own default is 7 days for this reason —
 # our earlier ``timedelta(0)`` opted out of that safety for disk and stranded concurrent readers.
 _COMPACT_RETENTION = timedelta(minutes=10)
+
+# TEMP WORKAROUND (#1205): LanceDB's SYNC query API segfaults under concurrent queries from many
+# threads in one process — the digest route (server/routes/corpus_digest.py) fans out ~8 searches
+# that race in LanceDB's single shared native ``background_loop`` and crash the api. Serialize all
+# in-process LanceDB reads behind this one process-wide lock until the read path moves to the async
+# API (or an upstream fix lands): deliberately coarse, correctness over read parallelism. It only
+# serializes threads WITHIN a process; cross-process concurrency (pipeline writer vs api reader) is
+# handled separately by MVCC + the compaction retention window above. Remove when #1205 is fixed.
+_LANCEDB_QUERY_LOCK = threading.Lock()
 
 
 def _segment_schema(dim: int) -> "pa.Schema":
@@ -217,6 +227,18 @@ class LanceDBBackend:
         except Exception:  # noqa: BLE001 - table does not exist yet
             return None
 
+    def _locked_read(
+        self, tier: str, run: "Callable[[Any], List[Dict[str, Any]]]"
+    ) -> "Optional[List[Dict[str, Any]]]":
+        """Open the tier FRESH and run ``run(table) -> rows`` under the process-wide query lock,
+        or None if the tier has no table. TEMP: the lock serializes concurrent in-process LanceDB
+        queries that otherwise segfault the api (#1205)."""
+        with _LANCEDB_QUERY_LOCK:
+            table = self._open_if_exists(tier)
+            if table is None:
+                return None
+            return run(table)
+
     _SCHEMAS = {"segment": _segment_schema, "insight": _insight_schema, "aux": _aux_schema}
 
     def _ensure_table(self, tier: str):
@@ -308,10 +330,10 @@ class LanceDBBackend:
             return list(req.limit(query.k).to_list())
 
         for tier in self._tables_for_tier(query.tier):
-            table = self._open_if_exists(tier)  # fresh handle: sees the latest compacted version
-            if table is None:
+            rows_list = self._locked_read(tier, _run_tier)  # fresh open + serialized query (#1205)
+            if rows_list is None:
                 continue
-            for row in _run_tier(table):
+            for row in rows_list:
                 raw = float(row.get(score_key, 0.0) or 0.0)
                 # BM25 _score: higher is better; vector _distance: lower is better.
                 score = raw if query_type == "fts" else 1.0 / (1.0 + raw)
@@ -369,10 +391,10 @@ class LanceDBBackend:
             return list(req.limit(query.k).to_list())
 
         for tier in self._tables_for_tier(query.tier):
-            table = self._open_if_exists(tier)  # fresh handle: sees the latest compacted version
-            if table is None:
+            rows_list = self._locked_read(tier, _run_hybrid_tier)  # fresh open + serialized (#1205)
+            if rows_list is None:
                 continue
-            for row in _run_hybrid_tier(table):
+            for row in rows_list:
                 score = float(row.get("_relevance_score", 0.0) or 0.0)
                 row.pop("embedding", None)  # never shipped back; keep the payload lean
                 hits.append((score, row, tier))
