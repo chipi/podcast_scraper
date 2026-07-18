@@ -34,19 +34,16 @@ follow-ups)"*.
    future PRs adding a new nested-payload preference know to
    re-evaluate before merging.
 
-## FU2 — aggregatedEdges V1 enricher-gate
+## FU2 — aggregatedEdges V1 enricher-gate — CLOSED
 
-Source: `docs/wip/graph-v3/SUMMARY.md`, section *"Not done (still)"*.
-
-The `ABOUT_AGG` / `SPOKE_IN_AGG` edges are a runtime roll-up inside
-`toCytoElements`, not a per-corpus enricher artifact. That's why the
-existing enricher-gated pattern (`artifacts.themeClustersDoc === null`
-→ hide the row) doesn't apply. If we want to hide the lens row when
-the roll-up would be empty, the check is a small computed over
-`fullArtifact` counts (`countAboutAggEdges(fullArtifact) > 0 ||
-countSpokeInAggEdges(fullArtifact) > 0`). Left explicit here so a
-future PR that adds the computed doesn't accidentally duplicate the
-themeClustersDoc-shape check.
+**Closed 2026-07-18.** `GraphLensesChip.aggregatedEdgesAvailable` in
+`web/gi-kg-viewer/src/components/graph/chips/GraphLensesChip.vue` now
+does the source-edge probe (any `ABOUT` OR `SPOKEN_BY` edge in
+`artifacts.fullArtifact.data.edges`) instead of a per-corpus enricher
+artifact, so the lens row hides when no roll-up is possible. Tests
+added: `GraphLensesChip.test.ts` covers the 4 gate cases (no artifact
+hides; ABOUT-only shows; SPOKEN_BY-only shows; unrelated edge types
+hide).
 
 ## FU3 — Speaker + Quote shape live-verify
 

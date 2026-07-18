@@ -120,12 +120,21 @@ already at idealEdgeLength 120.
   GH issue.
 - Halo colour on light-theme graph canvas is still `--ps-graph-canvas` = `--ps-canvas`
   (i.e. same as canvas). That's correct; noting for completeness.
-- **Insight sentiment lens** (originally scoped as Tier 5C-3) — deferred. Sentiment
-  is emitted per-episode as `metadata/enrichments/{stem}.insight_sentiment.json`
-  sidecars; there's no corpus-scope aggregation endpoint yet, and doing 99 per-episode
-  fetches to render is unreasonable. Ships in ~30 min once we add
-  `/api/corpus/enrichments/insight-sentiment` (or equivalent) using the same
-  fetchCachedCorpusEnvelope pattern as the other 4 Tier 5C/5D lenses.
+- **Insight sentiment lens** (originally scoped as Tier 5C-3) — **descoped, closed**.
+  The `insight_sentiment` enricher ships per-episode sidecars
+  (`metadata/enrichments/{stem}.insight_sentiment.json`) that the read-time CIL
+  layer already joins into arc responses (`cil_queries._attach_sentiment` → each
+  Insight carries `sentiment: {compound, label}`). Sentiment therefore surfaces
+  as an **arc-tint colour on the player conversation-arc + position-arc**
+  panels (per the walkthrough-v3 spec) rather than a graph-canvas lens.
+  A graph lens would tint Insight nodes — but Insights are hidden by default at
+  low zoom under Tier 6-2 (zoom-gated Insight visibility), so the lens would
+  fire only in the fine-grained view where a per-topic sentiment histogram is
+  the actually-useful signal, not a per-Insight tint. If a per-Topic sentiment
+  aggregate lens is ever wanted, it would ship as a new corpus-scope enricher
+  (`insight_sentiment_corpus`) that rolls the sidecars up, following the same
+  shape as `topic_cooccurrence_corpus`, and consumed via
+  `fetchCachedCorpusEnvelope`. Not queued.
 
 ## Tier 5C/5D — 4 enricher-based lenses shipped
 
@@ -162,8 +171,12 @@ Ran the `harden` skill after tier 5C/5D committed. Its findings applied here:
   "longer-term escape" section now records that the bundle-discovery bug is
   verifiably fixed in this worktree (`discover_episode_bundles` returns 99
   bundles on prod-v2 today).
-- Task #36 (Insight sentiment lens) re-opened / re-labelled as **DEFERRED**
-  to match the SUMMARY + commit message + store comment.
+- Task #36 (Insight sentiment lens) **closed — descoped**. Rationale in the
+  "Not done" section above: sentiment already surfaces as an arc-tint via
+  `cil_queries._attach_sentiment`; a graph lens over per-Insight tints would
+  fire only where per-Topic aggregates are the actually-useful signal, and
+  those would be a new `insight_sentiment_corpus` enricher, not a viewer-only
+  patch. Marking closed unblocks the "task #36 stuck in_progress" audit finding.
 - `aggregatedEdges` V1 enricher-gate examined and left as-is: the ABOUT_AGG /
   SPOKE_IN_AGG edges are a runtime roll-up in `toCytoElements`, not a per-corpus
   artifact, so gating on artifact presence doesn't apply. Recorded in the "Not

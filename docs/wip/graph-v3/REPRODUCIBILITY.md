@@ -56,7 +56,7 @@ matches the sibling worktree's output, confirming determinism.
 | `grounding_rate` | `enrichments/grounding_rate.json` | `personCredibility` lens (tier 5C-2); Person node detail |
 | `guest_coappearance` | `enrichments/guest_coappearance.json` | `coGuestEdges` lens (tier 5D-2); Person node detail |
 | `insight_density` | `metadata/enrichments/{stem}.insight_density.json` | Episode enrichment section — no graph lens |
-| `insight_sentiment` | `metadata/enrichments/{stem}.insight_sentiment.json` | Player conversation-arc + position-arc tints. Tier 5C-3 graph lens is **deferred** — needs a corpus-scope aggregation endpoint (currently ships per-episode sidecars only, and 99 per-episode fetches to render is unreasonable). |
+| `insight_sentiment` | `metadata/enrichments/{stem}.insight_sentiment.json` | Player conversation-arc + position-arc tints (joined into arc responses server-side by `cil_queries._attach_sentiment`). Tier 5C-3 graph lens **descoped — closed**; sentiment belongs on the arc panels, not on hidden-at-low-zoom Insight graph nodes. See graph-v3/SUMMARY.md § "Not done" for the rationale. |
 
 ## Notes
 
@@ -73,6 +73,24 @@ matches the sibling worktree's output, confirming determinism.
 The right final state is: the enrichment pipeline runs against prod-v2 in
 this worktree (not just the sibling) so the artifacts live at the same
 path they'd land on any fresh clone.
+
+## Tests-facing fixture — regenerable via `make`
+
+The fixture graph-v3 lens tests + tier-3 real-corpus walks consume lives
+at `tests/fixtures/viewer-validation-corpus/v3/enrichments/`. **These
+files ARE committed to git** — a fresh clone works without running any
+enrichers. But when an enricher's output schema changes, someone must
+rerun the fixture:
+
+```bash
+make enrich-viewer-fixture
+git diff tests/fixtures/viewer-validation-corpus/v3/enrichments/
+# review the diff, then either commit or investigate the drift
+```
+
+The target is `.PHONY` and wraps `make enrich CORPUS=... WITH_ML=1
+CORPUS_ONLY=1`. Requires the venv to have `.[ml,search]` extras
+installed (for `topic_similarity` and `topic_consensus`).
 
 **Verified 2026-07-17**: the bundle-discovery bug from the original
 `handover-theme-clusters.md` is fixed here too. Direct check:

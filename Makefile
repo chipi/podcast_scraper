@@ -627,7 +627,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1263,6 +1263,20 @@ enrich:
 		$(if $(CONFIG),--config "$(CONFIG)") \
 		$(if $(LOG_LEVEL),--log-level "$(LOG_LEVEL)") \
 		$(if $(CORPUS_ONLY),--corpus-only)
+
+# Regenerate the ``viewer-validation-corpus/v3`` fixture that graph-v3
+# lenses and the tier-3 walks consume. The output is committed to git
+# (see tests/fixtures/viewer-validation-corpus/v3/enrichments/) so a
+# clean clone works without running this — but anyone touching an
+# enricher schema must rerun this and commit the diff.
+#
+# Runs every deterministic + local-ML corpus-scope enricher (topic_similarity
+# and topic_consensus need `[ml,search]` extras installed in the venv).
+enrich-viewer-fixture:
+	@echo "Regenerating tests/fixtures/viewer-validation-corpus/v3/enrichments/ …"
+	@$(MAKE) enrich CORPUS=tests/fixtures/viewer-validation-corpus/v3 \
+		WITH_ML=1 CORPUS_ONLY=1
+	@echo "Done. Diff the enrichments/*.json to see what changed and commit if intended."
 
 # Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
 # Optional: SMOKE_CORPUS_PATH (in-container corpus root for API path=, e.g. /app/output on prod).

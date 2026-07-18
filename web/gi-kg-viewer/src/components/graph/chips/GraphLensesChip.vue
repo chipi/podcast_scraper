@@ -30,6 +30,25 @@ const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 /** Theme-cluster lens is enricher-gated. */
 const themeClustersAvailable = computed(() => artifacts.themeClustersDoc != null)
 
+/* aggregatedEdges lens is data-gated: it renders Episode↔Topic (`ABOUT_AGG`)
+   + Episode↔Person (`SPOKE_IN_AGG`) roll-ups on top of the per-Insight
+   edges. If the current merged artifact has zero source Insight→Topic
+   ABOUT edges AND zero Quote→Person SPOKEN_BY edges then the toggle
+   would render nothing at all — hide the row to avoid a dead control
+   (RFC-080 V1). FU2 in graph-v3/HARDEN-FOLLOWUPS-2026-07-17.md. */
+const aggregatedEdgesAvailable = computed(() => {
+  const art = artifacts.fullArtifact
+  const edges = art?.data?.edges
+  if (!art || !Array.isArray(edges) || edges.length === 0) return false
+  for (const e of edges) {
+    if (!e) continue
+    const raw = e.type
+    const t = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+    if (t === 'about' || t === 'spoken_by') return true
+  }
+  return false
+})
+
 /* graph-v3 Tier 5C/5D — enricher-based lens rows are hidden when the
    underlying corpus artifact is absent. Availability is probed on mount
    + on corpus-path change (each fetch is cached, so subsequent lens
@@ -151,7 +170,7 @@ const rows = computed<LensRow[]>(() => {
       label: 'Aggregated edges',
       description: 'Roll per-Insight edges up to Episode↔Topic / Episode↔Person aggregates.',
       testid: 'lens-aggregated-edges',
-      available: true,
+      available: aggregatedEdgesAvailable.value,
     },
   ]
   return all.filter((r) => r.available)

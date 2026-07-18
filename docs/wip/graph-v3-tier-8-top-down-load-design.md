@@ -19,8 +19,11 @@
 
 The `DEFAULT_MODE` constant in `web/gi-kg-viewer/src/stores/graphLoadMode.ts`
 still ships as `'everything'` per the design's "flip after 8-2 stabilises"
-rule. Flipping it to `'topDown'` is a one-line change once the branch has
-been kicked-the-tires in a real corpus.
+rule. All sub-tiers 8-1..8-6 shipped; the flip is now blocked ONLY on
+operator UAT against a real corpus. Flipping it to `'topDown'` is a one-
+line change. **This is not code debt** — it is an intentional
+default-behaviour gate; see the comment block above `DEFAULT_MODE` in
+`graphLoadMode.ts` for the same statement in-source.
 
 ---
 
