@@ -148,8 +148,26 @@ check → flip `audio_storage_backend=remote` → e2e (`archive pull` / reproces
 - **SSH is tailnet-only** — no edge/firewall misstep can lock us out of the box.
 - Every public-facing phase (4, 5, 6) has a **<5-min rollback**.
 
-## My immediate to-dos (once you pick the apply path)
+## Prep status (2026-07-18)
 
-1. Write `apply-edge.sh` (Phase 1.1) — idempotent, mirrors cloud-init, dry-run mode.
-2. Pre-stage the `tofu plan` review checklist for Phase 4.1.
-3. Draft the Phase-0 backup/verify command sequence so it's one paste.
+Done (on `production`, unpushed): ✅ 1.1 `apply-edge.sh` + 1.3 `verify-edge.sh`
+(real-run-tested in a systemd container — found+fixed 2 bugs); ✅ 4.1 firewall
+pre-review; ✅ 3.1 gate pre-walk + 3.4 secrets steps
+([GOAL1-PHASE3-PREP.md](GOAL1-PHASE3-PREP.md)); ✅ Phase 8 audio-archive rollout
+([GOAL1-AUDIO-ARCHIVE-ROLLOUT.md](GOAL1-AUDIO-ARCHIVE-ROLLOUT.md)); ✅ Caddyfile
+validated+fmt, TF `validate` green, obs-sync (3 T-11 rules) parses.
+
+### Phase 0 — one-paste command sequence (operator runs; I can't trigger prod infra)
+
+```bash
+# 0.1 fresh corpus backup
+gh workflow run backup-corpus-prod.yml
+# 0.2 verified restore (THE guard — must be green before proceeding)
+gh workflow run verify-backup-restore.yml
+gh run watch "$(gh run list --workflow verify-backup-restore.yml -L1 --json databaseId --jq '.[0].databaseId')"
+# 0.3 confirm corpus location: volume vs boot disk (data-loss lever)
+#     check TF var volume_size_gb (>0 = delete-protected volume; 0 = boot disk)
+# 0.4 (belt-and-suspenders) take a Hetzner snapshot of the box in the console
+```
+
+**Gate:** do not start Phase 1 until 0.2 is green and 0.3 is answered.
