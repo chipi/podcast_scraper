@@ -6,6 +6,7 @@ in config.py. Extracted to reduce config.py size and improve maintainability.
 Constants are defined here; config.py re-exports them for backward compatibility.
 """
 
+import math
 import os
 
 # General defaults
@@ -19,7 +20,17 @@ DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX = 20
 # insight count it is asked for. Providers previously clamped to a literal 10, which silently
 # overrode the validated config value: every profile requested 12 and every provider rendered
 # "Extract 10 key takeaways" into the prompt, so no run could ever exceed 10 insights.
-GI_MAX_INSIGHTS_CEILING = 50
+# Raised 50 -> 200 so the DURATION-SCALED ceiling (duration_scaled_max_insights) can give a 4h
+# episode room instead of truncating real insights at 50 (a corpus-baked cutoff — see
+# docs/wip/GI_WHAT_TO_SURFACE.md). Interim; the full route-and-tag redesign is #1191.
+GI_MAX_INSIGHTS_CEILING = 200
+# Duration-scaled insight ceiling (interim, #1191): scale the configured gi_max_insights by episode
+# length — 1x up to 1h, then +0.5x per 30-min unit, to 4x at 4h, hard-capped at
+# GI_MAX_INSIGHTS_CEILING. A flat cap truncated long episodes; a high flat cap invited padding on
+# short ones (a cap acts as a target). Multiplicative (not additive) so a small EXPLICIT cap is
+# respected — gi_max_insights=3 stays ~3, it is not lifted to a floor.
+GI_MAX_INSIGHT_UNITS = 8  # cap scaling at 4h (8 x 30-min units); beyond 4h stays at the ceiling
+GI_CHARS_PER_HOUR = 55_000  # transcript-length -> duration proxy (~155 wpm; measured on prod-v3)
 # Token budget per requested insight, floored so short requests still get room to answer.
 GI_INSIGHT_TOKENS_EACH = 150
 GI_INSIGHT_TOKENS_FLOOR = 1024
@@ -50,6 +61,25 @@ GI_INSIGHT_TEMPERATURE_DEFAULT = 0.3
 # test_the_config_default_is_not_a_trap: a caller with no profile must not run a different
 # pipeline than the one we measured.
 GI_DEFAULT_MAX_INSIGHTS = 50
+
+
+def duration_scaled_max_insights(transcript_chars: int, base: int) -> int:
+    """Duration-scaled insight ceiling (interim measure, #1191).
+
+    Scales the configured ``base`` (``gi_max_insights``, default 50) by audio length: 1x up to 1h,
+    then +0.5x per 30-min unit, to 4x at ``GI_MAX_INSIGHT_UNITS`` (4h), hard-capped at
+    ``GI_MAX_INSIGHTS_CEILING`` (200). With the default 50: ~<=1h stays 50 (no invitation to pad),
+    2h ~100, 3h ~150, 4h+ ~200 (room, not truncation). Multiplicative, so a small EXPLICIT cap is
+    respected (base=3 stays ~3, never lifted). The value gate — not this ceiling — removes filler.
+    The full route-and-tag redesign that removes the cutoff entirely is #1191 /
+    docs/wip/GI_WHAT_TO_SURFACE.md.
+    """
+    minutes = (max(0, int(transcript_chars)) / GI_CHARS_PER_HOUR) * 60.0
+    units = max(1, min(GI_MAX_INSIGHT_UNITS, math.ceil(minutes / 30.0))) if minutes > 0 else 1
+    multiplier = max(2, units) / 2.0  # >=1x; +0.5x per 30-min unit past the first hour
+    return min(GI_MAX_INSIGHTS_CEILING, round(int(base) * multiplier))
+
+
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20

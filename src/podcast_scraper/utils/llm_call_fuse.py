@@ -87,6 +87,21 @@ class _EpisodeFuse:
 _run_fuse: ContextVar[Optional[_RunFuse]] = ContextVar("llm_run_fuse", default=None)
 _episode_fuse: ContextVar[Optional[_EpisodeFuse]] = ContextVar("llm_episode_fuse", default=None)
 
+# The run fuse must be visible from worker threads: the production pipeline makes its LLM calls
+# inside ThreadPoolExecutor workers (summarization/processing), and a ContextVar set in the main
+# thread does NOT propagate into pool workers — so a run fuse delivered only via ContextVar would
+# silently never fire in production. _RunFuse is already thread-safe (lock-guarded counter), so a
+# process-global reference lets tick() find the run ceiling from any thread. The ContextVar is kept
+# for the context-manager API and precise scoping in the sequential eval loop.
+_run_fuse_global_lock = threading.Lock()
+_run_fuse_global: Optional[_RunFuse] = None
+
+
+def _active_run_fuse() -> Optional[_RunFuse]:
+    """The run fuse in scope: the thread's ContextVar binding if set, else the process-global one
+    (so pool workers, which don't inherit the ContextVar, still enforce the run ceiling)."""
+    return _run_fuse.get() or _run_fuse_global
+
 
 def tick(count: int = 1) -> None:
     """Register ``count`` LLM call attempts against every active fuse; raises if any budget blows.
@@ -94,7 +109,7 @@ def tick(count: int = 1) -> None:
     Called once per attempt from ``retry_with_metrics``. A no-op when no fuse is installed (unit
     tests, ad-hoc scripts), so it is always safe to call.
     """
-    run = _run_fuse.get()
+    run = _active_run_fuse()
     ep = _episode_fuse.get()
     for _ in range(max(1, count)):
         if run is not None:
@@ -106,7 +121,7 @@ def tick(count: int = 1) -> None:
 def active_scopes() -> List[str]:
     """Which fuses are currently installed — for diagnostics/tests."""
     out: List[str] = []
-    if _run_fuse.get() is not None:
+    if _active_run_fuse() is not None:
         out.append("run")
     if _episode_fuse.get() is not None:
         out.append("episode")
@@ -126,8 +141,13 @@ def current_episode_id() -> Optional[str]:
 def install_run(max_calls: Optional[int]) -> None:
     """Imperative per-run install, for a top-level loop that cannot wrap itself in a ``with``.
     Call ONCE before the episode loop; the counter then accumulates across every episode. ``None``
-    /<=0 clears the run fuse."""
-    _run_fuse.set(_RunFuse(max_calls=int(max_calls)) if max_calls and max_calls > 0 else None)
+    /<=0 clears the run fuse. Sets both the ContextVar and the process-global reference so worker
+    threads (which don't inherit the ContextVar) also see the ceiling."""
+    global _run_fuse_global
+    fuse = _RunFuse(max_calls=int(max_calls)) if max_calls and max_calls > 0 else None
+    _run_fuse.set(fuse)
+    with _run_fuse_global_lock:
+        _run_fuse_global = fuse
 
 
 def install_episode(max_calls: Optional[int], episode_id: str) -> None:
@@ -143,15 +163,21 @@ def install_episode(max_calls: Optional[int], episode_id: str) -> None:
 @contextlib.contextmanager
 def run_budget(max_calls: Optional[int]) -> Iterator[Optional[_RunFuse]]:
     """Install a per-run fuse for the duration of the block. ``None`` disables it (no ceiling)."""
+    global _run_fuse_global
     if max_calls is None or max_calls <= 0:
         yield None
         return
     fuse = _RunFuse(max_calls=int(max_calls))
     token = _run_fuse.set(fuse)
+    with _run_fuse_global_lock:
+        prev_global = _run_fuse_global
+        _run_fuse_global = fuse
     try:
         yield fuse
     finally:
         _run_fuse.reset(token)
+        with _run_fuse_global_lock:
+            _run_fuse_global = prev_global
 
 
 @contextlib.contextmanager

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from ...enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from ..context import CorpusContext
 
 
@@ -32,11 +33,20 @@ def _node(node: Any) -> Dict[str, Any]:
 
 
 def _nodes(nodes: Any) -> List[Dict[str, Any]]:
-    return [_node(n) for n in nodes]
+    # #1193: drop unresolved diarization placeholders (``person:speaker-NN``) — the MCP read
+    # surface had no guard, unlike the HTTP person surfaces, so ``Speaker 02`` leaked as a Person.
+    # Only person placeholders match the pattern, so insight/topic/org nodes pass through untouched.
+    return [_node(n) for n in nodes if not is_unresolved_speaker_placeholder(n.id, n.text)]
 
 
 def _groups(groups: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
-    return {key: _nodes(value) for key, value in groups.items()}
+    # Drop placeholder-person group keys (who-said groups by ``person:`` id); non-person keys
+    # (e.g. ``show_id`` in cross-show synthesis) never match the pattern (#1193).
+    return {
+        key: _nodes(value)
+        for key, value in groups.items()
+        if not is_unresolved_speaker_placeholder(key)
+    }
 
 
 def _reranked(ctx: CorpusContext, graph: Any, subject_id: str, nodes: Any) -> List[Dict[str, Any]]:
@@ -49,6 +59,8 @@ def person_positions(ctx: CorpusContext, person_id: str, k: int = 20) -> Dict[st
     """Insights a person stated (``person:`` id), hybrid-re-ranked by relevance."""
     from ...search import relational_queries as rq
 
+    if is_unresolved_speaker_placeholder(person_id):
+        return {"subject": person_id, "results": []}  # #1193: never serve a placeholder's data
     graph = _graph(ctx)
     return {
         "subject": person_id,
@@ -60,6 +72,8 @@ def insights_about_entity(ctx: CorpusContext, entity_id: str, k: int = 20) -> Di
     """Insights that mention a person/org (``person:`` / ``org:`` id), hybrid-re-ranked."""
     from ...search import relational_queries as rq
 
+    if is_unresolved_speaker_placeholder(entity_id):
+        return {"subject": entity_id, "results": []}  # #1193
     graph = _graph(ctx)
     return {
         "subject": entity_id,

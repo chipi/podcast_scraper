@@ -6,9 +6,23 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from podcast_scraper.providers.ml.diarization.pyannote_provider import PyAnnoteDiarizationProvider
+from podcast_scraper.providers.ml.diarization.pyannote_provider import (
+    _resolve_device,
+    PyAnnoteDiarizationProvider,
+)
 
 pytestmark = pytest.mark.unit
+
+
+def test_resolve_device_coerces_mps_to_cpu() -> None:
+    """pyannote's pipeline requests float64, which Apple Metal (MPS) rejects, so any MPS request
+    must coerce to CPU — a Mac dev box diarizes on CPU (slower) instead of crashing. CUDA and CPU
+    pass through unchanged, and 'auto' must never resolve to MPS."""
+    assert _resolve_device("mps") == "cpu"
+    assert _resolve_device("cpu") == "cpu"
+    assert _resolve_device("cuda") == "cuda"
+    # auto -> cuda where available (CI/DGX), else cpu — but never mps.
+    assert _resolve_device("auto") in ("cuda", "cpu")
 
 
 @patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")

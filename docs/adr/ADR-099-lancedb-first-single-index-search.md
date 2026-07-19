@@ -1,6 +1,6 @@
 # ADR-099: LanceDB-first single-index search; retire FAISS
 
-- **Status**: Accepted
+- **Status**: Accepted — **Stage 2 (native hybrid) reverted, see [#1205](https://github.com/chipi/podcast_scraper/issues/1205)**
 - **Date**: 2026-06-14
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (two-tier hybrid retrieval — this ADR completes its vision and retires the FAISS transitional path), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (search-powered surfaces consume this path)
@@ -114,6 +114,14 @@ FAISS is removed entirely — build, serve, and config.**
   on disk but are not read at serve time. Re-measure `/api/search` + digest.
 - **Stage 2 — Native hybrid.** Replace the hand-rolled RRF fan-out with LanceDB's
   hybrid + reranker; validate top-k relevance vs Stage 1 on a query set.
+  > **REVERTED (#1205).** LanceDB's native in-engine hybrid combine
+  > (`_combine_hybrid_results` → `_normalize_scores` → native `pyarrow.compute`)
+  > hard-SIGSEGVs the api worker under the digest route's search fan-out. Stage 2 was
+  > backed out: `LanceDBBackend.search_hybrid` is removed and the default `hybrid`
+  > signal fuses `search_bm25` + `search_vector` with the Python-side `fusion.rrf_fuse`
+  > (the Stage-1 fan-out), which also restores the router's per-intent tier/signal
+  > weighting the in-engine reranker dropped. The rest of this ADR (LanceDB-first,
+  > FAISS retired) stands.
 - **Stage 3 — Retire FAISS.** Delete `FaissVectorStore`, the fallback branch, the
   FAISS build path, `serving.hybrid_enabled` and FAISS config; update profiles +
   tests. Pure deletion once Stage 1–2 are proven.

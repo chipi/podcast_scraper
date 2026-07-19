@@ -38,7 +38,7 @@ flowchart TD
     GN --> RR
     DIA --> RR
     RR --> O1["host = the OPENING voice (#1169),<br/>named from self-intro → known_hosts → feed"]
-    RR --> O2["guests = remaining voices by talk-time,<br/>from the detected-guest list"]
+    RR --> O2["guests = named from self-intro / on-air<br/>introduction / post-diarization LLM resolution<br/>(ADR-110), or a forced 1-name/1-voice match;<br/>otherwise left unknown"]
     RR --> O3["leftovers → cameo / commercial / unknown<br/>(#1167 keeps these off person surfaces)"]
 ```
 

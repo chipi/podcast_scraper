@@ -2459,6 +2459,17 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         - `service.run()`: Service API with structured error handling
         - `load_config_file()`: Load configuration from JSON/YAML file
     """
+    # Install the run-level LLM call fuse for the WHOLE production run, in the main thread, before
+    # any stage or worker starts. This is the hard ceiling on total spend: retry_with_metrics ticks
+    # it on every attempt, and the fuse is process-global so it is enforced inside the
+    # summarization/processing ThreadPoolExecutor workers too (a ContextVar would not reach them).
+    # The finer per-episode fuse — which catches a single-episode storm below the run ceiling (the
+    # ~3,500-call incident) — is installed per episode in generate_episode_metadata, where that
+    # storm (bundled GI evidence → per-pair fallback) actually runs.
+    from ..utils import llm_call_fuse
+
+    llm_call_fuse.install_run(getattr(cfg, "llm_max_calls_per_run", 0))
+
     # GitHub #562: reset gates before setup (setup is outside try/finally below).
     try:
         config.reset_screenplay_issue_562_gates()

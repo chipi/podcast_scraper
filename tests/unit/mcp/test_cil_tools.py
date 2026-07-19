@@ -47,3 +47,27 @@ def test_position_arc_wraps_both_subjects(tmp_path, monkeypatch) -> None:
     assert out["subject_person"] == "person:jane"
     assert out["subject_topic"] == "topic:ai"
     assert out["arc"] == [{"stance": "for"}]
+
+
+def test_person_profile_rejects_placeholder(tmp_path, monkeypatch) -> None:
+    # #1193: a person:speaker-NN placeholder gets no profile — and the underlying query is not even
+    # called (the guard short-circuits at the MCP boundary).
+    ctx = CorpusContext.from_path(tmp_path)
+
+    def boom(*a, **k):
+        raise AssertionError("cil_queries must not be called for a placeholder")
+
+    monkeypatch.setattr("podcast_scraper.server.cil_queries.person_profile", boom)
+    out = cil.person_profile(ctx, "person:speaker-02")
+    assert out == {"subject": "person:speaker-02", "profile": {}}
+
+
+def test_position_arc_rejects_placeholder(tmp_path, monkeypatch) -> None:
+    ctx = CorpusContext.from_path(tmp_path)
+
+    def boom(*a, **k):
+        raise AssertionError("cil_queries must not be called for a placeholder")
+
+    monkeypatch.setattr("podcast_scraper.server.cil_queries.position_arc", boom)
+    out = cil.position_arc(ctx, "person:speaker-02", "topic:ai")
+    assert out == {"subject_person": "person:speaker-02", "subject_topic": "topic:ai", "arc": {}}

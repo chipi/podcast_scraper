@@ -470,6 +470,7 @@ class TestFinish(unittest.TestCase):
             "gi_evidence_score_entailment_calls",
             "gi_episodes_zero_grounded_when_required",
             "gi_grounding_degraded",
+            "gi_malformed_transcript_episodes",
             "gi_insights_total",
             "gi_quotes_total",
             "gi_insights_grounded",

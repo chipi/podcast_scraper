@@ -79,6 +79,25 @@ providers:
     assert pa.lookup_external_pricing(payload, "openai", "other", "m") is None
 
 
+def test_all_text_generation_capabilities_price_off_the_text_section() -> None:
+    """Root cause of the 'Mistral 12x undercount': lookup_external_pricing only mapped
+    summarization/speaker_detection to the provider 'text' section, so gi/evidence/cleaning/kg calls
+    were unpriced and their cost events silently dropped. Every text-generation capability must
+    resolve to the same text pricing."""
+    payload = yaml.safe_load("""
+providers:
+  openai:
+    text:
+      gpt-4o:
+        input_cost_per_1m_tokens: 2.5
+""")
+    expected = {"input_cost_per_1m_tokens": 2.5}
+    for capability in ("summarization", "gi", "evidence", "cleaning", "kg", "speaker_detection"):
+        assert (
+            pa.lookup_external_pricing(payload, "openai", capability, "gpt-4o") == expected
+        ), f"{capability} must price off the provider 'text' section (unpriced -> dropped cost)"
+
+
 def test_load_pricing_assumptions_payload(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
     bad.write_text("[1,2]\n", encoding="utf-8")

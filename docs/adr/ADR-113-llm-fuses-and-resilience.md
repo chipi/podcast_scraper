@@ -98,17 +98,15 @@ configurable, not hardcoded.
 `utils → providers.ml` import cycle; materialising them into the registry (ADR-112) is a clean
 follow-up.
 
-**KNOWN GAP — operator control & observability (follow-up).** When a fuse blows or a breaker opens
-there is today no operator-facing way to *see* or *act* on it:
+**Operator control & observability (SHIPPED in this branch).** The original follow-up gap — no
+operator-facing way to *see* or *act* on a blown fuse / open breaker — is now closed:
 
-* **Breakers self-heal** on a cooldown (open → half-open probe → close), so no action is needed — but
-  there is no control to force-reset one before its cooldown.
-* **Fuses abort the run.** There is no mid-run resume: the procedure is fix-the-cause-and-rerun (the
-  fuse is per-run, so a new run starts fresh). Terminal conditions (add credit / raise cap) likewise
-  just work on the next run.
-* **No status view and no UI** — a blown fuse or open breaker is visible only in the logs.
-
-The follow-up is a small operations surface: a status view of open breakers / blown fuses with
-reasons, an operator "reset / acknowledge" control, and (optionally) resumable runs so a fixed
-terminal condition can continue rather than restart. State is in-process module globals today; a
-UI-driven reset would need it exposed and mutable through a control plane.
+* **Status view** — `resilience_status.py` exposes the live fuse budgets and breaker states; the
+  server serves it at `GET /api/resilience`, and the viewer renders an Ops **Resilience** panel
+  (status badges for open breakers / blown fuses with reasons).
+* **Operator reset** — `POST /api/ops/resilience/reset` force-resets a breaker before its cooldown,
+  wired to a reset control in the Ops panel.
+* **Breakers still self-heal** on a cooldown (open → half-open probe → close); the reset is an
+  override, not a requirement.
+* **Fuses still abort the run** (per-run; fix-the-cause-and-rerun). Resumable runs after a fixed
+  terminal condition remain a possible future enhancement, not a blocker.

@@ -106,3 +106,62 @@ def test_node_serialization_shape(ctx) -> None:
     row = rel.person_positions(ctx, "person:alice")["results"][0]
     assert set(row) == {"id", "type", "text", "show_id", "episode_id"}
     assert row["type"] == "insight"
+
+
+# --- #1193: unresolved diarization placeholders (person:speaker-NN) must not leak over MCP ---
+
+
+def test_person_positions_rejects_placeholder(ctx) -> None:
+    # Input guard short-circuits before the graph — never serve a placeholder voice's data.
+    assert rel.person_positions(ctx, "person:speaker-05") == {
+        "subject": "person:speaker-05",
+        "results": [],
+    }
+
+
+def test_insights_about_entity_rejects_placeholder(ctx) -> None:
+    assert rel.insights_about_entity(ctx, "person:speaker-05") == {
+        "subject": "person:speaker-05",
+        "results": [],
+    }
+
+
+def _fixture_with_placeholder():
+    nodes = {
+        "person:alice": ("person", {"name": "Alice"}),
+        "person:speaker-05": ("person", {"name": "SPEAKER_05"}),
+        "topic:ai": ("topic", {"label": "AI"}),
+        "insight:1": ("insight", {"text": "Alice on AI"}),
+        "insight:2": ("insight", {"text": "unnamed voice on AI"}),
+    }
+    edges = [
+        ("person:alice", "insight:1", "STATES"),
+        ("person:speaker-05", "insight:2", "STATES"),
+        ("insight:1", "topic:ai", "ABOUT"),
+        ("insight:2", "topic:ai", "ABOUT"),
+        # A placeholder mentioned as an entity must also be dropped from entity lists.
+        ("insight:1", "person:speaker-05", "MENTIONS"),
+    ]
+    return _FakeGraph(nodes, edges)
+
+
+@pytest.fixture()
+def ctx_ph(tmp_path, monkeypatch):
+    graph = _fixture_with_placeholder()
+    monkeypatch.setattr(
+        "podcast_scraper.search.corpus_graph.get_corpus_graph", lambda *a, **k: graph
+    )
+    return CorpusContext.from_path(tmp_path)
+
+
+def test_who_said_drops_placeholder_person_group(ctx_ph) -> None:
+    # Groups are keyed by the STATES person; a speaker-NN placeholder key must be dropped (_groups).
+    out = rel.who_said_about_topic(ctx_ph, "topic:ai")
+    assert "person:alice" in out["groups"]
+    assert "person:speaker-05" not in out["groups"]
+
+
+def test_topic_entities_drops_placeholder_person(ctx_ph) -> None:
+    # Entity lists go through _nodes; a mentioned speaker-NN placeholder must be filtered out.
+    out = rel.topic_entities(ctx_ph, "topic:ai")
+    assert "person:speaker-05" not in [r["id"] for r in out["results"]]

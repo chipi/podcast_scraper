@@ -812,23 +812,27 @@ class Config(BaseModel):
     # calls/episode, and the per-pair entailment fallback is already separately capped at 200.
     # ------------------------------------------------------------------
     llm_max_calls_per_episode: int = Field(
-        default=500,
+        default=1500,
         alias="llm_max_calls_per_episode",
         ge=0,
         le=100000,
         description=(
             "Hard ceiling on LLM calls while grounding/summarising ONE episode; 0 disables. "
-            "Catches a single runaway episode (the gpt-5.5 storm hit ~3,500) before it burns $."
+            "Catches a single runaway episode (the gpt-5.5 storm hit ~3,500) before it burns $. "
+            "Calibrated (2026-07): a legit 4h episode at the 200-insight ceiling costs ~200 calls "
+            "bundled / ~1,650 staged; 1,500 clears the worst legit case yet stays below the storm."
         ),
     )
     llm_max_calls_per_run: int = Field(
-        default=8000,
+        default=40000,
         alias="llm_max_calls_per_run",
         ge=0,
         le=1000000,
         description=(
             "Hard ceiling on LLM calls across a whole run/session; 0 disables. Catches "
-            "cumulative overspend even when no single episode looks pathological."
+            "cumulative overspend even when no single episode looks pathological. Calibrated "
+            "(2026-07) for a ~100-200 episode reprocess of long episodes (bundled ~200/ep) with "
+            "headroom; the per-episode fuse is the finer single-episode guard."
         ),
     )
     llm_circuit_breaker_enabled: bool = Field(
@@ -1422,10 +1426,22 @@ class Config(BaseModel):
     openai_api_base: Optional[str] = Field(
         default=None,
         alias="openai_api_base",
+        # validate_default so _load_openai_api_base_from_env runs even when the field is absent —
+        # that is how the OPENAI_API_BASE env fallback fires without a pre-merge preprocess line
+        # that would let a stale env var override an explicit profile route (the DGX footgun).
+        validate_default=True,
         description="OpenAI API base URL (e.g., 'https://api.openai.com/v1' or custom endpoint). "
-        "Can be set via OPENAI_API_BASE environment variable. "
-        "Used for E2E testing with mock servers and for routing autoresearch "
-        "summarize calls at OpenAI-compatible endpoints like local vLLM (#960).",
+        "Can be set via OPENAI_API_BASE environment variable (fallback only — an explicit value "
+        "in config or a profile wins). Used for E2E testing with mock servers and for routing "
+        "autoresearch summarize calls at OpenAI-compatible endpoints like local vLLM (#960).",
+    )
+    openai_api_key_env: Optional[str] = Field(
+        default=None,
+        alias="openai_api_key_env",
+        description="Name of the environment variable to read the OpenAI-compatible API key from "
+        "when 'openai_api_key' is not set directly. Lets a profile point at a non-default key env "
+        "(e.g. 'VLLM_API_KEY' for a DGX vLLM endpoint) symmetric with the eval harness's "
+        "api_key_env. Resolved in _preprocess_config_data before the key-required validators.",
     )
     openai_extra_body: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -4095,7 +4111,11 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "output_dir", "OUTPUT_DIR")
         cls._load_string_env_var(data, "log_file", "LOG_FILE")
         cls._load_string_env_var(data, "openai_api_key", "OPENAI_API_KEY")
-        cls._load_string_env_var(data, "openai_api_base", "OPENAI_API_BASE")
+        # NB: do NOT load openai_api_base from OPENAI_API_BASE here. This runs BEFORE the profile is
+        # merged, so injecting the ambient env var into ``data`` makes it masquerade as explicit
+        # config and silently override a profile's routing (a DGX profile pointing at api.openai.com
+        # — the footgun). The ``_load_openai_api_base_from_env`` field-validator already applies the
+        # env var with correct precedence: an explicit/profile value wins, env is only a fallback.
         cls._load_string_env_var(data, "gemini_api_key", "GEMINI_API_KEY")
         cls._load_string_env_var(data, "gemini_api_base", "GEMINI_API_BASE")
         cls._load_int_env_var(
@@ -5115,6 +5135,21 @@ class Config(BaseModel):
                 "on-disk episodes will be skipped under skip_existing (no-op). Pair it "
                 "with reprocess_source=whisper_transcription to actually re-diarize (#876)."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _resolve_openai_api_key_env(self) -> "Config":
+        """Resolve ``openai_api_key`` from the env var named by ``openai_api_key_env``.
+
+        Runs as an after-validator (fields fully populated post profile-merge) and BEFORE
+        :meth:`_validate_openai_provider_requirements`, so a profile that points a DGX vLLM endpoint
+        at ``VLLM_API_KEY`` satisfies the key-required check without hardcoding a secret. A directly
+        provided ``openai_api_key`` always wins.
+        """
+        if self.openai_api_key is None and self.openai_api_key_env:
+            val = os.getenv(str(self.openai_api_key_env))
+            if val and val.strip():
+                object.__setattr__(self, "openai_api_key", val.strip())
         return self
 
     @model_validator(mode="after")

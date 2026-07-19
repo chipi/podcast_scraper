@@ -351,55 +351,10 @@ class LanceDBBackend:
         """Dense-vector results over the query's tier(s) (signal ``vector``)."""
         return self._run(query, query_type="vector", score_key="_distance")
 
-    def search_hybrid(self, query: SearchQuery) -> List[ScoredResult]:
-        """Native LanceDB hybrid: vector + BM25 fused in-engine by an RRF reranker.
-
-        One ``query_type="hybrid"`` query per tier runs the dense + full-text search and
-        the reciprocal-rank fusion *inside the engine*, returning ``_relevance_score`` —
-        replacing the former Python-side vector+BM25+RRF fan-out (ADR-099 Stage 2). The
-        heavy ``embedding`` column is projected away (never read back). Per-table RRF
-        scores share a scale, so results across tiers are merged by that score. (#995)
-        """
-        from lancedb.rerankers import RRFReranker
-
-        reranker = RRFReranker()
-        where = self._to_sql(query.filters)
-        hits: List[tuple[float, Dict[str, Any], str]] = []
-
-        def _run_hybrid_tier(table: Any) -> List[Dict[str, Any]]:
-            payload_cols = [c for c in table.schema.names if c != "embedding"]
-            req = (
-                table.search(query_type="hybrid")
-                .vector(query.embedding)
-                .text(query.text)
-                .rerank(reranker)
-            )
-            if payload_cols:
-                req = req.select(payload_cols)
-            if where:
-                req = req.where(where)
-            return list(req.limit(query.k).to_list())
-
-        for tier in self._tables_for_tier(query.tier):
-            rows_list = self._fresh_read(tier, _run_hybrid_tier)  # fresh open per read (#1205)
-            if rows_list is None:
-                continue
-            for row in rows_list:
-                score = float(row.get("_relevance_score", 0.0) or 0.0)
-                row.pop("embedding", None)  # never shipped back; keep the payload lean
-                hits.append((score, row, tier))
-        hits.sort(key=lambda h: h[0], reverse=True)
-        return [
-            ScoredResult(
-                doc_id=str(row.get("id")),
-                score=score,
-                rank=i + 1,
-                payload=row,
-                signal="hybrid",
-                source_tier=tier,
-            )
-            for i, (score, row, tier) in enumerate(hits)
-        ]
+    # NOTE: there is deliberately no ``search_hybrid``. LanceDB's native in-engine hybrid combine
+    # (``_normalize_scores`` -> native ``pyarrow.compute``) hard-SIGSEGVs the api under the digest
+    # fan-out (#1205), so ADR-099 Stage 2 was reverted: the retrieval layer fuses ``search_bm25`` +
+    # ``search_vector`` with a Python-side RRF (``fusion.rrf_fuse``) instead.
 
     # --- writes ----------------------------------------------------------------
 
@@ -446,6 +401,57 @@ class LanceDBBackend:
     def upsert_auxes(self, docs: List[AuxDocument]) -> None:
         """Batch-upsert aux rows in one transaction."""
         self._upsert_many("aux", [dataclasses.asdict(d) for d in docs])
+
+    # --- MVCC full-reindex clear (#1206) ---------------------------------------
+
+    def existing_tier_tables(self) -> List[str]:
+        """Return the logical tiers (``segment``/``insight``/``aux``) whose table exists on disk.
+
+        Probes each tier via ``_open_if_exists`` (the same existence check the read path uses)
+        rather than listing table names — no dependency on the connection's table-listing API.
+        """
+        return [tier for tier in self.TABLES if self._open_if_exists(tier) is not None]
+
+    def _replace_many(self, tier: str, rows: List[Dict[str, Any]]) -> None:
+        """Replace a tier's table wholesale in one MVCC ``overwrite`` transaction.
+
+        A *full* reindex must not inherit stale rows, but ``rmtree``-ing the index dir
+        yanks fragment files out from under any in-flight api read -> ``Not found`` (#1206).
+        ``mode="overwrite"`` instead commits a NEW version in the SAME dataset dir, so a
+        reader pinned to the prior version keeps resolving its fragments within the
+        ``_COMPACT_RETENTION`` grace window. Schema is sized from ``self.embed_dim`` (set
+        on the first embedded doc), so a schema bump lands here too.
+        """
+        if not rows:
+            return
+        schema = self._SCHEMAS[tier](self.embed_dim)
+        self.db.create_table(self.TABLES[tier], data=rows, schema=schema, mode="overwrite")
+
+    def replace_segments(self, docs: List[SegmentDocument]) -> None:
+        """MVCC-replace the segment table with exactly *docs* (full-reindex first flush)."""
+        self._replace_many("segment", [dataclasses.asdict(d) for d in docs])
+
+    def replace_insights(self, docs: List[InsightDocument]) -> None:
+        """MVCC-replace the insight table with exactly *docs* (full-reindex first flush)."""
+        self._replace_many("insight", [dataclasses.asdict(d) for d in docs])
+
+    def replace_auxes(self, docs: List[AuxDocument]) -> None:
+        """MVCC-replace the aux table with exactly *docs* (full-reindex first flush)."""
+        self._replace_many("aux", [dataclasses.asdict(d) for d in docs])
+
+    def clear_tier_mvcc(self, tier: str) -> None:
+        """MVCC-empty an existing tier table without deleting its directory (#1206).
+
+        Used at the end of a full reindex for any tier that existed before but received
+        no rows this build (else its stale rows would survive the "clear"). Overwrites the
+        table with an empty one carrying its current on-disk schema — a new version in
+        place — so concurrent readers keep the old version's fragments during the grace
+        window instead of hitting ``Not found``.
+        """
+        existing = self._open_if_exists(tier)
+        if existing is None:
+            return
+        self.db.create_table(self.TABLES[tier], schema=existing.schema, mode="overwrite")
 
     def delete(self, doc_id: str, tier: Tier) -> None:
         """Delete a document by id; ``tier="all"`` removes from every table."""

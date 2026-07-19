@@ -32,6 +32,23 @@ SITES = {
     "cleaning.system": r'"You are a transcript cleaning assistant',
 }
 
+PROMPTS_ROOT = _REPO_ROOT / "src" / "podcast_scraper" / "prompts"
+
+# prompt site -> the per-provider template subdir it lives in once migrated off inline literals.
+# When a site is no longer inline we assert it is TEMPLATED here (not silently deleted) and that
+# the copies have not drifted apart — the same "identical by intent" guarantee, moved to templates.
+_SITE_TEMPLATE_DIR = {
+    "generate_insights.system": "insight_extraction",
+    "extract_quotes.system": "evidence/extract_quote",
+    "score_entailment.system": "evidence/entailment",
+    "cleaning.system": "cleaning",
+}
+
+
+def _templates_for(site: str) -> List[pathlib.Path]:
+    """Every per-provider template file backing ``site`` (empty if none migrated yet)."""
+    return sorted(PROMPTS_ROOT.glob(f"*/{_SITE_TEMPLATE_DIR[site]}/*.j2"))
+
 
 def _collect_literal(lines: List[str], start: int) -> str:
     """Join the implicit-concatenation string block beginning at ``start``."""
@@ -65,7 +82,23 @@ def _variants() -> Dict[str, Dict[str, List[str]]]:
 def test_shared_prompt_has_no_drift(site: str) -> None:
     variants = _variants().get(site, {})
     if not variants:
-        pytest.skip(f"no provider defines {site} inline (it may have moved to a template)")
+        # Not inline anymore — the desired end state ("no inline prompts"). Assert it genuinely
+        # moved to a shared template (not silently deleted) and the per-provider copies agree, so
+        # the "identical by intent" guarantee still holds — templated instead of skipped.
+        templates = _templates_for(site)
+        assert templates, (
+            f"{site} is neither inline nor templated under */{_SITE_TEMPLATE_DIR[site]}/ — the "
+            "prompt vanished; restore it inline or as a shared template."
+        )
+        by_version: Dict[str, set] = defaultdict(set)
+        for path in templates:
+            by_version[path.name].add(hashlib.sha256(path.read_bytes()).hexdigest())
+        drifted = {ver: len(digests) for ver, digests in by_version.items() if len(digests) > 1}
+        assert not drifted, (
+            f"{site} templates drifted across providers: {drifted}. Identical by intent — "
+            "update every provider's copy together."
+        )
+        return
 
     if len(variants) > 1:
         detail = "\n".join(
@@ -79,16 +112,21 @@ def test_shared_prompt_has_no_drift(site: str) -> None:
 
 
 def test_extract_quotes_prompt_forbids_duplicate_passages() -> None:
-    """The anti-duplicate rule is load-bearing for candidate supply — keep it in the prompt."""
-    variants = _variants().get("extract_quotes.system", {})
-    if not variants:
-        pytest.skip("extract_quotes prompt no longer inline")
-    (text,) = {t for t in _texts("extract_quotes.system")}
-    assert "DIFFERENT passage" in text
-    assert "never repeat" in text.lower()
-
-
-PROMPTS_ROOT = _REPO_ROOT / "src" / "podcast_scraper" / "prompts"
+    """The anti-duplicate rule is load-bearing for candidate supply — keep it wherever the prompt
+    lives (inline today for some providers, templated for the rest)."""
+    inline_texts = set(_texts("extract_quotes.system"))
+    if inline_texts:
+        for text in inline_texts:
+            assert "DIFFERENT passage" in text
+            assert "never repeat" in text.lower()
+        return
+    # Migrated to templates — assert the rule survived in every extract_quote template.
+    templates = _templates_for("extract_quotes.system")
+    assert templates, "extract_quotes prompt is neither inline nor templated"
+    for path in templates:
+        text = path.read_text()
+        assert "DIFFERENT passage" in text, f"{path} lost the anti-duplicate rule"
+        assert "never repeat" in text.lower(), f"{path} lost 'never repeat'"
 
 
 def test_insight_extraction_templates_are_identical_across_providers() -> None:

@@ -12,11 +12,14 @@ from podcast_scraper.gi.grounding import GroundedQuote
 from podcast_scraper.gi.pipeline import (
     _artifact_from_multi_insight,
     _char_range_to_ms,
+    _handle_malformed_transcript,
     _resolve_insight_specs,
     _speaker_id_for_char_range,
     build_artifact,
+    MALFORMED_TRANSCRIPT_MIN_CHARS,
     SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA,
 )
+from podcast_scraper.workflow.metrics import Metrics
 
 
 @pytest.mark.unit
@@ -1082,3 +1085,56 @@ class TestTheGroundingScoresSURVIVEToTheMetric:
             f"corpus whose every quote had passed an NLI threshold of 0.5."
         )
         assert stats["mean_nli_score"] > 0.0
+
+
+@pytest.mark.unit
+class TestMalformedTranscriptGuard:
+    """#1182: a large single-line transcript (un-diarized blob) must be flagged loudly, not fail
+    silently to zero grounded quotes."""
+
+    def _line(self, chars: int) -> str:
+        # One unbroken line (no newlines), like the space-joined Whisper ``result["text"]``.
+        return ("word " * (chars // 5)).strip()
+
+    def test_flags_large_single_line_blob(self, caplog):
+        transcript = self._line(MALFORMED_TRANSCRIPT_MIN_CHARS + 5_000)
+        assert "\n" not in transcript
+        metrics = Metrics()
+        with caplog.at_level(logging.WARNING):
+            _handle_malformed_transcript(
+                episode_id="ep1", transcript=transcript, pipeline_metrics=metrics
+            )
+        assert metrics.gi_malformed_transcript_episodes == 1
+        assert any("no segment/turn structure" in r.message for r in caplog.records)
+
+    def test_two_line_blob_still_flagged(self, caplog):
+        half = self._line(MALFORMED_TRANSCRIPT_MIN_CHARS)
+        transcript = half + "\n" + half  # 2 non-blank lines, well over the char floor
+        metrics = Metrics()
+        with caplog.at_level(logging.WARNING):
+            _handle_malformed_transcript(
+                episode_id="ep1", transcript=transcript, pipeline_metrics=metrics
+            )
+        assert metrics.gi_malformed_transcript_episodes == 1
+
+    def test_multiline_transcript_not_flagged(self, caplog):
+        # Same size, but one line per ~sentence (a diarized / segment-delimited transcript).
+        line = self._line(200)
+        transcript = "\n".join([line] * ((MALFORMED_TRANSCRIPT_MIN_CHARS // 200) + 20))
+        assert len(transcript) >= MALFORMED_TRANSCRIPT_MIN_CHARS  # same size class, but structured
+        metrics = Metrics()
+        with caplog.at_level(logging.WARNING):
+            _handle_malformed_transcript(
+                episode_id="ep1", transcript=transcript, pipeline_metrics=metrics
+            )
+        assert metrics.gi_malformed_transcript_episodes == 0
+        assert not any("no segment/turn structure" in r.message for r in caplog.records)
+
+    def test_short_single_line_not_flagged(self):
+        # Below the char floor: a genuinely short episode must not trip the guard.
+        transcript = self._line(MALFORMED_TRANSCRIPT_MIN_CHARS - 5_000)
+        metrics = Metrics()
+        _handle_malformed_transcript(
+            episode_id="ep1", transcript=transcript, pipeline_metrics=metrics
+        )
+        assert metrics.gi_malformed_transcript_episodes == 0

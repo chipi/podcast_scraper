@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from ...enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from ..context import CorpusContext
 
 
@@ -34,6 +35,10 @@ def resolve_entity(ctx: CorpusContext, name: str, kind: Optional[str] = None) ->
     candidates: List[Dict[str, Any]] = []
     if detail is not None:
         record = resolver.registry.records.get(detail.id, {})
+        # #1193: never resolve a name to an unresolved diarization placeholder
+        # (``person:speaker-NN``) — the MCP read surface had no such guard.
+        if is_unresolved_speaker_placeholder(str(detail.id), str(record.get("display_name") or "")):
+            return {"query": cleaned, "candidates": []}
         candidates.append(
             {
                 "id": detail.id,

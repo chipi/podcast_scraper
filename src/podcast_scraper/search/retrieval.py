@@ -65,14 +65,14 @@ class RetrievalLayer:
         """
         query = SearchQuery(text=text, embedding=embedding, filters=filters or {}, k=k, tier=tier)
 
-        # #1205: LanceDB's native in-engine hybrid (``backend.search_hybrid``, ADR-099 Stage 2)
-        # hard-crashes the api — its score-normalize step calls native ``pyarrow.compute`` and
-        # SIGSEGVs the worker under the digest route's search fan-out (confirmed in the stack-test
-        # api faulthandler: pyarrow.compute <- lancedb ``_normalize_scores`` <- ``_combine_hybrid_
-        # results``). Route the default ``hybrid`` signal through the Python-side vector+BM25+RRF
-        # fan-out below (the pre-Stage-2 path) instead: two single-modality queries fused by
-        # ``rrf_fuse`` never touch the crashing native combine, and this restores the router's
-        # per-intent tier/signal weighting the in-engine reranker had dropped.
+        # #1205: LanceDB's native in-engine hybrid (ADR-099 Stage 2, since reverted — the backend
+        # no longer exposes ``search_hybrid``) hard-crashes the api: its score-normalize step calls
+        # native ``pyarrow.compute`` and SIGSEGVs the worker under the digest route's search fan-out
+        # (stack-test faulthandler: pyarrow.compute <- lancedb ``_normalize_scores`` <-
+        # ``_combine_hybrid_results``). The default ``hybrid`` signal therefore fuses two
+        # single-modality queries (``search_bm25`` + ``search_vector``) with a Python-side
+        # ``rrf_fuse`` below — never touching the crashing native combine, and restoring the
+        # router's per-intent tier/signal weighting the in-engine reranker had dropped.
         intent = intent or self._classify(text)
 
         ranked_lists = []

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Unit tests for HybridMLProvider and factory wiring (issue #352)."""
 
+import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -44,23 +45,19 @@ class TestHybridProviderFactory(unittest.TestCase):
         self.assertEqual(provider.cfg.hybrid_reduce_backend, "ollama")
 
 
-try:
-    import llama_cpp  # noqa: F401
-
-    HAS_LLAMA_CPP = True
-except ImportError:
-    HAS_LLAMA_CPP = False
-
-
 class TestLlamaCppReduceBackend(unittest.TestCase):
     """Unit tests for LlamaCppReduceBackend (optional llama.cpp REDUCE)."""
 
-    @unittest.skipIf(HAS_LLAMA_CPP, "llama_cpp installed; ImportError tested when not installed")
     def test_initialize_raises_import_error_when_llama_cpp_not_installed(self):
-        """Without llama-cpp-python, initialize raises ImportError with install hint."""
+        """Without llama-cpp-python, initialize raises ImportError with install hint.
+
+        Runs on every machine, installed or not: patching ``sys.modules['llama_cpp'] = None`` forces
+        ``from llama_cpp import Llama`` to fail, so the not-installed branch is always exercised
+        (it used to skip whenever the optional dep happened to be present)."""
         backend = LlamaCppReduceBackend(model_path="/fake/model.gguf", n_ctx=2048)
-        with self.assertRaises(ImportError) as ctx:
-            backend.initialize()
+        with patch.dict(sys.modules, {"llama_cpp": None}):
+            with self.assertRaises(ImportError) as ctx:
+                backend.initialize()
         self.assertIn("llama-cpp-python", str(ctx.exception))
         self.assertIn("podcast-scraper[ml]", str(ctx.exception))
 

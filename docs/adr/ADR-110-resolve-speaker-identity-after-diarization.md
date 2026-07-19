@@ -1,6 +1,6 @@
 # ADR-110: Ask who speaks AFTER we can hear them
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-14
 **Deciders:** Marko
 **Related:** #876 (Elon Musk named as a speaker), #1169 (speaker/person quality), ADR-109

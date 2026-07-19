@@ -610,3 +610,87 @@ def test_drop_existing_clears_before_full_reindex(tmp_path, monkeypatch):
     ids = {r.doc_id for r in rows_out}
     assert "insight:new" in ids
     assert "insight:old" not in ids
+
+
+@pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
+def test_full_reindex_leaves_open_reader_handle_intact(tmp_path, monkeypatch):
+    """#1206 regression: a full reindex must not strand an in-flight api reader.
+
+    The old code ``rmtree``'d the live index dir, deleting fragment files out from under a
+    reader pinned to the prior version -> ``RuntimeError: ... Not found``. The MVCC clear
+    (``create_table(mode="overwrite")`` in place) commits a new version without deleting the
+    dir, so the pinned handle keeps resolving its fragments within ``_COMPACT_RETENTION``.
+    """
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+    _stub_extraction(
+        monkeypatch,
+        tmp_path,
+        [
+            (
+                "chunk:1",
+                "markets moved on the central bank policy shift",
+                {
+                    "doc_type": "transcript",
+                    "episode_id": "ep1",
+                    "timestamp_start_ms": 0,
+                    "timestamp_end_ms": 3000,
+                },
+            ),
+        ],
+    )
+    tti.build_two_tier_index(corpus, lance)  # v1
+
+    backend = LanceDBBackend(str(lance))
+    pinned = backend.db.open_table(backend.TABLES["segment"])  # pin v1 fragments
+    assert pinned.count_rows() >= 1
+
+    # The #1206 trigger: a full reindex while `pinned` is still held.
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+
+    # Old rmtree code raises "Not found" on this materializing read; MVCC keeps it readable.
+    assert len(pinned.search().limit(5).to_list()) >= 1
+    # And the freshly-reindexed table is intact and queryable.
+    assert LanceDBBackend(str(lance)).health()["segments"] >= 1
+
+
+@pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
+def test_full_reindex_empties_a_tier_absent_from_new_corpus(tmp_path, monkeypatch):
+    """#1206 finalize path: a tier present before but absent from the new corpus is
+    MVCC-emptied, not left with stale rows. The old rmtree dropped the whole dir; the MVCC
+    clear must still zero out a tier that receives no rows this build (``_finalize_reindex_clear``).
+    """
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+    seg_row = (
+        "chunk:1",
+        "policy shift in markets",
+        {
+            "doc_type": "transcript",
+            "episode_id": "ep1",
+            "timestamp_start_ms": 0,
+            "timestamp_end_ms": 3000,
+        },
+    )
+
+    # v1: a segment AND an aux (summary) row.
+    _stub_extraction(
+        monkeypatch,
+        tmp_path,
+        [
+            seg_row,
+            ("summary:1", "episode summary text", {"doc_type": "summary", "episode_id": "ep1"}),
+        ],
+    )
+    tti.build_two_tier_index(corpus, lance)
+    assert LanceDBBackend(str(lance)).health()["aux"] == 1
+
+    # v2: only the segment — the aux tier gets no rows this build.
+    _stub_extraction(monkeypatch, tmp_path, [seg_row])
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+
+    health = LanceDBBackend(str(lance)).health()
+    assert health["segments"] == 1
+    assert health["aux"] == 0  # untouched aux tier emptied, not left stale

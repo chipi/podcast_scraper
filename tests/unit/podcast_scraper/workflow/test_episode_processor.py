@@ -2033,6 +2033,35 @@ class TestFormatTranscriptIfNeeded(unittest.TestCase):
 
         self.assertEqual(text, "")
 
+    def test_format_transcript_if_needed_plain_segment_delimits(self):
+        """#1212: a plain (no-screenplay) transcript with segments becomes one line per segment,
+        and result['segments'] gains char offsets that map back verbatim (so grounding + the
+        char->timestamp mapping work instead of silently zero-quoting on a single-line blob)."""
+        result = {
+            "text": "Welcome back to the show. Today we discuss trails. It is hard.",
+            "segments": [
+                {"start": 0.0, "end": 5.0, "text": "Welcome back to the show."},
+                {"start": 5.0, "end": 10.0, "text": "Today we discuss trails."},
+                {"start": 10.0, "end": 15.0, "text": "It is hard."},
+            ],
+        }
+
+        text = episode_processor._format_transcript_if_needed(result, self.cfg, None, None)
+
+        assert text.count("\n") == 2  # one line per segment
+        assert text.startswith("Welcome back to the show.\n")
+        # Offsets were written back and map to the delimited text verbatim.
+        for seg in result["segments"]:
+            assert text[seg["char_start"] : seg["char_end"]] == seg["text"]
+
+    def test_format_transcript_if_needed_single_segment_left_plain(self):
+        """A single segment is already one line — nothing to delimit, no offsets forced."""
+        result = {"text": "Just one line here.", "segments": [{"text": "Just one line here."}]}
+
+        text = episode_processor._format_transcript_if_needed(result, self.cfg, None, None)
+
+        self.assertEqual(text, "Just one line here.")
+
 
 @pytest.mark.unit
 class TestSaveTranscriptFile(unittest.TestCase):
