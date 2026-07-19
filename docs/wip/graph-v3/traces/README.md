@@ -34,13 +34,39 @@ critical path (`.graph-canvas` visible), then the actual betweenness fires
 once ~300 ms after the graph is settled. Bridges pop in visually after the
 graph appears — trade-off: brief flicker, gain: 654 ms off first paint.
 
-The residual ~900 ms delta (still +15% vs main) is downstream of the
-critical-path metric. Candidates for a future session:
-- `applyDegreeVisibility` was 148 ms per settle (still fires 2×).
-- Cytoscape stylesheet complexity (many more selectors — theme-region-N,
-  velocity-*, credibility-*, .graph-bridge, .lens-consensus-edge, etc.).
-- Extra work in `toCytoElements` (adds theme-region tags, degreeHeat,
-  aggregate-edge synthesis).
+The residual ~900 ms delta (still +15% vs main) was traced to
+**the graph being fully rebuilt twice** during initial load — the
+"KG-second-wave" pattern from GH #771. A separate diagnostic run
+(marks `rdw:*` in `redraw()`, since removed) attributed the pipeline
+to:
+
+| Phase                       | Time        | Contributing to residual?                              |
+| --------------------------- | ----------- | ------------------------------------------------------ |
+| `cy` init (redraw 1)        | 233 ms      | Yes — cy created twice                                 |
+| **fcose layout (redraw 1)** | **1461 ms** | **Yes — 100% thrown away when redraw 2 replaces `cy`** |
+| `finishLayoutPass` 1        | 128 ms      | Fixed by debounce                                      |
+| Inter-redraw gap            | 989 ms      | Second-wave artifact fetch                             |
+| `cy` init (redraw 2)        | 273 ms      | Yes — cy recreated                                     |
+| **fcose layout (redraw 2)** | **3109 ms** | Unavoidable on this size                               |
+| `finishLayoutPass` 2        | 156 ms      | Fixed by debounce                                      |
+
+**Redraw 1's 1461 ms of fcose is discarded** when the KG-second-wave
+arrives ~1 second later and `cytoscape({elements})` is called again with
+the superset. That's the residual.
+
+The proper fix is in the redraw handler: when
+`isIncrementalAppend` is true (already detected — see
+`GraphCanvas.vue::filteredArtifact` watcher L4054), instead of destroying
+and recreating cy, use `cy.add(deltaElements)` and preserve the existing
+fcose layout for old nodes. The current code paths (selection preservation,
+FSM handoff, camera preservation) all assume full-rebuild semantics, so
+this is a real refactor that deserves its own PR + test coverage — not
+rushed into this one. Candidate savings: ~1200–1400 ms off first paint.
+
+Debounce tuning alone cannot fix this — the second wave arrives *after*
+redraw 1 completes, not during the debounce window. Delaying redraw 1
+enough to catch redraw 2 would mean ~1500 ms of blank tab, worse UX than
+the current two-pass render.
 
 ### Diagnostic evidence
 
@@ -110,18 +136,18 @@ visualisation. The metrics JSON alongside is the numeric summary.
 
 ## What NOT to conclude from these numbers
 
-- **Not comparable to the historical `03-C-first-paint.json.json.gz`**
++ **Not comparable to the historical `03-C-first-paint.json.json.gz`**
   (Tier-C 1561 ms). That number was captured on an earlier build against a
   different graph feature set and via manual Chrome DevTools recording, not
   this script. The 928 ms shell LCP here is not the same event as the
   1561 ms "first paint" reported for Tier C.
-- **Not a proof that the branch is 27% slower for users.** These are
++ **Not a proof that the branch is 27% slower for users.** These are
   scripted, deterministic settles under Playwright headless Chromium. Real
   users on their own machines with warm caches, extensions, and network
   variance will see different numbers. The *shape* (main faster than
   branch on graph settle) is the honest read; the *magnitude* is
   indicative, not definitive.
-- **Not a Web Vitals LCP.** `graph_time_to_canvas_ms` is a custom metric —
++ **Not a Web Vitals LCP.** `graph_time_to_canvas_ms` is a custom metric —
   time from Graph tab click to `.graph-canvas` having Cytoscape children.
   Web Vitals LCP is the shell number (~928 ms), which is essentially flat.
 
@@ -149,15 +175,15 @@ contributions likely).
 
 ## What to do next
 
-If the operator decides the 27% regression is unacceptable:
+If the operator decides the 15% residual is unacceptable:
 
-- Capture a fresh baseline against this branch tip with lens overlays
-  disabled at boot (skip the availability probe on cold start).
-- Try `fcose` tuning per the docs' proposal (`nodeRepulsion: 8000` etc.,
++ Land the "no rebuild on incremental append" refactor described above —
+  the biggest handle and the actual root cause. ~1200–1400 ms saving.
++ Move bridge betweenness to a web worker so it doesn't block main-thread
+  during layout. Lower impact now that we debounce it, but still non-zero.
++ Try `fcose` tuning per the docs' proposal (`nodeRepulsion: 8000` etc.,
   with bipartite-safe gravity). Use this same script to capture, compare
   medians.
-- Move bridge betweenness to a web worker so it doesn't block main-thread
-  during layout.
 
 Otherwise, the regression is a documented trade-off for the visual
 capabilities the branch adds. The runbook + script mean any future perf

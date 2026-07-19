@@ -223,7 +223,26 @@ console.log(`[lcp-capture] LCP=${metrics.lcp_ms?.toFixed(0)}ms FCP=${metrics.fcp
 
 metrics.graph_time_to_canvas_ms = graphTimeToCanvasMs
 
-// Read finishLayoutPass phase measures if the branch is instrumented
+// Read redraw pipeline marks (rdw:*) — populated only when
+// GraphCanvas.vue::redraw() is instrumented with performance.mark. Marks
+// are absolute (performance.now() timestamps); we normalise to the earliest.
+metrics.redraw_pipeline_marks = await page.evaluate(() => {
+  const marks = performance.getEntriesByType('mark').filter((m) => m.name.startsWith('rdw:'))
+  if (!marks.length) return []
+  const base = marks[0].startTime
+  return marks.map((m) => ({ name: m.name, t_ms: m.startTime - base }))
+})
+if (metrics.redraw_pipeline_marks.length) {
+  console.log('[lcp-capture] redraw pipeline marks (ms from first mark):')
+  let prev = 0
+  for (const m of metrics.redraw_pipeline_marks) {
+    const dt = m.t_ms - prev
+    console.log(`  ${m.name.padEnd(35)}  t=${m.t_ms.toFixed(1).padStart(7)}ms  +${dt.toFixed(1)}ms`)
+    prev = m.t_ms
+  }
+}
+
+// Read finishLayoutPass phase measures if GraphCanvas.vue is instrumented
 // (see GraphCanvas.vue::finishLayoutPass performance.mark calls).
 // Reports one entry per phase — the LAST one, since finishLayoutPass can
 // fire multiple times per settle.
