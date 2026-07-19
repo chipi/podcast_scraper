@@ -93,14 +93,12 @@ onMounted(async () => {
   } catch {
     interestsDismissed.value = false
   }
-  // USERPREFS-1 (#1213) — hydrate the server preferences payload and
-  // upgrade the local value if the server has one. localStorage stays the
-  // fast-path; server value wins when hydrated. Fire-and-forget so the
-  // discover render doesn't wait on the network round-trip.
-  void userPrefs.hydrate().then(() => {
-    const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
-    if (remote === true) interestsDismissed.value = true
-  })
+  // USERPREFS-1 (#1213) — read the server preferences (hydrated once at
+  // app init in main.ts). Server value wins over localStorage. Reading
+  // is synchronous; if the payload arrives later, the value is picked up
+  // on the next Home mount.
+  const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
+  if (remote === true) interestsDismissed.value = true
   latest.value = (await getDiscover(8).catch(() => null))?.items ?? []
   getPodcasts()
     .then((s) => (shows.value = s))

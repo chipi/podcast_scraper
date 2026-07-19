@@ -15,6 +15,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useQueueStore } from '../stores/queue'
 import { useAuthStore } from '../stores/auth'
 import { useCaptureStore } from '../stores/capture'
+import { useUserPreferencesStore } from '../stores/userPreferences'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -61,6 +62,32 @@ function goBack(): void {
 const queue = useQueueStore()
 const auth = useAuthStore()
 const capture = useCaptureStore()
+const userPrefs = useUserPreferencesStore()
+
+// USERPREFS-1 (#1213) — audio-sync offsets across devices.
+// Single nested key holds a map keyed by episode slug. Unbounded in
+// principle but realistic bound is 10-50 tuned episodes per user; if
+// that ever becomes a problem, migrate to a dedicated
+// per-episode-preferences endpoint. localStorage remains the fast-path
+// mirror so tuning applies instantly.
+const AUDIO_SYNC_OFFSETS_PREF_KEY = 'lp.audioSyncOffsets'
+
+type AudioSyncOffsets = Record<string, number>
+
+function readRemoteOffset(slug: string): number | null {
+  const map = userPrefs.get<AudioSyncOffsets>(AUDIO_SYNC_OFFSETS_PREF_KEY)
+  if (!map || typeof map !== 'object') return null
+  const v = map[slug]
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
+function writeRemoteOffset(slug: string, value: number | null): void {
+  const current = userPrefs.get<AudioSyncOffsets>(AUDIO_SYNC_OFFSETS_PREF_KEY) ?? {}
+  const next: AudioSyncOffsets = { ...current }
+  if (value === null || value === 0) delete next[slug]
+  else next[slug] = value
+  void userPrefs.set(AUDIO_SYNC_OFFSETS_PREF_KEY, next)
+}
 
 async function onEnded(): Promise<void> {
   playing.value = false
@@ -120,6 +147,9 @@ function adjustSync(delta: number): void {
   } catch {
     /* storage unavailable — offset still applies for this session */
   }
+  // USERPREFS-1 (#1213) — mirror to server so the tuning follows the
+  // user across devices. Silent-degrade when unavailable.
+  writeRemoteOffset(props.slug, syncOffset.value)
 }
 function resetSync(): void {
   syncOffset.value = 0
@@ -128,6 +158,7 @@ function resetSync(): void {
   } catch {
     /* ignore */
   }
+  writeRemoteOffset(props.slug, null)
 }
 
 let resumeSeconds = 0
@@ -188,6 +219,11 @@ async function load(slug: string): Promise<void> {
   } catch {
     syncOffset.value = 0
   }
+  // USERPREFS-1 (#1213) — upgrade the local sync offset if the server
+  // preferences (hydrated once at app init in main.ts) have one for this
+  // slug. Reading is synchronous; server value wins.
+  const remote = readRemoteOffset(slug)
+  if (remote !== null) syncOffset.value = remote
   try {
     const [detail, segs, audio, playback, ins, ents] = await Promise.all([
       getEpisode(slug),
