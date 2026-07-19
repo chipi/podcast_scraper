@@ -183,3 +183,118 @@ export async function loadGraphViaFilePicker(page: Page): Promise<void> {
 
   await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 }
+
+// ---------------------------------------------------------------------------
+// #1209 — viewer e2e harness helpers.
+// See docs/guides/E2E_TESTING_GUIDE.md §Handoff FSM invariants for the
+// contract these codify.
+// ---------------------------------------------------------------------------
+
+/**
+ * #1209 H4 — invariant-poll the graph handoff FSM until it reaches
+ * ``state === 'ready'``, or the timeout elapses.
+ *
+ * Prefer this over ``page.waitForTimeout(1500)`` for FSM-driven waits.
+ * Under parallel-worker CPU contention the wall-clock is noisy (Tier-2
+ * P2.5 flake, 2026-07-18); polling the FSM state directly is deterministic
+ * and returns as soon as the transition completes. The FSM's own
+ * stuck-detector fires at ``STUCK_TIMEOUT_MS = 15_000``, so a 10-second
+ * poll timeout leaves 5 s of headroom.
+ */
+export async function waitForFsmReady(
+  page: Page,
+  opts: { timeoutMs?: number } = {},
+): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const w = window as unknown as { __GIKG_FSM__?: { state: string } }
+      return w.__GIKG_FSM__?.state === 'ready'
+    },
+    undefined,
+    { timeout: opts.timeoutMs ?? 10_000 },
+  )
+}
+
+/**
+ * #1209 H4 — invariant-poll the graph handoff FSM until it reaches
+ * a specific target state. General form of ``waitForFsmReady``. Use
+ * ``waitForFsmReady`` unless you specifically need a non-``ready`` state
+ * (e.g. asserting the FSM sits in ``loading_fetch`` before an artifact
+ * arrives).
+ */
+export async function waitForFsmState(
+  page: Page,
+  targetState: string,
+  opts: { timeoutMs?: number } = {},
+): Promise<void> {
+  await page.waitForFunction(
+    (s) => {
+      const w = window as unknown as { __GIKG_FSM__?: { state: string } }
+      return w.__GIKG_FSM__?.state === s
+    },
+    targetState,
+    { timeout: opts.timeoutMs ?? 10_000 },
+  )
+}
+
+/**
+ * #1209 H3 — reset USERPREFS-1 to an empty payload so tests don't leak
+ * per-user state across walks.
+ *
+ * Real bite (Tier-3 walk, 2026-07-17): V-G1 as admin flipped
+ * graph-load-mode to Top-down + persisted. V4 as creator inherited
+ * Top-down and hit "no cluster compound" → assertion failure.
+ * Every walk that touches USERPREFS-1-synced state (theme, panels,
+ * lens flags, graph load mode, graph-legend collapsed) should call this
+ * in ``test.beforeEach`` after ``mockSignIn`` so the server-side
+ * per-user prefs start clean.
+ *
+ * Uses PUT (replace) with an empty object rather than DELETE — the
+ * server API doesn't expose DELETE (PUT is idempotent + safe).
+ */
+export async function resetUserPreferences(page: Page): Promise<void> {
+  const resp = await page.request.put('/api/app/preferences', { data: {} })
+  if (!resp.ok() && resp.status() !== 401) {
+    // 401 = not signed in (caller may reset before sign-in for a clean
+    // starting state; that's fine). Any other non-2xx is a real bug.
+    throw new Error(`resetUserPreferences: PUT /api/app/preferences returned ${resp.status()}`)
+  }
+}
+
+/**
+ * #1209 H1 — read the per-user graph_events.jsonl log(s) from a corpus.
+ *
+ * Under auth, graph analytics events land at
+ * ``<CORPUS>/.app/users/u_<hash>/graph_events.jsonl`` — one file per
+ * per-user hash. Multiple test runs on the same corpus accumulate into
+ * these files, so filter by ``session_id`` (from
+ * ``__GIKG_ANALYTICS__.sessionId``) to isolate a specific run's events.
+ *
+ * Callers use this from Node.js (Playwright test bodies), not the
+ * browser. Signature intentionally takes fs+path as args so the helper
+ * itself doesn't force a filesystem import into every consumer.
+ */
+export function readGraphEventsLog(args: {
+  corpusPath: string
+  sessionId?: string
+  fs: { readFileSync: (p: string, enc: string) => string; existsSync: (p: string) => boolean; readdirSync: (p: string) => string[] }
+  path: { join: (...parts: string[]) => string }
+}): string[] {
+  const usersDir = args.path.join(args.corpusPath, '.app', 'users')
+  if (!args.fs.existsSync(usersDir)) return []
+  const lines: string[] = []
+  for (const uidDir of args.fs.readdirSync(usersDir)) {
+    const p = args.path.join(usersDir, uidDir, 'graph_events.jsonl')
+    if (!args.fs.existsSync(p)) continue
+    const content = args.fs.readFileSync(p, 'utf-8')
+    for (const line of content.split(/\r?\n/)) {
+      if (!line) continue
+      if (!args.sessionId) {
+        lines.push(line)
+      } else if (line.includes(`"${args.sessionId}"`)) {
+        lines.push(line)
+      }
+    }
+  }
+  return lines
+}
