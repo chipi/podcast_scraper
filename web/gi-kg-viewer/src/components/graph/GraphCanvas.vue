@@ -3296,20 +3296,67 @@ function tryIncrementalAppendFastPath(art: ParsedArtifact): boolean {
 
   redrawGateDepth += 1
   try {
+    // Pre-position new nodes near an existing connected neighbour so fcose
+    // has good initial state and locked-node layout converges quickly.
+    // Build an id → position map from cy BEFORE we add.
+    const existingPos = new Map<string, { x: number; y: number }>()
+    core.nodes().forEach((n) => {
+      const id = n.id()
+      const p = n.position()
+      if (typeof id === 'string' && id && p) existingPos.set(id, { x: p.x, y: p.y })
+    })
+    // For each new node id, find an existing neighbour via the delta edges.
+    const newNodeIdToNeighbour = new Map<string, string>()
+    for (const el of deltaElements) {
+      const d = el.data
+      if (!d?.source || !d?.target) continue
+      const src = String(d.source)
+      const tgt = String(d.target)
+      // Neighbour direction: if src is existing and tgt is new, tgt's neighbour is src.
+      if (existingPos.has(src) && !existingPos.has(tgt) && !newNodeIdToNeighbour.has(tgt)) {
+        newNodeIdToNeighbour.set(tgt, src)
+      } else if (existingPos.has(tgt) && !existingPos.has(src) && !newNodeIdToNeighbour.has(src)) {
+        newNodeIdToNeighbour.set(src, tgt)
+      }
+    }
+    // Small jitter so new nodes at the same neighbour don't stack.
+    let jitterSeed = 0
+    const jitter = (): number => {
+      jitterSeed = (jitterSeed + 1) % 360
+      return jitterSeed
+    }
+    const positionedDelta = deltaElements.map((el) => {
+      const d = el.data
+      const id = typeof d?.id === 'string' ? d.id : null
+      if (!id || d?.source || d?.target) return el // edges keep as-is
+      const neighbour = newNodeIdToNeighbour.get(id)
+      const p = neighbour ? existingPos.get(neighbour) : null
+      if (!p) return el // no known neighbour, fall through to cy default (0,0)
+      const angle = (jitter() * Math.PI) / 180
+      const radius = 40
+      return { ...el, position: { x: p.x + Math.cos(angle) * radius, y: p.y + Math.sin(angle) * radius } }
+    })
+
     core.batch(() => {
       // cy.add() is idempotent on duplicate ids per docs; the delta filter
       // above still guards us in case that behaviour ever changes.
-      core.add(deltaElements)
+      core.add(positionedDelta)
+    })
+
+    // Lock existing nodes so fcose only re-lays out the delta.
+    core.batch(() => {
+      core.nodes().forEach((n) => {
+        if (existingPos.has(n.id())) n.lock()
+      })
     })
 
     const gen = graphLayoutGate.bump()
     const layoutName = 'fcose'
-    // randomize:false honours existing node positions as the starting
-    // state so fcose settles quickly for the delta rather than re-laying
-    // out the whole graph from scratch. animate:false because we render
-    // at layoutstop.
+    // randomize:false honours the pre-positioned + locked initial state;
+    // fcose only relaxes the new nodes. Iteration cap kept low since only
+    // ~324 nodes actually move.
     const layoutOpts = layoutOptionsFor(layoutName, {
-      numIter: giKgCoseLayout.giKgCoseNumIterCapped(core.nodes().length),
+      numIter: Math.min(500, giKgCoseLayout.giKgCoseNumIterCapped(deltaElements.length)),
     }) as Record<string, unknown>
     const lo = core.layout({
       ...layoutOpts,
@@ -3319,6 +3366,12 @@ function tryIncrementalAppendFastPath(art: ParsedArtifact): boolean {
     } as never)
     activeElesLayout = lo as unknown as typeof activeElesLayout
     lo.one('layoutstop', () => {
+      // Unlock BEFORE finishLayoutPass so subsequent interactions work.
+      core.batch(() => {
+        core.nodes().forEach((n) => {
+          if (existingPos.has(n.id())) n.unlock()
+        })
+      })
       if (graphLayoutGate.isStale(gen)) return
       if (activeElesLayout === (lo as unknown as typeof activeElesLayout)) {
         activeElesLayout = null
@@ -4141,7 +4194,15 @@ watch(
           }
         }
 
-        // Check if ALL previous nodes are still present (superset = incremental append)
+        // Check if ALL previous nodes are still present (superset = incremental append).
+        //
+        // #1211 (2026-07-19): the watcher's stored ``prevFilteredArtifactNodeIds`` is empty
+        // on cold KG-second-wave (watcher registers on Graph tab mount, after wave 1 has
+        // already been consumed by a mainTab-activation redraw). To catch that case too,
+        // ALSO compare against cy's own contents — cy is the source of truth for "what's
+        // currently rendered", so a superset check against cy's ids is authoritative.
+        // When either check succeeds, the fast path can safely append the delta without
+        // tearing down selection / camera / focus.
         let isIncrementalAppend = false
         if (prevFilteredArtifactNodeIds.size > 0 && currentNodeIds.size >= prevFilteredArtifactNodeIds.size) {
           isIncrementalAppend = true
@@ -4150,6 +4211,26 @@ watch(
               isIncrementalAppend = false
               break
             }
+          }
+        }
+        if (!isIncrementalAppend && cy && cy.nodes().length > 0) {
+          // Cy-anchored superset check: does the new artifact contain every id
+          // currently in cy? If yes, treat as append even when the watcher's own
+          // prev tracking never saw wave 1.
+          const cyIds: string[] = []
+          cy.nodes().forEach((n) => {
+            const id = n.id()
+            if (typeof id === 'string' && id.length > 0) cyIds.push(id)
+          })
+          if (cyIds.length > 0 && currentNodeIds.size >= cyIds.length) {
+            let allPresent = true
+            for (const id of cyIds) {
+              if (!currentNodeIds.has(id)) {
+                allPresent = false
+                break
+              }
+            }
+            if (allPresent) isIncrementalAppend = true
           }
         }
 

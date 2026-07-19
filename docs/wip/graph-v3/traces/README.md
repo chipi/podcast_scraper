@@ -12,13 +12,15 @@ same conditions as the historical `03-C-first-paint.json.json.gz`.
 
 ### Median across 3 runs
 
-| Ref                     | Shell LCP | Graph time-to-canvas | Nav elapsed | Notes                          |
-| ----------------------- | --------- | -------------------- | ----------- | ------------------------------ |
-| `main`                  | 928 ms    | **5795 ms**          | ~11.3 s     | Pre-graph-v3 baseline          |
-| `feat/graph-v3` (raw)   | 904 ms    | **7340 ms**          | ~11.4 s     | Branch tip pre-tuning          |
-| `feat/graph-v3` (tuned) | 1023 ms   | **6686 ms**          | ~11.5 s     | Branch tip with bridge fix     |
-| Δ (raw vs main)         | −24 ms    | **+1545 ms (+27%)**  | +100 ms     | Regression pre-tuning          |
-| Δ (tuned vs main)       | +95 ms    | **+891 ms (+15%)**   | +200 ms     | After bridge debounce + cache  |
+| Ref                       | Shell LCP | Graph time-to-canvas | Nav elapsed | Notes                              |
+| ------------------------- | --------- | -------------------- | ----------- | ---------------------------------- |
+| `main`                    | 928 ms    | **5795 ms**          | ~11.3 s     | Pre-graph-v3 baseline              |
+| `feat/graph-v3` (raw)     | 904 ms    | **7340 ms**          | ~11.4 s     | Branch tip pre-tuning              |
+| `feat/graph-v3` (bridge)  | 1023 ms   | **6686 ms**          | ~11.5 s     | Bridge fix only                    |
+| `feat/graph-v3` (fastpath)| 1016 ms   | **6305 ms**          | ~11.5 s     | Bridge fix + #1211 fast path       |
+| Δ raw vs main             | −24 ms    | **+1545 ms (+27%)**  | +100 ms     | Regression pre-tuning              |
+| Δ bridge vs main          | +95 ms    | **+891 ms (+15%)**   | +200 ms     | After bridge debounce + cache      |
+| **Δ fastpath vs main**    | +88 ms    | **+510 ms (+8.8%)**  | +200 ms     | **After #1211 cy-anchor fast path**|
 
 **Tuning applied (this PR):** `applyBridgeNodeClass` now caches its result
 by `(node-count, edge-count)` on the core AND debounces to run only after
