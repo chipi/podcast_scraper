@@ -269,3 +269,6 @@ web/learning-player/blob-report/
 web/learning-player/playwright/.cache/
 web/learning-player/validation-results/
 web/learning-player/e2e/.app-state/
+
+# LCP trace raw JSON (large; keep only the .gz alongside)
+docs/wip/graph-v3/traces/*.trace.json
