@@ -497,6 +497,24 @@ def _format_transcript_if_needed(
                         "screenplay format failure suppressed (repeat; GitHub #562): %s",
                         format_exception_for_log(exc),
                     )
+
+    # #1212: if no screenplay was produced, ``text`` is still the raw ``result["text"]`` — the
+    # space-joined Whisper segments on one unbroken line, which grounds to ~zero quotes (#1182).
+    # Give it segment structure: one line per segment, with each segment's char range recorded so
+    # the char->timestamp mapping stays exact (the inserted newlines would otherwise blow the
+    # cumulative-length alignment guard). Only when we actually have >=2 real segments to delimit.
+    raw_plain = (result.get("text") or "").strip()
+    if text == raw_plain and isinstance(result, dict) and isinstance(result.get("segments"), list):
+        real_segs = [
+            s for s in result["segments"] if isinstance(s, dict) and (s.get("text") or "").strip()
+        ]
+        if len(real_segs) >= 2:
+            from ..transcript_formats.plain import format_plain_transcript_with_offsets
+
+            delimited, offset_segments = format_plain_transcript_with_offsets(real_segs)
+            if delimited.strip():
+                text = delimited
+                result["segments"] = offset_segments
     return text
 
 
