@@ -369,6 +369,12 @@ filterwarnings = [
     "ignore::DeprecationWarning:spacy.cli._util",
     # Whisper FP16 warning (expected on CPU, harmless)
     "ignore::UserWarning:whisper.transcribe",
+    # thinc/spaCy FutureWarning about torch.cuda.amp.autocast — cosmetic,
+    # not actionable by us. Suppressed at CLI startup (src/podcast_scraper/cli.py)
+    # for prod; this line is the pytest-side equivalent so acceptance tests
+    # don't clutter logs with the same message. Track: #436 (upstream fix
+    # will let us drop both suppressions). See docs/guides/DEPENDENCIES_GUIDE.md.
+    "ignore:.*torch\\.cuda\\.amp\\.autocast.*deprecated.*:FutureWarning:thinc",
 ]
 # Parallel execution: use -n auto to enable, or -n 0 to disable
 # Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
