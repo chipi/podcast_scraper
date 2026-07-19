@@ -335,8 +335,9 @@ Fixing this requires either:
    know about the merger.
 
 Both are larger than a scoped PR on top of `feat/graph-v3`.
-Deferred to a follow-up issue — this branch ships instrumentation
-+ audit only.
+Deferred to follow-up [#1219](https://github.com/chipi/podcast_scraper/issues/1219)
+with the full analysis + candidate designs + measurement contract.
+This branch ships instrumentation + audit only.
 
 **What we DO know from the probe:**
 

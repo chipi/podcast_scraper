@@ -161,9 +161,10 @@ Either variant needs playwright coverage of the wave-1 → wave-2 → fast-path 
 --load-mode everything --wait-ms 10000`. Look for `flp:total` calls
 in the metrics — should drop from 2 → 1 when the fast path fires.
 
-**Related:** #1211 fast path (seed), HD22 (topDown audit), HD23
-(instrumentation + audit correction), GH issue TBD after this PR
-lands.
+**Related:** [#1219](https://github.com/chipi/podcast_scraper/issues/1219)
+(follow-up tracking the id-stability refactor + candidate designs),
+#1211 fast path (seed), HD22 (topDown audit), HD23
+(instrumentation + audit correction).
 
 ---
 
