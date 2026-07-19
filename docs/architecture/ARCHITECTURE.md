@@ -731,10 +731,15 @@ from typed edges in the cross-layer graph (`Person→Insight`, `Insight→Entity
 **Index lifecycle (bounded growth).** LanceDB is MVCC and the indexer upserts per document, so
 each build appends data fragments + superseded versions. To keep the index bounded across the
 **incremental** reindex the pipeline runs after every batch, `build_two_tier_index` **compacts**
-each table at the end (`Table.optimize(cleanup_older_than=0)` — merges fragments, prunes
-all-but-current versions). A **full** reindex (`index-two-tier`, `index --rebuild`) additionally
-clears the index directory first (`drop_existing`) for a clean slate. Without this the index grew
-unbounded (a real reprocessed corpus reached ~3.8G of stale fragments before the fix).
+each table at the end (`Table.optimize(cleanup_older_than=_COMPACT_RETENTION)` — merges fragments
+and prunes versions older than a ~10-minute grace window that keeps superseded fragments readable
+for any in-flight api read). Without this the index grew unbounded (a real reprocessed corpus
+reached ~3.8G of stale fragments before the fix). A **full** reindex (`index-two-tier`,
+`index --rebuild`, `drop_existing`) does **not** delete the index directory — the old `rmtree`
+yanked fragment files out from under concurrent readers, stranding them with a `Not found` (#1206).
+Instead it clears via MVCC in place: the first flush of each tier `overwrite`-replaces its table
+(a new version in the same dir), and any tier that receives no rows is MVCC-emptied at the end, so
+readers pinned to the prior version keep resolving their fragments through the retention window.
 
 **Modules (implemented):**
 

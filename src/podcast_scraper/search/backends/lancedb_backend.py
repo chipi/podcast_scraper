@@ -402,6 +402,57 @@ class LanceDBBackend:
         """Batch-upsert aux rows in one transaction."""
         self._upsert_many("aux", [dataclasses.asdict(d) for d in docs])
 
+    # --- MVCC full-reindex clear (#1206) ---------------------------------------
+
+    def existing_tier_tables(self) -> List[str]:
+        """Return the logical tiers (``segment``/``insight``/``aux``) whose table exists on disk.
+
+        Probes each tier via ``_open_if_exists`` (the same existence check the read path uses)
+        rather than listing table names — no dependency on the connection's table-listing API.
+        """
+        return [tier for tier in self.TABLES if self._open_if_exists(tier) is not None]
+
+    def _replace_many(self, tier: str, rows: List[Dict[str, Any]]) -> None:
+        """Replace a tier's table wholesale in one MVCC ``overwrite`` transaction.
+
+        A *full* reindex must not inherit stale rows, but ``rmtree``-ing the index dir
+        yanks fragment files out from under any in-flight api read -> ``Not found`` (#1206).
+        ``mode="overwrite"`` instead commits a NEW version in the SAME dataset dir, so a
+        reader pinned to the prior version keeps resolving its fragments within the
+        ``_COMPACT_RETENTION`` grace window. Schema is sized from ``self.embed_dim`` (set
+        on the first embedded doc), so a schema bump lands here too.
+        """
+        if not rows:
+            return
+        schema = self._SCHEMAS[tier](self.embed_dim)
+        self.db.create_table(self.TABLES[tier], data=rows, schema=schema, mode="overwrite")
+
+    def replace_segments(self, docs: List[SegmentDocument]) -> None:
+        """MVCC-replace the segment table with exactly *docs* (full-reindex first flush)."""
+        self._replace_many("segment", [dataclasses.asdict(d) for d in docs])
+
+    def replace_insights(self, docs: List[InsightDocument]) -> None:
+        """MVCC-replace the insight table with exactly *docs* (full-reindex first flush)."""
+        self._replace_many("insight", [dataclasses.asdict(d) for d in docs])
+
+    def replace_auxes(self, docs: List[AuxDocument]) -> None:
+        """MVCC-replace the aux table with exactly *docs* (full-reindex first flush)."""
+        self._replace_many("aux", [dataclasses.asdict(d) for d in docs])
+
+    def clear_tier_mvcc(self, tier: str) -> None:
+        """MVCC-empty an existing tier table without deleting its directory (#1206).
+
+        Used at the end of a full reindex for any tier that existed before but received
+        no rows this build (else its stale rows would survive the "clear"). Overwrites the
+        table with an empty one carrying its current on-disk schema — a new version in
+        place — so concurrent readers keep the old version's fragments during the grace
+        window instead of hitting ``Not found``.
+        """
+        existing = self._open_if_exists(tier)
+        if existing is None:
+            return
+        self.db.create_table(self.TABLES[tier], schema=existing.schema, mode="overwrite")
+
     def delete(self, doc_id: str, tier: Tier) -> None:
         """Delete a document by id; ``tier="all"`` removes from every table."""
         tiers = ("segment", "insight", "aux") if tier == "all" else (tier,)

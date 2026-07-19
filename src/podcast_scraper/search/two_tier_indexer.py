@@ -24,7 +24,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast, Dict, List, Optional, Tuple
+from typing import Callable, cast, Dict, List, Optional, Tuple
 
 from .. import config as _config, config_constants as _config_constants
 from ..providers.ml import embedding_loader
@@ -137,6 +137,49 @@ def _insight_grounding_quote_texts(gi_path: Path) -> Dict[str, str]:
     return out
 
 
+def _plan_reindex_clear(lance_path: Path, drop_existing: bool) -> Tuple[str, set]:
+    """Decide whether a full/stale reindex must clear prior data, and snapshot which tier
+    tables already exist so untouched ones can be MVCC-emptied at the end (#1206).
+
+    Returns ``(reason, pre_existing_tiers)``; ``reason`` is empty when no clear is needed.
+    A *full* reindex (``drop_existing``) or a schema bump (a stale index) must not inherit
+    prior rows — but this replaces the old ``rmtree`` (which stranded in-flight api reads
+    with ``Not found``) with an MVCC clear driven by the caller.
+    """
+    if drop_existing and lance_path.exists():
+        reason = "Full reindex"
+    elif lance_index_is_stale(lance_path):
+        reason = "Stale-schema reindex"
+    else:
+        return "", set()
+    try:
+        pre_existing = set(LanceDBBackend(str(lance_path)).existing_tier_tables())
+    except Exception:  # noqa: BLE001 - unreadable/absent index just means nothing to clear
+        pre_existing = set()
+    return reason, pre_existing
+
+
+def _finalize_reindex_clear(
+    lance_path: Path,
+    backend: Optional[LanceDBBackend],
+    pre_existing_tiers: set,
+    overwritten_tiers: set,
+) -> None:
+    """MVCC-empty any pre-existing tier that received no rows this build, so its stale rows
+    don't survive the reindex "clear" (#1206 — rmtree parity without stranding readers).
+
+    Uses the build's own backend when one was created; otherwise (empty new corpus, nothing
+    flushed) opens a bare backend just to clear, and drops the now-stale doc_id sidecar.
+    """
+    stale_tiers = pre_existing_tiers - overwritten_tiers
+    if stale_tiers:
+        cleanup_backend = backend or LanceDBBackend(str(lance_path))
+        for tier in sorted(stale_tiers):
+            cleanup_backend.clear_tier_mvcc(tier)
+    if backend is None:
+        lance_path.parent.joinpath("metadata.json").unlink(missing_ok=True)
+
+
 def build_two_tier_index(
     corpus_dir: str | Path,
     lance_path: str | Path,
@@ -164,24 +207,16 @@ def build_two_tier_index(
     the existing index, then reclaims the fragments/versions that creates).
     """
     out = Path(corpus_dir)
-    import shutil
 
-    def _clear_index(reason: str) -> None:
-        shutil.rmtree(Path(lance_path), ignore_errors=True)
-        # Drop the sibling metadata.json too: it's written only when a backend is built
-        # (below), so a subsequent empty/zero-vector rebuild would otherwise leave a stale
-        # sidecar next to a now-absent index, with doc_ids the index no longer contains.
-        Path(lance_path).parent.joinpath("metadata.json").unlink(missing_ok=True)
-        logger.info("%s: cleared LanceDB index + metadata.json at %s", reason, lance_path)
+    # A full/stale reindex clears prior data via LanceDB MVCC (never ``rmtree`` — #1206):
+    # the first flush of each tier ``overwrite``-replaces its table in place, and any tier
+    # that existed but gets no rows this build is MVCC-emptied at the end (see the helpers).
+    clear_reason, pre_existing_tiers = _plan_reindex_clear(Path(lance_path), drop_existing)
+    clear_requested = bool(clear_reason)
+    overwritten_tiers: set[str] = set()
+    if clear_requested:
+        logger.info("%s: MVCC-clear (no rmtree) of LanceDB index at %s", clear_reason, lance_path)
 
-    # Full reindex: clear the index so a fresh build can't inherit prior fragments.
-    if drop_existing and Path(lance_path).exists():
-        _clear_index("Full reindex")
-    # A pre-schema-bump index has incompatible tables — wipe it so we rebuild fresh.
-    # Upserting new-schema rows (e.g. with publish_date) into old tables would error or
-    # silently drop the new columns, so a stale index must be removed, not merged into.
-    elif lance_index_is_stale(Path(lance_path)):
-        _clear_index("Stale-schema reindex")
     stats = TwoTierIndexStats()
     backend: Optional[LanceDBBackend] = None
 
@@ -207,20 +242,42 @@ def build_two_tier_index(
     # already build, written next to the lance index (see search/gil_chunk_offset_verify.py).
     index_metadata: Dict[str, dict] = {}
 
+    def _flush_tier(tier: str, buf: List, replace: Callable, upsert: Callable) -> None:
+        # On a full/stale reindex the first flush of a tier ``overwrite``-replaces its table
+        # (MVCC clear-in-place, no rmtree — #1206); later flushes upsert into it as usual.
+        if not buf:
+            return
+        be = _ensure_backend(len(buf[0].embedding))
+        if clear_requested and tier not in overwritten_tiers:
+            replace(be, buf)
+            overwritten_tiers.add(tier)
+        else:
+            upsert(be, buf)
+        buf.clear()
+
     def _flush_segments() -> None:
-        if seg_buf:
-            _ensure_backend(len(seg_buf[0].embedding)).upsert_segments(seg_buf)
-            seg_buf.clear()
+        _flush_tier(
+            "segment",
+            seg_buf,
+            lambda be, r: be.replace_segments(r),
+            lambda be, r: be.upsert_segments(r),
+        )
 
     def _flush_insights() -> None:
-        if ins_buf:
-            _ensure_backend(len(ins_buf[0].embedding)).upsert_insights(ins_buf)
-            ins_buf.clear()
+        _flush_tier(
+            "insight",
+            ins_buf,
+            lambda be, r: be.replace_insights(r),
+            lambda be, r: be.upsert_insights(r),
+        )
 
     def _flush_auxes() -> None:
-        if aux_buf:
-            _ensure_backend(len(aux_buf[0].embedding)).upsert_auxes(aux_buf)
-            aux_buf.clear()
+        _flush_tier(
+            "aux",
+            aux_buf,
+            lambda be, r: be.replace_auxes(r),
+            lambda be, r: be.upsert_auxes(r),
+        )
 
     for meta_path in discover_metadata_files(out):
         if limit_episodes is not None and stats.episodes >= limit_episodes:
@@ -337,6 +394,11 @@ def build_two_tier_index(
     _flush_segments()
     _flush_insights()
     _flush_auxes()
+
+    # Full/stale reindex: MVCC-empty any tier that existed before but got no rows this
+    # build, so its stale rows don't survive the "clear" (rmtree parity, no reader stranded).
+    if clear_requested:
+        _finalize_reindex_clear(Path(lance_path), backend, pre_existing_tiers, overwritten_tiers)
 
     if backend is not None:
         backend.write_index_meta(model_id)  # query path must embed in the same space
