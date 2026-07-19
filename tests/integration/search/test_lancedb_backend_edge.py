@@ -132,13 +132,14 @@ def test_upsert_empty_batch_is_noop(tmp_path):
     assert b.health() == {"status": "ok", "segments": 0, "insights": 0, "aux": 0}
 
 
-def test_hybrid_search_applies_where_filter(tmp_path):
-    # search_hybrid with filters exercises the where-clause branch (line 322).
+def test_search_applies_where_filter(tmp_path):
+    # search_bm25 with filters exercises the _run where-clause branch. (search_hybrid was removed
+    # for #1205; the where clause now only lives on the single-modality _run path.)
     b = LanceDBBackend(str(tmp_path / "lance"), embed_dim=4)
     b.upsert_segment(_seg("s1", "central bank policy", show="A", emb=[0.1, 0.2, 0.3, 0.4]))
     b.upsert_segment(_seg("s2", "central bank policy", show="B", emb=[0.1, 0.2, 0.3, 0.4]))
     b.create_indices()
-    res = b.search_hybrid(
+    res = b.search_bm25(
         SearchQuery(
             text="central bank policy",
             embedding=[0.1, 0.2, 0.3, 0.4],
@@ -149,7 +150,7 @@ def test_hybrid_search_applies_where_filter(tmp_path):
     )
     ids = {r.doc_id for r in res}
     assert ids == {"s1"}  # show B filtered out by the where clause
-    assert all(r.signal == "hybrid" for r in res)
+    assert all(r.signal == "bm25" for r in res)
 
 
 # --- stored_schema_version None-guards ---------------------------------------

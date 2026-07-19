@@ -351,55 +351,10 @@ class LanceDBBackend:
         """Dense-vector results over the query's tier(s) (signal ``vector``)."""
         return self._run(query, query_type="vector", score_key="_distance")
 
-    def search_hybrid(self, query: SearchQuery) -> List[ScoredResult]:
-        """Native LanceDB hybrid: vector + BM25 fused in-engine by an RRF reranker.
-
-        One ``query_type="hybrid"`` query per tier runs the dense + full-text search and
-        the reciprocal-rank fusion *inside the engine*, returning ``_relevance_score`` —
-        replacing the former Python-side vector+BM25+RRF fan-out (ADR-099 Stage 2). The
-        heavy ``embedding`` column is projected away (never read back). Per-table RRF
-        scores share a scale, so results across tiers are merged by that score. (#995)
-        """
-        from lancedb.rerankers import RRFReranker
-
-        reranker = RRFReranker()
-        where = self._to_sql(query.filters)
-        hits: List[tuple[float, Dict[str, Any], str]] = []
-
-        def _run_hybrid_tier(table: Any) -> List[Dict[str, Any]]:
-            payload_cols = [c for c in table.schema.names if c != "embedding"]
-            req = (
-                table.search(query_type="hybrid")
-                .vector(query.embedding)
-                .text(query.text)
-                .rerank(reranker)
-            )
-            if payload_cols:
-                req = req.select(payload_cols)
-            if where:
-                req = req.where(where)
-            return list(req.limit(query.k).to_list())
-
-        for tier in self._tables_for_tier(query.tier):
-            rows_list = self._fresh_read(tier, _run_hybrid_tier)  # fresh open per read (#1205)
-            if rows_list is None:
-                continue
-            for row in rows_list:
-                score = float(row.get("_relevance_score", 0.0) or 0.0)
-                row.pop("embedding", None)  # never shipped back; keep the payload lean
-                hits.append((score, row, tier))
-        hits.sort(key=lambda h: h[0], reverse=True)
-        return [
-            ScoredResult(
-                doc_id=str(row.get("id")),
-                score=score,
-                rank=i + 1,
-                payload=row,
-                signal="hybrid",
-                source_tier=tier,
-            )
-            for i, (score, row, tier) in enumerate(hits)
-        ]
+    # NOTE: there is deliberately no ``search_hybrid``. LanceDB's native in-engine hybrid combine
+    # (``_normalize_scores`` -> native ``pyarrow.compute``) hard-SIGSEGVs the api under the digest
+    # fan-out (#1205), so ADR-099 Stage 2 was reverted: the retrieval layer fuses ``search_bm25`` +
+    # ``search_vector`` with a Python-side RRF (``fusion.rrf_fuse``) instead.
 
     # --- writes ----------------------------------------------------------------
 

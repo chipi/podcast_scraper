@@ -175,7 +175,7 @@ def test_search_survives_cross_process_compaction(tmp_path) -> None:
 
 
 def test_concurrent_hybrid_reads_during_compaction(tmp_path) -> None:
-    """Regression guard for the api SIGSEGV: many threads run hybrid search on one backend while a
+    """Regression guard for the api SIGSEGV: many threads run search on one backend while a
     second backend compacts the same path in a loop. With fresh-per-read handles nothing shared is
     mutated, so every read returns cleanly (no raise) and finds the always-present target row.
 
@@ -208,7 +208,7 @@ def test_concurrent_hybrid_reads_during_compaction(tmp_path) -> None:
 
     def _reader(_i: int) -> bool:
         q = SearchQuery(text="Altman keynote", embedding=[0.1, 0.2, 0.3, 0.4], tier="segment")
-        return any(r.doc_id == "s1" for r in api.search_hybrid(q))
+        return any(r.doc_id == "s1" for r in api.search_bm25(q))
 
     compactor = threading.Thread(target=_compactor, daemon=True)
     compactor.start()
