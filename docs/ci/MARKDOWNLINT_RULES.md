@@ -12,9 +12,29 @@ Each disabled rule has been verified against the tracked docs. Violation counts 
 
 Legit disabled. Long-form docs, wide tables, URL-heavy prose. Enabling would rewrite most of `docs/`. Prose docs are read on the mkdocs site where line length is irrelevant.
 
-### `MD036` — emphasis used as heading (170 violations)
+### `MD036` — emphasis used as heading (170 violations, deferred fix)
 
-Legit disabled. Widely-used pattern in guides where bold prose lead-ins are stylistically preferred over sub-headings that would over-nest a TOC.
+**Deferred, not endorsed.** Sample audit (2026-07-19) confirms most violations are semantic sub-headings that *should* be `### Foo` or `#### Foo`. Example from `docs/guides/eval-reports/EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md` (17 violations, top offender):
+
+```markdown
+## Model 1: `google/gemma-4-26B-A4B-it`
+
+**Failure signature**    <-- should be ### Failure signature
+
+...
+
+**Two fixes vLLM exposes**    <-- should be ### Two fixes vLLM exposes
+```
+
+Fixing all 170 mechanically is a `sed`-with-thought exercise: promote each `**Foo**\n` to `### Foo\n` or `#### Foo\n` depending on the enclosing heading depth. Doing that here would touch ~30 files across `docs/guides/`, `docs/architecture/`, `docs/api/`, `web/gi-kg-viewer/e2e/` with no per-doc rendering review. Deferred to a dedicated cleanup PR.
+
+Top offenders when we tackle it:
+
+- `docs/guides/eval-reports/EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md` — 17
+- `docs/api/CONFIGURATION.md` — 11
+- `docs/architecture/VIEWER_ASYNC_STABILITY.md` — 8
+- `docs/architecture/VIEWER_GRAPH_SPEC.md` — 5
+- Six other files at 4 each.
 
 ### `MD051` — link fragments must exist (13 violations, all false positives)
 
@@ -22,7 +42,12 @@ Legit disabled. Every hit is a `[Foo](#foo)` link into a heading that uses mkdoc
 
 ### `MD033` — inline HTML (19 violations)
 
-Legit disabled. Every hit is a legitimate `<br>`, `<code>`, `<a>`, `<sub>`, or similar tag inside a table cell where CommonMark syntax can't do the job.
+**Legit disabled.** Two patterns account for every violation:
+
+1. `<a id="anchor-name"></a>` — bare deep-link anchors at arbitrary positions in prose. CommonMark has no way to attach an id to a paragraph without a heading; the tag is portable across renderers. Example: `docs/api/CONFIGURATION.md:1057` `<a id="llm-cleaning-length-guard-issue-564"></a>`. Migrating to mkdocs-material's `attr_list` syntax would work but ties the anchors to that specific renderer.
+2. `<br>`, `<code>`, `<sub>` inside table cells where CommonMark syntax can't do the job (line breaks in a cell, code with pipes, subscripts).
+
+Both are structural rather than stylistic. Re-enable only if we standardise on mkdocs-material and can migrate pattern 1 to `attr_list` in the same pass.
 
 ## Re-enabled by this audit
 
