@@ -628,6 +628,52 @@ def _cfg_int(cfg: Any, name: str, default: int) -> int:
         return default
 
 
+# A transcript at least this long, carried on <=2 lines, has no segment/turn delimiters — an
+# un-diarized single-line blob (the plain path writes ``result["text"]``, the space-joined Whisper
+# segments, one unbroken line). LLM quote extraction silently collapses to ~zero quotes on such
+# input (#1182). The floor keeps genuinely short transcripts from tripping it.
+MALFORMED_TRANSCRIPT_MIN_CHARS = 20_000
+MALFORMED_TRANSCRIPT_MAX_LINES = 2
+
+
+def _nonblank_line_count(transcript: str) -> int:
+    return sum(1 for ln in transcript.splitlines() if ln.strip())
+
+
+def _handle_malformed_transcript(
+    *,
+    episode_id: str,
+    transcript: str,
+    pipeline_metrics: Optional[Any],
+) -> None:
+    """Warn + flag when the GI transcript has no line structure (a large single-line blob).
+
+    Surfaces the **cause** loudly at the grounding boundary. Without this the only signal is
+    :func:`_handle_zero_grounded_quotes`, which sees the zero-quote **symptom** after the fact and
+    only when ``gi_require_grounding`` is set — so an un-diarized episode could ground nothing while
+    the run still reported success (#1182). Root cause: an un-diarized transcript is
+    ``result["text"]`` (space-joined Whisper segments, one line); a transcript should be segment-
+    or turn-delimited even without speaker turns.
+    """
+    if len(transcript) < MALFORMED_TRANSCRIPT_MIN_CHARS:
+        return
+    lines = _nonblank_line_count(transcript)
+    if lines > MALFORMED_TRANSCRIPT_MAX_LINES:
+        return
+    if pipeline_metrics is not None and hasattr(
+        pipeline_metrics, "gi_malformed_transcript_episodes"
+    ):
+        pipeline_metrics.gi_malformed_transcript_episodes += 1
+    logger.warning(
+        "GIL: episode %s: transcript is %d chars on %d line(s) — no segment/turn structure "
+        "(likely an un-diarized single-line blob). Evidence extraction will likely collapse to "
+        "zero quotes; a transcript should be segment- or turn-delimited (#1182).",
+        episode_id,
+        len(transcript),
+        lines,
+    )
+
+
 def _handle_zero_grounded_quotes(
     *,
     episode_id: str,
@@ -1650,6 +1696,13 @@ def build_artifact(
                 quote_extraction_provider=q_prov,
                 transcript=transcript_text.strip(),
                 insight_texts=[t for t, _ in insight_specs],
+                pipeline_metrics=pipeline_metrics,
+            )
+            # Flag a structureless transcript BEFORE grounding — a large single-line blob grounds
+            # to ~zero quotes and would otherwise fail silently (#1182).
+            _handle_malformed_transcript(
+                episode_id=episode_id,
+                transcript=transcript_text.strip(),
                 pipeline_metrics=pipeline_metrics,
             )
             # #698 Layer B — bundled score_entailment dispatch.

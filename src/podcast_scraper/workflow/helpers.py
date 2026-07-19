@@ -243,6 +243,12 @@ def generate_pipeline_summary(  # noqa: C901
                 summary_lines.append(
                     "  - GIL grounding degraded: at least one episode had no quotes"
                 )
+            if getattr(pipeline_metrics, "gi_malformed_transcript_episodes", 0) > 0:
+                summary_lines.append(
+                    f"  - GIL malformed (structureless) transcripts: "
+                    f"{pipeline_metrics.gi_malformed_transcript_episodes} "
+                    f"(single-line blob → likely zero quotes; #1182)"
+                )
         if getattr(cfg, "generate_kg", False):
             n_kg = pipeline_metrics.kg_artifacts_generated
             if n_kg > 0:

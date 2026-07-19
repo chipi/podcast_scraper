@@ -194,6 +194,9 @@ class JSONLEmitter:
                 "gi_episodes_zero_grounded_when_required"
             ),
             "gi_grounding_degraded": metrics_dict.get("gi_grounding_degraded"),
+            "gi_malformed_transcript_episodes": metrics_dict.get(
+                "gi_malformed_transcript_episodes"
+            ),
             "kg_artifacts_generated": metrics_dict.get("kg_artifacts_generated"),
             "kg_failures": metrics_dict.get("kg_failures"),
             "kg_provider_extractions": metrics_dict.get("kg_provider_extractions"),

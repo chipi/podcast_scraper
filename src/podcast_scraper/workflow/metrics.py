@@ -133,6 +133,10 @@ class Metrics:
     gi_evidence_score_entailment_calls: int = 0
     gi_episodes_zero_grounded_when_required: int = 0  # gi_require_grounding but 0 quotes
     gi_grounding_degraded: bool = False  # True if any episode had zero grounded quotes (above)
+    # Episodes whose transcript is structurally malformed for evidence extraction — a large
+    # transcript on <=2 lines (an un-diarized single-line blob). Grounding silently collapses to
+    # zero quotes on these, so surface the CAUSE loudly rather than only the symptom (#1182).
+    gi_malformed_transcript_episodes: int = 0
     # GIL success metrics: accumulated across artifacts this run
     gi_insights_total: int = 0  # Total Insight nodes across all artifacts
     gi_quotes_total: int = 0  # Total Quote nodes across all artifacts
@@ -1504,6 +1508,7 @@ class Metrics:
             "gi_evidence_score_entailment_calls": self.gi_evidence_score_entailment_calls,
             "gi_episodes_zero_grounded_when_required": self.gi_episodes_zero_grounded_when_required,
             "gi_grounding_degraded": self.gi_grounding_degraded,
+            "gi_malformed_transcript_episodes": self.gi_malformed_transcript_episodes,
             "gi_insights_total": self.gi_insights_total,
             "gi_quotes_total": self.gi_quotes_total,
             "gi_insights_grounded": self.gi_insights_grounded,
