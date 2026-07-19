@@ -80,3 +80,15 @@ groups:
               type: threshold
               expression: rate
               conditions: [{ evaluator: { type: gt, params: [50] } }]
+
+# NOT YET COVERED (deliberately — each needs plumbing or live tuning, tracked so
+# it isn't a silent gap; #1160 / ADR-117 §Sequencing):
+#   - metadata-egress DROP hits: block-metadata-egress.sh DROPs silently (no LOG
+#     target), so there's no signal to alert on. Adding it needs an iptables
+#     `-j LOG` rule + kmsg/journal shipping in Alloy BEFORE a rule can fire.
+#   - host disk-full / inode / cert-expiry: these are Prometheus (node_exporter)
+#     metrics, not Loki logs — add under a `prometheus`-datasource rule group.
+#   - per-tenant app-security (auth-fail spikes, per-app 4xx/5xx, egress anomalies)
+#     is Goals 2/3 (each tenant owns its own alerts/<tenant>/ file).
+# Thresholds above are conservative starters — retune against real traffic once
+# the box is live (they only fire when the box + these log sources are running).

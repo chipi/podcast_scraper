@@ -30,6 +30,12 @@ on:
         description: "GitHub owner/repo for backup releases"
         required: false
         default: chipi/podcast_scraper-backup
+      upgrade:
+        description: "Corpus migrations after restore. auto = apply only if the backup is behind the deployed version (smart); skip = restore-as-is; force = always."
+        required: false
+        type: choice
+        default: auto
+        options: [auto, skip, force]
 
 permissions:
   contents: read
@@ -205,8 +211,11 @@ jobs:
       - name: Extract on prod and recreate api + viewer
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          # Manual prod restore opts into the smart conditional upgrade (default
+          # auto); DR drill / backup-restore never set this = restore-as-is.
+          RESTORE_UPGRADE_MODE: ${{ inputs.upgrade }}
         run: |
           set -euo pipefail
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'bash /tmp/restore_corpus_from_tarball_host.sh /tmp/snapshot-restore-prod.tgz'
+            "RESTORE_UPGRADE_MODE=$(printf %q "$RESTORE_UPGRADE_MODE") bash /tmp/restore_corpus_from_tarball_host.sh /tmp/snapshot-restore-prod.tgz"
