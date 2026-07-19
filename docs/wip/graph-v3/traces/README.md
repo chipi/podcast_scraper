@@ -192,3 +192,148 @@ If the operator decides the 15% residual is unacceptable:
 Otherwise, the regression is a documented trade-off for the visual
 capabilities the branch adds. The runbook + script mean any future perf
 work has a repeatable measurement path.
+
+## TopDown load-mode audit (2026-07-19)
+
+The `graphLoadMode: 'topDown'` opt-in (tier 8, opt-in via the
+Load-mode chip, default is still `'everything'`) mounts a synthetic
+6-SuperTheme rollup instead of the 833-node full graph. The perf
+question: how much does that save, and where's the residual cost?
+
+**Setup:** identical to sections above — prod-v2, 1440×900 @ DPR-2,
+median-of-3, feat/graph-v3 tip. LocalStorage seeded to
+`ps_graph_load_mode=topDown` before navigation via
+`context.addInitScript` (see `scripts/dev/capture-graph-lcp.mjs`
+`LCP_LOAD_MODE`).
+
+### Median-of-3 (feat/graph-v3 tip, 2026-07-19)
+
+| Load mode                | ttcanvas  | Δ vs `main` | Notes                              |
+| ------------------------ | --------- | ----------- | ---------------------------------- |
+| `main` (historical)      | 5795 ms   | —           | Pre-graph-v3 reference             |
+| `everything` (re-baseline)| **6228 ms** | +433 ms (+7.5%) | This-branch tuned everything mode  |
+| `topDown` (rollup)       | **5328 ms** | −467 ms (−8%)   | 6-SuperTheme mount, no expand |
+| **Δ topDown vs everything** | **−900 ms (−14%)** | — | The load-mode savings on this branch |
+
+Per-run detail:
+
+| Load mode    | run1    | run2    | run3    | median  |
+| ------------ | ------- | ------- | ------- | ------- |
+| `topDown`    | 5582 ms | 5328 ms | 4862 ms | 5328 ms |
+| `everything` | 6218 ms | 6312 ms | 6228 ms | 6228 ms |
+
+### Finding: topDown does NOT skip the full artifact parse
+
+Only 900 ms savings for a 6-node vs 833-node canvas is a strong signal
+that fcose is **not** the dominant cost on the initial mount. Root cause:
+`stores/artifacts.ts:126` — `topDownDisplayArtifact` derives from
+`displayArtifact.value?.data`, so the full corpus envelope fetch + full
+merged-artifact parse must complete before the 6-SuperTheme slice can
+be projected. TopDown is a **display-side filter**, not a data-fetch
+short-circuit.
+
+Where the ~5.3 s topDown ttcanvas is spent (order of magnitude, no
+per-phase instrumentation currently active — inferred from the
+`everything`-mode diagnostic table earlier in this doc + the fact that
+fcose on 6 nodes is essentially free):
+
+- **~800–1000 ms** shell + Graph tab click + FSM warmup.
+- **~2000–3000 ms** corpus envelope fetch + full artifact parse
+  (same in both modes).
+- **~500 ms** cy init + tiny fcose settle on 6 nodes.
+- **~500–1000 ms** finishLayoutPass housekeeping (theme-region
+  regions, degree histogram, viewport-preserve).
+
+The 900 ms delta vs `everything` is roughly the fcose-on-833-nodes
+plus bridge betweenness savings — real, but not the multi-second win
+you'd expect just from node count. **Flipping the default to
+`'topDown'` therefore does not solve the perf problem** — the
+critical-path cost is upstream of fcose.
+
+### Expand-on-tap probe (feat/graph-v3 tip, 2026-07-19)
+
+The mjs script grew an `LCP_EXPAND_FIRST_SUPERTHEME=1` mode that taps
+the first SuperTheme node after canvas mount and measures resettle. The
+target SuperTheme (`sth:interest-rates` on prod-v2, deterministic
+"first" by cy iteration order) expands the slice from 6 → 106 nodes in
+one tap.
+
+| Run   | Initial ttcanvas | Expand click-to-settle |
+| ----- | ---------------- | ---------------------- |
+| run 1 | 4731 ms          | ≥ 4000 ms (timeout)    |
+| run 2 | 6950 ms          | ≥ 4000 ms (timeout)    |
+| run 3 | 4590 ms          | ≥ 4000 ms (timeout)    |
+
+The 4000 ms figure is our fallback ceiling — the mjs waits for a
+`performance.measure('flp:total', ...)` from `finishLayoutPass()`,
+and if it never arrives (instrumentation is off on the shipped code,
+noted earlier in this file) the promise resolves at the ceiling. We
+know the settle took at least the full 4000 ms because the timer
+fired every time. Below 4000 ms the actual wall time would still be
+in the number; the ceiling is a "we can't measure past this".
+
+**What we DO know from the probe:**
+
+- Every expand adds **100 nodes** to cy (6 → 106). The current code
+  destroys + recreates cy for each expand (same code path as the
+  KG-second-wave rebuild), so we pay the full fcose settle on 106
+  nodes every tap. That is directly measurable: fcose on 100 nodes
+  is not free — the trace README shows fcose on 833 nodes as
+  ~1461 ms + ~3109 ms in the two-wave case; a proportional
+  estimate for 106 nodes is ~200–400 ms of fcose alone.
+- The 4000 ms wall we hit suggests the rest is Vue reactivity
+  cascades from filter re-scope + FSM handoff + theme-region
+  repaint on the enlarged slice — the same finishLayoutPass work
+  the `everything` mode pays on every layoutstop, now paid per
+  expand.
+
+To break this ceiling we need one of:
+1. Re-instrument `finishLayoutPass` (small revert) to see the
+   true expand cost.
+2. `cy.add(delta)` on expand instead of full rebuild — same
+   refactor as the KG-second-wave fix.
+3. Both.
+
+### Where the fcose tuning work stands after HD22
+
+HD22 delivered the measurement contract for the topDown critical
+path. What it made visible:
+
+- **Initial mount:** fcose is NOT the bottleneck for topDown.
+  Corpus-fetch + full-artifact-parse dominate. A real fcose wave-2
+  focused on the initial mount would need to *also* shortcut the
+  full-artifact parse when in topDown mode. That's an
+  `artifacts.ts` refactor, not an fcose-options tune.
+- **Expand-on-tap:** fcose IS a real cost (100-node settle per
+  tap). The `cy.add(delta)` refactor called out in
+  `docs/wip/graph-tech-debt.md:31` applies here just as much as
+  to the KG-second-wave `everything` path.
+
+**Net:** fcose tuning that's just about options in
+`cyCoseLayoutOptions.ts` is essentially done for the `everything`
+critical path (labels off, gravity 0.12, numIter cap, `quality:
+'draft'` documented as off-lever). The remaining wins require
+architectural work — either shortcut the parse for topDown, or
+land `cy.add(delta)` incremental append. Both belong in a scoped
+PR of their own; see the follow-up items in `graph-tech-debt.md`.
+
+### Reproducing
+
+```
+scripts/dev/capture-graph-lcp.sh \
+  --corpus .test_outputs/manual/prod-v2/corpus \
+  --label prod-v2-topdown-runN \
+  --load-mode topDown \
+  --wait-ms 6000
+
+# expand probe (requires dev build so window.__GIKG_CY_DEV__ is exposed):
+scripts/dev/capture-graph-lcp.sh \
+  --corpus .test_outputs/manual/prod-v2/corpus \
+  --label prod-v2-topdown-expand-runN \
+  --load-mode topDown \
+  --expand-first-super-theme \
+  --wait-ms 8000
+```
+
+`--load-mode everything` seeds the localStorage key too, so the
+`everything` re-baseline is directly comparable.

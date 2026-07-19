@@ -13,7 +13,9 @@
 #       [--output-dir docs/wip/graph-v3/traces] \
 #       [--ref main]            # if set, checks out via git worktree
 #       [--api-port 8600] [--viewer-port 5600] \
-#       [--wait-ms 5000]
+#       [--wait-ms 5000] \
+#       [--load-mode topDown|everything] \
+#       [--expand-first-super-theme]
 #
 # Every arg has a default suitable for the common case. Fails loudly instead
 # of guessing when a required tool is missing.
@@ -31,6 +33,8 @@ WAIT_MS="5000"
 VIEWPORT_WIDTH="1440"
 VIEWPORT_HEIGHT="900"
 VIEWPORT_DPR="2"
+LOAD_MODE=""
+EXPAND_FIRST=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -44,6 +48,8 @@ while [ $# -gt 0 ]; do
     --viewport-w)     VIEWPORT_WIDTH="$2"; shift 2 ;;
     --viewport-h)     VIEWPORT_HEIGHT="$2"; shift 2 ;;
     --viewport-dpr)   VIEWPORT_DPR="$2"; shift 2 ;;
+    --load-mode)      LOAD_MODE="$2"; shift 2 ;;
+    --expand-first-super-theme) EXPAND_FIRST="1"; shift 1 ;;
     -h|--help)
       grep '^#' "$0" | head -30
       exit 0
@@ -55,6 +61,10 @@ done
 [ -n "$CORPUS" ] || { echo "FATAL: --corpus <path> required" >&2; exit 2; }
 [ -n "$LABEL" ]  || { echo "FATAL: --label <name> required" >&2; exit 2; }
 [ -d "$CORPUS" ] || { echo "FATAL: corpus dir not found: $CORPUS" >&2; exit 2; }
+if [ -n "$LOAD_MODE" ] && [ "$LOAD_MODE" != "topDown" ] && [ "$LOAD_MODE" != "everything" ]; then
+  echo "FATAL: --load-mode must be 'topDown' or 'everything' (got '$LOAD_MODE')" >&2
+  exit 2
+fi
 
 CORPUS_ABS="$(cd "$CORPUS" && pwd)"
 # Output dir must be absolute — the mjs runs with viewer cwd (see below)
@@ -197,6 +207,8 @@ echo "[capture-graph-lcp] capturing trace: $TARGET_URL"
     VIEWPORT_HEIGHT="$VIEWPORT_HEIGHT" \
     VIEWPORT_DPR="$VIEWPORT_DPR" \
     LCP_WAIT_MS="$WAIT_MS" \
+    LCP_LOAD_MODE="$LOAD_MODE" \
+    LCP_EXPAND_FIRST_SUPERTHEME="$EXPAND_FIRST" \
     node "$REPO_ROOT/scripts/dev/capture-graph-lcp.mjs"
 )
 

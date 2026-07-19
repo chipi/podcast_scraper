@@ -53,6 +53,20 @@ const {
   VIEWPORT_HEIGHT = '900',
   VIEWPORT_DPR = '2',
   LCP_WAIT_MS = '5000',
+  /**
+   * Optional: seed the viewer's `useGraphLoadModeStore` before the app
+   * boots. `'topDown'` mounts the tier-8 super-theme rollup (3–8 nodes,
+   * expand-on-tap); `'everything'` is today's default (full merged
+   * artifact). See web/gi-kg-viewer/src/stores/graphLoadMode.ts.
+   * When unset, the app reads whatever is in localStorage (blank → default).
+   */
+  LCP_LOAD_MODE = '',
+  /**
+   * Optional: after the initial canvas mount, tap the first SuperTheme
+   * node and measure expand-on-tap resettle time. Only meaningful when
+   * LCP_LOAD_MODE=topDown. `'1'` enables.
+   */
+  LCP_EXPAND_FIRST_SUPERTHEME = '',
 } = process.env
 
 for (const [k, v] of Object.entries({ LCP_TARGET_URL, LCP_OUTPUT_DIR, LCP_LABEL })) {
@@ -78,6 +92,29 @@ const context = await browser.newContext({
   viewport: { width: parseInt(VIEWPORT_WIDTH), height: parseInt(VIEWPORT_HEIGHT) },
   deviceScaleFactor: parseFloat(VIEWPORT_DPR),
 })
+
+/**
+ * Seed `localStorage['ps_graph_load_mode']` BEFORE any page script runs, so
+ * the viewer's `useGraphLoadModeStore.readInitial()` picks it up on first
+ * evaluation. `addInitScript` fires on every navigation in the context —
+ * fine here because we only navigate once.
+ *
+ * We don't touch USERPREFS-1 (the server-side mirror) — the localStorage
+ * value is authoritative on init, and the USERPREFS-1 watcher only
+ * overwrites AFTER hydrate, which we skip through anyway. This is
+ * deliberate: we want a measurement of the CODE PATH, not "what the
+ * server happens to have persisted for the mock-signed-in test user".
+ */
+if (LCP_LOAD_MODE === 'topDown' || LCP_LOAD_MODE === 'everything') {
+  await context.addInitScript((mode) => {
+    try {
+      localStorage.setItem('ps_graph_load_mode', mode)
+    } catch {
+      /* private mode / quota — measurement will fall through to the app default */
+    }
+  }, LCP_LOAD_MODE)
+  console.log(`[lcp-capture] seeded localStorage ps_graph_load_mode=${LCP_LOAD_MODE}`)
+}
 
 const page = await context.newPage()
 const client = await page.context().newCDPSession(page)
@@ -222,6 +259,77 @@ const metrics = await page.evaluate(async (waitMs) => {
 console.log(`[lcp-capture] LCP=${metrics.lcp_ms?.toFixed(0)}ms FCP=${metrics.fcp_ms?.toFixed(0)}ms longtasks=${metrics.long_tasks_count} (${metrics.long_tasks_total_ms.toFixed(0)}ms total)`)
 
 metrics.graph_time_to_canvas_ms = graphTimeToCanvasMs
+metrics.load_mode_seed = LCP_LOAD_MODE || null
+
+/**
+ * Optional second-phase measurement: expand-on-tap of the first
+ * SuperTheme node in top-down mode. Reports:
+ *   - expand_click_to_settle_ms: wall time from `mousedown` on the tap
+ *     target until the next `finishLayoutPass` measure lands.
+ *   - expand_node_count_before / after: nodes present in the cy core
+ *     before + after the expand (proves the slice grew).
+ * We poll the DOM for the first `[data-node-type=SuperTheme]` in cy's
+ * rendered SVG-like canvas; cytoscape does NOT expose DOM per node, so
+ * we drive the tap via `cy.$('node[type="SuperTheme"]').first().emit('tap')`
+ * from a page.evaluate. That matches the app's tap-handler contract.
+ */
+let expandMetrics = null
+if (LCP_EXPAND_FIRST_SUPERTHEME === '1' && graphTimeToCanvasMs != null) {
+  try {
+    // Give the initial fcose settle a moment to finish before we probe.
+    await page.waitForTimeout(500)
+    expandMetrics = await page.evaluate(async () => {
+      /* eslint-disable no-undef */
+      const win = window
+      const cy = win.__GIKG_CY_DEV__ || null
+      if (!cy) return { skipped: true, reason: 'window.__GIKG_CY_DEV__ not exposed (not a dev build?)' }
+      const nodesBefore = cy.nodes().length
+      const target = cy.nodes('[type="SuperTheme"]').first()
+      if (target.empty()) return { skipped: true, reason: 'no SuperTheme node' }
+      const targetId = target.id()
+      // Mark before we tap so we can find the measure boundary later.
+      performance.mark('expand:tap-fired')
+      const settlePromise = new Promise((resolve) => {
+        // Resolve on the next `finishLayoutPass` measure that arrives after the
+        // mark. finishLayoutPass fires performance.measure('flp:total', ...).
+        const po = new PerformanceObserver((list) => {
+          for (const e of list.getEntries()) {
+            if (e.name === 'flp:total' && e.startTime > performance.getEntriesByName('expand:tap-fired')[0].startTime) {
+              po.disconnect()
+              resolve({ resolvedBy: 'flp:total', duration_ms: e.duration })
+              return
+            }
+          }
+        })
+        po.observe({ entryTypes: ['measure'] })
+        // Fallback timeout so we don't hang if instrumentation is off.
+        setTimeout(() => {
+          po.disconnect()
+          resolve({ resolvedBy: 'timeout', duration_ms: null })
+        }, 4000)
+      })
+      const t0 = performance.now()
+      target.emit('tap')
+      const settled = await settlePromise
+      const wall_ms = performance.now() - t0
+      const nodesAfter = cy.nodes().length
+      return {
+        target_super_theme_id: targetId,
+        expand_click_to_settle_ms: wall_ms,
+        expand_settle_source: settled.resolvedBy,
+        flp_total_last_duration_ms: settled.duration_ms,
+        expand_node_count_before: nodesBefore,
+        expand_node_count_after: nodesAfter,
+      }
+      /* eslint-enable no-undef */
+    })
+    console.log(`[lcp-capture] expand: ${expandMetrics.skipped ? `SKIP (${expandMetrics.reason})` : `${expandMetrics.expand_click_to_settle_ms?.toFixed(0)}ms (${expandMetrics.expand_node_count_before} → ${expandMetrics.expand_node_count_after} nodes)`}`)
+  } catch (e) {
+    expandMetrics = { skipped: true, reason: e.message.split('\n')[0] }
+    console.log(`[lcp-capture] expand: ERROR ${expandMetrics.reason}`)
+  }
+}
+metrics.expand_on_tap = expandMetrics
 
 // Read redraw pipeline marks (rdw:*) — populated only when
 // GraphCanvas.vue::redraw() is instrumented with performance.mark. Marks
