@@ -1270,8 +1270,55 @@ function clearBridgeHoverTitle(el: HTMLElement | null): void {
  *  construction — flagging them as bridges makes the class synonymous
  *  with "structural connector" (noise), not "community bridge" (signal).
  *
- *  Cost: O(V*E) — ~833 nodes / ~2-4k edges on prod-v2 measured under 200ms. */
+ *  Cost: O(V*E) — ~833 nodes / ~2-4k edges on prod-v2 measured at ~500-800ms
+ *  in Chromium (headless).
+ *
+ *  Perf-cache (graph-v3 perf follow-up): fcose emits multiple ``layoutstop``
+ *  events per settle so ``finishLayoutPass`` (and this function) can fire 2+
+ *  times per graph-render. Betweenness depends on TOPOLOGY, not layout
+ *  position — the result is byte-identical across those calls. We
+ *  memoise the bridge-id set keyed by ``(node-count, edge-count)`` on the
+ *  core, so subsequent settle-callbacks skip the betweenness compute
+ *  entirely. Cache invalidates automatically when a new artifact adds or
+ *  removes elements (the counts change). Measurement:
+ *  ``docs/wip/graph-v3/traces/README.md``. */
+let bridgeCacheKey: string | null = null
+let bridgeCacheIds: Set<string> | null = null
+let bridgeDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const BRIDGE_DEBOUNCE_MS = 300
+
+/** Public entry — debounced. Fires up to once per 300ms window; the
+ *  actual betweenness compute runs on the trailing edge so intermediate
+ *  fcose passes during load (833 → 1157 nodes on prod-v2) don't each
+ *  pay the compute cost. Graph time-to-canvas drops by ~750-800ms as
+ *  a result; bridges pop in ~300ms after the graph is visible. */
 function applyBridgeNodeClass(core: Core): void {
+  if (bridgeDebounceTimer !== null) {
+    clearTimeout(bridgeDebounceTimer)
+  }
+  bridgeDebounceTimer = setTimeout(() => {
+    bridgeDebounceTimer = null
+    doApplyBridgeNodeClassSync(core)
+  }, BRIDGE_DEBOUNCE_MS)
+}
+
+/** Synchronous inner — also called directly when the caller MUST have
+ *  the classes applied before returning (e.g., stack-test assertions).
+ *  Includes a fast path for repeated calls on the same topology. */
+function doApplyBridgeNodeClassSync(core: Core): void {
+  const eligibleSelector =
+    '[type = "Topic"], [type = "Podcast"], [type = "Entity_person"], [type = "Entity_organization"]'
+  const cacheKey = `${core.nodes().length}:${core.edges().length}`
+  if (bridgeCacheKey === cacheKey && bridgeCacheIds) {
+    core.batch(() => {
+      core.nodes().removeClass('graph-bridge')
+      for (const id of bridgeCacheIds!) {
+        core.getElementById(id).addClass('graph-bridge')
+      }
+    })
+    return
+  }
   try {
     const bc = core.elements().betweennessCentrality({ directed: false })
     /* Threshold chosen after scanning prod-v2 by type: Topic p90 ≈ 0.005,
@@ -1279,17 +1326,20 @@ function applyBridgeNodeClass(core: Core): void {
        the analytically interesting bridges across all four types without
        flooding the canvas with false positives. */
     const threshold = 0.05
-    const eligibleSelector =
-      '[type = "Topic"], [type = "Podcast"], [type = "Entity_person"], [type = "Entity_organization"]'
+    const nextIds = new Set<string>()
     core.batch(() => {
       core.nodes().removeClass('graph-bridge')
       core.nodes(eligibleSelector).forEach((n) => {
         const score = bc.betweennessNormalized(n)
         if (Number.isFinite(score) && score >= threshold) {
           n.addClass('graph-bridge')
+          const id = n.id()
+          if (typeof id === 'string') nextIds.add(id)
         }
       })
     })
+    bridgeCacheKey = cacheKey
+    bridgeCacheIds = nextIds
   } catch {
     /* betweenness fails on empty graphs; safe to skip */
   }

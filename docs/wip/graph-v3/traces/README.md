@@ -12,20 +12,57 @@ same conditions as the historical `03-C-first-paint.json.json.gz`.
 
 ### Median across 3 runs
 
-| Ref             | Shell LCP | Graph time-to-canvas | Nav elapsed | Notes                          |
-| --------------- | --------- | -------------------- | ----------- | ------------------------------ |
-| `main`          | 928 ms    | **5795 ms**          | ~11.3 s     | Pre-graph-v3 baseline          |
-| `feat/graph-v3` | 904 ms    | **7340 ms**          | ~11.4 s     | Branch tip (this PR)           |
-| Δ               | −24 ms    | **+1545 ms (+27%)**  | +100 ms     | Regression on graph settle     |
+| Ref                     | Shell LCP | Graph time-to-canvas | Nav elapsed | Notes                          |
+| ----------------------- | --------- | -------------------- | ----------- | ------------------------------ |
+| `main`                  | 928 ms    | **5795 ms**          | ~11.3 s     | Pre-graph-v3 baseline          |
+| `feat/graph-v3` (raw)   | 904 ms    | **7340 ms**          | ~11.4 s     | Branch tip pre-tuning          |
+| `feat/graph-v3` (tuned) | 1023 ms   | **6686 ms**          | ~11.5 s     | Branch tip with bridge fix     |
+| Δ (raw vs main)         | −24 ms    | **+1545 ms (+27%)**  | +100 ms     | Regression pre-tuning          |
+| Δ (tuned vs main)       | +95 ms    | **+891 ms (+15%)**   | +200 ms     | After bridge debounce + cache  |
 
-Interpretation: shell-paint LCP is essentially unchanged (Δ within run-to-run
-noise). **Graph time-to-canvas** — click Graph tab → `.graph-canvas` mounted
-with Cytoscape children — is **~27% slower on the branch**. The added work
-maps directly onto Tier 3 (bridge betweenness on every layout, degree heat
-extended to Person/Org/Episode) + Tier 4 (theme-region propagation over
-Insight/Person/Org/Podcast) + Tier 5C/5D (enricher lens overlays fetched +
-applied post-layout). Each is a documented pass over the graph; the totals
-add up.
+**Tuning applied (this PR):** `applyBridgeNodeClass` now caches its result
+by `(node-count, edge-count)` on the core AND debounces to run only after
+the graph is settled for 300 ms. Diagnostic instrumentation showed bridge
+betweenness fired **twice per settle** on prod-v2 — once at 833 nodes /
+1389 edges, then again at 1157 nodes / 2027 edges (fcose emits multiple
+layoutstop events during progressive load). Both took ~776 ms each,
+totalling 1099 ms cumulative — accounting for the entire regression on the
+critical path.
+
+The debounce collapses those two synchronous computes down to zero on the
+critical path (`.graph-canvas` visible), then the actual betweenness fires
+once ~300 ms after the graph is settled. Bridges pop in visually after the
+graph appears — trade-off: brief flicker, gain: 654 ms off first paint.
+
+The residual ~900 ms delta (still +15% vs main) is downstream of the
+critical-path metric. Candidates for a future session:
+- `applyDegreeVisibility` was 148 ms per settle (still fires 2×).
+- Cytoscape stylesheet complexity (many more selectors — theme-region-N,
+  velocity-*, credibility-*, .graph-bridge, .lens-consensus-edge, etc.).
+- Extra work in `toCytoElements` (adds theme-region tags, degreeHeat,
+  aggregate-edge synthesis).
+
+### Diagnostic evidence
+
+Full per-phase measurements from an instrumented run before the fix
+(prod-v2, feat/graph-v3 tip, 2× finishLayoutPass calls per settle):
+
+```text
+flp:total                        907 ms last  (x2 = 1342 ms cumulative)
+flp:bridgeRing                   776 ms last  (x2 = 1099 ms cumulative)  ← 82% of finishLayoutPass
+flp:applyDegreeVisibility         79 ms last  (x2 = 148 ms)
+flp:applyViewportPreserveOrFit    34 ms last  (x2 = 63 ms)
+flp:refreshEnricherLensOverlays    8 ms last  (x2 = 18 ms)
+flp:themeClusterRegions            4 ms last  (x2 = 8 ms)   [lens off → cheap clear path]
+flp:applyTopicDegreeHeat           3 ms last  (x2 = 6 ms)
+flp:recomputeDegreeHistogram       2 ms last  (x2 = 3 ms)
+flp:annotateBridgesWithThemes    0.5 ms last  (x2 = 1 ms)
+```
+
+After debounce, `flp:bridgeRing` drops to ~0.1 ms (synchronous — just
+schedules a `setTimeout`; the real compute happens later). Instrumentation
+was removed before commit; can be re-added by editing
+`finishLayoutPass()` in `GraphCanvas.vue`.
 
 ### Run-by-run
 
@@ -37,7 +74,7 @@ add up.
 | 2   | 976 ms    | 5609 ms              |
 | 3   | 928 ms    | 5795 ms              |
 
-**feat/graph-v3 tip:**
+**feat/graph-v3 tip (raw, pre-tuning):**
 
 | Run | Shell LCP | Graph time-to-canvas |
 | --- | --------- | -------------------- |
@@ -45,7 +82,15 @@ add up.
 | 2   | 904 ms    | 7340 ms              |
 | 3   | 864 ms    | 7177 ms              |
 
-Full metrics for every run: `prod-v2-{main-baseline,feat-graph-v3}-runN.metrics.json`.
+**feat/graph-v3 tip (tuned — bridge cache + debounce):**
+
+| Run | Shell LCP | Graph time-to-canvas |
+| --- | --------- | -------------------- |
+| 1   | 956 ms    | 6686 ms              |
+| 2   | 1080 ms   | 6630 ms              |
+| 3   | 1032 ms   | 7568 ms              |
+
+Full metrics for every run: `prod-v2-{main-baseline,feat-graph-v3,feat-graph-v3-tuned}-runN.metrics.json`.
 
 Screenshot at trace-stop for each run:
 `prod-v2-{main-baseline,feat-graph-v3}-runN.screenshot.png`. All show the

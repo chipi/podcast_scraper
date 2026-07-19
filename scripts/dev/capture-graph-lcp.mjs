@@ -223,6 +223,23 @@ console.log(`[lcp-capture] LCP=${metrics.lcp_ms?.toFixed(0)}ms FCP=${metrics.fcp
 
 metrics.graph_time_to_canvas_ms = graphTimeToCanvasMs
 
+// Read finishLayoutPass phase measures if the branch is instrumented
+// (see GraphCanvas.vue::finishLayoutPass performance.mark calls).
+// Reports one entry per phase — the LAST one, since finishLayoutPass can
+// fire multiple times per settle.
+metrics.finish_layout_pass_measures = await page.evaluate(() => {
+  const all = performance.getEntriesByType('measure').filter((m) => m.name.startsWith('flp:'))
+  const byName = new Map()
+  for (const m of all) byName.set(m.name, { count: (byName.get(m.name)?.count ?? 0) + 1, last_duration_ms: m.duration, total_duration_ms: (byName.get(m.name)?.total_duration_ms ?? 0) + m.duration })
+  return Object.fromEntries(byName)
+})
+if (Object.keys(metrics.finish_layout_pass_measures).length) {
+  console.log('[lcp-capture] finishLayoutPass phase durations (last call):')
+  for (const [name, m] of Object.entries(metrics.finish_layout_pass_measures)) {
+    console.log(`  ${name.padEnd(45)} last=${m.last_duration_ms.toFixed(1).padStart(6)}ms  n=${m.count}  total=${m.total_duration_ms.toFixed(0)}ms`)
+  }
+}
+
 // Sanity: did the graph actually render, or did the LCP measure the app
 // shell / login screen? Capture a screenshot + probe DOM state so the
 // reader can tell.
