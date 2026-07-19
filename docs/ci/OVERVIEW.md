@@ -7,8 +7,6 @@ For local development setup, see [Local Development](LOCAL_DEVELOPMENT.md).
 
 ---
 
-# CI/CD Pipeline
-
 ## Overview
 
 The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD
