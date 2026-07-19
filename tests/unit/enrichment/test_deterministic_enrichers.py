@@ -626,6 +626,80 @@ def test_temporal_velocity_content_series_is_now_independent(tmp_path: Path) -> 
     assert _cs("2026-02-01T00:00:00Z") == _cs("2031-09-09T00:00:00Z")
 
 
+def test_temporal_velocity_partial_reason_on_no_bundles(tmp_path: Path) -> None:
+    """#1208 — no-silent-fail contract. When there are no bundles at all,
+    the enricher emits ``partial_reason='no_bundles'`` so downstream can
+    distinguish "enricher ran cleanly, no data" from a real failure."""
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[],
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data["partial_reason"] == "no_bundles"
+    assert data["topics"] == []
+
+
+def test_temporal_velocity_partial_reason_on_no_topics_in_window(tmp_path: Path) -> None:
+    """#1208 — no-silent-fail contract. When bundles are present but no
+    Topics fell within the counted window, emit ``partial_reason=
+    'no_topics_in_window'``."""
+
+    def _kg_no_topic(date: str) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Episode", "id": "episode:x", "properties": {"publish_date": date}},
+                # No Topic nodes at all — the enricher counts Topic mentions.
+            ],
+            "edges": [],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg_no_topic("2026-06-15T00:00:00Z")),
+    ]
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data["partial_reason"] == "no_topics_in_window"
+    assert data["topics"] == []
+
+
+def test_temporal_velocity_partial_reason_absent_on_ok_output(tmp_path: Path) -> None:
+    """#1208 — no-silent-fail contract. When output is non-empty, the
+    ``partial_reason`` field is present but None. Consumers key on
+    ``partial_reason is not None``."""
+
+    def _kg(date: str, topic_id: str) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Episode", "id": "episode:x", "properties": {"publish_date": date}},
+                {"type": "Topic", "id": topic_id, "properties": {"label": "Topic"}},
+            ],
+            "edges": [],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg("2026-06-15T00:00:00Z", "topic:a")),
+    ]
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data["partial_reason"] is None
+    assert len(data["topics"]) == 1
+
+
 # ---------------------------------------------------------------------------
 # grounding_rate (corpus scope)
 # ---------------------------------------------------------------------------
@@ -676,11 +750,42 @@ def test_grounding_rate_no_quotes_emits_empty(tmp_path: Path) -> None:
         ctx=_ctx("grounding_rate"),
     )
     assert data["persons"] == []
+    # #1208 — no-silent-fail contract; partial_reason distinguishes empty-
+    # output from real failure.
+    assert data["partial_reason"] == "no_persons_with_insights"
+
+
+def test_grounding_rate_partial_reason_on_no_bundles(tmp_path: Path) -> None:
+    """#1208 — no bundles → explicit partial_reason='no_bundles'."""
+    data = _run(
+        GroundingRateEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[],
+        config={},
+        ctx=_ctx("grounding_rate"),
+    )
+    assert data["persons"] == []
+    assert data["partial_reason"] == "no_bundles"
 
 
 # ---------------------------------------------------------------------------
 # guest_coappearance (corpus scope)
 # ---------------------------------------------------------------------------
+
+
+def test_guest_coappearance_partial_reason_on_no_bundles(tmp_path: Path) -> None:
+    """#1208 — no bundles → explicit partial_reason."""
+    data = _run(
+        GuestCoappearanceEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[],
+        config={},
+        ctx=_ctx("guest_coappearance"),
+    )
+    assert data["pairs"] == []
+    assert data["partial_reason"] == "no_bundles"
 
 
 def test_guest_coappearance_ranks_by_shared_episodes(tmp_path: Path) -> None:

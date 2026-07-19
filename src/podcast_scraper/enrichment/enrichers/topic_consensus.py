@@ -20,8 +20,11 @@ precision ~0.91 with ~22 pairs. Both models are CPU-local (MiniLM + DeBERTa) via
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 from podcast_scraper.enrichment.enrichers._loaders import (
     edges_of_type,
@@ -200,6 +203,24 @@ class TopicConsensusEnricher:
                     )
 
         consensus.sort(key=lambda r: (-r["consensus_score"], r["topic_id"], r["insight_a_id"]))
+
+        # #1208 — no-silent-fail contract; see temporal_velocity for rationale.
+        partial_reason: str | None = None
+        if not (all_bundles or []):
+            partial_reason = "no_bundles"
+        elif pairs_scored == 0:
+            partial_reason = "no_scoreable_pairs"
+        elif not consensus:
+            partial_reason = "no_pairs_above_threshold"
+        if partial_reason is not None:
+            _logger.warning(
+                "topic_consensus empty output run_id=%s enricher=%s " "reason=%s pairs_scored=%d",
+                ctx.run_id,
+                ctx.enricher_id,
+                partial_reason,
+                pairs_scored,
+            )
+
         return EnricherResult(
             status=STATUS_OK,
             data={
@@ -209,6 +230,7 @@ class TopicConsensusEnricher:
                 "contra_threshold": contra_threshold,
                 "pairs_scored": pairs_scored,
                 "consensus": consensus,
+                "partial_reason": partial_reason,
             },
             records_written=len(consensus),
         )

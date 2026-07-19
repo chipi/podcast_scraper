@@ -14,10 +14,13 @@ counting them as a corpus-wide pair pollutes the leaderboard. See
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 from podcast_scraper.enrichment.enrichers._loaders import (
     edges_of_type,
@@ -106,6 +109,21 @@ def _compute(
     community_min_pair = int(config.get("community_min_pair", _DEFAULT_COMMUNITY_MIN_PAIR))
     communities = _detect_person_communities(pair_count, labels, community_min_pair)
 
+    # #1208 — no-silent-fail contract; see temporal_velocity for rationale.
+    partial_reason: str | None = None
+    if len(bundles) == 0:
+        partial_reason = "no_bundles"
+    elif not pairs_out:
+        partial_reason = "no_co_appearing_persons"
+    if partial_reason is not None:
+        _logger.warning(
+            "guest_coappearance produced empty output run_id=%s enricher=%s reason=%s bundles=%d",
+            ctx.run_id,
+            ctx.enricher_id,
+            partial_reason,
+            len(bundles),
+        )
+
     return {
         "pairs": pairs_out,
         "episode_count": len(bundles),
@@ -114,6 +132,7 @@ def _compute(
         "community_min_pair": community_min_pair,
         "community_count": len(communities),
         "communities": communities,
+        "partial_reason": partial_reason,
     }
 
 
