@@ -118,6 +118,16 @@ test.describe("Stack smoke test", () => {
   test("airgapped_thin v3.0 capability set lands in pipeline-emitted artifacts", async ({
     request,
   }) => {
+    // This is a PIPELINE-EMISSION contract: it asserts a fresh airgapped_thin run
+    // emits v3.0 artifacts. It does NOT apply to a RESTORED corpus — the DR drill
+    // reuses this spec against a restore-as-is corpus (whatever schema the backup
+    // held), so skip there. stack-test.yml (fresh pipeline) sets no flag and still
+    // runs it. (restore is faithful; migrations are decoupled — see
+    // scripts/ops/restore_corpus_from_tarball_host.sh.)
+    test.skip(
+      process.env.STACK_CORPUS_RESTORED === "1",
+      "pipeline-emission contract — N/A against a restored corpus (DR drill)",
+    )
     // RFC-097 v3.0 phase-3 Tier-3 verification. This stack-test runs the
     // pipeline in airgapped_thin mode (transformers BART summarization,
     // spaCy NER, NO cloud LLM, NO Ollama). The profile's **capability

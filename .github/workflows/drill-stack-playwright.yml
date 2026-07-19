@@ -136,6 +136,9 @@ jobs:
         env:
           STACK_TEST_BASE_URL: ${{ steps.base.outputs.stack_test_base_url }}
           STACK_TEST_INSECURE_TLS: "1"
+          # The drill runs against a RESTORED (restore-as-is) corpus, not a fresh
+          # airgapped_thin pipeline — skip the pipeline-emission v3.0 contract.
+          STACK_CORPUS_RESTORED: "1"
         run: |
           set -euo pipefail
           npm install
