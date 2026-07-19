@@ -1,5 +1,16 @@
 /**
  * Zoom-driven graph label tiers (WIP §3.5). Shared by main GraphCanvas and rail minimap preview.
+ *
+ * Two orthogonal responsibilities live here:
+ * 1. ``syncGraphLabelTierClasses`` — hide/short/full label rendering as a
+ *    function of zoom (thresholds ``GRAPH_LABEL_ZOOM_NONE_MAX`` +
+ *    ``GRAPH_LABEL_ZOOM_SHORT_MAX``).
+ * 2. ``syncGraphNodeVisibilityTierClasses`` — Tier 6 declutter: hide
+ *    Insight + Quote nodes entirely below ``GRAPH_NODE_ZOOM_INSIGHT_MIN``
+ *    so the overview isn't drowned in evidence dots.
+ *
+ * Prose reference: ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md`` §Node
+ * encoding §4 (zoom-gated tier reshape) + §5 (zoom-gated visibility).
  */
 import type { Core } from 'cytoscape'
 

@@ -1,5 +1,13 @@
 /**
  * Shared Cytoscape stylesheet for GI/KG merged graphs (main canvas + rail mini preview).
+ *
+ * This file defines every base-layer visual rule the graph applies —
+ * type-based shape + colour, edge width tiers, confidence opacity, temporal
+ * recency fade, theme-region tints, degree-heat sizing, bridge ring, and
+ * enricher-lens class selectors. See ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md``
+ * for the prose reference explaining WHY each rule exists and WHEN it
+ * fires. That guide is the authoritative "what does this dial do" reference;
+ * keep changes here in sync with the guide's node/edge encoding sections.
  */
 import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import { graphNodeFill } from './colors'

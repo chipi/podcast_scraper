@@ -7,6 +7,10 @@
  * graph the user gets the ~6-8 super-theme bubbles up front + expand-on-
  * tap to dig into any one of them.
  *
+ * Prose reference: ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md`` §Load
+ * modes describes when to use top-down, how expand-on-tap works, and the
+ * clamp policy for >8 super-themes.
+ *
  * Data model:
  *   nodes:
  *     one `SuperTheme` node per unique `super_theme_id` on the theme

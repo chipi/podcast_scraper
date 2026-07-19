@@ -2,6 +2,12 @@
 
 *Working branch: `feat/graph-v3` off `main`. Not merged.*
 
+> **This file is the tier chronology — what shipped in each tier and why the
+> tier existed. For a prose-style reference of every visual rule (what
+> each dial does + when it fires + why it exists) read
+> [`docs/guides/GRAPH_VISUALIZATION_GUIDE.md`](../../guides/GRAPH_VISUALIZATION_GUIDE.md)
+> instead.**
+
 ## Trigger
 
 Operator delivered four analyses (graph-visual-improvement, gikgviewergraphredesign,

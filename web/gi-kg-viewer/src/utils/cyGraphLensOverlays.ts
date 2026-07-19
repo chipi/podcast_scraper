@@ -11,6 +11,11 @@
  * Kept in a plain util (out of GraphCanvas.vue's 4400-line component)
  * so each lens's data-model contract is easy to inspect + test in
  * isolation.
+ *
+ * Per-lens prose (visual effect, threshold rationale, why it's shaped
+ * this way) lives in ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md`` §Node
+ * encoding + §Edge encoding. Enricher artifact contracts are in that
+ * guide's §Enricher artifacts table.
  */
 
 import type { Core, EdgeSingular, NodeSingular } from 'cytoscape'

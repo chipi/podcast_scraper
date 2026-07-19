@@ -2,16 +2,24 @@
 /**
  * graph-v3 Q — Lenses popover in the graph bottom bar.
  *
- * Renders one checkbox per RFC-080 lens (currently four:
- * `aggregatedEdges`, `nodeSizeByDegree`, `themeClusterRegions`,
- * `bridgeRing`). Toggles write to `useGraphLensesStore` which persists to
- * localStorage; GraphCanvas watchers re-apply the class overlays without
- * a full re-layout so the graph responds live.
+ * Renders one checkbox per RFC-080 lens (nine total after tier 5C/5D:
+ * `nodeSizeByDegree`, `bridgeRing`, `themeClusterRegions`, `velocityHalo`,
+ * `personCredibility`, `consensusEdges`, `coGuestEdges`, `personCommunities`,
+ * `aggregatedEdges`). Toggles write to `useGraphLensesStore` which persists
+ * to localStorage; GraphCanvas watchers re-apply the class overlays
+ * without a full re-layout so the graph responds live.
  *
- * Enricher-gated: the `themeClusterRegions` row is hidden entirely when
- * the `topic_theme_clusters.json` artifact is not available for the
- * current corpus (`artifacts.themeClustersDoc === null`). Operator
- * direction (graph-v3 V): hide, don't disable — no dead controls.
+ * Enricher-gated rows are hidden entirely when the corresponding corpus
+ * artifact is not available (probed via `fetchCachedCorpusEnvelope` on
+ * mount + on corpus-path change). Data-gated `aggregatedEdges` is hidden
+ * when the display artifact has no source ABOUT/SPOKEN_BY edges to roll
+ * up. Operator direction (graph-v3 V): hide, don't disable — no dead
+ * controls.
+ *
+ * Prose reference: ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md`` §Lenses
+ * has the full catalog table (default state + gate + visual effect for
+ * each row) and §Enricher artifacts documents the underlying data
+ * contracts. Update both when adding a new lens.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useGraphLensesStore } from '../../../stores/graphLenses'

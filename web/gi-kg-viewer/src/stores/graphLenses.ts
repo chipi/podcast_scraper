@@ -7,7 +7,10 @@ import { useUserPreferencesStore } from './userPreferences'
  * RFC-080 — graph visualization lens flags.
  *
  * Each lens is a render-only behaviour the user can toggle without
- * reloading the corpus. Defaults match the RFC rollout table:
+ * reloading the corpus. See ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md``
+ * §Lenses for the full catalog (default state, enricher gate, visual
+ * effect, code entry) and §Node/Edge encoding for what each lens actually
+ * paints. Defaults match the RFC rollout table:
  *
  *   - V1 `aggregatedEdges` — **off** initially. Renders Episode↔Topic
  *     and Episode↔Person aggregated edges (`ABOUT_AGG`,
