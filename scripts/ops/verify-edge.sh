@@ -91,15 +91,26 @@ fi
 # --- 4. Caddy edge -----------------------------------------------------------
 section "4) Caddy edge engine (ADR-114)"
 if command -v caddy >/dev/null 2>&1; then
-  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
+  # The Caddyfile uses ``default_bind {$CADDY_BIND_ADDRS}``; source the value the
+  # caddy service uses so validation resolves it (else empty → invalid).
+  BIND_ENV="$(sed -n 's/^Environment=CADDY_BIND_ADDRS=//p' /etc/systemd/system/caddy.service.d/10-public-bind.conf 2>/dev/null)"
+  CADDY_BIND_ADDRS="$BIND_ENV" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
     && pass "Caddyfile valid" || fail "Caddyfile INVALID"
   systemctl is-active --quiet caddy && pass "caddy service active" || fail "caddy service NOT active"
-  if command -v ss >/dev/null 2>&1; then
-    ss -tlnH 'sport = :443' 2>/dev/null | grep -q . \
-      && pass "listening on :443 (tailnet-only until Phase 4 opens the firewall)" \
-      || warn ":443 not listening (no tenant vhost yet? base engine still binds :443 catch-all)"
+  # Confirm CADDY (not tailscale-serve) actually owns :443 — that is the whole
+  # point of the public-IP bind. Needs root for the process name. Caddy binds its
+  # public IP regardless of the firewall (which is cloud-side), so this should PASS
+  # even while tailnet-only.
+  if [ "$IS_ROOT" = 1 ] && command -v ss >/dev/null 2>&1; then
+    if ss -tlnpH 'sport = :443' 2>/dev/null | grep -q 'caddy'; then
+      pass "caddy owns :443 (public bind${BIND_ENV:+ $BIND_ENV}; tailnet :443 stays tailscale-serve)"
+    elif ss -tlnpH 'sport = :443' 2>/dev/null | grep -q .; then
+      fail ":443 bound but NOT by caddy — public bind failed (tailscale-serve collision? check CADDY_BIND_ADDRS)"
+    else
+      warn ":443 not listening — caddy should bind its public IP even while the firewall is closed"
+    fi
   else
-    skip "ss :443 check (ss not found)"
+    skip ":443-owner check (needs root + ss)"
   fi
 else
   fail "caddy not installed"

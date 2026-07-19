@@ -7,6 +7,13 @@
 	email marko.dragoljevic@gmail.com
 	# T-02: disable the admin API (default localhost:2019) — no live-config surface.
 	admin off
+	# ADR-114: bind ONLY the box's public interface(s). Tailscale serve owns :443
+	# on the tailnet IP (ADR-083 admin/deploy plane, unchanged) — an all-interfaces
+	# (:443) bind collides with it ("address already in use"). CADDY_BIND_ADDRS is
+	# the space-separated public IPv4[/IPv6], set in the caddy service env by
+	# apply-edge.sh (discovered from the default route). Public edge and tailnet
+	# ingress then coexist on different IPs.
+	default_bind {$CADDY_BIND_ADDRS}
 	# on-demand TLS is left OFF (the default): Caddy issues certs only for the
 	# explicit hostnames tenants declare — no arbitrary-hostname issuance (T-03).
 

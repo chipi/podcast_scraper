@@ -371,8 +371,20 @@ runcmd:
   - install -d -o deploy -g deploy -m 0755 /etc/caddy/sites
   - install -d -o caddy -g caddy -m 0755 /var/log/caddy
   - cp /var/lib/cloud/data/caddy-base.Caddyfile /etc/caddy/Caddyfile
-  # Validate before starting — never run the engine on a config that fails check.
-  - caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl enable --now caddy || echo "caddy config invalid; engine NOT started" >&2
+  # ADR-114: Caddy binds the PUBLIC IP only — ``tailscale serve`` owns :443 on the
+  # tailnet IP, so an all-interfaces bind collides ("address already in use").
+  # Discover the public IP(s) from the default route (the metadata API is blocked
+  # by block-metadata-egress) and set the caddy service env for
+  # ``default_bind {$CADDY_BIND_ADDRS}``, then validate + start with it. Mirrors
+  # scripts/ops/apply-edge.sh so rebuild (cloud-init) and imperative apply agree.
+  - |
+    P4=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1)
+    P6=$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* src \([0-9A-Fa-f:]*\).*/\1/p' | head -1)
+    BIND="$P4"; [ -n "$P6" ] && BIND="$P4 $P6"
+    mkdir -p /etc/systemd/system/caddy.service.d
+    printf '[Service]\nEnvironment=CADDY_BIND_ADDRS=%s\n' "$BIND" > /etc/systemd/system/caddy.service.d/10-public-bind.conf
+    systemctl daemon-reload
+    if CADDY_BIND_ADDRS="$BIND" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then systemctl enable --now caddy; else echo "caddy config invalid; engine NOT started" >&2; fi
   # T-11: attach the caddy-access jail now that /var/log/caddy/access.log exists
   # (fail2ban was enabled earlier, before Caddy created its log dir).
   - systemctl reload-or-restart fail2ban
