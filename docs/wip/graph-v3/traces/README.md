@@ -258,19 +258,85 @@ target SuperTheme (`sth:interest-rates` on prod-v2, deterministic
 "first" by cy iteration order) expands the slice from 6 → 106 nodes in
 one tap.
 
+**First pass — instrumentation OFF (fallback ceiling):**
+
 | Run   | Initial ttcanvas | Expand click-to-settle |
 | ----- | ---------------- | ---------------------- |
 | run 1 | 4731 ms          | ≥ 4000 ms (timeout)    |
 | run 2 | 6950 ms          | ≥ 4000 ms (timeout)    |
 | run 3 | 4590 ms          | ≥ 4000 ms (timeout)    |
 
-The 4000 ms figure is our fallback ceiling — the mjs waits for a
+The 4000 ms figure was our fallback ceiling — the mjs waits for a
 `performance.measure('flp:total', ...)` from `finishLayoutPass()`,
-and if it never arrives (instrumentation is off on the shipped code,
-noted earlier in this file) the promise resolves at the ceiling. We
-know the settle took at least the full 4000 ms because the timer
-fired every time. Below 4000 ms the actual wall time would still be
-in the number; the ceiling is a "we can't measure past this".
+and if it never arrives the promise resolves at the ceiling. On the
+shipped build with `flp:total` instrumentation removed, every expand
+run hit the ceiling — but that tells us nothing about the real
+settle time.
+
+**Correction (HD23 instrumentation-on rerun, prod-v2, 2026-07-19):**
+
+`finishLayoutPass` now always emits `performance.mark('flp:start:<n>')`
++ `flp:end:<n>` + `flp:total` measures (see `GraphCanvas.vue` around
+line 1834 and its tail). Re-running the same probe:
+
+| Run   | Initial ttcanvas | Expand click-to-settle | `flp:total` last | `flp:total` calls |
+| ----- | ---------------- | ---------------------- | ---------------- | ----------------- |
+| run 1 | 5497 ms          | **109 ms**             | 61 ms            | 2                 |
+
+**The expand-on-tap fast path was already firing.** The 4000 ms
+"ceiling" in the earlier table was pure measurement noise. #1211's
+`tryIncrementalAppendFastPath` catches the SuperTheme-tap →
+`topDownDisplayArtifact` recompute → cy-anchored superset check
+correctly, appends the ~100 delta nodes near their existing
+neighbours, and skips fcose entirely. Total settle: ~109 ms
+(finishLayoutPass 61 ms + housekeeping).
+
+**No refactor needed for expand-on-tap.** The `graph-tech-debt.md`
+entry that flagged it is closed out.
+
+### KG-second-wave probe (feat/graph-v3 tip, `everything` mode, 2026-07-19)
+
+With `flp:total` instrumentation on:
+
+| Run   | ttcanvas | `flp:total` last | `flp:total` calls |
+| ----- | -------- | ---------------- | ----------------- |
+| run 1 | 6697 ms  | 212 ms           | **2**             |
+
+Two `flp:total` calls confirms the KG-second-wave still does a full
+rebuild — the fast path bails. Root cause is upstream of the render
+pipeline: the GI→KG merger in
+`web/gi-kg-viewer/src/utils/mergeGiKg.ts:219-243` (`remapData`)
+renames **every** GI node on wave 2 — id `X` becomes `g:X`, KG nodes
+become `k:X`. Wave-1 cy has ids like `ep:X`, `topic:Y`, `person:Z`
+raw; wave-2's artifact has the same nodes as `g:ep:X`, `g:topic:Y`,
+`g:person:Z`. The strict-superset check (`filteredArtifact` watcher
+in `GraphCanvas.vue::4176-4204`) correctly returns false, and cy
+gets destroyed + rebuilt.
+
+Potential savings if the fast path fires on wave 2: the ~3109 ms
+wave-2 fcose settle (from the earlier diagnostic table) becomes a
+~200-400 ms delta-add. Roughly **2500–3000 ms off `everything` cold
+load**.
+
+Fixing this requires either:
+
+1. **Merger canonicalisation on wave 1.** Apply `g:` prefix to every
+   GI node id even when KG hasn't loaded, so wave-2's remap becomes
+   a no-op for those nodes. Cross-cutting consumer audit needed —
+   every code path that reads raw ids from a wave-1 artifact (bridge
+   doc, enricher artifacts, focus resolution, search, subject-rail,
+   URL routing, topic-cluster mapping) has to accept the prefixed
+   form.
+2. **Fast path with id-transform awareness.** Teach
+   `tryIncrementalAppendFastPath` the wave-1 → wave-2 transform (`X
+   → g:X` etc.) so the superset check succeeds despite the rename,
+   and the delta-add applies remove+add for renamed nodes with
+   preserved positions. Surgical, but the render pipeline has to
+   know about the merger.
+
+Both are larger than a scoped PR on top of `feat/graph-v3`.
+Deferred to a follow-up issue — this branch ships instrumentation
++ audit only.
 
 **What we DO know from the probe:**
 

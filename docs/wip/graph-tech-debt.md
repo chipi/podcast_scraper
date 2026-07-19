@@ -106,38 +106,91 @@ topDown`. See `docs/guides/GRAPH_PERF_TRACE_RUNBOOK.md`.
 
 ---
 
-## Perf — expand-on-tap rebuilds cy from scratch (100+ nodes per tap)
+## Perf — KG-second-wave forces full cy rebuild (merger id rename)
 
-**Surfaced by:** HD22 expand-on-tap probe / 2026-07-19
+**Surfaced by:** HD22 audit + HD23 instrumentation / 2026-07-19
 **Category:** perf
-**Estimated cost:** M
-**Blocking:** topDown mode feeling snappy on interaction
-**Context:** HD22 expand-on-tap probe shows every SuperTheme tap
-grows the slice by ~100 nodes (6 → 106 on prod-v2 for `sth:interest-rates`),
-and the current handler destroys + recreates the cytoscape core on
-each tap — same pattern as the KG-second-wave rebuild called out in
-the wave-1 fcose item. Wall time per expand hit our 4000 ms
-instrumentation ceiling every run.
+**Estimated cost:** M — L (bigger of the two variants below)
+**Blocking:** ~2500–3000 ms of `everything`-mode cold-load fcose that gets thrown away
+**Context:** HD23 landed `flp:total` instrumentation in
+`GraphCanvas.vue::finishLayoutPass`. The `everything`-mode cold load
+now shows **2 × flp:total** calls — proof the fast path
+(`tryIncrementalAppendFastPath`, #1211) does NOT catch the
+KG-second-wave. Cy is destroyed + rebuilt with the merged
+wave-2 artifact.
 
-**Why deferred:** same root cause as the wave-1 fcose residual — the
-proper fix is `cy.add(delta)` instead of full rebuild, which is a
-real refactor. HD22 confirms the fix applies to both critical paths
-(cold load AND expand-on-tap), so it's a single unified refactor,
-not two.
+Root cause upstream of the render pipeline:
+`web/gi-kg-viewer/src/utils/mergeGiKg.ts:219-243` (`remapData`)
+prefixes **every** GI node with `g:` and every KG node with `k:` on
+wave 2. Wave-1 cy has raw ids (`ep:X`, `topic:Y`, `person:Z`);
+wave-2's artifact has the same nodes as `g:ep:X`, `g:topic:Y`,
+`g:person:Z`. Strict-superset check
+(`GraphCanvas.vue::filteredArtifact` watcher, lines 4176–4204)
+correctly returns false, and cy rebuilds.
 
-**Handle:** the fast-path from #1211
-(`GraphCanvas.vue::tryIncrementalAppendFastPath`) is the seed
-implementation for the `everything` mode's incremental append. The
-expand-on-tap handler needs the same shape: detect
-"deltaNodes ⊂ cy AND deltaNodes ⊃ cy" and take the fast path when
-true.
+**HD22's original write-up UNDERESTIMATED the scope.** It framed
+this as a "cy.add(delta) refactor" — but calling `cy.add(delta)`
+requires the fast path to recognise wave-1 ids in wave-2's artifact.
+The rename hits ~all GI nodes, not just episodes.
+
+**Estimated saving if fixed:** ~2500–3000 ms off `everything`
+cold-load (the wave-2 fcose on 1157 nodes gets replaced by a
+delta-add + preserved positions).
+
+**Handle — two candidate designs:**
+
+- **Design 1 — Merger canonicalisation on wave 1.** Apply the `g:`
+  prefix to every GI node id even when only GI has loaded (wave 1).
+  Then wave-2's remap becomes a no-op. Requires a consumer audit —
+  every code path that reads raw ids from a wave-1 artifact needs
+  to accept the prefixed form. Concrete audit targets: bridge doc,
+  enricher artifacts, focus resolution, search, subject-rail node
+  lookup, URL routing, `topicClustersOverlay`, `themeClustersOverlay`.
+  Estimated M-L.
+- **Design 2 — Fast path with id-transform awareness.** Teach
+  `tryIncrementalAppendFastPath` (and the superset check) the
+  wave-1 → wave-2 transform: `bareId → g:bareId` for the GI half
+  plus `__unified_ep__:X` canonicalisation for episodes. On match,
+  do targeted remove+add per renamed node with old position
+  preserved, and cy.add() the new-only delta. Surgical, but crosses
+  merger + render-pipeline concerns. Estimated M.
+
+Either variant needs playwright coverage of the wave-1 → wave-2 → fast-path handoff (production-shaped fixture).
 
 **Measurement path:** `scripts/dev/capture-graph-lcp.sh
---load-mode topDown --expand-first-super-theme`. Re-instrument
-`finishLayoutPass` with `performance.measure('flp:total', ...)` to
-break the 4000 ms ceiling and see the real expand cost.
+--load-mode everything --wait-ms 10000`. Look for `flp:total` calls
+in the metrics — should drop from 2 → 1 when the fast path fires.
 
-**Related:** wave-1 fcose item above, HD22 audit.
+**Related:** #1211 fast path (seed), HD22 (topDown audit), HD23
+(instrumentation + audit correction), GH issue TBD after this PR
+lands.
+
+---
+
+## Perf — expand-on-tap fast path already fires (closed by HD23)
+
+**Surfaced + closed by:** HD22 → HD23 / 2026-07-19
+**Category:** perf
+**Estimated cost:** N/A — no fix needed
+**Context:** HD22 flagged expand-on-tap as "≥ 4000 ms per tap
+(6 → 106 nodes) rebuilding cy from scratch". That number was pure
+measurement noise: the mjs waited for a
+`performance.measure('flp:total', ...)` that never fired because
+the shipped build had no `flp:total` instrumentation, so the
+fallback ceiling of 4000 ms triggered every run.
+
+HD23 added `flp:total` to `finishLayoutPass` and re-ran: real
+expand-on-tap is **109 ms** end-to-end, with `flp:total` last =
+61 ms. `tryIncrementalAppendFastPath` correctly catches the
+SuperTheme-tap → `topDownDisplayArtifact` recompute → cy-anchored
+superset check, appends the ~100 delta nodes with pre-positioning,
+skips fcose. UX is already good.
+
+Nothing to do. This entry stays as a diary note so a future
+reader doesn't chase the same ghost.
+
+**Related:** HD22, HD23, `docs/wip/graph-v3/traces/README.md`
+§ Expand-on-tap probe.
 
 ---
 
