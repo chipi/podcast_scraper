@@ -152,7 +152,7 @@ describe('giKgCoseLayoutOptionsMain', () => {
     expect(o.fit).toBe(false)
     // graph-v3 M — gravity lowered so natural communities drift apart.
     expect(o.gravity).toBe(0.12)
-    expect(o.nodeDimensionsIncludeLabels).toBe(true)
+    expect(o.nodeDimensionsIncludeLabels).toBe(false)
   })
 
   it('wires the per-node repulsion callback to the main profile', () => {
@@ -326,7 +326,7 @@ describe('giKgCoseLayoutOptionsMainFallback — static constants', () => {
     expect(o.fit).toBe(false)
     // graph-v3 M — gravity lowered so natural communities drift apart.
     expect(o.gravity).toBe(0.12)
-    expect(o.nodeDimensionsIncludeLabels).toBe(true)
+    expect(o.nodeDimensionsIncludeLabels).toBe(false)
     expect((o.edgeElasticity as () => number)()).toBe(100)
   })
 })
