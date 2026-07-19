@@ -21,6 +21,7 @@ import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
 import { episodeArtwork, showArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
+import { useUserPreferencesStore } from '../stores/userPreferences'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
@@ -33,6 +34,11 @@ const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
+const userPrefs = useUserPreferencesStore()
+
+// USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
+// localStorage remains the fast-path fallback until the server responds.
+const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 
 const latest = ref<EpisodeSummary[]>([])
 const shows = ref<Podcast[]>([])
@@ -55,6 +61,9 @@ function dismissInterests(): void {
   } catch {
     /* private mode / storage disabled — the card just reappears next load */
   }
+  // USERPREFS-1 (#1213) — write-through so the dismissal syncs across devices.
+  // silent-degrade: userPrefs.set is no-op when the server is unavailable.
+  void userPrefs.set(INTERESTS_DISMISSED_PREF_KEY, true)
 }
 
 async function onInterestsSaved(): Promise<void> {
@@ -84,6 +93,14 @@ onMounted(async () => {
   } catch {
     interestsDismissed.value = false
   }
+  // USERPREFS-1 (#1213) — hydrate the server preferences payload and
+  // upgrade the local value if the server has one. localStorage stays the
+  // fast-path; server value wins when hydrated. Fire-and-forget so the
+  // discover render doesn't wait on the network round-trip.
+  void userPrefs.hydrate().then(() => {
+    const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
+    if (remote === true) interestsDismissed.value = true
+  })
   latest.value = (await getDiscover(8).catch(() => null))?.items ?? []
   getPodcasts()
     .then((s) => (shows.value = s))
