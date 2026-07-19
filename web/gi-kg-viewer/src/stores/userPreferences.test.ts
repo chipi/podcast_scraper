@@ -5,11 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const api = vi.hoisted(() => ({
   fetchUserPreferences: vi.fn(),
   patchUserPreferences: vi.fn(),
+  replaceUserPreferences: vi.fn(),
 }))
 
 vi.mock('../api/userPreferencesApi', () => ({
   fetchUserPreferences: api.fetchUserPreferences,
   patchUserPreferences: api.patchUserPreferences,
+  replaceUserPreferences: api.replaceUserPreferences,
 }))
 
 async function loadStore() {
@@ -22,6 +24,7 @@ describe('useUserPreferencesStore (USERPREFS-1)', () => {
     setActivePinia(createPinia())
     api.fetchUserPreferences.mockReset()
     api.patchUserPreferences.mockReset()
+    api.replaceUserPreferences.mockReset()
   })
 
   it('starts empty, unhydrated, and marked available', async () => {
@@ -133,6 +136,7 @@ describe('useUserPreferencesStore — cross-tab BroadcastChannel (USERPREFS-1)',
     setActivePinia(createPinia())
     api.fetchUserPreferences.mockReset()
     api.patchUserPreferences.mockReset()
+    api.replaceUserPreferences.mockReset()
   })
 
   it('set() posts a message on the ps_user_preferences_sync channel', async () => {
@@ -193,6 +197,52 @@ describe('useUserPreferencesStore — cross-tab BroadcastChannel (USERPREFS-1)',
     } finally {
       otherTab.close()
     }
+  })
+
+  it('resetToDefaults() clears local map, broadcasts null for each key, and PUTs {}', async () => {
+    api.fetchUserPreferences.mockResolvedValueOnce({
+      preferences: { theme: 'dark', foo: 'bar' },
+    })
+    api.replaceUserPreferences.mockResolvedValueOnce({ preferences: {} })
+    const otherTab = new BroadcastChannel('ps_user_preferences_sync')
+    const received: Array<{ key?: string; value?: unknown }> = []
+    otherTab.onmessage = (ev) => received.push(ev.data as { key?: string; value?: unknown })
+    try {
+      const useStore = await loadStore()
+      const s = useStore()
+      await s.hydrate()
+      await s.resetToDefaults()
+      expect(s.local).toEqual({})
+      expect(api.replaceUserPreferences).toHaveBeenCalledWith({})
+      await new Promise((r) => setTimeout(r, 20))
+      const keys = received.map((m) => m.key).sort()
+      expect(keys).toEqual(['foo', 'theme'])
+      expect(received.every((m) => m.value === null)).toBe(true)
+    } finally {
+      otherTab.close()
+    }
+  })
+
+  it('resetToDefaults() silent-degrades when replaceUserPreferences returns null (marks unavailable, keeps local cleared)', async () => {
+    api.fetchUserPreferences.mockResolvedValueOnce({ preferences: { theme: 'dark' } })
+    api.replaceUserPreferences.mockResolvedValueOnce(null)
+    const useStore = await loadStore()
+    const s = useStore()
+    await s.hydrate()
+    await s.resetToDefaults()
+    expect(s.local).toEqual({})
+    expect(s.available).toBe(false)
+  })
+
+  it('resetToDefaults() skips the network call once the store is unavailable', async () => {
+    api.fetchUserPreferences.mockResolvedValueOnce(null) // marks unavailable
+    const useStore = await loadStore()
+    const s = useStore()
+    await s.hydrate()
+    expect(s.available).toBe(false)
+    await s.resetToDefaults()
+    expect(api.replaceUserPreferences).not.toHaveBeenCalled()
+    expect(s.local).toEqual({})
   })
 
   it('own broadcast is ignored (echo suppression via senderId)', async () => {

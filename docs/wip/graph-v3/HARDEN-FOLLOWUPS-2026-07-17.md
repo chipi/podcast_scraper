@@ -47,6 +47,25 @@ added: `GraphLensesChip.test.ts` covers the 4 gate cases (no artifact
 hides; ABOUT-only shows; SPOKEN_BY-only shows; unrelated edge types
 hide).
 
+## FU1a — USERPREFS-1 whole-surface broadening — LANDED 2026-07-19
+
+Operator direction after auditing FU1 above: adopt USERPREFS-1 across
+the *rest* of the surface too (learning-player consumer, operator-view
+corpus lens, theme, filters), plus a first-class reset API. Split into
+two work items on this branch:
+
+- **#1213 — learning-player consumer.** Store + hydrate + adopt
+  `lp.interests.dismissed` and `lp.audioSyncOffsets`. Commit
+  `24fec52f`.
+- **#1215 — gi-kg-viewer operator surface.** `corpusLens` preset
+  write-through (`corpusLensPreset` key, `'all' | '7' | '30' | '90'`
+  persistence — see [../USERPREFS-1.md](../USERPREFS-1.md) for
+  rationale on persisting the preset rather than the calculated
+  YMD), and `useUserPreferencesStore.resetToDefaults()` (PUT `{}`,
+  clear local, broadcast null per key). Deferred to a later pass:
+  `graphFilters.allowedTypes` (per-corpus, complex adoption) and the
+  reset-to-defaults UI control (backend landed; button is a UX pass).
+
 ## FU3 — Speaker + Quote shape live-verify
 
 Source: `docs/wip/graph-v3/SUMMARY.md`, section *"Not done (still)"*.

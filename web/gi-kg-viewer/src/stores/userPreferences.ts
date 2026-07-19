@@ -32,6 +32,7 @@ if (typeof globalThis !== 'undefined') {
 import {
   fetchUserPreferences,
   patchUserPreferences,
+  replaceUserPreferences,
   type UserPreferencesResponse,
 } from '../api/userPreferencesApi'
 
@@ -208,6 +209,36 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     if (patched == null) available.value = false
   }
 
+  /**
+   * USERPREFS-1 (#1215) — reset all preferences to their defaults.
+   *
+   * Behaviour:
+   * - Clears the in-memory ``local`` map so consumer watchers on
+   *   ``userPrefs.get(key)`` see ``undefined`` and fall back to their
+   *   defaults (each store's own default value / localStorage's own
+   *   default read).
+   * - PUTs `{}` to `/api/app/preferences` so the server-side blob is
+   *   empty too. Silent-degrade on failure — the local reset stands.
+   * - Broadcasts each cleared key to other tabs so their consumers
+   *   also reset.
+   * - Consumer stores DO NOT auto-clear their own localStorage mirrors;
+   *   that's per-store because the mirror is device-local and each
+   *   store's own "reset" contract may differ (e.g. a lens store may
+   *   want to reset to default-on flags, not just "unset").
+   *
+   * For "reset just section X", callers can iterate the section's known
+   * keys and pass them to ``setMany`` with ``null`` values (existing
+   * PATCH-with-null-deletes contract).
+   */
+  async function resetToDefaults(): Promise<void> {
+    const clearedKeys = Object.keys(local.value)
+    local.value = {}
+    for (const k of clearedKeys) broadcast(k, null)
+    if (!available.value) return
+    const replaced = await replaceUserPreferences({})
+    if (replaced == null) available.value = false
+  }
+
   return {
     local,
     hydrated,
@@ -218,5 +249,6 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     get,
     set,
     setMany,
+    resetToDefaults,
   }
 })

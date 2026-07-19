@@ -106,6 +106,42 @@ provider (default dev seed):
 The cross-device story then reduces to "second device also authenticates
 under the same OAuth identity" — the store just fetches its state.
 
+## #1213 / #1215 adoption wave (2026-07-19)
+
+Broadened USERPREFS-1 beyond the initial graphLenses pilot to the whole
+consumer + operator surface. Split into two work items on one branch:
+
+- **#1213 — learning-player consumer surface.**
+  - New `web/learning-player/src/stores/userPreferences.ts` (stripped-
+    down mirror of gi-kg-viewer's store, `fetch`-based, silent-degrade,
+    no BroadcastChannel).
+  - App-root hydrate call in `web/learning-player/src/main.ts`.
+  - Adopted keys: `lp.interests.dismissed` (HomeView), nested
+    `lp.audioSyncOffsets = { slug: offset }` (PlayerView adjustSync /
+    resetSync).
+  - Commit: `24fec52f`.
+
+- **#1215 — gi-kg-viewer operator surface.**
+  - `corpusLens` store write-throughs the `activePreset` string
+    (`'all' | '7' | '30' | '90'`) under key `corpusLensPreset`.
+    Persisting the preset (not the calculated YYYY-MM-DD) makes
+    "Last 7 days" stay today-relative across devices. Numeric legacy
+    writes tolerated via `parsePreset`.
+  - `useUserPreferencesStore.resetToDefaults()` — PUTs `{}` to
+    `/api/app/preferences`, clears the in-memory map, broadcasts null
+    for each cleared key so other tabs' consumers reset too.
+    Silent-degrade on failure (marks store unavailable, local clear
+    stands). See the docstring for the "reset just section X" pattern
+    (iterate keys → `setMany(nulls)`).
+  - Tests: `corpusLens.test.ts` +3 (write-through, echo-suppressed
+    hydrate, numeric-legacy normalisation) → 16/16;
+    `userPreferences.test.ts` +3 (reset happy-path w/ broadcast,
+    silent-degrade on null, skip-network-when-unavailable) → 17/17.
+  - Not yet adopted here (deferred, tracked in graph-v3 follow-ups):
+    `graphFilters.allowedTypes` (per-corpus state, complex shape),
+    graph bottom-bar time-scale, and the reset-to-defaults UI control
+    itself (backend is landed; the button is a separate UX pass).
+
 ## Not shipped (documented follow-ups)
 
 - **Per-user-preferences migration of the other localStorage keys.**
