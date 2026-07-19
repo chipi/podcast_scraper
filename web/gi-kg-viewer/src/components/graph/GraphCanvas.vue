@@ -3343,43 +3343,12 @@ function tryIncrementalAppendFastPath(art: ParsedArtifact): boolean {
       core.add(positionedDelta)
     })
 
-    // Lock existing nodes so fcose only re-lays out the delta.
-    core.batch(() => {
-      core.nodes().forEach((n) => {
-        if (existingPos.has(n.id())) n.lock()
-      })
-    })
-
-    const gen = graphLayoutGate.bump()
-    const layoutName = 'fcose'
-    // randomize:false honours the pre-positioned + locked initial state;
-    // fcose only relaxes the new nodes. Iteration cap kept low since only
-    // ~324 nodes actually move.
-    const layoutOpts = layoutOptionsFor(layoutName, {
-      numIter: Math.min(500, giKgCoseLayout.giKgCoseNumIterCapped(deltaElements.length)),
-    }) as Record<string, unknown>
-    const lo = core.layout({
-      ...layoutOpts,
-      name: layoutName,
-      randomize: false,
-      animate: false,
-    } as never)
-    activeElesLayout = lo as unknown as typeof activeElesLayout
-    lo.one('layoutstop', () => {
-      // Unlock BEFORE finishLayoutPass so subsequent interactions work.
-      core.batch(() => {
-        core.nodes().forEach((n) => {
-          if (existingPos.has(n.id())) n.unlock()
-        })
-      })
-      if (graphLayoutGate.isStale(gen)) return
-      if (activeElesLayout === (lo as unknown as typeof activeElesLayout)) {
-        activeElesLayout = null
-      }
-      if (!cy || cy !== core) return
-      finishLayoutPass(core)
-    })
-    lo.run()
+    // Fast path skips fcose entirely: new nodes are pre-positioned near their
+    // existing neighbours (which is where fcose would have put them anyway),
+    // so a relaxation pass costs 1500-2000ms for negligible visual gain.
+    // If a specific corpus makes the layout look wonky, a follow-up can add
+    // an opt-in ``relayoutOnFastPath`` flag.
+    finishLayoutPass(core)
   } finally {
     redrawGateDepth -= 1
   }
