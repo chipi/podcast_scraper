@@ -164,6 +164,31 @@ underlay + velocity border + degree size + bridge ring simultaneously. Cytoscape
 selectors resolve by source order; interaction states (`.search-hit`, `:selected`)
 still win over lens overlays.
 
+## 2026-07-19 status update (session)
+
+- **Tier-A/B/C/D–Tier 8** — all shipped; see per-tier tables below.
+- **Insight sentiment lens** (Tier 5C-3) — **descoped, closed** — see *"Not
+  done (still)"* below and § *"Tier 5 harden follow-ups"* for rationale.
+- **`aggregatedEdges` V1 enricher-gate** — closed with a data-gate on
+  `displayArtifact` edges (FU2, `HARDEN-FOLLOWUPS-2026-07-17.md`).
+- **USERPREFS-1 per-store adoption** — 2/3 items in FU1 now closed.
+  `LibraryTab.vue` view mode landed on this branch as `libraryViewMode`
+  store. Only *import/export UX* remains open (client-side UI work).
+- **Speaker + Quote shape live-verify** — still waiting on a corpus that
+  emits them (external blocker; DGX diarize post-#1170 candidate).
+- **Perf regression from graph-v3** — narrowed from +27% raw to +7% via
+  bridge cache + fast path + fcose label opt-out. Residual +408 ms is
+  wave-1 fcose, documented in `docs/wip/graph-tech-debt.md`. Full
+  measurement in `docs/wip/graph-v3/traces/README.md`.
+- **Perf trace tool** — new: `scripts/dev/capture-graph-lcp.sh` +
+  `docs/guides/GRAPH_PERF_TRACE_RUNBOOK.md` (reusable measurement path).
+- **E2E harness helpers** — new: `resetUserPreferences`, `waitForFsmReady`,
+  `readGraphEventsLog` in `web/gi-kg-viewer/e2e/helpers.ts` + patterns
+  section in `docs/guides/E2E_TESTING_GUIDE.md`.
+- **Enricher no-silent-fail contract** — `partial_reason` field added to
+  all four deterministic enrichers (`temporal_velocity`, `grounding_rate`,
+  `guest_coappearance`, `topic_consensus`).
+
 ## Tier 5 harden follow-ups (post-audit fixes)
 
 Ran the `harden` skill after tier 5C/5D committed. Its findings applied here:
