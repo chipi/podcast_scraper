@@ -35,12 +35,25 @@ services:
   #   stopgap:    http://dgx-llm-1:10428/insert/opentelemetry/v1/traces
   #   migration:  http://homelab:10428/insert/opentelemetry/v1/traces
   # Only the VPS gets these — stack-test/Codespaces never load this overlay.
+  #
+  # extra_hosts: the o11y backend is addressed by its Tailscale MagicDNS name
+  # `homelab`, but Docker's embedded DNS can't resolve MagicDNS — so the containers
+  # get a static hosts entry to reach VictoriaTraces (traces) + GlitchTip (errors).
+  # HOMELAB_TAILNET_IP is resolved fresh at deploy time by deploy.sh (`tailscale ip
+  # -4 homelab`) — the IP is never hardcoded in the repo. Using extra_hosts (not
+  # `dns:`) keeps Docker's embedded DNS intact for compose service names.
   api:
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP}"
     environment:
       OTEL_TRACES_EXPORTER: otlp
   pipeline:
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP}"
     environment:
       OTEL_TRACES_EXPORTER: otlp
   pipeline-llm:
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP}"
     environment:
       OTEL_TRACES_EXPORTER: otlp
