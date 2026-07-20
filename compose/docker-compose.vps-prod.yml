@@ -27,19 +27,20 @@ services:
       - ../docker/viewer/landing.html:/usr/share/nginx/html/landing.html:ro
 
   # Enable OTEL traces on the always-on VPS (ADR-119). The base stack.yml gates
-  # them off (exporter=none); here we flip to otlp and point at the DGX
-  # VictoriaTraces over the tailnet (ACL 10428, non-standard full path). Only the
-  # VPS gets these — stack-test/Codespaces (stack + stack-test / stack + prod)
-  # never load this overlay. deployment.environment=prod comes from PODCAST_ENV.
+  # them off (exporter=none); here we only flip the exporter to otlp. The
+  # ENDPOINT is NOT set here — it comes from the prod .env via stack.yml's
+  # `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}`
+  # passthrough, so there is no hardcoded backend IP in this file. Migration
+  # (DGX → homelab) is a one-line flip of that key in the prod .env:
+  #   stopgap:    http://100.69.49.126:10428/insert/opentelemetry/v1/traces
+  #   migration:  http://homelab:10428/insert/opentelemetry/v1/traces
+  # Only the VPS gets these — stack-test/Codespaces never load this overlay.
   api:
     environment:
       OTEL_TRACES_EXPORTER: otlp
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://100.69.49.126:10428/insert/opentelemetry/v1/traces
   pipeline:
     environment:
       OTEL_TRACES_EXPORTER: otlp
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://100.69.49.126:10428/insert/opentelemetry/v1/traces
   pipeline-llm:
     environment:
       OTEL_TRACES_EXPORTER: otlp
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://100.69.49.126:10428/insert/opentelemetry/v1/traces
