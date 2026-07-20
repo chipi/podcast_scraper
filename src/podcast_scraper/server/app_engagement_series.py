@@ -29,11 +29,19 @@ _Acc = dict[tuple[str, str], dict[str, int]]
 
 
 def _week_of_ts(ts: Any) -> str | None:
-    """Epoch seconds → ISO year-week ``YYYY-Www`` (or ``None`` on bad input)."""
+    """Epoch seconds OR ISO-8601 string → ISO year-week ``YYYY-Www`` (``None`` on bad input).
+
+    Accepts both the legacy epoch-int ts and the canonical ISO-8601 string (ADR-119
+    emit_event envelope) so a mixed old/new listen log buckets correctly.
+    """
+    dt: datetime | None = None
     try:
         dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
     except (ValueError, OverflowError, OSError, TypeError):
-        return None
+        try:
+            dt = datetime.fromisoformat(str(ts)).astimezone(timezone.utc)
+        except (ValueError, TypeError):
+            return None
     iso = dt.isocalendar()
     return f"{iso.year:04d}-W{iso.week:02d}"
 

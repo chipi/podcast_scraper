@@ -24,9 +24,17 @@ SERIES_DAYS = 14
 
 
 def _ts_to_date(ts: Any) -> date | None:
+    # Accept the legacy epoch-int ts AND the canonical ISO-8601 string (ADR-119
+    # emit_event envelope) — a listen log can hold both old and new events.
+    if ts is None:
+        return None
     try:
         return datetime.fromtimestamp(int(ts), timezone.utc).date()
     except (TypeError, ValueError, OSError, OverflowError):
+        pass
+    try:
+        return datetime.fromisoformat(str(ts)).astimezone(timezone.utc).date()
+    except (TypeError, ValueError):
         return None
 
 

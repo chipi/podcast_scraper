@@ -99,8 +99,12 @@ def test_listen_events_append_and_list(tmp_path: Path) -> None:
     st.append_listen_event(tmp_path, UID, "ep2", None, 1100)
     events = st.list_listen_events(tmp_path, UID)
     assert [e["slug"] for e in events] == ["ep1", "ep1", "ep2"]  # append order preserved
-    assert events[0] == {"slug": "ep1", "feed_id": "feedX", "ts": 1000}
-    assert events[2]["feed_id"] is None
+    # Canonical envelope (ADR-119): {ts (ISO-8601), schema, event_type, slug, feed_id?}.
+    assert events[0]["slug"] == "ep1" and events[0]["feed_id"] == "feedX"
+    assert events[0]["event_type"] == "listen" and events[0]["schema"] == 1
+    assert events[0]["ts"] == "1970-01-01T00:16:40+00:00"  # epoch 1000 -> canonical ISO
+    # feed_id=None is dropped from the lean envelope; the event is still recorded.
+    assert events[2]["slug"] == "ep2" and "feed_id" not in events[2]
 
 
 def test_listen_events_skip_corrupt_lines(tmp_path: Path) -> None:
