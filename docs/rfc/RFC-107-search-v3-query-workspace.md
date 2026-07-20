@@ -329,11 +329,11 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 
 ## Open questions
 
-- **OQ1** Same as PRD OQ1: default first-load tab. Behind a per-user USERPREFS-1 pref (`shell.defaultTab`).
+- **OQ1 — RESOLVED (2026-07-20)** Default first-load stays **Digest**. Per-user override via future USERPREFS-1 pref (`shell.defaultTab`) — separate follow-up, not this epic.
 - **OQ2 — RESOLVED** Saved queries live in USERPREFS-1 (ADR-119).
 - **OQ3** Enriched-answer streaming — follow-up.
 - **OQ4** Compare-2 UI shape — RFC-107 amendment when slice S8 designs land. Default: side-by-side.
-- **OQ5** Palette shortcut — this RFC picks `Cmd-K` / `Ctrl-K` / `/` (repointed) unless operator objects.
+- **OQ5 — RESOLVED (2026-07-20)** Palette shortcut is **`Cmd-K`** (macOS) / **`Ctrl-K`** (other); existing `/` shortcut repointed to open the palette.
 - **OQ6** Cluster server-side depth — how far to over-fetch when operator === 'cluster' (config; default `top_k * 3`).
 - **OQ7** Should `search.recentQueries` be Workspace-per-tab (fresh per open) OR user-cross-device (roams)? RFC-107 default: user-cross-device (USERPREFS-1). Palette empty-state can filter to "just this session" if operator asks.
 - **OQ8** Cmd-K palette live-query could optionally call `identity.resolver.EntityResolver.resolve(text)` (RFC-091 §Constraints — resolver shipped in Slice A of #849) to detect entity queries and surface an "Open Person/Topic panel →" row above the hit list. Additive; not required for v1.

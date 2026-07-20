@@ -195,11 +195,11 @@ Slices missing any of these get rejected at review, not deferred.
 
 ## Open questions
 
-- **OQ1** Should the Search tab be default first-load for operator-analysts (behind a per-user USERPREFS-1 pref)? Default remains Digest for now.
+- **OQ1 — RESOLVED (2026-07-20)** Default first-load stays **Digest**. Per-user override via a future USERPREFS-1 pref (`shell.defaultTab`) — separate follow-up, not this epic.
 - **OQ2 — RESOLVED** Saved queries live in USERPREFS-1 (ADR-119). Per-corpus JSON retracted.
 - **OQ3** Enriched-answer streaming (server-side chunked response) vs blocking-then-render — v1 blocking, streaming as follow-up.
 - **OQ4** Compare-2-subjects UI: side-by-side vs diff view; punted to RFC-107 §FR4.4.
-- **OQ5** Should the palette be `Cmd-K` (universal) or `Cmd-P` (VS Code-like) — bike-shed; RFC-107 §Keybindings picks `Cmd-K` and locks unless operator objects.
+- **OQ5 — RESOLVED (2026-07-20)** Palette shortcut is **`Cmd-K`** (macOS) / **`Ctrl-K`** (other); existing `/` shortcut repointed to open the palette.
 - **OQ6** Cluster server-side depth — how far to over-fetch when operator === 'cluster' (config; default `top_k * 3` in RFC-107).
 
 ## Related
