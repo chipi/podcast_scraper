@@ -1,0 +1,226 @@
+{
+  "schema_version": "1",
+  "generated_at": "2026-07-20",
+  "generated_by": "hand-authored (Search v3 S0 baseline, 2026-07-20)",
+  "target_corpus": "tests/fixtures/viewer-validation-corpus/v3/",
+  "notes": [
+    "≥25 queries covering all 5 RFC-092 intent classes (5 per class).",
+    "expected_top_k_doc_ids is NULL on every query at S0 ship: nobody has hand-audited the fixture's index yet. RFC-107 §T2 asks for a labelled baseline; label_status: 'unlabeled-seed' is the honest state until a human audits.",
+    "Two ways to populate expected_top_k_doc_ids: (a) run the harness and adopt the top-K as a REGRESSION ANCHOR (drift detection, not correctness); (b) hand-audit against the fixture's insights + topics + people (correctness detection). Both are useful. See search-queries.README.md for the lifecycle.",
+    "intent_expected is my honest classification per RFC-092 taxonomy; the router's actual classification may differ — that's what the intent-router-accuracy metric measures."
+  ],
+  "queries": [
+    {
+      "id": "el_001",
+      "q": "Liam Verbeek",
+      "intent_expected": "entity_lookup",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Fixture has Liam Verbeek as trail-builder guest on the Cascadia Alliance episode."
+    },
+    {
+      "id": "el_002",
+      "q": "Sophie Lorenz",
+      "intent_expected": "entity_lookup",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Fixture has Sophie Lorenz as enduro racer guest."
+    },
+    {
+      "id": "el_003",
+      "q": "Noah Bryer",
+      "intent_expected": "entity_lookup",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Fixture has Noah Bryer as drivetrain mechanic guest at Spoke & Wrench."
+    },
+    {
+      "id": "el_004",
+      "q": "Priya Nair",
+      "intent_expected": "entity_lookup",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Recurring host/co-host in the fixture."
+    },
+    {
+      "id": "el_005",
+      "q": "Cascadia Alliance",
+      "intent_expected": "entity_lookup",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Organization mentioned once (trail-building episode)."
+    },
+    {
+      "id": "re_001",
+      "q": "trail building",
+      "intent_expected": "raw_evidence",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Clear topic; fixture has episodes explicitly about this."
+    },
+    {
+      "id": "re_002",
+      "q": "enduro racing",
+      "intent_expected": "raw_evidence",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "re_003",
+      "q": "drivetrain mechanics",
+      "intent_expected": "raw_evidence",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "re_004",
+      "q": "outdoor gear",
+      "intent_expected": "raw_evidence",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Topic label 'gear' appears 12x; wider phrase to test whether the router picks raw_evidence over semantic."
+    },
+    {
+      "id": "re_005",
+      "q": "Spoke & Wrench",
+      "intent_expected": "raw_evidence",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Proper-noun business name; the '&' character stresses the tokenizer + BM25 path."
+    },
+    {
+      "id": "tt_001",
+      "q": "how did the trail-building segment change over the season",
+      "intent_expected": "temporal_tracking",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Explicit temporal phrasing ('over the season'); tests whether the router picks temporal_tracking without a date token."
+    },
+    {
+      "id": "tt_002",
+      "q": "how has the coverage of gear reviews evolved over the last few months",
+      "intent_expected": "temporal_tracking",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "tt_003",
+      "q": "when did Priya Nair first appear on the show",
+      "intent_expected": "temporal_tracking",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "tt_004",
+      "q": "topics discussed most in the last quarter",
+      "intent_expected": "temporal_tracking",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "tt_005",
+      "q": "guests featured most recently on the science and research shows",
+      "intent_expected": "temporal_tracking",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "cs_001",
+      "q": "compare views on trail building across different shows",
+      "intent_expected": "cross_show_synthesis",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "cs_002",
+      "q": "who has said what about outdoor gear across the whole corpus",
+      "intent_expected": "cross_show_synthesis",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "cs_003",
+      "q": "how do the science shows treat drivetrain mechanics differently from the outdoors shows",
+      "intent_expected": "cross_show_synthesis",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "cs_004",
+      "q": "synthesize the coverage of technology across every show",
+      "intent_expected": "cross_show_synthesis",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "cs_005",
+      "q": "what do the business and markets episodes and the science episodes agree on",
+      "intent_expected": "cross_show_synthesis",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "sm_001",
+      "q": "welcome back to the show",
+      "intent_expected": "semantic",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Genre phrase; tests semantic retrieval on templated opener text."
+    },
+    {
+      "id": "sm_002",
+      "q": "what is this episode about",
+      "intent_expected": "semantic",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "sm_003",
+      "q": "conversations that touch on both technology and the outdoors",
+      "intent_expected": "semantic",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed"
+    },
+    {
+      "id": "sm_004",
+      "q": "practical maintenance advice",
+      "intent_expected": "semantic",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Should pull from the drivetrain-mechanics episode + adjacent gear-review episodes."
+    },
+    {
+      "id": "sm_005",
+      "q": "excitement about a hands-on craft",
+      "intent_expected": "semantic",
+      "expected_top_k_doc_ids": null,
+      "min_ndcg_at_10": null,
+      "label_status": "unlabeled-seed",
+      "hint": "Fixture has insights like 'Excited for this one — trail building is something I've been thinking about a lot' — semantic hits should surface these."
+    }
+  ]
+}
