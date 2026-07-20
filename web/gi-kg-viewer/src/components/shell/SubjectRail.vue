@@ -10,7 +10,7 @@ import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
 
 const props = defineProps<{
-  mainTab: 'digest' | 'library' | 'graph' | 'dashboard' | 'ops' | 'admin'
+  mainTab: 'digest' | 'library' | 'search' | 'graph' | 'dashboard' | 'ops' | 'admin'
 }>()
 
 const subject = useSubjectStore()

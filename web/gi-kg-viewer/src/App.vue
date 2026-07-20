@@ -17,6 +17,7 @@ import { useGraphReplayStore, type ReplayEvent } from './stores/graphReplay'
 import { fetchGraphSession } from './api/authApi'
 import LoginView from './components/auth/LoginView.vue'
 import NoAccessView from './components/auth/NoAccessView.vue'
+import CommandPalette from './components/shell/CommandPalette.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
 import StatusBar from './components/shell/StatusBar.vue'
 import SubjectRail from './components/shell/SubjectRail.vue'
@@ -98,6 +99,7 @@ const mainTab = ref<'digest' | 'library' | 'search' | 'graph' | 'dashboard' | 'o
   'digest',
 )
 const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
+const commandPaletteRef = ref<{ open: () => void; close: () => void } | null>(null)
 const graphCanvasRef = ref<{
   clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
 } | null>(null)
@@ -159,6 +161,9 @@ watch(
 )
 
 useViewerKeyboard({
+  openCommandPalette: () => {
+    commandPaletteRef.value?.open()
+  },
   focusSearch: () => {
     leftOpen.value = true
     void nextTick(() => {
@@ -191,6 +196,26 @@ useViewerKeyboard({
  * their own source for accurate FSM telemetry; the existing ``subject.* + requestFocusNode``
  * triplet is preserved while C6 makes the FSM authoritative.
  */
+/**
+ * Command palette → "Open in Workspace" — switch to the Search main tab and
+ * fire the same runSearch that SearchPanel's submit uses (palette pre-sets
+ * ``search.query`` before emitting).
+ */
+async function onPaletteOpenInWorkspace(_q: string): Promise<void> {
+  mainTab.value = 'search'
+  const root = shell.corpusPath?.trim()
+  if (!root) return
+  await search.runSearch(root)
+}
+
+/**
+ * Command palette → "Show on graph" — same handoff shape as SearchPanel's
+ * "Open on graph" (activateGraphTab with the pre-resolved cy id).
+ */
+function onPaletteShowOnGraph(cyId: string): void {
+  void activateGraphTab(cyId, undefined, 'search')
+}
+
 async function activateGraphTab(
   targetNodeId?: string,
   focusFallbackId?: string,
@@ -851,7 +876,7 @@ watch(
             title="Open the Search compact launcher"
             @click="
               leftOpen = true;
-              void nextTick(() => leftPanelRef.value?.focusQuery())
+              void nextTick(() => leftPanelRef?.focusQuery())
             "
           >
             Search / Explore
@@ -987,6 +1012,11 @@ watch(
       <StatusBar
         @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded"
         @go-graph="activateGraphTab(undefined, undefined, 'status-bar')"
+      />
+      <CommandPalette
+        ref="commandPaletteRef"
+        @open-in-workspace="onPaletteOpenInWorkspace"
+        @show-on-graph="onPaletteShowOnGraph"
       />
     </div>
   </div>

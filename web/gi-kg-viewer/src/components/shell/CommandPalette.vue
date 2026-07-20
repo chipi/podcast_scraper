@@ -1,0 +1,334 @@
+<script setup lang="ts">
+/**
+ * Command palette — Search v3 §S3 (RFC-107 §4). Shell-wide overlay
+ * summonable from any tab via Cmd-K / Ctrl-K / `/`. Live-queries
+ * ``/api/search`` and offers 3 actions per hit:
+ *
+ *   * Open in Workspace — switches main tab to 'search' and runs the query
+ *     via the shared useSearchStore.
+ *   * Pin to rail — routes the hit to the appropriate subject.focus* helper
+ *     via useSearchFocus utilities (episode / person / topic).
+ *   * Show on graph — reuses the same graph-focus path Search results use
+ *     today (graph node id from the hit's source_id).
+ *
+ * Empty state (query cleared): shows Recent (USERPREFS-1
+ * ``search.recentQueries``) and Saved (USERPREFS-1 ``search.savedQueries`` —
+ * populated in slice S7 #1237).
+ *
+ * Not in this slice: the ``palette=1`` server-side hint on /api/search
+ * (would cap response cost) — S4/S5 can add it if palette latency is a
+ * concern. The current shipped endpoint returns the same shape.
+ */
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { searchCorpus, type SearchHit } from '../../api/searchApi'
+import { useShellStore } from '../../stores/shell'
+import { useSearchStore } from '../../stores/search'
+import { useSubjectStore } from '../../stores/subject'
+import { useUserPreferencesStore } from '../../stores/userPreferences'
+import {
+  episodeFallbackForSearchHit,
+  graphNodeIdFromSearchHit,
+} from '../../utils/searchFocus'
+
+interface RecentEntry {
+  q: string
+  ts?: number
+}
+
+const emit = defineEmits<{
+  'open-in-workspace': [q: string]
+  'show-on-graph': [cyId: string]
+}>()
+
+const shell = useShellStore()
+const search = useSearchStore()
+const subject = useSubjectStore()
+const userPrefs = useUserPreferencesStore()
+
+const open = ref(false)
+const query = ref('')
+const results = ref<SearchHit[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const inputRef = ref<HTMLInputElement | null>(null)
+const previousFocus = ref<HTMLElement | null>(null)
+
+const recentQueries = computed<RecentEntry[]>(() => {
+  const raw = userPrefs.get<RecentEntry[]>('search.recentQueries')
+  return Array.isArray(raw) ? raw.slice(0, 8) : []
+})
+
+const showEmptyState = computed(() => open.value && !query.value.trim() && !loading.value)
+
+// Debounce timer for live search.
+let debounceHandle: ReturnType<typeof setTimeout> | null = null
+const DEBOUNCE_MS = 200
+
+function schedule(): void {
+  if (debounceHandle !== null) clearTimeout(debounceHandle)
+  const q = query.value.trim()
+  if (!q) {
+    results.value = []
+    error.value = null
+    return
+  }
+  const root = shell.corpusPath.trim()
+  if (!root) {
+    error.value = 'Set a corpus path first (status bar).'
+    results.value = []
+    return
+  }
+  loading.value = true
+  debounceHandle = setTimeout(async () => {
+    try {
+      const body = await searchCorpus(q, { path: root, topK: 8 })
+      if (body.error) {
+        error.value = body.error
+        results.value = []
+      } else {
+        error.value = null
+        results.value = body.results
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      results.value = []
+    } finally {
+      loading.value = false
+    }
+  }, DEBOUNCE_MS)
+}
+
+watch(query, () => schedule())
+
+function openPalette(): void {
+  if (open.value) return
+  previousFocus.value = (document.activeElement as HTMLElement | null) ?? null
+  open.value = true
+  void nextTick(() => inputRef.value?.focus())
+}
+
+function closePalette(): void {
+  if (!open.value) return
+  open.value = false
+  query.value = ''
+  results.value = []
+  error.value = null
+  if (debounceHandle !== null) {
+    clearTimeout(debounceHandle)
+    debounceHandle = null
+  }
+  // Restore focus to the element that opened the palette (a11y).
+  const prev = previousFocus.value
+  if (prev && typeof prev.focus === 'function') {
+    void nextTick(() => prev.focus())
+  }
+}
+
+function onBackdropClick(ev: MouseEvent): void {
+  // Only close when clicking the backdrop itself, not children.
+  if (ev.target === ev.currentTarget) closePalette()
+}
+
+function onKeydown(ev: KeyboardEvent): void {
+  if (ev.key === 'Escape') {
+    ev.preventDefault()
+    closePalette()
+  }
+}
+
+function openInWorkspace(q: string): void {
+  const term = q.trim()
+  if (!term) return
+  search.query = term
+  emit('open-in-workspace', term)
+  closePalette()
+  // The parent switches main tab; runSearch is triggered there once the
+  // shell path is confirmed.
+}
+
+function pinToRail(hit: SearchHit): void {
+  // Route hit to the appropriate subject.focus* helper.
+  const md = hit.metadata ?? {}
+  const docType = md.doc_type as string | undefined
+  if (docType === 'kg_topic' && typeof md.source_id === 'string') {
+    subject.focusTopic(md.source_id)
+  } else if (docType === 'kg_entity' && typeof md.source_id === 'string') {
+    // Person / entity — focusPerson accepts the person: id.
+    subject.focusPerson(md.source_id)
+  } else {
+    // Fall back to episode focus via metadata_relative_path.
+    const rel = episodeFallbackForSearchHit(hit)
+    if (rel) subject.focusEpisode(rel)
+  }
+  closePalette()
+}
+
+function showOnGraph(hit: SearchHit): void {
+  const cy = graphNodeIdFromSearchHit(hit)
+  if (!cy) return
+  emit('show-on-graph', cy)
+  closePalette()
+}
+
+function useRecent(q: string): void {
+  query.value = q
+  void nextTick(() => inputRef.value?.focus())
+}
+
+defineExpose({ open: openPalette, close: closePalette })
+
+// Cleanup on unmount so a lingering timeout doesn't leak into a subsequent
+// mount (e.g. during hot-reload).
+onBeforeUnmount(() => {
+  if (debounceHandle !== null) {
+    clearTimeout(debounceHandle)
+    debounceHandle = null
+  }
+})
+</script>
+
+<template>
+  <Teleport to="body">
+    <div
+      v-if="open"
+      class="fixed inset-0 z-[60] flex items-start justify-center bg-canvas/70 pt-24 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
+      data-testid="command-palette"
+      @click="onBackdropClick"
+      @keydown="onKeydown"
+    >
+      <div
+        class="w-full max-w-xl overflow-hidden rounded-lg border border-border bg-elevated shadow-lg"
+      >
+        <input
+          ref="inputRef"
+          v-model="query"
+          type="text"
+          placeholder="Search anywhere — Cmd-K, /, or click"
+          class="w-full border-b border-border bg-transparent px-4 py-3 text-sm text-elevated-foreground outline-none placeholder:text-muted"
+          data-testid="command-palette-input"
+          aria-label="Search query"
+        />
+
+        <div class="max-h-[24rem] overflow-y-auto p-2">
+          <!-- Empty state — Recent + Saved -->
+          <div v-if="showEmptyState" class="space-y-3 p-2">
+            <section aria-labelledby="palette-recent-heading">
+              <h3
+                id="palette-recent-heading"
+                class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted"
+              >
+                Recent
+              </h3>
+              <ul
+                v-if="recentQueries.length"
+                data-testid="command-palette-recent-list"
+                class="flex flex-col gap-0.5"
+              >
+                <li v-for="(r, i) in recentQueries" :key="`${r.q}-${r.ts ?? i}`">
+                  <button
+                    type="button"
+                    class="w-full truncate rounded px-2 py-1 text-left text-xs text-elevated-foreground hover:bg-overlay"
+                    :title="r.q"
+                    @click="useRecent(r.q)"
+                  >
+                    {{ r.q }}
+                  </button>
+                </li>
+              </ul>
+              <p
+                v-else
+                class="text-xs text-muted"
+                data-testid="command-palette-recent-empty"
+              >
+                No recent queries yet.
+              </p>
+            </section>
+
+            <section aria-labelledby="palette-saved-heading">
+              <h3
+                id="palette-saved-heading"
+                class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted"
+              >
+                Saved
+              </h3>
+              <p
+                class="text-xs text-muted"
+                data-testid="command-palette-saved-empty"
+              >
+                Saved queries land in slice S7 (USERPREFS-1 ``search.savedQueries``).
+              </p>
+            </section>
+          </div>
+
+          <!-- Loading / error / results -->
+          <p
+            v-if="loading"
+            class="p-2 text-xs text-muted"
+            data-testid="command-palette-loading"
+          >
+            Searching…
+          </p>
+          <p
+            v-else-if="error"
+            class="p-2 text-xs text-danger"
+            data-testid="command-palette-error"
+          >
+            {{ error }}
+          </p>
+          <ul
+            v-else-if="results.length"
+            class="flex flex-col gap-1"
+            data-testid="command-palette-results"
+          >
+            <li
+              v-for="hit in results"
+              :key="hit.doc_id"
+              class="rounded border border-border/60 p-2"
+            >
+              <p class="mb-1 line-clamp-2 text-xs text-elevated-foreground">
+                {{ hit.text }}
+              </p>
+              <div class="flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] text-primary hover:bg-overlay"
+                  data-testid="command-palette-action-open-workspace"
+                  @click="openInWorkspace(query)"
+                >
+                  Open in Workspace
+                </button>
+                <button
+                  type="button"
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] text-primary hover:bg-overlay"
+                  data-testid="command-palette-action-pin-rail"
+                  @click="pinToRail(hit)"
+                >
+                  Pin to rail
+                </button>
+                <button
+                  type="button"
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] text-primary hover:bg-overlay disabled:opacity-40"
+                  :disabled="!graphNodeIdFromSearchHit(hit)"
+                  data-testid="command-palette-action-show-graph"
+                  @click="showOnGraph(hit)"
+                >
+                  Show on graph
+                </button>
+              </div>
+            </li>
+          </ul>
+          <p
+            v-else-if="query.trim() && !loading"
+            class="p-2 text-xs text-muted"
+            data-testid="command-palette-no-results"
+          >
+            No results for “{{ query }}”.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>
