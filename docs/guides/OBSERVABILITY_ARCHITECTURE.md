@@ -125,11 +125,14 @@ traces, and errors. It's the "which unit" axis (signal type above is the "which 
 `moss` and `pyannote` are **podcast components** — they only *run* on the DGX for
 GPU. They belong to the `podcast` project, not a DGX one.
 
-**Generic (non-podcast) DGX infra** → its own project `dgx` (future, when
+**Generic (non-podcast) DGX infra** → its own project `dgx` (senders wire in when
 error-instrumented): `vllm-autoresearch` and other non-podcast DGX services.
 
 **orrery** → no GlitchTip (client-side static site; the browser can't reach the
 tailnet-only backend — see the orrery handover).
+
+**GlitchTip project map:** `podcast` = id 1 · `orrery` = id 2 (unused — no orrery
+GlitchTip) · `dgx` = id 3. The DSN **keys** are secrets — secret store, never git.
 
 Client-side surfaces (`player`, `operator`, orrery) are browsers, so they can't
 reach the tailnet-only GlitchTip; their errors aren't captured there, while their
