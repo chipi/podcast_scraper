@@ -128,7 +128,10 @@ describe('ResultCard', () => {
     expect(w.find('button[aria-label="Show on graph"]').exists()).toBe(false)
   })
 
-  it('renders L + S buttons and emits open-library / open-episode-summary when library opens are enabled', async () => {
+  it('exposes the row as click-to-open (role=button, tabindex=0) and emits open-library on row click', async () => {
+    // §S4-shell followup: the L and S standalone buttons are retired; the
+    // whole ``<article>`` body is the affordance now. Clicking anywhere
+    // outside the inner action buttons opens the Episode subject panel.
     const w = mountCard({
       hit: hitOf({
         metadata: {
@@ -138,24 +141,51 @@ describe('ResultCard', () => {
       }),
       libraryOpensEnabled: true,
     })
-    const l = w.get('button[aria-label="Open episode in subject panel"]')
-    await l.trigger('click')
+    // The standalone L and S buttons are gone.
+    expect(w.find('button[aria-label="Open episode in subject panel"]').exists()).toBe(false)
+    expect(w.find('button[aria-label="Episode summary in right panel"]').exists()).toBe(false)
+    // The article itself is the affordance.
+    const article = w.get('article')
+    expect(article.attributes('role')).toBe('button')
+    expect(article.attributes('tabindex')).toBe('0')
+    expect(article.attributes('aria-label')).toBe('Open episode in subject panel')
+    await article.trigger('click')
     expect(w.emitted('open-library')).toHaveLength(1)
-
-    const s = w.get('button[aria-label="Episode summary in right panel"]')
-    await s.trigger('click')
-    expect(w.emitted('open-episode-summary')).toHaveLength(1)
+    // Retired: no separate open-episode-summary emit.
+    expect(w.emitted('open-episode-summary')).toBeUndefined()
   })
 
-  it('hides L / S when libraryOpensEnabled is false even with a metadata path', () => {
+  it('keyboard: Enter / Space on the article activates open-library', async () => {
+    const w = mountCard({
+      hit: hitOf({
+        metadata: {
+          doc_type: 'segment',
+          source_metadata_relative_path: 'feed/ep.metadata.json',
+        },
+      }),
+      libraryOpensEnabled: true,
+    })
+    const article = w.get('article')
+    await article.trigger('keydown', { key: 'Enter' })
+    expect(w.emitted('open-library')).toHaveLength(1)
+    await article.trigger('keydown', { key: ' ' })
+    expect(w.emitted('open-library')).toHaveLength(2)
+    // Other keys do NOT fire.
+    await article.trigger('keydown', { key: 'Escape' })
+    expect(w.emitted('open-library')).toHaveLength(2)
+  })
+
+  it('row is NOT click-to-open (no role/tabindex) when libraryOpensEnabled is false', () => {
     const w = mountCard({
       hit: hitOf({
         metadata: { source_metadata_relative_path: 'feed/ep.metadata.json' },
       }),
       libraryOpensEnabled: false,
     })
-    expect(w.find('button[aria-label="Open episode in subject panel"]').exists()).toBe(false)
-    expect(w.find('button[aria-label="Episode summary in right panel"]').exists()).toBe(false)
+    const article = w.get('article')
+    expect(article.attributes('role')).toBeUndefined()
+    expect(article.attributes('tabindex')).toBeUndefined()
+    expect(article.attributes('aria-label')).toBeUndefined()
   })
 
   it('renders the E (episode id) chip when an episode_id is present, but suppresses it for a merged KG surface', () => {

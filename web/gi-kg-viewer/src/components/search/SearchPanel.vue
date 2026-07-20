@@ -17,7 +17,6 @@ import HelpTip from '../shared/HelpTip.vue'
 const emit = defineEmits<{
   'go-graph': []
   'open-library-episode': [payload: { metadata_relative_path: string }]
-  'open-episode-summary': [hit: SearchHit]
 }>()
 
 const shell = useShellStore()
@@ -189,10 +188,6 @@ function onOpenLibraryHit(hit: SearchHit): void {
   const rel = sourceMetadataRelativePathFromSearchHit(hit)
   if (!rel) return
   emit('open-library-episode', { metadata_relative_path: rel })
-}
-
-function onOpenEpisodeSummaryHit(hit: SearchHit): void {
-  emit('open-episode-summary', hit)
 }
 
 async function onSubmit(): Promise<void> {
@@ -540,7 +535,6 @@ const advancedFeedCombinedTitle = computed(() =>
           :library-opens-enabled="libraryOpensEnabled"
           @focus="(hit: SearchHit) => void onFocusHit(hit)"
           @open-library="onOpenLibraryHit"
-          @open-episode-summary="onOpenEpisodeSummaryHit"
         />
       </div>
     </div>

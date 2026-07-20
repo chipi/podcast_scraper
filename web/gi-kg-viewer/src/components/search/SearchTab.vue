@@ -9,13 +9,11 @@
  * SearchPanel is the query-surface source of truth; this component is
  * intentionally a thin wrapper — slices S4/S5 attach their surfaces to it.
  */
-import type { SearchHit } from '../../api/searchApi'
 import SearchPanel from './SearchPanel.vue'
 
 const emit = defineEmits<{
   'go-graph': []
   'open-library-episode': [payload: { metadata_relative_path: string }]
-  'open-episode-summary': [hit: SearchHit]
 }>()
 </script>
 
@@ -29,7 +27,6 @@ const emit = defineEmits<{
       class="min-h-0 min-w-0 flex-1"
       @go-graph="emit('go-graph')"
       @open-library-episode="emit('open-library-episode', $event)"
-      @open-episode-summary="emit('open-episode-summary', $event)"
     />
   </section>
 </template>

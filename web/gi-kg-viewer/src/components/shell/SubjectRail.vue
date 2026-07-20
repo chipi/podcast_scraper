@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { SearchHit } from '../../api/searchApi'
 import EpisodeDetailPanel from '../episode/EpisodeDetailPanel.vue'
 import ShowRailPanel from '../episode/ShowRailPanel.vue'
 import GraphConnectionsSection from '../graph/GraphConnectionsSection.vue'
@@ -33,7 +32,6 @@ const emit = defineEmits<{
   openSearchSpeakerFilter: [{ speaker: string }]
   openSearchInsightFilters: [{ groundedOnly: boolean; minConfidence: number | null }]
   openLibraryEpisode: [{ metadata_relative_path: string }]
-  openEpisodeSummary: [SearchHit]
   switchMainTab: ['digest' | 'library' | 'graph' | 'dashboard']
 }>()
 

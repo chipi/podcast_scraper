@@ -6,20 +6,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
 
 import SearchTab from './SearchTab.vue'
-import type { SearchHit } from '../../api/searchApi'
 
 /**
- * SearchTab is the Search v3 §S2 Workspace shell. It composes an inner
- * SearchPanel (the query surface source of truth) with the sidebar shell
- * that S4 (operator bar), S5 (enriched-answer hero), and S7 (saved queries)
- * grow into. This spec asserts the structural contract of the shell + the
- * event plumbing to the outer host (App.vue) — it does NOT reach into
- * SearchPanel's internals; those have their own tests.
+ * SearchTab is the Search v3 §S2 Workspace shell (§S4-shell pivot: single
+ * column, no inner sidebar). Composes an inner SearchPanel (the query
+ * surface source of truth) that slices S4 (operator bar), S5 (enriched
+ * hero) grow into. Retired: the ``open-episode-summary`` emit — after the
+ * L/S buttons were removed, the row-click alone opens the Episode subject
+ * panel via ``open-library-episode``.
  */
 const STUBS = {
   SearchPanel: {
     name: 'SearchPanel',
-    emits: ['go-graph', 'open-library-episode', 'open-episode-summary'],
+    emits: ['go-graph', 'open-library-episode'],
     template: '<div data-stub="search-panel"></div>',
   },
 }
@@ -64,11 +63,10 @@ describe('SearchTab (Query Workspace shell)', () => {
     expect(w.emitted('open-library-episode')![0]).toEqual([payload])
   })
 
-  it('forwards SearchPanel open-episode-summary with its SearchHit payload', async () => {
+  it('does NOT expose an open-episode-summary emit (retired with L/S buttons)', () => {
     const w = mountTab()
-    const hit = { doc_id: 'hit-1' } as unknown as SearchHit
-    w.findComponent({ name: 'SearchPanel' }).vm.$emit('open-episode-summary', hit)
-    await w.vm.$nextTick()
-    expect(w.emitted('open-episode-summary')![0]).toEqual([hit])
+    // Retired by the L/S-button removal followup — row-click on ResultCard
+    // now maps to open-library-episode; there is no separate summary emit.
+    expect(w.emitted('open-episode-summary')).toBeUndefined()
   })
 })

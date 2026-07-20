@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, watch } from 'vue'
 import posthog from 'posthog-js'
-import type { SearchHit } from './api/searchApi'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
 import DigestView from './components/digest/DigestView.vue'
@@ -40,7 +39,6 @@ import {
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
 import { localYmdDaysAgo } from './utils/localCalendarDate'
-import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
 
@@ -594,18 +592,14 @@ function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }):
   subject.focusEpisode(payload.metadata_relative_path)
 }
 
-/** Search hit **L**: open episode in the subject rail (main tab unchanged). */
+/**
+ * Search hit row-click (Search v3 §S4-shell followup): open the episode in
+ * the subject rail (right panel). Retired: the standalone **L** button —
+ * the whole row body is the affordance now.
+ */
 function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
   posthog.capture('episode_focused', { source: 'search' })
   subject.focusEpisode(payload.metadata_relative_path)
-}
-
-function onSearchOpenEpisodeSummary(hit: SearchHit): void {
-  const rel = sourceMetadataRelativePathFromSearchHit(hit)
-  if (rel) {
-    posthog.capture('episode_focused', { source: 'search_summary' })
-    subject.focusEpisode(rel)
-  }
 }
 
 watch(
@@ -913,7 +907,6 @@ watch(
               class="h-full"
               @go-graph="activateGraphTab(undefined, undefined, 'search')"
               @open-library-episode="onSearchOpenLibraryEpisode"
-              @open-episode-summary="onSearchOpenEpisodeSummary"
             />
           </keep-alive>
           <div
@@ -995,7 +988,6 @@ watch(
             @open-search-speaker-filter="onGraphNodeSpeakerOpenSearchFilter"
             @open-search-insight-filters="onGraphNodeInsightOpenSearchFilters"
             @open-library-episode="onSearchOpenLibraryEpisode"
-            @open-episode-summary="onSearchOpenEpisodeSummary"
             @switch-main-tab="onSwitchMainTab($event)"
           />
         </div>

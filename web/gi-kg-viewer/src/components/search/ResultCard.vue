@@ -8,7 +8,6 @@ import { truncate } from '../../utils/formatting'
 import {
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
   SEARCH_RESULT_GRAPH_BUTTON_CLASS,
-  SEARCH_RESULT_LIBRARY_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
 import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { quoteAttributionDisplayFromId } from '../../utils/parsing'
@@ -30,8 +29,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   focus: [SearchHit]
+  /**
+   * Row-body click (Search v3 §S4-shell followup) — opens the Episode
+   * subject panel in the right rail. Fires when the user clicks anywhere
+   * on the card body OUTSIDE the inner action buttons / links (those all
+   * call ``.stopPropagation()``). Retired: the standalone **L** button.
+   */
   'open-library': [SearchHit]
-  'open-episode-summary': [SearchHit]
 }>()
 
 const subject = useSubjectStore()
@@ -178,14 +182,12 @@ const kgMultiEpDedupe = computed(() => isKgSurfaceMultiEpisodeDedupe(props.hit))
 
 const libraryMetaPath = computed(() => sourceMetadataRelativePathFromSearchHit(props.hit))
 
-const openLibrary = computed(
-  () =>
-    props.libraryOpensEnabled &&
-    libraryMetaPath.value != null &&
-    !kgMultiEpDedupe.value,
-)
-
-const openEpisodeSummary = computed(
+/**
+ * Row is click-to-open (right-rail Episode panel) when the hit resolves to
+ * a metadata path. Retired: standalone **L** and **S** buttons — the whole
+ * row body is the affordance now (Search v3 §S4-shell followup).
+ */
+const rowClickable = computed(
   () =>
     props.libraryOpensEnabled &&
     libraryMetaPath.value != null &&
@@ -196,9 +198,7 @@ const showEpisodeChip = computed(
   () => Boolean(episodeId.value) && !kgMultiEpDedupe.value,
 )
 
-const hasActions = computed(
-  () => focusable.value || openLibrary.value || openEpisodeSummary.value,
-)
+const hasActions = computed(() => focusable.value)
 
 const showRightChips = computed(() => hasActions.value || showEpisodeChip.value)
 
@@ -298,26 +298,38 @@ function onGraphClick(ev: MouseEvent): void {
   emit('focus', props.hit)
 }
 
-function onLibraryClick(ev: MouseEvent): void {
+function onEpisodeIdChipClick(ev: MouseEvent): void {
   ev.stopPropagation()
-  if (!openLibrary.value) return
+}
+
+/**
+ * Row-body click / keyboard activation. Inner buttons stop propagation, so
+ * this only fires for background clicks (title bar chrome, body text, or
+ * blank space). Keyboard: Enter / Space when the article is focused.
+ */
+function onRowClick(): void {
+  if (!rowClickable.value) return
   emit('open-library', props.hit)
 }
 
-function onEpisodeSummaryClick(ev: MouseEvent): void {
-  ev.stopPropagation()
-  if (!openEpisodeSummary.value) return
-  emit('open-episode-summary', props.hit)
-}
-
-function onEpisodeIdChipClick(ev: MouseEvent): void {
-  ev.stopPropagation()
+function onRowKeydown(ev: KeyboardEvent): void {
+  if (!rowClickable.value) return
+  if (ev.key !== 'Enter' && ev.key !== ' ') return
+  if (ev.defaultPrevented) return
+  ev.preventDefault()
+  emit('open-library', props.hit)
 }
 </script>
 
 <template>
   <article
     class="rounded border border-border bg-elevated p-2 text-xs text-elevated-foreground"
+    :class="rowClickable && 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-overlay focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'"
+    :role="rowClickable ? 'button' : undefined"
+    :tabindex="rowClickable ? 0 : undefined"
+    :aria-label="rowClickable ? 'Open episode in subject panel' : undefined"
+    @click="onRowClick"
+    @keydown="onRowKeydown"
   >
     <div class="mb-1 flex min-w-0 flex-wrap items-center gap-2">
       <span class="font-mono text-[10px] text-primary">{{ docType }}</span>
@@ -351,26 +363,6 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
           @click="onGraphClick"
         >
           G
-        </button>
-        <button
-          v-if="openLibrary"
-          type="button"
-          :class="SEARCH_RESULT_LIBRARY_BUTTON_CLASS"
-          aria-label="Open episode in subject panel"
-          title="Open episode in subject panel"
-          @click="onLibraryClick"
-        >
-          L
-        </button>
-        <button
-          v-if="openEpisodeSummary"
-          type="button"
-          class="flex size-6 shrink-0 items-center justify-center rounded-sm border border-border bg-canvas text-[10px] font-semibold leading-none text-surface-foreground hover:bg-overlay"
-          aria-label="Episode summary in right panel"
-          title="Episode summary (right panel)"
-          @click="onEpisodeSummaryClick"
-        >
-          S
         </button>
         <button
           v-if="showEpisodeChip"
