@@ -332,20 +332,30 @@ def perturb_no_feed_hosts(fixture: Dict[str, Any]) -> Dict[str, Any]:
     return f
 
 
-# PENDING: +merged_cluster — append a host sentence ("Welcome back to Hard Fork, I'm Kevin
-# Roose.") to the guest's own voice_texts, simulating a diarization cluster merge. The real
-# roster reclassifies GUEST_1's ROLE to "host" (it does not misname it — "Kevin Roose" is
-# already claimed by HOST_A, so GUEST_1 stays unnamed — but its role flips from guest to host).
-# `_name_host_voices`'s step 1 (self-intro matches a known host name) has NO CAP check, unlike
-# steps 2 and 4, so a merged cluster can add an uncapped third "host" even though known_hosts
-# names only two. This is the exact "Hard Fork briefly produced a THIRD host" bug
-# CORPUS-V4-FIXTURE-LADDER.md §G case #10 names ("uncapped conversation-derived roles") —
-# reproduced here at the self-intro step rather than the conversation-performed-role step.
-# Reported for triage.
+# +merged_cluster — append a host sentence ("Welcome back to Hard Fork, I'm Kevin Roose.") to the
+# guest's own voice_texts, simulating a diarization cluster merge that folds a host's self-intro
+# into the guest's cluster. Before #1226 this flipped GUEST_1 to role="host" — a phantom third
+# host on a two-host show (CORPUS-V4-FIXTURE-LADDER.md §G case #10, "uncapped conversation-derived
+# roles"): resolve_speaker_roster step 1 named any self-intro-matches-a-stated-host voice with no
+# dedup, so the merged cluster claimed "Kevin Roose" a second time. Fixed by the #1226 dedup guard
+# (a stated host name identifies one person, claimable once). Now GREEN: the role no longer flips.
+# The guest is left UNNAMED here (its merged text now says "I'm Kevin Roose", so the roster
+# conservatively declines to name it — #876, a wrong name is worse than no name); we assert the
+# ROLE is fixed and no third host was minted, not full-recall naming of a corrupted cluster.
 def perturb_merged_cluster(fixture: Dict[str, Any]) -> Dict[str, Any]:
     f = copy.deepcopy(fixture)
     f["voice_texts"]["GUEST_1"] += " Welcome back to Hard Fork, I'm Kevin Roose."
     return f
+
+
+def assert_merged_cluster(roster: SpeakerRoster) -> None:
+    # The bug was a phantom THIRD host — assert exactly the two stated hosts, and that the guest's
+    # cluster did not become one however host-like its (merged) text reads.
+    assert roster.by_voice["GUEST_1"].role == "guest", "merged cluster reopened the third-host bug"
+    host_voices = [v for v, r in roster.by_voice.items() if r.role == "host"]
+    assert set(host_voices) == {"HOST_A", "HOST_B"}, f"expected exactly 2 hosts, got {host_voices}"
+    assert roster.by_voice["HOST_A"].name == "Kevin Roose"
+    assert roster.by_voice["HOST_B"].name == "Casey Newton"
 
 
 # PENDING: +crosspost — swap in another show's host (known_hosts=["Ezra Klein"]), simulating
@@ -373,6 +383,7 @@ _GREEN_PERTURBATIONS: List[Tuple[str, Callable, Callable]] = [
     ("+loud_guest", perturb_loud_guest, assert_loud_guest),
     ("+solo", perturb_solo, assert_solo),
     ("+guest_soup", perturb_guest_soup, assert_guest_soup),
+    ("+merged_cluster", perturb_merged_cluster, assert_merged_cluster),
 ]
 
 
