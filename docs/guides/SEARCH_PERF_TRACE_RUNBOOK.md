@@ -20,7 +20,9 @@ operators only need to learn one recipe.
 
 - Unit / integration perf — those use pytest timers.
 - Frontend rendering perf — that's `capture-search-perf.{sh,mjs}`, which
-  lands with slice S2 (see [Deferred](#deferred-ui-side-capture) below).
+  UI-side capturer ships partially in the stabilization pass (§2.2 below);
+  the workspace / palette / operator scenarios stay NOT_APPLICABLE_YET until
+  their slices land.
 - Non-Search v3 API perf — has no baselining rig; add one if it becomes
   a recurring need.
 
@@ -63,20 +65,35 @@ Emits one aggregated `<label>.api.metrics.json` under `--output-dir`
 (default `docs/wip/search-v3/traces/`) with p50/p95/p99/max/mean per
 scenario + a `sigsegv_free` flag on the concurrent scenario.
 
-### 2.2 `scripts/dev/capture-search-perf.{sh,mjs}` (deferred to slice S2)
+### 2.2 `scripts/dev/capture-search-perf.{sh,mjs}` (partial — ships in stabilization pass, extends with S2)
 
-The UI-side CDP capturer. Follows the graph-v3 pattern exactly (isolated
-api + viewer subprocesses, Playwright + CDP trace, median-of-3), but is
-not authored here because the target UX — the Query Workspace, Cmd-K
-palette, operator bar — doesn't exist yet. Building it now would either:
+The UI-side CDP capturer, split into a shell orchestrator + a Playwright/CDP
+mjs body, mirroring `capture-graph-lcp.{sh,mjs}`.
 
-1. Trace the current LeftPanel Search — real but not what we care about
-   (S1/S2 make it obsolete anyway).
-2. Print NOT_APPLICABLE_YET stubs — worse than nothing.
+Ships **today** (Search v3 §S1 stabilization, 2026-07-20) — captures the 3 of
+6 RFC-107 §P2 scenarios that exist on the post-S1 compact-launcher UI:
 
-**Ships with slice S2 (#1232, Query Workspace shell).** By then there is
-something meaningful to trace; the baseline captured against slice-S2 tip
-becomes the "before" for slices S3–S8.
+- **`leftpanel-search-open`** — page load → `#search-q` visible (pre-S2
+  analog of `ui-workspace-open` TTI).
+- **`filter-apply`** — click Top-k chip → popover visible (analog of
+  `ui-filter-apply`).
+- **`results-paint`** — submit query → first hit card visible (analog of
+  the hit-render side of `ui-workspace-open`).
+
+The remaining 3 emit **`NOT_APPLICABLE_YET`** rows with `unblocks_with`
+naming the slice that unblocks them, so the report shape stays stable
+across commits:
+
+- **`workspace-open`** — unblocks with S2 (#1232, Query Workspace shell).
+- **`cmdk-open`** — unblocks with S3 (#1233, Cmd-K palette).
+- **`operator-cluster`** — unblocks with S4 (#1234, result-set operator bar).
+
+Isolated ports `:8601` (api) / `:5601` (viewer) — deliberately different
+from graph capturer's `:8600` / `:5600` so both can run without collision.
+
+The scripts are runnable today; the mjs's NOT_APPLICABLE_YET rows convert
+to real captures as slices land (edit the mjs to add scenarios; the payload
+schema stays the same).
 
 ## 3. Common recipes
 
@@ -217,23 +234,34 @@ before re-attempting the change.
 - RFC-107 §P — the perf-capture spec this runbook implements.
 - PRD-045 FR11 — the requirement source.
 
-## Deferred: UI-side capture
+## Partially deferred: UI-side capture (3 of 6 scenarios ship today)
 
-`scripts/dev/capture-search-perf.{sh,mjs}` — CDP-based Playwright
-capturer for the 6 UI scenarios listed in RFC-107 §P2 (Workspace-open
-TTI, Cmd-K open latency, filter-apply, operator-cluster,
-operator-graph, enriched-answer-paint) — lands with slice S2
-(#1232 · Query Workspace shell). By then there is a Workspace to
-trace; the baseline captured against slice-S2 tip becomes the "before"
-for slices S3–S8.
+See §2.2 above. Currently shipped scenarios cover the compact-launcher UI
+(post-S1); the 3 workspace / palette / operator scenarios stay
+`NOT_APPLICABLE_YET` until S2 (#1232), S3 (#1233), and S4 (#1234) land
+their respective surfaces. Edit `capture-search-perf.mjs` when each slice
+ships — the payload schema is stable and the scenario names are already
+allocated in the NOT_APPLICABLE_YET rows.
 
-## Deferred: RFC-107 §P3 deep-review pass
+## Fully deferred: RFC-107 §P3 deep-review pass
 
-Once Marko (or another operator) captures the S0-api-baseline against
-a real corpus (recipe under §3 above), the RFC-107 §P3 "deep-review
-pass" fires — a per-surface review of the top-N latency contributors
-observed in the baseline, with action items opened per slice as they
-apply. Convention (RFC-107 §P3): "Do NOT silently apply optimizations
-discovered in the review." When the baseline lands, add the review
-findings to this runbook under a new "§P3 deep-review findings"
-section rather than opening a new tracking issue.
+Not something the harness or agent can produce — the deep-review is a
+per-surface latency-contributor analysis of the **operator's** real-corpus
+API baseline (`docs/wip/search-v3/traces/S0-api-baseline.api.metrics.json`,
+plus any subsequent labeled captures). That baseline can only be captured
+by Marko (needs `make serve` against his real corpus; the fixture-corpus
+numbers this repo can produce are too small to be representative of
+production-shape latency).
+
+Recipe when the operator baseline lands:
+
+1. Read the .api.metrics.json for the top p95/p99 outliers per intent
+   scenario.
+2. For each outlier, trace it in the source (retrieval / fusion / router /
+   backend) and decide whether the fix belongs in an S1–S8 slice or is a
+   standalone follow-up.
+3. Append a "§P3 deep-review findings" section to this runbook (no new
+   tracking issue — per RFC-107 §P3, findings live inline in the runbook).
+
+Nothing here is agent-blocked on a permission or an ambiguity: it's
+blocked on data only Marko can capture.
