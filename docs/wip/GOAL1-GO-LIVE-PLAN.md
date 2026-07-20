@@ -22,7 +22,7 @@ open the door.
 | Caddy edge + `(hardened)` snippet + catch-all (ADR-114) | ❌ not applied |
 | Host hardening: SSH key-only, fail2ban (sshd + caddy jails), metadata-egress guard | ❌ not applied |
 | Firewall 80/443 rules (TF) | ❌ not applied |
-| o11y common plane: Alloy metrics+logs, T-11 rules, `make obs-sync` (ADR-117) | ❌ not applied |
+| o11y common plane → **self-hosted DGX stack** (VictoriaMetrics/Logs/Traces + Grafana), not Grafana Cloud | ✅ **collector live** — box ships metrics+logs+security-logs (`up{instance=prod-podcast}` present) |
 | Cloudflare prep: real-IP trust, CF-safe fail2ban, `cloudflare_origin_lock` (ADR-118) | ❌ not applied |
 
 ---
@@ -78,13 +78,20 @@ open the door.
 At the end of Phase 1 the edge is running but the **firewall is still closed** →
 the box is still tailnet-only. Nothing is public. This is the safe rehearsal.
 
-### Phase 2 — Observability live
+### Phase 2 — Observability live ✅ (self-hosted, superseded Grafana Cloud)
 
-| # | Step | Owner |
-|---|---|---|
-| 2.1 | Set Grafana Cloud creds (metrics + Loki) as TF vars / GH secrets | 🧑 |
-| 2.2 | `make obs-sync --apply` (dashboards + T-11 rules) | 🤝 |
-| 2.3 | Confirm host metrics + security logs arrive; T-11 alerts armed | 🤝 |
+Migrated off Grafana Cloud to the **self-hosted DGX stack** (ADR-119): the
+prod-podcast Alloy collector ships host metrics + pipeline/corpus logs + sshd/
+fail2ban/caddy security-logs to VictoriaMetrics/VictoriaLogs; Grafana has the
+`VPS — Podcast` dashboards; alert rules + generic (add-later) Slack/email/GlitchTip
+channels are provisioned as code (homelab `backend/grafana/provisioning/alerting/`).
+
+| # | Step | Owner | Status |
+|---|---|---|---|
+| 2.1 | Self-hosted backend (VM/VL/VT + Grafana) on the DGX, tailnet-only | 🤖 | ✅ live |
+| 2.2 | prod-podcast Alloy collector → self-hosted; dashboards provisioned | 🤖 | ✅ live |
+| 2.3 | Confirm host metrics + security logs arrive; alert rules armed | 🤝 | ✅ verified (rules health=ok) |
+| 2.4 | Wire a real alert channel (Slack webhook) + prove one end-to-end fire | 🧑 | ⏳ channel scaffolded, not yet wired |
 
 ### Phase 3 — Pre-public gate (hard gate)
 
@@ -123,7 +130,9 @@ verify through CF (real `client_ip` in logs) → **only then** flip
 ### Phase 7 — Post-live
 
 - Re-rebase `production` onto `main`.
-- Tune T-11 alert thresholds on real traffic; wire contact points.
+- ✅ Alert thresholds tuned against live baselines (target-down excludes GPU
+  mode-swap services; disk 10%/5% tiers; 5xx 0.01/s; ssh+fail2ban re-homed to
+  LogsQL). Remaining: wire the real Slack/email/GlitchTip channel values (2.4).
 - **T-12**: ramp HSTS to `max-age=31536000; includeSubDomains; preload` once
   HTTPS is proven on the live vhost; verify orrery's CSP.
 - Watch o11y for a few days; capture learnings for Goals 2 (player) / 3 (operator UI).
@@ -147,6 +156,18 @@ check → flip `audio_storage_backend=remote` → e2e (`archive pull` / reproces
 - **Option A avoids rebuild entirely** — the corpus is never at risk.
 - **SSH is tailnet-only** — no edge/firewall misstep can lock us out of the box.
 - Every public-facing phase (4, 5, 6) has a **<5-min rollback**.
+
+## Status update (2026-07-20)
+
+- **Order confirmed: orrery goes public first** (pilot tenant); the podcast **api**
+  follows and additionally needs the 3.4 secrets cutover before it can be exposed.
+- **DR-drill blocker cleared** — `verify-backup-restore` is green (run 2026-07-19).
+  The earlier SIGSEGV pause no longer applies; Phase 0.2 can pass.
+- **Observability done on self-hosted rails** (Phase 2 above) — replaced the
+  Grafana Cloud plan; box is shipping and alert rules verify healthy.
+- **Still the gate:** Phase 0 (operator-run backup + verified restore + corpus-
+  location confirm + snapshot) before anything touches the edge. Then Phase 1
+  (`apply-edge.sh` on the box, tailnet, firewall closed).
 
 ## Prep status (2026-07-18)
 
