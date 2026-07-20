@@ -419,6 +419,7 @@ nav:
       - KG Ontology (draft): architecture/kg/ontology.md
       - Graph visualization guide: guides/GRAPH_VISUALIZATION_GUIDE.md
       - Graph performance trace runbook: guides/GRAPH_PERF_TRACE_RUNBOOK.md
+      - Search v3 performance trace runbook: guides/SEARCH_PERF_TRACE_RUNBOOK.md
   - Releases:
       - releases/index.md
       - Code/content compatibility matrix: COMPATIBILITY.md
