@@ -29,9 +29,9 @@ const emit = defineEmits<{
   goGraph: []
   focusSearchHandoff: [FocusSearchPayload]
   prefillSemanticSearch: [{ query: string }]
-  openExploreTopicFilter: [{ topic: string }]
-  openExploreSpeakerFilter: [{ speaker: string }]
-  openExploreInsightFilters: [{ groundedOnly: boolean; minConfidence: number | null }]
+  openSearchTopicFilter: [{ topic: string }]
+  openSearchSpeakerFilter: [{ speaker: string }]
+  openSearchInsightFilters: [{ groundedOnly: boolean; minConfidence: number | null }]
   openLibraryEpisode: [{ metadata_relative_path: string }]
   openEpisodeSummary: [SearchHit]
   switchMainTab: ['digest' | 'library' | 'graph' | 'dashboard']
@@ -91,9 +91,9 @@ const emptyHint =
         <GraphNodeRailPanel
           @go-graph="emit('goGraph')"
           @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
-          @open-explore-topic-filter="emit('openExploreTopicFilter', $event)"
-          @open-explore-speaker-filter="emit('openExploreSpeakerFilter', $event)"
-          @open-explore-insight-filters="emit('openExploreInsightFilters', $event)"
+          @open-search-topic-filter="emit('openSearchTopicFilter', $event)"
+          @open-search-speaker-filter="emit('openSearchSpeakerFilter', $event)"
+          @open-search-insight-filters="emit('openSearchInsightFilters', $event)"
           @open-library-episode="emit('openLibraryEpisode', $event)"
           @close-subject-rail="emit('closeSubject')"
         />

@@ -90,9 +90,9 @@ const emit = defineEmits<{
   close: []
   'go-graph': []
   'prefill-semantic-search': [{ query: string }]
-  'open-explore-topic-filter': [{ topic: string }]
-  'open-explore-speaker-filter': [{ speaker: string }]
-  'open-explore-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
+  'open-search-topic-filter': [{ topic: string }]
+  'open-search-speaker-filter': [{ speaker: string }]
+  'open-search-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
   'open-library-episode': [{ metadata_relative_path: string }]
 }>()
 
@@ -581,7 +581,7 @@ function emitTopicPrefillSearch(): void {
 function emitTopicExploreFilter(): void {
   const t = topicGatewayQuery.value
   if (!t) return
-  emit('open-explore-topic-filter', { topic: t })
+  emit('open-search-topic-filter', { topic: t })
 }
 
 const personEntityGatewayQuery = computed((): string => {
@@ -607,9 +607,9 @@ function emitPersonEntityExploreHandoff(): void {
   const q = personEntityGatewayQuery.value.trim()
   if (!q) return
   if (visualType.value !== 'Entity_organization') {
-    emit('open-explore-speaker-filter', { speaker: q })
+    emit('open-search-speaker-filter', { speaker: q })
   } else {
-    emit('open-explore-topic-filter', { topic: q })
+    emit('open-search-topic-filter', { topic: q })
   }
 }
 
@@ -776,10 +776,10 @@ function emitInsightPrefillSearch(): void {
   emit('prefill-semantic-search', { query: q })
 }
 
-function emitInsightOpenExploreFilters(): void {
+function emitInsightOpenSearchFilters(): void {
   const p = insightExploreFiltersPayload.value
   if (!p) return
-  emit('open-explore-insight-filters', p)
+  emit('open-search-insight-filters', p)
 }
 
 function focusNeighborOnGraph(nbId: string, ev: MouseEvent): void {
@@ -2209,7 +2209,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           data-testid="node-detail-insight-explore-filters"
           aria-label="Open Explore with grounded and min confidence from this insight; topic and speaker filters cleared"
           :disabled="!shell.healthStatus"
-          @click="emitInsightOpenExploreFilters"
+          @click="emitInsightOpenSearchFilters"
         >
           Set Explore filters
         </button>

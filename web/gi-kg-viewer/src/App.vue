@@ -514,7 +514,7 @@ function onGraphNodeTopicPrefillSearch(payload: { query: string }): void {
  * hop is gone; the topic filter is a chip on the SearchFilterBar and applies
  * client-side over top-K until server-side ``/api/search?topic=`` lands.
  */
-function onGraphNodeTopicOpenExploreFilter(payload: { topic: string }): void {
+function onGraphNodeTopicOpenSearchFilter(payload: { topic: string }): void {
   const t = payload.topic.trim()
   if (!t) return
   leftOpen.value = true
@@ -528,7 +528,7 @@ function onGraphNodeTopicOpenExploreFilter(payload: { topic: string }): void {
  * Graph Person / Entity(person) detail: sets the Search speaker-contains filter
  * and focuses the query field. Server-side (``/api/search?speaker=``).
  */
-function onGraphNodeSpeakerOpenExploreFilter(payload: { speaker: string }): void {
+function onGraphNodeSpeakerOpenSearchFilter(payload: { speaker: string }): void {
   const s = payload.speaker.trim()
   if (!s) return
   leftOpen.value = true
@@ -543,7 +543,7 @@ function onGraphNodeSpeakerOpenExploreFilter(payload: { speaker: string }): void
  * ``groundedOnly`` is server-side; ``minConfidence`` is client-side over top-K
  * (same accuracy caveat as topic — SearchMinConfidenceChip explains).
  */
-function onGraphNodeInsightOpenExploreFilters(payload: {
+function onGraphNodeInsightOpenSearchFilters(payload: {
   groundedOnly: boolean
   minConfidence: number | null
 }): void {
@@ -946,9 +946,9 @@ watch(
             @go-graph="activateGraphTab(undefined, undefined, 'subject-rail')"
             @focus-search-handoff="onLibraryFocusSearch"
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
-            @open-explore-topic-filter="onGraphNodeTopicOpenExploreFilter"
-            @open-explore-speaker-filter="onGraphNodeSpeakerOpenExploreFilter"
-            @open-explore-insight-filters="onGraphNodeInsightOpenExploreFilters"
+            @open-search-topic-filter="onGraphNodeTopicOpenSearchFilter"
+            @open-search-speaker-filter="onGraphNodeSpeakerOpenSearchFilter"
+            @open-search-insight-filters="onGraphNodeInsightOpenSearchFilters"
             @open-library-episode="onSearchOpenLibraryEpisode"
             @open-episode-summary="onSearchOpenEpisodeSummary"
             @switch-main-tab="onSwitchMainTab($event)"
