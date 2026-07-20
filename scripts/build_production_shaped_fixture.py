@@ -72,6 +72,129 @@ def slim_episode_item(item: dict[str, Any]) -> dict[str, Any]:
     return {k: item[k] for k in keep if k in item}
 
 
+# Scenario specs for --search-slice (Search v3). Kept at module scope so it's
+# easy to inspect + extend; parameters mirror the hand-authored mocks.json.
+_SEARCH_V3_SLICE_SPECS: list[tuple[str, str, str, dict[str, Any]]] = [
+    (
+        "compound-lift",
+        "/api/search",
+        "get",
+        {"q": "compute governance", "top_k": 5},
+    ),
+    (
+        "enriched-answer",
+        "/api/search",
+        "get",
+        {
+            "q": "why does Taiwan matter to AI compute",
+            "top_k": 5,
+            "enrich_results": "true",
+        },
+    ),
+    (
+        "operator-cluster",
+        "/api/search",
+        "post",
+        {"q": "supply chain risk", "top_k": 30, "operator": "cluster"},
+    ),
+    (
+        "operator-consensus",
+        "/api/search",
+        "post",
+        {
+            "q": "regulation vs innovation",
+            "top_k": 20,
+            "operator": "consensus",
+        },
+    ),
+    (
+        "temporal-intent",
+        "/api/search",
+        "get",
+        {
+            "q": "how has thinking on AI compute governance evolved over the last year",
+            "top_k": 5,
+        },
+    ),
+]
+
+
+def _fetch_scenario_response(api: str, endpoint: str, method: str, params: dict[str, Any]) -> Any:
+    """Fetch one scenario response from a running API (GET or POST)."""
+    if method == "get":
+        return fetch_json(api, endpoint, params)
+    # POST body is JSON; ``path`` stays a query arg per current server contract.
+    body = json.dumps({k: v for k, v in params.items() if k != "path"}).encode()
+    url = f"{api.rstrip('/')}{endpoint}" f"?path={urllib.parse.quote(str(params['path']))}"
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        if r.status != 200:
+            raise SystemExit(f"POST {url} -> HTTP {r.status}")
+        return json.loads(r.read())
+
+
+def _capture_search_v3_slice(*, api: str, corpus: str, out: Path) -> None:
+    """Capture Search v3 scenario mocks; merges per-scenario into search-v3/mocks.json.
+
+    Preserves hand-authored ``description`` / ``notes`` / ``anchor_feeds`` fields;
+    only the ``response`` (and ``request``) fields of overlapping scenarios are
+    refreshed from the API.
+    """
+    (out / "search-v3").mkdir(exist_ok=True)
+    sv3_path = out / "search-v3" / "mocks.json"
+    existing: dict[str, Any] = {}
+    if sv3_path.exists():
+        try:
+            existing = json.loads(sv3_path.read_text())
+        except json.JSONDecodeError as exc:
+            print(f"  --search-slice: existing {sv3_path.name} unreadable ({exc}); rewriting")
+            existing = {}
+    scenarios: dict[str, Any] = existing.get("scenarios", {}) or {}
+    captured = 0
+    for name, endpoint, method, base_params in _SEARCH_V3_SLICE_SPECS:
+        params = {**base_params, "path": corpus}
+        try:
+            resp = _fetch_scenario_response(api, endpoint, method, params)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  --search-slice: skip {name!r}: {exc}")
+            continue
+        entry = scenarios.get(name, {})
+        entry["description"] = entry.get("description") or (
+            f"Auto-captured via --search-slice for scenario {name}."
+        )
+        entry["request"] = {
+            "endpoint": f"{'POST' if method == 'post' else 'GET'} {endpoint}",
+            ("body" if method == "post" else "params"): params,
+        }
+        entry["response"] = resp
+        scenarios[name] = entry
+        captured += 1
+    merged = {
+        "schema_version": existing.get("schema_version", "1"),
+        "generated_at": existing.get("generated_at"),
+        "generated_by": "build_production_shaped_fixture.py --search-slice",
+        "regenerated_by_cmd": (
+            "python scripts/build_production_shaped_fixture.py "
+            "--corpus <corpus> --api <api> --output <out> --search-slice"
+        ),
+        "notes": existing.get("notes", []),
+        "anchor_feeds": existing.get("anchor_feeds", []),
+        "scenarios": scenarios,
+    }
+    for k, v in existing.items():
+        merged.setdefault(k, v)
+    write_json(sv3_path, merged)
+    print(
+        f"--search-slice: {captured}/{len(_SEARCH_V3_SLICE_SPECS)} scenarios captured "
+        f"-> {sv3_path.name}"
+    )
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--corpus", required=True, type=Path, help="absolute corpus path")
@@ -79,6 +202,18 @@ def main() -> int:
     p.add_argument("--output", required=True, type=Path, help="fixture output dir")
     p.add_argument("--episodes-per-feed", type=int, default=5)
     p.add_argument("--max-feeds", type=int, default=5)
+    p.add_argument(
+        "--search-slice",
+        action="store_true",
+        help=(
+            "Append Search v3 query mocks (RFC-107 / PRD-045 §S0(e)). Captures "
+            "compound-lift, enriched-answer, operator=cluster, operator=consensus, "
+            "and temporal-intent scenarios by fetching from the API with the "
+            "appropriate query params. Writes to "
+            "``<output>/search-v3/mocks.json`` (merge-per-scenario with any "
+            "hand-authored content already there)."
+        ),
+    )
     args = p.parse_args()
 
     if not args.corpus.is_dir():
@@ -207,6 +342,13 @@ def main() -> int:
             print(f"  skip search {q!r}: {exc}")
             search_by_query[q] = {"query": q, "results": []}
     write_json(out / "search" / "results-by-query.json", search_by_query)
+
+    # 8b. Search v3 slice (opt-in via --search-slice). Extracted to a helper to
+    #     keep main() below the C901 complexity ceiling; helper documents the shape
+    #     contract (RFC-107 §2 SearchResponse, §6 result-set operators, RFC-088
+    #     chunk 5 enriched-answer, RFC-072 §6 compound-lift).
+    if args.search_slice:
+        _capture_search_v3_slice(api=api, corpus=corpus, out=out)
 
     # 9. Manifest — index of everything for the mock helper.
     manifest = {

@@ -1,0 +1,277 @@
+{
+  "schema_version": "1",
+  "generated_at": "2026-07-20",
+  "generated_by": "hand-authored (Search v3 S0 baseline, 2026-07-20)",
+  "regenerated_by_cmd": "python scripts/build_production_shaped_fixture.py --corpus <corpus> --api http://localhost:8000 --output web/gi-kg-viewer/e2e/fixtures/production-shaped --search-slice",
+  "notes": [
+    "Static synthetic content to unblock Tier-2 Playwright specs for Search v3.",
+    "The build-script --search-slice mode captures these same shapes from a real corpus + running API when the operator regenerates locally (see README.md).",
+    "Anchored to episode_ids present in the parent fixture's manifest.json so hit-card handoffs to Library / Graph resolve cleanly.",
+    "For the shape contract see RFC-107 §2 (SearchResponse), RFC-072 §6 (lifted compound), RFC-088 chunk 5 (enriched-answer), ADR-108 (topic_consensus tuple)."
+  ],
+  "anchor_feeds": [
+    {
+      "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "feed_display_title": "Odd Lots (fixture-mock)",
+      "note": "5 episodes on this feed — used for Cluster (theme members) + Consensus (cross-speaker pairs) scenarios"
+    }
+  ],
+  "scenarios": {
+    "compound-lift": {
+      "description": "Transcript hit that lifts to a linked GI Insight (RFC-072 KL1 shipped). WorkspaceResults renders this as a CompoundCard with a '+ insight' badge (UXS-016 §Results).",
+      "request": {
+        "endpoint": "GET /api/search",
+        "params": {"q": "compute governance", "top_k": 5, "path": "<corpus>"}
+      },
+      "response": {
+        "query": "compute governance",
+        "query_type": "raw_evidence",
+        "source_tiers": {"insight": 1, "segment": 3, "aux": 1},
+        "lift_stats": {"applied": 2, "transcript_rows": 3},
+        "results": [
+          {
+            "doc_id": "seg:74a9745d-6825-4bfc-abc3-b43601639f72_chunk_012",
+            "text": "The question of who governs compute — the actual silicon and the datacenters that host it — is being answered right now, not by regulators.",
+            "score": 0.912,
+            "source_tier": "segment",
+            "metadata": {
+              "doc_type": "transcript",
+              "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+              "episode_title": "What's Actually Going On With Prompt Engineering",
+              "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+              "feed_title": "Odd Lots (fixture-mock)",
+              "publish_date": "2026-04-27",
+              "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.metadata.json"
+            },
+            "lifted": {
+              "insight": {
+                "id": "insight:74a9745d__compute-governance-0001",
+                "text": "Compute governance is being determined by private-sector datacenter siting decisions rather than public regulation.",
+                "insight_type": "claim",
+                "position_hint": 0.42,
+                "grounded": true
+              },
+              "speaker": {
+                "id": "person:tracy-alloway",
+                "display_name": "Tracy Alloway"
+              },
+              "topic": {
+                "id": "topic:compute-governance",
+                "display_name": "Compute Governance"
+              },
+              "quote": {
+                "timestamp_start_ms": 1234000,
+                "timestamp_end_ms": 1249500
+              }
+            }
+          },
+          {
+            "doc_id": "insight:4cec22d8__silicon-supply-0002",
+            "text": "The concentration of AI-relevant fab capacity in Taiwan makes silicon supply a national-security concern for every G7.",
+            "score": 0.854,
+            "source_tier": "insight",
+            "metadata": {
+              "doc_type": "insight",
+              "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+              "episode_title": "BlackRock's Rob Goldstein on the New Rules",
+              "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+              "feed_title": "Odd Lots (fixture-mock)",
+              "publish_date": "2026-04-30"
+            }
+          }
+        ]
+      }
+    },
+    "enriched-answer": {
+      "description": "Enriched-answer hero visible when /api/health reports enriched_search_available AND request has enrich_results=true (RFC-088 chunk 5, UXS-016 §EnrichedAnswerHero). Sources link back to hit cards via doc_id.",
+      "request": {
+        "endpoint": "GET /api/search",
+        "params": {"q": "why does Taiwan matter to AI compute", "top_k": 5, "enrich_results": true, "path": "<corpus>"}
+      },
+      "response": {
+        "query": "why does Taiwan matter to AI compute",
+        "query_type": "cross_show_synthesis",
+        "source_tiers": {"insight": 3, "segment": 1, "aux": 1},
+        "enriched": {
+          "answer": "Across the Odd Lots corpus, guests converge on a single frame: Taiwan holds the concentrated fab capacity that AI-relevant chips depend on, so any disruption to that capacity is a first-order risk for compute supply. Rob Goldstein frames it as a national-security concern for every G7. Tracy Alloway extends the argument to compute governance itself — private-sector datacenter siting decisions are shaping the practical envelope of AI development faster than public regulation is.",
+          "grounded": true,
+          "grounded_source_count": 2,
+          "provider": "openai",
+          "model_id": "gpt-4o-mini",
+          "sources": [
+            {
+              "doc_id": "insight:4cec22d8__silicon-supply-0002",
+              "insight_text": "The concentration of AI-relevant fab capacity in Taiwan makes silicon supply a national-security concern for every G7.",
+              "speaker": {"id": "person:rob-goldstein", "display_name": "Rob Goldstein"},
+              "topic": {"id": "topic:silicon-supply", "display_name": "Silicon Supply"},
+              "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+              "episode_title": "BlackRock's Rob Goldstein on the New Rules",
+              "publish_date": "2026-04-30",
+              "timestamp_start_ms": 2100000,
+              "grounded": true
+            },
+            {
+              "doc_id": "insight:74a9745d__compute-governance-0001",
+              "insight_text": "Compute governance is being determined by private-sector datacenter siting decisions rather than public regulation.",
+              "speaker": {"id": "person:tracy-alloway", "display_name": "Tracy Alloway"},
+              "topic": {"id": "topic:compute-governance", "display_name": "Compute Governance"},
+              "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+              "episode_title": "What's Actually Going On With Prompt Engineering",
+              "publish_date": "2026-04-27",
+              "timestamp_start_ms": 1234000,
+              "grounded": true
+            }
+          ]
+        },
+        "results": [
+          {
+            "doc_id": "insight:4cec22d8__silicon-supply-0002",
+            "text": "The concentration of AI-relevant fab capacity in Taiwan makes silicon supply a national-security concern for every G7.",
+            "score": 0.891,
+            "source_tier": "insight",
+            "metadata": {
+              "doc_type": "insight",
+              "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+              "episode_title": "BlackRock's Rob Goldstein on the New Rules",
+              "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+              "publish_date": "2026-04-30"
+            }
+          }
+        ]
+      }
+    },
+    "operator-cluster": {
+      "description": "Result-set operator Cluster (RFC-107 §6.1, UXS-016 §Operators). Server groups hits via insight_clusters / theme_clusters into named clusters with ≥5 members. Client renders ClusterGroupCard.",
+      "request": {
+        "endpoint": "POST /api/search",
+        "body": {"q": "supply chain risk", "top_k": 30, "operator": "cluster", "path": "<corpus>"}
+      },
+      "response": {
+        "query": "supply chain risk",
+        "query_type": "semantic",
+        "source_tiers": {"insight": 15, "segment": 12, "aux": 3},
+        "operator_result": {
+          "kind": "cluster",
+          "clusters": [
+            {
+              "cluster_id": "tc:semiconductor-concentration",
+              "shared_entity": {"id": "topic:silicon-supply", "display_name": "Silicon Supply"},
+              "count": 6,
+              "member_doc_ids": [
+                "insight:4cec22d8__silicon-supply-0002",
+                "insight:f7904791__silicon-supply-0003",
+                "insight:74a9745d__silicon-supply-0004",
+                "insight:f7957569__silicon-supply-0005",
+                "insight:653bb844__silicon-supply-0006",
+                "seg:4cec22d8-717e-46c6-ab87-b43b01512ecb_chunk_045"
+              ]
+            },
+            {
+              "cluster_id": "tc:datacenter-siting",
+              "shared_entity": {"id": "topic:datacenter-siting", "display_name": "Datacenter Siting"},
+              "count": 5,
+              "member_doc_ids": [
+                "insight:74a9745d__compute-governance-0001",
+                "insight:4cec22d8__datacenter-0007",
+                "insight:653bb844__datacenter-0008",
+                "insight:f7904791__datacenter-0009",
+                "seg:74a9745d-6825-4bfc-abc3-b43601639f72_chunk_089"
+              ]
+            }
+          ]
+        },
+        "results": []
+      }
+    },
+    "operator-consensus": {
+      "description": "Result-set operator Consensus (RFC-107 §6.5, UXS-016 §Operators, ADR-108). Surfaces topic_consensus enricher output — cross-speaker corroboration pairs, NOT contradictions (typed CONTRADICTS is v3+, out of scope). Pair tuple shape per RFC-088 §Reimagining note: (topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score). The 'contradiction_score' name is legacy; semantically it is the composite consensus signal per ADR-108 (low score + high embedding cosine ⇒ agreement).",
+      "request": {
+        "endpoint": "POST /api/search",
+        "body": {"q": "regulation vs innovation", "top_k": 20, "operator": "consensus", "path": "<corpus>"}
+      },
+      "response": {
+        "query": "regulation vs innovation",
+        "query_type": "cross_show_synthesis",
+        "source_tiers": {"insight": 8, "segment": 5},
+        "operator_result": {
+          "kind": "consensus",
+          "pairs": [
+            {
+              "topic_id": "topic:ai-regulation",
+              "topic_display_name": "AI Regulation",
+              "person_a_id": "person:rob-goldstein",
+              "person_a_display_name": "Rob Goldstein",
+              "person_b_id": "person:tracy-alloway",
+              "person_b_display_name": "Tracy Alloway",
+              "insight_a_id": "insight:4cec22d8__ai-regulation-lag-0011",
+              "insight_a_text": "Regulation will materially lag the pace of frontier-model deployment for at least 24 months.",
+              "insight_a_episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+              "insight_b_id": "insight:74a9745d__ai-regulation-lag-0012",
+              "insight_b_text": "By the time meaningful AI rules land, the deployed system will have already trained the next generation.",
+              "insight_b_episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+              "contradiction_score": 0.18,
+              "consensus_confidence": 0.91
+            },
+            {
+              "topic_id": "topic:compute-governance",
+              "topic_display_name": "Compute Governance",
+              "person_a_id": "person:rob-goldstein",
+              "person_a_display_name": "Rob Goldstein",
+              "person_b_id": "person:tracy-alloway",
+              "person_b_display_name": "Tracy Alloway",
+              "insight_a_id": "insight:4cec22d8__compute-gov-private-0014",
+              "insight_a_text": "The actual envelope of compute is set by the firms deciding where to put the next datacenter, not by any regulator.",
+              "insight_a_episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+              "insight_b_id": "insight:74a9745d__compute-governance-0001",
+              "insight_b_text": "Compute governance is being determined by private-sector datacenter siting decisions rather than public regulation.",
+              "insight_b_episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+              "contradiction_score": 0.12,
+              "consensus_confidence": 0.94
+            }
+          ]
+        },
+        "results": []
+      }
+    },
+    "temporal-intent": {
+      "description": "Query the router classifies as temporal_tracking (RFC-092 taxonomy). Header IntentChip renders 'Temporal tracking' (UXS-016 §Header §Intent row). Timeline operator would bucket these hits by publish_date.",
+      "request": {
+        "endpoint": "GET /api/search",
+        "params": {"q": "how has thinking on AI compute governance evolved over the last year", "top_k": 5, "path": "<corpus>"}
+      },
+      "response": {
+        "query": "how has thinking on AI compute governance evolved over the last year",
+        "query_type": "temporal_tracking",
+        "source_tiers": {"insight": 4, "segment": 1},
+        "results": [
+          {
+            "doc_id": "insight:c1864c80__ai-compute-2026-04__early-0020",
+            "text": "Early in the year the frame was still: public infrastructure decisions will shape the envelope of AI compute.",
+            "score": 0.87,
+            "source_tier": "insight",
+            "metadata": {
+              "doc_type": "insight",
+              "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+              "episode_title": "Early-year frame on AI compute",
+              "feed_id": "sha256:b7d7fd554788c6b3f362e5e2d",
+              "publish_date": "2026-04-14"
+            }
+          },
+          {
+            "doc_id": "insight:653bb844__ai-compute-2026-05__later-0021",
+            "text": "By late spring the frame has flipped — private siting decisions are already setting the envelope.",
+            "score": 0.85,
+            "source_tier": "insight",
+            "metadata": {
+              "doc_type": "insight",
+              "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+              "episode_title": "Late-spring reframe",
+              "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+              "publish_date": "2026-05-04"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
