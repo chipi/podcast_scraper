@@ -7,6 +7,7 @@ import DashboardView from './components/dashboard/DashboardView.vue'
 import DigestView from './components/digest/DigestView.vue'
 import GraphTabPanel from './components/graph/GraphTabPanel.vue'
 import LibraryTab from './components/library/LibraryTab.vue'
+import SearchTab from './components/search/SearchTab.vue'
 import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
 import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
@@ -93,7 +94,9 @@ const graphExpansion = useGraphExpansionStore()
 const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
-const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard' | 'ops' | 'admin'>('digest')
+const mainTab = ref<'digest' | 'library' | 'search' | 'graph' | 'dashboard' | 'ops' | 'admin'>(
+  'digest',
+)
 const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{
   clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
@@ -259,7 +262,7 @@ watch(mainTab, (tab) => {
   posthog.capture('main_tab_switched', { tab })
 })
 
-function onSwitchMainTab(tab: 'digest' | 'library' | 'graph' | 'dashboard'): void {
+function onSwitchMainTab(tab: 'digest' | 'library' | 'search' | 'graph' | 'dashboard'): void {
   if (tab === 'graph') {
     // P4.1 race fix: when a handoff is already pending (e.g. Digest pill
     // mid-await), the orchestrator owns the load. Calling
@@ -665,6 +668,19 @@ watch(
               type="button"
               class="rounded px-3 py-1"
               :class="
+                mainTab === 'search'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-search"
+              @click="mainTab = 'search'"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
                 mainTab === 'graph'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
@@ -803,8 +819,11 @@ watch(
 
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex min-h-0 flex-1">
-      <!-- LEFT SIDEBAR (collapsible) -->
+      <!-- LEFT SIDEBAR (collapsible; hidden entirely on the Search main tab
+           per UXS-016 §Placement — the Workspace owns the query surface
+           full-width, no launcher). -->
       <div
+        v-if="mainTab !== 'search'"
         class="relative z-10 flex min-h-0 min-w-0 shrink-0 flex-col border-r border-border bg-canvas transition-all"
         :class="leftOpen ? 'w-72' : 'w-8'"
       >
@@ -869,6 +888,15 @@ watch(
               class="h-full"
               @switch-main-tab="onSwitchMainTab($event)"
               @focus-search="onLibraryFocusSearch"
+            />
+          </keep-alive>
+          <keep-alive>
+            <SearchTab
+              v-if="mainTab === 'search'"
+              class="h-full"
+              @go-graph="activateGraphTab(undefined, undefined, 'search')"
+              @open-library-episode="onSearchOpenLibraryEpisode"
+              @open-episode-summary="onSearchOpenEpisodeSummary"
             />
           </keep-alive>
           <div
