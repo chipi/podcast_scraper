@@ -105,6 +105,36 @@ Because the app emits only open formats, a fork changes **config, not code**:
 - **No backend at all:** events still land in stdout + the corpus JSONL files; the
   `emit_event` file sink works with no agent attached.
 
+## Component taxonomy — the universal `component` tag
+
+Every signal carries a **`component`** value (Sentry tag = metric `job` = log label
+= trace `service.name`), so one vocabulary filters and joins across metrics, logs,
+traces, and errors. It's the "which unit" axis (signal type above is the "which kind").
+
+**Podcast estate** → GlitchTip project `podcast`:
+
+| `component` | what | host | side | → GlitchTip |
+| --- | --- | --- | --- | --- |
+| `api` | FastAPI backend (serves player + operator) | VPS | server | ✓ |
+| `pipeline` | processing pipeline | VPS | server | ✓ |
+| `moss` | moss model server (podcast ML, GPU-hosted) | DGX | server | ✓ |
+| `pyannote` | pyannote diarization (podcast ML, GPU-hosted) | DGX | server | ✓ (when instrumented) |
+| `player` | consumer web player (frontend) | VPS | browser | — client-side; backend errors land under `api` |
+| `operator` | operator / admin UI (frontend) | VPS | browser | — client-side |
+
+`moss` and `pyannote` are **podcast components** — they only *run* on the DGX for
+GPU. They belong to the `podcast` project, not a DGX one.
+
+**Generic (non-podcast) DGX infra** → its own project `dgx` (future, when
+error-instrumented): `vllm-autoresearch` and other non-podcast DGX services.
+
+**orrery** → no GlitchTip (client-side static site; the browser can't reach the
+tailnet-only backend — see the orrery handover).
+
+Client-side surfaces (`player`, `operator`, orrery) are browsers, so they can't
+reach the tailnet-only GlitchTip; their errors aren't captured there, while their
+server-side counterpart (`api`) is.
+
 ## Correlation — navigate one incident across every surface
 
 The whole point: from **any** signal, pivot to the others for the same run /
