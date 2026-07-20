@@ -49,6 +49,27 @@ _FILE_FOR: dict[str, str] = {
 }
 
 
+def _trace_context() -> dict[str, str]:
+    """Current OTEL trace/span ids (hex) if a span is active, else ``{}``.
+
+    Guarded — opentelemetry is only present with the ``[otel]`` extra and there may
+    be no active span. Stamping ``trace_id``/``span_id`` onto every event is the
+    correlation key that joins a log/event to its trace in VictoriaTraces (ADR-119).
+    """
+    try:
+        from opentelemetry import trace as _otel_trace
+
+        ctx = _otel_trace.get_current_span().get_span_context()
+        if getattr(ctx, "is_valid", False):
+            return {
+                "trace_id": format(ctx.trace_id, "032x"),
+                "span_id": format(ctx.span_id, "016x"),
+            }
+    except Exception:  # noqa: BLE001 — no OTEL installed / no active span
+        pass
+    return {}
+
+
 def emit_event(
     event_type: str,
     *,
@@ -84,6 +105,7 @@ def emit_event(
             "event_type": event_type,
         }
         record.update({k: v for k, v in fields.items() if v is not None})
+        record.update(_trace_context())  # trace↔event correlation (no-op without a span)
         line = json.dumps(record, default=str, ensure_ascii=False)
 
         if sink == "file":

@@ -89,3 +89,25 @@ def test_never_raises_on_unserialisable_field(caplog: pytest.LogCaptureFixture) 
 
     # Should not raise; returns None on failure.
     assert emit_event("demo", obj=Boom()) is None or True
+
+
+@pytest.mark.unit
+def test_trace_context_is_injected(monkeypatch, caplog: pytest.LogCaptureFixture) -> None:
+    # When a span is active, trace_id/span_id join the event to its trace (mocked
+    # so the test doesn't depend on the [otel] extra).
+    monkeypatch.setattr(
+        "podcast_scraper.obs.events._trace_context",
+        lambda: {"trace_id": "a" * 32, "span_id": "b" * 16},
+    )
+    with caplog.at_level(logging.INFO, logger="podcast_scraper.events"):
+        emit_event("demo")
+    payload = json.loads(caplog.records[-1].message)
+    assert payload["trace_id"] == "a" * 32 and payload["span_id"] == "b" * 16
+
+
+@pytest.mark.unit
+def test_no_trace_context_without_span(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, logger="podcast_scraper.events"):
+        emit_event("demo")
+    payload = json.loads(caplog.records[-1].message)
+    assert "trace_id" not in payload  # no active span -> no trace fields
