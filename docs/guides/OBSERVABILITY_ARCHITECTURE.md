@@ -105,6 +105,35 @@ Because the app emits only open formats, a fork changes **config, not code**:
 - **No backend at all:** events still land in stdout + the corpus JSONL files; the
   `emit_event` file sink works with no agent attached.
 
+## Correlation — navigate one incident across every surface
+
+The whole point: from **any** signal, pivot to the others for the same run /
+request / episode / person. IDs the app propagates:
+
+| ID | Scope | Carried on |
+| --- | --- | --- |
+| `run_id` | a whole pipeline run | logs (`[run=…]`), events, errors (Sentry tag), Langfuse (`run_seed`) |
+| `episode_id` | one episode | logs, events, errors |
+| `trace_id` / `span_id` | one request / span | traces (VictoriaTraces), events (`emit_event`), logs (`[trace=…]`), errors (Sentry tag) |
+| `user_id` | one person | listen / playback events |
+| `request_id` | one provider LLM call | `llm_cost` events |
+
+Navigation recipes:
+
+- **Log → trace:** click the `trace_id` on a log line in Explore — the VictoriaLogs
+  derivedField renders a "View trace" link into VictoriaTraces.
+- **Trace → logs:** copy the trace_id → VictoriaLogs `trace_id:<hex>`.
+- **Error → trace:** the GlitchTip event's `trace_id` tag opens the same trace.
+- **Whole run:** filter every signal by `run_id` — logs `run_id:<id>`, cost events,
+  Langfuse `run_seed`, Sentry `run_id` tag — to see the run end-to-end.
+- **Per person / per provider call:** `user_id` (serving) / `request_id` (LLM).
+
+`run_id` joins at **run** granularity (always present in a pipeline run); `trace_id`
+joins at **request** granularity (present when OTEL traces are on). Together they
+cover coarse and fine navigation across metrics, logs, traces, errors, and LLM.
+`emit_event` + the `CorrelationFormatter` + Sentry `before_send` all stamp
+`trace_id` automatically (guarded, no-op without a span).
+
 ## Operating procedures (runbook)
 
 The **minimal surface** — 4 dashboards in the `VPS — Podcast` Grafana folder, each
