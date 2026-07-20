@@ -304,8 +304,9 @@ def assert_guest_soup(roster: SpeakerRoster) -> None:
 # ("Paul Tenorio", "Amy Lawrence") and gives them role=guest. So on a SHORT episode with a real
 # pre-roll ad, the ad narrators are currently misclassified as named guests — the opposite
 # failure from the one AD_VOICE_MIN_EPISODE_S was written to prevent (typing the whole cast as
-# advertising). This is a real gap, not previously called out explicitly in
-# CORPUS-V4-FIXTURE-LADDER.md's "Open items"; reported to the operator for triage.
+# advertising). Tracked as #1188 (with #1227 folded in): the same keyword-free house-ad that no
+# detector sees — the edge rule abstains <600s and keyword-based ad_intervals come back empty.
+# Turn this green as #1188's acceptance test when the cross-promo detector lands.
 def perturb_short(fixture: Dict[str, Any]) -> Dict[str, Any]:
     f = copy.deepcopy(fixture)
     f["diarization"] = [s for s in f["diarization"] if s["start"] < 240]
@@ -322,9 +323,10 @@ def perturb_short(fixture: Dict[str, Any]) -> Dict[str, Any]:
 # empty) — but nothing puts HOST_B in `conv_hosts`, so it falls through to guest-naming and the
 # real roster names it "Casey Newton" with role=guest. This matches
 # CORPUS-V4-FIXTURE-LADDER.md §G case #4 ("the feed names NO host") exactly as a case the
-# fixture ladder says fixtures "must simulate" — it is not claimed fixed there. Reported for
-# triage: a co-host who only self-introduces (never utters a host-shaped phrase) on a
-# no-host-stated feed is currently demoted to "guest".
+# fixture ladder says fixtures "must simulate" — it is not claimed fixed there. Tracked as #1228
+# (precision-safe recall gap — the name is right, only the role is wrong): a co-host who only
+# self-introduces (never utters a host-shaped phrase) on a no-host-stated feed is demoted to
+# "guest". Shares its root + fix surface with +crosspost below.
 def perturb_no_feed_hosts(fixture: Dict[str, Any]) -> Dict[str, Any]:
     f = copy.deepcopy(fixture)
     f["resolver_inputs"]["known_hosts"] = []
@@ -367,10 +369,27 @@ def assert_merged_cluster(roster: SpeakerRoster) -> None:
 # role=guest: a real host, correctly self-identified, demoted to guest because the FEED's host
 # count doesn't match this episode. This is exactly CORPUS-V4-FIXTURE-LADDER.md §G case #12
 # ("the feed's hosts are not the episode's") — listed there as a case the fixtures "must
-# simulate," not as already-fixed behaviour. Reported for triage.
+# simulate," not as already-fixed behaviour. Tracked as #1228 (precision-safe recall gap; same
+# root + fix surface as +no_feed_hosts — Ezra Klein is never painted onto a voice, only the real
+# co-host's role is demoted).
 def perturb_crosspost(fixture: Dict[str, Any]) -> Dict[str, Any]:
     f = copy.deepcopy(fixture)
     f["resolver_inputs"]["known_hosts"] = ["Ezra Klein"]
+    return f
+
+
+# PENDING: +mid_roll_ad — add a self-introducing house-ad voice in the MIDDLE of the episode
+# (not at the edges), with no ad_intervals (a keyword-free house ad, so excise_ad_regions finds
+# nothing). The real roster names it from its own self-intro ("Jonathan Knight") and gives it
+# role=guest — the exact #1188 failure (an unnamed house ad entering the corpus as a guest with
+# GUESTS_ON-shaped edges). The edge rule can't see it (mid-episode) and the keyword ad detector
+# scores 0. Tracked as #1188; turn this green as its acceptance test when the cross-promo
+# detector lands. This is why the base hard_fork_ep1 fixture omits the mid-roll ad (see its
+# header): including it would make the seed non-green.
+def perturb_mid_roll_ad(fixture: Dict[str, Any]) -> Dict[str, Any]:
+    f = copy.deepcopy(fixture)
+    f["diarization"].append({"speaker": "AD_3", "start": 1805.0, "end": 1855.0})
+    f["voice_texts"]["AD_3"] = "Hey, I'm Jonathan Knight. Before we continue, check out NYT Games."
     return f
 
 
