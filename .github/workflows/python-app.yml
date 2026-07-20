@@ -209,7 +209,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -267,7 +267,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -339,7 +339,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -493,7 +493,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -581,7 +581,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11 (for the real API server the app e2e boots)
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -694,7 +694,7 @@ jobs:
           ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -756,7 +756,7 @@ jobs:
         sudo rm -rf /var/lib/apt/lists/*
         df -h
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -884,7 +884,7 @@ jobs:
         sudo rm -rf /var/lib/apt/lists/*
         df -h
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1004,7 +1004,7 @@ jobs:
         sudo rm -rf /var/lib/apt/lists/*
         df -h
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1131,7 +1131,7 @@ jobs:
         sudo rm -rf /var/lib/apt/lists/*
         df -h
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1262,7 +1262,7 @@ jobs:
         sudo rm -rf /var/lib/apt/lists/*
         df -h
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1312,7 +1312,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1346,7 +1346,7 @@ jobs:
         # Full history required for wily (code quality trends) on main/release
         fetch-depth: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') && 0 || 1 }}
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1665,7 +1665,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
