@@ -87,6 +87,16 @@ def _before_send(event: dict, hint: object) -> dict:
                 _redact_mapping(frame.get("vars"))
     except Exception:  # noqa: BLE001 — a scrub failure must not drop the event
         _LOGGER.debug("sentry before_send scrub skipped", exc_info=True)
+    # Tag with the active OTEL trace so an error jumps to its trace in VictoriaTraces
+    # (correlation, ADR-119). Guarded — no [otel] / no span → no tag.
+    try:
+        from opentelemetry import trace as _otel_trace
+
+        _ctx = _otel_trace.get_current_span().get_span_context()
+        if getattr(_ctx, "is_valid", False):
+            event.setdefault("tags", {})["trace_id"] = format(_ctx.trace_id, "032x")
+    except Exception:  # noqa: BLE001 — no OTEL / no span
+        pass
     return event
 
 
