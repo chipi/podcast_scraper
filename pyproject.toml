@@ -84,6 +84,15 @@ langfuse = [
   # LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY. Pulls OpenTelemetry.
   "langfuse>=4.9.0,<5.0.0",
 ]
+otel = [
+  # Distributed tracing -> OTLP (ADR-119 "traces" signal; VictoriaTraces reference
+  # backend). `opentelemetry-instrument` auto-wraps the process and
+  # `opentelemetry-bootstrap -a install` (run in the Dockerfile) adds per-library
+  # instrumentations. No-op unless OTEL_TRACES_EXPORTER=otlp + an OTLP endpoint are
+  # set — safe to bake into the image. See docs/guides/OBSERVABILITY_ARCHITECTURE.md.
+  "opentelemetry-distro>=0.65b0",
+  "opentelemetry-exporter-otlp-proto-http>=1.44.0",
+]
 
 # Heavy ML dependencies - only install when needed
 ml = [

@@ -83,6 +83,18 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # OTEL traces (ADR-119 "traces" signal). No-op by default: exporter=none until
+      # prod .env sets OTEL_TRACES_EXPORTER=otlp + OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+      # (VictoriaTraces, full non-standard path /insert/opentelemetry/v1/traces).
+      # metrics/logs already flow via Alloy, so only traces are exported here.
+      # deployment.environment reuses PODCAST_ENV (dev on the Mac, prod on the VPS).
+      OTEL_SERVICE_NAME: podcast-api
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
     volumes:
       # Read-write: API may rebuild vector index or write lock files under the corpus root.
       - corpus_data:/app/output
