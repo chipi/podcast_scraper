@@ -46,6 +46,49 @@ _DEFAULT_TRACES_SAMPLE_RATE: dict[Component, float] = {
     "pipeline": 0.0,
 }
 
+# Substrings that mark a key as sensitive — scrubbed from anything we send.
+_SENSITIVE_SUBSTRINGS = (
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "dsn",
+)
+
+
+def _redact_mapping(data: object) -> None:
+    """In-place redact sensitive-looking keys of a dict (best-effort, shallow)."""
+    if not isinstance(data, dict):
+        return
+    for key in list(data):
+        if isinstance(key, str) and any(s in key.lower() for s in _SENSITIVE_SUBSTRINGS):
+            data[key] = "[redacted]"
+
+
+def _before_send(event: dict, hint: object) -> dict:
+    """Scrub obviously-sensitive keys before an event leaves the app.
+
+    GlitchTip/Sentry stores what we send, and a key-in-env app leaks secrets most
+    easily through **stack-frame locals** (an api key bound to a variable in the
+    failing frame). ``send_default_pii=False`` keeps request bodies/IPs out; this
+    scrubs `extra`/`contexts`, request headers, and frame `vars`. Never raises —
+    a scrub error must not drop the (already-useful) error event.
+    """
+    try:
+        for section in ("extra", "contexts"):
+            _redact_mapping(event.get(section))
+        _redact_mapping((event.get("request") or {}).get("headers"))
+        for exc in (event.get("exception") or {}).get("values", []) or []:
+            for frame in (exc.get("stacktrace") or {}).get("frames", []) or []:
+                _redact_mapping(frame.get("vars"))
+    except Exception:  # noqa: BLE001 — a scrub failure must not drop the event
+        _LOGGER.debug("sentry before_send scrub skipped", exc_info=True)
+    return event
+
 
 def init_sentry(component: Component) -> bool:
     """Initialise the Sentry SDK for the given component.
@@ -103,6 +146,11 @@ def init_sentry(component: Component) -> bool:
         # Keep `send_default_pii=False` so request bodies + headers don't
         # leak op data. Custom tags / contexts are still attached.
         send_default_pii=False,
+        # Scrub sensitive keys (tokens/secrets) from extra/contexts/headers and,
+        # critically, stack-frame locals — GlitchTip/Sentry stores what we send.
+        # (SDK types before_send with its TypedDict Event; our plain-dict scrubber
+        # is structurally compatible — ignore the narrow-type mismatch.)
+        before_send=_before_send,  # type: ignore[arg-type]
         # Default integrations (Logging / Threading / Asyncio /
         # ExcepthookIntegration / DedupeIntegration / AtexitIntegration /
         # StdlibIntegration) cover the surfaces we care about. The FastAPI
