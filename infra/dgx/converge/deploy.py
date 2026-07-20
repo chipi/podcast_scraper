@@ -679,10 +679,9 @@ services:
       - MOSS_MAX_NEW_TOKENS=16384
       - HF_HOME={HF_CACHE_HOST}
       - LOG_LEVEL=INFO
-      # Errors -> self-hosted GlitchTip. Overrides the env_file's SENTRY_DSN;
-      # set GLITCHTIP_DSN in the operator .env to the GlitchTip project DSN
-      # (tailnet-only). moss app.py inits sentry + scrubs secrets (before_send).
-      - SENTRY_DSN=${{GLITCHTIP_DSN:-}}
+      # Errors -> self-hosted GlitchTip. moss app.py prefers GLITCHTIP_DSN over the
+      # env_file's legacy SENTRY_DSN (Cloud); set GLITCHTIP_DSN in the operator .env
+      # (tailnet-only). It inits sentry + scrubs secrets (before_send).
       - SENTRY_ENVIRONMENT=prod
     volumes:
       - /opt/llm-models:/opt/llm-models

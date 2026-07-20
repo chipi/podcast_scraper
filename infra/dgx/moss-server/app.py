@@ -44,7 +44,9 @@ logger = logging.getLogger("moss-server")
 try:
     import sentry_sdk
 
-    _sentry_dsn = os.environ.get("SENTRY_DSN", "").strip()
+    # Prefer GLITCHTIP_DSN (self-hosted) over the legacy SENTRY_DSN (Cloud); both
+    # come from the container env (env_file), so no compose var-substitution needed.
+    _sentry_dsn = (os.environ.get("GLITCHTIP_DSN") or os.environ.get("SENTRY_DSN", "")).strip()
     if _sentry_dsn:
 
         def _sentry_scrub(event: dict, _hint: object) -> dict:
