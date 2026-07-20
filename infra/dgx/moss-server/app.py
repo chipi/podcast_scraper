@@ -198,6 +198,27 @@ async def transcribe(file: UploadFile = File(...)) -> Dict[str, Any]:
     }
 
 
+# Prometheus instrumentation — request rate / latency histo / status codes at
+# /metrics (mirrors pyannote-server + whisper-server). Paths are static (no
+# high-cardinality URL params), so default grouping is fine. Scraped by the DGX
+# Alloy collector (job=moss). No-op if the instrumentator isn't installed.
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        excluded_handlers=["/metrics"],
+    ).instrument(app).expose(app, include_in_schema=False, tags=["observability"])
+    logger.info("Prometheus instrumentation enabled at /metrics")
+except ImportError:
+    logger.warning(
+        "prometheus_fastapi_instrumentator not installed — /metrics endpoint disabled. "
+        "Add to the Dockerfile to enable scrape."
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
 
