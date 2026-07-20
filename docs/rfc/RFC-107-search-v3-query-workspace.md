@@ -126,8 +126,8 @@ Operator bar (`ResultSetOperatorBar.vue`) sits above the result list. Each opera
 | **Cluster** | `search/insight_clusters.py` + `search/theme_clusters.py` | Server groups hits by cluster; UI renders `ClusterGroupCard`. Fetch `top_k * 3` when Cluster is active (default; config `search.cluster.overfetch_factor`). |
 | **Show on graph** | client — reuse `subjectStore.focusHit` per hit; union bbox in `App.vue` graph camera | Compute the union of derived node ids; call graph camera with a set-focus request (new `graphNavigation.focusSet(ids)`). |
 | **Timeline** | client — bucket hits by `publish_date` month | Renders `SubjectTimelineChart` with hit counts; bucket-click filters `WorkspaceResults` client-side. |
-| **Compare (2 subjects)** | `search/context_pack.py::build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` (RFC-093 **shipped API**) | Client picks 2 subjects; server runs hybrid scoped to each, calls `build_briefing_pack` twice, returns two `CorpusBriefingPack`s. 2-column view. Judge summary from `search/judged_eval.py` muted below when available. |
-| **Consensus** | `topic_consensus` enricher (ADR-108, precision 0.91) — reads `enrichments/topic_consensus.json` (per-corpus enricher output already produced) | Given hits about the same Topic, show cross-speaker corroboration pairs. **NOT contradictions** — that requires typed CONTRADICTS edges (RFC-072 KL5, v3+, out of scope). |
+| **Compare (2 subjects)** | `search/context_pack.py::build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` (RFC-093 **shipped API**) | Client picks 2 subjects; server runs hybrid scoped to each, calls `build_briefing_pack` twice, returns two `CorpusBriefingPack`s (each with `top_insight`, `supporting_segments`, `coverage_summary`, `confidence_p50`). 2-column view. Judge summary from `search/judged_eval.py` muted below when available. **Optional `insight_type` filter** (RFC-072 GIL v1.1 — `claim` / `recommendation` / `observation` / `question`) narrows both sides symmetrically. |
+| **Consensus** | `topic_consensus` enricher (ADR-108, precision 0.91) — reads the enricher output already produced per-corpus (`nli_contradiction → topic_consensus` per RFC-088 §Reimagining note) | Given hits about the same Topic, show cross-speaker corroboration pairs — each `(topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score)`. Text of the two Insights rendered inline with a "corroborates" anchor. **NOT contradictions** — that requires typed CONTRADICTS edges (RFC-072 KL5, v3+, out of scope). |
 
 None of these introduce a new native pyarrow.compute call site — every server-side step runs in Python after `rrf_fuse` returns. `make lint-search-v3` (see §S) guards against regressions.
 
@@ -162,7 +162,7 @@ Additive only. No changes to `/api/app/search` (consumer surface — out of scop
 - Extend `POST /api/search` (viewer) with optional `operator: 'cluster' | 'consensus' | 'compare'` param. When set, the response carries `operator_result` (typed per operator). No change to the existing hit shape.
 - Extend `GET /api/search` with an optional `palette=1` param — for the Cmd-K live-query path (server-side hint to bound response cost — the server may cap top_k regardless).
 - `GET /api/search/similar?doc_id=…&top_k=…` — "more like this hit" using `corpus_similar.py` (shipped). Additive.
-- For **Compare**: `POST /api/search/compare` — body: `{ subject_a: SubjectRef, subject_b: SubjectRef, q?, max_tokens? }`; response: `{ pack_a: CorpusBriefingPack, pack_b: CorpusBriefingPack }`. Wraps `build_briefing_pack` twice.
+- For **Compare**: `POST /api/search/compare` — body: `{ subject_a: SubjectRef, subject_b: SubjectRef, q?, max_tokens?, insight_types?: [Type, ...] }`; response: `{ pack_a: CorpusBriefingPack, pack_b: CorpusBriefingPack }`. Wraps `build_briefing_pack` twice. Same auth/middleware as `/api/search` (RFC-094 §2 pattern).
 
 **SIGSEGV impact (each new endpoint):** all four call sites route through the Python-side `retrieval.py` fan-out. None touch `_combine_hybrid_results` / `_normalize_scores`. Enforced by `make lint-search-v3`.
 
@@ -296,6 +296,18 @@ The #1205 fix (`0fe0854b`) is a live invariant. This RFC encodes it as review co
 5. **SIGSEGV impact line in PR body.** Every slice PR answers: *does this slice add a call site into the native combine, or into a new native pyarrow.compute path?* Default = NO; any YES requires an ADR update AND a repro-test row.
 6. **Grep guard.** `make lint-search-v3` (new; single-purpose lint) fails when `_combine_hybrid_results` or `_normalize_scores` is imported outside a whitelist (currently: nowhere). Recorded in `.github/lint/search-v3-forbidden-imports.txt`.
 
+## Inherited Known Limitations (RFC-072 + RFC-088)
+
+Search v3 does not create these; it inherits them from shipped substrate and must degrade honestly:
+
+- **KL2 — Cross-episode Person merge / alias registry (RFC-072 open):** the same real person can appear as different `person:{slug}` IDs across episodes (`sam-altman` vs `samuel-altman`). Consequences: **Rail launcher "Search this person"** may miss aliased variants; **Compare (2 persons)** may split the same person's evidence into two halves; **Consensus** may miss a corroboration pair that spans aliased persons. UI must display a muted "may miss aliased variants" hint on rail-launch and compare surfaces. Fix landed only when KL2 lands.
+- **KL3 — Topic dedup (RFC-072 open):** same story for topics (`ai-regulation` vs `ai-policy`). Same UI hint on topic-scoped launches + Consensus + Timeline. Fix landed only when KL3 lands.
+- **KL4 — Episode duration availability (RFC-072 open):** `position_hint` is `null` when RSS omits `<itunes:duration>` and audio was not inspected. Consequences: **Timeline operator** bucketing by `publish_date` unaffected; intra-episode `position_hint` sort in `build_briefing_pack` (Compare) treats null as `0.0` — Insights without a hint sort to the beginning. No UI hint needed; degradation is invisible and graceful.
+- **KL5 — Typed CONTRADICTS edges (RFC-072 v3+):** a full "Contradictions" operator (contradicts-as-assertion) is blocked. Search v3 ships **Consensus** only (via `topic_consensus`, shipped ADR-108). Documented as Non-Goal in PRD-045.
+- **RFC-088 `topic_consensus` schema:** the enricher output is a raw base layer (`topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score` — the `contradiction_score` name is legacy, semantically the composite consensus signal per ADR-108). UI must NOT synthesize summaries; render Insight text extractively. Any future summarization is a follow-up analysis layer (RFC-088 §Reimagining note).
+
+These limitations become obsolete when their upstream fixes land; Search v3 slices should NOT try to work around them (the workaround belongs upstream).
+
 ## Migration / rollout
 
 - **Slice order** — see [`docs/wip/SEARCH-V3-IMPLEMENTATION-PLAN.md`](../wip/SEARCH-V3-IMPLEMENTATION-PLAN.md).
@@ -324,6 +336,7 @@ The #1205 fix (`0fe0854b`) is a live invariant. This RFC encodes it as review co
 - **OQ5** Palette shortcut — this RFC picks `Cmd-K` / `Ctrl-K` / `/` (repointed) unless operator objects.
 - **OQ6** Cluster server-side depth — how far to over-fetch when operator === 'cluster' (config; default `top_k * 3`).
 - **OQ7** Should `search.recentQueries` be Workspace-per-tab (fresh per open) OR user-cross-device (roams)? RFC-107 default: user-cross-device (USERPREFS-1). Palette empty-state can filter to "just this session" if operator asks.
+- **OQ8** Cmd-K palette live-query could optionally call `identity.resolver.EntityResolver.resolve(text)` (RFC-091 §Constraints — resolver shipped in Slice A of #849) to detect entity queries and surface an "Open Person/Topic panel →" row above the hit list. Additive; not required for v1.
 
 ## References
 
@@ -345,5 +358,7 @@ The #1205 fix (`0fe0854b`) is a live invariant. This RFC encodes it as review co
 - [UXS-008](../uxs/UXS-008-enriched-search.md) — enriched search (heroified)
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (primary UX)
 - [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md) — perf-capture template
+- [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current operator-facing enrichment config surface (per-enricher reference + provider-types registry)
+- [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes + `--with-ml` CLI (RFC-088 chunk 6; separate from Search v3's `/api/search?enrich_results=`)
 - USERPREFS-1: `docs/wip/USERPREFS-1.md`
 - #1205 — LanceDB SIGSEGV incident + fix `0fe0854b`

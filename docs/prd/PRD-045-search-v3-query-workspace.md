@@ -57,6 +57,7 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 - **Cross-corpus search** — single-corpus, same scope as today.
 - **Graph rewrites** — search-v3 must not touch `mergeGiKg` id shapes (#1219 owns that arc).
 - **Per-corpus UI persistence of any kind** — see ADR-119. Corpus telemetry (`search/query_log` writes for Dashboard analytics) is not UI state and remains unchanged.
+- **Working around inherited RFC-072 open items (KL2 Person alias registry / KL3 Topic dedup / KL4 episode duration).** Rail launchers, Compare, and Consensus display honest muted "may miss aliased variants" hints where relevant; the fix belongs upstream (RFC-072), not in Search v3.
 
 ## Personas
 
@@ -223,4 +224,6 @@ Slices missing any of these get rejected at review, not deferred.
 - [UXS-008](../uxs/UXS-008-enriched-search.md) — heroified
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (this PRD's primary UX)
 - [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md) — perf-capture template (mirrored)
+- [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current normative operator-facing enrichment config surface (RFC-088 chunk 6)
+- [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes (independent of Search v3's `/api/search?enrich_results=`)
 - USERPREFS-1: `docs/wip/USERPREFS-1.md`
