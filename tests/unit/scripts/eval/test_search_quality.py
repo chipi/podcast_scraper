@@ -144,6 +144,161 @@ def test_query_label_statuses_are_recognized() -> None:
 # ---- --seed-labels mode contract (Stabilization pass, 2026-07-20) --------
 
 
+# ---- Enriched-answer + topic_consensus metric helpers -------------------
+
+
+def test_count_consensus_pairs_no_pairs() -> None:
+    mod = _load_module()
+    assert mod._count_consensus_pairs_in_topk(["a", "b"], []) == (0, 0)
+
+
+def test_count_consensus_pairs_no_topk() -> None:
+    mod = _load_module()
+    pairs = [{"insight_a_id": "x", "insight_b_id": "y"}]
+    assert mod._count_consensus_pairs_in_topk([], pairs) == (0, 0)
+
+
+def test_count_consensus_pairs_touch_and_grounded_flag() -> None:
+    mod = _load_module()
+    pairs = [
+        {"insight_a_id": "a1", "insight_b_id": "z1"},  # touches (a1 in top-K)
+        {"insight_a_id": "gone", "insight_b_id": "a2"},  # touches (a2 in top-K)
+        {"insight_a_id": "gone1", "insight_b_id": "gone2"},  # miss
+        {"insight_a_id": "a1", "insight_b_id": "z2", "grounded": False},  # touches but not grounded
+    ]
+    touch, grounded = mod._count_consensus_pairs_in_topk(["a1", "a2"], pairs)
+    assert touch == 3
+    assert grounded == 2
+
+
+def test_count_enriched_sources_empty_and_populated() -> None:
+    mod = _load_module()
+    assert mod._count_enriched_sources(None) == (None, None)
+    assert mod._count_enriched_sources({}) == (0, 0)
+    e = {
+        "sources": [
+            {"grounded": True},
+            {"grounded": False},
+            {"grounded": True},
+            {},  # missing key → not grounded
+        ]
+    }
+    assert mod._count_enriched_sources(e) == (4, 2)
+
+
+def test_enriched_groundedness_rate_null_when_no_calls() -> None:
+    mod = _load_module()
+    # Build QueryResult-like objects with None enriched counts
+    Q = mod.QueryResult
+    per = [
+        Q(
+            id="a",
+            q="q",
+            intent_expected=None,
+            intent_predicted=None,
+            label_status="regression-anchor",
+            ndcg_at_10=None,
+            mrr_at_10=None,
+            tier_counts={},
+            compound_lift_hits=0,
+            transcript_hits=0,
+            hit_count=0,
+            top_doc_ids=[],
+        )
+    ]
+    assert mod._enriched_groundedness_rate(per) is None
+
+
+def test_enriched_groundedness_rate_populated() -> None:
+    mod = _load_module()
+    Q = mod.QueryResult
+    per = [
+        Q(
+            id="a",
+            q="q",
+            intent_expected=None,
+            intent_predicted=None,
+            label_status="regression-anchor",
+            ndcg_at_10=None,
+            mrr_at_10=None,
+            tier_counts={},
+            compound_lift_hits=0,
+            transcript_hits=0,
+            hit_count=0,
+            top_doc_ids=[],
+            enriched_source_count=3,
+            enriched_grounded_source_count=3,
+        ),
+        Q(
+            id="b",
+            q="q",
+            intent_expected=None,
+            intent_predicted=None,
+            label_status="regression-anchor",
+            ndcg_at_10=None,
+            mrr_at_10=None,
+            tier_counts={},
+            compound_lift_hits=0,
+            transcript_hits=0,
+            hit_count=0,
+            top_doc_ids=[],
+            enriched_source_count=2,
+            enriched_grounded_source_count=1,
+        ),
+    ]
+    # 4/5 = 0.8
+    assert mod._enriched_groundedness_rate(per) == pytest.approx(0.8)
+
+
+def test_topic_consensus_precision_null_when_no_pairs_seen() -> None:
+    mod = _load_module()
+    Q = mod.QueryResult
+    per = [
+        Q(
+            id="a",
+            q="q",
+            intent_expected=None,
+            intent_predicted=None,
+            label_status="regression-anchor",
+            ndcg_at_10=None,
+            mrr_at_10=None,
+            tier_counts={},
+            compound_lift_hits=0,
+            transcript_hits=0,
+            hit_count=0,
+            top_doc_ids=[],
+            consensus_pairs_in_topk=None,
+            consensus_pairs_grounded=None,
+        )
+    ]
+    assert mod._topic_consensus_precision(per) is None
+
+
+def test_topic_consensus_precision_populated() -> None:
+    mod = _load_module()
+    Q = mod.QueryResult
+    per = [
+        Q(
+            id="a",
+            q="q",
+            intent_expected=None,
+            intent_predicted=None,
+            label_status="regression-anchor",
+            ndcg_at_10=None,
+            mrr_at_10=None,
+            tier_counts={},
+            compound_lift_hits=0,
+            transcript_hits=0,
+            hit_count=0,
+            top_doc_ids=[],
+            consensus_pairs_in_topk=3,
+            consensus_pairs_grounded=2,
+        )
+    ]
+    # 2/3 ≈ 0.667
+    assert mod._topic_consensus_precision(per) == pytest.approx(2 / 3)
+
+
 def test_seed_labels_ships_shipped_query_set_carries_regression_anchor_labels() -> None:
     """The checked-in query set was seeded during S0 stabilization — every
     query must be regression-anchor with a non-empty expected_top_k_doc_ids.

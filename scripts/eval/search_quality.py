@@ -63,6 +63,13 @@ class QueryResult:
     transcript_hits: int
     hit_count: int
     top_doc_ids: list[str] = field(default_factory=list)
+    # Enrichment (--enrich) — null when the API path wasn't invoked or when
+    # the provider returned no enriched answer.
+    enriched_source_count: int | None = None
+    enriched_grounded_source_count: int | None = None
+    # topic_consensus (populated when enrichments/topic_consensus.json exists).
+    consensus_pairs_in_topk: int | None = None
+    consensus_pairs_grounded: int | None = None
 
 
 @dataclass
@@ -130,8 +137,79 @@ def _load_topic_consensus(corpus: Path) -> list[dict[str, Any]]:
         candidate = corpus / "enrichments" / name
         if candidate.exists():
             data = json.loads(candidate.read_text())
-            return data.get("pairs", []) or data.get("data", {}).get("pairs", [])
+            pairs = data.get("pairs") or data.get("data", {}).get("pairs") or []
+            return list(pairs)
     return []
+
+
+def _count_consensus_pairs_in_topk(
+    doc_ids: list[str], pairs: list[dict[str, Any]]
+) -> tuple[int, int]:
+    """Return (pairs_touching_topk, pairs_touching_topk_and_grounded).
+
+    A pair "touches" top-K when at least one of its insight_a_id / insight_b_id
+    appears in ``doc_ids`` (RFC-088 tuple shape per ADR-108). ``grounded`` is
+    inferred from the pair's optional ``grounded`` flag, defaulting to True (the
+    shipped enricher only emits pairs both sides of which are grounded).
+    """
+    if not pairs or not doc_ids:
+        return (0, 0)
+    top_set = set(doc_ids)
+    touch = 0
+    grounded_touch = 0
+    for pair in pairs:
+        ia = pair.get("insight_a_id")
+        ib = pair.get("insight_b_id")
+        if not (isinstance(ia, str) or isinstance(ib, str)):
+            continue
+        if (isinstance(ia, str) and ia in top_set) or (isinstance(ib, str) and ib in top_set):
+            touch += 1
+            if pair.get("grounded", True) is True:
+                grounded_touch += 1
+    return (touch, grounded_touch)
+
+
+def _fetch_enriched_answer(
+    api_url: str, query: str, corpus: Path, top_k: int
+) -> dict[str, Any] | None:
+    """Call /api/search?enrich_results=true; return the enriched block if present.
+
+    Best-effort: any network / provider failure returns None. Enabled only when
+    ``--enrich`` is passed and ``--api`` is set (harness runs offline by default).
+    """
+    import urllib.parse
+    import urllib.request
+
+    params = urllib.parse.urlencode(
+        {
+            "q": query,
+            "top_k": top_k,
+            "path": str(corpus),
+            "enrich_results": "true",
+        }
+    )
+    url = f"{api_url.rstrip('/')}/api/search?{params}"
+    try:
+        with urllib.request.urlopen(url, timeout=60) as resp:
+            if resp.status != 200:
+                return None
+            body = json.loads(resp.read())
+    except Exception:  # noqa: BLE001 — best-effort; skip on any failure
+        return None
+    enriched = body.get("enriched")
+    return enriched if isinstance(enriched, dict) else None
+
+
+def _count_enriched_sources(enriched: dict[str, Any] | None) -> tuple[int | None, int | None]:
+    """Return (source_count, grounded_source_count). None only when enriched is None
+    (i.e. no enriched block returned at all); an empty enriched dict counts as (0, 0)."""
+    if enriched is None:
+        return (None, None)
+    sources = enriched.get("sources") or []
+    if not isinstance(sources, list):
+        return (0, 0)
+    grounded = sum(1 for s in sources if isinstance(s, dict) and s.get("grounded") is True)
+    return (len(sources), grounded)
 
 
 def _run_query(layer: Any, q: str, embed_fn: Any, top_k: int) -> list[Any]:
@@ -148,7 +226,8 @@ def _load_embedder(model_name: str) -> Any:
     model = SentenceTransformer(model_name)
 
     def encode(text: str) -> list[float]:
-        return model.encode(text).tolist()
+        vec: list[float] = list(model.encode(text).tolist())
+        return vec
 
     return encode
 
@@ -199,14 +278,40 @@ def _aggregate(per_query: list[QueryResult]) -> dict[str, Any]:
         ),
         "transcript_hit_total": transcript_hits_total,
         "compound_lift_hit_total": compound_lift_hits_total,
-        # Enriched-answer + topic_consensus metrics are None here — they need
-        # an enrichment provider (RFC-088 chunk 5) and a topic_consensus
-        # enricher output on the corpus. When those exist a follow-up pass
-        # can populate them; the report shape stays stable.
-        "enriched_answer_groundedness_rate": None,
-        "topic_consensus_precision": None,
+        # Enriched-answer groundedness rate: fraction of enriched sources marked
+        # grounded=True across all queries that produced an enriched block.
+        # Null when --enrich wasn't used or no provider responded.
+        "enriched_answer_groundedness_rate": _enriched_groundedness_rate(per_query),
+        # topic_consensus precision: fraction of consensus pairs touching the
+        # top-K whose both-insights-grounded flag holds. Null when the corpus
+        # has no topic_consensus enricher output.
+        "topic_consensus_precision": _topic_consensus_precision(per_query),
     }
     return metrics
+
+
+def _enriched_groundedness_rate(per_query: list[QueryResult]) -> float | None:
+    total = sum(q.enriched_source_count for q in per_query if q.enriched_source_count is not None)
+    grounded = sum(
+        q.enriched_grounded_source_count
+        for q in per_query
+        if q.enriched_grounded_source_count is not None
+    )
+    if total == 0:
+        return None
+    return grounded / total
+
+
+def _topic_consensus_precision(per_query: list[QueryResult]) -> float | None:
+    total = sum(
+        q.consensus_pairs_in_topk for q in per_query if q.consensus_pairs_in_topk is not None
+    )
+    grounded = sum(
+        q.consensus_pairs_grounded for q in per_query if q.consensus_pairs_grounded is not None
+    )
+    if total == 0:
+        return None
+    return grounded / total
 
 
 def main() -> int:
@@ -245,6 +350,24 @@ def main() -> int:
             "Idempotent — queries already labeled are left untouched."
         ),
     )
+    parser.add_argument(
+        "--enrich",
+        action="store_true",
+        help=(
+            "Opt-in: also call /api/search?enrich_results=true for each query and "
+            "populate enriched_answer_groundedness_rate. Requires --api pointing at a "
+            "running api with an enrichment provider configured (RFC-088 chunk 5). "
+            "Best-effort: per-query failures skip that query only."
+        ),
+    )
+    parser.add_argument(
+        "--api",
+        default=None,
+        help=(
+            "Optional api URL for --enrich (default: no api call). The harness's "
+            "in-process RetrievalLayer path is unaffected."
+        ),
+    )
     args = parser.parse_args()
 
     queries = _load_queries(args.queries)
@@ -256,6 +379,13 @@ def main() -> int:
     meta = backend.read_index_meta() or {}
     embed_model = meta.get("embedding_model") or "sentence-transformers/all-MiniLM-L6-v2"
     embed_fn = None if args.no_embed else _load_embedder(embed_model)
+
+    consensus_pairs = _load_topic_consensus(args.corpus)
+    if args.enrich and not args.api:
+        print(
+            "WARN: --enrich set but --api unspecified; enriched-answer metric will stay null",
+            file=sys.stderr,
+        )
 
     per_query: list[QueryResult] = []
     seeded_count = 0
@@ -294,6 +424,16 @@ def main() -> int:
             rel = set(expected)
             ndcg = _ndcg_at_k(doc_ids, rel, k=args.top_k)
             mrr = _mrr_at_k(doc_ids, rel, k=args.top_k)
+        consensus_touch, consensus_grounded = (
+            _count_consensus_pairs_in_topk(doc_ids, consensus_pairs)
+            if consensus_pairs
+            else (None, None)
+        )
+        enriched_srcs: int | None = None
+        enriched_grounded_srcs: int | None = None
+        if args.enrich and args.api:
+            enriched = _fetch_enriched_answer(args.api, qtext, args.corpus, args.top_k)
+            enriched_srcs, enriched_grounded_srcs = _count_enriched_sources(enriched)
         per_query.append(
             QueryResult(
                 id=qid,
@@ -308,6 +448,10 @@ def main() -> int:
                 transcript_hits=transcript_hits,
                 hit_count=len(hits),
                 top_doc_ids=doc_ids,
+                enriched_source_count=enriched_srcs,
+                enriched_grounded_source_count=enriched_grounded_srcs,
+                consensus_pairs_in_topk=consensus_touch,
+                consensus_pairs_grounded=consensus_grounded,
             )
         )
 

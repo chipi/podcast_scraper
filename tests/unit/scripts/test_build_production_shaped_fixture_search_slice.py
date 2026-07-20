@@ -173,3 +173,100 @@ def test_every_referenced_episode_id_exists_in_parent_fixture(
         f"hit-card handoffs will break at spec time. Orphans: {sorted(orphans)}. "
         f"Parent has: {sorted(parent_ids)}"
     )
+
+
+# ---- --search-slice merge semantics (--prune-orphaned / --backup-scenarios-to) ---
+
+
+def _load_build_module() -> Any:
+    import importlib.util
+    import sys as _sys
+
+    script = REPO_ROOT / "scripts" / "build_production_shaped_fixture.py"
+    spec = importlib.util.spec_from_file_location("build_prod_shaped", script)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    _sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _mock_fetch_scenario_response_factory(payload: Any) -> Any:
+    return lambda api, endpoint, method, params: payload
+
+
+def test_search_slice_prune_orphaned_drops_scenarios_without_matching_spec(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _load_build_module()
+    monkeypatch.setattr(
+        mod, "_fetch_scenario_response", _mock_fetch_scenario_response_factory({"results": []})
+    )
+    out = tmp_path / "fixture"
+    (out / "search-v3").mkdir(parents=True)
+    # Seed the JSON with a spec'd scenario (compound-lift) + an orphan.
+    (out / "search-v3" / "mocks.json").write_text(
+        json.dumps(
+            {
+                "scenarios": {
+                    "compound-lift": {"description": "keep", "response": {"stale": True}},
+                    "orphan-scenario": {"description": "should go", "response": {"old": True}},
+                }
+            }
+        )
+    )
+    mod._capture_search_v3_slice(api="x", corpus="/c", out=out, prune_orphaned=True)
+    written = json.loads((out / "search-v3" / "mocks.json").read_text())
+    assert "compound-lift" in written["scenarios"]
+    assert "orphan-scenario" not in written["scenarios"]
+    # And the spec'd scenario's description is preserved (hand-authored field).
+    assert written["scenarios"]["compound-lift"]["description"] == "keep"
+
+
+def test_search_slice_prune_orphaned_off_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without --prune-orphaned, an orphan stays put (silent accumulation)."""
+    mod = _load_build_module()
+    monkeypatch.setattr(
+        mod, "_fetch_scenario_response", _mock_fetch_scenario_response_factory({"results": []})
+    )
+    out = tmp_path / "fixture"
+    (out / "search-v3").mkdir(parents=True)
+    (out / "search-v3" / "mocks.json").write_text(
+        json.dumps({"scenarios": {"orphan-scenario": {"response": {}}}})
+    )
+    mod._capture_search_v3_slice(api="x", corpus="/c", out=out)
+    written = json.loads((out / "search-v3" / "mocks.json").read_text())
+    assert "orphan-scenario" in written["scenarios"]
+
+
+def test_search_slice_backup_snapshots_prev_responses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _load_build_module()
+    monkeypatch.setattr(
+        mod, "_fetch_scenario_response", _mock_fetch_scenario_response_factory({"new": True})
+    )
+    out = tmp_path / "fixture"
+    (out / "search-v3").mkdir(parents=True)
+    (out / "search-v3" / "mocks.json").write_text(
+        json.dumps(
+            {
+                "scenarios": {
+                    "compound-lift": {"response": {"prev": True}},
+                    "orphan-scenario": {"response": {"was_orphan": True}},
+                }
+            }
+        )
+    )
+    backup = tmp_path / "backup"
+    mod._capture_search_v3_slice(
+        api="x", corpus="/c", out=out, prune_orphaned=True, backup_scenarios_to=backup
+    )
+    # Overwritten scenario has a `.previous.json` snapshot.
+    prev_dump = json.loads((backup / "compound-lift.previous.json").read_text())
+    assert prev_dump == {"prev": True}
+    # Pruned scenario has a `.pruned.json` snapshot.
+    pruned_dump = json.loads((backup / "orphan-scenario.pruned.json").read_text())
+    assert pruned_dump == {"response": {"was_orphan": True}}

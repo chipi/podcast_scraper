@@ -138,12 +138,24 @@ def _fetch_scenario_response(api: str, endpoint: str, method: str, params: dict[
         return json.loads(r.read())
 
 
-def _capture_search_v3_slice(*, api: str, corpus: str, out: Path) -> None:
+def _capture_search_v3_slice(
+    *,
+    api: str,
+    corpus: str,
+    out: Path,
+    prune_orphaned: bool = False,
+    backup_scenarios_to: Path | None = None,
+) -> None:
     """Capture Search v3 scenario mocks; merges per-scenario into search-v3/mocks.json.
 
     Preserves hand-authored ``description`` / ``notes`` / ``anchor_feeds`` fields;
     only the ``response`` (and ``request``) fields of overlapping scenarios are
     refreshed from the API.
+
+    ``prune_orphaned`` — when True, delete scenarios in the JSON that don't have
+    a matching module-scope spec (avoids silent accumulation).
+    ``backup_scenarios_to`` — when set, snapshot each scenario's previous
+    ``response`` to ``<dir>/<name>.previous.json`` before overwrite (provenance).
     """
     (out / "search-v3").mkdir(exist_ok=True)
     sv3_path = out / "search-v3" / "mocks.json"
@@ -155,6 +167,9 @@ def _capture_search_v3_slice(*, api: str, corpus: str, out: Path) -> None:
             print(f"  --search-slice: existing {sv3_path.name} unreadable ({exc}); rewriting")
             existing = {}
     scenarios: dict[str, Any] = existing.get("scenarios", {}) or {}
+    spec_names = {name for name, _e, _m, _p in _SEARCH_V3_SLICE_SPECS}
+    if backup_scenarios_to is not None:
+        backup_scenarios_to.mkdir(parents=True, exist_ok=True)
     captured = 0
     for name, endpoint, method, base_params in _SEARCH_V3_SLICE_SPECS:
         params = {**base_params, "path": corpus}
@@ -164,6 +179,11 @@ def _capture_search_v3_slice(*, api: str, corpus: str, out: Path) -> None:
             print(f"  --search-slice: skip {name!r}: {exc}")
             continue
         entry = scenarios.get(name, {})
+        prev_response = entry.get("response")
+        if backup_scenarios_to is not None and prev_response is not None:
+            (backup_scenarios_to / f"{name}.previous.json").write_text(
+                json.dumps(prev_response, indent=2, sort_keys=True) + "\n"
+            )
         entry["description"] = entry.get("description") or (
             f"Auto-captured via --search-slice for scenario {name}."
         )
@@ -174,6 +194,16 @@ def _capture_search_v3_slice(*, api: str, corpus: str, out: Path) -> None:
         entry["response"] = resp
         scenarios[name] = entry
         captured += 1
+    pruned: list[str] = []
+    if prune_orphaned:
+        for name in list(scenarios.keys()):
+            if name not in spec_names:
+                if backup_scenarios_to is not None:
+                    (backup_scenarios_to / f"{name}.pruned.json").write_text(
+                        json.dumps(scenarios[name], indent=2, sort_keys=True) + "\n"
+                    )
+                del scenarios[name]
+                pruned.append(name)
     merged = {
         "schema_version": existing.get("schema_version", "1"),
         "generated_at": existing.get("generated_at"),
@@ -189,10 +219,15 @@ def _capture_search_v3_slice(*, api: str, corpus: str, out: Path) -> None:
     for k, v in existing.items():
         merged.setdefault(k, v)
     write_json(sv3_path, merged)
-    print(
+    msg = (
         f"--search-slice: {captured}/{len(_SEARCH_V3_SLICE_SPECS)} scenarios captured "
         f"-> {sv3_path.name}"
     )
+    if pruned:
+        msg += f" (pruned {len(pruned)}: {', '.join(pruned)})"
+    if backup_scenarios_to is not None:
+        msg += f" (backups → {backup_scenarios_to})"
+    print(msg)
 
 
 def main() -> int:
@@ -212,6 +247,25 @@ def main() -> int:
             "appropriate query params. Writes to "
             "``<output>/search-v3/mocks.json`` (merge-per-scenario with any "
             "hand-authored content already there)."
+        ),
+    )
+    p.add_argument(
+        "--prune-orphaned",
+        action="store_true",
+        help=(
+            "With --search-slice, delete scenarios in the JSON that don't have a "
+            "matching module-scope spec (avoid silent accumulation as _SEARCH_V3_"
+            "SLICE_SPECS shrinks over time)."
+        ),
+    )
+    p.add_argument(
+        "--backup-scenarios-to",
+        type=Path,
+        default=None,
+        help=(
+            "With --search-slice, snapshot each scenario's previous response to "
+            "<dir>/<name>.previous.json before overwrite (and pruned scenarios to "
+            "<name>.pruned.json). Provenance for merges."
         ),
     )
     args = p.parse_args()
@@ -348,7 +402,13 @@ def main() -> int:
     #     contract (RFC-107 §2 SearchResponse, §6 result-set operators, RFC-088
     #     chunk 5 enriched-answer, RFC-072 §6 compound-lift).
     if args.search_slice:
-        _capture_search_v3_slice(api=api, corpus=corpus, out=out)
+        _capture_search_v3_slice(
+            api=api,
+            corpus=corpus,
+            out=out,
+            prune_orphaned=args.prune_orphaned,
+            backup_scenarios_to=args.backup_scenarios_to,
+        )
 
     # 9. Manifest — index of everything for the mock helper.
     manifest = {

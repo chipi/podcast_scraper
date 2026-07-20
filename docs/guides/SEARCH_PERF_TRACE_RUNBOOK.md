@@ -226,3 +226,14 @@ operator-graph, enriched-answer-paint) — lands with slice S2
 (#1232 · Query Workspace shell). By then there is a Workspace to
 trace; the baseline captured against slice-S2 tip becomes the "before"
 for slices S3–S8.
+
+## Deferred: RFC-107 §P3 deep-review pass
+
+Once Marko (or another operator) captures the S0-api-baseline against
+a real corpus (recipe under §3 above), the RFC-107 §P3 "deep-review
+pass" fires — a per-surface review of the top-N latency contributors
+observed in the baseline, with action items opened per slice as they
+apply. Convention (RFC-107 §P3): "Do NOT silently apply optimizations
+discovered in the review." When the baseline lands, add the review
+findings to this runbook under a new "§P3 deep-review findings"
+section rather than opening a new tracking issue.
