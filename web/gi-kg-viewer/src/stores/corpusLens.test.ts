@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { localYmdDaysAgo } from '../utils/localCalendarDate'
 
 describe('useCorpusLensStore', () => {
@@ -120,6 +120,52 @@ describe('useCorpusLensStore', () => {
       s.reset()
       expect(s.sinceYmd).toBe('')
       expect(s.activePreset).toBe('all')
+    })
+  })
+
+  describe('USERPREFS-1 (#1215) adoption', () => {
+    it('setPreset(30) write-throughs to userPrefs.set with the persisted preset value', async () => {
+      const { useCorpusLensStore } = await import('./corpusLens')
+      const { useUserPreferencesStore } = await import('./userPreferences')
+      const setSpy = vi.spyOn(useUserPreferencesStore(), 'set')
+      const s = useCorpusLensStore()
+      s.setPreset(30)
+      await new Promise((r) => setTimeout(r, 0))
+      // activePreset is the string '30' per CorpusLensPreset type; the
+      // watcher writes it through to USERPREFS-1 verbatim.
+      expect(setSpy).toHaveBeenCalledWith('corpusLensPreset', '30')
+    })
+
+    it('hydrated preset from server applies via setPreset (echo-suppressed)', async () => {
+      const { useUserPreferencesStore } = await import('./userPreferences')
+      const userPrefs = useUserPreferencesStore()
+      // Seed a server-side preset BEFORE loading corpusLens so the immediate
+      // watcher picks it up. Pinia setup-stores unwrap refs on the store
+      // proxy — assign directly, not via `.value`.
+      ;(userPrefs as unknown as { local: Record<string, unknown> }).local = {
+        corpusLensPreset: '7',
+      }
+      const setSpy = vi.spyOn(userPrefs, 'set')
+      const { useCorpusLensStore } = await import('./corpusLens')
+      const s = useCorpusLensStore()
+      await new Promise((r) => setTimeout(r, 0))
+      // sinceYmd was moved to today-minus-7 by setPreset.
+      expect(s.sinceYmd).toBe(localYmdDaysAgo(7))
+      expect(s.activePreset).toBe('7')
+      // And the applyingRemote guard suppressed the echo write-back.
+      expect(setSpy).not.toHaveBeenCalled()
+    })
+
+    it('numeric legacy write (7 instead of "7") is normalised on read', async () => {
+      const { useUserPreferencesStore } = await import('./userPreferences')
+      const userPrefs = useUserPreferencesStore()
+      ;(userPrefs as unknown as { local: Record<string, unknown> }).local = {
+        corpusLensPreset: 30,
+      }
+      const { useCorpusLensStore } = await import('./corpusLens')
+      const s = useCorpusLensStore()
+      await new Promise((r) => setTimeout(r, 0))
+      expect(s.activePreset).toBe('30')
     })
   })
 })

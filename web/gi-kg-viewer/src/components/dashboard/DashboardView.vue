@@ -97,7 +97,7 @@ async function fetchTopPersons(): Promise<void> {
   topPersonsError.value = null
   try {
     const res = await fetchCorpusTopPersons(root, 5)
-    topPersons.value = res.persons
+    topPersons.value = Array.isArray(res.persons) ? res.persons : []
   } catch (e) {
     topPersonsError.value = e instanceof Error ? e.message : String(e)
     topPersons.value = []
@@ -146,7 +146,7 @@ async function refreshDashboard(): Promise<void> {
     if (dashGate.isStale(seq)) {
       return
     }
-    runs.value = sum.runs
+    runs.value = Array.isArray(sum.runs) ? sum.runs : []
     coverage.value = await fetchCorpusCoverage(root).catch(() => null)
     try {
       const fd = await fetchCorpusFeeds(root)

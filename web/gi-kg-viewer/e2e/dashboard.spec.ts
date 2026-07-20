@@ -1,11 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { setupDashboardApiMocks } from './dashboardApiMocks'
-import {
-  loadGraphViaFilePicker,
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from './helpers'
+import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 async function mockDashboardApis(page: import('@playwright/test').Page): Promise<void> {
   await setupDashboardApiMocks(page)
@@ -37,6 +32,10 @@ async function mockDashboardApis(page: import('@playwright/test').Page): Promise
 }
 
 test.describe('Dashboard tab', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test('briefing shows no-corpus empty state when path is unset', async ({ page }) => {
     await mockDashboardApis(page)
     await page.addInitScript(() => {

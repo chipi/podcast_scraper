@@ -1,0 +1,153 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-17T13:58:48Z",
+  "enricher_id": "topic_theme_clusters",
+  "enricher_version": "1.1.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "schema_version": "1",
+    "method": "cooccurrence_lift",
+    "episode_count": 36,
+    "min_pair_episode_count": 2,
+    "merge_threshold": 2.0,
+    "topic_count": 13,
+    "cluster_count": 3,
+    "singletons": 3,
+    "clusters": [
+      {
+        "cluster_type": "theme",
+        "canonical_label": "health",
+        "graph_compound_parent_id": "thc:health",
+        "member_count": 2,
+        "members": [
+          {
+            "topic_id": "topic:environment",
+            "label": "environment",
+            "episode_ids": [
+              "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+              "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+              "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+              "32b9679a-1a2d-5cce-b673-b489694ef798",
+              "5250652d-f8da-5799-91da-8b1ce4991232",
+              "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+              "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+              "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207"
+            ],
+            "lift_to_cluster": 2.25
+          },
+          {
+            "topic_id": "topic:health",
+            "label": "health",
+            "episode_ids": [
+              "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+              "32b9679a-1a2d-5cce-b673-b489694ef798",
+              "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+              "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+              "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+              "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+              "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+              "e5f72053-f000-519e-95cb-204c957f7ab3"
+            ],
+            "lift_to_cluster": 2.25
+          }
+        ],
+        "super_theme_id": "sth:health",
+        "super_theme_label": "health"
+      },
+      {
+        "cluster_type": "theme",
+        "canonical_label": "gear",
+        "graph_compound_parent_id": "thc:gear",
+        "member_count": 2,
+        "members": [
+          {
+            "topic_id": "topic:gear",
+            "label": "gear",
+            "episode_ids": [
+              "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+              "254fe2be-b570-592e-84cd-c22cb9e271e9",
+              "2922a74e-5598-537f-a2d1-1ac08059e49d",
+              "47fbed20-6172-5fec-a904-656de37b88ec",
+              "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+              "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+              "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+              "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+              "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+              "a283fe88-fdec-51b4-8014-431b4a7ce670",
+              "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+              "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+            ],
+            "lift_to_cluster": 3.0
+          },
+          {
+            "topic_id": "topic:outdoor-activities",
+            "label": "outdoor activities",
+            "episode_ids": [
+              "254fe2be-b570-592e-84cd-c22cb9e271e9",
+              "2922a74e-5598-537f-a2d1-1ac08059e49d",
+              "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+              "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+              "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+              "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+              "a283fe88-fdec-51b4-8014-431b4a7ce670",
+              "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+            ],
+            "lift_to_cluster": 3.0
+          }
+        ],
+        "super_theme_id": "sth:gear",
+        "super_theme_label": "gear"
+      },
+      {
+        "cluster_type": "theme",
+        "canonical_label": "welcome back to",
+        "graph_compound_parent_id": "thc:welcome-back-to",
+        "member_count": 2,
+        "members": [
+          {
+            "topic_id": "topic:great-to-be-back",
+            "label": "great to be back",
+            "episode_ids": [
+              "01835c28-431e-5b5a-adbb-5ec01411a299",
+              "55e302e4-3319-59f2-8c17-fde08bffd658",
+              "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+              "e3d8c7e5-2b7b-572b-a226-ddec128285ca"
+            ],
+            "lift_to_cluster": 3.0
+          },
+          {
+            "topic_id": "topic:welcome-back-to",
+            "label": "welcome back to",
+            "episode_ids": [
+              "01835c28-431e-5b5a-adbb-5ec01411a299",
+              "096240a2-e115-5a3c-98b4-2d852b096eda",
+              "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+              "55e302e4-3319-59f2-8c17-fde08bffd658",
+              "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+              "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+              "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+              "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+              "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+              "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+              "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+              "e741f35a-8dd9-5c40-9d5c-905f4dca4122"
+            ],
+            "lift_to_cluster": 3.0
+          }
+        ],
+        "super_theme_id": "sth:welcome-back-to",
+        "super_theme_label": "welcome back to"
+      }
+    ],
+    "super_theme_target": 6,
+    "super_theme_count": 3,
+    "super_theme_method": "cross_cluster_lift_avg_linkage"
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 3
+}

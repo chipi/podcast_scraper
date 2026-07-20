@@ -3,16 +3,17 @@
  * LibraryTab (UXS-015 / RFC-104) — hosts the Library tab's two browse modes.
  *
  * A mode toggle switches between **Shows** (shows-first ``ShowsBrowse``, default)
- * and **Episodes** (the existing episode-first ``LibraryView``, UXS-003). The mode
- * persists per browser (localStorage, matching theme/shell stores). ``LibraryView``'s
- * events are forwarded verbatim so App.vue's wiring is unchanged.
+ * and **Episodes** (the existing episode-first ``LibraryView``, UXS-003).
+ *
+ * View mode is now a proper Pinia store with USERPREFS-1 write-through so the
+ * choice syncs across devices (was previously component-local localStorage —
+ * see docs/wip/USERPREFS-1.md § "Not shipped" migration item, and stores/
+ * libraryViewMode.ts for the store definition).
  */
-import { ref, watch } from 'vue'
+import { computed } from 'vue'
 import ShowsBrowse from './ShowsBrowse.vue'
 import LibraryView from './LibraryView.vue'
-
-type Mode = 'shows' | 'episodes'
-const STORAGE_KEY = 'gikg.library.mode'
+import { useLibraryViewModeStore } from '../../stores/libraryViewMode'
 
 const emit = defineEmits<{
   'focus-search': [
@@ -21,24 +22,10 @@ const emit = defineEmits<{
   'switch-main-tab': [tab: 'digest' | 'library' | 'graph' | 'dashboard']
 }>()
 
-function readMode(): Mode {
-  // Default to Episodes (status quo, UXS-003) so the existing operator flow +
-  // e2e are unchanged; Shows is opt-in via the toggle and remembered once chosen.
-  // Promoting Shows to the default is PRD-044 OQ1 — an operator decision.
-  try {
-    return localStorage.getItem(STORAGE_KEY) === 'shows' ? 'shows' : 'episodes'
-  } catch {
-    return 'episodes'
-  }
-}
-
-const mode = ref<Mode>(readMode())
-watch(mode, (v) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, v)
-  } catch {
-    /* storage unavailable — non-fatal */
-  }
+const libraryViewMode = useLibraryViewModeStore()
+const mode = computed({
+  get: () => libraryViewMode.mode,
+  set: (v) => libraryViewMode.setMode(v),
 })
 </script>
 

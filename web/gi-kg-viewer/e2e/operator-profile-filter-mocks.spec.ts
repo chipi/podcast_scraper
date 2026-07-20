@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * Operator profile dropdown filtering + default-profile preselection
@@ -161,6 +161,10 @@ async function openProfileTab(page: Page): Promise<void> {
 }
 
 test.describe('Operator profile dropdown — filter + default preselect (#692)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test.describe.configure({ mode: 'serial' })
 
   test('preprod: dropdown shows only cloud_thin + preselected on fresh corpus', async ({

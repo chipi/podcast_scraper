@@ -165,9 +165,19 @@ def build_enricher_completed(
     duration_ms: int,
     records_written: int,
     retries: int,
+    error: str | None = None,
+    error_class: str | None = None,
 ) -> dict[str, Any]:
-    """``enrichment.enricher.completed`` — fired after each terminal outcome."""
-    return _base_payload(
+    """``enrichment.enricher.completed`` — fired after each terminal outcome.
+
+    ``error`` and ``error_class`` MUST be forwarded from ``EnricherResult``
+    on non-ok terminal outcomes so post-mortem tooling (harden audits,
+    dashboards, oncall) can diagnose without re-running. Both were
+    dropped on the floor pre-2026-07-17 → the temporal_velocity v1.2.0
+    prod-v2 regression surfaced as ``status:failed`` with zero
+    diagnostic payload.
+    """
+    payload = _base_payload(
         EVENT_ENRICHER_COMPLETED,
         status=status,
         duration_ms=int(duration_ms),
@@ -175,6 +185,15 @@ def build_enricher_completed(
         retries=int(retries),
         **jsonl_event_extras(ctx),
     )
+    # Only surface diagnostics on non-ok terminal outcomes to keep the
+    # happy-path event payload lean. Nulls elided so the JSONL schema
+    # stays additive.
+    if status != "ok":
+        if error is not None:
+            payload["error"] = str(error)
+        if error_class is not None:
+            payload["error_class"] = str(error_class)
+    return payload
 
 
 def build_circuit_opened(

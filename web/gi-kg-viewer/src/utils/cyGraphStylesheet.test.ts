@@ -211,17 +211,32 @@ describe('buildGiKgCyStylesheet', () => {
     expect(typeof episode.style.width).toBe('number')
   })
 
-  it('V5: enableNodeSizeByDegree maps Topic + Episode width/height through degreeHeat', () => {
+  it('V5: enableNodeSizeByDegree adds a [degreeHeat]-scoped mapData specialization for Topic + Episode', () => {
+    // graph-v3 C-fix — mapData is now on a `[type][degreeHeat]` specialization,
+    // not the base `[type]` rule. Nodes without degreeHeat fall through to the
+    // fixed base size (silences per-element Cytoscape warnings).
     const sheet = buildGiKgCyStylesheet({ compact: false, enableNodeSizeByDegree: true })
-    const topic = sheet.find(
+    const topicBase = sheet.find(
       (r) => (r as { selector?: string }).selector === 'node[type = "Topic"]',
     ) as { style: Record<string, unknown> }
-    const episode = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node[type = "Episode"]',
+    const topicSized = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Topic"][degreeHeat]',
     ) as { style: Record<string, unknown> }
-    expect(String(topic.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
-    expect(String(topic.style.height)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
-    expect(String(episode.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    const episodeSized = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Episode"][degreeHeat]',
+    ) as { style: Record<string, unknown> }
+    expect(typeof topicBase.style.width).toBe('number')
+    expect(String(topicSized.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    expect(String(topicSized.style.height)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    expect(String(episodeSized.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+  })
+
+  it('V5 off: no [degreeHeat] specialization emitted', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false, enableNodeSizeByDegree: false })
+    const topicSized = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Topic"][degreeHeat]',
+    )
+    expect(topicSized).toBeUndefined()
   })
 
   it('V5: other types (Quote, Speaker, …) keep fixed sizes even when V5 is on', () => {
@@ -304,5 +319,71 @@ describe('RFC-097 v2 two-tier edge contract selectors', () => {
     expect(rule).toBeTruthy()
     expect(rule!.style['line-color']).toBe('#7dd3a0')
     expect(rule!.style['line-style']).toBe('solid')
+  })
+})
+
+/* graph-v3 tier 5C/5D — enricher-lens stylesheet coverage (harden follow-up). */
+describe('Tier 5C — velocity halo selectors', () => {
+  it('emits node.velocity-up/down/steady rules with the trend.ts palette', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const up = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.velocity-up',
+    ) as { style: Record<string, unknown> } | undefined
+    const down = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.velocity-down',
+    ) as { style: Record<string, unknown> } | undefined
+    const steady = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.velocity-steady',
+    ) as { style: Record<string, unknown> } | undefined
+    expect(up?.style['border-color']).toBe('#22c55e')
+    expect(down?.style['border-color']).toBe('#ef4444')
+    expect(steady?.style['border-color']).toBe('#f59e0b')
+    // Border width is bumped above type-default so the halo reads at mid-zoom.
+    expect(Number(up?.style['border-width'])).toBeGreaterThan(1)
+  })
+})
+
+describe('Tier 5C — Person credibility border selectors', () => {
+  it('emits node.credibility-high (solid green), .credibility-med (solid amber), .credibility-low (dashed red)', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const high = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.credibility-high',
+    ) as { style: Record<string, unknown> } | undefined
+    const med = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.credibility-med',
+    ) as { style: Record<string, unknown> } | undefined
+    const low = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.credibility-low',
+    ) as { style: Record<string, unknown> } | undefined
+    expect(high?.style['border-color']).toBe('#22c55e')
+    expect(high?.style['border-style']).toBe('solid')
+    expect(med?.style['border-color']).toBe('#f59e0b')
+    expect(med?.style['border-style']).toBe('solid')
+    expect(low?.style['border-color']).toBe('#ef4444')
+    expect(low?.style['border-style']).toBe('dashed')
+  })
+})
+
+describe('Tier 5D — enricher-edge overlay selectors', () => {
+  it('consensus edges (edge.lens-consensus-edge) are green, no arrow, unbundled-bezier', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const rule = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'edge.lens-consensus-edge',
+    ) as { style: Record<string, unknown> } | undefined
+    expect(rule).toBeTruthy()
+    expect(rule!.style['line-color']).toBe('#22c55e')
+    expect(rule!.style['target-arrow-shape']).toBe('none')
+    expect(rule!.style['curve-style']).toBe('unbundled-bezier')
+  })
+
+  it('co-guest edges (edge.lens-coguest-edge) are amber, dotted, weight-scaled width', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const rule = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'edge.lens-coguest-edge',
+    ) as { style: Record<string, unknown> } | undefined
+    expect(rule).toBeTruthy()
+    expect(rule!.style['line-color']).toBe('#f59e0b')
+    expect(rule!.style['line-style']).toBe('dotted')
+    expect(String(rule!.style.width)).toMatch(/^mapData\(weight, \d+, \d+, [\d.]+, [\d.]+\)$/)
   })
 })

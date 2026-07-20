@@ -15,9 +15,11 @@
 
 import { expect, test, type Page } from '@playwright/test'
 import {
+  SHELL_HEADING_RE,
   dismissGraphGestureOverlayIfPresent,
   mainViewsNav,
-  SHELL_HEADING_RE,
+  signInAsAdmin,
+  signInIsolated,
   statusBarCorpusPathInput,
 } from '../helpers'
 
@@ -248,10 +250,9 @@ function summariseHandoff(
 test.describe('Real-corpus validation', () => {
   test.setTimeout(180_000)
 
-  test('V1 — Library row Open in graph (real backend, real corpus)', async ({ page }) => {
+  test('V1 — Library row Open in graph (real backend, real corpus)', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'real-corpus', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 30_000 })
     await fillCorpusPath(page)
     await page.screenshot({ path: 'validation-results/v1-1-corpus-loaded.png', fullPage: false })
 
@@ -277,7 +278,7 @@ test.describe('Real-corpus validation', () => {
     expect(report.cameraOk).toBe(true)
   })
 
-  test('V2 — Digest topic pill (real corpus)', async ({ page }) => {
+  test('V2 — Digest topic pill (real corpus)', async ({ page }, testInfo) => {
     // Post-V2-fix behavior: digest pill may resolve to a real cy node
     // (happy path) OR may target a topic-band aggregation bucket whose
     // cy id doesn't exist in the currently-loaded artifacts. The fix
@@ -285,9 +286,8 @@ test.describe('Real-corpus validation', () => {
     // with the error strip visible, instead of silently lying. Both are
     // valid terminal states; the bug class we catch is "FSM never
     // reaches a terminal state" (stuck-timeout).
+    await signInIsolated(page, 'real-corpus', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 30_000 })
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
     await page.screenshot({ path: 'validation-results/v2-1-digest.png', fullPage: false })
@@ -332,7 +332,7 @@ test.describe('Real-corpus validation', () => {
     expect(errs.errors).toEqual([])
   })
 
-  test('V3 — Search "Show on graph" (real corpus, F1.6 wiring)', async ({ page }) => {
+  test('V3 — Search "Show on graph" (real corpus, F1.6 wiring)', async ({ page }, testInfo) => {
     // Requires a vector index in the corpus under test. Probe via direct
     // HTTP — must pass ``?path=`` because the server defaults to its own
     // configured root, which may not be the corpus this Tier-3 walk is
@@ -345,9 +345,8 @@ test.describe('Real-corpus validation', () => {
       !indexJson?.available,
       'corpus has no vector index — Tier-2 P1.5 covers this surface via dev hook',
     )
+    await signInIsolated(page, 'real-corpus', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 30_000 })
     await fillCorpusPath(page)
     // Search panel is always visible in the left rail.
     await page.locator('#search-q').waitFor({ state: 'visible', timeout: 15_000 })
@@ -403,10 +402,29 @@ test.describe('Real-corpus validation', () => {
   })
 
   test('V4 — Dashboard topic-cluster chip (real corpus)', async ({ page }) => {
+    // Dashboard tab is admin-gated (``v-if="auth.isAdmin"`` in App.vue);
+    // signInIsolated grants only ``creator``, so this walk must sign in
+    // as the fixed admin identity that ``make serve-for-validation`` puts
+    // in ``APP_ADMIN_EMAILS``.
+    await signInAsAdmin(page)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 30_000 })
     await fillCorpusPath(page)
+    /* USERPREFS-1 leak: V-G1 flips the graph-load-mode chip to Top-down
+     * (super-theme slice) and persists it under the shared ada-admin
+     * user's server-side preferences. When V4 signs in as the same
+     * admin its graph mounts top-down → no topic-cluster compound
+     * exists to select. Normalize the mode via the Graph tab first so
+     * V4's precondition ("full graph, cluster compound is a real
+     * node") holds regardless of run order. Chip only appears once
+     * the Graph tab renders. */
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    const modeChip = page.getByTestId('graph-load-mode-chip')
+    await modeChip.waitFor({ state: 'visible', timeout: 15_000 })
+    const modeText = (await modeChip.textContent()) ?? ''
+    if (!/Everything/.test(modeText)) {
+      await modeChip.click()
+      await expect(modeChip).toContainText(/Everything/)
+    }
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 30_000 })
     await page
@@ -432,10 +450,9 @@ test.describe('Real-corpus validation', () => {
     expect(report.cameraOk).toBe(true)
   })
 
-  test('V5 — Hot-state Library → Library (second click supersedes)', async ({ page }) => {
+  test('V5 — Hot-state Library → Library (second click supersedes)', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'real-corpus', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 30_000 })
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     const firstRow = page.getByRole('button', { name: /, / }).filter({ hasNotText: 'Open in graph' }).first()
@@ -483,7 +500,7 @@ test.describe('Real-corpus validation', () => {
     expect(errs.errors).toEqual([])
   })
 
-  test('V6 — search is served by the LanceDB two-tier hybrid', async ({ page }) => {
+  test('V6 — search is served by the LanceDB two-tier hybrid', async ({ page }, testInfo) => {
     // Tier-3 proof that the live search path is the LanceDB two-tier hybrid
     // (BM25 + dense, fused via RRF) rather than a degraded single-signal
     // path. The shapes are distinguishable by response fields, so a

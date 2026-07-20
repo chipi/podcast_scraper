@@ -6,7 +6,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   captureConsoleErrors,
   readFsmState,
@@ -14,6 +14,10 @@ import {
 } from './_handoff-helpers'
 
 test.describe('Handoff matrix § Section 5 — Concurrency', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('H5.1 — Rapid Library clicks: last wins [F4d]', async ({ page }) => {
     // F4d — generation supersession: 5 rapid Library clicks should bump
     // generation 5 times; final state matches the last click.

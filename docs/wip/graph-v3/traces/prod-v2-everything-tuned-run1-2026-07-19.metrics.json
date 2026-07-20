@@ -1,0 +1,47 @@
+{
+  "captured_at": "2026-07-19T10:55:06.686Z",
+  "label": "prod-v2-everything-tuned-run1-2026-07-19",
+  "target_url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "device_scale_factor": 2
+  },
+  "wait_after_nav_ms": 6000,
+  "nav_elapsed_ms": 15951,
+  "metrics": {
+    "lcp_ms": 992,
+    "lcp_element_tag": null,
+    "lcp_element_id": null,
+    "fcp_ms": 992,
+    "ttfb_ms": 431.09999990463257,
+    "dom_content_loaded_ms": 936.0999999046326,
+    "load_event_end_ms": 1028.2999999523163,
+    "long_tasks_count": 0,
+    "long_tasks_total_ms": 0,
+    "memory": {
+      "jsHeapUsedMB": 98.22845458984375,
+      "jsHeapLimitMB": 3585.8154296875
+    },
+    "graph_time_to_canvas_ms": 6218.099999904633,
+    "load_mode_seed": "everything",
+    "expand_on_tap": null,
+    "redraw_pipeline_marks": [],
+    "finish_layout_pass_measures": {},
+    "sanity": {
+      "title": "Podcast Intelligence Platform",
+      "url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+      "hasCanvas": true,
+      "cytoscapeCanvasCount": 3,
+      "graphMountEl": true,
+      "loginVisible": false,
+      "bodyClasses": "",
+      "bodyText": "Podcast Intelligence Platform v2\nDigest\nLibrary\nGraph\nDashboard\nOps\ndark\n/ search · Esc clear\nSemantic search\n?\nSince ▾\nTop‑k ▾\nDoc types ▾\nMore ▾\nSearch\nClear\nExplore corpus\nSearch\nExplore & query\n?\n"
+    }
+  },
+  "trace_events_count": 214002,
+  "trace_files": {
+    "raw": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/docs/wip/graph-v3/traces/prod-v2-everything-tuned-run1-2026-07-19.trace.json",
+    "gz": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/docs/wip/graph-v3/traces/prod-v2-everything-tuned-run1-2026-07-19.trace.json.gz"
+  }
+}

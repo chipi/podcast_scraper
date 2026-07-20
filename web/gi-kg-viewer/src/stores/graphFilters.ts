@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import type { GraphFilterState, ParsedArtifact } from '../types/artifact'
 import { useArtifactsStore } from './artifacts'
+import { useGraphLoadModeStore } from './graphLoadMode'
 import {
   applyGraphDefaultNodeTypeVisibility,
   applyGraphFilters,
@@ -15,11 +16,25 @@ import { useGraphNavigationStore } from './graphNavigation'
 
 export const useGraphFilterStore = defineStore('graphFilters', () => {
   const artifacts = useArtifactsStore()
+  const loadMode = useGraphLoadModeStore()
   const nav = useGraphNavigationStore()
   const state = ref<GraphFilterState | null>(null)
 
+  /* graph-v3 tier 8-1 — the full artifact the graph builds against
+   * picks between the top-down synthetic slice (super-theme nodes
+   * only, ~6-8 nodes) and the merged display artifact based on the
+   * load-mode opt-in. Falls back to the display artifact when the
+   * top-down slice isn't available (no theme_clusters doc yet). */
+  const fullArtifact = computed<ParsedArtifact | null>(() => {
+    if (loadMode.isTopDown) {
+      const td = artifacts.topDownDisplayArtifact
+      if (td) return td
+    }
+    return artifacts.displayArtifact
+  })
+
   watch(
-    () => artifacts.displayArtifact,
+    fullArtifact,
     (art) => {
       if (!art) {
         state.value = null
@@ -34,12 +49,25 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     { immediate: true },
   )
 
-  const fullArtifact = computed(() => artifacts.displayArtifact)
-
   const filteredArtifact = computed(() => {
     const full = fullArtifact.value
     const st = state.value
     if (!full || !st) return null
+    /* graph-v3 tier 8-4 — in top-down mode we still run the type filter
+     * but always let `SuperTheme` and the synthetic `_topdown_link`
+     * edges through, regardless of the user's `allowedTypes` toggles.
+     * The rationale: the SuperTheme bubbles ARE the navigation surface
+     * in top-down mode; hiding them via the Types chip would strand
+     * the user with an empty canvas. Everything else (Topic / Insight /
+     * Person / …) filters normally so users can, say, toggle Insights
+     * off and read the underlying topic map. */
+    if (loadMode.isTopDown && artifacts.topDownDisplayArtifact === full) {
+      const forced = {
+        ...st,
+        allowedTypes: { ...st.allowedTypes, SuperTheme: true },
+      }
+      return applyGraphFilters(full, forced)
+    }
     return applyGraphFilters(full, st)
   })
 

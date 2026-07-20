@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * #694 — per-feed override drill-in. Configuring a feed sets structured override
@@ -40,6 +40,10 @@ async function stubCompanionApis(page: Page): Promise<void> {
 }
 
 test.describe('Per-feed override editor (#694)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('Configure sets max_episodes on one feed and persists via PUT', async ({ page }) => {
     let lastPutFeeds: unknown[] | null = null
 

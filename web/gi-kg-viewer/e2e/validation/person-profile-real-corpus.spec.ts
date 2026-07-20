@@ -30,9 +30,12 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
-import { statusBarCorpusPathInput } from '../helpers'
+import {
+  signInIsolated,
+  statusBarCorpusPathInput,
+} from '../helpers'
 
 const CORPUS_PATH = process.env.CORPUS_PATH ?? ''
 
@@ -78,8 +81,8 @@ function pickRealPersonIdFromCorpus(): { personId: string; sourcePath: string } 
   )
 }
 
-async function loadCorpusAndOpenGraph(page: Page): Promise<void> {
-  await page.goto('/')
+async function loadCorpusAndOpenGraph(page: Page, testInfo: TestInfo): Promise<void> {
+  await signInIsolated(page, 'person-profile', testInfo)
   const input = statusBarCorpusPathInput(page)
   await input.waitFor({ state: 'visible', timeout: 15_000 })
   await input.fill(CORPUS_PATH)
@@ -95,23 +98,24 @@ async function loadCorpusAndOpenGraph(page: Page): Promise<void> {
 test.describe('Tier-3 — Person Profile against a real prod-v2 corpus (#1076 chunk 3)', () => {
   test('PersonLandingView renders + Position Tracker tab operates against a real Person', async ({
     page,
-  }) => {
+  }, testInfo) => {
     const { personId, sourcePath } = pickRealPersonIdFromCorpus()
     test.info().annotations.push({
       type: 'corpus-person',
       description: `personId=${personId} from ${sourcePath}`,
     })
 
-    // Capture console errors — a real-corpus session that fires fatal
-    // errors during PersonLandingView mount means the v2/v3 shape
-    // contract drifted in the wild.
+    /* Sign in FIRST, then attach the console-error harness. Errors
+     * fired during the pre-auth boot window (401s from
+     * ``/api/app/auth/status`` etc) are not part of the walk's
+     * contract — the walk measures the authenticated session. */
+    await loadCorpusAndOpenGraph(page, testInfo)
+
     const consoleErrors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text())
     })
     page.on('pageerror', (err) => consoleErrors.push(err.message))
-
-    await loadCorpusAndOpenGraph(page)
 
     // Surface the Person via the DEV-gated subject store hook (same
     // pattern stack-person-profile.spec.ts uses; sidesteps Explore

@@ -1,0 +1,22 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-17T13:58:48Z",
+  "enricher_id": "topic_consensus",
+  "enricher_version": "2.0.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+    "model_version": "v2",
+    "cos_threshold": 0.7,
+    "contra_threshold": 0.5,
+    "pairs_scored": 0,
+    "consensus": []
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 0
+}

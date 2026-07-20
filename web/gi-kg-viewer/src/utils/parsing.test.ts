@@ -303,7 +303,10 @@ describe('filtersActive', () => {
   it('returns true when a type is disabled', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
-    state.allowedTypes.Quote = false
+    // Insight defaults to visible; disabling it is a real deviation.
+    // (Quote is default-hidden per tier 6-3, so setting Quote=false is
+    // not a deviation and does not trigger the "filters active" indicator.)
+    state.allowedTypes.Insight = false
     expect(filtersActive(art, state)).toBe(true)
   })
 
@@ -328,7 +331,8 @@ describe('filtersActiveExcludingNodeTypes', () => {
   it('returns false when only node types differ from defaults', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
-    state.allowedTypes.Quote = false
+    // Disable Insight (default-visible) so allowedTypes deviates.
+    state.allowedTypes.Insight = false
     expect(filtersActive(art, state)).toBe(true)
     expect(filtersActiveExcludingNodeTypes(art, state)).toBe(false)
   })

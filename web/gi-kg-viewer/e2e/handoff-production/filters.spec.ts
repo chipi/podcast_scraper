@@ -8,7 +8,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   captureConsoleErrors,
   readFsmEventLog,
@@ -17,6 +17,10 @@ import {
 import { setupProductionShapedMocks } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Filters negative (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test('P8.* — Tab nav + status-bar interactions fire NO handoffRequested', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     await setupProductionShapedMocks(page)

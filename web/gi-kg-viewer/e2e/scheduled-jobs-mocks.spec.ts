@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * #709 — Scheduled section under Configuration. Renders `GET /api/scheduled-jobs`
@@ -49,6 +49,10 @@ async function stubCompanionApis(page: Page): Promise<void> {
 }
 
 test.describe('Scheduled jobs section (#709)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test('lists schedules and disabling one persists via operator-config PUT', async ({ page }) => {
     let nightlyEnabled = true
     let lastPutContent: string | null = null

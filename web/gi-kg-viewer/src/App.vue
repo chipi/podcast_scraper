@@ -32,6 +32,7 @@ import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
 import { useSubjectStore } from './stores/subject'
 import { useThemeStore } from './stores/theme'
+import { useUserPreferencesStore } from './stores/userPreferences'
 import type { EnvelopeSource } from './services/graphHandoffFsm'
 import {
   GRAPH_DEFAULT_EPISODE_CAP,
@@ -44,6 +45,9 @@ import { StaleGeneration } from './utils/staleGeneration'
 
 const LS_LEFT_PANEL_OPEN = 'ps_left_panel_open'
 const LS_RIGHT_PANEL_OPEN = 'ps_right_panel_open'
+/** USERPREFS-1 cross-device sync keys — kept parallel to the localStorage keys. */
+const PREF_LEFT_PANEL_OPEN = 'leftPanelOpen'
+const PREF_RIGHT_PANEL_OPEN = 'rightPanelOpen'
 
 function readLeftPanelOpenPreference(): boolean {
   try {
@@ -109,12 +113,17 @@ const railEdgeToggleTab = {
     'absolute right-full top-1/2 z-20 flex h-10 w-2.5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/25 bg-canvas/90 text-muted backdrop-blur-sm motion-safe:transition-[color,background-color,box-shadow,border-color] hover:border-border/45 hover:bg-overlay hover:text-surface-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas',
 } as const
 
+const userPrefs = useUserPreferencesStore()
+let applyingRemotePanel = false
+
 watch(leftOpen, (open) => {
   try {
     localStorage.setItem(LS_LEFT_PANEL_OPEN, open ? 'true' : 'false')
   } catch {
     /* ignore */
   }
+  if (applyingRemotePanel) return
+  void userPrefs.set(PREF_LEFT_PANEL_OPEN, open)
 })
 
 watch(rightOpen, (open) => {
@@ -123,7 +132,30 @@ watch(rightOpen, (open) => {
   } catch {
     /* ignore */
   }
+  if (applyingRemotePanel) return
+  void userPrefs.set(PREF_RIGHT_PANEL_OPEN, open)
 })
+
+/* USERPREFS-1 — apply server-hydrated panel state (and cross-tab
+   BroadcastChannel updates flowing through the same reactive path). */
+watch(
+  () => userPrefs.get<boolean>(PREF_LEFT_PANEL_OPEN),
+  (v) => {
+    if (typeof v !== 'boolean' || v === leftOpen.value) return
+    applyingRemotePanel = true
+    try { leftOpen.value = v } finally { applyingRemotePanel = false }
+  },
+  { immediate: true },
+)
+watch(
+  () => userPrefs.get<boolean>(PREF_RIGHT_PANEL_OPEN),
+  (v) => {
+    if (typeof v !== 'boolean' || v === rightOpen.value) return
+    applyingRemotePanel = true
+    try { rightOpen.value = v } finally { applyingRemotePanel = false }
+  },
+  { immediate: true },
+)
 
 useViewerKeyboard({
   focusSearch: () => {

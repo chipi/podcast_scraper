@@ -50,7 +50,7 @@ watch(
     loading.value = true
     fetchTopicPerspectives(path, tid)
       .then((r) => {
-        perspectives.value = r.perspectives
+        perspectives.value = Array.isArray(r.perspectives) ? r.perspectives : []
       })
       .catch(() => {
         failed.value = true

@@ -3,11 +3,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertHandoffApplied,
   captureConsoleErrors,
@@ -19,6 +15,10 @@ import {
 } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Repeated click (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('P3.1 — Library × 2 (same episode) supersedes', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     await setupProductionShapedMocks(page)

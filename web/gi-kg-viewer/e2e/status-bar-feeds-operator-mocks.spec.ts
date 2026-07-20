@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * Browser-stubbed `/api/*` — no real `podcast serve` or corpus disk.
@@ -85,6 +85,10 @@ async function stubCorpusPathCompanionApis(page: Page): Promise<void> {
 }
 
 test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test.describe.configure({ mode: 'serial' })
 
   test('opens Feeds tab without calling operator-config when only feeds is opened', async ({ page }) => {

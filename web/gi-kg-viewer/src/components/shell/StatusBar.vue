@@ -96,7 +96,7 @@ const indexChartSeries = computed<TimeseriesSeries[]>(() => {
     },
   ]
   const ts = indexTimeseries.value
-  if (ts) {
+  if (ts && Array.isArray(ts.by_month) && Array.isArray(ts.doc_types)) {
     const byMonth = new Map(ts.by_month.map((m) => [m.month, m.doc_types]))
     for (const dt of ts.doc_types) {
       series.push({

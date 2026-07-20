@@ -26,9 +26,14 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import {
+  SHELL_HEADING_RE,
+  mainViewsNav,
+  signInIsolated,
+  statusBarCorpusPathInput,
+} from '../helpers'
 
 const CORPUS_PATH = process.env.CORPUS_PATH ?? ''
 
@@ -41,11 +46,26 @@ if (!CORPUS_PATH) {
   })
 }
 
-// serve-for-validation runs with SERVE_OUTPUT_DIR=<repo root>, so app_data_dir is
-// <repo root>/.app and anon analytics land in users/anon/graph_events.jsonl. The
-// corpus lives under <repo root>/tests/fixtures/..., so the root is derivable.
-const REPO_ROOT = CORPUS_PATH.split('/tests/fixtures/')[0]
-const ANON_EVENTS_PATH = join(REPO_ROOT, '.app', 'users', 'anon', 'graph_events.jsonl')
+/* Auth was added to the app after this spec was written. Analytics events
+ * used to land under ``<repo>/.app/users/anon/graph_events.jsonl`` (anon
+ * bucket); now ``signInIsolated`` authenticates each spec so events land
+ * under ``<CORPUS>/.app/users/u_<hash>/graph_events.jsonl`` — one file per
+ * signed-in identity. We don't know the exact u_<hash> ahead of time, so
+ * we read EVERY graph_events.jsonl under the users dir and filter by
+ * session_id. The session_id from ``__GIKG_ANALYTICS__`` is unique per
+ * test run, so filtering isolates our events even when a shared corpus
+ * accumulates events from many runs. */
+const APP_USERS_DIR = join(CORPUS_PATH, '.app', 'users')
+
+function readAllUserEvents(): string {
+  if (!existsSync(APP_USERS_DIR)) return ''
+  const chunks: string[] = []
+  for (const uidDir of readdirSync(APP_USERS_DIR)) {
+    const p = join(APP_USERS_DIR, uidDir, 'graph_events.jsonl')
+    if (existsSync(p)) chunks.push(readFileSync(p, 'utf-8'))
+  }
+  return chunks.join('\n')
+}
 
 interface LoggedEvent {
   action: string
@@ -106,8 +126,8 @@ function reconstruct(events: LoggedEvent[]): { trail: string[]; focus: string | 
   return { trail, focus }
 }
 
-async function openGraphFromLibrary(page: Page): Promise<void> {
-  await page.goto('/')
+async function openGraphFromLibrary(page: Page, testInfo: TestInfo): Promise<void> {
+  await signInIsolated(page, 'graph-analytics-replay', testInfo)
   await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 30_000 })
   const input = statusBarCorpusPathInput(page)
   await input.waitFor({ state: 'visible', timeout: 15_000 })
@@ -139,7 +159,7 @@ test.describe('Tier-3 — graph analytics logging + replay (real corpus)', () =>
 
   test('detail-card nav is logged to graph_events.jsonl and replays faithfully', async ({
     page,
-  }) => {
+  }, testInfo) => {
     const { topics, persons } = pickNavIds()
     test.skip(
       topics.length < 1 || persons.length < 1,
@@ -161,7 +181,7 @@ test.describe('Tier-3 — graph analytics logging + replay (real corpus)', () =>
       }
     })
 
-    await openGraphFromLibrary(page)
+    await openGraphFromLibrary(page, testInfo)
 
     // The emitter's session id — used to isolate THIS run's events from the
     // append-only log's prior-session rows.
@@ -199,13 +219,15 @@ test.describe('Tier-3 — graph analytics logging + replay (real corpus)', () =>
     await expect.poll(() => postStatuses.length, { timeout: 10_000 }).toBeGreaterThan(0)
     expect(postStatuses.every((s) => s === 204)).toBe(true)
 
-    // (B) Persisted server-side: read the anon jsonl, isolate this session.
+    // (B) Persisted server-side: read the per-user jsonl(s), isolate this
+    // session. See ``readAllUserEvents`` — with auth on, events land under
+    // ``<CORPUS>/.app/users/u_<hash>/graph_events.jsonl`` (one file per
+    // signed-in identity), so we concatenate every file and filter by
+    // session_id.
     await expect
-      .poll(() => (existsSync(ANON_EVENTS_PATH) ? readFileSync(ANON_EVENTS_PATH, 'utf-8') : ''), {
-        timeout: 10_000,
-      })
+      .poll(() => readAllUserEvents(), { timeout: 10_000 })
       .toContain(sessionId)
-    const allEvents = readFileSync(ANON_EVENTS_PATH, 'utf-8')
+    const allEvents = readAllUserEvents()
       .trim()
       .split('\n')
       .filter(Boolean)

@@ -31,10 +31,16 @@ const MAIN = {
   /** Short intra-cluster edges pull connected members close together. */
   idealEdgeLengthIntraTopicCluster: 36,
   edgeElasticity: 100,
-  gravity: 0.18,
+  /** graph-v3 M — 0.18 → 0.12. Lower gravity lets natural communities
+   *  drift apart into visible clusters (docs' "galaxy" effect). Not the
+   *  full 0.08 the docs proposed — our graph is bipartite (Insight in
+   *  the middle) so aggressive cluster-drift can leave orphan
+   *  Insights stranded far from their Topic + Episode neighbours.
+   *  0.12 keeps hubs anchored while opening the cluster gaps. */
+  gravity: 0.12,
   /** Default CoSE is 1.2; higher stretches cross-boundary edges vs intra-cluster edges. */
   nestingFactor: 1.52,
-  nodeDimensionsIncludeLabels: true,
+  nodeDimensionsIncludeLabels: false,
   numIter: 2500,
 } as const
 
@@ -248,6 +254,12 @@ export function giKgCoseLayoutOptionsMain(numIterOverride?: number): Record<stri
     // fcose speed levers: spectral seeding ('default' quality) + no per-iteration
     // animation + component packing. The tc:-compound tuning (repulsion / edge
     // length / nesting) below is fcose-compatible (same fn-valued options as cose).
+    //
+    // Perf note (measured 2026-07-19): ``quality: 'draft'`` cuts graph
+    // settle time ~30% (6352→4887 ms median on prod-v2) but produces a
+    // visually degraded layout — components clump unevenly, one dense
+    // block on the right + empty space on the left. NOT usable. If a
+    // future corpus tolerates that trade-off, the flag lives here.
     quality: 'default',
     randomize: true,
     animate: false,

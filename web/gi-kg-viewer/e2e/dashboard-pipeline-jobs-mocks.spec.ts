@@ -1,12 +1,16 @@
 import { expect, test } from '@playwright/test'
 import { setupDashboardApiMocks } from './dashboardApiMocks'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 function matchExactApiPath(path: string): (url: URL) => boolean {
   return (url: URL) => url.pathname.replace(/\/$/, '') === path
 }
 
 test.describe('Dashboard — Pipeline jobs card (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test('Pipeline tab shows jobs card and empty list when jobs_api is true', async ({ page }) => {
     await setupDashboardApiMocks(page)
     await page.route(matchExactApiPath('/api/health'), async (route) => {

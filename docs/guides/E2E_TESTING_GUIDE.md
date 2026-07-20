@@ -72,6 +72,100 @@ Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browse
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
 [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
 
+### Handoff FSM invariants + test isolation (#1209)
+
+Four patterns codified in `web/gi-kg-viewer/e2e/helpers.ts` after PR #1207
+Tier-3 walks surfaced them as recurring bites. Use them; avoid the
+patterns they replace.
+
+**1. `waitForFsmReady(page)` / `waitForFsmState(page, state)` — replace wall-clock waits on FSM-driven flows.**
+
+The graph handoff FSM (`stores/graphHandoff.ts`) drives every "open X in
+graph" flow through states `idle → loading_fetch → loading_bootstrap →
+loading_merge → redrawing_incremental | redrawing_full → applying → ready`.
+Under parallel-worker CPU contention the wall-clock time from click to
+`ready` is noisy — Tier-2 P2.5 flaked on `page.waitForTimeout(1500)` that
+was fine solo. Polling `__GIKG_FSM__?.state === 'ready'` is deterministic
+and returns as soon as the transition completes; the FSM's own
+stuck-detector fires at `STUCK_TIMEOUT_MS = 15_000` so a 10-second poll
+timeout leaves 5 s of headroom.
+
+**Do:**
+
+```ts
+await page.click('[data-testid="library-row-open-graph"]')
+await waitForFsmReady(page)
+const fsm = await readFsmState(page)
+expect(fsm!.state).toBe('ready')
+expect(fsm!.lastResultStatus).toBe('applied')
+```
+
+**Don't:**
+
+```ts
+await page.click('[data-testid="library-row-open-graph"]')
+await page.waitForTimeout(1500) // noisy under parallel workers
+```
+
+**2. `resetUserPreferences(page)` — call in every `beforeEach` after `mockSignIn` to prevent per-user state leaks across walks.**
+
+Under USERPREFS-1 (`docs/wip/USERPREFS-1.md`) each per-user preference
+(theme, panels, lens flags, graph load mode, legend collapsed state)
+persists server-side to
+`<data_dir>/users/<id>/preferences.json`. Without a reset, walk N+1
+inherits walk N's preferences. Tier-3 real bite: V-G1 as admin flipped
+`graphLoadMode` to `'top-down'` and persisted; V4 as creator inherited
+top-down and hit "no cluster compound" → assertion failure.
+
+**Do:**
+
+```ts
+test.beforeEach(async ({ page }) => {
+  await mockSignIn(page, 'creator')
+  await resetUserPreferences(page)
+})
+```
+
+**3. `readGraphEventsLog({corpusPath, sessionId, fs, path})` — decode the per-user graph_events.jsonl path.**
+
+Graph analytics events land at
+`<CORPUS>/.app/users/u_<hash>/graph_events.jsonl` under per-user auth —
+one file per hash. Multiple test runs on the same corpus accumulate
+into these files, so filter by `session_id` (from
+`__GIKG_ANALYTICS__.sessionId`) to isolate a specific run.
+
+**Do:**
+
+```ts
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+const sessionId = await page.evaluate(() =>
+  (window as any).__GIKG_ANALYTICS__?.sessionId,
+)
+const lines = readGraphEventsLog({
+  corpusPath: CORPUS_PATH,
+  sessionId,
+  fs: { readFileSync, existsSync, readdirSync },
+  path: { join },
+})
+```
+
+**4. `signInAsAdmin(page)` — use for admin-gated surfaces (Dashboard, admin controls).**
+
+`APP_ADMIN_EMAILS` (server config) allowlists `ada-admin` in the mock
+OAuth provider. `signInAsAdmin(page)` sends `/api/app/auth/login?as=ada-admin`
+so `auth.isAdmin` returns `true` and admin-only Dashboard tab renders.
+
+**Do:**
+
+```ts
+test('V-G1 — admin flips load-mode to top-down', async ({ page }) => {
+  await signInAsAdmin(page)
+  await resetUserPreferences(page) // Fresh admin state.
+  // ... walk
+})
+```
+
 ## Overview
 
 **E2E tests** test complete user workflows with real implementations. No mocking allowed (except network isolation).

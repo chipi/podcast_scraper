@@ -87,6 +87,32 @@ def test_topic_theme_clusters_form_and_membership_sane() -> None:
     assert all(m["topic_id"].startswith("topic:") for m in c["members"])
 
 
+def test_topic_theme_clusters_super_theme_rollup_present() -> None:
+    """graph-v3 tier 7-1a — every theme cluster must carry ``super_theme_id`` +
+    ``super_theme_label`` (enricher v1.1.0+). The viewer's hierarchical legend
+    (tier 7-1) + top-down mount (tier 8-1) both read these fields; running
+    the tier-3 fixture through an older enricher would silently drop them
+    and the viewer surfaces would degrade to a flat list. Also check the
+    top-level summary fields land."""
+    d = _data("topic_theme_clusters")
+    clusters = d.get("clusters", [])
+    assert clusters, "no theme clusters in v3"
+    for c in clusters:
+        sid = c.get("super_theme_id", "")
+        assert isinstance(sid, str) and sid.startswith(
+            "sth:"
+        ), f"cluster {c.get('graph_compound_parent_id')} missing super_theme_id"
+        assert c.get(
+            "super_theme_label"
+        ), f"cluster {c.get('graph_compound_parent_id')} missing super_theme_label"
+    assert d.get("super_theme_method") == "cross_cluster_lift_avg_linkage"
+    n_supers = len({c["super_theme_id"] for c in clusters if c.get("super_theme_id")})
+    assert d.get("super_theme_count") == n_supers
+    # Between 1 and _SUPER_THEME_MAX (8) super-themes — never more than clusters.
+    assert 1 <= n_supers <= 8
+    assert n_supers <= len(clusters)
+
+
 def test_temporal_velocity_has_mention_signal() -> None:
     """Velocity/momentum surfaces need ≥1 topic carrying real mention counts (not an empty series)."""
     topics = _data("temporal_velocity").get("topics", [])
@@ -122,6 +148,30 @@ def test_guest_coappearance_has_pairs() -> None:
     p = pairs[0]
     assert p["person_a_id"] != p["person_b_id"]
     assert (p.get("episode_count") or 0) >= 1
+
+
+def test_guest_coappearance_person_communities_present() -> None:
+    """graph-v3 tier 7-4 — the ``communities[]`` rollup (enricher v1.1.0+)
+    feeds the viewer's Person community underlay lens. Each community must
+    carry ``community_id`` / ``community_label`` / ``member_ids`` and
+    ``member_count`` must equal ``len(member_ids)``. Between 1 and N pairs
+    worth of communities."""
+    d = _data("guest_coappearance")
+    communities = d.get("communities", [])
+    assert communities, "no guest_coappearance communities in v3"
+    assert d.get("community_method") == "connected_components_threshold"
+    assert (d.get("community_min_pair") or 0) >= 1
+    assert d.get("community_count") == len(communities)
+    for c in communities:
+        cid = c.get("community_id", "")
+        assert isinstance(cid, str) and cid.startswith(
+            "pco:"
+        ), f"community {cid!r} missing pco: prefix"
+        assert c.get("community_label"), f"community {cid} missing label"
+        members = c.get("member_ids") or []
+        assert len(members) >= 2, f"community {cid} has <2 members"
+        assert c.get("member_count") == len(members)
+        assert all(isinstance(m, str) and m.startswith("person:") for m in members)
 
 
 def test_insight_density_bins_insights() -> None:

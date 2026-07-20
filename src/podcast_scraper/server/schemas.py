@@ -694,6 +694,32 @@ class PlaybackListResponse(BaseModel):
     items: list[PlaybackPosition] = Field(default_factory=list)
 
 
+class UserPreferencesResponse(BaseModel):
+    """USERPREFS-1 — the signed-in user's opinion-state (single free-form JSON object).
+
+    Payload shape is owned by the client (graph lens flags, theme, panel state,
+    corpus path, etc.); the server round-trips without interpretation so adding
+    a new preference key doesn't require a server release.
+    """
+
+    preferences: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Free-form preference payload — {} when the user has none yet.",
+    )
+
+
+class UserPreferencesPatch(BaseModel):
+    """USERPREFS-1 — shallow-merge patch. Keys with value ``null`` are DELETED.
+
+    Used by PATCH /api/app/preferences so a client toggle only ships the changed
+    keys, not the whole payload (avoids last-write-wins races between tabs).
+    """
+
+    preferences: dict[str, Any] = Field(
+        description="Object of key → value. `null` value deletes the stored key.",
+    )
+
+
 class StatPoint(BaseModel):
     """One day bucket of a listening sparkline (UXS-014)."""
 

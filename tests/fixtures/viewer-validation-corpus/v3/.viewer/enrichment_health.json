@@ -1,0 +1,113 @@
+{
+  "enrichers": {
+    "grounding_rate": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "guest_coappearance": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "insight_density": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "insight_sentiment": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "temporal_velocity": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "topic_consensus": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "topic_cooccurrence_corpus": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "topic_similarity": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    },
+    "topic_theme_clusters": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-17T13:58:54Z",
+      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_status": "ok"
+    }
+  },
+  "schema_version": "1"
+}

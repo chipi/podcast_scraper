@@ -11,6 +11,7 @@ import type {
 } from '../types/artifact'
 import { humanizeSlug, shortPhrase, truncate } from './formatting'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
+import { stripLayerPrefixesForCil } from './mergeGiKg'
 import { visualGroupForNode } from './visualGroup'
 
 export { visualGroupForNode, visualNodeTypeCounts } from './visualGroup'
@@ -1053,12 +1054,14 @@ export function insightSupportingQuoteRows(
   if (!art?.data?.edges || insightGraphId == null) return []
   const sid = String(insightGraphId).trim()
   if (!sid) return []
+  const sidBare = stripLayerPrefixesForCil(sid)
   const toIds: string[] = []
   for (const e of art.data.edges) {
     if (!e) continue
     const etNorm = normalizeGiEdgeType(e.type).replace(/_/g, '')
     if (etNorm !== 'supportedby') continue
-    if (String(e.from) !== sid) continue
+    const from = String(e.from ?? '').trim()
+    if (from !== sid && stripLayerPrefixesForCil(from) !== sidBare) continue
     const to = String(e.to ?? '').trim()
     if (!to) continue
     const qn = findRawNodeInArtifact(art, to)
@@ -1185,6 +1188,7 @@ export function insightRelatedTopicRows(
   if (!art?.data?.edges || insightGraphId == null) return []
   const sid = String(insightGraphId).trim()
   if (!sid) return []
+  const sidBare = stripLayerPrefixesForCil(sid)
   const nodes = Array.isArray(art.data.nodes) ? art.data.nodes : []
   const idSet = new Set(
     nodes.map((n) => (n?.id != null ? String(n.id) : '')).filter(Boolean),
@@ -1196,10 +1200,12 @@ export function insightRelatedTopicRows(
     if (!INSIGHT_TOPIC_EDGE_TYPES.has(t)) continue
     const from = String(e.from ?? '').trim()
     const to = String(e.to ?? '').trim()
+    const fromBare = stripLayerPrefixesForCil(from)
+    const toBare = stripLayerPrefixesForCil(to)
     let topicId: string | null = null
-    if (from === sid && idSet.has(to)) {
+    if ((from === sid || fromBare === sidBare) && idSet.has(to)) {
       topicId = to
-    } else if (to === sid && idSet.has(from)) {
+    } else if ((to === sid || toBare === sidBare) && idSet.has(from)) {
       topicId = from
     } else {
       continue
@@ -1275,6 +1281,13 @@ function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
   return allowedEdgeTypes
 }
 
+/** graph-v3 tier 6-3 — types whose filter defaults to OFF so the initial
+ *  canvas isn't drowned by evidence / diarization plumbing. Users can
+ *  re-enable via the Types chip. Deliberately conservative: only the
+ *  highest-count evidence types default off; anything a viewer might
+ *  reasonably expect to see on first load stays on. */
+const DEFAULT_HIDDEN_TYPES: ReadonlySet<string> = new Set(['Quote', 'Speaker'])
+
 export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState | null {
   if (!art) return null
   const allowedTypes: Record<string, boolean> = {}
@@ -1285,7 +1298,7 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
     const t = n.type || '?'
     if (!seen.has(t)) {
       seen.add(t)
-      allowedTypes[t] = true
+      allowedTypes[t] = !DEFAULT_HIDDEN_TYPES.has(t)
     }
   }
   return {
@@ -1369,9 +1382,14 @@ export function filtersActive(
   state: GraphFilterState | null,
 ): boolean {
   if (!fullArt || !state) return false
+  /* Tier 6-3: Quote / Speaker default to hidden. A user who hasn't touched
+   * anything shouldn't see the "filters active" indicator light up just
+   * because these defaults are false — so only count a type as "active"
+   * when it deviates from its default-visibility. */
   const keys = Object.keys(state.allowedTypes)
   for (const k of keys) {
-    if (state.allowedTypes[k] === false) return true
+    const defaultVisible = !DEFAULT_HIDDEN_TYPES.has(k)
+    if (state.allowedTypes[k] !== defaultVisible) return true
   }
   if (
     (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
@@ -1996,8 +2014,12 @@ export function toCytoElements(
     }
     // Theme-cluster membership (co-occurrence "Theme") is a node decoration — a
     // teal ring — not a compound parent, so it coexists with the semantic boxes.
+    // graph-v3 Tier 5A-2 bugfix: read from `raw` (the raw graph node populated
+    // by applyThemeClustersOverlay), not `n` (the visNode from toGraphElements
+    // which only carries {id, label, group, title, parent}). Prior code read
+    // from `n` and always missed → `.theme-member` class never actually fired.
     const classes: string[] = []
-    const themeClusterId = (n as { themeClusterId?: unknown }).themeClusterId
+    const themeClusterId = (raw as { themeClusterId?: unknown } | undefined)?.themeClusterId
     if (typeof themeClusterId === 'string' && themeClusterId) {
       data.themeClusterId = themeClusterId
       classes.push('theme-member')

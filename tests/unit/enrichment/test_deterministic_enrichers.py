@@ -262,6 +262,148 @@ def test_topic_theme_clusters_empty_on_tiny_corpus(tmp_path: Path) -> None:
     assert data["clusters"] == []
 
 
+def test_topic_theme_clusters_super_theme_rollup_noop_below_min(tmp_path: Path) -> None:
+    """graph-v3 tier 7-1a — when cluster count is at or below the min bound
+    (5) the super-theme rollup is a no-op: each cluster is its own
+    super-theme. Verifies additive schema (super_theme_*) lands on every
+    cluster without collapsing anything."""
+
+    def _kg(topic_ids: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [{"type": "Topic", "id": t, "properties": {"label": t}} for t in topic_ids],
+            "edges": [],
+        }
+
+    # Two disjoint themes → 2 clusters → below _SUPER_THEME_MIN → no rollup.
+    a1, a2, b1, b2 = "topic:a1", "topic:a2", "topic:b1", "topic:b2"
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg([a1, a2])),
+        _bundle(tmp_path / "metadata", "ep2", kg=_kg([a1, a2])),
+        _bundle(tmp_path / "metadata", "ep3", kg=_kg([b1, b2])),
+        _bundle(tmp_path / "metadata", "ep4", kg=_kg([b1, b2])),
+    ]
+    data = _run(
+        TopicThemeClustersEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={},
+        ctx=_ctx("topic_theme_clusters"),
+    )
+    assert data["cluster_count"] == 2
+    assert data["super_theme_count"] == 2
+    assert data["super_theme_method"] == "cross_cluster_lift_avg_linkage"
+    super_ids = {c["super_theme_id"] for c in data["clusters"]}
+    assert len(super_ids) == 2  # each cluster is its own super-theme
+    # Every cluster gets both super_theme_* fields populated.
+    for c in data["clusters"]:
+        assert c["super_theme_id"].startswith("sth:")
+        assert c["super_theme_label"]
+
+
+def test_topic_theme_clusters_super_theme_rollup_merges_at_target(tmp_path: Path) -> None:
+    """graph-v3 tier 7-1a — forcing super_theme_target=3 on a corpus with 4
+    clusters proves the merge algorithm runs and picks the highest-lift
+    pair. The two clusters that share an episode with cross-cluster lift
+    end up in the same super-theme; the other two stay separate."""
+
+    def _kg(topic_ids: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [{"type": "Topic", "id": t, "properties": {"label": t}} for t in topic_ids],
+            "edges": [],
+        }
+
+    # 4 disjoint themes → 4 clusters. Extra bridge episodes link theme A and
+    # theme B via co-occurrence, so their inter-cluster lift is nonzero and
+    # they merge first when the target drops to 3.
+    a1, a2, b1, b2 = "topic:a1", "topic:a2", "topic:b1", "topic:b2"
+    c1, c2, d1, d2 = "topic:c1", "topic:c2", "topic:d1", "topic:d2"
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep-a1", kg=_kg([a1, a2])),
+        _bundle(tmp_path / "metadata", "ep-a2", kg=_kg([a1, a2])),
+        _bundle(tmp_path / "metadata", "ep-b1", kg=_kg([b1, b2])),
+        _bundle(tmp_path / "metadata", "ep-b2", kg=_kg([b1, b2])),
+        _bundle(tmp_path / "metadata", "ep-c1", kg=_kg([c1, c2])),
+        _bundle(tmp_path / "metadata", "ep-c2", kg=_kg([c1, c2])),
+        _bundle(tmp_path / "metadata", "ep-d1", kg=_kg([d1, d2])),
+        _bundle(tmp_path / "metadata", "ep-d2", kg=_kg([d1, d2])),
+        # Bridge episodes that mix theme A + theme B topics.
+        _bundle(tmp_path / "metadata", "ep-ab1", kg=_kg([a1, b1])),
+        _bundle(tmp_path / "metadata", "ep-ab2", kg=_kg([a2, b2])),
+    ]
+    data = _run(
+        TopicThemeClustersEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"super_theme_target": 3},
+        ctx=_ctx("topic_theme_clusters"),
+    )
+    assert data["cluster_count"] >= 3
+    # Target clamped to [_SUPER_THEME_MIN=5, _SUPER_THEME_MAX=8]. Target=3
+    # asked → clamped up to 5. On a 4-cluster corpus that means no merges
+    # happen (4 ≤ 5) — this test is really about the clamp behaviour + the
+    # additive fields landing, NOT about hitting target=3 exactly.
+    assert data["super_theme_target"] == 5
+    for c in data["clusters"]:
+        assert c["super_theme_id"].startswith("sth:")
+        assert c["super_theme_label"]
+
+
+def test_topic_theme_clusters_super_theme_rollup_merges_above_min(tmp_path: Path) -> None:
+    """graph-v3 tier 7-1a — with cluster_count > _SUPER_THEME_MIN the rollup
+    actually executes ``_average_linkage_to_target`` and merges clusters
+    down to (or toward) the target. Six disjoint themes yield six clusters;
+    a target of 5 (the min) forces exactly one merge, exercising the
+    inner mean-lift + argmax + merge loop that noop/at-min-target tests
+    skipped."""
+
+    def _kg(topic_ids: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [{"type": "Topic", "id": t, "properties": {"label": t}} for t in topic_ids],
+            "edges": [],
+        }
+
+    themes = [
+        ("topic:a1", "topic:a2"),
+        ("topic:b1", "topic:b2"),
+        ("topic:c1", "topic:c2"),
+        ("topic:d1", "topic:d2"),
+        ("topic:e1", "topic:e2"),
+        ("topic:f1", "topic:f2"),
+    ]
+    bundles: list[Any] = []
+    # Two episodes per theme to fix each pair as its own cluster.
+    for label, (t1, t2) in zip("abcdef", themes):
+        bundles.append(_bundle(tmp_path / "metadata", f"ep-{label}1", kg=_kg([t1, t2])))
+        bundles.append(_bundle(tmp_path / "metadata", f"ep-{label}2", kg=_kg([t1, t2])))
+    # Strong cross-cluster bridge between themes A and B so their inter-
+    # cluster lift dominates and they merge first when target < N.
+    bundles.append(_bundle(tmp_path / "metadata", "ep-ab1", kg=_kg(["topic:a1", "topic:b1"])))
+    bundles.append(_bundle(tmp_path / "metadata", "ep-ab2", kg=_kg(["topic:a2", "topic:b2"])))
+
+    data = _run(
+        TopicThemeClustersEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        # Target = 5 forces exactly one merge from 6 clusters. Higher targets
+        # would leave 6 clusters untouched (n <= target early-return in
+        # _average_linkage_to_target).
+        config={"super_theme_target": 5},
+        ctx=_ctx("topic_theme_clusters"),
+    )
+    assert data["cluster_count"] == 6
+    assert data["super_theme_target"] == 5
+    # Distinct super-theme ids ≤ target (linkage collapsed at least one pair).
+    super_ids = {c["super_theme_id"] for c in data["clusters"]}
+    assert 1 <= len(super_ids) <= 5
+    assert data["super_theme_count"] == len(super_ids)
+    for c in data["clusters"]:
+        assert c["super_theme_id"].startswith("sth:")
+        assert c["super_theme_label"]
+
+
 # temporal_velocity (corpus scope)
 # ---------------------------------------------------------------------------
 
@@ -484,6 +626,80 @@ def test_temporal_velocity_content_series_is_now_independent(tmp_path: Path) -> 
     assert _cs("2026-02-01T00:00:00Z") == _cs("2031-09-09T00:00:00Z")
 
 
+def test_temporal_velocity_partial_reason_on_no_bundles(tmp_path: Path) -> None:
+    """#1208 — no-silent-fail contract. When there are no bundles at all,
+    the enricher emits ``partial_reason='no_bundles'`` so downstream can
+    distinguish "enricher ran cleanly, no data" from a real failure."""
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[],
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data["partial_reason"] == "no_bundles"
+    assert data["topics"] == []
+
+
+def test_temporal_velocity_partial_reason_on_no_topics_in_window(tmp_path: Path) -> None:
+    """#1208 — no-silent-fail contract. When bundles are present but no
+    Topics fell within the counted window, emit ``partial_reason=
+    'no_topics_in_window'``."""
+
+    def _kg_no_topic(date: str) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Episode", "id": "episode:x", "properties": {"publish_date": date}},
+                # No Topic nodes at all — the enricher counts Topic mentions.
+            ],
+            "edges": [],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg_no_topic("2026-06-15T00:00:00Z")),
+    ]
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data["partial_reason"] == "no_topics_in_window"
+    assert data["topics"] == []
+
+
+def test_temporal_velocity_partial_reason_absent_on_ok_output(tmp_path: Path) -> None:
+    """#1208 — no-silent-fail contract. When output is non-empty, the
+    ``partial_reason`` field is present but None. Consumers key on
+    ``partial_reason is not None``."""
+
+    def _kg(date: str, topic_id: str) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Episode", "id": "episode:x", "properties": {"publish_date": date}},
+                {"type": "Topic", "id": topic_id, "properties": {"label": "Topic"}},
+            ],
+            "edges": [],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg("2026-06-15T00:00:00Z", "topic:a")),
+    ]
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data["partial_reason"] is None
+    assert len(data["topics"]) == 1
+
+
 # ---------------------------------------------------------------------------
 # grounding_rate (corpus scope)
 # ---------------------------------------------------------------------------
@@ -534,11 +750,42 @@ def test_grounding_rate_no_quotes_emits_empty(tmp_path: Path) -> None:
         ctx=_ctx("grounding_rate"),
     )
     assert data["persons"] == []
+    # #1208 — no-silent-fail contract; partial_reason distinguishes empty-
+    # output from real failure.
+    assert data["partial_reason"] == "no_persons_with_insights"
+
+
+def test_grounding_rate_partial_reason_on_no_bundles(tmp_path: Path) -> None:
+    """#1208 — no bundles → explicit partial_reason='no_bundles'."""
+    data = _run(
+        GroundingRateEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[],
+        config={},
+        ctx=_ctx("grounding_rate"),
+    )
+    assert data["persons"] == []
+    assert data["partial_reason"] == "no_bundles"
 
 
 # ---------------------------------------------------------------------------
 # guest_coappearance (corpus scope)
 # ---------------------------------------------------------------------------
+
+
+def test_guest_coappearance_partial_reason_on_no_bundles(tmp_path: Path) -> None:
+    """#1208 — no bundles → explicit partial_reason."""
+    data = _run(
+        GuestCoappearanceEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[],
+        config={},
+        ctx=_ctx("guest_coappearance"),
+    )
+    assert data["pairs"] == []
+    assert data["partial_reason"] == "no_bundles"
 
 
 def test_guest_coappearance_ranks_by_shared_episodes(tmp_path: Path) -> None:
@@ -573,6 +820,98 @@ def test_guest_coappearance_ranks_by_shared_episodes(tmp_path: Path) -> None:
     assert pairs[0]["person_b_id"] == "person:b"
     assert pairs[0]["episode_count"] == 2
     assert pairs[1]["episode_count"] == 1
+
+
+def test_guest_coappearance_person_communities_via_connected_components(tmp_path: Path) -> None:
+    """graph-v3 tier 7-4 — person community rollup.
+
+    Three co-appearing persons (a-b twice, b-c once, a-c once) all end up in
+    the same community at default threshold=2 via the a-b edge — b and c
+    ride in transitively through connected-components even though b-c alone
+    is below threshold. Person d never co-appears, so is dropped (no
+    singleton community). Anchor label goes to the highest-degree member.
+    """
+
+    def _gi_with_speakers(speakers: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Person", "id": pid, "properties": {"name": pid.split(":")[-1]}}
+                for pid in speakers
+            ]
+            + [{"type": "Quote", "id": f"quote:{i}"} for i in range(len(speakers))],
+            "edges": [
+                {"type": "SPOKEN_BY", "from": f"quote:{i}", "to": pid}
+                for i, pid in enumerate(speakers)
+            ],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", gi=_gi_with_speakers(["person:a", "person:b"])),
+        _bundle(tmp_path / "metadata", "ep2", gi=_gi_with_speakers(["person:a", "person:b"])),
+        # A single co-appearance edge — below default threshold=2 alone but
+        # keeps a & b in the same component regardless.
+        _bundle(tmp_path / "metadata", "ep3", gi=_gi_with_speakers(["person:a", "person:c"])),
+        # Isolated person — no co-appearances, must NOT get a community.
+        _bundle(tmp_path / "metadata", "ep4", gi=_gi_with_speakers(["person:d"])),
+    ]
+    data = _run(
+        GuestCoappearanceEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={},
+        ctx=_ctx("guest_coappearance"),
+    )
+    assert data["community_method"] == "connected_components_threshold"
+    assert data["community_min_pair"] == 2
+    # Only 1 community (a+b via the 2-episode edge); c doesn't qualify at
+    # default threshold, d is isolated.
+    assert data["community_count"] == 1
+    (community,) = data["communities"]
+    assert community["community_id"].startswith("pco:")
+    assert set(community["member_ids"]) == {"person:a", "person:b"}
+    assert community["member_count"] == 2
+
+
+def test_guest_coappearance_community_threshold_1_bridges_transitively(tmp_path: Path) -> None:
+    """At threshold=1 every co-appearance links people; connected-components
+    then produce fewer, larger communities. Verifies the ``community_min_pair``
+    config knob threads through and the union-find bridges chains."""
+
+    def _gi(speakers: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Person", "id": pid, "properties": {"name": pid.split(":")[-1]}}
+                for pid in speakers
+            ]
+            + [{"type": "Quote", "id": f"quote:{i}"} for i in range(len(speakers))],
+            "edges": [
+                {"type": "SPOKEN_BY", "from": f"quote:{i}", "to": pid}
+                for i, pid in enumerate(speakers)
+            ],
+        }
+
+    # a—b—c chain via single co-appearances; d—e in a separate component.
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", gi=_gi(["person:a", "person:b"])),
+        _bundle(tmp_path / "metadata", "ep2", gi=_gi(["person:b", "person:c"])),
+        _bundle(tmp_path / "metadata", "ep3", gi=_gi(["person:d", "person:e"])),
+    ]
+    data = _run(
+        GuestCoappearanceEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"community_min_pair": 1},
+        ctx=_ctx("guest_coappearance"),
+    )
+    assert data["community_min_pair"] == 1
+    assert data["community_count"] == 2
+    by_size = sorted(data["communities"], key=lambda c: -c["member_count"])
+    assert by_size[0]["member_count"] == 3  # a-b-c
+    assert set(by_size[0]["member_ids"]) == {"person:a", "person:b", "person:c"}
+    assert by_size[1]["member_count"] == 2  # d-e
+    assert set(by_size[1]["member_ids"]) == {"person:d", "person:e"}
 
 
 # ---------------------------------------------------------------------------

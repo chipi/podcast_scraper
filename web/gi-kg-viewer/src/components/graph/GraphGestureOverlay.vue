@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { useUserPreferencesStore } from '../../stores/userPreferences'
+
 const STORAGE_KEY = 'ps_graph_hints_seen'
+/** USERPREFS-1 cross-device sync key. */
+const PREF_KEY = 'graphHintsSeen'
+const userPrefs = useUserPreferencesStore()
 
 /** Expandable / expanded seed rings — matches `cyGraphStylesheet.ts`. */
 const EXPAND_RING_TEAL = '#14b8a6'
@@ -16,6 +21,9 @@ const dismissButtonRef = ref<HTMLButtonElement | null>(null)
 const overlayRootRef = ref<HTMLDivElement | null>(null)
 
 function storageDismissed(): boolean {
+  // USERPREFS-1: server-side value wins when hydrated; else check localStorage.
+  const remote = userPrefs.get<boolean>(PREF_KEY)
+  if (remote === true) return true
   return typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY) === '1'
 }
 
@@ -97,8 +105,21 @@ function dismiss(): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem(STORAGE_KEY, '1')
   }
+  void userPrefs.set(PREF_KEY, true)
   emit('dismissed')
 }
+
+/* USERPREFS-1 — re-hide the overlay if the server hydrates with the flag set
+   after mount (i.e. the user dismissed it on another device). */
+watch(
+  () => userPrefs.get<boolean>(PREF_KEY),
+  (v) => {
+    if (v === true) {
+      visible.value = false
+      manualOpen.value = false
+    }
+  },
+)
 
 function reopen(): void {
   if (!props.hasNodes) return

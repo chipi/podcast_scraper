@@ -30,10 +30,13 @@ lags the data); ``content_series`` is corpus-anchored and ``now``-free.
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 from podcast_scraper.enrichment.enrichers._loaders import (
     is_unresolved_speaker_placeholder,
@@ -282,9 +285,18 @@ def _full_week_axis(dates: list[str]) -> list[str]:
     parsed: list[datetime] = []
     for d in dates:
         try:
-            parsed.append(datetime.fromisoformat(d.replace("Z", "+00:00")))
+            dt = datetime.fromisoformat(d.replace("Z", "+00:00"))
         except (ValueError, TypeError):
             continue
+        # Publish dates in the corpus mix ISO date-only strings
+        # (``2026-06-27`` → naive) with ISO datetimes carrying ``Z`` or
+        # ``+00:00`` (aware). ``min`` / ``max`` on the mixed list raises
+        # ``TypeError: can't compare offset-naive and offset-aware
+        # datetimes`` (v1.2.0 prod-v2 regression, 2026-07-17). Coerce
+        # naive → UTC so the axis is uniformly aware.
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        parsed.append(dt)
     if not parsed:
         return []
     lo, hi = min(parsed), max(parsed)
@@ -417,6 +429,31 @@ def _compute(
         for tid in set(monthly) | set(weekly)
     ]
     topics_out.sort(key=lambda r: (-r["velocity_last_over_6mo"], -r["total"], r["topic_id"]))
+
+    # #1208 — no-silent-fail contract. When input is empty (no bundles) or
+    # produces an empty output (all bundles carried Topics with no dates or
+    # no in-window activity), emit an explicit ``partial_reason`` field so
+    # downstream consumers (viewer velocity halo lens, momentum layer) can
+    # distinguish "enricher ran cleanly, no data to report" from "enricher
+    # never had usable input". Consumers key on ``partial_reason is not None``.
+    partial_reason: str | None = None
+    bundle_count = len(all_bundles or [])
+    if bundle_count == 0:
+        partial_reason = "no_bundles"
+    elif not topics_out:
+        partial_reason = "no_topics_in_window"
+    if partial_reason is not None:
+        _logger.warning(
+            "temporal_velocity empty output run_id=%s enricher=%s "
+            "reason=%s bundles=%d months=%d weeks=%d",
+            ctx.run_id,
+            ctx.enricher_id,
+            partial_reason,
+            bundle_count,
+            len(months),
+            len(weeks),
+        )
+
     return {
         "window_months": months,
         "window_weeks": weeks,
@@ -424,6 +461,8 @@ def _compute(
         "alpha": alpha,
         "effective_last_month": months[effective_idx] if months else None,
         "topics": topics_out,
+        # #1208 — no-silent-fail marker. See _compute docstring / issue.
+        "partial_reason": partial_reason,
         # RFC-103 Phase 1: the durable, now-free content atom the momentum layer reads. The fields
         # above stay as the now-anchored fallback until the read-time capability supersedes them.
         "content_series": _content_series(all_bundles or []),

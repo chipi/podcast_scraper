@@ -1,0 +1,554 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-17T13:58:54Z",
+  "enricher_id": "topic_similarity",
+  "enricher_version": "1.0.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "topic_count": 13,
+    "top_k": 7,
+    "missing_topic_ids": [],
+    "topics": [
+      {
+        "topic_id": "topic:business-markets",
+        "topic_label": "Business & markets",
+        "top_k": [
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.419352
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.406126
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.39121
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.336527
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.213495
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.183529
+          },
+          {
+            "topic_id": "topic:fed-vice-chair",
+            "topic_label": "fed vice chair",
+            "similarity": 0.131657
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:diversify-or",
+        "topic_label": "diversify or",
+        "top_k": [
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.419352
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.376986
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.285209
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.233729
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.193583
+          },
+          {
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.186376
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.180279
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:environment",
+        "topic_label": "environment",
+        "top_k": [
+          {
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.40504
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.396075
+          },
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.376986
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.367424
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.344133
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.336527
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.321826
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:excited-for-this-one",
+        "topic_label": "excited for this one",
+        "top_k": [
+          {
+            "topic_id": "topic:welcome-back-to",
+            "topic_label": "welcome back to",
+            "similarity": 0.240543
+          },
+          {
+            "topic_id": "topic:great-to-be-back",
+            "topic_label": "great to be back",
+            "similarity": 0.216311
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.182137
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.181413
+          },
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.172876
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.143979
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.141673
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:fed-vice-chair",
+        "topic_label": "fed vice chair",
+        "top_k": [
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.166066
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.156756
+          },
+          {
+            "topic_id": "topic:without-the",
+            "topic_label": "without the",
+            "similarity": 0.151655
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.131657
+          },
+          {
+            "topic_id": "topic:excited-for-this-one",
+            "topic_label": "excited for this one",
+            "similarity": 0.131548
+          },
+          {
+            "topic_id": "topic:great-to-be-back",
+            "topic_label": "great to be back",
+            "similarity": 0.117126
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.117031
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:gear",
+        "topic_label": "gear",
+        "top_k": [
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.334716
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.325448
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.321826
+          },
+          {
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.209174
+          },
+          {
+            "topic_id": "topic:without-the",
+            "topic_label": "without the",
+            "similarity": 0.208927
+          },
+          {
+            "topic_id": "topic:welcome-back-to",
+            "topic_label": "welcome back to",
+            "similarity": 0.186382
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.183529
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:great-to-be-back",
+        "topic_label": "great to be back",
+        "top_k": [
+          {
+            "topic_id": "topic:welcome-back-to",
+            "topic_label": "welcome back to",
+            "similarity": 0.620573
+          },
+          {
+            "topic_id": "topic:excited-for-this-one",
+            "topic_label": "excited for this one",
+            "similarity": 0.216311
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.193891
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.152699
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.140993
+          },
+          {
+            "topic_id": "topic:fed-vice-chair",
+            "topic_label": "fed vice chair",
+            "similarity": 0.117126
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.11036
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:health",
+        "topic_label": "health",
+        "top_k": [
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.396075
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.349359
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.326264
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.325448
+          },
+          {
+            "topic_id": "topic:without-the",
+            "topic_label": "without the",
+            "similarity": 0.222001
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.213495
+          },
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.193583
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:outdoor-activities",
+        "topic_label": "outdoor activities",
+        "top_k": [
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.40504
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.209174
+          },
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.186376
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.169552
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.135793
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.128583
+          },
+          {
+            "topic_id": "topic:without-the",
+            "topic_label": "without the",
+            "similarity": 0.089795
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:science-research",
+        "topic_label": "Science & research",
+        "top_k": [
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.547592
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.406126
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.344133
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.326264
+          },
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.285209
+          },
+          {
+            "topic_id": "topic:excited-for-this-one",
+            "topic_label": "excited for this one",
+            "similarity": 0.181413
+          },
+          {
+            "topic_id": "topic:welcome-back-to",
+            "topic_label": "welcome back to",
+            "similarity": 0.176629
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:technology",
+        "topic_label": "technology",
+        "top_k": [
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.547592
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.39121
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.367424
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.349359
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.334716
+          },
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.233729
+          },
+          {
+            "topic_id": "topic:without-the",
+            "topic_label": "without the",
+            "similarity": 0.1873
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:welcome-back-to",
+        "topic_label": "welcome back to",
+        "top_k": [
+          {
+            "topic_id": "topic:great-to-be-back",
+            "topic_label": "great to be back",
+            "similarity": 0.620573
+          },
+          {
+            "topic_id": "topic:excited-for-this-one",
+            "topic_label": "excited for this one",
+            "similarity": 0.240543
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.229688
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.186382
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.176629
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.167616
+          },
+          {
+            "topic_id": "topic:without-the",
+            "topic_label": "without the",
+            "similarity": 0.154283
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:without-the",
+        "topic_label": "without the",
+        "top_k": [
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.222001
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.208927
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.207354
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.1873
+          },
+          {
+            "topic_id": "topic:welcome-back-to",
+            "topic_label": "welcome back to",
+            "similarity": 0.154283
+          },
+          {
+            "topic_id": "topic:fed-vice-chair",
+            "topic_label": "fed vice chair",
+            "similarity": 0.151655
+          },
+          {
+            "topic_id": "topic:diversify-or",
+            "topic_label": "diversify or",
+            "similarity": 0.135661
+          }
+        ]
+      }
+    ]
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 13
+}

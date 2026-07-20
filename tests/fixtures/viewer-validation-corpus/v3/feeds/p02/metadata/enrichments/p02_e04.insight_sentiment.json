@@ -1,0 +1,40 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-17T13:58:48Z",
+  "enricher_id": "insight_sentiment",
+  "enricher_version": "1.0.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+    "counts": {
+      "negative": 1,
+      "neutral": 0,
+      "positive": 2
+    },
+    "total_insights": 3,
+    "insights": [
+      {
+        "insight_id": "insight:62762412c5c75f58",
+        "compound": 0.4588,
+        "label": "positive"
+      },
+      {
+        "insight_id": "insight:afcedcf168cfe0a7",
+        "compound": -0.1531,
+        "label": "negative"
+      },
+      {
+        "insight_id": "insight:a0f6b06a8ee4a976",
+        "compound": 0.4588,
+        "label": "positive"
+      }
+    ]
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 3
+}

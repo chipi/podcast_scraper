@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
  * PRD-033 FR1 (#884) — Search/Explore surface: source_tier badges, compound
@@ -7,6 +7,10 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './help
  * the query-type indicator, and entity names that link to a Detail panel.
  */
 test.describe('Search FR1 surfaces (mocked /api/search)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

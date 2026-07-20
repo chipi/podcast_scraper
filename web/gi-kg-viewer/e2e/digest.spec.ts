@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /** Local calendar `YYYY-MM-DD` for recency-dot mocks (matches `digestRecency` parsing). */
 function localYmd(d = new Date()): string {
@@ -10,6 +10,10 @@ function localYmd(d = new Date()): string {
 }
 
 test.describe('Corpus Digest tab', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

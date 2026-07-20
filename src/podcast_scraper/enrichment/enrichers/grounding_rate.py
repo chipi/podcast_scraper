@@ -12,9 +12,12 @@ Output drives "speaker credibility / rigor" dashboards. Reads
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 from podcast_scraper.enrichment.enrichers._loaders import (
     edges_of_type,
@@ -98,7 +101,23 @@ def _compute(
             }
         )
     persons_out.sort(key=lambda r: (-r["rate"], -r["total_insights"], r["person_id"]))
-    return {"persons": persons_out, "episode_count": len(bundles)}
+
+    # #1208 — no-silent-fail contract; see temporal_velocity for rationale.
+    partial_reason: str | None = None
+    if len(bundles) == 0:
+        partial_reason = "no_bundles"
+    elif not persons_out:
+        partial_reason = "no_persons_with_insights"
+    if partial_reason is not None:
+        _logger.warning(
+            "grounding_rate produced empty output run_id=%s enricher=%s reason=%s bundles=%d",
+            ctx.run_id,
+            ctx.enricher_id,
+            partial_reason,
+            len(bundles),
+        )
+
+    return {"persons": persons_out, "episode_count": len(bundles), "partial_reason": partial_reason}
 
 
 _enrich_async = sync_enricher(_compute)

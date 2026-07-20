@@ -2,6 +2,7 @@
  * Neighbor rows for a node in a parsed graph artifact (GI/KG / merged view).
  */
 import type { ParsedArtifact, RawGraphEdge } from '../types/artifact'
+import { stripLayerPrefixesForCil } from './mergeGiKg'
 import { findRawNodeInArtifact, nodeLabel } from './parsing'
 import { visualGroupForNode } from './visualGroup'
 
@@ -76,18 +77,21 @@ export function graphNeighborsForNode(
   if (!art?.data || nodeId == null) return []
   const edges: RawGraphEdge[] = Array.isArray(art.data.edges) ? art.data.edges : []
   const sid = String(nodeId)
+  const sidBare = stripLayerPrefixesForCil(sid)
   const out: GraphNeighborRow[] = []
   const seen = new Set<string>()
   for (const e of edges) {
     if (!e) continue
     const from = e.from != null ? String(e.from) : ''
     const to = e.to != null ? String(e.to) : ''
+    const fromBare = stripLayerPrefixesForCil(from)
+    const toBare = stripLayerPrefixesForCil(to)
     let neighborId: string | null = null
     let direction: 'in' | 'out' = 'out'
-    if (from === sid && to && to !== sid) {
+    if ((from === sid || fromBare === sidBare) && to && to !== sid) {
       neighborId = to
       direction = 'out'
-    } else if (to === sid && from && from !== sid) {
+    } else if ((to === sid || toBare === sidBare) && from && from !== sid) {
       neighborId = from
       direction = 'in'
     }

@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { statusBarCorpusPathInput } from './helpers'
+import { statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 test.describe('Corpus path hints (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

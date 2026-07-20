@@ -1,0 +1,8 @@
+{
+  "email": "person-profile-chromium@e2e.local",
+  "name": "person-profile-chromium",
+  "provider": "mock",
+  "subject": "e2e-person-profile-chromium",
+  "disabled": false,
+  "role": "creator"
+}

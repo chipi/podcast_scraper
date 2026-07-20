@@ -11,8 +11,6 @@ together, see [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRU
 
 ---
 
-# CI/CD Pipeline
-
 ## Overview
 
 The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD

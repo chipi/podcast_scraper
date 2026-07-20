@@ -846,6 +846,29 @@ const themeClusterInfo = computed(() =>
     ? themeClusterInfoForTopic(artifacts.themeClustersDoc, props.nodeId ?? '')
     : null,
 )
+
+// graph-v3 Tier 5A-2 — for NON-Topic nodes tagged by the region propagation
+// walk (Insight / Episode / Person / Org / Podcast), surface the human label
+// of the theme region they're painted as. Answers "why is this node this
+// colour" without needing the graph legend. Topic nodes already carry the
+// full theme identity via themeClusterInfo above. Propagation runs artifact-
+// side in applyThemeClustersOverlay so themeClusterId is on the raw node.
+const propagatedThemeRegionLabel = computed<string | null>(() => {
+  if (isTopicNode.value) return null
+  const raw = node.value as { themeClusterId?: unknown } | null
+  const id = typeof raw?.themeClusterId === 'string' ? raw.themeClusterId.trim() : ''
+  if (!id) return null
+  const doc = artifacts.themeClustersDoc
+  const clusters = doc?.clusters ?? []
+  for (const cl of clusters) {
+    const cid = typeof cl?.graph_compound_parent_id === 'string' ? cl.graph_compound_parent_id.trim() : ''
+    if (cid === id) {
+      const lbl = typeof cl?.canonical_label === 'string' && cl.canonical_label.trim() ? cl.canonical_label.trim() : cid
+      return lbl
+    }
+  }
+  return null
+})
 // Cluster panel: simple member chips by default (like the theme block); the
 // graph ops + per-member Load/Focus rows + warnings live behind an Advanced
 // toggle, collapsed by default.
@@ -2337,6 +2360,19 @@ const graphConnectionsCenterInView = computed((): boolean => {
         </div>
       </div>
 
+      <!-- graph-v3 Tier 5A-2 — for NON-Topic nodes that inherited a theme
+           region via propagation (Insight / Episode / Person / Org / Podcast),
+           surface the label so users can trace why the node is a given colour
+           on the graph. Topic nodes render the richer Theme block above. -->
+      <p
+        v-if="!isTopicNode && propagatedThemeRegionLabel"
+        class="mb-3 text-[10px] leading-snug text-muted"
+        data-testid="node-detail-theme-region"
+      >
+        <span class="font-medium text-surface-foreground/80">Theme region:</span>
+        {{ propagatedThemeRegionLabel }}
+      </p>
+
       <p
         v-if="isTopicNode && topicClusterContext && !hasTopicClusterJson"
         class="mb-3 text-[10px] leading-snug text-muted"
@@ -2522,7 +2558,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           {{ inlineTimelineError }}
         </p>
         <p
-          v-else-if="inlineTimelinePayload && inlineTimelinePayload.episodes.length === 0"
+          v-else-if="inlineTimelinePayload && (inlineTimelinePayload.episodes?.length ?? 0) === 0"
           class="text-[10px] text-muted"
           data-testid="node-detail-inline-timeline-empty"
         >

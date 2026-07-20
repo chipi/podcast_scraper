@@ -16,9 +16,11 @@
 
 import { expect, test, type Page } from '@playwright/test'
 import {
+  SHELL_HEADING_RE,
   dismissGraphGestureOverlayIfPresent,
   mainViewsNav,
-  SHELL_HEADING_RE,
+  signInAsAdmin,
+  signInIsolated,
   statusBarCorpusPathInput,
 } from '../helpers'
 
@@ -157,15 +159,14 @@ async function clickOpenInGraphButton(page: Page): Promise<void> {
 test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', () => {
   // ─── COLD-START (P1.x) ───────────────────────────────────────────────
 
-  test('P1.6 — Episode panel "Open in graph" (real corpus)', async ({ page }) => {
+  test('P1.6 — Episode panel "Open in graph" (real corpus)', async ({ page }, testInfo) => {
     // E1: click Library row → episode panel renders → click "Open in
     // graph" (panel's affordance). Verifies the same FSM-applied contract
     // as V1, but explicitly through the episode-panel route (E1 was the
     // surface fixed by #775 via the microtask retry in
     // ``EpisodeDetailPanel.openInGraph``).
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await clickFirstLibraryRow(page)
@@ -185,13 +186,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(sources).toContain('episode-panel')
   })
 
-  test('P1.12 — Escape key clears focus (K1)', async ({ page }) => {
+  test('P1.12 — Escape key clears focus (K1)', async ({ page }, testInfo) => {
     // K1: after a successful handoff, pressing Escape must clear focus
     // (subject + selection) without firing handoffRequested. Tests the
     // ``focusCleared`` envelope shape.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await clickFirstLibraryRow(page)
@@ -228,13 +228,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(cySel).toBe(0)
   })
 
-  test('P1.13 — Background canvas tap clears subject (G7)', async ({ page }) => {
+  test('P1.13 — Background canvas tap clears subject (G7)', async ({ page }, testInfo) => {
     // G7: clicking the empty graph canvas with a current selection
     // should clear subject. Same negative-fire rule as Escape — must NOT
     // emit ``handoffRequested``.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await clickFirstLibraryRow(page)
@@ -331,13 +330,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
   // ─── HOT-STATE (P2.x) ────────────────────────────────────────────────
 
-  test('P2.4 — Episode panel re-click supersedes (E1 hot)', async ({ page }) => {
+  test('P2.4 — Episode panel re-click supersedes (E1 hot)', async ({ page }, testInfo) => {
     // E1 hot path: open episode A in graph via panel, return to library,
     // open episode B in graph via panel. Second click must supersede:
     // FSM reaches terminal state, no stuck timer, no console errors.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await clickFirstLibraryRow(page)
@@ -369,13 +367,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(sources).toContain('episode-panel')
   })
 
-  test('P2.5 — Mixed entry: Digest pill → Library row (load-source flip)', async ({ page }) => {
+  test('P2.5 — Mixed entry: Digest pill → Library row (load-source flip)', async ({ page }, testInfo) => {
     // Digest hands off via CIL pill (subject-external → digest-external),
     // then Library hands off (subject-external). Both reach terminal state;
     // the load-source must flip cleanly, no contamination.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     // Step 1: Digest pill
     await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
@@ -421,10 +418,9 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(noDigestLeak).toBe(true)
   })
 
-  test('P2.6 — Mixed entry: Library row → Digest pill (reverse flip)', async ({ page }) => {
+  test('P2.6 — Mixed entry: Library row → Digest pill (reverse flip)', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     // Step 1: Library
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
@@ -463,14 +459,13 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
   // ─── REPEAT-CLICK / CONCURRENCY (P3.x, P5.x) ─────────────────────────
 
-  test('P5.1 — Rapid Library re-clicks: last wins (generation supersession)', async ({ page }) => {
+  test('P5.1 — Rapid Library re-clicks: last wins (generation supersession)', async ({ page }, testInfo) => {
     // Click two different Library rows in rapid succession. Generation
     // supersession means the FSM observes both clicks; the LATER envelope
     // is the one whose handoffRequested.envelope matches the FSM's
     // terminal selection (or the FSM logs the rapid succession explicitly).
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.waitForTimeout(800)
@@ -513,13 +508,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
   // ─── CROSS-ENTRY (P4.x) ──────────────────────────────────────────────
 
-  test('P4.1 — Library → Digest → Library (3 envelopes, load-source cycle)', async ({ page }) => {
+  test('P4.1 — Library → Digest → Library (3 envelopes, load-source cycle)', async ({ page }, testInfo) => {
     // Three distinct surfaces; the FSM event log must record three
     // handoffRequested envelopes with the expected source progression
     // and no console errors leaking across boundaries.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await resetFsmEventLog(page)
 
@@ -564,13 +558,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
   // ─── BATCH 2 ─────────────────────────────────────────────────────────
 
-  test('P1.3 — Digest topic-band hit row activate (D2)', async ({ page }) => {
+  test('P1.3 — Digest topic-band hit row activate (D2)', async ({ page }, testInfo) => {
     // D2: clicking a row inside a topic-band's hit list opens that
     // episode in the graph. Different envelope from a CIL pill: the
     // row activate uses a topic+episode plan.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
     // Hit rows live under the topic-band lists and have aria-label
@@ -602,13 +595,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(sources).toContain('digest')
   })
 
-  test('P3.1 — Library × 2 same episode (idempotent supersession)', async ({ page }) => {
+  test('P3.1 — Library × 2 same episode (idempotent supersession)', async ({ page }, testInfo) => {
     // Clicking the same Library row twice in a row should be idempotent:
     // each click fires a handoffRequested; the FSM accepts both via
     // generation supersession; the final terminal state is consistent.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.waitForTimeout(800)
@@ -634,10 +626,9 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(handoffs.length).toBeGreaterThanOrEqual(2)
   })
 
-  test('P3.2 — Digest pill × 2 same topic (idempotent)', async ({ page }) => {
+  test('P3.2 — Digest pill × 2 same topic (idempotent)', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
     const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
@@ -668,9 +659,10 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     // to Graph. Per FSM decision #7 (tabReturned policy), the tab return
     // is reconcile-only — must not fire handoffRequested on round-trip.
     // The FSM still reaches a terminal state.
+    //
+    // Dashboard is admin-only (see V4). Sign in as the fixed admin.
+    await signInAsAdmin(page)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -704,13 +696,12 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(['applied', 'failed']).toContain(fsm.lastResult?.status)
   })
 
-  test('P6.2 — Non-existent cy id surfaces handoffFailed cleanly (dev-hook)', async ({ page }) => {
+  test('P6.2 — Non-existent cy id surfaces handoffFailed cleanly (dev-hook)', async ({ page }, testInfo) => {
     // Drive the FSM via the dev-hook store with a target id that does not
     // exist in the loaded graph. Apply must surface failure (not stuck-
     // timeout, not crash); no console errors leak.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -743,14 +734,13 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
   // ─── BATCH 3 ─────────────────────────────────────────────────────────
 
-  test('P2.2 — Digest A → Digest B (different pills, hot supersession)', async ({ page }) => {
+  test('P2.2 — Digest A → Digest B (different pills, hot supersession)', async ({ page }, testInfo) => {
     // Click two different digest pills in sequence. Generation supersession
     // means each click bumps the FSM generation; the second envelope's
     // terminal state is what user observes. Highlight clearing must
     // happen between (asymmetry #10).
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
     const pills = page.getByRole('button', { name: /Open graph for topic/ })
@@ -783,14 +773,13 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(sources.filter((s) => s === 'digest').length).toBeGreaterThanOrEqual(2)
   })
 
-  test('P6.1 — Bogus envelope target surfaces failure (dev-hook, no console errors)', async ({ page }) => {
+  test('P6.1 — Bogus envelope target surfaces failure (dev-hook, no console errors)', async ({ page }, testInfo) => {
     // Like P6.2 but uses a kind='episode' envelope with a metadataPath
     // that doesn't resolve. Exercises a different code path in
     // ``finishLayoutPass`` (the kind === 'episode' branch with
     // ``findEpisodeGraphNodeIdForMetadataPathOrEpisodeId`` fallback).
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -819,12 +808,11 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(errs.errors).toEqual([])
   })
 
-  test('P3.3 — Canvas single-tap fires canvasTapped on FSM', async ({ page }) => {
+  test('P3.3 — Canvas single-tap fires canvasTapped on FSM', async ({ page }, testInfo) => {
     // Single-tap on a graph node should fire ``canvasTapped`` (not
     // handoffRequested). The handler is in GraphCanvas.vue:3086.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -887,10 +875,9 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     }
   })
 
-  test('P8.1 — Digest date chip (window selector) does NOT fire handoffRequested', async ({ page }) => {
+  test('P8.1 — Digest date chip (window selector) does NOT fire handoffRequested', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
     await page.waitForTimeout(1500)
@@ -919,11 +906,10 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(log.map((e) => e.type)).not.toContain('handoffRequested')
   })
 
-  test('P8.7 — Graph zoom controls do NOT fire handoffRequested', async ({ page }) => {
+  test('P8.7 — Graph zoom controls do NOT fire handoffRequested', async ({ page }, testInfo) => {
     // Zoom in/out/fit affect camera only; selection preserved; no handoff.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -952,15 +938,14 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
   // ─── BATCH 4 ─────────────────────────────────────────────────────────
 
-  test('P2.3 — Search A → Search B (hot supersession via dev-hook)', async ({ page }) => {
+  test('P2.3 — Search A → Search B (hot supersession via dev-hook)', async ({ page }, testInfo) => {
     // Two consecutive Search handoffs with different targets. Generation
     // supersession applies; both envelopes observed; second terminal
     // state is the user-visible result. Drives via dev hook because
     // the F1.6 wiring already covers the click side (see V3); we want
     // the dual-envelope concurrency contract here.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -1008,16 +993,15 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(sources.filter((s) => s === 'search').length).toBeGreaterThanOrEqual(2)
   })
 
-  test('P4.2 — Digest band → Library → Digest pill (camera strategy switch)', async ({ page }) => {
+  test('P4.2 — Digest band → Library → Digest pill (camera strategy switch)', async ({ page }, testInfo) => {
     // Three different surfaces with three different camera strategies:
     // Digest band uses ``center-on-target``, Library uses
     // ``center-on-target``, second Digest pill uses ``center-on-target``.
     // (The matrix originally specified a ``fit`` camera for the band
     // title which we disabled in this PR; verify the band hit-row +
     // Library + pill sequence holds together.)
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await resetFsmEventLog(page)
 
@@ -1058,10 +1042,9 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(new Set(sources).size).toBeGreaterThanOrEqual(2)
   })
 
-  test('P8.2 — Library title filter input does NOT fire handoffRequested', async ({ page }) => {
+  test('P8.2 — Library title filter input does NOT fire handoffRequested', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-root').waitFor({ state: 'visible', timeout: 15_000 })
@@ -1079,10 +1062,9 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(log.map((e) => e.type)).not.toContain('handoffRequested')
   })
 
-  test('P8.3 — Library summary filter input does NOT fire handoffRequested', async ({ page }) => {
+  test('P8.3 — Library summary filter input does NOT fire handoffRequested', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-root').waitFor({ state: 'visible', timeout: 15_000 })
@@ -1100,10 +1082,9 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(log.map((e) => e.type)).not.toContain('handoffRequested')
   })
 
-  test('P8.6 — Graph minimap toggle does NOT fire handoffRequested', async ({ page }) => {
+  test('P8.6 — Graph minimap toggle does NOT fire handoffRequested', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -1130,15 +1111,14 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
   // ─── BATCH 5 ─────────────────────────────────────────────────────────
 
-  test('P1.10 — StatusBar @go-graph (O6) via dev-hook envelope', async ({ page }) => {
+  test('P1.10 — StatusBar @go-graph (O6) via dev-hook envelope', async ({ page }, testInfo) => {
     // O6 — StatusBar fires @go-graph which routes to ``App.activateGraphTab``.
     // The StatusBar's actual go-graph affordances are context-dependent
     // (rebuild indicator, source dialog hits) and may not be reachable on
     // every corpus. Drive the equivalent envelope via dev hook to assert
     // the FSM accepts a ``source: 'status-bar'`` shape cleanly.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -1189,14 +1169,13 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(sources).toContain('status-bar')
   })
 
-  test('P4.3 — Search → graph-internal → Search (load-source sandwich)', async ({ page }) => {
+  test('P4.3 — Search → graph-internal → Search (load-source sandwich)', async ({ page }, testInfo) => {
     // Three envelopes: subject-external (search) → graph-internal
     // (node-detail / double-tap expand) → subject-external (search).
     // Drives via dev hook to make the load-source progression
     // observable without depending on click-chain UI affordances.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -1269,15 +1248,14 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(loadSources).toContain('graph-internal')
   })
 
-  test('P7.1 — Restore-preference envelope shape (dev-hook bootstrap)', async ({ page }) => {
+  test('P7.1 — Restore-preference envelope shape (dev-hook bootstrap)', async ({ page }, testInfo) => {
     // P7.1 — first mount with a saved cy id should fire an internal
     // ``handoffRequested({ source: 'restore-preference' })`` exactly once
     // on first idle→ready (decision #8). The actual bootstrap is gated
     // on localStorage having a saved preference; preseed via dev hook
     // to make the test deterministic.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -1326,9 +1304,10 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     // P5.2 covered mid-load tab-switch (interrupted). P7.2 covers the
     // post-settle case: FSM reaches ready, user tabs away, tabs back —
     // no new handoffRequested should fire (decision #7 reconcile-only).
+    //
+    // Dashboard is admin-only (see V4). Sign in as the fixed admin.
+    await signInAsAdmin(page)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -1347,10 +1326,9 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(log.map((e) => e.type)).not.toContain('handoffRequested')
   })
 
-  test('P8.5 — Graph relayout button does NOT fire handoffRequested', async ({ page }) => {
+  test('P8.5 — Graph relayout button does NOT fire handoffRequested', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
@@ -1369,11 +1347,10 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(log.map((e) => e.type)).not.toContain('handoffRequested')
   })
 
-  test('P8.4 — Graph layout cycle does NOT fire handoffRequested', async ({ page }) => {
+  test('P8.4 — Graph layout cycle does NOT fire handoffRequested', async ({ page }, testInfo) => {
     // Layout cycle is a UI-only filter; must not interpret as a handoff.
+    await signInIsolated(page, 'handoff-matrix', testInfo)
     const errs = captureConsoleErrors(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await fillCorpusPath(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })

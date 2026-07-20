@@ -1,10 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
-import {
-  openCorpusDataWorkspace,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from './helpers'
+import { openCorpusDataWorkspace, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /** Minimal `GET /api/index/stats` body so Dashboard enables index actions (#507). */
 const INDEX_STATS_ENVELOPE = {
@@ -34,6 +30,10 @@ const INDEX_STATS_ENVELOPE = {
  * routes there; the dialog then issues `POST /api/index/rebuild`.
  */
 test.describe('Index rebuild via Configuration Vector index dialog (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'admin')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

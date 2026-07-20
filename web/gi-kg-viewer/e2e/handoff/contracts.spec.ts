@@ -13,12 +13,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import {
-  loadGraphViaFilePicker,
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   readFsmEventLog,
   readFsmState,
@@ -27,6 +22,10 @@ import {
 } from './_handoff-helpers'
 
 test.describe('Handoff contracts § T3 architectural invariants', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('L1 — Library row "Open in graph" fires handoffRequested with source=library', async ({
     page,
   }) => {

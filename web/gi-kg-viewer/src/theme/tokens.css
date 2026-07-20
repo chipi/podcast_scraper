@@ -26,6 +26,9 @@
   --ps-danger: #e76a6e;
   --ps-gi: #7dd3a0;
   --ps-kg: #c4a8ff;
+  /* graph-v3 A — richer contrast for the Cytoscape canvas only (feels
+     "constellation" rather than surface-flat). Shell chrome keeps --ps-canvas. */
+  --ps-graph-canvas: #0a0d10;
 }
 
 /* ── Light palette (explicit) ── */
@@ -50,6 +53,7 @@
   --ps-danger: #cd4246;
   --ps-gi: #1e7a4a;
   --ps-kg: #5c4d8a;
+  --ps-graph-canvas: var(--ps-canvas);
 }
 
 /* ── Auto: follow OS preference ── */
@@ -75,5 +79,6 @@
     --ps-danger: #cd4246;
     --ps-gi: #1e7a4a;
     --ps-kg: #5c4d8a;
+    --ps-graph-canvas: var(--ps-canvas);
   }
 }

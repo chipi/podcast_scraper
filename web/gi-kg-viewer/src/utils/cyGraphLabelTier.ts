@@ -1,5 +1,16 @@
 /**
  * Zoom-driven graph label tiers (WIP §3.5). Shared by main GraphCanvas and rail minimap preview.
+ *
+ * Two orthogonal responsibilities live here:
+ * 1. ``syncGraphLabelTierClasses`` — hide/short/full label rendering as a
+ *    function of zoom (thresholds ``GRAPH_LABEL_ZOOM_NONE_MAX`` +
+ *    ``GRAPH_LABEL_ZOOM_SHORT_MAX``).
+ * 2. ``syncGraphNodeVisibilityTierClasses`` — Tier 6 declutter: hide
+ *    Insight + Quote nodes entirely below ``GRAPH_NODE_ZOOM_INSIGHT_MIN``
+ *    so the overview isn't drowned in evidence dots.
+ *
+ * Prose reference: ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md`` §Node
+ * encoding §4 (zoom-gated tier reshape) + §5 (zoom-gated visibility).
  */
 import type { Core } from 'cytoscape'
 
@@ -39,5 +50,29 @@ export function syncGraphLabelTierClasses(core: Core): void {
   core.batch(() => {
     core.nodes().removeClass(LABEL_TIER_CLASSES)
     core.nodes().addClass(tier)
+  })
+}
+
+/** graph-v3 tier 6-2 — hide Insight + Quote nodes below this zoom.
+ *  At the initial fit-all zoom (~0.3 on prod-v2) the canvas holds 400+
+ *  green Insight dots that visually dominate before the user has zoomed
+ *  in to actually read anything. Above this threshold they fade in so
+ *  the neighbourhood-read is preserved. Chosen slightly lower than the
+ *  label short/full threshold so Insight bodies appear a beat before
+ *  their labels do. */
+export const GRAPH_NODE_ZOOM_INSIGHT_MIN = 0.9
+
+/** Class the stylesheet paints as `opacity: 0` + `events: no` + `visibility: hidden`. */
+export type GraphNodeVisibilityClass = 'graph-node-zoom-hidden'
+
+/** graph-v3 tier 6-2 — apply the zoom-gated visibility class to Insight + Quote
+ *  nodes. Called from the same zoom listener that drives `syncGraphLabelTierClasses`. */
+export function syncGraphNodeVisibilityTierClasses(core: Core): void {
+  const z = core.zoom()
+  const shouldHide = z < GRAPH_NODE_ZOOM_INSIGHT_MIN
+  core.batch(() => {
+    const targets = core.nodes('[type = "Insight"], [type = "Quote"]')
+    if (shouldHide) targets.addClass('graph-node-zoom-hidden')
+    else targets.removeClass('graph-node-zoom-hidden')
   })
 }

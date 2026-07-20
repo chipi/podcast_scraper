@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   GRAPH_LABEL_ZOOM_NONE_MAX,
   GRAPH_LABEL_ZOOM_SHORT_MAX,
+  GRAPH_NODE_ZOOM_INSIGHT_MIN,
   prefersReducedMotionQuery,
   syncGraphLabelTierClasses,
+  syncGraphNodeVisibilityTierClasses,
 } from './cyGraphLabelTier'
 
 const LABEL_TIER_CLASSES = 'graph-label-tier-none graph-label-tier-short graph-label-tier-full'
@@ -113,6 +115,56 @@ describe('cyGraphLabelTier', () => {
       expect(removeClass.mock.invocationCallOrder[0]).toBeLessThan(
         addClass.mock.invocationCallOrder[0],
       )
+    })
+  })
+
+  describe('syncGraphNodeVisibilityTierClasses (tier 6-2)', () => {
+    /* Same MockCore as `syncGraphLabelTierClasses` above but the target
+     * NodeCollection comes from a specific selector, so we track the
+     * selector string that was passed to `core.nodes()`. */
+    function makeVisibilityCore(zoom: number) {
+      const addClass = vi.fn().mockReturnThis()
+      const removeClass = vi.fn().mockReturnThis()
+      const targets = { addClass, removeClass }
+      const nodesFn = vi.fn(() => targets)
+      const core = {
+        zoom: vi.fn(() => zoom),
+        nodes: nodesFn,
+        batch: vi.fn((fn: () => void) => fn()),
+      }
+      return { core: core as unknown as Core, nodesFn, targets, addClass, removeClass, raw: core }
+    }
+
+    it('exports GRAPH_NODE_ZOOM_INSIGHT_MIN = 0.9 (canvas threshold)', () => {
+      expect(GRAPH_NODE_ZOOM_INSIGHT_MIN).toBe(0.9)
+    })
+
+    it('adds the hidden class to Insight + Quote when zoom < threshold', () => {
+      const { core, addClass, removeClass, nodesFn } = makeVisibilityCore(0.5)
+      syncGraphNodeVisibilityTierClasses(core)
+      expect(nodesFn).toHaveBeenCalledWith('[type = "Insight"], [type = "Quote"]')
+      expect(addClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
+      expect(removeClass).not.toHaveBeenCalled()
+    })
+
+    it('removes the hidden class at exactly the threshold (zoom === MIN)', () => {
+      const { core, addClass, removeClass } = makeVisibilityCore(GRAPH_NODE_ZOOM_INSIGHT_MIN)
+      syncGraphNodeVisibilityTierClasses(core)
+      expect(removeClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
+      expect(addClass).not.toHaveBeenCalled()
+    })
+
+    it('removes the hidden class above the threshold', () => {
+      const { core, addClass, removeClass } = makeVisibilityCore(2.0)
+      syncGraphNodeVisibilityTierClasses(core)
+      expect(removeClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
+      expect(addClass).not.toHaveBeenCalled()
+    })
+
+    it('wraps its work in a single batch()', () => {
+      const { core, raw } = makeVisibilityCore(0.5)
+      syncGraphNodeVisibilityTierClasses(core)
+      expect(raw.batch).toHaveBeenCalledTimes(1)
     })
   })
 })

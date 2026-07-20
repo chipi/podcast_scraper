@@ -83,7 +83,9 @@
             "lift_to_cluster": 1.7,
             "topic_id": "topic:safety-practices"
           }
-        ]
+        ],
+        "super_theme_id": "sth:managing-risk",
+        "super_theme_label": "Managing risk across domains"
       }
     ],
     "episode_count": 36,
@@ -92,11 +94,14 @@
     "min_pair_episode_count": 2,
     "schema_version": "1",
     "singletons": 7,
-    "topic_count": 10
+    "topic_count": 10,
+    "super_theme_method": "cross_cluster_lift_avg_linkage",
+    "super_theme_target": 6,
+    "super_theme_count": 1
   },
   "duration_ms": 0,
   "enricher_id": "topic_theme_clusters",
-  "enricher_version": "1.0",
+  "enricher_version": "1.1.0",
   "error": null,
   "error_class": null,
   "records_written": 1,

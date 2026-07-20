@@ -2,12 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { GRAPH_NODE_EPISODES_EXPAND_MAX } from '../src/api/corpusLibraryApi'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import {
-  dismissGraphGestureOverlayIfPresent,
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from './helpers'
+import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /** Every expand ``POST`` must send the viewer max-episodes cap (``GraphCanvas`` passes this to ``fetchNodeEpisodes``). */
 function assertNodeEpisodesExpandPostHasMaxEpisodes(route: Route): void {
@@ -463,6 +458,10 @@ async function gotoGraphWithMockCorpus(
 }
 
 test.describe('Graph expansion (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   /** One graph instance per worker; serial avoids overlapping Cytoscape teardown + layout rAF races. */
   test.describe.configure({ mode: 'serial' })
   test('empty node-episodes shows truncation strip; dismiss hides it', async ({ page }) => {

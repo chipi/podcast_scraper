@@ -11,11 +11,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertFsmEventEnvelope,
   assertHandoffApplied,
@@ -27,6 +23,10 @@ import {
 } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Cold-start (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('P1.1 — Library row "Open in graph" (production-shaped)', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     await setupProductionShapedMocks(page)

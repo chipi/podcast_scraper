@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test'
-import { loadGraphViaFilePicker } from './helpers'
+import { loadGraphViaFilePicker, mockSignIn } from './helpers'
 
 /**
  * Locks Cytoscape label placement: main-label bbox must not intersect the node disc in model space.
  * Complements DevTools manual checks (`window.__GIKG_CY_DEV__` in Vite dev).
  */
 test.describe('Graph labels clear node disc', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('label box does not overlap circular node body (offline fixture)', async ({ page }) => {
     await loadGraphViaFilePicker(page)
 

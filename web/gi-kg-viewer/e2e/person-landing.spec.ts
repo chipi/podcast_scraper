@@ -31,7 +31,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -84,6 +84,10 @@ const EXPLORE_RESPONSE = {
 }
 
 test.describe('Person Landing rail panel', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

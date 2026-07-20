@@ -10,11 +10,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import {
-  mainViewsNav,
-  SHELL_HEADING_RE,
-  statusBarCorpusPathInput,
-} from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertHandoffApplied,
   captureConsoleErrors,
@@ -26,6 +22,10 @@ import {
 } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Hot state (production-shaped)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('P2.1 — Library → Library supersession (V5 reproducer)', async ({ page }) => {
     // The smoking gun. Tier-1 H2.1 passes because the mock graph is
     // tiny; on a 270+ node real-corpus graph the second click should

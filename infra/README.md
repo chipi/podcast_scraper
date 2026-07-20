@@ -19,7 +19,8 @@ infra/
 │   └── terraform.tfstate.enc.drill  # optional; encrypted state for workspace `drill` (#752)
 ├── cloud-init/
 │   ├── prod.user-data                 # first-boot bootstrap (Docker, Tailscale, repo pull, optional Alloy)
-│   └── podcast-tailscale-serve.sh     # canonical ``tailscale serve`` helper (also injected into prod.user-data)
+│   ├── podcast-tailscale-serve.sh     # canonical ``tailscale serve`` helper (also injected into prod.user-data)
+│   └── orrery-tailscale-serve.sh      # orrery app ``tailscale serve`` helper (orrery project, listed for discoverability)
 └── deploy/
     └── deploy.sh               # called by deploy-prod.yml and drill-deploy.yml
 ```

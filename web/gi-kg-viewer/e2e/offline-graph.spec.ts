@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { loadGraphViaFilePicker } from './helpers'
+import { loadGraphViaFilePicker, mockSignIn } from './helpers'
 
 test.describe('Offline graph (file picker)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('loads CI GI fixture and shows graph toolbar', async ({ page }) => {
     await loadGraphViaFilePicker(page)
 

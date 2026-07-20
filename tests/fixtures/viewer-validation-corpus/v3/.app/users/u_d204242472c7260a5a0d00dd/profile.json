@@ -1,0 +1,8 @@
+{
+  "email": "pat-player@e2e.local",
+  "name": "Pat Player",
+  "provider": "mock",
+  "subject": "e2e-pat-player",
+  "disabled": false,
+  "role": "listener"
+}

@@ -101,6 +101,169 @@ describe('applyThemeClustersOverlay', () => {
     expect(applyThemeClustersOverlay(data, null)).toBe(data)
     expect(applyThemeClustersOverlay(data, {})).toEqual(data)
   })
+
+  // graph-v3 Tier 5A-2 — propagation walk paths (harden follow-up test coverage).
+  it('tags Episode nodes via cluster.members[].episode_ids (stripping __unified_ep__: prefix)', () => {
+    const data = {
+      nodes: [
+        // Episode ids in the merged graph carry a `__unified_ep__:` prefix;
+        // the artifact stores raw ids in member.episode_ids.
+        { id: '__unified_ep__:ep-abc', type: 'Episode' },
+        { id: 'ep-def', type: 'Episode' }, // bare id — should still match
+      ],
+      edges: [],
+    }
+    const doc = {
+      clusters: [
+        {
+          graph_compound_parent_id: 'thc:x',
+          members: [{ topic_id: 'topic:x', episode_ids: ['ep-abc', 'ep-def'] }],
+        },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    const ep1 = out.nodes?.find((n) => String(n.id) === '__unified_ep__:ep-abc') as {
+      themeClusterId?: string
+    }
+    const ep2 = out.nodes?.find((n) => String(n.id) === 'ep-def') as { themeClusterId?: string }
+    expect(ep1?.themeClusterId).toBe('thc:x')
+    expect(ep2?.themeClusterId).toBe('thc:x')
+  })
+
+  it('propagates from Topic seeds to connected Insights + Persons via the edge list', () => {
+    // Topic → Insight (ABOUT edge) → Person (MENTIONS_PERSON edge)
+    const data = {
+      nodes: [
+        { id: 'g:topic:alpha', type: 'Topic' },
+        { id: 'g:insight:i1', type: 'Insight' },
+        { id: 'g:person:p1', type: 'Person' },
+      ],
+      edges: [
+        { from: 'g:insight:i1', to: 'g:topic:alpha', type: 'ABOUT' },
+        { from: 'g:insight:i1', to: 'g:person:p1', type: 'MENTIONS_PERSON' },
+      ],
+    }
+    const doc = {
+      clusters: [
+        {
+          graph_compound_parent_id: 'thc:x',
+          members: [{ topic_id: 'topic:alpha' }],
+        },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { themeClusterId?: string }
+    const person = out.nodes?.find((n) => n.id === 'g:person:p1') as { themeClusterId?: string }
+    // Round-1 propagation catches the Insight; round-2 catches the Person
+    // (two rounds of BFS in applyThemeClustersOverlay).
+    expect(insight?.themeClusterId).toBe('thc:x')
+    expect(person?.themeClusterId).toBe('thc:x')
+  })
+
+  it('propagates from Episode seed to connected Podcast + Insight via HAS_EPISODE / HAS_INSIGHT edges', () => {
+    const data = {
+      nodes: [
+        { id: '__unified_ep__:ep-x', type: 'Episode' },
+        { id: 'k:podcast:show', type: 'Podcast' },
+        { id: 'g:insight:i1', type: 'Insight' },
+      ],
+      edges: [
+        { from: 'k:podcast:show', to: '__unified_ep__:ep-x', type: 'HAS_EPISODE' },
+        { from: '__unified_ep__:ep-x', to: 'g:insight:i1', type: 'HAS_INSIGHT' },
+      ],
+    }
+    const doc = {
+      clusters: [
+        {
+          graph_compound_parent_id: 'thc:x',
+          members: [{ topic_id: 'topic:none', episode_ids: ['ep-x'] }],
+        },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    const podcast = out.nodes?.find((n) => n.id === 'k:podcast:show') as {
+      themeClusterId?: string
+    }
+    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { themeClusterId?: string }
+    expect(podcast?.themeClusterId).toBe('thc:x')
+    expect(insight?.themeClusterId).toBe('thc:x')
+  })
+
+  it('first-cluster-wins: a node touched by two clusters joins the doc-order-first one', () => {
+    // Both clusters include topic:alpha. Cluster A appears first in the doc
+    // (largest by convention); Cluster B second. Alpha and everything it
+    // propagates to should be tagged with cluster A.
+    const data = {
+      nodes: [
+        { id: 'g:topic:alpha', type: 'Topic' },
+        { id: 'g:insight:i1', type: 'Insight' },
+      ],
+      edges: [{ from: 'g:insight:i1', to: 'g:topic:alpha', type: 'ABOUT' }],
+    }
+    const doc = {
+      clusters: [
+        {
+          graph_compound_parent_id: 'thc:A',
+          member_count: 5,
+          members: [{ topic_id: 'topic:alpha' }],
+        },
+        {
+          graph_compound_parent_id: 'thc:B',
+          member_count: 3,
+          members: [{ topic_id: 'topic:alpha' }],
+        },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    const alpha = out.nodes?.find((n) => n.id === 'g:topic:alpha') as { themeClusterId?: string }
+    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { themeClusterId?: string }
+    expect(alpha?.themeClusterId).toBe('thc:A')
+    expect(insight?.themeClusterId).toBe('thc:A')
+  })
+
+  it('does not propagate to node types outside the allowlist (e.g. does not tag a random Segment node)', () => {
+    const data = {
+      nodes: [
+        { id: 'g:topic:alpha', type: 'Topic' },
+        { id: 'g:segment:s1', type: 'Segment' }, // not in propagateToTypes
+      ],
+      edges: [{ from: 'g:segment:s1', to: 'g:topic:alpha', type: 'SEGMENT_ABOUT' }],
+    }
+    const doc = {
+      clusters: [
+        { graph_compound_parent_id: 'thc:x', members: [{ topic_id: 'topic:alpha' }] },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    const seg = out.nodes?.find((n) => n.id === 'g:segment:s1') as { themeClusterId?: string }
+    expect(seg?.themeClusterId).toBeUndefined()
+  })
+
+  it('tags both Person (raw) and Entity variants — raw KG uses either', () => {
+    const data = {
+      nodes: [
+        { id: 'g:topic:alpha', type: 'Topic' },
+        { id: 'g:insight:i1', type: 'Insight' },
+        { id: 'g:person:p1', type: 'Person' },
+        { id: 'g:entity:e1', type: 'Entity' },
+      ],
+      edges: [
+        { from: 'g:insight:i1', to: 'g:topic:alpha', type: 'ABOUT' },
+        { from: 'g:insight:i1', to: 'g:person:p1', type: 'MENTIONS' },
+        { from: 'g:insight:i1', to: 'g:entity:e1', type: 'MENTIONS' },
+      ],
+    }
+    const doc = {
+      clusters: [
+        { graph_compound_parent_id: 'thc:x', members: [{ topic_id: 'topic:alpha' }] },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    const p = out.nodes?.find((n) => n.id === 'g:person:p1') as { themeClusterId?: string }
+    const e = out.nodes?.find((n) => n.id === 'g:entity:e1') as { themeClusterId?: string }
+    expect(p?.themeClusterId).toBe('thc:x')
+    expect(e?.themeClusterId).toBe('thc:x')
+  })
 })
 
 describe('themeClusterMemberTopicIdsForTopic', () => {

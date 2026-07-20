@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test'
+import { mockSignIn } from './helpers'
 
 test.describe('Corpus version warning banner (mocked API)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
   test('shows banner when health reports corpus_version_warning', async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({

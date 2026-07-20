@@ -12,6 +12,10 @@ export interface RawGraphEdge {
   type?: string
   from?: string | number
   to?: string | number
+  /** Optional per-edge attribute bag (weight, contributing_insight_ids,
+   *  source hint on synthetic edges, …). Analogous to `RawGraphNode.properties`
+   *  — payloads vary across GI, KG, and lens-synthesised edges. */
+  properties?: Record<string, unknown>
 }
 
 export interface ArtifactData {

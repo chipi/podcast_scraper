@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertFsmEventEnvelope,
   assertHandoffApplied,
@@ -18,6 +18,10 @@ import {
 } from './_handoff-helpers'
 
 test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+  })
+
   test('H4.1 — Library → Digest → Search [F4d]', async ({ page }) => {
     // Three-surface sequence: Library row → Digest pill → Search "Show on graph".
     // Each handoff bumps generation by ≥1. Load-source tracking per

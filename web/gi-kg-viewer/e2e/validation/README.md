@@ -9,6 +9,15 @@ actual backend / pipeline behaviour.
 
 ```bash
 # 1. Start the dev stack (viewer 5173 + API 8000) in a separate terminal.
+#    Auth is enabled by default now (RFC-099); the walk signs in as
+#    Ada Admin via the mock OAuth provider, so serve must be started with:
+#      APP_OAUTH_PROVIDER=mock
+#      APP_SESSION_SECRET=dev-secret
+#      APP_SIGNUP_MODE=open
+#      APP_ADMIN_EMAILS=ada-admin@e2e.local,dev@localhost
+#      APP_SEED_USERS_FILE=config/dev-seed-users.json
+#    against the corpus you want to validate:
+#      SERVE_OUTPUT_DIR=<CORPUS_PATH> podcast_scraper.cli serve --output-dir <CORPUS_PATH>
 make serve
 
 # 2. Run the validation walk against your corpus.

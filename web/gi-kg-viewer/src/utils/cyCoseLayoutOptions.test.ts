@@ -150,8 +150,9 @@ describe('giKgCoseLayoutOptionsMain', () => {
     const o = giKgCoseLayoutOptionsMain()
     expect(o.padding).toBe(36)
     expect(o.fit).toBe(false)
-    expect(o.gravity).toBe(0.18)
-    expect(o.nodeDimensionsIncludeLabels).toBe(true)
+    // graph-v3 M — gravity lowered so natural communities drift apart.
+    expect(o.gravity).toBe(0.12)
+    expect(o.nodeDimensionsIncludeLabels).toBe(false)
   })
 
   it('wires the per-node repulsion callback to the main profile', () => {
@@ -323,8 +324,9 @@ describe('giKgCoseLayoutOptionsMainFallback — static constants', () => {
     const o = giKgCoseLayoutOptionsMainFallback()
     expect(o.padding).toBe(36)
     expect(o.fit).toBe(false)
-    expect(o.gravity).toBe(0.18)
-    expect(o.nodeDimensionsIncludeLabels).toBe(true)
+    // graph-v3 M — gravity lowered so natural communities drift apart.
+    expect(o.gravity).toBe(0.12)
+    expect(o.nodeDimensionsIncludeLabels).toBe(false)
     expect((o.edgeElasticity as () => number)()).toBe(100)
   })
 })
