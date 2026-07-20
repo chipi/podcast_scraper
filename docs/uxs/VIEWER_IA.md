@@ -80,9 +80,9 @@ The app has no URL routing. Navigation is tab and store state.
 
 | Axis | Values | Who owns it |
 | --- | --- | --- |
-| Main tab | `digest` / `library` / `graph` / `dashboard` | `App.vue` local ref |
+| Main tab | `digest` / `library` / `search` / `graph` / `dashboard` | `App.vue` local ref (Search v3 — RFC-107) |
 | Subject (right rail) | episode / topic / person / graph-node / none | `subjectStore` |
-| Left panel surface | `search` (semantic UI + results) / `explore` (GI explore UI) | `shellStore.leftPanelSurface` + `searchStore`, `exploreStore` |
+| Left panel surface | `launcher` (compact query field + recent, non-Search tabs only; hidden on Search) | `shellStore.leftPanelSurface` + `searchStore` (Explore mode retired — RFC-107 §5) |
 
 Changing one axis does not reset the others. Switching from Library to Graph
 does not clear the subject rail. Running a search does not change the active tab.
@@ -258,18 +258,21 @@ in UXS-003, UXS-004, UXS-007, UXS-009, UXS-010
 
 ## Main tabs
 
-Four tabs. Each answers a different question about the same corpus.
+Five tabs. Each answers a different question about the same corpus.
 
 | Tab | Question it answers | Default? |
 | --- | --- | --- |
 | **Digest** | What's new in my corpus recently? | ✓ Yes (first load) |
 | **Library** | What episodes and feeds have been processed? | |
+| **Search** | What am I trying to find out? | (Search v3 — RFC-107) |
 | **Graph** | How do entities, topics, and insights connect? | |
 | **Dashboard** | Is my corpus healthy, and what should I do? | |
 
-**Tab order:** Digest · Library · Graph · Dashboard (left to right)
+**Tab order:** Digest · Library · **Search** · Graph · Dashboard (left to right)
 
-**Default on first load:** Digest
+**Default on first load:** Digest (per-user override lands in a future USERPREFS-1 pref — RFC-107 OQ1).
+
+> **Search v3 (RFC-107, in flight).** The Search tab is the operator's first-class query surface — a full-width **Query Workspace** ([UXS-016](UXS-016-query-workspace.md)). The former left-column **Explore** mode is retired; its filters (topic contains / speaker contains / limit / min confidence / grounded only / presets) fold into the Workspace filter chip bar. The LeftPanel Search column is retained as a **compact launcher** on non-Search tabs (see UXS-005). A shell-wide **Cmd-K** command palette is summonable from any tab.
 
 ### Digest
 

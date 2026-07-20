@@ -1,6 +1,6 @@
 # UXS-005: Semantic Search Panel
 
-- **Status**: Active
+- **Status**: Active (main-column query surface superseded by [UXS-016 Query Workspace](UXS-016-query-workspace.md) once RFC-107 lands; UXS-005 continues to specify the **compact launcher** role of the left column on non-Search tabs — see the "Compact launcher (RFC-107)" section near the end)
 - **Authors**: Podcast Scraper Team
 - **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
   typography, layout, states
@@ -198,6 +198,28 @@ The search surface makes that legible without re-querying:
 
 [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) --
 search panel surfaces and selectors.
+
+---
+
+## Compact launcher (RFC-107)
+
+Once [Search v3 (RFC-107)](../rfc/RFC-107-search-v3-query-workspace.md) lands, the primary query
+surface moves to the full-width **Query Workspace** ([UXS-016](UXS-016-query-workspace.md)). UXS-005
+continues to govern the **compact launcher** the LeftPanel becomes on non-Search tabs:
+
+- Single query field (`#search-q` — same testid as today).
+- Last-N recent queries (from USERPREFS-1 `search.recentQueries` — see [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md)).
+- "Open in Workspace" chip; Enter submits and switches the main tab to Search.
+- **Explore mode retired.** The slide mode-switch, `shell.leftPanelSurface = 'explore'`, and the
+  `left-panel-enter-explore` / `left-panel-back-search` test IDs are removed. Explore's filters
+  (topic contains / speaker contains / limit / min confidence / grounded only / presets) fold into
+  the Workspace filter chip bar (UXS-016 §Header).
+- On the Search tab, the LeftPanel is **hidden** (Workspace owns full width).
+- **Enriched answers are never invoked from the compact launcher** — Workspace only.
+
+The Advanced-search dialog treatment described above continues to apply on the Workspace filter
+chip bar's `More` chip; the `Enriched answers` toggle previously in that dialog is retired (replaced
+by the header `Enriched` chip in UXS-016).
 
 ---
 

@@ -162,6 +162,7 @@ nav:
       - PRD-042 Home: prd/PRD-042-home.md
       - PRD-043 Knowledge Layer: prd/PRD-043-knowledge-layer.md
       - PRD-044 Operator Shows Library: prd/PRD-044-operator-shows-library.md
+      - PRD-045 Search v3 — Query Workspace: prd/PRD-045-search-v3-query-workspace.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -180,6 +181,7 @@ nav:
       - UXS-013 Knowledge Clusters: uxs/UXS-013-knowledge-clusters.md
       - UXS-014 Interaction Patterns: uxs/UXS-014-interaction-patterns.md
       - UXS-015 Operator Shows Library: uxs/UXS-015-operator-shows-library.md
+      - UXS-016 Query Workspace: uxs/UXS-016-query-workspace.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -278,6 +280,7 @@ nav:
       - ADR-093 Canonical Stack Contract Versus Environment Adapters: adr/ADR-093-canonical-stack-contract-and-environment-adapters.md
       - ADR-094 Graph Handoff Orchestrator FSM: adr/ADR-094-graph-handoff-orchestrator-fsm.md
       - ADR-095 Three-Tier Viewer Test Pyramid + Production-Shaped Fixtures: adr/ADR-095-viewer-test-pyramid.md
+      - ADR-119 No Per-Corpus UI State — USERPREFS-1 for User-Scoped Features: adr/ADR-119-no-per-corpus-ui-state.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -386,6 +389,7 @@ nav:
       - RFC-104 Operator Shows Library: rfc/RFC-104-operator-shows-library.md
       - RFC-105 Cross-feed audio↔LLM pipelining: rfc/RFC-105-cross-feed-audio-llm-pipelining.md
       - RFC-106 Tiered DGX Service Fallback: rfc/RFC-106-tiered-dgx-service-fallback.md
+      - RFC-107 Search v3 — Query Workspace: rfc/RFC-107-search-v3-query-workspace.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
