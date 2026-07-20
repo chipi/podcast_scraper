@@ -2333,7 +2333,7 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
         from ..utils.correlation import CorrelationFormatter
 
         formatter = CorrelationFormatter(
-            "%(asctime)s %(levelname)s %(name)s [run=%(run_id)s]: %(message)s"
+            "%(asctime)s %(levelname)s %(name)s [run=%(run_id)s trace=%(trace_id)s]: %(message)s"
         )
 
     # Remove existing handlers if we're setting up fresh
