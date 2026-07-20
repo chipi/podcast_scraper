@@ -36,7 +36,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
+import { SHELL_HEADING_RE, mainViewsNav, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 // Realistic corpus id: GI speaker_ids are ``person:``-prefixed (e.g.
 // ``person:alice-hayes``), which is what NodeDetail's off-slice
@@ -123,24 +123,27 @@ test.describe('Person Landing rail panel', () => {
   })
 
   /**
-   * Shared entry: fills the search query, submits, waits for the lifted speaker
-   * link, clicks it, waits for the Person Landing view to appear.
+   * Shared entry: switch to the Search main tab, fill the query, submit,
+   * wait for the lifted speaker link, click it, wait for Person Landing.
    *
-   * The compact launcher lives in the LeftPanel on every main tab post-S1, so
-   * no tab switch is needed — unlike the retired Explore path which only rendered
-   * inside the Graph workspace.
+   * §S4-shell pivot: search lives ONLY on the Search main tab now — the
+   * compact LeftPanel launcher retired. Switching to Search is mandatory
+   * before ``#search-q`` exists in the DOM.
    */
   async function gotoPersonLanding(page: import('@playwright/test').Page): Promise<void> {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.locator('#search-q')).toBeEnabled({ timeout: 10_000 })
     await page.locator('#search-q').fill(SEARCH_QUERY)
-    await page
-      .locator('form#semantic-search-form')
-      .getByRole('button', { name: /^Search$/ })
-      .click()
+    // The Search button is form-linked (``form="semantic-search-form"``) but
+    // is a sibling of the form element, so ``page.locator('form#…')
+    // .getByRole('button')`` can't reach it. Submit via Enter on the query
+    // (SearchPanel handles Enter without Shift as the submit signal).
+    await page.locator('#search-q').press('Enter')
     await page.getByTestId('search-result-lifted-speaker-link').first().waitFor({
       state: 'visible',
       timeout: 10_000,

@@ -40,15 +40,13 @@ describe('SearchTab (Query Workspace shell)', () => {
     expect(w.find('[data-stub="search-panel"]').exists()).toBe(true)
   })
 
-  it('renders the sidebar with Saved + Recent honest empty states (S7 wires)', () => {
+  it('does NOT render the inner Saved+Recent sidebar (moved to LeftPanel in §S4-shell pivot)', () => {
     const w = mountTab()
-    const sidebar = w.find('[data-testid="workspace-sidebar"]')
-    expect(sidebar.exists()).toBe(true)
-    // Saved section: placeholder until S7.
-    expect(w.find('[data-testid="workspace-sidebar-saved-empty"]').exists()).toBe(true)
-    // Recent section: honest empty state when USERPREFS-1 key unset.
-    expect(w.find('[data-testid="workspace-sidebar-recent-empty"]').exists()).toBe(true)
-    expect(w.find('[data-testid="workspace-sidebar-recent-list"]').exists()).toBe(false)
+    // The workspace is a single-column layout since the pivot; Saved+Recent
+    // live in the app-level LeftPanel (backed by USERPREFS-1).
+    expect(w.find('[data-testid="workspace-sidebar"]').exists()).toBe(false)
+    expect(w.find('[data-testid="workspace-sidebar-saved-empty"]').exists()).toBe(false)
+    expect(w.find('[data-testid="workspace-sidebar-recent-empty"]').exists()).toBe(false)
   })
 
   it('forwards SearchPanel go-graph as its own go-graph', async () => {

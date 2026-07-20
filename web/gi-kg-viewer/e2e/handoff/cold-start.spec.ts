@@ -125,6 +125,8 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       { timeout: 15_000 },
     )
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('ci policy')
     await page
       .locator('section')

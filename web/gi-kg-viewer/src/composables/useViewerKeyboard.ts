@@ -35,12 +35,18 @@ export type MainTabId = 'digest' | 'library' | 'search' | 'graph' | 'dashboard'
  */
 export function useViewerKeyboard(opts: {
   /**
-   * Callback for opening the Command Palette (Cmd-K / `/`). Preferred over
-   * ``focusSearch`` since S3; ``focusSearch`` remains available for future
-   * "focus the launcher" bindings but is no longer wired to `/` by default.
+   * Callback for opening the Command Palette (Cmd-K / `/`). Since §S4-shell
+   * the compact launcher is retired; the palette is the only `/` target.
    */
   openCommandPalette?: () => void
-  focusSearch: () => void
+  /**
+   * Legacy focus-launcher callback. Optional since §S4-shell (the launcher
+   * no longer exists). Kept for future "focus a specific query field"
+   * bindings; today it's only used as the `/` fallback when no palette
+   * callback is provided (which is not a supported configuration in the
+   * current shell).
+   */
+  focusSearch?: () => void
   clearGraphFocus: () => void
   isGraphTab: Ref<boolean>
   setMainTab?: (tab: MainTabId) => void
@@ -70,7 +76,7 @@ export function useViewerKeyboard(opts: {
       ev.preventDefault()
       if (opts.openCommandPalette) {
         opts.openCommandPalette()
-      } else {
+      } else if (opts.focusSearch) {
         opts.focusSearch()
       }
       return

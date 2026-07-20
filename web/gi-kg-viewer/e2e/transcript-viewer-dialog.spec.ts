@@ -127,6 +127,8 @@ test.describe('Transcript viewer dialog (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('stub quote hit')
     await page
       .locator('section')
@@ -282,6 +284,8 @@ test.describe('Transcript viewer dialog — ad-free base (#974)', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('stub quote hit')
     await page
       .locator('section')

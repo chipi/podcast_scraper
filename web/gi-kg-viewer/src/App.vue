@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import posthog from 'posthog-js'
 import type { SearchHit } from './api/searchApi'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
@@ -98,7 +98,6 @@ const graphNav = useGraphNavigationStore()
 const mainTab = ref<'digest' | 'library' | 'search' | 'graph' | 'dashboard' | 'ops' | 'admin'>(
   'digest',
 )
-const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const commandPaletteRef = ref<{ open: () => void; close: () => void } | null>(null)
 const graphCanvasRef = ref<{
   clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
@@ -163,12 +162,6 @@ watch(
 useViewerKeyboard({
   openCommandPalette: () => {
     commandPaletteRef.value?.open()
-  },
-  focusSearch: () => {
-    leftOpen.value = true
-    void nextTick(() => {
-      leftPanelRef.value?.focusQuery()
-    })
   },
   clearGraphFocus: () => {
     // K1 — Escape key. Fires the FSM ``focusCleared`` event (decision #5 / spec).
@@ -509,74 +502,82 @@ watch(
   { immediate: true },
 )
 
+/**
+ * §S4-shell pivot — the compact launcher is retired. All "focus search"
+ * handoffs now switch the main tab to Search + run the query (or set the
+ * filter and let the workspace show it). No panel-focus hop.
+ */
+async function focusSearchWorkspace(runIfPossible: boolean = true): Promise<void> {
+  mainTab.value = 'search'
+  if (!runIfPossible) return
+  const root = shell.corpusPath?.trim()
+  if (!root) return
+  await search.runSearch(root)
+}
+
+/** Left rail row (Saved / Recent): run the query in the workspace. */
+function onLeftPanelApplyQuery(q: string): void {
+  const term = q.trim()
+  if (!term) return
+  search.query = term
+  void focusSearchWorkspace(true)
+}
+
 function onLibraryFocusSearch(payload: {
   feed: string
   query: string
   since?: string
   feedDisplayTitle?: string
 }): void {
-  leftOpen.value = true
   search.applyLibrarySearchHandoff(payload.feed, payload.query, {
     since: payload.since,
     feedDisplayTitle: payload.feedDisplayTitle,
   })
-  void nextTick(() => {
-    leftPanelRef.value?.focusQuery()
-  })
+  void focusSearchWorkspace(true)
 }
 
-/** Graph Topic node detail: prefill semantic search (subject rail unchanged). */
+/** Graph Topic node detail: prefill the workspace query + run. */
 function onGraphNodeTopicPrefillSearch(payload: { query: string }): void {
   const q = payload.query.trim()
   if (!q) return
-  leftOpen.value = true
   search.applyLibrarySearchHandoff('', q)
-  void nextTick(() => {
-    leftPanelRef.value?.focusQuery()
-  })
+  void focusSearchWorkspace(true)
 }
 
 /**
- * Graph Topic node detail: sets the Search topic-contains filter and focuses
- * the query field. Search v3 §S1 (Explore merge) — the previous Explore-mode
- * hop is gone; the topic filter is a chip on the SearchFilterBar and applies
- * client-side over top-K until server-side ``/api/search?topic=`` lands.
+ * Graph Topic node detail: set the Search topic-contains filter + switch to
+ * Search workspace. Search v3 §S4-shell pivot — the previous "focus the
+ * launcher" hop is gone; the workspace shows filter state directly.
  */
 function onGraphNodeTopicOpenSearchFilter(payload: { topic: string }): void {
   const t = payload.topic.trim()
   if (!t) return
-  leftOpen.value = true
-  shell.setLeftPanelSurface('search')
   search.filters.topic = t
   search.filters.speaker = ''
-  void nextTick(() => leftPanelRef.value?.focusQuery())
+  void focusSearchWorkspace(false)
 }
 
 /**
- * Graph Person / Entity(person) detail: sets the Search speaker-contains filter
- * and focuses the query field. Server-side (``/api/search?speaker=``).
+ * Graph Person / Entity(person) detail: set the Search speaker-contains
+ * filter + switch to Search workspace. Server-side (``/api/search?speaker=``).
  */
 function onGraphNodeSpeakerOpenSearchFilter(payload: { speaker: string }): void {
   const s = payload.speaker.trim()
   if (!s) return
-  leftOpen.value = true
-  shell.setLeftPanelSurface('search')
   search.filters.topic = ''
   search.filters.speaker = s
-  void nextTick(() => leftPanelRef.value?.focusQuery())
+  void focusSearchWorkspace(false)
 }
 
 /**
- * Graph Insight node detail: sets grounded/min-confidence on the Search filters.
- * ``groundedOnly`` is server-side; ``minConfidence`` is client-side over top-K
- * (same accuracy caveat as topic — SearchMinConfidenceChip explains).
+ * Graph Insight node detail: set grounded/min-confidence on the Search
+ * filters + switch to Search workspace. ``groundedOnly`` is server-side;
+ * ``minConfidence`` is client-side over top-K.
  */
 function onGraphNodeInsightOpenSearchFilters(payload: {
   groundedOnly: boolean
   minConfidence: number | null
 }): void {
-  leftOpen.value = true
-  shell.setLeftPanelSurface('search')
   search.filters.topic = ''
   search.filters.speaker = ''
   search.filters.groundedOnly = payload.groundedOnly
@@ -584,7 +585,7 @@ function onGraphNodeInsightOpenSearchFilters(payload: {
     payload.minConfidence != null && Number.isFinite(payload.minConfidence)
       ? String(payload.minConfidence)
       : ''
-  void nextTick(() => leftPanelRef.value?.focusQuery())
+  void focusSearchWorkspace(false)
 }
 
 /** Digest row / topic hit: episode detail in the subject rail; stay on Digest. */
@@ -844,11 +845,10 @@ watch(
 
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex min-h-0 flex-1">
-      <!-- LEFT SIDEBAR (collapsible; hidden entirely on the Search main tab
-           per UXS-016 §Placement — the Workspace owns the query surface
-           full-width, no launcher). -->
+      <!-- LEFT SIDEBAR (collapsible) — Saved + Recent queries (Search v3
+           §S4-shell pivot). Always visible; the compact launcher retired.
+           Search itself only lives on the Search main tab. -->
       <div
-        v-if="mainTab !== 'search'"
         class="relative z-10 flex min-h-0 min-w-0 shrink-0 flex-col border-r border-border bg-canvas transition-all"
         :class="leftOpen ? 'w-72' : 'w-8'"
       >
@@ -873,23 +873,15 @@ watch(
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            title="Open the Search compact launcher"
-            @click="
-              leftOpen = true;
-              void nextTick(() => leftPanelRef?.focusQuery())
-            "
+            title="Open the Saved / Recent queries panel"
+            @click="leftOpen = true"
           >
-            Search / Explore
+            Saved queries
           </button>
         </div>
         <div v-show="leftOpen" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 pb-4 pt-2">
-            <LeftPanel
-              ref="leftPanelRef"
-              @go-graph="activateGraphTab(undefined, undefined, 'search')"
-              @open-library-episode="onSearchOpenLibraryEpisode"
-              @open-episode-summary="onSearchOpenEpisodeSummary"
-            />
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <LeftPanel @apply-query="onLeftPanelApplyQuery" />
           </div>
         </div>
       </div>

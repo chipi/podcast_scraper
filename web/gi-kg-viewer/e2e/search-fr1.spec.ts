@@ -70,7 +70,8 @@ test.describe('Search FR1 surfaces (mocked /api/search)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('Jane Doe climate')
     await page
       .locator('section')

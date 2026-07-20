@@ -3,96 +3,91 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Telemetry: the shell store fires posthog.capture on surface switches. Mock the
-// SDK so any left-panel interactions don't reach the network.
 vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
 
 import LeftPanel from './LeftPanel.vue'
-import { useShellStore } from '../../stores/shell'
-import type { SearchHit } from '../../api/searchApi'
+import { useUserPreferencesStore } from '../../stores/userPreferences'
 
-// SearchPanel is a heavy, API-driven child with its own tests. Stub it to a
-// passthrough that re-emits the events LeftPanel forwards, so we can assert the
-// parent's emit plumbing and expose contract without dragging in the search API.
-const STUBS = {
-  SearchPanel: {
-    name: 'SearchPanel',
-    emits: ['go-graph', 'open-library-episode', 'open-episode-summary'],
-    // Exposes focusQuery so LeftPanel's defineExpose path has a real target.
-    template: '<div data-stub="search-panel"></div>',
-    methods: {
-      focusQuery() {
-        ;(this as unknown as { $focusQuerySpy?: () => void }).$focusQuerySpy?.()
-      },
-    },
-  },
-}
-
+/**
+ * LeftPanel is the Search v3 §S4-shell pivot surface — Saved + Recent
+ * queries backed by USERPREFS-1. The old compact SearchPanel launcher
+ * retired; search now lives only in the main-window Search tab. This spec
+ * covers the structural contract + the apply-query emission that the App
+ * host routes to the workspace runSearch path.
+ */
 function mountPanel() {
-  return mount(LeftPanel, { attachTo: document.body, global: { stubs: STUBS } })
+  return mount(LeftPanel, { attachTo: document.body })
 }
 
-// Search v3 §S1 (Explore merge): the slide host + Explore mode-switch test IDs
-// (``left-panel-slide-host``, ``left-panel-enter-explore``,
-// ``left-panel-back-search``, ``left-panel-explore-footer``) are RETIRED. LeftPanel
-// renders SearchPanel directly.
-
-describe('LeftPanel (Search v3 — merged surface)', () => {
+describe('LeftPanel (Saved + Recent queries)', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('renders only the Search stub — Explore surface + slide host retired (S1)', () => {
+  it('renders the Saved-queries aside with honest empty states when USERPREFS-1 is unset', () => {
     const w = mountPanel()
-    expect(w.find('[data-stub="search-panel"]').exists()).toBe(true)
-    // Explicit regression assertions: the retired testids MUST NOT reappear.
-    expect(w.find('[data-testid="left-panel-slide-host"]').exists()).toBe(false)
-    expect(w.find('[data-testid="left-panel-enter-explore"]').exists()).toBe(false)
-    expect(w.find('[data-testid="left-panel-back-search"]').exists()).toBe(false)
-    expect(w.find('[data-testid="left-panel-explore-footer"]').exists()).toBe(false)
+    const aside = w.find('[data-testid="left-panel-saved-queries"]')
+    expect(aside.exists()).toBe(true)
+    expect(aside.attributes('aria-label')).toBe('Saved and recent queries')
+    expect(w.find('[data-testid="left-panel-saved-empty"]').exists()).toBe(true)
+    expect(w.find('[data-testid="left-panel-recent-empty"]').exists()).toBe(true)
+    expect(w.find('[data-testid="left-panel-saved-list"]').exists()).toBe(false)
+    expect(w.find('[data-testid="left-panel-recent-list"]').exists()).toBe(false)
+    w.unmount()
   })
 
-  it('leftPanelSurface stays "search" — only value the union carries after S1', () => {
-    mountPanel()
-    const shell = useShellStore()
-    expect(shell.leftPanelSurface).toBe('search')
+  it('renders saved-queries list from USERPREFS-1 `search.savedQueries`', async () => {
+    const prefs = useUserPreferencesStore()
+    prefs.set('search.savedQueries', [
+      { q: 'llm eval strategy', label: 'LLM eval', ts: 1 },
+      { q: 'cell therapy landscape', ts: 2 },
+    ])
+    const w = mountPanel()
+    expect(w.find('[data-testid="left-panel-saved-list"]').exists()).toBe(true)
+    expect(w.find('[data-testid="left-panel-saved-empty"]').exists()).toBe(false)
+    const buttons = w.findAll('[data-testid="left-panel-saved-list"] button')
+    expect(buttons).toHaveLength(2)
+    expect(buttons[0].text()).toContain('LLM eval')
+    expect(buttons[1].text()).toContain('cell therapy landscape')
+    w.unmount()
   })
 
-  // ── Event forwarding from SearchPanel ─────────────────────────────────────
-
-  it('forwards SearchPanel go-graph as its own go-graph', async () => {
+  it('renders recent-queries list from USERPREFS-1 `search.recentQueries`', async () => {
+    const prefs = useUserPreferencesStore()
+    prefs.set('search.recentQueries', [{ q: 'graph latency', ts: 5 }])
     const w = mountPanel()
-    w.findComponent({ name: 'SearchPanel' }).vm.$emit('go-graph')
-    await w.vm.$nextTick()
-    expect(w.emitted('go-graph')).toHaveLength(1)
+    expect(w.find('[data-testid="left-panel-recent-list"]').exists()).toBe(true)
+    expect(w.find('[data-testid="left-panel-recent-empty"]').exists()).toBe(false)
+    const buttons = w.findAll('[data-testid="left-panel-recent-list"] button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0].text()).toContain('graph latency')
+    w.unmount()
   })
 
-  it('forwards SearchPanel open-library-episode with its payload', async () => {
+  it('emits apply-query with the raw query text when a Saved row is clicked (labels are display-only)', async () => {
+    const prefs = useUserPreferencesStore()
+    prefs.set('search.savedQueries', [{ q: 'llm eval strategy', label: 'LLM eval' }])
     const w = mountPanel()
-    const payload = { metadata_relative_path: 'meta/ep-7.json' }
-    w.findComponent({ name: 'SearchPanel' }).vm.$emit('open-library-episode', payload)
-    await w.vm.$nextTick()
-    expect(w.emitted('open-library-episode')![0]).toEqual([payload])
+    await w.find('[data-testid="left-panel-saved-list"] button').trigger('click')
+    expect(w.emitted('apply-query')).toHaveLength(1)
+    expect(w.emitted('apply-query')![0]).toEqual(['llm eval strategy'])
+    w.unmount()
   })
 
-  it('forwards SearchPanel open-episode-summary with its SearchHit payload', async () => {
+  it('emits apply-query when a Recent row is clicked', async () => {
+    const prefs = useUserPreferencesStore()
+    prefs.set('search.recentQueries', [{ q: 'graph latency', ts: 5 }])
     const w = mountPanel()
-    const hit = { id: 'hit-1' } as unknown as SearchHit
-    w.findComponent({ name: 'SearchPanel' }).vm.$emit('open-episode-summary', hit)
-    await w.vm.$nextTick()
-    expect(w.emitted('open-episode-summary')![0]).toEqual([hit])
+    await w.find('[data-testid="left-panel-recent-list"] button').trigger('click')
+    expect(w.emitted('apply-query')![0]).toEqual(['graph latency'])
+    w.unmount()
   })
 
-  // ── Exposed focusQuery contract ───────────────────────────────────────────
-
-  it('exposed focusQuery() calls focusQuery on the SearchPanel ref (after ticks)', async () => {
+  it('caps recent-queries display at 20 entries', () => {
+    const prefs = useUserPreferencesStore()
+    const many = Array.from({ length: 30 }, (_, i) => ({ q: `q-${i}`, ts: i }))
+    prefs.set('search.recentQueries', many)
     const w = mountPanel()
-    const search = w.findComponent({ name: 'SearchPanel' })
-    const spy = vi.fn()
-    ;(search.vm as unknown as { $focusQuerySpy: () => void }).$focusQuerySpy = spy
-    ;(w.vm as unknown as { focusQuery: () => void }).focusQuery()
-    // defineExpose nests two nextTicks before invoking the child method.
-    await w.vm.$nextTick()
-    await w.vm.$nextTick()
-    await w.vm.$nextTick()
-    expect(spy).toHaveBeenCalledTimes(1)
+    const buttons = w.findAll('[data-testid="left-panel-recent-list"] button')
+    expect(buttons).toHaveLength(20)
+    w.unmount()
   })
 })
