@@ -125,6 +125,30 @@ dashboards, Cloud podcast-agent removed (api metrics preserved).
   circuit-open.
 - Right-size VM (`VM_RETENTION`) / VL (`VLOGS_RETENTION`) on the DGX backend.
 
+## Container metrics — known limitation + plan
+
+The **Containers** dashboard is empty on prod. Root cause: Docker on the VPS uses
+the **containerd image store** (`Storage Driver: overlayfs`), which has no classic
+`overlay2` layerdb. cAdvisor's docker factory hard-fails per container ("failed to
+identify the read-write layer ID … image/overlayfs/layerdb/mounts/<id>/mount-id:
+no such file") and never creates the handler — so only host cgroups + `machine_*`
+are exported, no per-container series. Tried + rejected: `cgroup: host` (necessary,
+insufficient), cAdvisor `v0.52.1` (same failure; `v0.53+` not on gcr.io),
+`--containerd` (registers a 2nd factory but the docker factory still owns the
+`docker-*.scope` cgroups and still fails). This is a cAdvisor↔containerd-image-store
+incompatibility, not a config error.
+
+Plan (in priority order):
+1. **Defer (recommended).** Per-container resource isn't load-bearing for a small
+   VPS — host pressure shows in **VPS Overview**, and app health in **Podcast App**
+   (api RED from `/metrics`). Leave the Containers dashboard as a deep-dive stub.
+2. **Box → overlay2**, if per-container resource becomes needed: a maintenance
+   window — set `/etc/docker/daemon.json` `{"features":{"containerd-snapshotter":false}}`,
+   `systemctl restart docker` (restarts ALL containers, re-pulls images), redeploy.
+   One-time; then the existing cAdvisor works unchanged.
+3. **Watch for a cAdvisor** release that supports the containerd image store
+   (check ghcr/quay for `v0.53+`); drop-in image bump if it lands.
+
 ## Open decisions
 
 - **Log format in prod:** is `json_logs` on? If not, either enable it (clean JSON
