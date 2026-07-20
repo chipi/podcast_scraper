@@ -40,15 +40,53 @@ stream to VictoriaLogs (api + pipeline containers, JSON-parsed), NOT the firehos
 No app changes for the log-derived surfaces. Real-time *metrics* for ML/search/
 enrichers need app instrumentation (Phase 2).
 
-## Architecture
+## Architecture — emit open formats, ship pluggably (vendor-neutral)
+
+**Principle:** the app emits observability in two **open, vendor-neutral formats**
+and depends on nothing else. Shipping is a **separate, swappable** layer.
+Grafana/Loki is today's *sink*, not a coupling — a forker swaps it by config.
+
+```
+APP (producer)                 SHIPPING (pluggable)        BACKEND (swappable)
+  emit_event("llm_cost", …)      agent tails stdout +        VictoriaLogs /
+    → canonical JSONL/stdout ──▶  /metrics; adapter out  ──▶ VictoriaMetrics
+  /metrics (Prometheus)          (Alloy = reference impl)    (or Loki/Datadog/…)
+  depends on: open formats only  config, not app code
+```
+
+Two emission standards:
+1. **Metrics** → Prometheus text exposition (`/metrics`). Already pluggable — any
+   scraper consumes it. No app coupling.
+2. **Events/logs** → **canonical JSONL** on stdout (12-factor) + optional file.
+   One envelope: `{ts, schema, event, run_id, …fields}`.
+
+**Emit side (in-app SDK):** a single `emit_event(event_type, **fields)` producing
+the canonical envelope. The existing `emit_llm_cost_event` / `append_query_event`
+/ `append_listen_event` become thin wrappers → one code path, one schema. A small
+**event catalog** (`llm_cost`, `pipeline_stage`, `ml_inference`, `enrichment`,
+`search_query`, `listen`, `job`) is the contract. Vendor-neutral; the app never
+imports a Loki/Grafana SDK. → **ADR in `podcast_scraper-FUTURE`.**
+
+**Ship side (pluggable adapters, this repo / infra config):** contract = "canonical
+JSONL on stdout/file" + "Prometheus `/metrics`". Reference adapter = Alloy →
+VictoriaLogs/VictoriaMetrics. Swap by config: repoint `loki.write`, swap Alloy for
+Vector/Fluent Bit, add `otelcol`/Kafka/S3/Datadog output. Zero app change.
+
+**Why:** app = producer of open formats, infra = consumer/router (12-factor "logs
+as event streams" + a typed envelope so events query in ANY backend). Metrics
+already prove the model; events get the same discipline. Forkability is a feature.
+
+### Concrete collection (prod, api-triggered pipeline containers)
 
 - **Metrics:** Alloy scrapes `api:8000/metrics` (done) → VM. Phase 2 adds app
   instruments for real-time ML/search/enricher latency.
-- **Logs:** new Alloy `loki.source.docker` **scoped** to `compose-api-1` +
-  pipeline job containers, labeled `job=podcast-app`, shipped to VL. VL
-  `unpack_json` exposes `event_type`, `estimated_cost_usd`, `query_type`, etc.
-  → log-derived dashboards (cost, search volume, pipeline runs). This is
-  bounded (2 containers, structured), not the ungoverned firehose we dropped.
+- **Events/logs:** Alloy captures (a) the **ephemeral pipeline-runner container**
+  stdout (`docker compose run --rm` on the VPS — llm_cost/ML/pipeline events) via
+  scoped `loki.source.docker`, and (b) the **corpus event files**
+  (`corpus/search/query_log.jsonl`, `users/*/listen.jsonl`, `.viewer/jobs.jsonl`,
+  pipeline.log) via `loki.source.file` over the `/rootfs` mount. Labeled
+  `job=podcast-app`; VL `unpack_json` exposes the envelope fields. Bounded +
+  structured (not the ungoverned firehose we dropped).
 - **Dashboards:** `config/grafana/dashboards/vps/*.json`, pushed to `vps-podcast`.
 - **Alerts:** re-home T-11 security to self-hosted; add cost-spike /
   pipeline-failure / error-rate alerts.
