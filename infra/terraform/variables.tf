@@ -163,37 +163,6 @@ variable "hcloud_inbound_ssh_troubleshoot_cidrs" {
   default     = []
 }
 
-variable "grafana_cloud_metrics_remote_write_url" {
-  type        = string
-  description = "Grafana Cloud Prometheus remote_write URL (…/api/prom/push). If any of the three grafana_cloud_metrics_* vars are empty, cloud-init skips Alloy host metrics."
-  default     = ""
-}
-
-variable "grafana_cloud_metrics_username" {
-  type        = string
-  description = "Grafana Cloud Prometheus basic-auth username (numeric instance / stack user id for remote_write)."
-  default     = ""
-}
-
-variable "grafana_cloud_metrics_password" {
-  type        = string
-  description = "Grafana Cloud access policy token with metrics:write (or legacy API key) for remote_write basic-auth password. Reused for Loki logs:write (same token needs logs:write scope — see T-11 / ADR-117)."
-  default     = ""
-  sensitive   = true
-}
-
-variable "grafana_cloud_logs_url" {
-  type        = string
-  description = "Grafana Cloud Loki push URL (…/loki/api/v1/push) for the Alloy security-log pipeline (T-11 / ADR-117: sshd/fail2ban/Caddy). Empty = Alloy ships metrics only."
-  default     = ""
-}
-
-variable "grafana_cloud_logs_username" {
-  type        = string
-  description = "Grafana Cloud Loki basic-auth username (numeric Loki instance id). Password reuses grafana_cloud_metrics_password (token needs logs:write)."
-  default     = ""
-}
-
 variable "cloudflare_origin_lock" {
   type        = bool
   description = <<-EOT

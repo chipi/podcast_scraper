@@ -3,13 +3,6 @@ provider "hcloud" {
 }
 
 locals {
-  # All three must be non-empty to bake Grafana Alloy + remote_write into cloud-init.
-  alloy_host_metrics_enabled = (
-    length(trimspace(var.grafana_cloud_metrics_remote_write_url)) > 0 &&
-    length(trimspace(var.grafana_cloud_metrics_username)) > 0 &&
-    length(trimspace(var.grafana_cloud_metrics_password)) > 0
-  )
-
   # Comma-separated for `tailscale up --advertise-tags=tag:a,tag:b` (RFC-082 / #752 drill).
   tailscale_advertise_tags_cli = join(",", var.tailscale_advertise_tags)
 }
@@ -149,16 +142,6 @@ resource "hcloud_server" "prod" {
     additional_authorized_keys = var.additional_authorized_keys
 
     tailscale_advertise_tags_cli = local.tailscale_advertise_tags_cli
-
-    alloy_enabled = local.alloy_host_metrics_enabled
-
-    grafana_cloud_metrics_remote_write_url = var.grafana_cloud_metrics_remote_write_url
-    grafana_cloud_metrics_username         = var.grafana_cloud_metrics_username
-    grafana_cloud_metrics_password         = var.grafana_cloud_metrics_password
-
-    # T-11 / ADR-117: Loki push endpoint for the Alloy security-log pipeline.
-    grafana_cloud_logs_url      = var.grafana_cloud_logs_url
-    grafana_cloud_logs_username = var.grafana_cloud_logs_username
 
     # Shell script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
     # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS).

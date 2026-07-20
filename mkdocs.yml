@@ -433,6 +433,7 @@ nav:
       - wip/WIP_README.md
       - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
       - "WIP: Concurrent pipelines + HTTP retry metrics": wip/wip-concurrent-pipeline-http-retry-metrics.md
+      - "WIP: Full app-surface observability plan": wip/observability-app-surface-plan.md
 theme:
   name: material
   features:
