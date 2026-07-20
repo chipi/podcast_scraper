@@ -25,6 +25,7 @@ nav:
       - Corpus airgap runbook (#1175): guides/CORPUS_AIRGAP_RUNBOOK.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
       - Player public launch (#1163): guides/PLAYER_PUBLIC_LAUNCH.md
+      - Observability architecture (emit/ship, ADR-119): guides/OBSERVABILITY_ARCHITECTURE.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
       - Observability extensions (optional 3rd-party o11y): guides/OBSERVABILITY_EXTENSIONS.md
       - GHCR image retention (#802): operations/GHCR_RETENTION.md
