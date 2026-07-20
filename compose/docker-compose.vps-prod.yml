@@ -25,3 +25,21 @@ services:
       # published viewer image) so the prod-only landing surface
       # doesn't leak into Codespaces or alter the image's contents.
       - ../docker/viewer/landing.html:/usr/share/nginx/html/landing.html:ro
+
+  # Enable OTEL traces on the always-on VPS (ADR-119). The base stack.yml gates
+  # them off (exporter=none); here we flip to otlp and point at the DGX
+  # VictoriaTraces over the tailnet (ACL 10428, non-standard full path). Only the
+  # VPS gets these — stack-test/Codespaces (stack + stack-test / stack + prod)
+  # never load this overlay. deployment.environment=prod comes from PODCAST_ENV.
+  api:
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://100.69.49.126:10428/insert/opentelemetry/v1/traces
+  pipeline:
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://100.69.49.126:10428/insert/opentelemetry/v1/traces
+  pipeline-llm:
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://100.69.49.126:10428/insert/opentelemetry/v1/traces
