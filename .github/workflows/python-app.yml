@@ -187,7 +187,7 @@ jobs:
       needs.viewer-unit.result == 'success'
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
@@ -215,7 +215,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: "20"
     - name: Install lint dependencies (no ML packages)
@@ -515,7 +515,7 @@ jobs:
     needs: [lint, build]
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         # Vite 8 requires ^20.19 || >=22.12; bare "20" on the runner can be older and breaks Vite
         node-version: "22"
@@ -552,7 +552,7 @@ jobs:
     if: needs.detect-changes.outputs.app == 'true'
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
@@ -592,7 +592,7 @@ jobs:
         .venv/bin/pip install --upgrade pip
         # [dev] pulls FastAPI + uvicorn — needed for `podcast_scraper serve`.
         .venv/bin/pip install -e ".[dev]"
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
@@ -621,7 +621,7 @@ jobs:
       needs.app-unit.result == 'success'
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
