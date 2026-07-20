@@ -137,6 +137,16 @@ services:
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # OTEL traces (ADR-119). Gated: exporter=none until prod .env enables it.
+      # service = podcast-pipeline (distinct from podcast-api); deployment.environment
+      # reuses PODCAST_ENV. The entrypoint wraps runs in opentelemetry-instrument.
+      OTEL_SERVICE_NAME: podcast-pipeline
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
 
   # Optional: same Dockerfile with ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**) for cloud-thin profiles.
   pipeline-llm:
@@ -165,6 +175,16 @@ services:
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # OTEL traces (ADR-119). Gated: exporter=none until prod .env enables it.
+      # service = podcast-pipeline (distinct from podcast-api); deployment.environment
+      # reuses PODCAST_ENV. The entrypoint wraps runs in opentelemetry-instrument.
+      OTEL_SERVICE_NAME: podcast-pipeline
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
 
 volumes:
   corpus_data:
