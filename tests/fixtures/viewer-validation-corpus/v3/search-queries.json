@@ -4,223 +4,498 @@
   "generated_by": "hand-authored (Search v3 S0 baseline, 2026-07-20)",
   "target_corpus": "tests/fixtures/viewer-validation-corpus/v3/",
   "notes": [
-    "≥25 queries covering all 5 RFC-092 intent classes (5 per class).",
-    "expected_top_k_doc_ids is NULL on every query at S0 ship: nobody has hand-audited the fixture's index yet. RFC-107 §T2 asks for a labelled baseline; label_status: 'unlabeled-seed' is the honest state until a human audits.",
+    "\u226525 queries covering all 5 RFC-092 intent classes (5 per class).",
+    "expected_top_k_doc_ids is NULL on every query at S0 ship: nobody has hand-audited the fixture's index yet. RFC-107 \u00a7T2 asks for a labelled baseline; label_status: 'unlabeled-seed' is the honest state until a human audits.",
     "Two ways to populate expected_top_k_doc_ids: (a) run the harness and adopt the top-K as a REGRESSION ANCHOR (drift detection, not correctness); (b) hand-audit against the fixture's insights + topics + people (correctness detection). Both are useful. See search-queries.README.md for the lifecycle.",
-    "intent_expected is my honest classification per RFC-092 taxonomy; the router's actual classification may differ — that's what the intent-router-accuracy metric measures."
+    "intent_expected is my honest classification per RFC-092 taxonomy; the router's actual classification may differ \u2014 that's what the intent-router-accuracy metric measures."
   ],
   "queries": [
     {
       "id": "el_001",
       "q": "Liam Verbeek",
       "intent_expected": "entity_lookup",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:73daf6464cff7348",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "insight:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:insight:9e81c80cb0d583e7",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:quote:22abbda494e85081",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:quote:8046f2ade8453e27",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:3",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:4"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Fixture has Liam Verbeek as trail-builder guest on the Cascadia Alliance episode."
     },
     {
       "id": "el_002",
       "q": "Sophie Lorenz",
       "intent_expected": "entity_lookup",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:0",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:quote:f7d8a819c36c4190",
+        "insight:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:insight:7eb4aef5d719f5c8",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:1",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:quote:6c9d9f4e18265591",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:quote:db176270413f3c7e",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:quote:224f6e39fc5667a2"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Fixture has Sophie Lorenz as enduro racer guest."
     },
     {
       "id": "el_003",
       "q": "Noah Bryer",
       "intent_expected": "entity_lookup",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:quote:308e126122dc6c2b",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "insight:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:insight:75528dd34e88bedc",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:3",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:2",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:1",
+        "bullet:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__7f877683-ea36-55d1-94f7-a5cc051ff3d0:1",
+        "insight:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__7f877683-ea36-55d1-94f7-a5cc051ff3d0:insight:759a81a4a80000ed"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Fixture has Noah Bryer as drivetrain mechanic guest at Spoke & Wrench."
     },
     {
       "id": "el_004",
       "q": "Priya Nair",
       "intent_expected": "entity_lookup",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:1",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:1",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:2",
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:0",
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:0",
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:0",
+        "quote:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:quote:4e74d383ee0139f5",
+        "quote:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:quote:49f2595c32a2796a",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:1",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:0"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Recurring host/co-host in the fixture."
     },
     {
       "id": "el_005",
       "q": "Cascadia Alliance",
       "intent_expected": "entity_lookup",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:73daf6464cff7348",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:1",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:c842e5fe8b174fe5",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:4",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:2",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:0"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Organization mentioned once (trail-building episode)."
     },
     {
       "id": "re_001",
       "q": "trail building",
       "intent_expected": "raw_evidence",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "insight:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:insight:9e81c80cb0d583e7",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:f6fc35aad65210f8",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:73daf6464cff7348",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:3",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:4",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Clear topic; fixture has episodes explicitly about this."
     },
     {
       "id": "re_002",
       "q": "enduro racing",
       "intent_expected": "raw_evidence",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:0",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:0",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:quote:f7d8a819c36c4190",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:2",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:1",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:quote:f2d6d8372065fd66",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:3",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:1",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:quote:6c9d9f4e18265591"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "re_003",
       "q": "drivetrain mechanics",
       "intent_expected": "raw_evidence",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:3",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:quote:308e126122dc6c2b",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:2",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:topic:gear",
+        "kg_topic:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__9833b47e-0cc8-50b9-a6da-65dc0f6d053f:topic:gear",
+        "kg_entity:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__47fbed20-6172-5fec-a904-656de37b88ec:entity:gear",
+        "kg_entity:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__9833b47e-0cc8-50b9-a6da-65dc0f6d053f:entity:gear"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "re_004",
       "q": "outdoor gear",
       "intent_expected": "raw_evidence",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__2922a74e-5598-537f-a2d1-1ac08059e49d:entity:outdoor-activities",
+        "kg_entity:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:entity:outdoor-activities",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:topic:outdoor-activities",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9:entity:outdoor-activities",
+        "kg_entity:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:entity:outdoor-activities",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:topic:outdoor-activities",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__a283fe88-fdec-51b4-8014-431b4a7ce670:entity:outdoor-activities",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:topic:outdoor-activities",
+        "kg_entity:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:entity:outdoor-activities",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__254fe2be-b570-592e-84cd-c22cb9e271e9:entity:outdoor-activities"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Topic label 'gear' appears 12x; wider phrase to test whether the router picks raw_evidence over semantic."
     },
     {
       "id": "re_005",
       "q": "Spoke & Wrench",
       "intent_expected": "raw_evidence",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:quote:308e126122dc6c2b",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:3",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:0",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:1",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:topic:gear"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Proper-noun business name; the '&' character stresses the tokenizer + BM25 path."
     },
     {
       "id": "tt_001",
       "q": "how did the trail-building segment change over the season",
       "intent_expected": "temporal_tracking",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "insight:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:insight:9e81c80cb0d583e7",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:f6fc35aad65210f8",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:3",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:73daf6464cff7348",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:4",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Explicit temporal phrasing ('over the season'); tests whether the router picks temporal_tracking without a date token."
     },
     {
       "id": "tt_002",
       "q": "how has the coverage of gear reviews evolved over the last few months",
       "intent_expected": "temporal_tracking",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "kg_topic:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__9833b47e-0cc8-50b9-a6da-65dc0f6d053f:topic:gear",
+        "kg_entity:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__47fbed20-6172-5fec-a904-656de37b88ec:entity:gear",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:topic:gear",
+        "kg_entity:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:entity:gear",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9:entity:gear",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:topic:gear",
+        "chunk:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__47fbed20-6172-5fec-a904-656de37b88ec:1",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__a283fe88-fdec-51b4-8014-431b4a7ce670:entity:gear",
+        "kg_topic:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9:topic:gear",
+        "kg_entity:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__9833b47e-0cc8-50b9-a6da-65dc0f6d053f:entity:gear"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "tt_003",
       "q": "when did Priya Nair first appear on the show",
       "intent_expected": "temporal_tracking",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:1",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:1",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:2",
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:0",
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:0",
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:0",
+        "quote:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:quote:4e74d383ee0139f5",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:1",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:0",
+        "insight:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:insight:afcedcf168cfe0a7"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "tt_004",
       "q": "topics discussed most in the last quarter",
       "intent_expected": "temporal_tracking",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__79fb44f3-5be0-5fc7-9d43-2f39049f7f2d:0",
+        "chunk:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__7f877683-ea36-55d1-94f7-a5cc051ff3d0:2",
+        "quote:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e741f35a-8dd9-5c40-9d5c-905f4dca4122:quote:38e21abe60628002",
+        "chunk:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__54a47eac-cc89-5c87-b99d-7dbd1c77ce57:0",
+        "quote:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__254fe2be-b570-592e-84cd-c22cb9e271e9:quote:01fb28efbeeba143",
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__79fb44f3-5be0-5fc7-9d43-2f39049f7f2d:1",
+        "quote:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__54a47eac-cc89-5c87-b99d-7dbd1c77ce57:quote:67189f5e5043031d",
+        "quote:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__d24c1620-8d16-54dd-b681-2f2e06c0b579:quote:5e66654af3abcd3a",
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__d24c1620-8d16-54dd-b681-2f2e06c0b579:1",
+        "quote:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__5250652d-f8da-5799-91da-8b1ce4991232:quote:afe5d5c4409e5eac"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "tt_005",
       "q": "guests featured most recently on the science and research shows",
       "intent_expected": "temporal_tracking",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "insight:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__22aa61d4-d535-5e72-ae9b-d44d9a3054d1:insight:61a85862bae0b079",
+        "chunk:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207:0",
+        "insight:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__e5f72053-f000-519e-95cb-204c957f7ab3:insight:9224ea104d8f83b3",
+        "chunk:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__5ef53e66-e083-5fcb-b555-a3814ebb6b39:0",
+        "insight:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207:insight:b7a61e52be922c8a",
+        "insight:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130:insight:2f2ebb22a1840ca3",
+        "insight:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__5250652d-f8da-5799-91da-8b1ce4991232:insight:e84a13fb6e0bae28",
+        "chunk:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__9833b47e-0cc8-50b9-a6da-65dc0f6d053f:1",
+        "insight:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__32b9679a-1a2d-5cce-b673-b489694ef798:insight:5e9ea66eb030430e",
+        "insight:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__5ef53e66-e083-5fcb-b555-a3814ebb6b39:insight:5de70b4a73d706e3"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "cs_001",
       "q": "compare views on trail building across different shows",
       "intent_expected": "cross_show_synthesis",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "insight:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:insight:9e81c80cb0d583e7",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:0",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:f6fc35aad65210f8",
+        "quote:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:quote:73daf6464cff7348",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:3",
+        "insight:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__22aa61d4-d535-5e72-ae9b-d44d9a3054d1:insight:61a85862bae0b079",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:4"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "cs_002",
       "q": "who has said what about outdoor gear across the whole corpus",
       "intent_expected": "cross_show_synthesis",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:0",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:0",
+        "chunk:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__2922a74e-5598-537f-a2d1-1ac08059e49d:0",
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__22aa61d4-d535-5e72-ae9b-d44d9a3054d1:0",
+        "chunk:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__47fbed20-6172-5fec-a904-656de37b88ec:1",
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__22aa61d4-d535-5e72-ae9b-d44d9a3054d1:1",
+        "chunk:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__d04b0413-4fbe-5d89-b3e8-774bbc15a3c4:0",
+        "chunk:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__254fe2be-b570-592e-84cd-c22cb9e271e9:3",
+        "chunk:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__d04b0413-4fbe-5d89-b3e8-774bbc15a3c4:1",
+        "chunk:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__47fbed20-6172-5fec-a904-656de37b88ec:2"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "cs_003",
       "q": "how do the science shows treat drivetrain mechanics differently from the outdoors shows",
       "intent_expected": "cross_show_synthesis",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:0",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:3",
+        "insight:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__e5f72053-f000-519e-95cb-204c957f7ab3:insight:9224ea104d8f83b3",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9:entity:outdoor-activities",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__2922a74e-5598-537f-a2d1-1ac08059e49d:entity:outdoor-activities",
+        "kg_entity:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:entity:outdoor-activities",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:topic:outdoor-activities",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:topic:outdoor-activities"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "cs_004",
       "q": "synthesize the coverage of technology across every show",
       "intent_expected": "cross_show_synthesis",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "insight:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__e5f72053-f000-519e-95cb-204c957f7ab3:insight:9224ea104d8f83b3",
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__22aa61d4-d535-5e72-ae9b-d44d9a3054d1:0",
+        "kg_topic:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__15a1cbea-1449-50ac-bb1c-11784d7421c3:topic:technology",
+        "kg_topic:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e3d8c7e5-2b7b-572b-a226-ddec128285ca:topic:technology",
+        "kg_entity:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130:entity:technology",
+        "kg_entity:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__15a1cbea-1449-50ac-bb1c-11784d7421c3:entity:technology",
+        "kg_entity:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__e5f72053-f000-519e-95cb-204c957f7ab3:entity:technology",
+        "kg_topic:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__e5f72053-f000-519e-95cb-204c957f7ab3:topic:technology",
+        "kg_topic:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:topic:technology",
+        "kg_topic:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__d24c1620-8d16-54dd-b681-2f2e06c0b579:topic:technology"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "cs_005",
       "q": "what do the business and markets episodes and the science episodes agree on",
       "intent_expected": "cross_show_synthesis",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "kg_topic:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__e1743bda-76ff-5586-9e39-3fa45e41ef9a:topic:business-markets",
+        "kg_topic:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__79fb44f3-5be0-5fc7-9d43-2f39049f7f2d:topic:business-markets",
+        "kg_topic:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207:topic:business-markets",
+        "kg_entity:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__01835c28-431e-5b5a-adbb-5ec01411a299:entity:business-markets",
+        "insight:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__5ef53e66-e083-5fcb-b555-a3814ebb6b39:insight:6f139f511a98f949",
+        "kg_entity:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__7f877683-ea36-55d1-94f7-a5cc051ff3d0:entity:business-markets",
+        "kg_topic:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:topic:business-markets",
+        "insight:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__78741d49-00ad-5f5f-b127-8fd1c1b6844c:insight:0c71912f39d5ea24",
+        "insight:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__7f877683-ea36-55d1-94f7-a5cc051ff3d0:insight:0c71912f39d5ea24",
+        "kg_topic:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9:topic:business-markets"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "sm_001",
       "q": "welcome back to the show",
       "intent_expected": "semantic",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "insight:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__1c0614c2-9f65-5fd5-9340-ab8c6059d014:insight:db9acd5ee7759839",
+        "chunk:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__5250652d-f8da-5799-91da-8b1ce4991232:0",
+        "chunk:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130:0",
+        "chunk:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__15a1cbea-1449-50ac-bb1c-11784d7421c3:0",
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__22aa61d4-d535-5e72-ae9b-d44d9a3054d1:0",
+        "kg_topic:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__7f877683-ea36-55d1-94f7-a5cc051ff3d0:topic:welcome-back-to",
+        "chunk:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__e5f72053-f000-519e-95cb-204c957f7ab3:0",
+        "insight:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207:insight:24fe8b9d030c34f2",
+        "kg_topic:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__78741d49-00ad-5f5f-b127-8fd1c1b6844c:topic:welcome-back-to",
+        "kg_topic:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e3d8c7e5-2b7b-572b-a226-ddec128285ca:topic:welcome-back-to"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Genre phrase; tests semantic retrieval on templated opener text."
     },
     {
       "id": "sm_002",
       "q": "what is this episode about",
       "intent_expected": "semantic",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "insight:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__55e302e4-3319-59f2-8c17-fde08bffd658:insight:9dae8f69e31392ca",
+        "chunk:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__7f877683-ea36-55d1-94f7-a5cc051ff3d0:0",
+        "insight:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e3d8c7e5-2b7b-572b-a226-ddec128285ca:insight:9dae8f69e31392ca",
+        "insight:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__5ef53e66-e083-5fcb-b555-a3814ebb6b39:insight:6f139f511a98f949",
+        "chunk:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__78741d49-00ad-5f5f-b127-8fd1c1b6844c:0",
+        "insight:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__e1743bda-76ff-5586-9e39-3fa45e41ef9a:insight:1f363af5c9b5d0ec",
+        "insight:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__d2fb36a0-6f97-55ee-a67a-e97dba3b7f27:insight:42c4a9f138eb1851",
+        "bullet:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e3d8c7e5-2b7b-572b-a226-ddec128285ca:2",
+        "quote:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__a283fe88-fdec-51b4-8014-431b4a7ce670:quote:3c3a167d2fbfd814",
+        "bullet:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__55e302e4-3319-59f2-8c17-fde08bffd658:2"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "sm_003",
       "q": "conversations that touch on both technology and the outdoors",
       "intent_expected": "semantic",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e741f35a-8dd9-5c40-9d5c-905f4dca4122:0",
+        "insight:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:insight:2104f2725b7b11dc",
+        "insight:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__096240a2-e115-5a3c-98b4-2d852b096eda:insight:dd91019976ad2564",
+        "kg_topic:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__799ba6c0-3117-50e1-8c97-c2d8b695cce4:topic:outdoor-activities",
+        "kg_topic:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e3d8c7e5-2b7b-572b-a226-ddec128285ca:topic:technology",
+        "kg_entity:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:entity:outdoor-activities",
+        "kg_topic:sha256_5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a__15a1cbea-1449-50ac-bb1c-11784d7421c3:topic:technology",
+        "kg_entity:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__4a626fea-ed45-5ce0-a5c1-4e39d22beaad:entity:outdoor-activities",
+        "kg_entity:sha256_255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8__e5f72053-f000-519e-95cb-204c957f7ab3:entity:technology",
+        "kg_entity:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9:entity:outdoor-activities"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed"
+      "label_status": "regression-anchor"
     },
     {
       "id": "sm_004",
       "q": "practical maintenance advice",
       "intent_expected": "semantic",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:0",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:3",
+        "chunk:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__47fbed20-6172-5fec-a904-656de37b88ec:1",
+        "quote:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:quote:c44eb39c3f73c424",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:0",
+        "quote:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__8f88b1fc-4adc-5b98-8539-af5f32fef5a4:quote:d06317636e7332f4",
+        "chunk:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__d04b0413-4fbe-5d89-b3e8-774bbc15a3c4:1",
+        "chunk:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__f6f1df34-2251-5301-b1c7-68ee8468bf65:2",
+        "insight:sha256_9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab__5ef53e66-e083-5fcb-b555-a3814ebb6b39:insight:1e81ad92e6acb871"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
+      "label_status": "regression-anchor",
       "hint": "Should pull from the drivetrain-mechanics episode + adjacent gear-review episodes."
     },
     {
       "id": "sm_005",
       "q": "excitement about a hands-on craft",
       "intent_expected": "semantic",
-      "expected_top_k_doc_ids": null,
+      "expected_top_k_doc_ids": [
+        "insight:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:insight:f247d55c98c9b199",
+        "chunk:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:0",
+        "chunk:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__09ead36d-954f-5cbb-ae3f-6f0d5985233d:0",
+        "insight:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__a283fe88-fdec-51b4-8014-431b4a7ce670:insight:235ac690e3034ff4",
+        "bullet:sha256_90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588__5b39965f-22a2-54c9-9c42-e7a19d8da2da:2",
+        "insight:sha256_f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe__ac5784fa-1c94-5cd8-99c6-c4f0be157a64:insight:ba0248f7d7723706",
+        "kg_topic:sha256_d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c__e741f35a-8dd9-5c40-9d5c-905f4dca4122:topic:excited-for-this-one",
+        "bullet:sha256_acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7__09ead36d-954f-5cbb-ae3f-6f0d5985233d:2",
+        "bullet:sha256_16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b__a283fe88-fdec-51b4-8014-431b4a7ce670:2",
+        "bullet:sha256_05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414__3d0ec494-98ba-5f71-b2bd-c8559c779786:2"
+      ],
       "min_ndcg_at_10": null,
-      "label_status": "unlabeled-seed",
-      "hint": "Fixture has insights like 'Excited for this one — trail building is something I've been thinking about a lot' — semantic hits should surface these."
+      "label_status": "regression-anchor",
+      "hint": "Fixture has insights like 'Excited for this one \u2014 trail building is something I've been thinking about a lot' \u2014 semantic hits should surface these."
     }
   ]
 }

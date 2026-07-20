@@ -26,37 +26,35 @@
 - `hint` — optional; a short note about why the query is here / what it targets
   in the fixture.
 
-## Current state (2026-07-20, S0 baseline ship)
+## Current state (2026-07-20, S0 stabilization ship)
 
-**Every query is `unlabeled-seed` — `expected_top_k_doc_ids` is `null`.**
+**Every query is `regression-anchor` — `expected_top_k_doc_ids` filled from
+the harness's top-K on the seed-run commit.** Detects drift; NOT correctness.
 
-Nobody has hand-audited the fixture's index yet. Shipping the query text +
-intent classifications separately from the labels is the honest split: the
-router-accuracy metric + tier-coverage + compound-lift-rate + enriched-answer
-groundedness rate all still run (they don't need labels); nDCG@10 and MRR@10
-skip queries where labels are missing (per-query, reported in the summary).
+Seeding was produced by `--seed-labels` (see below); the run that produced
+the anchors trivially scored `nDCG@10 = 1.000` by construction. Any subsequent
+`make eval-search` run whose top-K differs from these anchors will report a
+lower nDCG@10 — that is the regression signal.
 
-RFC-107 §T2 asks for a **labelled baseline** — that lands the moment either:
+**A human audit still hasn't happened.** Regression-anchor labels can hide
+bugs present the day they were frozen. When that audit lands, flip queries
+from `regression-anchor` to `human-audit` (or delete + re-add) — the harness
+respects both.
 
-1. Someone (Marko, another operator, or Claude in a follow-up session)
-   runs `make eval-search seed-labels` (mode TBD) to REGRESSION-ANCHOR
-   every query's `expected_top_k_doc_ids` to the current top-K returned by
-   the harness on the fixture. Detects drift from that day's ranking.
-2. A human hand-audits each query against the fixture's insights + topics +
-   people and picks the correct answers (`label_status: human-audit`).
-   Detects correctness.
+## Seeding labels (`--seed-labels` mode)
 
-Both are useful; (1) is fastest to produce.
+`scripts/eval/search_quality.py --seed-labels` freezes the current top-K
+of every `unlabeled-seed` query into that query's
+`expected_top_k_doc_ids` and flips `label_status` to `regression-anchor`.
 
-## Why the S0 ship intentionally does NOT seed the labels
-
-RFC-107 §T2 explicitly says the baseline is a REGRESSION protector. But
-regression-anchor labels frozen the day they're generated can hide bugs
-present that day — they treat the harness's current output as ground truth.
-Marko has been explicit (T3, T7 in the truthfulness protocol) about not
-inventing correctness where none was validated. So the S0 ship carries the
-scaffolding for both label lifecycles and leaves the seed step for a
-subsequent operator-owned pass.
+- Idempotent: queries with any other `label_status` are left alone. Re-running
+  is a no-op.
+- Atomic: writes to `<queries>.tmp` then renames, so a crash mid-write
+  cannot leave the file half-updated.
+- Truncated to `--top-k` (default 10): the fused list may exceed it after
+  dedup; the anchor is only the top-K worth.
+- Ships alongside a per-run report (`--out`) that shows the labeled metrics
+  — the seed run always sees `nDCG@10 = 1.000`, correctly.
 
 The metrics that don't depend on labels still baseline today:
 - intent-router accuracy (measurable — we predict vs. `intent_expected`).

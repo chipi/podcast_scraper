@@ -233,6 +233,18 @@ def main() -> int:
             "when the labels are picked from BM25-visible content."
         ),
     )
+    parser.add_argument(
+        "--seed-labels",
+        action="store_true",
+        help=(
+            "REGRESSION-ANCHOR mode: for every query with label_status == "
+            "'unlabeled-seed', write the current top-K back to expected_top_k_doc_ids "
+            "and flip label_status to 'regression-anchor'. Writes back to --queries "
+            "atomically. Detects drift from the anchored commit; NOT correctness "
+            "(the run that seeds trivially scores nDCG@10 = 1.0 for those queries). "
+            "Idempotent — queries already labeled are left untouched."
+        ),
+    )
     args = parser.parse_args()
 
     queries = _load_queries(args.queries)
@@ -246,6 +258,7 @@ def main() -> int:
     embed_fn = None if args.no_embed else _load_embedder(embed_model)
 
     per_query: list[QueryResult] = []
+    seeded_count = 0
     for entry in queries:
         qid = entry.get("id", "")
         qtext = entry.get("q", "")
@@ -256,6 +269,18 @@ def main() -> int:
             continue
         hits = _run_query(layer, qtext, embed_fn, args.top_k)
         doc_ids = [_hit_doc_id(h) for h in hits]
+        # --seed-labels: freeze current top-K as the regression anchor for
+        # this query BEFORE computing metrics, so this run's report shows
+        # nDCG@10 = 1.0 (by construction). Subsequent runs detect drift.
+        # Skips queries that already carry labels (idempotent). Truncated to
+        # ``args.top_k`` — the fused ranked list may exceed it after dedup;
+        # the anchor is only the top-K worth.
+        if args.seed_labels and label_status == "unlabeled-seed":
+            entry["expected_top_k_doc_ids"] = [d for d in doc_ids if d][: args.top_k]
+            entry["label_status"] = "regression-anchor"
+            expected = entry["expected_top_k_doc_ids"]
+            label_status = "regression-anchor"
+            seeded_count += 1
         tier_counts: dict[str, int] = {}
         for h in hits:
             tier = _hit_tier(h)
@@ -288,6 +313,18 @@ def main() -> int:
 
     metrics = _aggregate(per_query)
     _ = _load_topic_consensus(args.corpus)  # future: populate topic_consensus_precision
+
+    # --seed-labels: write the modified queries file back atomically (tmp + rename)
+    # so a crash mid-write can't leave the file half-updated.
+    if args.seed_labels and seeded_count > 0:
+        top_level = json.loads(args.queries.read_text())
+        top_level["queries"] = queries
+        tmp = args.queries.with_suffix(args.queries.suffix + ".tmp")
+        tmp.write_text(json.dumps(top_level, indent=2) + "\n")
+        tmp.replace(args.queries)
+        print(
+            f"--seed-labels: wrote {seeded_count} regression-anchor labels back to {args.queries}"
+        )
 
     report = Report(
         schema_version="1",

@@ -139,3 +139,30 @@ def test_query_label_statuses_are_recognized() -> None:
         assert (
             q["label_status"] in allowed
         ), f"query {q['id']} has unknown label_status: {q['label_status']!r}"
+
+
+# ---- --seed-labels mode contract (Stabilization pass, 2026-07-20) --------
+
+
+def test_seed_labels_ships_shipped_query_set_carries_regression_anchor_labels() -> None:
+    """The checked-in query set was seeded during S0 stabilization — every
+    query must be regression-anchor with a non-empty expected_top_k_doc_ids.
+    A future human-audit pass may flip individual queries to `human-audit`;
+    this test still passes for those. But we never want to ship all-null
+    labels again — the whole point of --seed-labels was to close that gap."""
+    data = _load_queries()
+    unlabeled = [q for q in data["queries"] if q["label_status"] == "unlabeled-seed"]
+    assert not unlabeled, (
+        f"queries reverted to unlabeled-seed: {[q['id'] for q in unlabeled]}. "
+        "Re-seed with `python scripts/eval/search_quality.py --seed-labels`."
+    )
+    empty_labels = [
+        q
+        for q in data["queries"]
+        if q["label_status"] in ("regression-anchor", "human-audit")
+        and not q.get("expected_top_k_doc_ids")
+    ]
+    assert not empty_labels, (
+        f"queries claim a label_status but have empty expected_top_k_doc_ids: "
+        f"{[q['id'] for q in empty_labels]}"
+    )
