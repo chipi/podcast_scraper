@@ -55,8 +55,10 @@ def emit_event(
     sink: str = "log",
     corpus_dir: Optional[Path | str] = None,
     path: Optional[Path | str] = None,
+    logger: Optional[logging.Logger] = None,
+    ts: Optional[str] = None,
     **fields: Any,
-) -> None:
+) -> Optional[str]:
     """Emit one canonical JSONL observability event. Best-effort — never raises.
 
     Args:
@@ -66,16 +68,23 @@ def emit_event(
         corpus_dir: corpus root for ``sink="file"`` (path derived via ``_FILE_FOR``).
         path: explicit output file for ``sink="file"`` (wins over ``corpus_dir``);
             e.g. a per-user ``.../users/<uid>/listen.jsonl``.
+        logger: override the log-sink logger (defaults to ``podcast_scraper.events``);
+            lets a caller keep its own logger name for continuity / filtering. Every
+            logger propagates to stdout, which is all the shipping agent needs.
         **fields: event payload; ``None`` values are dropped so the envelope stays lean.
+
+    Returns:
+        the serialized JSON line on success (handy for a caller that also echoes it),
+        or ``None`` if emission failed.
     """
     try:
         record: dict[str, Any] = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": ts or datetime.now(timezone.utc).isoformat(),
             "schema": EVENT_SCHEMA,
             "event_type": event_type,
         }
         record.update({k: v for k, v in fields.items() if v is not None})
-        line = json.dumps(record, default=str)
+        line = json.dumps(record, default=str, ensure_ascii=False)
 
         if sink == "file":
             out = Path(path) if path is not None else _corpus_path(corpus_dir, event_type)
@@ -83,9 +92,11 @@ def emit_event(
             with out.open("a", encoding="utf-8") as fh:
                 fh.write(line + "\n")
         else:  # "log" (default)
-            _event_logger.info("%s", line)
+            (logger or _event_logger).info("%s", line)
+        return line
     except Exception:  # noqa: BLE001 — telemetry must never break the caller
         _fallback_logger.debug("emit_event(%s) failed", event_type, exc_info=True)
+        return None
 
 
 def _corpus_path(corpus_dir: Optional[Path | str], event_type: str) -> Path:

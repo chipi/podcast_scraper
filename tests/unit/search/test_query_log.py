@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 
 import pytest
@@ -50,10 +51,13 @@ def test_append_writes_under_search_dir(tmp_path):
 def test_log_omits_raw_query_text(tmp_path):
     append_query_event(tmp_path, "semantic", now=datetime(2026, 6, 1, tzinfo=timezone.utc))
     content = query_log_path(tmp_path).read_text(encoding="utf-8")
-    assert "query_type" in content
-    assert "ts" in content
-    # Privacy: only timestamp + intent are stored, never a "query" field.
-    assert "query" not in content.replace("query_type", "")
+    rec = json.loads(content.strip())
+    # Privacy: only the timestamp + the intent label are stored (plus the canonical
+    # envelope). There is NO raw-query field — the exact key set is the guarantee.
+    assert rec["query_type"] == "semantic"
+    assert "ts" in rec
+    assert "query" not in rec  # no raw-query field (event_type "search_query" is a label)
+    assert set(rec) <= {"ts", "schema", "event_type", "query_type"}
 
 
 def test_corrupt_lines_are_skipped(tmp_path):

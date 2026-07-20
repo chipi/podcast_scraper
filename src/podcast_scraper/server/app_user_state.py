@@ -106,7 +106,14 @@ def _events_path(data_dir: Path, user_id: str) -> Path:
 def append_listen_event(
     data_dir: Path, user_id: str, slug: str, feed_id: str | None, ts: int
 ) -> None:
-    """Append one 'opened this episode' event to the user's listen log."""
+    """Append one 'opened this episode' event to the user's listen log.
+
+    NOT yet routed through the canonical ``emit_event`` (ADR-119): this record's
+    ``ts`` is an epoch int consumed by ``app_stats`` (streaks/aggregation), which is
+    incompatible with the envelope's ISO-8601 ``ts``. Migrating it means moving
+    ``app_stats`` onto the canonical envelope first — deferred to keep that contract
+    intact. A shipping agent still tails this JSONL as-is.
+    """
     path = _events_path(data_dir, user_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps({"slug": str(slug), "feed_id": feed_id, "ts": int(ts)}, ensure_ascii=False)

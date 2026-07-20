@@ -46,6 +46,27 @@ nothing else. **Shipping is a separate, pluggable layer.**
    change (repoint `loki.write`; swap Alloy for Vector/Fluent Bit; add
    `otelcol`/Kafka/S3/Datadog output). The app never imports a vendor SDK.
 
+### Signal taxonomy — same principle, every signal
+
+The abstraction generalizes beyond metrics + logs. Every observability signal uses
+an OPEN STANDARD the app emits, shipped to a SWAPPABLE self-hosted backend:
+
+| Signal | Open standard (app emits) | Reference backend | Ship |
+| --- | --- | --- | --- |
+| Metrics | Prometheus `/metrics` | VictoriaMetrics | Alloy scrape |
+| Logs / events | canonical JSONL (`emit_event`) | VictoriaLogs | Alloy tail |
+| Traces (spans) | **OTLP** (OpenTelemetry) | VictoriaTraces | OTEL SDK / auto-instrument → OTLP HTTP |
+| Errors | Sentry protocol | GlitchTip (self-hosted; Sentry Cloud swappable by DSN) | Sentry SDK |
+| LLM prompt/cost | Langfuse span | Langfuse | `emit_langfuse_span` (in-code choke point) |
+
+The app depends on the STANDARD, never the vendor — swap VictoriaTraces→Jaeger,
+GlitchTip→Sentry, VictoriaLogs→Loki by config/DSN, no app change. Traces are
+env-var driven (`opentelemetry-instrument`, zero app code); the OTLP traces
+endpoint uses the traces-specific var with VictoriaTraces' non-standard full path.
+This ADR governs the LOGS/EVENTS emit side (`emit_event`); the same discipline
+applies across the whole table. Backend/handover pointers:
+`agentic-ai-homelab/docs/wip/{podcast-otel-traces,glitchtip-*}-handover.md`.
+
 ## Consequences
 
 **Positive:** app is vendor-neutral (Grafana/Loki is a swappable sink, per ADR-117
