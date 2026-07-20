@@ -352,6 +352,11 @@ lint:
 	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
 	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
 
+# Search v3 forbidden-imports guard (RFC-107 §S, PRD-045 FR12; #1205 SIGSEGV).
+# Rules: .github/lint/search-v3-forbidden-imports.txt.
+lint-search-v3:
+	$(PYTHON) scripts/check/lint_search_v3_forbidden_imports.py
+
 # Shared markdownlint CLI args — keep lint-markdown and fix-md identical (and aligned with CI).
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore node_modules \
