@@ -100,8 +100,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "[capture-search-perf] booting api on :${API_PORT}"
-env -u NODE_OPTIONS ".venv/bin/python" -m podcast_scraper.server \
-  --path "${CORPUS_ABS}" --port "${API_PORT}" > "${API_LOG}" 2>&1 &
+env -u NODE_OPTIONS KMP_DUPLICATE_LIB_OK=TRUE ".venv/bin/python" \
+  -m podcast_scraper.cli serve --output-dir "${CORPUS_ABS}" --port "${API_PORT}" \
+  > "${API_LOG}" 2>&1 &
 API_PID=$!
 
 # Wait api healthy.

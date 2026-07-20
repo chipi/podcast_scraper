@@ -73,8 +73,7 @@ mjs body, mirroring `capture-graph-lcp.{sh,mjs}`.
 Ships **today** (Search v3 §S1 stabilization, 2026-07-20) — captures the 3 of
 6 RFC-107 §P2 scenarios that exist on the post-S1 compact-launcher UI:
 
-- **`leftpanel-search-open`** — page load → `#search-q` visible (pre-S2
-  analog of `ui-workspace-open` TTI).
+- **`workspace-open-tti`** — **Renamed in §S4-shell:** page load → navigate to Search tab → `#search-q` visible (TTI to query field on Workspace). Previously labeled `leftpanel-search-open` when it measured LeftPanel compact launcher visibility.
 - **`filter-apply`** — click Top-k chip → popover visible (analog of
   `ui-filter-apply`).
 - **`results-paint`** — submit query → first hit card visible (analog of
@@ -84,9 +83,9 @@ The remaining 3 emit **`NOT_APPLICABLE_YET`** rows with `unblocks_with`
 naming the slice that unblocks them, so the report shape stays stable
 across commits:
 
-- **`workspace-open`** — unblocks with S2 (#1232, Query Workspace shell).
 - **`cmdk-open`** — unblocks with S3 (#1233, Cmd-K palette).
 - **`operator-cluster`** — unblocks with S4 (#1234, result-set operator bar).
+- **`enriched-answer-paint`** — unblocks with S5 (#1235, enriched-answer hero).
 
 Isolated ports `:8601` (api) / `:5601` (viewer) — deliberately different
 from graph capturer's `:8600` / `:5600` so both can run without collision.
@@ -206,7 +205,7 @@ it against a staging api).
 
 **"api unreachable at .../api/health"** — the health check failed. Run
 `curl -v <api>/api/health` to diagnose (503 = no corpus configured;
-connection refused = api not up).
+connection refused = api not up). **NOTE (2026-07-20):** the api-boot fix changed from `python -m podcast_scraper.server` (ERR_MODULE_NOT_FOUND) to `python -m podcast_scraper.cli serve --output-dir <dir> --port <port>`. Update `capture-search-perf.sh` if you see the old error.
 
 **p95 wildly different from expected** — is the LanceDB FTS index built?
 `curl <api>/api/index/stats | jq` should show `insight`/`segment`/`aux`
@@ -265,3 +264,23 @@ Recipe when the operator baseline lands:
 
 Nothing here is agent-blocked on a permission or an ambiguity: it's
 blocked on data only Marko can capture.
+
+## 8. Known blockers
+
+**`capture-search-perf.mjs` ESM resolution issue (pending fix):** the script in `scripts/dev/` cannot resolve `@playwright/test` because ESM package resolution uses the script's directory (not cwd) to find `node_modules`. Temporary workarounds:
+
+1. Move the mjs into `web/gi-kg-viewer/scripts/` so it resolves the local node_modules.
+2. Add a shell wrapper that cd's into the viewer directory before invoking.
+
+Permanent fix: refactor as a Node.js CLI package or bundle the ESM import path. This does not block captures today (the shell orchestrator can work around it), but blocks autonomous CI integration until resolved.
+
+---
+
+## §S4-shell revision (2026-07-20)
+
+The shell pivot (commit `4d13dce9`) changed the LeftPanel visibility model:
+
+- **Pre-pivot:** `leftpanel-search-open` scenario measured LeftPanel compact-launcher visibility on the Digest tab (a pre-Search-tab surface).
+- **Post-pivot:** LeftPanel is now visible on ALL tabs (Digest / Library / Search / Graph / Dashboard). The `workspace-open-tti` scenario now measures the TTI to the Search tab's `#search-q` query field, not the pre-pivot LeftPanel launcher.
+- **URL fixture change:** pre-pivot captured on Digest tab; post-pivot captures on Search tab. Both measure the same intent (TTI to query field) but the underlying tab layout changed. Update scenario comments if re-capturing baseline.
+- **No impact on API scenarios** (S0–S8): all `api-intent-*`, `api-top_k-*`, and `api-concurrent-4` scenarios remain unchanged.

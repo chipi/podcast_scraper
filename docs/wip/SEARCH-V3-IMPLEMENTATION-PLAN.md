@@ -20,6 +20,7 @@ Total nine slices; S0 is the baseline capture (mandatory before any code lands);
 | **S1** | Merge Search + Explore into one query surface | Explore filters as chips; Explore store folded; mode-switch retired | S0 |
 | **S2** | Search as 5th main tab (Query Workspace shell) | `SearchTab.vue`, `WorkspaceHeader/Results/Sidebar`, LeftPanel becomes compact launcher; publishes to `activeSearchContext` (RFC-094) | S1 |
 | **S3** | Cmd-K / `/` command palette | `CommandPalette.vue`, three-action rows, recent + saved sections (both from USERPREFS-1) | S2 |
+| **§S4-shell** | **COMPLETE (2026-07-20)** — LeftPanel visible on ALL tabs; Saved+Recent hosted in LeftPanel; compact launcher retired | `4d13dce9` shipped; new testids `left-panel-saved-*` / `left-panel-recent-*`; LeftPanel now universal (not Search-only); URI palette + LeftPanel replace compact launcher | S2 |
 | **S4** | Result-set operators (Cluster / Timeline / OnGraph / Consensus) | operator bar, server-side aggregation for cluster; `topic_consensus` surface | S2 |
 | **S5** | Enriched-answer hero | `EnrichedAnswerHero.vue` on Workspace, source-to-hit tie-in; consumes RFC-088 QueryEnricher | S2 |
 | **S6** | Search-launch from rails + in-episode search | 5 rail launchers publishing to `activeSearchContext`; `EpisodeDetailPanel` inline search | S2 |

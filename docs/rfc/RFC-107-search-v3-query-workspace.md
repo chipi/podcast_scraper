@@ -48,9 +48,12 @@ Ten sub-designs; each mapped to a slice in [`docs/wip/SEARCH-V3-IMPLEMENTATION-P
 
 **LeftPanel role change:**
 
+**Superseded by §S4-shell (2026-07-20):**
 - On tabs ≠ Search: LeftPanel becomes a **compact query launcher** — the query field + last-N recent queries (from USERPREFS-1 `search.recentQueries`) + "Open in Workspace" chip. No results render here. Enter → switches main tab to Search and runs.
 - On the Search tab: LeftPanel is **hidden** (Workspace owns full width).
 - The `shell.leftPanelSurface = 'explore'` mode is retired.
+
+**ACTUAL (§S4-shell):** LeftPanel is **visible on ALL main tabs** and hosts **Saved + Recent query sections only** (no compact launcher; no mode-switch). Rows emit `apply-query` → App switches to Search tab + runs. Keyboard: `focusSearch` optional; `/` and `Cmd-K` open the palette.
 
 **Store additions:** `shellStore.mainTab` gains `'search'`. `useSearchStore` grows a `workspace` sub-state (see §2). `shellStore.leftPanelSurface` collapses to a single `'launcher'` mode outside of Search. `useExploreStore` is folded into `useSearchStore` and deleted.
 
@@ -94,12 +97,13 @@ SearchTab.vue                          [new — mounts on shellStore.mainTab ===
 │    └─ SearchFilterBar.vue            [existing, extended with Explore filters — §5]
 ├─ EnrichedAnswerHero.vue              [new — hoisted from UXS-008 dialog-gated to hero]
 ├─ ResultSetOperatorBar.vue            [new — Cluster / OnGraph / Timeline / Compare / Consensus]
-├─ WorkspaceResults.vue                [new host]
-│    ├─ ResultCard.vue                 [existing]
-│    ├─ CompoundCard.vue               [existing lifted-region — promoted to card]
-│    └─ ClusterGroupCard.vue           [new — when operator === 'cluster']
-└─ WorkspaceSidebar.vue                [new — Saved + Recent, both from USERPREFS-1]
+└─ WorkspaceResults.vue                [new host]
+     ├─ ResultCard.vue                 [existing]
+     ├─ CompoundCard.vue               [existing lifted-region — promoted to card]
+     └─ ClusterGroupCard.vue           [new — when operator === 'cluster']
 ```
+
+**Superseded by §S4-shell:** WorkspaceSidebar.vue was hosted as a child of SearchTab. **ACTUAL:** Saved + Recent now live in LeftPanel (all main tabs), collapsible right-edge pattern. Same USERPREFS-1 keys (`search.savedQueries`, `search.recentQueries`); rows emit `apply-query` to switch tab + run.
 
 Uses `w-full` main area (respects VIEWER_IA §Viewport widths); no `w-72` constraint.
 
@@ -337,6 +341,17 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - **OQ6** Cluster server-side depth — how far to over-fetch when operator === 'cluster' (config; default `top_k * 3`).
 - **OQ7** Should `search.recentQueries` be Workspace-per-tab (fresh per open) OR user-cross-device (roams)? RFC-107 default: user-cross-device (USERPREFS-1). Palette empty-state can filter to "just this session" if operator asks.
 - **OQ8** Cmd-K palette live-query could optionally call `identity.resolver.EntityResolver.resolve(text)` (RFC-091 §Constraints — resolver shipped in Slice A of #849) to detect entity queries and surface an "Open Person/Topic panel →" row above the hit list. Additive; not required for v1.
+
+## §S4-shell revision (2026-07-20)
+
+**Compact SearchPanel launcher retired.** The shell pivot shipped in `4d13dce9` supersedes the initial design:
+
+- **LeftPanel visibility:** now visible on **ALL main tabs** (Digest / Library / Search / Graph / Dashboard), not hidden on Search.
+- **Saved + Recent location:** moved from SearchTab child (`WorkspaceSidebar.vue`) to LeftPanel (collapsible sections). Same USERPREFS-1 keys; rows emit `apply-query` → App switches to Search tab + runs.
+- **Compact launcher retired:** the pre-pivot query field on non-Search LeftPanel is gone.
+- **Keyboard:** `focusSearch` made optional in `useViewerKeyboard`; `/` and `Cmd-K` both open the palette (deferred to §4 palette design, still valid).
+- **Vertical rail button relabeled:** "Search / Explore" → "Saved queries."
+- **No impact on §2, §3 store shape, §4 palette, §5 Explore merge, §6 operators, §7 enriched-answer, §8 persistence, §9 API, §10 rail launchers:** all remain as designed. Only the physical location of the Saved + Recent UI changed; the data flow, store namespaces, and feature surface are unchanged.
 
 ## References
 

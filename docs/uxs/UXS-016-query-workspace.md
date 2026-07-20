@@ -24,9 +24,9 @@
 
 ## Summary
 
-The **Query Workspace** is the operator viewer's Search main tab (5th tab: Digest · Library · **Search** · Graph · Dashboard). Full-width main-area surface. Hosts the merged Search + Explore query UI, the enriched-answer hero, result-set operators (cluster / on-graph / timeline / compare / consensus), and the saved-queries sidebar. Also the target of the shell-wide Cmd-K palette's "Open in Workspace" action and every rail's "Search inside this X" launcher.
+The **Query Workspace** is the operator viewer's Search main tab (5th tab: Digest · Library · **Search** · Graph · Dashboard). Full-width main-area surface. Hosts the merged Search + Explore query UI, the enriched-answer hero, result-set operators (cluster / on-graph / timeline / compare / consensus), and the saved-queries sidebar (via LeftPanel). Also the target of the shell-wide Cmd-K palette's "Open in Workspace" action and every rail's "Search inside this X" launcher.
 
-Detail per-surface is in [UXS-005](UXS-005-semantic-search.md) (the compact left-panel launcher that Workspace does not replace on non-Search tabs) and [UXS-008](UXS-008-enriched-search.md) (Enriched Answer visual contract, promoted from Advanced-dialog-gated to hero placement here).
+Detail per-surface is in [UXS-005](UXS-005-semantic-search.md) (**Revised in §S4-shell:** compact launcher retired; LeftPanel hosts Saved + Recent only on all tabs) and [UXS-008](UXS-008-enriched-search.md) (Enriched Answer visual contract, promoted from Advanced-dialog-gated to hero placement here).
 
 ---
 
@@ -34,7 +34,7 @@ Detail per-surface is in [UXS-005](UXS-005-semantic-search.md) (the compact left
 
 Full-width main area (`w-full`, no `w-72` constraint). Right subject rail persistence rule from VIEWER_IA.md holds: opening the Search tab does NOT clear the current subject. Subject rail sits to the right of the Workspace as on any other main tab.
 
-The LeftPanel is **hidden** on the Search tab (Workspace owns the query surface). On other tabs the LeftPanel is a **compact launcher** — a query field + last-N recent queries + "Open in Workspace" chip — see UXS-005 for its retained role.
+**Revised in §S4-shell (2026-07-20):** The LeftPanel is **visible on ALL main tabs** (Digest / Library / Search / Graph / Dashboard). On the Search tab, it hosts the Saved + Recent query sections (collapsible right-edge pattern, §Sidebar below). On other tabs, it remains visible for these sections, supporting the compact-launcher patterns those tabs use — see UXS-005 for the launcher integration. The compact SearchPanel launcher that previously occupied the LeftPanel on non-Search tabs has been retired; all query surfaces now route through the Workspace (Search tab) or the Cmd-K palette.
 
 ---
 
@@ -48,14 +48,13 @@ SearchTab.vue                                    [w-full main area]
 │    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | Min confidence | Grounded only | Enriched | More (feed / embedding model)
 ├─ EnrichedAnswerHero.vue                        UXS-008 contract; visible when enriched_search_available and enrich_results=true
 ├─ ResultSetOperatorBar.vue                      Cluster | On graph | Timeline | Compare | Consensus
-├─ WorkspaceResults.vue                          scrollable
-│    ├─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + compound "+ insight" badge
-│    ├─ CompoundCard.vue                         when hit has `lifted` (RFC-072 KL1)
-│    └─ ClusterGroupCard.vue                     when operator === 'cluster'
-└─ WorkspaceSidebar.vue                          Saved + Recent (both from USERPREFS-1)
+└─ WorkspaceResults.vue                          scrollable
+     ├─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + compound "+ insight" badge
+     ├─ CompoundCard.vue                         when hit has `lifted` (RFC-072 KL1)
+     └─ ClusterGroupCard.vue                     when operator === 'cluster'
 ```
 
-`WorkspaceSidebar` uses a right-edge collapsible pattern (mirroring the existing right-rail collapse toggle) so it can free the results column on narrow viewports (~1024 px).
+**Revised in §S4-shell:** `WorkspaceSidebar.vue` is now hosted in the LeftPanel (not as a child of SearchTab), supporting the pattern that LeftPanel is visible on all main tabs. See §Sidebar below for details.
 
 ---
 
@@ -119,16 +118,18 @@ Each `ResultCard`:
 
 ## Sidebar — Saved + Recent (USERPREFS-1)
 
-`WorkspaceSidebar.vue` right-edge column. Two sections:
+**Revised in §S4-shell (2026-07-20):** LeftPanel hosts two collapsible sections:
 
-- **Saved** — reads `search.savedQueries` from USERPREFS-1. Each row: `name`, muted preview of `q`. Click = re-run in the Workspace with `filters` + `operator` re-applied. Trash icon on hover deletes.
-- **Recent** — reads `search.recentQueries` (last 20, USERPREFS-1). Each row: `q` truncated. Click = re-run.
+- **Saved queries** — reads `search.savedQueries` from USERPREFS-1. Each row: `name`, muted preview of `q`. Click = switch to Search tab + re-run with `filters` + `operator` re-applied. Trash icon on hover deletes. Header testid: `left-panel-saved-queries`.
+- **Recent queries** — reads `search.recentQueries` (last 20, USERPREFS-1). Each row: `q` truncated. Click = switch to Search tab + re-run. Header testid: `left-panel-recent-queries`.
+
+Empty states: `left-panel-saved-empty` (Saved section, no items), `left-panel-recent-empty` (Recent section, no items). List containers: `left-panel-saved-list`, `left-panel-recent-list`.
 
 Both sections **hide entirely** (no error banner) when `useUserPreferencesStore.available === false` (offline / unauth) — matches USERPREFS-1's silent-degrade rule.
 
-Save affordance: after a successful search, a `Save this query` button in the header opens a mini-dialog for `name`. Persists via `useSavedQueriesStore.save(name, request)` → USERPREFS-1 PATCH.
+Save affordance: after a successful search in the Workspace, a `Save this query` button in the header opens a mini-dialog for `name`. Persists via `useSavedQueriesStore.save(name, request)` → USERPREFS-1 PATCH.
 
-`data-testid`: `workspace-sidebar-saved`, `workspace-sidebar-recent`, `workspace-save-button`, `workspace-save-dialog`.
+**Retired testids** (was `workspace-sidebar-*`): `workspace-sidebar-saved`, `workspace-sidebar-recent`.
 
 ---
 
@@ -224,6 +225,22 @@ Playwright coverage: per-surface Tier-1 mocked specs + Tier-2 production-shaped 
 
 ## Revision history
 
-| Date       | Change                                                                                        |
-| ---------- | --------------------------------------------------------------------------------------------- |
-| 2026-07-20 | Initial draft — Query Workspace + operator bar + sidebar + hero placement (PRD-045 / RFC-107) |
+| Date       | Change                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-20 | §S4-shell revision — LeftPanel visible on all tabs; Saved + Recent hosted in LeftPanel, not SearchTab; compact launcher retired. See 4d13dce9.  |
+| 2026-07-20 | Initial draft — Query Workspace + operator bar + sidebar + hero placement (PRD-045 / RFC-107)                                                   |
+
+---
+
+## §S4-shell revision (2026-07-20)
+
+**Compact SearchPanel launcher retired.** The shell pivot shipped in `4d13dce9` changed the Workspace shape:
+
+- LeftPanel is **now visible on ALL main tabs** (Digest / Library / Search / Graph / Dashboard), not hidden on Search.
+- Saved + Recent query sections now live in LeftPanel (via collapsible pattern), not as children of SearchTab via `WorkspaceSidebar.vue`.
+- The compact query launcher that previously occupied LeftPanel on non-Search tabs has been retired.
+- All Saved + Recent data still flows from USERPREFS-1 keys `search.savedQueries` and `search.recentQueries` (unchanged).
+- Rows emit `apply-query` → App switches to Search main tab + runs. This preserves the UX intent (recent/saved lead to Workspace navigation) while co-locating Saved + Recent in one place.
+- Keyboard: `focusSearch` in `useViewerKeyboard` made optional; `/` and `Cmd-K` both open the palette.
+- Vertical rail "Search / Explore" button relabeled "Saved queries".
+- New testids reflect LeftPanel location: `left-panel-saved-queries`, `left-panel-saved-list`, `left-panel-saved-empty`, `left-panel-recent-list`, `left-panel-recent-empty`.
