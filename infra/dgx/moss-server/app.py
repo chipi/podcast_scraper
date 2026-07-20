@@ -38,6 +38,49 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("moss-server")
 
+# Error reporting -> GlitchTip (self-hosted, Sentry-SDK/DSN compatible). No-op
+# without SENTRY_DSN. before_send scrubs secrets before events leave (GlitchTip
+# stores what you send). Traces off — perf tracing goes to VictoriaTraces, not here.
+try:
+    import sentry_sdk
+
+    _sentry_dsn = os.environ.get("SENTRY_DSN", "").strip()
+    if _sentry_dsn:
+
+        def _sentry_scrub(event: dict, _hint: object) -> dict:
+            try:
+                for _section in ("extra", "contexts"):
+                    _data = event.get(_section) or {}
+                    if isinstance(_data, dict):
+                        for _k in list(_data):
+                            if isinstance(_k, str) and any(
+                                _s in _k.lower()
+                                for _s in (
+                                    "token",
+                                    "secret",
+                                    "password",
+                                    "api_key",
+                                    "authorization",
+                                )
+                            ):
+                                _data[_k] = "[redacted]"
+            except Exception:  # noqa: BLE001
+                pass
+            return event
+
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            environment=os.environ.get("SENTRY_ENVIRONMENT", os.environ.get("APP_ENV", "prod")),
+            release=os.environ.get("APP_RELEASE") or None,
+            send_default_pii=False,
+            traces_sample_rate=0.0,
+            before_send=_sentry_scrub,
+        )
+        sentry_sdk.set_tag("component", "moss")
+        logger.info("Sentry/GlitchTip error reporting enabled")
+except Exception:  # noqa: BLE001 - telemetry must never break startup
+    logger.debug("sentry init skipped", exc_info=True)
+
 _MODEL_NAME = os.environ.get("MOSS_MODEL", "OpenMOSS-Team/MOSS-Transcribe-Diarize")
 # Pin the Hub revision (a tag/branch/commit) so a silent upstream change can't alter what we serve.
 # Default ``main``; set MOSS_MODEL_REVISION to a commit SHA for a hard pin.
