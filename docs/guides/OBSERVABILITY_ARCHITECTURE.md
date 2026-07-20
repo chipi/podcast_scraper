@@ -167,16 +167,16 @@ Deep-dive dashboards (Node Exporter Full, cAdvisor) stay in the Homelab folder �
 not the daily surface. Keep the set at ~4; add a dashboard only when a recurring
 question has no home.
 
-## Verify (tailnet, DGX `100.69.49.126`)
+## Verify (tailnet, DGX `dgx-llm-1`)
 
 ```sh
 # metrics: api RED + host + cadvisor for prod-podcast
-curl -s "http://100.69.49.126:8428/api/v1/query?query=up{instance='prod-podcast'}"
+curl -s "http://dgx-llm-1:8428/api/v1/query?query=up{instance='prod-podcast'}"
 # events/logs: what podcast-* jobs are landing
-curl -sG "http://100.69.49.126:9428/select/logsql/query" \
+curl -sG "http://dgx-llm-1:9428/select/logsql/query" \
   --data-urlencode "query=instance:prod-podcast AND job:~'podcast-' AND _time:1h | stats by (job) count()"
 # traces: services reporting
-curl -s "http://100.69.49.126:10428/select/jaeger/api/services"
+curl -s "http://dgx-llm-1:10428/select/jaeger/api/services"
 ```
 
 Then Grafana → the `VPS — Podcast` folder (dashboards), Explore (logs/metrics),

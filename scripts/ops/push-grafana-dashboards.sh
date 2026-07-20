@@ -8,7 +8,7 @@
 #   THIS repo     -> podcast/VPS app + edge dashboards, pushed here on deploy.
 #
 # Secrets come from the gitignored root .env (never committed):
-#   GRAFANA_URL           e.g. http://100.69.49.126:3000  (DGX, tailnet)
+#   GRAFANA_URL           e.g. http://dgx-llm-1:3000  (DGX, tailnet)
 #   GRAFANA_DEPLOY_TOKEN  glsa_... service-account token (podcast-deploy, Editor)
 #   GRAFANA_FOLDER_UID    vps-podcast
 set -euo pipefail

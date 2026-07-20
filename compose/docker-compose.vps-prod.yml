@@ -32,7 +32,7 @@ services:
   # `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}`
   # passthrough, so there is no hardcoded backend IP in this file. Migration
   # (DGX → homelab) is a one-line flip of that key in the prod .env:
-  #   stopgap:    http://100.69.49.126:10428/insert/opentelemetry/v1/traces
+  #   stopgap:    http://dgx-llm-1:10428/insert/opentelemetry/v1/traces
   #   migration:  http://homelab:10428/insert/opentelemetry/v1/traces
   # Only the VPS gets these — stack-test/Codespaces never load this overlay.
   api:
