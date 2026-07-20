@@ -1,0 +1,205 @@
+{
+  "benchmark_run": {
+    "fingerprint_hash": "32e4fff7433fc2850af9a9b059e1bc2e77ee587fc38983bcadd7b5113530f86f",
+    "metrics": {
+      "dataset_id": "curated_5feeds_benchmark_v1",
+      "episode_count": 10,
+      "intrinsic": {
+        "gates": {
+          "boilerplate_leak_rate": 0.0,
+          "episode_gate_failures": {},
+          "failed_episodes": [],
+          "speaker_label_leak_rate": 0.0,
+          "truncation_rate": 0.0
+        },
+        "length": {
+          "avg_tokens": 264.0,
+          "max_tokens": 299,
+          "min_tokens": 221
+        },
+        "performance": {
+          "avg_latency_ms": 58434.086203575134,
+          "avg_latency_ms_excluding_first": 57702.88504494561,
+          "median_latency_ms": 54164.37578201294,
+          "p95_latency_ms": 65600.84342956543
+        },
+        "warnings": {
+          "speaker_name_leak_rate": 0.0
+        }
+      },
+      "run_id": "baseline_ml_dev_authority_benchmark_v1",
+      "schema": "metrics_summarization_v2",
+      "task": "summarization",
+      "vs_reference": null
+    },
+    "present": true,
+    "run_id": "baseline_ml_dev_authority_benchmark_v1"
+  },
+  "captured_at": "2026-07-20T05:27:21+00:00",
+  "experiment_run": {
+    "fingerprint_hash": "32e4fff7433fc2850af9a9b059e1bc2e77ee587fc38983bcadd7b5113530f86f",
+    "metrics": {
+      "dataset_id": "curated_5feeds_benchmark_v1",
+      "episode_count": 10,
+      "intrinsic": {
+        "gates": {
+          "boilerplate_leak_rate": 0.0,
+          "episode_gate_failures": {},
+          "failed_episodes": [],
+          "speaker_label_leak_rate": 0.0,
+          "truncation_rate": 0.0
+        },
+        "length": {
+          "avg_tokens": 264.0,
+          "max_tokens": 299,
+          "min_tokens": 221
+        },
+        "performance": {
+          "avg_latency_ms": 58434.086203575134,
+          "avg_latency_ms_excluding_first": 57702.88504494561,
+          "median_latency_ms": 54164.37578201294,
+          "p95_latency_ms": 65600.84342956543
+        },
+        "warnings": {
+          "speaker_name_leak_rate": 0.0
+        }
+      },
+      "run_id": "baseline_ml_dev_authority_benchmark_v1",
+      "schema": "metrics_summarization_v2",
+      "task": "summarization",
+      "vs_reference": null
+    },
+    "present": true,
+    "run_id": "baseline_ml_dev_authority_benchmark_v1"
+  },
+  "setup_probe": {
+    "captured_at": "2026-07-20T05:17:00+00:00",
+    "datasets": {
+      "curated_5feeds_benchmark_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "curated_5feeds_benchmark_v2": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_cil_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_cleaning_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_dev_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "curated_5feeds_kg_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_raw_v1": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v1": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v2": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v3": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "integration_gi_kg_stub_v1": {
+        "episodes": 1,
+        "feeds": 1
+      },
+      "prod_generalization_10feed_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "prod_generalization_2x10feed_v1": {
+        "episodes": 20,
+        "feeds": 1
+      },
+      "prod_generalization_2x10feed_v2": {
+        "episodes": 18,
+        "feeds": 1
+      },
+      "prod_generalization_2x10feed_v3_cleaned": {
+        "episodes": 18,
+        "feeds": 1
+      },
+      "prod_v2emu_crossshow_18ep_v1": {
+        "episodes": 18,
+        "feeds": 1
+      },
+      "prod_v3_10ep_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "prod_v3_adr110_18ep_v1": {
+        "episodes": 18,
+        "feeds": 1
+      },
+      "prod_v3_crossshow_18ep_v1": {
+        "episodes": 18,
+        "feeds": 1
+      },
+      "prod_v3_pilot_3ep_v1": {
+        "episodes": 3,
+        "feeds": 1
+      },
+      "qmsum_phase21_v1": {
+        "episodes": 35,
+        "feeds": 1
+      }
+    },
+    "dgx_vllm": {
+      "reachable": false,
+      "reason": "no_endpoint"
+    },
+    "git": {
+      "branch": "main",
+      "commit": "b7c5b3cc20dc465aa2e728e515bc0f8c96998433",
+      "describe": "b7c5b3c"
+    },
+    "model_registry": {
+      "file_present": true,
+      "preset_count_hint": 15,
+      "preset_hash": "3523126132af4675"
+    },
+    "profiles": {
+      "count": 19,
+      "names": [
+        "airgapped",
+        "airgapped_thin",
+        "cloud_balanced",
+        "cloud_quality",
+        "cloud_thin",
+        "cloud_with_dgx_primary",
+        "dev",
+        "eval_default",
+        "experiment_dgx_moss",
+        "experiment_dgx_only",
+        "local",
+        "local_dgx_balanced",
+        "local_dgx_full",
+        "preprod_local_whisper",
+        "prod_dgx_balanced",
+        "prod_dgx_full_with_fallback",
+        "profile_freeze.example",
+        "reprocess_dgx_no_llm",
+        "test_default"
+      ]
+    },
+    "recent_runs": []
+  },
+  "snapshot_version": 1,
+  "week_id": "2026-W30"
+}
