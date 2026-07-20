@@ -51,6 +51,9 @@ export interface SearchRequestOptions {
   feed?: string
   since?: string
   speaker?: string
+  /** Topic substring (Search v3 SearchTopicChip). Server-side after the follow-up
+   * to S1: matches kg_topic id/text and insight ABOUT-edge topic labels. */
+  topic?: string
   groundedOnly?: boolean
   topK?: number
   embeddingModel?: string
@@ -70,6 +73,7 @@ export async function searchCorpus(
   if (options.feed?.trim()) params.set('feed', options.feed.trim())
   if (options.since?.trim()) params.set('since', options.since.trim())
   if (options.speaker?.trim()) params.set('speaker', options.speaker.trim())
+  if (options.topic?.trim()) params.set('topic', options.topic.trim())
   if (options.embeddingModel?.trim()) {
     params.set('embedding_model', options.embeddingModel.trim())
   }

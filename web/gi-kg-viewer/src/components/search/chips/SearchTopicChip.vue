@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * Topic-contains chip (Search v3 §S1 — Explore merge). Substring filter on the
- * visible topic labels + hit text. Applied client-side over the returned top-K
- * (accuracy caveat: the server ``/api/search`` endpoint does not accept a topic
- * filter today; a follow-up may add ``topic=`` server-side).
+ * Topic-contains chip (Search v3 §S1 — Explore merge). Substring filter on
+ * kg_topic ids/text and insight ABOUT-edge topic labels. Server-side since the
+ * S1 follow-up wired ``topic=`` into /api/search (drives retrieval, not a
+ * client-side narrow-of-top-K).
  */
 import { computed, ref } from 'vue'
 import { useSearchStore } from '../../../stores/search'
@@ -67,7 +67,7 @@ function clear(): void {
         @keydown.enter="close"
       >
       <p class="mt-2 text-[10px] text-muted">
-        Client-side filter over top-K results. Empty = no filter.
+        Server-side; matches kg_topic id/text + insight ABOUT-edge topics.
       </p>
       <button
         v-if="isActive"

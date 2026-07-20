@@ -51,6 +51,13 @@ async def search_corpus(
     feed: str | None = Query(default=None, description="Substring match on feed_id."),
     since: str | None = Query(default=None, description="Publish date on/after (YYYY-MM-DD)."),
     speaker: str | None = Query(default=None, description="Speaker substring (quotes / insights)."),
+    topic: str | None = Query(
+        default=None,
+        description=(
+            "Topic substring (kg_topic id/text; insight ABOUT edges). Server-side "
+            "counterpart to SearchTopicChip; retires the S1 client-side fallback."
+        ),
+    ),
     grounded_only: bool = Query(default=False),
     top_k: int = Query(default=10, ge=1, le=100),
     embedding_model: str | None = Query(
@@ -102,6 +109,7 @@ async def search_corpus(
         feed=feed,
         since=since,
         speaker=speaker,
+        topic=topic,
         grounded_only=grounded_only,
         top_k=top_k,
         embedding_model=embedding_model,

@@ -264,6 +264,44 @@ def _insight_passes_speaker_filter(
     return False
 
 
+def _insight_passes_topic_filter(
+    artifact: Dict[str, Any],
+    insight_id: str,
+    topic_key: str,
+) -> bool:
+    """True when the insight ABOUTs a topic whose id or label contains ``topic_key``.
+
+    Server-side equivalent of the client-side filter that shipped in the Search v3
+    §S1 merge; folds SearchTopicChip out of client-side-only territory.
+    """
+    key = topic_key.lower()
+    topic_ids: set[str] = set()
+    for e in artifact.get("edges", []) or []:
+        if not isinstance(e, dict):
+            continue
+        if e.get("type") == "ABOUT" and e.get("from") == insight_id:
+            to = e.get("to")
+            if isinstance(to, str) and to.startswith("topic:"):
+                topic_ids.add(to)
+    if not topic_ids:
+        return False
+    for nid in topic_ids:
+        if key in nid.lower():
+            return True
+    for n in artifact.get("nodes", []) or []:
+        if not isinstance(n, dict):
+            continue
+        if n.get("id") not in topic_ids:
+            continue
+        props = n.get("properties")
+        if isinstance(props, dict):
+            for field in ("label", "name", "display_name"):
+                v = props.get(field)
+                if isinstance(v, str) and key in v.lower():
+                    return True
+    return False
+
+
 def _parse_since(s: str) -> Optional[datetime]:
     try:
         d = date.fromisoformat(s.strip())
@@ -278,6 +316,7 @@ def _hit_passes_cli_filters(
     feed_substr: Optional[str],
     since_dt: Optional[datetime],
     speaker_substr: Optional[str],
+    topic_substr: Optional[str] = None,
     grounded_only: bool,
     gi_by_episode: Dict[str, Path],
 ) -> bool:
@@ -327,7 +366,48 @@ def _hit_passes_cli_filters(
         if not _insight_passes_speaker_filter(art, src, speaker_substr):
             return False
 
+    # Topic substring filter (extracted to keep complexity below flake8's C901 ceiling).
+    if topic_substr and not _hit_passes_topic_filter(meta, topic_substr, gi_by_episode):
+        return False
+
     return True
+
+
+def _hit_passes_topic_filter(
+    meta: Dict[str, Any],
+    topic_substr: str,
+    gi_by_episode: Dict[str, Path],
+) -> bool:
+    """Topic filter branch for _hit_passes_cli_filters (Search v3 §S1 follow-up).
+
+    - ``kg_topic`` — match on ``source_id`` (slug) + ``topic_label``.
+    - ``insight`` — read GI artifact, match ABOUT-edge topic id/label.
+    - other doc_types — drop (no topic linkage on the row).
+    """
+    dt = meta.get("doc_type")
+    if dt == "kg_topic":
+        src = meta.get("source_id")
+        label = meta.get("topic_label") or meta.get("label") or ""
+        key = topic_substr.lower()
+        return bool(
+            (isinstance(src, str) and key in src.lower())
+            or (isinstance(label, str) and key in label.lower())
+        )
+    if dt == "insight":
+        ep = meta.get("episode_id")
+        src = meta.get("source_id")
+        if not isinstance(ep, str) or not isinstance(src, str):
+            return False
+        gpath = gi_by_episode.get(ep)
+        if not gpath or not gpath.is_file():
+            return False
+        try:
+            art = cast(Dict[str, Any], json.loads(gpath.read_text(encoding="utf-8")))
+        except json.JSONDecodeError:
+            return False
+        return _insight_passes_topic_filter(art, src, topic_substr)
+    # Segments / quotes / aux rows don't carry topic linkage; drop when set (same shape as speaker).
+    return False
 
 
 def _backfill_display_titles_from_corpus(

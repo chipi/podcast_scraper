@@ -61,11 +61,10 @@ export const useSearchStore = defineStore('search', () => {
      */
     dedupeKgSurfaces: true,
     /**
-     * Client-side topic-substring filter (Search v3 §S1 — Explore merge). Applied
-     * over the returned ``results`` in ``filteredResults``. The server /api/search
-     * endpoint does not accept a topic filter today, so this narrows the top-K rather
-     * than driving retrieval — accuracy caveat documented in UXS-005 §Compact launcher
-     * (and follow-up: server-side ``topic=`` param on /api/search when scope is right).
+     * Topic-substring filter. Server-side since the S1 follow-up wired ``topic=``
+     * into /api/search — passes through to the search API and drives retrieval
+     * (kg_topic id/text + insight ABOUT-edge topic labels). No client-side
+     * fallback anymore.
      */
     topic: '',
     /**
@@ -77,48 +76,23 @@ export const useSearchStore = defineStore('search', () => {
   })
 
   /**
-   * Results with the client-side ``topic`` and ``minConfidence`` filters applied
-   * (Search v3 §S1). Uses substring match on visible topic labels + hit ``confidence``
-   * payload; keeps the raw ``results`` untouched so callers that need the pre-filter
-   * page (e.g. the intent chip, tier counts) still see the server's top-K.
+   * Results with the client-side ``minConfidence`` filter applied. ``topic`` is
+   * server-side since the S1 follow-up; ``minConfidence`` is still client-side
+   * because /api/search doesn't accept a numeric confidence threshold param.
+   * Keeps ``results`` untouched so callers that need the pre-filter page (intent
+   * chip, tier counts) still see the server's top-K.
    */
   const filteredResults = computed<SearchHit[]>(() => {
-    const topicNeedle = filters.topic.trim().toLowerCase()
     const minRaw = filters.minConfidence.trim()
     let minConf: number | null = null
     if (minRaw) {
       const n = Number(minRaw)
       if (Number.isFinite(n)) minConf = n
     }
-    if (!topicNeedle && minConf == null) return results.value
+    if (minConf == null) return results.value
     return results.value.filter((hit) => {
-      if (minConf != null) {
-        const conf = (hit.metadata?.confidence as number | undefined) ?? null
-        if (conf == null || conf < minConf) return false
-      }
-      if (topicNeedle) {
-        const md = hit.metadata ?? {}
-        const haystackParts: string[] = []
-        const topicLabel = md.topic_display_name ?? md.topic_label
-        if (typeof topicLabel === 'string') haystackParts.push(topicLabel.toLowerCase())
-        const topicId = md.topic_id ?? md.source_id
-        if (typeof topicId === 'string') haystackParts.push(topicId.toLowerCase())
-        const topicsList = md.topics
-        if (Array.isArray(topicsList)) {
-          for (const t of topicsList) {
-            if (typeof t === 'string') haystackParts.push(t.toLowerCase())
-            else if (t && typeof t === 'object') {
-              const lbl = (t as Record<string, unknown>).label
-              if (typeof lbl === 'string') haystackParts.push(lbl.toLowerCase())
-              const id = (t as Record<string, unknown>).topic_id
-              if (typeof id === 'string') haystackParts.push(id.toLowerCase())
-            }
-          }
-        }
-        // Also include the hit text so freeform topic terms match transcript hits.
-        if (typeof hit.text === 'string') haystackParts.push(hit.text.toLowerCase())
-        if (!haystackParts.some((h) => h.includes(topicNeedle))) return false
-      }
+      const conf = (hit.metadata?.confidence as number | undefined) ?? null
+      if (conf == null || conf < minConf) return false
       return true
     })
   })
@@ -184,6 +158,7 @@ export const useSearchStore = defineStore('search', () => {
         feed: filters.feed || undefined,
         since: filters.since || undefined,
         speaker: filters.speaker || undefined,
+        topic: filters.topic || undefined,
         groundedOnly: filters.groundedOnly,
         topK: filters.topK,
         embeddingModel: filters.embeddingModel.trim() || undefined,

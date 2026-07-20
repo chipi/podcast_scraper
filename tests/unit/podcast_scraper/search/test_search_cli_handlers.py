@@ -170,6 +170,88 @@ def test_insight_passes_speaker_filter() -> None:
     assert cli_handlers._insight_passes_speaker_filter(art, "i1", "zzz") is False
 
 
+def test_insight_passes_topic_filter_id_match() -> None:
+    """topic_key matches when the insight ABOUTs a topic whose id contains it."""
+    art = {
+        "nodes": [
+            {
+                "id": "topic:compute-governance",
+                "type": "Topic",
+                "properties": {"label": "Compute Governance"},
+            },
+        ],
+        "edges": [{"type": "ABOUT", "from": "i1", "to": "topic:compute-governance"}],
+    }
+    assert cli_handlers._insight_passes_topic_filter(art, "i1", "compute") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i1", "governance") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i1", "climate") is False
+
+
+def test_insight_passes_topic_filter_label_fallback() -> None:
+    """When the id slug doesn't carry the term, match against the topic label."""
+    art = {
+        "nodes": [
+            {"id": "topic:t2b7f9", "type": "Topic", "properties": {"label": "Silicon Supply"}},
+        ],
+        "edges": [{"type": "ABOUT", "from": "i2", "to": "topic:t2b7f9"}],
+    }
+    assert cli_handlers._insight_passes_topic_filter(art, "i2", "silicon") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i2", "SUPPLY") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i2", "nope") is False
+
+
+def test_insight_passes_topic_filter_returns_false_when_no_about_edges() -> None:
+    art = {"nodes": [{"id": "topic:x", "type": "Topic"}], "edges": []}
+    assert cli_handlers._insight_passes_topic_filter(art, "i3", "x") is False
+
+
+def test_hit_passes_cli_topic_filter_kg_topic() -> None:
+    """kg_topic hits match on source_id (slug) and topic_label."""
+    hit = SearchResult(
+        "d",
+        1.0,
+        {
+            "doc_type": "kg_topic",
+            "source_id": "topic:compute-governance",
+            "topic_label": "Compute Governance",
+        },
+    )
+    assert cli_handlers._hit_passes_cli_filters(
+        hit,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        topic_substr="compute",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    assert not cli_handlers._hit_passes_cli_filters(
+        hit,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        topic_substr="climate",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+
+
+def test_hit_passes_cli_topic_filter_drops_off_topic_doc_types() -> None:
+    """Segments / quotes / aux rows are dropped when a topic filter is set (same
+    shape as the speaker filter — those doc_types don't carry topic linkage)."""
+    for dt in ("segment", "quote", "kg_entity", "summary"):
+        hit = SearchResult("d", 1.0, {"doc_type": dt})
+        assert not cli_handlers._hit_passes_cli_filters(
+            hit,
+            feed_substr=None,
+            since_dt=None,
+            speaker_substr=None,
+            topic_substr="anything",
+            grounded_only=False,
+            gi_by_episode={},
+        )
+
+
 @patch("podcast_scraper.search.cli_handlers.index_corpus")
 def test_run_index_cli_success(mock_index, tmp_path, caplog) -> None:
     from types import SimpleNamespace
