@@ -105,6 +105,39 @@ Because the app emits only open formats, a fork changes **config, not code**:
 - **No backend at all:** events still land in stdout + the corpus JSONL files; the
   `emit_event` file sink works with no agent attached.
 
+## Operating procedures (runbook)
+
+The **minimal surface** — 4 dashboards in the `VPS — Podcast` Grafana folder, each
+answering one question; raw logs/traces via **Explore** (no storage cost):
+
+| Dashboard | Question | When |
+| --- | --- | --- |
+| **VPS Overview** | Is the box healthy? | daily glance; first stop in any incident |
+| **Podcast App** (`$surface`) | Is it serving / what's it doing + costing? | daily; after deploy; weekly cost check |
+| **Edge Security** | Is anyone attacking? | weekly; on a fail2ban alert |
+| **Containers** | Per-container resource? | deep-dive (needs the cAdvisor fix) |
+
+Procedures:
+
+- **Daily 30-sec glance:** VPS Overview green (CPU/mem/disk < thresholds)? Podcast
+  App → API 5xx rate flat?
+- **After a deploy:** Podcast App → watch API 5xx + p95 for a spike → any failure,
+  open **Explore → Traces** (service `podcast-api`) for the slow/failing span →
+  **GlitchTip** for the exception + stacktrace.
+- **Weekly:** Podcast App → `$surface=pipeline` → LLM cost trend; Edge Security →
+  fail2ban bans / ssh failures.
+- **Incident flow (down/slow):** VPS Overview (resource pressure?) → Podcast App
+  (which `$surface`/route?) → Explore Traces (which span?) → Explore Logs
+  (`instance:prod-podcast AND job:~"<surface>"`) → GlitchTip (stacktrace). The
+  `run_id` tag joins a cost log, its trace, and its error across all three.
+- **Differentiating the 3 podcast surfaces:** `$surface` dropdown on Podcast App
+  (logs); OTEL `service.name` (`podcast-api` vs `podcast-pipeline`) + `http.route`
+  on traces; the api route/handler label on metrics.
+
+Deep-dive dashboards (Node Exporter Full, cAdvisor) stay in the Homelab folder —
+not the daily surface. Keep the set at ~4; add a dashboard only when a recurring
+question has no home.
+
 ## Verify (tailnet, DGX `100.69.49.126`)
 
 ```sh
