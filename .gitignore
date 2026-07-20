@@ -29,6 +29,8 @@ tests/fixtures/multi-run-corpus/
 # fixture datasets like curated_5feeds_* stay tracked). Real-corpus manifests, silver
 # references, and WER/bake-off datasets live here untracked. See feedback: never-commit-real-episodes.
 data/eval/datasets/prod_*
+# Real-episode-derived labelled sample (real insight text + corpus paths)
+docs/wip/NER_FP_SAMPLE_LABELLED_2026-06-24.json
 # Throwaway UI verification screenshots (chrome-devtools captures)
 .wip-screenshots/
 # Local prod backup verification (scripts/ops/verify_prod_backup_snapshot.sh)
