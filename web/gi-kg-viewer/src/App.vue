@@ -23,7 +23,6 @@ import UserMenu from './components/shell/UserMenu.vue'
 import { useAuthStore } from './stores/auth'
 import { useGraphAnalyticsStore } from './stores/graphAnalytics'
 import { useArtifactsStore } from './stores/artifacts'
-import { useExploreStore } from './stores/explore'
 import { useGraphExpansionStore } from './stores/graphExpansion'
 import { useGraphExplorerStore } from './stores/graphExplorer'
 import { useGraphHandoffStore } from './stores/graphHandoff'
@@ -87,7 +86,6 @@ async function onReplaySession(sessionId: string): Promise<void> {
 }
 const artifacts = useArtifactsStore()
 const search = useSearchStore()
-const explore = useExploreStore()
 const theme = useThemeStore()
 const subject = useSubjectStore()
 const graphExplorer = useGraphExplorerStore()
@@ -510,43 +508,55 @@ function onGraphNodeTopicPrefillSearch(payload: { query: string }): void {
   })
 }
 
-/** Graph Topic node detail: Explore + Topic contains filter. */
+/**
+ * Graph Topic node detail: sets the Search topic-contains filter and focuses
+ * the query field. Search v3 §S1 (Explore merge) — the previous Explore-mode
+ * hop is gone; the topic filter is a chip on the SearchFilterBar and applies
+ * client-side over top-K until server-side ``/api/search?topic=`` lands.
+ */
 function onGraphNodeTopicOpenExploreFilter(payload: { topic: string }): void {
   const t = payload.topic.trim()
   if (!t) return
   leftOpen.value = true
-  shell.setLeftPanelSurface('explore')
-  explore.filters.topic = t
-  explore.filters.speaker = ''
-  explore.clearOutput()
+  shell.setLeftPanelSurface('search')
+  search.filters.topic = t
+  search.filters.speaker = ''
+  void nextTick(() => leftPanelRef.value?.focusQuery())
 }
 
-/** Graph Person / Entity (person) detail: Explore + Speaker contains. */
+/**
+ * Graph Person / Entity(person) detail: sets the Search speaker-contains filter
+ * and focuses the query field. Server-side (``/api/search?speaker=``).
+ */
 function onGraphNodeSpeakerOpenExploreFilter(payload: { speaker: string }): void {
   const s = payload.speaker.trim()
   if (!s) return
   leftOpen.value = true
-  shell.setLeftPanelSurface('explore')
-  explore.filters.topic = ''
-  explore.filters.speaker = s
-  explore.clearOutput()
+  shell.setLeftPanelSurface('search')
+  search.filters.topic = ''
+  search.filters.speaker = s
+  void nextTick(() => leftPanelRef.value?.focusQuery())
 }
 
-/** Graph Insight node detail: Explore + grounded/min-confidence filters. */
+/**
+ * Graph Insight node detail: sets grounded/min-confidence on the Search filters.
+ * ``groundedOnly`` is server-side; ``minConfidence`` is client-side over top-K
+ * (same accuracy caveat as topic — SearchMinConfidenceChip explains).
+ */
 function onGraphNodeInsightOpenExploreFilters(payload: {
   groundedOnly: boolean
   minConfidence: number | null
 }): void {
   leftOpen.value = true
-  shell.setLeftPanelSurface('explore')
-  explore.filters.topic = ''
-  explore.filters.speaker = ''
-  explore.filters.groundedOnly = payload.groundedOnly
-  explore.filters.minConfidence =
+  shell.setLeftPanelSurface('search')
+  search.filters.topic = ''
+  search.filters.speaker = ''
+  search.filters.groundedOnly = payload.groundedOnly
+  search.filters.minConfidence =
     payload.minConfidence != null && Number.isFinite(payload.minConfidence)
       ? String(payload.minConfidence)
       : ''
-  explore.clearOutput()
+  void nextTick(() => leftPanelRef.value?.focusQuery())
 }
 
 /** Digest row / topic hit: episode detail in the subject rail; stay on Digest. */
@@ -819,10 +829,10 @@ watch(
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            title="Open left panel (Search and Explore — use Explore corpus → inside for GI explore)"
+            title="Open the Search compact launcher"
             @click="
               leftOpen = true;
-              void nextTick(() => leftPanelRef?.focusQuery())
+              void nextTick(() => leftPanelRef.value?.focusQuery())
             "
           >
             Search / Explore

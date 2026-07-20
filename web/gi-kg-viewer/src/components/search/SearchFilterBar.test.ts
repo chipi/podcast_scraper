@@ -27,12 +27,33 @@ const MoreStub = {
   emits: ['open'],
   template: '<button data-testid="stub-more" @click="$emit(\'open\')" />',
 }
+// Search v3 §S1 (Explore merge) — 4 chips folded in.
+const TopicStub = {
+  name: 'SearchTopicChip',
+  template: '<div data-testid="stub-topic-contains" />',
+}
+const SpeakerStub = {
+  name: 'SearchSpeakerChip',
+  template: '<div data-testid="stub-speaker-contains" />',
+}
+const MinConfStub = {
+  name: 'SearchMinConfidenceChip',
+  template: '<div data-testid="stub-min-confidence" />',
+}
+const GroundedStub = {
+  name: 'SearchGroundedChip',
+  template: '<div data-testid="stub-grounded-only" />',
+}
 
 const STUBS = {
   DateChip: DateChipStub,
   SearchTopKChip: TopKStub,
   SearchDocTypesChip: DocTypesStub,
   SearchMoreChip: MoreStub,
+  SearchTopicChip: TopicStub,
+  SearchSpeakerChip: SpeakerStub,
+  SearchMinConfidenceChip: MinConfStub,
+  SearchGroundedChip: GroundedStub,
 }
 
 const mountBar = (props: { enabled: boolean; disabledTitle?: string }) =>
@@ -45,11 +66,21 @@ const mountBar = (props: { enabled: boolean; disabledTitle?: string }) =>
 describe('SearchFilterBar', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('renders the bar region with all four chips', () => {
+  it('renders the bar region with all eight chips (4 baseline + 4 merged from Explore per S1)', () => {
     const w = mountBar({ enabled: true })
     expect(w.get(BAR).attributes('role')).toBe('region')
     expect(w.get(BAR).attributes('aria-label')).toBe('Search filters')
-    for (const id of ['date', 'topk', 'doctypes', 'more']) {
+    const expected = [
+      'date',
+      'topk',
+      'doctypes',
+      'topic-contains',
+      'speaker-contains',
+      'min-confidence',
+      'grounded-only',
+      'more',
+    ]
+    for (const id of expected) {
       expect(w.find(`[data-testid="stub-${id}"]`).exists()).toBe(true)
     }
   })
@@ -99,9 +130,9 @@ describe('SearchFilterBar', () => {
   it('when disabled, applies disabled classes and the tooltip title', () => {
     const w = mountBar({ enabled: false, disabledTitle: 'Run a search first' })
     expect(w.get(BAR).attributes('title')).toBe('Run a search first')
-    // All four chip wrappers gain the disabled classes.
+    // All eight chip wrappers gain the disabled classes (Search v3 §S1 adds 4).
     const disabled = w.findAll('.pointer-events-none')
-    expect(disabled).toHaveLength(4)
+    expect(disabled).toHaveLength(8)
     expect(
       disabled.every((d) => d.classes().includes('opacity-50')),
     ).toBe(true)

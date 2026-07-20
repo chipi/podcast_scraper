@@ -49,7 +49,7 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.corpusBinaryApiAvailable).toBe(true)
     expect(shell.artifactsApiAvailable).toBe(true)
     expect(shell.searchApiAvailable).toBe(true)
-    expect(shell.exploreApiAvailable).toBe(true)
+    // ``exploreApiAvailable`` dropped in Search v3 §S1 (Explore merged).
     expect(shell.indexRoutesApiAvailable).toBe(true)
     expect(shell.corpusMetricsApiAvailable).toBe(true)
     expect(shell.cilQueriesApiAvailable).toBe(true)
@@ -140,7 +140,7 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.corpusBinaryApiAvailable).toBe(false)
     expect(shell.artifactsApiAvailable).toBe(false)
     expect(shell.searchApiAvailable).toBe(false)
-    expect(shell.exploreApiAvailable).toBe(false)
+    // ``exploreApiAvailable`` dropped in Search v3 §S1 (Explore merged).
     expect(shell.indexRoutesApiAvailable).toBe(false)
     expect(shell.corpusMetricsApiAvailable).toBe(false)
     expect(shell.cilQueriesApiAvailable).toBe(false)

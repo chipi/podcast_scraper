@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import posthog from 'posthog-js'
 import {
   searchCorpus,
@@ -60,6 +60,67 @@ export const useSearchStore = defineStore('search', () => {
      * When true (default), server collapses kg_entity/kg_topic rows with the same embedded text.
      */
     dedupeKgSurfaces: true,
+    /**
+     * Client-side topic-substring filter (Search v3 §S1 — Explore merge). Applied
+     * over the returned ``results`` in ``filteredResults``. The server /api/search
+     * endpoint does not accept a topic filter today, so this narrows the top-K rather
+     * than driving retrieval — accuracy caveat documented in UXS-005 §Compact launcher
+     * (and follow-up: server-side ``topic=`` param on /api/search when scope is right).
+     */
+    topic: '',
+    /**
+     * Client-side minimum confidence filter (Search v3 §S1 — Explore merge). Same
+     * caveat as ``topic`` — applied over ``results``, not driving retrieval. Empty
+     * string means no filter; a numeric string like "0.7" means ≥0.7 confidence.
+     */
+    minConfidence: '',
+  })
+
+  /**
+   * Results with the client-side ``topic`` and ``minConfidence`` filters applied
+   * (Search v3 §S1). Uses substring match on visible topic labels + hit ``confidence``
+   * payload; keeps the raw ``results`` untouched so callers that need the pre-filter
+   * page (e.g. the intent chip, tier counts) still see the server's top-K.
+   */
+  const filteredResults = computed<SearchHit[]>(() => {
+    const topicNeedle = filters.topic.trim().toLowerCase()
+    const minRaw = filters.minConfidence.trim()
+    let minConf: number | null = null
+    if (minRaw) {
+      const n = Number(minRaw)
+      if (Number.isFinite(n)) minConf = n
+    }
+    if (!topicNeedle && minConf == null) return results.value
+    return results.value.filter((hit) => {
+      if (minConf != null) {
+        const conf = (hit.metadata?.confidence as number | undefined) ?? null
+        if (conf == null || conf < minConf) return false
+      }
+      if (topicNeedle) {
+        const md = hit.metadata ?? {}
+        const haystackParts: string[] = []
+        const topicLabel = md.topic_display_name ?? md.topic_label
+        if (typeof topicLabel === 'string') haystackParts.push(topicLabel.toLowerCase())
+        const topicId = md.topic_id ?? md.source_id
+        if (typeof topicId === 'string') haystackParts.push(topicId.toLowerCase())
+        const topicsList = md.topics
+        if (Array.isArray(topicsList)) {
+          for (const t of topicsList) {
+            if (typeof t === 'string') haystackParts.push(t.toLowerCase())
+            else if (t && typeof t === 'object') {
+              const lbl = (t as Record<string, unknown>).label
+              if (typeof lbl === 'string') haystackParts.push(lbl.toLowerCase())
+              const id = (t as Record<string, unknown>).topic_id
+              if (typeof id === 'string') haystackParts.push(id.toLowerCase())
+            }
+          }
+        }
+        // Also include the hit text so freeform topic terms match transcript hits.
+        if (typeof hit.text === 'string') haystackParts.push(hit.text.toLowerCase())
+        if (!haystackParts.some((h) => h.includes(topicNeedle))) return false
+      }
+      return true
+    })
   })
 
   function applyLibrarySearchHandoff(
@@ -186,6 +247,7 @@ export const useSearchStore = defineStore('search', () => {
     error,
     apiError,
     results,
+    filteredResults,
     liftStats,
     queryType,
     enrichmentCallFailed,

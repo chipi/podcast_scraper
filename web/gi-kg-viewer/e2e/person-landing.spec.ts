@@ -144,7 +144,10 @@ test.describe('Person Landing rail panel', () => {
     })
   })
 
-  test('explore Top speakers → Person Landing renders the contract surface', async ({ page }) => {
+  // TODO(search-v3 §S1): the Explore Top-speakers rollup entry path is retired
+  // (Explore surface merged into Search). Re-target this suite through a Search
+  // speaker-hit → Person Landing flow once slice S6 (rail launchers, #1236) ships.
+  test.skip('explore Top speakers → Person Landing renders the contract surface', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
@@ -185,7 +188,8 @@ test.describe('Person Landing rail panel', () => {
     await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
   })
 
-  test('FR4.1: stated positions from the relational layer render in the Positions rail tab', async ({
+  // TODO(search-v3 §S1): re-target through Search entry (see note above).
+  test.skip('FR4.1: stated positions from the relational layer render in the Positions rail tab', async ({
     page,
   }) => {
     await page.route('**/api/relational/positions**', async (route) => {
@@ -243,7 +247,8 @@ test.describe('Person Landing rail panel', () => {
     await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
   }
 
-  test('#1055: Connections section renders topics + co-speakers chips', async ({ page }) => {
+  // TODO(search-v3 §S1): re-target through Search entry (see note above).
+  test.skip('#1055: Connections section renders topics + co-speakers chips', async ({ page }) => {
     await page.route('**/api/relational/topics**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -285,7 +290,8 @@ test.describe('Person Landing rail panel', () => {
     await expect(coSpeakers).toContainText('Rob Armstrong')
   })
 
-  test('#1055: Connections section shows honest empty states when no connectivity', async ({
+  // TODO(search-v3 §S1): re-target through Search entry (see note above).
+  test.skip('#1055: Connections section shows honest empty states when no connectivity', async ({
     page,
   }) => {
     const empty = { subject: SPEAKER_ID, results: [], error: null }

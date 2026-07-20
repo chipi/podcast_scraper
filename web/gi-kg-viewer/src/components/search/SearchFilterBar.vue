@@ -1,8 +1,11 @@
 <script setup lang="ts">
 /**
- * #671 — Search filter chip bar. Replaces the Since/Top‑k inline form
- * row + Advanced filters summary block with 4 chips (Date, Top‑k, Doc
- * types, More). The "More" dialog still hosts low-traffic fields.
+ * Search filter chip bar. Merged Search + Explore (Search v3 §S1, PRD-045 FR2,
+ * RFC-107 §5): chips include the original #671 four (Since, Top‑k, Doc types,
+ * More) plus the four merged from the retired Explore surface — Topic contains,
+ * Speaker contains, Min confidence, Grounded. Topic + Min confidence are
+ * client-side filters over top-K (accuracy caveat inside each chip); Speaker +
+ * Grounded pass through to /api/search server-side.
  */
 import { computed } from 'vue'
 import { useSearchStore } from '../../stores/search'
@@ -10,6 +13,10 @@ import DateChip from '../shared/DateChip.vue'
 import SearchTopKChip from './chips/SearchTopKChip.vue'
 import SearchDocTypesChip from './chips/SearchDocTypesChip.vue'
 import SearchMoreChip from './chips/SearchMoreChip.vue'
+import SearchTopicChip from './chips/SearchTopicChip.vue'
+import SearchSpeakerChip from './chips/SearchSpeakerChip.vue'
+import SearchMinConfidenceChip from './chips/SearchMinConfidenceChip.vue'
+import SearchGroundedChip from './chips/SearchGroundedChip.vue'
 
 defineProps<{
   /** When false, chip popovers/inputs are visually disabled. */
@@ -53,6 +60,18 @@ const sinceModel = computed({
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchDocTypesChip />
+    </div>
+    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
+      <SearchTopicChip />
+    </div>
+    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
+      <SearchSpeakerChip />
+    </div>
+    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
+      <SearchMinConfidenceChip />
+    </div>
+    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
+      <SearchGroundedChip />
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchMoreChip @open="emit('open-more')" />
