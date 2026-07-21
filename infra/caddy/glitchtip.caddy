@@ -1,0 +1,48 @@
+# Public GlitchTip **ingest-only** vhost (ADR-114). Deploy drops this into
+# /etc/caddy/sites/glitchtip.caddy and runs `sudo -n systemctl reload caddy`
+# (the narrow 99-caddy-reload sudoers grant).
+#
+# WHY: browser-side error SDKs (the podcast viewer bundle, and orrery's client
+# JS) POST from the *end user's* browser, which can only reach public endpoints —
+# never the tailnet-only GlitchTip on homelab:8090. This vhost exposes ONLY the
+# Sentry/GlitchTip ingest paths through the public edge so those browsers can ship
+# errors, while the GlitchTip dashboard/login (`/`, `/admin`, the API) stays
+# tailnet-only. A browser DSN's key is public by design (it ships in the JS
+# bundle), so exposing ingest leaks nothing; the risk is flood/abuse, handled by
+# the fail2ban caddy-access jail (T-11, already watching the JSON access log
+# below) + GlitchTip's own per-project event quotas.
+#
+# OPERATOR: replace glitchtip.example.com with the real ingest domain (+ www if
+# used) and point its DNS at the box. Caddy auto-issues the Let's Encrypt cert
+# once DNS + :80/:443 are live (Phase 4). HTTPS is mandatory here — browsers block
+# mixed-content POSTs from an https:// app to an http:// DSN.
+#
+# UPSTREAM: GlitchTip runs on **homelab** (tailnet), NOT on this box — on the box
+# 127.0.0.1:8090 is orrery's nginx (ADR-114 §port map). So we proxy to the homelab
+# tailnet endpoint. To keep the tailnet IP out of the repo (same rule as the app
+# containers' extra_hosts), the address comes from the caddy service env var
+# GLITCHTIP_UPSTREAM, injected by apply-edge.sh exactly like CADDY_BIND_ADDRS:
+#     GLITCHTIP_UPSTREAM="$(tailscale ip -4 homelab | head -1):8090"
+# (apply-edge writes it into the caddy systemd env; a box migration is a one-line
+# change there, never here.)
+#
+# Rollback: `rm /etc/caddy/sites/glitchtip.caddy && sudo systemctl reload caddy`
+# — frees the vhost, nothing shared changes, the box stays up.
+glitchtip.example.com {
+	import hardened
+
+	# Ingest surface only: /api/<project_id>/{envelope,store,security}/ — the
+	# transports the browser SDK uses (envelope = modern, store = legacy, security
+	# = CSP reports). GlitchTip sets its own CORS headers on these, so the SDK's
+	# cross-origin POST + OPTIONS preflight work without extra Caddy config.
+	@ingest path_regexp ^/api/[0-9]+/(envelope|store|security)/?$
+	handle @ingest {
+		reverse_proxy {$GLITCHTIP_UPSTREAM}
+	}
+
+	# Everything else (dashboard, login, admin, the rest of the API) is NOT public.
+	# Refuse without revealing GlitchTip — the admin plane stays tailnet-only.
+	handle {
+		respond "Not Found" 404
+	}
+}

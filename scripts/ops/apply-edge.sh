@@ -276,6 +276,33 @@ Environment=CADDY_BIND_ADDRS=$BIND_ADDRS
 EOF
 then bind_changed=1; run systemctl daemon-reload; fi
 
+# GlitchTip ingest upstream (ADR-114): the public glitchtip.<domain> vhost
+# (infra/caddy/glitchtip.caddy) reverse-proxies browser error ingest to GlitchTip,
+# which runs on homelab over the tailnet (on THIS box 127.0.0.1:8090 is orrery).
+# Resolve homelab's tailnet IP here — never hardcode it in the repo — and hand it
+# to that vhost via ``reverse_proxy {$GLITCHTIP_UPSTREAM}``. Set proactively even
+# before the vhost is dropped (harmless if unused); when the vhost lands (Phase 5)
+# its upstream resolves without another apply-edge pass.
+glitchtip_changed=0
+GT_UPSTREAM=""
+if [ "$DRY_RUN" = 1 ]; then
+  echo "  would resolve homelab tailnet IP + set GLITCHTIP_UPSTREAM in the caddy service env"
+else
+  HL_IP="$(tailscale ip -4 homelab 2>/dev/null | head -1 || true)"
+  [ -n "$HL_IP" ] || HL_IP="$(getent hosts homelab 2>/dev/null | awk '{print $1}' | head -1 || true)"
+  if [ -n "$HL_IP" ]; then
+    GT_UPSTREAM="$HL_IP:8090"
+    info "  glitchtip ingest upstream: $GT_UPSTREAM"
+    if write_file /etc/systemd/system/caddy.service.d/20-glitchtip-upstream.conf 0644 root:root <<EOF
+[Service]
+Environment=GLITCHTIP_UPSTREAM=$GT_UPSTREAM
+EOF
+    then glitchtip_changed=1; run systemctl daemon-reload; fi
+  else
+    warn "  could not resolve 'homelab' — GLITCHTIP_UPSTREAM unset; the glitchtip vhost (if present) proxies nowhere until re-resolved"
+  fi
+fi
+
 # Per-tenant vhost dir (deploy-owned) + access-log dir (caddy-owned).
 run install -d -o deploy -g deploy -m 0755 /etc/caddy/sites
 run install -d -o caddy -g caddy -m 0755 /var/log/caddy
@@ -301,12 +328,12 @@ fi
 # change can reload.
 if [ "$DRY_RUN" = 1 ]; then
   echo "  would run: caddy validate (with CADDY_BIND_ADDRS) then restart/reload caddy"
-elif CADDY_BIND_ADDRS="$BIND_ADDRS" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
+elif CADDY_BIND_ADDRS="$BIND_ADDRS" GLITCHTIP_UPSTREAM="$GT_UPSTREAM" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
   ok "  Caddyfile valid"
   if ! systemctl is-active --quiet caddy; then
     enable_now caddy
-  elif [ "$bind_changed" = 1 ]; then
-    change "  restart caddy (public-bind env changed)"; run systemctl restart caddy
+  elif [ "$bind_changed" = 1 ] || [ "$glitchtip_changed" = 1 ]; then
+    change "  restart caddy (public-bind / glitchtip-upstream env changed)"; run systemctl restart caddy
   elif [ "$caddy_changed" = 1 ]; then
     change "  reload caddy"; run systemctl reload caddy
   else

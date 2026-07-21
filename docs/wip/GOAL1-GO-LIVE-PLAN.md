@@ -120,6 +120,26 @@ channels are provisioned as code (homelab `backend/grafana/provisioning/alerting
 | 5.2 | `scp orrery.caddy` → `/etc/caddy/sites/`; reload caddy (narrow sudoers) | 🤝 | `rm` vhost + reload (frees port, nothing shared changes) |
 | 5.3 | DNS A/AAAA for orrery's domain → box public IP | 🧑 | revert DNS |
 | 5.4 | ACME issues the cert; verify `https://<orrery-domain>` loads | 🤝 | — |
+| 5.5 | `scp glitchtip.caddy` → `/etc/caddy/sites/`; reload caddy. `apply-edge` already set `GLITCHTIP_UPSTREAM` (homelab tailnet IP, resolved on-box — never in the repo). Verify a browser envelope POST to `https://glitchtip.<domain>/api/1/envelope/` returns 200 and a non-ingest path (e.g. `/`) returns 404 | 🤝 | `rm` vhost + reload (frees the surface, nothing shared changes) |
+
+#### Phase 5b — Browser error tracking → self-hosted GlitchTip
+
+Server-side (api + pipeline) already ship errors to GlitchTip **project 1** over
+the tailnet (done 2026-07-21, ADR-119). Browser-side surfaces can't reach the
+tailnet-only GlitchTip, so they ride the **public ingest vhost** (5.5,
+`infra/caddy/glitchtip.caddy` — ingest paths only, admin UI stays private). **No
+IP anywhere:** every browser DSN uses the `glitchtip.<domain>` **name**; the edge
+resolves `homelab` at `apply-edge` time (systemd env, same pattern as
+`CADDY_BIND_ADDRS`).
+
+| Surface | Repo / path | Change | Weight | Proj |
+|---|---|---|---|---|
+| **Operator UI** (viewer) | `web/gi-kg-viewer` | repoint `PROD_SENTRY_DSN_VIEWER` (prod-env) → `https://<key>@glitchtip.<domain>/1`, then **rebuild + publish the viewer image** (`VITE_` = build-time, baked into the bundle) → deploy | swap **+ image rebuild** | 1 |
+| **Player** (consumer PWA) | `web/learning-player` | **net-new** — no client Sentry today: add `@sentry/vue` dep + `Sentry.init` in `src/main.ts` (mirror the viewer, gated on `VITE_SENTRY_DSN_PLAYER`); add `ARG`/`ENV` to its Dockerfile; add the build-arg to `player-public` + `stack-test`; add `PROD_SENTRY_DSN_PLAYER` secret | new instrumentation **+ new dep (needs approval)** | 1 (or dedicated) |
+| **Orrery** | orrery repo (`orrery#381`) | un-skip the client Sentry init the handover deferred; DSN → `https://<orrery-key>@glitchtip.<domain>/2` (project 2 was reserved + unused) | cross-repo | 2 |
+
+Ordering: **5.5 must be live + cert issued before any browser DSN is flipped** —
+a DSN pointing at a not-yet-live host silently drops events.
 
 ### Phase 6 — Cloudflare (optional, after Phase 5 green — ADR-118 rollout)
 
