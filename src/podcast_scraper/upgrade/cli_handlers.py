@@ -19,6 +19,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -52,6 +53,18 @@ def parse_upgrade_argv(argv: Sequence[str]) -> argparse.Namespace:
     run_p.add_argument("--to", dest="to_version", default=None, help="Stop at this version.")
     run_p.add_argument("--dry-run", action="store_true", help="Preview the plan; write nothing.")
     run_p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation (automation).")
+    run_p.add_argument(
+        "--snapshot-dir",
+        default=None,
+        help="Where to write the pre-upgrade corpus snapshot (default: a sibling of the "
+        "corpus root). In a container, point this at a mounted/persistent path.",
+    )
+    run_p.add_argument(
+        "--no-snapshot",
+        action="store_true",
+        help="Skip the pre-upgrade local snapshot. The migrations are in-place; without a "
+        "snapshot, a partial failure can only be rolled back from an external backup.",
+    )
 
     args = parser.parse_args(list(argv))
     args.command = "upgrade"
@@ -137,6 +150,43 @@ def _confirm(status: UpgradeStatus, log: logging.Logger) -> bool:
     return reply in ("y", "yes")
 
 
+def _snapshot_corpus(
+    corpus_root: Path,
+    from_version: str,
+    snapshot_dir: Optional[str],
+    log: logging.Logger,
+) -> Optional[Path]:
+    """Copy the corpus to a pre-upgrade snapshot before the in-place migrations run.
+
+    Placed OUTSIDE ``corpus_root`` (default: a sibling dir) so the migrations — which
+    walk the corpus tree — never traverse or mutate the backup copy. In a container,
+    pass ``--snapshot-dir`` pointing at a mounted/persistent path (a sibling of a
+    volume mount is container-ephemeral). Returns the snapshot path, or ``None`` on
+    failure so the caller aborts before mutating anything.
+    """
+    try:
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        frm = str(from_version or "unstamped").replace("/", "_")
+        base = Path(snapshot_dir).expanduser() if snapshot_dir else corpus_root.parent
+        dest = base / f".corpus-upgrade-backup-{frm}-{ts}"
+        corpus_res = corpus_root.resolve()
+        dest_res = dest.resolve()
+        # The snapshot must not sit inside the corpus root — else the migrations walk it.
+        if dest_res == corpus_res or corpus_res in dest_res.parents:
+            log.error(
+                "snapshot-dir must be OUTSIDE the corpus root (%s); refusing %s",
+                corpus_root,
+                dest,
+            )
+            return None
+        base.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(corpus_root, dest, symlinks=True)
+        return dest
+    except Exception:  # noqa: BLE001 — a snapshot failure must abort, never mutate
+        log.exception("pre-upgrade snapshot failed")
+        return None
+
+
 def _cmd_run(
     runner: UpgradeRunner, ctx: MigrationContext, args: argparse.Namespace, log: logging.Logger
 ) -> int:
@@ -147,6 +197,32 @@ def _cmd_run(
     if not args.dry_run and not args.yes and not _confirm(status, log):
         print("Aborted.")
         return 1
+
+    # Pre-upgrade local snapshot (defense-in-depth). The migrations are IN-PLACE and
+    # the runner STOPS at the first failure, so a bad migration can leave a partially
+    # migrated corpus. Snapshot the corpus first (outside the corpus root, so the
+    # migrations never walk it) for an instant local rollback. Skippable via
+    # --no-snapshot (fresh external backup + tight disk).
+    if not args.dry_run and not getattr(args, "no_snapshot", False):
+        snap = _snapshot_corpus(
+            ctx.corpus_root,
+            runner.state.current_version() or "unstamped",
+            getattr(args, "snapshot_dir", None),
+            log,
+        )
+        if snap is None:
+            log.error(
+                "Pre-upgrade snapshot failed — aborting before any migration runs. "
+                "Fix --snapshot-dir (must be writable + outside the corpus), or pass "
+                "--no-snapshot if you have a fresh external backup."
+            )
+            return 1
+        # To stderr, so ``--json`` stdout stays clean/parseable.
+        print(f"Pre-upgrade snapshot: {snap}", file=sys.stderr)
+        print(
+            "  rollback = replace the corpus with this dir if the upgrade fails.",
+            file=sys.stderr,
+        )
 
     now = datetime.now(timezone.utc).isoformat()
     results = runner.run(ctx, to_version=args.to_version, now=now)

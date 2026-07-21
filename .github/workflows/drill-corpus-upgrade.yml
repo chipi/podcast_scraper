@@ -1,0 +1,167 @@
+name: Drill — corpus upgrade (restore + migrate + verify)
+
+# Reusable proof that the LATEST prod backup (an older corpus schema) upgrades
+# cleanly to the current code's schema WITHOUT data loss — run BEFORE shipping any
+# major version whose migration touches the corpus (ontology / schema / index).
+#
+# Isolated + throwaway: restores the real backup into an ephemeral GHA workspace,
+# runs the exact `upgrade` command IN THE PUBLISHED IMAGE against it, and asserts
+# the corpus is intact + at the new schema. NEVER touches prod.
+#
+# The upgrade is IN-PLACE (rewrites GI docs to the new schema, writes the index
+# sidecar) and STOPS AT THE FIRST FAILING migration — so a bad migration can leave
+# a partially-migrated corpus. This drill is how we find that out on a copy, not on
+# prod. (Evolution idea: a pre-upgrade local snapshot for instant rollback.)
+#
+# Prereqs: secrets.BACKUP_REPO_TOKEN (private backup repo). See PROD_RUNBOOK § Backup.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to upgrade WITH (default: main = current code)"
+        default: "main"
+      backup_tag_regex:
+        description: "Which backup to restore (tag regex)"
+        default: '^snapshot-prod-[0-9]{8}$'
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: drill-corpus-upgrade
+  cancel-in-progress: false
+
+jobs:
+  upgrade-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BACKUP_REPO: chipi/podcast_scraper-backup
+      TAG_REGEX: ${{ inputs.backup_tag_regex }}
+      RESTORE_ROOT: ${{ github.workspace }}/.upgrade-drill
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      VIEWER_PORT: '8090'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Pre-flight — backup repo token
+        env:
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
+            echo "GH_TOKEN=${BACKUP_REPO_TOKEN}" >> "$GITHUB_ENV"
+          else
+            echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+            echo "::notice::BACKUP_REPO_TOKEN unset — using GITHUB_TOKEN (must read ${BACKUP_REPO})."
+          fi
+
+      - name: Restore latest prod backup (the pre-upgrade corpus)
+        run: |
+          set -euo pipefail
+          mkdir -p "${RESTORE_ROOT}"
+          export WORKSPACE_DIR="${RESTORE_ROOT}"
+          export TAG_REGEX BACKUP_REPO PODCAST_BACKUP_REPO="${BACKUP_REPO}"
+          bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout prod
+          test -d "${RESTORE_ROOT}/corpus"
+
+      - name: Snapshot BEFORE (episode count + schema version)
+        run: |
+          set -euo pipefail
+          OUT="$(python3 scripts/ops/corpus_snapshot/count_distinct_episodes.py "${RESTORE_ROOT}/corpus" --json)"
+          BEFORE="$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["distinct"])' "$OUT")"
+          echo "EPISODES_BEFORE=${BEFORE}" >> "$GITHUB_ENV"
+          echo "episodes BEFORE upgrade: ${BEFORE}"
+          if [ "$BEFORE" -lt 1 ]; then echo "::error::restored corpus has 0 episodes — cannot drill upgrade"; exit 1; fi
+          # Record the pre-upgrade schema/version for the summary (best-effort).
+          find "${RESTORE_ROOT}/corpus" -name corpus_manifest.json | head -1 | xargs -r grep -oE '"code_version"[^,}]*' | head -1 || true
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write ephemeral compose env
+        run: |
+          set -euo pipefail
+          {
+            echo "PODCAST_DOCKER_PROJECT_DIR=${{ github.workspace }}"
+            echo "PODCAST_CORPUS_HOST_PATH=${RESTORE_ROOT}/corpus"
+            echo "PODCAST_DEFAULT_CORPUS_PATH=/app/output"
+            echo "VIEWER_PORT=${VIEWER_PORT}"
+            echo "PODCAST_IMAGE_TAG=${IMAGE_TAG}"
+            echo "PODCAST_ENV=preprod"
+            echo "COMPOSE_PROJECT_NAME=upgrade-drill"
+          } > compose/.env.upgrade-drill
+
+      - name: Upgrade STATUS (assert migrations pending)
+        run: |
+          set -euo pipefail
+          C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
+          $C pull api
+          # Run the CLI in the published image against the mounted corpus (matches prod).
+          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade status --corpus-dir /app/output | tee /tmp/status.txt
+          grep -qiE "pending|Pending|→" /tmp/status.txt || { echo "::error::no pending migrations — backup already at current schema? nothing to drill"; exit 1; }
+
+      - name: Upgrade DRY-RUN (plan only, writes nothing)
+        run: |
+          set -euo pipefail
+          C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
+          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --dry-run | tee /tmp/plan.txt
+          { echo "### Upgrade plan (dry-run)"; echo '```'; cat /tmp/plan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upgrade RUN (apply migrations in-place on the copy)
+        run: |
+          set -euo pipefail
+          C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
+          # --no-snapshot: this drill already restored a throwaway copy of the backup,
+          # so the extra in-container snapshot is redundant here (and its default
+          # sibling path is container-ephemeral). PROD runs this WITH
+          # ``--snapshot-dir <persistent-host-path>`` for the local rollback point.
+          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --yes --no-snapshot | tee /tmp/apply.txt
+
+      - name: Upgrade VERIFY (per-migration outcome checks)
+        run: |
+          set -euo pipefail
+          C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
+          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade verify --corpus-dir /app/output | tee /tmp/verify.txt
+          # verify exits non-zero on a failed migration check.
+
+      - name: Snapshot AFTER + assert NO DATA LOSS
+        run: |
+          set -euo pipefail
+          OUT="$(python3 scripts/ops/corpus_snapshot/count_distinct_episodes.py "${RESTORE_ROOT}/corpus" --json)"
+          AFTER="$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["distinct"])' "$OUT")"
+          echo "episodes AFTER upgrade: ${AFTER} (before: ${EPISODES_BEFORE})"
+          if [ "$AFTER" -ne "$EPISODES_BEFORE" ]; then
+            echo "::error::DATA LOSS — episode count changed ${EPISODES_BEFORE} -> ${AFTER} across the upgrade"
+            exit 1
+          fi
+          # Upgrade must report up-to-date now (no pending).
+          C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
+          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade status --corpus-dir /app/output | tee /tmp/status2.txt
+          grep -qiE "Up to date|no pending" /tmp/status2.txt || { echo "::error::still pending migrations after upgrade run"; exit 1; }
+          { echo "### Data-loss check"; echo "- episodes before: ${EPISODES_BEFORE}"; echo "- episodes after:  ${AFTER}  ✅ preserved"; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "Smoke the upgraded corpus (2.7 stack — health + search)"
+        run: |
+          set -euo pipefail
+          C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
+          $C up -d api viewer
+          bash scripts/ops/post_deploy_smoke.sh --base-url "http://127.0.0.1:${VIEWER_PORT}" --corpus-path /app/output
+
+      - name: Tear down
+        if: always()
+        run: |
+          set -euo pipefail
+          docker compose --env-file compose/.env.upgrade-drill \
+            -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml \
+            down -v --remove-orphans || true
+          sudo rm -rf "${RESTORE_ROOT}" compose/.env.upgrade-drill
