@@ -9,6 +9,7 @@ import { useSubjectStore } from '../../stores/subject'
 import type { SearchHit } from '../../api/searchApi'
 import { episodeFallbackForSearchHit, graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
+import EnrichedAnswerHero from './EnrichedAnswerHero.vue'
 import ResultCard from './ResultCard.vue'
 import ResultSetOperatorBar from './ResultSetOperatorBar.vue'
 import SearchFilterBar from './SearchFilterBar.vue'
@@ -491,6 +492,11 @@ const advancedFeedCombinedTitle = computed(() =>
         v-if="search.results.length"
         class="mt-3 space-y-2"
       >
+        <!-- Search v3 §S5 — EnrichedAnswerHero sits ABOVE the operator bar
+             and the hit cards. Renders nothing when enrichment is off or
+             no decorated hits came back; renders skeleton on loading;
+             renders muted error on non-fatal chain failure. -->
+        <EnrichedAnswerHero />
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p class="text-xs font-medium text-muted">
             {{ visibleResults.length }}

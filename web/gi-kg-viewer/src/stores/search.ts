@@ -10,6 +10,7 @@ import {
 } from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
 import { useActiveSearchContextStore } from './activeSearchContext'
+import { useShellStore } from './shell'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
 
@@ -86,6 +87,20 @@ export const useSearchStore = defineStore('search', () => {
      * string means no filter; a numeric string like "0.7" means ≥0.7 confidence.
      */
     minConfidence: '',
+    /**
+     * Search v3 §S5 — request the server-side QueryEnricher chain
+     * (RFC-088 chunk 5). When on, ``searchCorpus`` adds
+     * ``enrich_results=true`` and hits come back decorated with
+     * ``metadata.query_enrichments.related_topics``; the workspace hero
+     * renders an aggregated summary of the top related topics.
+     *
+     * Default is ``null`` so the UI can auto-adopt the server's
+     * capability signal (``shell.enrichedSearchAvailable``): when the
+     * server advertises enrichment, we default the chip on; when it
+     * doesn't, we default off. The user can still explicitly toggle.
+     * Boolean once the user (or the auto-adopt) sets it.
+     */
+    enrichResults: null as boolean | null,
   })
 
   /**
@@ -179,6 +194,15 @@ export const useSearchStore = defineStore('search', () => {
         topK: filters.topK,
         embeddingModel: filters.embeddingModel.trim() || undefined,
         dedupeKgSurfaces: filters.dedupeKgSurfaces,
+        // Search v3 §S5 — request enrichment when effectively on.
+        // Tri-state resolution: explicit ``true``/``false`` from the user
+        // wins; ``null`` (default) auto-adopts the server's advertised
+        // capability so first-time users see enricher output without
+        // hunting for a toggle.
+        enrichResults:
+          filters.enrichResults === null
+            ? Boolean(useShellStore().enrichedSearchAvailable)
+            : filters.enrichResults === true,
       })
       if (searchRunGate.isStale(seq)) {
         return

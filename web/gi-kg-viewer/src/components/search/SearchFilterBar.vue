@@ -16,6 +16,7 @@ import SearchMoreChip from './chips/SearchMoreChip.vue'
 import SearchTopicChip from './chips/SearchTopicChip.vue'
 import SearchSpeakerChip from './chips/SearchSpeakerChip.vue'
 import SearchMinConfidenceChip from './chips/SearchMinConfidenceChip.vue'
+import SearchEnrichedChip from './chips/SearchEnrichedChip.vue'
 import SearchGroundedChip from './chips/SearchGroundedChip.vue'
 
 defineProps<{
@@ -72,6 +73,9 @@ const sinceModel = computed({
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchGroundedChip />
+    </div>
+    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
+      <SearchEnrichedChip />
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchMoreChip @open="emit('open-more')" />

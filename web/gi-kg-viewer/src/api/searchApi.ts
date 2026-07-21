@@ -97,6 +97,11 @@ export interface SearchRequestOptions {
    * the server returns the top-k page AS-IS and adds ``clusters`` or
    * ``consensus_pairs`` alongside. Passing an unknown value is a no-op. */
   operator?: 'cluster' | 'consensus'
+  /** Search v3 §S5: request the shipped QueryEnricher chain (RFC-088 chunk 5).
+   * Server decorates each hit's ``metadata.query_enrichments.related_topics``
+   * when the enrichment output is available; response also carries
+   * ``enrichment_error`` when the chain failed non-fatally. */
+  enrichResults?: boolean
 }
 
 export async function searchCorpus(
@@ -123,6 +128,9 @@ export async function searchCorpus(
   }
   if (options.operator) {
     params.set('operator', options.operator)
+  }
+  if (options.enrichResults) {
+    params.set('enrich_results', 'true')
   }
   const res = await fetchWithTimeout(`/api/search?${params.toString()}`)
   if (!res.ok) {

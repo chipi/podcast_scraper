@@ -297,6 +297,63 @@ Chip behaviour:
 Owning spec: ``search-operator-bar.spec.ts`` (mocks ``/api/search``
 with a route callback that branches on the ``operator`` query param).
 
+**Search v3 enriched-answer hero (§S5 — #1235, RFC-107 §S5, UXS-016 +
+UXS-008)**:
+
+Sits directly above ``result-set-operator-bar`` on the Search main tab.
+Renders an aggregated summary of the shipped QueryEnricher chain
+(RFC-088 chunk 5); today the chain only decorates hits with
+``metadata.query_enrichments.related_topics``, so the hero surfaces the
+top related topics by summed similarity across the hit page. Shape is
+open — future ``synthesized_answer`` fields plug in without a schema
+change.
+
+| Element | testid |
+| ---- | ----- |
+| Enriched-answer chip on filter bar | ``search-chip-enriched`` |
+| Hero container (region) | ``enriched-answer-hero`` |
+| Loading skeleton | ``enriched-answer-skeleton`` |
+| Error alert (server ``enrichment_error``) | ``enriched-answer-error`` |
+| Topic chip list | ``enriched-answer-topics`` |
+| Per-topic chip | ``enriched-answer-topic-<topic_id>`` |
+| Overflow count (>6 topics) | ``enriched-answer-overflow`` |
+
+State machine (UXS-008):
+
+- **Hidden** — enrichment effectively off (chip disabled + no explicit
+  opt-in) OR no hits carry ``query_enrichments.related_topics`` AND
+  no ``enrichment_error`` AND not loading. Section renders nothing.
+- **Skeleton** — enrichment on AND ``search.loading === true`` AND no
+  content yet AND no error. Placeholder rows so layout doesn't jump.
+- **Error** — server sent ``enrichment_error`` (non-fatal). Muted
+  ``role="alert"`` line: the QueryEnricher chain failed but vector
+  hits above are still valid.
+- **Rendered** — one or more hits carried decorations. Chips are
+  clickable — click routes through ``subject.focusTopic`` to the
+  Topic subject rail (same handoff other Topic entry points use).
+  Chip title tooltip shows ``hitCount / total`` and summed similarity
+  score for auditability.
+
+Chip semantics:
+
+- Tri-state field ``search.filters.enrichResults``:
+  ``null`` = auto (mirrors ``shell.enrichedSearchAvailable``);
+  ``true`` / ``false`` = explicit user choice.
+- ``search-chip-enriched`` is disabled with tooltip "Enrichment not
+  configured on this server" when
+  ``!shell.enrichedSearchAvailable``.
+- Toggle flips the effective state — first click when auto-on writes
+  ``false``; first click when auto-off writes ``true``.
+
+Store integration: ``runSearch`` resolves the tri-state at fire time
+and sends ``enrich_results=true`` on the URL when effectively on; the
+server's ``enrichment_error`` field surfaces via
+``search.enrichmentCallFailed``.
+
+Owning spec: ``search-enriched-hero.spec.ts`` (mocks ``/api/search``
+with a route callback that branches on the ``enrich_results`` query
+param and only decorates hits when the flag is on).
+
 ## Surfaces and owning specs
 
 | Surface | Intent (short) | Typical entry | Spec files |
@@ -314,6 +371,7 @@ with a route callback that branches on the ``operator`` query param).
 | **Corpus Library** | **Filters** collapsible + **Feed** column: **`region` `Feeds`**; feed rows live in **`data-testid="library-feed-list-scroll"`** with **`max-height`** ~**two** feed rows and vertical scroll for the rest. When **`feeds.length > 15`**, **`data-testid="library-feed-filter-search"`** filters client-side. With no feed selection the episode list is **all** feeds; **Clear feed filter** (beside the **Feed** label) is always visible (**disabled** until a feed row is selected). On **`lg`**, filters use a **two-column** layout (**~60% / 40%**): **left** = **date + presets** on one row (horizontal scroll if needed), then **Title** / **Summary** filter inputs on a shared **`grid`**; **Clear all filters** and **Apply**; **right** = **Feed** list. **`?`** **About Library filters** sits **immediately after** the **Filters** title. **Below** **Filters** (always visible): **`data-testid="library-topic-cluster-toggle"`** (**Clustered episodes only**) — **`GET /api/corpus/episodes`** **`topic_cluster_only=true`** when checked (same server semantics as before). Row **`title`** hover adds **RSS** + **description** when `GET /api/corpus/feeds` includes them. **Episodes** heading + **?** **HelpTip**; **Episodes** list — **cursor pagination** + **Load more** + **scroll-to-load**; per-row **meta** like Digest **Recent**; recap **2-line clamp** when unselected, **full** when selected; optional **recency dot**; **no** topic chips on list rows. **Episode** subject rail unchanged for detail chrome. **No** embedded **24h digest** strip — use **Digest** tab for discovery. | **Library** tab + corpus path; mock corpus + optional `index/stats` / `similar` | `library.spec.ts` |
 | **Theme tokens** | `--ps-canvas` matches asserted dark/light hex in [theme.spec.ts](theme.spec.ts) | `goto('/')` + `emulateMedia` and/or `localStorage` | `theme.spec.ts` |
 | **Search v3 result-set operator bar** | ``result-set-operator-bar`` above the hit cards on Search main tab. Chips: Cluster (S4b, server ``operator=cluster`` top_k×3 over-fetch) / Timeline (S4a, client YYYY-MM histogram over ``metadata.publish_date``) / On graph (S4a, App-level ``activateGraphTab`` + yellow-ring highlight set) / Consensus (S4b, server ``operator=consensus`` reads ``enrichments/topic_consensus.json``). Panels: ``operator-{cluster,timeline,consensus}-panel`` with ``-loading`` / ``-empty`` / ``-list`` states. See the **Search v3 result-set operator bar** section above for the full testid contract. | `goto('/')` + Search tab + submit query → bar renders once response has ≥ 1 hit | `search-operator-bar.spec.ts` |
+| **Search v3 enriched-answer hero** | ``enriched-answer-hero`` above the operator bar on Search main tab. Renders the shipped QueryEnricher chain output (RFC-088 chunk 5) — today that's ``related_topics`` per hit, aggregated + ranked by summed similarity and surfaced as clickable Topic chips. Chip on filter bar: ``search-chip-enriched`` (tri-state; auto-adopts ``shell.enrichedSearchAvailable``). Hero states: hidden / ``enriched-answer-skeleton`` / ``enriched-answer-error`` / ``enriched-answer-topics`` list (with ``enriched-answer-overflow`` when >6 topics). See the **Search v3 enriched-answer hero** section above. | `goto('/')` + Search tab + Enriched chip on + submit query with enrichment-decorated hits | `search-enriched-hero.spec.ts` |
 
 ### Offline graph load (shared helper)
 

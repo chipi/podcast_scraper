@@ -130,9 +130,11 @@ describe('SearchFilterBar', () => {
   it('when disabled, applies disabled classes and the tooltip title', () => {
     const w = mountBar({ enabled: false, disabledTitle: 'Run a search first' })
     expect(w.get(BAR).attributes('title')).toBe('Run a search first')
-    // All eight chip wrappers gain the disabled classes (Search v3 §S1 adds 4).
+    // All nine chip wrappers gain the disabled classes (S1 added 4, S5 added
+    // the Enriched chip → 9 total: Since, Top-k, Doc types, Topic, Speaker,
+    // Min confidence, Grounded, Enriched, More).
     const disabled = w.findAll('.pointer-events-none')
-    expect(disabled).toHaveLength(8)
+    expect(disabled).toHaveLength(9)
     expect(
       disabled.every((d) => d.classes().includes('opacity-50')),
     ).toBe(true)
