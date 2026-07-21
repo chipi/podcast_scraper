@@ -100,9 +100,9 @@ channels are provisioned as code (homelab `backend/grafana/provisioning/alerting
 | 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) checklist — **pre-walked** in [GOAL1-PHASE3-PREP.md](GOAL1-PHASE3-PREP.md) (substrate items done; open: orrery cap_drop / digest-pin / rollback rehearsal) | 🤝 |
 | 3.2 | Sign off: orrery clears it (static, no `docker.sock`, no keys) | 🧑 |
 | 3.3 | ✅ **Folded into `apply-edge.sh`** (1.1) — the metadata-egress guard (script + unit + `enable --now` + live `iptables -C DOCKER-USER` re-assert) is applied by `apply-edge.sh §3` and asserted by `verify-edge.sh §3`. Nothing separate to run; converges when 1.2 runs. (review 2026-07-17 H8 / T-07) | 🤝 |
-| 3.4 | **Complete the ADR-115 secrets cutover** (T-08) — 6 LLM keys still plaintext container env; steps in [GOAL1-PHASE3-PREP.md](GOAL1-PHASE3-PREP.md) §3.4 (age key → `prod.enc.yaml` → decrypt on box → add `-f docker-compose.secrets.yml` → drop keys from `.env`). Blocks public exposure of the **api** (not orrery). (review M26 / #1162) | 🧑 |
+| 3.4 | **Secrets cutover — ADR-115 Option A** (#1250, T-08). Code shipped + flag-gated (`PODCAST_SECRETS_VIA_FILES`): deploy writes the 6 LLM keys + 2 GlitchTip DSNs to host tmpfs `/dev/shm/podcast-secrets/` (RAM), the shim exports them, and they are DROPPED from the plaintext `.env` — no secrets at rest on disk, no ciphertext in this public repo. **Cutover = set the repo Variable `PODCAST_SECRETS_VIA_FILES=1` → run deploy-prod → verify LLM+error paths → confirm `.env` has no keys.** Gates **Phase 4** — opening the firewall exposes the whole box, so every on-box secret must be off-plaintext first (not just the api). C2 (remove runtime-env exposure) = #1252; sops/private-repo model = #1251. | 🤝 |
 
-**No firewall opens until 3.2 is signed off.**
+**No firewall opens until 3.2 is signed off AND 3.4 is cut over (verified `.env` carries no plaintext secrets).**
 
 ### Phase 4 — Open the firewall (the exposure moment)
 
@@ -160,7 +160,10 @@ check → flip `audio_storage_backend=remote` → e2e (`archive pull` / reproces
 ## Status update (2026-07-20)
 
 - **Order confirmed: orrery goes public first** (pilot tenant); the podcast **api**
-  follows and additionally needs the 3.4 secrets cutover before it can be exposed.
+  follows. Correction: the **3.4 secrets cutover gates the firewall (Phase 4) for
+  both** — opening the box exposes its on-disk secrets regardless of which vhost is
+  served — so it happens before exposure, not only before the api. Code shipped
+  (#1250, flag-gated); cutover = flip the repo Variable at go-live.
 - **DR-drill blocker cleared** — `verify-backup-restore` is green (run 2026-07-19).
   The earlier SIGSEGV pause no longer applies; Phase 0.2 can pass.
 - **Observability done on self-hosted rails** (Phase 2 above) — replaced the
