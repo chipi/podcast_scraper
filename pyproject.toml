@@ -150,7 +150,7 @@ ml = [
   # Neural speaker diarization (RFC-058): pyannote after local Whisper transcribe.
   # 4.x switched audio I/O to torchcodec (no torchaudio.AudioMetaData) so it works
   # with torch>=2.11/torchaudio>=2.9; 3.x is import-broken against that torchaudio.
-  "pyannote.audio>=4.0,<5.0",
+  "pyannote.audio>=4.0.7,<5.0",
   "torchaudio",
   # torchcodec is transitive (torchaudio 4.x / pyannote 4.x). Cap <0.15: 0.15.0
   # is part of the 2026-07-17 native teardown SIGSEGV drift (see transformers
@@ -255,7 +255,7 @@ dev = [
   # Diarization stack pins (RFC-058) — lazy-imported; keeps CI/dev venv aligned with [ml].
   # Must mirror the [ml] pin: pyannote 3.x is import-broken under torchaudio>=2.9
   # (AudioMetaData removed), which is exactly why [ml] moved to 4.x (#901).
-  "pyannote.audio>=4.0,<5.0",
+  "pyannote.audio>=4.0.7,<5.0",
   "torchaudio",
 ]
 # Documentation - see docs/requirements.txt
