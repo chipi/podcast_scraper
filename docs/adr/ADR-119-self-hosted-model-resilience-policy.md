@@ -121,6 +121,46 @@ timeout, fallover enabled).
   responses: backoff-retry-then-succeed, trip-only-after-N, hold-no-fallover in reprocess mode,
   half-open recovery, and serve-mode fallover unchanged (regression guard).
 
+## Decision update (2026-07-21): failure strategy is a first-class selector, and the LLM class joins the policy
+
+The original decision tied behaviour to **run context** (serve ⇒ fail-fast/fallover,
+reprocess ⇒ hold). Operating it surfaced two refinements, now implemented:
+
+1. **The resolution behaviour is a named, selectable strategy — not a side-effect of context.**
+   A single knob, `resilience_failure_strategy`, takes `failover | hold`:
+   - **`failover`** — trip fast and fall over to the next provider in the configured chain
+     (ASR: `FallbackChain`; LLM: the summary-fallback chain, e.g. DGX-vLLM → gemini). Availability.
+   - **`hold`** — backoff-retry the *chosen* model, trip after N, pause-and-probe, then raise
+     `ResilienceFuseOpenError` to halt the batch. No cross-model fallover. Consistency.
+
+   Run context now only supplies the **default** (`serve → failover`, `reprocess → hold`); an
+   explicit strategy in any profile/registry layer **overrides** it. This lets a reprocess run
+   deliberately opt into gemini fallover (availability for that run), or a serve deployment choose
+   hold — without a code change. Every existing profile is unchanged (the defaults reproduce the
+   original serve/reprocess split). Resolved by `resolve_failure_strategy(cfg)` in
+   `resilience/policy.py`; the four self-hosted providers and both transcription/diarization
+   factories gate on `strategy is HOLD` rather than `run_context is REPROCESS`.
+
+2. **The LLM class (summary / GI) is brought to parity under the same knob.** Previously ASR-only.
+   - `failover`: `summarization/fallback.py` wraps the primary in the cross-LLM fallover chain
+     (today's behaviour, #697's breaker still smooths 503 bursts with wait-and-resume).
+   - `hold`: the fallover wrap is suppressed (chosen LLM only), and the per-provider
+     `LLMCircuitBreaker` gains a **sustained-outage abort** — once an overload persists past
+     `on_open_max_wait_sec` it raises `ResilienceFuseOpenError`, propagated as a hard-abort through
+     `retry_with_metrics` so the workflow batch loop's `except ResilienceFuseOpenError: raise`
+     halts the run identically to an ASR fuse. This is the LLM analogue of the ASR batch-halt.
+
+Additionally, **every breaker TRIP now emits a guarded Sentry alert** (`capture_message`,
+level=warning) at the closed→open transition — ASR `CircuitBreaker` (whisper/diarize/MOSS) and the
+`LLMCircuitBreaker` alike — complementing the sustained-open escalation (`_emit_fuse_open_alert`,
+level=error). A trip is a degradation; a held-and-never-recovered fuse is an outage.
+
+Updated knob (in addition to the table above):
+
+| Knob | Default | Meaning |
+| --- | --- | --- |
+| `resilience_failure_strategy` | derived: `serve → failover`, `reprocess → hold` | resolution strategy on chosen-model failure, honoured by ASR **and** LLM; overridable per profile/registry |
+
 ## References
 
 - Issue [#1253](https://github.com/chipi/podcast_scraper/issues/1253) — full scope + acceptance.
