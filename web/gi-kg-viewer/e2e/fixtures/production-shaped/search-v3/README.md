@@ -15,18 +15,21 @@ from `?enrich_results=true`) or that the last regeneration did not exercise
 shapes so Tier-2 specs have something to mock against WITHOUT needing a
 regenerated fixture.
 
-## `mocks.json` — 5 scenarios
+## `mocks.json` — 6 scenarios
 
-Keyed by scenario name; each entry carries a request (endpoint + params) and a
-response (the JSON the server would return). Playwright specs read these
-directly and set them up via `page.route(...)` handlers.
+Keyed by scenario name; each entry carries a request (endpoint + params /
+body) and a response (the JSON the server would return). Playwright specs
+read these directly and set them up via `page.route(...)` handlers. As of
+schema_version 2 (2026-07-21), every scenario matches the **shipped**
+`/api/search` and `/api/search/compare` shapes.
 
 | Scenario | Exercises |
 | --- | --- |
 | `compound-lift` | RFC-072 KL1 — transcript hit with `lifted` block (Insight + speaker + topic + quote timestamps) |
-| `enriched-answer` | RFC-088 chunk 5 — enriched-answer hero (`enriched.answer` + `sources[]` with `grounded: true`); source→hit tie-in via `doc_id` |
-| `operator-cluster` | RFC-107 §6.1 — `operator_result.clusters[]`, one cluster with 6 members, one with 5 (both ≥5 per S0 acceptance) |
-| `operator-consensus` | RFC-107 §6.5 + ADR-108 — `topic_consensus` output tuple `(topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score)`; 2 cross-speaker corroboration pairs |
+| `enriched-answer` | RFC-088 chunk 5 (Search v3 §S5) — per-hit `metadata.query_enrichments.related_topics[]` (`topic_id`, `topic_label`, `similarity`); no top-level answer text (the shipped QueryEnricher chain does not synthesize one yet) |
+| `operator-cluster` | RFC-107 §6.1 (Search v3 §S4b) — top-level `operator: "cluster"` + `clusters[]` in the `SearchClusterGroupModel` shape (`cluster_id`, `cluster_kind`, `label`, `size`, `hit_indices`); results carry the hit rows the indices reference |
+| `operator-consensus` | RFC-107 §6.5 + ADR-108 (Search v3 §S4b) — top-level `operator: "consensus"` + `consensus_pairs[]` in the flat `SearchConsensusPairModel` shape (`topic_id`, `topic_label`, `person_a_*`, `person_b_*`, `insight_*_id`, `insight_*_text`, `contradiction_score`, `cosine_similarity`); 2 cross-speaker corroboration pairs |
+| `operator-compare` | RFC-107 §S8 (Search v3 §S8) — `POST /api/search/compare` returning `{pack_a, pack_b, judge_summary}`; each pack is one `build_briefing_pack` output (RFC-093) with `subject`, `top_insight_*`, `coverage_summary`, `confidence_p50`, `grounded` fields; judge summary is deterministic (no LLM) and muted when either side reports `grounded=false` |
 | `temporal-intent` | RFC-092 taxonomy — `query_type: "temporal_tracking"`; IntentChip in `WorkspaceHeader` renders "Temporal tracking" |
 
 Not covered here (deferred to when the operator regenerates against a real
@@ -83,20 +86,18 @@ Idempotent + deterministic: same corpus + same pick ⇒ byte-identical output
 - `--search-slice` build-script mode currently appends to
   `search/results-by-query.json` (basic queries); merging per-scenario into
   `search-v3/mocks.json` is a follow-up when the operator first regenerates.
-- **Shape refresh needed (post-S4/S5 landing, 2026-07-21):** the original
-  `mocks.json` was written against the RFC-107 fixture spec, which planned
-  `enriched.answer` + `enriched.sources[]` at the top level and
-  `operator_result.clusters[]` / `operator_result.consensus[]` under an
-  `operator_result` wrapper. The **shipped** shape is different: S4b puts
-  `clusters[]` and `consensus_pairs[]` directly on the response object, and
-  S5 decorates each hit with `metadata.query_enrichments.related_topics[]`
-  instead of returning a synthesized answer (the shipped
-  QueryEnricher chain doesn't ship a text answer yet). Until the fixture
-  is regenerated:
-  - Tier-2 specs under `web/gi-kg-viewer/e2e/search-production/*.spec.ts`
-    mock inline against the **shipped** shape (see `workspace.spec.ts` for
-    the reference).
-  - `compound-lift` and `temporal-intent` scenarios in `mocks.json` DO still
-    match the shipped shape and can be consumed as-is.
-  - `enriched-answer`, `operator-cluster`, and `operator-consensus` need a
-    regeneration pass before consumers can trust them.
+
+## Schema history
+
+- **schema_version: 2** (2026-07-21) — refreshed post-S4/S5/S8 landing.
+  Every scenario now matches the shipped shape: top-level `operator` +
+  `clusters[]` / `consensus_pairs[]` for S4b; per-hit
+  `metadata.query_enrichments.related_topics[]` for S5; `{pack_a, pack_b,
+  judge_summary}` from `POST /api/search/compare` for S8. `compound-lift`
+  and `temporal-intent` were unchanged (already matched). Existing Tier-2
+  specs that inline-mock (e.g. `search-production/workspace.spec.ts`) may
+  now migrate to consuming this fixture; not a blocking follow-up.
+- **schema_version: 1** (2026-07-20) — hand-authored against the
+  RFC-107 planned shape (`enriched.answer`, `operator_result.clusters[]`,
+  `operator_result.pairs[]`). Did not match shipped code; superseded by
+  schema_version 2.
