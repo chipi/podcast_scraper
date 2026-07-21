@@ -22,6 +22,26 @@ from podcast_scraper.server.schemas import CorpusProducedBy, HealthResponse
 router = APIRouter(tags=["health"])
 
 
+def _probe_enriched_search_available(corpus_dir: Path | None) -> bool:
+    """Return True when the corpus has the enrichment output that the
+    ``/api/search?enrich_results=true`` chain actually consumes.
+
+    Ground truth: ``query_topic_relatedness`` (the chunk-5 QueryEnricher
+    the /api/search chain runs) reads ``enrichments/topic_similarity.json``
+    — its absence makes the enricher pass through unmodified, which is
+    indistinguishable to the client from "no enrichment configured". This
+    probe checks for the file so the S5 Enriched chip (which auto-adopts
+    the capability) enables when there's actually something to show.
+    """
+    if corpus_dir is None:
+        return False
+    candidate = corpus_dir / "enrichments" / "topic_similarity.json"
+    try:
+        return candidate.is_file()
+    except OSError:
+        return False
+
+
 def _corpus_dir_for_health(
     path: str | None,
     default_output_dir: Path | None,
@@ -78,6 +98,7 @@ async def health(
             "corpus_produced_by": corpus_produced_by,
             "corpus_code_version": corpus_ver,
             "corpus_version_warning": warning,
+            "enriched_search_available": _probe_enriched_search_available(corpus_dir),
             "feeds_api": bool(getattr(st, "feeds_api_enabled", False)),
             "operator_config_api": bool(getattr(st, "operator_config_api_enabled", False)),
             "jobs_api": bool(getattr(st, "jobs_api_enabled", False)),
