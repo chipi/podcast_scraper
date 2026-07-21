@@ -698,3 +698,21 @@ def test_enforce_cost_soft_cap_after_episode_abort() -> None:
     pm.record_llm_transcription_call(1.0, cost_usd=0.05)
     with pytest.raises(CostCapExceeded):
         processing._enforce_cost_soft_cap_after_episode(cfg, pm)
+
+
+def test_reprocess_fuse_open_halts_the_whole_batch() -> None:
+    """ADR-119 item 3: a ResilienceFuseOpenError from one episode HALTS the batch (propagates
+    like CostCapExceeded) instead of being swallowed by the broad except and grinding every
+    remaining episode through a dead endpoint in reprocess mode."""
+    from podcast_scraper.providers.resilience import ResilienceFuseOpenError
+
+    ep = Mock()
+    ep.idx = 3
+    args = (ep,) + tuple([None] * 7)  # the loop reads args[0]=episode and args[7]=detected_names
+    with patch.object(
+        processing,
+        "_process_episode_with_retry",
+        side_effect=ResilienceFuseOpenError("moss: endpoint down"),
+    ):
+        with pytest.raises(ResilienceFuseOpenError):
+            processing._process_episodes_sequential([args], Mock(), Mock(), Mock(), Mock())
