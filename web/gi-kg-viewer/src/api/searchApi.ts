@@ -88,6 +88,9 @@ export interface SearchRequestOptions {
   /** Topic substring (Search v3 SearchTopicChip). Server-side after the follow-up
    * to S1: matches kg_topic id/text and insight ABOUT-edge topic labels. */
   topic?: string
+  /** Exact episode_id scope (Search v3 §S6). Enables the rail launcher
+   *  "Search within this episode" on EpisodeDetailPanel. */
+  episodeId?: string
   groundedOnly?: boolean
   topK?: number
   embeddingModel?: string
@@ -117,6 +120,7 @@ export async function searchCorpus(
   if (options.since?.trim()) params.set('since', options.since.trim())
   if (options.speaker?.trim()) params.set('speaker', options.speaker.trim())
   if (options.topic?.trim()) params.set('topic', options.topic.trim())
+  if (options.episodeId?.trim()) params.set('episode_id', options.episodeId.trim())
   if (options.embeddingModel?.trim()) {
     params.set('embedding_model', options.embeddingModel.trim())
   }

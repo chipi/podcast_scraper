@@ -713,3 +713,76 @@ def test_search_operator_consensus_missing_enrichment_returns_empty_list(
     )
     assert body["operator"] == "consensus"
     assert body["consensus_pairs"] == []
+
+
+# --------------------------------------------------------------------------
+# Search v3 §S6 — episode_id scope filter on /api/search.
+# --------------------------------------------------------------------------
+
+
+def test_search_episode_id_param_threads_through_to_run_corpus_search(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``/api/search?episode_id=…`` threads the value into ``run_corpus_search``
+    as the ``episode_id`` kwarg — that's what enables the "Search within this
+    episode" rail launcher on EpisodeDetailPanel (Search v3 §S6)."""
+    captured: dict[str, Any] = {}
+
+    def fake_run(
+        output_dir: Path,
+        query: str,
+        **kwargs: Any,
+    ) -> CorpusSearchOutcome:
+        captured["episode_id"] = kwargs.get("episode_id")
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "d:1",
+                    "score": 0.5,
+                    "metadata": {"doc_type": "insight", "episode_id": "ep-a"},
+                    "text": "x",
+                }
+            ],
+            lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = (
+        TestClient(app)
+        .get(
+            "/api/search",
+            params={"q": "x", "path": str(tmp_path), "episode_id": "ep-a"},
+        )
+        .json()
+    )
+    assert body["error"] is None
+    assert captured["episode_id"] == "ep-a"
+
+
+def test_search_episode_id_omitted_threads_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Backward compatibility — no ``episode_id`` param → kwarg stays None."""
+    captured: dict[str, Any] = {}
+
+    def fake_run(
+        output_dir: Path,
+        query: str,
+        **kwargs: Any,
+    ) -> CorpusSearchOutcome:
+        captured["episode_id"] = kwargs.get("episode_id")
+        return CorpusSearchOutcome(
+            results=[], lift_stats={"transcript_hits_returned": 0, "lift_applied": 0}
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    TestClient(app).get("/api/search", params={"q": "x", "path": str(tmp_path)}).json()
+    assert captured["episode_id"] is None

@@ -27,6 +27,8 @@ const emit = defineEmits<{
   closeSubject: []
   goGraph: []
   focusSearchHandoff: [FocusSearchPayload]
+  /** Search v3 §S6 — episode-scoped rail launcher from EpisodeDetailPanel. */
+  openSearchInEpisode: [{ episodeId: string; query?: string }]
   prefillSemanticSearch: [{ query: string }]
   openSearchTopicFilter: [{ topic: string }]
   openSearchSpeakerFilter: [{ speaker: string }]
@@ -134,6 +136,7 @@ const emptyHint =
             :rail-neighbourhood-enabled="episodeSubjectNeighbourhoodEnabled"
             :rail-detail-tab="episodeSubjectDetailTab"
             @focus-search="emit('focusSearchHandoff', $event)"
+            @open-search-in-episode="emit('openSearchInEpisode', $event)"
             @switch-main-tab="emit('switchMainTab', $event)"
             @enrichment-has-content="episodeEnrichmentHasContent = $event"
           >

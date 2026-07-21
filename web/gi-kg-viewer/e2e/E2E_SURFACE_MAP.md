@@ -354,6 +354,52 @@ Owning spec: ``search-enriched-hero.spec.ts`` (mocks ``/api/search``
 with a route callback that branches on the ``enrich_results`` query
 param and only decorates hits when the flag is on).
 
+**Search v3 rail launchers + episode scope (§S6 — #1236, RFC-107 §S6)**:
+
+Rail launchers switch to the Search main tab, pre-apply scope on
+``search.filters``, run the query, and — via ``search.runSearch``'s
+existing publish — surface the scope on ``useActiveSearchContextStore``
+so Library + Graph tabs react (RFC-094 OQ-2, shipped). New surfaces:
+
+| Element | testid |
+| ---- | ----- |
+| Episode rail launcher button | ``episode-detail-search-in-episode`` |
+| Episode-scope active-filter chip (filter bar) | ``search-chip-episode`` |
+
+Server: ``/api/search?episode_id=…`` — new exact-match query param
+(Search v3 §S6). Threads through
+``structured_corpus_search`` → ``run_corpus_search`` →
+``_hit_passes_cli_filters`` (``episode_id`` kwarg). Corpus-stable id
+match (not substring — rail always knows the exact target). Omitted →
+kwarg stays None (backward-compatible; no behavior change for existing
+callers).
+
+Client: ``search.filters.episodeId`` — string ref. Set by the rail
+launcher, threaded into ``/api/search`` as ``episode_id=`` when
+non-empty, cleared when the ``search-chip-episode`` is clicked. The
+chip is ``v-if``'d on ``filters.episodeId`` so it renders ONLY when
+the scope is active (no default noise on the chip bar).
+
+Behaviour contract:
+
+- **Rail click** (``episode-detail-search-in-episode``) → sets
+  ``episodeId`` to the current ``detail.episode_id``, clears the
+  ``feed`` / ``topic`` / ``speaker`` sibling filters (so the wire
+  matches the mental model of "this episode only"), pre-fills the
+  query from the summary title + bullets (same
+  ``buildLibrarySearchHandoffQuery`` shape as Similar episodes), and
+  switches ``mainTab`` to ``'search'`` running the query.
+- **Show-scoped launcher** (existing "Prefill semantic search") ALSO
+  clears any lingering ``episodeId`` — otherwise a user going from
+  Episode-scope → Show-scope would still see episode-scoped results.
+- **Chip click** clears ``episodeId``; the chip vanishes; the next
+  ``runSearch`` widens back out to corpus-scope.
+
+Owning spec: ``search-rail-in-episode.spec.ts`` (mocks
+``/api/search`` with a route callback that only returns hits when
+the ``episode_id`` param matches — pins the request-URL contract
+AND the server-side scope wire).
+
 ## Surfaces and owning specs
 
 | Surface | Intent (short) | Typical entry | Spec files |
@@ -372,6 +418,7 @@ param and only decorates hits when the flag is on).
 | **Theme tokens** | `--ps-canvas` matches asserted dark/light hex in [theme.spec.ts](theme.spec.ts) | `goto('/')` + `emulateMedia` and/or `localStorage` | `theme.spec.ts` |
 | **Search v3 result-set operator bar** | ``result-set-operator-bar`` above the hit cards on Search main tab. Chips: Cluster (S4b, server ``operator=cluster`` top_k×3 over-fetch) / Timeline (S4a, client YYYY-MM histogram over ``metadata.publish_date``) / On graph (S4a, App-level ``activateGraphTab`` + yellow-ring highlight set) / Consensus (S4b, server ``operator=consensus`` reads ``enrichments/topic_consensus.json``). Panels: ``operator-{cluster,timeline,consensus}-panel`` with ``-loading`` / ``-empty`` / ``-list`` states. See the **Search v3 result-set operator bar** section above for the full testid contract. | `goto('/')` + Search tab + submit query → bar renders once response has ≥ 1 hit | `search-operator-bar.spec.ts` |
 | **Search v3 enriched-answer hero** | ``enriched-answer-hero`` above the operator bar on Search main tab. Renders the shipped QueryEnricher chain output (RFC-088 chunk 5) — today that's ``related_topics`` per hit, aggregated + ranked by summed similarity and surfaced as clickable Topic chips. Chip on filter bar: ``search-chip-enriched`` (tri-state; auto-adopts ``shell.enrichedSearchAvailable``). Hero states: hidden / ``enriched-answer-skeleton`` / ``enriched-answer-error`` / ``enriched-answer-topics`` list (with ``enriched-answer-overflow`` when >6 topics). See the **Search v3 enriched-answer hero** section above. | `goto('/')` + Search tab + Enriched chip on + submit query with enrichment-decorated hits | `search-enriched-hero.spec.ts` |
+| **Search v3 rail launcher: "Search within this episode"** | ``episode-detail-search-in-episode`` button on ``EpisodeDetailPanel`` (right rail); ``search-chip-episode`` active-scope chip on the filter bar (visible only when ``search.filters.episodeId`` is set). Server route accepts ``/api/search?episode_id=…`` (Search v3 §S6). Rail click switches to Search tab, sets episode scope, clears sibling scope (feed / topic / speaker), pre-fills the query, runs. Show-scoped launcher clears any lingering episode scope. See the **Search v3 rail launchers + episode scope** section above. | `goto('/')` + Library tab + row click → Episode rail visible → click "Search within episode" | `search-rail-in-episode.spec.ts` |
 
 ### Offline graph load (shared helper)
 

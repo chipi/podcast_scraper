@@ -88,6 +88,13 @@ export const useSearchStore = defineStore('search', () => {
      */
     minConfidence: '',
     /**
+     * Search v3 §S6 — exact ``episode_id`` scope. Set by the "Search
+     * within this episode" rail launcher on EpisodeDetailPanel; empty
+     * string means no episode scope. Server-side (drives retrieval),
+     * not client-side (drops non-matching hits before top-k slice).
+     */
+    episodeId: '',
+    /**
      * Search v3 §S5 — request the server-side QueryEnricher chain
      * (RFC-088 chunk 5). When on, ``searchCorpus`` adds
      * ``enrich_results=true`` and hits come back decorated with
@@ -190,6 +197,7 @@ export const useSearchStore = defineStore('search', () => {
         since: filters.since || undefined,
         speaker: filters.speaker || undefined,
         topic: filters.topic || undefined,
+        episodeId: filters.episodeId || undefined,
         groundedOnly: filters.groundedOnly,
         topK: filters.topK,
         embeddingModel: filters.embeddingModel.trim() || undefined,
@@ -288,6 +296,7 @@ export const useSearchStore = defineStore('search', () => {
         since: filters.since || undefined,
         speaker: filters.speaker || undefined,
         topic: filters.topic || undefined,
+        episodeId: filters.episodeId || undefined,
         groundedOnly: filters.groundedOnly,
         // Over-fetch so the operator has room to group / filter over
         // more than the default top-10. RFC-107 §7.4 sets the multiplier.

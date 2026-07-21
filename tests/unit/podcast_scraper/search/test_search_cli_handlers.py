@@ -155,6 +155,60 @@ def test_hit_passes_cli_feed_filter() -> None:
     )
 
 
+def test_hit_passes_cli_episode_id_filter() -> None:
+    """Search v3 §S6 — the ``episode_id`` kwarg is an EXACT match (not
+    substring) that rejects hits from any other episode. Enables the
+    "Search within this episode" rail launcher's server-side scope."""
+    hit_a = SearchResult("d:a", 1.0, {"doc_type": "insight", "episode_id": "ep-a"})
+    hit_b = SearchResult("d:b", 1.0, {"doc_type": "insight", "episode_id": "ep-b"})
+    # Filter set to ep-a → only ep-a matches.
+    assert cli_handlers._hit_passes_cli_filters(
+        hit_a,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        episode_id="ep-a",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    assert not cli_handlers._hit_passes_cli_filters(
+        hit_b,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        episode_id="ep-a",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    # None filter → both pass (backward-compatible default).
+    assert cli_handlers._hit_passes_cli_filters(
+        hit_a,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    assert cli_handlers._hit_passes_cli_filters(
+        hit_b,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    # Substring semantics NOT applied — "ep" partial must not match "ep-a".
+    assert not cli_handlers._hit_passes_cli_filters(
+        hit_a,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        episode_id="ep",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+
+
 def test_insight_passes_speaker_filter() -> None:
     art = {
         "nodes": [

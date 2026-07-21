@@ -531,7 +531,30 @@ function onLibraryFocusSearch(payload: {
     since: payload.since,
     feedDisplayTitle: payload.feedDisplayTitle,
   })
+  // §S6 — a show-scoped launcher clears any lingering episode scope so
+  // the user gets show-wide results instead of a stuck episode filter.
+  search.filters.episodeId = ''
   void focusSearchWorkspace(true)
+}
+
+/**
+ * Search v3 §S6 — episode-scoped rail launcher from EpisodeDetailPanel.
+ * Sets the exact ``episode_id`` filter (server-side), pre-fills the
+ * query, and switches to the Search main tab. activeSearchContext
+ * publish is automatic (runSearch owns it).
+ */
+function onOpenSearchInEpisode(payload: { episodeId: string; query?: string }): void {
+  const ep = payload.episodeId?.trim()
+  if (!ep) return
+  search.filters.episodeId = ep
+  // §S6 — an episode-scoped launcher clears show / speaker / topic scope
+  // so the user's mental model of "this episode only" matches the wire.
+  search.filters.feed = ''
+  search.filters.topic = ''
+  search.filters.speaker = ''
+  const q = payload.query?.trim()
+  if (q) search.query = q
+  void focusSearchWorkspace(Boolean(q))
 }
 
 /** Graph Topic node detail: prefill the workspace query + run. */
@@ -1000,6 +1023,7 @@ watch(
             @close-subject="onCloseSubjectRail"
             @go-graph="activateGraphTab(undefined, undefined, 'subject-rail')"
             @focus-search-handoff="onLibraryFocusSearch"
+            @open-search-in-episode="onOpenSearchInEpisode"
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
             @open-search-topic-filter="onGraphNodeTopicOpenSearchFilter"
             @open-search-speaker-filter="onGraphNodeSpeakerOpenSearchFilter"

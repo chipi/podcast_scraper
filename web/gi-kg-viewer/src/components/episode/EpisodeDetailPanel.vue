@@ -60,6 +60,13 @@ const emit = defineEmits<{
   'focus-search': [
     payload: { feed: string; query: string; since?: string; feedDisplayTitle?: string },
   ]
+  /**
+   * Search v3 §S6 — episode-scoped rail launcher. Switches to the Search
+   * main tab, sets ``search.filters.episodeId`` to the current episode,
+   * and (when a query is provided) runs immediately. App-level handler
+   * publishes to activeSearchContext for cross-tab reactivity.
+   */
+  'open-search-in-episode': [payload: { episodeId: string; query?: string }]
   'switch-main-tab': [tab: 'graph' | 'dashboard']
   /** Bubbled from EpisodeEnrichmentSection so the rail can hide the Enrichment tab. */
   'enrichment-has-content': [boolean]
@@ -611,6 +618,24 @@ function openInSearch(): void {
   })
 }
 
+/**
+ * Search v3 §S6 — episode-scoped rail launcher. Sets the exact
+ * ``episode_id`` filter (server-side scope) so the top-k comes from
+ * this episode only. Uses the summary title / bullets as the pre-filled
+ * query so the user has something to run immediately (same
+ * ``build_similarity_query`` shape as Similar episodes).
+ */
+function openSearchInEpisode(): void {
+  const d = detail.value
+  if (!d) return
+  const ep = d.episode_id?.trim()
+  if (!ep) return
+  emit('open-search-in-episode', {
+    episodeId: ep,
+    query: buildLibrarySearchHandoffQuery(d),
+  })
+}
+
 function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
   const p = row.metadata_relative_path?.trim()
   if (!p) {
@@ -892,6 +917,16 @@ watch(
           @click="openInSearch()"
         >
           Prefill semantic search
+        </button>
+        <button
+          type="button"
+          class="min-w-0 flex-1 rounded border border-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary hover:bg-primary/10 disabled:opacity-40"
+          data-testid="episode-detail-search-in-episode"
+          :disabled="!detail.episode_id?.trim()"
+          title="Search within this episode — filters /api/search by exact episode_id (Search v3 §S6)."
+          @click="openSearchInEpisode()"
+        >
+          Search within episode
         </button>
         <HelpTip class="shrink-0 self-center">
           Opens Search with this feed scoped and the same field order as

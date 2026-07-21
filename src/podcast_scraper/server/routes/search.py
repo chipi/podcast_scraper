@@ -65,6 +65,15 @@ async def search_corpus(
             "counterpart to SearchTopicChip; retires the S1 client-side fallback."
         ),
     ),
+    episode_id: str | None = Query(
+        default=None,
+        description=(
+            "Exact episode_id scope (Search v3 §S6). Enables the 'Search within "
+            "this episode' rail launcher on EpisodeDetailPanel — every hit's "
+            "``metadata.episode_id`` must equal this value. Corpus-stable id "
+            "match (not substring); rail always knows the exact target."
+        ),
+    ),
     grounded_only: bool = Query(default=False),
     top_k: int = Query(default=10, ge=1, le=100),
     embedding_model: str | None = Query(
@@ -127,6 +136,7 @@ async def search_corpus(
         since=since,
         speaker=speaker,
         topic=topic,
+        episode_id=episode_id,
         grounded_only=grounded_only,
         top_k=top_k,
         embedding_model=embedding_model,

@@ -317,6 +317,7 @@ def _hit_passes_cli_filters(
     since_dt: Optional[datetime],
     speaker_substr: Optional[str],
     topic_substr: Optional[str] = None,
+    episode_id: Optional[str] = None,
     grounded_only: bool,
     gi_by_episode: Dict[str, Path],
 ) -> bool:
@@ -328,6 +329,14 @@ def _hit_passes_cli_filters(
     if feed_substr:
         fid = meta.get("feed_id")
         if not isinstance(fid, str) or feed_substr.lower() not in fid.lower():
+            return False
+
+    # Search v3 §S6 — exact ``episode_id`` scope. Enables "Search within this
+    # episode" rail launcher from EpisodeDetailPanel. Corpus-stable id match
+    # (not substring): the rail always knows the exact target.
+    if episode_id:
+        ep = meta.get("episode_id")
+        if not isinstance(ep, str) or ep != episode_id:
             return False
 
     if since_dt:
