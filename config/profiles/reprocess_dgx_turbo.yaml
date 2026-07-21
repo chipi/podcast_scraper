@@ -1,0 +1,55 @@
+# reprocess_dgx_turbo — #1178 eval variant of reprocess_dgx_no_llm.
+#
+# IDENTICAL to reprocess_dgx_no_llm.yaml except one line: dgx_whisper_model is swapped to
+# large-v3-TURBO. Its whole purpose is to re-transcribe an existing corpus's audio with turbo so
+# it can be compared, episode-for-episode, against the large-v3 corpus (prod-v3) via
+# scripts/eval/compare_corpora_v1.py — speed (realtime factor), WER, timeline_error_pct (the #1173
+# invariant, must stay ~0), and whether turbo still returns word-level timestamps.
+#
+# Everything else — diarization, timeline-preserving preprocess, LLM stages OFF, enrichment OFF —
+# is held constant so the ONLY variable is the ASR model. Anything else would be a confound.
+#
+# Usage (into a SEPARATE corpus root, existing-only so the set can only shrink, audio from the
+# #947 GUID-keyed cache, no network):
+#   make redo-diarization CORPUS_DIR=<prod-v3-turbo copy> PROFILE=config/profiles/reprocess_dgx_turbo.yaml
+# then: .venv/bin/python scripts/eval/compare_corpora_v1.py <prod-v3> <prod-v3-turbo>
+#
+# No `profile:` key on purpose (pins no LLM models; opts out of the registry drift check), same as
+# the base profile. yaml-only, a one-shot eval profile — not a pipeline default.
+
+# --- transcription: DGX faster-whisper (self-hosted), large-v3-TURBO ----------------------------
+transcription_provider: tailnet_dgx_whisper
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
+dgx_whisper_port: 8000
+# ADR-096 requires a fallback. Deliberately the *local* whisper, never a cloud provider: a DGX
+# outage must degrade to our own hardware, not silently start billing an API.
+transcription_fallback_provider: whisper
+
+# --- diarization: pyannote v4 (self-hosted) -----------------------------------------------------
+diarize: true
+screenplay: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-community-1
+dgx_diarize_request_timeout_sec: 600.0
+
+# --- speaker naming: local NER, no LLM ----------------------------------------------------------
+speaker_detector_provider: spacy
+auto_speakers: true
+
+# --- audio: timeline-preserving preprocess (#1173) ----------------------------------------------
+preprocessing_enabled: true
+audio_preprocessing_profile: speech_optimal_v1
+save_adfree_transcript: true
+
+# --- every LLM stage: OFF -----------------------------------------------------------------------
+generate_metadata: false # skips summaries + GI + KG wholesale; preserves the existing artifacts
+generate_summaries: false
+generate_gi: false
+generate_kg: false
+vector_search: false
+
+enrichment:
+  enabled: false
+  enrichers: {}
