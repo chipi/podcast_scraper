@@ -765,3 +765,25 @@ class TestMossDiarizeResilience:
         assert spy.call_count == 1
         spy.assert_called_once_with(hard=True)
         assert mdp._moss_diarize_breaker.state == "open"
+
+
+def test_fuse_open_emits_operator_alert(dgx_stub, tmp_path):
+    """ADR-119 item 2: a sustained fuse-open fires a dedicated operator alert (a Sentry
+    capture_message via ``_emit_fuse_open_alert``), not just an ERROR log — proven by spying
+    on the alert hook. One alert per blown fuse, carrying the endpoint name + wait budget."""
+    _DGXStubHandler.mode = "hang"  # never recovers -> the fuse stays open past max-wait
+    cfg = _moss_cfg(
+        dgx_stub,
+        run_context="reprocess",
+        retries_before_trip=2,
+        backoff_schedule_sec=[0.02],
+        on_open_max_wait_sec=0.05,
+        probe_interval_sec=0.02,
+        moss_request_timeout_sec=0.1,
+    )
+    provider = _moss_provider_from_cfg(cfg)
+    with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.05):
+        with patch.object(resilience_policy, "_emit_fuse_open_alert") as alert:
+            with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                provider.transcribe(_audio(tmp_path))
+    alert.assert_called_once()

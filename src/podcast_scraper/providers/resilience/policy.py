@@ -56,6 +56,23 @@ class ResilienceFuseOpenError(RuntimeError):
     """
 
 
+def _emit_fuse_open_alert(name: str, waited_sec: float) -> None:
+    """Operator alert for a sustained fuse-open (ADR-119): a reprocess held the chosen model for
+    the full max-wait and the endpoint never recovered. Capture it as a Sentry issue (level=error)
+    so the operator's alerting fires — distinct from the per-call breadcrumbs. Guarded: a missing
+    or unconfigured ``sentry_sdk`` degrades to the ERROR log the caller already emits."""
+    try:
+        import sentry_sdk
+
+        sentry_sdk.capture_message(
+            f"Resilience fuse open (no recovery): {name} held for {waited_sec:.0f}s in reprocess "
+            "mode and did not recover — batch is blocked; no cross-model fallover by design.",
+            level="error",
+        )
+    except Exception:  # noqa: BLE001 - alerting must never break the pipeline
+        logger.debug("sentry unavailable; fuse-open alert for %s not sent to Sentry", name)
+
+
 @dataclass(frozen=True)
 class ResiliencePolicy:
     """Backoff -> trip-after-N -> hold-and-probe, for reprocess-context calls.
@@ -164,6 +181,11 @@ class ResiliencePolicy:
                     return result
             sleep(self.probe_interval_sec)
             waited += self.probe_interval_sec
+        # A dedicated operator alert (ADR-119): a reprocess that held the chosen model for the full
+        # max-wait and never recovered is an operator-actionable event (the DGX is genuinely down,
+        # and — unlike serve mode — we will NOT silently degrade to another model). Surface it to
+        # Sentry as an issue so the operator's alerting fires, not just an ERROR log nobody tails.
+        _emit_fuse_open_alert(self.name, self.on_open_max_wait_sec)
         raise ResilienceFuseOpenError(
             f"{self.name}: endpoint did not recover within {self.on_open_max_wait_sec:.0f}s "
             "of pause-and-probe; alerting operator (reprocess mode never falls over to "
