@@ -110,6 +110,22 @@ def run_checks(root: Path | None = None) -> str:
             file=sys.stderr,
         )
         raise SystemExit(1)
+    # Pre-release builds (``2.7.0.dev0``, ``...b1``, ``...rc1``) are not FINAL releases,
+    # so the release-notes / index / compatibility-matrix gates don't apply — they gate
+    # a real release. The pyproject↔__init__ match above still runs (drift guard).
+    from packaging.version import InvalidVersion, Version
+
+    try:
+        is_pre = Version(pv).is_prerelease
+    except InvalidVersion:
+        is_pre = False
+    if is_pre:
+        print(
+            f"pre_release_check: {pv} is a PRE-RELEASE — skipping release-notes/index/"
+            f"compatibility checks (those gate FINAL releases). Bump to a final X.Y.Z "
+            f"before cutting a release."
+        )
+        return pv
     _check_release_notes(base, pv)
     _check_releases_index(base, pv)
     _check_compatibility_matrix(base, pv)

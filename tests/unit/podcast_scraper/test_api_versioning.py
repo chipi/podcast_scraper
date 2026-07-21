@@ -11,6 +11,8 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from packaging.version import Version
+
 import podcast_scraper
 
 
@@ -24,11 +26,17 @@ class TestAPIVersioning(unittest.TestCase):
         self.assertIsInstance(api_version, str)
         self.assertGreater(len(api_version), 0)
 
-    def test_api_version_matches_module_version(self):
-        """__api_version__ should match __version__."""
+    def test_api_version_is_release_base_of_module_version(self):
+        """__api_version__ is the clean release base of __version__.
+
+        The API contract version is DECOUPLED from the build version so a pre-release
+        build (``2.7.0.dev0``, ``...b1``, ``...rc1``) doesn't move the API contract.
+        ``base_version`` strips any PEP 440 suffix, so this holds for every future
+        ship/deploy/release marker after the X.Y.Z.
+        """
         api_version = podcast_scraper.__api_version__
         module_version = podcast_scraper.__version__
-        self.assertEqual(api_version, module_version)
+        self.assertEqual(Version(module_version).base_version, api_version)
 
     def test_api_version_format(self):
         """__api_version__ should follow semantic versioning (major.minor.patch)."""
@@ -50,7 +58,8 @@ class TestAPIVersioning(unittest.TestCase):
         """__api_version__ should be importable from package."""
         from podcast_scraper import __api_version__, __version__
 
-        self.assertEqual(__api_version__, __version__)
+        # Decoupled: the API contract is the release base of the build version.
+        self.assertEqual(__api_version__, Version(__version__).base_version)
         self.assertEqual(__api_version__, podcast_scraper.__api_version__)
 
     def test_lazy_loaded_modules_importable(self):

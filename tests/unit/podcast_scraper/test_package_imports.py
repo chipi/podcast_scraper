@@ -37,7 +37,11 @@ class TestPackageImports(unittest.TestCase):
 
         self.assertIsInstance(version, str)
         self.assertIsInstance(api_version, str)
-        self.assertEqual(version, api_version)
+        # Decoupled (build vs API contract): api_version is the release base of the
+        # build version, so this holds for any pre-release suffix (dev/b/rc).
+        from packaging.version import Version
+
+        self.assertEqual(Version(version).base_version, api_version)
         self.assertGreater(len(version), 0)
 
     def test_version_importable(self):
