@@ -161,6 +161,35 @@ Updated knob (in addition to the table above):
 | --- | --- | --- |
 | `resilience_failure_strategy` | derived: `serve → failover`, `reprocess → hold` | resolution strategy on chosen-model failure, honoured by ASR **and** LLM; overridable per profile/registry |
 
+## Operational findings (2026-07-22): running the real reprocess pipeline surfaced a silent-default class
+
+Validating the turbo ASR bake-off through the actual `migrate-diarization` make target (not a test
+harness) exposed that a `reprocess_dgx_*` profile ran in **serve/failover**, not `hold` — its
+transcription wrapped in a `FallbackChain`, so a DGX timeout would silently degrade to local whisper
+and yield a **mixed-backend corpus**, the exact failure this ADR exists to prevent. Three linked
+root causes, all fixed:
+
+1. **Posture was name-derived only.** `reprocess_dgx_* → reprocess` was resolved from the profile
+   *name*, which fires for `--profile <name>` but **not** for `--config <file>` — and the
+   reprocess make targets load via `--config`. Fix: the reprocess profiles now **self-declare**
+   `resilience_run_context: reprocess` + `resilience_failure_strategy: hold` (invocation-agnostic).
+2. **`_build_config` dropped non-flag fields.** It carried `--config` YAML fields into the final
+   Config via a *hand-maintained allowlist*; any field without an argparse flag (resilience_*,
+   `transcript_cache_enabled`, …) silently reverted to its code default. Fix: it now carries **every**
+   field the resolved config model set, killing the whole silent-default class in one place.
+3. **The transcript cache replayed prior transcripts** on a model-swap reprocess (turbo replaying
+   large-v3 by audio hash → the run "succeeded" doing nothing). Fix: `transcript_cache_enabled:
+   false` on the reprocess profiles — a reprocess regenerates, it does not replay.
+
+To make (1) systemic rather than per-profile, resilience posture is now a **registry-governed
+field** (`REGISTRY_GOVERNED_FIELDS`): `make profiles-materialize` writes it into every profile and
+`profiles-check` fails on drift. Regression: `test_cli_profile_routing` now round-trips the reprocess
+profiles via **both** `--profile` and `--config`.
+
+Lesson for the reprocess-once economics: a "runs green" reprocess is not evidence the *intended*
+model ran — validate the ownership line (`transcription=…`, not `fallbackchain…`) and that
+transcription actually executed (not a cache hit) before trusting a corpus.
+
 ## References
 
 - Issue [#1253](https://github.com/chipi/podcast_scraper/issues/1253) — full scope + acceptance.
