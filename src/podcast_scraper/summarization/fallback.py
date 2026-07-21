@@ -243,20 +243,23 @@ def wrap_with_fallback_if_configured(
     DGX-served vLLM (an ``openai``-protocol provider) or ``ollama`` — and fails over to the cloud
     tier(s) in the chain.
 
-    ADR-119: in **reprocess** run context this fallover is deliberately suppressed, mirroring the
-    ASR/self-hosted factory guard. A controlled reprocess optimises *consistency* — the chosen LLM
-    is the only LLM, so a DGX/Ollama-served summary must never silently degrade to a cloud provider
-    and produce a mixed-backend corpus. The primary is returned unwrapped; the per-provider LLM
-    circuit breaker (backoff/hold) still protects the chosen model, and a sustained outage surfaces
-    to the operator rather than falling over. serve context keeps today's availability-first
-    fallover.
+    ADR-119: under the **hold** failure strategy this fallover is deliberately suppressed, mirroring
+    the ASR/self-hosted factory guard. HOLD optimises *consistency* — the chosen LLM is the only
+    LLM, so a DGX/Ollama-served summary must never silently degrade to a cloud provider and produce
+    a mixed-backend corpus. The primary is returned unwrapped; the per-provider LLM circuit breaker
+    (backoff/hold) still protects the chosen model, and a sustained outage surfaces to the operator
+    rather than falling over. The **failover** strategy (serve default) keeps today's
+    availability-first fallover. The strategy is a standalone knob defaulted by run context
+    (reprocess -> hold) and overridable per profile.
     """
     chain = _summary_fallback_chain(cfg)
     if not chain:
         return primary
-    if getattr(cfg, "resilience_run_context", "serve") == "reprocess":
+    from ..providers.resilience import FailureStrategy, resolve_failure_strategy
+
+    if resolve_failure_strategy(cfg) is FailureStrategy.HOLD:
         logger.info(
-            "ADR-119 reprocess mode: NOT wrapping summary provider '%s' in cross-LLM fallover "
+            "ADR-119 HOLD strategy: NOT wrapping summary provider '%s' in cross-LLM fallover "
             "(chain %s suppressed) — the chosen model is the only model; consistency over "
             "availability",
             str(cfg.summary_provider or "").strip().lower(),

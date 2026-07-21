@@ -50,7 +50,12 @@ from ...providers.ml.diarization.base import (
 from ...utils.log_redaction import format_exception_for_log
 from .. import guardrails, resilience
 from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
-from ..resilience.policy import ResilienceFuseOpenError, ResiliencePolicy, RunContext
+from ..resilience.policy import (
+    FailureStrategy,
+    ResilienceFuseOpenError,
+    ResiliencePolicy,
+    resolve_failure_strategy,
+)
 from .health import check_pyannote_diarize_health, dgx_diarize_base_url
 from .telemetry import emit_dgx_fallback_breadcrumb
 
@@ -94,10 +99,11 @@ class TailnetDgxDiarizationProvider:
         )
         # Retry budget is generic; reuse the shared knob for parity with Whisper.
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        # ADR-119: which resilience behaviour this provider uses. 'serve' (default) keeps
-        # today's fail-fast/trip/raise-for-chain logic below untouched; 'reprocess' routes
-        # through the ResiliencePolicy (backoff-retry -> trip-after-N -> hold-and-probe).
-        self._run_context = RunContext(getattr(cfg, "resilience_run_context", "serve"))
+        # ADR-119: which resilience STRATEGY this provider uses. 'failover' (serve default) keeps
+        # today's fail-fast/trip/raise-for-chain logic below untouched; 'hold' routes through the
+        # ResiliencePolicy (backoff-retry -> trip-after-N -> hold-and-probe). Standalone knob
+        # defaulted by run context (reprocess -> hold), overridable per profile.
+        self._strategy = resolve_failure_strategy(cfg)
         self._policy = ResiliencePolicy(
             breaker=_diarize_breaker,
             retries_before_trip=int(getattr(cfg, "resilience_retries_before_trip", 3)),
@@ -143,7 +149,7 @@ class TailnetDgxDiarizationProvider:
         require_model_substring = self._model.rsplit("/", 1)[-1]
         timeout_sec = self._effective_timeout_sec(audio_path)
 
-        if self._run_context is RunContext.REPROCESS:
+        if self._strategy is FailureStrategy.HOLD:
             # ADR-119: consistency over availability — backoff-retry the SAME model,
             # trip only after N, hold-and-probe on a blown fuse. Kept as a fully separate
             # method (not folded into the serve loop below) so the serve branch's today

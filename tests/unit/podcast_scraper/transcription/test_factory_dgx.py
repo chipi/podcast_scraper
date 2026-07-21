@@ -68,6 +68,55 @@ def test_factory_reprocess_context_skips_fallback_chain_adr119() -> None:
     assert isinstance(provider, TailnetDgxWhisperTranscriptionProvider)
 
 
+def test_factory_reprocess_can_opt_into_failover_via_explicit_strategy_adr119() -> None:
+    """ADR-119: the strategy is a standalone knob defaulted by run context but overridable. A
+    reprocess run that explicitly asks for 'failover' DOES get wrapped in a FallbackChain — the
+    operator chose availability over consistency for that run."""
+    from podcast_scraper.providers.resilience.fallback import (
+        FallbackChainTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "tailnet_dgx_whisper",
+            "transcription_fallback_provider": "openai",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "openai_api_key": "sk-test",
+            "resilience_run_context": "reprocess",
+            "resilience_failure_strategy": "failover",  # explicit override of the reprocess default
+        }
+    )
+    provider = create_transcription_provider(cfg)
+    assert isinstance(provider, FallbackChainTranscriptionProvider)
+
+
+def test_factory_serve_can_opt_into_hold_via_explicit_strategy_adr119() -> None:
+    """The mirror: a serve run that explicitly asks for 'hold' is NOT wrapped — consistency over
+    availability, chosen deliberately despite the serve default of failover."""
+    from podcast_scraper.providers.resilience.fallback import (
+        FallbackChainTranscriptionProvider,
+    )
+    from podcast_scraper.providers.tailnet_dgx.whisper_provider import (
+        TailnetDgxWhisperTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "tailnet_dgx_whisper",
+            "transcription_fallback_provider": "openai",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "openai_api_key": "sk-test",
+            "resilience_run_context": "serve",
+            "resilience_failure_strategy": "hold",  # explicit override of the serve default
+        }
+    )
+    provider = create_transcription_provider(cfg)
+    assert not isinstance(provider, FallbackChainTranscriptionProvider)
+    assert isinstance(provider, TailnetDgxWhisperTranscriptionProvider)
+
+
 def test_factory_wraps_moss_primary_with_full_ladder() -> None:
     """The MOSS gap #1174 opened: a moss primary now carries a chain when the profile emits one."""
     from podcast_scraper.providers.moss.moss_provider import MossTranscriptionProvider

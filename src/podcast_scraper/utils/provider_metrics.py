@@ -66,8 +66,13 @@ class ProviderCallMetrics:
 
         if not getattr(cfg, "llm_circuit_breaker_enabled", False):
             return
+        # ADR-119: the LLM breaker honours the same failure-strategy knob as the self-hosted-ASR
+        # family. "failover" keeps #697's wait-and-resume (the summary-fallback chain owns
+        # fallover); "hold" makes a sustained outage abort the batch (no cross-model fallover).
+        from ..providers.resilience import resolve_failure_strategy
         from .llm_circuit_breaker import LLMCircuitBreakerConfig
 
+        strategy = resolve_failure_strategy(cfg).value
         # The model's profile wins on breaker threshold/cooldown so flash-lite trips sooner and
         # cools down longer than the global default.
         self._breaker_config = LLMCircuitBreakerConfig(
@@ -75,6 +80,8 @@ class ProviderCallMetrics:
             failure_threshold=profile.breaker_failure_threshold,
             window_seconds=float(getattr(cfg, "llm_circuit_breaker_window_seconds", 30.0)),
             cooldown_seconds=profile.breaker_cooldown_seconds,
+            failure_strategy=strategy,
+            on_open_max_wait_sec=float(getattr(cfg, "resilience_on_open_max_wait_sec", 900.0)),
         )
 
     def set_provider_name(self, name: str) -> None:
@@ -500,6 +507,10 @@ def retry_with_metrics(  # noqa: C901
 
         _breaker = _llm_breaker_module
 
+    # ADR-119 hold strategy: the breaker's ``wait_if_overloaded`` raises this on a sustained LLM
+    # outage. It is a hard abort (like the call-count/budget fuse), NOT a retryable error — bind it
+    # here so the ``except`` clause below re-raises it straight through the retry loop.
+    from ..providers.resilience.policy import ResilienceFuseOpenError
     from . import llm_call_fuse as _llm_fuse
 
     for attempt in range(max_retries + 1):
@@ -518,6 +529,11 @@ def retry_with_metrics(  # noqa: C901
             if _breaker is not None:
                 _breaker.record_success(_provider_name, circuit_breaker_config)
             return result
+        except ResilienceFuseOpenError:
+            # ADR-119 hold-mode hard abort: sustained LLM outage, no fallover — propagate so the
+            # workflow batch loop's ``except ResilienceFuseOpenError: raise`` halts the run. Never
+            # retried or reclassified.
+            raise
         except retryable_exceptions as e:
             last_exception = e
             # TERMINAL first — out of money / credit / access. No backoff fixes this, so do NOT

@@ -51,6 +51,42 @@ class RunContext(str, Enum):
     REPROCESS = "reprocess"
 
 
+class FailureStrategy(str, Enum):
+    """ADR-119: the resolution strategy when the chosen self-hosted/primary model fails.
+
+    One shared knob honoured by BOTH the self-hosted-ASR family (whisper/diarize/MOSS) and the
+    LLM class (summary/GI). Decoupled from :class:`RunContext` — the context only supplies the
+    *default* (serve -> FAILOVER, reprocess -> HOLD); a profile/registry may override it.
+
+    - ``FAILOVER`` -> availability: trip fast and fall over to the next provider in the configured
+      chain (ASR: ``FallbackChain``; LLM: the summary-fallback chain, e.g. DGX-vLLM -> gemini). A
+      mixed-backend corpus is accepted as the price of staying up.
+    - ``HOLD`` -> consistency: backoff-retry the SAME chosen model, trip only after the policy
+      threshold, pause-and-probe a blown fuse, then raise :class:`ResilienceFuseOpenError` to halt
+      the batch. Never switches models.
+    """
+
+    FAILOVER = "failover"
+    HOLD = "hold"
+
+
+def resolve_failure_strategy(cfg: object) -> FailureStrategy:
+    """Resolve the ADR-119 failure strategy for ``cfg``.
+
+    An explicitly-set ``resilience_failure_strategy`` wins (detected via pydantic's
+    ``model_fields_set`` so a value that merely equals the field default is not mistaken for an
+    override). Otherwise the strategy is derived from ``resilience_run_context`` — serve ->
+    FAILOVER, reprocess -> HOLD — which keeps a hand-built ``Config(resilience_run_context=...)``
+    consistent even when it never flowed through profile resolution.
+    """
+    explicit = getattr(cfg, "resilience_failure_strategy", None)
+    fields_set: set = getattr(cfg, "model_fields_set", set()) or set()
+    if explicit is not None and "resilience_failure_strategy" in fields_set:
+        return FailureStrategy(str(explicit))
+    ctx = str(getattr(cfg, "resilience_run_context", "serve"))
+    return FailureStrategy.HOLD if ctx == "reprocess" else FailureStrategy.FAILOVER
+
+
 class ResilienceFuseOpenError(RuntimeError):
     """Reprocess mode exhausted pause-and-probe without the endpoint recovering.
 
@@ -203,7 +239,9 @@ __all__ = [
     "DEFAULT_ON_OPEN_MAX_WAIT_SEC",
     "DEFAULT_PROBE_INTERVAL_SEC",
     "DEFAULT_RETRIES_BEFORE_TRIP",
+    "FailureStrategy",
     "ResilienceFuseOpenError",
     "ResiliencePolicy",
     "RunContext",
+    "resolve_failure_strategy",
 ]

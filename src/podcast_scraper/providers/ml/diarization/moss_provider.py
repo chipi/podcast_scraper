@@ -29,7 +29,12 @@ from .... import config
 from ....utils.log_redaction import format_exception_for_log
 from ... import resilience
 from ...resilience import CircuitBreaker, hardened_http_client, TimeoutLike
-from ...resilience.policy import ResilienceFuseOpenError, ResiliencePolicy, RunContext
+from ...resilience.policy import (
+    FailureStrategy,
+    ResilienceFuseOpenError,
+    ResiliencePolicy,
+    resolve_failure_strategy,
+)
 from .base import DiarizationResult, DiarizationSegment
 
 logger = logging.getLogger(__name__)
@@ -78,10 +83,11 @@ class MossDiarizationProvider:
             getattr(cfg, "moss_request_timeout_sec", None) or _DEFAULT_TIMEOUT_SEC
         )
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        # ADR-119: 'serve' (default) fails fast + trips on the first hard timeout, raising for a
-        # wrapping FallbackChain; 'reprocess' routes through the ResiliencePolicy
-        # (backoff-retry -> trip-after-N -> hold-and-probe, never a cross-model fallover).
-        self._run_context = RunContext(getattr(cfg, "resilience_run_context", "serve"))
+        # ADR-119: 'failover' (serve default) fails fast + trips on the first hard timeout, raising
+        # for a wrapping FallbackChain; 'hold' routes through the ResiliencePolicy (backoff-retry ->
+        # trip-after-N -> hold-and-probe, never a cross-model fallover). Standalone strategy knob
+        # defaulted by run context, per-profile overridable.
+        self._strategy = resolve_failure_strategy(cfg)
         self._policy = ResiliencePolicy(
             breaker=_moss_diarize_breaker,
             retries_before_trip=int(getattr(cfg, "resilience_retries_before_trip", 3)),
@@ -125,7 +131,7 @@ class MossDiarizationProvider:
         if not self._initialized:
             self.initialize()
 
-        if self._run_context is RunContext.REPROCESS:
+        if self._strategy is FailureStrategy.HOLD:
             return self._diarize_via_moss_reprocess(audio_path)
 
         # ---- serve mode: fail fast, trip on the first hard timeout, raise for the FallbackChain

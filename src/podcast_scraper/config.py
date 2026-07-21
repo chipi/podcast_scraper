@@ -1345,6 +1345,23 @@ class Config(BaseModel):
             "serve) — set explicitly here only to override that derivation."
         ),
     )
+    resilience_failure_strategy: Literal["failover", "hold"] = Field(
+        default="failover",
+        alias="resilience_failure_strategy",
+        description=(
+            "ADR-119: the resolution STRATEGY when the chosen self-hosted/primary model fails — "
+            "one shared knob honoured by BOTH the self-hosted-ASR family (DGX whisper, DGX "
+            "diarize, MOSS) and the LLM class (summary/GI). 'failover' optimises availability: "
+            "trip fast and fall over to the next provider in the configured chain (ASR: "
+            "FallbackChain; LLM: the summary_fallback chain, e.g. DGX-vLLM -> gemini). 'hold' "
+            "optimises consistency: backoff-retry the SAME chosen model, trip only after "
+            "'resilience_retries_before_trip', pause-and-probe a blown fuse, then halt the batch "
+            "(ResilienceFuseOpenError) rather than switch models — a mixed-backend corpus is "
+            "never produced. Auto-derived from the run context during profile resolution "
+            "(serve -> failover, reprocess -> hold); set explicitly in a profile/registry to "
+            "override that default (e.g. a reprocess run that deliberately wants gemini fallover)."
+        ),
+    )
     resilience_retries_before_trip: int = Field(
         default=3,
         ge=1,
@@ -3505,6 +3522,16 @@ class Config(BaseModel):
         merged.update(registry_settings)
         merged.update(profile_dict)
         merged.update(data)  # explicit fields win
+
+        # ADR-119: the failure STRATEGY defaults from the *effective* run context (serve ->
+        # failover, reprocess -> hold) but is a first-class, overridable knob. If no layer set it
+        # explicitly, derive it here from the merged run context so a profile that flips run
+        # context (without naming a strategy) still gets the matching default; an explicit
+        # strategy in any layer above wins because it is already present in ``merged``.
+        if "resilience_failure_strategy" not in merged:
+            merged["resilience_failure_strategy"] = (
+                "hold" if merged.get("resilience_run_context") == "reprocess" else "failover"
+            )
 
         # After deployment profile resolution, also resolve
         # audio_preprocessing_profile if set (#634 Scope 1). Inlined here rather

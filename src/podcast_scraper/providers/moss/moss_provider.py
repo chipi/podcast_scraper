@@ -29,7 +29,12 @@ from ... import config
 from ...utils.log_redaction import format_exception_for_log
 from .. import resilience
 from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
-from ..resilience.policy import ResilienceFuseOpenError, ResiliencePolicy, RunContext
+from ..resilience.policy import (
+    FailureStrategy,
+    ResilienceFuseOpenError,
+    ResiliencePolicy,
+    resolve_failure_strategy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,11 +79,12 @@ class MossTranscriptionProvider:
         )
         # Retry budget is generic; reuse the shared knob for parity with whisper/diarize.
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        # ADR-119: which resilience behaviour this provider uses. 'serve' (default) fails
+        # ADR-119: which resilience STRATEGY this provider uses. 'failover' (serve default) fails
         # fast and trips the breaker on the first hard timeout, raising for the wrapping
-        # FallbackChain to advance; 'reprocess' routes through the ResiliencePolicy
-        # (backoff-retry -> trip-after-N -> hold-and-probe).
-        self._run_context = RunContext(getattr(cfg, "resilience_run_context", "serve"))
+        # FallbackChain to advance; 'hold' routes through the ResiliencePolicy (backoff-retry ->
+        # trip-after-N -> hold-and-probe). Standalone knob defaulted by run context, per-profile
+        # overridable.
+        self._strategy = resolve_failure_strategy(cfg)
         self._policy = ResiliencePolicy(
             breaker=_moss_breaker,
             retries_before_trip=int(getattr(cfg, "resilience_retries_before_trip", 3)),
@@ -123,7 +129,7 @@ class MossTranscriptionProvider:
         if not self._initialized:
             self.initialize()
 
-        if self._run_context is RunContext.REPROCESS:
+        if self._strategy is FailureStrategy.HOLD:
             # ADR-119: consistency over availability — backoff-retry the SAME model, trip
             # only after N, hold-and-probe on a blown fuse. Never falls over to another
             # model (unlike the serve branch below, which raises for the FallbackChain).

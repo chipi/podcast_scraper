@@ -113,6 +113,81 @@ class TestWaitBehaviour:
 
 
 @pytest.mark.unit
+class TestHoldStrategyAbort:
+    """ADR-119 hold strategy: a sustained outage aborts the batch (ResilienceFuseOpenError) rather
+    than waiting forever; the default failover strategy keeps #697's wait-and-resume (never raises).
+    """
+
+    _MONO = "podcast_scraper.utils.llm_circuit_breaker.time.monotonic"
+
+    def test_hold_raises_once_outage_exceeds_max_wait(self) -> None:
+        from podcast_scraper.providers.resilience.policy import ResilienceFuseOpenError
+
+        cfg = LLMCircuitBreakerConfig(
+            enabled=True,
+            failure_threshold=1,
+            window_seconds=60,
+            cooldown_seconds=1000,  # > max_wait so a single trip exercises the abort path
+            failure_strategy="hold",
+            on_open_max_wait_sec=100,
+        )
+        with patch(self._MONO, return_value=0.0):
+            record_failure("gemini", cfg, error_status=503)  # trip at t=0, hold_started_at=0
+        # 200 s later: still inside cooldown, but sustained-down past the 100 s hold budget.
+        with patch(self._MONO, return_value=200.0):
+            with pytest.raises(ResilienceFuseOpenError):
+                wait_if_overloaded("gemini", cfg)
+
+    def test_hold_waits_but_does_not_raise_within_budget(self) -> None:
+        cfg = LLMCircuitBreakerConfig(
+            enabled=True,
+            failure_threshold=1,
+            window_seconds=60,
+            cooldown_seconds=1000,
+            failure_strategy="hold",
+            on_open_max_wait_sec=100,
+        )
+        with patch(self._MONO, return_value=0.0):
+            record_failure("gemini", cfg, error_status=503)
+        # 50 s in (< 100 s budget): hold mode still just waits, no abort.
+        with patch(self._MONO, return_value=50.0):
+            with patch("podcast_scraper.utils.llm_circuit_breaker.time.sleep") as mock_sleep:
+                wait_if_overloaded("gemini", cfg)  # must NOT raise
+        mock_sleep.assert_called_once()
+
+    def test_failover_never_raises_only_waits(self) -> None:
+        cfg = LLMCircuitBreakerConfig(
+            enabled=True,
+            failure_threshold=1,
+            window_seconds=60,
+            cooldown_seconds=1000,
+            failure_strategy="failover",  # default: wait-and-resume even past max_wait
+            on_open_max_wait_sec=100,
+        )
+        with patch(self._MONO, return_value=0.0):
+            record_failure("gemini", cfg, error_status=503)
+        with patch(self._MONO, return_value=200.0):  # past budget, but failover ignores it
+            with patch("podcast_scraper.utils.llm_circuit_breaker.time.sleep") as mock_sleep:
+                wait_if_overloaded("gemini", cfg)  # must NOT raise
+        mock_sleep.assert_called_once()
+
+    def test_success_resets_hold_window(self) -> None:
+        """A recovery mid-outage resets the hold clock so the next outage starts fresh."""
+        cfg = LLMCircuitBreakerConfig(
+            enabled=True,
+            failure_threshold=1,
+            window_seconds=60,
+            cooldown_seconds=1000,
+            failure_strategy="hold",
+            on_open_max_wait_sec=100,
+        )
+        with patch(self._MONO, return_value=0.0):
+            record_failure("gemini", cfg, error_status=503)
+            record_success("gemini", cfg)  # recovered -> hold_started_at cleared
+        assert stats("gemini")["in_cooldown"] is False
+
+
+@pytest.mark.unit
 class TestRecordSuccessClearsState:
     def test_success_clears_failure_history(self) -> None:
         cfg = LLMCircuitBreakerConfig(enabled=True, failure_threshold=3)
