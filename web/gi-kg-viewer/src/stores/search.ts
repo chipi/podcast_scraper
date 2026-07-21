@@ -310,6 +310,15 @@ export const useSearchStore = defineStore('search', () => {
         embeddingModel: filters.embeddingModel.trim() || undefined,
         dedupeKgSurfaces: filters.dedupeKgSurfaces,
         operator,
+        // Search v3 §S5 followup — thread the same enrichment flag runSearch
+        // uses so an operator toggle does NOT strip ``query_enrichments``
+        // off the visible hit set (the operator response REPLACES
+        // ``results``, and the enriched-answer hero re-derives from that
+        // replacement).
+        enrichResults:
+          filters.enrichResults === null
+            ? Boolean(useShellStore().enrichedSearchAvailable)
+            : filters.enrichResults === true,
       })
       if (operatorRunGate.isStale(seq)) return
       if (body.error) {

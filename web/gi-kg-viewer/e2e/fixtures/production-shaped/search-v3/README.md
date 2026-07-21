@@ -83,7 +83,20 @@ Idempotent + deterministic: same corpus + same pick ⇒ byte-identical output
 - `--search-slice` build-script mode currently appends to
   `search/results-by-query.json` (basic queries); merging per-scenario into
   `search-v3/mocks.json` is a follow-up when the operator first regenerates.
-- Cluster / Consensus operators wire the server-side aggregation in slice S4
-  (#1234); until then these mocks stand in.
-- Enriched-answer hero wires in slice S5 (#1235); the current
-  `EnrichmentConfigEditor.vue` remains untouched.
+- **Shape refresh needed (post-S4/S5 landing, 2026-07-21):** the original
+  `mocks.json` was written against the RFC-107 fixture spec, which planned
+  `enriched.answer` + `enriched.sources[]` at the top level and
+  `operator_result.clusters[]` / `operator_result.consensus[]` under an
+  `operator_result` wrapper. The **shipped** shape is different: S4b puts
+  `clusters[]` and `consensus_pairs[]` directly on the response object, and
+  S5 decorates each hit with `metadata.query_enrichments.related_topics[]`
+  instead of returning a synthesized answer (the shipped
+  QueryEnricher chain doesn't ship a text answer yet). Until the fixture
+  is regenerated:
+  - Tier-2 specs under `web/gi-kg-viewer/e2e/search-production/*.spec.ts`
+    mock inline against the **shipped** shape (see `workspace.spec.ts` for
+    the reference).
+  - `compound-lift` and `temporal-intent` scenarios in `mocks.json` DO still
+    match the shipped shape and can be consumed as-is.
+  - `enriched-answer`, `operator-cluster`, and `operator-consensus` need a
+    regeneration pass before consumers can trust them.
