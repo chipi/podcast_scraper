@@ -13,9 +13,17 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import List
+from unittest.mock import patch
 
 import pytest
 
+from podcast_scraper.providers.resilience.policy import ResilienceFuseOpenError
+from podcast_scraper.utils import llm_circuit_breaker as _llm_cb
+from podcast_scraper.utils.llm_circuit_breaker import (
+    LLMCircuitBreakerConfig,
+    reset_for_test,
+    stats,
+)
 from podcast_scraper.utils.llm_error_taxonomy import LLMTerminalError
 from podcast_scraper.utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
 
@@ -172,3 +180,121 @@ def test_persistent_overload_exhausts_retries_then_raises(mock_server) -> None:
         )
     assert not isinstance(ei.value, LLMTerminalError), "503 is overload, not terminal"
     assert _hits["n"] == 3, "initial + 2 retries = 3 hits, then give up"
+
+
+# --------------------------------------------------------------------------- #
+# ADR-119: the LLM circuit breaker end-to-end through the real SDK + mock server #
+# --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _reset_llm_breaker():
+    """Every breaker test starts and ends with clean per-provider state (module singleton)."""
+    reset_for_test()
+    yield
+    reset_for_test()
+
+
+def _breaker_metrics(provider: str = "openai") -> ProviderCallMetrics:
+    m = ProviderCallMetrics()
+    m.set_provider_name(provider)
+    return m
+
+
+def test_breaker_failover_trips_waits_then_recovers(mock_server) -> None:
+    """ADR-119 failover: a 503 burst trips the breaker; it waits the (short) cooldown, then the
+    endpoint serves us. The breaker smooths the burst — the call still succeeds, no abort."""
+    _srv, base = mock_server
+    _SEQUENCE.extend([503, 503, 200])
+    cfg = LLMCircuitBreakerConfig(
+        enabled=True,
+        failure_threshold=2,
+        window_seconds=60,
+        cooldown_seconds=0.05,  # short so the cooldown wait is quick
+        failure_strategy="failover",
+    )
+    client = _client(base)
+    result = retry_with_metrics(
+        lambda: _call(client),
+        max_retries=3,
+        metrics=_breaker_metrics(),
+        initial_delay=0.001,
+        max_delay=0.002,
+        circuit_breaker_config=cfg,
+    )
+    assert result.choices[0].message.content == "ok"
+    assert stats("openai")["trips_total"] == 1  # tripped once, then rode through — did not abort
+
+
+def test_breaker_hold_aborts_on_sustained_outage(mock_server) -> None:
+    """ADR-119 hold: no fallover, so once the outage exceeds the hold budget the breaker raises
+    ResilienceFuseOpenError to abort the batch — bounded, not a hang, and NOT terminal."""
+    _srv, base = mock_server
+    _SEQUENCE.append(503)  # never recovers
+    cfg = LLMCircuitBreakerConfig(
+        enabled=True,
+        failure_threshold=2,
+        window_seconds=60,
+        cooldown_seconds=60,  # stays in cooldown so the hold-abort branch is reached
+        failure_strategy="hold",
+        on_open_max_wait_sec=0.0,  # any sustained hold aborts immediately
+    )
+    client = _client(base)
+    with pytest.raises(ResilienceFuseOpenError):
+        retry_with_metrics(
+            lambda: _call(client),
+            max_retries=5,
+            metrics=_breaker_metrics(),
+            initial_delay=0.001,
+            max_delay=0.002,
+            circuit_breaker_config=cfg,
+        )
+    # 2 hits trip the breaker (threshold=2); the 3rd attempt's pre-call wait aborts — no 3rd hit.
+    assert _hits["n"] == 2
+
+
+def test_breaker_hold_within_budget_waits_not_aborts(mock_server) -> None:
+    """ADR-119 hold, transient case: while the outage is still within the hold budget the breaker
+    waits (like failover) rather than aborting — recovery on the next call succeeds."""
+    _srv, base = mock_server
+    _SEQUENCE.extend([503, 503, 200])
+    cfg = LLMCircuitBreakerConfig(
+        enabled=True,
+        failure_threshold=2,
+        window_seconds=60,
+        cooldown_seconds=0.05,
+        failure_strategy="hold",
+        on_open_max_wait_sec=100.0,  # generous budget — this blip is well within it
+    )
+    client = _client(base)
+    result = retry_with_metrics(
+        lambda: _call(client),
+        max_retries=3,
+        metrics=_breaker_metrics(),
+        initial_delay=0.001,
+        max_delay=0.002,
+        circuit_breaker_config=cfg,
+    )
+    assert result.choices[0].message.content == "ok"  # waited through, did not abort
+
+
+def test_breaker_trip_emits_operator_alert(mock_server) -> None:
+    """Every breaker trip pages Sentry (guarded capture_message) — proven by spying the hook."""
+    _srv, base = mock_server
+    _SEQUENCE.extend([503, 503, 200])
+    cfg = LLMCircuitBreakerConfig(
+        enabled=True,
+        failure_threshold=2,
+        window_seconds=60,
+        cooldown_seconds=0.02,
+        failure_strategy="failover",
+    )
+    client = _client(base)
+    with patch.object(_llm_cb, "_emit_llm_breaker_trip_alert") as alert:
+        retry_with_metrics(
+            lambda: _call(client),
+            max_retries=3,
+            metrics=_breaker_metrics(),
+            initial_delay=0.001,
+            max_delay=0.002,
+            circuit_breaker_config=cfg,
+        )
+    alert.assert_called_once()  # the single trip paged the operator

@@ -716,3 +716,58 @@ def test_reprocess_fuse_open_halts_the_whole_batch() -> None:
     ):
         with pytest.raises(ResilienceFuseOpenError):
             processing._process_episodes_sequential([args], Mock(), Mock(), Mock(), Mock())
+
+
+def test_reprocess_fuse_open_halts_concurrent_drain() -> None:
+    """ADR-119 item 3 (concurrent path): a future that raises ResilienceFuseOpenError halts the
+    executor drain loop too — not just the sequential loop. The whole batch stops rather than
+    reaping every remaining future against a dead endpoint."""
+    from concurrent.futures import Future
+
+    from podcast_scraper.providers.resilience import ResilienceFuseOpenError
+
+    down: Future = Future()
+    down.set_exception(ResilienceFuseOpenError("moss: endpoint down"))
+    futures = {down: 7}
+    with pytest.raises(ResilienceFuseOpenError):
+        processing._drain_completed_processing_futures(futures, Mock(), Mock())
+
+
+def test_reprocess_batch_ordinary_failure_continues_but_fuse_open_halts() -> None:
+    """COMBINED/system: the isolated mechanisms compose, and the batch distinguishes an ORDINARY
+    failure from a genuine OUTAGE. Episode 1 fails normally (returned success=False) — the batch
+    moves on. Episode 2 opens the fuse (endpoint genuinely down, no fallover in hold) — the batch
+    HALTS and episode 3 is never processed. This is 'a bad episode is not a dead endpoint' end to
+    end at the loop level."""
+    from podcast_scraper.providers.resilience import ResilienceFuseOpenError
+
+    def _episode(idx: int):
+        ep = Mock()
+        ep.idx = idx
+        return (ep,) + tuple([None] * 7)
+
+    batch = [_episode(1), _episode(2), _episode(3)]
+    # ep1 -> ordinary failure (valid 4-tuple, success=False); ep2 -> fuse open; ep3 -> unreached.
+    outcomes = [
+        (False, None, None, 0),
+        ResilienceFuseOpenError("dgx-whisper: endpoint down"),
+    ]
+
+    def _proc_side_effect(*args, **kwargs):
+        result = outcomes.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    with (
+        patch.object(
+            processing, "_process_episode_with_retry", side_effect=_proc_side_effect
+        ) as proc,
+        patch.object(processing, "_handle_episode_download_result", return_value=0) as handle,
+    ):
+        with pytest.raises(ResilienceFuseOpenError):
+            processing._process_episodes_sequential(batch, Mock(), Mock(), Mock(), Mock())
+    # ep1 (ordinary fail, did NOT halt) + ep2 (fuse open, halts) were attempted; ep3 never reached.
+    assert proc.call_count == 2
+    # ep1's ordinary failure still ran the normal result handler; ep2 raised before handling.
+    assert handle.call_count == 1
