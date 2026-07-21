@@ -110,3 +110,46 @@ pattern; the `.env` render is replaced by decrypt-to-tmpfs + file mounts.
   path (against the vanilla/no-lock ethos) + a bootstrap token still on the box. Rejected as primary.
 - **systemd-creds** — vanilla + encrypted, but Hetzner VMs likely lack a vTPM (key on disk
   anyway) and it bridges awkwardly into compose. Kept as a possible wrapper for the age key.
+
+## Addendum (2026-07-21) — this repo is PUBLIC → Option A first (#1250)
+
+The original design commits `infra/secrets/<env>.enc.yaml` **in the tenant's repo**. That
+silently assumed a *private* repo. **`podcast_scraper` is public**, and committing sops
+ciphertext to a public repo is a weaker posture: the ciphertext is public and permanent
+(every clone/fork/archive forever), so if the age key ever leaks, all committed secrets are
+retroactively decryptable from history — and one accidental un-encrypted commit leaks
+plaintext irrevocably. So for the podcast tenant we adopt **Option A** now and defer the
+sops-in-git model to the private-infra move ([#1251](https://github.com/chipi/podcast_scraper/issues/1251)).
+
+**Option A (public-repo-safe):** keep **GH Actions Secrets** as the private source of truth
+(already renders `.env` today). Adopt only the ADR's **runtime-delivery half** — deliver
+secrets as **files in RAM (tmpfs)**, mounted into the containers; the baked-in
+`docker/secrets-shim.sh` exports them as the env vars the app reads. **No ciphertext is
+committed to this public repo.** Delivery is **flag-gated** (`PODCAST_SECRETS_VIA_FILES`,
+default off = today's `.env` behaviour); flipping it on the box is the cutover, with the
+loud check "expected secret files present + non-empty before `compose up`" so a missing key
+fails the deploy rather than silently booting.
+
+- **Kept from the ADR:** shim + tmpfs-file delivery, "no plaintext at rest on disk", the
+  cutover gate. **Dropped for Option A:** committing `prod.enc.yaml` to this public repo, the
+  `infra/secrets/*.yaml` sops recipient rule.
+- **Not yet done (C2, [#1252](https://github.com/chipi/podcast_scraper/issues/1252)):** the app
+  still reads the secrets from **env** (the shim populates env from files). Removing the
+  runtime-env exposure (app reads `*_FILE` at point of use) is the paired follow-up — the
+  residual only matters *after* a box compromise.
+
+### Rotation runbook (Option A)
+
+Any container secret (LLM key, GlitchTip DSN) — rotate = **update the GH Secret + redeploy**:
+
+```bash
+gh secret set PROD_OPENAI_API_KEY --repo chipi/podcast_scraper   # paste new value
+# run deploy-prod (PROD_DEPLOY) → writes the new value to the tmpfs file → containers restart
+```
+
+- No `sops`, no touching the box by hand, no re-keying. Deploy re-renders the tmpfs files
+  from GH Secrets every time.
+- **Grafana push token** rotates the same way but is a **CI/workstation** secret (used by
+  `push-grafana-dashboards.sh`), **not** a container secret — it is *not* in the tmpfs set.
+- Under the future private-infra model (#1251) with sops, rotation becomes
+  `sops edit infra/secrets/prod.enc.yaml` + commit (private) + redeploy.

@@ -20,6 +20,22 @@ REPO_DIR=/srv/podcast-scraper
 # top of the stack + prod overlays. Codespaces deliberately omits it.
 STACK_FILES=(-f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml)
 
+# ADR-115 Option A (#1250): file-mounted secrets. Flag-gated (default off = the
+# current .env behaviour). When on, deploy-prod has written the secret files to
+# host tmpfs /dev/shm/podcast-secrets/; join the secrets overlay so they mount as
+# files + the shim exports them. Fail LOUD if the flag is set but the delivery
+# step did not run — never boot silently without the provider keys (the
+# /api/health probe does not exercise LLM calls, so it would not catch it).
+if [ "${PODCAST_SECRETS_VIA_FILES:-}" = "1" ]; then
+  if [ ! -d /dev/shm/podcast-secrets ] || [ -z "$(ls -A /dev/shm/podcast-secrets 2>/dev/null)" ]; then
+    echo "ERROR: PODCAST_SECRETS_VIA_FILES=1 but /dev/shm/podcast-secrets/ is empty/missing." >&2
+    echo "       The deploy-prod tmpfs-secret-delivery step must run before deploy.sh." >&2
+    exit 5
+  fi
+  STACK_FILES+=(-f compose/docker-compose.secrets.yml)
+  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/podcast-secrets ($(ls -1 /dev/shm/podcast-secrets | wc -l | tr -d ' ') files)"
+fi
+
 cd "$REPO_DIR"
 
 # ``docker-compose.prod.yml`` requires ``PODCAST_DOCKER_PROJECT_DIR`` for api
