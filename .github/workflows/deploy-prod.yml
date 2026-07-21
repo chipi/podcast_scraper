@@ -205,6 +205,12 @@ jobs:
             printf '%s=%s\n' PODCAST_ENV                 prod
             printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
             printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
+            # OTEL traces endpoint (ADR-119). vps-prod overlay flips the exporter
+            # to otlp; the endpoint is the self-hosted VictoriaTraces OTLP ingest on
+            # homelab, addressed by its Tailscale MagicDNS name (resolved in-container
+            # via the overlay's extra_hosts homelab:<ip>). Non-secret. A box migration
+            # is a one-line flip of the host here (DGX stopgap was dgx-llm-1:10428).
+            printf '%s=%s\n' OTEL_EXPORTER_OTLP_TRACES_ENDPOINT 'http://homelab:10428/insert/opentelemetry/v1/traces'
             # LLM provider keys + Sentry DSNs. Under ADR-115 Option A (#1250,
             # PODCAST_SECRETS_VIA_FILES=1) these are delivered as tmpfs FILES and
             # the shim exports them, so they are DROPPED from the plaintext .env
