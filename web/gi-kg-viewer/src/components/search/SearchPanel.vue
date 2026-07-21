@@ -598,9 +598,14 @@ const advancedFeedCombinedTitle = computed(() =>
           :consensus-pairs="search.consensusPairs"
           :operator-loading="search.operatorLoading"
           :operator-error="search.operatorError"
+          :compare-result="search.compareResult"
+          :compare-loading="search.compareLoading"
+          :compare-error="search.compareError"
           @focus-set="(ids: string[]) => emit('focus-set', ids)"
           @run-cluster="() => void search.runOperator(shell.corpusPath, 'cluster')"
           @run-consensus="() => void search.runOperator(shell.corpusPath, 'consensus')"
+          @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB)"
+          @clear-compare="() => search.clearCompare()"
         />
         <ResultCard
           v-for="(h, i) in visibleResults"

@@ -143,3 +143,75 @@ export async function searchCorpus(
   }
   return (await res.json()) as SearchResponse
 }
+
+/** Search v3 §S8: picker slot on ``POST /api/search/compare``.
+ * ``kind`` selects the retrieval scope on the server (person → speaker,
+ * topic → topic, episode → episode_id, feed / show → feed). */
+export interface CompareSubjectRef {
+  kind: 'person' | 'topic' | 'episode' | 'feed' | 'show'
+  id: string
+  label?: string | null
+}
+
+/** Search v3 §S8: one side of a compare response — echoes the picker
+ * slot + the LITM-positioned briefing pack fields. ``grounded`` is true
+ * when the pack has a top insight (the judge summary is muted when
+ * either side reports ``grounded=false``). */
+export interface CompareBriefingPack {
+  subject: CompareSubjectRef
+  query: string
+  query_type: string
+  rendered: string
+  token_count: number
+  max_tokens: number
+  top_insight_id: string | null
+  top_insight_text: string
+  supporting_segment_ids: string[]
+  supporting_segment_texts: string[]
+  coverage_summary: Record<string, unknown>
+  confidence_p50: number
+  result_count: number
+  grounded: boolean
+}
+
+export interface SearchCompareResponse {
+  pack_a: CompareBriefingPack
+  pack_b: CompareBriefingPack
+  /** Deterministic (no LLM) comparison string; null when either side is
+   *  ungrounded (RFC-107 §S8 acceptance). */
+  judge_summary: string | null
+  error?: string | null
+  detail?: string | null
+}
+
+export interface CompareRequestOptions {
+  path: string
+  q?: string
+  topK?: number
+  maxTokens?: number
+}
+
+export async function compareSubjects(
+  subjectA: CompareSubjectRef,
+  subjectB: CompareSubjectRef,
+  options: CompareRequestOptions,
+): Promise<SearchCompareResponse> {
+  const body = {
+    subject_a: subjectA,
+    subject_b: subjectB,
+    q: options.q?.trim() ?? '',
+    path: options.path.trim(),
+    top_k: Math.min(100, Math.max(1, options.topK ?? 10)),
+    max_tokens: Math.min(8000, Math.max(1, options.maxTokens ?? 2000)),
+  }
+  const res = await fetchWithTimeout('/api/search/compare', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as SearchCompareResponse
+}

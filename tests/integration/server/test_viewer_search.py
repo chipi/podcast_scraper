@@ -786,3 +786,198 @@ def test_search_episode_id_omitted_threads_none(
     app = create_app(tmp_path, static_dir=False)
     TestClient(app).get("/api/search", params={"q": "x", "path": str(tmp_path)}).json()
     assert captured["episode_id"] is None
+
+
+# --------------------------------------------------------------------------
+# Search v3 §S8 — POST /api/search/compare
+# --------------------------------------------------------------------------
+
+
+def test_search_compare_no_corpus_path() -> None:
+    """No server-side output_dir + no body.path → returns error placeholder,
+    both packs ungrounded, judge_summary muted."""
+    app = create_app(None, static_dir=False)
+    body = (
+        TestClient(app)
+        .post(
+            "/api/search/compare",
+            json={
+                "subject_a": {"kind": "person", "id": "Alice"},
+                "subject_b": {"kind": "person", "id": "Bob"},
+            },
+        )
+        .json()
+    )
+    assert body["error"] == "no_corpus_path"
+    assert body["pack_a"]["grounded"] is False
+    assert body["pack_b"]["grounded"] is False
+    assert body["judge_summary"] is None
+
+
+def test_search_compare_returns_two_packs_and_judge_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both sides grounded → both packs come back with top_insight_id and
+    the deterministic judge summary is emitted."""
+    captured: List[Dict[str, Any]] = []
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        captured.append({"query": query, **kwargs})
+        idx = len(captured) - 1
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": f"insight:s{idx}:1",
+                    "score": 0.8 if idx == 0 else 0.5,
+                    "metadata": {
+                        "doc_type": "insight",
+                        "episode_id": f"ep{idx}",
+                        "show_id": "showX",
+                        "publish_date": "2026-06-15",
+                        "confidence": 0.9 if idx == 0 else 0.5,
+                    },
+                    "text": f"insight for side {idx}",
+                }
+            ],
+            lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = (
+        TestClient(app)
+        .post(
+            "/api/search/compare",
+            json={
+                "subject_a": {"kind": "person", "id": "person:alice", "label": "Alice"},
+                "subject_b": {"kind": "person", "id": "person:bob", "label": "Bob"},
+                "q": "compute governance",
+                "top_k": 5,
+            },
+        )
+        .json()
+    )
+    assert body["error"] is None
+    assert body["pack_a"]["grounded"] is True
+    assert body["pack_b"]["grounded"] is True
+    assert body["pack_a"]["top_insight_id"] == "insight:s0:1"
+    assert body["pack_b"]["top_insight_id"] == "insight:s1:1"
+    assert body["pack_a"]["subject"]["label"] == "Alice"
+    # Judge summary is present, names the higher-confidence side first, and
+    # names both sides so the caller can compare visually.
+    assert body["judge_summary"] is not None
+    assert body["judge_summary"].startswith("Alice shows higher confidence")
+    assert "Bob" in body["judge_summary"]
+    # Retrieval was called with each subject's scope + shared query.
+    assert captured[0]["speaker"] == "person:alice"
+    assert captured[1]["speaker"] == "person:bob"
+    assert captured[0]["query"] == "compute governance"
+
+
+def test_search_compare_mutes_judge_summary_when_one_side_ungrounded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Empty result set on one side → grounded=false → judge_summary=null."""
+    calls = {"n": 0}
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return CorpusSearchOutcome(
+                results=[
+                    {
+                        "doc_id": "insight:a1",
+                        "score": 0.9,
+                        "metadata": {
+                            "doc_type": "insight",
+                            "episode_id": "ep1",
+                            "show_id": "s1",
+                            "publish_date": "2026-01-01",
+                            "confidence": 0.8,
+                        },
+                        "text": "A",
+                    }
+                ],
+                lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
+            )
+        return CorpusSearchOutcome(
+            results=[], lift_stats={"transcript_hits_returned": 0, "lift_applied": 0}
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = (
+        TestClient(app)
+        .post(
+            "/api/search/compare",
+            json={
+                "subject_a": {"kind": "topic", "id": "topic:compute", "label": "Compute"},
+                "subject_b": {"kind": "topic", "id": "topic:policy", "label": "Policy"},
+                "q": "governance",
+            },
+        )
+        .json()
+    )
+    assert body["pack_a"]["grounded"] is True
+    assert body["pack_b"]["grounded"] is False
+    assert body["judge_summary"] is None
+    assert body["error"] is None
+
+
+def test_search_compare_scope_kinds_thread_correct_kwargs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each subject.kind maps to the expected search kwarg (person/topic/
+    episode/feed) — the picker is a straight passthrough."""
+    calls: List[Dict[str, Any]] = []
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        calls.append(kwargs)
+        return CorpusSearchOutcome(
+            results=[], lift_stats={"transcript_hits_returned": 0, "lift_applied": 0}
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    TestClient(app).post(
+        "/api/search/compare",
+        json={
+            "subject_a": {"kind": "episode", "id": "ep-abc"},
+            "subject_b": {"kind": "feed", "id": "sha256:zzz"},
+            "q": "x",
+        },
+    ).json()
+    assert calls[0]["episode_id"] == "ep-abc"
+    assert calls[1]["feed"] == "sha256:zzz"
+
+
+def test_search_compare_rejects_missing_subjects() -> None:
+    """FastAPI validation — missing subject_a returns 422."""
+    app = create_app(None, static_dir=False)
+    response = TestClient(app).post(
+        "/api/search/compare",
+        json={"subject_b": {"kind": "person", "id": "Bob"}},
+    )
+    assert response.status_code == 422
+
+
+def test_search_compare_rejects_invalid_kind() -> None:
+    """FastAPI validation — kind must be one of person/topic/episode/feed/show."""
+    app = create_app(None, static_dir=False)
+    response = TestClient(app).post(
+        "/api/search/compare",
+        json={
+            "subject_a": {"kind": "banana", "id": "x"},
+            "subject_b": {"kind": "person", "id": "y"},
+        },
+    )
+    assert response.status_code == 422

@@ -1354,6 +1354,124 @@ class CorpusSearchApiResponse(BaseModel):
     )
 
 
+class CompareSubjectRefModel(BaseModel):
+    """One picker slot on ``POST /api/search/compare`` (Search v3 §S8).
+
+    Subjects are addressed by kind + id. ``label`` is display-only — the
+    server never round-trips it into retrieval scope (kind → search filter
+    mapping is: person → speaker substring, topic → topic substring,
+    episode → episode_id exact, feed/show → feed substring).
+    """
+
+    kind: Literal["person", "topic", "episode", "feed", "show"] = Field(
+        description=(
+            "Subject class. Maps to a ``structured_corpus_search`` scope: "
+            "person → speaker=, topic → topic=, episode → episode_id=, "
+            "feed / show → feed=."
+        ),
+    )
+    id: str = Field(
+        min_length=1,
+        description=(
+            "Subject identifier. Bare id or label — the server uses it as the "
+            "scope value (substring for person / topic / feed, exact for episode). "
+            "For persons the client typically passes the display name (matches "
+            "the current speaker= filter), for topics the ``topic:…`` id or bare "
+            "label, for episodes the corpus-stable ``episode_id``."
+        ),
+    )
+    label: str | None = Field(
+        default=None,
+        description="Display-only label; server echoes it back in the response pack.",
+    )
+
+
+class CompareBriefingPackModel(BaseModel):
+    """One side of a Compare response (Search v3 §S8).
+
+    Wraps a single ``build_briefing_pack`` call — the RFC-093 API used
+    unchanged. ``rendered`` is the LITM-positioned text (critical /
+    supporting / caveats) the caller can paste into a summary card.
+    ``grounded`` is True when the pack has a top insight; the judge
+    summary is muted when either side reports ``grounded=false``.
+    """
+
+    subject: CompareSubjectRefModel = Field(description="Echoed subject picker slot.")
+    query: str = Field(description="Query used for this side (echo of ``request.q`` or empty).")
+    query_type: str = Field(default="semantic", description="Detected query intent.")
+    rendered: str = Field(default="", description="LITM-positioned briefing text.")
+    token_count: int = Field(default=0, ge=0)
+    max_tokens: int = Field(default=2000, ge=1)
+    top_insight_id: str | None = Field(
+        default=None,
+        description="doc_id of the top insight (null when no insight tier hit).",
+    )
+    top_insight_text: str = Field(
+        default="",
+        description="Text of the top insight (empty when null).",
+    )
+    supporting_segment_ids: list[str] = Field(default_factory=list)
+    supporting_segment_texts: list[str] = Field(default_factory=list)
+    coverage_summary: dict[str, Any] = Field(
+        default_factory=dict,
+        description="``{show_ids, episode_count, date_range}`` (from build_briefing_pack).",
+    )
+    confidence_p50: float = Field(default=0.0)
+    result_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of hits retrieved for this subject.",
+    )
+    grounded: bool = Field(
+        default=False,
+        description="True when ``top_insight_id`` is non-null (has synthesized insight).",
+    )
+
+
+class SearchCompareRequest(BaseModel):
+    """Request body for ``POST /api/search/compare`` (Search v3 §S8)."""
+
+    subject_a: CompareSubjectRefModel
+    subject_b: CompareSubjectRefModel
+    q: str = Field(
+        default="",
+        description=(
+            "Optional shared query. When empty the two subjects are compared "
+            "on their whole-corpus presence — the underlying "
+            "``structured_corpus_search`` uses the subject label as the query "
+            "in that case (fallback)."
+        ),
+    )
+    path: str | None = Field(
+        default=None,
+        description="Corpus output dir (contains search/). Omit to use server default.",
+    )
+    top_k: int = Field(default=10, ge=1, le=100)
+    max_tokens: int = Field(default=2000, ge=1, le=8000)
+
+
+class SearchCompareResponse(BaseModel):
+    """Response for ``POST /api/search/compare`` (Search v3 §S8).
+
+    Wraps ``build_briefing_pack`` twice — no LanceDB native combine site;
+    ``make lint-search-v3`` remains green.
+    """
+
+    pack_a: CompareBriefingPackModel
+    pack_b: CompareBriefingPackModel
+    judge_summary: str | None = Field(
+        default=None,
+        description=(
+            "Deterministic comparison summary (RFC-107 §S8 acceptance: hidden "
+            "when either pack reports ``grounded=false``). Compares confidence "
+            "p50, episode coverage, and top-insight score across the two sides. "
+            "Never an LLM call — CI stays airgapped."
+        ),
+    )
+    error: str | None = None
+    detail: str | None = None
+
+
 class RelatedNodeModel(BaseModel):
     """One corpus-graph node projected for a relational-query result (RFC-094 / #882)."""
 

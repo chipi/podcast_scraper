@@ -20,12 +20,15 @@
  */
 import { computed } from 'vue'
 import type {
+  CompareSubjectRef,
   SearchClusterGroup,
+  SearchCompareResponse,
   SearchConsensusPair,
   SearchHit,
 } from '../../api/searchApi'
 import type { SubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
+import CompareOperatorPanel from './CompareOperatorPanel.vue'
 
 const props = defineProps<{
   /**
@@ -45,15 +48,23 @@ const props = defineProps<{
    */
   consensusPairs?: SearchConsensusPair[] | null
   /**
-   * Search v3 §S4b — which operator is currently mid-flight, if any. The
-   * bar renders a small "…" affordance beside the active chip.
+   * Search v3 §S4b / §S8 — which operator is currently mid-flight, if any.
+   * The bar renders a small "…" affordance beside the active chip.
    */
-  operatorLoading?: 'cluster' | 'consensus' | null
+  operatorLoading?: 'cluster' | 'consensus' | 'compare' | null
   /**
    * Search v3 §S4b — the last operator-fetch error (mapped human string),
    * or null.
    */
   operatorError?: string | null
+  /**
+   * Search v3 §S8 — Compare state. Panel-level state stays here so the
+   * bar (as the operator surface) knows when to enable / disable the
+   * Compare chip and can pass the response through to the panel.
+   */
+  compareResult?: SearchCompareResponse | null
+  compareLoading?: boolean
+  compareError?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -74,15 +85,70 @@ const emit = defineEmits<{
    * current query. Parent triggers ``search.runOperator('consensus')``.
    */
   'run-consensus': []
+  /**
+   * Search v3 §S8 — request a compare against 2 picker-selected
+   * subjects (from the current visible hits). Parent triggers
+   * ``search.runCompare(subjectA, subjectB)``.
+   */
+  'run-compare': [payload: { subjectA: CompareSubjectRef; subjectB: CompareSubjectRef }]
+  /** Parent triggers ``search.clearCompare()``. */
+  'clear-compare': []
 }>()
 
-type OperatorId = 'cluster' | 'timeline' | 'graph' | 'consensus'
+type OperatorId = 'cluster' | 'timeline' | 'graph' | 'consensus' | 'compare'
 
 const active = defineModel<OperatorId | null>('active', { default: null })
 
 const clusterActive = computed(() => active.value === 'cluster')
 const timelineActive = computed(() => active.value === 'timeline')
 const consensusActive = computed(() => active.value === 'consensus')
+const compareActive = computed(() => active.value === 'compare')
+
+/**
+ * Search v3 §S8 — the Compare chip enables when at least 2 distinct
+ * comparable subjects appear across the visible hits' metadata (persons,
+ * topics, episodes, feeds). Mirrors the discovery walk in
+ * ``CompareOperatorPanel``; kept in sync so the chip disables in the same
+ * state the picker would render "no candidates".
+ */
+const compareCandidateCount = computed<number>(() => {
+  const seen = new Set<string>()
+  const bump = (kind: string, id: string): void => {
+    const trimmed = id.trim()
+    if (!trimmed) return
+    seen.add(`${kind}::${trimmed}`)
+  }
+  for (const hit of props.visibleHits) {
+    const md = (hit.metadata ?? {}) as Record<string, unknown>
+    const docType = typeof md.doc_type === 'string' ? md.doc_type : ''
+    if (docType === 'kg_topic') {
+      const src = typeof md.source_id === 'string' ? md.source_id : ''
+      bump('topic', src)
+    } else {
+      const topicLabel = typeof md.topic_label === 'string' ? md.topic_label : ''
+      if (topicLabel) bump('topic', topicLabel)
+    }
+    const speaker = typeof md.speaker_name === 'string'
+      ? md.speaker_name
+      : typeof md.speaker === 'string'
+        ? md.speaker
+        : ''
+    if (speaker) bump('person', speaker)
+    const supporting = Array.isArray(md.supporting_quotes) ? md.supporting_quotes : []
+    for (const raw of supporting) {
+      const q = (raw ?? {}) as Record<string, unknown>
+      const name = typeof q.speaker_name === 'string' ? q.speaker_name : ''
+      if (name) bump('person', name)
+    }
+    const epId = typeof md.episode_id === 'string' ? md.episode_id : ''
+    if (epId) bump('episode', epId)
+    const feedId = typeof md.feed_id === 'string' ? md.feed_id : ''
+    if (feedId) bump('feed', feedId)
+  }
+  return seen.size
+})
+
+const compareChipDisabled = computed(() => compareCandidateCount.value < 2)
 
 // ---------- Timeline (client-only) ---------------------------------------
 
@@ -188,6 +254,22 @@ function onConsensusClick(): void {
   active.value = 'consensus'
   emit('run-consensus')
 }
+
+function onCompareClick(): void {
+  if (compareChipDisabled.value) return
+  active.value = compareActive.value ? null : 'compare'
+}
+
+function onCompareRun(payload: {
+  subjectA: CompareSubjectRef
+  subjectB: CompareSubjectRef
+}): void {
+  emit('run-compare', payload)
+}
+
+function onCompareClear(): void {
+  emit('clear-compare')
+}
 </script>
 
 <template>
@@ -259,6 +341,26 @@ function onConsensusClick(): void {
         @click="onConsensusClick"
       >
         {{ operatorLoading === 'consensus' ? 'Consensus…' : 'Consensus' }}
+      </button>
+      <button
+        type="button"
+        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+        :class="
+          compareActive
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border text-muted hover:bg-overlay'
+        "
+        :aria-pressed="compareActive"
+        :disabled="compareChipDisabled"
+        data-testid="operator-chip-compare"
+        :title="
+          compareChipDisabled
+            ? 'Compare: fewer than 2 comparable subjects in the current hit set.'
+            : `Compare two subjects (person / topic / episode / feed) from the current hit set — server wraps build_briefing_pack twice.`
+        "
+        @click="onCompareClick"
+      >
+        {{ operatorLoading === 'compare' ? 'Compare…' : 'Compare' }}
       </button>
     </div>
 
@@ -400,5 +502,15 @@ function onConsensusClick(): void {
         </li>
       </ul>
     </div>
+
+    <CompareOperatorPanel
+      v-if="compareActive"
+      :visible-hits="visibleHits"
+      :compare-result="compareResult ?? null"
+      :compare-loading="Boolean(compareLoading)"
+      :compare-error="compareError ?? null"
+      @run-compare="onCompareRun"
+      @clear-compare="onCompareClear"
+    />
   </div>
 </template>

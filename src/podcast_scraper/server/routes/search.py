@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
@@ -14,13 +15,22 @@ from podcast_scraper.enrichment.query_enrichers import (
 from podcast_scraper.enrichment.query_protocol import QueryResultEnvelope
 from podcast_scraper.enrichment.query_registry import QueryEnricherRegistry
 from podcast_scraper.search.capability import structured_corpus_search
+from podcast_scraper.search.compare import (
+    BriefingPack as CompareBriefingPack,
+    compare_subjects,
+    SubjectRef as CompareSubjectRef,
+)
 from podcast_scraper.search.operators import cluster_hits, consensus_pairs_for_hits
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
+    CompareBriefingPackModel,
+    CompareSubjectRefModel,
     CorpusSearchApiResponse,
     CorpusSearchLiftStatsModel,
     SearchClusterGroupModel,
+    SearchCompareRequest,
+    SearchCompareResponse,
     SearchConsensusPairModel,
     SearchHitModel,
 )
@@ -245,4 +255,82 @@ async def search_corpus(
         operator=operator_key,
         clusters=clusters,
         consensus_pairs=consensus_pairs,
+    )
+
+
+def _pack_to_model(pack: Any) -> CompareBriefingPackModel:
+    """Adapt ``search.compare.BriefingPack`` (dataclass) → Pydantic model."""
+    return CompareBriefingPackModel(
+        subject=CompareSubjectRefModel(
+            kind=pack.subject.kind,
+            id=pack.subject.id,
+            label=pack.subject.label,
+        ),
+        query=pack.query,
+        query_type=pack.query_type,
+        rendered=pack.rendered,
+        token_count=pack.token_count,
+        max_tokens=pack.max_tokens,
+        top_insight_id=pack.top_insight_id,
+        top_insight_text=pack.top_insight_text,
+        supporting_segment_ids=list(pack.supporting_segment_ids),
+        supporting_segment_texts=list(pack.supporting_segment_texts),
+        coverage_summary=dict(pack.coverage_summary),
+        confidence_p50=float(pack.confidence_p50),
+        result_count=int(pack.result_count),
+        grounded=bool(pack.grounded),
+    )
+
+
+@router.post("/search/compare", response_model=SearchCompareResponse)
+async def search_compare(
+    request: Request,
+    body: SearchCompareRequest,
+) -> SearchCompareResponse:
+    """Search v3 §S8 — Compare 2 subjects.
+
+    Wraps ``search.compare.compare_subjects`` (which itself wraps the RFC-093
+    ``build_briefing_pack`` twice — one call per side). Judge summary is
+    deterministic (no LLM) and muted when either side is ungrounded.
+    """
+
+    def _empty_pack(subject_model: CompareSubjectRefModel) -> CompareBriefingPack:
+        return CompareBriefingPack(
+            subject=CompareSubjectRef(
+                kind=subject_model.kind,
+                id=subject_model.id,
+                label=subject_model.label,
+            ),
+            query=body.q,
+            max_tokens=body.max_tokens,
+        )
+
+    fallback = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(body.path, fallback)
+    if root is None:
+        return SearchCompareResponse(
+            pack_a=_pack_to_model(_empty_pack(body.subject_a)),
+            pack_b=_pack_to_model(_empty_pack(body.subject_b)),
+            judge_summary=None,
+            error="no_corpus_path",
+        )
+
+    outcome = compare_subjects(
+        root,
+        CompareSubjectRef(
+            kind=body.subject_a.kind, id=body.subject_a.id, label=body.subject_a.label
+        ),
+        CompareSubjectRef(
+            kind=body.subject_b.kind, id=body.subject_b.id, label=body.subject_b.label
+        ),
+        q=body.q,
+        top_k=body.top_k,
+        max_tokens=body.max_tokens,
+    )
+    return SearchCompareResponse(
+        pack_a=_pack_to_model(outcome.pack_a),
+        pack_b=_pack_to_model(outcome.pack_b),
+        judge_summary=outcome.judge_summary,
+        error=outcome.error,
+        detail=outcome.detail,
     )
