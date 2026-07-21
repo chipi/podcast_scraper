@@ -37,6 +37,12 @@ transcription_fallback_provider: whisper
 resilience_run_context: reprocess
 resilience_failure_strategy: hold
 
+# A reprocess REGENERATES the transcript (here with a different ASR model, turbo vs large-v3), so
+# the by-audio-hash transcript cache MUST be off — otherwise it replays a prior model's transcript
+# for the same audio bytes and the run "succeeds" doing nothing (the #1173-adjacent cache-replay
+# trap). Only effective now that --config non-flag fields actually reach Config (#1253 carry fix).
+transcript_cache_enabled: false
+
 # --- diarization: pyannote v4 (self-hosted) -----------------------------------------------------
 diarize: true
 screenplay: true
