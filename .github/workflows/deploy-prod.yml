@@ -492,7 +492,7 @@ jobs:
 
       - name: Open PR with prod-marker bump
         if: success() && steps.preflight.outputs.skip != 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           # PAT with contents:write + pull-requests:write, or org-configured
           # GITHUB_TOKEN with the same. If unset, the action falls back to
