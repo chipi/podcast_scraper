@@ -548,7 +548,13 @@ const advancedFeedCombinedTitle = computed(() =>
         <ResultSetOperatorBar
           v-model:active="activeOperator"
           :visible-hits="visibleResults"
+          :clusters="search.clusters"
+          :consensus-pairs="search.consensusPairs"
+          :operator-loading="search.operatorLoading"
+          :operator-error="search.operatorError"
           @focus-set="(ids: string[]) => emit('focus-set', ids)"
+          @run-cluster="() => void search.runOperator(shell.corpusPath, 'cluster')"
+          @run-consensus="() => void search.runOperator(shell.corpusPath, 'consensus')"
         />
         <ResultCard
           v-for="(h, i) in visibleResults"

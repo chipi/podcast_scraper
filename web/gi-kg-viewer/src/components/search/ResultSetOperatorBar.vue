@@ -19,7 +19,11 @@
  * (or the caller's ``visible-hits`` prop) — it does NOT re-fetch.
  */
 import { computed } from 'vue'
-import type { SearchHit } from '../../api/searchApi'
+import type {
+  SearchClusterGroup,
+  SearchConsensusPair,
+  SearchHit,
+} from '../../api/searchApi'
 import type { SubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
 
@@ -30,6 +34,26 @@ const props = defineProps<{
    * matches what the user sees below.
    */
   visibleHits: SearchHit[]
+  /**
+   * Search v3 §S4b — the server's most-recent cluster response for the
+   * current query, or null. Rendered inline in the Cluster panel.
+   */
+  clusters?: SearchClusterGroup[] | null
+  /**
+   * Search v3 §S4b — the server's most-recent consensus response for the
+   * current query, or null. Rendered inline in the Consensus panel.
+   */
+  consensusPairs?: SearchConsensusPair[] | null
+  /**
+   * Search v3 §S4b — which operator is currently mid-flight, if any. The
+   * bar renders a small "…" affordance beside the active chip.
+   */
+  operatorLoading?: 'cluster' | 'consensus' | null
+  /**
+   * Search v3 §S4b — the last operator-fetch error (mapped human string),
+   * or null.
+   */
+  operatorError?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -40,13 +64,25 @@ const emit = defineEmits<{
    * ``graphNavigation.setLibraryEpisodeHighlights``.
    */
   'focus-set': [ids: string[]]
+  /**
+   * Search v3 §S4b — request the server-side Cluster operator over the
+   * current query. Parent triggers ``search.runOperator('cluster')``.
+   */
+  'run-cluster': []
+  /**
+   * Search v3 §S4b — request the server-side Consensus operator over the
+   * current query. Parent triggers ``search.runOperator('consensus')``.
+   */
+  'run-consensus': []
 }>()
 
 type OperatorId = 'cluster' | 'timeline' | 'graph' | 'consensus'
 
 const active = defineModel<OperatorId | null>('active', { default: null })
 
+const clusterActive = computed(() => active.value === 'cluster')
 const timelineActive = computed(() => active.value === 'timeline')
+const consensusActive = computed(() => active.value === 'consensus')
 
 // ---------- Timeline (client-only) ---------------------------------------
 
@@ -126,7 +162,12 @@ const graphChipLabel = computed(() =>
 )
 
 function onClusterClick(): void {
-  // No-op — the operator is disabled in S4a; the tooltip explains why.
+  if (clusterActive.value) {
+    active.value = null
+    return
+  }
+  active.value = 'cluster'
+  emit('run-cluster')
 }
 
 function onTimelineClick(): void {
@@ -140,7 +181,12 @@ function onGraphClick(): void {
 }
 
 function onConsensusClick(): void {
-  // No-op — the operator is disabled in S4a; the tooltip explains why.
+  if (consensusActive.value) {
+    active.value = null
+    return
+  }
+  active.value = 'consensus'
+  emit('run-consensus')
 }
 </script>
 
@@ -157,13 +203,18 @@ function onConsensusClick(): void {
     >
       <button
         type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] font-medium leading-none text-muted transition-colors hover:bg-overlay disabled:cursor-not-allowed disabled:opacity-40"
+        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
+        :class="
+          clusterActive
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border text-muted hover:bg-overlay'
+        "
+        :aria-pressed="clusterActive"
         data-testid="operator-chip-cluster"
-        disabled
-        title="Cluster hits by insight / theme cluster — server-side aggregation lands in slice S4b (#1234)."
+        title="Group hits by topic / theme cluster (server-side; over-fetches top_k × 3 for grouping)."
         @click="onClusterClick"
       >
-        Cluster
+        {{ operatorLoading === 'cluster' ? 'Cluster…' : 'Cluster' }}
       </button>
       <button
         type="button"
@@ -196,15 +247,28 @@ function onConsensusClick(): void {
       </button>
       <button
         type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] font-medium leading-none text-muted transition-colors hover:bg-overlay disabled:cursor-not-allowed disabled:opacity-40"
+        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
+        :class="
+          consensusActive
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border text-muted hover:bg-overlay'
+        "
+        :aria-pressed="consensusActive"
         data-testid="operator-chip-consensus"
-        disabled
-        title="Cross-speaker corroboration pairs from the topic_consensus enricher — server-side surface lands in slice S4b (#1234)."
+        title="Cross-speaker corroboration pairs from enrichments/topic_consensus.json (ADR-108, precision ~0.91 on prod-v2)."
         @click="onConsensusClick"
       >
-        Consensus
+        {{ operatorLoading === 'consensus' ? 'Consensus…' : 'Consensus' }}
       </button>
     </div>
+
+    <p
+      v-if="operatorError"
+      class="text-[10px] text-danger"
+      data-testid="operator-error"
+    >
+      {{ operatorError }}
+    </p>
 
     <div
       v-if="timelineActive"
@@ -227,6 +291,114 @@ function onConsensusClick(): void {
         {{ timeline.undated }}
         {{ timeline.undated === 1 ? 'hit' : 'hits' }} without a publish date not shown.
       </p>
+    </div>
+
+    <div
+      v-if="clusterActive"
+      class="rounded border border-border bg-canvas p-2"
+      data-testid="operator-cluster-panel"
+      aria-label="Cluster grouping of the current hit set"
+    >
+      <p
+        v-if="operatorLoading === 'cluster' && !clusters"
+        class="text-[10px] text-muted"
+        data-testid="operator-cluster-loading"
+      >
+        Loading clusters…
+      </p>
+      <p
+        v-else-if="!clusters || !clusters.length"
+        class="text-[10px] text-muted"
+        data-testid="operator-cluster-empty"
+      >
+        No clusters — no hit resolves to a topic or theme cluster surface.
+      </p>
+      <ul
+        v-else
+        class="flex flex-col gap-1"
+        data-testid="operator-cluster-list"
+      >
+        <li
+          v-for="c in clusters"
+          :key="c.cluster_id ?? 'ungrouped'"
+          class="rounded border border-border/60 bg-surface px-2 py-1 text-[11px] text-surface-foreground"
+        >
+          <div class="flex items-center gap-2">
+            <span
+              class="rounded px-1 py-px text-[9px] font-medium uppercase leading-none tracking-wide text-muted"
+              :class="c.cluster_kind === 'ungrouped' ? 'bg-overlay' : 'bg-primary/15 text-primary'"
+              :title="`Cluster kind: ${c.cluster_kind}`"
+            >
+              {{ c.cluster_kind === 'ungrouped' ? 'Other' : c.cluster_kind.replace('_', ' ') }}
+            </span>
+            <span class="truncate font-medium">{{ c.label }}</span>
+            <span class="ml-auto shrink-0 text-[10px] text-muted">
+              {{ c.size }} {{ c.size === 1 ? 'hit' : 'hits' }}
+            </span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div
+      v-if="consensusActive"
+      class="rounded border border-border bg-canvas p-2"
+      data-testid="operator-consensus-panel"
+      aria-label="Cross-speaker corroboration pairs"
+    >
+      <p
+        v-if="operatorLoading === 'consensus' && !consensusPairs"
+        class="text-[10px] text-muted"
+        data-testid="operator-consensus-loading"
+      >
+        Loading consensus pairs…
+      </p>
+      <p
+        v-else-if="!consensusPairs || !consensusPairs.length"
+        class="text-[10px] text-muted"
+        data-testid="operator-consensus-empty"
+      >
+        No corroboration pairs for topics in this hit set (or the corpus has no
+        <code>enrichments/topic_consensus.json</code> yet).
+      </p>
+      <ul
+        v-else
+        class="flex flex-col gap-1.5"
+        data-testid="operator-consensus-list"
+      >
+        <li
+          v-for="p in consensusPairs"
+          :key="`${p.topic_id}-${p.insight_a_id}-${p.insight_b_id}`"
+          class="rounded border border-border/60 bg-surface px-2 py-1.5 text-[11px] text-surface-foreground"
+        >
+          <p class="mb-1 flex items-center gap-1.5">
+            <span
+              class="rounded bg-primary/15 px-1 py-px text-[9px] font-medium uppercase leading-none tracking-wide text-primary"
+            >Topic</span>
+            <span class="truncate font-medium">{{ p.topic_label ?? p.topic_id }}</span>
+          </p>
+          <p class="mb-1 line-clamp-2 italic">
+            <span class="font-medium">{{ p.person_a_label ?? p.person_a_id }}:</span>
+            {{ p.insight_a_text || '(no text)' }}
+          </p>
+          <p class="mb-1 line-clamp-2 italic">
+            <span class="font-medium">{{ p.person_b_label ?? p.person_b_id }}:</span>
+            {{ p.insight_b_text || '(no text)' }}
+          </p>
+          <p class="text-[10px] text-muted">
+            <span title="Lower is stronger agreement (ADR-108)">
+              contradiction: {{ p.contradiction_score.toFixed(2) }}
+            </span>
+            <span
+              v-if="p.cosine_similarity != null"
+              title="Higher is same-question (embedding cosine)"
+              class="ml-2"
+            >
+              cosine: {{ p.cosine_similarity.toFixed(2) }}
+            </span>
+          </p>
+        </li>
+      </ul>
     </div>
   </div>
 </template>

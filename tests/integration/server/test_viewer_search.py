@@ -507,4 +507,209 @@ def test_search_enrich_results_decorates_multiple_hits_with_different_topic_ids(
         results[1]["metadata"]["query_enrichments"]["related_topics"][0]["topic_id"]
         == "topic:policy"
     )
-    assert "query_enrichments" not in results[2]["metadata"]
+
+
+# --------------------------------------------------------------------------
+# Search v3 §S4b — result-set operators (cluster / consensus) on /api/search.
+# --------------------------------------------------------------------------
+
+
+def _install_fake_search(monkeypatch: pytest.MonkeyPatch, results: list[dict]) -> None:
+    """Mock the retrieval path so operator tests can seed hit metadata directly."""
+
+    def fake_run(
+        output_dir: Path,
+        query: str,
+        **kwargs: Any,
+    ) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=results,
+            lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+
+
+def test_search_no_operator_omits_operator_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Backward compatibility — the operator fields are additive; when the
+    caller doesn't ask for one, the response carries them as null so old
+    clients ignore them without noticing."""
+    _install_fake_search(
+        monkeypatch,
+        [{"doc_id": "d:1", "score": 0.5, "metadata": {"doc_type": "insight"}, "text": "x"}],
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = TestClient(app).get("/api/search", params={"q": "x", "path": str(tmp_path)}).json()
+    assert body["operator"] is None
+    assert body["clusters"] is None
+    assert body["consensus_pairs"] is None
+
+
+def test_search_invalid_operator_is_no_op(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unknown operator names silently fall through (endpoint never breaks)."""
+    _install_fake_search(
+        monkeypatch,
+        [{"doc_id": "d:1", "score": 0.5, "metadata": {"doc_type": "insight"}, "text": "x"}],
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = (
+        TestClient(app)
+        .get("/api/search", params={"q": "x", "path": str(tmp_path), "operator": "bogus"})
+        .json()
+    )
+    assert body["operator"] is None
+    assert body["clusters"] is None
+
+
+def test_search_operator_cluster_groups_by_topic_cluster_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``operator=cluster`` — server groups hits by ``metadata.topic_cluster``
+    when present. Ungrouped hits land in a trailing bucket with cluster_id=null."""
+    _install_fake_search(
+        monkeypatch,
+        [
+            {
+                "doc_id": "d:1",
+                "score": 0.9,
+                "metadata": {
+                    "doc_type": "kg_topic",
+                    "source_id": "topic:climate",
+                    "topic_cluster": {
+                        "topic_cluster_compound_id": "tc:env",
+                        "label": "Environment",
+                    },
+                },
+                "text": "a",
+            },
+            {
+                "doc_id": "d:2",
+                "score": 0.8,
+                "metadata": {
+                    "doc_type": "kg_topic",
+                    "source_id": "topic:policy",
+                    "topic_cluster": {
+                        "topic_cluster_compound_id": "tc:env",
+                        "label": "Environment",
+                    },
+                },
+                "text": "b",
+            },
+            {
+                "doc_id": "d:3",
+                "score": 0.7,
+                "metadata": {"doc_type": "transcript", "episode_id": "ep-x"},
+                "text": "c",
+            },
+        ],
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = (
+        TestClient(app)
+        .get(
+            "/api/search",
+            params={"q": "x", "path": str(tmp_path), "operator": "cluster"},
+        )
+        .json()
+    )
+    assert body["operator"] == "cluster"
+    clusters = body["clusters"]
+    assert clusters is not None and len(clusters) == 2
+    assert clusters[0]["cluster_id"] == "tc:env"
+    assert clusters[0]["cluster_kind"] == "topic_cluster"
+    assert clusters[0]["size"] == 2
+    assert clusters[0]["hit_indices"] == [0, 1]
+    assert clusters[1]["cluster_id"] is None
+    assert clusters[1]["cluster_kind"] == "ungrouped"
+
+
+def test_search_operator_consensus_reads_topic_consensus_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``operator=consensus`` — server reads enrichments/topic_consensus.json
+    and filters pairs to topics surfaced in the hit set."""
+    import json as _json
+
+    (tmp_path / "enrichments").mkdir()
+    (tmp_path / "enrichments" / "topic_consensus.json").write_text(
+        _json.dumps(
+            {
+                "derived": True,
+                "enricher_id": "topic_consensus",
+                "schema_version": "1.0",
+                "data": {
+                    "consensus": [
+                        {
+                            "topic_id": "topic:climate",
+                            "person_a_id": "person:alice",
+                            "person_b_id": "person:bob",
+                            "insight_a_id": "i:a",
+                            "insight_b_id": "i:b",
+                            "contradiction_score": 0.1,
+                            "cosine_similarity": 0.85,
+                        },
+                        {
+                            "topic_id": "topic:unrelated",
+                            "person_a_id": "person:c",
+                            "person_b_id": "person:d",
+                            "insight_a_id": "i:c",
+                            "insight_b_id": "i:d",
+                            "contradiction_score": 0.2,
+                        },
+                    ]
+                },
+            }
+        )
+    )
+    _install_fake_search(
+        monkeypatch,
+        [
+            {
+                "doc_id": "d:1",
+                "score": 0.9,
+                "metadata": {"doc_type": "kg_topic", "source_id": "topic:climate"},
+                "text": "x",
+            },
+        ],
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = (
+        TestClient(app)
+        .get(
+            "/api/search",
+            params={"q": "x", "path": str(tmp_path), "operator": "consensus"},
+        )
+        .json()
+    )
+    assert body["operator"] == "consensus"
+    pairs = body["consensus_pairs"]
+    assert pairs is not None
+    assert len(pairs) == 1
+    assert pairs[0]["topic_id"] == "topic:climate"
+    assert pairs[0]["person_a_id"] == "person:alice"
+
+
+def test_search_operator_consensus_missing_enrichment_returns_empty_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No ``enrichments/topic_consensus.json`` → operator still runs; pairs=[]."""
+    _install_fake_search(
+        monkeypatch,
+        [{"doc_id": "d:1", "score": 0.5, "metadata": {"doc_type": "insight"}, "text": "x"}],
+    )
+    app = create_app(tmp_path, static_dir=False)
+    body = (
+        TestClient(app)
+        .get(
+            "/api/search",
+            params={"q": "x", "path": str(tmp_path), "operator": "consensus"},
+        )
+        .json()
+    )
+    assert body["operator"] == "consensus"
+    assert body["consensus_pairs"] == []

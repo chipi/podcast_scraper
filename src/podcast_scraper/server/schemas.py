@@ -1217,6 +1217,97 @@ class CorpusSearchLiftStatsModel(BaseModel):
     )
 
 
+class SearchClusterGroupModel(BaseModel):
+    """One aggregated cluster produced by the ``operator=cluster`` server pass.
+
+    Search v3 §S4b (RFC-107 §7.4). The Python-side aggregation runs AFTER
+    ``rrf_fuse`` returns — no new native combine site (#1205 SIGSEGV class).
+    Emitted only when ``operator=cluster`` was requested; when a hit does
+    not resolve to any topic-cluster / theme-cluster / topic anchor it is
+    dropped into the "ungrouped" bucket surfaced with ``cluster_id=null``
+    so the caller can render an "other" pane.
+    """
+
+    cluster_id: str | None = Field(
+        default=None,
+        description=(
+            "Cluster identifier — topic_cluster compound id (``tc:…``) when the group "
+            "is a topic cluster, theme cluster compound id (``thc:…``) when the group "
+            "is a theme cluster, a bare ``topic:…`` id when the group is a single "
+            "topic (fallback), or null for the ungrouped bucket."
+        ),
+    )
+    cluster_kind: str = Field(
+        description=(
+            "``topic_cluster`` / ``theme_cluster`` / ``topic`` / ``ungrouped`` — which "
+            "aggregation surface produced the group. Callers may filter or badge "
+            "clusters by kind (e.g. render a 'Theme' chip on theme-cluster groups)."
+        ),
+    )
+    label: str = Field(
+        description="Human-readable label for the cluster (anchor topic label, theme label, etc.).",
+    )
+    size: int = Field(
+        ge=0,
+        description="Number of hits assigned to this cluster.",
+    )
+    hit_indices: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Indices into ``results`` of the hits belonging to this cluster, in the "
+            "order they appear in ``results`` (the client renders the group by "
+            "collecting those hits, without re-sorting)."
+        ),
+    )
+
+
+class SearchConsensusPairModel(BaseModel):
+    """One cross-Person corroboration pair from ``operator=consensus`` (ADR-108).
+
+    Sourced from the shipped ``enrichments/topic_consensus.json`` — the enricher
+    hit precision ~0.91 on prod-v2. Server filters the pair list to the topics
+    surfaced in the current hit page (or those most-referenced when no
+    ``kg_topic`` hits are present) so the caller renders "for the topics in
+    this result set, here are corroborating cross-speaker insights".
+    """
+
+    topic_id: str = Field(description="Topic node id the pair is about (``topic:…``).")
+    topic_label: str | None = Field(
+        default=None,
+        description="Topic display label (from the merged KG when resolvable; null otherwise).",
+    )
+    person_a_id: str = Field(description="First speaker Person id (``person:…``).")
+    person_a_label: str | None = Field(
+        default=None,
+        description="First speaker display name (from GI/KG rosters when resolvable).",
+    )
+    person_b_id: str = Field(description="Second speaker Person id (``person:…``).")
+    person_b_label: str | None = Field(
+        default=None,
+        description="Second speaker display name (from GI/KG rosters when resolvable).",
+    )
+    insight_a_id: str = Field(description="First insight id supporting corroboration.")
+    insight_b_id: str = Field(description="Second insight id supporting corroboration.")
+    insight_a_text: str = Field(
+        default="",
+        description="Text of insight_a (from the enricher's serialized pair).",
+    )
+    insight_b_text: str = Field(
+        default="",
+        description="Text of insight_b (from the enricher's serialized pair).",
+    )
+    contradiction_score: float = Field(
+        description="NLI contradiction score (0-1); lower ⇒ stronger agreement (per ADR-108).",
+    )
+    cosine_similarity: float | None = Field(
+        default=None,
+        description=(
+            "Embedding cosine similarity of insight_a vs insight_b (0-1); "
+            "higher ⇒ same-question."
+        ),
+    )
+
+
 class CorpusSearchApiResponse(BaseModel):
     """Response for GET /api/search."""
 
@@ -1235,6 +1326,31 @@ class CorpusSearchApiResponse(BaseModel):
     lift_stats: CorpusSearchLiftStatsModel | None = Field(
         default=None,
         description="Transcript lift coverage for this response page (#528).",
+    )
+    operator: str | None = Field(
+        default=None,
+        description=(
+            "The result-set operator applied (``cluster`` / ``consensus``); null when the "
+            "endpoint returned the plain top-k page. Additive Search v3 §S4b surface — "
+            "response shape stays backward-compatible when no operator is requested."
+        ),
+    )
+    clusters: list[SearchClusterGroupModel] | None = Field(
+        default=None,
+        description=(
+            "Populated only when ``operator=cluster``: aggregated cluster groups over the "
+            "returned ``results`` page (Python-side after ``rrf_fuse``; no LanceDB "
+            "native combine). Ordered by descending group size."
+        ),
+    )
+    consensus_pairs: list[SearchConsensusPairModel] | None = Field(
+        default=None,
+        description=(
+            "Populated only when ``operator=consensus``: cross-Person corroboration pairs "
+            "from ``enrichments/topic_consensus.json`` filtered to topics in the current "
+            "hit page (or the top-referenced topic set when no ``kg_topic`` hits are "
+            "present). Never null unless the enricher output is missing / unreadable."
+        ),
     )
 
 

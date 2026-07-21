@@ -14,13 +14,20 @@ from podcast_scraper.enrichment.query_enrichers import (
 from podcast_scraper.enrichment.query_protocol import QueryResultEnvelope
 from podcast_scraper.enrichment.query_registry import QueryEnricherRegistry
 from podcast_scraper.search.capability import structured_corpus_search
+from podcast_scraper.search.operators import cluster_hits, consensus_pairs_for_hits
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     CorpusSearchApiResponse,
     CorpusSearchLiftStatsModel,
+    SearchClusterGroupModel,
+    SearchConsensusPairModel,
     SearchHitModel,
 )
+
+# Valid values for the ``operator`` query param — anything else is treated as
+# a no-op (endpoint returns the plain top-k page and ``operator=null``).
+_VALID_OPERATORS = frozenset({"cluster", "consensus"})
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +85,16 @@ async def search_corpus(
             "query_topic_relatedness only (decorates hits with topic_similarity ranks "
             "when the corpus has an enrichments/topic_similarity.json output). Passing "
             "through unmodified when no enrichment output is present."
+        ),
+    ),
+    operator: str | None = Query(
+        default=None,
+        description=(
+            "Search v3 §S4b result-set operator: ``cluster`` (group by topic / theme "
+            "cluster) or ``consensus`` (read enrichments/topic_consensus.json and "
+            "filter pairs to topics in the hit set). Both run Python-side AFTER the "
+            "hybrid pipeline returns — no new native combine site. Anything else is "
+            "treated as no operator (plain top-k response, ``operator=null``)."
         ),
     ),
 ) -> CorpusSearchApiResponse:
@@ -184,6 +201,38 @@ async def search_corpus(
                     hit.metadata.setdefault("query_enrichments", {})["related_topics"] = related
         except Exception as exc:  # noqa: BLE001 — never break /api/search
             logger.warning("query enricher chain failed: %s", exc)
+    # ------------------------------------------------------------------
+    # Search v3 §S4b — result-set operators (cluster / consensus).
+    #
+    # Both surfaces are additive and Python-side only. Errors here NEVER
+    # break the response — a failed aggregation logs + degrades to null
+    # (so the caller renders the plain top-k page).
+    # ------------------------------------------------------------------
+    operator_key: str | None = None
+    clusters: list[SearchClusterGroupModel] | None = None
+    consensus_pairs: list[SearchConsensusPairModel] | None = None
+    if operator and operator.strip().lower() in _VALID_OPERATORS:
+        operator_key = operator.strip().lower()
+        hit_dicts = [{"doc_id": h.doc_id, "metadata": dict(h.metadata)} for h in hits]
+        try:
+            if operator_key == "cluster":
+                cluster_rows = cluster_hits(hit_dicts, root)
+                clusters = [SearchClusterGroupModel(**row) for row in cluster_rows]
+            elif operator_key == "consensus":
+                pairs = consensus_pairs_for_hits(hit_dicts, root)
+                consensus_pairs = [SearchConsensusPairModel(**p) for p in pairs]
+        except Exception as exc:  # noqa: BLE001 — never break /api/search
+            logger.warning("operator %r failed: %s", operator_key, exc)
+            if operator_key == "cluster":
+                clusters = []
+            else:
+                consensus_pairs = []
     return CorpusSearchApiResponse(
-        query=q, results=hits, query_type=query_type, lift_stats=lift_stats
+        query=q,
+        results=hits,
+        query_type=query_type,
+        lift_stats=lift_stats,
+        operator=operator_key,
+        clusters=clusters,
+        consensus_pairs=consensus_pairs,
     )

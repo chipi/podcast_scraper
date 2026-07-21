@@ -51,19 +51,135 @@ function mountBar(hits: SearchHit[] = []) {
 describe('ResultSetOperatorBar (Search v3 §S4a)', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('renders the 4 operator chips, S4b chips (Cluster / Consensus) disabled', () => {
+  it('renders all 4 operator chips (Cluster + Consensus now enabled, S4b landed)', () => {
     const w = mountBar([makeHit()])
     expect(w.find('[data-testid="operator-chip-cluster"]').exists()).toBe(true)
     expect(w.find('[data-testid="operator-chip-timeline"]').exists()).toBe(true)
     expect(w.find('[data-testid="operator-chip-graph"]').exists()).toBe(true)
     expect(w.find('[data-testid="operator-chip-consensus"]').exists()).toBe(true)
-    // S4b operators disabled until server aggregation lands.
+    // S4b landed — Cluster + Consensus enabled (they emit run-* to the parent).
     expect(
       (w.get('[data-testid="operator-chip-cluster"]').element as HTMLButtonElement).disabled,
-    ).toBe(true)
+    ).toBe(false)
     expect(
       (w.get('[data-testid="operator-chip-consensus"]').element as HTMLButtonElement).disabled,
-    ).toBe(true)
+    ).toBe(false)
+  })
+
+  it('Cluster chip: click emits run-cluster and sets active=cluster; second click toggles OFF', async () => {
+    const w = mountBar([makeHit()])
+    await w.get('[data-testid="operator-chip-cluster"]').trigger('click')
+    expect(w.emitted('run-cluster')).toHaveLength(1)
+    const events = w.emitted('update:active')
+    expect(events![events!.length - 1]).toEqual(['cluster'])
+    // Toggle off — no second run-cluster (only opens the panel first time).
+    await w.get('[data-testid="operator-chip-cluster"]').trigger('click')
+    expect(w.emitted('run-cluster')).toHaveLength(1)
+    const events2 = w.emitted('update:active')
+    expect(events2![events2!.length - 1]).toEqual([null])
+  })
+
+  it('Consensus chip: click emits run-consensus and sets active=consensus', async () => {
+    const w = mountBar([makeHit()])
+    await w.get('[data-testid="operator-chip-consensus"]').trigger('click')
+    expect(w.emitted('run-consensus')).toHaveLength(1)
+    const events = w.emitted('update:active')
+    expect(events![events!.length - 1]).toEqual(['consensus'])
+  })
+
+  it('Cluster panel: empty state when clusters=null after activation', async () => {
+    const w = mountBar([makeHit()])
+    await w.get('[data-testid="operator-chip-cluster"]').trigger('click')
+    // No clusters prop passed → empty-state shown.
+    expect(w.find('[data-testid="operator-cluster-panel"]').exists()).toBe(true)
+    expect(w.find('[data-testid="operator-cluster-empty"]').exists()).toBe(true)
+    expect(w.find('[data-testid="operator-cluster-list"]').exists()).toBe(false)
+  })
+
+  it('Cluster panel: renders group rows with label + size when clusters passed', async () => {
+    const clusters = [
+      {
+        cluster_id: 'tc:env',
+        cluster_kind: 'topic_cluster',
+        label: 'Environment',
+        size: 3,
+        hit_indices: [0, 1, 2],
+      },
+      {
+        cluster_id: null,
+        cluster_kind: 'ungrouped',
+        label: 'Ungrouped',
+        size: 1,
+        hit_indices: [3],
+      },
+    ]
+    const w = mount(ResultSetOperatorBar, {
+      props: { visibleHits: [makeHit()], clusters },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          SubjectTimelineChart: { template: '<div />' },
+        },
+      },
+    })
+    await w.get('[data-testid="operator-chip-cluster"]').trigger('click')
+    const rows = w.findAll('[data-testid="operator-cluster-list"] li')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain('Environment')
+    expect(rows[0].text()).toContain('3 hits')
+    expect(rows[1].text()).toContain('Other')
+    expect(rows[1].text()).toContain('1 hit')
+    w.unmount()
+  })
+
+  it('Consensus panel: renders pair rows with speaker labels + contradiction score', async () => {
+    const consensusPairs = [
+      {
+        topic_id: 'topic:climate',
+        topic_label: 'Climate',
+        person_a_id: 'person:alice',
+        person_a_label: 'Alice',
+        person_b_id: 'person:bob',
+        person_b_label: 'Bob',
+        insight_a_id: 'i:a',
+        insight_b_id: 'i:b',
+        insight_a_text: 'Alice says X',
+        insight_b_text: 'Bob agrees Y',
+        contradiction_score: 0.08,
+        cosine_similarity: 0.87,
+      },
+    ]
+    const w = mount(ResultSetOperatorBar, {
+      props: { visibleHits: [makeHit()], consensusPairs },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          SubjectTimelineChart: { template: '<div />' },
+        },
+      },
+    })
+    await w.get('[data-testid="operator-chip-consensus"]').trigger('click')
+    const list = w.get('[data-testid="operator-consensus-list"]')
+    expect(list.text()).toContain('Climate')
+    expect(list.text()).toContain('Alice')
+    expect(list.text()).toContain('Alice says X')
+    expect(list.text()).toContain('Bob agrees Y')
+    expect(list.text()).toContain('0.08')
+    expect(list.text()).toContain('0.87')
+    w.unmount()
+  })
+
+  it('operatorError string renders in the bar shell', () => {
+    const w = mount(ResultSetOperatorBar, {
+      props: {
+        visibleHits: [makeHit()],
+        operatorError: 'no_index: rebuild the index',
+      },
+      attachTo: document.body,
+      global: { stubs: { SubjectTimelineChart: { template: '<div />' } } },
+    })
+    expect(w.get('[data-testid="operator-error"]').text()).toContain('no_index')
+    w.unmount()
   })
 
   it('Timeline panel is NOT rendered until the chip is toggled active', async () => {
