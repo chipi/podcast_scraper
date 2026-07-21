@@ -163,6 +163,9 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          # ADR-115 Option A (#1250): when '1', drop the LLM keys + DSNs from .env
+          # (delivered as tmpfs files instead). Default empty = today's behaviour.
+          PODCAST_SECRETS_VIA_FILES:    ${{ vars.PODCAST_SECRETS_VIA_FILES }}
           # LLM provider keys
           PROD_OPENAI_API_KEY:          ${{ secrets.PROD_OPENAI_API_KEY }}
           PROD_ANTHROPIC_API_KEY:       ${{ secrets.PROD_ANTHROPIC_API_KEY }}
@@ -197,16 +200,22 @@ jobs:
             printf '%s=%s\n' PODCAST_ENV                 prod
             printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
             printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
-            # LLM provider keys
-            printf '%s=%s\n' OPENAI_API_KEY     "$PROD_OPENAI_API_KEY"
-            printf '%s=%s\n' ANTHROPIC_API_KEY  "$PROD_ANTHROPIC_API_KEY"
-            printf '%s=%s\n' GEMINI_API_KEY     "$PROD_GEMINI_API_KEY"
-            printf '%s=%s\n' MISTRAL_API_KEY    "$PROD_MISTRAL_API_KEY"
-            printf '%s=%s\n' DEEPSEEK_API_KEY   "$PROD_DEEPSEEK_API_KEY"
-            printf '%s=%s\n' GROK_API_KEY       "$PROD_GROK_API_KEY"
-            # Sentry
-            printf '%s=%s\n' PODCAST_SENTRY_DSN_API      "$PROD_SENTRY_DSN_API"
-            printf '%s=%s\n' PODCAST_SENTRY_DSN_PIPELINE "$PROD_SENTRY_DSN_PIPELINE"
+            # LLM provider keys + Sentry DSNs. Under ADR-115 Option A (#1250,
+            # PODCAST_SECRETS_VIA_FILES=1) these are delivered as tmpfs FILES and
+            # the shim exports them, so they are DROPPED from the plaintext .env
+            # (no secrets at rest on disk). Flag off = today's env behaviour.
+            if [ "${PODCAST_SECRETS_VIA_FILES:-}" != "1" ]; then
+              printf '%s=%s\n' OPENAI_API_KEY     "$PROD_OPENAI_API_KEY"
+              printf '%s=%s\n' ANTHROPIC_API_KEY  "$PROD_ANTHROPIC_API_KEY"
+              printf '%s=%s\n' GEMINI_API_KEY     "$PROD_GEMINI_API_KEY"
+              printf '%s=%s\n' MISTRAL_API_KEY    "$PROD_MISTRAL_API_KEY"
+              printf '%s=%s\n' DEEPSEEK_API_KEY   "$PROD_DEEPSEEK_API_KEY"
+              printf '%s=%s\n' GROK_API_KEY       "$PROD_GROK_API_KEY"
+              printf '%s=%s\n' PODCAST_SENTRY_DSN_API      "$PROD_SENTRY_DSN_API"
+              printf '%s=%s\n' PODCAST_SENTRY_DSN_PIPELINE "$PROD_SENTRY_DSN_PIPELINE"
+            fi
+            # Viewer DSN is a build-time FRONTEND var (baked into the viewer image),
+            # not a runtime container secret — always keep it in .env.
             printf '%s=%s\n' VITE_SENTRY_DSN_VIEWER      "$PROD_SENTRY_DSN_VIEWER"
             # Grafana Cloud
             printf '%s=%s\n' GRAFANA_CLOUD_API_KEY   "$PROD_GRAFANA_CLOUD_API_KEY"
@@ -227,6 +236,50 @@ jobs:
              chmod 600 .env; \
              chown deploy:deploy .env; \
              test -f .bootstrap-needs-env && rm -f .bootstrap-needs-env || true"
+
+      - name: Stage tmpfs secret files (ADR-115 Option A, #1250)
+        # When PODCAST_SECRETS_VIA_FILES=1, write the provider keys + Sentry DSNs
+        # to HOST tmpfs /dev/shm/podcast-secrets/ (RAM, never disk). The secrets
+        # overlay (deploy.sh adds it when the flag is on) mounts them as files and
+        # the shim exports them. Atomic: build the dir on the runner in /dev/shm,
+        # scp, then swap into place so a partial upload is never mounted.
+        if: steps.preflight.outputs.skip != 'true' && vars.PODCAST_SECRETS_VIA_FILES == '1'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_OPENAI_API_KEY:      ${{ secrets.PROD_OPENAI_API_KEY }}
+          PROD_ANTHROPIC_API_KEY:   ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          PROD_GEMINI_API_KEY:      ${{ secrets.PROD_GEMINI_API_KEY }}
+          PROD_MISTRAL_API_KEY:     ${{ secrets.PROD_MISTRAL_API_KEY }}
+          PROD_DEEPSEEK_API_KEY:    ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          PROD_GROK_API_KEY:        ${{ secrets.PROD_GROK_API_KEY }}
+          PROD_SENTRY_DSN_API:      ${{ secrets.PROD_SENTRY_DSN_API }}
+          PROD_SENTRY_DSN_PIPELINE: ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+        run: |
+          set -euo pipefail
+          STAGE=$(mktemp -d -p /dev/shm secstage.XXXXXX)
+          trap 'rm -rf "$STAGE"' EXIT
+          # File name = the lowercase secret name the overlay + shim expect.
+          printf '%s' "$PROD_OPENAI_API_KEY"      > "$STAGE/openai_api_key"
+          printf '%s' "$PROD_ANTHROPIC_API_KEY"   > "$STAGE/anthropic_api_key"
+          printf '%s' "$PROD_GEMINI_API_KEY"      > "$STAGE/gemini_api_key"
+          printf '%s' "$PROD_MISTRAL_API_KEY"     > "$STAGE/mistral_api_key"
+          printf '%s' "$PROD_DEEPSEEK_API_KEY"    > "$STAGE/deepseek_api_key"
+          printf '%s' "$PROD_GROK_API_KEY"        > "$STAGE/grok_api_key"
+          printf '%s' "$PROD_SENTRY_DSN_API"      > "$STAGE/podcast_sentry_dsn_api"
+          printf '%s' "$PROD_SENTRY_DSN_PIPELINE" > "$STAGE/podcast_sentry_dsn_pipeline"
+          chmod 400 "$STAGE"/*
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /dev/shm/podcast-secrets.staged && mkdir -p /dev/shm/podcast-secrets.staged && chmod 700 /dev/shm/podcast-secrets.staged"
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "$STAGE"/* "${SSH_TARGET}:/dev/shm/podcast-secrets.staged/"
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -euo pipefail; chmod 400 /dev/shm/podcast-secrets.staged/*; \
+             rm -rf /dev/shm/podcast-secrets; \
+             mv /dev/shm/podcast-secrets.staged /dev/shm/podcast-secrets; \
+             chmod 700 /dev/shm/podcast-secrets"
 
       - name: Wire PODCAST_RELEASE into host .env (#721 — Sentry release grouping)
         # Idempotent: prior PODCAST_RELEASE=... line is removed before the new
@@ -280,10 +333,12 @@ jobs:
           SHA_SHORT:  ${{ steps.sha.outputs.short }}
           GIT_REF:    ${{ steps.sha.outputs.git_ref }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          # ADR-115 Option A (#1250): deploy.sh joins the secrets overlay when '1'.
+          VIA_FILES:  ${{ vars.PODCAST_SECRETS_VIA_FILES }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "DEPLOY_GIT_SHA='${GIT_REF}' DEPLOY_IMAGE_SHA='${SHA_SHORT}' /srv/podcast-scraper/infra/deploy/deploy.sh"
+            "DEPLOY_GIT_SHA='${GIT_REF}' DEPLOY_IMAGE_SHA='${SHA_SHORT}' PODCAST_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy.sh"
 
       - name: External /api/health probe over Tailscale (#720)
         # Belt-and-suspenders: deploy.sh already hit /api/health inside the api

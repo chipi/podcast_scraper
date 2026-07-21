@@ -10,10 +10,7 @@ creation_rules:
     # The matching PRIVATE key lives in your password manager (operator's choice).
     age: 'age1yerjgvcm5trle7xl7jkmt53dp290y2fr9rt5zjpljzeyv0nkr5qqffhm00'
 
-  # ADR-115 app secrets (infra/secrets/*.yaml). Encrypt to the VPS age recipient
-  # — the box holds the matching PRIVATE key at /etc/vps-secrets/age.key so it can
-  # decrypt at deploy. This is DISTINCT from the tfstate key above (whose private
-  # key stays in the operator's password manager and never touches the box).
-  # OPERATOR: replace the placeholder with the VPS recipient public key.
-  - path_regex: 'infra/secrets/.*\.yaml$'
-    age: 'age1PLACEHOLDER0vps0recipient0replace0with0age0keygen0public0key00000'
+  # NOTE: no app-secrets rule here on purpose. This repo is PUBLIC, so we do NOT
+  # commit sops-encrypted app secrets to it (ADR-115 Addendum / Option A, #1250):
+  # prod secrets come from GH Actions Secrets → tmpfs files at deploy, never git.
+  # The sops-in-git app-secrets model returns with the private-infra move (#1251).
