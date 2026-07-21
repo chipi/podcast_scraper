@@ -107,8 +107,11 @@ jobs:
           C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
           $C pull api
           # Run the CLI in the published image against the mounted corpus (matches prod).
-          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade status --corpus-dir /app/output | tee /tmp/status.txt
-          grep -qiE "pending|Pending|→" /tmp/status.txt || { echo "::error::no pending migrations — backup already at current schema? nothing to drill"; exit 1; }
+          # NB: ``upgrade status`` exits 2 when migrations are PENDING (a "needs upgrade"
+          # signal, not an error) — swallow it, then assert on the content.
+          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade status --corpus-dir /app/output > /tmp/status.txt 2>&1 || true
+          cat /tmp/status.txt
+          grep -qiE "Pending \([1-9]|pending migration" /tmp/status.txt || { echo "::error::no pending migrations — backup already at current schema? nothing to drill"; exit 1; }
 
       - name: Upgrade DRY-RUN (plan only, writes nothing)
         run: |
@@ -144,9 +147,11 @@ jobs:
             echo "::error::DATA LOSS — episode count changed ${EPISODES_BEFORE} -> ${AFTER} across the upgrade"
             exit 1
           fi
-          # Upgrade must report up-to-date now (no pending).
+          # Upgrade must report up-to-date now (exit 0 = no pending; ``|| true`` guards
+          # the exit-2-on-pending case so we assert on content, not the code).
           C="docker compose --env-file compose/.env.upgrade-drill -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml"
-          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade status --corpus-dir /app/output | tee /tmp/status2.txt
+          $C run --rm --no-deps api python -m podcast_scraper.cli upgrade status --corpus-dir /app/output > /tmp/status2.txt 2>&1 || true
+          cat /tmp/status2.txt
           grep -qiE "Up to date|no pending" /tmp/status2.txt || { echo "::error::still pending migrations after upgrade run"; exit 1; }
           { echo "### Data-loss check"; echo "- episodes before: ${EPISODES_BEFORE}"; echo "- episodes after:  ${AFTER}  ✅ preserved"; } >> "$GITHUB_STEP_SUMMARY"
 
