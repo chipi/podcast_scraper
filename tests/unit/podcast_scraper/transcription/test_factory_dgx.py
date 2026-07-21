@@ -39,6 +39,35 @@ def test_factory_wraps_dgx_primary_in_a_fallback_chain() -> None:
     assert isinstance(provider._ensure_tier(1), OpenAIProvider)
 
 
+def test_factory_reprocess_context_skips_fallback_chain_adr119() -> None:
+    """ADR-119: in reprocess run-context the self-hosted provider must NEVER fall over to another
+    model — a mixed-backend corpus is worse than a pause. Even with a declared fallback ladder, the
+    factory returns the bare DGX provider; its ResiliencePolicy (hold-and-probe) is terminal.
+
+    Without this guard the provider's ResilienceFuseOpenError would propagate to a FallbackChain and
+    silently degrade to the fallback model, defeating the ADR's no-mixed-backends guarantee."""
+    from podcast_scraper.providers.resilience.fallback import (
+        FallbackChainTranscriptionProvider,
+    )
+    from podcast_scraper.providers.tailnet_dgx.whisper_provider import (
+        TailnetDgxWhisperTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "tailnet_dgx_whisper",
+            "transcription_fallback_provider": "openai",  # declared, but MUST be ignored
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "openai_api_key": "sk-test",
+            "resilience_run_context": "reprocess",
+        }
+    )
+    provider = create_transcription_provider(cfg)
+    assert not isinstance(provider, FallbackChainTranscriptionProvider)
+    assert isinstance(provider, TailnetDgxWhisperTranscriptionProvider)
+
+
 def test_factory_wraps_moss_primary_with_full_ladder() -> None:
     """The MOSS gap #1174 opened: a moss primary now carries a chain when the profile emits one."""
     from podcast_scraper.providers.moss.moss_provider import MossTranscriptionProvider

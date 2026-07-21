@@ -10,6 +10,7 @@ Supports two modes:
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, cast, Dict, Literal, Optional, TYPE_CHECKING, Union
 
@@ -23,6 +24,8 @@ else:
     from podcast_scraper.transcription.base import TranscriptionProvider
 
 from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
+
+logger = logging.getLogger(__name__)
 
 
 def _transcription_fallback_tiers(cfg: "config.Config") -> list[str]:
@@ -112,7 +115,19 @@ def create_transcription_provider(  # noqa: C901
         # assembling the individual tiers, so a tier never recursively re-wraps itself.
         if _wrap_fallback:
             tiers = _transcription_fallback_tiers(cfg)
-            if tiers:
+            # ADR-119: a reprocess run must NEVER fall over to a different model — the self-hosted
+            # provider owns a hold-and-probe ResiliencePolicy, and a mixed-backend corpus is worse
+            # than a pause. The FallbackChain IS the cross-model fallover mechanism, so we do not
+            # wrap it here even when the profile declares a ladder (the provider's policy is
+            # terminal). serve context keeps the RFC-106 fallover unchanged.
+            if tiers and getattr(cfg, "resilience_run_context", "serve") == "reprocess":
+                logger.info(
+                    "reprocess run-context: NOT wrapping transcription in a FallbackChain "
+                    "(declared ladder %s ignored per ADR-119 — hold-and-probe the chosen "
+                    "model, no cross-model fallover)",
+                    tiers,
+                )
+            elif tiers:
                 from ..providers.resilience.fallback import (
                     FallbackChainTranscriptionProvider,
                 )

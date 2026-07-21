@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import logging
 import os
@@ -1326,6 +1327,63 @@ class Config(BaseModel):
             "Connection-level blips are retried with exponential backoff; a genuine "
             "timeout (slow/contended GPU past the scaled budget) falls back without "
             "piling a duplicate request onto the busy server."
+        ),
+    )
+    resilience_run_context: Literal["serve", "reprocess"] = Field(
+        default="serve",
+        alias="resilience_run_context",
+        description=(
+            "Resilience mode for the self-hosted-model provider family (DGX whisper, DGX "
+            "diarize, MOSS — ADR-119). 'serve' (default) optimises availability: fail fast, "
+            "trip the circuit breaker on the first hard timeout, and let the FallbackChain "
+            "advance to the next model (RFC-106/#1198, unchanged). 'reprocess' optimises "
+            "consistency for a controlled batch: back off and retry the SAME chosen model, "
+            "trip the fuse only after 'resilience_retries_before_trip' failures-despite-"
+            "backoff, and on a blown fuse pause-and-probe the endpoint rather than falling "
+            "over to another model. Auto-derived from the profile name during profile "
+            "resolution (reprocess_dgx_*, experiment_dgx_* -> reprocess; everything else -> "
+            "serve) — set explicitly here only to override that derivation."
+        ),
+    )
+    resilience_retries_before_trip: int = Field(
+        default=3,
+        ge=1,
+        alias="resilience_retries_before_trip",
+        description=(
+            "Reprocess-mode only (ADR-119): backoff-retry cycles of the chosen self-hosted "
+            "model before the circuit breaker trips. Ignored in serve mode, which keeps "
+            "today's trip-on-first-hard-timeout behaviour."
+        ),
+    )
+    resilience_backoff_schedule_sec: List[float] = Field(
+        default=[30.0, 60.0, 120.0],
+        alias="resilience_backoff_schedule_sec",
+        description=(
+            "Reprocess-mode only (ADR-119): wait (seconds) before each retry of the chosen "
+            "self-hosted model, indexed by attempt number. The schedule's last entry repeats "
+            "once exhausted (a de-facto cap on the exponential growth)."
+        ),
+    )
+    resilience_on_open_max_wait_sec: float = Field(
+        default=900.0,
+        gt=0,
+        alias="resilience_on_open_max_wait_sec",
+        description=(
+            "Reprocess-mode only (ADR-119): how long (seconds) the batch pauses and probes "
+            "a blown fuse before giving up and alerting the operator. Never switches to "
+            "another model during this window — the endpoint is expected to recover, not be "
+            "replaced."
+        ),
+    )
+    resilience_probe_interval_sec: float = Field(
+        default=30.0,
+        gt=0,
+        alias="resilience_probe_interval_sec",
+        description=(
+            "Reprocess-mode only (ADR-119): polling cadence (seconds) while pausing and "
+            "probing a blown fuse, bounded by 'resilience_on_open_max_wait_sec'. Not named "
+            "in ADR-119's knob table explicitly; introduced as the pause-and-probe loop's "
+            "cadence."
         ),
     )
     moss_port: int = Field(
@@ -3376,6 +3434,18 @@ class Config(BaseModel):
 
         profile_name = str(profile_name).strip()
 
+        # ADR-119: derive the self-hosted-model resilience run context from the profile
+        # name itself, not the registry/YAML layers below — reprocess_dgx_no_llm and
+        # experiment_dgx_moss are yaml-only (no registry entry) so this must work off the
+        # name alone. Lowest-priority layer: registry/YAML/explicit data can all still
+        # override ``resilience_run_context`` if they set it directly.
+        _REPROCESS_PROFILE_GLOBS = ("reprocess_dgx_*", "experiment_dgx_*")
+        derived_run_context = (
+            "reprocess"
+            if any(fnmatch.fnmatch(profile_name, g) for g in _REPROCESS_PROFILE_GLOBS)
+            else "serve"
+        )
+
         # Layer 3: registry preset (broadest defaults — research-driven).
         # Filtered to fields Config actually declares, so resolver outputs
         # like ``transcription_endpoint`` that have no matching Config field
@@ -3430,8 +3500,9 @@ class Config(BaseModel):
             )
             return cls._merge_audio_preprocessing_preset(data)
 
-        # Merge registry < YAML < explicit data.
-        merged: Dict[str, Any] = dict(registry_settings)
+        # Merge derived-run-context < registry < YAML < explicit data.
+        merged: Dict[str, Any] = {"resilience_run_context": derived_run_context}
+        merged.update(registry_settings)
         merged.update(profile_dict)
         merged.update(data)  # explicit fields win
 

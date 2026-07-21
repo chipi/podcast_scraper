@@ -28,6 +28,7 @@ import pytest
 from podcast_scraper import Config
 from podcast_scraper.providers import resilience
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult
+from podcast_scraper.providers.resilience import policy as resilience_policy
 from podcast_scraper.providers.tailnet_dgx import (
     diarization_provider as dp,
     whisper_provider as wp,
@@ -47,12 +48,16 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
 
     ``mode`` (class attr, set per test) controls only the POST work endpoints:
     ``"ok"`` returns a valid payload, ``"hang"`` sleeps ``hang_sec`` (simulating a
-    GPU-stalled request that never returns), ``"503"`` returns Service Unavailable.
-    Health/model endpoints always answer 200 so the client gets past the gate.
+    GPU-stalled request that never returns), ``"503"`` returns Service Unavailable,
+    ``"hang_then_ok"`` hangs for the first ``fail_n`` POSTs then answers ``ok`` (ADR-119
+    reprocess-mode backoff-retry coverage). Health/model endpoints always answer 200 so
+    the client gets past the gate.
     """
 
     mode = "ok"
     hang_sec = 30.0
+    fail_n = 0  # "hang_then_ok" only: how many POSTs hang before answering ok
+    _post_count = 0  # class-level counter for "hang_then_ok"; reset per test by the fixture
 
     def log_message(self, *_args):  # silence the default stderr spam
         pass
@@ -92,6 +97,12 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
         if type(self).mode == "hang":
             time.sleep(type(self).hang_sec)  # never returns within the watchdog window
             return
+        if type(self).mode == "hang_then_ok":
+            type(self)._post_count += 1
+            if type(self)._post_count <= type(self).fail_n:
+                time.sleep(type(self).hang_sec)  # this call hangs; a later retry won't
+                return
+            # fail_n calls have already hung; fall through to the normal ok response.
         if type(self).mode == "503":
             self._json(503, {"error": "service unavailable"})
             return
@@ -125,6 +136,8 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
 def dgx_stub():
     """Start the stub on an ephemeral loopback port; reset breakers + mode each test."""
     _DGXStubHandler.mode = "ok"
+    _DGXStubHandler.fail_n = 0
+    _DGXStubHandler._post_count = 0
     dp._diarize_breaker.reset()
     wp._whisper_breaker.reset()
     server = ThreadingHTTPServer(("127.0.0.1", 0), _DGXStubHandler)
@@ -136,6 +149,8 @@ def dgx_stub():
         server.shutdown()
         server.server_close()
         _DGXStubHandler.mode = "ok"
+        _DGXStubHandler.fail_n = 0
+        _DGXStubHandler._post_count = 0
         dp._diarize_breaker.reset()
         wp._whisper_breaker.reset()
 
@@ -162,20 +177,40 @@ def _diarize_cfg(port: int) -> Config:
     )
 
 
-def _whisper_cfg(port: int) -> Config:
-    return Config.model_validate(
-        {
-            "rss_url": "https://example.com/feed.xml",
-            "transcription_provider": "tailnet_dgx_whisper",
-            "transcription_fallback_provider": "openai",
-            "dgx_tailnet_host": "127.0.0.1",
-            "dgx_whisper_port": port,
-            "dgx_whisper_model": "large-v3",
-            "dgx_request_timeout_sec": 0.5,
-            "dgx_timeout_per_audio_minute_sec": 0,
-            "openai_api_key": "sk-test",
-        }
-    )
+def _whisper_cfg(
+    port: int,
+    *,
+    run_context: str | None = None,
+    retries_before_trip: int | None = None,
+    backoff_schedule_sec: list[float] | None = None,
+    on_open_max_wait_sec: float | None = None,
+    probe_interval_sec: float | None = None,
+    dgx_request_timeout_sec: float = 0.5,
+) -> Config:
+    data: dict[str, object] = {
+        "rss_url": "https://example.com/feed.xml",
+        "transcription_provider": "tailnet_dgx_whisper",
+        "transcription_fallback_provider": "openai",
+        "dgx_tailnet_host": "127.0.0.1",
+        "dgx_whisper_port": port,
+        "dgx_whisper_model": "large-v3",
+        "dgx_request_timeout_sec": dgx_request_timeout_sec,
+        "dgx_timeout_per_audio_minute_sec": 0,
+        "openai_api_key": "sk-test",
+    }
+    # ADR-119 resilience-policy knobs: only set when the test cares (keeps the happy-path
+    # / serve-mode configs identical to before this change).
+    if run_context is not None:
+        data["resilience_run_context"] = run_context
+    if retries_before_trip is not None:
+        data["resilience_retries_before_trip"] = retries_before_trip
+    if backoff_schedule_sec is not None:
+        data["resilience_backoff_schedule_sec"] = backoff_schedule_sec
+    if on_open_max_wait_sec is not None:
+        data["resilience_on_open_max_wait_sec"] = on_open_max_wait_sec
+    if probe_interval_sec is not None:
+        data["resilience_probe_interval_sec"] = probe_interval_sec
+    return Config.model_validate(data)
 
 
 def _diarize_provider(port: int):
@@ -188,7 +223,11 @@ def _whisper_provider(port: int):
     # RFC-106 (#1198): the whisper provider is a pure DGX tier and owns no fallback — it raises on
     # failure and the FallbackChain (exercised in the unit suite) fails over. These socket-level
     # tests assert the tier's own reaction: detect the hang/503 and raise the classified error.
-    p = TailnetDgxWhisperTranscriptionProvider(_whisper_cfg(port))
+    return _whisper_provider_from_cfg(_whisper_cfg(port))
+
+
+def _whisper_provider_from_cfg(cfg: Config):
+    p = TailnetDgxWhisperTranscriptionProvider(cfg)
     p._initialized = True
     return p
 
@@ -271,3 +310,125 @@ class TestWhisperRealSocket:
         with patch.object(wp.time, "sleep"):  # skip retry backoff
             with pytest.raises(httpx.HTTPStatusError):
                 provider.transcribe(_audio(tmp_path))
+
+    def test_serve_mode_regression_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
+        """ADR-119 regression guard: even with reprocess-shaped retry knobs populated,
+        an explicit ``run_context="serve"`` config keeps today's behaviour — the first
+        hard timeout trips the breaker immediately and raises for the FallbackChain.
+        Mirrors ``test_hanging_socket_watchdog_raises`` above but proves the gate itself
+        (not just the default), so a future change to the default can't silently break
+        serve mode without failing this test."""
+        from podcast_scraper.providers.resilience import TimeoutLike
+
+        _DGXStubHandler.mode = "hang"
+        cfg = _whisper_cfg(
+            dgx_stub,
+            run_context="serve",
+            retries_before_trip=5,
+            backoff_schedule_sec=[0.01],
+            on_open_max_wait_sec=0.05,
+            probe_interval_sec=0.01,
+        )
+        provider = _whisper_provider_from_cfg(cfg)
+        started = time.monotonic()
+        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
+            with pytest.raises(TimeoutLike):
+                provider.transcribe(_audio(tmp_path))
+        elapsed = time.monotonic() - started
+        assert elapsed < 5.0  # bailed fast, not the 30s hang; never entered pause-and-probe
+        assert wp._whisper_breaker.state == "open"  # first hard timeout tripped the breaker
+
+
+# --------------------------------------------------------------------------- #
+# whisper — ADR-119 reprocess-mode resilience policy                          #
+# --------------------------------------------------------------------------- #
+class TestWhisperReprocessMode:
+    """Reprocess-mode coverage (#1253): backoff-retry the chosen model, trip the fuse
+    only after the policy threshold, hold-and-probe (never fall over) on a blown fuse."""
+
+    def test_backoff_retry_then_succeeds_no_trip_no_fallover(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang_then_ok"
+        _DGXStubHandler.fail_n = 1  # first POST hangs; the retry succeeds
+        cfg = _whisper_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=2,
+            backoff_schedule_sec=[0.05],
+        )
+        provider = _whisper_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.2):
+            text = provider.transcribe(_audio(tmp_path))
+        assert text == "hello from the stub"
+        # Backed off and retried the SAME (only) model — no fallover, fuse never tripped.
+        assert wp._whisper_breaker.state == "closed"
+
+    def test_fuse_trips_only_after_n_not_on_first(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang"  # every attempt hangs
+        cfg = _whisper_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02, 0.02],
+            on_open_max_wait_sec=0.1,
+            probe_interval_sec=0.02,
+            dgx_request_timeout_sec=0.15,
+        )
+        provider = _whisper_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.1):
+            # Spy on the breaker's own record_failure to prove it is called exactly once,
+            # only after all 3 backoff-retries are exhausted — not on the first hard
+            # timeout the way serve mode trips it.
+            with patch.object(
+                wp._whisper_breaker,
+                "record_failure",
+                wraps=wp._whisper_breaker.record_failure,
+            ) as spy:
+                with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                    provider.transcribe(_audio(tmp_path))
+        assert spy.call_count == 1
+        spy.assert_called_once_with(hard=True)
+        assert wp._whisper_breaker.state == "open"
+
+    def test_open_fuse_holds_and_probes_then_closes(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "ok"  # the endpoint has recovered by the time we probe
+        cfg = _whisper_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02],
+            on_open_max_wait_sec=2.0,
+            probe_interval_sec=0.05,
+        )
+        provider = _whisper_provider_from_cfg(cfg)
+        # Simulate a fuse already blown by an earlier episode in the batch, with its
+        # cooldown already elapsed — the breaker has no public "expire now" hook, so we
+        # poke the private deadline directly rather than sleeping out the real cooldown.
+        wp._whisper_breaker.record_failure(hard=True)
+        assert wp._whisper_breaker.state == "open"
+        wp._whisper_breaker._open_until = time.monotonic() - 0.01
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.2):
+            text = provider.transcribe(_audio(tmp_path))
+        # Never switched models: the result IS the DGX stub's own response.
+        assert text == "hello from the stub"
+        # Half-open probe succeeded -> breaker closes.
+        assert wp._whisper_breaker.state == "closed"
+
+    def test_open_fuse_alerts_operator_after_max_wait(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang"  # the endpoint stays down through every probe
+        cfg = _whisper_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02],
+            on_open_max_wait_sec=0.1,
+            probe_interval_sec=0.03,
+            dgx_request_timeout_sec=0.15,
+        )
+        provider = _whisper_provider_from_cfg(cfg)
+        wp._whisper_breaker.record_failure(hard=True)
+        wp._whisper_breaker._open_until = time.monotonic() - 0.01
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.1):
+            with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                provider.transcribe(_audio(tmp_path))
+        # Still open — never fell over to another model, just gave up probing and raised.
+        assert wp._whisper_breaker.state == "open"
