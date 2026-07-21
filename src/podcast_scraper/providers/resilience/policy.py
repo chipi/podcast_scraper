@@ -32,7 +32,12 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-# ADR-119 proposed reprocess-mode defaults (config-tunable; see Config.resilience_*).
+# ADR-119 reprocess-mode defaults — FINAL (config-tunable per run; see Config.resilience_*).
+# Rationale: a reprocess runs on a DGX the operator dedicates (GPU exclusivity is handled
+# operationally, ADR-119 #3-out-of-scope), so contention is rare and these act as a safety net.
+# 3 retries over 30+60+120s (~3.5 min) ride out a transient co-tenant blip; if it persists the fuse
+# opens and pause-and-probes for 15 min before alerting — long enough to survive a service restart,
+# short enough not to stall a run indefinitely. Tune from observed behaviour, not a priori.
 DEFAULT_RETRIES_BEFORE_TRIP = 3
 DEFAULT_BACKOFF_SCHEDULE_SEC: tuple[float, ...] = (30.0, 60.0, 120.0)
 DEFAULT_ON_OPEN_MAX_WAIT_SEC = 900.0

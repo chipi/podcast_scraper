@@ -64,7 +64,13 @@ The policy is a small abstraction in `resilience/` (a `ResiliencePolicy` carryin
 context) that the three self-hosted providers consume, rather than each provider re-implementing
 retry/trip logic ad hoc. MOSS gains the policy it currently lacks.
 
-### Policy knobs (config-tunable; these are the proposed reprocess-mode defaults)
+### Policy knobs (config-tunable per run; these are the FINAL reprocess-mode defaults)
+
+Finalized rather than left open: a reprocess runs on a DGX the operator dedicates (GPU exclusivity
+is handled operationally — out of this ADR's scope), so contention is rare and these act as a
+safety net, not a hot path. 3 retries over ~3.5 min ride out a transient co-tenant blip; a 15-min
+pause-and-probe then survives a service restart without stalling the run forever. Tune from
+observed behaviour, not a priori.
 
 | Knob | Proposed default | Meaning |
 | --- | --- | --- |
