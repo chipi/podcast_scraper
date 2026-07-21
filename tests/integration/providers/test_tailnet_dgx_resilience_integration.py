@@ -27,7 +27,9 @@ import pytest
 
 from podcast_scraper import Config
 from podcast_scraper.providers import resilience
+from podcast_scraper.providers.ml.diarization import moss_provider as mdp
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult
+from podcast_scraper.providers.ml.diarization.moss_provider import MossDiarizationProvider
 from podcast_scraper.providers.moss import moss_provider as mp
 from podcast_scraper.providers.moss.moss_provider import MossTranscriptionProvider
 from podcast_scraper.providers.resilience import policy as resilience_policy
@@ -155,6 +157,7 @@ def dgx_stub():
     dp._diarize_breaker.reset()
     wp._whisper_breaker.reset()
     mp._moss_breaker.reset()
+    mdp._moss_diarize_breaker.reset()
     server = ThreadingHTTPServer(("127.0.0.1", 0), _DGXStubHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -169,6 +172,7 @@ def dgx_stub():
         dp._diarize_breaker.reset()
         wp._whisper_breaker.reset()
         mp._moss_breaker.reset()
+        mdp._moss_diarize_breaker.reset()
 
 
 def _audio(tmp_path) -> str:
@@ -295,6 +299,12 @@ def _moss_cfg(
 
 def _moss_provider_from_cfg(cfg: Config) -> MossTranscriptionProvider:
     p = MossTranscriptionProvider(cfg)
+    p._initialized = True
+    return p
+
+
+def _moss_diarize_provider_from_cfg(cfg: Config) -> MossDiarizationProvider:
+    p = MossDiarizationProvider(cfg)
     p._initialized = True
     return p
 
@@ -708,3 +718,50 @@ class TestMossResilience:
         assert spy.call_count == 1
         spy.assert_called_once_with(hard=True)
         assert mp._moss_breaker.state == "open"
+
+
+# --------------------------------------------------------------------------- #
+# MOSS diarization — ADR-119 item 1: the speaker half of the joint model was   #
+# ALSO bare; it gains the same policy (its own _moss_diarize_breaker).         #
+# --------------------------------------------------------------------------- #
+class TestMossDiarizeResilience:
+    def test_backoff_retry_then_succeeds_no_trip_no_fallover(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang_then_ok"
+        _DGXStubHandler.fail_n = 1  # first POST hangs; the retry succeeds
+        cfg = _moss_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=2,
+            backoff_schedule_sec=[0.05],
+        )
+        provider = _moss_diarize_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.2):
+            result = provider.diarize(_audio(tmp_path))
+        assert isinstance(result, DiarizationResult)
+        # Backed off and retried the SAME model — no fallover, fuse never tripped.
+        assert mdp._moss_diarize_breaker.state == "closed"
+
+    def test_fuse_trips_only_after_n_not_on_first(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang"  # every attempt hangs
+        cfg = _moss_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02, 0.02],
+            on_open_max_wait_sec=0.1,
+            probe_interval_sec=0.02,
+            moss_request_timeout_sec=0.15,
+        )
+        provider = _moss_diarize_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.1):
+            with patch.object(
+                mdp._moss_diarize_breaker,
+                "record_failure",
+                wraps=mdp._moss_diarize_breaker.record_failure,
+            ) as spy:
+                with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                    provider.diarize(_audio(tmp_path))
+        # Tripped exactly once, only after all 3 backoff-retries were exhausted.
+        assert spy.call_count == 1
+        spy.assert_called_once_with(hard=True)
+        assert mdp._moss_diarize_breaker.state == "open"
