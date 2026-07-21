@@ -1438,15 +1438,16 @@ quality-metrics-ci:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 --min-avg-edges 0 --min-extraction-coverage 1.0
 
 cleanup-processes:
-	# Clean up leftover Python/test processes from previous runs
-	# Covers pytest workers, ML model probe processes, and worker calculator
-	@echo "Cleaning up leftover test processes..."
-	@pkill -f "pytest" 2>/dev/null || true
-	# Dropped python.*podcast_scraper.*test: it matched cli serve when
-	# --output-dir was under .test_outputs (test in test_outputs).
-	@pkill -f "gw[0-9]" 2>/dev/null || true
-	@pkill -f "python.*ml_model_cache_helpers" 2>/dev/null || true
-	@pkill -f "python.*calculate_test_workers" 2>/dev/null || true
+	# Clean up leftover Python/test processes from previous runs — THIS repo only.
+	# Covers pytest workers, ML model probe processes, and worker calculator. Every PID
+	# is CWD-gated to $(CURDIR) before killing, so a sibling worktree's test run is never
+	# touched (the bare ``pkill -f pytest`` this replaced was machine-wide and could kill
+	# another worktree's suite). Same scoping model as the SessionEnd reap.
+	@echo "Cleaning up leftover test processes (this repo only)..."
+	@for pid in $$(pgrep -f "pytest|gw[0-9]|ml_model_cache_helpers|calculate_test_workers" 2>/dev/null); do \
+	  cwd=$$(lsof -p $$pid -a -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1); \
+	  case "$$cwd" in "$(CURDIR)" | "$(CURDIR)"/*) kill $$pid 2>/dev/null || true ;; esac; \
+	done
 	@echo "Process cleanup complete"
 
 # Reliable teardown of ALL stack-test artifacts — the compose stack AND the orphan
