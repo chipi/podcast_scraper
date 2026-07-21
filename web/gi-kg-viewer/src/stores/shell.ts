@@ -55,7 +55,14 @@ export const useShellStore = defineStore('shell', () => {
     leftPanelSurface.value = surface
   }
 
-  watch(corpusPath, (v) => {
+  /**
+   * Debounce for the corpus-path → health re-probe. 300ms is short enough to
+   * feel instant on paste and long enough to skip mid-typing intermediate
+   * paths. Cleared when the path changes again before it fires.
+   */
+  let healthReprobeTimer: ReturnType<typeof setTimeout> | null = null
+
+  watch(corpusPath, (v, oldV) => {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(CORPUS_PATH_STORAGE_KEY, v)
@@ -66,6 +73,22 @@ export const useShellStore = defineStore('shell', () => {
     if (v.trim()) {
       posthog.capture('corpus_path_changed')
     }
+    // Bug fix (Search v3 followup): the initial ``fetchHealth`` in App.vue's
+    // ``onMounted`` runs once. Without this watcher, changing the corpus
+    // path in the status bar leaves ``healthStatus`` stale — SearchPanel
+    // keeps ``#search-q`` + the Search button disabled with "Requires the
+    // API." until a full reload. Re-probe the API here, debounced so the
+    // status-bar textbox's per-keystroke input events don't spam the api.
+    if (v.trim() === (oldV ?? '').trim()) {
+      return
+    }
+    if (healthReprobeTimer !== null) {
+      clearTimeout(healthReprobeTimer)
+    }
+    healthReprobeTimer = setTimeout(() => {
+      healthReprobeTimer = null
+      void fetchHealth()
+    }, 300)
   })
   const healthStatus = ref<string | null>(null)
   const healthError = ref<string | null>(null)
