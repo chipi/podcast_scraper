@@ -447,6 +447,29 @@ class TestDiarizeReprocessMode:
         spy.assert_called_once_with(hard=True)
         assert dp._diarize_breaker.state == "open"
 
+    def test_fuse_trip_emits_operator_alert(self, dgx_stub, tmp_path):
+        """ADR-119: the breaker TRIP itself fires a guarded Sentry alert (distinct from the
+        sustained-open escalation) through the real hold flow — proven by spying the hook on the
+        shared ASR CircuitBreaker."""
+        _DGXStubHandler.mode = "hang"  # every attempt hangs -> trip after the retries
+        cfg = _diarize_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=2,
+            backoff_schedule_sec=[0.02],
+            on_open_max_wait_sec=0.05,
+            probe_interval_sec=0.02,
+            dgx_diarize_request_timeout_sec=0.15,
+        )
+        provider = _diarize_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.1):
+            with patch.object(resilience.breakers, "_emit_breaker_trip_alert") as alert:
+                with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                    provider.diarize(_audio(tmp_path))
+        # The closed->open trip paged the operator exactly once, carrying the endpoint name.
+        assert alert.call_count == 1
+        assert alert.call_args.args[0] == "dgx-diarize"
+
     def test_open_fuse_holds_and_probes_then_closes(self, dgx_stub, tmp_path):
         _DGXStubHandler.mode = "ok"  # the endpoint has recovered by the time we probe
         cfg = _diarize_cfg(
