@@ -61,18 +61,23 @@ mkdir -p "$REPO_DIR/corpus"
 # Docker's embedded DNS can't resolve Tailscale MagicDNS names, so the api/pipeline
 # containers need a static ``homelab:<ip>`` /etc/hosts entry to reach VictoriaTraces
 # (traces) + GlitchTip (errors). Resolved fresh each deploy — the IP is stable but
-# never hardcoded in the repo. If it can't resolve, traces/errors just won't ship
-# (telemetry never breaks the app); warn loudly.
+# never hardcoded in the repo.
+#
+# CRITICAL: HOMELAB_TAILNET_IP must ALWAYS end up non-empty. compose ``extra_hosts``
+# rejects ``add-host: "homelab:"`` and fails the ENTIRE app deploy — telemetry must
+# never break the app. So: try tailscale, then getent, then fall back to loopback
+# (the app deploys; traces/errors just drop until homelab re-resolves).
 HL_IP="$(tailscale ip -4 homelab 2>/dev/null | head -1 || true)"
-if [ -n "$HL_IP" ]; then
-  if grep -qE '^HOMELAB_TAILNET_IP=' .env; then
-    sed -i "s#^HOMELAB_TAILNET_IP=.*#HOMELAB_TAILNET_IP=$HL_IP#" .env
-  else
-    echo "HOMELAB_TAILNET_IP=$HL_IP" >> .env
-    chmod 600 .env
-  fi
+[ -n "$HL_IP" ] || HL_IP="$(getent hosts homelab 2>/dev/null | awk '{print $1}' | head -1 || true)"
+if [ -z "$HL_IP" ]; then
+  echo "[$(date -u +%FT%TZ)] WARN: could not resolve 'homelab' — using 127.0.0.1 placeholder so the app still deploys; o11y traces/errors won't ship until it re-resolves." >&2
+  HL_IP="127.0.0.1"
+fi
+if grep -qE '^HOMELAB_TAILNET_IP=' .env; then
+  sed -i "s#^HOMELAB_TAILNET_IP=.*#HOMELAB_TAILNET_IP=$HL_IP#" .env
 else
-  echo "[$(date -u +%FT%TZ)] WARN: could not resolve 'homelab' tailnet IP; o11y traces/errors may not ship from containers." >&2
+  echo "HOMELAB_TAILNET_IP=$HL_IP" >> .env
+  chmod 600 .env
 fi
 
 # Compose resolves the project directory from the first `-f` path (`compose/`), so
