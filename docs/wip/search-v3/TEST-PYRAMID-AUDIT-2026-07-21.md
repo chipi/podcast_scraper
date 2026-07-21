@@ -1,8 +1,16 @@
 # Search v3 test-pyramid audit — 2026-07-21
 
-**Status**: post-S7 landing. Every Search v3 slice (S1–S8-shell, S1–S7)
+**Status**: post-S8 landing + follow-ups. Every Search v3 slice (S1–S8)
 has coverage at every applicable tier of ADR-095's 3-tier viewer test
-pyramid. This document is the snapshot record.
+pyramid, including Tier-3 real-corpus walks. This document is the
+snapshot record.
+
+**Update — 2026-07-21 (later):** S8 shipped (`5b42bf2f`); F1 refreshed
+`mocks.json` for the shipped shape (`e33192a8`); F2 landed the Tier-3
+`validation/search-v3.spec.ts` (`39e1886b`); F3 landed the Tier-2
+rail-launched walk `search-production/rail-launch.spec.ts`
+(`97367527`). The three previously-open follow-ups in the "Known gaps"
+section are now resolved.
 
 **Related**: ADR-095 (three-tier viewer test pyramid),
 [SEARCH-V3-IMPLEMENTATION-PLAN.md](../SEARCH-V3-IMPLEMENTATION-PLAN.md).
@@ -36,8 +44,9 @@ pyramid. This document is the snapshot record.
 | **S4a** — Operator bar shell / Timeline / On-graph | ✓ `ResultSetOperatorBar.test.ts` (13 specs) | ✓ `search-operator-bar.spec.ts` (7 specs) | ✓ walked via `search-production/workspace.spec.ts` (Timeline toggle) | (deferred) |
 | **S4b** — Server Cluster / Consensus | ✓ pytest unit on `operators.py` (13 tests); vitest `search.runOperator.test.ts` (8 tests) | ✓ `search-operator-bar.spec.ts` (Cluster + Consensus paths); integration `test_viewer_search.py` (5 tests) | ✓ walked via `search-production/workspace.spec.ts` (Cluster + Consensus operator round-trips) | (deferred) |
 | **S5** — Enriched-answer hero | ✓ `EnrichedAnswerHero.test.ts` (7 specs) + `SearchEnrichedChip.test.ts` (5 specs) | ✓ `search-enriched-hero.spec.ts` (4 specs) | ✓ walked via `search-production/workspace.spec.ts` (hero rehydration after operator toggle) | (deferred) |
-| **S6** — Rail launcher + `episode_id` scope | ✓ pytest unit on `_hit_passes_cli_filters` (episode_id branch); vitest chip/rail specs | ✓ `search-rail-in-episode.spec.ts` (4 specs); integration `test_viewer_search.py` (2 new tests) | (rail launch flow not yet in the Tier-2 walk — non-blocking; per-slice Tier-1 covers) | (deferred) |
+| **S6** — Rail launcher + `episode_id` scope | ✓ pytest unit on `_hit_passes_cli_filters` (episode_id branch); vitest chip/rail specs | ✓ `search-rail-in-episode.spec.ts` (4 specs); integration `test_viewer_search.py` (2 new tests) | ✓ `search-production/rail-launch.spec.ts` (F3 — Library → Episode → rail launcher → episode-scoped wire + chip clear round-trip) | ✓ `validation/search-v3.spec.ts` T5 (F2 — real corpus) |
 | **S7** — Saved queries + Recent | ✓ `savedQueries.test.ts` (14 specs) | ✓ `search-saved-queries.spec.ts` (5 specs) | ✓ walked via `search-production/workspace.spec.ts` (Recent auto-populate + palette rehydration) | (deferred) |
+| **S8** — Compare (2 subjects) operator | ✓ pytest unit on `compare.py` (16 specs); vitest `search.runCompare.test.ts` (7 specs) + `CompareOperatorPanel.test.ts` (8 specs) | ✓ `search-operator-compare.spec.ts` (5 specs); integration `test_viewer_search.py` (6 new tests) | (compare walk not yet in the workspace walk — dedicated Tier-1 covers) | ✓ `validation/search-v3.spec.ts` T4 (F2 — real corpus) |
 | **Handoff matrix (F1–F4)** | ✓ `search.test.ts` + related | ✓ `handoff/*.spec.ts` (11 files, 65+ tests) | ✓ `handoff-production/*.spec.ts` (9 files, 20+ tests) | ✓ `validation/handoff-matrix-real-corpus.spec.ts` |
 
 Retrieval-adjacent slices (S1 / S4b / S5) also have `make eval-search` +
@@ -47,38 +56,45 @@ non-UI half of the pyramid (not shown in the matrix above).
 
 ## What "awesome" looks like
 
-Test-count snapshot as of this audit:
+Test-count snapshot as of this audit (final):
 
-- **pytest**: 31 + tests added by S4b, S6 (unit + integration on
-  `/api/search`, operator aggregation, cli filter).
-- **vitest**: 204 files, 2650 tests (all green).
-- **Playwright (mocked)**: `make test-ui-e2e` runs 33 spec files.
-- **`make test-ui-e2e`**: **196+ tests passing / 0 failing / 0 flaky**
-  as of the S7 landing + audit fills.
-- **SIGSEGV guardrail**: `make lint-search-v3` green (530 files scanned,
+- **pytest**: baseline 31 + S4b + S6 + S8 unit + integration + F1
+  fixture shape-check (46 covered directly by S8's targeted run;
+  11 by F1's shape-check spec).
+- **vitest**: 206 files, 2666 tests (all green post-S8).
+- **Playwright (mocked)**: `make test-ui-e2e` runs 34 spec files.
+- **`make test-ui-e2e`**: **217 passed / 0 failed / 0 flaky (2.4m)**
+  post-S8 + F1/F2/F3 landing.
+- **SIGSEGV guardrail**: `make lint-search-v3` green (531 files scanned,
   2 forbidden symbols, 0 whitelist entries) — Python-side aggregation
-  only, no LanceDB native combine.
+  only, no LanceDB native combine, unchanged post-S8.
+- **Fixture shape-check**: `tests/integration/fixtures/test_search_v3_mocks_shape.py`
+  — 11 pytest specs validate every fixture scenario against the
+  shipped Pydantic response model. If the server response shape
+  drifts, this test breaks CI and steers Tier-2 specs back into
+  agreement.
 
-## Known gaps + follow-ups
+## Known gaps + follow-ups (RESOLVED)
 
-- **`search-v3/mocks.json` regeneration** — the shipped
-  `enriched-answer` / `operator-cluster` / `operator-consensus`
-  scenarios in the fixture predate the actual S4/S5 shape. Documented
-  in the fixture directory's `README.md`. Tier-2 specs use inline mocks
-  in the shipped shape until regeneration lands. Non-blocking.
-- **Tier-3 (real-corpus) walk for Search v3** — no `validation/*` spec
-  targets Search v3 today. The infrastructure exists
-  (`validation/real-corpus.spec.ts` pattern); adding a search-tab walk
-  would require the operator supplying a corpus with a LanceDB index
-  and enrichment output. Deferred — the Tier-2 walk covers most
-  cross-slice regressions and the SIGSEGV guard covers the highest-risk
-  server surface.
-- **S6 rail launcher NOT in the Tier-2 workspace walk** — the walk
-  covers workspace-first flows. The rail-first launch is covered by
-  the dedicated Tier-1 spec (`search-rail-in-episode.spec.ts`). A
-  rail-launched Tier-2 walk would be additive value; not blocking.
+The three follow-ups previously listed here shipped in the same
+session:
+
+- **`search-v3/mocks.json` regeneration** — DONE (`e33192a8`, F1). All
+  6 scenarios now match the shipped shape (schema_version 2). Fixture
+  shape-check test added.
+- **Tier-3 (real-corpus) walk for Search v3** — DONE (`39e1886b`, F2).
+  `validation/search-v3.spec.ts` covers T1 enriched hero, T2 cluster,
+  T3 consensus, T4 compare (§S8), T5 episode-scope rail.
+- **S6 rail launcher in Tier-2 workspace walk** — DONE (`97367527`, F3).
+  `search-production/rail-launch.spec.ts` covers the cross-slice
+  Library → Episode → rail launcher → scoped `/api/search` →
+  chip clear → unscoped `/api/search` round-trip.
+
+Still open (not this session):
+
 - **Perf-demonstrations #768 / #769** — occasionally flaky under
-  parallel load (documented behaviour, retries clean). No S7 impact.
+  parallel load (documented behaviour, retries clean). No S7/S8
+  impact.
 
 ## How to run the pyramid
 
