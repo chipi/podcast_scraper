@@ -4297,6 +4297,16 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "dgx_diarize_port",
         "dgx_diarize_model",
         "dgx_whisper_model",
+        # ADR-119 (#1253): resilience posture has no argparse flag either. Without carrying it, a
+        # reprocess profile loaded via --config (the redo-/migrate-diarization make targets) drops
+        # to the serve/failover default -> a FallbackChain would silently degrade DGX -> local
+        # whisper and produce a MIXED-BACKEND corpus, the exact thing the hold strategy prevents.
+        "resilience_run_context",
+        "resilience_failure_strategy",
+        "resilience_retries_before_trip",
+        "resilience_backoff_schedule_sec",
+        "resilience_on_open_max_wait_sec",
+        "resilience_probe_interval_sec",
     ):
         _v = getattr(args, _field, None)
         if _v is not None:

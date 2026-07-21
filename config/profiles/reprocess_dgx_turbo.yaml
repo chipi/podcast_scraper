@@ -22,9 +22,20 @@ transcription_provider: tailnet_dgx_whisper
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
 dgx_whisper_port: 8000
-# ADR-096 requires a fallback. Deliberately the *local* whisper, never a cloud provider: a DGX
-# outage must degrade to our own hardware, not silently start billing an API.
+# ADR-096 declares a fallback (local whisper, never cloud). NOTE: under the hold strategy below
+# this fallover is SUPPRESSED — a DGX outage halts the batch rather than degrading to local, so the
+# corpus never mixes backends. The declaration is kept for ADR-096 compliance + the serve path.
 transcription_fallback_provider: whisper
+
+# --- resilience: ADR-119 (#1253) hold — self-hosted only, NO cross-model fallover ----------------
+# Self-declared, NOT name-derived. The reprocess_dgx_* -> hold default is resolved from the profile
+# NAME (`--profile reprocess_dgx_turbo`), which the reprocess make targets bypass: they load this
+# file via `--config <path>`, leaving run_context at its 'serve' default -> a FallbackChain would
+# silently degrade DGX -> local whisper on a timeout and yield a MIXED-BACKEND corpus. Declaring it
+# here makes hold hold regardless of how the profile is loaded: backoff-retry the chosen DGX model,
+# trip only after N, pause-and-probe a blown fuse, then HALT — never switch backends.
+resilience_run_context: reprocess
+resilience_failure_strategy: hold
 
 # --- diarization: pyannote v4 (self-hosted) -----------------------------------------------------
 diarize: true
