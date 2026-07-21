@@ -216,7 +216,86 @@ Right rail collapse state now persists to ``localStorage`` key
 
 Main-tab keyboard shortcuts (#674 item 5): ``1`` Digest / ``2`` Library
 / ``3`` Graph / ``4`` Dashboard, gated by the same
-``isEditableTarget`` check as the existing ``/`` shortcut.
+``isEditableTarget`` check as the existing ``/`` shortcut. Search v3 §S2
+reserved slot ``3`` for the new Search main tab and shifted Graph to
+``4`` and Dashboard to ``5``; §S3 added ``Cmd-K`` / ``Ctrl-K`` alongside
+``/`` for the shell-wide command palette.
+
+**Search v3 shell-level testids (§S2 / §S3 / §S4-shell — PRD-045, RFC-107)**:
+
+| Element | testid |
+| ---- | ----- |
+| Search main tab workspace (region) | ``search-workspace`` |
+| Left rail Saved / Recent aside (§S4-shell) | ``left-panel-saved-queries`` |
+| Left rail Saved list + honest empty | ``left-panel-saved-list`` / ``left-panel-saved-empty`` |
+| Left rail Recent list + honest empty | ``left-panel-recent-list`` / ``left-panel-recent-empty`` |
+| Command palette dialog + input | ``command-palette`` / ``command-palette-input`` |
+| Palette recent / saved sections | ``command-palette-recent-list`` / ``command-palette-recent-empty`` / ``command-palette-saved-empty`` |
+| Palette per-hit actions | ``command-palette-action-open-workspace`` / ``command-palette-action-pin-rail`` / ``command-palette-action-show-graph`` |
+
+Retired in §S4-shell: ``workspace-sidebar`` / ``workspace-sidebar-saved-empty`` /
+``workspace-sidebar-recent-empty`` / ``workspace-sidebar-recent-list``
+(the workspace sidebar was folded into the left rail; the new
+``left-panel-*`` testids above are the source of truth). The compact
+SearchPanel launcher retired in the same pivot — ``#search-q`` now
+exists ONLY inside the Search main tab, so tests that fill it must
+switch to Search first via
+``mainViewsNav(page).getByRole('button', { name: 'Search' }).click()``.
+Row-click on a ResultCard opens the Episode subject panel; the
+standalone ``L`` / ``S`` per-hit buttons were retired at the same time,
+so ``getByRole('button', { name: 'Open episode in subject panel' })``
+now matches the article itself (``role="button" tabindex="0"``), not a
+child chip.
+
+**Search v3 result-set operator bar (§S4a + §S4b — #1234, RFC-107 §7.4)**:
+
+Renders above the hit cards inside the Search workspace once a query
+returns ≥ 1 result. Four chips; two client-only (Timeline, On-graph),
+two server-side via ``/api/search?operator=…`` (Cluster, Consensus).
+
+| Element | testid |
+| ---- | ----- |
+| Bar container (region) | ``result-set-operator-bar`` |
+| Chip: Cluster | ``operator-chip-cluster`` |
+| Chip: Timeline | ``operator-chip-timeline`` |
+| Chip: On graph (label suffixes ``(N)``) | ``operator-chip-graph`` |
+| Chip: Consensus | ``operator-chip-consensus`` |
+| Operator error banner | ``operator-error`` |
+| Timeline panel | ``operator-timeline-panel`` |
+| Timeline undated tally line | ``operator-timeline-undated`` |
+| Cluster panel container | ``operator-cluster-panel`` |
+| Cluster loading / empty / list | ``operator-cluster-loading`` / ``operator-cluster-empty`` / ``operator-cluster-list`` |
+| Consensus panel container | ``operator-consensus-panel`` |
+| Consensus loading / empty / list | ``operator-consensus-loading`` / ``operator-consensus-empty`` / ``operator-consensus-list`` |
+
+Chip behaviour:
+
+- **Timeline** — pure client bucket-by-YYYY-MM histogram; toggles the
+  ``operator-timeline-panel`` on/off without any fetch;
+  ``aria-pressed`` reflects state. When any hit has a missing / invalid
+  ``metadata.publish_date`` the ``operator-timeline-undated`` line shows
+  ``N hits without a publish date not shown.``.
+- **On graph** — de-dupes hit ids preferring ``metadata.source_id``
+  (topic / entity) over ``metadata.episode_id``, then App switches
+  ``mainTab`` to ``'graph'`` and applies the yellow-ring highlight set +
+  ``requestFitAfterLoad``. Disabled state ``operator-chip-graph``
+  ``disabled=true`` with label ``On graph (no ids)`` when no hit
+  resolves to a graph id (all hits are aux with no source_id and no
+  episode_id).
+- **Cluster** — first click fires ``GET /api/search?…&operator=cluster``
+  with ``top_k × 3`` over-fetch (cap 100 per RFC-107 §7.4); response
+  ``clusters[]`` renders as ``operator-cluster-list li`` rows with
+  ``label`` + ``size`` + a ``cluster_kind`` badge. Ungrouped bucket
+  labelled ``Other`` in the badge. Second click on the chip toggles the
+  panel off WITHOUT re-fetching (cached in the store).
+- **Consensus** — same fetch pattern with ``operator=consensus``;
+  server reads ``enrichments/topic_consensus.json`` (ADR-108, precision
+  ~0.91 on prod-v2) and filters pairs to topics surfaced in the hit
+  page. Empty state ``operator-consensus-empty`` renders when the file
+  is missing or no pairs match.
+
+Owning spec: ``search-operator-bar.spec.ts`` (mocks ``/api/search``
+with a route callback that branches on the ``operator`` query param).
 
 ## Surfaces and owning specs
 
@@ -234,6 +313,7 @@ Main-tab keyboard shortcuts (#674 item 5): ``1`` Digest / ``2`` Library
 | **Corpus Digest** | Panel **`h2` Digest** (`#digest-main-heading`) **left** + **`?`** **About Digest** **`HelpTip`** (topic bands → **Graph** / **Search topic** / **Recent** / CIL **topic pills** / **Library**). **Recent** row **click** → **Episode** subject rail without leaving **Digest**; **topic band** **title**, **hit row** **click**, and **Recent** **CIL pills** (`digest-recent-cil-pills`, **`topic_id`**) → **Graph** when the digest row includes CIL topics (focus digest **`graph_topic_id`** / **`topic_id`** when that **`topic:`** node exists in the merged slice, else episode). **No** summary-bullet pill row on **Recent**. **Digest** ↔ **Library** retains rail selection when the episode is still in the digest payload and still listed under Library for current filters (see UXS). **Recent** list rows use **`bg-overlay`** when selected in the **Episode** subject rail (same cue as **Library**); **Recent** rows share **Library**-style list chrome (no bordered **`bg-elevated`** card wrapper). Toolbar: first row — **`h2` Digest** + **`?`** **About Digest** **left**, **Published on or after** + presets **right**; second row when loaded — rolling **range** (human-readable UTC via `<time datetime="ISO">` · **N** **episodes** / **1 episode**). `GET /api/corpus/digest` + **`GET /api/corpus/feeds`**; **`region` `Topic bands`** wraps the topic **grid** without an outer **max-height** scrollbar: **first three** bands by default, then **`data-testid="digest-topic-bands-show-more"`** when more exist; **first** band **elevated** + **`border-primary/20`**; topic titles **`text-sm`** (**bold** on first band, **semibold** on others); **`region` `Recent episodes`** (accessible name **`Recent episodes, N items`** / **`1 item`**): **`h2` Recent** (`#digest-recent-heading`, **`text-sm`** semibold) + tabular **`(N)`** count (same **N** as the rolling-window line · **N episodes**) + **`?`** (**About the Recent digest list**); episode row **meta** (**right** of title): **feed**, **publish date**, **E#**, **duration** on one **`text-[10px]`** baseline-wrap line; tight gap before recap. **Topic band** cards: compact padding; each **hit row** is **`role="button"`** (same **`episode_title`, `feed`** pattern as **Recent**), **click** → **Episode** subject rail + **Graph** as above; **grid** left column **`h-9`** **cover** only (**`w-9`**), right column full-width **title**; recap **`col-span-2`** (**semantic match** label when **`score`** present — **Strong** / **Good** / **Weak**; raw score on that label’s **`title`**); row **`title`**: publish date, **E#**, duration, feed, description, RSS (no duplicate vector block). **Search topic** opens Search with the topic **`query`** and **Since (date)** set only when the shared corpus lens has a valid **YYYY-MM-DD** (omitted for all time). **Truncated** feed + hover on **Recent** rows as above. **episode rows** — `h-9` cover, recap **2-line clamp** when unselected (**`line-clamp-2`**), **full** when selected; optional **`success`** **recency dot** before titles when publish day is within rolling **24h** (local midnight parse); **CIL pills** (**`kg`** cluster tint on Digest Recent) → **Graph** when present; no **GI/KG** chips | Default main tab on `goto('/')` | `digest.spec.ts` (mocked health + digest + **`feeds`** + optional `**/api/artifacts/metadata/...gi.json**`) |
 | **Corpus Library** | **Filters** collapsible + **Feed** column: **`region` `Feeds`**; feed rows live in **`data-testid="library-feed-list-scroll"`** with **`max-height`** ~**two** feed rows and vertical scroll for the rest. When **`feeds.length > 15`**, **`data-testid="library-feed-filter-search"`** filters client-side. With no feed selection the episode list is **all** feeds; **Clear feed filter** (beside the **Feed** label) is always visible (**disabled** until a feed row is selected). On **`lg`**, filters use a **two-column** layout (**~60% / 40%**): **left** = **date + presets** on one row (horizontal scroll if needed), then **Title** / **Summary** filter inputs on a shared **`grid`**; **Clear all filters** and **Apply**; **right** = **Feed** list. **`?`** **About Library filters** sits **immediately after** the **Filters** title. **Below** **Filters** (always visible): **`data-testid="library-topic-cluster-toggle"`** (**Clustered episodes only**) — **`GET /api/corpus/episodes`** **`topic_cluster_only=true`** when checked (same server semantics as before). Row **`title`** hover adds **RSS** + **description** when `GET /api/corpus/feeds` includes them. **Episodes** heading + **?** **HelpTip**; **Episodes** list — **cursor pagination** + **Load more** + **scroll-to-load**; per-row **meta** like Digest **Recent**; recap **2-line clamp** when unselected, **full** when selected; optional **recency dot**; **no** topic chips on list rows. **Episode** subject rail unchanged for detail chrome. **No** embedded **24h digest** strip — use **Digest** tab for discovery. | **Library** tab + corpus path; mock corpus + optional `index/stats` / `similar` | `library.spec.ts` |
 | **Theme tokens** | `--ps-canvas` matches asserted dark/light hex in [theme.spec.ts](theme.spec.ts) | `goto('/')` + `emulateMedia` and/or `localStorage` | `theme.spec.ts` |
+| **Search v3 result-set operator bar** | ``result-set-operator-bar`` above the hit cards on Search main tab. Chips: Cluster (S4b, server ``operator=cluster`` top_k×3 over-fetch) / Timeline (S4a, client YYYY-MM histogram over ``metadata.publish_date``) / On graph (S4a, App-level ``activateGraphTab`` + yellow-ring highlight set) / Consensus (S4b, server ``operator=consensus`` reads ``enrichments/topic_consensus.json``). Panels: ``operator-{cluster,timeline,consensus}-panel`` with ``-loading`` / ``-empty`` / ``-list`` states. See the **Search v3 result-set operator bar** section above for the full testid contract. | `goto('/')` + Search tab + submit query → bar renders once response has ≥ 1 hit | `search-operator-bar.spec.ts` |
 
 ### Offline graph load (shared helper)
 
