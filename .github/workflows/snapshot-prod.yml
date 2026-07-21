@@ -8,12 +8,20 @@ name: Snapshot prod box (Hetzner)
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: "create a snapshot, or prune old ones"
+        type: choice
+        options: [create, prune]
+        default: create
       server_name:
-        description: "Server to snapshot (blank = auto-detect the prod box)"
+        description: "Server to snapshot/prune (blank = auto-detect the prod box)"
         default: ""
       description:
-        description: "Snapshot label"
+        description: "create: snapshot label"
         default: "pre-deploy snapshot"
+      keep:
+        description: "prune: how many most-recent prod snapshots to keep"
+        default: "3"
 
 permissions:
   contents: read
@@ -22,8 +30,13 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Prod-impacting (creates/deletes Hetzner images) → requires a HUMAN approval on
+    # the `prod` environment. The agent must NOT self-approve this gate (only on an
+    # explicit operator "approve it" ask) — see feedback_prod_approval_gates.
+    environment: prod
     steps:
       - name: Create Hetzner snapshot
+        if: inputs.action == 'create'
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
           SERVER_NAME: ${{ inputs.server_name }}
@@ -70,3 +83,47 @@ jobs:
             echo ""
             echo "Restore: Hetzner console → rebuild the server from image ${IMGID}, or \`hcloud server rebuild\`."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prune old Hetzner snapshots (keep N most recent)
+        if: inputs.action == 'prune'
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          SERVER_NAME: ${{ inputs.server_name }}
+          KEEP: ${{ inputs.keep }}
+        run: |
+          set -euo pipefail
+          [ -n "${HCLOUD_TOKEN:-}" ] || { echo "::error::HCLOUD_TOKEN empty"; exit 1; }
+          API="https://api.hetzner.cloud/v1"
+          SERVERS="$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "$API/servers")"
+          RESULT="$(echo "$SERVERS" | SERVER_NAME="$SERVER_NAME" python3 -c '
+          import sys, json, os
+          d = json.load(sys.stdin)["servers"]
+          want = os.environ.get("SERVER_NAME", "").strip()
+          if want:
+              m = [s for s in d if s["name"] == want]
+          else:
+              m = [s for s in d if "prod" in s["name"].lower()
+                   and not any(x in s["name"].lower() for x in ("dr-", "drill", "staging"))]
+          if len(m) != 1:
+              sys.stderr.write(f"expected exactly 1 match, got {len(m)}\n"); sys.exit(1)
+          print(m[0]["id"], m[0]["name"])
+          ')"
+          SID="${RESULT%% *}"; SNAME="${RESULT#* }"
+          [ -n "${SID:-}" ] || { echo "::error::could not resolve a unique prod server"; exit 1; }
+          # Snapshots created FROM this server, newest first; delete all beyond KEEP.
+          IMGS="$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "$API/images?type=snapshot&sort=created:desc&per_page=50")"
+          DELETE_IDS="$(echo "$IMGS" | SID="$SID" KEEP="$KEEP" python3 -c '
+          import sys, json, os
+          sid = int(os.environ["SID"]); keep = int(os.environ["KEEP"])
+          snaps = [i for i in json.load(sys.stdin)["images"] if (i.get("created_from") or {}).get("id") == sid]
+          snaps.sort(key=lambda i: i["created"], reverse=True)
+          for i in snaps[keep:]:
+              print(i["id"], i["created"], (i.get("description") or "")[:40])
+          ')"
+          if [ -z "$DELETE_IDS" ]; then echo "nothing to prune (<= ${KEEP} snapshots for ${SNAME})"; exit 0; fi
+          echo "keeping ${KEEP} most recent for ${SNAME}; deleting:"; echo "$DELETE_IDS"
+          echo "$DELETE_IDS" | while read -r ID _rest; do
+            [ -n "$ID" ] || continue
+            curl -fsS -X DELETE -H "Authorization: Bearer $HCLOUD_TOKEN" "$API/images/${ID}" >/dev/null && echo "  deleted image ${ID}"
+          done
+          { echo "### Pruned Hetzner snapshots for \`${SNAME}\` (kept ${KEEP} most recent)"; echo '```'; echo "$DELETE_IDS"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
