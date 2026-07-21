@@ -130,7 +130,7 @@ export async function setupCorpusDashboardDataRoutes(page: Page): Promise<void> 
 
 /** Minimal API stubs so Dashboard loads without a real corpus server. */
 export async function setupDashboardApiMocks(page: Page): Promise<void> {
-  await page.route('**/api/health', async (route) => {
+  await page.route('**/api/health**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

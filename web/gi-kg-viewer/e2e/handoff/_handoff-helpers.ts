@@ -101,7 +101,12 @@ export async function setupHandoffMatrixMocks(
   page: Page,
   opts?: { digest?: boolean; search?: boolean; clusters?: boolean },
 ): Promise<void> {
-  await page.route('**/api/health', (r) =>
+  // Match ``/api/health`` AND ``/api/health?path=…`` — the debounced
+  // re-probe on corpus-path change (shell.ts §S4-shell followup) fires
+  // the second form; without the trailing ``**`` the mock silently misses
+  // and Vite's dev-server proxy returns an empty body, causing
+  // ``healthStatus`` to flip to ``'unknown'`` mid-flow.
+  await page.route('**/api/health**', (r) =>
     r.fulfill({
       status: 200,
       contentType: 'application/json',

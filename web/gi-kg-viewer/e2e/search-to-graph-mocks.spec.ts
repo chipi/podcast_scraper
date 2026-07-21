@@ -15,7 +15,7 @@ test.describe('Search → graph (mocked API)', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

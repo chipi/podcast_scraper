@@ -20,7 +20,12 @@ test.describe('Corpus Library tab', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    // Match ``/api/health`` AND ``/api/health?path=…`` — the debounced
+    // re-probe on corpus-path change (shell.ts §S4-shell followup) fires
+    // the query-string form; the narrower ``**/api/health`` glob does not
+    // intercept it, and the empty response flips ``healthStatus`` to
+    // ``'unknown'`` mid-flow, causing Library detail races.
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

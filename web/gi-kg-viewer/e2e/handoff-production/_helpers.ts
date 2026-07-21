@@ -133,7 +133,10 @@ export async function setupProductionShapedMocks(
 
   // --- API mocks ---
 
-  await page.route('**/api/health', (r) =>
+  // Match ``/api/health`` AND ``/api/health?path=…`` (the debounced
+  // re-probe on corpus-path change fires the second form — see
+  // shell.ts §S4-shell followup).
+  await page.route('**/api/health**', (r) =>
     r.fulfill({
       status: 200,
       contentType: 'application/json',

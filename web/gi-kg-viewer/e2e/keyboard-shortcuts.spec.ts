@@ -7,7 +7,7 @@ test.describe('Keyboard shortcuts', () => {
   })
 
   test('/ opens the command palette (Search v3 §S3 + §S4-shell)', async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

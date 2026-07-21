@@ -69,7 +69,7 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

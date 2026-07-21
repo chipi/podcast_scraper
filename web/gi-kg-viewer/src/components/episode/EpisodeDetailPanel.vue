@@ -621,7 +621,27 @@ function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
 
 watch(
   () => [shell.corpusPath, shell.healthStatus] as const,
-  () => {
+  (curr, prev) => {
+    // Guard against health-hydration transitions that race with a
+    // focus-episode + loadDetail sequence — the initial mount fetchHealth
+    // (or a corpus-path-triggered re-probe) can resolve AFTER the row
+    // click has already populated ``detail``, and firing this reset would
+    // wipe the just-loaded episode data (HANDOFF_MATRIX H1.1 class of
+    // regression). Skip when the corpus path is unchanged AND the health
+    // transitions FROM a not-usable state (null/''/unknown) TO 'ok' —
+    // that's always a hydration, never a corpus swap. Real corpus swaps
+    // and real ok→error transitions still reset the panel below.
+    const prevPath = prev?.[0]
+    const currPath = curr[0]
+    const prevHealth = prev?.[1]
+    const currHealth = curr[1]
+    const pathUnchanged = (prevPath ?? '') === (currPath ?? '')
+    const prevWasNotUsable =
+      prevHealth == null || prevHealth === '' || prevHealth === 'unknown'
+    const currIsOk = currHealth === 'ok'
+    if (pathUnchanged && prevWasNotUsable && currIsOk) {
+      return
+    }
     detailLoadGate.invalidate()
     feeds.value = []
     indexStatsEnvelope.value = null

@@ -10,7 +10,7 @@ const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
  * ``members[].episode_ids`` so ``maybeMergeClusterSiblingEpisodes`` runs after graph load.
  */
 async function mockCorpusGraphBaseline(page: Page): Promise<void> {
-  await page.route('**/api/health', async (route) => {
+  await page.route('**/api/health**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

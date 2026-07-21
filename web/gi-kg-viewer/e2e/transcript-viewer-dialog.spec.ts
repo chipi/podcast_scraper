@@ -14,7 +14,7 @@ test.describe('Transcript viewer dialog (mocked API)', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -188,7 +188,7 @@ test.describe('Transcript viewer dialog — ad-free base (#974)', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
