@@ -1,0 +1,72 @@
+name: Snapshot prod box (Hetzner)
+
+# Reusable: create a Hetzner **snapshot** of the prod server — the instant-rollback
+# point to take BEFORE any risky box change (deploy, apply-edge, corpus migration).
+# Non-destructive (creates an image). Auto-detects the prod server by name; override
+# with `server_name`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_name:
+        description: "Server to snapshot (blank = auto-detect the prod box)"
+        default: ""
+      description:
+        description: "Snapshot label"
+        default: "pre-deploy snapshot"
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Create Hetzner snapshot
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          SERVER_NAME: ${{ inputs.server_name }}
+          DESC: ${{ inputs.description }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HCLOUD_TOKEN:-}" ]; then
+            echo "::error::HCLOUD_TOKEN empty — is it a prod-environment secret? add environment: prod"
+            exit 1
+          fi
+          API="https://api.hetzner.cloud/v1"
+          SERVERS="$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "$API/servers")"
+          # Resolve the target server id (explicit name, else the prod box: name contains
+          # 'prod' and NOT dr/drill/staging). Fail on 0 or >1 to avoid snapshotting the wrong box.
+          RESULT="$(echo "$SERVERS" | SERVER_NAME="$SERVER_NAME" python3 -c '
+          import sys, json, os
+          d = json.load(sys.stdin)["servers"]
+          want = os.environ.get("SERVER_NAME", "").strip()
+          if want:
+              m = [s for s in d if s["name"] == want]
+          else:
+              m = [s for s in d if "prod" in s["name"].lower()
+                   and not any(x in s["name"].lower() for x in ("dr-", "drill", "staging"))]
+          if len(m) != 1:
+              names = ", ".join(s["name"] for s in d)
+              sys.stderr.write(f"expected exactly 1 match, got {len(m)} (servers: {names})\n")
+              sys.exit(1)
+          print(f"{m[0][\"id\"]} {m[0][\"name\"]}")
+          ')"
+          SID="$(echo "$RESULT" | awk "{print \$1}")"
+          SNAME="$(echo "$RESULT" | cut -d" " -f2-)"
+          [ -n "${SID:-}" ] || { echo "::error::could not resolve a unique prod server"; exit 1; }
+          echo "Snapshotting server ${SID} (${SNAME})"
+          RESP="$(curl -fsS -X POST -H "Authorization: Bearer $HCLOUD_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"type\":\"snapshot\",\"description\":\"${DESC} $(date -u +%FT%TZ)\"}" \
+            "$API/servers/${SID}/actions/create_image")"
+          IMGID="$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["image"]["id"])')"
+          echo "Snapshot image id: ${IMGID}"
+          {
+            echo "### Hetzner snapshot created"
+            echo "- server: \`${SNAME}\` (id ${SID})"
+            echo "- snapshot image id: \`${IMGID}\`"
+            echo "- label: ${DESC}"
+            echo ""
+            echo "Restore: Hetzner console → rebuild the server from image ${IMGID}, or \`hcloud server rebuild\`."
+          } >> "$GITHUB_STEP_SUMMARY"
