@@ -85,6 +85,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          # Don't persist the checkout token as a git http.extraheader — the
+          # post-deploy prod-marker step (peter-evans/create-pull-request) sets its
+          # OWN Authorization header, and the two collide → GitHub "400 Duplicate
+          # header: Authorization". create-pull-request brings its own auth (token:).
+          persist-credentials: false
 
       - name: Resolve target image SHA
         id: sha
