@@ -28,6 +28,8 @@ import pytest
 from podcast_scraper import Config
 from podcast_scraper.providers import resilience
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult
+from podcast_scraper.providers.moss import moss_provider as mp
+from podcast_scraper.providers.moss.moss_provider import MossTranscriptionProvider
 from podcast_scraper.providers.resilience import policy as resilience_policy
 from podcast_scraper.providers.tailnet_dgx import (
     diarization_provider as dp,
@@ -129,6 +131,18 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
                 },
             )
             return
+        if self.path == "/v1/transcribe":
+            self._json(
+                200,
+                {
+                    "text": "hello from moss",
+                    "segments": [
+                        {"start": 0.0, "end": 2.0, "text": "hello from moss", "speaker": "S01"}
+                    ],
+                    "num_speakers": 1,
+                },
+            )
+            return
         self._json(404, {"error": "not found"})
 
 
@@ -140,6 +154,7 @@ def dgx_stub():
     _DGXStubHandler._post_count = 0
     dp._diarize_breaker.reset()
     wp._whisper_breaker.reset()
+    mp._moss_breaker.reset()
     server = ThreadingHTTPServer(("127.0.0.1", 0), _DGXStubHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -153,6 +168,7 @@ def dgx_stub():
         _DGXStubHandler._post_count = 0
         dp._diarize_breaker.reset()
         wp._whisper_breaker.reset()
+        mp._moss_breaker.reset()
 
 
 def _audio(tmp_path) -> str:
@@ -161,20 +177,40 @@ def _audio(tmp_path) -> str:
     return str(f)
 
 
-def _diarize_cfg(port: int) -> Config:
-    return Config.model_validate(
-        {
-            "rss_url": "https://example.com/feed.xml",
-            "diarization_provider": "tailnet_dgx",
-            "diarize": True,
-            "dgx_tailnet_host": "127.0.0.1",
-            "dgx_diarize_port": port,
-            # Tight budget + no per-minute scaling so the watchdog fires fast in-test.
-            "dgx_diarize_request_timeout_sec": 0.5,
-            "dgx_diarize_timeout_per_audio_minute_sec": 0,
-            "hf_token": "hf_test",
-        }
-    )
+def _diarize_cfg(
+    port: int,
+    *,
+    run_context: str | None = None,
+    retries_before_trip: int | None = None,
+    backoff_schedule_sec: list[float] | None = None,
+    on_open_max_wait_sec: float | None = None,
+    probe_interval_sec: float | None = None,
+    dgx_diarize_request_timeout_sec: float = 0.5,
+) -> Config:
+    data: dict[str, object] = {
+        "rss_url": "https://example.com/feed.xml",
+        "diarization_provider": "tailnet_dgx",
+        "diarize": True,
+        "dgx_tailnet_host": "127.0.0.1",
+        "dgx_diarize_port": port,
+        # Tight budget + no per-minute scaling so the watchdog fires fast in-test.
+        "dgx_diarize_request_timeout_sec": dgx_diarize_request_timeout_sec,
+        "dgx_diarize_timeout_per_audio_minute_sec": 0,
+        "hf_token": "hf_test",
+    }
+    # ADR-119 resilience-policy knobs: only set when the test cares (keeps the happy-path
+    # / serve-mode configs identical to before this change).
+    if run_context is not None:
+        data["resilience_run_context"] = run_context
+    if retries_before_trip is not None:
+        data["resilience_retries_before_trip"] = retries_before_trip
+    if backoff_schedule_sec is not None:
+        data["resilience_backoff_schedule_sec"] = backoff_schedule_sec
+    if on_open_max_wait_sec is not None:
+        data["resilience_on_open_max_wait_sec"] = on_open_max_wait_sec
+    if probe_interval_sec is not None:
+        data["resilience_probe_interval_sec"] = probe_interval_sec
+    return Config.model_validate(data)
 
 
 def _whisper_cfg(
@@ -216,6 +252,50 @@ def _whisper_cfg(
 def _diarize_provider(port: int):
     p = TailnetDgxDiarizationProvider(_diarize_cfg(port))
     p.initialize()
+    return p
+
+
+def _diarize_provider_from_cfg(cfg: Config):
+    p = TailnetDgxDiarizationProvider(cfg)
+    p.initialize()
+    return p
+
+
+def _moss_cfg(
+    port: int,
+    *,
+    run_context: str | None = None,
+    retries_before_trip: int | None = None,
+    backoff_schedule_sec: list[float] | None = None,
+    on_open_max_wait_sec: float | None = None,
+    probe_interval_sec: float | None = None,
+    moss_request_timeout_sec: float = 0.5,
+) -> Config:
+    data: dict[str, object] = {
+        "rss_url": "https://example.com/feed.xml",
+        "transcription_provider": "moss",
+        "dgx_tailnet_host": "127.0.0.1",
+        "moss_port": port,
+        "moss_request_timeout_sec": moss_request_timeout_sec,
+    }
+    # ADR-119 resilience-policy knobs: only set when the test cares (keeps the happy-path
+    # / serve-mode configs identical to before this change).
+    if run_context is not None:
+        data["resilience_run_context"] = run_context
+    if retries_before_trip is not None:
+        data["resilience_retries_before_trip"] = retries_before_trip
+    if backoff_schedule_sec is not None:
+        data["resilience_backoff_schedule_sec"] = backoff_schedule_sec
+    if on_open_max_wait_sec is not None:
+        data["resilience_on_open_max_wait_sec"] = on_open_max_wait_sec
+    if probe_interval_sec is not None:
+        data["resilience_probe_interval_sec"] = probe_interval_sec
+    return Config.model_validate(data)
+
+
+def _moss_provider_from_cfg(cfg: Config) -> MossTranscriptionProvider:
+    p = MossTranscriptionProvider(cfg)
+    p._initialized = True
     return p
 
 
@@ -278,6 +358,128 @@ class TestDiarizeRealSocket:
             with pytest.raises(RuntimeError, match="dgx_diarize_circuit_open"):
                 provider.diarize(_audio(tmp_path))
             assert time.monotonic() - started < 0.5
+
+    def test_serve_mode_regression_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
+        """ADR-119 regression guard: even with reprocess-shaped retry knobs populated,
+        an explicit ``run_context="serve"`` config keeps today's behaviour — the first
+        hard timeout trips the breaker immediately and raises for the FallbackChain.
+        Mirrors ``TestWhisperRealSocket``'s serve-mode regression guard, so a future
+        default change can't silently break diarize serve mode without failing this test."""
+        from podcast_scraper.providers.resilience import TimeoutLike
+
+        _DGXStubHandler.mode = "hang"
+        cfg = _diarize_cfg(
+            dgx_stub,
+            run_context="serve",
+            retries_before_trip=5,
+            backoff_schedule_sec=[0.01],
+            on_open_max_wait_sec=0.05,
+            probe_interval_sec=0.01,
+        )
+        provider = _diarize_provider_from_cfg(cfg)
+        started = time.monotonic()
+        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
+            with pytest.raises(TimeoutLike):
+                provider.diarize(_audio(tmp_path))
+        elapsed = time.monotonic() - started
+        assert elapsed < 5.0  # bailed fast, not the 30s hang; never entered pause-and-probe
+        assert dp._diarize_breaker.state == "open"  # first hard timeout tripped the breaker
+
+
+# --------------------------------------------------------------------------- #
+# diarization — ADR-119 reprocess-mode resilience policy                      #
+# --------------------------------------------------------------------------- #
+class TestDiarizeReprocessMode:
+    """Reprocess-mode coverage (#1253): backoff-retry the chosen model, trip the fuse
+    only after the policy threshold, hold-and-probe (never fall over) on a blown fuse."""
+
+    def test_backoff_retry_then_succeeds_no_trip_no_fallover(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang_then_ok"
+        _DGXStubHandler.fail_n = 1  # first POST hangs; the retry succeeds
+        cfg = _diarize_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=2,
+            backoff_schedule_sec=[0.05],
+        )
+        provider = _diarize_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.2):
+            result = provider.diarize(_audio(tmp_path))
+        assert isinstance(result, DiarizationResult)
+        assert result.num_speakers == 2
+        # Backed off and retried the SAME (only) model — no fallover, fuse never tripped.
+        assert dp._diarize_breaker.state == "closed"
+
+    def test_fuse_trips_only_after_n_not_on_first(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang"  # every attempt hangs
+        cfg = _diarize_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02, 0.02],
+            on_open_max_wait_sec=0.1,
+            probe_interval_sec=0.02,
+            dgx_diarize_request_timeout_sec=0.15,
+        )
+        provider = _diarize_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.1):
+            # Spy on the breaker's own record_failure to prove it is called exactly once,
+            # only after all 3 backoff-retries are exhausted — not on the first hard
+            # timeout the way serve mode trips it.
+            with patch.object(
+                dp._diarize_breaker,
+                "record_failure",
+                wraps=dp._diarize_breaker.record_failure,
+            ) as spy:
+                with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                    provider.diarize(_audio(tmp_path))
+        assert spy.call_count == 1
+        spy.assert_called_once_with(hard=True)
+        assert dp._diarize_breaker.state == "open"
+
+    def test_open_fuse_holds_and_probes_then_closes(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "ok"  # the endpoint has recovered by the time we probe
+        cfg = _diarize_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02],
+            on_open_max_wait_sec=2.0,
+            probe_interval_sec=0.05,
+        )
+        provider = _diarize_provider_from_cfg(cfg)
+        # Simulate a fuse already blown by an earlier episode in the batch, with its
+        # cooldown already elapsed — the breaker has no public "expire now" hook, so we
+        # poke the private deadline directly rather than sleeping out the real cooldown.
+        dp._diarize_breaker.record_failure(hard=True)
+        assert dp._diarize_breaker.state == "open"
+        dp._diarize_breaker._open_until = time.monotonic() - 0.01
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.2):
+            result = provider.diarize(_audio(tmp_path))
+        # Never switched models: the result IS the DGX stub's own response.
+        assert result.num_speakers == 2
+        # Half-open probe succeeded -> breaker closes.
+        assert dp._diarize_breaker.state == "closed"
+
+    def test_open_fuse_alerts_operator_after_max_wait(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang"  # the endpoint stays down through every probe
+        cfg = _diarize_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02],
+            on_open_max_wait_sec=0.1,
+            probe_interval_sec=0.03,
+            dgx_diarize_request_timeout_sec=0.15,
+        )
+        provider = _diarize_provider_from_cfg(cfg)
+        dp._diarize_breaker.record_failure(hard=True)
+        dp._diarize_breaker._open_until = time.monotonic() - 0.01
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.1):
+            with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                provider.diarize(_audio(tmp_path))
+        # Still open — never fell over to another model, just gave up probing and raised.
+        assert dp._diarize_breaker.state == "open"
 
 
 # --------------------------------------------------------------------------- #
@@ -432,3 +634,77 @@ class TestWhisperReprocessMode:
                 provider.transcribe(_audio(tmp_path))
         # Still open — never fell over to another model, just gave up probing and raised.
         assert wp._whisper_breaker.state == "open"
+
+
+# --------------------------------------------------------------------------- #
+# MOSS — ADR-119: was bare (no retry, no breaker), now gains the same         #
+# call + circuit + policy layers as whisper/diarize                          #
+# --------------------------------------------------------------------------- #
+class TestMossResilience:
+    def test_happy_path_round_trips(self, dgx_stub, tmp_path):
+        cfg = _moss_cfg(dgx_stub)
+        provider = _moss_provider_from_cfg(cfg)
+        text = provider.transcribe(_audio(tmp_path))
+        assert text == "hello from moss"
+        assert mp._moss_breaker.state == "closed"
+
+    def test_serve_mode_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
+        """ADR-119: MOSS was previously bare (no watchdog, no breaker at all) — this proves
+        the newly-added serve-mode call layer actually classifies a hard timeout, trips the
+        breaker on the first one, and raises for the wrapping FallbackChain, mirroring
+        whisper/diarize's serve branches."""
+        from podcast_scraper.providers.resilience import TimeoutLike
+
+        _DGXStubHandler.mode = "hang"
+        cfg = _moss_cfg(dgx_stub)
+        provider = _moss_provider_from_cfg(cfg)
+        started = time.monotonic()
+        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
+            with pytest.raises(TimeoutLike):
+                provider.transcribe(_audio(tmp_path))
+        elapsed = time.monotonic() - started
+        assert elapsed < 5.0  # bailed fast, not the 30s hang
+        assert mp._moss_breaker.state == "open"  # hard timeout tripped the breaker
+
+    def test_backoff_retry_then_succeeds_no_trip_no_fallover(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang_then_ok"
+        _DGXStubHandler.fail_n = 1  # first POST hangs; the retry succeeds
+        cfg = _moss_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=2,
+            backoff_schedule_sec=[0.05],
+        )
+        provider = _moss_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.2):
+            text = provider.transcribe(_audio(tmp_path))
+        assert text == "hello from moss"
+        # Backed off and retried the SAME (only) model — no fallover, fuse never tripped.
+        assert mp._moss_breaker.state == "closed"
+
+    def test_fuse_trips_only_after_n_not_on_first(self, dgx_stub, tmp_path):
+        _DGXStubHandler.mode = "hang"  # every attempt hangs
+        cfg = _moss_cfg(
+            dgx_stub,
+            run_context="reprocess",
+            retries_before_trip=3,
+            backoff_schedule_sec=[0.02, 0.02],
+            on_open_max_wait_sec=0.1,
+            probe_interval_sec=0.02,
+            moss_request_timeout_sec=0.15,
+        )
+        provider = _moss_provider_from_cfg(cfg)
+        with patch.object(resilience_policy, "WATCHDOG_GRACE_SEC", 0.1):
+            # Spy on the breaker's own record_failure to prove it is called exactly once,
+            # only after all 3 backoff-retries are exhausted — not on the first hard
+            # timeout the way serve mode trips it.
+            with patch.object(
+                mp._moss_breaker,
+                "record_failure",
+                wraps=mp._moss_breaker.record_failure,
+            ) as spy:
+                with pytest.raises(resilience_policy.ResilienceFuseOpenError):
+                    provider.transcribe(_audio(tmp_path))
+        assert spy.call_count == 1
+        spy.assert_called_once_with(hard=True)
+        assert mp._moss_breaker.state == "open"

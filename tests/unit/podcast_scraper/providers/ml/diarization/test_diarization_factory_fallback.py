@@ -75,3 +75,29 @@ def test_factory_leaves_a_no_ladder_diarization_unwrapped() -> None:
     )
     provider = diar_factory.create_diarization_provider(cfg)
     assert not isinstance(provider, FallbackChainDiarizationProvider)
+
+
+def test_factory_reprocess_context_skips_fallback_chain_adr119() -> None:
+    """ADR-119 (chunk 2): in reprocess run-context the self-hosted diarization provider must
+    NEVER fall over to another model — a mixed-backend corpus is worse than a pause. Even with
+    a declared fallback ladder, the factory returns the bare DGX provider; its ResiliencePolicy
+    (hold-and-probe) is terminal. Mirrors the transcription factory's
+    ``test_factory_reprocess_context_skips_fallback_chain_adr119`` (chunk 1)."""
+    from podcast_scraper.providers.tailnet_dgx.diarization_provider import (
+        TailnetDgxDiarizationProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "diarization_provider": "tailnet_dgx",
+            "diarize": True,
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "hf_token": "hf_test",
+            "diarization_fallback_providers": ["local", "deepgram"],  # declared, but ignored
+            "resilience_run_context": "reprocess",
+        }
+    )
+    provider = diar_factory.create_diarization_provider(cfg)
+    assert not isinstance(provider, FallbackChainDiarizationProvider)
+    assert isinstance(provider, TailnetDgxDiarizationProvider)

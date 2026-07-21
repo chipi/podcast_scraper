@@ -108,7 +108,19 @@ def create_diarization_provider(
 
     if _wrap_fallback:
         tiers = _diarization_fallback_tiers(cfg)
-        if tiers:
+        # ADR-119: a reprocess run must NEVER fall over to a different model — the self-hosted
+        # provider owns a hold-and-probe ResiliencePolicy, and a mixed-backend corpus is worse
+        # than a pause. The FallbackChain IS the cross-model fallover mechanism, so we do not
+        # wrap it here even when the profile declares a ladder (the provider's policy is
+        # terminal). serve context keeps the RFC-106 fallover unchanged.
+        if tiers and getattr(cfg, "resilience_run_context", "serve") == "reprocess":
+            logger.info(
+                "reprocess run-context: NOT wrapping diarization in a FallbackChain "
+                "(declared ladder %s ignored per ADR-119 — hold-and-probe the chosen "
+                "model, no cross-model fallover)",
+                tiers,
+            )
+        elif tiers:
             from ...resilience.fallback import FallbackChainDiarizationProvider
 
             # Pass BUILDERS, not instances: the chain constructs each tier lazily on first use, so a

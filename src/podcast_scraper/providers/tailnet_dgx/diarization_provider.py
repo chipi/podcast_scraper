@@ -50,6 +50,7 @@ from ...providers.ml.diarization.base import (
 from ...utils.log_redaction import format_exception_for_log
 from .. import guardrails, resilience
 from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
+from ..resilience.policy import ResilienceFuseOpenError, ResiliencePolicy, RunContext
 from .health import check_pyannote_diarize_health, dgx_diarize_base_url
 from .telemetry import emit_dgx_fallback_breadcrumb
 
@@ -93,6 +94,20 @@ class TailnetDgxDiarizationProvider:
         )
         # Retry budget is generic; reuse the shared knob for parity with Whisper.
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
+        # ADR-119: which resilience behaviour this provider uses. 'serve' (default) keeps
+        # today's fail-fast/trip/raise-for-chain logic below untouched; 'reprocess' routes
+        # through the ResiliencePolicy (backoff-retry -> trip-after-N -> hold-and-probe).
+        self._run_context = RunContext(getattr(cfg, "resilience_run_context", "serve"))
+        self._policy = ResiliencePolicy(
+            breaker=_diarize_breaker,
+            retries_before_trip=int(getattr(cfg, "resilience_retries_before_trip", 3)),
+            backoff_schedule_sec=tuple(
+                getattr(cfg, "resilience_backoff_schedule_sec", (30.0, 60.0, 120.0))
+            ),
+            on_open_max_wait_sec=float(getattr(cfg, "resilience_on_open_max_wait_sec", 900.0)),
+            probe_interval_sec=float(getattr(cfg, "resilience_probe_interval_sec", 30.0)),
+            name="dgx-diarize",
+        )
         self._initialized = False
 
     def initialize(self) -> None:
@@ -123,16 +138,31 @@ class TailnetDgxDiarizationProvider:
         if not self._initialized:
             self.initialize()
 
+        # Health-check matches the prefix portion of the model id so we don't
+        # fail on minor naming drift between client config and server install.
+        require_model_substring = self._model.rsplit("/", 1)[-1]
+        timeout_sec = self._effective_timeout_sec(audio_path)
+
+        if self._run_context is RunContext.REPROCESS:
+            # ADR-119: consistency over availability — backoff-retry the SAME model,
+            # trip only after N, hold-and-probe on a blown fuse. Kept as a fully separate
+            # method (not folded into the serve loop below) so the serve branch's today
+            # behaviour stays byte-for-byte unchanged (RFC-106/#1198 regression guard).
+            return self._diarize_via_dgx_reprocess(
+                audio_path,
+                timeout_sec=timeout_sec,
+                require_model_substring=require_model_substring,
+                num_speakers=num_speakers,
+                min_speakers=min_speakers,
+                max_speakers=max_speakers,
+            )
+
+        # ---- serve mode (unchanged from today; RFC-106/#1198) ----
         # Circuit breaker: if DGX diarize is in its cooldown, don't even probe — raise immediately
         # so the FallbackChain fails over without a wasted probe (a wedged batch isn't paced by
         # timeouts).
         if not _diarize_breaker.allow():
             self._raise_exhausted("dgx_diarize_circuit_open")
-
-        # Health-check matches the prefix portion of the model id so we don't
-        # fail on minor naming drift between client config and server install.
-        require_model_substring = self._model.rsplit("/", 1)[-1]
-        timeout_sec = self._effective_timeout_sec(audio_path)
 
         last_err: Optional[Exception] = None
         timed_out = False
@@ -221,6 +251,57 @@ class TailnetDgxDiarizationProvider:
         if last_err is not None:
             raise last_err
         raise RuntimeError(f"DGX diarize unavailable: {reason}")
+
+    def _diarize_via_dgx_reprocess(
+        self,
+        audio_path: str,
+        *,
+        timeout_sec: float,
+        require_model_substring: str,
+        num_speakers: Optional[int],
+        min_speakers: int,
+        max_speakers: int,
+    ) -> DiarizationResult:
+        """ADR-119 reprocess-mode path: backoff-retry the chosen model, trip the fuse only
+        after the policy threshold, and hold-and-probe (never fall over) on a blown fuse.
+
+        Mirrors ``TailnetDgxWhisperTranscriptionProvider._transcribe_via_dgx_reprocess``. The
+        single-flight lock spans the whole call (health-check + retries + any pause-and-probe),
+        so nothing else in this process piles a second request onto the DGX diarize endpoint
+        while we're waiting on it either.
+        """
+
+        def _attempt() -> DiarizationResult:
+            if not check_pyannote_diarize_health(
+                self._host,
+                port=self._port,
+                require_model_substring=require_model_substring,
+            ):
+                raise RuntimeError("dgx_diarize_health_check_failed")
+            return self._diarize_dgx(
+                audio_path,
+                num_speakers=num_speakers,
+                min_speakers=min_speakers,
+                max_speakers=max_speakers,
+                timeout_sec=timeout_sec,
+            )
+
+        try:
+            with _dgx_diarize_single_flight:
+                return self._policy.run(_attempt, timeout_sec=timeout_sec)
+        except ResilienceFuseOpenError as exc:
+            emit_dgx_fallback_breadcrumb(
+                stage="diarization",
+                model=self._model,
+                failure_reason=str(exc),
+            )
+            logger.error(
+                "DGX diarize endpoint did not recover after %.0fs of pause-and-probe "
+                "(reprocess mode, ADR-119) — alerting operator, NOT falling over: %s",
+                self._policy.on_open_max_wait_sec,
+                exc,
+            )
+            raise
 
     def _diarize_dgx_guarded(
         self,
