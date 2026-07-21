@@ -51,13 +51,18 @@ __all__ = [
 # Note: 'cli' and 'service' are available via __getattr__ for lazy loading
 # Use: from podcast_scraper import cli, service
 # Or: import podcast_scraper.cli as cli
-__version__ = "2.7.0"
+# Build/package version (PEP 440). A pre-release (``2.7.0.dev0``) sorts BEFORE the
+# final ``2.7.0`` — so builds on the way to 2.7.0 are not mislabelled as the release.
+# Feeds the corpus ``code_version`` stamp, the CLI ``--version``, the Sentry release,
+# and the FastAPI ``version``. Per-build identity is the immutable ``sha-<7>`` image
+# tag; bump this marker at milestones (dev0 → b1 → rc1 → 2.7.0).
+__version__ = "2.7.0.dev0"
 
-# API version follows semantic versioning and is tied to module version
-# - Major version (X.y.z): Breaking API changes
-# - Minor version (x.Y.z): New features, backward compatible
-# - Patch version (x.y.Z): Bug fixes, backward compatible
-__api_version__ = __version__
+# API CONTRACT version — a clean semantic ``X.Y.Z``, DECOUPLED from the build version
+# so a pre-release build doesn't move the contract. It is the release BASE of
+# ``__version__`` (test-enforced: ``Version(__version__).base_version == __api_version__``).
+# - Major (X.y.z): breaking API changes · Minor (x.Y.z): new features · Patch: fixes.
+__api_version__ = "2.7.0"
 
 # Cache for lazy-loaded modules to prevent circular imports
 _import_cache: dict[str, object] = {}

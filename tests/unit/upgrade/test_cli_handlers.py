@@ -107,3 +107,40 @@ def test_confirm_prompt_tty(monkeypatch):
 def test_verify_text_mode_no_applied(tmp_path, capsys):
     assert _run(tmp_path, "verify") == 0  # text mode (no --json)
     assert "No applied migrations" in capsys.readouterr().out
+
+
+# --- pre-upgrade snapshot (#1250-adjacent: safe in-place upgrade) -------------
+
+
+def test_snapshot_corpus_creates_copy_outside_root(tmp_path):
+    from podcast_scraper.upgrade.cli_handlers import _snapshot_corpus
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "marker.txt").write_text("data")
+    snap = _snapshot_corpus(corpus, "2.6.1", None, log)
+    assert snap is not None and snap.exists()
+    # MUST live outside the corpus root, else the migrations would walk the backup.
+    assert corpus.resolve() != snap.resolve()
+    assert corpus.resolve() not in snap.resolve().parents
+    assert (snap / "marker.txt").read_text() == "data"  # contents copied
+
+
+def test_snapshot_corpus_refuses_inside_corpus(tmp_path):
+    from podcast_scraper.upgrade.cli_handlers import _snapshot_corpus
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    # A snapshot dir INSIDE the corpus is refused (migrations traverse the corpus).
+    assert _snapshot_corpus(corpus, "2.6.1", str(corpus / "inside"), log) is None
+
+
+def test_snapshot_corpus_custom_dir(tmp_path):
+    from podcast_scraper.upgrade.cli_handlers import _snapshot_corpus
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "f").write_text("x")
+    dest_base = tmp_path / "snaps"
+    snap = _snapshot_corpus(corpus, "2.6.1", str(dest_base), log)
+    assert snap is not None and snap.parent == dest_base and (snap / "f").read_text() == "x"
