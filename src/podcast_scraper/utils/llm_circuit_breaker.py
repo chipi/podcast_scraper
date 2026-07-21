@@ -44,6 +44,23 @@ _provider_state: Dict[str, "_BreakerState"] = {}
 _state_lock = threading.Lock()
 
 
+def _emit_llm_breaker_trip_alert(provider_name: str, cooldown_sec: float) -> None:
+    """Surface an LLM breaker TRIP to Sentry (ADR-119: the operator wants to know about every
+    issue that trips a fuse, LLM class included — not just the ASR self-hosted breakers). Guarded:
+    a missing/unconfigured ``sentry_sdk`` degrades to the WARNING log the caller already emits.
+    Sentry groups repeats per provider into one issue, so a 503 storm does not spam."""
+    try:
+        import sentry_sdk
+
+        sentry_sdk.capture_message(
+            f"LLM circuit breaker tripped: provider={provider_name} "
+            f"(overload burst; cooldown={cooldown_sec:.0f}s)",
+            level="warning",
+        )
+    except Exception:  # noqa: BLE001 - alerting must never break the call path
+        logger.debug("sentry unavailable; llm breaker-trip alert for %s not sent", provider_name)
+
+
 @dataclass
 class _BreakerState:
     """Per-provider rolling state."""
@@ -161,6 +178,7 @@ def record_failure(
             )
             if metrics is not None and hasattr(metrics, "record_llm_circuit_breaker_trip"):
                 metrics.record_llm_circuit_breaker_trip(provider_name, config.cooldown_seconds)
+            _emit_llm_breaker_trip_alert(provider_name, config.cooldown_seconds)
 
 
 def record_success(provider_name: str, config: LLMCircuitBreakerConfig) -> None:

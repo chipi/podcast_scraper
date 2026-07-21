@@ -178,6 +178,38 @@ class TestCircuitBreaker:
         cb = CircuitBreaker(1, 60, 60, name="dgx-whisper")
         assert cb._name == "dgx-whisper"
 
+    def test_hard_trip_emits_sentry_alert_once(self, monkeypatch):
+        """ADR-119: a hard-timeout trip fires the guarded operator alert exactly once —
+        not again while it is already open (Sentry would otherwise re-page per failure)."""
+        import unittest.mock as _mock
+
+        alert = _mock.Mock()
+        monkeypatch.setattr(resilience.breakers, "_emit_breaker_trip_alert", alert)
+        cb = CircuitBreaker(failure_threshold=5, window_sec=60, cooldown_sec=60, name="dgx-whisper")
+        cb.record_failure(hard=True)
+        cb.record_failure(hard=True)  # already open -> no second page
+        alert.assert_called_once_with("dgx-whisper", "hard timeout")
+
+    def test_soft_threshold_trip_emits_sentry_alert(self, monkeypatch):
+        """The rolling-window threshold trip also pages the operator."""
+        import unittest.mock as _mock
+
+        alert = _mock.Mock()
+        monkeypatch.setattr(resilience.breakers, "_emit_breaker_trip_alert", alert)
+        cb = CircuitBreaker(failure_threshold=2, window_sec=60, cooldown_sec=60, name="dgx-diarize")
+        cb.record_failure()
+        alert.assert_not_called()  # below threshold
+        cb.record_failure()
+        alert.assert_called_once()
+        assert alert.call_args.args[0] == "dgx-diarize"
+
+    def test_trip_alert_helper_is_guarded(self):
+        """A broken/unconfigured sentry_sdk must not propagate out of the alert helper."""
+        import unittest.mock as _mock
+
+        with _mock.patch("sentry_sdk.capture_message", side_effect=RuntimeError("boom")):
+            resilience.breakers._emit_breaker_trip_alert("dgx-whisper", "hard timeout")
+
 
 def test_timeout_like_includes_builtin_timeouterror():
     assert TimeoutError in resilience.TimeoutLike

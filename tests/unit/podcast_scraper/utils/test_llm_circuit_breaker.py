@@ -67,6 +67,28 @@ class TestRecordFailureClassification:
 
 
 @pytest.mark.unit
+class TestTripAlert:
+    """ADR-119: a trip fires a guarded Sentry alert so the operator sees the fuse blow."""
+
+    def test_trip_emits_sentry_alert_once(self) -> None:
+        cfg = LLMCircuitBreakerConfig(enabled=True, failure_threshold=2, window_seconds=60)
+        with patch(
+            "podcast_scraper.utils.llm_circuit_breaker._emit_llm_breaker_trip_alert"
+        ) as alert:
+            record_failure("gemini", cfg, error_status=503)
+            alert.assert_not_called()  # below threshold -> no trip, no alert
+            record_failure("gemini", cfg, error_status=503)
+        alert.assert_called_once_with("gemini", cfg.cooldown_seconds)
+
+    def test_alert_helper_is_guarded(self) -> None:
+        """A broken/unconfigured sentry_sdk must not propagate out of the alert helper."""
+        from podcast_scraper.utils import llm_circuit_breaker as mod
+
+        with patch("sentry_sdk.capture_message", side_effect=RuntimeError("boom")):
+            mod._emit_llm_breaker_trip_alert("gemini", 60.0)  # must not raise
+
+
+@pytest.mark.unit
 class TestWaitBehaviour:
     """``wait_if_overloaded`` sleeps when the breaker is open and returns immediately otherwise."""
 

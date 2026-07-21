@@ -22,6 +22,19 @@ from typing import Deque
 logger = logging.getLogger(__name__)
 
 
+def _emit_breaker_trip_alert(name: str, reason: str) -> None:
+    """Surface a breaker TRIP to Sentry (all breakers, serve or reprocess) so the operator sees
+    the issue that triggered the fuse — not just the sustained-open escalation. Guarded: a
+    missing/unconfigured ``sentry_sdk`` degrades to the WARNING log the caller already emits.
+    Sentry groups repeats of the same endpoint into one issue, so this does not spam."""
+    try:
+        import sentry_sdk
+
+        sentry_sdk.capture_message(f"Resilience fuse tripped: {name} ({reason})", level="warning")
+    except Exception:  # noqa: BLE001 - alerting must never break the call path
+        logger.debug("sentry unavailable; breaker-trip alert for %s not sent", name)
+
+
 class CircuitBreaker:
     """In-memory failure-rate circuit breaker for provider calls.
 
@@ -78,12 +91,14 @@ class CircuitBreaker:
             now = time.monotonic()
             if hard or self._state == "half_open":
                 if self._state != "open":
+                    reason = "hard timeout" if hard else "half-open probe failed"
                     logger.warning(
                         "%s circuit breaker OPEN for %.0fs: %s",
                         self._name,
                         self._cooldown,
-                        "hard timeout" if hard else "half-open probe failed",
+                        reason,
                     )
+                    _emit_breaker_trip_alert(self._name, reason)
                 self._state = "open"
                 self._open_until = now + self._cooldown
                 self._failures.clear()
@@ -99,6 +114,10 @@ class CircuitBreaker:
                     self._cooldown,
                     len(self._failures),
                     self._window,
+                )
+                _emit_breaker_trip_alert(
+                    self._name,
+                    f"{len(self._failures)} failures within {self._window:.0f}s",
                 )
                 self._state = "open"
                 self._open_until = now + self._cooldown
