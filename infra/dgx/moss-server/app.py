@@ -38,6 +38,51 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("moss-server")
 
+# Error reporting -> GlitchTip (self-hosted, Sentry-SDK/DSN compatible). No-op
+# without SENTRY_DSN. before_send scrubs secrets before events leave (GlitchTip
+# stores what you send). Traces off — perf tracing goes to VictoriaTraces, not here.
+try:
+    import sentry_sdk
+
+    # Prefer GLITCHTIP_DSN (self-hosted) over the legacy SENTRY_DSN (Cloud); both
+    # come from the container env (env_file), so no compose var-substitution needed.
+    _sentry_dsn = (os.environ.get("GLITCHTIP_DSN") or os.environ.get("SENTRY_DSN", "")).strip()
+    if _sentry_dsn:
+
+        def _sentry_scrub(event: dict, _hint: object) -> dict:
+            try:
+                for _section in ("extra", "contexts"):
+                    _data = event.get(_section) or {}
+                    if isinstance(_data, dict):
+                        for _k in list(_data):
+                            if isinstance(_k, str) and any(
+                                _s in _k.lower()
+                                for _s in (
+                                    "token",
+                                    "secret",
+                                    "password",
+                                    "api_key",
+                                    "authorization",
+                                )
+                            ):
+                                _data[_k] = "[redacted]"
+            except Exception:  # noqa: BLE001
+                pass
+            return event
+
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            environment=os.environ.get("SENTRY_ENVIRONMENT", os.environ.get("APP_ENV", "prod")),
+            release=os.environ.get("APP_RELEASE") or None,
+            send_default_pii=False,
+            traces_sample_rate=0.0,
+            before_send=_sentry_scrub,
+        )
+        sentry_sdk.set_tag("component", "moss")
+        logger.info("Sentry/GlitchTip error reporting enabled")
+except Exception:  # noqa: BLE001 - telemetry must never break startup
+    logger.debug("sentry init skipped", exc_info=True)
+
 _MODEL_NAME = os.environ.get("MOSS_MODEL", "OpenMOSS-Team/MOSS-Transcribe-Diarize")
 # Pin the Hub revision (a tag/branch/commit) so a silent upstream change can't alter what we serve.
 # Default ``main``; set MOSS_MODEL_REVISION to a commit SHA for a hard pin.
@@ -196,6 +241,27 @@ async def transcribe(file: UploadFile = File(...)) -> Dict[str, Any]:
         "speakers": speakers,
         "num_speakers": len(speakers),
     }
+
+
+# Prometheus instrumentation — request rate / latency histo / status codes at
+# /metrics (mirrors pyannote-server + whisper-server). Paths are static (no
+# high-cardinality URL params), so default grouping is fine. Scraped by the DGX
+# Alloy collector (job=moss). No-op if the instrumentator isn't installed.
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        excluded_handlers=["/metrics"],
+    ).instrument(app).expose(app, include_in_schema=False, tags=["observability"])
+    logger.info("Prometheus instrumentation enabled at /metrics")
+except ImportError:
+    logger.warning(
+        "prometheus_fastapi_instrumentator not installed — /metrics endpoint disabled. "
+        "Add to the Dockerfile to enable scrape."
+    )
 
 
 if __name__ == "__main__":

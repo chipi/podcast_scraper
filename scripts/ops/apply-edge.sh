@@ -251,6 +251,31 @@ else
   run apt-get install -y caddy
 fi
 
+# ADR-114: Caddy must bind ONLY the box's public interface(s). ``tailscale serve``
+# owns :443 on the tailnet IP (ADR-083 admin plane), so an all-interfaces bind
+# collides ("address already in use") and Caddy's :443 never comes up. Discover
+# the public IP(s) from the DEFAULT ROUTE (the metadata API is blocked by the
+# egress guard) and hand them to Caddy via ``default_bind {$CADDY_BIND_ADDRS}``.
+bind_changed=0
+BIND_ADDRS=""
+if [ "$DRY_RUN" = 1 ]; then
+  echo "  would discover public IP(s) + set CADDY_BIND_ADDRS in the caddy service env"
+else
+  PUB4="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1)"
+  PUB6="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* src \([0-9A-Fa-f:]*\).*/\1/p' | head -1)"
+  BIND_ADDRS="$PUB4"; [ -n "$PUB6" ] && BIND_ADDRS="$PUB4 $PUB6"
+  if [ -z "$PUB4" ]; then
+    warn "  no public IPv4 from default route — NOT setting bind; Caddy :443 would collide with tailscale-serve"
+  else
+    info "  public bind addrs: $BIND_ADDRS"
+  fi
+fi
+if [ -n "$BIND_ADDRS" ] && write_file /etc/systemd/system/caddy.service.d/10-public-bind.conf 0644 root:root <<EOF
+[Service]
+Environment=CADDY_BIND_ADDRS=$BIND_ADDRS
+EOF
+then bind_changed=1; run systemctl daemon-reload; fi
+
 # Per-tenant vhost dir (deploy-owned) + access-log dir (caddy-owned).
 run install -d -o deploy -g deploy -m 0755 /etc/caddy/sites
 run install -d -o caddy -g caddy -m 0755 /var/log/caddy
@@ -270,15 +295,22 @@ else
   caddy_changed=1
 fi
 
-# Validate BEFORE (re)starting — never run the engine on a bad config.
+# Validate BEFORE (re)starting, with the bind env so ``default_bind
+# {$CADDY_BIND_ADDRS}`` resolves. A bind-env change needs a RESTART (systemd
+# EnvironmentFile/Environment is read at start, not on reload); a config-only
+# change can reload.
 if [ "$DRY_RUN" = 1 ]; then
-  echo "  would run: caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile"
-elif caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
+  echo "  would run: caddy validate (with CADDY_BIND_ADDRS) then restart/reload caddy"
+elif CADDY_BIND_ADDRS="$BIND_ADDRS" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
   ok "  Caddyfile valid"
-  if systemctl is-active --quiet caddy; then
-    [ "$caddy_changed" = 1 ] && { change "  reload caddy"; run systemctl reload caddy; } || skip "  caddy running"
-  else
+  if ! systemctl is-active --quiet caddy; then
     enable_now caddy
+  elif [ "$bind_changed" = 1 ]; then
+    change "  restart caddy (public-bind env changed)"; run systemctl restart caddy
+  elif [ "$caddy_changed" = 1 ]; then
+    change "  reload caddy"; run systemctl reload caddy
+  else
+    skip "  caddy running"
   fi
 else
   warn "  Caddyfile INVALID — engine NOT (re)started; live config unchanged"

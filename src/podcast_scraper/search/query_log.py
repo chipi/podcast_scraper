@@ -33,15 +33,21 @@ def append_query_event(
     *,
     now: Optional[datetime] = None,
 ) -> None:
-    """Append one search event (timestamp + intent). Best-effort — never raises."""
-    try:
-        ts = (now or datetime.now(timezone.utc)).isoformat()
-        path = query_log_path(corpus_dir)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps({"ts": ts, "query_type": str(query_type or "")}) + "\n")
-    except OSError as exc:  # pragma: no cover - disk/permission edge
-        logger.debug("query-log append failed for %s: %s", corpus_dir, exc)
+    """Append one search event (timestamp + intent). Best-effort — never raises.
+
+    Thin wrapper over the canonical event emitter (ADR-119): one JSONL line to the
+    ``search/query_log.jsonl`` file sink, with the shared ``{ts, schema, event_type}``
+    envelope. A shipping agent tails the file → VictoriaLogs (or anywhere).
+    """
+    from ..obs.events import emit_event
+
+    emit_event(
+        "search_query",
+        sink="file",
+        path=query_log_path(corpus_dir),
+        ts=(now or datetime.now(timezone.utc)).isoformat(),
+        query_type=str(query_type or ""),
+    )
 
 
 def _event_date(line: str) -> Optional[str]:

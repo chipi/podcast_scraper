@@ -232,84 +232,6 @@ write_files:
     permissions: '0440'
     owner: root:root
 
-%{ if alloy_enabled ~}
-  - path: /var/lib/cloud/data/alloy-host-metrics.river
-    content: |
-      prometheus.exporter.unix "host" {}
-
-      prometheus.scrape "host_metrics" {
-        targets    = prometheus.exporter.unix.host.targets
-        forward_to = [prometheus.remote_write.grafana_cloud.receiver]
-      }
-
-      prometheus.remote_write "grafana_cloud" {
-        endpoint {
-          url = sys.env("GRAFANA_CLOUD_REMOTE_WRITE_URL")
-          basic_auth {
-            username = sys.env("GRAFANA_CLOUD_PROM_USER")
-            password = sys.env("GRAFANA_CLOUD_API_KEY")
-          }
-        }
-      }
-
-      // Security logs -> Loki (T-11 / ADR-117, tenant=common): sshd + fail2ban from the
-      // journal, the Caddy access log from file. Feeds the common security alert rules.
-      loki.relabel "journal" {
-        forward_to = []
-        rule {
-          source_labels = ["__journal__systemd_unit"]
-          target_label  = "unit"
-        }
-      }
-
-      loki.source.journal "security" {
-        forward_to    = [loki.process.tenant_common.receiver]
-        relabel_rules = loki.relabel.journal.rules
-        labels        = { job = "systemd-journal" }
-      }
-
-      loki.source.file "caddy" {
-        targets    = [{ __path__ = "/var/log/caddy/access.log", job = "caddy" }]
-        forward_to = [loki.process.tenant_common.receiver]
-      }
-
-      loki.process "tenant_common" {
-        forward_to = [loki.write.grafana_cloud.receiver]
-        stage.static_labels {
-          values = { tenant = "common" }
-        }
-      }
-
-      loki.write "grafana_cloud" {
-        endpoint {
-          url = sys.env("GRAFANA_CLOUD_LOKI_URL")
-          basic_auth {
-            username = sys.env("GRAFANA_CLOUD_LOKI_USER")
-            password = sys.env("GRAFANA_CLOUD_API_KEY")
-          }
-        }
-      }
-    permissions: '0644'
-    owner: root:root
-
-  - path: /etc/alloy/grafana-cloud.env
-    content: |
-      GRAFANA_CLOUD_REMOTE_WRITE_URL=${grafana_cloud_metrics_remote_write_url}
-      GRAFANA_CLOUD_PROM_USER=${grafana_cloud_metrics_username}
-      GRAFANA_CLOUD_API_KEY=${grafana_cloud_metrics_password}
-      GRAFANA_CLOUD_LOKI_URL=${grafana_cloud_logs_url}
-      GRAFANA_CLOUD_LOKI_USER=${grafana_cloud_logs_username}
-    permissions: '0600'
-    owner: root:root
-
-  - path: /etc/systemd/system/alloy.service.d/grafana-cloud-env.conf
-    content: |
-      [Service]
-      EnvironmentFile=/etc/alloy/grafana-cloud.env
-    permissions: '0644'
-    owner: root:root
-%{ endif ~}
-
 runcmd:
   # === Belt-and-suspenders SSH key install ===
   # The `users:` block above SHOULD populate ~deploy/.ssh/authorized_keys, but
@@ -371,8 +293,20 @@ runcmd:
   - install -d -o deploy -g deploy -m 0755 /etc/caddy/sites
   - install -d -o caddy -g caddy -m 0755 /var/log/caddy
   - cp /var/lib/cloud/data/caddy-base.Caddyfile /etc/caddy/Caddyfile
-  # Validate before starting — never run the engine on a config that fails check.
-  - caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl enable --now caddy || echo "caddy config invalid; engine NOT started" >&2
+  # ADR-114: Caddy binds the PUBLIC IP only — ``tailscale serve`` owns :443 on the
+  # tailnet IP, so an all-interfaces bind collides ("address already in use").
+  # Discover the public IP(s) from the default route (the metadata API is blocked
+  # by block-metadata-egress) and set the caddy service env for
+  # ``default_bind {$CADDY_BIND_ADDRS}``, then validate + start with it. Mirrors
+  # scripts/ops/apply-edge.sh so rebuild (cloud-init) and imperative apply agree.
+  - |
+    P4=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1)
+    P6=$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* src \([0-9A-Fa-f:]*\).*/\1/p' | head -1)
+    BIND="$P4"; [ -n "$P6" ] && BIND="$P4 $P6"
+    mkdir -p /etc/systemd/system/caddy.service.d
+    printf '[Service]\nEnvironment=CADDY_BIND_ADDRS=%s\n' "$BIND" > /etc/systemd/system/caddy.service.d/10-public-bind.conf
+    systemctl daemon-reload
+    if CADDY_BIND_ADDRS="$BIND" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then systemctl enable --now caddy; else echo "caddy config invalid; engine NOT started" >&2; fi
   # T-11: attach the caddy-access jail now that /var/log/caddy/access.log exists
   # (fail2ban was enabled earlier, before Caddy created its log dir).
   - systemctl reload-or-restart fail2ban
@@ -422,24 +356,6 @@ runcmd:
   # === Unattended security upgrades ===
   - dpkg-reconfigure -plow -fnoninteractive unattended-upgrades
 
-%{ if alloy_enabled ~}
-  # === Grafana Alloy: host OS metrics -> Grafana Cloud (remote_write) ===
-  - curl -fsSL https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
-  - chmod a+r /etc/apt/keyrings/grafana.gpg
-  - echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
-  - apt-get update
-  - apt-get install -y alloy
-  - cp /var/lib/cloud/data/alloy-host-metrics.river /etc/alloy/config.alloy
-  - chown root:alloy /etc/alloy/config.alloy
-  - chmod 0640 /etc/alloy/config.alloy
-  - chown root:root /etc/alloy/grafana-cloud.env
-  - chmod 0600 /etc/alloy/grafana-cloud.env
-  # T-11 (ADR-117): let Alloy read the journal (sshd/fail2ban) + the Caddy access log.
-  - usermod -aG systemd-journal alloy || true
-  - usermod -aG caddy alloy 2>/dev/null || true
-  - systemctl daemon-reload
-  - systemctl enable --now alloy
-%{ endif ~}
   # === Enable systemd unit (won't start until .env exists — ExecStartPre, #844) ===
   - systemctl enable podcast-scraper.service
   - systemctl start podcast-scraper.service || true

@@ -83,6 +83,22 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # Error tracking (Sentry SDK -> GlitchTip self-hosted, ADR-119 "errors" signal).
+      # No-op unless set. Point at the GlitchTip DSN in the prod .env (tailnet-only,
+      # http://…@dgx-llm-1:8090/N). init_sentry("api") scrubs secrets via before_send.
+      PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      # OTEL traces (ADR-119 "traces" signal). No-op by default: exporter=none until
+      # prod .env sets OTEL_TRACES_EXPORTER=otlp + OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+      # (VictoriaTraces, full non-standard path /insert/opentelemetry/v1/traces).
+      # metrics/logs already flow via Alloy, so only traces are exported here.
+      # deployment.environment reuses PODCAST_ENV (dev on the Mac, prod on the VPS).
+      OTEL_SERVICE_NAME: podcast-api
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
     volumes:
       # Read-write: API may rebuild vector index or write lock files under the corpus root.
       - corpus_data:/app/output
@@ -125,6 +141,16 @@ services:
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # OTEL traces (ADR-119). Gated: exporter=none until prod .env enables it.
+      # service = podcast-pipeline (distinct from podcast-api); deployment.environment
+      # reuses PODCAST_ENV. The entrypoint wraps runs in opentelemetry-instrument.
+      OTEL_SERVICE_NAME: podcast-pipeline
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
 
   # Optional: same Dockerfile with ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**) for cloud-thin profiles.
   pipeline-llm:
@@ -153,6 +179,16 @@ services:
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # OTEL traces (ADR-119). Gated: exporter=none until prod .env enables it.
+      # service = podcast-pipeline (distinct from podcast-api); deployment.environment
+      # reuses PODCAST_ENV. The entrypoint wraps runs in opentelemetry-instrument.
+      OTEL_SERVICE_NAME: podcast-pipeline
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
 
 volumes:
   corpus_data:

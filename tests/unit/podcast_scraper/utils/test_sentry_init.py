@@ -288,5 +288,40 @@ class TestEnrichmentHelpers(unittest.TestCase):
             capture_enrichment_message("x")  # must not raise
 
 
+class TestBeforeSendRedaction(unittest.TestCase):
+    """`_before_send` scrubs secrets from anything the SDK would send."""
+
+    def test_redacts_extra_contexts_headers_and_frame_vars(self) -> None:
+        from podcast_scraper.utils.sentry_init import _before_send
+
+        event = {
+            "extra": {"OPENAI_API_KEY": "sk-live", "note": "keep"},
+            "contexts": {"auth_token": "abc", "os": "linux"},
+            "request": {"headers": {"Authorization": "Bearer x", "Accept": "json"}},
+            "exception": {
+                "values": [
+                    {"stacktrace": {"frames": [{"vars": {"password": "hunter2", "n": "3"}}]}}
+                ]
+            },
+        }
+        out = _before_send(event, None)
+        self.assertEqual(out["extra"]["OPENAI_API_KEY"], "[redacted]")
+        self.assertEqual(out["extra"]["note"], "keep")
+        self.assertEqual(out["contexts"]["auth_token"], "[redacted]")
+        self.assertEqual(out["contexts"]["os"], "linux")
+        self.assertEqual(out["request"]["headers"]["Authorization"], "[redacted]")
+        self.assertEqual(out["request"]["headers"]["Accept"], "json")
+        frame_vars = out["exception"]["values"][0]["stacktrace"]["frames"][0]["vars"]
+        self.assertEqual(frame_vars["password"], "[redacted]")
+        self.assertEqual(frame_vars["n"], "3")
+
+    def test_never_raises_on_malformed_event(self) -> None:
+        from podcast_scraper.utils.sentry_init import _before_send
+
+        # Missing / oddly-typed sections must not raise — the error event is still useful.
+        self.assertIs(_before_send({}, None).__class__, dict)
+        _before_send({"extra": None, "exception": "nope"}, None)  # must not raise
+
+
 if __name__ == "__main__":
     unittest.main()

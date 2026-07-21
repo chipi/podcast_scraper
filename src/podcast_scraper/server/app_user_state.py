@@ -8,6 +8,7 @@ overlay only; shared corpus artifacts are never touched here.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -106,12 +107,23 @@ def _events_path(data_dir: Path, user_id: str) -> Path:
 def append_listen_event(
     data_dir: Path, user_id: str, slug: str, feed_id: str | None, ts: int
 ) -> None:
-    """Append one 'opened this episode' event to the user's listen log."""
-    path = _events_path(data_dir, user_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps({"slug": str(slug), "feed_id": feed_id, "ts": int(ts)}, ensure_ascii=False)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+    """Append one 'opened this episode' event to the user's listen log.
+
+    Canonical event (ADR-119): the shared ``{ts, schema, event_type}`` envelope with
+    an ISO-8601 ``ts``. The epoch ``ts`` arg is converted to ISO; the consumers
+    (``app_stats._ts_to_date`` / ``app_engagement_series._week_of_ts``) accept BOTH
+    epoch and ISO, so pre-existing epoch-ts logs still bucket correctly.
+    """
+    from ..obs.events import emit_event
+
+    emit_event(
+        "listen",
+        sink="file",
+        path=_events_path(data_dir, user_id),
+        ts=datetime.fromtimestamp(int(ts), timezone.utc).isoformat(),
+        slug=str(slug),
+        feed_id=feed_id,
+    )
 
 
 def list_listen_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:

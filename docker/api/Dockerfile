@@ -73,6 +73,15 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')"
 
+# OTEL distributed tracing (ADR-119 "traces" signal). ``opentelemetry-instrument``
+# (see CMD) auto-wraps the process; ``opentelemetry-bootstrap -a install`` adds the
+# per-library instrumentations (fastapi, requests, …). Runtime no-op unless
+# OTEL_TRACES_EXPORTER=otlp + an OTLP endpoint are set (see compose env) — so this
+# is inert in stack-test / local runs that don't point at VictoriaTraces.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install ".[otel]" \
+    && opentelemetry-bootstrap -a install
+
 # Preload the sentence-transformers embedding model used by ``GET
 # /api/search``. The endpoint calls ``embedding_loader.encode(...,
 # allow_download=False)`` so the model MUST be cached on disk before
@@ -137,7 +146,10 @@ ENTRYPOINT ["/secrets-shim.sh"]
 # ``--config-file``). Operators that want single-config mode can
 # override the CMD to add ``--config-file <path>`` and bind-mount their
 # YAML on top.
-CMD ["python", "-m", "podcast_scraper.cli", "serve", \
+# Wrapped in ``opentelemetry-instrument`` — auto-instruments FastAPI/HTTP spans and
+# exports OTLP when OTEL_TRACES_EXPORTER=otlp (else a no-op passthrough).
+CMD ["opentelemetry-instrument", \
+     "python", "-m", "podcast_scraper.cli", "serve", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
      "--no-static", \

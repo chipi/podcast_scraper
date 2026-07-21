@@ -41,6 +41,24 @@ if ! grep -qE '^PODCAST_CORPUS_HOST_PATH=' .env; then
 fi
 mkdir -p "$REPO_DIR/corpus"
 
+# Resolve the o11y backend (homelab) tailnet IP for the vps-prod `extra_hosts`.
+# Docker's embedded DNS can't resolve Tailscale MagicDNS names, so the api/pipeline
+# containers need a static ``homelab:<ip>`` /etc/hosts entry to reach VictoriaTraces
+# (traces) + GlitchTip (errors). Resolved fresh each deploy — the IP is stable but
+# never hardcoded in the repo. If it can't resolve, traces/errors just won't ship
+# (telemetry never breaks the app); warn loudly.
+HL_IP="$(tailscale ip -4 homelab 2>/dev/null | head -1 || true)"
+if [ -n "$HL_IP" ]; then
+  if grep -qE '^HOMELAB_TAILNET_IP=' .env; then
+    sed -i "s#^HOMELAB_TAILNET_IP=.*#HOMELAB_TAILNET_IP=$HL_IP#" .env
+  else
+    echo "HOMELAB_TAILNET_IP=$HL_IP" >> .env
+    chmod 600 .env
+  fi
+else
+  echo "[$(date -u +%FT%TZ)] WARN: could not resolve 'homelab' tailnet IP; o11y traces/errors may not ship from containers." >&2
+fi
+
 # Compose resolves the project directory from the first `-f` path (`compose/`), so
 # it does not load `/srv/podcast-scraper/.env` by default — pass explicitly (VPS + GHA).
 COMPOSE=(docker compose --env-file .env)

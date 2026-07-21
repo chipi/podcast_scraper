@@ -25,6 +25,7 @@ nav:
       - Corpus airgap runbook (#1175): guides/CORPUS_AIRGAP_RUNBOOK.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
       - Player public launch (#1163): guides/PLAYER_PUBLIC_LAUNCH.md
+      - Observability architecture (emit/ship, ADR-119): guides/OBSERVABILITY_ARCHITECTURE.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
       - Observability extensions (optional 3rd-party o11y): guides/OBSERVABILITY_EXTENSIONS.md
       - GHCR image retention (#802): operations/GHCR_RETENTION.md
@@ -433,6 +434,7 @@ nav:
       - wip/WIP_README.md
       - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
       - "WIP: Concurrent pipelines + HTTP retry metrics": wip/wip-concurrent-pipeline-http-retry-metrics.md
+      - "WIP: Full app-surface observability plan": wip/observability-app-surface-plan.md
 theme:
   name: material
   features:

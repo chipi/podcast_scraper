@@ -25,3 +25,35 @@ services:
       # published viewer image) so the prod-only landing surface
       # doesn't leak into Codespaces or alter the image's contents.
       - ../docker/viewer/landing.html:/usr/share/nginx/html/landing.html:ro
+
+  # Enable OTEL traces on the always-on VPS (ADR-119). The base stack.yml gates
+  # them off (exporter=none); here we only flip the exporter to otlp. The
+  # ENDPOINT is NOT set here — it comes from the prod .env via stack.yml's
+  # `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}`
+  # passthrough, so there is no hardcoded backend IP in this file. Migration
+  # (DGX → homelab) is a one-line flip of that key in the prod .env:
+  #   stopgap:    http://dgx-llm-1:10428/insert/opentelemetry/v1/traces
+  #   migration:  http://homelab:10428/insert/opentelemetry/v1/traces
+  # Only the VPS gets these — stack-test/Codespaces never load this overlay.
+  #
+  # extra_hosts: the o11y backend is addressed by its Tailscale MagicDNS name
+  # `homelab`, but Docker's embedded DNS can't resolve MagicDNS — so the containers
+  # get a static hosts entry to reach VictoriaTraces (traces) + GlitchTip (errors).
+  # HOMELAB_TAILNET_IP is resolved fresh at deploy time by deploy.sh (`tailscale ip
+  # -4 homelab`) — the IP is never hardcoded in the repo. Using extra_hosts (not
+  # `dns:`) keeps Docker's embedded DNS intact for compose service names.
+  api:
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP}"
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+  pipeline:
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP}"
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+  pipeline-llm:
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP}"
+    environment:
+      OTEL_TRACES_EXPORTER: otlp

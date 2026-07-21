@@ -1,0 +1,84 @@
+{
+  "uid": "vps-podcast-overview",
+  "id": null,
+  "title": "VPS — Podcast · Overview",
+  "tags": ["vps", "podcast", "host"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "CPU busy",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 95 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "100 - (avg(rate(node_cpu_seconds_total{instance=\"prod-podcast\",mode=\"idle\"}[$__rate_interval])) * 100)" } ]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Memory used",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 92 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"prod-podcast\"} / node_memory_MemTotal_bytes{instance=\"prod-podcast\"})) * 100" } ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Disk used (/)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "(1 - (node_filesystem_avail_bytes{instance=\"prod-podcast\",mountpoint=\"/\"} / node_filesystem_size_bytes{instance=\"prod-podcast\",mountpoint=\"/\"})) * 100" } ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Load1",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "node_load1{instance=\"prod-podcast\"}" } ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "CPU by mode",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "fillOpacity": 30, "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "sum by (mode) (rate(node_cpu_seconds_total{instance=\"prod-podcast\",mode!=\"idle\"}[$__rate_interval])) / scalar(count(count by (cpu) (node_cpu_seconds_total{instance=\"prod-podcast\"})))", "legendFormat": "{{mode}}" } ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Memory",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "node_memory_MemTotal_bytes{instance=\"prod-podcast\"}", "legendFormat": "total" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "node_memory_MemTotal_bytes{instance=\"prod-podcast\"} - node_memory_MemAvailable_bytes{instance=\"prod-podcast\"}", "legendFormat": "used" }
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Network (bytes/s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "sum(rate(node_network_receive_bytes_total{instance=\"prod-podcast\",device!~\"lo|docker.*|veth.*|tailscale.*\"}[$__rate_interval]))", "legendFormat": "rx" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "sum(rate(node_network_transmit_bytes_total{instance=\"prod-podcast\",device!~\"lo|docker.*|veth.*|tailscale.*\"}[$__rate_interval]))", "legendFormat": "tx" }
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Disk space free by mount",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "node_filesystem_avail_bytes{instance=\"prod-podcast\",fstype!~\"tmpfs|overlay|squashfs\"}", "legendFormat": "{{mountpoint}}" } ]
+    }
+  ]
+}

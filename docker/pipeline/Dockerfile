@@ -138,6 +138,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     # Clean up temporary build files
     rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true
 
+# OTEL distributed tracing (ADR-119 "traces" signal). The entrypoint wraps the run
+# in ``opentelemetry-instrument`` when OTEL_TRACES_EXPORTER=otlp; bootstrap installs
+# the per-library instrumentations. Runtime no-op unless the exporter+endpoint are
+# set, so stack-test / local pipeline runs are unaffected.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install ".[otel]" \
+    && opentelemetry-bootstrap -a install
+
 # Accept the variant arg in this stage too (stage-1 ARGs don't carry from the file scope).
 ARG PRELOAD_VARIANT
 ENV PRELOAD_VARIANT=${PRELOAD_VARIANT}

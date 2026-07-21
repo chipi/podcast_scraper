@@ -75,17 +75,35 @@ def correlation_fields() -> Dict[str, str]:
     return fields
 
 
+def _current_trace_id() -> str:
+    """Active OTEL trace id (hex) or ``"-"``. Guarded — no ``[otel]`` / no span → ``"-"``.
+
+    So a plain log line carries the same ``trace_id`` as its trace in VictoriaTraces,
+    letting an operator pivot log ↔ trace (ADR-119 correlation).
+    """
+    try:
+        from opentelemetry import trace as _otel_trace
+
+        ctx = _otel_trace.get_current_span().get_span_context()
+        if getattr(ctx, "is_valid", False):
+            return format(ctx.trace_id, "032x")
+    except Exception:  # noqa: BLE001 — no OTEL installed / no active span
+        pass
+    return "-"
+
+
 class CorrelationFormatter(logging.Formatter):
-    """A ``logging.Formatter`` that injects ``run_id`` / ``episode_id`` onto every record
-    at format time (#1053), so a format string can reference ``%(run_id)s`` without any
-    record ever raising ``KeyError`` — and every pipeline log line carries the join key,
-    queryable in Loki (``|= "run=<id>"``). Outside a run both default to ``"-"``.
+    """A ``logging.Formatter`` that injects ``run_id`` / ``episode_id`` / ``trace_id``
+    onto every record at format time (#1053, ADR-119), so a format string can reference
+    ``%(run_id)s`` / ``%(trace_id)s`` without any record ever raising ``KeyError`` — and
+    every log line carries the join keys, queryable in VictoriaLogs. Defaults to ``"-"``.
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        """Stamp ``run_id`` / ``episode_id`` onto the record, then format as usual."""
+        """Stamp ``run_id`` / ``episode_id`` / ``trace_id`` onto the record, then format."""
         record.run_id = _RUN_ID or "-"
         record.episode_id = _EPISODE_ID.get() or "-"
+        record.trace_id = _current_trace_id()
         return super().format(record)
 
 

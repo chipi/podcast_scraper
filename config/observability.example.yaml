@@ -4,6 +4,13 @@
 # Target-agnostic: define every deploy you want to observe. Probes that need a source
 # this target doesn't wire (Sentry/Grafana on a local stack) simply report "not configured".
 # Secrets never live in this file — use `<field>_env: ENV_VAR_NAME` indirection.
+#
+# NOTE (2026-07): the stack now ships to SELF-HOSTED VictoriaMetrics/VictoriaLogs +
+# Grafana on the DGX (tailnet-only), not Grafana Cloud — see ADR-119 +
+# docs/guides/OBSERVABILITY_ARCHITECTURE.md. The `grafana:` Cloud examples below
+# (grafana.net URLs, glc_/glsa_ tokens) are LEGACY: for self-hosted, set
+# `url: http://<dgx-tailnet-ip>:3000` with a Grafana service-account token, and read
+# logs from VictoriaLogs (:9428) rather than a Cloud Loki access-policy token.
 
 default_target: local
 

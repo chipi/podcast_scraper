@@ -98,6 +98,14 @@ deployed images already emit everything alerts need; you only wire the threshold
 vendor that owns the signal. This is the path RFC-043 redirected to: keep the codebase
 neutral, let operators tune alert rules where they belong.
 
+For the **self-hosted** backend, that "operator side" is now **provisioned as code** in
+the homelab repo (`infra/observability/backend/grafana/provisioning/alerting/`): a small
+metric rule set (target-down / disk-low / FastAPI-5xx) plus **generic, add-later
+channels** — Slack, email, and GlitchTip (for confirmed/critical) are pluggable, each
+activated by setting its env var. Routing: everything → default; `severity=critical` →
+also GlitchTip. See that repo's `backend/README.md` § Alerting. The app stays neutral;
+the rules + channels live on the backend, as ADR-119 intends.
+
 ### What gets emitted today
 
 | Signal | Surface | Source |

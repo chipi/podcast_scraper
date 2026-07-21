@@ -160,8 +160,7 @@ def emit_llm_cost_event(
         except Exception:  # noqa: BLE001
             episode_id = None
 
-    event = {
-        "event_type": "llm_cost",
+    fields: dict[str, Any] = {
         "provider": provider,
         "stage": stage,
         "operation": stage,  # alias: the function/operation this call served (gi/evidence/…)
@@ -179,10 +178,14 @@ def emit_llm_cost_event(
         "run_id": run_id,
         "triggered_guardrail": bool(triggered_guardrail),
     }
-    line = json.dumps(event, ensure_ascii=False)
-    # Single JSON object per line so Loki/Grafana ``| json`` parses fields directly.
-    logger.info("%s", line)
-    if getattr(cfg, "jsonl_metrics_echo_stdout", False):
+    # Canonical event emission (ADR-119): the shared {ts, schema, event_type} envelope
+    # plus this call's fields, one JSON line so Loki/Grafana ``| json`` parses directly.
+    # Emitted through THIS module's logger (not the events logger) so existing consumers
+    # and log filters keep the ``cost_monitoring`` logger name.
+    from ..obs.events import emit_event
+
+    line = emit_event("llm_cost", logger=logger, **fields)
+    if line and getattr(cfg, "jsonl_metrics_echo_stdout", False):
         print(line, flush=True)
 
     # Optional Langfuse span — THE single emission point for LLM tracing, so gi/evidence/cleaning

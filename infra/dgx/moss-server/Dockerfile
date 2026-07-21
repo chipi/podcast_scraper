@@ -44,6 +44,8 @@ RUN pip install \
         "librosa>=0.11" \
         "soundfile>=0.12" \
         "av>=12" \
+        "prometheus-fastapi-instrumentator>=7.0,<8.0" \
+        "sentry-sdk>=2.0,<3.0" \
  && pip install --no-deps "git+https://github.com/OpenMOSS/MOSS-Transcribe-Diarize.git"
 
 COPY app.py /app/app.py

@@ -44,10 +44,17 @@ case "$1" in
 esac
 
 # If a CMD was passed (e.g. the API job factory's ``python -m
-# podcast_scraper.cli ...`` invocation), honour it.
+# podcast_scraper.cli ...`` invocation), honour it. When OTEL is enabled
+# (OTEL_TRACES_EXPORTER != none), wrap in ``opentelemetry-instrument`` for
+# distributed traces — a no-op passthrough otherwise, so non-traced runs pay
+# nothing. BatchSpanProcessor flushes on process exit, so this ephemeral
+# ``run --rm`` container's spans ship before it's removed.
 if [ "$#" -gt 0 ]; then
     log "Executing CMD: $*"
     cd "$WORK_DIR"
+    if [ "${OTEL_TRACES_EXPORTER:-none}" != "none" ] && command -v opentelemetry-instrument >/dev/null 2>&1; then
+        exec opentelemetry-instrument "$@"
+    fi
     exec "$@"
 fi
 
