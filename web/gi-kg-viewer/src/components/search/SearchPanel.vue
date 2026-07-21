@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useSavedQueriesStore } from '../../stores/savedQueries'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
@@ -43,6 +44,26 @@ const nav = useGraphNavigationStore()
 const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
 const graphHandoff = useGraphHandoffStore()
+const savedQueries = useSavedQueriesStore()
+
+/**
+ * Search v3 §S7 — "Save this query" button state. Derived from
+ * ``search.query`` so an empty / whitespace-only query disables the
+ * button; ``isCurrentQuerySaved`` reflects whether the trimmed query is
+ * already in the USERPREFS-1 Saved list so the button flips to the
+ * "Saved ✓" read-only indicator (dedupe semantics match the store).
+ */
+const currentQueryTrimmed = computed(() => search.query.trim())
+const isCurrentQuerySaved = computed(() =>
+  currentQueryTrimmed.value ? savedQueries.isSaved(currentQueryTrimmed.value) : false,
+)
+
+async function onSaveCurrentQuery(): Promise<void> {
+  const q = currentQueryTrimmed.value
+  if (!q) return
+  if (isCurrentQuerySaved.value) return
+  await savedQueries.saveQuery(q)
+}
 
 const queryRef = ref<HTMLTextAreaElement | null>(null)
 const advancedDialogRef = ref<HTMLDialogElement | null>(null)
@@ -390,6 +411,25 @@ const advancedFeedCombinedTitle = computed(() =>
         @click="search.clearResults()"
       >
         Clear
+      </button>
+      <!-- Search v3 §S7 — Save this query to the USERPREFS-1 Saved list.
+           Enabled once the user has typed a non-empty query. When the
+           current query is ALREADY saved, the button flips to a "Saved ✓"
+           read-only indicator (idempotent — matches the store's dedupe
+           semantics). -->
+      <button
+        type="button"
+        class="rounded border border-border px-3 py-1.5 text-sm hover:bg-overlay disabled:opacity-40"
+        data-testid="search-save-query"
+        :disabled="!currentQueryTrimmed"
+        :title="
+          isCurrentQuerySaved
+            ? 'This query is already in Saved.'
+            : 'Save this query to your Saved list (LeftPanel + Cmd-K palette).'
+        "
+        @click="onSaveCurrentQuery"
+      >
+        {{ isCurrentQuerySaved ? 'Saved ✓' : 'Save query' }}
       </button>
     </div>
     <dialog

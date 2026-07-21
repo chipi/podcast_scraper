@@ -10,6 +10,7 @@ import {
 } from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
 import { useActiveSearchContextStore } from './activeSearchContext'
+import { useSavedQueriesStore } from './savedQueries'
 import { useShellStore } from './shell'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
@@ -226,6 +227,11 @@ export const useSearchStore = defineStore('search', () => {
       queryType.value = body.query_type ?? null
       // RFC-094 OQ-2: publish the active context so Library/Graph can rank + snippet.
       useActiveSearchContextStore().setContext(q, body.results)
+      // Search v3 §S7 — push onto USERPREFS-1 Recent ring buffer. Best-
+      // effort: userPrefs.set never rejects, so a persistence failure
+      // never blocks the user-visible search flow. Runs off-path so the
+      // async PATCH doesn't tack onto the runSearch latency budget.
+      void useSavedQueriesStore().pushRecent(q)
       enrichmentCallFailed.value = Boolean(
         body.enrichment_error && String(body.enrichment_error).trim(),
       )

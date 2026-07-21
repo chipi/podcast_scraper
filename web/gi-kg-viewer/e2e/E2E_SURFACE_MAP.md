@@ -400,6 +400,56 @@ Owning spec: ``search-rail-in-episode.spec.ts`` (mocks
 the ``episode_id`` param matches — pins the request-URL contract
 AND the server-side scope wire).
 
+**Search v3 Saved queries + Recent writers (§S7 — #1237, RFC-107 §S7,
+ADR-119)**:
+
+Writer half of the Saved + Recent surfaces. Readers already ship
+(LeftPanel + CommandPalette empty-state) and light up the moment a
+write lands. No new server endpoints — all persistence via the shipped
+``GET / PUT / PATCH /api/app/preferences`` (USERPREFS-1); server sees
+two client-side conventional namespaces:
+
+- ``search.savedQueries`` — ``SavedQueryEntry[]`` (small, dozens at
+  most; user's save order, newest first).
+- ``search.recentQueries`` — ``RecentQueryEntry[]`` ring buffer capped
+  at 20, newest first.
+
+New testids on the writer surface:
+
+| Element | testid |
+| ---- | ----- |
+| "Save query" button on SearchPanel | ``search-save-query`` |
+
+Behavior contract:
+
+- ``useSavedQueriesStore`` — thin Pinia wrapper (``src/stores/
+  savedQueries.ts``). Methods: ``pushRecent(q)`` (idempotent, moves
+  repeats to front, caps at ``RECENT_MAX`` = 20), ``saveQuery(q,
+  label?)`` (idempotent on ``q`` — second save updates the label +
+  moves to front), ``removeSaved(id)``, ``clearRecent()``,
+  ``resetAll()``, ``isSaved(q)`` (getter).
+- ``search.runSearch`` fires ``pushRecent(q)`` on every successful
+  search (off-path, best-effort — a persistence failure never blocks
+  the user-visible search flow).
+- ``search-save-query`` button: disabled on empty / whitespace-only
+  query; label toggles ``Save query`` ↔ ``Saved ✓`` based on
+  ``isSaved(currentQueryTrimmed)`` — click writes to Saved.
+- LeftPanel + CommandPalette readers unchanged — they now render rows
+  because the writer populates the same USERPREFS-1 keys they read.
+
+ADR-119 conformance: NO per-corpus persistence — user prefs follow
+the user, not the corpus. Corpus telemetry stays in
+``search/query_log``.
+
+Owning specs:
+
+- Unit: ``src/stores/savedQueries.test.ts`` (14 tests — dedupe,
+  ring-buffer cap, label rename, empty-string no-ops, ``isSaved``,
+  ``removeSaved``, ``clearRecent``, ``resetAll``, cross-store visibility).
+- Playwright: ``search-saved-queries.spec.ts`` (5 tests — Recent auto-
+  populates after runSearch, repeat de-dupe, Save button flip to
+  "Saved ✓", disabled state, palette empty state populates).
+
 ## Surfaces and owning specs
 
 | Surface | Intent (short) | Typical entry | Spec files |
@@ -419,6 +469,7 @@ AND the server-side scope wire).
 | **Search v3 result-set operator bar** | ``result-set-operator-bar`` above the hit cards on Search main tab. Chips: Cluster (S4b, server ``operator=cluster`` top_k×3 over-fetch) / Timeline (S4a, client YYYY-MM histogram over ``metadata.publish_date``) / On graph (S4a, App-level ``activateGraphTab`` + yellow-ring highlight set) / Consensus (S4b, server ``operator=consensus`` reads ``enrichments/topic_consensus.json``). Panels: ``operator-{cluster,timeline,consensus}-panel`` with ``-loading`` / ``-empty`` / ``-list`` states. See the **Search v3 result-set operator bar** section above for the full testid contract. | `goto('/')` + Search tab + submit query → bar renders once response has ≥ 1 hit | `search-operator-bar.spec.ts` |
 | **Search v3 enriched-answer hero** | ``enriched-answer-hero`` above the operator bar on Search main tab. Renders the shipped QueryEnricher chain output (RFC-088 chunk 5) — today that's ``related_topics`` per hit, aggregated + ranked by summed similarity and surfaced as clickable Topic chips. Chip on filter bar: ``search-chip-enriched`` (tri-state; auto-adopts ``shell.enrichedSearchAvailable``). Hero states: hidden / ``enriched-answer-skeleton`` / ``enriched-answer-error`` / ``enriched-answer-topics`` list (with ``enriched-answer-overflow`` when >6 topics). See the **Search v3 enriched-answer hero** section above. | `goto('/')` + Search tab + Enriched chip on + submit query with enrichment-decorated hits | `search-enriched-hero.spec.ts` |
 | **Search v3 rail launcher: "Search within this episode"** | ``episode-detail-search-in-episode`` button on ``EpisodeDetailPanel`` (right rail); ``search-chip-episode`` active-scope chip on the filter bar (visible only when ``search.filters.episodeId`` is set). Server route accepts ``/api/search?episode_id=…`` (Search v3 §S6). Rail click switches to Search tab, sets episode scope, clears sibling scope (feed / topic / speaker), pre-fills the query, runs. Show-scoped launcher clears any lingering episode scope. See the **Search v3 rail launchers + episode scope** section above. | `goto('/')` + Library tab + row click → Episode rail visible → click "Search within episode" | `search-rail-in-episode.spec.ts` |
+| **Search v3 Saved queries + Recent writers** | ``search-save-query`` button on ``SearchPanel`` (disabled on empty query, flips to "Saved ✓" once the current query is saved). ``search.runSearch`` also auto-pushes onto USERPREFS-1 ``search.recentQueries`` (ring buffer, 20 max, dedupe on ``q``). Writes land in ``useSavedQueriesStore`` → ``useUserPreferencesStore`` → ``/api/app/preferences``. LeftPanel Saved + Recent (§S4-shell) and CommandPalette Recent (§S3) auto-populate. See the **Search v3 Saved queries + Recent writers** section above. | `goto('/')` + Search tab + submit a query (auto Recent write) OR click "Save query" | `search-saved-queries.spec.ts` |
 
 ### Offline graph load (shared helper)
 

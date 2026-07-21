@@ -297,7 +297,7 @@ test.describe('Search → graph (mocked API)', () => {
       .getByRole('button', { name: 'Search', exact: true })
       .click()
 
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
 
     await page.getByRole('button', { name: 'Search result insights' }).click()
     const vizDialog = page.getByRole('dialog', { name: 'Search result insights' })
@@ -331,7 +331,7 @@ test.describe('Search → graph (mocked API)', () => {
       .getByRole('button', { name: 'Search', exact: true })
       .click()
 
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Show on graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
@@ -448,7 +448,7 @@ test.describe('Search → graph (mocked API)', () => {
       .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
       .getByRole('button', { name: 'Search', exact: true })
       .click()
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Show on graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.getByRole('region', { name: 'Graph node: Insight' })).toBeVisible({
@@ -556,7 +556,7 @@ test.describe('Search → graph (mocked API)', () => {
       .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
       .getByRole('button', { name: 'Search', exact: true })
       .click()
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Show on graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await page.getByTestId('node-detail-rail-tab-details').click()
