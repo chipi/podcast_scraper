@@ -99,6 +99,9 @@ _NO_ENRICHERS_PROFILES: frozenset[str] = frozenset(
         # declares no enrichers. The empty set is the right answer here; it is listed so it is a
         # DECISION rather than an unknown-profile fallback that happens to look the same.
         "reprocess_dgx_no_llm",
+        # #1178 eval variant of reprocess_dgx_no_llm — identical except the whisper model id.
+        # Same deterministic-only, no-enricher answer; listed as a DECISION for the same reason.
+        "reprocess_dgx_turbo",
     }
 )
 
