@@ -602,6 +602,22 @@ function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string })
   subject.focusEpisode(payload.metadata_relative_path)
 }
 
+/**
+ * Search v3 §S4a — "On graph" result-set operator. The workspace hands off
+ * the de-duped id set for the current hit page; we mark each as a
+ * ``search-hit`` highlight (yellow ring), ask the canvas to camera-fit
+ * after the next layout, then switch to the Graph main tab. Reuses the
+ * shipped ``libraryHighlightSourceIds`` highlight state — no new store
+ * surface, no per-hit graphHandoff envelope.
+ */
+function onSearchFocusSet(ids: string[]): void {
+  const clean = ids.map((s) => s.trim()).filter(Boolean)
+  if (!clean.length) return
+  graphNav.setLibraryEpisodeHighlights(clean)
+  graphNav.setRequestFitAfterLoad()
+  void activateGraphTab(undefined, undefined, 'search')
+}
+
 watch(
   () =>
     [
@@ -907,6 +923,7 @@ watch(
               class="h-full"
               @go-graph="activateGraphTab(undefined, undefined, 'search')"
               @open-library-episode="onSearchOpenLibraryEpisode"
+              @focus-set="onSearchFocusSet"
             />
           </keep-alive>
           <div

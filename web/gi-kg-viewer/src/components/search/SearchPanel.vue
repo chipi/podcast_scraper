@@ -10,6 +10,7 @@ import type { SearchHit } from '../../api/searchApi'
 import { episodeFallbackForSearchHit, graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 import ResultCard from './ResultCard.vue'
+import ResultSetOperatorBar from './ResultSetOperatorBar.vue'
 import SearchFilterBar from './SearchFilterBar.vue'
 import SearchResultsVizDialog from './SearchResultsVizDialog.vue'
 import HelpTip from '../shared/HelpTip.vue'
@@ -17,7 +18,23 @@ import HelpTip from '../shared/HelpTip.vue'
 const emit = defineEmits<{
   'go-graph': []
   'open-library-episode': [payload: { metadata_relative_path: string }]
+  /**
+   * Result-set operator "On graph" — Search v3 §S4a. Payload is the
+   * de-duped set of graph ids (episode / topic / entity source_id) that
+   * the current hit set resolves to. App.vue hands off to the graph
+   * canvas via ``graphNavigation.setLibraryEpisodeHighlights`` +
+   * ``requestFitAfterLoad`` and switches ``mainTab`` to ``'graph'``.
+   */
+  'focus-set': [ids: string[]]
 }>()
+
+/**
+ * Operator bar mode; ``null`` when no operator is active (results render
+ * plain). ``'timeline'`` shows the histogram inline; ``'graph'`` fires the
+ * ``focus-set`` emit (App handles the tab switch + camera fit). Cluster /
+ * consensus land in S4b.
+ */
+const activeOperator = ref<'cluster' | 'timeline' | 'graph' | 'consensus' | null>(null)
 
 const shell = useShellStore()
 const search = useSearchStore()
@@ -528,6 +545,11 @@ const advancedFeedCombinedTitle = computed(() =>
             Search result insights
           </button>
         </div>
+        <ResultSetOperatorBar
+          v-model:active="activeOperator"
+          :visible-hits="visibleResults"
+          @focus-set="(ids: string[]) => emit('focus-set', ids)"
+        />
         <ResultCard
           v-for="(h, i) in visibleResults"
           :key="`${h.doc_id}-${i}`"

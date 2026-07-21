@@ -14,6 +14,11 @@ import SearchPanel from './SearchPanel.vue'
 const emit = defineEmits<{
   'go-graph': []
   'open-library-episode': [payload: { metadata_relative_path: string }]
+  /**
+   * Search v3 §S4a — result-set "On graph" operator; forwarded from
+   * SearchPanel. App.vue is the graph handoff site.
+   */
+  'focus-set': [ids: string[]]
 }>()
 </script>
 
@@ -27,6 +32,7 @@ const emit = defineEmits<{
       class="min-h-0 min-w-0 flex-1"
       @go-graph="emit('go-graph')"
       @open-library-episode="emit('open-library-episode', $event)"
+      @focus-set="(ids: string[]) => emit('focus-set', ids)"
     />
   </section>
 </template>
