@@ -51,10 +51,10 @@ jobs:
               names = ", ".join(s["name"] for s in d)
               sys.stderr.write(f"expected exactly 1 match, got {len(m)} (servers: {names})\n")
               sys.exit(1)
-          print(f"{m[0][\"id\"]} {m[0][\"name\"]}")
+          print(m[0]["id"], m[0]["name"])
           ')"
-          SID="$(echo "$RESULT" | awk "{print \$1}")"
-          SNAME="$(echo "$RESULT" | cut -d" " -f2-)"
+          SID="${RESULT%% *}"      # first field (id)
+          SNAME="${RESULT#* }"     # rest (name)
           [ -n "${SID:-}" ] || { echo "::error::could not resolve a unique prod server"; exit 1; }
           echo "Snapshotting server ${SID} (${SNAME})"
           RESP="$(curl -fsS -X POST -H "Authorization: Bearer $HCLOUD_TOKEN" -H "Content-Type: application/json" \
