@@ -1644,6 +1644,12 @@ class ProfilePreset:
     # makes a no-cloud / airgapped profile safe to give a chain at all: it can degrade across its
     # DGX/local tiers but never phones out.
     allow_cloud_fallback: bool = True
+    # ADR-119 (#1253) resilience posture, canonicalized so every profile self-declares it rather
+    # than relying on the Config default (the gap that let a reprocess run drop to serve/failover).
+    # Registry-backed presets are all serving pipelines -> serve/failover; the yaml-only
+    # reprocess_dgx_* profiles declare reprocess/hold directly (they have no preset here).
+    resilience_run_context: str = "serve"
+    resilience_failure_strategy: str = "failover"
     notes: Optional[str] = None
 
 
@@ -1737,6 +1743,10 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "transcription_fallback_providers",
     "diarization_fallback_providers",
     "summary_fallback_providers",
+    # ADR-119 (#1253): resilience posture — governed so a profile can't silently diverge from its
+    # preset's serve/failover (or, in future, a hold) declaration.
+    "resilience_run_context",
+    "resilience_failure_strategy",
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
     # two different configurations.
@@ -2329,6 +2339,12 @@ def resolve_profile_to_settings(
         settings["summary_extra"] = dict(sm.extra_settings)
 
     _emit_fallback_chains(preset, settings)
+
+    # ADR-119 (#1253): resilience posture is registry-governed, so every materialized profile
+    # self-declares it (invocation-agnostic — the reprocess make targets load via --config, which
+    # bypasses name-derivation) and profiles-check catches drift.
+    settings["resilience_run_context"] = preset.resilience_run_context
+    settings["resilience_failure_strategy"] = preset.resilience_failure_strategy
 
     # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
     #

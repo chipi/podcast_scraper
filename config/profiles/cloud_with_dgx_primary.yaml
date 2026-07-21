@@ -171,3 +171,5 @@ gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
 transcription_fallback_providers: [tailnet_dgx_whisper, whisper, openai]
 diarization_fallback_providers: [local, deepgram]
+resilience_run_context: serve
+resilience_failure_strategy: failover

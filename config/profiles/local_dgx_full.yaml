@@ -99,3 +99,5 @@ gi_value_gate_min_tier: 2
 gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
+resilience_run_context: serve
+resilience_failure_strategy: failover
