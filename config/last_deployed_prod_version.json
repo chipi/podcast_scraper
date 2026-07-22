@@ -4,8 +4,8 @@
     "0002_two_tier_native_reindex",
     "0003_gi_v3_typed_mentions"
   ],
-  "code_version": "2.7.0",
-  "deployed_at": "2026-07-11",
+  "code_version": "2.7.0.dev0",
+  "deployed_at": "2026-07-22",
   "note": "This marker tracks what is currently running on prod. Auto-updated by scripts/ops/bump_prod_marker.py (invoked by .github/workflows/deploy-prod.yml). See docs/guides/CORPUS_UPGRADE.md \u2192 'Prod-state fixture maintenance' (#1176).",
-  "sha": "unknown"
+  "sha": "d386c56"
 }
