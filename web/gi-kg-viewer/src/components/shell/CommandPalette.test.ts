@@ -10,6 +10,11 @@ vi.mock('../../api/searchApi', () => ({
   searchCorpus: (...args: unknown[]) => searchCorpusMock(...args),
 }))
 
+const fetchCorpusEpisodesMock = vi.fn().mockResolvedValue({ items: [] })
+vi.mock('../../api/corpusLibraryApi', () => ({
+  fetchCorpusEpisodes: (...args: unknown[]) => fetchCorpusEpisodesMock(...args),
+}))
+
 import CommandPalette from './CommandPalette.vue'
 import type { SearchHit } from '../../api/searchApi'
 import { useShellStore } from '../../stores/shell'
@@ -44,6 +49,8 @@ describe('CommandPalette (Cmd-K shell overlay)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     searchCorpusMock.mockReset()
+    fetchCorpusEpisodesMock.mockReset()
+    fetchCorpusEpisodesMock.mockResolvedValue({ items: [] })
     vi.useFakeTimers()
   })
 
@@ -97,7 +104,19 @@ describe('CommandPalette (Cmd-K shell overlay)', () => {
   it('runs a debounced live search and renders the 3 action buttons per hit', async () => {
     const shell = useShellStore()
     shell.corpusPath = '/tmp/corpus'
-    searchCorpusMock.mockResolvedValue({ results: [fakeHit()], error: null })
+    // 2026-07-22 (#1259-2): kg_topic hits now render in the Subjects
+    // section with a single "open subject panel" action. Content hits
+    // (insight / quote / transcript) still carry the 3-action row that
+    // this spec asserts on — use those.
+    searchCorpusMock.mockResolvedValue({
+      results: [
+        fakeHit({
+          doc_id: 'insight:test:1',
+          metadata: { doc_type: 'insight', episode_id: 'ep1', source_id: 'i:1' },
+        }),
+      ],
+      error: null,
+    })
     const w = mountPalette()
     ;(w.vm as unknown as { open: () => void }).open()
     await flushPromises()
@@ -134,7 +153,19 @@ describe('CommandPalette (Cmd-K shell overlay)', () => {
   it('emits open-in-workspace with the current query and closes on click', async () => {
     const shell = useShellStore()
     shell.corpusPath = '/tmp/corpus'
-    searchCorpusMock.mockResolvedValue({ results: [fakeHit()], error: null })
+    // 2026-07-22 (#1259-2): kg_topic hits now render in the Subjects
+    // section with a single "open subject panel" action. Content hits
+    // (insight / quote / transcript) still carry the 3-action row that
+    // this spec asserts on — use those.
+    searchCorpusMock.mockResolvedValue({
+      results: [
+        fakeHit({
+          doc_id: 'insight:test:1',
+          metadata: { doc_type: 'insight', episode_id: 'ep1', source_id: 'i:1' },
+        }),
+      ],
+      error: null,
+    })
     const w = mountPalette()
     ;(w.vm as unknown as { open: () => void }).open()
     await flushPromises()
@@ -160,10 +191,17 @@ describe('CommandPalette (Cmd-K shell overlay)', () => {
     w.unmount()
   })
 
-  it('emits show-on-graph with a resolvable cy id for kg_topic hits', async () => {
+  it('renders a kg_topic hit in the Subjects section and opens the topic panel on click', async () => {
     const shell = useShellStore()
     shell.corpusPath = '/tmp/corpus'
-    searchCorpusMock.mockResolvedValue({ results: [fakeHit()], error: null })
+    // 2026-07-22 (#1259-2): kg_topic + kg_entity hits render in the
+    // Subjects section with a single "open subject panel" action. This
+    // spec pins the new contract; the 3-action-row show-on-graph flow
+    // stays covered for content hits by the two tests above.
+    searchCorpusMock.mockResolvedValue({
+      results: [fakeHit()],
+      error: null,
+    })
     const w = mountPalette()
     ;(w.vm as unknown as { open: () => void }).open()
     await flushPromises()
@@ -176,17 +214,16 @@ describe('CommandPalette (Cmd-K shell overlay)', () => {
     await vi.advanceTimersByTimeAsync(210)
     await flushPromises()
 
-    ;(
-      document.querySelector<HTMLButtonElement>(
-        '[data-testid="command-palette-action-show-graph"]',
-      )!
-    ).click()
+    const subjectRow = document.querySelector<HTMLButtonElement>(
+      '[data-testid="command-palette-subject-hit"]',
+    )
+    expect(subjectRow).not.toBeNull()
+    subjectRow!.click()
     await flushPromises()
 
-    const emitted = w.emitted('show-on-graph')?.[0]
-    expect(emitted).toBeDefined()
-    expect(typeof emitted![0]).toBe('string')
-    expect((emitted![0] as string).length).toBeGreaterThan(0)
+    // Palette closed after the click; no show-on-graph emit for subject rows.
+    expect(document.querySelector('[data-testid="command-palette"]')).toBeNull()
+    expect(w.emitted('show-on-graph')).toBeUndefined()
     w.unmount()
   })
 

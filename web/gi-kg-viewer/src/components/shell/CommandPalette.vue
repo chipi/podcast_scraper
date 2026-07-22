@@ -21,6 +21,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { searchCorpus, type SearchHit } from '../../api/searchApi'
+import { fetchCorpusEpisodes, type CorpusEpisodeListItem } from '../../api/corpusLibraryApi'
 import { useShellStore } from '../../stores/shell'
 import { useSearchStore } from '../../stores/search'
 import { useSubjectStore } from '../../stores/subject'
@@ -70,6 +71,7 @@ const auth = useAuthStore()
 const open = ref(false)
 const query = ref('')
 const results = ref<SearchHit[]>([])
+const episodeSuggestions = ref<CorpusEpisodeListItem[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -153,6 +155,79 @@ async function runCommand(cmd: PaletteCommand): Promise<void> {
   closePalette()
 }
 
+// ---------- #1259-2: subject jump ---------------------------------------
+
+/**
+ * Split the /api/search hit page into "subject" rows (kg_topic /
+ * kg_entity — one-click open the subject panel) and "content" rows
+ * (insight / quote / transcript / summary_* — keep the 3-action row so
+ * the user can Open in Workspace or Show on graph).
+ *
+ * Rendered as a dedicated section ABOVE content hits so the "find a
+ * thing by name" workflow gets first priority when the query looks
+ * like an entity label. Episodes come from a separate corpus-library
+ * fetch (title / summary / bullets substring, server-side).
+ */
+const subjectHits = computed<SearchHit[]>(() => {
+  const out: SearchHit[] = []
+  const seen = new Set<string>()
+  for (const hit of results.value) {
+    const dt = String(hit.metadata?.doc_type ?? '')
+    const src = String(hit.metadata?.source_id ?? '')
+    if ((dt !== 'kg_topic' && dt !== 'kg_entity') || !src) continue
+    const key = `${dt}:${src}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(hit)
+    if (out.length >= 5) break
+  }
+  return out
+})
+
+const contentHits = computed<SearchHit[]>(() =>
+  results.value.filter((h) => {
+    const dt = String(h.metadata?.doc_type ?? '')
+    return dt !== 'kg_topic' && dt !== 'kg_entity'
+  }),
+)
+
+function subjectLabelFor(hit: SearchHit): string {
+  const md = hit.metadata ?? {}
+  const explicit = md.topic_label ?? md.entity_name ?? md.label
+  if (typeof explicit === 'string' && explicit.trim()) return explicit.trim()
+  return hit.text?.trim() || String(md.source_id ?? '(unnamed)')
+}
+
+function subjectKindLabelFor(hit: SearchHit): string {
+  return hit.metadata?.doc_type === 'kg_topic' ? 'Topic' : 'Person'
+}
+
+function onSubjectHitClick(hit: SearchHit): void {
+  const md = hit.metadata ?? {}
+  const src = typeof md.source_id === 'string' ? md.source_id.trim() : ''
+  if (!src) return
+  if (md.doc_type === 'kg_topic') subject.focusTopic(src)
+  else if (md.doc_type === 'kg_entity') subject.focusPerson(src)
+  closePalette()
+}
+
+function onEpisodeSuggestionClick(item: CorpusEpisodeListItem): void {
+  const rel = item.metadata_relative_path
+  if (!rel) return
+  subject.focusEpisode(rel)
+  closePalette()
+}
+
+function episodeSuggestionLabel(item: CorpusEpisodeListItem): string {
+  return (item.episode_title || item.summary_title || 'Untitled episode').trim()
+}
+
+function episodeSuggestionSubtitle(item: CorpusEpisodeListItem): string {
+  const feed = item.feed_display_title?.trim() || ''
+  const date = item.publish_date?.trim() || ''
+  return [feed, date].filter(Boolean).join(' · ')
+}
+
 // Debounce timer for live search.
 let debounceHandle: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_MS = 200
@@ -168,6 +243,7 @@ function schedule(): void {
   // #1259-1: command mode short-circuits the corpus fetch.
   if (parsedInput.value.isCommandMode) {
     results.value = []
+    episodeSuggestions.value = []
     error.value = null
     loading.value = false
     return
@@ -181,7 +257,14 @@ function schedule(): void {
   loading.value = true
   debounceHandle = setTimeout(async () => {
     try {
-      const body = await searchCorpus(q, { path: root, topK: 8 })
+      const [body, episodesEnvelope] = await Promise.all([
+        searchCorpus(q, { path: root, topK: 8 }),
+        // #1259-2: episode subject-jump — server-side substring match on
+        // summary title / bullets. 5 is enough to fill the section; the
+        // list is already sort=newest and the palette is a preview
+        // surface, not a browser.
+        fetchCorpusEpisodes(root, { q, limit: 5 }).catch(() => null),
+      ])
       if (body.error) {
         error.value = body.error
         results.value = []
@@ -189,9 +272,11 @@ function schedule(): void {
         error.value = null
         results.value = body.results
       }
+      episodeSuggestions.value = episodesEnvelope?.items ?? []
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       results.value = []
+      episodeSuggestions.value = []
     } finally {
       loading.value = false
     }
@@ -212,6 +297,7 @@ function closePalette(): void {
   open.value = false
   query.value = ''
   results.value = []
+  episodeSuggestions.value = []
   error.value = null
   if (debounceHandle !== null) {
     clearTimeout(debounceHandle)
@@ -416,13 +502,78 @@ onBeforeUnmount(() => {
           >
             {{ error }}
           </p>
+          <!-- #1259-2: Subject jump — episodes (from corpus-library) + topics/persons (from search) -->
+          <section
+            v-if="!commandModeActive && episodeSuggestions.length"
+            class="mb-2"
+            aria-labelledby="palette-episodes-heading"
+            data-testid="command-palette-episodes"
+          >
+            <h3
+              id="palette-episodes-heading"
+              class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted"
+            >
+              Episodes
+            </h3>
+            <ul class="flex flex-col gap-0.5">
+              <li v-for="ep in episodeSuggestions" :key="ep.metadata_relative_path">
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-elevated-foreground hover:bg-overlay"
+                  data-testid="command-palette-episode-suggestion"
+                  @click="onEpisodeSuggestionClick(ep)"
+                >
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate">{{ episodeSuggestionLabel(ep) }}</span>
+                    <span
+                      v-if="episodeSuggestionSubtitle(ep)"
+                      class="block truncate text-[10px] text-muted"
+                    >{{ episodeSuggestionSubtitle(ep) }}</span>
+                  </span>
+                  <span
+                    class="inline-flex h-4 shrink-0 items-center justify-center rounded bg-primary/15 px-1 text-[9px] font-medium uppercase tracking-wide text-primary"
+                  >Episode</span>
+                </button>
+              </li>
+            </ul>
+          </section>
+
+          <section
+            v-if="!commandModeActive && subjectHits.length"
+            class="mb-2"
+            aria-labelledby="palette-subjects-heading"
+            data-testid="command-palette-subjects"
+          >
+            <h3
+              id="palette-subjects-heading"
+              class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted"
+            >
+              Topics &amp; people
+            </h3>
+            <ul class="flex flex-col gap-0.5">
+              <li v-for="hit in subjectHits" :key="hit.doc_id">
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-elevated-foreground hover:bg-overlay"
+                  data-testid="command-palette-subject-hit"
+                  @click="onSubjectHitClick(hit)"
+                >
+                  <span class="min-w-0 flex-1 truncate">{{ subjectLabelFor(hit) }}</span>
+                  <span
+                    class="inline-flex h-4 shrink-0 items-center justify-center rounded bg-primary/15 px-1 text-[9px] font-medium uppercase tracking-wide text-primary"
+                  >{{ subjectKindLabelFor(hit) }}</span>
+                </button>
+              </li>
+            </ul>
+          </section>
+
           <ul
-            v-else-if="results.length && !commandModeActive"
+            v-if="contentHits.length && !commandModeActive"
             class="flex flex-col gap-1"
             data-testid="command-palette-results"
           >
             <li
-              v-for="hit in results"
+              v-for="hit in contentHits"
               :key="hit.doc_id"
               class="rounded border border-border/60 p-2"
             >
@@ -459,7 +610,7 @@ onBeforeUnmount(() => {
             </li>
           </ul>
           <p
-            v-else-if="query.trim() && !loading && !commandModeActive && !matchedCommands.length"
+            v-else-if="query.trim() && !loading && !commandModeActive && !matchedCommands.length && !subjectHits.length && !episodeSuggestions.length && !contentHits.length"
             class="p-2 text-xs text-muted"
             data-testid="command-palette-no-results"
           >
