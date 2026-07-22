@@ -197,7 +197,7 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | --- | --- | --- |
 | [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | Core pyannote provider + alignment shipped; diarization result caching deferred as future scope |
 | [ADR-031](ADR-031-mandatory-pre-release-validation.md) | [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) | Dependabot + pydeps shipped; pre-release checklist tracked as #255 future enhancement |
-| [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | [RFC-043](../rfc/RFC-043-automated-metrics-alerts.md) | Nightly `alerts[]` detection shipped; PR-comment + webhook scripts deliberately abandoned — operator-side Sentry/Grafana wiring is the destination (see [`OBSERVABILITY_EXTENSIONS.md`](../guides/OBSERVABILITY_EXTENSIONS.md#operator-alerting--sentry--grafana)) |
+| [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | [RFC-043](../rfc/RFC-043-automated-metrics-alerts.md) | Nightly `alerts[]` detection shipped; PR-comment + webhook scripts deliberately abandoned — operator-side Sentry/Grafana wiring is the destination (see [`OBSERVABILITY_EXTENSIONS.md`](../guides/OBSERVABILITY_EXTENSIONS.md#operator-alerting-sentry-grafana)) |
 
 **Accepted, code not landed (expected)**
 

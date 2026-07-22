@@ -8,7 +8,7 @@ kg-gi surface stays tailnet-only until it is hardened (RBAC #1164 + the split #1
 **Why this is safe:** the player uses only `/api/app/*`. Its backend runs
 `PODCAST_SERVE_APP_ONLY=1`, which mounts **only** `/api/app/*` + health — no operator/read
 `/api/*` — so it carries **no `docker.sock` and no provider keys**. It passes the
-[pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost).
+[pre-public gate](../security/THREAT_MODEL.md#pre-public-gate-run-before-any-new-public-vhost).
 
 ## Prerequisites
 
