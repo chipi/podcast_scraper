@@ -1,5 +1,5 @@
 # Public GlitchTip **ingest-only** vhost (ADR-114). Deploy drops this into
-# /etc/caddy/sites/glitchtip.caddy and runs `sudo -n systemctl reload caddy`
+# /etc/caddy/sites/glitchtip.caddy and runs `sudo -n systemctl restart caddy`
 # (the narrow 99-caddy-reload sudoers grant).
 #
 # WHY: browser-side error SDKs (the podcast viewer bundle, and orrery's client
@@ -26,7 +26,7 @@
 # (apply-edge writes it into the caddy systemd env; a box migration is a one-line
 # change there, never here.)
 #
-# Rollback: `rm /etc/caddy/sites/glitchtip.caddy && sudo systemctl reload caddy`
+# Rollback: `rm /etc/caddy/sites/glitchtip.caddy && sudo systemctl restart caddy`
 # — frees the vhost, nothing shared changes, the box stays up.
 glitchtip.example.com {
 	import hardened

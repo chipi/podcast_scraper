@@ -306,10 +306,26 @@ fi
 # Per-tenant vhost dir (deploy-owned) + access-log dir (caddy-owned).
 run install -d -o deploy -g deploy -m 0755 /etc/caddy/sites
 run install -d -o caddy -g caddy -m 0755 /var/log/caddy
+# The access.log FILE must be writable by the caddy service user (caddy). cloud-init
+# / the caddy deb can leave a root:root 0600 access.log; the base Caddyfile never
+# uses it (catch-all only), so the breakage stays hidden until the FIRST vhost that
+# `import hardened` turns the access log on — then caddy fails to start with
+# "opening log writer ... permission denied" (orrery go-live, 2026-07-22, task #28).
+# Chown any existing file to caddy so a hardened vhost can start. Idempotent.
+if [ "$DRY_RUN" = 1 ]; then
+  echo "  would ensure /var/log/caddy/access.log is caddy-writable"
+elif [ -e /var/log/caddy/access.log ]; then
+  run chown caddy:caddy /var/log/caddy/access.log
+  run chmod 0640 /var/log/caddy/access.log
+fi
 
-# Shared reload grant (any tenant deploy reloads the engine after dropping its vhost).
+# Shared reload + restart grants. Reload is used for a plain config/vhost change,
+# but the base Caddyfile sets `admin off` (T-02) so `caddy reload` (admin-API based)
+# fails — a config change therefore needs a RESTART (task #27, resolved by keeping
+# admin off + granting restart rather than reopening the admin surface). Both grants
+# are narrow + engine-level (one line covers all tenants; ADR-114 §5).
 write_file /etc/sudoers.d/99-caddy-reload 0440 root:root <<'EOF' || true
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy, /usr/bin/systemctl restart caddy
 EOF
 
 # Drop the base Caddyfile from the repo (single source of truth).

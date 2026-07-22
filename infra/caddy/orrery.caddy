@@ -1,5 +1,5 @@
 # Public orrery vhost (ADR-114 / #1158). Deploy drops this into
-# /etc/caddy/sites/orrery.caddy and runs `sudo -n systemctl reload caddy`
+# /etc/caddy/sites/orrery.caddy and runs `sudo -n systemctl restart caddy`
 # (the narrow 99-caddy-reload sudoers grant).
 #
 # Domain: orrerylearn.com (apex) + www.orrerylearn.com. Caddy issues a cert

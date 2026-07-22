@@ -227,8 +227,12 @@ write_files:
   # Shared reload grant — any tenant's deploy (running as ``deploy``) reloads the
   # engine after dropping its /etc/caddy/sites/<app>.caddy vhost. Engine-level, so
   # one line covers all tenants (mirrors the caddy-reload grant in ADR-114 §5).
+  # reload for plain config changes; restart because the base Caddyfile sets
+  # `admin off` (T-02) so admin-API-based `caddy reload` fails — a config/vhost
+  # change then needs a restart (task #27: keep admin off + grant restart rather
+  # than reopen the admin surface). Both narrow + engine-level (ADR-114 §5).
   - path: /etc/sudoers.d/99-caddy-reload
-    content: "deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy\n"
+    content: "deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy, /usr/bin/systemctl restart caddy\n"
     permissions: '0440'
     owner: root:root
 
@@ -306,6 +310,12 @@ runcmd:
   # <app>.caddy) + access-log dir (owned by the caddy service user).
   - install -d -o deploy -g deploy -m 0755 /etc/caddy/sites
   - install -d -o caddy -g caddy -m 0755 /var/log/caddy
+  # Pre-create access.log OWNED BY caddy so the first `import hardened` vhost can
+  # start. The caddy deb ships a root:root 0600 access.log the caddy service user
+  # can't write; the base Caddyfile never uses it, so it only breaks on the first
+  # hardened vhost drop (task #28, orrery go-live 2026-07-22). install -o caddy
+  # overwrites ownership idempotently.
+  - install -o caddy -g caddy -m 0640 /dev/null /var/log/caddy/access.log
   - cp /var/lib/cloud/data/caddy-base.Caddyfile /etc/caddy/Caddyfile
   # ADR-114: Caddy binds the PUBLIC IP only — ``tailscale serve`` owns :443 on the
   # tailnet IP, so an all-interfaces bind collides ("address already in use").

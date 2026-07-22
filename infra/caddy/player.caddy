@@ -1,5 +1,5 @@
 # Public consumer player vhost (#1163 / ADR-114). Deploy drops this into
-# /etc/caddy/sites/player.caddy and runs `sudo -n systemctl reload caddy`.
+# /etc/caddy/sites/player.caddy and runs `sudo -n systemctl restart caddy`.
 #
 # OPERATOR: replace player.example.com with the real player domain (+ www if used).
 # Upstream is the learning-app container (loopback PLAYER_PORT, default 8092) from
