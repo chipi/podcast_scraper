@@ -13,6 +13,9 @@
 #   3  /api/health did not return 200 within the timeout
 #   4  DEPLOY_GIT_SHA / DEPLOY_IMAGE_SHA validation failed (format mismatch or
 #      git/image SHA disagree on the 7-char prefix)
+#   5  PODCAST_SECRETS_VIA_FILES=1 but /dev/shm/podcast-secrets/ empty at deploy start
+#   6  PODCAST_SECRETS_VIA_FILES=1 but secrets did not reach the api container
+#      (/run/secrets empty/missing after up — the cutover silently failed) (#26)
 set -euo pipefail
 
 REPO_DIR=/srv/podcast-scraper
@@ -169,6 +172,32 @@ for i in $(seq 1 12); do
   if "${COMPOSE[@]}" "${STACK_FILES[@]}" exec -T api \
     curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
     echo "[$(date -u +%FT%TZ)] /api/health OK after $((i * 5))s (container-local)"
+    # Secrets-delivery assertion (#26). /api/health is a LIVENESS probe — it stays
+    # 200 even if the file-mounted secrets never reached the container (the shim
+    # exports nothing → provider keys/DSNs empty → LLM/error paths silently dead).
+    # When PODCAST_SECRETS_VIA_FILES=1, assert the api container actually has the
+    # mounted secret files at /run/secrets, non-empty. Check the MOUNT (not
+    # ``printenv``: under file-mounted secrets the container's config env is empty;
+    # and cap_drop:ALL blocks reading PID 1's /proc/1/environ even as root — the
+    # /run/secrets files are the reliable, readable signal). Fail LOUD so a broken
+    # cutover aborts the deploy instead of shipping a keyless app behind a green health.
+    if [ "${PODCAST_SECRETS_VIA_FILES:-}" = "1" ]; then
+      _need_secrets="openai_api_key podcast_sentry_dsn_api"
+      _missing=""
+      for _s in $_need_secrets; do
+        if ! "${COMPOSE[@]}" "${STACK_FILES[@]}" exec -T api \
+          sh -c "test -s /run/secrets/$_s" >/dev/null 2>&1; then
+          _missing="$_missing $_s"
+        fi
+      done
+      if [ -n "$_missing" ]; then
+        echo "ERROR: PODCAST_SECRETS_VIA_FILES=1 but the api container is missing non-empty /run/secrets:${_missing}." >&2
+        echo "ERROR: the tmpfs secret delivery + secrets overlay mount did not reach the container — refusing to ship a keyless app behind a green /api/health (#26)." >&2
+        docker logs --tail 30 compose-api-1 >&2 || true
+        exit 6
+      fi
+      echo "[$(date -u +%FT%TZ)] secrets: /run/secrets present + non-empty in api ($(echo $_need_secrets | wc -w | tr -d ' ') checked)"
+    fi
     if command -v sudo >/dev/null 2>&1 && [ -x /usr/local/sbin/podcast-tailscale-serve.sh ]; then
       # MagicDNS HTTPS (:443) for tailnet peers (GHA stack-test, laptops). Do not
       # swallow failures — drill-stack-playwright and PROD_RUNBOOK rely on serve.
