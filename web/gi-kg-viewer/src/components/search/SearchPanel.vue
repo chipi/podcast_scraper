@@ -13,11 +13,14 @@ import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLi
 import EnrichedAnswerHero from './EnrichedAnswerHero.vue'
 import ResultCard from './ResultCard.vue'
 import TranscriptClusterCard from './TranscriptClusterCard.vue'
+import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import {
   collapseTranscriptHitsByEpisode,
   isTranscriptClusterHit,
   type CollapsedSearchRow,
 } from '../../utils/collapseTranscriptHitsByEpisode'
+import { fetchCorpusEpisodeDetail } from '../../api/corpusLibraryApi'
+import { corpusTextFileViewUrl } from '../../utils/transcriptSourceDisplay'
 import ResultSetOperatorBar from './ResultSetOperatorBar.vue'
 import SearchFilterBar from './SearchFilterBar.vue'
 import SearchResultsVizDialog from './SearchResultsVizDialog.vue'
@@ -117,6 +120,44 @@ function rowKey(row: CollapsedSearchRow, i: number): string {
   return isTranscriptClusterHit(row)
     ? `transcript-cluster:${row.episodeId}:${i}`
     : `${row.doc_id}:${i}`
+}
+
+/**
+ * Search v3 followup (2026-07-22): open the shared TranscriptViewerDialog
+ * seeked to the timestamp of a specific transcript chunk that matched
+ * the query. Resolves the transcript relpath server-side (episode-detail
+ * fetch, cached in memory across clicks within one session), then hands
+ * the payload to the popup — same in-app viewer the episode rail uses.
+ */
+const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
+const transcriptRelpathByMetadataPath = new Map<string, string | null>()
+
+async function openTranscriptAtChunk(payload: {
+  metadataRelativePath: string
+  episodeTitle: string
+  audioSeekStartMs: number | null
+  hit: SearchHit
+}): Promise<void> {
+  const root = shell.corpusPath.trim()
+  if (!root) return
+  let rel = transcriptRelpathByMetadataPath.get(payload.metadataRelativePath)
+  if (rel === undefined) {
+    try {
+      const detail = await fetchCorpusEpisodeDetail(root, payload.metadataRelativePath)
+      rel = detail.transcript_relative_path?.trim() || null
+    } catch {
+      rel = null
+    }
+    transcriptRelpathByMetadataPath.set(payload.metadataRelativePath, rel)
+  }
+  if (!rel) return
+  transcriptViewerRef.value?.open({
+    corpusRoot: root,
+    transcriptRelpath: rel,
+    rawTabUrl: corpusTextFileViewUrl(root, rel),
+    subtitle: payload.episodeTitle,
+    audioSeekStartMs: payload.audioSeekStartMs ?? undefined,
+  })
 }
 
 /** PRD-033 FR1.4 — humanized detected query intent for the indicator chip. */
@@ -638,6 +679,7 @@ const advancedFeedCombinedTitle = computed(() =>
             :cluster="row"
             :library-opens-enabled="libraryOpensEnabled"
             @open-library="onOpenLibraryHit"
+            @open-transcript-at="(payload) => void openTranscriptAtChunk(payload)"
           />
           <ResultCard
             v-else
@@ -649,5 +691,6 @@ const advancedFeedCombinedTitle = computed(() =>
         </template>
       </div>
     </div>
+    <TranscriptViewerDialog ref="transcriptViewerRef" />
   </section>
 </template>

@@ -32,6 +32,16 @@ const emit = defineEmits<{
    *  cluster's top-scoring member so the caller can reuse the existing
    *  ``open-library`` handler that takes a ``SearchHit``. */
   'open-library': [SearchHit]
+  /** Member sub-row click — request the parent open the shared
+   *  ``TranscriptViewerDialog`` seeked to that chunk's start timestamp.
+   *  Payload carries the metadata path (so the parent can resolve the
+   *  transcript relpath) and the chunk's start ms when available. */
+  'open-transcript-at': [payload: {
+    metadataRelativePath: string
+    episodeTitle: string
+    audioSeekStartMs: number | null
+    hit: SearchHit
+  }]
 }>()
 
 const rowClickable = computed(
@@ -51,6 +61,23 @@ function timestampLabelForMember(hit: SearchHit): string | null {
   const mm = Math.floor(s / 60)
   const ss = s % 60
   return `${mm}:${ss.toString().padStart(2, '0')}`
+}
+
+function memberChunkStartMs(hit: SearchHit): number | null {
+  const md = (hit.metadata ?? {}) as Record<string, unknown>
+  const raw = Number(md.timestamp_start_ms)
+  return Number.isFinite(raw) ? raw : null
+}
+
+function onMemberClick(hit: SearchHit): void {
+  const metaRel = props.cluster.metadataRelativePath
+  if (!metaRel) return
+  emit('open-transcript-at', {
+    metadataRelativePath: metaRel,
+    episodeTitle: props.cluster.episodeTitle,
+    audioSeekStartMs: memberChunkStartMs(hit),
+    hit,
+  })
 }
 
 function onRowClick(): void {
@@ -116,8 +143,15 @@ function onRowKeydown(ev: KeyboardEvent): void {
         v-for="m in cluster.members"
         :key="m.doc_id"
         class="rounded border border-border/60 bg-canvas/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
+        :class="cluster.metadataRelativePath ? 'cursor-pointer hover:border-primary/50 hover:bg-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''"
+        :role="cluster.metadataRelativePath ? 'button' : undefined"
+        :tabindex="cluster.metadataRelativePath ? 0 : undefined"
+        :aria-label="cluster.metadataRelativePath ? 'Open transcript at this position' : undefined"
+        :title="cluster.metadataRelativePath ? 'Open transcript at this position (in-app viewer, audio seeks to timestamp when available).' : undefined"
         data-testid="search-transcript-cluster-member"
-        @click.stop
+        @click.stop="onMemberClick(m)"
+        @keydown.enter.stop.prevent="onMemberClick(m)"
+        @keydown.space.stop.prevent="onMemberClick(m)"
       >
         <p
           v-if="timestampLabelForMember(m)"
