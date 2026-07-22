@@ -28,7 +28,7 @@
 #
 # Rollback: `rm /etc/caddy/sites/glitchtip.caddy && sudo systemctl restart caddy`
 # — frees the vhost, nothing shared changes, the box stays up.
-glitchtip.example.com {
+telemetry.orrerylearn.com {
 	import hardened
 
 	# Ingest surface only: /api/<project_id>/{envelope,store,security}/ — the
