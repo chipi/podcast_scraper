@@ -10,6 +10,8 @@ import { RouterLink } from 'vue-router'
 import { getEpisode, getPlaybackList } from '../services/api'
 import type { EpisodeDetail } from '../services/types'
 import { useFavoritesStore } from '../stores/favorites'
+import { useSavedQueriesStore } from '../stores/savedQueries'
+import { useUserPreferencesStore } from '../stores/userPreferences'
 import { formatTime } from '../player/transcriptSync'
 import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
@@ -19,6 +21,8 @@ import ResurfacingInbox from './ResurfacingInbox.vue'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
+const savedQueries = useSavedQueriesStore()
+const userPrefs = useUserPreferencesStore()
 
 // Tabs: Saved (per-kind sections) · Highlights · Revisit · Queue · Recent.
 // "Shows" returns once subscriptions are user-curated.
@@ -47,6 +51,11 @@ async function loadRecent(): Promise<void> {
 
 onMounted(async () => {
   await favorites.ensureLoaded()
+  // #1261-8: fire-and-forget the USERPREFS-1 hydrate so the saved-queries
+  // store picks up the cross-device list — do NOT block the Recent tab on
+  // it (the preferences endpoint being offline shouldn't gate playback
+  // history).
+  void userPrefs.hydrate()
   await loadRecent()
 })
 </script>
@@ -71,10 +80,44 @@ onMounted(async () => {
     <!-- Saved — favourited things, one section per kind (episodes, insights, … more to come). -->
     <div v-show="tab === 'saved'">
       <p
-        v-if="!favorites.episodes.length && !favorites.insights.length"
+        v-if="!favorites.episodes.length && !favorites.insights.length && !savedQueries.count"
         class="text-muted"
       >{{ t('library.savedEmpty') }}</p>
       <template v-else>
+        <!-- #1261-8: Saved searches — power-listener persistent queries.
+             Tap the query to re-run the search; ×  removes it. -->
+        <section
+          v-if="savedQueries.count"
+          class="mb-6"
+          data-testid="saved-searches-section"
+        >
+          <h2 class="lp-section mb-2">{{ t('library.savedSearches') }}</h2>
+          <ul class="flex flex-col">
+            <li
+              v-for="q in savedQueries.list"
+              :key="q.scope + '|' + q.q"
+              class="flex items-center gap-2 border-b border-border py-2"
+            >
+              <RouterLink
+                :to="{ name: 'search', query: { q: q.q, scope: q.scope } }"
+                class="min-w-0 flex-1 text-sm font-semibold leading-snug text-canvas-foreground no-underline"
+              >
+                {{ q.q }}
+                <span class="lp-kicker ml-1 font-normal">
+                  {{ q.scope === 'mine' ? t('search.scopeMine') : t('search.scopeAll') }}
+                </span>
+              </RouterLink>
+              <button
+                type="button"
+                class="shrink-0 rounded-full border border-border px-2 py-1 text-xs font-semibold text-muted transition hover:text-canvas-foreground"
+                :aria-label="t('library.savedSearchRemove', { q: q.q })"
+                @click="savedQueries.remove(q.q, q.scope)"
+              >
+                ×
+              </button>
+            </li>
+          </ul>
+        </section>
         <!-- Episodes -->
         <section v-if="favorites.episodes.length" class="mb-6">
           <h2 class="lp-section mb-2">{{ t('library.savedEpisodes') }}</h2>

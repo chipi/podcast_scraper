@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import { useAuthStore } from '../stores/auth'
+import { useSavedQueriesStore } from '../stores/savedQueries'
 import SearchView from './SearchView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -381,6 +382,39 @@ describe('SearchView', () => {
     expect(headers).toHaveLength(2)
     expect(headers[0].text()).toContain('2024')
     expect(headers[1].text()).toContain('2023')
+  })
+
+  // #1261-8: Save/unsave the current query
+  it('save-query button toggles between "Save" and "Saved ✓" and persists via the store', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'sleep',
+      error: null,
+      results: [],
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ preferences: {} }), { status: 200 }),
+    )
+    const { w } = await mountAt('sleep')
+    const saveBtn = w.get('[data-testid="save-query-button"]')
+    // Initially: not saved.
+    expect(saveBtn.text()).toBe('Save')
+    await saveBtn.trigger('click')
+    await flushPromises()
+    const savedQueries = useSavedQueriesStore()
+    expect(savedQueries.count).toBe(1)
+    expect(savedQueries.list[0].q).toBe('sleep')
+    expect(saveBtn.text()).toBe('Saved ✓')
+    // Tapping again removes it (toggle).
+    await saveBtn.trigger('click')
+    await flushPromises()
+    expect(savedQueries.count).toBe(0)
+    expect(saveBtn.text()).toBe('Save')
+  })
+
+  it('hides the save button when the query is blank / whitespace', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: '', error: null, results: [] })
+    const { w } = await mountAt('')
+    expect(w.find('[data-testid="save-query-button"]').exists()).toBe(false)
   })
 
   it('hides year headers when results all fall in a single year', async () => {

@@ -24,18 +24,36 @@ import {
 import { summarizeMatchedFields } from '../utils/matchedFields'
 import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
 import { useAuthStore } from '../stores/auth'
+import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const savedQueries = useSavedQueriesStore()
 
 // Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
 // heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
 const scope = ref<'all' | 'mine'>(route.query.scope === 'mine' ? 'mine' : 'all')
 
 const query = ref(String(route.query.q ?? ''))
+
+// #1261-8: reactive save-state on the current query+scope pair so the button
+// toggles between "Save" and "Saved ✓" as the listener switches scope tabs.
+const currentIsSaved = computed(() =>
+  savedQueries.isSaved(query.value, scope.value),
+)
+
+async function toggleSaveQuery(): Promise<void> {
+  const q = query.value.trim()
+  if (!q) return
+  if (savedQueries.isSaved(q, scope.value)) {
+    await savedQueries.remove(q, scope.value)
+  } else {
+    await savedQueries.save(q, scope.value)
+  }
+}
 const results = ref<SearchHit[]>([])
 const entity = ref<EntityRef | null>(null)
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
@@ -234,6 +252,18 @@ const showEmpty = computed(
       />
       <button type="submit" class="rounded-full bg-accent px-5 py-3 font-bold text-accent-foreground">
         {{ t('search.title') }}
+      </button>
+      <!-- #1261-8: save the current query+scope to the listener's saved list.
+           Only surfaces once the query is non-empty. -->
+      <button
+        v-if="query.trim()"
+        type="button"
+        class="rounded-full border border-border px-4 py-3 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+        :aria-label="currentIsSaved ? t('search.unsaveQuery') : t('search.saveQuery')"
+        data-testid="save-query-button"
+        @click="toggleSaveQuery"
+      >
+        {{ currentIsSaved ? t('search.saved') : t('search.save') }}
       </button>
     </form>
 

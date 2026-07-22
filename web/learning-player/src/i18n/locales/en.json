@@ -84,7 +84,11 @@
     "expandCluster": "Expand {count} {kind} matches",
     "matchedPrefix": "Matched:",
     "yearEpisodes": "1 episode | {count} episodes",
-    "yearUnknown": "Undated"
+    "yearUnknown": "Undated",
+    "save": "Save",
+    "saved": "Saved ✓",
+    "saveQuery": "Save this search to your library",
+    "unsaveQuery": "Remove this saved search"
   },
   "browse": {
     "topicsTitle": "Browse topics",
@@ -312,6 +316,8 @@
     "savedEmpty": "Nothing saved yet. Tap the heart on an episode or insight to keep it here.",
     "savedEpisodes": "Episodes",
     "savedInsights": "Insights",
+    "savedSearches": "Searches",
+    "savedSearchRemove": "Remove saved search \"{q}\"",
     "recentEmpty": "Nothing played yet."
   },
   "highlights": {
