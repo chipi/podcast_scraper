@@ -35,6 +35,7 @@ import {
   SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS,
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
+import { corpusTextFileViewUrl } from '../../utils/transcriptSourceDisplay'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { fetchEpisodeRelatedInsights, type RelatedNode } from '../../api/relationalApi'
 import {
@@ -249,6 +250,21 @@ const episodeIdChipTooltip = computed((): string => {
 })
 
 const episodeTitleForCopy = computed(() => detail.value?.episode_title?.trim() ?? '')
+
+/**
+ * Corpus text-file URL for the episode's raw transcript, when the server
+ * reports one on ``detail.transcript_relative_path`` (2026-07-22 rail
+ * addition). Empty string when either the corpus path or the transcript
+ * relpath is missing — the "View transcript" button renders under
+ * ``v-if="detail.transcript_relative_path"`` so the empty-URL case never
+ * hits the DOM.
+ */
+const transcriptUrl = computed((): string => {
+  const rel = detail.value?.transcript_relative_path
+  const root = shell.corpusPath.trim()
+  if (!rel || !root) return ''
+  return corpusTextFileViewUrl(root, rel)
+})
 
 type EpisodeTitleCopyUi = 'idle' | 'copied' | 'failed'
 
@@ -928,6 +944,17 @@ watch(
         >
           Search within episode
         </button>
+        <a
+          v-if="detail.transcript_relative_path"
+          :href="transcriptUrl"
+          target="_blank"
+          rel="noopener"
+          class="min-w-0 flex-1 rounded border border-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary hover:bg-primary/10"
+          data-testid="episode-detail-view-transcript"
+          :title="`Open the transcript for this episode (${detail.transcript_relative_path}) in a new tab.`"
+        >
+          View transcript
+        </a>
         <HelpTip class="shrink-0 self-center">
           Opens Search with this feed scoped and the same field order as
           <strong class="font-medium text-surface-foreground/90">Similar episodes</strong>

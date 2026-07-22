@@ -109,6 +109,11 @@ export type CorpusEpisodeDetailResponse = {
   feed_image_local_relpath?: string | null
   episode_image_local_relpath?: string | null
   cil_digest_topics?: CilDigestTopicPill[]
+  /** Corpus-root-relative transcript file path from
+   *  ``metadata.content.transcript_file_path``; ``null`` on summary-only
+   *  ingests. Client uses this to build a "View transcript" launcher on
+   *  ``EpisodeDetailPanel`` (opens via ``GET /api/corpus/text-file``). */
+  transcript_relative_path?: string | null
   bridge_partition?: BridgePartitionSummary | null
 }
 

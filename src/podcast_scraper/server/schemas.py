@@ -1873,6 +1873,17 @@ class CorpusEpisodeDetailResponse(BaseModel):
         default_factory=list,
         description="CIL topic pills from bridge (cluster-first order).",
     )
+    transcript_relative_path: str | None = Field(
+        default=None,
+        description=(
+            "Corpus-root-relative path to the raw transcript text file, when "
+            "the episode's metadata JSON carries ``content.transcript_file_path`` "
+            "(or the legacy ``content.transcript_file`` field). ``None`` when "
+            "the metadata omits the reference — for example on episodes that "
+            "were ingested by a summary-only path. Consumers open the transcript "
+            "via ``GET /api/corpus/text-file?path=<root>&relpath=<transcript>``."
+        ),
+    )
     bridge_partition: "BridgePartitionSummary | None" = Field(
         default=None,
         description=(

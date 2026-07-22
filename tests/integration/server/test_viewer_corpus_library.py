@@ -407,6 +407,118 @@ def test_corpus_feeds_and_episodes_flat_layout(tmp_path: Path) -> None:
     assert detail["episode_image_url"] == "https://cdn.example/ep-art.png"
     assert detail["duration_seconds"] == 90
     assert detail["episode_number"] == 3
+    # 2026-07-22: episode-detail exposes transcript path when the metadata
+    # JSON carries ``content.transcript_file_path``. The fixture doc built
+    # by ``_episode_doc`` omits the field, so the detail response reports
+    # None — consistent with a summary-only ingest.
+    assert detail.get("transcript_relative_path") is None
+
+
+def test_corpus_episode_detail_surfaces_transcript_relative_path_when_metadata_has_it(
+    tmp_path: Path,
+) -> None:
+    """When the episode metadata JSON carries ``content.transcript_file_path``
+    the detail endpoint echoes it as a corpus-root-relative path (flat
+    corpus layout leaves the raw value unchanged). The rail's
+    "View transcript" button on EpisodeDetailPanel renders under
+    ``v-if="detail.transcript_relative_path"``."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    doc = _episode_doc()
+    doc["content"] = {"transcript_file_path": "transcripts/one.txt"}
+    (meta / "one.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    (meta / "one.gi.json").write_text('{"grounded_insights": {}}', encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    er = client.get("/api/corpus/episodes", params={"path": str(tmp_path)})
+    rel = er.json()["items"][0]["metadata_relative_path"]
+    dr = client.get(
+        "/api/corpus/episodes/detail",
+        params={"path": str(tmp_path), "metadata_relpath": rel},
+    )
+    assert dr.status_code == 200
+    # Flat metadata layout has no ``/metadata/`` marker in the relpath, so
+    # the server passes the value through unchanged.
+    assert dr.json()["transcript_relative_path"] == "transcripts/one.txt"
+
+
+def test_corpus_episode_detail_prefixes_feed_run_root_on_nested_metadata_layout(
+    tmp_path: Path,
+) -> None:
+    """The canonical corpus layout puts metadata under
+    ``feeds/<feed>/<run>/metadata/`` and the transcript alongside at
+    ``feeds/<feed>/<run>/transcripts/…``. ``content.transcript_file_path``
+    is stored feed-run-relative; the server prefixes with the feed-run
+    root so the client can pass the value straight into
+    ``GET /api/corpus/text-file`` without a second resolution pass."""
+    feed_run = tmp_path / "feeds" / "myfeed" / "run_20260601"
+    meta = feed_run / "metadata"
+    meta.mkdir(parents=True)
+    (feed_run / "transcripts").mkdir()
+    doc = _episode_doc()
+    doc["content"] = {"transcript_file_path": "transcripts/one.txt"}
+    (meta / "one.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    (meta / "one.gi.json").write_text('{"grounded_insights": {}}', encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    er = client.get("/api/corpus/episodes", params={"path": str(tmp_path)})
+    rel = er.json()["items"][0]["metadata_relative_path"]
+    dr = client.get(
+        "/api/corpus/episodes/detail",
+        params={"path": str(tmp_path), "metadata_relpath": rel},
+    )
+    assert dr.status_code == 200
+    assert dr.json()["transcript_relative_path"] == "feeds/myfeed/run_20260601/transcripts/one.txt"
+
+
+def test_corpus_episode_detail_passes_through_absolute_feeds_prefixed_paths(
+    tmp_path: Path,
+) -> None:
+    """Some ingesters store transcripts as already-corpus-root-relative
+    ``feeds/…``. Those are trusted as-is."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    doc = _episode_doc()
+    doc["content"] = {"transcript_file_path": "feeds/other/run/transcripts/one.txt"}
+    (meta / "one.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    (meta / "one.gi.json").write_text('{"grounded_insights": {}}', encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    er = client.get("/api/corpus/episodes", params={"path": str(tmp_path)})
+    rel = er.json()["items"][0]["metadata_relative_path"]
+    dr = client.get(
+        "/api/corpus/episodes/detail",
+        params={"path": str(tmp_path), "metadata_relpath": rel},
+    )
+    assert dr.status_code == 200
+    assert dr.json()["transcript_relative_path"] == "feeds/other/run/transcripts/one.txt"
+
+
+def test_corpus_episode_detail_falls_back_to_legacy_transcript_file_field(
+    tmp_path: Path,
+) -> None:
+    """Legacy metadata used ``content.transcript_file`` (no ``_path``
+    suffix). Server accepts both to avoid regressions on older corpora."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    doc = _episode_doc()
+    doc["content"] = {"transcript_file": "transcripts/legacy.txt"}
+    (meta / "one.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    (meta / "one.gi.json").write_text('{"grounded_insights": {}}', encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    er = client.get("/api/corpus/episodes", params={"path": str(tmp_path)})
+    rel = er.json()["items"][0]["metadata_relative_path"]
+    dr = client.get(
+        "/api/corpus/episodes/detail",
+        params={"path": str(tmp_path), "metadata_relpath": rel},
+    )
+    assert dr.status_code == 200
+    assert dr.json()["transcript_relative_path"] == "transcripts/legacy.txt"
 
 
 def test_corpus_feeds_and_episodes_include_rss_and_description(tmp_path: Path) -> None:

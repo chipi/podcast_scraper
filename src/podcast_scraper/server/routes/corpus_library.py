@@ -440,6 +440,7 @@ async def corpus_episode_detail(
     bridge_partition = (
         _load_bridge_partition_summary(root, r.bridge_relative_path) if r.has_bridge else None
     )
+    transcript_relative_path = _read_transcript_relative_path(target, r.metadata_relative_path)
     return CorpusEpisodeDetailResponse(
         path=str(root),
         metadata_relative_path=r.metadata_relative_path,
@@ -465,8 +466,57 @@ async def corpus_episode_detail(
         feed_image_local_relpath=r.feed_image_local_relpath,
         episode_image_local_relpath=r.episode_image_local_relpath,
         cil_digest_topics=detail_pills,
+        transcript_relative_path=transcript_relative_path,
         bridge_partition=bridge_partition,
     )
+
+
+def _read_transcript_relative_path(
+    metadata_abs_path: str, metadata_relative_path: str
+) -> str | None:
+    """Return the corpus-root-relative transcript path recorded in the
+    episode's metadata JSON, or ``None`` when the field is absent.
+
+    Reads ``content.transcript_file_path`` first (canonical, matches
+    ``search/indexer.py`` and ``app_content_source.py``) and falls back
+    to ``content.transcript_file`` for legacy metadata. Read errors and
+    JSON parse errors return ``None`` — an absent transcript reference
+    is expected on episodes ingested by a summary-only path.
+
+    The value stored in the metadata JSON is typically relative to the
+    feed-run root (``transcripts/<slug>.txt``), while the client wants a
+    corpus-root-relative path (``feeds/<feed>/<run>/transcripts/…``) so
+    it can pass it straight to ``GET /api/corpus/text-file`` without a
+    second resolution step. Values already starting with ``feeds/`` are
+    passed through unchanged.
+    """
+    try:
+        with open(metadata_abs_path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    content = payload.get("content") if isinstance(payload, dict) else None
+    if not isinstance(content, dict):
+        return None
+    raw: str | None = None
+    for key in ("transcript_file_path", "transcript_file"):
+        candidate = content.get(key)
+        if isinstance(candidate, str) and candidate.strip():
+            raw = candidate.strip().replace("\\", "/")
+            break
+    if raw is None:
+        return None
+    if raw.startswith("feeds/"):
+        return raw
+    if "/" in raw:
+        # Prefix with the feed-run root derived from ``feeds/<feed>/<run>/metadata/…``
+        parent = metadata_relative_path.replace("\\", "/")
+        marker = "/metadata/"
+        idx = parent.rfind(marker)
+        if idx != -1:
+            feed_run_root = parent[:idx]
+            return f"{feed_run_root}/{raw}"
+    return raw
 
 
 def _load_bridge_partition_summary(
