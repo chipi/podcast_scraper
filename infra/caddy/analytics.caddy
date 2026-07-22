@@ -1,25 +1,35 @@
-# Public Umami analytics vhost (ADR-114). Deploy drops this into
-# /etc/caddy/sites/analytics.caddy and runs `sudo -n systemctl restart caddy`
-# (the narrow caddy-reload/restart grant).
+# Public Umami analytics vhost — TRACKING-ONLY (ADR-114). Deploy drops this into
+# /etc/caddy/sites/analytics.caddy and runs `sudo -n systemctl restart caddy`.
 #
-# WHY: the browser loads Umami's tracking script + POSTs page/event data from the
-# end user's browser, which can only reach public endpoints — never the tailnet-only
-# Umami on homelab:3001. This vhost fronts Umami through the shared public edge
-# (behind Cloudflare + the origin-lock, like orrery + telemetry).
+# WHY: the browser loads Umami's tracking script + POSTs events from the end user's
+# browser, which can only reach public endpoints — never the tailnet-only Umami on
+# homelab:3001. This vhost fronts ONLY the tracking surface through the shared public
+# edge (behind Cloudflare + origin-lock); the Umami DASHBOARD/login/API stays
+# tailnet-only (operator reaches it over the tailnet at homelab:3001).
 #
-# UPSTREAM: Umami runs on **homelab** (tailnet), addressed by its Tailscale MagicDNS
-# name `homelab` — the box's host resolver (tailscaled, 100.100.100.100) resolves it,
-# so Caddy proxies by name (no hardcoded IP; the box→homelab:3001 tailnet ACL grant
-# must be live — tailscale/policy.hujson). Reached over the tailnet, terminated at CF.
+# PUBLIC SURFACE (Umami v2, verified on the instance):
+#   GET  /script.js  — the tracking script the browser loads
+#   POST /api/send   — the event-collect endpoint the script POSTs to (+ CORS preflight)
+# Everything else (/, /login, the rest of /api, admin) → 404, not proxied.
 #
-# NOTE: this proxies the WHOLE Umami app (tracking script + /api/send + the dashboard).
-# The dashboard has its own login; if you want it hidden from the public edge, restrict
-# to the tracking paths here later (Umami serves the script at the configured path and
-# collects at POST /api/send). Operator reaches the dashboard over the tailnet (:3001).
+# UPSTREAM: Umami runs on **homelab** (tailnet), addressed by its MagicDNS name
+# `homelab` — the box's host resolver handles it, so Caddy proxies by name (no
+# hardcoded IP; the box→homelab:3001 tailnet ACL grant must be live —
+# tailscale/policy.hujson). Umami sets its own CORS headers on /api/send.
 #
-# Rollback: `rm /etc/caddy/sites/analytics.caddy && sudo systemctl restart caddy`
-# — frees the vhost, nothing shared changes, the box stays up.
+# Rollback: `rm /etc/caddy/sites/analytics.caddy && sudo systemctl restart caddy`.
 analytics.orrerylearn.com {
 	import hardened
-	reverse_proxy homelab:3001
+
+	# Tracking-only surface — the script + the collect endpoint (any method, so the
+	# CORS OPTIONS preflight to /api/send is proxied and Umami answers it).
+	@track path /script.js /api/send
+	handle @track {
+		reverse_proxy homelab:3001
+	}
+
+	# Dashboard / login / rest of the API — NOT public. Refuse without revealing Umami.
+	handle {
+		respond "Not Found" 404
+	}
 }
