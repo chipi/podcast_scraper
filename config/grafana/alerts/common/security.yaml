@@ -81,6 +81,35 @@ groups:
               expression: rate
               conditions: [{ evaluator: { type: gt, params: [50] } }]
 
+      # --- GlitchTip ingest flood (pre-public gate item 7 for glitchtip.caddy) -----
+      # The public GlitchTip ingest vhost is UNAUTHENTICATED by design (public DSN
+      # write endpoint). Abuse = event-spam that fills project storage/quota. fail2ban
+      # (caddy-access jail) + GlitchTip per-project quotas are the primary defense;
+      # this alert surfaces a sustained flood so we notice before the quota does.
+      # STARTER — VALIDATE WHEN THE VHOST IS LIVE: confirm `| json` flattens Caddy's
+      # nested `request.uri` to `request_uri` under VictoriaLogs (if not, switch to
+      # `| json uri="request.uri" | uri=~...`), then tune the threshold to real volume.
+      - uid: sec-common-glitchtip-ingest-flood
+        title: "GlitchTip ingest flood"
+        condition: threshold
+        for: 5m
+        labels: { tenant: common, severity: warning, kind: security }
+        annotations:
+          summary: "Sustained request rate to the public GlitchTip ingest paths (possible spam/abuse of the unauthenticated ingest)."
+        data:
+          - refId: rate
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'sum(count_over_time({tenant="common", job="caddy"} | json | request_uri=~"/api/[0-9]+/(envelope|store|security).*" [5m]))'
+              queryType: instant
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: rate
+              conditions: [{ evaluator: { type: gt, params: [3000] } }]
+
 # NOT YET COVERED (deliberately — each needs plumbing or live tuning, tracked so
 # it isn't a silent gap; #1160 / ADR-117 §Sequencing):
 #   - metadata-egress DROP hits: block-metadata-egress.sh DROPs silently (no LOG
