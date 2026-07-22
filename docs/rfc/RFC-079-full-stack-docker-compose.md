@@ -43,7 +43,7 @@ Today the stack runs as three loosely coupled processes on the developer's machi
 This works for local dev but has no path to deployment:
 
 - The viewer has no production build-and-serve story (only Vite dev server)
-- The existing [`docker/pipeline/Dockerfile`](../docker/pipeline/Dockerfile) packages only the pipeline runner; the API server and viewer
+- The existing [`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile) packages only the pipeline runner; the API server and viewer
   are not containerized
 - The existing `compose/docker-compose.yml` defines only a `podcast_scraper` service (pipeline);
   there is no compose service for the API or viewer
@@ -66,7 +66,7 @@ This works for local dev but has no path to deployment:
 3. **One `docker compose up`** starts the viewer (Nginx) + API; pipeline is invoked separately
 4. **Production-grade Nginx**: serves pre-built Vue SPA, reverse-proxies `/api/*` to FastAPI,
    handles static caching headers, gzip, and SPA fallback routing
-5. **Reuse existing pipeline Dockerfile** ([`docker/pipeline/Dockerfile`](../docker/pipeline/Dockerfile)) with minimal changes
+5. **Reuse existing pipeline Dockerfile** ([`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile)) with minimal changes
 6. **New Dockerfiles** under `docker/api/` and `docker/viewer/` for API (`runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
 7. **Health checks** on all long-running containers
 8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses stack-test overlay + optional `compose/docker-compose.prod.yml` (see OQ2).
@@ -234,7 +234,7 @@ The `--output-dir` points at the shared volume mount. Additional flags
 
 ### 3. Pipeline Container
 
-Reuses [`docker/pipeline/Dockerfile`](../docker/pipeline/Dockerfile). The compose service definition
+Reuses [`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile). The compose service definition
 sets the one-shot behavior.
 
 ### 4. Compose File

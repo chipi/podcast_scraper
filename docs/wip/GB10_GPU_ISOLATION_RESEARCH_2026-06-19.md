@@ -274,7 +274,7 @@ Filtered at Section 1. Cannot pursue.
 - **Disqualifying**: not strictly, but the cost-benefit is upside-down
   for our failure shape.
 
-### 2.4 cgroup time-slicing via nvidia-container-runtime
+### 2.4 cgroup time-slicing via nvidia-container-runtime[^dgx-spark-runtime]
 
 - **What it would change**: the container runtime alternates which
   container gets kernel-launch access in fixed time intervals.

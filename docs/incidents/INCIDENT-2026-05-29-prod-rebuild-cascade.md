@@ -158,12 +158,12 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 
 | Item | Tracking | Owner | Target |
 | --- | --- | --- | --- |
-| Agent rules forbidding apply-class operations without explicit approval | AGENTS.md rules 11 + 12 ([1146f5d6](../../1146f5d6)) | agent | landed 2026-05-29 |
-| `ssh_keys` added to `lifecycle.ignore_changes` on `hcloud_server.prod` (structurally blocks the cascade) | [#839](https://github.com/chipi/podcast_scraper/issues/839) | agent | landed 2026-05-29 ([db866bdc](../../db866bdc)) |
-| `infra-apply.yml` destructive-change interlock with `override_destructive` gate; plan saved to `tfplan` and surfaced in job summary | [#839](https://github.com/chipi/podcast_scraper/issues/839) | agent | landed 2026-05-29 ([db866bdc](../../db866bdc)) |
+| Agent rules forbidding apply-class operations without explicit approval | AGENTS.md rules 11 + 12 ([1146f5d6](https://github.com/chipi/podcast_scraper/commit/1146f5d6)) | agent | landed 2026-05-29 |
+| `ssh_keys` added to `lifecycle.ignore_changes` on `hcloud_server.prod` (structurally blocks the cascade) | [#839](https://github.com/chipi/podcast_scraper/issues/839) | agent | landed 2026-05-29 ([db866bdc](https://github.com/chipi/podcast_scraper/commit/db866bdc)) |
+| `infra-apply.yml` destructive-change interlock with `override_destructive` gate; plan saved to `tfplan` and surfaced in job summary | [#839](https://github.com/chipi/podcast_scraper/issues/839) | agent | landed 2026-05-29 ([db866bdc](https://github.com/chipi/podcast_scraper/commit/db866bdc)) |
 | Cloud-init template CI validation (render + YAML parse + cloud-init schema check) on PRs touching `infra/cloud-init/**` | [#842](https://github.com/chipi/podcast_scraper/issues/842) | operator | v2.7 |
 | External secrets manager for prod runtime config (Doppler / Vault / 1Password Connect) | [#840](https://github.com/chipi/podcast_scraper/issues/840) | operator | v2.7 |
-| `tailscale serve reset` replaced with port-scoped `--https=<port> off` (kills co-tenancy wipe hazard) | [#845](https://github.com/chipi/podcast_scraper/issues/845) | agent | landed 2026-05-29 ([bf76d964](../../bf76d964)) |
+| `tailscale serve reset` replaced with port-scoped `--https=<port> off` (kills co-tenancy wipe hazard) | [#845](https://github.com/chipi/podcast_scraper/issues/845) | agent | landed 2026-05-29 ([bf76d964](https://github.com/chipi/podcast_scraper/commit/bf76d964)) |
 
 ### Detection (would have surfaced the problem sooner)
 
@@ -175,21 +175,21 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 
 | Item | Tracking | Owner | Target |
 | --- | --- | --- | --- |
-| `infra-apply.yml` `wipe-then-apply` + `wipe-only` modes for clean-slate recovery when state-vs-reality has diverged | landed during incident ([56637cbb](../../56637cbb), [6343e68a](../../6343e68a)) | agent | landed 2026-05-29 |
-| `infra-apply.yml` `override_server_type` + `override_location` inputs for Hetzner placement fallback | landed during incident ([b33fd9a3](../../b33fd9a3)) | agent | landed 2026-05-29 |
+| `infra-apply.yml` `wipe-then-apply` + `wipe-only` modes for clean-slate recovery when state-vs-reality has diverged | landed during incident ([56637cbb](https://github.com/chipi/podcast_scraper/commit/56637cbb), [6343e68a](https://github.com/chipi/podcast_scraper/commit/6343e68a)) | agent | landed 2026-05-29 |
+| `infra-apply.yml` `override_server_type` + `override_location` inputs for Hetzner placement fallback | landed during incident ([b33fd9a3](https://github.com/chipi/podcast_scraper/commit/b33fd9a3)) | agent | landed 2026-05-29 |
 | `infra-apply.yml` auto-commit `terraform.tfstate.enc` back to main after successful apply (kills state-divergence loop) | [#843](https://github.com/chipi/podcast_scraper/issues/843) | operator (needs PAT setup) | v2.7 |
-| GH-Secrets-driven `.env` rendering on host (eliminates manual reconstruction) | [#841](https://github.com/chipi/podcast_scraper/issues/841) | agent | landed 2026-05-29 ([ad76a723](../../ad76a723)) |
-| `.bootstrap-needs-env` sentinel removed; positive `.env`-presence check (eliminates the manual `rm sentinel` step) | [#844](https://github.com/chipi/podcast_scraper/issues/844) | agent | landed 2026-05-29 ([9c9d7696](../../9c9d7696)) |
-| Tailscale GHA-runner device cleanup workflow (kills accumulated ephemeral devices that confuse tailnet ACL) | landed during incident — new workflow `tailscale-cleanup.yml` ([2218eee6](../../2218eee6)) | agent | landed 2026-05-29 |
+| GH-Secrets-driven `.env` rendering on host (eliminates manual reconstruction) | [#841](https://github.com/chipi/podcast_scraper/issues/841) | agent | landed 2026-05-29 ([ad76a723](https://github.com/chipi/podcast_scraper/commit/ad76a723)) |
+| `.bootstrap-needs-env` sentinel removed; positive `.env`-presence check (eliminates the manual `rm sentinel` step) | [#844](https://github.com/chipi/podcast_scraper/issues/844) | agent | landed 2026-05-29 ([9c9d7696](https://github.com/chipi/podcast_scraper/commit/9c9d7696)) |
+| Tailscale GHA-runner device cleanup workflow (kills accumulated ephemeral devices that confuse tailnet ACL) | landed during incident — new workflow `tailscale-cleanup.yml` ([2218eee6](https://github.com/chipi/podcast_scraper/commit/2218eee6)) | agent | landed 2026-05-29 |
 
 ### Process (would have changed how we respond)
 
 | Item | Tracking | Owner | Target |
 | --- | --- | --- | --- |
-| PROD_RUNBOOK "Disaster recovery (VPS lost or unrecoverable)" section: full sequence from wipe-then-apply through deploy + restore + verify | landed during incident ([76f8e366](../../76f8e366)) | agent | landed 2026-05-29 |
-| PROD_RUNBOOK "Co-tenant tailnet publish rules" subsection for multi-app VPS | landed with #845 ([bf76d964](../../bf76d964)) | agent | landed 2026-05-29 |
-| RELEASE_PLAYBOOK Phase 6 reinforcement: never skip version bump even on hotfixes | landed during incident ([a0628791](../../a0628791)) | agent | landed 2026-05-29 |
-| RELEASE_PLAYBOOK Phase 8 (post-deploy verification): three cheap curl checks that catch version-bump skips and smoke-path drift | landed during incident ([a0628791](../../a0628791)) | agent | landed 2026-05-29 |
+| PROD_RUNBOOK "Disaster recovery (VPS lost or unrecoverable)" section: full sequence from wipe-then-apply through deploy + restore + verify | landed during incident ([76f8e366](https://github.com/chipi/podcast_scraper/commit/76f8e366)) | agent | landed 2026-05-29 |
+| PROD_RUNBOOK "Co-tenant tailnet publish rules" subsection for multi-app VPS | landed with #845 ([bf76d964](https://github.com/chipi/podcast_scraper/commit/bf76d964)) | agent | landed 2026-05-29 |
+| RELEASE_PLAYBOOK Phase 6 reinforcement: never skip version bump even on hotfixes | landed during incident ([a0628791](https://github.com/chipi/podcast_scraper/commit/a0628791)) | agent | landed 2026-05-29 |
+| RELEASE_PLAYBOOK Phase 8 (post-deploy verification): three cheap curl checks that catch version-bump skips and smoke-path drift | landed during incident ([a0628791](https://github.com/chipi/podcast_scraper/commit/a0628791)) | agent | landed 2026-05-29 |
 | Institutionalize post-incident review template + process | this commit | operator + agent | landed 2026-05-29 |
 
 ---

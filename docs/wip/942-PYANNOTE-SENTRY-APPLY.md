@@ -1,6 +1,6 @@
 # #942 — Pyannote-server in-process Sentry — deployment runbook
 
-**Issue**: [#942](../../issues/942) — Wire DGX services into Sentry — capture in-process errors from pyannote, vLLM-prod
+**Issue**: [#942](https://github.com/chipi/podcast_scraper/issues/942) — Wire DGX services into Sentry — capture in-process errors from pyannote, vLLM-prod
 **Status**: **CODE LANDED + DEPLOYED + VALIDATED 2026-06-22.** Awaits
 operator-supplied `SENTRY_DSN` env var to start emitting events.
 **Created**: 2026-06-22.
