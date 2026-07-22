@@ -2,9 +2,10 @@
 # /etc/caddy/sites/orrery.caddy and runs `sudo -n systemctl reload caddy`
 # (the narrow 99-caddy-reload sudoers grant).
 #
-# Domain: orrerylearn.com (apex). To also serve www, add `www.orrerylearn.com`
-# on the site line (space-separated) AND point its DNS at the box — Caddy issues a
-# cert per name, and a name without DNS makes ACME retry. Upstream is the orrery
+# Domain: orrerylearn.com (apex) + www.orrerylearn.com. Caddy issues a cert
+# covering BOTH names, so BOTH must resolve to the box before the vhost is
+# dropped — a name without DNS makes ACME retry (and can burn LE rate limits).
+# Upstream is the orrery
 # nginx container on the reserved loopback port 8090 (ADR-114 §port map). Caddy
 # auto-issues the Let's Encrypt cert once DNS points at the box and the firewall
 # opens :80/:443 (Phase 4).
@@ -12,7 +13,7 @@
 # Orrery is a static site (no docker.sock, no keys) — it clears the pre-public
 # gate; that is why it goes first. Rollback: `rm this file && systemctl reload
 # caddy` — frees the vhost, nothing shared changes, the box stays up.
-orrerylearn.com {
+orrerylearn.com www.orrerylearn.com {
 	import hardened
 	reverse_proxy 127.0.0.1:8090
 }
