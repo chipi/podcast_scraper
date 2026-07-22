@@ -289,6 +289,13 @@ jobs:
           SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
           # Sentry DSN bakes into the SPA bundle at build time; reach
           # for the GHA secret. Other VITE_* vars are optional.
+          # ⚠ GOTCHA (2026-07-22): the browser @sentry SDK's DSN parser uses \w+
+          # for the public key (NO dashes), so a GlitchTip dashed-UUID key
+          # (d8aa7c66-bfc9-...) is rejected as "Invalid Dsn" → transport disabled
+          # → errors silently dropped (Sentry.init runs, but no client is built).
+          # GlitchTip ingest accepts both, so an edge/curl test with the raw key
+          # passes while the browser SDK fails. Use the DASHLESS key here
+          # (d8aa7c66bfc9...). The Python SDK (api/pipeline) accepts both.
           VITE_SENTRY_DSN_VIEWER: ${{ secrets.VITE_SENTRY_DSN_VIEWER }}
           # PostHog project token is optional; omit secret for silent analytics in images.
           VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.VITE_POSTHOG_PROJECT_TOKEN }}

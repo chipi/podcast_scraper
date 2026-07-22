@@ -127,6 +127,10 @@ jobs:
             echo "PLAYER_PORT=8092"
             # Build-time DSN for the player bundle (compose build-arg reads this
             # from --env-file .env.player). Empty = Sentry stays a no-op.
+            # ⚠ Use the DASHLESS GlitchTip key in PROD_SENTRY_DSN_PLAYER — the
+            # browser @sentry SDK rejects dashed-UUID keys ("Invalid Dsn") and
+            # silently drops errors (GlitchTip ingest accepts both, so a curl test
+            # misleads). See the same note in stack-test.yml (viewer). 2026-07-22.
             echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
