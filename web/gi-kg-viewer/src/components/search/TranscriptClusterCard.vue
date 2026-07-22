@@ -54,6 +54,50 @@ const memberCountLabel = computed<string>(() => {
   return n === 1 ? '1 match on this episode' : `${n} matches on this episode`
 })
 
+/**
+ * Distinct list of "what matched on this episode" — displayed in the
+ * cluster header so the user sees at a glance whether we found the
+ * query in the title, description, summary, or the transcript (and how
+ * many of each). Ordered for stable rendering:
+ *   Title · Description · Summary · Summary bullet · Transcript
+ *
+ * Each entry counts how many of the cluster's members contributed. The
+ * order is fixed (not by member frequency) so the row header stays
+ * predictable across similar queries.
+ */
+interface MatchedFieldBreakdown {
+  label: string
+  count: number
+}
+const MATCHED_FIELD_ORDER = [
+  'Title',
+  'Description',
+  'Summary',
+  'Summary bullet',
+  'Transcript',
+] as const
+
+const matchedFieldsSummary = computed<MatchedFieldBreakdown[]>(() => {
+  const counts = new Map<string, number>()
+  for (const m of props.cluster.members) {
+    const label = matchedFieldLabelForMember(m)
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+  const out: MatchedFieldBreakdown[] = []
+  for (const label of MATCHED_FIELD_ORDER) {
+    const c = counts.get(label)
+    if (c) out.push({ label, count: c })
+  }
+  // Any labels outside the fixed order (future doc_types) get appended
+  // in insertion order so nothing silently disappears.
+  for (const [label, count] of counts) {
+    if (!MATCHED_FIELD_ORDER.includes(label as (typeof MATCHED_FIELD_ORDER)[number])) {
+      out.push({ label, count })
+    }
+  }
+  return out
+})
+
 function timestampLabelForMember(hit: SearchHit): string | null {
   const md = (hit.metadata ?? {}) as Record<string, unknown>
   const a = Number(md.timestamp_start_ms)
@@ -174,6 +218,19 @@ function onRowKeydown(ev: KeyboardEvent): void {
       data-testid="search-transcript-cluster-episode-title"
     >
       {{ cluster.episodeTitle }}
+    </p>
+    <p
+      class="mt-1 flex flex-wrap items-center gap-1 text-[10px] uppercase tracking-wide text-muted"
+      data-testid="search-transcript-cluster-matched-fields"
+      :aria-label="`Matched on: ${matchedFieldsSummary.map((m) => m.count > 1 ? `${m.label} ×${m.count}` : m.label).join(', ')}`"
+    >
+      <span class="text-muted/80">Matched:</span>
+      <span
+        v-for="m in matchedFieldsSummary"
+        :key="m.label"
+        class="rounded bg-primary/15 px-1 py-px font-medium leading-none text-primary"
+        :data-match-field="m.label"
+      >{{ m.count > 1 ? `${m.label} ×${m.count}` : m.label }}</span>
     </p>
     <p
       v-if="cluster.feedTitle || cluster.publishDate"
