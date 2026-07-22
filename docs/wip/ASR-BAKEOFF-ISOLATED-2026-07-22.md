@@ -64,9 +64,13 @@ episodes under a length threshold and route long ones to large-v3.
 - **turbo is the speed winner by a wide, clean margin** (~4× vs large-v3) and reaches quality parity
   with large-v3 on normal-length episodes (~5.4 % WER). The 4× speedup is decisive for a 1000-ep
   reprocess.
-- **Blocker before locking turbo:** the long-episode quality cliff (ep6). Characterise it on a
-  handful of 90 min+ episodes; if it reproduces, add a length-based route (turbo for the bulk,
-  large-v3 for the long tail) rather than accepting a thinner transcript on long episodes.
+- **The long-episode quality cliff (ep6) is now handled** — not by a length heuristic but by a
+  **quality-gate failover** (ADR-120 / #1258, built): after each turbo transcription the pipeline
+  measures coverage (Σ segment durations / audio duration) and re-transcribes any episode below
+  `transcription_coverage_min` (0.85) on large-v3. The detector flags ep6 cleanly (69% vs 92–97%
+  healthy) at a 10% failover rate; aggregate speed stays ~18× (still ~2.5× faster than all-large-v3).
+  Live on `reprocess_dgx_turbo`. **Remaining validation:** confirm the failover rate + threshold on
+  the 100-episode run before the reprocess.
 - **MOSS is not the transcription default.** Slowest by far (2.6×) and this measures it
   transcription-only — MOSS's actual value is the **joint transcribe+diarize** single pass, which
   this bake-off deliberately isolated away. Evaluate MOSS on the diarization axis (#1170/#1179), not
