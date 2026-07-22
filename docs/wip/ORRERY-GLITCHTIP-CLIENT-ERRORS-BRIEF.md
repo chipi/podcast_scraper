@@ -26,22 +26,24 @@ public endpoints — never `homelab:8090` (tailnet-only). So we added a public,
 orrery's DSN. A DSN pointed at a not-yet-live host **silently drops** events.
 Until then, keep it gated (see below) so a missing DSN is a true no-op.
 
-## Your GlitchTip project + DSN
+## Your GlitchTip project + DSN — READY (created 2026-07-22)
 
-- Orrery = **GlitchTip project 2** (reserved and currently unused — the handover
-  noted it as "delete or leave idle"; we're using it now).
-- DSN shape (get the real key from GlitchTip → project 2 → Settings → Client Keys/DSN,
-  then swap the host to the **public** domain):
+- Orrery = **GlitchTip project 4** (a dedicated project; the old "project 2" from
+  the earlier handover never actually existed / was deleted — do NOT use `/2`).
+- The public ingest edge is **live**: `telemetry.orrerylearn.com` (a generic name,
+  ingest-only, valid Let's Encrypt cert). Use this **exact DSN** in the orrery
+  browser build:
 
   ```
-  https://<project-2-public-key>@glitchtip.<domain>/2
+  https://9b69bd79-85fa-4ce5-9cec-dbb5c9f7febe@telemetry.orrerylearn.com/4
   ```
 
   - Scheme is **https** (browsers block mixed-content POSTs from an https page to
-    an http DSN; the edge terminates TLS).
+    an http DSN; the edge terminates TLS). Validated: a store POST to
+    `https://telemetry.orrerylearn.com/api/4/store/` returns 200.
   - The public key is **not a secret** — it ships in your JS bundle by design.
-  - Do **not** use `http://…@homelab:8090/2` in the browser build — that's the
-    tailnet host, unreachable for public users. Homelab host is server-side only.
+  - Do **not** use `homelab:8090` in the browser build — that's the tailnet host,
+    unreachable for public users. `telemetry.orrerylearn.com` is the public path.
 
 ## What to add in the orrery repo
 
@@ -82,9 +84,9 @@ reference implementation: `podcast_scraper-infra:web/learning-player/src/main.ts
 ## Verification (once the edge + DSN are live)
 
 - From a browser on the public site, trigger a handled error; confirm it appears
-  in GlitchTip **project 2** with `component: orrery`, `environment: prod`.
+  in GlitchTip **project 4** with `component: orrery`, `environment: prod`.
 - Direct ingest smoke (no browser): a well-formed envelope/store POST to
-  `https://glitchtip.<domain>/api/2/store/` with the project-2 key returns `200`;
+  `https://glitchtip.<domain>/api/4/store/` with the project-4 key returns `200`;
   a non-ingest path (e.g. `/`) returns `404`.
 
 ## Non-goals / notes
