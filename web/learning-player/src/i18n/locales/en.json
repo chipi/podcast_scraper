@@ -84,6 +84,17 @@
     "expandCluster": "Expand {count} {kind} matches",
     "matchedPrefix": "Matched:"
   },
+  "browse": {
+    "topicsTitle": "Browse topics",
+    "peopleTitle": "Browse people",
+    "trending": "Trending",
+    "storylines": "Storylines",
+    "topicCount": "1 topic | {count} topics",
+    "loading": "Loading…",
+    "empty": "Nothing to browse yet — check back after the corpus ingests more episodes.",
+    "topicPage": "Topic page",
+    "personPage": "Person page"
+  },
   "auth": {
     "signIn": "Sign in",
     "signUp": "Sign up",
