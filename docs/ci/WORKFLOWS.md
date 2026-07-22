@@ -1801,7 +1801,7 @@ preload (3:30) → e2e (11:30) → viewer-e2e (~3–20) → nightly-only (64:00)
 4. Generate dependency graphs:
    - `make deps-graph` - Simplified graph (clustered, max-bacon=2)
    - `make deps-graph-full` - Full dependency graph
-5. Check for circular imports via `make deps-check-cycles`
+5. Check for circular imports via `make deps-check`
 6. Run dependency analysis script:
    - `python scripts/tools/analyze_dependencies.py --report`
    - Analyzes import patterns

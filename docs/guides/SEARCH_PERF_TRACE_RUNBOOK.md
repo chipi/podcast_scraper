@@ -30,7 +30,7 @@ operators only need to learn one recipe.
 
 ## 1. Prerequisites
 
-- `.venv/bin/python` present (`make dev-setup`).
+- `.venv/bin/python` present (`make init`).
 - A running api (`make serve` locally, or any URL reachable from your host).
 - Corpus at a known path with a LanceDB index the api can serve.
 - The labelled query set at

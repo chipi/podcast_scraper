@@ -320,7 +320,7 @@ make test
 
 make test-e2e  # All E2E tests
 make test-e2e-fast      # Critical path E2E tests only
-make test-e2e-slow      # Slow E2E tests only (requires ML dependencies)
+make test-e2e      # Slow E2E tests only (requires ML dependencies)
 
 # Reproduce docs failures locally
 
@@ -342,7 +342,7 @@ make test-e2e-fast
 
 # Run slow E2E tests only (includes slow/ml_models, requires ML dependencies)
 
-make test-e2e-slow
+make test-e2e
 
 ```python
 
