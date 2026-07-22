@@ -344,6 +344,80 @@ describe('SearchView', () => {
     expect(w.find('[data-testid="matched-fields"]').exists()).toBe(false)
   })
 
+  // #1261-7: year-header grouping — mobile-friendly reshape of the timeline chart
+  it('shows year section headers when results span multiple publish years', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'ai',
+      error: null,
+      results: [
+        {
+          doc_id: 'a',
+          score: 0.9,
+          text: 'a',
+          source_tier: 'insight',
+          metadata: {
+            doc_type: 'insight',
+            episode_slug: 'ep-2024',
+            episode_title: 'From 2024',
+            publish_date: '2024-04-01',
+          },
+        },
+        {
+          doc_id: 'b',
+          score: 0.8,
+          text: 'b',
+          source_tier: 'insight',
+          metadata: {
+            doc_type: 'insight',
+            episode_slug: 'ep-2023',
+            episode_title: 'From 2023',
+            publish_date: '2023-11-01',
+          },
+        },
+      ],
+    })
+    const { w } = await mountAt('ai')
+    const headers = w.findAll('[data-testid="year-header"]')
+    expect(headers).toHaveLength(2)
+    expect(headers[0].text()).toContain('2024')
+    expect(headers[1].text()).toContain('2023')
+  })
+
+  it('hides year headers when results all fall in a single year', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'ai',
+      error: null,
+      results: [
+        {
+          doc_id: 'a',
+          score: 0.9,
+          text: 'a',
+          source_tier: 'insight',
+          metadata: {
+            doc_type: 'insight',
+            episode_slug: 'ep-2024a',
+            episode_title: 'Ep A',
+            publish_date: '2024-04-01',
+          },
+        },
+        {
+          doc_id: 'b',
+          score: 0.8,
+          text: 'b',
+          source_tier: 'insight',
+          metadata: {
+            doc_type: 'insight',
+            episode_slug: 'ep-2024b',
+            episode_title: 'Ep B',
+            publish_date: '2024-11-01',
+          },
+        },
+      ],
+    })
+    const { w } = await mountAt('ai')
+    expect(w.findAll('[data-testid="year-header"]')).toHaveLength(0)
+  })
+
   it('keeps insight and kg_topic hits out of the fold — they render as standalone rows', async () => {
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({
       query: 'ai',

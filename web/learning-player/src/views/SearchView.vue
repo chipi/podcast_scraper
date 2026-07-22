@@ -22,6 +22,7 @@ import {
   type FoldedHitCluster,
 } from '../utils/collapseFoldableHits'
 import { summarizeMatchedFields } from '../utils/matchedFields'
+import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
 import { useAuthStore } from '../stores/auth'
 import EntityCard from '../components/EntityCard.vue'
 
@@ -83,6 +84,20 @@ function openTopicChip(topicId: string): void {
 // Wrapped so summarizeMatchedFields can be swapped in unit tests independently.
 function matchedFieldChips(hits: SearchHit[]) {
   return summarizeMatchedFields(hits)
+}
+
+// #1261-7: bucket the episode groups by publish year so the results read as
+// "2026 · 4 episodes" / "2025 · 12 episodes" sections — the mobile-friendly
+// reshape of the operator viewer's timeline chart concept. Sections are only
+// shown when the search spans multiple years; single-year results skip the
+// header to keep the page short.
+const yearSections = computed<YearSection<EpisodeGroup>[]>(() =>
+  groupEpisodesByYear<EpisodeGroup>(groups.value, (g) => g.date),
+)
+const showYearHeaders = computed(() => yearSections.value.length > 1)
+
+function yearLabel(year: number | 'unknown'): string {
+  return year === 'unknown' ? t('search.yearUnknown') : String(year)
 }
 
 // Group passages under their source episode, preserving rank order (results arrive best-first,
@@ -289,12 +304,26 @@ const showEmpty = computed(
         </button>
       </div>
 
-      <ul class="mt-3 flex flex-col gap-3">
-        <li
-          v-for="g in groups"
-          :key="g.slug ?? g.title"
-          class="overflow-hidden rounded-xl border border-border bg-surface"
+      <!-- #1261-7: year sections wrap the episode-group list. When the
+           results span a single year, the header is suppressed so the
+           results still read as one flat list. -->
+      <template v-for="section in yearSections" :key="section.year">
+        <h2
+          v-if="showYearHeaders"
+          class="mt-6 mb-2 font-display text-sm font-bold uppercase tracking-wider text-muted"
+          data-testid="year-header"
         >
+          {{ yearLabel(section.year) }}
+          <span class="ml-1 font-normal">
+            · {{ t('search.yearEpisodes', section.groups.length) }}
+          </span>
+        </h2>
+        <ul class="mt-3 flex flex-col gap-3">
+          <li
+            v-for="g in section.groups"
+            :key="g.slug ?? g.title"
+            class="overflow-hidden rounded-xl border border-border bg-surface"
+          >
           <!-- Episode header: opens the player -->
           <button
             type="button"
@@ -426,6 +455,7 @@ const showEmpty = computed(
           </ul>
         </li>
       </ul>
+      </template>
     </template>
 
     <EntityCard

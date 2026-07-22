@@ -82,7 +82,9 @@
     },
     "foldedCount": "1 match | {count} matches",
     "expandCluster": "Expand {count} {kind} matches",
-    "matchedPrefix": "Matched:"
+    "matchedPrefix": "Matched:",
+    "yearEpisodes": "1 episode | {count} episodes",
+    "yearUnknown": "Undated"
   },
   "browse": {
     "topicsTitle": "Browse topics",
