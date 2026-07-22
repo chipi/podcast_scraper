@@ -95,12 +95,13 @@
     // telemetry to it. These grants were previously hand-added in the admin
     // console and got wiped by a `tofu apply` (they lived nowhere in-repo);
     // pinned here so they survive future applies.
-    //   :3000 Grafana  :4000 Langfuse  :8090 GlitchTip
+    //   :3000 Grafana  :3001 Umami  :4000 Langfuse  :8090 GlitchTip
     //   :8428 VictoriaMetrics  :9428 VictoriaLogs  :10428 VictoriaTraces
+    //   :8888 homelab start page (service links + creds; basic-auth, tailnet-only)
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:homelab-host:22,3000,4000,8090,8428,9428,10428"]
+      "dst":    ["tag:homelab-host:22,3000,3001,4000,8090,8428,8888,9428,10428"]
     },
     {
       "action": "accept",
