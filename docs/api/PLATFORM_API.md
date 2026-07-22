@@ -279,3 +279,27 @@ covers `/api/feeds`, `/api/operator-config`, `/api/ops`, `/api/jobs*`, `/api/sch
 - **Consumer PWA** (RFC-099) — the actual front-end app, a separate workstream.
 
 See the per-route detail in [HTTP_API.md](HTTP_API.md).
+
+## Additional shipped endpoints (catalog only)
+
+Endpoints below are wired and used in production but weren't in the
+main table above. One-line catalog + handler pointer — read the
+handler for the full contract.
+
+| Method | Path | Handler | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/app/discover` | `app_discover.py` | Home discovery feed, interest-ranked when signed in and personalized ranking is on; recency otherwise. |
+| POST | `/api/app/discover/click` | `app_discover.py` | Fire-and-forget click telemetry (episode slug + shown rank) for ranking feedback. |
+| GET | `/api/app/theme-clusters` | `app_discover.py` | Home "Storylines" — theme clusters (topics discussed together). |
+| GET | `/api/app/trending` | `app_discover.py` | RFC-103 momentum — trending entities of a given `kind`, corpus-wide or `scope=mine`. |
+| GET, PUT | `/api/app/ranking-config` | `app_discover.py` | Admin-only discovery-ranking weights + toggles (auth-gated). |
+| GET, PUT, PATCH | `/api/app/preferences` | `app_user_preferences.py` | USERPREFS-1 — cross-device user preferences JSON payload (learning player + gi-kg-viewer both consume). PUT replaces; PATCH shallow-merges (null values delete). |
+| GET | `/api/app/podcasts/{feed_id}/signals` | `app_episodes.py` | Show-level signals for a podcast page — topics, key people, recurring guests, dominant themes, trending topics. |
+| GET | `/api/app/topics/{topic_id}/perspectives` | `app_relational.py` | Multi-perspective synthesis — each speaker's grounded insights on a topic (#1146). |
+| PATCH, DELETE | `/api/app/notes/{note_id}` | `app_capture.py` | Edit / remove a captured note (auth-gated). |
+| DELETE | `/api/app/library/{feed_id}` | `app_user_state.py` | Remove a podcast from the signed-in user's Library. |
+| GET | `/api/app/auth/dev-users` | `app_auth.py` | Predefined mock identities for the sign-in picker (dev/e2e MOCK provider only). |
+| GET | `/api/app/auth/status` | `app_auth.py` | Auth-provider capability probe (which provider, whether signup is open). |
+| POST | `/api/app/graph-events` | `app_graph_events.py` | Client-side telemetry ingest — graph interaction events. |
+| GET | `/api/app/graph-events/{summary,sessions,session/{id}}` | `app_graph_events.py` | Operator read-back of graph-events analytics. |
+| GET, POST, PATCH, DELETE | `/api/app/admin/users` (+ `/{user_id}`) | `app_admin.py` | Admin user CRUD (auth-gated, admin-only). Same surface as `app_users_cli`. |
