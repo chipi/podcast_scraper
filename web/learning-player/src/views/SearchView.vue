@@ -15,6 +15,12 @@ import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
 import { aggregateRelatedTopics } from '../utils/relatedTopics'
+import {
+  collapseFoldableHits,
+  isFoldedCluster,
+  type CollapsedRow,
+  type FoldedHitCluster,
+} from '../utils/collapseFoldableHits'
 import { useAuthStore } from '../stores/auth'
 import EntityCard from '../components/EntityCard.vue'
 
@@ -43,6 +49,9 @@ interface EpisodeGroup {
   date: string | null
   art: string | null
   hits: SearchHit[]
+  /** #1261-3: hits collapsed so multiple same-kind foldable rows (transcript,
+   *  title, description, summary) render as one expandable summary row. */
+  rows: CollapsedRow[]
 }
 
 const md = (h: SearchHit) => h.metadata as Record<string, unknown>
@@ -86,14 +95,35 @@ const groups = computed<EpisodeGroup[]>(() => {
         date: hitDate(h),
         art: hitArt(h),
         hits: [],
+        rows: [],
       }
       byKey.set(key, g)
       order.push(key)
     }
     g.hits.push(h)
   }
-  return order.map((k) => byKey.get(k)!)
+  const built = order.map((k) => byKey.get(k)!)
+  for (const g of built) g.rows = collapseFoldableHits(g.hits)
+  return built
 })
+
+// #1261-3: expand/collapse state per folded-cluster row, keyed by "<slug>|<kind>".
+// A Set of expanded keys — reactive because the ref is a plain Set instance and
+// the template mutates via ``clusterExpanded.value = new Set(...)`` on toggle.
+const clusterExpanded = ref<Set<string>>(new Set())
+function clusterKey(groupKey: string | null, cluster: FoldedHitCluster): string {
+  return `${groupKey ?? 'nogroup'}|${cluster.foldedKind}`
+}
+function toggleCluster(groupKey: string | null, cluster: FoldedHitCluster): void {
+  const key = clusterKey(groupKey, cluster)
+  const next = new Set(clusterExpanded.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  clusterExpanded.value = next
+}
+function isClusterOpen(groupKey: string | null, cluster: FoldedHitCluster): boolean {
+  return clusterExpanded.value.has(clusterKey(groupKey, cluster))
+}
 
 async function run(q: string): Promise<void> {
   const term = q.trim()
@@ -282,41 +312,93 @@ const showEmpty = computed(
             <span class="shrink-0 text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>
           </button>
 
-          <!-- Matching passages -->
+          <!-- Matching passages (#1261-3: foldable rows collapse to one
+               expandable summary per (episode, source-kind)). -->
           <ul class="mt-3 flex flex-col">
-            <li
-              v-for="(h, i) in g.hits"
-              :key="h.doc_id + i"
-              class="border-t border-border px-4 py-3"
-            >
-              <div class="flex items-center gap-2">
-                <span
-                  class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                  :class="{
-                    'text-grounded': hitKind(h) === 'insight',
-                    'text-canvas-foreground': hitKind(h) === 'transcript' || hitKind(h) === 'passage',
-                    'text-topic': hitKind(h) === 'topic',
-                  }"
-                >
-                  {{ t(`search.kind.${hitKind(h)}`) }}
-                </span>
+            <template v-for="(row, i) in g.rows" :key="row.doc_id ? row.doc_id + i : `c${i}`">
+              <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
+                   title / description / summary) collapsed into one expandable row. -->
+              <li v-if="isFoldedCluster(row)" class="border-t border-border">
                 <button
-                  v-if="hitStartSeconds(h) != null && g.slug"
                   type="button"
-                  class="ml-auto font-mono text-xs font-bold text-accent"
-                  :aria-label="t('search.jumpTo', { time: formatTime(hitStartSeconds(h) ?? 0), episode: g.title })"
-                  @click="openEpisode(g.slug, h)"
+                  class="flex w-full items-center gap-2 px-4 py-3 text-left"
+                  :aria-expanded="isClusterOpen(g.slug, row)"
+                  :aria-label="t('search.expandCluster', {
+                    kind: t(`search.foldedKind.${row.foldedKind}`),
+                    count: row.members.length,
+                  })"
+                  data-testid="folded-cluster-row"
+                  @click="toggleCluster(g.slug, row)"
                 >
-                  ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(h) ?? 0) }) }}
+                  <span
+                    class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-canvas-foreground"
+                  >
+                    {{ t(`search.foldedKind.${row.foldedKind}`) }}
+                  </span>
+                  <span class="text-xs font-semibold text-muted">
+                    {{ t('search.foldedCount', row.members.length) }}
+                  </span>
+                  <span class="ml-auto text-xs font-bold text-accent">
+                    {{ isClusterOpen(g.slug, row) ? '▲' : '▼' }}
+                  </span>
                 </button>
-              </div>
-              <p
-                class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
-                :class="hitKind(h) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
-              >
-                {{ h.text }}
-              </p>
-            </li>
+                <ul v-if="isClusterOpen(g.slug, row)" class="flex flex-col">
+                  <li
+                    v-for="(m, mi) in row.members"
+                    :key="m.doc_id + mi"
+                    class="border-t border-border px-6 py-2"
+                  >
+                    <div class="flex items-center gap-2">
+                      <button
+                        v-if="hitStartSeconds(m) != null && g.slug"
+                        type="button"
+                        class="ml-auto font-mono text-xs font-bold text-accent"
+                        :aria-label="t('search.jumpTo', {
+                          time: formatTime(hitStartSeconds(m) ?? 0),
+                          episode: g.title,
+                        })"
+                        @click="openEpisode(g.slug, m)"
+                      >
+                        ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(m) ?? 0) }) }}
+                      </button>
+                    </div>
+                    <p class="mt-1 line-clamp-2 text-sm leading-relaxed text-surface-foreground">
+                      {{ m.text }}
+                    </p>
+                  </li>
+                </ul>
+              </li>
+              <!-- Plain hit (insight / kg_topic / kg_entity / lifted transcript). -->
+              <li v-else class="border-t border-border px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                    :class="{
+                      'text-grounded': hitKind(row) === 'insight',
+                      'text-canvas-foreground': hitKind(row) === 'transcript' || hitKind(row) === 'passage',
+                      'text-topic': hitKind(row) === 'topic',
+                    }"
+                  >
+                    {{ t(`search.kind.${hitKind(row)}`) }}
+                  </span>
+                  <button
+                    v-if="hitStartSeconds(row) != null && g.slug"
+                    type="button"
+                    class="ml-auto font-mono text-xs font-bold text-accent"
+                    :aria-label="t('search.jumpTo', { time: formatTime(hitStartSeconds(row) ?? 0), episode: g.title })"
+                    @click="openEpisode(g.slug, row)"
+                  >
+                    ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(row) ?? 0) }) }}
+                  </button>
+                </div>
+                <p
+                  class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
+                  :class="hitKind(row) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
+                >
+                  {{ row.text }}
+                </p>
+              </li>
+            </template>
           </ul>
         </li>
       </ul>

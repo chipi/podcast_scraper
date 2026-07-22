@@ -73,7 +73,15 @@
       "passage": "Passage"
     },
     "alsoAbout": "Also about",
-    "openTopicChip": "Open {label} topic card"
+    "openTopicChip": "Open {label} topic card",
+    "foldedKind": {
+      "transcript": "Transcript",
+      "episode_title": "Title",
+      "episode_description": "Description",
+      "summary_short": "Summary"
+    },
+    "foldedCount": "1 match | {count} matches",
+    "expandCluster": "Expand {count} {kind} matches"
   },
   "auth": {
     "signIn": "Sign in",

@@ -196,4 +196,103 @@ describe('SearchView', () => {
     const { w } = await mountAt('x')
     expect(w.find('[data-testid="related-topic-chips"]').exists()).toBe(false)
   })
+
+  // #1261-3: multiple foldable hits on one episode collapse into one summary row
+  it('folds N transcript hits per episode into a single "Transcript · N matches" row that expands on tap', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'ai',
+      error: null,
+      results: [
+        {
+          doc_id: 't1',
+          score: 0.9,
+          text: 'First matching chunk.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'transcript',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+        {
+          doc_id: 't2',
+          score: 0.7,
+          text: 'Second matching chunk.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'transcript',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+        {
+          doc_id: 't3',
+          score: 0.6,
+          text: 'Third matching chunk.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'transcript',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+      ],
+    })
+    const { w } = await mountAt('ai')
+    const clusterRows = w.findAll('[data-testid="folded-cluster-row"]')
+    expect(clusterRows).toHaveLength(1)
+    // Collapsed state — only the summary row is present, no excerpts yet.
+    expect(w.text()).toContain('3 matches')
+    expect(w.text()).not.toContain('First matching chunk.')
+    // Expand.
+    await clusterRows[0].trigger('click')
+    expect(w.text()).toContain('First matching chunk.')
+    expect(w.text()).toContain('Second matching chunk.')
+    expect(w.text()).toContain('Third matching chunk.')
+    // Collapse again.
+    await clusterRows[0].trigger('click')
+    expect(w.text()).not.toContain('First matching chunk.')
+  })
+
+  it('keeps insight and kg_topic hits out of the fold — they render as standalone rows', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'ai',
+      error: null,
+      results: [
+        {
+          doc_id: 'i1',
+          score: 0.9,
+          text: 'A grounded insight.',
+          source_tier: 'insight',
+          metadata: {
+            doc_type: 'insight',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+        {
+          doc_id: 't1',
+          score: 0.7,
+          text: 'A transcript chunk.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'transcript',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+      ],
+    })
+    const { w } = await mountAt('ai')
+    // The insight text shows up without needing to expand anything.
+    expect(w.text()).toContain('A grounded insight.')
+    // The single-transcript-hit cluster is present but collapsed by default.
+    expect(w.findAll('[data-testid="folded-cluster-row"]')).toHaveLength(1)
+    expect(w.text()).not.toContain('A transcript chunk.')
+  })
 })
