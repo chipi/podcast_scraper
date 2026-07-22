@@ -60,6 +60,25 @@ def test_api_health_ok_with_metrics_enabled(
             REGISTRY.unregister(collector)
 
 
+def test_metrics_missing_package_does_not_crash_app(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """ADR-120: telemetry must never break the app. With PODCAST_METRICS_ENABLED=1
+    but the instrumentator package unavailable, create_app must SKIP metrics and
+    still build + serve — it used to fail-loud with a RuntimeError.
+    """
+    import sys
+
+    monkeypatch.setenv("PODCAST_METRICS_ENABLED", "1")
+    # Setting the module to None in sys.modules makes
+    # ``from prometheus_fastapi_instrumentator import Instrumentator`` raise
+    # ImportError — the missing-package path.
+    monkeypatch.setitem(sys.modules, "prometheus_fastapi_instrumentator", None)
+    # Must NOT raise (was RuntimeError); the app builds + serves without metrics.
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    assert client.get("/api/health").status_code == 200
+
+
 def test_create_app_static_false_skips_mount() -> None:
     app = create_app(None, static_dir=False)
     names = [getattr(r, "name", None) for r in app.routes]

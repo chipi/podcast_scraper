@@ -293,14 +293,16 @@ def create_app(
                 should_group_status_codes=False,
                 excluded_handlers=["/metrics"],
             ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-        except ImportError:
+        except Exception:  # noqa: BLE001 — telemetry must never break the app
             # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
-            # If a deployment installs core only and sets the flag, fail
-            # loud rather than silently shipping no metrics.
-            raise RuntimeError(
-                "PODCAST_METRICS_ENABLED is set but prometheus-fastapi-instrumentator "
-                "is not installed. Install via ``pip install -e '.[dev]'`` "
-                "(or add that package explicitly in minimal images)."
+            # A missing package (or any instrument/expose failure) must NOT down
+            # the app — log LOUDLY (an error surfaces in Sentry now) and run
+            # WITHOUT metrics. Telemetry never breaks the app (ADR-120); an
+            # app-up-without-metrics beats app-down. Was a fail-loud RuntimeError.
+            logger.exception(
+                "PODCAST_METRICS_ENABLED is set but metrics instrumentation failed "
+                "— continuing WITHOUT metrics. If the package is missing, install "
+                "via ``pip install -e '.[dev]'`` (or add it to the image)."
             )
 
     # #1163 / ADR-116: app-only public serve mode. When ``PODCAST_SERVE_APP_ONLY``
