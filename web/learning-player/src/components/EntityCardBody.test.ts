@@ -16,6 +16,8 @@ const router = createRouter({
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
+    { path: '/topic/:id', name: 'topic', component: { template: '<div/>' }, props: true },
+    { path: '/person/:id', name: 'person', component: { template: '<div/>' }, props: true },
   ],
 })
 
@@ -337,5 +339,53 @@ describe('EntityCardBody — per-show roles (host of one, guest of another)', ()
     expect(w.find('[data-testid="ec-host-shows"]').exists()).toBe(false)
     // Non-host keeps the plain "In N episodes" heading (all episodes shown).
     expect(w.text()).toContain('In 1 episode')
+  })
+})
+
+// #1261-9: "Open in page" link (overlay-mode escape hatch to standalone page)
+describe('EntityCardBody — Open in page link', () => {
+  it('overlay mode: renders a link pointing at /topic/:id for topic entities', async () => {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    const link = w.get('[data-testid="ec-open-in-page"]')
+    expect(link.attributes('href')).toBe('/topic/topic:ai')
+    expect(link.text()).toContain('Open in page')
+  })
+
+  it('overlay mode: renders a link pointing at /person/:id for person entities', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    const link = w.get('[data-testid="ec-open-in-page"]')
+    expect(link.attributes('href')).toBe('/person/person:jane-doe')
+  })
+
+  it('overlay mode: clicking the link emits close so the modal dismisses as we navigate', async () => {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+    const w = mount(EntityCardBody, {
+      props: { kind: 'topic', id: 'topic:ai', variant: 'overlay' },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    await w.get('[data-testid="ec-open-in-page"]').trigger('click')
+    // 'close' is emitted so the parent EntityCard can teardown before nav.
+    expect(w.emitted('close')).toBeTruthy()
+  })
+
+  it('inline mode: does NOT render the link (already on the page / inside a panel)', async () => {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+    const w = mount(EntityCardBody, {
+      props: { kind: 'topic', id: 'topic:ai', variant: 'inline' },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })
 })

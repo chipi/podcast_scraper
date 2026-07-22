@@ -211,6 +211,18 @@ function searchLibrary(): void {
         <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
         {{ following ? t('ec.following') : t('ec.follow') }}
       </button>
+      <!-- #1261-9: escape hatch from the modal to the standalone page. Only
+           in overlay mode — inline is already the standalone page or an
+           embedded panel where a link would go nowhere useful. -->
+      <RouterLink
+        v-if="variant === 'overlay' && label"
+        :to="{ name: current.kind === 'topic' ? 'topic' : 'person', params: { id: current.id } }"
+        class="mt-2 ml-2 inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated"
+        data-testid="ec-open-in-page"
+        @click="emit('close')"
+      >
+        {{ t('ec.openInPage') }} ›
+      </RouterLink>
       <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard. -->
       <div
         v-if="auth.isAuthenticated && label"
