@@ -227,6 +227,7 @@ jobs:
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          TF_VAR_cloudflare_origin_lock: ${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}
           MODE:                     ${{ github.event.inputs.mode }}
           OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
           OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
@@ -265,6 +266,7 @@ jobs:
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          TF_VAR_cloudflare_origin_lock: ${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}
           OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
           OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
         run: |
@@ -329,6 +331,7 @@ jobs:
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          TF_VAR_cloudflare_origin_lock: ${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}
           OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
           OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
         run: |
