@@ -30,6 +30,7 @@ import { useGraphHandoffStore } from './stores/graphHandoff'
 import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useSearchStore } from './stores/search'
 import { useRecentActivityStore } from './stores/recentActivity'
+import { useSavedQueriesStore } from './stores/savedQueries'
 import { useShellStore } from './stores/shell'
 import { useSubjectStore } from './stores/subject'
 import { useThemeStore } from './stores/theme'
@@ -90,6 +91,7 @@ const search = useSearchStore()
 const theme = useThemeStore()
 const subject = useSubjectStore()
 const recentActivity = useRecentActivityStore()
+const savedQueries = useSavedQueriesStore()
 const graphExplorer = useGraphExplorerStore()
 const graphExpansion = useGraphExpansionStore()
 const graphHandoff = useGraphHandoffStore()
@@ -224,6 +226,54 @@ function onPaletteRebuildIndex(): void {
   // Opens the Configuration dialog at its Index section — the single
   // rebuild home the status-bar Index button already uses.
   void statusBarRef.value?.openIndexRebuild?.()
+}
+
+/**
+ * #1259-4 operator kickers — resolve the "last query" (current
+ * ``search.query`` when non-empty, else the head of ``recentQueries``),
+ * seed the search store, switch to the Search tab, and fire the
+ * requested operator. Silent no-op when there's nothing to run.
+ */
+function lastQueryForKickers(): string {
+  const current = search.query.trim()
+  if (current) return current
+  const recent = savedQueries.listRecent(1)
+  return recent[0]?.q?.trim() ?? ''
+}
+
+async function ensureLastQueryLoaded(): Promise<string> {
+  const q = lastQueryForKickers()
+  if (!q) return ''
+  search.query = q
+  mainTab.value = 'search'
+  if (search.results.length === 0 || search.query !== q) {
+    const root = shell.corpusPath.trim()
+    if (root) await search.runSearch(root)
+  }
+  return q
+}
+
+async function onPaletteOperatorOnLast(op: 'cluster' | 'consensus'): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  const root = shell.corpusPath.trim()
+  if (!root) return
+  await search.runOperator(root, op)
+}
+
+async function onPaletteTimelineOnLast(): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  // Timeline is a client-only aggregation over the visible hit page —
+  // seeding the query + landing on Search is enough. The operator bar
+  // stays interactive so the user can toggle Timeline as usual.
+}
+
+async function onPaletteCompareOnLast(): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  // The Compare picker lives on ResultSetOperatorBar; seeding the query
+  // + landing on Search puts the user one click away from the picker.
 }
 
 async function activateGraphTab(
@@ -1159,6 +1209,9 @@ watch(
         @open-configuration="onPaletteOpenConfiguration"
         @open-health="onPaletteOpenHealth"
         @rebuild-index="onPaletteRebuildIndex"
+        @operator-on-last="onPaletteOperatorOnLast"
+        @timeline-on-last="onPaletteTimelineOnLast"
+        @compare-on-last="onPaletteCompareOnLast"
       />
     </div>
   </div>

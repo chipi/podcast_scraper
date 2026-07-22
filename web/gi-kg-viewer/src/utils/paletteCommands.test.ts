@@ -18,6 +18,9 @@ function noopDeps(overrides: Partial<PaletteCommandDeps> = {}): PaletteCommandDe
     openConfiguration: vi.fn(),
     openHealth: vi.fn(),
     rebuildIndex: vi.fn(),
+    runOperatorOnLastQuery: vi.fn(),
+    openTimelineForLastQuery: vi.fn(),
+    openCompareForLastQuery: vi.fn(),
     isAdmin: false,
     ...overrides,
   }
@@ -116,6 +119,18 @@ describe('buildPaletteCommands', () => {
 
     await byId.get('admin.rebuild-index')!.run()
     expect(deps.rebuildIndex).toHaveBeenCalled()
+
+    await byId.get('operator.cluster-last')!.run()
+    expect(deps.runOperatorOnLastQuery).toHaveBeenCalledWith('cluster')
+
+    await byId.get('operator.consensus-last')!.run()
+    expect(deps.runOperatorOnLastQuery).toHaveBeenCalledWith('consensus')
+
+    await byId.get('operator.timeline-last')!.run()
+    expect(deps.openTimelineForLastQuery).toHaveBeenCalled()
+
+    await byId.get('operator.compare-last')!.run()
+    expect(deps.openCompareForLastQuery).toHaveBeenCalled()
   })
 
   it('excludes admin-only commands when isAdmin is false', () => {

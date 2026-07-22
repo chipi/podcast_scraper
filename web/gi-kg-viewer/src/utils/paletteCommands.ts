@@ -108,6 +108,24 @@ export interface PaletteCommandDeps {
   openHealth: () => void
   /** Trigger a corpus re-index (admin only). */
   rebuildIndex: () => void
+  /**
+   * #1259-4 operator kickers — run a server-side result-set operator
+   * (Cluster / Consensus) over the most recent query. Silent no-op when
+   * there is no recent query yet.
+   */
+  runOperatorOnLastQuery: (op: 'cluster' | 'consensus') => Promise<void> | void
+  /**
+   * #1259-4 timeline kicker — open the Search tab on the most recent
+   * query and toggle the Timeline operator on. Silent no-op when there
+   * is no recent query.
+   */
+  openTimelineForLastQuery: () => Promise<void> | void
+  /**
+   * #1259-4 compare kicker — open the Search tab on the most recent
+   * query and pop the Compare picker. Silent no-op when there is no
+   * recent query.
+   */
+  openCompareForLastQuery: () => Promise<void> | void
   /** True when the signed-in user is an admin. */
   isAdmin: boolean
 }
@@ -215,6 +233,35 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       keywords: ['index', 'reindex', 'rebuild', 'vector', 'lance'],
       adminOnly: true,
       run: () => deps.rebuildIndex(),
+    },
+    // #1259-4 operator kickers
+    {
+      id: 'operator.cluster-last',
+      label: 'Cluster last query',
+      category: 'operator',
+      keywords: ['cluster', 'group', 'theme', 'operator', 's4b', 'last'],
+      run: () => deps.runOperatorOnLastQuery('cluster'),
+    },
+    {
+      id: 'operator.consensus-last',
+      label: 'Consensus last query',
+      category: 'operator',
+      keywords: ['consensus', 'corroboration', 'agreement', 'operator', 's4b'],
+      run: () => deps.runOperatorOnLastQuery('consensus'),
+    },
+    {
+      id: 'operator.timeline-last',
+      label: 'Timeline last query',
+      category: 'operator',
+      keywords: ['timeline', 'histogram', 'when', 'months', 'operator', 's4a'],
+      run: () => deps.openTimelineForLastQuery(),
+    },
+    {
+      id: 'operator.compare-last',
+      label: 'Compare on last query',
+      category: 'operator',
+      keywords: ['compare', 'subjects', 'operator', 's8', 'briefing'],
+      run: () => deps.openCompareForLastQuery(),
     },
   ]
   return cmds.filter((c) => !c.adminOnly || deps.isAdmin)

@@ -62,6 +62,14 @@ const emit = defineEmits<{
   'open-health': []
   /** #1259-1 command mode — parent triggers a corpus re-index (admin only). */
   'rebuild-index': []
+  /**
+   * #1259-4 operator kickers — parent activates the Search tab on
+   * ``lastQuery`` and either fires an ``operator=cluster|consensus``
+   * round-trip, toggles Timeline on, or opens the Compare picker.
+   */
+  'operator-on-last': [op: 'cluster' | 'consensus']
+  'timeline-on-last': []
+  'compare-on-last': []
 }>()
 
 const shell = useShellStore()
@@ -165,6 +173,9 @@ const paletteCommands = computed<PaletteCommand[]>(() =>
     openConfiguration: () => emit('open-configuration'),
     openHealth: () => emit('open-health'),
     rebuildIndex: () => emit('rebuild-index'),
+    runOperatorOnLastQuery: (op) => emit('operator-on-last', op),
+    openTimelineForLastQuery: () => emit('timeline-on-last'),
+    openCompareForLastQuery: () => emit('compare-on-last'),
     isAdmin: auth.isAdmin,
   }),
 )
