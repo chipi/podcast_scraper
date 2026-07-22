@@ -1,0 +1,56 @@
+{
+  "id": null,
+  "uid": "vps-podcast-traces",
+  "title": "VPS — Podcast · Traces",
+  "tags": ["vps", "podcast", "traces"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "OTEL traces from `podcast-api` / `podcast-pipeline` → VictoriaTraces (`victoriatraces-jaeger`). Traces are best worked in **Explore** (service graph + the Explore Traces app) and via the `trace_id` log-to-trace link on the VictoriaLogs datasource. The panels below are a landing list of recent traces per service."
+      }
+    },
+    {
+      "id": 2,
+      "type": "traces",
+      "title": "podcast-api — recent traces",
+      "datasource": { "type": "jaeger", "uid": "victoriatraces-jaeger" },
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "jaeger", "uid": "victoriatraces-jaeger" },
+          "queryType": "search",
+          "service": "podcast-api",
+          "limit": 20
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "traces",
+      "title": "podcast-pipeline — recent traces",
+      "datasource": { "type": "jaeger", "uid": "victoriatraces-jaeger" },
+      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "jaeger", "uid": "victoriatraces-jaeger" },
+          "queryType": "search",
+          "service": "podcast-pipeline",
+          "limit": 20
+        }
+      ]
+    }
+  ]
+}
