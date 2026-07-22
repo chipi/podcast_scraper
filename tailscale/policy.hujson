@@ -104,9 +104,12 @@
       "dst":    ["tag:homelab-host:22,3000,3001,4000,8090,8428,8888,9428,10428"]
     },
     {
+      // prod (the box) also reaches Umami :3001 — it proxies public analytics
+      // ingest to homelab through the shared edge, same pattern as GlitchTip:8090.
+      // Not :3000/:8888 (operator-UI only) unless the homepage is fronted publicly.
       "action": "accept",
       "src":    ["tag:dgx-llm-host", "tag:prod"],
-      "dst":    ["tag:homelab-host:4000,8090,8428,9428,10428"]
+      "dst":    ["tag:homelab-host:3001,4000,8090,8428,9428,10428"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.
