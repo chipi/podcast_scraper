@@ -138,4 +138,18 @@ describe('useSearchStore.runOperator (Search v3 §S4b)', () => {
     expect(s.consensusPairs).toBeNull()
     expect(s.operatorError).toBeNull()
   })
+
+  // #1259-4 followup — activeOperator is promoted to the store so
+  // external surfaces (Cmd-K palette) can toggle the operator panel
+  // visible without touching the ResultSetOperatorBar chip.
+  it('activeOperator is null by default and round-trips arbitrary assignments', () => {
+    const s = useSearchStore()
+    expect(s.activeOperator).toBeNull()
+    s.activeOperator = 'cluster'
+    expect(s.activeOperator).toBe('cluster')
+    s.activeOperator = 'compare'
+    expect(s.activeOperator).toBe('compare')
+    s.activeOperator = null
+    expect(s.activeOperator).toBeNull()
+  })
 })

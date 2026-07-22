@@ -258,6 +258,7 @@ async function onPaletteOperatorOnLast(op: 'cluster' | 'consensus'): Promise<voi
   if (!q) return
   const root = shell.corpusPath.trim()
   if (!root) return
+  search.activeOperator = op
   await search.runOperator(root, op)
 }
 
@@ -265,15 +266,17 @@ async function onPaletteTimelineOnLast(): Promise<void> {
   const q = await ensureLastQueryLoaded()
   if (!q) return
   // Timeline is a client-only aggregation over the visible hit page —
-  // seeding the query + landing on Search is enough. The operator bar
-  // stays interactive so the user can toggle Timeline as usual.
+  // flip the active-operator flag so the histogram panel is visible on
+  // arrival; no round-trip needed.
+  search.activeOperator = 'timeline'
 }
 
 async function onPaletteCompareOnLast(): Promise<void> {
   const q = await ensureLastQueryLoaded()
   if (!q) return
-  // The Compare picker lives on ResultSetOperatorBar; seeding the query
-  // + landing on Search puts the user one click away from the picker.
+  // Compare picker lives on ResultSetOperatorBar — flip the flag so the
+  // panel is open with the auto-seeded slots ready for one-click Run.
+  search.activeOperator = 'compare'
 }
 
 async function activateGraphTab(

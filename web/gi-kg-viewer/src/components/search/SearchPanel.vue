@@ -45,7 +45,18 @@ const emit = defineEmits<{
  * ``focus-set`` emit (App handles the tab switch + camera fit). Cluster /
  * consensus land in S4b.
  */
-const activeOperator = ref<'cluster' | 'timeline' | 'graph' | 'consensus' | null>(null)
+// #1259-4 followup: the active operator lives on the search store now
+// so external surfaces (Cmd-K palette operator kickers) can toggle the
+// panel without also clicking the chip. The v-model binding on
+// ``ResultSetOperatorBar`` writes back through this ref.
+const activeOperator = computed<
+  'cluster' | 'timeline' | 'graph' | 'consensus' | 'compare' | null
+>({
+  get: () => search.activeOperator,
+  set: (v) => {
+    search.activeOperator = v
+  },
+})
 
 const shell = useShellStore()
 const search = useSearchStore()

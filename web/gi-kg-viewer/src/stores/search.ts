@@ -55,6 +55,19 @@ export const useSearchStore = defineStore('search', () => {
   const operatorError = ref<string | null>(null)
 
   /**
+   * Search v3 §S4a/S4b/S8 — which operator panel is currently open on
+   * ``ResultSetOperatorBar``. Promoted from the bar's local ref
+   * (#1259-4 followup) so external surfaces — the Cmd-K palette's
+   * ``operator.cluster-last`` / ``operator.consensus-last`` /
+   * ``operator.timeline-last`` / ``operator.compare-last`` commands —
+   * can toggle the panel visible without also clicking the chip.
+   * ``null`` means no panel is open.
+   */
+  const activeOperator = ref<
+    'cluster' | 'timeline' | 'graph' | 'consensus' | 'compare' | null
+  >(null)
+
+  /**
    * Search v3 §S8 — Compare (2 subjects) state. Populated by ``runCompare``
    * (POST /api/search/compare); ``runSearch`` and ``runOperator`` do NOT
    * clear this so the caller can leave the panel open across a re-run of
@@ -426,6 +439,7 @@ export const useSearchStore = defineStore('search', () => {
     consensusPairs,
     operatorLoading,
     operatorError,
+    activeOperator,
     runOperator,
     compareResult,
     compareLoading,
