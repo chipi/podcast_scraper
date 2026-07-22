@@ -81,7 +81,8 @@
       "summary_short": "Summary"
     },
     "foldedCount": "1 match | {count} matches",
-    "expandCluster": "Expand {count} {kind} matches"
+    "expandCluster": "Expand {count} {kind} matches",
+    "matchedPrefix": "Matched:"
   },
   "auth": {
     "signIn": "Sign in",

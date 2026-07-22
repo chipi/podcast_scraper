@@ -21,6 +21,7 @@ import {
   type CollapsedRow,
   type FoldedHitCluster,
 } from '../utils/collapseFoldableHits'
+import { summarizeMatchedFields } from '../utils/matchedFields'
 import { useAuthStore } from '../stores/auth'
 import EntityCard from '../components/EntityCard.vue'
 
@@ -76,6 +77,12 @@ const relatedTopicChips = computed(() => aggregateRelatedTopics(results.value, 8
 
 function openTopicChip(topicId: string): void {
   cardTarget.value = { kind: 'topic', id: topicId }
+}
+
+// #1261-5: shim so the template's inline v-for can call the helper by name.
+// Wrapped so summarizeMatchedFields can be swapped in unit tests independently.
+function matchedFieldChips(hits: SearchHit[]) {
+  return summarizeMatchedFields(hits)
 }
 
 // Group passages under their source episode, preserving rank order (results arrive best-first,
@@ -307,6 +314,23 @@ const showEmpty = computed(
               </span>
               <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block">
                 {{ g.show }}<template v-if="g.show && g.date"> · </template>{{ g.date ? formatPublishDate(g.date, locale) : '' }}
+              </span>
+              <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary
+                   ×2 · Transcript") — small kicker line so the listener knows
+                   why this episode surfaced without tapping through. Hidden
+                   when nothing resolved to an episode-level field. -->
+              <span
+                v-if="matchedFieldChips(g.hits).length"
+                class="lp-kicker mt-0.5 block"
+                data-testid="matched-fields"
+              >
+                {{ t('search.matchedPrefix') }}
+                <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
+                  <template v-if="mi > 0"> · </template>
+                  <span class="font-semibold text-canvas-foreground">
+                    {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
+                  </span>
+                </template>
               </span>
             </span>
             <span class="shrink-0 text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>

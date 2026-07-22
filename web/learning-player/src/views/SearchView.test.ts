@@ -257,6 +257,93 @@ describe('SearchView', () => {
     expect(w.text()).not.toContain('First matching chunk.')
   })
 
+  // #1261-5: matched-field kicker on the episode-group header
+  it('renders "Matched: Title · Summary ×2 · Transcript" chips on the episode header', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'x',
+      error: null,
+      results: [
+        {
+          doc_id: 't1',
+          score: 0.9,
+          text: 'Title match.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'episode_title',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+        {
+          doc_id: 's1',
+          score: 0.8,
+          text: 'Summary 1.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'summary_short',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+        {
+          doc_id: 's2',
+          score: 0.7,
+          text: 'Summary 2.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'summary_short',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+        {
+          doc_id: 'tr1',
+          score: 0.6,
+          text: 'Transcript match.',
+          source_tier: 'segment',
+          metadata: {
+            doc_type: 'transcript',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+      ],
+    })
+    const { w } = await mountAt('x')
+    const chips = w.get('[data-testid="matched-fields"]')
+    expect(chips.text()).toContain('Matched:')
+    expect(chips.text()).toContain('Title')
+    expect(chips.text()).toContain('Summary ×2')
+    expect(chips.text()).toContain('Transcript')
+  })
+
+  it('hides the matched-fields kicker when no hit resolves to an episode-level field', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'x',
+      error: null,
+      results: [
+        {
+          doc_id: 'kg1',
+          score: 0.9,
+          text: 't',
+          source_tier: 'kg',
+          metadata: {
+            doc_type: 'kg_topic',
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+          },
+        },
+      ],
+    })
+    const { w } = await mountAt('x')
+    expect(w.find('[data-testid="matched-fields"]').exists()).toBe(false)
+  })
+
   it('keeps insight and kg_topic hits out of the fold — they render as standalone rows', async () => {
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({
       query: 'ai',
