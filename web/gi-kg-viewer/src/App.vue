@@ -629,15 +629,81 @@ function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string })
  * Search v3 §S4a — "On graph" result-set operator. The workspace hands off
  * the de-duped id set for the current hit page; we mark each as a
  * ``search-hit`` highlight (yellow ring), ask the canvas to camera-fit
- * after the next layout, then switch to the Graph main tab. Reuses the
- * shipped ``libraryHighlightSourceIds`` highlight state — no new store
- * surface, no per-hit graphHandoff envelope.
+ * after the next layout, then switch to the Graph main tab.
+ *
+ * 2026-07-22 fix: the default graph lens is a "last 7d" slice — search
+ * hits on older episodes silently dropped because their episode nodes
+ * weren't loaded. Walk the current search results, resolve each hit's
+ * ``metadata.source_metadata_relative_path`` to its gi/kg/bridge
+ * siblings via ``shell.artifactList``, and append them to
+ * ``artifacts.selectedRelPaths`` so every requested id has a chance to
+ * resolve on the canvas.
  */
-function onSearchFocusSet(ids: string[]): void {
+async function onSearchFocusSet(ids: string[]): Promise<void> {
   const clean = ids.map((s) => s.trim()).filter(Boolean)
   if (!clean.length) return
-  graphNav.setLibraryEpisodeHighlights(clean)
   graphNav.setRequestFitAfterLoad()
+  // Ensure the corpus artifact list is loaded before we scan for
+  // episode-sibling paths. When the user's first Graph visit is via the
+  // Search "On graph" handoff, ``shell.artifactList`` is still empty
+  // (usually populated during ``syncMergedGraphFromCorpusApi``) and the
+  // append loop below would silently no-op.
+  if (shell.artifactList.length === 0) {
+    try {
+      await shell.fetchArtifactList()
+    } catch {
+      /* fall through — proceed with whatever we have */
+    }
+  }
+  // Union of already-selected + episode-metadata-sibling paths derived
+  // from the current search hit page. ``appendRelativeArtifacts`` no-ops
+  // when nothing new needs to load; when new episodes DO come in it
+  // triggers a fresh graph parse + redraw. We ``await`` so the highlight
+  // set below applies against the post-append cy — the ``watch`` on
+  // ``libraryHighlightSourceIds`` fires exactly once per assignment and
+  // has already fired for the pre-append cy if we set it earlier.
+  try {
+    const rootedMetaPaths = new Set<string>()
+    for (const hit of search.results) {
+      const rel = hit?.metadata?.source_metadata_relative_path
+      if (typeof rel === 'string' && rel.trim()) {
+        rootedMetaPaths.add(rel.trim().replace(/\\/g, '/'))
+      }
+    }
+    if (rootedMetaPaths.size > 0) {
+      const wantedDirs = new Set<string>()
+      for (const p of rootedMetaPaths) {
+        const idx = p.lastIndexOf('/')
+        wantedDirs.add(idx >= 0 ? p.slice(0, idx) : '')
+      }
+      const wantedBaseNames = new Set<string>()
+      for (const p of rootedMetaPaths) {
+        const base = p.slice(p.lastIndexOf('/') + 1)
+        const stem = base.replace(/\.metadata\.json$/i, '')
+        if (stem) wantedBaseNames.add(stem)
+      }
+      const extras: string[] = []
+      for (const art of shell.artifactList) {
+        const rel = String(art.relative_path || '').replace(/\\/g, '/')
+        if (!rel) continue
+        const dir = rel.slice(0, rel.lastIndexOf('/'))
+        if (!wantedDirs.has(dir)) continue
+        const base = rel.slice(rel.lastIndexOf('/') + 1)
+        const stemMatch = base.match(/^(.+)\.(gi|kg|bridge)\.json$/i)
+        if (!stemMatch) continue
+        if (!wantedBaseNames.has(stemMatch[1])) continue
+        extras.push(rel)
+      }
+      if (extras.length > 0) {
+        await artifacts.appendRelativeArtifacts(extras)
+      }
+    }
+  } catch {
+    /* never block the tab switch on a bookkeeping failure */
+  }
+  // Assign highlights AFTER the append so the watch's re-application
+  // targets the freshly-loaded episode nodes.
+  graphNav.setLibraryEpisodeHighlights(clean)
   void activateGraphTab(undefined, undefined, 'search')
 }
 

@@ -605,18 +605,17 @@ function applyViewportPreserveOrFit(
     if (nav.pendingFocusNodeId) {
       return
     }
-    // SECOND: If requestFitAfterLoad is set (external load without focus), force fit at 50% zoom
+    // SECOND: If requestFitAfterLoad is set (external load without focus),
+    // fit to the search-hit set when there is one (Search v3 "On graph"
+    // handoff) so the user lands looking at what they asked for. Falls
+    // back to the whole visible set only when no highlights exist.
     if (nav.requestFitAfterLoad) {
       try {
-        // For external loads without focus, center on graph with reasonable zoom instead of fitting to extremes
-        const els = core.elements(':visible')
-        const bbox = els.boundingBox()
-        const centerX = (bbox.x1 + bbox.x2) / 2
-        const centerY = (bbox.y1 + bbox.y2) / 2
-        core.zoom(0.5)  // 50% zoom as a reasonable default
-        core.center()  // Center on viewport center
-        // Pan to center the graph's center point
-        core.panBy({ x: -centerX * 0.5, y: -centerY * 0.5 })
+        const highlights = core.nodes('.search-hit:visible')
+        const target = highlights.length > 0 ? highlights : core.elements(':visible')
+        if (target.length > 0) {
+          core.fit(target, 60)
+        }
       } catch {
         /* ignore */
       }
@@ -725,6 +724,20 @@ function applySearchHighlights(core: Core): void {
   }
   searchHighlightCount.value = matched.size
   applyContextEmphasis(core)
+  // 2026-07-22: when the caller staged a fit-after-load (e.g. Search v3
+  // "On graph" handoff), consume it here — the layout-time fit runs
+  // before highlights are applied, so it can't zoom to the search-hit
+  // set. Fitting from THIS watch closes the loop: cy has the freshest
+  // nodes (post-append), the ``.search-hit`` class was just applied,
+  // and we can put the camera exactly on what the user asked for.
+  if (nav.requestFitAfterLoad && matched.size > 0) {
+    try {
+      core.fit(core.nodes('.search-hit:visible'), 60)
+    } catch {
+      /* ignore */
+    }
+    nav.clearRequestFitAfterLoad()
+  }
 }
 
 /**
