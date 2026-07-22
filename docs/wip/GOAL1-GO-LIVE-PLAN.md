@@ -27,6 +27,52 @@ open the door.
 
 ---
 
+## Status (2026-07-22) — current state + remaining critical path
+
+App + o11y side is **done and live**; the edge/orrery side is **staged and gated on
+one operator root touch**.
+
+**Done + live this session:**
+- 2.7 shipped to prod + corpus migrated 2.6→2.7 (100 eps intact) + verified.
+- o11y **all four signals working on 2.7**: metrics ✅, logs ✅, **traces ✅**
+  (endpoint wired → VictoriaTraces `services:[podcast-api]`), **errors ✅**
+  (server-side api + pipeline → self-hosted GlitchTip project 1).
+- Player browser-error instrumentation shipped (→ GlitchTip project 4; gated on DSN + edge).
+- Edge staged: `glitchtip.caddy` ingest vhost + `apply-edge` `GLITCHTIP_UPSTREAM` +
+  the **run-only apply-edge sudoers grant in cloud-init** (the convergence entrypoint).
+- Pre-public gate assessment (orrery + glitchtip vhosts) — both clear, no blockers.
+- Ingest-flood alert + Traces dashboard + orrery-agent brief.
+
+**The one blocker on the edge track:** cloud-init is first-boot-only and the `deploy`
+key is deliberately unprivileged, so the apply-edge grant needs **one root touch** on
+the running box (operator key), or it rides in on the next clean rebuild from cloud-init.
+There is no safe remote bypass — that air-gap *is* the security property (no CI/agent
+path to root inside the box).
+
+### Remaining critical path (owner · can the agent drive it)
+
+| Step | What | Owner | Agent drives? |
+|---|---|---|---|
+| **B0** | One root touch: install root-owned `apply-edge`/`verify-edge` + the grant (or a future clean rebuild carries it) | 🧑 key | ❌ needs root |
+| **P1** | `apply-edge` converge (dry-run → real) + `verify-edge`; firewall stays **closed** | 🤖 | ✅ after B0 (deploy key + grant) |
+| **P3.2** | Orrery pre-public gate sign-off (assessment prepped). Open: orrery `web` hardening + image-pin (orrery-side); glitchtip ingest rate-limit decision | 🧑 + orrery | ❌ human/orrery |
+| **P3.4** | Secrets cutover (`PODCAST_SECRETS_VIA_FILES=1` → deploy). Verified ready; **silent-fail mode** → do together | 🤝 | ⚠ your gate + presence |
+| **P4** | Open firewall 80/443 (`infra-apply`, gated) — **the exposure moment** | 🤝 | ✅ trigger · 🧑 gate |
+| **P5.1** | Deploy orrery container `:8090` | 🧑/orrery | ❌ orrery side |
+| **P5.2** | Drop `orrery.caddy` + reload caddy | 🤖 | ✅ deploy key (sites dir + reload grant) |
+| **P5.3** | DNS A/AAAA → box (orrery domain + `glitchtip.<domain>`) | 🧑 | ❌ registrar |
+| **P5.4** | ACME issues cert → verify `https://<orrery>` | 🤝 | ✅ verify |
+| **P5.5** | Drop `glitchtip.caddy` + reload + verify ingest 200 / admin 404 | 🤖 | ✅ deploy key |
+| **P5b** | Create GlitchTip project(s) (player #4) on homelab; flip viewer/player/orrery browser DSN → `glitchtip.<domain>` + rebuild | 🧑/homelab + 🤖 | ⚠ project = you · DSN flip + rebuild = me (gated) |
+
+**Your queue (only you / homelab / registrar):** B0 root touch · P3.2 sign-off +
+orrery-side hardening · DNS (P5.3) · GlitchTip project creation (P5b) · gate approvals
+(P3.4, P4).
+**My queue (hands-off once unblocked):** P1 converge + verify · P4 trigger · P5.2/P5.5
+vhost drops · P5.4 verify · P5b DSN flips + rebuild.
+
+---
+
 ## Decisions I need from you before we touch prod
 
 1. **Apply path** — how the built config reaches the running box:
