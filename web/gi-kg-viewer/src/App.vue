@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
 import posthog from 'posthog-js'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
@@ -205,6 +205,23 @@ async function onPaletteOpenInWorkspace(_q: string): Promise<void> {
  */
 function onPaletteShowOnGraph(cyId: string): void {
   void activateGraphTab(cyId, undefined, 'search')
+}
+
+/**
+ * Command palette (#1259-1) — modal opens are forwarded to StatusBar
+ * which owns the shared Sources / Health dialog.
+ */
+const statusBarRef = useTemplateRef<InstanceType<typeof StatusBar>>('statusBarRef')
+function onPaletteOpenConfiguration(): void {
+  void statusBarRef.value?.openConfiguration?.()
+}
+function onPaletteOpenHealth(): void {
+  void statusBarRef.value?.openHealth?.()
+}
+function onPaletteRebuildIndex(): void {
+  // Opens the Configuration dialog at its Index section — the single
+  // rebuild home the status-bar Index button already uses.
+  void statusBarRef.value?.openIndexRebuild?.()
 }
 
 async function activateGraphTab(
@@ -1101,6 +1118,7 @@ watch(
       </div>
       </div>
       <StatusBar
+        ref="statusBarRef"
         @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded"
         @go-graph="activateGraphTab(undefined, undefined, 'status-bar')"
       />
@@ -1108,6 +1126,10 @@ watch(
         ref="commandPaletteRef"
         @open-in-workspace="onPaletteOpenInWorkspace"
         @show-on-graph="onPaletteShowOnGraph"
+        @go-tab="onSwitchMainTab"
+        @open-configuration="onPaletteOpenConfiguration"
+        @open-health="onPaletteOpenHealth"
+        @rebuild-index="onPaletteRebuildIndex"
       />
     </div>
   </div>

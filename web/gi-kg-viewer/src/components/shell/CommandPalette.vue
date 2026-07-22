@@ -25,10 +25,21 @@ import { useShellStore } from '../../stores/shell'
 import { useSearchStore } from '../../stores/search'
 import { useSubjectStore } from '../../stores/subject'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
+import { useSavedQueriesStore } from '../../stores/savedQueries'
+import { useThemeStore } from '../../stores/theme'
+import { useAuthStore } from '../../stores/auth'
 import {
   episodeFallbackForSearchHit,
   graphNodeIdFromSearchHit,
 } from '../../utils/searchFocus'
+import { copyTextToClipboard } from '../../utils/clipboard'
+import {
+  buildPaletteCommands,
+  matchCommands,
+  stripCommandPrefix,
+  type MainTabId,
+  type PaletteCommand,
+} from '../../utils/paletteCommands'
 
 interface RecentEntry {
   q: string
@@ -38,12 +49,23 @@ interface RecentEntry {
 const emit = defineEmits<{
   'open-in-workspace': [q: string]
   'show-on-graph': [cyId: string]
+  /** #1259-1 command mode — switch main tab from a palette command row. */
+  'go-tab': [tab: MainTabId]
+  /** #1259-1 command mode — parent opens the shell's Configuration dialog. */
+  'open-configuration': []
+  /** #1259-1 command mode — parent opens the shell's Health dialog. */
+  'open-health': []
+  /** #1259-1 command mode — parent triggers a corpus re-index (admin only). */
+  'rebuild-index': []
 }>()
 
 const shell = useShellStore()
 const search = useSearchStore()
 const subject = useSubjectStore()
 const userPrefs = useUserPreferencesStore()
+const savedQueries = useSavedQueriesStore()
+const theme = useThemeStore()
+const auth = useAuthStore()
 
 const open = ref(false)
 const query = ref('')
@@ -60,6 +82,77 @@ const recentQueries = computed<RecentEntry[]>(() => {
 
 const showEmptyState = computed(() => open.value && !query.value.trim() && !loading.value)
 
+// ---------- #1259-1: command mode (nav + session actions) ---------------
+
+async function runCopyCorpusPath(): Promise<void> {
+  const path = shell.corpusPath.trim()
+  if (!path) return
+  await copyTextToClipboard(path)
+}
+
+function runSaveCurrentQuery(): void {
+  const q = search.query.trim()
+  if (!q) return
+  void savedQueries.saveQuery(q)
+}
+
+function runClearSearch(): void {
+  search.query = ''
+  search.clearResults()
+}
+
+function runResetFilters(): void {
+  search.filters.topK = 10
+  search.filters.groundedOnly = false
+  search.filters.feed = ''
+  search.filters.since = ''
+  search.filters.speaker = ''
+  search.filters.types = []
+  search.filters.embeddingModel = ''
+  search.filters.dedupeKgSurfaces = true
+  search.filters.topic = ''
+  search.filters.minConfidence = ''
+  search.filters.episodeId = ''
+  search.filters.enrichResults = null
+}
+
+const paletteCommands = computed<PaletteCommand[]>(() =>
+  buildPaletteCommands({
+    goTab: (tab) => emit('go-tab', tab),
+    saveCurrentQuery: runSaveCurrentQuery,
+    clearSearch: runClearSearch,
+    resetFilters: runResetFilters,
+    cycleTheme: () => theme.cycle(),
+    copyCorpusPath: runCopyCorpusPath,
+    openConfiguration: () => emit('open-configuration'),
+    openHealth: () => emit('open-health'),
+    rebuildIndex: () => emit('rebuild-index'),
+    isAdmin: auth.isAdmin,
+  }),
+)
+
+/**
+ * When the input starts with ``>`` the palette is in COMMAND MODE — only
+ * commands render, corpus-search is skipped. Otherwise the palette runs
+ * a normal live-fetch AND shows top-N command matches ABOVE the hit list
+ * when the query fuzz-matches a command. Selecting a command replaces
+ * the query.
+ */
+const parsedInput = computed(() => stripCommandPrefix(query.value))
+const commandModeActive = computed(() => parsedInput.value.isCommandMode)
+const matchedCommands = computed<PaletteCommand[]>(() => {
+  if (!open.value) return []
+  const { isCommandMode, query: sub } = parsedInput.value
+  if (isCommandMode) return matchCommands(paletteCommands.value, sub, { limit: 20 })
+  if (!sub) return []
+  return matchCommands(paletteCommands.value, sub, { limit: 3 })
+})
+
+async function runCommand(cmd: PaletteCommand): Promise<void> {
+  await cmd.run()
+  closePalette()
+}
+
 // Debounce timer for live search.
 let debounceHandle: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_MS = 200
@@ -70,6 +163,13 @@ function schedule(): void {
   if (!q) {
     results.value = []
     error.value = null
+    return
+  }
+  // #1259-1: command mode short-circuits the corpus fetch.
+  if (parsedInput.value.isCommandMode) {
+    results.value = []
+    error.value = null
+    loading.value = false
     return
   }
   const root = shell.corpusPath.trim()
@@ -206,15 +306,53 @@ onBeforeUnmount(() => {
           ref="inputRef"
           v-model="query"
           type="text"
-          placeholder="Search anywhere — Cmd-K, /, or click"
+          placeholder="Search anywhere — Cmd-K, /, or type > for commands"
           class="w-full border-b border-border bg-transparent px-4 py-3 text-sm text-elevated-foreground outline-none placeholder:text-muted"
           data-testid="command-palette-input"
           aria-label="Search query"
         />
 
         <div class="max-h-[24rem] overflow-y-auto p-2">
-          <!-- Empty state — Recent + Saved -->
-          <div v-if="showEmptyState" class="space-y-3 p-2">
+          <!-- #1259-1: Commands (nav + session actions) — visible in command mode
+               and as a compact top strip when the user's plain query matches. -->
+          <section
+            v-if="matchedCommands.length"
+            class="mb-2"
+            aria-labelledby="palette-commands-heading"
+            data-testid="command-palette-commands"
+          >
+            <h3
+              id="palette-commands-heading"
+              class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted"
+            >
+              Commands
+            </h3>
+            <ul class="flex flex-col gap-0.5">
+              <li v-for="cmd in matchedCommands" :key="cmd.id">
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs text-elevated-foreground hover:bg-overlay"
+                  :data-testid="`command-palette-command-${cmd.id}`"
+                  :data-command-id="cmd.id"
+                  @click="runCommand(cmd)"
+                >
+                  <span class="flex items-center gap-2">
+                    <span
+                      class="inline-flex h-4 min-w-[1rem] items-center justify-center rounded bg-primary/15 px-1 text-[9px] font-medium uppercase tracking-wide text-primary"
+                    >{{ cmd.category === 'nav' ? 'Go' : cmd.category === 'admin' ? 'Adm' : cmd.category === 'modal' ? 'Open' : 'Act' }}</span>
+                    <span class="truncate">{{ cmd.label }}</span>
+                  </span>
+                  <span
+                    v-if="cmd.shortcut"
+                    class="ml-2 shrink-0 rounded border border-border px-1 font-mono text-[10px] text-muted"
+                  >{{ cmd.shortcut }}</span>
+                </button>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Empty state — Recent + Saved (only when NOT command mode) -->
+          <div v-if="showEmptyState && !commandModeActive" class="space-y-3 p-2">
             <section aria-labelledby="palette-recent-heading">
               <h3
                 id="palette-recent-heading"
@@ -263,23 +401,23 @@ onBeforeUnmount(() => {
             </section>
           </div>
 
-          <!-- Loading / error / results -->
+          <!-- Loading / error / results (suppressed in command mode) -->
           <p
-            v-if="loading"
+            v-if="loading && !commandModeActive"
             class="p-2 text-xs text-muted"
             data-testid="command-palette-loading"
           >
             Searching…
           </p>
           <p
-            v-else-if="error"
+            v-else-if="error && !commandModeActive"
             class="p-2 text-xs text-danger"
             data-testid="command-palette-error"
           >
             {{ error }}
           </p>
           <ul
-            v-else-if="results.length"
+            v-else-if="results.length && !commandModeActive"
             class="flex flex-col gap-1"
             data-testid="command-palette-results"
           >
@@ -321,11 +459,18 @@ onBeforeUnmount(() => {
             </li>
           </ul>
           <p
-            v-else-if="query.trim() && !loading"
+            v-else-if="query.trim() && !loading && !commandModeActive && !matchedCommands.length"
             class="p-2 text-xs text-muted"
             data-testid="command-palette-no-results"
           >
             No results for “{{ query }}”.
+          </p>
+          <p
+            v-else-if="commandModeActive && !matchedCommands.length"
+            class="p-2 text-xs text-muted"
+            data-testid="command-palette-commands-no-results"
+          >
+            No matching command.
           </p>
         </div>
       </div>

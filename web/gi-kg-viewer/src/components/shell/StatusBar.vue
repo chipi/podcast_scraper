@@ -748,6 +748,16 @@ async function onScheduledToggle(name: string, enabled: boolean): Promise<void> 
     sourcesBusy.value = false
   }
 }
+
+// #1259-1: expose the dialog openers so ``CommandPalette`` (via App.vue)
+// can trigger them from the ``Open Configuration`` / ``Open Health``
+// commands. These are thin wrappers around the same functions the
+// StatusBar buttons already call — no new business logic.
+defineExpose({
+  openConfiguration: openSourcesDialogDefault,
+  openHealth: openSourcesDialogHealth,
+  openIndexRebuild: openIndexSection,
+})
 </script>
 
 <template>
