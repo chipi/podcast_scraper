@@ -118,6 +118,12 @@ function yearLabel(year: number | 'unknown'): string {
   return year === 'unknown' ? t('search.yearUnknown') : String(year)
 }
 
+// Type-safe key for the collapsed-rows v-for: plain hits carry doc_id,
+// folded clusters use their foldedKind + index (unique within a group).
+function rowKey(row: CollapsedRow, i: number): string {
+  return isFoldedCluster(row) ? `c:${row.foldedKind}:${i}` : `${row.doc_id}:${i}`
+}
+
 // Group passages under their source episode, preserving rank order (results arrive best-first,
 // so an episode's rank is its first appearance).
 const groups = computed<EpisodeGroup[]>(() => {
@@ -398,7 +404,7 @@ const showEmpty = computed(
           <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->
           <ul class="mt-3 flex flex-col">
-            <template v-for="(row, i) in g.rows" :key="row.doc_id ? row.doc_id + i : `c${i}`">
+            <template v-for="(row, i) in g.rows" :key="rowKey(row, i)">
               <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
                    title / description / summary) collapsed into one expandable row. -->
               <li v-if="isFoldedCluster(row)" class="border-t border-border">
