@@ -18,8 +18,8 @@ public endpoints — never `homelab:8090` (tailnet-only). So we added a public,
 - It exposes **only** the Sentry/GlitchTip ingest paths
   (`/api/<project_id>/{envelope,store,security}/`) and 404s everything else — the
   GlitchTip dashboard/admin stays tailnet-only.
-- Public host: **`glitchtip.<domain>`** (operator sets the real domain when the
-  edge goes public — Phase 5.5 of `GOAL1-GO-LIVE-PLAN.md`).
+- Public host: **`telemetry.orrerylearn.com`** (generic name, LIVE with a valid
+  Let's Encrypt cert; ingest-only).
 - Upstream to `homelab:8090` is resolved on-box (no hardcoded IP anywhere).
 
 **Hard ordering:** the vhost must be **live + cert issued** before you flip
@@ -86,7 +86,7 @@ reference implementation: `podcast_scraper-infra:web/learning-player/src/main.ts
 - From a browser on the public site, trigger a handled error; confirm it appears
   in GlitchTip **project 4** with `component: orrery`, `environment: prod`.
 - Direct ingest smoke (no browser): a well-formed envelope/store POST to
-  `https://glitchtip.<domain>/api/4/store/` with the project-4 key returns `200`;
+  `https://telemetry.orrerylearn.com/api/4/store/` with the project-4 key returns `200`;
   a non-ingest path (e.g. `/`) returns `404`.
 
 ## Non-goals / notes
@@ -96,5 +96,5 @@ reference implementation: `podcast_scraper-infra:web/learning-player/src/main.ts
 - No server-side component for orrery — it's browser-only, so there's nothing to
   wire on the tailnet side.
 - Coordinate the DSN flip with the podcast-infra owner so it lands **after** the
-  `glitchtip.<domain>` vhost is live (Phase 5.5). Ping when project 2's DSN is
-  ready and we'll confirm the edge is up.
+  edge is LIVE + validated. The project-4 DSN above is
+  ready to use as-is.
