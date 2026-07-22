@@ -15,6 +15,7 @@ function h(
     text: overrides.text ?? '',
     metadata: overrides.metadata ?? {},
     source_tier: overrides.source_tier ?? 'aux',
+    lifted: overrides.lifted ?? null,
   } as SearchHit
 }
 
@@ -193,6 +194,31 @@ describe('collapseTranscriptHitsByEpisode', () => {
     })
     const rows = collapseTranscriptHitsByEpisode([orphan])
     expect(rows).toEqual([orphan])
+  })
+
+  it('compound transcript hits (segment + lifted GI insight) stay unfolded', () => {
+    // Compound cards are their own valuable standalone row — the
+    // "+ insight" badge only renders on ResultCard, so folding a
+    // compound into a cluster would hide it.
+    const compound = h({
+      doc_id: 't:compound',
+      score: 0.95,
+      source_tier: 'segment',
+      metadata: { doc_type: 'transcript', episode_id: 'ep-a' },
+      lifted: { insight: { text: 'lifted' } } as unknown as SearchHit['lifted'],
+    })
+    const plain = h({
+      doc_id: 't:plain',
+      score: 0.7,
+      source_tier: 'segment',
+      metadata: { doc_type: 'transcript', episode_id: 'ep-a' },
+    })
+    const rows = collapseTranscriptHitsByEpisode([compound, plain])
+    expect(rows).toHaveLength(2)
+    // Compound passes through as its original hit; plain folds into a cluster.
+    expect(rows[0]).toBe(compound)
+    expect(isTranscriptClusterHit(rows[1])).toBe(true)
+    expect((rows[1] as TranscriptClusterHit).members).toEqual([plain])
   })
 
   it('a single transcript hit still becomes a cluster (so the same card renders everywhere)', () => {

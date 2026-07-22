@@ -18,6 +18,7 @@ import { computed } from 'vue'
 import type { SearchHit } from '../../api/searchApi'
 import type { TranscriptClusterHit } from '../../utils/collapseTranscriptHitsByEpisode'
 import { truncate } from '../../utils/formatting'
+import SearchResultRowIcon from './SearchResultRowIcon.vue'
 
 const props = defineProps<{
   cluster: TranscriptClusterHit
@@ -137,18 +138,20 @@ function onRowKeydown(ev: KeyboardEvent): void {
     @keydown="onRowKeydown"
   >
     <div class="mb-1 flex min-w-0 flex-wrap items-center gap-2">
-      <span class="font-mono text-[10px] text-primary">episode</span>
-      <span
-        class="rounded bg-success/15 px-1 py-px text-[9px] font-medium uppercase leading-none tracking-wide text-success"
-        title="Transcript matches rolled up under one episode row"
-      >Transcript</span>
+      <SearchResultRowIcon
+        doc-type="episode"
+        source-tier="segment"
+        :subtitle="cluster.episodeTitle"
+        data-testid="search-result-tier"
+        data-tier="Transcript"
+      />
       <span
         class="rounded bg-primary/15 px-1 py-px text-[9px] font-medium leading-none text-primary"
         data-testid="search-transcript-cluster-count"
       >{{ memberCountLabel }}</span>
       <span
         class="rounded bg-overlay px-1 py-px font-mono text-[9px] leading-none text-muted"
-        :title="`Top transcript-match score for this episode (best chunk). ${cluster.members.length} total chunks matched.`"
+        :title="`Top match score on this episode (best member). ${cluster.members.length} total matches.`"
       >{{ cluster.topScore.toFixed(4) }}</span>
     </div>
     <p

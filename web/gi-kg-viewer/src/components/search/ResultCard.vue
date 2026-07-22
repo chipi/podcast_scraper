@@ -2,6 +2,7 @@
 import { computed, inject, ref } from 'vue'
 import type { SearchHit } from '../../api/searchApi'
 import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import SearchResultRowIcon from './SearchResultRowIcon.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { truncate } from '../../utils/formatting'
@@ -367,13 +368,13 @@ function onRowKeydown(ev: KeyboardEvent): void {
     @keydown="onRowKeydown"
   >
     <div class="mb-1 flex min-w-0 flex-wrap items-center gap-2">
-      <span class="font-mono text-[10px] text-primary">{{ docType }}</span>
-      <span
-        class="rounded px-1 py-px text-[9px] font-medium uppercase leading-none tracking-wide"
-        :class="tierClass"
+      <SearchResultRowIcon
+        :doc-type="docType"
+        :source-tier="sourceTier"
         data-testid="search-result-tier"
-        :title="`Retrieval tier: ${tierLabel}`"
-      >{{ tierLabel }}</span>
+        :data-tier="tierLabel"
+        :aria-label="`${tierLabel} · ${docType}`"
+      />
       <span
         v-if="isCompound"
         class="rounded bg-primary/15 px-1 py-px text-[9px] font-medium leading-none text-primary"

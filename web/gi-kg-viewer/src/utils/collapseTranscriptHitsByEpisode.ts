@@ -49,7 +49,14 @@ const FOLDABLE_DOC_TYPES = new Set([
 function isFoldableHit(hit: SearchHit): boolean {
   const md = (hit.metadata ?? {}) as Record<string, unknown>
   const docType = typeof md.doc_type === 'string' ? md.doc_type : ''
-  return FOLDABLE_DOC_TYPES.has(docType)
+  if (!FOLDABLE_DOC_TYPES.has(docType)) return false
+  // Compound hits (transcript segment with a lifted GI insight) render as
+  // their own valuable standalone card in ``ResultCard`` — do NOT fold
+  // them into a cluster or the "+ insight" compound badge disappears.
+  if (docType === 'transcript' && hit.lifted != null && typeof hit.lifted === 'object') {
+    return false
+  }
+  return true
 }
 
 /**

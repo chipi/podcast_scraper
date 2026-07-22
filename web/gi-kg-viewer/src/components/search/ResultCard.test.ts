@@ -32,40 +32,56 @@ describe('ResultCard', () => {
 
   // --- Basic render --------------------------------------------------------
 
-  it('renders the doc_type, the hit text and the formatted score', () => {
+  it('renders the doc_type on the leading icon, the hit text and the formatted score', () => {
+    // 2026-07-22 UX cleanup: doc_type text badge retired; the doc_type
+    // lives on the leading icon via ``data-doc-type`` + the letter glyph.
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'insight' }, text: 'Hello world.', score: 0.5 }),
     })
-    expect(w.text()).toContain('insight')
+    expect(
+      w.get('[data-testid="search-result-tier"]').attributes('data-doc-type'),
+    ).toBe('insight')
     expect(w.text()).toContain('Hello world.')
     // score.toFixed(4)
     expect(w.text()).toContain('0.5000')
   })
 
-  it('falls back to "?" doc_type and "(no text)" when text is empty', () => {
+  it('shows "(no text)" placeholder when text is empty', () => {
     const w = mountCard({ hit: hitOf({ metadata: {}, text: '' }) })
-    expect(w.find('.font-mono.text-primary').text()).toBe('?')
     expect(w.text()).toContain('(no text)')
   })
 
-  it('renders the retrieval-tier badge label per source_tier', () => {
+  it('carries the retrieval-tier label as data-tier on the row icon (2026-07-22 UX)', () => {
+    // Text tier badges were retired in favor of a single leading icon
+    // (SearchResultRowIcon); the tier label lives on the icon as
+    // ``data-tier`` so downstream specs can still assert per-tier.
     const insight = mountCard({ hit: hitOf({ source_tier: 'insight' }) })
-    expect(insight.get('[data-testid="search-result-tier"]').text()).toBe('Insight')
+    expect(insight.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Insight',
+    )
 
     const segment = mountCard({ hit: hitOf({ source_tier: 'segment' }) })
-    expect(segment.get('[data-testid="search-result-tier"]').text()).toBe('Transcript')
+    expect(segment.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Transcript',
+    )
 
     const aux = mountCard({ hit: hitOf({ source_tier: 'aux' }) })
-    expect(aux.get('[data-testid="search-result-tier"]').text()).toBe('Reference')
+    expect(aux.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Reference',
+    )
 
     // Unknown tier -> Reference fallback.
     const unknown = mountCard({ hit: hitOf({ source_tier: 'mystery' }) })
-    expect(unknown.get('[data-testid="search-result-tier"]').text()).toBe('Reference')
+    expect(unknown.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Reference',
+    )
   })
 
   it('defaults the tier to Reference when source_tier is absent', () => {
     const w = mountCard({ hit: hitOf({}) })
-    expect(w.get('[data-testid="search-result-tier"]').text()).toBe('Reference')
+    expect(w.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Reference',
+    )
   })
 
   // --- Compound (segment + lifted) badge -----------------------------------
