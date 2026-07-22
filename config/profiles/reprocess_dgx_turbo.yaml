@@ -50,6 +50,12 @@ transcript_cache_enabled: false
 transcription_coverage_min: 0.85
 transcription_coverage_failover_model: Systran/faster-whisper-large-v3
 
+# ADR-121 (#1258): a reprocess must only run VETTED models — a typo'd or un-benchmarked model
+# building 1000 episodes is not recoverable cheaply. Enforce that every active model (turbo, the
+# large-v3 coverage failover, pyannote diarization) is registry-sanctioned; else config validation
+# raises UnsanctionedModelError (code MODEL_NOT_SANCTIONED).
+enforce_model_governance: true
+
 # --- diarization: pyannote v4 (self-hosted) -----------------------------------------------------
 diarize: true
 screenplay: true

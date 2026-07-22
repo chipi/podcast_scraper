@@ -1213,6 +1213,17 @@ class Config(BaseModel):
             "fallback for turbo's long-episode drops). None = no quality-gate failover."
         ),
     )
+    enforce_model_governance: bool = Field(
+        default=False,
+        alias="enforce_model_governance",
+        description=(
+            "ADR-121 (#1258): when true, every ACTIVE model (the model the configured provider for "
+            "each stage will run, incl. the ADR-120 coverage-failover model) must be registry-"
+            "sanctioned (a StageOption in the model registry), else config validation raises "
+            "UnsanctionedModelError (code MODEL_NOT_SANCTIONED). Opt-in — reprocess/prod profiles "
+            "set it; tests + experiment mode (base.en, ad-hoc eval models) keep the default off."
+        ),
+    )
     diarization_fallback_providers: List[str] = Field(
         default_factory=list,
         alias="diarization_fallback_providers",
@@ -5138,6 +5149,18 @@ class Config(BaseModel):
         if v is not None and v < 1:
             raise ValueError("max_tokens must be >= 1")
         return v
+
+    @model_validator(mode="after")
+    def _enforce_model_governance(self) -> "Config":
+        """ADR-121 (#1258): when ``enforce_model_governance`` is set, every ACTIVE model must be
+        registry-sanctioned, else raise :class:`UnsanctionedModelError` (which is a RuntimeError,
+        so it propagates as itself rather than being wrapped into a generic ValidationError). Lazy
+        import breaks the config<->registry cycle; no-op when the flag is off (the default)."""
+        if getattr(self, "enforce_model_governance", False):
+            from podcast_scraper.providers.ml.model_governance import assert_models_sanctioned
+
+            assert_models_sanctioned(self)
+        return self
 
     @model_validator(mode="after")
     def _multi_feed_requires_output_dir(self) -> "Config":

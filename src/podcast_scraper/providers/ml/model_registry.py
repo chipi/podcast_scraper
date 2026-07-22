@@ -844,6 +844,28 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         resident_memory_gb=3.0,
         realtime_multiple=2.38,
     ),
+    # DGX speaches/faster-whisper TURBO — the #1178 speed pick for the v2->v3 reprocess. Same :8000
+    # speaches service as large-v3, model selected per request (no service state change). ~30x
+    # realtime (4.3x faster than large-v3, ~11x faster than MOSS) at WER parity on normal episodes,
+    # measured isolated + GPU-exclusive. CAVEAT: silently drops ~a quarter of the speech on very
+    # long episodes (bake-off ep6: 69% coverage, 29.9% WER) -> paired with the ADR-120 (#1258)
+    # coverage gate that re-routes low-coverage episodes to large-v3.
+    "tailnet_dgx_whisper_turbo": StageOption(
+        stage="transcription",
+        option_id="tailnet_dgx_whisper_turbo",
+        provider="tailnet_dgx_whisper",
+        model="deepdml/faster-whisper-large-v3-turbo-ct2",
+        endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
+        research_ref="docs/wip/ASR-BAKEOFF-ISOLATED-2026-07-22.md",
+        headline_metric=(
+            "#1178 reprocess speed pick: 30.5x realtime (4.3x faster than large-v3) at WER parity "
+            "on normal episodes; long-episode coverage drop handled by the ADR-120/#1258 gate."
+        ),
+        measured_at="2026-07-22",
+        tier="primary",
+        resident_memory_gb=1.5,
+        realtime_multiple=30.5,
+    ),
     # DGX MOSS-Transcribe-Diarize (:8004) — the #1174 bake-off transcription winner.
     # Single 0.9B model does transcribe+diarize in one pass; we use it for TRANSCRIPTION
     # and keep pyannote community-1 for diarization (MOSS lost diarization on real audio).
@@ -1655,6 +1677,9 @@ class ProfilePreset:
     # None); the yaml-only reprocess profiles set the floor + failover model directly.
     transcription_coverage_min: float = 0.0
     transcription_coverage_failover_model: Optional[str] = None
+    # ADR-121 (#1258) model governance: opt-in enforcement that every active model is
+    # registry-sanctioned. Off for serving/experiment presets; the reprocess profiles turn it on.
+    enforce_model_governance: bool = False
     notes: Optional[str] = None
 
 
@@ -1755,6 +1780,8 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # ADR-120 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
     "transcription_coverage_failover_model",
+    # ADR-121 (#1258): model-governance enforcement toggle.
+    "enforce_model_governance",
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
     # two different configurations.
@@ -2357,6 +2384,7 @@ def resolve_profile_to_settings(
     # ADR-120 (#1258): quality-gate transcription-failover knobs, governed like the resilience ones.
     settings["transcription_coverage_min"] = preset.transcription_coverage_min
     settings["transcription_coverage_failover_model"] = preset.transcription_coverage_failover_model
+    settings["enforce_model_governance"] = preset.enforce_model_governance  # ADR-121 (#1258)
 
     # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
     #

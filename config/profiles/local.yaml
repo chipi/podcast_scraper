@@ -130,3 +130,4 @@ gil_evidence_match_summary_provider: true
 resilience_run_context: serve
 resilience_failure_strategy: failover
 transcription_coverage_min: 0.0
+enforce_model_governance: false
