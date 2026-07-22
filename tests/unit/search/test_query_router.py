@@ -21,7 +21,19 @@ def test_tier_for_doc_type_maps_primary_tiers():
     assert tier_for_doc_type("transcript") == "segment"
 
 
-@pytest.mark.parametrize("doc_type", ["quote", "kg_entity", "kg_topic", "summary"])
+@pytest.mark.parametrize(
+    "doc_type",
+    [
+        "quote",
+        "kg_entity",
+        "kg_topic",
+        "summary",
+        # #1182 aux routing (049b7736): episode-level metadata surfaces.
+        "summary_short",
+        "episode_title",
+        "episode_description",
+    ],
+)
 def test_tier_for_doc_type_aux(doc_type):
     assert tier_for_doc_type(doc_type) == "aux"
 
@@ -33,6 +45,9 @@ def test_tier_for_doc_type_unknown_defaults_aux():
 
 def test_doc_type_to_tier_covers_known_doc_types():
     # Every doc_type the indexer emits has a tier (guards against silent drift).
+    # episode_title / episode_description / summary_short landed via #1182 aux
+    # routing (commit 049b7736) — episode-level metadata surfaces that share the
+    # aux tier alongside quote / kg_* / summary.
     assert set(DOC_TYPE_TO_TIER) == {
         "insight",
         "transcript",
@@ -40,6 +55,9 @@ def test_doc_type_to_tier_covers_known_doc_types():
         "kg_entity",
         "kg_topic",
         "summary",
+        "summary_short",
+        "episode_title",
+        "episode_description",
     }
 
 
