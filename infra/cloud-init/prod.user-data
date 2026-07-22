@@ -232,6 +232,20 @@ write_files:
     permissions: '0440'
     owner: root:root
 
+  # Edge convergence (ADR-114 Phase 1). Let `deploy` (the agent, via its CI key)
+  # run the root-owned apply-edge / verify-edge — idempotent edge/hardening/o11y
+  # reconcile that explicitly NEVER opens the firewall (Phase 4, Terraform). This
+  # is what lets the agent converge the edge WITHOUT a standing root credential.
+  # RUN-ONLY on root-owned copies (installed in runcmd from the repo): deploy can
+  # invoke them but not modify them, so a leaked deploy key can reconcile the edge
+  # but not inject arbitrary root code (tighter than the tailscale-serve install
+  # grants). Trade-off: updating the scripts needs a root re-install — automatic on
+  # a fresh box (runcmd below), or one operator touch to refresh a live box.
+  - path: /etc/sudoers.d/99-podcast-apply-edge
+    content: "deploy ALL=(root) NOPASSWD: /usr/local/sbin/apply-edge.sh, /usr/local/sbin/verify-edge.sh\n"
+    permissions: '0440'
+    owner: root:root
+
 runcmd:
   # === Belt-and-suspenders SSH key install ===
   # The `users:` block above SHOULD populate ~deploy/.ssh/authorized_keys, but
@@ -328,6 +342,12 @@ runcmd:
   - install -d -o deploy -g deploy -m 0755 /srv/podcast-scraper
   - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/podcast-scraper-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/podcast_scraper.git "$t"; cp -a "$t"/. /srv/podcast-scraper/; rm -rf "$t"'
   - chown -R deploy:deploy /srv/podcast-scraper
+  # Install root-owned copies of the edge-convergence scripts so `deploy` can run
+  # them via the 99-podcast-apply-edge grant (root-owned = deploy can't tamper).
+  # Same idiom as the decrypt-secrets root-owned script. On a live box that predates
+  # this, one operator re-install of these two lines does the same thing.
+  - install -m 0755 -o root -g root /srv/podcast-scraper/scripts/ops/apply-edge.sh /usr/local/sbin/apply-edge.sh
+  - install -m 0755 -o root -g root /srv/podcast-scraper/scripts/ops/verify-edge.sh /usr/local/sbin/verify-edge.sh
 
   # === Repo checkout to /srv/orrery (mirror of /srv/podcast-scraper above) ===
   # Co-tenant deploy on the same VPS (chipi/orrery#260 / #261). Phase 1 has no
