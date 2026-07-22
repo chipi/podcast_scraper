@@ -83,16 +83,17 @@ API surfaces whose failure breaks this loop are critical-path:
   between the UI and pipeline-critical-path.
 - **Search + Explore** — `/api/search`, `/api/explore`. These are the
   panels users open to actually look at the corpus.
-- **Digest** — `/api/corpus/digest`, `/api/corpus/cil-digest-topics`,
-  `/api/corpus/topic-clusters`. The Digest tab fronts the corpus value
-  proposition.
+- **Digest** — `/api/corpus/digest`, `/api/corpus/topic-clusters`. The
+  Digest tab fronts the corpus value proposition (the cil-digest-topics
+  block is embedded in the `/api/corpus/digest` response rather than a
+  separate route).
 
 API surfaces that **degrade** the experience but don't block primary
 workflows are NOT critical-path (they belong in the full integration suite,
 not `ci-fast`):
 
 - Dashboard auxiliary panels: `/api/index/stats` (Index stats),
-  `/api/corpus/metrics`, `/api/corpus/persons`, `/api/corpus/coverage`.
+  `/api/corpus/stats`, `/api/corpus/persons/top`, `/api/corpus/coverage`.
   Failure here means a dashboard panel is empty / red — user can still
   ingest, search, and view.
 - Index rebuild orchestration. Eventual-consistency surface; user can
