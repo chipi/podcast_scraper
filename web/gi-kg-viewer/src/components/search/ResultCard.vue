@@ -103,16 +103,6 @@ const TIER_LABELS: Record<string, string> = {
   aux: 'Reference',
 }
 const tierLabel = computed(() => TIER_LABELS[sourceTier.value] ?? 'Reference')
-const tierClass = computed(() => {
-  switch (sourceTier.value) {
-    case 'insight':
-      return 'bg-primary/15 text-primary'
-    case 'segment':
-      return 'bg-success/15 text-success'
-    default:
-      return 'bg-overlay text-muted'
-  }
-})
 
 /**
  * PRD-033 FR1.5 — when a transcript hit lifts a linked insight, the lifted insight
