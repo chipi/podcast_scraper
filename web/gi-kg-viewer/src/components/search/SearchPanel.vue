@@ -12,6 +12,12 @@ import { episodeFallbackForSearchHit, graphNodeIdFromSearchHit } from '../../uti
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 import EnrichedAnswerHero from './EnrichedAnswerHero.vue'
 import ResultCard from './ResultCard.vue'
+import TranscriptClusterCard from './TranscriptClusterCard.vue'
+import {
+  collapseTranscriptHitsByEpisode,
+  isTranscriptClusterHit,
+  type CollapsedSearchRow,
+} from '../../utils/collapseTranscriptHitsByEpisode'
 import ResultSetOperatorBar from './ResultSetOperatorBar.vue'
 import SearchFilterBar from './SearchFilterBar.vue'
 import SearchResultsVizDialog from './SearchResultsVizDialog.vue'
@@ -96,6 +102,22 @@ const visibleResults = computed((): SearchHit[] => {
     (h) => (h.source_tier ?? 'aux') === evidenceFilter.value,
   )
 })
+
+/**
+ * The collapsed render list — same order as ``visibleResults`` but
+ * consecutive transcript hits that share ``episode_id`` are folded into
+ * one ``TranscriptClusterHit`` (2026-07-22 UX cleanup). Insight / quote /
+ * kg_topic / kg_entity rows pass through untouched.
+ */
+const collapsedResults = computed<CollapsedSearchRow[]>(() =>
+  collapseTranscriptHitsByEpisode(visibleResults.value),
+)
+
+function rowKey(row: CollapsedSearchRow, i: number): string {
+  return isTranscriptClusterHit(row)
+    ? `transcript-cluster:${row.episodeId}:${i}`
+    : `${row.doc_id}:${i}`
+}
 
 /** PRD-033 FR1.4 — humanized detected query intent for the indicator chip. */
 const QUERY_TYPE_LABELS: Record<string, string> = {
@@ -607,14 +629,24 @@ const advancedFeedCombinedTitle = computed(() =>
           @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB)"
           @clear-compare="() => search.clearCompare()"
         />
-        <ResultCard
-          v-for="(h, i) in visibleResults"
-          :key="`${h.doc_id}-${i}`"
-          :hit="h"
-          :library-opens-enabled="libraryOpensEnabled"
-          @focus="(hit: SearchHit) => void onFocusHit(hit)"
-          @open-library="onOpenLibraryHit"
-        />
+        <template
+          v-for="(row, i) in collapsedResults"
+          :key="rowKey(row, i)"
+        >
+          <TranscriptClusterCard
+            v-if="isTranscriptClusterHit(row)"
+            :cluster="row"
+            :library-opens-enabled="libraryOpensEnabled"
+            @open-library="onOpenLibraryHit"
+          />
+          <ResultCard
+            v-else
+            :hit="row"
+            :library-opens-enabled="libraryOpensEnabled"
+            @focus="(hit: SearchHit) => void onFocusHit(hit)"
+            @open-library="onOpenLibraryHit"
+          />
+        </template>
       </div>
     </div>
   </section>

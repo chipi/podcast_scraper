@@ -17,6 +17,7 @@ import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
 import EpisodeEnrichmentSection from './EpisodeEnrichmentSection.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
+import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { themeMemberTopicIdSet } from '../../utils/topicClustersOverlay'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
@@ -254,10 +255,8 @@ const episodeTitleForCopy = computed(() => detail.value?.episode_title?.trim() ?
 /**
  * Corpus text-file URL for the episode's raw transcript, when the server
  * reports one on ``detail.transcript_relative_path`` (2026-07-22 rail
- * addition). Empty string when either the corpus path or the transcript
- * relpath is missing — the "View transcript" button renders under
- * ``v-if="detail.transcript_relative_path"`` so the empty-URL case never
- * hits the DOM.
+ * addition). Used as the "Open in new tab" fallback inside
+ * ``TranscriptViewerDialog`` when the popup is opened from the rail.
  */
 const transcriptUrl = computed((): string => {
   const rel = detail.value?.transcript_relative_path
@@ -265,6 +264,26 @@ const transcriptUrl = computed((): string => {
   if (!rel || !root) return ''
   return corpusTextFileViewUrl(root, rel)
 })
+
+const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
+
+/**
+ * Open the whole-episode transcript in the shared ``TranscriptViewerDialog``
+ * popup — same in-app viewer NodeDetail uses for insight supporting quotes,
+ * so the interaction is consistent regardless of entry point. No char
+ * highlighting; the popup renders the plain transcript scrolled to top.
+ */
+function openTranscriptViewer(): void {
+  const rel = detail.value?.transcript_relative_path
+  const root = shell.corpusPath.trim()
+  if (!rel || !root) return
+  transcriptViewerRef.value?.open({
+    corpusRoot: root,
+    transcriptRelpath: rel,
+    rawTabUrl: transcriptUrl.value,
+    subtitle: detail.value?.episode_title || null,
+  })
+}
 
 type EpisodeTitleCopyUi = 'idle' | 'copied' | 'failed'
 
@@ -944,17 +963,16 @@ watch(
         >
           Search within episode
         </button>
-        <a
+        <button
           v-if="detail.transcript_relative_path"
-          :href="transcriptUrl"
-          target="_blank"
-          rel="noopener"
+          type="button"
           class="min-w-0 flex-1 rounded border border-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary hover:bg-primary/10"
           data-testid="episode-detail-view-transcript"
-          :title="`Open the transcript for this episode (${detail.transcript_relative_path}) in a new tab.`"
+          :title="`Open the transcript for this episode (${detail.transcript_relative_path}) in an in-app viewer.`"
+          @click="openTranscriptViewer()"
         >
           View transcript
-        </a>
+        </button>
         <HelpTip class="shrink-0 self-center">
           Opens Search with this feed scoped and the same field order as
           <strong class="font-medium text-surface-foreground/90">Similar episodes</strong>
@@ -1119,5 +1137,6 @@ watch(
         </div>
       </div>
     </template>
+    <TranscriptViewerDialog ref="transcriptViewerRef" />
   </div>
 </template>
