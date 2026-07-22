@@ -65,9 +65,11 @@ function timestampLabelForMember(hit: SearchHit): string | null {
 }
 
 /**
- * "matched: X" chip label for a cluster member, derived from
- * ``metadata.matched_field`` (indexer.py). Falls back to a doc_type name
- * for pre-2026-07-22 corpora that haven't been reindexed yet.
+ * "matched: X" chip label for a cluster member. Uses ``matched_field``
+ * when present (kept in the indexer row metadata for future consumers),
+ * otherwise derives from the row's ``doc_type`` — the aux table's
+ * schema does not round-trip metadata dicts so real hits arrive without
+ * ``matched_field`` and the doc_type itself carries the same signal.
  */
 function matchedFieldLabelForMember(hit: SearchHit): string {
   const md = (hit.metadata ?? {}) as Record<string, unknown>
@@ -87,7 +89,20 @@ function matchedFieldLabelForMember(hit: SearchHit): string {
       break
   }
   const docType = typeof md.doc_type === 'string' ? md.doc_type : ''
-  return docType === 'transcript' ? 'Transcript' : 'Match'
+  switch (docType) {
+    case 'transcript':
+      return 'Transcript'
+    case 'episode_title':
+      return 'Title'
+    case 'episode_description':
+      return 'Description'
+    case 'summary_short':
+      return 'Summary'
+    case 'summary':
+      return 'Summary bullet'
+    default:
+      return 'Match'
+  }
 }
 
 function memberIsTranscript(hit: SearchHit): boolean {
