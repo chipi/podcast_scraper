@@ -77,9 +77,23 @@ def player_base() -> Iterator[str]:
     if not cid:
         srv.shutdown()
         pytest.fail(f"failed to start nginx container: {run.stderr}")
-    time.sleep(2)
+    # Wait until the container's nginx actually accepts a connection — a fixed
+    # sleep raced on Docker Desktop for macOS where port publishing lags
+    # container start by ~1-3 seconds (#1261 followup).
+    base = f"http://127.0.0.1:{NGINX_HOST_PORT}"
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(base + "/", timeout=1)  # noqa: S310
+            break
+        except (urllib.error.URLError, OSError):
+            time.sleep(0.5)
+    else:
+        subprocess.run(["docker", "rm", "-f", cid], capture_output=True)
+        srv.shutdown()
+        pytest.fail("nginx container did not accept connections within 30s")
     try:
-        yield f"http://127.0.0.1:{NGINX_HOST_PORT}"
+        yield base
     finally:
         subprocess.run(["docker", "rm", "-f", cid], capture_output=True)
         srv.shutdown()
@@ -108,3 +122,25 @@ def test_operator_api_never_reaches_backend(player_base: str) -> None:
 def test_consumer_api_is_rate_limited(player_base: str) -> None:
     codes = [_get(f"{player_base}/api/app/auth/login")[0] for _ in range(60)]
     assert 429 in codes, "a burst on the auth endpoint must hit the rate limit (429)"
+
+
+# --------------------------------------------------------------------------- #
+# #1261-9 — SPA fallback for the new listener routes (topic / person / browse)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/topic/topic:ai",
+        "/person/person:jane-doe",
+        "/browse/topics",
+        "/browse/people",
+    ],
+)
+def test_new_listener_routes_fall_through_to_spa(player_base: str, path: str) -> None:
+    # A direct-load of a client-side route must not 404 — nginx should serve the
+    # SPA (index.html) so vue-router can render the matching view.
+    code, body = _get(f"{player_base}{path}")
+    assert code == 200, f"{path} returned {code}, expected 200 (SPA fallback)"
+    assert '<div id="app">' in body, f"{path} did not serve the SPA index.html"
