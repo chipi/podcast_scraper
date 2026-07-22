@@ -1,17 +1,23 @@
 import type { SearchHit } from '../api/searchApi'
 
 /**
- * A "cluster" of transcript-tier hits that all point at the same episode.
+ * A "cluster" of episode-scoped hits that all point at the same episode.
  * Emitted by ``collapseTranscriptHitsByEpisode`` so ``SearchPanel`` can
- * render one card per episode instead of one card per chunk. The
- * cluster's position in the results list is the position of its FIRST
- * member (which, because ``search.results`` is score-sorted, is the
- * highest-scoring chunk on that episode).
+ * render one card per episode instead of one card per matching chunk /
+ * metadata field. The cluster's position in the results list is the
+ * position of its FIRST member (which, because ``search.results`` is
+ * score-sorted, is the highest-scoring member on that episode).
  *
- * Non-transcript hits (insight / quote / kg_topic / kg_entity / summary)
+ * Foldable doc_types (2026-07-22 UX cleanup):
+ *   - ``transcript`` — transcript chunk hits.
+ *   - ``episode_title`` / ``episode_description`` / ``summary_short`` —
+ *     episode-level metadata surfaces (indexer.py rows carry a
+ *     ``matched_field`` marker so the card can render "matched: Title /
+ *     Description / Summary" chips).
+ *
+ * Insight / quote / kg_topic / kg_entity / ``summary`` (per-bullet) rows
  * pass through the collapse untouched — the user's mental model is that
- * transcript hits ARE episodes we found the query in, whereas insight
- * hits are distinct claims worth surfacing individually.
+ * insight hits are distinct claims worth surfacing individually.
  */
 export interface TranscriptClusterHit {
   __kind: 'transcript_cluster'
@@ -33,15 +39,30 @@ export function isTranscriptClusterHit(
   return (row as TranscriptClusterHit).__kind === 'transcript_cluster'
 }
 
-const TRANSCRIPT_TIER = 'segment'
+const FOLDABLE_DOC_TYPES = new Set([
+  'transcript',
+  'episode_title',
+  'episode_description',
+  'summary_short',
+])
+
+function isFoldableHit(hit: SearchHit): boolean {
+  const md = (hit.metadata ?? {}) as Record<string, unknown>
+  const docType = typeof md.doc_type === 'string' ? md.doc_type : ''
+  return FOLDABLE_DOC_TYPES.has(docType)
+}
 
 /**
- * Group consecutive transcript hits that share ``metadata.episode_id``
- * into one ``TranscriptClusterHit``. Passes every other row through
- * unchanged. Never re-orders — insight / quote hits keep their scored
- * position; the cluster occupies the slot of its highest-scoring member.
+ * Group episode-scoped hits by ``metadata.episode_id`` into one
+ * ``TranscriptClusterHit`` per episode. Foldable doc_types are the
+ * transcript chunks plus the episode-level metadata surfaces
+ * (``episode_title`` / ``episode_description`` / ``summary_short``).
  *
- * Transcript hits WITHOUT a resolvable ``episode_id`` are also passed
+ * Passes every other row through unchanged. Never re-orders — insight /
+ * quote / kg hits keep their scored position; the cluster occupies the
+ * slot of its highest-scoring member.
+ *
+ * Foldable hits WITHOUT a resolvable ``episode_id`` are also passed
  * through as plain rows so the caller can still see them (they're rare
  * and usually indicate a corpus-side metadata gap).
  */
@@ -52,12 +73,11 @@ export function collapseTranscriptHitsByEpisode(
   const episodeToClusterIndex = new Map<string, number>()
 
   for (const hit of hits) {
-    const tier = hit.source_tier ?? 'aux'
     const md = (hit.metadata ?? {}) as Record<string, unknown>
     const epIdRaw = md.episode_id
     const epId = typeof epIdRaw === 'string' ? epIdRaw.trim() : ''
 
-    if (tier !== TRANSCRIPT_TIER || !epId) {
+    if (!isFoldableHit(hit) || !epId) {
       out.push(hit)
       continue
     }

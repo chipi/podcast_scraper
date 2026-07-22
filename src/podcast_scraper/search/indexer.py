@@ -332,12 +332,66 @@ def _collect_docs_for_episode(  # noqa: C901
             _kg_vector_rows_from_path(kg_disk, scope_tag, episode_id, raw_feed_id, published)
         )
 
+    # Episode-level metadata as searchable documents (title / description /
+    # summary short_summary). Each is one row per episode, unlike summary
+    # bullets (one per bullet) and transcript chunks (many per episode).
+    # These carry ``matched_field`` in metadata so the client can render
+    # "matched: Title / Description / Summary" chips next to the hit.
+    ep_title_raw = ep.get("title")
+    if isinstance(ep_title_raw, str) and ep_title_raw.strip():
+        rows.append(
+            (
+                f"episode_title:{scope_tag}",
+                ep_title_raw.strip(),
+                {
+                    "doc_type": "episode_title",
+                    "matched_field": "title",
+                    "episode_id": episode_id,
+                    "feed_id": raw_feed_id,
+                    "publish_date": published,
+                    "source_id": episode_id,
+                },
+            )
+        )
+    ep_desc_raw = ep.get("description")
+    if isinstance(ep_desc_raw, str) and ep_desc_raw.strip():
+        rows.append(
+            (
+                f"episode_description:{scope_tag}",
+                ep_desc_raw.strip(),
+                {
+                    "doc_type": "episode_description",
+                    "matched_field": "description",
+                    "episode_id": episode_id,
+                    "feed_id": raw_feed_id,
+                    "publish_date": published,
+                    "source_id": episode_id,
+                },
+            )
+        )
+
     summary = doc.get("summary")
     chunk_ts: Optional[List[Dict[str, Any]]] = None
     if isinstance(summary, dict):
         ts_raw = summary.get("timestamps")
         if isinstance(ts_raw, list):
             chunk_ts = [cast(Dict[str, Any], x) for x in ts_raw if isinstance(x, dict)]
+        short_summary = summary.get("short_summary")
+        if isinstance(short_summary, str) and short_summary.strip():
+            rows.append(
+                (
+                    f"summary_short:{scope_tag}",
+                    short_summary.strip(),
+                    {
+                        "doc_type": "summary_short",
+                        "matched_field": "summary",
+                        "episode_id": episode_id,
+                        "feed_id": raw_feed_id,
+                        "publish_date": published,
+                        "source_id": "short_summary",
+                    },
+                )
+            )
         bullets = summary.get("bullets") or []
         if isinstance(bullets, list):
             for i, b in enumerate(bullets):
@@ -348,6 +402,7 @@ def _collect_docs_for_episode(  # noqa: C901
                             b.strip(),
                             {
                                 "doc_type": "summary",
+                                "matched_field": "summary_bullet",
                                 "episode_id": episode_id,
                                 "feed_id": raw_feed_id,
                                 "publish_date": published,

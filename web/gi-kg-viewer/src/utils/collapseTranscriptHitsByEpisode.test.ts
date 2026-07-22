@@ -19,14 +19,66 @@ function h(
 }
 
 describe('collapseTranscriptHitsByEpisode', () => {
-  it('passes non-transcript hits through unchanged', () => {
+  it('passes non-foldable hits through unchanged', () => {
     const hits = [
-      h({ doc_id: 'i:1', source_tier: 'insight' }),
+      h({ doc_id: 'i:1', source_tier: 'insight', metadata: { doc_type: 'insight' } }),
       h({ doc_id: 'kt:1', source_tier: 'aux', metadata: { doc_type: 'kg_topic' } }),
+      h({ doc_id: 's:1', source_tier: 'aux', metadata: { doc_type: 'summary', episode_id: 'ep-a' } }),
     ]
     const rows = collapseTranscriptHitsByEpisode(hits)
     expect(rows).toEqual(hits)
     expect(rows.some(isTranscriptClusterHit)).toBe(false)
+  })
+
+  it('folds episode_title / episode_description / summary_short into the same episode cluster as transcript chunks', () => {
+    const t = h({
+      doc_id: 't:1',
+      score: 0.9,
+      source_tier: 'segment',
+      metadata: {
+        doc_type: 'transcript',
+        episode_id: 'ep-a',
+        episode_title: 'A',
+        matched_field: 'transcript',
+      },
+    })
+    const titleHit = h({
+      doc_id: 'et:1',
+      score: 0.85,
+      source_tier: 'aux',
+      metadata: {
+        doc_type: 'episode_title',
+        matched_field: 'title',
+        episode_id: 'ep-a',
+      },
+    })
+    const descHit = h({
+      doc_id: 'ed:1',
+      score: 0.7,
+      source_tier: 'aux',
+      metadata: {
+        doc_type: 'episode_description',
+        matched_field: 'description',
+        episode_id: 'ep-a',
+      },
+    })
+    const summaryHit = h({
+      doc_id: 'ss:1',
+      score: 0.6,
+      source_tier: 'aux',
+      metadata: {
+        doc_type: 'summary_short',
+        matched_field: 'summary',
+        episode_id: 'ep-a',
+      },
+    })
+    const rows = collapseTranscriptHitsByEpisode([t, titleHit, descHit, summaryHit])
+    expect(rows).toHaveLength(1)
+    const cluster = rows[0] as TranscriptClusterHit
+    expect(cluster.members).toHaveLength(4)
+    // Members preserved in input order (score-sorted).
+    expect(cluster.members.map((m) => m.doc_id)).toEqual(['t:1', 'et:1', 'ed:1', 'ss:1'])
+    expect(cluster.topScore).toBe(0.9)
   })
 
   it('collapses multiple transcript hits with the same episode_id into one cluster', () => {

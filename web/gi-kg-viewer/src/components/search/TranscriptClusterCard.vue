@@ -50,7 +50,7 @@ const rowClickable = computed(
 
 const memberCountLabel = computed<string>(() => {
   const n = props.cluster.members.length
-  return n === 1 ? '1 transcript match' : `${n} transcript matches`
+  return n === 1 ? '1 match on this episode' : `${n} matches on this episode`
 })
 
 function timestampLabelForMember(hit: SearchHit): string | null {
@@ -61,6 +61,37 @@ function timestampLabelForMember(hit: SearchHit): string | null {
   const mm = Math.floor(s / 60)
   const ss = s % 60
   return `${mm}:${ss.toString().padStart(2, '0')}`
+}
+
+/**
+ * "matched: X" chip label for a cluster member, derived from
+ * ``metadata.matched_field`` (indexer.py). Falls back to a doc_type name
+ * for pre-2026-07-22 corpora that haven't been reindexed yet.
+ */
+function matchedFieldLabelForMember(hit: SearchHit): string {
+  const md = (hit.metadata ?? {}) as Record<string, unknown>
+  const raw = typeof md.matched_field === 'string' ? md.matched_field : ''
+  switch (raw) {
+    case 'title':
+      return 'Title'
+    case 'description':
+      return 'Description'
+    case 'summary':
+      return 'Summary'
+    case 'summary_bullet':
+      return 'Summary bullet'
+    case 'transcript':
+      return 'Transcript'
+    default:
+      break
+  }
+  const docType = typeof md.doc_type === 'string' ? md.doc_type : ''
+  return docType === 'transcript' ? 'Transcript' : 'Match'
+}
+
+function memberIsTranscript(hit: SearchHit): boolean {
+  const md = (hit.metadata ?? {}) as Record<string, unknown>
+  return md.doc_type === 'transcript'
 }
 
 function memberChunkStartMs(hit: SearchHit): number | null {
@@ -143,21 +174,27 @@ function onRowKeydown(ev: KeyboardEvent): void {
         v-for="m in cluster.members"
         :key="m.doc_id"
         class="rounded border border-border/60 bg-canvas/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
-        :class="cluster.metadataRelativePath ? 'cursor-pointer hover:border-primary/50 hover:bg-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''"
-        :role="cluster.metadataRelativePath ? 'button' : undefined"
-        :tabindex="cluster.metadataRelativePath ? 0 : undefined"
-        :aria-label="cluster.metadataRelativePath ? 'Open transcript at this position' : undefined"
-        :title="cluster.metadataRelativePath ? 'Open transcript at this position (in-app viewer, audio seeks to timestamp when available).' : undefined"
+        :class="memberIsTranscript(m) && cluster.metadataRelativePath ? 'cursor-pointer hover:border-primary/50 hover:bg-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''"
+        :role="memberIsTranscript(m) && cluster.metadataRelativePath ? 'button' : undefined"
+        :tabindex="memberIsTranscript(m) && cluster.metadataRelativePath ? 0 : undefined"
+        :aria-label="memberIsTranscript(m) && cluster.metadataRelativePath ? 'Open transcript at this position' : undefined"
+        :title="memberIsTranscript(m) && cluster.metadataRelativePath ? 'Open transcript at this position (in-app viewer, audio seeks to timestamp when available).' : undefined"
         data-testid="search-transcript-cluster-member"
-        @click.stop="onMemberClick(m)"
-        @keydown.enter.stop.prevent="onMemberClick(m)"
-        @keydown.space.stop.prevent="onMemberClick(m)"
+        :data-match-field="(m.metadata?.matched_field as string | undefined) ?? ''"
+        @click.stop="memberIsTranscript(m) && onMemberClick(m)"
+        @keydown.enter.stop.prevent="memberIsTranscript(m) && onMemberClick(m)"
+        @keydown.space.stop.prevent="memberIsTranscript(m) && onMemberClick(m)"
       >
-        <p
-          v-if="timestampLabelForMember(m)"
-          class="mb-0.5 flex items-center gap-1 text-[9px] uppercase tracking-wide text-muted"
-        >
-          <span>@ {{ timestampLabelForMember(m) }}</span>
+        <p class="mb-0.5 flex items-center gap-1 text-[9px] uppercase tracking-wide text-muted">
+          <span
+            class="rounded bg-primary/15 px-1 py-px font-medium text-primary"
+            data-testid="search-transcript-cluster-member-field"
+          >
+            {{ matchedFieldLabelForMember(m) }}
+          </span>
+          <span
+            v-if="timestampLabelForMember(m)"
+          >@ {{ timestampLabelForMember(m) }}</span>
           <span class="font-mono text-muted/80">· {{ m.score.toFixed(4) }}</span>
         </p>
         <p>{{ truncate(m.text || '(no text)', 240) }}</p>
