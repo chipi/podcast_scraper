@@ -364,8 +364,8 @@ viewer's dashed-border styling.
 
 Permissive transition: schemas v2.0 (KG) + v3.0 (GI) accept both
 legacy and new shape. Chunk 9 of the RFC-097 migration drops legacy
-support after ≥2–4 weeks of production operation under v2
-(ADR-101 will land alongside chunk 9 of RFC-097).
+support after ≥2–4 weeks of production operation under v2 — captured
+in [ADR-101](../../adr/ADR-101-drop-legacy-kg-gi-shape.md).
 
 **Where the old docs went.**
 [`docs/architecture/kg/ontology.md`](../kg/ontology.md) and
