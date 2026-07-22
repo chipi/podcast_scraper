@@ -1,9 +1,10 @@
 # UXS-015: Operator Shows Library (shows-first browse)
 
-**Surface:** `web/gi-kg-viewer` — `library` tab, **Shows** mode
-**Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator shared design system — tokens, type, density),
-[UXS-003](UXS-003-corpus-library.md) (episode-first Library — episode-row contract)
-**PRD/RFC:** [PRD-044](../prd/PRD-044-operator-shows-library.md) · [RFC-104](../rfc/RFC-104-operator-shows-library.md)
+- **Status**: Active
+- **Surface:** `web/gi-kg-viewer` — `library` tab, **Shows** mode
+- **Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator shared design system — tokens, type, density),
+  [UXS-003](UXS-003-corpus-library.md) (episode-first Library — episode-row contract)
+- **PRD/RFC:** [PRD-044](../prd/PRD-044-operator-shows-library.md) · [RFC-104](../rfc/RFC-104-operator-shows-library.md)
 
 This UXS owns the **static visual contract** (layout grid, card appearance, tokens, states, a11y).
 Behavioral rules (fetch strategy, state machine, cross-link) live in RFC-104.
