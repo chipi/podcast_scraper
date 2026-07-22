@@ -27,6 +27,10 @@ import { useSearchStore } from '../../stores/search'
 import { useSubjectStore } from '../../stores/subject'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
 import { useSavedQueriesStore } from '../../stores/savedQueries'
+import {
+  useRecentActivityStore,
+  type RecentSubjectEntry,
+} from '../../stores/recentActivity'
 import { useThemeStore } from '../../stores/theme'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -65,6 +69,7 @@ const search = useSearchStore()
 const subject = useSubjectStore()
 const userPrefs = useUserPreferencesStore()
 const savedQueries = useSavedQueriesStore()
+const recentActivity = useRecentActivityStore()
 const theme = useThemeStore()
 const auth = useAuthStore()
 
@@ -81,6 +86,37 @@ const recentQueries = computed<RecentEntry[]>(() => {
   const raw = userPrefs.get<RecentEntry[]>('search.recentQueries')
   return Array.isArray(raw) ? raw.slice(0, 8) : []
 })
+
+// #1259-3 recent-activity ring buffers — empty-state hints.
+const recentSubjects = computed<RecentSubjectEntry[]>(() =>
+  recentActivity.listRecentSubjects(6),
+)
+
+function recentSubjectLabel(entry: RecentSubjectEntry): string {
+  if (entry.label && entry.label.trim()) return entry.label
+  if (entry.kind === 'episode') {
+    // Metadata paths look like ".../metadata/<slug>.metadata.json" —
+    // yank the last path segment stripped of the ".metadata.json" tail.
+    const base = entry.id.slice(entry.id.lastIndexOf('/') + 1)
+    return base.replace(/\.metadata\.json$/i, '')
+  }
+  // topic:x / person:y — drop the prefix.
+  const colon = entry.id.indexOf(':')
+  return colon >= 0 ? entry.id.slice(colon + 1) : entry.id
+}
+
+function recentSubjectKindBadge(entry: RecentSubjectEntry): string {
+  if (entry.kind === 'topic') return 'Topic'
+  if (entry.kind === 'person') return 'Person'
+  return 'Episode'
+}
+
+function onRecentSubjectClick(entry: RecentSubjectEntry): void {
+  if (entry.kind === 'topic') subject.focusTopic(entry.id)
+  else if (entry.kind === 'person') subject.focusPerson(entry.id)
+  else subject.focusEpisode(entry.id)
+  closePalette()
+}
 
 const showEmptyState = computed(() => open.value && !query.value.trim() && !loading.value)
 
@@ -469,6 +505,37 @@ onBeforeUnmount(() => {
               >
                 No recent queries yet.
               </p>
+            </section>
+
+            <section
+              v-if="recentSubjects.length"
+              aria-labelledby="palette-recent-subjects-heading"
+              data-testid="command-palette-recent-subjects"
+            >
+              <h3
+                id="palette-recent-subjects-heading"
+                class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted"
+              >
+                Recent subjects
+              </h3>
+              <ul class="flex flex-col gap-0.5">
+                <li
+                  v-for="entry in recentSubjects"
+                  :key="`${entry.kind}:${entry.id}`"
+                >
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-elevated-foreground hover:bg-overlay"
+                    data-testid="command-palette-recent-subject"
+                    @click="onRecentSubjectClick(entry)"
+                  >
+                    <span class="min-w-0 flex-1 truncate">{{ recentSubjectLabel(entry) }}</span>
+                    <span
+                      class="inline-flex h-4 shrink-0 items-center justify-center rounded bg-primary/15 px-1 text-[9px] font-medium uppercase tracking-wide text-primary"
+                    >{{ recentSubjectKindBadge(entry) }}</span>
+                  </button>
+                </li>
+              </ul>
             </section>
 
             <section aria-labelledby="palette-saved-heading">

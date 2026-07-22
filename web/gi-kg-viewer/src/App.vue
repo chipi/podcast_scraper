@@ -29,6 +29,7 @@ import { useGraphExplorerStore } from './stores/graphExplorer'
 import { useGraphHandoffStore } from './stores/graphHandoff'
 import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useSearchStore } from './stores/search'
+import { useRecentActivityStore } from './stores/recentActivity'
 import { useShellStore } from './stores/shell'
 import { useSubjectStore } from './stores/subject'
 import { useThemeStore } from './stores/theme'
@@ -88,6 +89,7 @@ const artifacts = useArtifactsStore()
 const search = useSearchStore()
 const theme = useThemeStore()
 const subject = useSubjectStore()
+const recentActivity = useRecentActivityStore()
 const graphExplorer = useGraphExplorerStore()
 const graphExpansion = useGraphExpansionStore()
 const graphHandoff = useGraphHandoffStore()
@@ -294,6 +296,33 @@ async function activateGraphTab(
 watch(mainTab, (tab) => {
   posthog.capture('main_tab_switched', { tab })
 })
+
+/**
+ * #1259-3: recent-subjects ring buffer. Every subject-store transition
+ * that lands on a canonical kind (topic / person / episode) pushes an
+ * entry. Duplicates dedupe on ``kind + id`` inside the store; capping
+ * at 20 also handled there. Non-blocking — swallow write errors so a
+ * failed persistence never blocks the UI transition.
+ */
+watch(
+  () => [subject.kind, subject.graphNodeCyId, subject.episodeMetadataPath] as const,
+  ([kind, graphNodeId, episodeRel]) => {
+    if (kind === 'graph-node' && typeof graphNodeId === 'string') {
+      const id = graphNodeId.trim()
+      if (id.startsWith('topic:')) {
+        void recentActivity.pushSubject({ kind: 'topic', id })
+        return
+      }
+      if (id.startsWith('person:')) {
+        void recentActivity.pushSubject({ kind: 'person', id })
+        return
+      }
+    }
+    if (kind === 'episode' && typeof episodeRel === 'string' && episodeRel.trim()) {
+      void recentActivity.pushSubject({ kind: 'episode', id: episodeRel })
+    }
+  },
+)
 
 function onSwitchMainTab(tab: 'digest' | 'library' | 'search' | 'graph' | 'dashboard'): void {
   if (tab === 'graph') {
