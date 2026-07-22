@@ -60,6 +60,19 @@ class TestInitSentryNoOp(unittest.TestCase):
         os.environ["PODCAST_SENTRY_DSN_API"] = "   "
         self.assertFalse(init_sentry("api"))
 
+    def test_api_dsn_malformed_returns_false_without_raising(self) -> None:
+        # Regression (#24, 2026-07-22): a non-empty but INVALID DSN (no scheme)
+        # made sentry_sdk.init raise BadDsn ("Unsupported scheme ''") and crash
+        # the whole app at startup. init_sentry must DISABLE Sentry and return
+        # False instead — telemetry must never break the app. Exercises the real
+        # sentry_sdk.init (not mocked) so it hits the BadDsn path.
+        os.environ["PODCAST_SENTRY_DSN_API"] = "SENTINEL_not_a_valid_dsn"
+        try:
+            result = init_sentry("api")
+        except Exception as exc:  # noqa: BLE001 — the whole point is it must not raise
+            self.fail(f"init_sentry raised on a malformed DSN (must be caught): {exc!r}")
+        self.assertFalse(result)
+
 
 @pytest.mark.unit
 class TestInitSentryInitPath(unittest.TestCase):

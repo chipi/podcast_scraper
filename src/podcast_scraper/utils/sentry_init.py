@@ -148,29 +148,42 @@ def init_sentry(component: Component) -> bool:
 
     traces_rate = _DEFAULT_TRACES_SAMPLE_RATE[component]
 
-    sentry_sdk.init(
-        dsn=dsn,
-        environment=environment,
-        release=release,
-        traces_sample_rate=traces_rate,
-        # Keep `send_default_pii=False` so request bodies + headers don't
-        # leak op data. Custom tags / contexts are still attached.
-        send_default_pii=False,
-        # Scrub sensitive keys (tokens/secrets) from extra/contexts/headers and,
-        # critically, stack-frame locals — GlitchTip/Sentry stores what we send.
-        # (SDK types before_send with its TypedDict Event; our plain-dict scrubber
-        # is structurally compatible — ignore the narrow-type mismatch.)
-        before_send=_before_send,  # type: ignore[arg-type]
-        # Default integrations (Logging / Threading / Asyncio /
-        # ExcepthookIntegration / DedupeIntegration / AtexitIntegration /
-        # StdlibIntegration) cover the surfaces we care about. The FastAPI
-        # integration auto-activates when FastAPI is imported, so the api
-        # gets it without an explicit ``integrations=[...]`` argument.
-    )
-
-    # Tag every event with the component so the api / pipeline streams can
-    # be filtered cleanly in Sentry's UI.
-    sentry_sdk.set_tag("component", component)
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=environment,
+            release=release,
+            traces_sample_rate=traces_rate,
+            # Keep `send_default_pii=False` so request bodies + headers don't
+            # leak op data. Custom tags / contexts are still attached.
+            send_default_pii=False,
+            # Scrub sensitive keys (tokens/secrets) from extra/contexts/headers and,
+            # critically, stack-frame locals — GlitchTip/Sentry stores what we send.
+            # (SDK types before_send with its TypedDict Event; our plain-dict scrubber
+            # is structurally compatible — ignore the narrow-type mismatch.)
+            before_send=_before_send,  # type: ignore[arg-type]
+            # Default integrations (Logging / Threading / Asyncio /
+            # ExcepthookIntegration / DedupeIntegration / AtexitIntegration /
+            # StdlibIntegration) cover the surfaces we care about. The FastAPI
+            # integration auto-activates when FastAPI is imported, so the api
+            # gets it without an explicit ``integrations=[...]`` argument.
+        )
+        # Tag every event with the component so the api / pipeline streams can
+        # be filtered cleanly in Sentry's UI.
+        sentry_sdk.set_tag("component", component)
+    except Exception:  # noqa: BLE001 — telemetry must NEVER break the app
+        # A malformed DSN raises sentry_sdk.utils.BadDsn ("Unsupported scheme");
+        # any other init failure is equally fatal if unguarded. A telemetry
+        # misconfig must DISABLE Sentry, not crash the process (empty DSN is
+        # already handled above; this guards a non-empty-but-invalid DSN — e.g.
+        # a wrong scheme from a bad secret). The app continues without Sentry.
+        _LOGGER.exception(
+            "sentry init FAILED for component=%s (env %s) — Sentry disabled, "
+            "app continues. Check the DSN value.",
+            component,
+            dsn_var,
+        )
+        return False
 
     _LOGGER.info(
         "sentry init complete component=%s environment=%s release=%s " "traces_sample_rate=%s",
