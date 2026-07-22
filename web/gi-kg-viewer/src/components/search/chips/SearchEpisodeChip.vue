@@ -27,14 +27,12 @@ function clear(): void {
   <button
     v-if="isActive"
     type="button"
-    class="inline-flex h-6 items-center gap-1 rounded border border-primary bg-primary text-[11px] leading-none text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    class="inline-flex h-6 items-center rounded border border-primary bg-primary px-2 text-[11px] leading-none text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     data-testid="search-chip-episode"
     :aria-label="`Episode scope active: ${search.filters.episodeId}. Click to clear.`"
     :title="`Search results scoped to episode ${search.filters.episodeId}. Click to clear the scope.`"
     @click="clear"
   >
-    <span class="px-2 py-0.5">
-      Episode ✕
-    </span>
+    Episode ✕
   </button>
 </template>
