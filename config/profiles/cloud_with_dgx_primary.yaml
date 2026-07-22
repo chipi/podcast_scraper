@@ -173,3 +173,4 @@ transcription_fallback_providers: [tailnet_dgx_whisper, whisper, openai]
 diarization_fallback_providers: [local, deepgram]
 resilience_run_context: serve
 resilience_failure_strategy: failover
+transcription_coverage_min: 0.0

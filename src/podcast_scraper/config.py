@@ -1188,6 +1188,31 @@ class Config(BaseModel):
             "Tried after transcription_provider on infra failure."
         ),
     )
+    # ADR-120 (#1258): quality-gate transcription failover. Distinct from the infra ladders above —
+    # this fires when a transcription SUCCEEDS but its output coverage (Σ segment durations / audio
+    # duration) is below the floor, i.e. the model silently dropped speech (turbo's long-form VAD
+    # failure). The episode is then re-transcribed on the failover model. Gate is OFF at 0.0.
+    transcription_coverage_min: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        alias="transcription_coverage_min",
+        description=(
+            "ADR-120 quality-gate transcription failover floor. When a transcription's segment "
+            "coverage (Σ segment durations / audio duration) is below this, re-transcribe on "
+            "transcription_coverage_failover_model. 0.0 = gate off; a reprocess sets ~0.85. Active "
+            "only with a failover model set."
+        ),
+    )
+    transcription_coverage_failover_model: Optional[str] = Field(
+        default=None,
+        alias="transcription_coverage_failover_model",
+        description=(
+            "ADR-120: the whisper model to re-transcribe with when coverage falls below "
+            "transcription_coverage_min (e.g. 'Systran/faster-whisper-large-v3' as the robust "
+            "fallback for turbo's long-episode drops). None = no quality-gate failover."
+        ),
+    )
     diarization_fallback_providers: List[str] = Field(
         default_factory=list,
         alias="diarization_fallback_providers",

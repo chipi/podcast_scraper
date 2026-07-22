@@ -180,3 +180,46 @@ def test_factory_rejects_experiment_mode_for_dgx() -> None:
     params = TranscriptionParams(model_name="base.en", device="cpu", language="en")
     with pytest.raises(ValueError, match="not supported in experiment mode"):
         create_transcription_provider("tailnet_dgx_whisper", params)
+
+
+def test_factory_wraps_turbo_in_coverage_gate_adr120() -> None:
+    """ADR-120 (#1258): a profile with transcription_coverage_min + a failover model wraps the
+    primary in a CoverageGatedTranscriptionProvider (quality-gate failover)."""
+    from podcast_scraper.providers.resilience.fallback import (
+        CoverageGatedTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "tailnet_dgx_whisper",
+            "dgx_whisper_model": "deepdml/faster-whisper-large-v3-turbo-ct2",
+            "transcription_fallback_provider": "whisper",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "transcription_coverage_min": 0.85,
+            "transcription_coverage_failover_model": "Systran/faster-whisper-large-v3",
+        }
+    )
+    provider = create_transcription_provider(cfg)
+    assert isinstance(provider, CoverageGatedTranscriptionProvider)
+
+
+def test_factory_no_coverage_gate_when_disabled_adr120() -> None:
+    """coverage_min=0 (default) -> no coverage gate; the plain provider is returned."""
+    from podcast_scraper.providers.resilience.fallback import (
+        CoverageGatedTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "tailnet_dgx_whisper",
+            "transcription_fallback_provider": "whisper",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            # coverage_min defaults to 0.0 -> gate off even with a failover model present
+            "transcription_coverage_failover_model": "Systran/faster-whisper-large-v3",
+        }
+    )
+    provider = create_transcription_provider(cfg)
+    # gate off -> not coverage-gated (it's the ordinary infra FallbackChain from the ladder)
+    assert not isinstance(provider, CoverageGatedTranscriptionProvider)

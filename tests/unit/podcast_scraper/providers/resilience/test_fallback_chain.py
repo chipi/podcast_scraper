@@ -15,6 +15,8 @@ import pytest
 from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
 from podcast_scraper.providers.resilience.fallback import (
+    _segment_coverage,
+    CoverageGatedTranscriptionProvider,
     FallbackChainDiarizationProvider,
     FallbackChainTranscriptionProvider,
     is_infra_failure,
@@ -40,6 +42,10 @@ class _FakeTier:
 
     def cleanup(self) -> None:
         self.cleaned += 1
+
+    def transcribe(self, audio_path: str, language: str | None = None) -> str:
+        result, _elapsed = self.transcribe_with_segments(audio_path, language)
+        return str(result.get("text", ""))
 
     def transcribe_with_segments(
         self,
@@ -288,3 +294,73 @@ def test_diar_full_ladder_dgx_then_local_then_deepgram() -> None:
     result = chain.diarize("a.wav")
     assert result.model_name == "nova-3"
     assert deepgram.calls == 1
+
+
+# --- ADR-120 (#1258): quality-gate coverage failover -------------------------------------------
+
+
+def _segs(covered_sec: float) -> list[dict[str, object]]:
+    """One segment covering ``covered_sec`` seconds from t=0 (enough for the coverage metric)."""
+    return [{"start": 0.0, "end": covered_sec, "text": "x"}]
+
+
+def _gated(primary: _FakeTier, failover: _FakeTier, coverage_min: float):
+    return CoverageGatedTranscriptionProvider(
+        primary=("turbo", lambda: primary),
+        failover=("large-v3", lambda: failover),
+        coverage_min=coverage_min,
+    )
+
+
+def test_segment_coverage_metric() -> None:
+    # 60s of segments over a 100s episode -> 0.6; no segments / no duration -> None.
+    assert _segment_coverage({"segments": _segs(60)}, "a.mp3", 100) == pytest.approx(0.6)
+    assert _segment_coverage({"segments": []}, "a.mp3", 100) is None
+    assert _segment_coverage({"segments": _segs(60)}, "a.mp3", None) is None  # unmeasurable
+
+
+def test_low_coverage_triggers_quality_failover() -> None:
+    """Primary succeeds but drops speech (coverage 0.60 < 0.85) -> re-transcribe on the failover
+    model; the result carries the failover model + a coverage_failover provenance breadcrumb."""
+    primary = _FakeTier(result={"text": "short", "segments": _segs(60), "model_used": "turbo"})
+    failover = _FakeTier(result={"text": "full", "segments": _segs(92), "model_used": "large-v3"})
+    g = _gated(primary, failover, coverage_min=0.85)
+    g.initialize()
+    result, elapsed = g.transcribe_with_segments("a.mp3", episode_duration_seconds=100)
+    assert result["model_used"] == "large-v3"
+    assert result["coverage_failover"]["primary"] == "turbo"
+    assert result["coverage_failover"]["primary_coverage"] == pytest.approx(0.6)
+    assert primary.calls == 1 and failover.calls == 1  # both ran (turbo pass then lv3)
+    assert elapsed == pytest.approx(2.0)  # both passes counted
+
+
+def test_healthy_coverage_no_failover_and_failover_never_built() -> None:
+    """Healthy primary (coverage 0.95) -> keep it; the failover tier is never even constructed."""
+    primary = _FakeTier(result={"text": "full", "segments": _segs(95), "model_used": "turbo"})
+    built = {"n": 0}
+
+    def _failover_builder():
+        built["n"] += 1
+        return _FakeTier(result={"text": "x", "segments": _segs(92)})
+
+    g = CoverageGatedTranscriptionProvider(
+        primary=("turbo", lambda: primary),
+        failover=("large-v3", _failover_builder),
+        coverage_min=0.85,
+    )
+    g.initialize()
+    result, _elapsed = g.transcribe_with_segments("a.mp3", episode_duration_seconds=100)
+    assert result["model_used"] == "turbo"
+    assert "coverage_failover" not in result
+    assert built["n"] == 0  # lazy: failover model never constructed on the happy path
+
+
+def test_unmeasurable_coverage_does_not_failover() -> None:
+    """No segments -> coverage is None -> treat as 'do not re-route' (never spuriously failover)."""
+    primary = _FakeTier(result={"text": "x", "segments": [], "model_used": "turbo"})
+    failover = _FakeTier(result={"text": "y", "segments": _segs(92)})
+    g = _gated(primary, failover, coverage_min=0.85)
+    g.initialize()
+    result, _ = g.transcribe_with_segments("a.mp3", episode_duration_seconds=100)
+    assert result["model_used"] == "turbo"
+    assert failover.calls == 0

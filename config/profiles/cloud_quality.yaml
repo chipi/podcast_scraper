@@ -176,3 +176,4 @@ gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
 resilience_run_context: serve
 resilience_failure_strategy: failover
+transcription_coverage_min: 0.0

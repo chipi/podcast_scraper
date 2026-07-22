@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, cast, Dict, Literal, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, cast, Dict, Literal, Optional, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from podcast_scraper import config
@@ -114,6 +114,35 @@ def create_transcription_provider(  # noqa: C901
         # in a FallbackChainTranscriptionProvider. Suppressed via ``_wrap_fallback=False`` while
         # assembling the individual tiers, so a tier never recursively re-wraps itself.
         if _wrap_fallback:
+            # ADR-120 (#1258): quality-gate coverage failover. Orthogonal to the infra ladder / hold
+            # below — it wraps the primary and re-transcribes on a robust model when the primary's
+            # OUTPUT coverage is too low (turbo's silent long-episode drop). Active only when
+            # configured (coverage_min > 0 + a failover model); returns early. In a reprocess it
+            # composes with hold: each built provider keeps its own hold policy on infra failure,
+            # while this gate handles the successful-but-incomplete output.
+            cov_min = float(getattr(cfg, "transcription_coverage_min", 0.0) or 0.0)
+            cov_model = getattr(cfg, "transcription_coverage_failover_model", None)
+            if cov_min > 0.0 and cov_model:
+                from ..providers.resilience.fallback import CoverageGatedTranscriptionProvider
+
+                failover_cfg = cfg.model_copy(update={"dgx_whisper_model": cov_model})
+                # Named typed builders (not inline default-arg lambdas) so mypy can infer the
+                # Callable[[], TranscriptionProvider] the wrapper expects. No loop here → the
+                # captured cfg / failover_cfg / provider_type are stable, no per-closure binding.
+                primary_builder: Callable[[], TranscriptionProvider] = lambda: _build_chain_tier(
+                    cfg, provider_type
+                )
+                failover_builder: Callable[[], TranscriptionProvider] = lambda: _build_chain_tier(
+                    failover_cfg, provider_type
+                )
+                gated = CoverageGatedTranscriptionProvider(
+                    primary=(provider_type, primary_builder),
+                    failover=(f"{provider_type}:{cov_model}", failover_builder),
+                    coverage_min=cov_min,
+                )
+                verify_protocol_compliance(gated, TranscriptionProvider, "TranscriptionProvider")
+                return cast(TranscriptionProvider, gated)
+
             tiers = _transcription_fallback_tiers(cfg)
             # ADR-119: the HOLD strategy must NEVER fall over to a different model — the self-hosted
             # provider owns a hold-and-probe ResiliencePolicy, and a mixed-backend corpus is worse

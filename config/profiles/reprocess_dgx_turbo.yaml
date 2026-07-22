@@ -43,6 +43,13 @@ resilience_failure_strategy: hold
 # trap). Only effective now that --config non-flag fields actually reach Config (#1253 carry fix).
 transcript_cache_enabled: false
 
+# ADR-120 (#1258): quality-gate transcription failover. Turbo silently drops ~a quarter of the
+# speech on long episodes (the ep6 bake-off finding: 69% coverage, 29.9% WER); re-transcribe any
+# episode whose segment coverage falls below the floor on large-v3, which handles long audio
+# robustly. Only the flagged tail (~10% on the bake-off) pays the slow path.
+transcription_coverage_min: 0.85
+transcription_coverage_failover_model: Systran/faster-whisper-large-v3
+
 # --- diarization: pyannote v4 (self-hosted) -----------------------------------------------------
 diarize: true
 screenplay: true

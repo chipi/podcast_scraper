@@ -1650,6 +1650,11 @@ class ProfilePreset:
     # reprocess_dgx_* profiles declare reprocess/hold directly (they have no preset here).
     resilience_run_context: str = "serve"
     resilience_failure_strategy: str = "failover"
+    # ADR-120 (#1258) quality-gate transcription failover. Governed so a profile's coverage gate is
+    # explicit + drift-checked. Registry-backed presets are all serving pipelines -> gate OFF (0.0 /
+    # None); the yaml-only reprocess profiles set the floor + failover model directly.
+    transcription_coverage_min: float = 0.0
+    transcription_coverage_failover_model: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -1747,6 +1752,9 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # preset's serve/failover (or, in future, a hold) declaration.
     "resilience_run_context",
     "resilience_failure_strategy",
+    # ADR-120 (#1258): quality-gate transcription failover — coverage floor + failover model.
+    "transcription_coverage_min",
+    "transcription_coverage_failover_model",
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
     # two different configurations.
@@ -2345,6 +2353,10 @@ def resolve_profile_to_settings(
     # bypasses name-derivation) and profiles-check catches drift.
     settings["resilience_run_context"] = preset.resilience_run_context
     settings["resilience_failure_strategy"] = preset.resilience_failure_strategy
+
+    # ADR-120 (#1258): quality-gate transcription-failover knobs, governed like the resilience ones.
+    settings["transcription_coverage_min"] = preset.transcription_coverage_min
+    settings["transcription_coverage_failover_model"] = preset.transcription_coverage_failover_model
 
     # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
     #

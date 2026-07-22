@@ -188,3 +188,4 @@ diarization_fallback_providers: [local, deepgram]
 summary_fallback_providers: [gemini]
 resilience_run_context: serve
 resilience_failure_strategy: failover
+transcription_coverage_min: 0.0
