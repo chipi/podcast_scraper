@@ -2,12 +2,12 @@
 /**
  * Query Workspace — Search v3 §S2 + §S4-shell pivot. Full-width main-tab
  * surface that hosts the SearchPanel query UI. The Saved + Recent sidebar
- * moved to the app-level LeftPanel (§S4-shell) so the workspace can use the
- * whole main-tab area for query + results + future slices (S4 operator bar,
- * S5 enriched-answer hero).
+ * moved to the app-level LeftPanel (§S4-shell) so the workspace can use
+ * the whole main-tab area for query + results + operator bar + enriched-
+ * answer hero (all now on SearchPanel).
  *
  * SearchPanel is the query-surface source of truth; this component is
- * intentionally a thin wrapper — slices S4/S5 attach their surfaces to it.
+ * intentionally a thin wrapper.
  */
 import SearchPanel from './SearchPanel.vue'
 

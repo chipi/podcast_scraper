@@ -6,10 +6,13 @@
  * queries surface backed by USERPREFS-1 (server-mirrored per-user prefs).
  *
  * Data:
- *   - ``search.savedQueries`` — list of {q, ts?, label?} (S7 #1237 will
- *     write; today shows the honest empty state).
- *   - ``search.recentQueries`` — list of {q, ts?} (S6 #1236 will write;
- *     today shows the honest empty state).
+ *   - ``search.savedQueries`` — list of {q, ts?, label?}. Written by the
+ *     command palette's "Save this query" action (see
+ *     ``paletteCommands.session.save-query`` +
+ *     ``useSavedQueriesStore.saveQuery``).
+ *   - ``search.recentQueries`` — list of {q, ts?}. Written by the search
+ *     store after every successful ``runSearch``. Both keys live in
+ *     USERPREFS-1 so the panel mirrors across devices.
  *
  * Interaction:
  *   Clicking a row emits ``apply-query`` with the query string; the App
@@ -87,7 +90,7 @@ function apply(q: string): void {
         class="text-xs text-muted"
         data-testid="left-panel-saved-empty"
       >
-        Saved queries land in slice S7 (USERPREFS-1 ``search.savedQueries``).
+        No saved queries yet. Open the command palette (Cmd-K) and pick "Save this query" to keep one here.
       </p>
     </section>
 

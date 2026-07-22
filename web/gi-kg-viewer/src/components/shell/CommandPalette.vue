@@ -12,12 +12,13 @@
  *     today (graph node id from the hit's source_id).
  *
  * Empty state (query cleared): shows Recent (USERPREFS-1
- * ``search.recentQueries``) and Saved (USERPREFS-1 ``search.savedQueries`` —
- * populated in slice S7 #1237).
+ * ``search.recentQueries``) and Saved (USERPREFS-1
+ * ``search.savedQueries``). Both mirror across devices via USERPREFS-1;
+ * Saved is written by the "Save this query" palette action.
  *
- * Not in this slice: the ``palette=1`` server-side hint on /api/search
- * (would cap response cost) — S4/S5 can add it if palette latency is a
- * concern. The current shipped endpoint returns the same shape.
+ * Not shipped: the ``palette=1`` server-side hint on /api/search (would
+ * cap response cost). Add if palette latency becomes a concern — the
+ * shipped endpoint returns the same shape without it.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { searchCorpus, type SearchHit } from '../../api/searchApi'
@@ -560,7 +561,7 @@ onBeforeUnmount(() => {
                 class="text-xs text-muted"
                 data-testid="command-palette-saved-empty"
               >
-                Saved queries land in slice S7 (USERPREFS-1 ``search.savedQueries``).
+                No saved queries yet. Type <span class="font-mono">&gt;</span> and pick "Save this query" to keep one here.
               </p>
             </section>
           </div>
