@@ -152,7 +152,8 @@
     "syncEarlier": "Shift transcript earlier",
     "syncLater": "Shift transcript later",
     "syncReset": "Reset transcript sync",
-    "summaryRegion": "Episode summary"
+    "summaryRegion": "Episode summary",
+    "relatedEpisodes": "More like this"
   },
   "kp": {
     "title": "Insights",

@@ -16,6 +16,8 @@ import { useQueueStore } from '../stores/queue'
 import { useAuthStore } from '../stores/auth'
 import { useCaptureStore } from '../stores/capture'
 import { useUserPreferencesStore } from '../stores/userPreferences'
+import CardRail from '../components/CardRail.vue'
+import EpisodeCard from '../components/EpisodeCard.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -31,6 +33,7 @@ import {
   getEpisodeStats,
   getInsights,
   getPlayback,
+  getRelated,
   getSegments,
   logListen,
   putPlayback,
@@ -38,6 +41,7 @@ import {
 import type {
   EpisodeDetail,
   EpisodeStats,
+  EpisodeSummary,
   Entity,
   FavoriteAdd,
   Insight,
@@ -101,6 +105,9 @@ const audioUrl = ref<string | null>(null)
 const insights = ref<Insight[]>([])
 const topics = ref<Topic[]>([])
 const persons = ref<Entity[]>([])
+// #1261-4: "More like this" — semantic peer episodes for a natural continuation
+// when this one ends. Silent no-op on error/empty; endpoint already existed.
+const relatedEpisodes = ref<EpisodeSummary[]>([])
 const panelOpen = ref(false)
 const focusInsightId = ref<string | null>(null)
 const loading = ref(true)
@@ -203,6 +210,7 @@ async function load(slug: string): Promise<void> {
   insights.value = []
   topics.value = []
   persons.value = []
+  relatedEpisodes.value = []
   stats.value = null
   resumeSeconds = 0
   // Record the open (best-effort) then fetch fresh reach — order so this open is counted.
@@ -225,18 +233,20 @@ async function load(slug: string): Promise<void> {
   const remote = readRemoteOffset(slug)
   if (remote !== null) syncOffset.value = remote
   try {
-    const [detail, segs, audio, playback, ins, ents] = await Promise.all([
+    const [detail, segs, audio, playback, ins, ents, related] = await Promise.all([
       getEpisode(slug),
       getSegments(slug).catch(() => null),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
       getInsights(slug).catch(() => null),
       getEntities(slug).catch(() => null),
+      getRelated(slug, 6).catch(() => null),
     ])
     episode.value = detail
     segments.value = segs?.segments ?? []
     audioUrl.value = audio?.url ?? null
     insights.value = ins?.insights ?? []
+    relatedEpisodes.value = related?.items ?? []
     topics.value = ents?.topics ?? []
     persons.value = ents?.persons ?? []
     resumeSeconds = playback?.position_seconds ?? 0
@@ -593,6 +603,28 @@ onBeforeUnmount(() => {
         <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
           {{ t('player.transcriptPending') }}
         </p>
+
+        <!-- #1261-4: "More like this" — related episodes rail below the
+             transcript. Silent when the endpoint returns empty. -->
+        <section
+          v-if="relatedEpisodes.length"
+          class="mt-6"
+          data-testid="related-episodes-rail"
+          :aria-label="t('player.relatedEpisodes')"
+        >
+          <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
+            {{ t('player.relatedEpisodes') }}
+          </h2>
+          <CardRail>
+            <li
+              v-for="ep in relatedEpisodes"
+              :key="ep.slug"
+              class="w-56 shrink-0 sm:w-64"
+            >
+              <EpisodeCard :episode="ep" />
+            </li>
+          </CardRail>
+        </section>
       </div>
 
       <!-- Knowledge Panel: persistent rail on desktop, overlay sheet on mobile. -->
