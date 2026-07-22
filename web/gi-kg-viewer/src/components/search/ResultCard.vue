@@ -183,16 +183,35 @@ const kgMultiEpDedupe = computed(() => isKgSurfaceMultiEpisodeDedupe(props.hit))
 const libraryMetaPath = computed(() => sourceMetadataRelativePathFromSearchHit(props.hit))
 
 /**
- * Row is click-to-open (right-rail Episode panel) when the hit resolves to
- * a metadata path. Retired: standalone **L** and **S** buttons — the whole
- * row body is the affordance now (Search v3 §S4-shell followup).
+ * Row is click-to-open when the hit has a default action:
+ *   - kg_topic / kg_entity → open Topic / Person subject panel (from
+ *     ``detailEntity`` — internally calls the subject store).
+ *   - Otherwise → emit ``open-library`` to open the Episode subject
+ *     panel (requires a metadata path on the hit).
+ *
+ * Retired: standalone **L** and **S** buttons AND the standalone "Open
+ * Topic panel →" / "Open Person panel →" text link — the whole row body
+ * is the affordance for both routes (Search v3 §S4-shell followup +
+ * 2026-07-22 UX cleanup).
  */
-const rowClickable = computed(
+const rowOpensDetailEntity = computed(() => detailEntity.value != null)
+const rowOpensLibrary = computed(
   () =>
     props.libraryOpensEnabled &&
     libraryMetaPath.value != null &&
     !kgMultiEpDedupe.value,
 )
+const rowClickable = computed(
+  () => rowOpensDetailEntity.value || rowOpensLibrary.value,
+)
+const rowAriaLabel = computed<string | undefined>(() => {
+  if (rowOpensDetailEntity.value) {
+    const e = detailEntity.value!
+    return e.kind === 'topic' ? 'Open Topic panel' : 'Open Person panel'
+  }
+  if (rowOpensLibrary.value) return 'Open episode in subject panel'
+  return undefined
+})
 
 const showEpisodeChip = computed(
   () => Boolean(episodeId.value) && !kgMultiEpDedupe.value,
@@ -306,10 +325,26 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
  * Row-body click / keyboard activation. Inner buttons stop propagation, so
  * this only fires for background clicks (title bar chrome, body text, or
  * blank space). Keyboard: Enter / Space when the article is focused.
+ *
+ * Routing (2026-07-22 UX cleanup): kg_topic / kg_entity hits open the
+ * Topic / Person subject panel directly; everything else emits
+ * ``open-library`` (Episode panel via the metadata path). The standalone
+ * "Open Topic panel →" / "Open Person panel →" text link was retired
+ * because the whole row now IS that affordance.
  */
+function activateRowDefaultAction(): void {
+  if (rowOpensDetailEntity.value) {
+    focusDetailEntity()
+    return
+  }
+  if (rowOpensLibrary.value) {
+    emit('open-library', props.hit)
+  }
+}
+
 function onRowClick(): void {
   if (!rowClickable.value) return
-  emit('open-library', props.hit)
+  activateRowDefaultAction()
 }
 
 function onRowKeydown(ev: KeyboardEvent): void {
@@ -317,7 +352,7 @@ function onRowKeydown(ev: KeyboardEvent): void {
   if (ev.key !== 'Enter' && ev.key !== ' ') return
   if (ev.defaultPrevented) return
   ev.preventDefault()
-  emit('open-library', props.hit)
+  activateRowDefaultAction()
 }
 </script>
 
@@ -327,7 +362,7 @@ function onRowKeydown(ev: KeyboardEvent): void {
     :class="rowClickable && 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-overlay focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'"
     :role="rowClickable ? 'button' : undefined"
     :tabindex="rowClickable ? 0 : undefined"
-    :aria-label="rowClickable ? 'Open episode in subject panel' : undefined"
+    :aria-label="rowAriaLabel"
     @click="onRowClick"
     @keydown="onRowKeydown"
   >
@@ -384,21 +419,6 @@ function onRowKeydown(ev: KeyboardEvent): void {
     </p>
     <p class="leading-snug text-surface-foreground">
       {{ truncate(hit.text || '(no text)', 320) }}
-    </p>
-    <p
-      v-if="detailEntity"
-      class="mt-1"
-      @click.stop
-    >
-      <button
-        type="button"
-        class="rounded text-[10px] font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        data-testid="search-result-entity-link"
-        :title="`Open ${detailEntity.kind === 'topic' ? 'Topic' : 'Person'} panel`"
-        @click="focusDetailEntity"
-      >
-        Open {{ detailEntity.kind === 'topic' ? 'Topic' : 'Person' }} panel →
-      </button>
     </p>
 
     <div

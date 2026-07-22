@@ -218,41 +218,60 @@ describe('ResultCard', () => {
     expect(w.find('.ml-auto').exists()).toBe(false)
   })
 
-  // --- Entity link (kg_topic / kg_entity) ----------------------------------
+  // --- Row default action for kg_topic / kg_entity (2026-07-22 UX cleanup) ---
+  //
+  // The standalone "Open Topic panel →" / "Open Person panel →" text link
+  // was retired; clicking anywhere on the row body now opens the Topic /
+  // Person subject panel directly.
 
-  it('renders an "Open Topic panel" link for a kg_topic hit and focuses the topic subject', async () => {
+  it('a kg_topic row is clickable + focuses the topic subject on row click', async () => {
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'kg_topic', source_id: 'topic:ai' } }),
     })
-    const link = w.get('[data-testid="search-result-entity-link"]')
-    expect(link.text()).toContain('Open Topic panel')
+    const row = w.get('article')
+    expect(row.attributes('role')).toBe('button')
+    expect(row.attributes('aria-label')).toBe('Open Topic panel')
     const subject = useSubjectStore()
-    await link.trigger('click')
+    await row.trigger('click')
     expect(subject.kind).toBe('graph-node')
     expect(subject.graphNodeCyId).toBe('topic:ai')
   })
 
-  it('renders an "Open Person panel" link for a kg_entity hit and focuses the person subject', async () => {
+  it('a kg_entity row is clickable + focuses the person subject on row click', async () => {
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'kg_entity', source_id: 'person:ada' } }),
     })
-    const link = w.get('[data-testid="search-result-entity-link"]')
-    expect(link.text()).toContain('Open Person panel')
+    const row = w.get('article')
+    expect(row.attributes('role')).toBe('button')
+    expect(row.attributes('aria-label')).toBe('Open Person panel')
     const subject = useSubjectStore()
-    await link.trigger('click')
+    await row.trigger('click')
     expect(subject.kind).toBe('graph-node')
     expect(subject.graphNodeCyId).toBe('person:ada')
   })
 
-  it('treats an id starting with topic: as a topic entity even without a kg_topic doc_type', () => {
+  it('treats an id starting with topic: as a topic entity even without a kg_topic doc_type', async () => {
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'insight', source_id: 'topic:foo' } }),
     })
-    expect(w.get('[data-testid="search-result-entity-link"]').text()).toContain('Open Topic panel')
+    const row = w.get('article')
+    expect(row.attributes('aria-label')).toBe('Open Topic panel')
+    const subject = useSubjectStore()
+    await row.trigger('click')
+    expect(subject.graphNodeCyId).toBe('topic:foo')
   })
 
-  it('omits the entity link when there is no source_id', () => {
+  it('a kg_topic hit without source_id and without library metadata is NOT row-clickable', () => {
     const w = mountCard({ hit: hitOf({ metadata: { doc_type: 'kg_topic' } }) })
+    const row = w.get('article')
+    expect(row.attributes('role')).toBeUndefined()
+    expect(row.attributes('aria-label')).toBeUndefined()
+  })
+
+  it('the retired "Open Topic panel →" text link no longer renders', () => {
+    const w = mountCard({
+      hit: hitOf({ metadata: { doc_type: 'kg_topic', source_id: 'topic:ai' } }),
+    })
     expect(w.find('[data-testid="search-result-entity-link"]').exists()).toBe(false)
   })
 

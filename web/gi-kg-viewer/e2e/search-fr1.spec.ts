@@ -114,9 +114,18 @@ test.describe('Search FR1 surfaces (mocked /api/search)', () => {
 
   test('entity names link to a Detail panel', async ({ page }) => {
     await runSearch(page)
-    // Lifted speaker + topic on the compound card, and the kg_entity hit's own link.
+    // Lifted speaker + topic still render as inline links inside the compound
+    // card's expandable subsection (they open a DIFFERENT subject than the
+    // row's default action, so they stay explicit).
     await expect(page.getByTestId('search-result-lifted-speaker-link')).toBeVisible()
     await expect(page.getByTestId('search-result-lifted-topic-link')).toBeVisible()
-    await expect(page.getByTestId('search-result-entity-link')).toBeVisible()
+    // The standalone "Open Topic panel →" / "Open Person panel →" text link
+    // on kg_entity / kg_topic rows was retired (2026-07-22 UX cleanup); the
+    // whole row is the affordance now. Assert the row-level aria-label.
+    await expect(
+      page
+        .getByTestId('search-workspace')
+        .locator('article[aria-label="Open Person panel"]'),
+    ).toHaveCount(1)
   })
 })
