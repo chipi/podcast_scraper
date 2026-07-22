@@ -17,6 +17,11 @@ function makeRouter() {
     routes: [
       { path: '/search', name: 'search', component: SearchView },
       { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+      // #1261-9: EntityCardBody now renders an "Open in page" RouterLink to
+      // these routes when open in overlay mode — the router must resolve
+      // them or the mount silently drops the tree with a runtime error.
+      { path: '/topic/:id', name: 'topic', component: { template: '<div/>' }, props: true },
+      { path: '/person/:id', name: 'person', component: { template: '<div/>' }, props: true },
     ],
   })
 }
@@ -391,7 +396,9 @@ describe('SearchView', () => {
       error: null,
       results: [],
     })
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // mockImplementation: Response body is a one-shot stream; multiple hydrate
+    // / patch calls consume distinct bodies.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ preferences: {} }), { status: 200 }),
     )
     const { w } = await mountAt('sleep')

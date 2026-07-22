@@ -32,6 +32,11 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const savedQueries = useSavedQueriesStore()
+// USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
+// watch reacts when the payload arrives so the Save button flips to
+// "Saved ✓" if the current query was already persisted. No per-view
+// hydrate call — the tests demonstrated that adding one creates
+// test-order flakiness without changing user-visible behaviour.
 
 // Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
 // heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
