@@ -4,7 +4,7 @@
 # Caddy's {..} / {$..} syntax is not mangled by Terraform templatefile.
 {
 	# ACME account contact for expiry notices (not public-facing, not in certs).
-	email marko.dragoljevic@gmail.com
+	email info@orrerylearn.com
 	# T-02: disable the admin API (default localhost:2019) — no live-config surface.
 	admin off
 	# ADR-114: bind ONLY the box's public interface(s). Tailscale serve owns :443
