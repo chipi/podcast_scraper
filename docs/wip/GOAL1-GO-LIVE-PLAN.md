@@ -135,8 +135,12 @@ resolves `homelab` at `apply-edge` time (systemd env, same pattern as
 | Surface | Repo / path | Change | Weight | Proj |
 |---|---|---|---|---|
 | **Operator UI** (viewer) | `web/gi-kg-viewer` | repoint `PROD_SENTRY_DSN_VIEWER` (prod-env) → `https://<key>@glitchtip.<domain>/1`, then **rebuild + publish the viewer image** (`VITE_` = build-time, baked into the bundle) → deploy | swap **+ image rebuild** | 1 |
-| **Player** (consumer PWA) | `web/learning-player` | **net-new** — no client Sentry today: add `@sentry/vue` dep + `Sentry.init` in `src/main.ts` (mirror the viewer, gated on `VITE_SENTRY_DSN_PLAYER`); add `ARG`/`ENV` to its Dockerfile; add the build-arg to `player-public` + `stack-test`; add `PROD_SENTRY_DSN_PLAYER` secret | new instrumentation **+ new dep (needs approval)** | 1 (or dedicated) |
+| **Player** (consumer PWA) | `web/learning-player` | **instrumentation SHIPPED** (2026-07-22): `@sentry/vue` dep + gated `Sentry.init` in `src/main.ts` (`component: player`), Dockerfile `ARG`/`ENV`, `player-public` build-arg, `deploy-player.yml` renders `VITE_SENTRY_DSN_PLAYER` into `.env.player`. **Remaining:** create the player's own GlitchTip project, set secret `PROD_SENTRY_DSN_PLAYER` → `https://<key>@glitchtip.<domain>/<player-proj>`, redeploy via `deploy-player` (rebuilds the image) | secret + rebuild | **own (e.g. 4)** |
 | **Orrery** | orrery repo (`orrery#381`) | un-skip the client Sentry init the handover deferred; DSN → `https://<orrery-key>@glitchtip.<domain>/2` (project 2 was reserved + unused) | cross-repo | 2 |
+
+Project map: **1** = api + pipeline + viewer (podcast+moss); **2** = orrery; **3**
+= dgx; **4** (new) = consumer player — split out so consumer-facing noise stays
+separable from operator/pipeline errors.
 
 Ordering: **5.5 must be live + cert issued before any browser DSN is flipped** —
 a DSN pointing at a not-yet-live host silently drops events.

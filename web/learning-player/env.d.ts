@@ -4,6 +4,10 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_TARGET?: string
+  // GlitchTip/Sentry DSN for the player's browser error reporting. Build-time
+  // (baked into the bundle by Vite); Sentry only initialises when set, so
+  // no-DSN builds (dev/CI) stay a true no-op. Passed via the docker build-arg.
+  readonly VITE_SENTRY_DSN_PLAYER?: string
 }
 
 interface ImportMeta {

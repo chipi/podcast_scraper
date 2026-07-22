@@ -62,6 +62,11 @@ services:
     build:
       context: ../web/learning-player
       dockerfile: Dockerfile
+      args:
+        # Browser error reporting DSN, baked into the bundle at build time.
+        # Empty by default (no-op); prod sets it from PROD_SENTRY_DSN_PLAYER
+        # via the deploy .env render → GlitchTip through the public ingest edge.
+        VITE_SENTRY_DSN_PLAYER: ${VITE_SENTRY_DSN_PLAYER:-}
     image: podcast-scraper-learning-app:latest
     restart: unless-stopped
     ports:

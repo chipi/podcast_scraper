@@ -17,6 +17,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@sentry/vue": "^8.55.2",
     "pinia": "^3.0.4",
     "vue": "^3.5.30",
     "vue-i18n": "^11.1.0",

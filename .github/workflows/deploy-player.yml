@@ -111,6 +111,9 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          # Player's browser error DSN → self-hosted GlitchTip (own project) via the
+          # public ingest edge. Empty until the project + edge exist → Sentry no-op.
+          PROD_SENTRY_DSN_PLAYER: ${{ secrets.PROD_SENTRY_DSN_PLAYER }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -122,6 +125,9 @@ jobs:
             echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
             echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
             echo "PLAYER_PORT=8092"
+            # Build-time DSN for the player bundle (compose build-arg reads this
+            # from --env-file .env.player). Empty = Sentry stays a no-op.
+            echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \

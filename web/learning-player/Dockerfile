@@ -9,6 +9,13 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install
 COPY . .
+# GlitchTip/Sentry DSN for the player's browser error reporting. Optional —
+# src/main.ts only initialises Sentry when VITE_SENTRY_DSN_PLAYER is set, so a
+# build with no DSN is silent (dev / CI). Must be present at `npm run build`
+# time (VITE_* is baked into the bundle). Pass via:
+#   docker buildx build --build-arg VITE_SENTRY_DSN_PLAYER=...
+ARG VITE_SENTRY_DSN_PLAYER
+ENV VITE_SENTRY_DSN_PLAYER=${VITE_SENTRY_DSN_PLAYER}
 RUN npm run build
 
 # ---- serve ----
