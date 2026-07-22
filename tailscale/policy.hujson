@@ -12,11 +12,13 @@
   //   tag:dr-drill     → Hetzner DR drill VPS (workspace drill; RFC-082 #752)
   //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml / drill-e2e
   //   tag:dgx-llm-host → operator DGX Spark (RFC-089); Ollama + embedding shim
+  //   tag:homelab-host → homelab Mac mini; self-hosted observability (ADR-0005)
   "tagOwners": {
     "tag:prod":         ["autogroup:admin"],
     "tag:dr-drill":     ["autogroup:admin"],
     "tag:gha-deployer": ["autogroup:admin"],
-    "tag:dgx-llm-host": ["autogroup:admin"]
+    "tag:dgx-llm-host": ["autogroup:admin"],
+    "tag:homelab-host": ["autogroup:admin"]
   },
 
   // Implicit-deny for everything else; only listed traffic is permitted.
@@ -86,6 +88,24 @@
       "action": "accept",
       "src":    ["tag:prod"],
       "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+    },
+
+    // homelab Mac mini (tag:homelab-host) — self-hosted observability stack
+    // (ADR-0005). Operator reaches the dashboards + SSH; DGX + prod push
+    // telemetry to it. These grants were previously hand-added in the admin
+    // console and got wiped by a `tofu apply` (they lived nowhere in-repo);
+    // pinned here so they survive future applies.
+    //   :3000 Grafana  :4000 Langfuse  :8090 GlitchTip
+    //   :8428 VictoriaMetrics  :9428 VictoriaLogs  :10428 VictoriaTraces
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:homelab-host:22,3000,4000,8090,8428,9428,10428"]
+    },
+    {
+      "action": "accept",
+      "src":    ["tag:dgx-llm-host", "tag:prod"],
+      "dst":    ["tag:homelab-host:4000,8090,8428,9428,10428"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.
