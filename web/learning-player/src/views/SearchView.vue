@@ -14,6 +14,7 @@ import type { EntityRef, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
+import { aggregateRelatedTopics } from '../utils/relatedTopics'
 import { useAuthStore } from '../stores/auth'
 import EntityCard from '../components/EntityCard.vue'
 
@@ -57,6 +58,15 @@ function hitKind(h: SearchHit): Kind {
   if (dt === 'transcript') return 'transcript'
   if (dt === 'kg_topic') return 'topic'
   return 'passage'
+}
+
+// #1261-2: aggregate per-hit related_topics into a chip row above the episode
+// groups. Tapping a chip opens the Topic EntityCard modal — deeper exploration
+// without expanding the search surface itself.
+const relatedTopicChips = computed(() => aggregateRelatedTopics(results.value, 8))
+
+function openTopicChip(topicId: string): void {
+  cardTarget.value = { kind: 'topic', id: topicId }
 }
 
 // Group passages under their source episode, preserving rank order (results arrive best-first,
@@ -105,7 +115,9 @@ async function run(q: string): Promise<void> {
         () => (entity.value = null),
       )
   try {
-    const resp = await searchCorpus(term, 12, recall ? 'mine' : 'all')
+    // #1261-1: always ask the server for related-topic decoration; a broken
+    // enricher chain degrades to plain hits and the chip row simply disappears.
+    const resp = await searchCorpus(term, 12, recall ? 'mine' : 'all', true)
     results.value = resp.results
     error.value = Boolean(resp.error)
   } catch {
@@ -218,6 +230,27 @@ const showEmpty = computed(
       <p class="mt-4 text-xs font-semibold uppercase tracking-wider text-muted">
         {{ t('search.summary', { passages: results.length, episodes: groups.length }) }}
       </p>
+
+      <!-- #1261-2: related-topic chip row above the episode groups. Silent
+           when the QueryEnricher chain returned nothing (broken corpus, no
+           topic_similarity.json, or no hits carried topic decorations). -->
+      <div
+        v-if="relatedTopicChips.length"
+        class="mt-3 flex flex-wrap items-center gap-1.5"
+        data-testid="related-topic-chips"
+      >
+        <span class="lp-kicker mr-1">{{ t('search.alsoAbout') }}</span>
+        <button
+          v-for="chip in relatedTopicChips"
+          :key="chip.topicId"
+          type="button"
+          class="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-canvas-foreground transition hover:bg-overlay"
+          :aria-label="t('search.openTopicChip', { label: chip.label })"
+          @click="openTopicChip(chip.topicId)"
+        >
+          {{ chip.label }}
+        </button>
+      </div>
 
       <ul class="mt-3 flex flex-col gap-3">
         <li

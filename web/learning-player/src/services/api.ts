@@ -214,9 +214,18 @@ export function searchCorpus(
   q: string,
   topK = 12,
   scope?: 'all' | 'mine',
+  enrichResults?: boolean,
 ): Promise<SearchResponse> {
   // scope='mine' = grounded recall over the signed-in user's heard∪captured corpus (P3 #1120).
-  return getJSON<SearchResponse>('/search', { q, top_k: topK, scope })
+  // enrichResults=true asks the server to decorate hits with
+  //   metadata.query_enrichments.related_topics (RFC-088, #1261-1). Chain failures on
+  //   the server are swallowed — the client should tolerate hits without the field.
+  return getJSON<SearchResponse>('/search', {
+    q,
+    top_k: topK,
+    scope,
+    enrich_results: enrichResults ? 'true' : undefined,
+  })
 }
 
 /** Resolve a query to a person/topic card (exact/near-exact); `entity: null` when none. */

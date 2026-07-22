@@ -120,11 +120,80 @@ describe('SearchView', () => {
     await flushPromises()
     // toggle is visible; default scope=all sent no 'mine'
     expect(w.find('[role="tablist"]').exists()).toBe(true)
-    expect(search).toHaveBeenLastCalledWith('sleep', 12, 'all')
+    // 4th positional arg is enrich_results=true (#1261-2): the listener always asks the
+    // server to decorate hits with related_topics so the "Also about:" chip row can render.
+    expect(search).toHaveBeenLastCalledWith('sleep', 12, 'all', true)
     // switch to My corpus → searches scope=mine + recall-empty copy
     await w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')!.trigger('click')
     await flushPromises()
-    expect(search).toHaveBeenLastCalledWith('sleep', 12, 'mine')
+    expect(search).toHaveBeenLastCalledWith('sleep', 12, 'mine', true)
     expect(w.text()).toContain('Nothing in your corpus on this yet')
+  })
+
+  // #1261-2: enriched related-topic chips above episode groups
+  it('renders "Also about:" chips from server-decorated hits and opens the topic card on tap', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'ai',
+      error: null,
+      results: [
+        {
+          doc_id: 'd1',
+          score: 0.9,
+          text: 'A grounded passage about AI.',
+          source_tier: 'insight',
+          metadata: {
+            episode_slug: 'show-x',
+            episode_title: 'Ep X',
+            podcast_title: 'Show',
+            query_enrichments: {
+              related_topics: [
+                { topic_id: 'topic:ml', topic_label: 'Machine Learning', similarity: 0.91 },
+                { topic_id: 'topic:safety', topic_label: 'AI Safety', similarity: 0.83 },
+              ],
+            },
+          },
+        },
+      ],
+    })
+    const getTopic = vi.spyOn(api, 'getTopicCard').mockResolvedValue({
+      id: 'topic:ml',
+      label: 'Machine Learning',
+      cluster_id: null,
+      cluster_label: null,
+      cluster_size: 0,
+      sibling_topics: [],
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+    })
+    const { w } = await mountAt('ai')
+    const chipRow = w.get('[data-testid="related-topic-chips"]')
+    expect(chipRow.text()).toContain('Machine Learning')
+    expect(chipRow.text()).toContain('AI Safety')
+    // Score-desc: ML (0.91) sorts ahead of Safety (0.83).
+    const chipButtons = chipRow.findAll('button')
+    expect(chipButtons[0].text()).toBe('Machine Learning')
+    await chipButtons[0].trigger('click')
+    await flushPromises()
+    expect(getTopic).toHaveBeenCalledWith('topic:ml', undefined)
+    expect(w.find('[role="dialog"]').exists()).toBe(true)
+  })
+
+  it('hides the chip row entirely when no hit carries related_topics decoration', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'x',
+      error: null,
+      results: [
+        {
+          doc_id: 'd1',
+          score: 0.9,
+          text: 't',
+          source_tier: 'insight',
+          metadata: { episode_slug: 'show-x', episode_title: 'Ep X', podcast_title: 'Show' },
+        },
+      ],
+    })
+    const { w } = await mountAt('x')
+    expect(w.find('[data-testid="related-topic-chips"]').exists()).toBe(false)
   })
 })

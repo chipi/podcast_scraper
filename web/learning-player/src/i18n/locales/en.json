@@ -71,7 +71,9 @@
       "transcript": "Transcript",
       "topic": "Topic",
       "passage": "Passage"
-    }
+    },
+    "alsoAbout": "Also about",
+    "openTopicChip": "Open {label} topic card"
   },
   "auth": {
     "signIn": "Sign in",
