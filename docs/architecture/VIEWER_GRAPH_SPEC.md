@@ -423,7 +423,7 @@ asymmetry let the `filteredArtifact` watcher early-return without scheduling
 a redraw. See [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md) and
 [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) for the
 audit and decisions (the original pre-fix audit at
-`docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md` was retired after the
+the historical `GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md` (removed after) was retired after the
 orchestrator shipped).
 
 The fix: a finite-state machine that owns the handoff lifecycle from
