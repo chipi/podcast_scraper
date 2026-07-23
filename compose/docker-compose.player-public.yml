@@ -84,10 +84,14 @@ services:
       - DAC_OVERRIDE
     read_only: true
     tmpfs:
+      # nginx runtime scratch only. Do NOT tmpfs /etc/nginx/conf.d — the image bakes the
+      # server block (default.conf: listen 80 + SPA root + /api/app proxy) there, and there
+      # are no *.template files to regenerate it, so an empty tmpfs masks it and nginx starts
+      # with zero server blocks → listens on nothing → unhealthy (prod incident 2026-07-23).
+      # conf.d is static baked content nginx only reads; read_only rootfs is fine.
       - /var/cache/nginx
       - /var/run
       - /tmp
-      - /etc/nginx/conf.d
     depends_on:
       api:
         condition: service_healthy

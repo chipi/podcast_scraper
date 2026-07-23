@@ -73,6 +73,12 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
 # (ADR-114 validate-before-reload contract).
 echo "[$(date -u +%FT%TZ)] installing player.caddy vhost for ${PLAYER_DOMAIN}..."
 sed "s/player\.example\.com/${PLAYER_DOMAIN}/g" infra/caddy/player.caddy >/etc/caddy/sites/player.caddy
+# The script's umask 077 (secrets) makes the `>` above land 0600/deploy-owned, which the
+# `caddy` user (User=caddy) CANNOT read -> "open player.caddy: permission denied" at import
+# -> restart fails + rollback (prod incident 2026-07-23). The sibling vhosts are 0644; match
+# them so the caddy user can read the drop-in. (adapt/validate run AS deploy read the 0600
+# file fine, which is why they passed while the real caddy-user restart failed.)
+chmod 0644 /etc/caddy/sites/player.caddy
 # Validate with `caddy adapt` (Caddyfile -> JSON, reports real config/syntax errors)
 # — NOT `caddy validate`, which also PROVISIONS (opens the caddy-owned access.log) and
 # false-fails with "permission denied" when run as the deploy user, even on a valid
