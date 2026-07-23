@@ -644,6 +644,26 @@ python -m podcast_scraper.cli kg topics --output-dir ./output --min-support 2 --
 
 Details: [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md), [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md). **Shallow v1 scope** (extraction + ML, no `kg query` IR, Postgres deferral): [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). **GIL companion:** [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
 
+## Additional subcommands (catalog only)
+
+Eleven top-level subcommands wired in `cli.py` weren't in the main
+sections above. Run `python -m podcast_scraper.cli <command> --help`
+for the full flag list; below is the one-line intent per command.
+
+| Command | Purpose | Notes |
+| --- | --- | --- |
+| `serve` | Run the GI/KG viewer HTTP API (FastAPI, uvicorn). | Requires `[dev]` extra. Feature flags: `--enable-feeds-api`, `--enable-operator-config-api`, `--enable-jobs-api`, `--config-file PATH`. Local: `make serve`. |
+| `enrich` | Run the RFC-088 enrichment-layer pass over a corpus. | Flags include `--corpus-only`, `--re-enable ID`, `--re-enable-reason "…"`, `--config` (enrichment YAML). |
+| `enrich-edges` | KG-edge enrichment (speaker/NER lifts on `.kg.json`). | `--no-speaker`, `--use-ner`, `--retro-audit` + `--retro-marker` / `--retro-summary` for in-place mutation with an audit sidecar (ADR-102). |
+| `upgrade` | Corpus format migrations (RFC-097 chunk 9). | Sub-subcommands: `status` (pending migrations), `list` (all migrations + state), `verify` (post-migration checks), `run` (apply). |
+| `cache` | Manage ML model caches (Whisper, Transformers, spaCy). | `--clean [all\|whisper\|transformers\|spacy]`, `--delete-model NAME`, `--yes` to skip confirm. Distinct from the `--cache-info` / `--clear-model-cache` main-command flags above. |
+| `archive pull` | Cold-storage recovery — download archived episode audio to a local directory. | Single sub-subcommand `pull`. |
+| `cluster-corpus-topics` | Corpus-scope topic clustering (theme discovery). | `--threshold`, `--min-episodes`, `--dry-run`. |
+| `corpus-cost` | Cost projection over an already-run corpus root. | Positional: `corpus_path` (parent of `feeds/`). Reads existing artifacts; no LLM calls. |
+| `index-two-tier` | Build the two-tier LanceDB search index (RFC-090). | `--lance-path`, `--embedding-model`, `--limit-episodes`. |
+| `mcp` | Run the generic MCP server over a corpus, stdio transport (PRD-034 / RFC-095). | Requires `.[dev,search]`. `--corpus` (positional-alt via flag). |
+| `verify-gil-chunk-offsets` | Compare GIL Quote char ranges to indexed transcript chunk metadata per episode (offset-alignment gate before search lift). | `--index-path`, `--min-overlap-rate`, `--strict`, `--max-samples`. |
+
 ## See Also
 
 - [Core API](CORE.md) - Programmatic usage
