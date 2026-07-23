@@ -40,6 +40,7 @@ else
     echo "APP_OAUTH_GOOGLE_CLIENT_ID=${APP_OAUTH_GOOGLE_CLIENT_ID:-}"
     echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${APP_OAUTH_GOOGLE_CLIENT_SECRET:-}"
     echo "APP_SESSION_SECRET=${APP_SESSION_SECRET:-}"
+    echo "PLAYER_PREVIEW_COOKIE=${PLAYER_PREVIEW_COOKIE:-}"
     echo "PLAYER_PORT=8092"
   } >"$PLAYER_ENV"
 fi
@@ -47,6 +48,10 @@ chmod 600 "$PLAYER_ENV"
 
 : "${PLAYER_DOMAIN:?PLAYER_DOMAIN missing from .env.player and env}"
 : "${PODCAST_CORPUS_VOLUME:?PODCAST_CORPUS_VOLUME missing from .env.player and env}"
+# Coming-soon gate cookie secret — substituted into player.caddy below. REQUIRED: an empty
+# value would ship `cl_preview=` as the gate, which is guessable → the gate opens for
+# anyone. Fail loudly rather than deploy a broken gate.
+: "${PLAYER_PREVIEW_COOKIE:?PLAYER_PREVIEW_COOKIE missing from .env.player and env (coming-soon gate cookie secret)}"
 
 # Pin the api image to a CURRENT sha — NEVER the literal :main tag. CI stopped updating
 # :main 2026-05-28, so it is 8 weeks stale: pre-ADR-116, with no /api/app/* consumer
@@ -110,7 +115,13 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
 PLAYER_VHOSTS=(player player-telemetry player-analytics)
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
-  sed "s/player\.example\.com/${PLAYER_DOMAIN}/g" "infra/caddy/${v}.caddy" >"/etc/caddy/sites/${v}.caddy"
+  # Two substitutions: the shared `player.example.com` placeholder -> real domain (all
+  # three vhosts), and the __PREVIEW_COOKIE__ placeholder -> the gate cookie secret (only
+  # player.caddy carries it; a no-op for the other two). Different sed delimiters so
+  # neither value's characters can clash with the delimiter.
+  sed -e "s/player\.example\.com/${PLAYER_DOMAIN}/g" \
+      -e "s|__PREVIEW_COOKIE__|${PLAYER_PREVIEW_COOKIE}|g" \
+      "infra/caddy/${v}.caddy" >"/etc/caddy/sites/${v}.caddy"
   # umask 077 makes the `>` land 0600/deploy-owned; the `caddy` user (User=caddy) cannot
   # read a 0600 file -> import "permission denied" -> restart fails (prod incident
   # 2026-07-23). Match the 0644 sibling vhosts so the caddy user can read the drop-in.
