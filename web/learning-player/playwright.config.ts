@@ -12,7 +12,9 @@ export default defineConfig({
   // fast-tier preview here. Excluding it prevents these specs from firing
   // twice + failing because the shared serviceWorkers:'block' default is
   // wrong for the SW-driven validation walks.
-  testIgnore: ['**/validation/**'],
+  // e2e/live/** is the #43 post-deploy smoke vs the LIVE closelistening.app — it runs under
+  // playwright.live.config.ts against the deployed origin, NOT this local preview stack.
+  testIgnore: ['**/validation/**', '**/live/**'],
   fullyParallel: true,
   // The heavy auth-gated specs (capture, consolidation) sign in as ISOLATED per-(spec,project) mock
   // identities (see e2e/helpers.ts) so they never share per-user files WITHIN a run. But those ids
