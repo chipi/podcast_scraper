@@ -289,38 +289,24 @@ async function waitForSearchHits(
 }
 
 /**
- * Left rail: leave **Explore** if active, then ensure **Semantic
- * search** is visible.
+ * Ensure the **Semantic search** query surface is visible.
  *
- * **Do not** click ``left-panel-collapse-toggle`` when the rail is
- * already expanded: that **collapses** the panel. After Explore→Search,
- * ``#search-q`` can briefly sit in the translated slide — wait first;
- * only expand when ``aria-expanded`` is not ``true`` (collapsed rail).
+ * Search v3 (RFC-107 / PRD-045, PR #1274) retired the compact
+ * ``SearchPanel`` launcher on the left rail and moved ``#search-q`` to
+ * live **only** inside the **Search** main tab. This helper clicks the
+ * main-nav Search button (``role="navigation" name="Main views"``) then
+ * waits for the query textbox to render before the caller fills it.
  */
 async function prepareSemanticSearchUi(
   page: import('@playwright/test').Page,
 ): Promise<void> {
-  const backSearch = page.getByTestId('left-panel-back-search')
-  if (await backSearch.isVisible().catch(() => false)) {
-    stackTestProgress('post-job: left panel was on Explore — Back to Semantic search')
-    await backSearch.click()
-  }
+  const searchTabButton = page
+    .getByRole('navigation', { name: 'Main views' })
+    .getByRole('button', { name: 'Search' })
+  await expect(searchTabButton).toBeVisible({ timeout: 15_000 })
+  await searchTabButton.click()
   const q = page.locator('#search-q')
-  const railToggle = page.getByTestId('left-panel-collapse-toggle')
-  try {
-    await expect(q).toBeVisible({ timeout: 15_000 })
-  } catch {
-    const expanded = await railToggle.getAttribute('aria-expanded')
-    if (expanded !== 'true') {
-      stackTestProgress('post-job: expand collapsed left rail for search')
-      await railToggle.click()
-    } else {
-      // Explore→Search slide uses ~300ms transition (``LeftPanel``);
-      // avoid toggling the rail (that collapses it).
-      await page.waitForTimeout(450)
-    }
-    await expect(q).toBeVisible({ timeout: 25_000 })
-  }
+  await expect(q).toBeVisible({ timeout: 25_000 })
   // #671 retired the ``#search-since-date`` input in favour of a chip +
   // DateChip popover; this test never sets a since-date and clears
   // corpus localStorage on startup, so no defensive clear is needed.
