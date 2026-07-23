@@ -1085,7 +1085,7 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
 | `backfill_transcript_segments` | `--backfill-transcript-segments` | `false` | With `generate_gi`: when `skip_existing` would skip Whisper output because only a `.txt` exists under `transcripts/`, re-transcribe if sibling `.segments.json` is missing (GI quote **`timestamp_*_ms`**; **`speaker_id`** only when segments later include speaker labels — issues [#542](https://github.com/chipi/podcast_scraper/issues/542), [#541](https://github.com/chipi/podcast_scraper/issues/541)). Also requires the sidecar for `append` completeness when both flags are on. Does not change every transcript write path (e.g. direct RSS transcript saves use separate skip rules; see [Development Guide](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json)). |
 | `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
-| `gi_max_insights` | `--gi-max-insights` | `20` | Max insights when using `provider` or `summary_bullets` (`1`–`50`). |
+| `gi_max_insights` | `--gi-max-insights` | `50` | Max insights when using `provider` or `summary_bullets` (range `1`–`200`; hard cap not a target). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
 | `gi_fail_on_missing_grounding` | (config) | `false` | When true with `gi_require_grounding`, raise `GILGroundingUnsatisfiedError` if an episode ends with zero grounded quotes (strict CI). |
 | `gi_evidence_extract_retries` | (config) | `1` | Provider `extract_quotes` only: extra attempts when the first returns no candidates (hint appended to insight text). NLI still uses the original insight. Range `0`–`5`. |
@@ -1812,3 +1812,106 @@ is enumerated in the main tables:
 
 Deprecated aliases and their canonical replacements are already
 documented above in the "Deprecated fields" section.
+
+### Provider × field-suffix support matrix
+
+Which providers ship which field-suffix. Read the table as
+`<provider>_<suffix>` — e.g. `anthropic_cleaning_model` exists, but
+`deepgram_cleaning_model` doesn't (deepgram is STT-only, no LLM
+tasks). "Y" means the field is defined on that provider.
+
+|Suffix|anthropic|deepgram|deepseek|gemini|grok|mistral|ollama|openai|
+|---|---|---|---|---|---|---|---|---|
+|`_api_base`|Y|Y|Y|Y|Y|Y|Y|Y|
+|`_api_key`|Y|Y|Y|Y|Y|Y||Y|
+|`_api_key_env`||||||||Y|
+|`_cleaning_model`|Y||Y|Y|Y|Y|Y|Y|
+|`_cleaning_temperature`|Y||Y|Y|Y|Y|Y|Y|
+|`_diarization_model`||Y|||||||
+|`_extra_body`||||||||Y|
+|`_insight_model`||||||||Y|
+|`_max_tokens`|Y||Y|Y|Y|Y|Y|Y|
+|`_model`||Y|||||||
+|`_num_ctx`|||||||Y||
+|`_reduce_frequency_penalty`|||||||Y||
+|`_reduce_temperature`|||||||Y||
+|`_reduce_top_p`|||||||Y||
+|`_retry_initial_delay_seconds`||||Y|||||
+|`_retry_max_delay_seconds`||||Y|||||
+|`_retry_max_retries`||||Y|||||
+|`_speaker_model`|Y||Y|Y|Y|Y|Y|Y|
+|`_speaker_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_speaker_user_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_summary_model`|Y||Y|Y|Y|Y|Y|Y|
+|`_summary_seed`||||||||Y|
+|`_summary_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_summary_user_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_temperature`|Y||Y|Y|Y|Y|Y|Y|
+|`_timeout`|||Y||Y||Y||
+|`_transcription_model`|Y|||Y||Y||Y|
+
+### Validation constraints reference
+
+Fields with numeric or length constraints enforced by pydantic (via
+`Field(ge=…, le=…, …)`). Setting a value outside the range raises
+`ValidationError` at Config-load time. Range meanings: `ge` = ≥,
+`gt` = >, `le` = ≤, `lt` = <.
+
+|Field|Constraints|
+|---|---|
+|`circuit_breaker_cooldown_seconds`|ge=1, le=86400|
+|`circuit_breaker_failure_threshold`|ge=1, le=100|
+|`circuit_breaker_window_seconds`|ge=1, le=86400|
+|`cloud_llm_structured_min_output_tokens`|ge=512|
+|`commercial_confidence_threshold`|ge=0.0, le=1.0|
+|`deepseek_timeout`|ge=30|
+|`dgx_diarize_port`|ge=1, le=65535|
+|`dgx_diarize_request_timeout_sec`|gt=0|
+|`dgx_diarize_timeout_per_audio_minute_sec`|ge=0|
+|`dgx_max_attempts`|ge=1|
+|`dgx_ollama_port`|ge=1, le=65535|
+|`dgx_request_timeout_sec`|gt=0|
+|`dgx_timeout_per_audio_minute_sec`|ge=0|
+|`dgx_whisper_port`|ge=1, le=65535|
+|`diarization_min_cluster_size`|ge=1|
+|`diarization_min_segment_ms`|ge=0, le=60000|
+|`episode_retry_delay_sec`|ge=0.0, le=120.0|
+|`episode_retry_max`|ge=0, le=10|
+|`gemini_retry_initial_delay_seconds`|ge=0.0, le=120.0|
+|`gemini_retry_max_delay_seconds`|ge=0.0, le=600.0|
+|`gemini_retry_max_retries`|ge=0, le=15|
+|`gi_evidence_extract_retries`|ge=0, le=5|
+|`gi_insight_chunk_chars`|ge=0, le=200_000|
+|`gi_insight_dedupe_threshold`|ge=0.0, le=1.0|
+|`gi_insight_temperature`|ge=0.0, le=2.0|
+|`gi_nli_entailment_min`|ge=0.0, le=1.0|
+|`gi_qa_score_min`|ge=0.0, le=1.0|
+|`gi_qa_window_chars`|ge=0, le=500_000|
+|`gi_qa_window_overlap_chars`|ge=0, le=100_000|
+|`gi_value_gate_min_tier`|ge=0, le=3|
+|`gil_evidence_nli_chunk_size`|ge=1, le=100|
+|`grok_timeout`|ge=30|
+|`host_max_concurrent`|ge=0, le=64|
+|`host_request_interval_ms`|ge=0, le=600_000|
+|`http_backoff_factor`|ge=0.0, le=10.0|
+|`http_retry_total`|ge=0, le=20|
+|`insight_cluster_threshold`|ge=0.0, le=1.0|
+|`interim_index_checkpoint_every_episodes`|ge=0|
+|`interim_topic_cluster_checkpoint_every_episodes`|ge=0|
+|`kg_max_entities`|ge=1, le=50|
+|`kg_max_topics`|ge=1, le=20|
+|`llm_bundled_max_output_tokens`|ge=256|
+|`llm_circuit_breaker_cooldown_seconds`|ge=1.0, le=3600.0|
+|`llm_circuit_breaker_failure_threshold`|ge=1, le=100|
+|`llm_circuit_breaker_window_seconds`|ge=1.0, le=3600.0|
+|`llm_max_calls_per_episode`|ge=0, le=100000|
+|`llm_max_calls_per_run`|ge=0, le=1000000|
+|`moss_port`|gt=0|
+|`moss_request_timeout_sec`|gt=0|
+|`ollama_num_ctx`|ge=512|
+|`rss_backoff_factor`|ge=0.0, le=10.0|
+|`rss_retry_total`|ge=0, le=20|
+|`topic_cluster_threshold`|ge=0.0, le=1.0|
+|`vector_chunk_overlap_tokens`|ge=0, le=500|
+|`vector_chunk_size_tokens`|ge=20, le=2000|
+|`vector_upsert_batch_size`|ge=1, le=100000|
