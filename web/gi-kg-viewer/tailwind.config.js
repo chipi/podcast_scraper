@@ -26,11 +26,10 @@ export default {
         success: 'var(--ps-success)',
         warning: 'var(--ps-warning)',
         danger: 'var(--ps-danger)',
-        // Action-oriented and state-oriented error styling both land on
-        // the same hue today. Split by adding --ps-destructive later if
-        // the operator theme calls for a distinct color.
+        // Action-oriented error styling aliases to danger today. Split
+        // by adding --ps-destructive later if the operator theme calls
+        // for a distinct color.
         destructive: 'var(--ps-danger)',
-        wrong: 'var(--ps-danger)',
         gi: 'var(--ps-gi)',
         kg: 'var(--ps-kg)',
         // Knowledge-domain aliases used across ShowRailPanel,
