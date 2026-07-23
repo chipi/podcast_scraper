@@ -18,6 +18,7 @@ the open items.
      scope its log source to `orrery-*` containers only (drop the no-container
      fall-through) → restart `orrery-grafana-agent` → **reconcile the corrected config
      into the orrery repo** (kill the drift) → verify in VictoriaLogs that the
+   - **PROPER FIX (chosen):** per ADR-121 — one node Alloy per box + per-app rule drop-ins. Retire orrery-grafana-agent; orrery ships ops/observability/orrery.alloy into /etc/alloy/config.d/ (mirrors orrery.caddy). Repo-track the base Alloy config (kills the /opt drift).
      `{env=prod}`-only stream stops.
 
 2. **Edge / security 12h sweep** (couldn't run — key was dropped):
