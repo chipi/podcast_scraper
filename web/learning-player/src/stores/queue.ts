@@ -12,6 +12,12 @@ interface QueueState {
   loaded: boolean
 }
 
+// Single in-flight load promise (module-scoped: the store is an app singleton). Guards
+// against a SECOND GET /queue racing the first — e.g. the initial mount load() vs a mutation's
+// ensureLoaded(). Without it a late-resolving load() overwrites `items` with stale server data
+// and silently drops an optimistic add ("queue empty" after add; RFC-099 §4).
+let inflightLoad: Promise<void> | null = null
+
 export const useQueueStore = defineStore('queue', {
   state: (): QueueState => ({ items: [], loaded: false }),
   getters: {
@@ -23,8 +29,15 @@ export const useQueueStore = defineStore('queue', {
   },
   actions: {
     async load(): Promise<void> {
-      this.items = await getQueue()
-      this.loaded = true
+      // Coalesce concurrent loads onto one GET so nothing clobbers an in-progress mutation.
+      if (inflightLoad) return inflightLoad
+      inflightLoad = (async (): Promise<void> => {
+        this.items = await getQueue()
+        this.loaded = true
+      })().finally(() => {
+        inflightLoad = null
+      })
+      return inflightLoad
     },
     async ensureLoaded(): Promise<void> {
       if (!this.loaded) await this.load()
@@ -34,6 +47,9 @@ export const useQueueStore = defineStore('queue', {
     },
     /** Append to the end if not already queued. */
     async add(slug: string): Promise<void> {
+      // Mutations operate on the LOADED queue: without this, an add() that runs before the
+      // initial load() finishes gets overwritten when that load resolves (dropped add).
+      await this.ensureLoaded()
       if (!this.items.includes(slug)) {
         this.items.push(slug)
         await this._persist()
@@ -41,12 +57,14 @@ export const useQueueStore = defineStore('queue', {
     },
     /** Insert right after `afterSlug` (or at the front if it's not in the queue). */
     async playNext(slug: string, afterSlug: string | null): Promise<void> {
+      await this.ensureLoaded()
       this.items = this.items.filter((s) => s !== slug)
       const idx = afterSlug ? this.items.indexOf(afterSlug) : -1
       this.items.splice(idx + 1, 0, slug)
       await this._persist()
     },
     async remove(slug: string): Promise<void> {
+      await this.ensureLoaded()
       const next = this.items.filter((s) => s !== slug)
       if (next.length !== this.items.length) {
         this.items = next
@@ -54,11 +72,13 @@ export const useQueueStore = defineStore('queue', {
       }
     },
     async toggle(slug: string): Promise<void> {
+      await this.ensureLoaded()
       if (this.items.includes(slug)) await this.remove(slug)
       else await this.add(slug)
     },
     /** Move a slug one step up (-1) or down (+1). */
     async move(slug: string, delta: -1 | 1): Promise<void> {
+      await this.ensureLoaded()
       const i = this.items.indexOf(slug)
       const j = i + delta
       if (i < 0 || j < 0 || j >= this.items.length) return
