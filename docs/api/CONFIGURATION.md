@@ -140,8 +140,8 @@ The pipeline ships with resilient defaults for downloading thousands of episodes
 | ----- | ---- | ------- | ----- | ----------- |
 | `http_retry_total` | int | `8` | 0--20 | Max urllib3 retries for media/transcript downloads. RSS feeds use `rss_retry_total`. |
 | `http_backoff_factor` | float | `1.0` | 0.0--10.0 | Exponential backoff factor. Delay = factor x 2^(attempt-1) (1 s, 2 s, 4 s, 8 s ...). |
-| `rss_retry_total` | int | `10` | 0--20 | Max urllib3 retries for RSS feed fetches (more patient than media, since the feed is critical). |
-| `rss_backoff_factor` | float | `2.0` | 0.0--10.0 | Backoff factor for RSS retries (gentler than media to avoid hammering rate-limited feed hosts). |
+| `rss_retry_total` | int | `5` | 0--20 | Max urllib3 retries for RSS feed fetches (caps total wait at ~31 s). |
+| `rss_backoff_factor` | float | `1.0` | 0.0--10.0 | Exponential backoff factor for RSS retries. Delay = factor × 2^(attempt-1). |
 
 **Application-level episode retry**
 
