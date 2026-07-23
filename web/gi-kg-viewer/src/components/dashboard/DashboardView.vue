@@ -585,7 +585,10 @@ function openLibraryFailures(): void {
           insight-text="Episodes scraped per run from run.json summaries."
         />
       </div>
-      <PipelineFeedHistoryGrid :runs="runs" />
+      <PipelineFeedHistoryGrid
+        :runs="runs"
+        :feeds="feeds"
+      />
     </div>
 
     <!-- Single in-app log viewer instance; opened from any pipeline surface (#695). -->

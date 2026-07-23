@@ -2,68 +2,128 @@
 /**
  * UXS-006 §6.5 — Feed processing history heatmap grid.
  *
- * Rows = feeds, columns = the last five runs (oldest → newest). Cells
- * are ``success`` / ``warning`` / ``danger`` fills with ✓ / ⚠ / ✗ glyphs
- * (colour is not the only signal). Silently hides when the backend
- * response is single-feed or has not yet shipped the ``by_feed``
- * breakdown (per UXS-006 §9 open question — tracked as a follow-up).
+ * Rows = feeds, columns = the last five distinct run timestamps (oldest →
+ * newest, aggregated across feeds). Each ``run.json`` on the server is
+ * scoped to a single (feed, timestamp), so the flat ``runs[]`` array is
+ * grouped here into a matrix keyed by ``feed_id`` × truncated
+ * ``created_at``. Cells are ``success`` / ``warning`` / ``danger`` fills
+ * with ✓ / ⚠ / ✗ glyphs (colour is not the only signal).
+ *
+ * Silently hides when the corpus is single-feed or when no run carries a
+ * ``feed_id`` (legacy flat layouts predating #1269).
  */
 import { computed } from 'vue'
-import type { CorpusRunFeedOutcomeItem, CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
+import type { CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
+import type { CorpusFeedItem } from '../../api/corpusLibraryApi'
 
-const props = defineProps<{
-  runs: CorpusRunSummaryItem[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    runs: CorpusRunSummaryItem[]
+    /** Optional feed catalog for display-title lookup. Grid falls back to feed_id. */
+    feeds?: readonly CorpusFeedItem[]
+  }>(),
+  { feeds: () => [] as readonly CorpusFeedItem[] },
+)
 
+type Status = 'succeeded' | 'partial' | 'failed'
+type Cell = {
+  status: Status
+  ok: number
+  failed: number
+  skipped: number
+  run: CorpusRunSummaryItem
+}
 type FeedRow = {
   feedId: string
   displayTitle: string
-  cells: (CorpusRunFeedOutcomeItem | null)[]
+  cells: (Cell | null)[]
 }
 
-/** Newest-first chronological ordering of runs that carry ``by_feed`` data. */
-const runsWithBreakdown = computed(() => {
-  return props.runs
-    .filter((r) => Array.isArray(r.by_feed) && (r.by_feed?.length ?? 0) > 0)
-    .filter((r) => (r.created_at?.length ?? 0) >= 10)
-    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
-    .slice(-5)
-})
+function statusOf(r: CorpusRunSummaryItem): Status {
+  const ok = r.episode_outcomes?.ok ?? 0
+  const failed = r.episode_outcomes?.failed ?? 0
+  const skipped = r.episode_outcomes?.skipped ?? 0
+  const total = ok + failed + skipped
+  if (total > 0 && failed > 0 && ok + skipped > 0) return 'partial'
+  if (failed > 0 || (total === 0 && (r.errors_total ?? 0) > 0)) return 'failed'
+  return 'succeeded'
+}
 
-/** Distinct feed ids that appear in any of the visible runs (stable order). */
-const feedIds = computed(() => {
-  const seen = new Map<string, string>()
-  for (const r of runsWithBreakdown.value) {
-    for (const f of r.by_feed ?? []) {
-      if (!seen.has(f.feed_id)) {
-        seen.set(f.feed_id, (f.display_title ?? '').trim() || f.feed_id)
-      }
-    }
+function dayKey(r: CorpusRunSummaryItem): string {
+  const ca = (r.created_at ?? '').trim()
+  if (ca.length >= 10) return ca.slice(0, 10)
+  return r.run_id ?? r.relative_path
+}
+
+const feedTitleById = computed(() => {
+  const m = new Map<string, string>()
+  for (const f of props.feeds ?? []) {
+    const title = (f.display_title ?? '').trim()
+    if (f.feed_id) m.set(f.feed_id, title || f.feed_id)
   }
-  return [...seen.entries()]
-    .map(([id, title]) => ({ id, title }))
-    .sort((a, b) => a.title.localeCompare(b.title))
+  return m
 })
 
-const rows = computed<FeedRow[]>(() =>
-  feedIds.value.map(({ id, title }) => ({
-    feedId: id,
-    displayTitle: title,
-    cells: runsWithBreakdown.value.map(
-      (r) => (r.by_feed ?? []).find((f) => f.feed_id === id) ?? null,
-    ),
-  })),
+/** Runs that carry ``feed_id`` and a usable ``created_at`` prefix. */
+const usableRuns = computed(() =>
+  props.runs.filter(
+    (r) => (r.feed_id ?? '').trim() !== '' && (r.created_at?.length ?? 0) >= 10,
+  ),
 )
 
-/** UXS-006 §6.5 hides the grid when the corpus is single-feed. */
+/** Distinct run-day columns across all feeds, oldest → newest, capped at 5. */
+const runDays = computed(() => {
+  const seen = new Set<string>()
+  for (const r of usableRuns.value) seen.add(dayKey(r))
+  return [...seen].sort((a, b) => a.localeCompare(b)).slice(-5)
+})
+
+const feedIds = computed(() => {
+  const seen = new Set<string>()
+  for (const r of usableRuns.value) seen.add(r.feed_id ?? '')
+  return [...seen]
+})
+
+const rows = computed<FeedRow[]>(() => {
+  const days = runDays.value
+  return feedIds.value
+    .map((id) => {
+      const title = feedTitleById.value.get(id) ?? id
+      const cells: (Cell | null)[] = days.map((d) => {
+        const runsHere = usableRuns.value.filter(
+          (r) => r.feed_id === id && dayKey(r) === d,
+        )
+        if (runsHere.length === 0) return null
+        const merged: Cell = {
+          status: 'succeeded',
+          ok: 0,
+          failed: 0,
+          skipped: 0,
+          run: runsHere[0]!,
+        }
+        for (const r of runsHere) {
+          merged.ok += r.episode_outcomes?.ok ?? 0
+          merged.failed += r.episode_outcomes?.failed ?? 0
+          merged.skipped += r.episode_outcomes?.skipped ?? 0
+        }
+        const anyFailed = runsHere.some((r) => statusOf(r) === 'failed')
+        const anyPartial = runsHere.some((r) => statusOf(r) === 'partial')
+        if (anyFailed) merged.status = 'failed'
+        else if (anyPartial) merged.status = 'partial'
+        else merged.status = 'succeeded'
+        return merged
+      })
+      return { feedId: id, displayTitle: title, cells }
+    })
+    .sort((a, b) => a.displayTitle.localeCompare(b.displayTitle))
+})
+
 const isMultiFeed = computed(() => feedIds.value.length >= 2)
-const shouldRender = computed(
-  () => runsWithBreakdown.value.length > 0 && isMultiFeed.value,
-)
+const shouldRender = computed(() => runDays.value.length > 0 && isMultiFeed.value)
 
 const insightLine = computed(() => {
   if (!shouldRender.value) return ''
-  const windowLen = runsWithBreakdown.value.length
+  const windowLen = runDays.value.length
   let worstFeed: string | null = null
   let worstFailures = 0
   for (const row of rows.value) {
@@ -79,32 +139,23 @@ const insightLine = computed(() => {
   return `All feeds succeeded in last ${windowLen} runs`
 })
 
-function cellClass(cell: CorpusRunFeedOutcomeItem | null): string {
+function cellClass(cell: Cell | null): string {
   if (!cell) return 'bg-surface text-muted'
   if (cell.status === 'failed') return 'bg-danger/25 text-danger'
   if (cell.status === 'partial') return 'bg-warning/25 text-warning'
   return 'bg-success/25 text-success'
 }
 
-function cellGlyph(cell: CorpusRunFeedOutcomeItem | null): string {
+function cellGlyph(cell: Cell | null): string {
   if (!cell) return '·'
   if (cell.status === 'failed') return '✗'
   if (cell.status === 'partial') return '⚠'
   return '✓'
 }
 
-function cellTitle(row: FeedRow, cell: CorpusRunFeedOutcomeItem | null, runIdx: number): string {
-  const run = runsWithBreakdown.value[runIdx]
-  const when = (run?.created_at ?? '').slice(0, 10) || '—'
-  if (!cell) return `${row.displayTitle} · ${when} · no data`
-  const o = cell.ok ?? 0
-  const f = cell.failed ?? 0
-  const s = cell.skipped ?? 0
-  return `${row.displayTitle} · ${when} · ${cell.status} (ok ${o} · failed ${f} · skipped ${s})`
-}
-
-function runHeaderLabel(r: CorpusRunSummaryItem): string {
-  return (r.created_at ?? '').slice(0, 10) || '—'
+function cellTitle(row: FeedRow, cell: Cell | null, day: string): string {
+  if (!cell) return `${row.displayTitle} · ${day} · no data`
+  return `${row.displayTitle} · ${day} · ${cell.status} (ok ${cell.ok} · failed ${cell.failed} · skipped ${cell.skipped})`
 }
 </script>
 
@@ -135,12 +186,12 @@ function runHeaderLabel(r: CorpusRunSummaryItem): string {
               &nbsp;
             </th>
             <th
-              v-for="r in runsWithBreakdown"
-              :key="r.relative_path"
+              v-for="d in runDays"
+              :key="d"
               scope="col"
               class="whitespace-nowrap px-1 text-center font-normal text-muted"
             >
-              {{ runHeaderLabel(r) }}
+              {{ d }}
             </th>
           </tr>
         </thead>
@@ -161,7 +212,7 @@ function runHeaderLabel(r: CorpusRunSummaryItem): string {
               :key="i"
               class="h-7 w-7 rounded text-center align-middle text-[11px] font-semibold"
               :class="cellClass(cell)"
-              :title="cellTitle(row, cell, i)"
+              :title="cellTitle(row, cell, runDays[i] ?? '')"
               data-testid="pipeline-feed-history-cell"
             >
               {{ cellGlyph(cell) }}

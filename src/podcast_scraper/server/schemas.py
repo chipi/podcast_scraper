@@ -2200,6 +2200,12 @@ class CorpusRunSummaryItem(BaseModel):
     ad_chars_excised_preroll: int | None = None
     ad_chars_excised_postroll: int | None = None
     ad_episodes_with_excision_count: int | None = None
+    # #1269 / UXS-006 §6.5: stable feed directory name inferred from the
+    # ``feeds/<stable_feed_dir>/run_*/run.json`` layout. Each run.json is
+    # scoped to a single (feed, timestamp) — the dashboard's Feed history
+    # grid aggregates the flat response client-side by ``feed_id``. ``None``
+    # for legacy layouts that did not nest runs under ``feeds/``.
+    feed_id: str | None = None
 
 
 class CorpusRunsSummaryResponse(BaseModel):
