@@ -114,42 +114,39 @@ jobs:
              git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
              git reset --hard 'origin/$DEPLOY_REF'"
 
-      - name: Resolve newest published api image SHA
+      - name: Resolve api image tag
         id: imgsha
         if: steps.preflight.outputs.skip != 'true'
         env:
           OVERRIDE: ${{ inputs.override_image_sha }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # Aligned with the drill/deploy-prod resolver (f8bc9ede). An explicit override
-          # wins; otherwise pin the NEWEST sha-<7> tag actually PUBLISHED to GHCR — the
-          # last successful stack-test build from main. NEVER the literal :main tag: CI
-          # stopped updating it 2026-05-28, so :main is 8 weeks stale (pre-ADR-116, no
-          # /api/app/* consumer surface -> the player 404s every API call). Empty
-          # resolution fails loudly rather than silently shipping a bad/stale tag.
-          SHA_SHORT="${OVERRIDE:-}"; SHA_SHORT="${SHA_SHORT#sha-}"; SRC="override"
-          if [ -z "$SHA_SHORT" ]; then
-            SRC="latest-published"
-            TAG=$(gh api "/users/chipi/packages/container/podcast-scraper-stack-api/versions?per_page=100" \
-              --jq '[.[].metadata.container.tags[]? | select(test("^sha-[0-9a-f]{7,40}$"))] | .[0] // empty')
-            SHA_SHORT="${TAG#sha-}"
+          # "One engine, two surfaces" (ADR-116): by DEFAULT the player runs the EXACT same
+          # api image the operator stack is currently running — resolved on the box by
+          # deploy-player.sh from the live operator api container. So the default here is to
+          # emit an EMPTY tag and let the script pin it. An explicit override_image_sha still
+          # wins (validated below + staged). Never the literal :main tag (CI stopped updating
+          # it 2026-05-28 -> pre-ADR-116, no /api/app/* surface -> the player 404s).
+          SHA_SHORT="${OVERRIDE:-}"; SHA_SHORT="${SHA_SHORT#sha-}"
+          if [ -n "$SHA_SHORT" ]; then
+            if ! [[ "$SHA_SHORT" =~ ^[a-f0-9]{7,40}$ ]]; then
+              echo "::error::override_image_sha must match ^[a-f0-9]{7,40}$ (got: ${SHA_SHORT})"; exit 1
+            fi
+            echo "tag=sha-$SHA_SHORT" >> "$GITHUB_OUTPUT"
+            echo "::notice::Player api image pinned to override sha-$SHA_SHORT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No override — deploy-player.sh will pin the player to the operator stack's running engine sha"
           fi
-          if ! [[ "$SHA_SHORT" =~ ^[a-f0-9]{7,40}$ ]]; then
-            echo "::error::no published sha-<7> image for podcast-scraper-stack-api (source: ${SRC}). Has any stack-test build from main succeeded?"
-            exit 1
-          fi
-          echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "::notice::Player api image tag sha-$SHA_SHORT (source: ${SRC})"
 
-      - name: Validate GHCR api image manifest exists (pre-SSH)
-        if: steps.preflight.outputs.skip != 'true'
+      - name: Validate GHCR api image manifest exists (override only, pre-SSH)
+        if: steps.preflight.outputs.skip != 'true' && steps.imgsha.outputs.tag != ''
         env:
-          SHA_SHORT: ${{ steps.imgsha.outputs.short }}
+          TAG: ${{ steps.imgsha.outputs.tag }}
         run: |
           set -euo pipefail
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          docker manifest inspect "ghcr.io/chipi/podcast-scraper-stack-api:sha-${SHA_SHORT}" >/dev/null
+          docker manifest inspect "ghcr.io/chipi/podcast-scraper-stack-api:${TAG}" >/dev/null
 
       - name: Stage .env.player (secrets via /dev/shm scp, never inline over ssh)
         if: steps.preflight.outputs.skip != 'true'
@@ -157,7 +154,8 @@ jobs:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           PLAYER_DOMAIN: ${{ vars.PLAYER_DOMAIN }}
           PODCAST_CORPUS_VOLUME: ${{ vars.PODCAST_CORPUS_VOLUME }}
-          PODCAST_IMAGE_TAG: sha-${{ steps.imgsha.outputs.short }}
+          # Empty by default -> deploy-player.sh pins to the operator's running engine sha.
+          PODCAST_IMAGE_TAG: ${{ steps.imgsha.outputs.tag }}
           GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
