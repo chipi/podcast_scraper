@@ -41,6 +41,14 @@ services:
       # Must be listed here — the --env-file only feeds compose interpolation, not the
       # container env, so a var absent from this block never reaches the process.
       PODCAST_ENV: ${PODCAST_ENV:-dev}
+      # Sign-in access policy (server/app_access.py). The backend default is
+      # allowlist + EMPTY list = DEFAULT-DENY: every account gets "This account is not
+      # allowed to sign in." Must be listed here (see note above) or the values in
+      # .env.player never reach the process. `allowlist` = only APP_ALLOWED_EMAILS /
+      # APP_ALLOWED_DOMAINS may sign in; `open` = any successful Google login is allowed.
+      APP_SIGNUP_MODE: ${APP_SIGNUP_MODE:-allowlist}
+      APP_ALLOWED_EMAILS: ${APP_ALLOWED_EMAILS:-}
+      APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
     volumes:
       # Corpus is READ-ONLY here — the consumer plane reads it; per-user data is separate.
       - corpus_data:/app/output:ro
