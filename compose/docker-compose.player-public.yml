@@ -37,6 +37,10 @@ services:
       FORWARDED_ALLOW_IPS: "*"
       APP_DATA_DIR: /app/appdata
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      # Tags backend Sentry events as prod (sentry_init reads PODCAST_ENV, default dev).
+      # Must be listed here — the --env-file only feeds compose interpolation, not the
+      # container env, so a var absent from this block never reaches the process.
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
     volumes:
       # Corpus is READ-ONLY here — the consumer plane reads it; per-user data is separate.
       - corpus_data:/app/output:ro
