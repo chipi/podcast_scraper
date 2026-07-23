@@ -55,6 +55,21 @@ closelistening.app {
 		}
 	}
 
+	# Static app-shell files (JS / CSS / fonts / icons / service worker) are served to
+	# everyone, gate or not. They carry NO data — the API stays gated below — and gating
+	# them broke the SPA. The document navigation and axios XHRs both carry the cached
+	# preview Basic-auth, but Vue's lazily-imported route chunks are fetched as `crossorigin`
+	# ES modules (CORS mode), and the browser does NOT attach cached Basic-auth to those.
+	# So the gate saw no Authorization and returned the 200 coming-soon HTML; `import()`
+	# then rejected it ("MIME type text/html") and the route never loaded — the first lazy
+	# route is /login, so Sign in / Sign up did nothing. Serving assets unconditionally makes
+	# the origin always answer these with real JS. The bare document (/, /login, /catalog,
+	# /episode/*) has no matching extension, so it still hits the coming-soon gate below.
+	@static path_regexp \.(js|mjs|css|map|woff2?|ttf|otf|eot|png|jpe?g|gif|svg|ico|webmanifest|webp|avif)$
+	handle @static {
+		reverse_proxy 127.0.0.1:8092
+	}
+
 	# Preview users: any request carrying a valid Authorization header reaches the app.
 	@authed header Authorization *
 	handle @authed {
