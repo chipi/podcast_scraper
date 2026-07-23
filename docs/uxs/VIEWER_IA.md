@@ -108,14 +108,14 @@ the subject history stack).
 
 **Always visible.** Permanent on the left regardless of which main tab is active.
 
-**Two modes, one column width (`w-72`):**
+**One surface, one column width (`w-72`):**
 
-- **Search** (default): semantic FAISS-based corpus search — query form, run controls, scrollable
-  results. Quiet footer control **Explore corpus →** (`text-xs`, muted, arrow) slides the column to
-  **Explore** mode (CSS transform on a two-pane strip inside `LeftPanel.vue`; **`data-testid="left-panel-slide-host"`**).
-- **Explore**: GI cross-episode filters and natural-language / preset queries. **← Search** at the
-  top (same quiet treatment) slides back; **search query and results are preserved** (`searchStore`
-  untouched). **`data-testid="left-panel-enter-explore"`** / **`left-panel-back-search`**.
+- **Search**: semantic corpus search — query form, run controls, scrollable results. See
+  [UXS-005 — Semantic Search](UXS-005-semantic-search.md).
+- **Explore mode retired.** The slide mode-switch, `shell.leftPanelSurface = 'explore'`, and the
+  `left-panel-enter-explore` / `left-panel-back-search` / `left-panel-slide-host` test IDs were
+  removed when Explore's filters folded into the Workspace filter chip bar
+  (UXS-016 §Header). See UXS-005 for the full retirement note.
 
 **Keyboard:** **`/`** expands the column if collapsed, sets surface to **Search**, then focuses
 **`#search-q`** (`useViewerKeyboard` + `LeftPanel` `focusQuery`). In **Explore**, **Enter** in

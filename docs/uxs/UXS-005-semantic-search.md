@@ -93,9 +93,9 @@ the legacy inline `Since (date) + Top-k` row, the "Advanced search" underline li
 and the read-only "Active advanced filters" summary block (which is gone — chip
 labels carry the active state instead). **Search** / **Clear** sit below the chip
 bar; scrollable **results** (errors + hit cards) follow in the middle.
-**Explore corpus →** lives in **`LeftPanel.vue`** below the search card
-(**`data-testid="left-panel-explore-footer"`** / **`left-panel-enter-explore`**)
-so it stays visible above the status bar.
+Explore mode has been retired — see the "Explore mode retired" note
+below for the current state (filters folded into the Workspace filter
+chip bar).
 
 ---
 
