@@ -95,7 +95,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         self._timeout_sec = float(cfg.dgx_request_timeout_sec or 600.0)
         self._timeout_per_audio_min = float(getattr(cfg, "dgx_timeout_per_audio_minute_sec", 20.0))
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        # ADR-119: which resilience STRATEGY this provider uses. 'failover' (serve default) keeps
+        # ADR-122: which resilience STRATEGY this provider uses. 'failover' (serve default) keeps
         # today's fail-fast/trip/raise-for-chain logic below untouched; 'hold' routes through the
         # ResiliencePolicy (backoff-retry -> trip-after-N -> hold-and-probe). The strategy is a
         # standalone knob defaulted by run context (reprocess -> hold), overridable per profile.
@@ -228,7 +228,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         timeout_sec = self._effective_timeout_sec(episode_duration_seconds)
 
         if self._strategy is FailureStrategy.HOLD:
-            # ADR-119: consistency over availability — backoff-retry the SAME model,
+            # ADR-122: consistency over availability — backoff-retry the SAME model,
             # trip only after N, hold-and-probe on a blown fuse. Kept as a fully separate
             # method (not folded into the serve loop below) so the serve branch's today
             # behaviour stays byte-for-byte unchanged (RFC-106/#1198 regression guard).
@@ -347,7 +347,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         effective_model: str,
         model_override: str | None,
     ) -> tuple[str, list[dict[str, object]], float, str]:
-        """ADR-119 reprocess-mode path: backoff-retry the chosen model, trip the fuse only
+        """ADR-122 reprocess-mode path: backoff-retry the chosen model, trip the fuse only
         after the policy threshold, and hold-and-probe (never fall over) on a blown fuse.
 
         The single-flight lock spans the whole call (health-check + retries + any
@@ -381,7 +381,7 @@ class TailnetDgxWhisperTranscriptionProvider:
             )
             logger.error(
                 "DGX Whisper endpoint did not recover after %.0fs of pause-and-probe "
-                "(reprocess mode, ADR-119) — alerting operator, NOT falling over: %s",
+                "(reprocess mode, ADR-122) — alerting operator, NOT falling over: %s",
                 self._policy.on_open_max_wait_sec,
                 exc,
             )

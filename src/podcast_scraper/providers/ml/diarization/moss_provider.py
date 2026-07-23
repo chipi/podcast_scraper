@@ -11,10 +11,10 @@ semantics of pyannote's ``SPEAKER_00``. They are normalized to ``SPEAKER_NN`` he
 downstream consumer (roster resolution, the #1167 placeholder guard, host/guest attribution) keeps
 working unchanged, whichever diarizer produced them.
 
-Resilience (ADR-119): like the MOSS transcription provider, this gains the call + circuit + policy
+Resilience (ADR-122): like the MOSS transcription provider, this gains the call + circuit + policy
 layers of the self-hosted-model family — a bounded retry loop with a process-wide circuit breaker
 in serve mode, and a backoff -> trip-after-N -> hold-and-probe ``ResiliencePolicy`` in reprocess
-mode. It was bare before ADR-119 (a single POST, no retry, no breaker).
+mode. It was bare before ADR-122 (a single POST, no retry, no breaker).
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ _DEFAULT_TIMEOUT_SEC = 1800.0
 _RETRY_BACKOFF_SEC = 5.0
 
 # Single-flight guard: MOSS shares the DGX GPU and serves one inference at a time. Serialize our
-# own calls (ADR-119, mirrors whisper's ``_dgx_single_flight``) so we never self-contend.
+# own calls (ADR-122, mirrors whisper's ``_dgx_single_flight``) so we never self-contend.
 _moss_diarize_single_flight = threading.Lock()
 
 # Process-wide breaker for the MOSS endpoint (:8004), diarization side. Its own instance —
@@ -83,7 +83,7 @@ class MossDiarizationProvider:
             getattr(cfg, "moss_request_timeout_sec", None) or _DEFAULT_TIMEOUT_SEC
         )
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        # ADR-119: 'failover' (serve default) fails fast + trips on the first hard timeout, raising
+        # ADR-122: 'failover' (serve default) fails fast + trips on the first hard timeout, raising
         # for a wrapping FallbackChain; 'hold' routes through the ResiliencePolicy (backoff-retry ->
         # trip-after-N -> hold-and-probe, never a cross-model fallover). Standalone strategy knob
         # defaulted by run context, per-profile overridable.
@@ -111,7 +111,7 @@ class MossDiarizationProvider:
         self._initialized = False
 
     def _call_raw(self, audio_path: str) -> Dict[str, Any]:
-        """The bare MOSS POST. ADR-119: never call directly outside ``_call``'s retry/breaker
+        """The bare MOSS POST. ADR-122: never call directly outside ``_call``'s retry/breaker
         (serve mode) or ``ResiliencePolicy`` (reprocess mode) wrapping."""
         path = os.fspath(audio_path)
         if not os.path.isfile(path):
@@ -181,7 +181,7 @@ class MossDiarizationProvider:
         raise RuntimeError(f"MOSS diarization unavailable: {reason}")
 
     def _diarize_via_moss_reprocess(self, audio_path: str) -> Dict[str, Any]:
-        """ADR-119 reprocess-mode path: backoff-retry the chosen model, trip only after the
+        """ADR-122 reprocess-mode path: backoff-retry the chosen model, trip only after the
         policy threshold, hold-and-probe (never fall over) on a blown fuse. Mirrors the MOSS
         transcription provider's ``_call_via_moss_reprocess``."""
         try:
@@ -192,7 +192,7 @@ class MossDiarizationProvider:
         except ResilienceFuseOpenError as exc:
             logger.error(
                 "MOSS endpoint did not recover after %.0fs of pause-and-probe (reprocess mode, "
-                "ADR-119) — alerting operator, NOT falling over: %s",
+                "ADR-122) — alerting operator, NOT falling over: %s",
                 self._policy.on_open_max_wait_sec,
                 exc,
             )

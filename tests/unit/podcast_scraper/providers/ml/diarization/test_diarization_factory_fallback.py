@@ -78,7 +78,7 @@ def test_factory_leaves_a_no_ladder_diarization_unwrapped() -> None:
 
 
 def test_factory_reprocess_context_skips_fallback_chain_adr119() -> None:
-    """ADR-119 (chunk 2): in reprocess run-context the self-hosted diarization provider must
+    """ADR-122 (chunk 2): in reprocess run-context the self-hosted diarization provider must
     NEVER fall over to another model — a mixed-backend corpus is worse than a pause. Even with
     a declared fallback ladder, the factory returns the bare DGX provider; its ResiliencePolicy
     (hold-and-probe) is terminal. Mirrors the transcription factory's

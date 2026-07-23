@@ -1026,7 +1026,7 @@ def _process_episodes_sequential(
         except CostCapExceeded:
             raise
         except ResilienceFuseOpenError:
-            # ADR-119 item 3: a sustained fuse-open means the self-hosted endpoint is genuinely
+            # ADR-122 item 3: a sustained fuse-open means the self-hosted endpoint is genuinely
             # down and — in reprocess mode — we do NOT fall over to another model. Continuing would
             # grind every remaining episode through the same hold-then-fail and yield a partial
             # corpus. Halt the batch (like the cost fuse above) so the operator can act; the run
@@ -1301,7 +1301,7 @@ def _drain_completed_processing_futures(
                     failed_delta,
                 )
             except ResilienceFuseOpenError:
-                # ADR-119 item 3: the self-hosted endpoint is down and reprocess mode never falls
+                # ADR-122 item 3: the self-hosted endpoint is down and reprocess mode never falls
                 # over — halt the whole batch rather than failing every remaining future the same
                 # way. Propagates up like the sequential loop's halt.
                 logger.error(

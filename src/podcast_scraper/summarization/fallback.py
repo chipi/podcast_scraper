@@ -243,7 +243,7 @@ def wrap_with_fallback_if_configured(
     DGX-served vLLM (an ``openai``-protocol provider) or ``ollama`` — and fails over to the cloud
     tier(s) in the chain.
 
-    ADR-119: under the **hold** failure strategy this fallover is deliberately suppressed, mirroring
+    ADR-122: under the **hold** failure strategy this fallover is deliberately suppressed, mirroring
     the ASR/self-hosted factory guard. HOLD optimises *consistency* — the chosen LLM is the only
     LLM, so a DGX/Ollama-served summary must never silently degrade to a cloud provider and produce
     a mixed-backend corpus. The primary is returned unwrapped; the per-provider LLM circuit breaker
@@ -259,7 +259,7 @@ def wrap_with_fallback_if_configured(
 
     if resolve_failure_strategy(cfg) is FailureStrategy.HOLD:
         logger.info(
-            "ADR-119 HOLD strategy: NOT wrapping summary provider '%s' in cross-LLM fallover "
+            "ADR-122 HOLD strategy: NOT wrapping summary provider '%s' in cross-LLM fallover "
             "(chain %s suppressed) — the chosen model is the only model; consistency over "
             "availability",
             str(cfg.summary_provider or "").strip().lower(),

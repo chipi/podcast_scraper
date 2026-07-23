@@ -4277,7 +4277,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     if profile:
         payload["profile"] = profile
 
-    # #646 + ADR-119 (#1253): carry EVERY --config / profile field that has no argparse flag, not a
+    # #646 + ADR-122 (#1253): carry EVERY --config / profile field that has no argparse flag, not a
     # hand-maintained subset. ``_load_and_merge_config`` calls ``parser.set_defaults`` with the full
     # ``config_model.model_dump()``, so every non-None resolved config value lands on ``args`` —
     # iterating Config's own fields captures anything the file/profile set. Fields already in

@@ -1188,7 +1188,7 @@ class Config(BaseModel):
             "Tried after transcription_provider on infra failure."
         ),
     )
-    # ADR-120 (#1258): quality-gate transcription failover. Distinct from the infra ladders above —
+    # ADR-123 (#1258): quality-gate transcription failover. Distinct from the infra ladders above —
     # this fires when a transcription SUCCEEDS but its output coverage (Σ segment durations / audio
     # duration) is below the floor, i.e. the model silently dropped speech (turbo's long-form VAD
     # failure). The episode is then re-transcribed on the failover model. Gate is OFF at 0.0.
@@ -1198,7 +1198,7 @@ class Config(BaseModel):
         le=1.0,
         alias="transcription_coverage_min",
         description=(
-            "ADR-120 quality-gate transcription failover floor. When a transcription's segment "
+            "ADR-123 quality-gate transcription failover floor. When a transcription's segment "
             "coverage (Σ segment durations / audio duration) is below this, re-transcribe on "
             "transcription_coverage_failover_model. 0.0 = gate off; a reprocess sets ~0.85. Active "
             "only with a failover model set."
@@ -1208,7 +1208,7 @@ class Config(BaseModel):
         default=None,
         alias="transcription_coverage_failover_model",
         description=(
-            "ADR-120: the whisper model to re-transcribe with when coverage falls below "
+            "ADR-123: the whisper model to re-transcribe with when coverage falls below "
             "transcription_coverage_min (e.g. 'Systran/faster-whisper-large-v3' as the robust "
             "fallback for turbo's long-episode drops). None = no quality-gate failover."
         ),
@@ -1217,8 +1217,8 @@ class Config(BaseModel):
         default=False,
         alias="enforce_model_governance",
         description=(
-            "ADR-121 (#1258): when true, every ACTIVE model (the model the configured provider for "
-            "each stage will run, incl. the ADR-120 coverage-failover model) must be registry-"
+            "ADR-124 (#1258): when true, every ACTIVE model (the model the configured provider for "
+            "each stage will run, incl. the ADR-123 coverage-failover model) must be registry-"
             "sanctioned (a StageOption in the model registry), else config validation raises "
             "UnsanctionedModelError (code MODEL_NOT_SANCTIONED). Opt-in — reprocess/prod profiles "
             "set it; tests + experiment mode (base.en, ad-hoc eval models) keep the default off."
@@ -1370,7 +1370,7 @@ class Config(BaseModel):
         alias="resilience_run_context",
         description=(
             "Resilience mode for the self-hosted-model provider family (DGX whisper, DGX "
-            "diarize, MOSS — ADR-119). 'serve' (default) optimises availability: fail fast, "
+            "diarize, MOSS — ADR-122). 'serve' (default) optimises availability: fail fast, "
             "trip the circuit breaker on the first hard timeout, and let the FallbackChain "
             "advance to the next model (RFC-106/#1198, unchanged). 'reprocess' optimises "
             "consistency for a controlled batch: back off and retry the SAME chosen model, "
@@ -1385,7 +1385,7 @@ class Config(BaseModel):
         default="failover",
         alias="resilience_failure_strategy",
         description=(
-            "ADR-119: the resolution STRATEGY when the chosen self-hosted/primary model fails — "
+            "ADR-122: the resolution STRATEGY when the chosen self-hosted/primary model fails — "
             "one shared knob honoured by BOTH the self-hosted-ASR family (DGX whisper, DGX "
             "diarize, MOSS) and the LLM class (summary/GI). 'failover' optimises availability: "
             "trip fast and fall over to the next provider in the configured chain (ASR: "
@@ -1403,7 +1403,7 @@ class Config(BaseModel):
         ge=1,
         alias="resilience_retries_before_trip",
         description=(
-            "Reprocess-mode only (ADR-119): backoff-retry cycles of the chosen self-hosted "
+            "Reprocess-mode only (ADR-122): backoff-retry cycles of the chosen self-hosted "
             "model before the circuit breaker trips. Ignored in serve mode, which keeps "
             "today's trip-on-first-hard-timeout behaviour."
         ),
@@ -1412,7 +1412,7 @@ class Config(BaseModel):
         default=[30.0, 60.0, 120.0],
         alias="resilience_backoff_schedule_sec",
         description=(
-            "Reprocess-mode only (ADR-119): wait (seconds) before each retry of the chosen "
+            "Reprocess-mode only (ADR-122): wait (seconds) before each retry of the chosen "
             "self-hosted model, indexed by attempt number. The schedule's last entry repeats "
             "once exhausted (a de-facto cap on the exponential growth)."
         ),
@@ -1422,7 +1422,7 @@ class Config(BaseModel):
         gt=0,
         alias="resilience_on_open_max_wait_sec",
         description=(
-            "Reprocess-mode only (ADR-119): how long (seconds) the batch pauses and probes "
+            "Reprocess-mode only (ADR-122): how long (seconds) the batch pauses and probes "
             "a blown fuse before giving up and alerting the operator. Never switches to "
             "another model during this window — the endpoint is expected to recover, not be "
             "replaced."
@@ -1433,9 +1433,9 @@ class Config(BaseModel):
         gt=0,
         alias="resilience_probe_interval_sec",
         description=(
-            "Reprocess-mode only (ADR-119): polling cadence (seconds) while pausing and "
+            "Reprocess-mode only (ADR-122): polling cadence (seconds) while pausing and "
             "probing a blown fuse, bounded by 'resilience_on_open_max_wait_sec'. Not named "
-            "in ADR-119's knob table explicitly; introduced as the pause-and-probe loop's "
+            "in ADR-122's knob table explicitly; introduced as the pause-and-probe loop's "
             "cadence."
         ),
     )
@@ -3487,7 +3487,7 @@ class Config(BaseModel):
 
         profile_name = str(profile_name).strip()
 
-        # ADR-119: derive the self-hosted-model resilience run context from the profile
+        # ADR-122: derive the self-hosted-model resilience run context from the profile
         # name itself, not the registry/YAML layers below — reprocess_dgx_no_llm and
         # experiment_dgx_moss are yaml-only (no registry entry) so this must work off the
         # name alone. Lowest-priority layer: registry/YAML/explicit data can all still
@@ -3559,7 +3559,7 @@ class Config(BaseModel):
         merged.update(profile_dict)
         merged.update(data)  # explicit fields win
 
-        # ADR-119: the failure STRATEGY defaults from the *effective* run context (serve ->
+        # ADR-122: the failure STRATEGY defaults from the *effective* run context (serve ->
         # failover, reprocess -> hold) but is a first-class, overridable knob. If no layer set it
         # explicitly, derive it here from the merged run context so a profile that flips run
         # context (without naming a strategy) still gets the matching default; an explicit
@@ -5152,7 +5152,7 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def _enforce_model_governance(self) -> "Config":
-        """ADR-121 (#1258): when ``enforce_model_governance`` is set, every ACTIVE model must be
+        """ADR-124 (#1258): when ``enforce_model_governance`` is set, every ACTIVE model must be
         registry-sanctioned, else raise :class:`UnsanctionedModelError` (which is a RuntimeError,
         so it propagates as itself rather than being wrapped into a generic ValidationError). Lazy
         import breaks the config<->registry cycle; no-op when the flag is off (the default)."""

@@ -181,7 +181,7 @@ class FallbackChainTranscriptionProvider:
 def _segment_coverage(
     result: dict[str, object], audio_path: str, episode_duration_seconds: Optional[int]
 ) -> Optional[float]:
-    """ADR-120: fraction of the audio the transcript's segments cover.
+    """ADR-123: fraction of the audio the transcript's segments cover.
 
     ``Σ(segment_end − segment_start) / audio_duration``. Returns None when it cannot be measured
     (no segments, or unknown duration) — the gate treats "unknowable" as "do not failover", so a
@@ -209,7 +209,7 @@ def _segment_coverage(
 
 
 class CoverageGatedTranscriptionProvider:
-    """Quality-gate transcription failover (ADR-120 / #1258).
+    """Quality-gate transcription failover (ADR-123 / #1258).
 
     Wraps a primary provider. After a SUCCESSFUL transcription it measures
     :func:`_segment_coverage`; if coverage is below ``coverage_min`` the primary silently dropped
@@ -217,7 +217,7 @@ class CoverageGatedTranscriptionProvider:
     so the episode is re-transcribed on the ``failover`` model and that result is used instead.
 
     Distinct from :class:`FallbackChainTranscriptionProvider`, which advances on an EXCEPTION — this
-    fires on a successful-but-incomplete OUTPUT, and is orthogonal to ADR-119 ``hold`` (which
+    fires on a successful-but-incomplete OUTPUT, and is orthogonal to ADR-122 ``hold`` (which
     governs infra-failure behaviour). Both tiers are built lazily, so a corpus that never trips it
     never constructs the failover model. The winning model is recorded on the result
     (``model_used`` + a ``coverage_failover`` breadcrumb) so per-episode provenance survives.
@@ -285,7 +285,7 @@ class CoverageGatedTranscriptionProvider:
             return result, elapsed
         logger.warning(
             "transcription coverage %.1f%% < %.1f%% on %s — primary %r silently dropped speech; "
-            "quality failover to %r (ADR-120)",
+            "quality failover to %r (ADR-123)",
             coverage * 100,
             self._coverage_min * 100,
             audio_path,

@@ -382,7 +382,7 @@ class TestWrapWithFallbackIfConfigured:
     def test_reprocess_context_suppresses_cross_llm_fallover(
         self, primary_ok: _FakeProvider
     ) -> None:
-        """ADR-119: in reprocess run context a configured fallover chain is NOT wrapped — the
+        """ADR-122: in reprocess run context a configured fallover chain is NOT wrapped — the
         chosen LLM is the only LLM (consistency > availability); the primary is returned raw."""
         cfg = MagicMock()
         cfg.summary_provider = "openai"  # DGX-served vLLM
@@ -404,7 +404,7 @@ class TestWrapWithFallbackIfConfigured:
     def test_explicit_failover_strategy_wraps_even_in_reprocess(
         self, primary_ok: _FakeProvider
     ) -> None:
-        """ADR-119 override: a reprocess run can opt into cross-LLM fallover by naming the strategy
+        """ADR-122 override: a reprocess run can opt into cross-LLM fallover by naming the strategy
         explicitly (model_fields_set carries the override so resolve_failure_strategy honours it).
         """
         cfg = MagicMock()

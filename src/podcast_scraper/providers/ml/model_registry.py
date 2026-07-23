@@ -843,7 +843,7 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         ),
         measured_at="2026-06-16",
         # 2026-07-22: SECONDARY — the DGX primary is now turbo (tailnet_dgx_whisper_turbo); large-v3
-        # is the ADR-120 coverage-failover target + first infra fallback. See ASR-5MODEL-BAKEOFF.
+        # is the ADR-123 coverage-failover target + first infra fallback. See ASR-5MODEL-BAKEOFF.
         tier="fallback",
         resident_memory_gb=3.0,
         realtime_multiple=2.38,
@@ -852,7 +852,7 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
     # speaches service as large-v3, model selected per request (no service state change). ~30x
     # realtime (4.3x faster than large-v3, ~11x faster than MOSS) at WER parity on normal episodes,
     # measured isolated + GPU-exclusive. CAVEAT: silently drops ~a quarter of the speech on very
-    # long episodes (bake-off ep6: 69% coverage, 29.9% WER) -> paired with the ADR-120 (#1258)
+    # long episodes (bake-off ep6: 69% coverage, 29.9% WER) -> paired with the ADR-123 (#1258)
     # coverage gate that re-routes low-coverage episodes to large-v3.
     "tailnet_dgx_whisper_turbo": StageOption(
         stage="transcription",
@@ -866,7 +866,7 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "On REAL human ground truth (80k Hours, n=10) turbo is mid-pack accuracy (13.5% WER, "
             "3rd) — slightly behind MOSS (12.5%), well ahead of large-v3 (16.3%). Speed/accuracy "
             "tradeoff: turbo is primary for throughput; MOSS is the accurate-but-slow fallback. "
-            "Long-episode coverage drop handled by the ADR-120/#1258 gate. "
+            "Long-episode coverage drop handled by the ADR-123/#1258 gate. "
             "See EVAL_ASR_5MODEL_BAKEOFF_2026_07.md."
         ),
         measured_at="2026-07-22",
@@ -1689,20 +1689,20 @@ class ProfilePreset:
     # makes a no-cloud / airgapped profile safe to give a chain at all: it can degrade across its
     # DGX/local tiers but never phones out.
     allow_cloud_fallback: bool = True
-    # ADR-119 (#1253) resilience posture, canonicalized so every profile self-declares it rather
+    # ADR-122 (#1253) resilience posture, canonicalized so every profile self-declares it rather
     # than relying on the Config default (the gap that let a reprocess run drop to serve/failover).
     # Registry-backed presets are all serving pipelines -> serve/failover; the yaml-only
     # reprocess_dgx_* profiles declare reprocess/hold directly (they have no preset here).
     resilience_run_context: str = "serve"
     resilience_failure_strategy: str = "failover"
-    # ADR-120 (#1258) quality-gate transcription failover. Governed so a profile's coverage gate is
+    # ADR-123 (#1258) quality-gate transcription failover. Governed so a profile's coverage gate is
     # explicit + drift-checked. Any profile whose transcription primary is turbo turns the gate ON
     # (0.85 -> large-v3), because turbo silently drops speech on long episodes: the DGX serving
     # presets (2026-07-22) and the yaml-only reprocess profiles all set the floor + failover model.
     # Non-turbo presets leave it OFF (0.0 / None).
     transcription_coverage_min: float = 0.0
     transcription_coverage_failover_model: Optional[str] = None
-    # ADR-121 (#1258) model governance: opt-in enforcement that every active model is
+    # ADR-124 (#1258) model governance: opt-in enforcement that every active model is
     # registry-sanctioned. Off for serving/experiment presets; the reprocess profiles turn it on.
     enforce_model_governance: bool = False
     notes: Optional[str] = None
@@ -1801,14 +1801,14 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "transcription_fallback_providers",
     "diarization_fallback_providers",
     "summary_fallback_providers",
-    # ADR-119 (#1253): resilience posture — governed so a profile can't silently diverge from its
+    # ADR-122 (#1253): resilience posture — governed so a profile can't silently diverge from its
     # preset's serve/failover (or, in future, a hold) declaration.
     "resilience_run_context",
     "resilience_failure_strategy",
-    # ADR-120 (#1258): quality-gate transcription failover — coverage floor + failover model.
+    # ADR-123 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
     "transcription_coverage_failover_model",
-    # ADR-121 (#1258): model-governance enforcement toggle.
+    # ADR-124 (#1258): model-governance enforcement toggle.
     "enforce_model_governance",
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
@@ -1857,7 +1857,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        # turbo silently drops on long episodes -> ADR-120 coverage gate re-routes to large-v3.
+        # turbo silently drops on long episodes -> ADR-123 coverage gate re-routes to large-v3.
         transcription_coverage_min=0.85,
         transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
         summary="gemini_flash_lite",
@@ -1934,7 +1934,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_coverage_min=0.85,  # ADR-120: long-episode coverage drop -> large-v3
+        transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
         transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
@@ -1984,7 +1984,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "prod_dgx_balanced": ProfilePreset(
         name="prod_dgx_balanced",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_coverage_min=0.85,  # ADR-120: long-episode coverage drop -> large-v3
+        transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
         transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
         # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
         summary="vllm_qwen3_30b_a3b_nvfp4",
@@ -2424,16 +2424,16 @@ def resolve_profile_to_settings(
 
     _emit_fallback_chains(preset, settings)
 
-    # ADR-119 (#1253): resilience posture is registry-governed, so every materialized profile
+    # ADR-122 (#1253): resilience posture is registry-governed, so every materialized profile
     # self-declares it (invocation-agnostic — the reprocess make targets load via --config, which
     # bypasses name-derivation) and profiles-check catches drift.
     settings["resilience_run_context"] = preset.resilience_run_context
     settings["resilience_failure_strategy"] = preset.resilience_failure_strategy
 
-    # ADR-120 (#1258): quality-gate transcription-failover knobs, governed like the resilience ones.
+    # ADR-123 (#1258): quality-gate transcription-failover knobs, governed like the resilience ones.
     settings["transcription_coverage_min"] = preset.transcription_coverage_min
     settings["transcription_coverage_failover_model"] = preset.transcription_coverage_failover_model
-    settings["enforce_model_governance"] = preset.enforce_model_governance  # ADR-121 (#1258)
+    settings["enforce_model_governance"] = preset.enforce_model_governance  # ADR-124 (#1258)
 
     # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
     #

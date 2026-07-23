@@ -232,7 +232,7 @@ class TestAllShippedProfilesRoundTripThroughCLI:
             "airgapped",
             "airgapped_thin",
             "dev",
-            # yaml-only reprocess profiles — these are the ones the ADR-119 (#1253) carry-list gap
+            # yaml-only reprocess profiles — these are the ones the ADR-122 (#1253) carry-list gap
             # broke: resilience_* + transcript_cache_enabled silently reverted to code defaults.
             "reprocess_dgx_no_llm",
             "reprocess_dgx_turbo",
@@ -250,7 +250,7 @@ class TestAllShippedProfilesRoundTripThroughCLI:
     def test_config_path_round_trips_every_yaml_field(
         self, _fake_keys: None, profile_name: str
     ) -> None:
-        """ADR-119 (#1253) regression: the redo-/migrate-diarization make targets load a profile
+        """ADR-122 (#1253) regression: the redo-/migrate-diarization make targets load a profile
         via ``--config <file>``, NOT ``--profile <name>``. That path dropped non-argparse-flag
         fields (resilience_* -> serve/failover, transcript_cache_enabled un-disable-able) because
         ``_build_config`` carried only a hand-maintained subset. Every YAML field must survive here

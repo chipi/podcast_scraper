@@ -66,7 +66,7 @@ class ProviderCallMetrics:
 
         if not getattr(cfg, "llm_circuit_breaker_enabled", False):
             return
-        # ADR-119: the LLM breaker honours the same failure-strategy knob as the self-hosted-ASR
+        # ADR-122: the LLM breaker honours the same failure-strategy knob as the self-hosted-ASR
         # family. "failover" keeps #697's wait-and-resume (the summary-fallback chain owns
         # fallover); "hold" makes a sustained outage abort the batch (no cross-model fallover).
         from ..providers.resilience import resolve_failure_strategy
@@ -507,7 +507,7 @@ def retry_with_metrics(  # noqa: C901
 
         _breaker = _llm_breaker_module
 
-    # ADR-119 hold strategy: the breaker's ``wait_if_overloaded`` raises this on a sustained LLM
+    # ADR-122 hold strategy: the breaker's ``wait_if_overloaded`` raises this on a sustained LLM
     # outage. It is a hard abort (like the call-count/budget fuse), NOT a retryable error — bind it
     # here so the ``except`` clause below re-raises it straight through the retry loop.
     from ..providers.resilience.policy import ResilienceFuseOpenError
@@ -530,7 +530,7 @@ def retry_with_metrics(  # noqa: C901
                 _breaker.record_success(_provider_name, circuit_breaker_config)
             return result
         except ResilienceFuseOpenError:
-            # ADR-119 hold-mode hard abort: sustained LLM outage, no fallover — propagate so the
+            # ADR-122 hold-mode hard abort: sustained LLM outage, no fallover — propagate so the
             # workflow batch loop's ``except ResilienceFuseOpenError: raise`` halts the run. Never
             # retried or reclassified.
             raise

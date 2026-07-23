@@ -58,7 +58,7 @@ model registry. Supersedes the per-model transcription claims in
 
 - **Primary transcription = `large-v3-turbo`** (DGX speaches :8000). 25× realtime, accuracy tied for
   best on the only real-ground-truth episode.
-- **Secondary = `large-v3`** (`Systran/faster-whisper-large-v3`), used as the ADR-120 coverage-gate
+- **Secondary = `large-v3`** (`Systran/faster-whisper-large-v3`), used as the ADR-123 coverage-gate
   failover (turbo silently drops speech on long episodes) and first infra fallback.
 - **Cloud transcription = `openai-whisper-1`** (best on real ground truth); Deepgram demoted for
   transcription but **kept as the cloud diarizer**.
@@ -153,5 +153,5 @@ one), so demoting Deepgram-transcription does not create a cloud diarization gap
   delivered transcript. Directional, not final. Next step to harden: hand-transcribe 2–3 short
   segments across shows, or find more delivered-transcript feeds, and re-rank.
 - **Turbo's long-episode coverage drop** is real (ep6 in the isolated bake-off: 69% coverage). It is
-  *mitigated* by the ADR-120 coverage gate (re-route to large-v3), not eliminated — the gate is now
+  *mitigated* by the ADR-123 coverage gate (re-route to large-v3), not eliminated — the gate is now
   on for every turbo profile, serving included.

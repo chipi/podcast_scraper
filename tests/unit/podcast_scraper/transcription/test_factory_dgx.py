@@ -40,7 +40,7 @@ def test_factory_wraps_dgx_primary_in_a_fallback_chain() -> None:
 
 
 def test_factory_reprocess_context_skips_fallback_chain_adr119() -> None:
-    """ADR-119: in reprocess run-context the self-hosted provider must NEVER fall over to another
+    """ADR-122: in reprocess run-context the self-hosted provider must NEVER fall over to another
     model — a mixed-backend corpus is worse than a pause. Even with a declared fallback ladder, the
     factory returns the bare DGX provider; its ResiliencePolicy (hold-and-probe) is terminal.
 
@@ -69,7 +69,7 @@ def test_factory_reprocess_context_skips_fallback_chain_adr119() -> None:
 
 
 def test_factory_reprocess_can_opt_into_failover_via_explicit_strategy_adr119() -> None:
-    """ADR-119: the strategy is a standalone knob defaulted by run context but overridable. A
+    """ADR-122: the strategy is a standalone knob defaulted by run context but overridable. A
     reprocess run that explicitly asks for 'failover' DOES get wrapped in a FallbackChain — the
     operator chose availability over consistency for that run."""
     from podcast_scraper.providers.resilience.fallback import (
@@ -183,7 +183,7 @@ def test_factory_rejects_experiment_mode_for_dgx() -> None:
 
 
 def test_factory_wraps_turbo_in_coverage_gate_adr120() -> None:
-    """ADR-120 (#1258): a profile with transcription_coverage_min + a failover model wraps the
+    """ADR-123 (#1258): a profile with transcription_coverage_min + a failover model wraps the
     primary in a CoverageGatedTranscriptionProvider (quality-gate failover)."""
     from podcast_scraper.providers.resilience.fallback import (
         CoverageGatedTranscriptionProvider,

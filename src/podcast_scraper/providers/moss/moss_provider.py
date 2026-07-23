@@ -10,10 +10,10 @@ Deepgram already established) without paying to run the model twice.
 word-level output. That is a precision trade against faster-whisper (p95 ~0.26 s vs ~1.6 s), not a
 return of the #1173 drift — which came from silence removal, not from timestamp granularity.
 
-Resilience (ADR-119): this provider gains the same call + circuit + policy layers as the DGX
+Resilience (ADR-122): this provider gains the same call + circuit + policy layers as the DGX
 whisper / diarize providers — a bounded retry loop with a process-wide circuit breaker in serve
 mode, and a backoff -> trip-after-N -> hold-and-probe ``ResiliencePolicy`` in reprocess mode. Prior
-to ADR-119 this provider was bare (a single POST, no retry, no breaker) — strictly less protected
+to ADR-122 this provider was bare (a single POST, no retry, no breaker) — strictly less protected
 than whisper/diarize despite sharing the same DGX GPU contention risk.
 """
 
@@ -43,13 +43,13 @@ _DEFAULT_TIMEOUT_SEC = 1800.0
 _RETRY_BACKOFF_SEC = 5.0
 
 # Single-flight guard: MOSS shares the DGX GPU with the other self-hosted models and serves
-# one inference at a time. Serialize our own calls (ADR-119, mirrors whisper's
+# one inference at a time. Serialize our own calls (ADR-122, mirrors whisper's
 # ``_dgx_single_flight`` / diarize's ``_dgx_diarize_single_flight``) so we never self-contend;
 # external contention is ridden out by the timeout + watchdog, not by piling on more requests
 # (#876).
 _moss_single_flight = threading.Lock()
 
-# Process-wide breaker for the MOSS endpoint (:8004). ADR-119: mirrors ``_whisper_breaker`` /
+# Process-wide breaker for the MOSS endpoint (:8004). ADR-122: mirrors ``_whisper_breaker`` /
 # ``_diarize_breaker`` — one hard timeout trips it immediately, otherwise two failures inside
 # the window open it for a 5-minute cooldown before a half-open probe.
 _moss_breaker = CircuitBreaker(
@@ -79,7 +79,7 @@ class MossTranscriptionProvider:
         )
         # Retry budget is generic; reuse the shared knob for parity with whisper/diarize.
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
-        # ADR-119: which resilience STRATEGY this provider uses. 'failover' (serve default) fails
+        # ADR-122: which resilience STRATEGY this provider uses. 'failover' (serve default) fails
         # fast and trips the breaker on the first hard timeout, raising for the wrapping
         # FallbackChain to advance; 'hold' routes through the ResiliencePolicy (backoff-retry ->
         # trip-after-N -> hold-and-probe). Standalone knob defaulted by run context, per-profile
@@ -108,7 +108,7 @@ class MossTranscriptionProvider:
         self._initialized = False
 
     def _call_raw(self, audio_path: str) -> Dict[str, Any]:
-        """The bare MOSS POST. ADR-119: never call directly outside ``_call``'s
+        """The bare MOSS POST. ADR-122: never call directly outside ``_call``'s
         retry/breaker (serve mode) or ``ResiliencePolicy`` (reprocess mode) wrapping."""
         path = os.fspath(audio_path)
         if not os.path.isfile(path):
@@ -130,12 +130,12 @@ class MossTranscriptionProvider:
             self.initialize()
 
         if self._strategy is FailureStrategy.HOLD:
-            # ADR-119: consistency over availability — backoff-retry the SAME model, trip
+            # ADR-122: consistency over availability — backoff-retry the SAME model, trip
             # only after N, hold-and-probe on a blown fuse. Never falls over to another
             # model (unlike the serve branch below, which raises for the FallbackChain).
             return self._call_via_moss_reprocess(audio_path)
 
-        # ---- serve mode (ADR-119: fail fast, trip on the first hard timeout, raise for
+        # ---- serve mode (ADR-122: fail fast, trip on the first hard timeout, raise for
         # the FallbackChain to advance — mirrors the DGX whisper/diarize serve branches) ----
         last_err: Optional[Exception] = None
         timed_out = False
@@ -193,7 +193,7 @@ class MossTranscriptionProvider:
         raise RuntimeError(f"MOSS unavailable: {reason}")
 
     def _call_via_moss_reprocess(self, audio_path: str) -> Dict[str, Any]:
-        """ADR-119 reprocess-mode path: backoff-retry the chosen model, trip the fuse only
+        """ADR-122 reprocess-mode path: backoff-retry the chosen model, trip the fuse only
         after the policy threshold, and hold-and-probe (never fall over) on a blown fuse.
 
         Mirrors ``TailnetDgxWhisperTranscriptionProvider._transcribe_via_dgx_reprocess``.
@@ -206,7 +206,7 @@ class MossTranscriptionProvider:
         except ResilienceFuseOpenError as exc:
             logger.error(
                 "MOSS endpoint did not recover after %.0fs of pause-and-probe "
-                "(reprocess mode, ADR-119) — alerting operator, NOT falling over: %s",
+                "(reprocess mode, ADR-122) — alerting operator, NOT falling over: %s",
                 self._policy.on_open_max_wait_sec,
                 exc,
             )

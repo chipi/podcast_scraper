@@ -65,7 +65,7 @@ episodes under a length threshold and route long ones to large-v3.
   with large-v3 on normal-length episodes (~5.4 % WER). The 4× speedup is decisive for a 1000-ep
   reprocess.
 - **The long-episode quality cliff (ep6) is now handled** — not by a length heuristic but by a
-  **quality-gate failover** (ADR-120 / #1258, built): after each turbo transcription the pipeline
+  **quality-gate failover** (ADR-123 / #1258, built): after each turbo transcription the pipeline
   measures coverage (Σ segment durations / audio duration) and re-transcribes any episode below
   `transcription_coverage_min` (0.85) on large-v3. The detector flags ep6 cleanly (69% vs 92–97%
   healthy) at a 10% failover rate; aggregate speed stays ~18× (still ~2.5× faster than all-large-v3).

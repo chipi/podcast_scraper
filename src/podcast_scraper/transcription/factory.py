@@ -114,7 +114,7 @@ def create_transcription_provider(  # noqa: C901
         # in a FallbackChainTranscriptionProvider. Suppressed via ``_wrap_fallback=False`` while
         # assembling the individual tiers, so a tier never recursively re-wraps itself.
         if _wrap_fallback:
-            # ADR-120 (#1258): quality-gate coverage failover. Orthogonal to the infra ladder / hold
+            # ADR-123 (#1258): quality-gate coverage failover. Orthogonal to the infra ladder / hold
             # below — it wraps the primary and re-transcribes on a robust model when the primary's
             # OUTPUT coverage is too low (turbo's silent long-episode drop). Active only when
             # configured (coverage_min > 0 + a failover model); returns early. In a reprocess it
@@ -144,7 +144,7 @@ def create_transcription_provider(  # noqa: C901
                 return cast(TranscriptionProvider, gated)
 
             tiers = _transcription_fallback_tiers(cfg)
-            # ADR-119: the HOLD strategy must NEVER fall over to a different model — the self-hosted
+            # ADR-122: the HOLD strategy must NEVER fall over to a different model — the self-hosted
             # provider owns a hold-and-probe ResiliencePolicy, and a mixed-backend corpus is worse
             # than a pause. The FallbackChain IS the cross-model fallover mechanism, so we do not
             # wrap it here under HOLD even when the profile declares a ladder (the provider's policy
@@ -153,7 +153,7 @@ def create_transcription_provider(  # noqa: C901
 
             if tiers and resolve_failure_strategy(cfg) is FailureStrategy.HOLD:
                 logger.info(
-                    "ADR-119 HOLD strategy: NOT wrapping transcription in a FallbackChain "
+                    "ADR-122 HOLD strategy: NOT wrapping transcription in a FallbackChain "
                     "(declared ladder %s ignored — hold-and-probe the chosen model, no "
                     "cross-model fallover)",
                     tiers,

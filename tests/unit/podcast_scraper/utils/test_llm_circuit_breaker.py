@@ -68,7 +68,7 @@ class TestRecordFailureClassification:
 
 @pytest.mark.unit
 class TestTripAlert:
-    """ADR-119: a trip fires a guarded Sentry alert so the operator sees the fuse blow."""
+    """ADR-122: a trip fires a guarded Sentry alert so the operator sees the fuse blow."""
 
     def test_trip_emits_sentry_alert_once(self) -> None:
         cfg = LLMCircuitBreakerConfig(enabled=True, failure_threshold=2, window_seconds=60)
@@ -114,7 +114,7 @@ class TestWaitBehaviour:
 
 @pytest.mark.unit
 class TestHoldStrategyAbort:
-    """ADR-119 hold strategy: a sustained outage aborts the batch (ResilienceFuseOpenError) rather
+    """ADR-122 hold strategy: a sustained outage aborts the batch (ResilienceFuseOpenError) rather
     than waiting forever; the default failover strategy keeps #697's wait-and-resume (never raises).
     """
 

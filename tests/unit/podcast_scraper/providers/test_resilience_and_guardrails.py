@@ -179,7 +179,7 @@ class TestCircuitBreaker:
         assert cb._name == "dgx-whisper"
 
     def test_hard_trip_emits_sentry_alert_once(self, monkeypatch):
-        """ADR-119: a hard-timeout trip fires the guarded operator alert exactly once —
+        """ADR-122: a hard-timeout trip fires the guarded operator alert exactly once —
         not again while it is already open (Sentry would otherwise re-page per failure)."""
         import unittest.mock as _mock
 

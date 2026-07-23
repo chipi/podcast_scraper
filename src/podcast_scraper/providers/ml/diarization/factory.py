@@ -108,7 +108,7 @@ def create_diarization_provider(
 
     if _wrap_fallback:
         tiers = _diarization_fallback_tiers(cfg)
-        # ADR-119: the HOLD strategy must NEVER fall over to a different model — the self-hosted
+        # ADR-122: the HOLD strategy must NEVER fall over to a different model — the self-hosted
         # provider owns a hold-and-probe ResiliencePolicy, and a mixed-backend corpus is worse
         # than a pause. The FallbackChain IS the cross-model fallover mechanism, so we do not
         # wrap it here under HOLD even when the profile declares a ladder (the provider's policy is
@@ -117,7 +117,7 @@ def create_diarization_provider(
 
         if tiers and resolve_failure_strategy(cfg) is FailureStrategy.HOLD:
             logger.info(
-                "ADR-119 HOLD strategy: NOT wrapping diarization in a FallbackChain "
+                "ADR-122 HOLD strategy: NOT wrapping diarization in a FallbackChain "
                 "(declared ladder %s ignored — hold-and-probe the chosen model, no "
                 "cross-model fallover)",
                 tiers,

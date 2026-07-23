@@ -1,4 +1,4 @@
-"""Model governance (ADR-121 / #1258): only registry-sanctioned models may run.
+"""Model governance (ADR-124 / #1258): only registry-sanctioned models may run.
 
 The registry's StageOptions are the source of truth for vetted models. When
 ``enforce_model_governance`` is on (a reprocess/prod profile sets it — opt-in so tests and
@@ -105,7 +105,7 @@ def active_models(cfg: Any) -> List[Tuple[str, str, str]]:
 
     tp = getattr(cfg, "transcription_provider", "")
     _add("transcription", _TRANSCRIPTION_MODEL_FIELD.get(tp))
-    # ADR-120 coverage failover model (a whisper model on the same DGX service) — gated too.
+    # ADR-123 coverage failover model (a whisper model on the same DGX service) — gated too.
     _add("transcription", "transcription_coverage_failover_model")
 
     sp = getattr(cfg, "summary_provider", "")

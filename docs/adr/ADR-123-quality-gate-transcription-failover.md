@@ -1,10 +1,10 @@
-# ADR-120: Quality-gate transcription failover — re-route silently-incomplete outputs by coverage
+# ADR-123: Quality-gate transcription failover — re-route silently-incomplete outputs by coverage
 
 - **Status**: Accepted
 - **Date**: 2026-07-22
 - **Authors**: Podcast Scraper Team
 - **Tracking issue**: [#1258](https://github.com/chipi/podcast_scraper/issues/1258)
-- **Related ADRs / RFCs**: [ADR-119](ADR-119-self-hosted-model-resilience-policy.md) (resilience
+- **Related ADRs / RFCs**: [ADR-122](ADR-122-self-hosted-model-resilience-policy.md) (resilience
   policy: backoff→trip→hold), RFC-106 / #1198 (`FallbackChain` — infra failover), #1178/#1179 (the
   ASR bake-off that surfaced this).
 
@@ -22,7 +22,7 @@ The two failover mechanisms we already have do **not** catch this:
 
 - **`FallbackChain`** (RFC-106) advances only on an **exception** — a timeout, a 5xx, a connection
   reset. Turbo's call *succeeded*; nothing raised.
-- **`hold`** (ADR-119) governs *infra-failure* behaviour in a reprocess (suppress fallover, halt on
+- **`hold`** (ADR-122) governs *infra-failure* behaviour in a reprocess (suppress fallover, halt on
   sustained failure). Also exception-driven; irrelevant to a successful-but-bad output.
 
 So a turbo-built v3 corpus would lose ~a quarter of its longest — and content-richest — episodes,
@@ -53,7 +53,7 @@ breadcrumb) so **per-episode provenance is preserved**.
 | mode | trigger | mechanism |
 | --- | --- | --- |
 | infra failover (RFC-106) | call **raised** (timeout / 5xx / conn reset) | `FallbackChain` advances tiers |
-| `hold` (ADR-119) | reprocess consistency | *suppress* infra failover; halt on sustained failure |
+| `hold` (ADR-122) | reprocess consistency | *suppress* infra failover; halt on sustained failure |
 | **quality failover (this)** | call **succeeded**, output **coverage < min** | `CoverageGated` re-transcribes on the failover model |
 
 ### Orthogonality to `hold`
@@ -71,7 +71,7 @@ The two are therefore **orthogonal triggers**: a reprocess profile can run `hold
 **and** quality-failover on coverage. They compose — the coverage gate wraps the (possibly
 hold-protected) primary.
 
-### Knobs (registry-governed, materialized into profiles — same pattern as ADR-119)
+### Knobs (registry-governed, materialized into profiles — same pattern as ADR-122)
 
 | Knob | Default | Meaning |
 | --- | --- | --- |
@@ -113,7 +113,7 @@ Gate is active only when `coverage_min > 0` **and** a failover model is set. Bot
   builder when below `coverage_min`, records provenance.
 - Transcription factory wires it when `coverage_min > 0` + a failover model is set; the failover
   builder constructs the same provider type with `dgx_whisper_model` overridden to the failover
-  model. Composes with the `hold` factory gate (ADR-119).
+  model. Composes with the `hold` factory gate (ADR-122).
 - Registry: two new `REGISTRY_GOVERNED_FIELDS`, emitted per preset; `make profiles-materialize`.
 - Tests: a low-coverage stub triggers the re-route (and records provenance), a healthy one does not;
   a coverage-metric unit test.
@@ -122,4 +122,4 @@ Gate is active only when `coverage_min > 0` **and** a failover model is set. Bot
 
 - Issue [#1258](https://github.com/chipi/podcast_scraper/issues/1258) — scope + acceptance.
 - `docs/wip/ASR-BAKEOFF-ISOLATED-2026-07-22.md` — the ep6 evidence + coverage detector prototype.
-- [ADR-119](ADR-119-self-hosted-model-resilience-policy.md), RFC-106/#1198.
+- [ADR-122](ADR-122-self-hosted-model-resilience-policy.md), RFC-106/#1198.

@@ -1,4 +1,4 @@
-# ADR-119: Self-Hosted-Model Resilience Policy — backoff → trip → hold, selectable by run context
+# ADR-122: Self-Hosted-Model Resilience Policy — backoff → trip → hold, selectable by run context
 
 - **Status**: Accepted
 - **Date**: 2026-07-21

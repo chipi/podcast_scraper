@@ -15,7 +15,7 @@ Sub-modules:
 - :mod:`.sockets` — :func:`keepalive_socket_options`, :func:`hardened_http_client`,
   :func:`probe_audio_duration_sec`, :func:`effective_timeout_sec`
 - :mod:`.policy` — :class:`ResiliencePolicy`, :class:`RunContext`,
-  :class:`ResilienceFuseOpenError` (ADR-119 backoff -> trip -> hold policy)
+  :class:`ResilienceFuseOpenError` (ADR-122 backoff -> trip -> hold policy)
 """
 
 from __future__ import annotations

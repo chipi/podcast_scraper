@@ -183,7 +183,7 @@ def test_persistent_overload_exhausts_retries_then_raises(mock_server) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ADR-119: the LLM circuit breaker end-to-end through the real SDK + mock server #
+# ADR-122: the LLM circuit breaker end-to-end through the real SDK + mock server #
 # --------------------------------------------------------------------------- #
 @pytest.fixture(autouse=True)
 def _reset_llm_breaker():
@@ -200,7 +200,7 @@ def _breaker_metrics(provider: str = "openai") -> ProviderCallMetrics:
 
 
 def test_breaker_failover_trips_waits_then_recovers(mock_server) -> None:
-    """ADR-119 failover: a 503 burst trips the breaker; it waits the (short) cooldown, then the
+    """ADR-122 failover: a 503 burst trips the breaker; it waits the (short) cooldown, then the
     endpoint serves us. The breaker smooths the burst — the call still succeeds, no abort."""
     _srv, base = mock_server
     _SEQUENCE.extend([503, 503, 200])
@@ -225,7 +225,7 @@ def test_breaker_failover_trips_waits_then_recovers(mock_server) -> None:
 
 
 def test_breaker_hold_aborts_on_sustained_outage(mock_server) -> None:
-    """ADR-119 hold: no fallover, so once the outage exceeds the hold budget the breaker raises
+    """ADR-122 hold: no fallover, so once the outage exceeds the hold budget the breaker raises
     ResilienceFuseOpenError to abort the batch — bounded, not a hang, and NOT terminal."""
     _srv, base = mock_server
     _SEQUENCE.append(503)  # never recovers
@@ -252,7 +252,7 @@ def test_breaker_hold_aborts_on_sustained_outage(mock_server) -> None:
 
 
 def test_breaker_hold_within_budget_waits_not_aborts(mock_server) -> None:
-    """ADR-119 hold, transient case: while the outage is still within the hold budget the breaker
+    """ADR-122 hold, transient case: while the outage is still within the hold budget the breaker
     waits (like failover) rather than aborting — recovery on the next call succeeds."""
     _srv, base = mock_server
     _SEQUENCE.extend([503, 503, 200])

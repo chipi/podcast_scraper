@@ -1,4 +1,4 @@
-"""ADR-121 model governance: only registry-sanctioned models may run (opt-in)."""
+"""ADR-124 model governance: only registry-sanctioned models may run (opt-in)."""
 
 from __future__ import annotations
 

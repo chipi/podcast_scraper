@@ -53,7 +53,7 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
     ``mode`` (class attr, set per test) controls only the POST work endpoints:
     ``"ok"`` returns a valid payload, ``"hang"`` sleeps ``hang_sec`` (simulating a
     GPU-stalled request that never returns), ``"503"`` returns Service Unavailable,
-    ``"hang_then_ok"`` hangs for the first ``fail_n`` POSTs then answers ``ok`` (ADR-119
+    ``"hang_then_ok"`` hangs for the first ``fail_n`` POSTs then answers ``ok`` (ADR-122
     reprocess-mode backoff-retry coverage). Health/model endpoints always answer 200 so
     the client gets past the gate.
     """
@@ -202,7 +202,7 @@ def _diarize_cfg(
         "dgx_diarize_timeout_per_audio_minute_sec": 0,
         "hf_token": "hf_test",
     }
-    # ADR-119 resilience-policy knobs: only set when the test cares (keeps the happy-path
+    # ADR-122 resilience-policy knobs: only set when the test cares (keeps the happy-path
     # / serve-mode configs identical to before this change).
     if run_context is not None:
         data["resilience_run_context"] = run_context
@@ -238,7 +238,7 @@ def _whisper_cfg(
         "dgx_timeout_per_audio_minute_sec": 0,
         "openai_api_key": "sk-test",
     }
-    # ADR-119 resilience-policy knobs: only set when the test cares (keeps the happy-path
+    # ADR-122 resilience-policy knobs: only set when the test cares (keeps the happy-path
     # / serve-mode configs identical to before this change).
     if run_context is not None:
         data["resilience_run_context"] = run_context
@@ -282,7 +282,7 @@ def _moss_cfg(
         "moss_port": port,
         "moss_request_timeout_sec": moss_request_timeout_sec,
     }
-    # ADR-119 resilience-policy knobs: only set when the test cares (keeps the happy-path
+    # ADR-122 resilience-policy knobs: only set when the test cares (keeps the happy-path
     # / serve-mode configs identical to before this change).
     if run_context is not None:
         data["resilience_run_context"] = run_context
@@ -370,7 +370,7 @@ class TestDiarizeRealSocket:
             assert time.monotonic() - started < 0.5
 
     def test_serve_mode_regression_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
-        """ADR-119 regression guard: even with reprocess-shaped retry knobs populated,
+        """ADR-122 regression guard: even with reprocess-shaped retry knobs populated,
         an explicit ``run_context="serve"`` config keeps today's behaviour — the first
         hard timeout trips the breaker immediately and raises for the FallbackChain.
         Mirrors ``TestWhisperRealSocket``'s serve-mode regression guard, so a future
@@ -397,7 +397,7 @@ class TestDiarizeRealSocket:
 
 
 # --------------------------------------------------------------------------- #
-# diarization — ADR-119 reprocess-mode resilience policy                      #
+# diarization — ADR-122 reprocess-mode resilience policy                      #
 # --------------------------------------------------------------------------- #
 class TestDiarizeReprocessMode:
     """Reprocess-mode coverage (#1253): backoff-retry the chosen model, trip the fuse
@@ -448,7 +448,7 @@ class TestDiarizeReprocessMode:
         assert dp._diarize_breaker.state == "open"
 
     def test_fuse_trip_emits_operator_alert(self, dgx_stub, tmp_path):
-        """ADR-119: the breaker TRIP itself fires a guarded Sentry alert (distinct from the
+        """ADR-122: the breaker TRIP itself fires a guarded Sentry alert (distinct from the
         sustained-open escalation) through the real hold flow — proven by spying the hook on the
         shared ASR CircuitBreaker."""
         _DGXStubHandler.mode = "hang"  # every attempt hangs -> trip after the retries
@@ -547,7 +547,7 @@ class TestWhisperRealSocket:
                 provider.transcribe(_audio(tmp_path))
 
     def test_serve_mode_regression_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
-        """ADR-119 regression guard: even with reprocess-shaped retry knobs populated,
+        """ADR-122 regression guard: even with reprocess-shaped retry knobs populated,
         an explicit ``run_context="serve"`` config keeps today's behaviour — the first
         hard timeout trips the breaker immediately and raises for the FallbackChain.
         Mirrors ``test_hanging_socket_watchdog_raises`` above but proves the gate itself
@@ -575,7 +575,7 @@ class TestWhisperRealSocket:
 
 
 # --------------------------------------------------------------------------- #
-# whisper — ADR-119 reprocess-mode resilience policy                          #
+# whisper — ADR-122 reprocess-mode resilience policy                          #
 # --------------------------------------------------------------------------- #
 class TestWhisperReprocessMode:
     """Reprocess-mode coverage (#1253): backoff-retry the chosen model, trip the fuse
@@ -670,7 +670,7 @@ class TestWhisperReprocessMode:
 
 
 # --------------------------------------------------------------------------- #
-# MOSS — ADR-119: was bare (no retry, no breaker), now gains the same         #
+# MOSS — ADR-122: was bare (no retry, no breaker), now gains the same         #
 # call + circuit + policy layers as whisper/diarize                          #
 # --------------------------------------------------------------------------- #
 class TestMossResilience:
@@ -682,7 +682,7 @@ class TestMossResilience:
         assert mp._moss_breaker.state == "closed"
 
     def test_serve_mode_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
-        """ADR-119: MOSS was previously bare (no watchdog, no breaker at all) — this proves
+        """ADR-122: MOSS was previously bare (no watchdog, no breaker at all) — this proves
         the newly-added serve-mode call layer actually classifies a hard timeout, trips the
         breaker on the first one, and raises for the wrapping FallbackChain, mirroring
         whisper/diarize's serve branches."""
@@ -744,7 +744,7 @@ class TestMossResilience:
 
 
 # --------------------------------------------------------------------------- #
-# MOSS diarization — ADR-119 item 1: the speaker half of the joint model was   #
+# MOSS diarization — ADR-122 item 1: the speaker half of the joint model was   #
 # ALSO bare; it gains the same policy (its own _moss_diarize_breaker).         #
 # --------------------------------------------------------------------------- #
 class TestMossDiarizeResilience:
@@ -791,7 +791,7 @@ class TestMossDiarizeResilience:
 
 
 def test_fuse_open_emits_operator_alert(dgx_stub, tmp_path):
-    """ADR-119 item 2: a sustained fuse-open fires a dedicated operator alert (a Sentry
+    """ADR-122 item 2: a sustained fuse-open fires a dedicated operator alert (a Sentry
     capture_message via ``_emit_fuse_open_alert``), not just an ERROR log — proven by spying
     on the alert hook. One alert per blown fuse, carrying the endpoint name + wait budget."""
     _DGXStubHandler.mode = "hang"  # never recovers -> the fuse stays open past max-wait

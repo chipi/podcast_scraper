@@ -296,7 +296,7 @@ def test_diar_full_ladder_dgx_then_local_then_deepgram() -> None:
     assert deepgram.calls == 1
 
 
-# --- ADR-120 (#1258): quality-gate coverage failover -------------------------------------------
+# --- ADR-123 (#1258): quality-gate coverage failover -------------------------------------------
 
 
 def _segs(covered_sec: float) -> list[dict[str, object]]:

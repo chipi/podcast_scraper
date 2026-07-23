@@ -1,12 +1,12 @@
-# ADR-121: Model governance — only registry-sanctioned models may run (opt-in)
+# ADR-124: Model governance — only registry-sanctioned models may run (opt-in)
 
 - **Status**: Accepted
 - **Date**: 2026-07-22
 - **Authors**: Podcast Scraper Team
 - **Tracking issue**: [#1258](https://github.com/chipi/podcast_scraper/issues/1258)
-- **Related ADRs**: [ADR-120](ADR-120-quality-gate-transcription-failover.md) (coverage failover —
+- **Related ADRs**: [ADR-123](ADR-123-quality-gate-transcription-failover.md) (coverage failover —
   its failover model is gated too), the registry-governance pattern in
-  [ADR-119](ADR-119-self-hosted-model-resilience-policy.md).
+  [ADR-122](ADR-122-self-hosted-model-resilience-policy.md).
 
 ## Context & Problem Statement
 
@@ -21,7 +21,7 @@ un-benchmarked model produced the corpus. (Adopting turbo made this concrete: tu
 ## Decision
 
 A **model-governance gate**, opt-in via `enforce_model_governance`. When on, every **active** model
-— the model the CONFIGURED provider for each stage (transcription incl. the ADR-120 coverage
+— the model the CONFIGURED provider for each stage (transcription incl. the ADR-123 coverage
 failover, summary, diarization) will actually run — must appear in that stage's **sanctioned set**
 (the `.model` values of the stage's registry StageOptions). An unsanctioned model raises
 `UnsanctionedModelError` with a stable code `MODEL_NOT_SANCTIONED`, naming the stage, config field,
@@ -75,4 +75,4 @@ Design points:
 ## References
 
 - Issue [#1258](https://github.com/chipi/podcast_scraper/issues/1258) — scope + acceptance.
-- [ADR-120](ADR-120-quality-gate-transcription-failover.md), [ADR-119](ADR-119-self-hosted-model-resilience-policy.md).
+- [ADR-123](ADR-123-quality-gate-transcription-failover.md), [ADR-122](ADR-122-self-hosted-model-resilience-policy.md).

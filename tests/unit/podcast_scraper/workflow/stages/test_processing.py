@@ -701,7 +701,7 @@ def test_enforce_cost_soft_cap_after_episode_abort() -> None:
 
 
 def test_reprocess_fuse_open_halts_the_whole_batch() -> None:
-    """ADR-119 item 3: a ResilienceFuseOpenError from one episode HALTS the batch (propagates
+    """ADR-122 item 3: a ResilienceFuseOpenError from one episode HALTS the batch (propagates
     like CostCapExceeded) instead of being swallowed by the broad except and grinding every
     remaining episode through a dead endpoint in reprocess mode."""
     from podcast_scraper.providers.resilience import ResilienceFuseOpenError
@@ -719,7 +719,7 @@ def test_reprocess_fuse_open_halts_the_whole_batch() -> None:
 
 
 def test_reprocess_fuse_open_halts_concurrent_drain() -> None:
-    """ADR-119 item 3 (concurrent path): a future that raises ResilienceFuseOpenError halts the
+    """ADR-122 item 3 (concurrent path): a future that raises ResilienceFuseOpenError halts the
     executor drain loop too — not just the sequential loop. The whole batch stops rather than
     reaping every remaining future against a dead endpoint."""
     from concurrent.futures import Future
