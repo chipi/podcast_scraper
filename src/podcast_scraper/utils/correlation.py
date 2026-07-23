@@ -92,6 +92,16 @@ def _current_trace_id() -> str:
     return "-"
 
 
+def current_trace_id() -> str:
+    """Public accessor for the active OTEL trace id (hex) or ``"-"``.
+
+    Same value :class:`CorrelationFormatter` stamps — for callers (e.g. the API
+    request-access-log middleware) that want the trace id inline in a message so a log
+    line pivots to its trace in VictoriaTraces (ADR-119). ``"-"`` when no active span.
+    """
+    return _current_trace_id()
+
+
 class CorrelationFormatter(logging.Formatter):
     """A ``logging.Formatter`` that injects ``run_id`` / ``episode_id`` / ``trace_id``
     onto every record at format time (#1053, ADR-119), so a format string can reference
