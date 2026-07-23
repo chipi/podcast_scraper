@@ -40,9 +40,16 @@ curl -s -X POST "$GF/api/dashboards/db" -H 'Content-Type: application/json' \
   -d "$(jq -n --slurpfile d <name>.json '{dashboard:$d[0], folderUid:"<folder-uid>", overwrite:true}')"
 ```
 
-Folder uids: Podcast Player = `ffszgxeuppmo0a`, Podcast Operator = `afszgxerlc740c`,
-Production Infra = `bfszgxemj1lvka`.
+Folders are **provisioned from the directory structure** (`agentic-ai-homelab`
+`.../grafana/provisioning/dashboards/dashboards.yml`, `foldersFromFilesStructure:
+true` + empty `folder`): each subdir under `grafana/dashboards/` is a Grafana
+folder (`Homelab/`, `Production Infra/`, `Podcast Operator/`, `Podcast Player/`),
+so folder uids are auto-managed — don't hardcode them.
+
+Board uids are generic, not `vps-podcast-*`: `prod-infra-host-overview`,
+`prod-infra-containers`, `prod-infra-edge-security` (Production Infra);
+`podcast-operator-overview`; `podcast-player-overview`.
 
 > Known gap (tracked): the **Containers** board (Production Infra) is empty on
 > Docker 29 — cAdvisor can't emit container `name` labels with the containerd
-> image store. Tracked in the exporter-replacement issue; not a dashboard bug.
+> image store. Tracked in the exporter-replacement issue (#1272); not a dashboard bug.
