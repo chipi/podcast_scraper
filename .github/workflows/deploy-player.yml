@@ -95,12 +95,17 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          # Deploy the ref the workflow was dispatched on — NOT a hardcoded branch. The edge
+          # / player work lives on `production`; hardcoding origin/main silently deployed the
+          # wrong commit (chmod + conf.d fixes on production never reached the box; 2026-07-23).
+          # Via env (not inline ${{ }}) to keep the ref out of the shell-injection surface.
+          DEPLOY_REF: ${{ github.ref_name }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
-             git reset --hard origin/main"
+             git reset --hard 'origin/$DEPLOY_REF'"
 
       - name: Stage .env.player (secrets via /dev/shm scp, never inline over ssh)
         if: steps.preflight.outputs.skip != 'true'
