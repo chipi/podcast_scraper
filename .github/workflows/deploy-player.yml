@@ -170,6 +170,9 @@ jobs:
           {
             echo "PLAYER_DOMAIN=${PLAYER_DOMAIN}"
             echo "PODCAST_CORPUS_VOLUME=${PODCAST_CORPUS_VOLUME}"
+            # Tags backend Sentry events (+ any env-gated behaviour) as prod — matches the
+            # operator api. Without it the backend defaults to environment=dev (sentry_init).
+            echo "PODCAST_ENV=prod"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
