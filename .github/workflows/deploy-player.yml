@@ -256,10 +256,16 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          # ADR-115 Option A: deploy-player.sh joins the secrets overlay + runs the exit-5/6
+          # gates only when it SEES this flag. It is not in .env.player and SSH does not
+          # inherit the runner env, so it MUST be passed inline (same as deploy-prod passes
+          # PODCAST_SECRETS_VIA_FILES to deploy.sh). Without this the script silently skips
+          # the overlay while .env.player has dropped the secrets -> keyless container -> 503.
+          VIA_FILES: ${{ vars.PLAYER_SECRETS_VIA_FILES }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "/srv/podcast-scraper/infra/deploy/deploy-player.sh"
+            "PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
 
       - name: External health probe (public player domain)
         if: steps.preflight.outputs.skip != 'true'
