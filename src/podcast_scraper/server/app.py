@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import time
 from pathlib import Path
 from typing import AsyncIterator, cast
 
@@ -66,6 +67,7 @@ from podcast_scraper.server.routes import (
     search,
     usage as usage_routes,
 )
+from podcast_scraper.utils.correlation import current_trace_id
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +187,36 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool) -> None:
         app.include_router(module.router, prefix="/api/app")
 
 
+def _install_access_logging(app: FastAPI) -> None:
+    """Attach a trace-correlated request access log (ADR-119, G1 correlation).
+
+    uvicorn's own access log is emitted AFTER the OTEL request span closes (so the trace id
+    would be ``"-"``) and floods with ``/health`` + ``/metrics`` probes. This middleware
+    logs ONE line per real request INSIDE the request scope, where the span is still active,
+    so the trace id is stamped inline (``trace=<hex>``). A VictoriaLogs line then pivots to
+    its VictoriaTraces span. ``trace=-`` when tracing is off, so it is a no-op-safe
+    structured access log in every environment; probe/scrape paths are skipped.
+    """
+    access_logger = logging.getLogger("podcast.access")
+
+    @app.middleware("http")
+    async def _access_log(request: Request, call_next):  # type: ignore[no-untyped-def]
+        path = request.url.path
+        if path.endswith("/health") or path == "/metrics":
+            return await call_next(request)
+        start = time.perf_counter()
+        response = await call_next(request)
+        access_logger.info(
+            "%s %s -> %s in %.1fms trace=%s",
+            request.method,
+            path,
+            response.status_code,
+            (time.perf_counter() - start) * 1000.0,
+            current_trace_id(),
+        )
+        return response
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -274,6 +306,9 @@ def create_app(
     # Operator write-path authz (optional API key) + audit trail (#1071). Inert unless
     # APP_OPERATOR_API_KEY is set; consumer /api/app routes are never gated here.
     app.add_middleware(OperatorWriteGuard)
+
+    # Request access log with trace correlation (ADR-119, G1). See _install_access_logging.
+    _install_access_logging(app)
 
     # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
     # so the default behaviour (no Grafana account, no agent running)
