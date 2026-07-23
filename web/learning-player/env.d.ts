@@ -8,6 +8,12 @@ interface ImportMetaEnv {
   // (baked into the bundle by Vite); Sentry only initialises when set, so
   // no-DSN builds (dev/CI) stay a true no-op. Passed via the docker build-arg.
   readonly VITE_SENTRY_DSN_PLAYER?: string
+  // Umami analytics (cookieless). Both baked at build time; the tracking script
+  // is injected only when BOTH are set, so no-arg builds (dev/CI) stay a no-op.
+  //   VITE_UMAMI_WEBSITE_ID — the Umami website UUID (public, ships in the bundle)
+  //   VITE_UMAMI_SRC        — the tracking-script URL on the analytics ingest edge
+  readonly VITE_UMAMI_WEBSITE_ID?: string
+  readonly VITE_UMAMI_SRC?: string
 }
 
 interface ImportMeta {

@@ -1,0 +1,33 @@
+# Player GlitchTip **ingest-only** vhost (ADR-114). Deploy (deploy-player.sh) seds the
+# real player domain in and drops this into /etc/caddy/sites/player-telemetry.caddy, then
+# restarts caddy. Mirrors glitchtip.caddy (orrery's telemetry ingest) — same homelab
+# GlitchTip upstream, a separate GlitchTip PROJECT for the player.
+#
+# WHY: the player bundle's @sentry SDK POSTs errors from the *end user's* browser, which
+# can only reach public endpoints — never the tailnet-only GlitchTip on homelab:8090. This
+# vhost exposes ONLY the Sentry/GlitchTip ingest paths through the public edge (behind
+# Cloudflare + origin-lock); the dashboard/login/API stays tailnet-only. A browser DSN key
+# is public by design (it ships in the JS bundle), so exposing ingest leaks nothing; abuse
+# is handled by the fail2ban caddy-access jail (T-11) + GlitchTip per-project quotas.
+#
+# UPSTREAM: GlitchTip runs on **homelab** (tailnet), addressed via the caddy service env
+# var GLITCHTIP_UPSTREAM (injected by apply-edge, same as CADDY_BIND_ADDRS) — keeps the
+# tailnet IP out of the repo. Same upstream as glitchtip.caddy.
+#
+# Rollback: `rm /etc/caddy/sites/player-telemetry.caddy && sudo systemctl restart caddy`.
+telemetry.player.example.com {
+	import hardened
+
+	# Ingest surface only: /api/<project_id>/{envelope,store,security}/ — the transports
+	# the browser SDK uses. GlitchTip sets its own CORS headers, so the cross-origin POST
+	# + OPTIONS preflight work without extra Caddy config.
+	@ingest path_regexp ^/api/[0-9]+/(envelope|store|security)/?$
+	handle @ingest {
+		reverse_proxy {$GLITCHTIP_UPSTREAM}
+	}
+
+	# Everything else (dashboard, login, admin, the rest of the API) is NOT public.
+	handle {
+		respond "Not Found" 404
+	}
+}

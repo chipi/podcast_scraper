@@ -85,35 +85,58 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
   exit 1
 }
 
-# Drop the player vhost into the shared Caddy sites dir (deploy-owned) with the real
-# domain, VALIDATE the merged Caddy config, then reload — roll back the drop-in on failure
-# (ADR-114 validate-before-reload contract).
-echo "[$(date -u +%FT%TZ)] installing player.caddy vhost for ${PLAYER_DOMAIN}..."
-sed "s/player\.example\.com/${PLAYER_DOMAIN}/g" infra/caddy/player.caddy >/etc/caddy/sites/player.caddy
-# The script's umask 077 (secrets) makes the `>` above land 0600/deploy-owned, which the
-# `caddy` user (User=caddy) CANNOT read -> "open player.caddy: permission denied" at import
-# -> restart fails + rollback (prod incident 2026-07-23). The sibling vhosts are 0644; match
-# them so the caddy user can read the drop-in. (adapt/validate run AS deploy read the 0600
-# file fine, which is why they passed while the real caddy-user restart failed.)
-chmod 0644 /etc/caddy/sites/player.caddy
+# Drop the player Caddy vhosts into the shared sites dir (deploy-owned) with the real
+# domain, VALIDATE the merged config once, then restart — roll back ALL player drop-ins
+# on failure (ADR-114 validate-before-reload contract). The subdomains reuse the same
+# `player.example.com` placeholder so one sed rewrites all three:
+#   player.caddy            -> ${PLAYER_DOMAIN}             SPA + app-only api (coming-soon gated)
+#   player-telemetry.caddy  -> telemetry.${PLAYER_DOMAIN}  GlitchTip ingest (browser error SDK)
+#   player-analytics.caddy  -> analytics.${PLAYER_DOMAIN}  Umami tracking
+PLAYER_VHOSTS=(player player-telemetry player-analytics)
+echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
+for v in "${PLAYER_VHOSTS[@]}"; do
+  sed "s/player\.example\.com/${PLAYER_DOMAIN}/g" "infra/caddy/${v}.caddy" >"/etc/caddy/sites/${v}.caddy"
+  # umask 077 makes the `>` land 0600/deploy-owned; the `caddy` user (User=caddy) cannot
+  # read a 0600 file -> import "permission denied" -> restart fails (prod incident
+  # 2026-07-23). Match the 0644 sibling vhosts so the caddy user can read the drop-in.
+  chmod 0644 "/etc/caddy/sites/${v}.caddy"
+done
+_rollback_player_vhosts() { for v in "${PLAYER_VHOSTS[@]}"; do rm -f "/etc/caddy/sites/${v}.caddy"; done; }
 # Validate with `caddy adapt` (Caddyfile -> JSON, reports real config/syntax errors)
 # — NOT `caddy validate`, which also PROVISIONS (opens the caddy-owned access.log) and
 # false-fails with "permission denied" when run as the deploy user, even on a valid
 # config (prod incident 2026-07-23). adapt does not touch the log writer.
 if ! caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
-  echo "ERROR: Caddy config invalid after adding player vhost; rolling back" >&2
+  echo "ERROR: Caddy config invalid after adding player vhosts; rolling back" >&2
   caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1 | head -5 >&2
-  rm -f /etc/caddy/sites/player.caddy
+  _rollback_player_vhosts
   exit 2
 fi
 # RESTART, not reload: the base Caddyfile sets `admin off` (T-02), so admin-API-based
 # `caddy reload` fails — a vhost change needs a restart (task #27). If caddy doesn't
-# come back active, roll back the vhost + restart to the last-good config.
+# come back active, roll back the vhosts + restart to the last-good config. (A missing LE
+# cert for a not-yet-DNS'd telemetry/analytics subdomain is NON-fatal — caddy still starts
+# and retries issuance in the background.)
 if ! sudo -n /usr/bin/systemctl restart caddy || ! systemctl is-active --quiet caddy; then
-  echo "ERROR: caddy failed to restart with player vhost; rolling back" >&2
-  rm -f /etc/caddy/sites/player.caddy
+  echo "ERROR: caddy failed to restart with player vhosts; rolling back" >&2
+  _rollback_player_vhosts
   sudo -n /usr/bin/systemctl restart caddy || true
   exit 2
+fi
+
+# Ship the player stack's container logs to Grafana/Loki via the shared node Alloy
+# (ADR-121): drop player.alloy into the deploy-writable config.d + hot-reload Alloy
+# (`docker kill -s HUP alloy`, no sudo — deploy is in the docker group). NON-fatal: a
+# logging hiccup must not fail the player deploy.
+ALLOY_DIR=/opt/vps-observability/config.d
+if [ -d "$ALLOY_DIR" ]; then
+  echo "[$(date -u +%FT%TZ)] installing player.alloy log rules + reloading Alloy..."
+  cp infra/observability/player.alloy "$ALLOY_DIR/player.alloy"
+  chmod 0644 "$ALLOY_DIR/player.alloy"
+  docker kill -s HUP alloy >/dev/null 2>&1 \
+    || echo "WARN: could not HUP alloy — player logs may lag until its next reload" >&2
+else
+  echo "WARN: $ALLOY_DIR absent — skipping player.alloy (node Alloy not deployed here?)" >&2
 fi
 
 echo "[$(date -u +%FT%TZ)] health check (app-only backend, in-container)..."

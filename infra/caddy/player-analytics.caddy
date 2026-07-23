@@ -1,0 +1,35 @@
+# Player Umami analytics vhost — TRACKING-ONLY (ADR-114). Deploy (deploy-player.sh) seds
+# the real player domain in and drops this into /etc/caddy/sites/player-analytics.caddy,
+# then restarts caddy. Mirrors analytics.caddy (orrery) — same homelab Umami, a separate
+# Umami WEBSITE for the player.
+#
+# WHY: the player loads Umami's tracking script + POSTs events from the end user's browser,
+# which can only reach public endpoints — never the tailnet-only Umami on homelab:3001.
+# This vhost fronts ONLY the tracking surface through the shared public edge (behind
+# Cloudflare + origin-lock); the Umami DASHBOARD/login/API stays tailnet-only (operator
+# reaches it over the tailnet at homelab:3001).
+#
+# PUBLIC SURFACE (Umami v2):
+#   GET  /script.js  — the tracking script the browser loads
+#   POST /api/send   — the event-collect endpoint the script POSTs to (+ CORS preflight)
+# Everything else (/, /login, the rest of /api, admin) → 404, not proxied.
+#
+# UPSTREAM: Umami runs on **homelab** (tailnet), addressed by its MagicDNS name `homelab`
+# (the box→homelab:3001 tailnet ACL grant must be live — tailscale/policy.hujson).
+#
+# Rollback: `rm /etc/caddy/sites/player-analytics.caddy && sudo systemctl restart caddy`.
+analytics.player.example.com {
+	import hardened
+
+	# Tracking-only surface — the script + the collect endpoint (any method, so the CORS
+	# OPTIONS preflight to /api/send is proxied and Umami answers it).
+	@track path /script.js /api/send
+	handle @track {
+		reverse_proxy homelab:3001
+	}
+
+	# Dashboard / login / rest of the API — NOT public. Refuse without revealing Umami.
+	handle {
+		respond "Not Found" 404
+	}
+}

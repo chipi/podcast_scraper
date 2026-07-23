@@ -1,0 +1,52 @@
+// player.alloy — Consumer player's log rules for the shared node Alloy (ADR-121).
+// Dropped into the box's /opt/vps-observability/config.d/player.alloy on the player
+// deploy and hot-reloaded (`docker kill -s HUP alloy`). Mirrors orrery.alloy — one
+// node Alloy per box, each app contributes its own label rules as a drop-in.
+//
+// References shared components defined in base.alloy:
+//   - discovery.docker "app"   — the Docker-socket container discovery
+//   - loki.write "logs_sink"   — the VictoriaLogs sink (sets instance/cluster;
+//                                app + per-stream labels are set HERE)
+// Do NOT touch base.alloy or the podcast/orrery sources.
+
+// ---------- Player stack containers (compose project `player`) ----------
+// Keep ONLY player-api-* (the app-only backend) + player-learning-app-* (the PWA
+// nginx). surface=api|app mirrors the podcast/orrery split. A precise keep-filter
+// (not a broad glob) is what stops the cross-app mislabel the old orrery agent hit.
+discovery.relabel "player" {
+	targets = discovery.docker.app.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(player-api-.*|player-learning-app-.*)"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-api-.*"
+		target_label  = "surface"
+		replacement   = "api"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-learning-app-.*"
+		target_label  = "surface"
+		replacement   = "app"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		target_label  = "container"
+		regex         = "/(.*)"
+		replacement   = "$1"
+	}
+}
+
+loki.source.docker "player" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.player.output
+	forward_to = [loki.write.logs_sink.receiver]
+	labels     = {app = "player"}
+}
