@@ -1,0 +1,55 @@
+// podcast.alloy — the OPERATOR podcast stack's log rules for the shared node Alloy
+// (ADR-121). Dropped into /opt/vps-observability/config.d/podcast.alloy on the operator
+// deploy and hot-reloaded (`docker kill -s HUP alloy`). Mirrors orrery.alloy / player.alloy.
+//
+// WHY: base.alloy defines only the SHARED components (discovery.docker "app",
+// loki.write "logs_sink") + host journal/caddy sources — it does NOT collect per-container
+// docker logs. Each app contributes its own scoped loki.source.docker via a drop-in. The
+// operator stack (compose-api-1 + compose-viewer-1) never had one, so its container logs
+// were absent from VictoriaLogs and the "Podcast Operator" Grafana board's app-event
+// panels (querying app=podcast) were empty. This drop-in fixes that.
+//
+// References shared components in base.alloy:
+//   - discovery.docker "app"   — the Docker-socket container discovery
+//   - loki.write "logs_sink"   — the VictoriaLogs sink
+// Do NOT touch base.alloy or the orrery/player sources.
+
+// ---------- Operator podcast stack containers (compose project `compose`) ----------
+// Keep ONLY the operator api + viewer. surface=api|web mirrors the orrery/player split.
+discovery.relabel "podcast" {
+	targets = discovery.docker.app.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(compose-api-1|compose-viewer-1)"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/compose-api-1"
+		target_label  = "surface"
+		replacement   = "api"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/compose-viewer-1"
+		target_label  = "surface"
+		replacement   = "web"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		target_label  = "container"
+		regex         = "/(.*)"
+		replacement   = "$1"
+	}
+}
+
+loki.source.docker "podcast" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.podcast.output
+	forward_to = [loki.write.logs_sink.receiver]
+	labels     = {app = "podcast"}
+}

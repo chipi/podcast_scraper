@@ -162,6 +162,20 @@ if ! "${COMPOSE[@]}" "${STACK_FILES[@]}" up -d --remove-orphans; then
   exit 2
 fi
 
+# Ship the operator stack's container logs to Grafana/Loki via the shared node Alloy
+# (ADR-121): drop podcast.alloy into the deploy-writable config.d + hot-reload Alloy.
+# Without this the operator api/viewer logs were never collected (base.alloy only defines
+# shared components; each app owns its drop-in) and the "Podcast Operator" board was empty.
+# NON-fatal — a logging hiccup must not fail the deploy. Mirrors deploy-player.sh.
+ALLOY_DIR=/opt/vps-observability/config.d
+if [ -d "$ALLOY_DIR" ] && [ -f infra/observability/podcast.alloy ]; then
+  echo "[$(date -u +%FT%TZ)] installing podcast.alloy log rules + reloading Alloy..."
+  cp infra/observability/podcast.alloy "$ALLOY_DIR/podcast.alloy"
+  chmod 0644 "$ALLOY_DIR/podcast.alloy"
+  docker kill -s HUP alloy >/dev/null 2>&1 \
+    || echo "WARN: could not HUP alloy — operator logs may lag until its next reload" >&2
+fi
+
 # Container-local smoke check (authoritative on the VPS). The workflow also
 # probes externally over Tailscale; a failure here aborts SSH early.
 # Do not curl http://127.0.0.1:8000 on the host — compose only exposes :8000
