@@ -724,7 +724,7 @@ When `summary_provider: hybrid_ml`, summarization uses a local MAP model (e.g. L
 | `hybrid_reduce_model` | `--hybrid-reduce-model` | `google/flan-t5-base` | REDUCE model: HuggingFace ID (transformers), Ollama tag (e.g. `llama3.1:8b`) for ollama, or path to GGUF file for llama_cpp. |
 | `hybrid_reduce_backend` | `--hybrid-reduce-backend` | `transformers` | REDUCE backend: `transformers`, `ollama`, or `llama_cpp`. |
 | `hybrid_reduce_device` | `--hybrid-reduce-device` | (auto) | Device for REDUCE when backend is transformers (e.g. `mps`, `cuda`, `cpu`). |
-| `hybrid_reduce_n_ctx` | N/A | (optional) | Context size for llama_cpp REDUCE (default 4096). Config file only. |
+| `hybrid_llama_n_ctx` | N/A | `4096` | Context size for llama_cpp REDUCE. Config file only. |
 | `hybrid_internal_preprocessing_after_pattern` | `--hybrid-internal-preprocessing-after-pattern` | `cleaning_hybrid_after_pattern` | When `transcript_cleaning_strategy` is `pattern`, preprocessing profile applied **inside** `HybridMLProvider.summarize` after workflow pattern cleaning (avoids repeating full `cleaning_v4` sponsor/outro work). Registered profile id from `preprocessing.profiles`. |
 
 **Layered cleaning (Issue #419):** The pipeline runs `transcript_cleaning_strategy` (and `HybridMLProvider.cleaning_processor`) **before** `summarize()`. For `pattern` + `hybrid_ml`, the workflow injects `preprocessing_profile: hybrid_internal_preprocessing_after_pattern` so MAP sees v4-only delta steps without duplicate sponsor passes. For `llm` / `hybrid` strategies, internal preprocessing stays **`cleaning_v4`**. Details: [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
@@ -1757,3 +1757,58 @@ try:
 except ValidationError as e:
     print(f"Validation failed: {e}")
 ```
+
+## Additional shipped fields (catalog only)
+
+`config.py` defines ~360 pydantic fields. This doc walks the ones an
+operator sets most often; the section below catalogues the load-bearing
+fields that weren't in the main tables above. Full source of truth
+remains `src/podcast_scraper/config.py`.
+
+### Cost guardrails (#804)
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `cost_soft_cap_usd_per_run` | `None` | Per-pipeline-run soft spend cap (USD). `None` = no cap. |
+| `cost_soft_cap_action` | `"observe"` | What to do when the cap is exceeded: `abort` / `warn` / `observe`. |
+| `cost_daily_alert_usd` | `10.0` | Emit a Sentry warning when a single run's estimated cost exceeds this USD threshold. |
+
+### Audio archive backend (#1199 / #947 / G6)
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `audio_storage_backend` | `"local"` | Where the raw-audio archive lives: `local` (filesystem) or `remote` (object storage via rclone). |
+| `audio_remote_rclone_remote` | `None` | rclone remote NAME (as in `rclone config`, e.g. `hetzner-box`, `s3-audio`). |
+| `audio_remote_base_path` | `"podcast-audio-archive"` | Base path / bucket-prefix under the rclone remote. Sharded `sha256/aa/bb/<digest><ext>` key is appended. |
+| `audio_remote_rclone_bin` | `"rclone"` | Path to the rclone binary. |
+| `audio_cache_enabled` | `True` | Master switch for the audio cache. |
+| `audio_cache_in_corpus` | `False` | When true, place the audio cache inside the corpus tree instead of `audio_cache_dir`. |
+| `audio_cache_dir` | `None` | External audio-cache directory (used when `audio_cache_in_corpus=False`). |
+| `corpus_media_link_mode` | `"copy"` | How persisted corpus `media/` audio is placed: `copy` (default), `hardlink`, `symlink`. |
+| `audio_preprocessing_profile` | `None` | Preprocessing profile ID (from `preprocessing.profiles` registry). |
+
+### Cloud-LLM structural guardrails
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `cloud_llm_structured_min_output_tokens` | `4096` | Minimum `max_output_tokens` enforced on cloud-LLM structured summary calls (non-bundled). |
+| `commercial_confidence_threshold` | `0.65` | Minimum confidence (0–1) for commercial-content detection. |
+
+### Provider-uniform field patterns
+
+Every LLM provider (OpenAI / Gemini / Anthropic / Mistral / DeepSeek /
+Grok / Ollama) exposes the same field pattern; not every combination
+is enumerated in the main tables:
+
+- API/base: `<provider>_api_key`, `<provider>_api_base` (mostly for
+  self-hosted / gateway routing).
+- Task-scoped prompt overrides:
+  `<provider>_<task>_{system,user}_prompt` where task ∈
+  {`summary`, `cleaning`, `speaker`} (per-provider; not every task ships
+  on every provider). Set these when the default prompts don't fit the
+  operator's preferred style.
+- Transcription: `<provider>_transcription_model` where the provider
+  offers STT (currently `openai`, `gemini`, `mistral`, `deepgram`).
+
+Deprecated aliases and their canonical replacements are already
+documented above in the "Deprecated fields" section.
