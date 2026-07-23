@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import LibraryClusteredChip from './LibraryClusteredChip.vue'
 
-const CHIP = '[data-testid="library-chip-clustered"]'
+const CHIP = '[data-testid="library-topic-cluster-toggle"]'
 
 describe('LibraryClusteredChip', () => {
   beforeEach(() => setActivePinia(createPinia()))

@@ -366,7 +366,7 @@ test.describe('Corpus Library tab', () => {
         r.url().includes('/api/corpus/episodes') &&
         r.url().includes('topic_cluster_only=true'),
     )
-    await page.getByTestId('library-chip-clustered').click()
+    await page.getByTestId('library-topic-cluster-toggle').click()
     const req = await clusterReq
     expect(req.url()).toContain('topic_cluster_only=true')
   })

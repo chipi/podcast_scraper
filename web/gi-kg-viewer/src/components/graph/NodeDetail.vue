@@ -566,6 +566,35 @@ const topicAliasesLine = computed((): string | null => {
   return parts.length > 0 ? parts.join(', ') : null
 })
 
+/** Optional Person / Entity aliases (UXS-004 line 176). Same shape as
+ *  topicAliasesLine — reads `properties.aliases`, comma-joins. Null when
+ *  absent so the row is `v-if`-hidden. */
+const personEntityAliasesLine = computed((): string | null => {
+  if (!isPersonEntityRailNode.value) return null
+  const a = node.value?.properties?.aliases
+  if (!Array.isArray(a) || a.length === 0) return null
+  const parts = a
+    .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+    .map((x) => x.trim())
+  return parts.length > 0 ? parts.join(', ') : null
+})
+
+/** Optional Person / Entity role label (UXS-004 line 176 —
+ *  Host/Guest/Mentioned). Reads `properties.role`; the SPOKEN_BY /
+ *  SPOKE_IN edge-count breakdown UXS-004 mentions is deferred until the
+ *  graph-analytics store exposes per-node edge counts. */
+const personEntityRoleLabel = computed((): string | null => {
+  if (!isPersonEntityRailNode.value) return null
+  const r = node.value?.properties?.role
+  if (typeof r !== 'string' || !r.trim()) return null
+  const v = r.trim().toLowerCase()
+  if (v === 'host') return 'Host'
+  if (v === 'guest') return 'Guest'
+  if (v === 'mentioned') return 'Mentioned'
+  // Preserve any future role value verbatim rather than dropping it.
+  return r.trim()
+})
+
 /** Topic label for Search / Explore handoff (same primary string as full block). */
 const topicGatewayQuery = computed((): string => {
   if (!isTopicNode.value) return ''
@@ -2090,6 +2119,20 @@ const graphConnectionsCenterInView = computed((): boolean => {
       </template>
 
       <template v-if="isPersonEntityRailNode">
+        <p
+          v-if="personEntityRoleLabel"
+          class="mb-1 text-[11px] leading-tight text-muted"
+          data-testid="node-detail-person-entity-role"
+        >
+          Role: <span class="text-surface-foreground">{{ personEntityRoleLabel }}</span>
+        </p>
+        <p
+          v-if="personEntityAliasesLine"
+          class="mb-2 text-[11px] leading-tight text-muted"
+          data-testid="node-detail-person-entity-aliases"
+        >
+          Aliases: <span class="text-surface-foreground">{{ personEntityAliasesLine }}</span>
+        </p>
         <div
           v-if="personEntityGatewayQuery"
           class="mb-3 flex items-center gap-2"
