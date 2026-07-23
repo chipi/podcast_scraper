@@ -127,9 +127,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **100** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-101**
-with **no RFC-014**. **8** open (in-flight, partial implementation), **88** completed, and **3** Draft
-(not indexed until promoted) in the tables above.
+**Counts (reconcile when moving RFCs):** **106** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-107**
+with **no RFC-014**. Open / completed / Draft breakdown in the tables above (last recount 2026-07-23);
+re-tally when the tables change.
 
 **Open RFC clusters:** Consumer Learning Platform foundation (**RFC-098**–**RFC-101**), VPS public edge
 (**RFC-087**), ML query router (**RFC-092**), audio pipeline separation + viewer media (**RFC-096**),
