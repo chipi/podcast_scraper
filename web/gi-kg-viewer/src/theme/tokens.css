@@ -26,6 +26,15 @@
   --ps-danger: #e76a6e;
   --ps-gi: #7dd3a0;
   --ps-kg: #c4a8ff;
+  /* Knowledge-domain aliases used across ShowRailPanel, GraphCanvas,
+     NodeDetail, admin surfaces, and the search-result icon. Documented
+     in UXS-013 (consumer) and UXS-015 (operator). Initial values reuse
+     the GI/KG palette (grounded ← GI green; topic/person ← KG purple)
+     since the operator theme hasn't split them yet — override here
+     when a distinct hue is chosen. */
+  --ps-grounded: var(--ps-gi);
+  --ps-topic: var(--ps-kg);
+  --ps-person: var(--ps-kg);
   /* graph-v3 A — richer contrast for the Cytoscape canvas only (feels
      "constellation" rather than surface-flat). Shell chrome keeps --ps-canvas. */
   --ps-graph-canvas: #0a0d10;
@@ -53,6 +62,9 @@
   --ps-danger: #cd4246;
   --ps-gi: #1e7a4a;
   --ps-kg: #5c4d8a;
+  --ps-grounded: var(--ps-gi);
+  --ps-topic: var(--ps-kg);
+  --ps-person: var(--ps-kg);
   --ps-graph-canvas: var(--ps-canvas);
 }
 
@@ -79,6 +91,9 @@
     --ps-danger: #cd4246;
     --ps-gi: #1e7a4a;
     --ps-kg: #5c4d8a;
+    --ps-grounded: var(--ps-gi);
+    --ps-topic: var(--ps-kg);
+    --ps-person: var(--ps-kg);
     --ps-graph-canvas: var(--ps-canvas);
   }
 }
