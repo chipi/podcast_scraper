@@ -112,6 +112,12 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/v1/diarize":
+            if type(self).mode == "empty_segments":
+                self._json(
+                    200,
+                    {"model_name": "pyannote/speaker-diarization-community-1", "segments": []},
+                )
+                return
             self._json(
                 200,
                 {
@@ -125,6 +131,9 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
             )
             return
         if self.path == "/v1/audio/transcriptions":
+            if type(self).mode == "empty_text":
+                self._json(200, {"text": "", "segments": []})
+                return
             self._json(
                 200,
                 {
@@ -355,6 +364,24 @@ class TestDiarizeRealSocket:
             with pytest.raises(httpx.HTTPStatusError):
                 provider.diarize(_audio(tmp_path))
 
+    def test_guardrail_violation_on_empty_segments_falls_back(
+        self, dgx_stub, tmp_path, monkeypatch
+    ):
+        """ADR-099 (#999): a successful HTTP response carrying zero speaker segments for
+        non-trivial audio is structurally invalid — the guardrail raises, this tier counts it
+        as its own failure, and re-raises for the wrapping FallbackChain to advance."""
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
+        _DGXStubHandler.mode = "empty_segments"
+        # The fixture's fake WAV bytes are not a real audio file, so the real duration probe
+        # would return None (guardrail skipped). Force a >5s duration so the empty-segments
+        # check actually fires.
+        monkeypatch.setattr(dp.resilience, "probe_audio_duration_sec", lambda _path: 10.0)
+        provider = _diarize_provider(dgx_stub)
+        with patch.object(dp.time, "sleep"):  # skip retry backoff
+            with pytest.raises(GuardrailViolation):
+                provider.diarize(_audio(tmp_path))
+
     def test_open_breaker_skips_socket_entirely(self, dgx_stub, tmp_path):
         # First call hangs → trips the breaker; second call must not touch the socket (raises fast).
         _DGXStubHandler.mode = "hang"
@@ -546,6 +573,18 @@ class TestWhisperRealSocket:
             with pytest.raises(httpx.HTTPStatusError):
                 provider.transcribe(_audio(tmp_path))
 
+    def test_guardrail_violation_on_empty_transcript_falls_back(self, dgx_stub, tmp_path):
+        """ADR-099 (#999): a successful HTTP response carrying an empty transcript is a garbage
+        response, not a happy path — the guardrail raises, this tier counts it as its own failure
+        (breaker records it), and re-raises for the wrapping FallbackChain to advance."""
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
+        _DGXStubHandler.mode = "empty_text"
+        provider = _whisper_provider(dgx_stub)
+        with patch.object(wp.time, "sleep"):  # skip retry backoff
+            with pytest.raises(GuardrailViolation):
+                provider.transcribe(_audio(tmp_path))
+
     def test_serve_mode_regression_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
         """ADR-122 regression guard: even with reprocess-shaped retry knobs populated,
         an explicit ``run_context="serve"`` config keeps today's behaviour — the first
@@ -681,6 +720,27 @@ class TestMossResilience:
         assert text == "hello from moss"
         assert mp._moss_breaker.state == "closed"
 
+    def test_happy_path_transcribe_with_segments(self, dgx_stub, tmp_path):
+        cfg = _moss_cfg(dgx_stub)
+        provider = _moss_provider_from_cfg(cfg)
+        result, elapsed = provider.transcribe_with_segments(_audio(tmp_path))
+        assert result["text"] == "hello from moss"
+        assert result["segments"][0]["speaker"] == "S01"
+        assert elapsed >= 0.0
+        assert mp._moss_breaker.state == "closed"
+
+    def test_serve_mode_503_exhausts_retries_and_raises(self, dgx_stub, tmp_path):
+        """Serve mode's non-timeout branch: a transient 5xx is retried up to max_attempts (no
+        early break, unlike a hard timeout), then the last error is re-raised for the chain."""
+        import httpx
+
+        _DGXStubHandler.mode = "503"
+        cfg = _moss_cfg(dgx_stub)  # default (serve) run context
+        provider = _moss_provider_from_cfg(cfg)
+        with patch.object(mp.time, "sleep"):  # skip retry backoff
+            with pytest.raises(httpx.HTTPStatusError):
+                provider.transcribe(_audio(tmp_path))
+
     def test_serve_mode_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
         """ADR-122: MOSS was previously bare (no watchdog, no breaker at all) — this proves
         the newly-added serve-mode call layer actually classifies a hard timeout, trips the
@@ -748,6 +808,14 @@ class TestMossResilience:
 # ALSO bare; it gains the same policy (its own _moss_diarize_breaker).         #
 # --------------------------------------------------------------------------- #
 class TestMossDiarizeResilience:
+    def test_happy_path_serve_mode_round_trips(self, dgx_stub, tmp_path):
+        cfg = _moss_cfg(dgx_stub)  # default (serve) run context
+        provider = _moss_diarize_provider_from_cfg(cfg)
+        result = provider.diarize(_audio(tmp_path))
+        assert isinstance(result, DiarizationResult)
+        assert {s.speaker for s in result.segments} == {"SPEAKER_01"}
+        assert mdp._moss_diarize_breaker.state == "closed"
+
     def test_backoff_retry_then_succeeds_no_trip_no_fallover(self, dgx_stub, tmp_path):
         _DGXStubHandler.mode = "hang_then_ok"
         _DGXStubHandler.fail_n = 1  # first POST hangs; the retry succeeds
@@ -788,6 +856,35 @@ class TestMossDiarizeResilience:
         assert spy.call_count == 1
         spy.assert_called_once_with(hard=True)
         assert mdp._moss_diarize_breaker.state == "open"
+
+    def test_serve_mode_hard_timeout_trips_and_raises(self, dgx_stub, tmp_path):
+        """ADR-122: MOSS diarize was previously bare (no watchdog, no breaker) — this proves the
+        serve-mode call layer classifies a hard timeout, trips the breaker on the first one, and
+        raises for the wrapping FallbackChain, mirroring MOSS-transcription's serve branch."""
+        from podcast_scraper.providers.resilience import TimeoutLike
+
+        _DGXStubHandler.mode = "hang"
+        cfg = _moss_cfg(dgx_stub)  # default (serve) run context
+        provider = _moss_diarize_provider_from_cfg(cfg)
+        started = time.monotonic()
+        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
+            with pytest.raises(TimeoutLike):
+                provider.diarize(_audio(tmp_path))
+        elapsed = time.monotonic() - started
+        assert elapsed < 5.0  # bailed fast, not the 30s hang
+        assert mdp._moss_diarize_breaker.state == "open"  # hard timeout tripped the breaker
+
+    def test_serve_mode_503_exhausts_retries_and_raises(self, dgx_stub, tmp_path):
+        """Serve mode's non-timeout branch: a transient 5xx is retried up to max_attempts (no
+        early break, unlike a hard timeout), then the last error is re-raised for the chain."""
+        import httpx
+
+        _DGXStubHandler.mode = "503"
+        cfg = _moss_cfg(dgx_stub)  # default (serve) run context
+        provider = _moss_diarize_provider_from_cfg(cfg)
+        with patch.object(mdp.time, "sleep"):  # skip retry backoff
+            with pytest.raises(httpx.HTTPStatusError):
+                provider.diarize(_audio(tmp_path))
 
 
 def test_fuse_open_emits_operator_alert(dgx_stub, tmp_path):

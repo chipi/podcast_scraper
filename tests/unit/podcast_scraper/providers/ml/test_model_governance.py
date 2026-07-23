@@ -105,3 +105,38 @@ def test_governance_off_is_a_noop_opt_in() -> None:
     # explicit assert helper is also a no-op when off
     cfg = Config.model_validate({**_BASE, "dgx_whisper_model": "acme/made-up-model"})
     assert_models_sanctioned(cfg)  # no raise
+
+
+@pytest.mark.unit
+def test_active_models_add_skips_a_stage_with_no_mapped_field() -> None:
+    """A diarization provider without a ``_DIARIZATION_MODEL_FIELD`` mapping (e.g. gemini) resolves
+    to a falsy field -> ``_add`` returns early instead of trying ``getattr(cfg, None)``."""
+    cfg = Config.model_validate(
+        {**_BASE, "diarize": True, "diarization_provider": "gemini", "gemini_api_key": "test-key"}
+    )
+    got = active_models(cfg)
+    assert not any(stage == "diarization" for stage, _field, _model in got)
+
+
+@pytest.mark.unit
+def test_active_models_includes_cloud_summary_model() -> None:
+    """A cloud summary provider (openai) gets its ``{provider}_summary_model`` field gated too."""
+    cfg = Config.model_validate(
+        {**_BASE, "summary_provider": "openai", "openai_api_key": "sk-test"}
+    )
+    got = {(stage, field) for stage, field, _model in active_models(cfg)}
+    assert ("summary", "openai_summary_model") in got
+
+
+@pytest.mark.unit
+def test_governance_skips_stage_with_no_sanctioned_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stage the registry declares zero StageOptions for is skipped (governance cannot judge what
+    the registry does not describe; an empty allow-list must not reject everything)."""
+    cfg = Config.model_validate(
+        {**_BASE, "dgx_whisper_model": TURBO, "enforce_model_governance": True}
+    )
+    monkeypatch.setattr(
+        "podcast_scraper.providers.ml.model_governance.sanctioned_models",
+        lambda stage: frozenset(),
+    )
+    assert_models_sanctioned(cfg)  # no raise despite an "active" model, because allowed is empty
