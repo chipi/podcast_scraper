@@ -28,7 +28,7 @@ from ...providers.ml.diarization.base import DiarizationProvider, DiarizationRes
 from ...transcription.base import TranscriptionProvider
 from ...utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ...utils.log_redaction import format_exception_for_log
-from ..resilience import TimeoutLike
+from ..resilience import probe_audio_duration_sec, TimeoutLike
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +175,157 @@ class FallbackChainTranscriptionProvider:
                         "transcription tier %r cleanup failed: %s",
                         self._names[i],
                         format_exception_for_log(exc),
+                    )
+
+
+def _segment_coverage(
+    result: dict[str, object], audio_path: str, episode_duration_seconds: Optional[int]
+) -> Optional[float]:
+    """ADR-123: fraction of the audio the transcript's segments cover.
+
+    ``Σ(segment_end − segment_start) / audio_duration``. Returns None when it cannot be measured
+    (no segments, or unknown duration) — the gate treats "unknowable" as "do not failover", so a
+    provider that emits no timestamps is never spuriously re-routed. Uses the passed episode
+    duration when available, else probes the audio.
+    """
+    segs = result.get("segments")
+    if not isinstance(segs, list) or not segs:
+        return None
+    covered = 0.0
+    for s in segs:
+        if not isinstance(s, dict):
+            continue
+        try:
+            covered += max(0.0, float(s["end"]) - float(s["start"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    duration = float(episode_duration_seconds) if episode_duration_seconds else 0.0
+    if duration <= 0:
+        probed = probe_audio_duration_sec(audio_path)
+        duration = float(probed) if probed else 0.0
+    if duration <= 0:
+        return None
+    return covered / duration
+
+
+class CoverageGatedTranscriptionProvider:
+    """Quality-gate transcription failover (ADR-123 / #1258).
+
+    Wraps a primary provider. After a SUCCESSFUL transcription it measures
+    :func:`_segment_coverage`; if coverage is below ``coverage_min`` the primary silently dropped
+    speech (turbo's long-form VAD/segmentation failure returns a clean but incomplete transcript),
+    so the episode is re-transcribed on the ``failover`` model and that result is used instead.
+
+    Distinct from :class:`FallbackChainTranscriptionProvider`, which advances on an EXCEPTION — this
+    fires on a successful-but-incomplete OUTPUT, and is orthogonal to ADR-122 ``hold`` (which
+    governs infra-failure behaviour). Both tiers are built lazily, so a corpus that never trips it
+    never constructs the failover model. The winning model is recorded on the result
+    (``model_used`` + a ``coverage_failover`` breadcrumb) so per-episode provenance survives.
+    """
+
+    name = "coverage_gated"
+
+    def __init__(
+        self,
+        primary: Tuple[str, Callable[[], TranscriptionProvider]],
+        failover: Tuple[str, Callable[[], TranscriptionProvider]],
+        coverage_min: float,
+    ) -> None:
+        self._primary_name, self._primary_builder = primary
+        self._failover_name, self._failover_builder = failover
+        self._coverage_min = coverage_min
+        self._primary: Optional[TranscriptionProvider] = None
+        self._failover: Optional[TranscriptionProvider] = None
+        self._primary_inited = False
+        self._failover_inited = False
+
+    def initialize(self) -> None:
+        """Eagerly construct + initialize the primary; the failover model stays lazy."""
+        self._ensure(primary=True)
+
+    def _ensure(self, *, primary: bool) -> TranscriptionProvider:
+        if primary:
+            if self._primary is None:
+                self._primary = self._primary_builder()
+            if not self._primary_inited:
+                self._primary.initialize()
+                self._primary_inited = True
+            return self._primary
+        if self._failover is None:
+            self._failover = self._failover_builder()
+        if not self._failover_inited:
+            self._failover.initialize()
+            self._failover_inited = True
+        return self._failover
+
+    def transcribe(self, audio_path: str, language: str | None = None) -> str:
+        result, _elapsed = self.transcribe_with_segments(audio_path, language)
+        return str(result.get("text", ""))
+
+    def transcribe_with_segments(
+        self,
+        audio_path: str,
+        language: str | None = None,
+        pipeline_metrics: Any | None = None,
+        episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,
+    ) -> Tuple[dict[str, object], float]:
+        """Transcribe on the primary; if coverage < ``coverage_min``, re-transcribe on the failover
+        model and return that result instead (with provenance)."""
+        primary = self._ensure(primary=True)
+        result, elapsed = primary.transcribe_with_segments(
+            audio_path,
+            language,
+            pipeline_metrics=pipeline_metrics,
+            episode_duration_seconds=episode_duration_seconds,
+            call_metrics=call_metrics,
+        )
+        coverage = _segment_coverage(result, audio_path, episode_duration_seconds)
+        if coverage is None or coverage >= self._coverage_min:
+            return result, elapsed
+        logger.warning(
+            "transcription coverage %.1f%% < %.1f%% on %s — primary %r silently dropped speech; "
+            "quality failover to %r (ADR-123)",
+            coverage * 100,
+            self._coverage_min * 100,
+            audio_path,
+            self._primary_name,
+            self._failover_name,
+        )
+        failover = self._ensure(primary=False)
+        fo_result, fo_elapsed = failover.transcribe_with_segments(
+            audio_path,
+            language,
+            pipeline_metrics=pipeline_metrics,
+            episode_duration_seconds=episode_duration_seconds,
+            call_metrics=call_metrics,
+        )
+        fo_coverage = _segment_coverage(fo_result, audio_path, episode_duration_seconds)
+        fo_result = {
+            **fo_result,
+            "model_used": fo_result.get("model_used") or f"{self._failover_name}:coverage_failover",
+            "coverage_failover": {
+                "primary": self._primary_name,
+                "primary_coverage": round(coverage, 3),
+                "failover_coverage": round(fo_coverage, 3) if fo_coverage is not None else None,
+                "coverage_min": self._coverage_min,
+            },
+        }
+        # elapsed reflects the full cost (both passes) — the wasted primary pass is real time spent.
+        return fo_result, elapsed + fo_elapsed
+
+    def cleanup(self) -> None:
+        """Release both tiers' resources; one raising does not block the other."""
+        for provider, inited in (
+            (self._primary, self._primary_inited),
+            (self._failover, self._failover_inited),
+        ):
+            if provider is not None and inited:
+                try:
+                    provider.cleanup()
+                except Exception as exc:  # noqa: BLE001 - best-effort cleanup
+                    logger.warning(
+                        "coverage-gated tier cleanup failed: %s", format_exception_for_log(exc)
                     )
 
 

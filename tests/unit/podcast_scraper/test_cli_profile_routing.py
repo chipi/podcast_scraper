@@ -100,9 +100,10 @@ CLOUD_BALANCED_EXPECTED = {
 }
 
 CLOUD_QUALITY_OVERRIDES = {
-    # Deepgram nova-3 + native-diarization screenplay is the quality-tier
-    # transcription default (replaced openai/whisper-1).
-    "transcription_provider": "deepgram",
+    # openai-whisper-1 is the quality-tier transcription default — it won the
+    # real-human-GT ASR bake-off (EVAL_ASR_5MODEL_BAKEOFF_2026_07 / #1273);
+    # Deepgram nova-3 stays for DIARIZATION only (+ native screenplay).
+    "transcription_provider": "openai",
     "deepgram_model": "nova-3",
     "screenplay": True,
     "summary_provider": "anthropic",
@@ -232,11 +233,33 @@ class TestAllShippedProfilesRoundTripThroughCLI:
             "airgapped",
             "airgapped_thin",
             "dev",
+            # yaml-only reprocess profiles — these are the ones the ADR-122 (#1253) carry-list gap
+            # broke: resilience_* + transcript_cache_enabled silently reverted to code defaults.
+            "reprocess_dgx_no_llm",
+            "reprocess_dgx_turbo",
         ],
     )
     def test_profile_flag_round_trips_every_yaml_field(
         self, _fake_keys: None, profile_name: str
     ) -> None:
+        self._assert_round_trip(profile_name, via="profile")
+
+    @pytest.mark.parametrize(
+        "profile_name",
+        ["reprocess_dgx_no_llm", "reprocess_dgx_turbo", "cloud_balanced", "local_dgx_balanced"],
+    )
+    def test_config_path_round_trips_every_yaml_field(
+        self, _fake_keys: None, profile_name: str
+    ) -> None:
+        """ADR-122 (#1253) regression: the redo-/migrate-diarization make targets load a profile
+        via ``--config <file>``, NOT ``--profile <name>``. That path dropped non-argparse-flag
+        fields (resilience_* -> serve/failover, transcript_cache_enabled un-disable-able) because
+        ``_build_config`` carried only a hand-maintained subset. Every YAML field must survive here
+        too, or a reprocess silently runs failover (mixed-backend corpus) / replays the cache."""
+        self._assert_round_trip(profile_name, via="config")
+
+    @staticmethod
+    def _assert_round_trip(profile_name: str, *, via: str) -> None:
         import yaml
 
         from podcast_scraper.config import _expand_env_vars
@@ -252,21 +275,18 @@ class TestAllShippedProfilesRoundTripThroughCLI:
                 for k, v in _expand_env_vars(yaml.safe_load(f)).items()
                 if not k.startswith("_") and k not in ("rss", "profile")
             }
-        args = parse_args(
-            [
-                "--profile",
-                profile_name,
-                "https://example.com/feed.xml",
-                "--output-dir",
-                "/tmp/_t",
-            ]
+        selector = (
+            ["--profile", profile_name]
+            if via == "profile"
+            else ["--config", f"config/profiles/{profile_name}.yaml"]
         )
+        args = parse_args([*selector, "https://example.com/feed.xml", "--output-dir", "/tmp/_t"])
         cfg = _build_config(args)
         bad = {
             k: (exp, getattr(cfg, k, "<MISSING>"))
             for k, exp in expected.items()
             if getattr(cfg, k, "<MISSING>") != exp
         }
-        assert not bad, f"{profile_name}: {len(bad)} field(s) dropped:\n" + "\n".join(
+        assert not bad, f"{profile_name} (via {via}): {len(bad)} field(s) dropped:\n" + "\n".join(
             f"  {k}: expected={v[0]!r} actual={v[1]!r}" for k, v in bad.items()
         )

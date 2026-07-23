@@ -28,6 +28,12 @@ from ... import config
 from ...utils.log_redaction import format_exception_for_log
 from .. import guardrails, resilience
 from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
+from ..resilience.policy import (
+    FailureStrategy,
+    ResilienceFuseOpenError,
+    ResiliencePolicy,
+    resolve_failure_strategy,
+)
 from .health import check_faster_whisper_health, dgx_whisper_base_url
 from .telemetry import emit_dgx_fallback_breadcrumb
 
@@ -89,6 +95,21 @@ class TailnetDgxWhisperTranscriptionProvider:
         self._timeout_sec = float(cfg.dgx_request_timeout_sec or 600.0)
         self._timeout_per_audio_min = float(getattr(cfg, "dgx_timeout_per_audio_minute_sec", 20.0))
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
+        # ADR-122: which resilience STRATEGY this provider uses. 'failover' (serve default) keeps
+        # today's fail-fast/trip/raise-for-chain logic below untouched; 'hold' routes through the
+        # ResiliencePolicy (backoff-retry -> trip-after-N -> hold-and-probe). The strategy is a
+        # standalone knob defaulted by run context (reprocess -> hold), overridable per profile.
+        self._strategy = resolve_failure_strategy(cfg)
+        self._policy = ResiliencePolicy(
+            breaker=_whisper_breaker,
+            retries_before_trip=int(getattr(cfg, "resilience_retries_before_trip", 3)),
+            backoff_schedule_sec=tuple(
+                getattr(cfg, "resilience_backoff_schedule_sec", (30.0, 60.0, 120.0))
+            ),
+            on_open_max_wait_sec=float(getattr(cfg, "resilience_on_open_max_wait_sec", 900.0)),
+            probe_interval_sec=float(getattr(cfg, "resilience_probe_interval_sec", 30.0)),
+            name="dgx-whisper",
+        )
         self._initialized = False
 
     def initialize(self) -> None:
@@ -205,6 +226,22 @@ class TailnetDgxWhisperTranscriptionProvider:
         # ``Systran/`` namespace) so we don't fail on small repo-id variations.
         health_substring = effective_model.rsplit("/", 1)[-1]
         timeout_sec = self._effective_timeout_sec(episode_duration_seconds)
+
+        if self._strategy is FailureStrategy.HOLD:
+            # ADR-122: consistency over availability — backoff-retry the SAME model,
+            # trip only after N, hold-and-probe on a blown fuse. Kept as a fully separate
+            # method (not folded into the serve loop below) so the serve branch's today
+            # behaviour stays byte-for-byte unchanged (RFC-106/#1198 regression guard).
+            return self._transcribe_via_dgx_reprocess(
+                audio_path,
+                language,
+                timeout_sec=timeout_sec,
+                health_substring=health_substring,
+                effective_model=effective_model,
+                model_override=model_override,
+            )
+
+        # ---- serve mode (unchanged from today; RFC-106/#1198) ----
         # Circuit breaker: if DGX Whisper is in its cooldown, skip it entirely and
         # go straight to the cloud fallback — a wedged batch isn't paced by timeouts.
         if not _whisper_breaker.allow():
@@ -299,6 +336,57 @@ class TailnetDgxWhisperTranscriptionProvider:
         if last_err is not None:
             raise last_err
         raise RuntimeError(f"DGX Whisper unavailable: {reason}")
+
+    def _transcribe_via_dgx_reprocess(
+        self,
+        audio_path: str,
+        language: str | None,
+        *,
+        timeout_sec: float,
+        health_substring: str,
+        effective_model: str,
+        model_override: str | None,
+    ) -> tuple[str, list[dict[str, object]], float, str]:
+        """ADR-122 reprocess-mode path: backoff-retry the chosen model, trip the fuse only
+        after the policy threshold, and hold-and-probe (never fall over) on a blown fuse.
+
+        The single-flight lock spans the whole call (health-check + retries + any
+        pause-and-probe), mirroring the serve branch's one-acquisition-per-call pattern —
+        while we're waiting on the DGX endpoint, nothing else in this process piles a
+        second request onto it either.
+        """
+
+        def _attempt() -> tuple[str, list[dict[str, object]], float]:
+            if not check_faster_whisper_health(
+                self._host,
+                port=self._port,
+                require_model_substring=health_substring,
+            ):
+                raise RuntimeError("dgx_whisper_health_check_failed")
+            return self._transcribe_dgx(
+                audio_path,
+                language,
+                timeout_sec,
+                model_override=model_override,
+            )
+
+        try:
+            with _dgx_single_flight:
+                text, segments, duration = self._policy.run(_attempt, timeout_sec=timeout_sec)
+        except ResilienceFuseOpenError as exc:
+            emit_dgx_fallback_breadcrumb(
+                stage="transcription",
+                model=self._model,
+                failure_reason=str(exc),
+            )
+            logger.error(
+                "DGX Whisper endpoint did not recover after %.0fs of pause-and-probe "
+                "(reprocess mode, ADR-122) — alerting operator, NOT falling over: %s",
+                self._policy.on_open_max_wait_sec,
+                exc,
+            )
+            raise
+        return (text, segments, duration, effective_model)
 
     def cleanup(self) -> None:
         """No owned resources to release (the chain owns the fallback tiers)."""

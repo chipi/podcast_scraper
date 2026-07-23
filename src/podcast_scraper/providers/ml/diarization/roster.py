@@ -917,9 +917,24 @@ def resolve_speaker_roster(
 
     # 1. A voice that introduces itself as one of the feed's STATED hosts IS that host. Both sources
     #    agree — this is the cross-reference, and it is the strongest evidence available.
+    #
+    #    A stated host name identifies ONE person, so it may be claimed once. Diarization merges a
+    #    host's turn into a guest's cluster often enough that the guest's cluster carries the host's
+    #    self-introduction verbatim; without this guard that merged cluster claims the host's name a
+    #    second time and enters `host_voices` as an uncapped third host on a two-host show (#1226).
+    #    Step 2 already caps conversation-performed hosts at the feed's count; this closes the same
+    #    hole at the stronger self-intro step.
+    claimed_host_names: set = set()
     for v, n in voice_intro.items():
-        if n.lower() in known_lower and v not in host_voices and v not in conv_guests:
+        nl = n.lower()
+        if (
+            nl in known_lower
+            and nl not in claimed_host_names
+            and v not in host_voices
+            and v not in conv_guests
+        ):
             host_voices.append(v)
+            claimed_host_names.add(nl)
 
     # 2. A voice that PERFORMS the host's role is a host, even if the feed never named them.
     #

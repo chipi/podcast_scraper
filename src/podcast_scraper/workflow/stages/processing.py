@@ -59,6 +59,7 @@ def extract_episode_description(item):
     return rss_extract_episode_description(item)
 
 
+from ...providers.resilience import ResilienceFuseOpenError
 from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import is_network_or_org_author
@@ -1024,6 +1025,18 @@ def _process_episodes_sequential(
             )
         except CostCapExceeded:
             raise
+        except ResilienceFuseOpenError:
+            # ADR-122 item 3: a sustained fuse-open means the self-hosted endpoint is genuinely
+            # down and — in reprocess mode — we do NOT fall over to another model. Continuing would
+            # grind every remaining episode through the same hold-then-fail and yield a partial
+            # corpus. Halt the batch (like the cost fuse above) so the operator can act; the run
+            # resumes cleanly once the endpoint recovers.
+            logger.error(
+                "[%s] resilience fuse open (self-hosted endpoint down, reprocess mode) — halting "
+                "the batch rather than grinding the rest of the corpus through a dead endpoint",
+                episode.idx,
+            )
+            raise
         except Exception as exc:  # pragma: no cover
             from ..helpers import update_metric_safely
 
@@ -1287,6 +1300,16 @@ def _drain_completed_processing_futures(
                     ok_delta,
                     failed_delta,
                 )
+            except ResilienceFuseOpenError:
+                # ADR-122 item 3: the self-hosted endpoint is down and reprocess mode never falls
+                # over — halt the whole batch rather than failing every remaining future the same
+                # way. Propagates up like the sequential loop's halt.
+                logger.error(
+                    "[%s] resilience fuse open (self-hosted endpoint down, reprocess mode) — "
+                    "halting the batch",
+                    episode_idx,
+                )
+                raise
             except Exception as exc:  # pragma: no cover
                 failed_delta += 1
                 logger.error(

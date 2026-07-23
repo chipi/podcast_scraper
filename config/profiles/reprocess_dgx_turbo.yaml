@@ -1,0 +1,85 @@
+# reprocess_dgx_turbo — #1178 eval variant of reprocess_dgx_no_llm.
+#
+# IDENTICAL to reprocess_dgx_no_llm.yaml except one line: dgx_whisper_model is swapped to
+# large-v3-TURBO. Its whole purpose is to re-transcribe an existing corpus's audio with turbo so
+# it can be compared, episode-for-episode, against the large-v3 corpus (prod-v3) via
+# scripts/eval/compare_corpora_v1.py — speed (realtime factor), WER, timeline_error_pct (the #1173
+# invariant, must stay ~0), and whether turbo still returns word-level timestamps.
+#
+# Everything else — diarization, timeline-preserving preprocess, LLM stages OFF, enrichment OFF —
+# is held constant so the ONLY variable is the ASR model. Anything else would be a confound.
+#
+# Usage (into a SEPARATE corpus root, existing-only so the set can only shrink, audio from the
+# #947 GUID-keyed cache, no network):
+#   make redo-diarization CORPUS_DIR=<prod-v3-turbo copy> PROFILE=config/profiles/reprocess_dgx_turbo.yaml
+# then: .venv/bin/python scripts/eval/compare_corpora_v1.py <prod-v3> <prod-v3-turbo>
+#
+# No `profile:` key on purpose (pins no LLM models; opts out of the registry drift check), same as
+# the base profile. yaml-only, a one-shot eval profile — not a pipeline default.
+
+# --- transcription: DGX faster-whisper (self-hosted), large-v3-TURBO ----------------------------
+transcription_provider: tailnet_dgx_whisper
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
+dgx_whisper_port: 8000
+# ADR-096 declares a fallback (local whisper, never cloud). NOTE: under the hold strategy below
+# this fallover is SUPPRESSED — a DGX outage halts the batch rather than degrading to local, so the
+# corpus never mixes backends. The declaration is kept for ADR-096 compliance + the serve path.
+transcription_fallback_provider: whisper
+
+# --- resilience: ADR-122 (#1253) hold — self-hosted only, NO cross-model fallover ----------------
+# Self-declared, NOT name-derived. The reprocess_dgx_* -> hold default is resolved from the profile
+# NAME (`--profile reprocess_dgx_turbo`), which the reprocess make targets bypass: they load this
+# file via `--config <path>`, leaving run_context at its 'serve' default -> a FallbackChain would
+# silently degrade DGX -> local whisper on a timeout and yield a MIXED-BACKEND corpus. Declaring it
+# here makes hold hold regardless of how the profile is loaded: backoff-retry the chosen DGX model,
+# trip only after N, pause-and-probe a blown fuse, then HALT — never switch backends.
+resilience_run_context: reprocess
+resilience_failure_strategy: hold
+
+# A reprocess REGENERATES the transcript (here with a different ASR model, turbo vs large-v3), so
+# the by-audio-hash transcript cache MUST be off — otherwise it replays a prior model's transcript
+# for the same audio bytes and the run "succeeds" doing nothing (the #1173-adjacent cache-replay
+# trap). Only effective now that --config non-flag fields actually reach Config (#1253 carry fix).
+transcript_cache_enabled: false
+
+# ADR-123 (#1258): quality-gate transcription failover. Turbo silently drops ~a quarter of the
+# speech on long episodes (the ep6 bake-off finding: 69% coverage, 29.9% WER); re-transcribe any
+# episode whose segment coverage falls below the floor on large-v3, which handles long audio
+# robustly. Only the flagged tail (~10% on the bake-off) pays the slow path.
+transcription_coverage_min: 0.85
+transcription_coverage_failover_model: Systran/faster-whisper-large-v3
+
+# ADR-124 (#1258): a reprocess must only run VETTED models — a typo'd or un-benchmarked model
+# building 1000 episodes is not recoverable cheaply. Enforce that every active model (turbo, the
+# large-v3 coverage failover, pyannote diarization) is registry-sanctioned; else config validation
+# raises UnsanctionedModelError (code MODEL_NOT_SANCTIONED).
+enforce_model_governance: true
+
+# --- diarization: pyannote v4 (self-hosted) -----------------------------------------------------
+diarize: true
+screenplay: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-community-1
+dgx_diarize_request_timeout_sec: 600.0
+
+# --- speaker naming: local NER, no LLM ----------------------------------------------------------
+speaker_detector_provider: spacy
+auto_speakers: true
+
+# --- audio: timeline-preserving preprocess (#1173) ----------------------------------------------
+preprocessing_enabled: true
+audio_preprocessing_profile: speech_optimal_v1
+save_adfree_transcript: true
+
+# --- every LLM stage: OFF -----------------------------------------------------------------------
+generate_metadata: false # skips summaries + GI + KG wholesale; preserves the existing artifacts
+generate_summaries: false
+generate_gi: false
+generate_kg: false
+vector_search: false
+
+enrichment:
+  enabled: false
+  enrichers: {}

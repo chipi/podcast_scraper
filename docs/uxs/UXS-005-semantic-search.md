@@ -208,7 +208,7 @@ surface moves to the full-width **Query Workspace** ([UXS-016](UXS-016-query-wor
 continues to govern the **compact launcher** the LeftPanel becomes on non-Search tabs:
 
 - Single query field (`#search-q` — same testid as today).
-- Last-N recent queries (from USERPREFS-1 `search.recentQueries` — see [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md)).
+- Last-N recent queries (from USERPREFS-1 `search.recentQueries` — see [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md)).
 - "Open in Workspace" chip; Enter submits and switches the main tab to Search.
 - **Explore mode retired.** The slide mode-switch, `shell.leftPanelSurface = 'explore'`, and the
   `left-panel-enter-explore` / `left-panel-back-search` test IDs are removed. Explore's filters

@@ -4277,30 +4277,27 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     if profile:
         payload["profile"] = profile
 
-    # Fields that have no argparse flag but can be set by --config YAML via
-    # parser.set_defaults. Include only when non-None so Config's own default
-    # stands otherwise (#646 profile-completeness audit).
-    for _field in (
-        "llm_pipeline_mode",
-        "cloud_llm_structured_min_output_tokens",
-        "deepseek_timeout",
-        "audio_preprocessing_profile",
-        "ml_preprocessing_profile",
-        # ADR-096 / #814 / #926 DGX routing fields have no argparse flag; carry
-        # them from --config YAML so the per-feed Config rebuild keeps DGX
-        # primary + fallback + pyannote routing. Without these, the ADR-096
-        # contract validator rejects every feed (missing
-        # transcription_fallback_provider) and, even if it didn't, diarization
-        # would silently degrade from tailnet_dgx to in-process pyannote.
-        "transcription_fallback_provider",
-        "diarization_provider",
-        "dgx_diarize_port",
-        "dgx_diarize_model",
-        "dgx_whisper_model",
-    ):
-        _v = getattr(args, _field, None)
+    # #646 + ADR-122 (#1253): carry EVERY --config / profile field that has no argparse flag, not a
+    # hand-maintained subset. ``_load_and_merge_config`` calls ``parser.set_defaults`` with the full
+    # ``config_model.model_dump()``, so every non-None resolved config value lands on ``args`` —
+    # iterating Config's own fields captures anything the file/profile set. Fields already in
+    # ``payload`` above (the argparse-flagged ones) are left untouched, so a CLI override still
+    # wins; and a field with NO argparse flag has no argparse default, so a non-None value on args
+    # only have come from the config. This kills the silent-default class of bugs where a key nobody
+    # hand-copied reverted to its code default: this repo shipped resilience_* dropping to
+    # serve/failover and transcript_cache_enabled un-disable-able, both via exactly this gap. The
+    # old curated allowlist (llm_pipeline_mode, the DGX routing + ADR-096 fields, …) is subsumed.
+    for _name, _field_info in config.Config.model_fields.items():
+        if _name in payload:
+            continue
+        _alias = _field_info.alias or _name
+        if _alias in payload:
+            continue
+        _v = getattr(args, _alias, None)
+        if _v is None and _alias != _name:
+            _v = getattr(args, _name, None)
         if _v is not None:
-            payload[_field] = _v
+            payload[_name] = _v
 
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))

@@ -1,4 +1,4 @@
-# ADR-119: No per-corpus UI state — user-scoped features live in USERPREFS-1
+# ADR-125: No per-corpus UI state — user-scoped features live in USERPREFS-1
 
 - **Status**: Accepted
 - **Date**: 2026-07-20

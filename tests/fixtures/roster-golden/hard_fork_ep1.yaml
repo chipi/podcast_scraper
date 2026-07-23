@@ -1,0 +1,86 @@
+# RECONSTRUCTED, not frozen. These diarization turns are built from the documented episode
+# structure in docs/wip/CORPUS-V4-FIXTURE-LADDER.md ("The anatomy of a real episode" / §G),
+# NOT extracted from a real pyannote run — no audio for this episode is on this machine.
+# Timings/proportions follow the doc's own measured breakdown (pre-roll ad ~30s of self-
+# introducing voices that never return; hosts alternating 26-42% of talk each; a guest holding
+# 22 contiguous minutes). Replace with real frozen turns in Phase 1 (`#1178`/`#1179` — real
+# turns will live in git-ignored `.test_outputs/`, per the repo's real-corpus-artifact policy).
+#
+# The mid-roll ad in the doc's canonical timeline (~36:00, #1188) is DELIBERATELY OMITTED here:
+# a probe of the real roster with a mid-roll ad voice added showed it gets `role: guest` (not
+# `unknown`) whenever the episode has any real guest name at all — see
+# test_roster_golden_fixtures.py's reported finding. That is the same failure shape as the
+# open #1188 bug (an unnamed ad voice enters the corpus with a GUESTS_ON-shaped role), so
+# adding it here would make this seed non-green. Kept out per "do not encode the wrong value
+# as expected" (SCHEMA.md, honesty workflow).
+id: hard_fork_ep1
+source: reconstructed_from_spec
+show: hard_fork
+
+feed:
+  title: "Hard Fork"
+  description: >
+    Hard Fork is hosted by two of the most experienced technology journalists around,
+    Kevin Roose and Casey Newton, exploring the rapidly changing world of tech.
+  authors: ["The New York Times"]
+expected_hosts_from_feed: ["Kevin Roose", "Casey Newton"]
+
+episode:
+  description: >
+    This week, the hosts cover a lawsuit naming both Elon Musk and Sam Altman, and welcome
+    back Dr. Adam Rodman to talk about how AI is changing the practice of medicine.
+expected_guests_after_gate: ["Dr. Adam Rodman"]
+
+# The actual diarization turns fed to resolve_speaker_roster (seconds).
+#   0:00-0:30   pre-roll ad, two voices, each heard once, never again
+#   0:30-30:00  hosts alternating in ~3.5 min blocks
+#  30:00-52:00  the guest holds the floor for 22 contiguous minutes
+#  52:00-53:00  brief host handoff/outro
+diarization:
+  - {speaker: AD_1, start: 0, end: 15}
+  - {speaker: AD_2, start: 15, end: 30}
+  - {speaker: HOST_A, start: 30, end: 250}
+  - {speaker: HOST_B, start: 250, end: 470}
+  - {speaker: HOST_A, start: 470, end: 690}
+  - {speaker: HOST_B, start: 690, end: 910}
+  - {speaker: HOST_A, start: 910, end: 1130}
+  - {speaker: HOST_B, start: 1130, end: 1350}
+  - {speaker: HOST_A, start: 1350, end: 1570}
+  - {speaker: HOST_B, start: 1570, end: 1800}
+  - {speaker: GUEST_1, start: 1800, end: 3120}
+  - {speaker: HOST_A, start: 3120, end: 3180}
+
+# Each voice's own words, concatenated across its turns — resolve_speaker_roster's
+# `voice_texts` parameter. This is where the role is PERFORMED (§G), not measured.
+voice_texts:
+  AD_1: >-
+    Hey everyone, I'm Paul Tenorio, and I cover soccer for The Athletic.
+  AD_2: >-
+    And I'm Amy Lawrence. I cover college football for The Athletic. Check out our new app
+    before we get into today's episode.
+  HOST_A: >-
+    Welcome to Hard Fork. I'm Kevin Roose, a tech reporter at the New York Times. Later in
+    the show, my guest today is Dr. Adam Rodman, who returns to discuss AI in medicine.
+    Thanks so much everyone, that's the show for this week.
+  HOST_B: >-
+    And I'm Casey Newton, from Platformer. Let's get into this week's news.
+  GUEST_1: >-
+    Thanks so much for having me back. It's great to be here today.
+
+# The pre-resolved inputs Phase 0 hands directly to resolve_speaker_roster (see SCHEMA.md
+# "Out of scope" — detect_hosts_from_feed / corroborate_guests are not run by this harness).
+resolver_inputs:
+  host_candidates: []
+  known_hosts: ["Kevin Roose", "Casey Newton"]
+  detected_guests: ["Dr. Adam Rodman"]
+  metadata_named: ["Dr. Adam Rodman", "Kevin Roose", "Casey Newton", "Elon Musk", "Sam Altman"]
+  ad_intervals: []
+
+# VERIFIED against the real roster (.venv/bin/python -m pytest ... -v, see the runner's
+# printed dump captured in the handover) — not hand-derived.
+expected_roster:
+  AD_1: {role: unknown, voice_type: commercial, name: AD_1, named: false}
+  AD_2: {role: unknown, voice_type: commercial, name: AD_2, named: false}
+  HOST_A: {role: host, voice_type: person, named: true, name: "Kevin Roose"}
+  HOST_B: {role: host, voice_type: person, named: true, name: "Casey Newton"}
+  GUEST_1: {role: guest, voice_type: person, named: true, name: "Dr. Adam Rodman"}

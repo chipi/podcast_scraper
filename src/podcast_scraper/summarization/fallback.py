@@ -242,8 +242,28 @@ def wrap_with_fallback_if_configured(
     same protocol as the primary. Provider-agnostic: it wraps whatever the summary primary is —
     DGX-served vLLM (an ``openai``-protocol provider) or ``ollama`` — and fails over to the cloud
     tier(s) in the chain.
+
+    ADR-122: under the **hold** failure strategy this fallover is deliberately suppressed, mirroring
+    the ASR/self-hosted factory guard. HOLD optimises *consistency* — the chosen LLM is the only
+    LLM, so a DGX/Ollama-served summary must never silently degrade to a cloud provider and produce
+    a mixed-backend corpus. The primary is returned unwrapped; the per-provider LLM circuit breaker
+    (backoff/hold) still protects the chosen model, and a sustained outage surfaces to the operator
+    rather than falling over. The **failover** strategy (serve default) keeps today's
+    availability-first fallover. The strategy is a standalone knob defaulted by run context
+    (reprocess -> hold) and overridable per profile.
     """
     chain = _summary_fallback_chain(cfg)
     if not chain:
+        return primary
+    from ..providers.resilience import FailureStrategy, resolve_failure_strategy
+
+    if resolve_failure_strategy(cfg) is FailureStrategy.HOLD:
+        logger.info(
+            "ADR-122 HOLD strategy: NOT wrapping summary provider '%s' in cross-LLM fallover "
+            "(chain %s suppressed) — the chosen model is the only model; consistency over "
+            "availability",
+            str(cfg.summary_provider or "").strip().lower(),
+            chain,
+        )
         return primary
     return FallbackAwareSummarizationProvider(primary, chain, cfg)

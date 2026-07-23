@@ -14,6 +14,8 @@ Sub-modules:
 - :mod:`.deadlines` — :func:`run_with_watchdog`, :data:`WATCHDOG_GRACE_SEC`
 - :mod:`.sockets` — :func:`keepalive_socket_options`, :func:`hardened_http_client`,
   :func:`probe_audio_duration_sec`, :func:`effective_timeout_sec`
+- :mod:`.policy` — :class:`ResiliencePolicy`, :class:`RunContext`,
+  :class:`ResilienceFuseOpenError` (ADR-122 backoff -> trip -> hold policy)
 """
 
 from __future__ import annotations
@@ -21,6 +23,13 @@ from __future__ import annotations
 from .breakers import CircuitBreaker
 from .deadlines import run_with_watchdog, WATCHDOG_GRACE_SEC
 from .exceptions import TimeoutLike
+from .policy import (
+    FailureStrategy,
+    ResilienceFuseOpenError,
+    ResiliencePolicy,
+    resolve_failure_strategy,
+    RunContext,
+)
 from .sockets import (
     effective_timeout_sec,
     hardened_http_client,
@@ -30,11 +39,16 @@ from .sockets import (
 
 __all__ = [
     "CircuitBreaker",
+    "FailureStrategy",
+    "ResilienceFuseOpenError",
+    "ResiliencePolicy",
+    "RunContext",
     "TimeoutLike",
     "WATCHDOG_GRACE_SEC",
     "effective_timeout_sec",
     "hardened_http_client",
     "keepalive_socket_options",
     "probe_audio_duration_sec",
+    "resolve_failure_strategy",
     "run_with_watchdog",
 ]

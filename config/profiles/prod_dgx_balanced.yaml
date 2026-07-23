@@ -35,7 +35,7 @@ transcription:
   fallback: openai
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
-dgx_whisper_model: large-v3
+dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
 dgx_whisper_port: 8002
 transcription_fallback_provider: openai
 openai_transcription_model: whisper-1
@@ -158,7 +158,7 @@ quote_extraction_provider: openai
 entailment_provider: openai
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
-transcription_provider: moss
+transcription_provider: tailnet_dgx_whisper
 summary_model: autoresearch
 topic_cluster_threshold: 0.75
 insight_cluster_threshold: 0.75
@@ -169,3 +169,8 @@ gil_evidence_match_summary_provider: true
 transcription_fallback_providers: [tailnet_dgx_whisper, whisper, openai]
 diarization_fallback_providers: [local, deepgram]
 summary_fallback_providers: [gemini]
+resilience_run_context: serve
+resilience_failure_strategy: failover
+transcription_coverage_min: 0.85
+enforce_model_governance: false
+transcription_coverage_failover_model: Systran/faster-whisper-large-v3

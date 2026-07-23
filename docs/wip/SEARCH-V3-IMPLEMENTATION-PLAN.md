@@ -3,7 +3,7 @@
 **Parent PRD**: [PRD-045](../prd/PRD-045-search-v3-query-workspace.md)
 **Parent RFC**: [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md)
 **Primary UX**: [UXS-016](../uxs/UXS-016-query-workspace.md)
-**Persistence rule**: [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md) — no per-corpus UI state
+**Persistence rule**: [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state
 **Consensus signal**: [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` (0.91 precision on prod-v2)
 **Branch**: `search-v3` (already created off `origin/main` @ `59eecd90`)
 **Scope**: operator viewer only. Consumer surface out of scope.
@@ -260,7 +260,7 @@ Total nine slices; S0 is the baseline capture (mandatory before any code lands);
 - [UXS-016](../uxs/UXS-016-query-workspace.md)
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md)
 - [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md)
-- [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md)
+- [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md)
 - [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md)
 - USERPREFS-1 (shipped): `docs/wip/USERPREFS-1.md`
 - #1205 — LanceDB SIGSEGV incident + fix `0fe0854b`

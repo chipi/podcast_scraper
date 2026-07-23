@@ -44,6 +44,23 @@ _provider_state: Dict[str, "_BreakerState"] = {}
 _state_lock = threading.Lock()
 
 
+def _emit_llm_breaker_trip_alert(provider_name: str, cooldown_sec: float) -> None:
+    """Surface an LLM breaker TRIP to Sentry (ADR-122: the operator wants to know about every
+    issue that trips a fuse, LLM class included — not just the ASR self-hosted breakers). Guarded:
+    a missing/unconfigured ``sentry_sdk`` degrades to the WARNING log the caller already emits.
+    Sentry groups repeats per provider into one issue, so a 503 storm does not spam."""
+    try:
+        import sentry_sdk
+
+        sentry_sdk.capture_message(
+            f"LLM circuit breaker tripped: provider={provider_name} "
+            f"(overload burst; cooldown={cooldown_sec:.0f}s)",
+            level="warning",
+        )
+    except Exception:  # noqa: BLE001 - alerting must never break the call path
+        logger.debug("sentry unavailable; llm breaker-trip alert for %s not sent", provider_name)
+
+
 @dataclass
 class _BreakerState:
     """Per-provider rolling state."""
@@ -52,6 +69,11 @@ class _BreakerState:
     cooldown_until: float = 0.0
     trips_total: int = 0
     cooldown_seconds_total: float = 0.0
+    # ADR-122 hold mode: monotonic time of the first trip since the last success (None = not
+    # currently holding — a distinct sentinel, since monotonic() can legitimately read ~0.0). Lets
+    # ``wait_if_overloaded`` measure how long the endpoint has been sustained-down and abort the
+    # batch once that exceeds ``on_open_max_wait_sec``.
+    hold_started_at: Optional[float] = None
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -90,6 +112,14 @@ class LLMCircuitBreakerConfig:
     failure_threshold: int = 3
     window_seconds: float = 30.0
     cooldown_seconds: float = 60.0
+    # ADR-122 failure strategy. "failover" (default): keep #697's wait-and-resume — the wrapping
+    # summary-fallback chain owns cross-model fallover, so the breaker just smooths bursts and
+    # never aborts. "hold": consistency mode for a controlled reprocess — there is no fallover, so
+    # a burst that stays down past ``on_open_max_wait_sec`` must abort the batch rather than wait
+    # forever. Both modes wait the cooldown on a transient burst; they differ only once the
+    # endpoint is sustained-down.
+    failure_strategy: str = "failover"
+    on_open_max_wait_sec: float = 900.0
 
 
 def _is_overload_status(error_status: int) -> bool:
@@ -104,8 +134,12 @@ def wait_if_overloaded(
 ) -> None:
     """Sleep until the breaker's cooldown elapses; no-op if breaker is closed.
 
-    Called BEFORE each provider call. Doesn't raise — just delays. The
-    caller still gets to make the request once the cooldown ends.
+    Called BEFORE each provider call. In the default ``failover`` strategy this never raises — it
+    just delays, and the caller makes the request once the cooldown ends. In ``hold`` strategy
+    (ADR-122 consistency mode) it raises :class:`ResilienceFuseOpenError` once the endpoint has
+    been sustained-down past ``on_open_max_wait_sec`` — there is no cross-model fallover in hold
+    mode, so a genuinely-down LLM must abort the batch (the same hard-abort the ASR fuse raises)
+    rather than wait forever.
     """
     if not config.enabled:
         return
@@ -115,6 +149,22 @@ def wait_if_overloaded(
         if now >= state.cooldown_until:
             return
         wait_seconds = state.cooldown_until - now
+        held_sec = now - state.hold_started_at if state.hold_started_at is not None else 0.0
+    if str(config.failure_strategy) == "hold" and held_sec > config.on_open_max_wait_sec:
+        # ADR-122 hold mode: sustained outage, no fallover — abort the batch. Reuse the ASR fuse's
+        # operator alert + exception so the workflow's existing ``except ResilienceFuseOpenError:
+        # raise`` halt handler catches an LLM outage identically to a self-hosted-ASR one.
+        from ..providers.resilience.policy import (
+            _emit_fuse_open_alert,
+            ResilienceFuseOpenError,
+        )
+
+        _emit_fuse_open_alert(f"llm:{provider_name}", held_sec)
+        raise ResilienceFuseOpenError(
+            f"llm:{provider_name}: overload persisted {held_sec:.0f}s (> "
+            f"{config.on_open_max_wait_sec:.0f}s hold budget); aborting batch (hold strategy "
+            "never falls over to another model)"
+        )
     logger.warning(
         "llm_circuit_breaker open for provider=%s — waiting %.1fs before next call",
         provider_name,
@@ -151,6 +201,11 @@ def record_failure(
             state.failure_times.clear()
             state.trips_total += 1
             state.cooldown_seconds_total += config.cooldown_seconds
+            # ADR-122 hold mode: stamp the start of the sustained-down window on the FIRST trip
+            # since the last success. Re-trips within the same outage keep the original stamp so
+            # the hold measures total downtime, not time-since-last-trip.
+            if state.hold_started_at is None:
+                state.hold_started_at = now
             logger.warning(
                 "llm_circuit_breaker tripped for provider=%s "
                 "(%d failures in <%.0fs window); cooldown=%.0fs",
@@ -161,6 +216,7 @@ def record_failure(
             )
             if metrics is not None and hasattr(metrics, "record_llm_circuit_breaker_trip"):
                 metrics.record_llm_circuit_breaker_trip(provider_name, config.cooldown_seconds)
+            _emit_llm_breaker_trip_alert(provider_name, config.cooldown_seconds)
 
 
 def record_success(provider_name: str, config: LLMCircuitBreakerConfig) -> None:
@@ -171,6 +227,7 @@ def record_success(provider_name: str, config: LLMCircuitBreakerConfig) -> None:
     with state.lock:
         state.failure_times.clear()
         state.cooldown_until = 0.0
+        state.hold_started_at = None  # ADR-122: endpoint recovered — reset the hold window
 
 
 def stats(provider_name: str) -> Dict[str, Any]:

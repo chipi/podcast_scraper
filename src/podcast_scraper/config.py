@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import logging
 import os
@@ -1187,6 +1188,42 @@ class Config(BaseModel):
             "Tried after transcription_provider on infra failure."
         ),
     )
+    # ADR-123 (#1258): quality-gate transcription failover. Distinct from the infra ladders above —
+    # this fires when a transcription SUCCEEDS but its output coverage (Σ segment durations / audio
+    # duration) is below the floor, i.e. the model silently dropped speech (turbo's long-form VAD
+    # failure). The episode is then re-transcribed on the failover model. Gate is OFF at 0.0.
+    transcription_coverage_min: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        alias="transcription_coverage_min",
+        description=(
+            "ADR-123 quality-gate transcription failover floor. When a transcription's segment "
+            "coverage (Σ segment durations / audio duration) is below this, re-transcribe on "
+            "transcription_coverage_failover_model. 0.0 = gate off; a reprocess sets ~0.85. Active "
+            "only with a failover model set."
+        ),
+    )
+    transcription_coverage_failover_model: Optional[str] = Field(
+        default=None,
+        alias="transcription_coverage_failover_model",
+        description=(
+            "ADR-123: the whisper model to re-transcribe with when coverage falls below "
+            "transcription_coverage_min (e.g. 'Systran/faster-whisper-large-v3' as the robust "
+            "fallback for turbo's long-episode drops). None = no quality-gate failover."
+        ),
+    )
+    enforce_model_governance: bool = Field(
+        default=False,
+        alias="enforce_model_governance",
+        description=(
+            "ADR-124 (#1258): when true, every ACTIVE model (the model the configured provider for "
+            "each stage will run, incl. the ADR-123 coverage-failover model) must be registry-"
+            "sanctioned (a StageOption in the model registry), else config validation raises "
+            "UnsanctionedModelError (code MODEL_NOT_SANCTIONED). Opt-in — reprocess/prod profiles "
+            "set it; tests + experiment mode (base.en, ad-hoc eval models) keep the default off."
+        ),
+    )
     diarization_fallback_providers: List[str] = Field(
         default_factory=list,
         alias="diarization_fallback_providers",
@@ -1326,6 +1363,80 @@ class Config(BaseModel):
             "Connection-level blips are retried with exponential backoff; a genuine "
             "timeout (slow/contended GPU past the scaled budget) falls back without "
             "piling a duplicate request onto the busy server."
+        ),
+    )
+    resilience_run_context: Literal["serve", "reprocess"] = Field(
+        default="serve",
+        alias="resilience_run_context",
+        description=(
+            "Resilience mode for the self-hosted-model provider family (DGX whisper, DGX "
+            "diarize, MOSS — ADR-122). 'serve' (default) optimises availability: fail fast, "
+            "trip the circuit breaker on the first hard timeout, and let the FallbackChain "
+            "advance to the next model (RFC-106/#1198, unchanged). 'reprocess' optimises "
+            "consistency for a controlled batch: back off and retry the SAME chosen model, "
+            "trip the fuse only after 'resilience_retries_before_trip' failures-despite-"
+            "backoff, and on a blown fuse pause-and-probe the endpoint rather than falling "
+            "over to another model. Auto-derived from the profile name during profile "
+            "resolution (reprocess_dgx_*, experiment_dgx_* -> reprocess; everything else -> "
+            "serve) — set explicitly here only to override that derivation."
+        ),
+    )
+    resilience_failure_strategy: Literal["failover", "hold"] = Field(
+        default="failover",
+        alias="resilience_failure_strategy",
+        description=(
+            "ADR-122: the resolution STRATEGY when the chosen self-hosted/primary model fails — "
+            "one shared knob honoured by BOTH the self-hosted-ASR family (DGX whisper, DGX "
+            "diarize, MOSS) and the LLM class (summary/GI). 'failover' optimises availability: "
+            "trip fast and fall over to the next provider in the configured chain (ASR: "
+            "FallbackChain; LLM: the summary_fallback chain, e.g. DGX-vLLM -> gemini). 'hold' "
+            "optimises consistency: backoff-retry the SAME chosen model, trip only after "
+            "'resilience_retries_before_trip', pause-and-probe a blown fuse, then halt the batch "
+            "(ResilienceFuseOpenError) rather than switch models — a mixed-backend corpus is "
+            "never produced. Auto-derived from the run context during profile resolution "
+            "(serve -> failover, reprocess -> hold); set explicitly in a profile/registry to "
+            "override that default (e.g. a reprocess run that deliberately wants gemini fallover)."
+        ),
+    )
+    resilience_retries_before_trip: int = Field(
+        default=3,
+        ge=1,
+        alias="resilience_retries_before_trip",
+        description=(
+            "Reprocess-mode only (ADR-122): backoff-retry cycles of the chosen self-hosted "
+            "model before the circuit breaker trips. Ignored in serve mode, which keeps "
+            "today's trip-on-first-hard-timeout behaviour."
+        ),
+    )
+    resilience_backoff_schedule_sec: List[float] = Field(
+        default=[30.0, 60.0, 120.0],
+        alias="resilience_backoff_schedule_sec",
+        description=(
+            "Reprocess-mode only (ADR-122): wait (seconds) before each retry of the chosen "
+            "self-hosted model, indexed by attempt number. The schedule's last entry repeats "
+            "once exhausted (a de-facto cap on the exponential growth)."
+        ),
+    )
+    resilience_on_open_max_wait_sec: float = Field(
+        default=900.0,
+        gt=0,
+        alias="resilience_on_open_max_wait_sec",
+        description=(
+            "Reprocess-mode only (ADR-122): how long (seconds) the batch pauses and probes "
+            "a blown fuse before giving up and alerting the operator. Never switches to "
+            "another model during this window — the endpoint is expected to recover, not be "
+            "replaced."
+        ),
+    )
+    resilience_probe_interval_sec: float = Field(
+        default=30.0,
+        gt=0,
+        alias="resilience_probe_interval_sec",
+        description=(
+            "Reprocess-mode only (ADR-122): polling cadence (seconds) while pausing and "
+            "probing a blown fuse, bounded by 'resilience_on_open_max_wait_sec'. Not named "
+            "in ADR-122's knob table explicitly; introduced as the pause-and-probe loop's "
+            "cadence."
         ),
     )
     moss_port: int = Field(
@@ -3376,6 +3487,18 @@ class Config(BaseModel):
 
         profile_name = str(profile_name).strip()
 
+        # ADR-122: derive the self-hosted-model resilience run context from the profile
+        # name itself, not the registry/YAML layers below — reprocess_dgx_no_llm and
+        # experiment_dgx_moss are yaml-only (no registry entry) so this must work off the
+        # name alone. Lowest-priority layer: registry/YAML/explicit data can all still
+        # override ``resilience_run_context`` if they set it directly.
+        _REPROCESS_PROFILE_GLOBS = ("reprocess_dgx_*", "experiment_dgx_*")
+        derived_run_context = (
+            "reprocess"
+            if any(fnmatch.fnmatch(profile_name, g) for g in _REPROCESS_PROFILE_GLOBS)
+            else "serve"
+        )
+
         # Layer 3: registry preset (broadest defaults — research-driven).
         # Filtered to fields Config actually declares, so resolver outputs
         # like ``transcription_endpoint`` that have no matching Config field
@@ -3430,10 +3553,21 @@ class Config(BaseModel):
             )
             return cls._merge_audio_preprocessing_preset(data)
 
-        # Merge registry < YAML < explicit data.
-        merged: Dict[str, Any] = dict(registry_settings)
+        # Merge derived-run-context < registry < YAML < explicit data.
+        merged: Dict[str, Any] = {"resilience_run_context": derived_run_context}
+        merged.update(registry_settings)
         merged.update(profile_dict)
         merged.update(data)  # explicit fields win
+
+        # ADR-122: the failure STRATEGY defaults from the *effective* run context (serve ->
+        # failover, reprocess -> hold) but is a first-class, overridable knob. If no layer set it
+        # explicitly, derive it here from the merged run context so a profile that flips run
+        # context (without naming a strategy) still gets the matching default; an explicit
+        # strategy in any layer above wins because it is already present in ``merged``.
+        if "resilience_failure_strategy" not in merged:
+            merged["resilience_failure_strategy"] = (
+                "hold" if merged.get("resilience_run_context") == "reprocess" else "failover"
+            )
 
         # After deployment profile resolution, also resolve
         # audio_preprocessing_profile if set (#634 Scope 1). Inlined here rather
@@ -5015,6 +5149,18 @@ class Config(BaseModel):
         if v is not None and v < 1:
             raise ValueError("max_tokens must be >= 1")
         return v
+
+    @model_validator(mode="after")
+    def _enforce_model_governance(self) -> "Config":
+        """ADR-124 (#1258): when ``enforce_model_governance`` is set, every ACTIVE model must be
+        registry-sanctioned, else raise :class:`UnsanctionedModelError` (which is a RuntimeError,
+        so it propagates as itself rather than being wrapped into a generic ValidationError). Lazy
+        import breaks the config<->registry cycle; no-op when the flag is off (the default)."""
+        if getattr(self, "enforce_model_governance", False):
+            from podcast_scraper.providers.ml.model_governance import assert_models_sanctioned
+
+            assert_models_sanctioned(self)
+        return self
 
     @model_validator(mode="after")
     def _multi_feed_requires_output_dir(self) -> "Config":

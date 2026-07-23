@@ -379,6 +379,44 @@ class TestWrapWithFallbackIfConfigured:
         cfg.degradation_policy = {"fallback_provider_on_failure": "ollama"}
         assert wrap_with_fallback_if_configured(primary_ok, cfg) is primary_ok
 
+    def test_reprocess_context_suppresses_cross_llm_fallover(
+        self, primary_ok: _FakeProvider
+    ) -> None:
+        """ADR-122: in reprocess run context a configured fallover chain is NOT wrapped — the
+        chosen LLM is the only LLM (consistency > availability); the primary is returned raw."""
+        cfg = MagicMock()
+        cfg.summary_provider = "openai"  # DGX-served vLLM
+        cfg.summary_fallback_providers = ["gemini"]
+        cfg.degradation_policy = None
+        cfg.resilience_run_context = "reprocess"
+        assert wrap_with_fallback_if_configured(primary_ok, cfg) is primary_ok
+
+    def test_serve_context_keeps_cross_llm_fallover(self, primary_ok: _FakeProvider) -> None:
+        """Regression guard: serve context still wraps (today's availability-first behavior)."""
+        cfg = MagicMock()
+        cfg.summary_provider = "openai"
+        cfg.summary_fallback_providers = ["gemini"]
+        cfg.degradation_policy = None
+        cfg.resilience_run_context = "serve"
+        wrapped = wrap_with_fallback_if_configured(primary_ok, cfg)
+        assert isinstance(wrapped, FallbackAwareSummarizationProvider)
+
+    def test_explicit_failover_strategy_wraps_even_in_reprocess(
+        self, primary_ok: _FakeProvider
+    ) -> None:
+        """ADR-122 override: a reprocess run can opt into cross-LLM fallover by naming the strategy
+        explicitly (model_fields_set carries the override so resolve_failure_strategy honours it).
+        """
+        cfg = MagicMock()
+        cfg.summary_provider = "openai"
+        cfg.summary_fallback_providers = ["gemini"]
+        cfg.degradation_policy = None
+        cfg.resilience_run_context = "reprocess"
+        cfg.resilience_failure_strategy = "failover"
+        cfg.model_fields_set = {"resilience_failure_strategy"}
+        wrapped = wrap_with_fallback_if_configured(primary_ok, cfg)
+        assert isinstance(wrapped, FallbackAwareSummarizationProvider)
+
 
 class TestRegistryChainSourcing:
     """RFC-106 (#1198): the registry-emitted ``summary_fallback_providers`` is the source of truth
