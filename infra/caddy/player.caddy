@@ -1,24 +1,34 @@
 # Public consumer player vhost (#1163 / ADR-114). Deploy drops this into
 # /etc/caddy/sites/player.caddy and runs `sudo -n systemctl restart caddy`.
 #
-# PRE-LAUNCH GATE (#1262): the public sees a "coming soon" page; preview users reach
-# the real player (learning-app on 127.0.0.1:8092) via HTTP basic auth, then log in with
-# Google as normal. No secret is committed — only bcrypt hashes (one-way); the plaintext
-# passwords are shared privately.
+# PRE-LAUNCH GATE (#1262): the public sees a "coming soon" page; preview users reach the
+# real player (learning-app on 127.0.0.1:8092). The gate is a SECRET COOKIE, not HTTP
+# Basic-auth. Basic-auth was the wrong tool — the browser attaches it inconsistently: it
+# rode the SPA's /api/app/* XHRs but NOT crossorigin ES-module imports (lazy routes came
+# back as coming-soon HTML, so Sign in / Sign up did nothing) nor fresh top-level
+# navigations (the Google-OAuth redirect + document reloads + private windows landed back
+# on coming-soon). A cookie is attached by the browser to EVERY same-origin request —
+# navigations, XHR, module imports, and the cross-site OAuth callback (SameSite=Lax) — so
+# the whole app stops being flaky.
 #
-# HOW A PREVIEW USER GETS IN: visit  https://<user>:<password>@closelistening.app/  once.
-# The browser caches the basic-auth and sends it on every subsequent request (incl. the
-# SPA's /api/app/* calls + the Google OAuth callback), so you get the real app. Public
-# visitors send no Authorization header and get the coming-soon page.
+# HOW A PREVIEW USER GETS IN: visit  https://closelistening.app/preview  once. It Basic-
+# auth-challenges (the one-time doorman), then Set-Cookies the secret preview token and
+# 302s to /. Every later request carries the cookie, so the real app loads. Public
+# visitors send no cookie and get the coming-soon page.
 #
-# ADD MORE USERS: append `<user> <bcrypt-hash>` lines to the basic_auth block
+# THE COOKIE VALUE IS A SECRET: __PREVIEW_COOKIE__ is a placeholder; deploy-player.sh
+# substitutes the real high-entropy token (GH secret PLAYER_PREVIEW_COOKIE, staged host-
+# side in .env.player, never committed). Because the cookie can only be obtained by passing
+# /preview's Basic-auth, no Google-account allowlist is needed to hold the gate.
+#
+# ADD MORE USERS: append `<user> <bcrypt-hash>` to the /preview basic_auth block
 # (hash: `caddy hash-password --plaintext '<pw>'`).
-# LAUNCH (open to everyone): delete the `@authed` route + this basic_auth, leaving just
-# `reverse_proxy 127.0.0.1:8092` so the app serves the public directly.
+# LAUNCH (open to everyone): delete the @preview / @preview_ok / @authed blocks, leaving
+# just `reverse_proxy 127.0.0.1:8092` so the app serves the public directly.
 
 # www -> apex canonical redirect. www DNS is CF-proxied but the apex is the one
-# canonical host (the OAuth callback + coming-soon basic-auth live on the apex), so
-# www just 301s there. Own LE cert under info@closelistening.app.
+# canonical host (the OAuth callback + coming-soon gate live on the apex), so www just
+# 301s there. Own LE cert under info@closelistening.app.
 www.closelistening.app {
 	import hardened
 	tls info@closelistening.app
@@ -29,21 +39,16 @@ closelistening.app {
 	import hardened
 	# Per-site ACME account email — each domain registers its LE cert under info@<its
 	# own domain>, NOT the box's global email (info@orrerylearn.com, which is orrery's).
-	# So closelistening.app cert/expiry notices go to info@closelistening.app.
 	tls info@closelistening.app
 
-	# Preview UNLOCK — visit https://closelistening.app/preview ONCE. It always issues a
-	# Basic-auth challenge (401 -> the browser PROMPTS for user/pass), then 302s to /.
-	# After authenticating here the browser caches the credentials for the whole origin
-	# and sends them on every request, so / then reaches the app. This is the reliable
-	# browser path: modern browsers STRIP user:pass@ from URLs (deprecated), so a bare
-	# https://user:pass@closelistening.app never sends the header (only curl honours it),
-	# which is why the plain bypass got stuck on the coming-soon page.
-	# `handle` keeps this block mutually exclusive from the @authed / coming-soon blocks;
-	# the inner `route` forces WRITTEN order — basic_auth first (401-challenge when no/
-	# invalid creds -> the browser prompts), then redir only after a successful auth. (A
-	# bare `handle` runs Caddy's default directive order, which fires `redir` BEFORE
-	# `basic_auth`, so it 302'd everyone to / without ever challenging.)
+	# /preview — the one-time doorman. Basic-auth challenge (marko/guest); on success set
+	# the secret preview cookie and 302 to /. `route` forces WRITTEN order — basic_auth
+	# first (401-challenge -> the browser prompts), then Set-Cookie + redir only after a
+	# successful auth. (A bare `handle` runs Caddy's default order, firing `redir` before
+	# `basic_auth`, so it would 302 everyone without ever challenging.) The cookie — not
+	# Basic-auth — is what opens the gate below, so it is scoped to travel on every later
+	# request: Path=/ (whole origin), SameSite=Lax (still sent on the top-level cross-site
+	# OAuth callback GET), Secure + HttpOnly.
 	@preview path /preview
 	handle @preview {
 		route {
@@ -51,26 +56,33 @@ closelistening.app {
 				marko $2a$14$GV8EL65DWyPcI3qYoZsDXunPwdPCevcAT4/Wfg55gJpTtyyWn3..O
 				guest $2a$14$uhMHys8DHkU9P/F2IBgAWutTwz0eznL1yCwzHaEDsEKGhb8dJ9ZO2
 			}
+			header +Set-Cookie "cl_preview=__PREVIEW_COOKIE__; Path=/; Max-Age=2592000; Secure; HttpOnly; SameSite=Lax"
 			redir https://closelistening.app/ 302
 		}
 	}
 
-	# Static app-shell files (JS / CSS / fonts / icons / service worker) are served to
-	# everyone, gate or not. They carry NO data — the API stays gated below — and gating
-	# them broke the SPA. The document navigation and axios XHRs both carry the cached
-	# preview Basic-auth, but Vue's lazily-imported route chunks are fetched as `crossorigin`
-	# ES modules (CORS mode), and the browser does NOT attach cached Basic-auth to those.
-	# So the gate saw no Authorization and returned the 200 coming-soon HTML; `import()`
-	# then rejected it ("MIME type text/html") and the route never loaded — the first lazy
-	# route is /login, so Sign in / Sign up did nothing. Serving assets unconditionally makes
-	# the origin always answer these with real JS. The bare document (/, /login, /catalog,
-	# /episode/*) has no matching extension, so it still hits the coming-soon gate below.
+	# Static app-shell files (JS / CSS / fonts / icons / service worker) — served to
+	# everyone, gate or not. They carry NO data (the API stays gated) and the coming-soon
+	# HTML must NEVER be returned under an asset URL: crossorigin ES-module imports don't
+	# carry the gate, so a gated chunk came back as text/html and import() rejected it
+	# ("MIME type text/html" — the lazy /login route died, Sign in did nothing). The bare
+	# document (/, /login, /catalog, /episode/*) has no matching extension, so it never
+	# matches here and still hits the coming-soon gate below.
 	@static path_regexp \.(js|mjs|css|map|woff2?|ttf|otf|eot|png|jpe?g|gif|svg|ico|webmanifest|webp|avif)$
 	handle @static {
 		reverse_proxy 127.0.0.1:8092
 	}
 
-	# Preview users: any request carrying a valid Authorization header reaches the app.
+	# Preview cookie present -> the real app. This is the PRIMARY gate: the browser sends
+	# this cookie on navigations, XHR, module imports, and the OAuth callback alike, so none
+	# of those flake the way Basic-auth did.
+	@preview_ok header Cookie *cl_preview=__PREVIEW_COOKIE__*
+	handle @preview_ok {
+		reverse_proxy 127.0.0.1:8092
+	}
+
+	# Fallback: a valid Basic-auth Authorization header also reaches the app. Keeps
+	# `curl -u` verification working; browsers use the cookie above.
 	@authed header Authorization *
 	handle @authed {
 		basic_auth {
@@ -81,7 +93,7 @@ closelistening.app {
 	}
 
 	# Everyone else -> coming soon. no-store so the browser never caches it (else a first
-	# no-auth visit would keep showing coming-soon even after unlocking).
+	# no-cookie visit would keep showing coming-soon even after unlocking).
 	handle {
 		header Content-Type "text/html; charset=utf-8"
 		header Cache-Control "no-store"
