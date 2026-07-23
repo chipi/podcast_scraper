@@ -99,6 +99,13 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      # G1: put the active trace_id/span_id on every request log line (LoggingInstrumentor)
+      # so an operator API log pivots to its trace. G4: drop /health spans so probe traffic
+      # doesn't drown real requests in VictoriaTraces. Both are inert when exporter=none
+      # (the entrypoint only wraps in opentelemetry-instrument when tracing is enabled), so
+      # stack-test / dev are unaffected.
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: "health"
     volumes:
       # Read-write: API may rebuild vector index or write lock files under the corpus root.
       - corpus_data:/app/output

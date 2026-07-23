@@ -200,6 +200,12 @@ jobs:
             echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
             echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS}"
             echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS}"
+            # OTEL distributed tracing (ADR-119) → the SAME homelab VictoriaTraces OTLP
+            # ingest the operator uses (deploy-prod.yml). Turns player API request spans on
+            # so a user-triggered error on the player surface pivots to its trace. The
+            # homelab tailnet IP for extra_hosts is resolved on the box by deploy-player.sh.
+            echo "OTEL_TRACES_EXPORTER=otlp"
+            echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://homelab:10428/insert/opentelemetry/v1/traces"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"

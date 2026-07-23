@@ -49,6 +49,28 @@ services:
       APP_SIGNUP_MODE: ${APP_SIGNUP_MODE:-allowlist}
       APP_ALLOWED_EMAILS: ${APP_ALLOWED_EMAILS:-}
       APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
+      # OTEL distributed tracing (ADR-119) — mirror the operator (vps-prod.yml). The api
+      # image already wraps the process in `opentelemetry-instrument` (auto FastAPI + HTTP
+      # spans); flipping the exporter to otlp + pointing at the homelab VictoriaTraces OTLP
+      # ingest turns player API request spans ON, so a user-triggered error on the player
+      # surface pivots to its trace. Exporter + endpoint + homelab tailnet IP are staged
+      # host-side by deploy-player.sh (never hardcoded); default `none` = tracing off, and
+      # an unreachable endpoint is non-fatal (the SDK logs + drops, the app keeps serving).
+      OTEL_SERVICE_NAME: player-api
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      # G1: stamp the active trace_id/span_id on every request log line (LoggingInstrumentor)
+      # so a player log pivots to its trace. G4: drop /health spans so probe traffic doesn't
+      # drown real user requests in VictoriaTraces. Inert unless tracing is on.
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: "health"
+    extra_hosts:
+      # VictoriaTraces (+ GlitchTip) are addressed by Tailscale MagicDNS name `homelab`,
+      # which Docker's embedded DNS can't resolve — static hosts entry, IP resolved fresh at
+      # deploy by deploy-player.sh (`tailscale ip -4 homelab`), never hardcoded. Default is
+      # loopback so compose interpolation never fails when tracing is off.
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     volumes:
       # Corpus is READ-ONLY here — the consumer plane reads it; per-user data is separate.
       - corpus_data:/app/output:ro
