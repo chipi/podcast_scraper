@@ -84,6 +84,13 @@ export default defineConfig({
         // Base-aware: offline deep-links route back to the app shell under
         // the deployed base path, not always root.
         navigateFallback: `${APP_BASE}index.html`,
+        // Server-owned navigations MUST bypass the SPA fallback — otherwise the SW
+        // answers them from the precached shell and the browser never hits the network.
+        // That silently broke Google sign-in: the top-level nav to /api/app/auth/login
+        // (and Google's redirect back to /api/app/auth/callback) got index.html instead
+        // of the backend 307, so the OAuth flow dead-ended on the home page. /preview is
+        // the coming-soon gate's server-side redirect and must reach the edge too.
+        navigateFallbackDenylist: [/^\/api\//, /^\/preview\b/],
         // Precache the SHELL ONLY (js/css/fonts/small icons). Never precache
         // large media — that's the guide's #1 shipping trap. Artwork + audio
         // stay on the runtime path.
