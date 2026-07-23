@@ -820,7 +820,9 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "mean WER 0.102 / 4.56× realtime on v2; " "verified stable under vLLM contention (#963)"
         ),
         measured_at="2026-06-11",
-        tier="primary",
+        # 2026-07-22: DEPRECATED — the :8002 whisper-openai container is superseded by the speaches
+        # :8000 large-v3 (tailnet_dgx_speaches_thread_b) + turbo. See ASR-5MODEL-BAKEOFF-2026-07-22.
+        tier="deprecated",
         resident_memory_gb=3.0,
         realtime_multiple=4.56,
     ),
@@ -840,7 +842,9 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "speaches:latest-cuda-gb10 int8 (#948) + #968 Thread B temperature fallback"
         ),
         measured_at="2026-06-16",
-        tier="primary",
+        # 2026-07-22: SECONDARY — the DGX primary is now turbo (tailnet_dgx_whisper_turbo); large-v3
+        # is the ADR-120 coverage-failover target + first infra fallback. See ASR-5MODEL-BAKEOFF.
+        tier="fallback",
         resident_memory_gb=3.0,
         realtime_multiple=2.38,
     ),
@@ -856,10 +860,14 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         provider="tailnet_dgx_whisper",
         model="deepdml/faster-whisper-large-v3-turbo-ct2",
         endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
-        research_ref="docs/wip/ASR-BAKEOFF-ISOLATED-2026-07-22.md",
+        research_ref="docs/guides/eval-reports/EVAL_ASR_5MODEL_BAKEOFF_2026_07.md",
         headline_metric=(
-            "#1178 reprocess speed pick: 30.5x realtime (4.3x faster than large-v3) at WER parity "
-            "on normal episodes; long-episode coverage drop handled by the ADR-120/#1258 gate."
+            "PRIMARY DGX transcription — chosen on SPEED: ~25-30x realtime (fastest; ~9x MOSS). "
+            "On REAL human ground truth (80k Hours, n=10) turbo is mid-pack accuracy (13.5% WER, "
+            "3rd) — slightly behind MOSS (12.5%), well ahead of large-v3 (16.3%). Speed/accuracy "
+            "tradeoff: turbo is primary for throughput; MOSS is the accurate-but-slow fallback. "
+            "Long-episode coverage drop handled by the ADR-120/#1258 gate. "
+            "See EVAL_ASR_5MODEL_BAKEOFF_2026_07.md."
         ),
         measured_at="2026-07-22",
         tier="primary",
@@ -885,8 +893,15 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "pyannote on real audio, so pair with pyannote. 2.1-3.8x realtime (bare "
             "transformers, no speed win vs large-v3). English quality resolved: excellent."
         ),
+        # 2026-07-22: DEMOTED to fallback — on SPEED, not accuracy. (Corrected 2026-07-23: an
+        # earlier note here claimed MOSS was "near the bottom" on a delivered transcript; that
+        # "transcript" was our own old ASR, not human — retracted.) Against REAL human ground truth
+        # (80k Hours, n=10) MOSS is 2nd-best on accuracy (12.5% WER, beaten only by openai-whisper-1
+        # at 11.4%). But it is the SLOWEST option (2.9x realtime vs turbo 25x), so turbo is primary
+        # and MOSS is the accurate-but-slow DGX fallback. n=10 single-show — see
+        # EVAL_ASR_5MODEL_BAKEOFF_2026_07.md.
         measured_at="2026-07-16",
-        tier="primary",
+        tier="fallback",
         resident_memory_gb=16.0,
         realtime_multiple=2.7,
     ),
@@ -931,8 +946,16 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "mean WER 0.0248 on v2 — best accuracy AND best latency (1.2s/ep) "
             "across all measured models. ≈$0.0043/min."
         ),
+        # 2026-07-22: DEMOTED to fallback for TRANSCRIPTION (corrected 2026-07-23). The 0.0248 above
+        # is on the v2 FIXTURES. Against REAL human ground truth (80k Hours, n=10) Deepgram is 13.9%
+        # WER — mid-pack (4th of 5), cheaper (~$0.0043/min) but less accurate than openai-whisper-1
+        # (11.4%, ~$0.006/min). Cloud transcription is openai_whisper_1. Deepgram stays PRIMARY for
+        # cloud DIARIZATION (separate option `deepgram_diarization_nova3`) — that is its role now.
+        # (An earlier note called Deepgram "worst of five" vs a delivered transcript; that
+        # transcript was our own old ASR, not human — retracted.)
+        # See EVAL_ASR_5MODEL_BAKEOFF_2026_07.md.
         measured_at="2026-06-13",
-        tier="primary",
+        tier="fallback",
     ),
     # Dev / airgapped_thin floor — fastest local Whisper. Smoke_v2 numbers
     # use the FU4 clean-reference preprocessing (markdown headers + speaker
@@ -1673,8 +1696,10 @@ class ProfilePreset:
     resilience_run_context: str = "serve"
     resilience_failure_strategy: str = "failover"
     # ADR-120 (#1258) quality-gate transcription failover. Governed so a profile's coverage gate is
-    # explicit + drift-checked. Registry-backed presets are all serving pipelines -> gate OFF (0.0 /
-    # None); the yaml-only reprocess profiles set the floor + failover model directly.
+    # explicit + drift-checked. Any profile whose transcription primary is turbo turns the gate ON
+    # (0.85 -> large-v3), because turbo silently drops speech on long episodes: the DGX serving
+    # presets (2026-07-22) and the yaml-only reprocess profiles all set the floor + failover model.
+    # Non-turbo presets leave it OFF (0.0 / None).
     transcription_coverage_min: float = 0.0
     transcription_coverage_failover_model: Optional[str] = None
     # ADR-121 (#1258) model governance: opt-in enforcement that every active model is
@@ -1765,6 +1790,9 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "ner_model",
     "topic_cluster_threshold",
     "insight_cluster_threshold",
+    # DGX transcription model (turbo vs large-v3) is a real registry choice — governed so a
+    # turbo profile can't silently drift to the large-v3 Config default. (2026-07-22, ASR-5MODEL.)
+    "dgx_whisper_model",
     "diarization_model",
     "dgx_diarize_model",
     "deepgram_diarization_model",
@@ -1828,7 +1856,10 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
-        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004; whisper fallback)
+        transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
+        # turbo silently drops on long episodes -> ADR-120 coverage gate re-routes to large-v3.
+        transcription_coverage_min=0.85,
+        transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
         summary="gemini_flash_lite",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
@@ -1902,7 +1933,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
-        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004) + cloud fallback
+        transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
+        transcription_coverage_min=0.85,  # ADR-120: long-episode coverage drop -> large-v3
+        transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1950,7 +1983,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_balanced": ProfilePreset(
         name="prod_dgx_balanced",
-        transcription="moss_transcribe_diarize",  # #1174 winner (MOSS :8004)
+        transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
+        transcription_coverage_min=0.85,  # ADR-120: long-episode coverage drop -> large-v3
+        transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
         # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -2021,7 +2056,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_quality": ProfilePreset(
         name="cloud_quality",
-        transcription="deepgram_nova_3",
+        # 2026-07-22: transcription Deepgram -> openai-whisper-1 (best on real ground truth: 7.4% vs
+        # Deepgram 10.0%). Diarization stays Deepgram below (its cloud-native strength). ASR-5MODEL.
+        transcription="openai_whisper_1",
         summary="anthropic_haiku_4_5",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",  # 2026-06-17 drift fix: YAML chose Gemini per v3 research
@@ -2325,6 +2362,17 @@ def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> No
             settings[key] = [opt.provider for opt in options]
 
 
+def _emit_transcription_model(tx: StageOption, settings: Dict[str, Any]) -> None:
+    """Route the transcription model to the backend's governed config field.
+
+    DGX whisper (speaches/faster-whisper) carries a REAL model choice — turbo vs large-v3 — that
+    must materialize, mirroring the diarization model routing. Without this the provider would fall
+    to the Config default (large-v3) and a turbo profile would silently run large-v3.
+    """
+    if tx.provider == "tailnet_dgx_whisper" and tx.model is not None:
+        settings["dgx_whisper_model"] = tx.model
+
+
 def resolve_profile_to_settings(
     name: str,
     dgx_tailnet_host: Optional[str] = None,
@@ -2358,6 +2406,7 @@ def resolve_profile_to_settings(
         # Field name depends on provider — keeping the canonical mapping minimal here.
         # Consumers may need additional translation; this returns the registry view.
         settings.setdefault("transcription_model", tx.model)
+        _emit_transcription_model(tx, settings)
     resolved_tx_endpoint = resolve_endpoint(tx.endpoint, dgx_tailnet_host)
     if resolved_tx_endpoint is not None:
         settings["transcription_endpoint"] = resolved_tx_endpoint

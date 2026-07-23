@@ -35,7 +35,7 @@ profile: cloud_quality
 # core pipeline stage (#913, 2026-06-15): we route the diarize stage
 # explicitly to Deepgram too. Two Listen API calls per episode (transcribe
 # + diarize) — a deliberate tradeoff for stage independence.
-transcription_provider: deepgram
+transcription_provider: openai
 deepgram_model: nova-3
 diarize: true
 diarization_provider: deepgram
@@ -178,3 +178,4 @@ resilience_run_context: serve
 resilience_failure_strategy: failover
 transcription_coverage_min: 0.0
 enforce_model_governance: false
+transcription_coverage_failover_model: null

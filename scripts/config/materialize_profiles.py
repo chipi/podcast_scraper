@@ -76,7 +76,10 @@ def _rewrite(text: str, want: Dict[str, Any], have: Dict[str, Any]) -> str:
     appended: List[str] = []
 
     for key, value in want.items():
-        if have.get(key) == value:
+        # ``key in have`` (not ``have.get(key) == value``) so a governed field whose registry value
+        # is None is still WRITTEN as ``null`` when absent — an omitted governed field is a value
+        # nobody declared, not "the default" (test_registry_is_the_source_of_truth).
+        if key in have and have.get(key) == value:
             continue
         pattern = re.compile(rf"^(\s*){re.escape(key)}\s*:.*$")
         for i, line in enumerate(lines):
@@ -96,7 +99,10 @@ def _rewrite(text: str, want: Dict[str, Any], have: Dict[str, Any]) -> str:
 
 def _stale_keys(name: str, data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     want = governed_settings(name)
-    return want, [k for k, v in want.items() if data.get(k) != v]
+    # ``k not in data`` (not just ``data.get(k) != v``) so an ABSENT governed field is stale even
+    # when its registry value is None — otherwise profiles-check would pass a profile the
+    # is-the-source-of-truth test rejects for omitting the field.
+    return want, [k for k, v in want.items() if k not in data or data.get(k) != v]
 
 
 def main() -> int:
