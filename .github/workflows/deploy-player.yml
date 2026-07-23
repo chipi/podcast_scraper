@@ -177,6 +177,12 @@ jobs:
           # into player.caddy) — it never enters the container, so it lives in .env.player
           # (0600, scp'd, never inline over ssh), not the tmpfs container-secret set.
           PLAYER_PREVIEW_COOKIE: ${{ secrets.PLAYER_PREVIEW_COOKIE }}
+          # Backend sign-in access policy (server/app_access.py). Non-secret (emails/domains
+          # + mode) → GH vars. Unset APP_SIGNUP_MODE defaults to `allowlist`; with an empty
+          # email/domain list that is DEFAULT-DENY, so these must be set for anyone to sign in.
+          APP_SIGNUP_MODE: ${{ vars.PLAYER_SIGNUP_MODE }}
+          APP_ALLOWED_EMAILS: ${{ vars.PLAYER_ALLOWED_EMAILS }}
+          APP_ALLOWED_DOMAINS: ${{ vars.PLAYER_ALLOWED_DOMAINS }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -188,6 +194,12 @@ jobs:
             # Tags backend Sentry events (+ any env-gated behaviour) as prod — matches the
             # operator api. Without it the backend defaults to environment=dev (sentry_init).
             echo "PODCAST_ENV=prod"
+            # Backend sign-in access policy. Default (unset) is allowlist; with an empty
+            # email/domain list that denies EVERYONE ("This account is not allowed to sign
+            # in"). Set PLAYER_ALLOWED_EMAILS (or _DOMAINS, or PLAYER_SIGNUP_MODE=open).
+            echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
+            echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS}"
+            echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS}"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
