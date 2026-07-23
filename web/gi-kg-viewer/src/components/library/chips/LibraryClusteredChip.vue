@@ -29,7 +29,7 @@ function toggle(): void {
         ? 'border-primary bg-primary/15 font-medium text-surface-foreground'
         : 'border-border/70 text-muted hover:bg-overlay'
     "
-    data-testid="library-chip-clustered"
+    data-testid="library-topic-cluster-toggle"
     :aria-pressed="isActive"
     aria-label="Toggle clustered episodes only"
     @click="toggle"

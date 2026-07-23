@@ -74,6 +74,12 @@ DOC_TYPE_TO_TIER: Dict[str, str] = {
     "kg_entity": "aux",
     "kg_topic": "aux",
     "summary": "aux",
+    # 2026-07-22: episode-level metadata surfaces (indexer.py rows carry a
+    # ``matched_field`` marker so the client can render "matched: Title /
+    # Description / Summary" chips next to the hit).
+    "episode_title": "aux",
+    "episode_description": "aux",
+    "summary_short": "aux",
 }
 
 

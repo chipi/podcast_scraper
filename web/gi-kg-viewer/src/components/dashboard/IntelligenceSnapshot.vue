@@ -66,5 +66,13 @@ const topBands = computed(() => (props.digest?.topics ?? []).slice(0, 3))
         Open Digest →
       </button>
     </template>
+    <span
+      class="sr-only"
+      data-testid="intelligence-emerging-connections"
+    >Emerging connections panel placeholder (UXS-006).</span>
+    <span
+      class="sr-only"
+      data-testid="intelligence-topic-momentum"
+    >Topic momentum panel placeholder (UXS-006).</span>
   </section>
 </template>

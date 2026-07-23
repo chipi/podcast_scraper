@@ -1032,8 +1032,8 @@ make ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
 
 # If ML code changed: Add slow tests
 
-make test-integration-slow  # Whisper, summarization, speaker detection
-make test-e2e-slow         # Full E2E with ML models
+make test-integration  # Whisper, summarization, speaker detection
+make test-e2e         # Full E2E with ML models
 
 # Before final PR: Full validation
 
@@ -1046,7 +1046,7 @@ I changed providers/ml/whisper_utils.py. What tests should I run?
 AI response:
 
 1. make ci-fast (always)
-2. make test-integration-slow (because ML code changed)
+2. make test-integration (because ML code changed)
 3. Verify specific test: pytest tests/integration/test_whisper_utils.py -v
 ```
 
@@ -1080,7 +1080,9 @@ Update README.md with new provider feature and run markdown validation
 Create worktree for issue #200 with proper branch naming
 
 AI provides:
-- make wt-setup command
+- `git worktree add ../podcast_scraper-200-description feat/200-description`
+  (the guide's proposed `make wt-setup` helper is not currently shipped —
+  see GIT_WORKTREE_GUIDE.md banner)
 - Branch naming: feat/200-description
 - Isolated venv setup
 - Cursor instance management

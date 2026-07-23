@@ -6,14 +6,16 @@ Before tagging a release, follow the [Release Playbook](../guides/RELEASE_PLAYBO
 
 ## Latest Release
 
+- **[v2.7.0](RELEASE_v2.7.0.md)** — Transformers v5 upgrade + ML architecture unification (`HFEvidenceBackend` / `HFSeq2SeqBackend`); public APIs preserved (released 2026-07-05)
+- **[v2.6.1](RELEASE_v2.6.1.md)** — `_is_test_environment` regression patch + structural cleanup (released 2026-06-23)
 - **[v2.6.0](RELEASE_v2.6.0.md)** — GI/KG viewer (Library, Digest, Dashboard, Graph, Search), semantic search, multi-feed corpus, Run Compare Performance + frozen profiles, **graph handoff FSM**, **viewer test pyramid**, **always-on hosting + backup/restore**, AGENTS.md canonicalization (May 2026)
-- **[v2.5.0](RELEASE_v2.5.0.md)** — LLM Provider Expansion & Production Hardening (released February 2026)
-- **[v2.4.0](RELEASE_v2.4.0.md)** — Provider ecosystem & production readiness
 
 ## All Releases
 
 | Version | Highlights |
 | --------- | ------------ |
+| [v2.7.0](RELEASE_v2.7.0.md) | Transformers v5 upgrade + `HFEvidenceBackend` / `HFSeq2SeqBackend` unification; API preserved |
+| [v2.6.1](RELEASE_v2.6.1.md) | `_is_test_environment` regression patch + structural cleanup |
 | [v2.6.0](RELEASE_v2.6.0.md) | Viewer v2 (Library, Digest, Dashboard, Graph, Search), FAISS semantic search, multi-feed corpus, Run Compare Performance tab, RFC-064 frozen profiles, live monitor |
 | [v2.5.0](RELEASE_v2.5.0.md) | LLM provider expansion (6 cloud + Ollama local), production hardening, LLM metrics, MPS exclusive mode |
 | [v2.4.0](RELEASE_v2.4.0.md) | Multi-provider ecosystem (8 providers), production defaults, cache management |

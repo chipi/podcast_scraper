@@ -262,6 +262,28 @@ onMounted(async () => {
       </ul>
     </section>
 
+    <!-- #1261-9: browse-all entry points — otherwise the standalone
+         /browse/topics and /browse/people routes are dead code. Compact
+         two-link strip so the trending rails below still lead. -->
+    <nav
+      class="mt-6 flex flex-wrap gap-2 text-sm font-semibold"
+      :aria-label="t('home.browseNavLabel')"
+      data-testid="home-browse-nav"
+    >
+      <RouterLink
+        :to="{ name: 'browse-topics' }"
+        class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
+      >
+        {{ t('home.browseTopics') }} →
+      </RouterLink>
+      <RouterLink
+        :to="{ name: 'browse-people' }"
+        class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
+      >
+        {{ t('home.browsePeople') }} →
+      </RouterLink>
+    </nav>
+
     <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
     <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
 

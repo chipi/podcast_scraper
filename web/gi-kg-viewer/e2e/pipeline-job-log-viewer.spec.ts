@@ -18,7 +18,7 @@ test.describe('Pipeline job log viewer (#695)', () => {
 
     await setupDashboardApiMocks(page)
     // Enable the jobs API capability (default health mock leaves it off).
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

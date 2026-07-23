@@ -23,6 +23,7 @@ import QueryActivityChart from './QueryActivityChart.vue'
 import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
 import PipelineAdExcisionMetrics from './PipelineAdExcisionMetrics.vue'
 import PipelineCleanupMetrics from './PipelineCleanupMetrics.vue'
+import PipelineFeedHistoryGrid from './PipelineFeedHistoryGrid.vue'
 import PipelineJobHistoryStrip from './PipelineJobHistoryStrip.vue'
 import PipelineJobLogDialog from './PipelineJobLogDialog.vue'
 import PipelineJobsCard from './PipelineJobsCard.vue'
@@ -529,14 +530,18 @@ function openLibraryFailures(): void {
           />
         </div>
       </div>
-      <VerticalBarChart
+      <div
         v-if="durationFive.labels.length"
-        :title="durationFive.title"
-        :labels="durationFive.labels"
-        :values="durationFive.values"
-        y-axis-label="Seconds"
-        insight-text="Wall clock from metrics.run_duration_seconds (5 most recent runs)."
-      />
+        data-testid="pipeline-duration-trend"
+      >
+        <VerticalBarChart
+          :title="durationFive.title"
+          :labels="durationFive.labels"
+          :values="durationFive.values"
+          y-axis-label="Seconds"
+          insight-text="Wall clock from metrics.run_duration_seconds (5 most recent runs)."
+        />
+      </div>
       <div class="grid gap-4 lg:grid-cols-2">
         <PipelineStageChart
           v-if="stagesLatest.some((s) => s.seconds > 0)"
@@ -568,13 +573,21 @@ function openLibraryFailures(): void {
           </p>
         </div>
       </div>
-      <VerticalBarChart
+      <div
         v-if="episodesPerRun.labels.length"
-        :title="episodesPerRun.title"
-        :labels="episodesPerRun.labels"
-        :values="episodesPerRun.values"
-        y-axis-label="Episodes"
-        insight-text="Episodes scraped per run from run.json summaries."
+        data-testid="pipeline-episodes-per-run"
+      >
+        <VerticalBarChart
+          :title="episodesPerRun.title"
+          :labels="episodesPerRun.labels"
+          :values="episodesPerRun.values"
+          y-axis-label="Episodes"
+          insight-text="Episodes scraped per run from run.json summaries."
+        />
+      </div>
+      <PipelineFeedHistoryGrid
+        :runs="runs"
+        :feeds="feeds"
       />
     </div>
 

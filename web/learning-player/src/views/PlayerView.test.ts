@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { EpisodeDetail, EpisodeStats, Highlight } from '../services/types'
+import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import PlayerView from './PlayerView.vue'
 
@@ -65,6 +65,13 @@ beforeEach(() => {
   vi.spyOn(api, 'getEpisodeStats').mockResolvedValue(epStats())
   vi.spyOn(api, 'logListen').mockResolvedValue()
   vi.spyOn(api, 'putPlayback').mockResolvedValue()
+  vi.spyOn(api, 'getRelated').mockResolvedValue({
+    items: [],
+    page: 1,
+    page_size: 6,
+    total: 0,
+    has_more: false,
+  })
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -126,5 +133,55 @@ describe('PlayerView', () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'moment', episode_slug: 'ep-1' }),
     )
+  })
+
+  // #1261-4: related-episodes rail
+  it('renders the "More like this" rail when getRelated returns peers', async () => {
+    const peer: EpisodeSummary = {
+      slug: 'peer-1',
+      title: 'Peer Episode One',
+      feed_id: 'f',
+      podcast_title: 'Peer Show',
+      publish_date: '2024-02-01',
+      duration_seconds: 1200,
+      episode_image_url: null,
+      feed_image_url: null,
+      artwork_url: null,
+      status: 'ready',
+      summary_preview: null,
+      summary_text: null,
+      summary_bullets: [],
+      topics: [],
+      has_transcript: true,
+      has_summary: false,
+      has_gi: false,
+      has_kg: false,
+      has_bridge: false,
+    }
+    vi.spyOn(api, 'getRelated').mockResolvedValue({
+      items: [peer],
+      page: 1,
+      page_size: 6,
+      total: 1,
+      has_more: false,
+    })
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="related-episodes-rail"]').exists()).toBe(true)
+    expect(w.text()).toContain('More like this')
+    expect(w.text()).toContain('Peer Episode One')
+    expect(api.getRelated).toHaveBeenCalledWith('ep-1', 6)
+  })
+
+  it('hides the rail entirely when getRelated returns no items', async () => {
+    // Default beforeEach mock returns items: [] — the section should not render.
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
+    expect(w.text()).not.toContain('More like this')
+  })
+
+  it('hides the rail when getRelated rejects — silent degrade, no listener-visible error', async () => {
+    vi.spyOn(api, 'getRelated').mockRejectedValue(new Error('offline'))
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
   })
 })

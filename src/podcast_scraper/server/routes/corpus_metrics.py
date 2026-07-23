@@ -94,6 +94,20 @@ def _parse_run_json(path_str: str, root_safe: str) -> CorpusRunSummaryItem | Non
     if rel.startswith(".."):
         rel = os.path.basename(path_str)
 
+    # #1269 / UXS-006 §6.5: infer the stable feed directory (``feed_id``)
+    # from ``feeds/<stable_feed_dir>/run_*/run.json``. Falls back to
+    # ``None`` for legacy layouts that did not nest runs under ``feeds/``.
+    feed_id: str | None = None
+    parts = rel.split("/")
+    try:
+        idx = parts.index("feeds")
+    except ValueError:
+        idx = -1
+    if idx >= 0 and idx + 1 < len(parts):
+        candidate = parts[idx + 1].strip()
+        if candidate:
+            feed_id = candidate
+
     rid = raw.get("run_id")
     cat = raw.get("created_at")
     return CorpusRunSummaryItem(
@@ -122,6 +136,7 @@ def _parse_run_json(path_str: str, root_safe: str) -> CorpusRunSummaryItem | Non
         ad_chars_excised_preroll=_int_metric(m, "ad_chars_excised_preroll"),
         ad_chars_excised_postroll=_int_metric(m, "ad_chars_excised_postroll"),
         ad_episodes_with_excision_count=_int_metric(m, "ad_episodes_with_excision_count"),
+        feed_id=feed_id,
     )
 
 

@@ -33,6 +33,12 @@ export interface CorpusRunSummaryItem {
   ad_chars_excised_preroll: number | null
   ad_chars_excised_postroll: number | null
   ad_episodes_with_excision_count: number | null
+  // #1269 / UXS-006 §6.5: stable feed directory inferred by the server
+  // from ``feeds/<stable_feed_dir>/run_*/run.json``. Each run.json is
+  // scoped to a single (feed, timestamp); the dashboard's Feed history
+  // grid aggregates the flat runs[] array client-side by ``feed_id``.
+  // ``null`` on legacy corpora that did not nest runs under ``feeds/``.
+  feed_id?: string | null
 }
 
 export interface CorpusRunsSummaryResponse {

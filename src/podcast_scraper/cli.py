@@ -5308,19 +5308,6 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
 
 if __name__ == "__main__":  # pragma: no cover - script entry
-    import warnings
-
-    # Silence thinc/spaCy FutureWarning about torch.cuda.amp.autocast (version compatibility issue)
-    # This warning is from thinc/shims/pytorch.py and is not actionable by users.
-    # Tracked in Issue #416; see docs/guides/DEPENDENCIES_GUIDE.md for details.
-    # TODO(#416): Remove this suppression when thinc fixes the deprecation (monitor thinc releases).
-    warnings.filterwarnings(
-        "ignore",
-        category=FutureWarning,
-        message=r".*torch\.cuda\.amp\.autocast.*deprecated.*",
-        module="thinc.*",
-    )
-
     # Enable faulthandler for crash diagnostics (segfault debugging)
     # This provides native backtraces when crashes occur, especially useful for
     # debugging segfaults from native extensions (PyTorch MPS, Transformers, spaCy)

@@ -1133,7 +1133,7 @@ own resource considerations:
 
 | Workload | Resource needs | Where it runs |
 | --- | --- | --- |
-| **Experiment runs** (`make eval-run`) | Same as pipeline (model-dependent) | Dev machine or CI |
+| **Experiment runs** (`make experiment-run`) | Same as pipeline (model-dependent) | Dev machine or CI |
 | **Scoring** (`score_run`) | ROUGE/BLEU (CPU), embedding similarity (sentence-transformers) | CPU-only OK |
 | **Baseline comparison** | CPU-only (file comparison) | CI |
 | **AutoResearch** (RFC-057) | Many experiment iterations; needs efficient model loading | Dev machine with GPU |

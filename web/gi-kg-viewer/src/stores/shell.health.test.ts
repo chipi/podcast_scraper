@@ -49,7 +49,7 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.corpusBinaryApiAvailable).toBe(true)
     expect(shell.artifactsApiAvailable).toBe(true)
     expect(shell.searchApiAvailable).toBe(true)
-    expect(shell.exploreApiAvailable).toBe(true)
+    // ``exploreApiAvailable`` dropped in Search v3 §S1 (Explore merged).
     expect(shell.indexRoutesApiAvailable).toBe(true)
     expect(shell.corpusMetricsApiAvailable).toBe(true)
     expect(shell.cilQueriesApiAvailable).toBe(true)
@@ -140,7 +140,7 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.corpusBinaryApiAvailable).toBe(false)
     expect(shell.artifactsApiAvailable).toBe(false)
     expect(shell.searchApiAvailable).toBe(false)
-    expect(shell.exploreApiAvailable).toBe(false)
+    // ``exploreApiAvailable`` dropped in Search v3 §S1 (Explore merged).
     expect(shell.indexRoutesApiAvailable).toBe(false)
     expect(shell.corpusMetricsApiAvailable).toBe(false)
     expect(shell.cilQueriesApiAvailable).toBe(false)
@@ -218,5 +218,89 @@ describe('useShellStore /api/health discovery flags', () => {
     const shell = useShellStore()
     shell.corpusPath = '/mock/corpus'
     await shell.fetchHealth()
+  })
+
+  it('debounced re-probe: changing corpusPath re-runs fetchHealth ~300ms later so SearchPanel unlocks without a reload', async () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: 'ok', search_api: true }),
+    })) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const shell = useShellStore()
+    // Baseline probe (mirrors App.vue's onMounted).
+    await shell.fetchHealth()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Change the corpus path — should re-probe after ~300ms.
+    shell.corpusPath = '/mock/new-corpus'
+    // Immediately: still 1 call (debounce hasn't fired yet).
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(310)
+    // Now the debounced re-probe has fired.
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    // The re-probe URL carries the new path.
+    const secondCallUrl = String(
+      (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock.calls[1]![0],
+    )
+    expect(secondCallUrl).toContain('path=%2Fmock%2Fnew-corpus')
+    vi.useRealTimers()
+  })
+
+  it('rapid corpus-path edits coalesce into ONE re-probe (debounce cancellation)', async () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: 'ok' }),
+    })) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Simulate typing several intermediate paths within the debounce window.
+    shell.corpusPath = '/tmp/a'
+    await vi.advanceTimersByTimeAsync(100)
+    shell.corpusPath = '/tmp/ab'
+    await vi.advanceTimersByTimeAsync(100)
+    shell.corpusPath = '/tmp/abc'
+    // No re-probe yet — the timer keeps getting reset.
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Now let the last debounce fire.
+    await vi.advanceTimersByTimeAsync(310)
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    const lastUrl = String(
+      (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock.calls[1]![0],
+    )
+    expect(lastUrl).toContain('path=%2Ftmp%2Fabc')
+    vi.useRealTimers()
+  })
+
+  it('no-op change (whitespace-equivalent path) does NOT trigger a re-probe', async () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: 'ok' }),
+    })) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const shell = useShellStore()
+    shell.corpusPath = '/mock/corpus'
+    await shell.fetchHealth()
+    // Drain the debounced re-probe queued by the initial path assignment so
+    // we can isolate the "trimmed-equivalent no-op" behaviour we're testing.
+    await vi.advanceTimersByTimeAsync(310)
+    const baselineCallCount = fetchSpy.mock.calls.length
+
+    // Set the same trimmed value (with padding whitespace) — trimmed equality
+    // should skip the debounced re-probe.
+    shell.corpusPath = '  /mock/corpus  '
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fetchSpy).toHaveBeenCalledTimes(baselineCallCount)
+    vi.useRealTimers()
   })
 })

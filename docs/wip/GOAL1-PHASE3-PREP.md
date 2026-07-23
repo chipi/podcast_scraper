@@ -5,7 +5,7 @@ and 3.4 are rubber-stamps at execution time. Nothing here touches prod.
 
 ## 3.1 — Pre-public gate pre-walk (first tenant = orrery)
 
-The [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost)
+The [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate-run-before-any-new-public-vhost)
 has 8 items. Mapped to current state for **orrery** (the first public vhost):
 
 | # | Gate item (T-ref) | Orrery | Evidence / what's left |

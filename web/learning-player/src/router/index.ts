@@ -65,6 +65,30 @@ const routes: RouteRecordRaw[] = [
     name: 'login',
     component: () => import('../views/LoginView.vue'),
   },
+  // #1261-6: subject deep-link + browse routes — full-page equivalents of the
+  // modal EntityCard for topic / person ids, plus trending-backed index pages.
+  {
+    path: '/topic/:id',
+    name: 'topic',
+    component: () => import('../views/TopicView.vue'),
+    props: true,
+  },
+  {
+    path: '/person/:id',
+    name: 'person',
+    component: () => import('../views/PersonView.vue'),
+    props: true,
+  },
+  {
+    path: '/browse/topics',
+    name: 'browse-topics',
+    component: () => import('../views/TopicBrowseView.vue'),
+  },
+  {
+    path: '/browse/people',
+    name: 'browse-people',
+    component: () => import('../views/PersonBrowseView.vue'),
+  },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
 ]
 

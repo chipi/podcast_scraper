@@ -18,6 +18,8 @@ const router = createRouter({
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    { path: '/browse/topics', name: 'browse-topics', component: { template: '<div/>' } },
+    { path: '/browse/people', name: 'browse-people', component: { template: '<div/>' } },
   ],
 })
 
@@ -113,5 +115,18 @@ describe('HomeView interests card (3.5)', () => {
     await flushPromises()
     await w.findAll('button').find((b) => b.text() === 'Not now')!.trigger('click')
     expect(w.text()).not.toContain('Personalize your Home')
+  })
+
+  // #1261-9: browse-nav strip surfaces the standalone browse pages
+  it('renders "Browse topics" and "Browse people" links to /browse/topics and /browse/people', async () => {
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const nav = w.get('[data-testid="home-browse-nav"]')
+    const links = nav.findAll('a')
+    const hrefs = links.map((a) => a.attributes('href'))
+    expect(hrefs).toContain('/browse/topics')
+    expect(hrefs).toContain('/browse/people')
+    expect(nav.text()).toContain('Browse topics')
+    expect(nav.text()).toContain('Browse people')
   })
 })

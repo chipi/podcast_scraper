@@ -140,8 +140,8 @@ The pipeline ships with resilient defaults for downloading thousands of episodes
 | ----- | ---- | ------- | ----- | ----------- |
 | `http_retry_total` | int | `8` | 0--20 | Max urllib3 retries for media/transcript downloads. RSS feeds use `rss_retry_total`. |
 | `http_backoff_factor` | float | `1.0` | 0.0--10.0 | Exponential backoff factor. Delay = factor x 2^(attempt-1) (1 s, 2 s, 4 s, 8 s ...). |
-| `rss_retry_total` | int | `10` | 0--20 | Max urllib3 retries for RSS feed fetches (more patient than media, since the feed is critical). |
-| `rss_backoff_factor` | float | `2.0` | 0.0--10.0 | Backoff factor for RSS retries (gentler than media to avoid hammering rate-limited feed hosts). |
+| `rss_retry_total` | int | `5` | 0--20 | Max urllib3 retries for RSS feed fetches (caps total wait at ~31 s). |
+| `rss_backoff_factor` | float | `1.0` | 0.0--10.0 | Exponential backoff factor for RSS retries. Delay = factor × 2^(attempt-1). |
 
 **Application-level episode retry**
 
@@ -724,7 +724,7 @@ When `summary_provider: hybrid_ml`, summarization uses a local MAP model (e.g. L
 | `hybrid_reduce_model` | `--hybrid-reduce-model` | `google/flan-t5-base` | REDUCE model: HuggingFace ID (transformers), Ollama tag (e.g. `llama3.1:8b`) for ollama, or path to GGUF file for llama_cpp. |
 | `hybrid_reduce_backend` | `--hybrid-reduce-backend` | `transformers` | REDUCE backend: `transformers`, `ollama`, or `llama_cpp`. |
 | `hybrid_reduce_device` | `--hybrid-reduce-device` | (auto) | Device for REDUCE when backend is transformers (e.g. `mps`, `cuda`, `cpu`). |
-| `hybrid_reduce_n_ctx` | N/A | (optional) | Context size for llama_cpp REDUCE (default 4096). Config file only. |
+| `hybrid_llama_n_ctx` | N/A | `4096` | Context size for llama_cpp REDUCE. Config file only. |
 | `hybrid_internal_preprocessing_after_pattern` | `--hybrid-internal-preprocessing-after-pattern` | `cleaning_hybrid_after_pattern` | When `transcript_cleaning_strategy` is `pattern`, preprocessing profile applied **inside** `HybridMLProvider.summarize` after workflow pattern cleaning (avoids repeating full `cleaning_v4` sponsor/outro work). Registered profile id from `preprocessing.profiles`. |
 
 **Layered cleaning (Issue #419):** The pipeline runs `transcript_cleaning_strategy` (and `HybridMLProvider.cleaning_processor`) **before** `summarize()`. For `pattern` + `hybrid_ml`, the workflow injects `preprocessing_profile: hybrid_internal_preprocessing_after_pattern` so MAP sees v4-only delta steps without duplicate sponsor passes. For `llm` / `hybrid` strategies, internal preprocessing stays **`cleaning_v4`**. Details: [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
@@ -1085,7 +1085,7 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
 | `backfill_transcript_segments` | `--backfill-transcript-segments` | `false` | With `generate_gi`: when `skip_existing` would skip Whisper output because only a `.txt` exists under `transcripts/`, re-transcribe if sibling `.segments.json` is missing (GI quote **`timestamp_*_ms`**; **`speaker_id`** only when segments later include speaker labels — issues [#542](https://github.com/chipi/podcast_scraper/issues/542), [#541](https://github.com/chipi/podcast_scraper/issues/541)). Also requires the sidecar for `append` completeness when both flags are on. Does not change every transcript write path (e.g. direct RSS transcript saves use separate skip rules; see [Development Guide](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json)). |
 | `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
-| `gi_max_insights` | `--gi-max-insights` | `20` | Max insights when using `provider` or `summary_bullets` (`1`–`50`). |
+| `gi_max_insights` | `--gi-max-insights` | `50` | Max insights when using `provider` or `summary_bullets` (range `1`–`200`; hard cap not a target). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
 | `gi_fail_on_missing_grounding` | (config) | `false` | When true with `gi_require_grounding`, raise `GILGroundingUnsatisfiedError` if an episode ends with zero grounded quotes (strict CI). |
 | `gi_evidence_extract_retries` | (config) | `1` | Provider `extract_quotes` only: extra attempts when the first returns no candidates (hint appended to insight text). NLI still uses the original insight. Range `0`–`5`. |
@@ -1757,3 +1757,161 @@ try:
 except ValidationError as e:
     print(f"Validation failed: {e}")
 ```
+
+## Additional shipped fields (catalog only)
+
+`config.py` defines ~360 pydantic fields. This doc walks the ones an
+operator sets most often; the section below catalogues the load-bearing
+fields that weren't in the main tables above. Full source of truth
+remains `src/podcast_scraper/config.py`.
+
+### Cost guardrails (#804)
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `cost_soft_cap_usd_per_run` | `None` | Per-pipeline-run soft spend cap (USD). `None` = no cap. |
+| `cost_soft_cap_action` | `"observe"` | What to do when the cap is exceeded: `abort` / `warn` / `observe`. |
+| `cost_daily_alert_usd` | `10.0` | Emit a Sentry warning when a single run's estimated cost exceeds this USD threshold. |
+
+### Audio archive backend (#1199 / #947 / G6)
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `audio_storage_backend` | `"local"` | Where the raw-audio archive lives: `local` (filesystem) or `remote` (object storage via rclone). |
+| `audio_remote_rclone_remote` | `None` | rclone remote NAME (as in `rclone config`, e.g. `hetzner-box`, `s3-audio`). |
+| `audio_remote_base_path` | `"podcast-audio-archive"` | Base path / bucket-prefix under the rclone remote. Sharded `sha256/aa/bb/<digest><ext>` key is appended. |
+| `audio_remote_rclone_bin` | `"rclone"` | Path to the rclone binary. |
+| `audio_cache_enabled` | `True` | Master switch for the audio cache. |
+| `audio_cache_in_corpus` | `False` | When true, place the audio cache inside the corpus tree instead of `audio_cache_dir`. |
+| `audio_cache_dir` | `None` | External audio-cache directory (used when `audio_cache_in_corpus=False`). |
+| `corpus_media_link_mode` | `"copy"` | How persisted corpus `media/` audio is placed: `copy` (default), `hardlink`, `symlink`. |
+| `audio_preprocessing_profile` | `None` | Preprocessing profile ID (from `preprocessing.profiles` registry). |
+
+### Cloud-LLM structural guardrails
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `cloud_llm_structured_min_output_tokens` | `4096` | Minimum `max_output_tokens` enforced on cloud-LLM structured summary calls (non-bundled). |
+| `commercial_confidence_threshold` | `0.65` | Minimum confidence (0–1) for commercial-content detection. |
+
+### Provider-uniform field patterns
+
+Every LLM provider (OpenAI / Gemini / Anthropic / Mistral / DeepSeek /
+Grok / Ollama) exposes the same field pattern; not every combination
+is enumerated in the main tables:
+
+- API/base: `<provider>_api_key`, `<provider>_api_base` (mostly for
+  self-hosted / gateway routing).
+- Task-scoped prompt overrides:
+  `<provider>_<task>_{system,user}_prompt` where task ∈
+  {`summary`, `cleaning`, `speaker`} (per-provider; not every task ships
+  on every provider). Set these when the default prompts don't fit the
+  operator's preferred style.
+- Transcription: `<provider>_transcription_model` where the provider
+  offers STT (currently `openai`, `gemini`, `mistral`, `deepgram`).
+
+Deprecated aliases and their canonical replacements are already
+documented above in the "Deprecated fields" section.
+
+### Provider × field-suffix support matrix
+
+Which providers ship which field-suffix. Read the table as
+`<provider>_<suffix>` — e.g. `anthropic_cleaning_model` exists, but
+`deepgram_cleaning_model` doesn't (deepgram is STT-only, no LLM
+tasks). "Y" means the field is defined on that provider.
+
+|Suffix|anthropic|deepgram|deepseek|gemini|grok|mistral|ollama|openai|
+|---|---|---|---|---|---|---|---|---|
+|`_api_base`|Y|Y|Y|Y|Y|Y|Y|Y|
+|`_api_key`|Y|Y|Y|Y|Y|Y||Y|
+|`_api_key_env`||||||||Y|
+|`_cleaning_model`|Y||Y|Y|Y|Y|Y|Y|
+|`_cleaning_temperature`|Y||Y|Y|Y|Y|Y|Y|
+|`_diarization_model`||Y|||||||
+|`_extra_body`||||||||Y|
+|`_insight_model`||||||||Y|
+|`_max_tokens`|Y||Y|Y|Y|Y|Y|Y|
+|`_model`||Y|||||||
+|`_num_ctx`|||||||Y||
+|`_reduce_frequency_penalty`|||||||Y||
+|`_reduce_temperature`|||||||Y||
+|`_reduce_top_p`|||||||Y||
+|`_retry_initial_delay_seconds`||||Y|||||
+|`_retry_max_delay_seconds`||||Y|||||
+|`_retry_max_retries`||||Y|||||
+|`_speaker_model`|Y||Y|Y|Y|Y|Y|Y|
+|`_speaker_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_speaker_user_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_summary_model`|Y||Y|Y|Y|Y|Y|Y|
+|`_summary_seed`||||||||Y|
+|`_summary_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_summary_user_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_temperature`|Y||Y|Y|Y|Y|Y|Y|
+|`_timeout`|||Y||Y||Y||
+|`_transcription_model`|Y|||Y||Y||Y|
+
+### Validation constraints reference
+
+Fields with numeric or length constraints enforced by pydantic (via
+`Field(ge=…, le=…, …)`). Setting a value outside the range raises
+`ValidationError` at Config-load time. Range meanings: `ge` = ≥,
+`gt` = >, `le` = ≤, `lt` = <.
+
+|Field|Constraints|
+|---|---|
+|`circuit_breaker_cooldown_seconds`|ge=1, le=86400|
+|`circuit_breaker_failure_threshold`|ge=1, le=100|
+|`circuit_breaker_window_seconds`|ge=1, le=86400|
+|`cloud_llm_structured_min_output_tokens`|ge=512|
+|`commercial_confidence_threshold`|ge=0.0, le=1.0|
+|`deepseek_timeout`|ge=30|
+|`dgx_diarize_port`|ge=1, le=65535|
+|`dgx_diarize_request_timeout_sec`|gt=0|
+|`dgx_diarize_timeout_per_audio_minute_sec`|ge=0|
+|`dgx_max_attempts`|ge=1|
+|`dgx_ollama_port`|ge=1, le=65535|
+|`dgx_request_timeout_sec`|gt=0|
+|`dgx_timeout_per_audio_minute_sec`|ge=0|
+|`dgx_whisper_port`|ge=1, le=65535|
+|`diarization_min_cluster_size`|ge=1|
+|`diarization_min_segment_ms`|ge=0, le=60000|
+|`episode_retry_delay_sec`|ge=0.0, le=120.0|
+|`episode_retry_max`|ge=0, le=10|
+|`gemini_retry_initial_delay_seconds`|ge=0.0, le=120.0|
+|`gemini_retry_max_delay_seconds`|ge=0.0, le=600.0|
+|`gemini_retry_max_retries`|ge=0, le=15|
+|`gi_evidence_extract_retries`|ge=0, le=5|
+|`gi_insight_chunk_chars`|ge=0, le=200_000|
+|`gi_insight_dedupe_threshold`|ge=0.0, le=1.0|
+|`gi_insight_temperature`|ge=0.0, le=2.0|
+|`gi_nli_entailment_min`|ge=0.0, le=1.0|
+|`gi_qa_score_min`|ge=0.0, le=1.0|
+|`gi_qa_window_chars`|ge=0, le=500_000|
+|`gi_qa_window_overlap_chars`|ge=0, le=100_000|
+|`gi_value_gate_min_tier`|ge=0, le=3|
+|`gil_evidence_nli_chunk_size`|ge=1, le=100|
+|`grok_timeout`|ge=30|
+|`host_max_concurrent`|ge=0, le=64|
+|`host_request_interval_ms`|ge=0, le=600_000|
+|`http_backoff_factor`|ge=0.0, le=10.0|
+|`http_retry_total`|ge=0, le=20|
+|`insight_cluster_threshold`|ge=0.0, le=1.0|
+|`interim_index_checkpoint_every_episodes`|ge=0|
+|`interim_topic_cluster_checkpoint_every_episodes`|ge=0|
+|`kg_max_entities`|ge=1, le=50|
+|`kg_max_topics`|ge=1, le=20|
+|`llm_bundled_max_output_tokens`|ge=256|
+|`llm_circuit_breaker_cooldown_seconds`|ge=1.0, le=3600.0|
+|`llm_circuit_breaker_failure_threshold`|ge=1, le=100|
+|`llm_circuit_breaker_window_seconds`|ge=1.0, le=3600.0|
+|`llm_max_calls_per_episode`|ge=0, le=100000|
+|`llm_max_calls_per_run`|ge=0, le=1000000|
+|`moss_port`|gt=0|
+|`moss_request_timeout_sec`|gt=0|
+|`ollama_num_ctx`|ge=512|
+|`rss_backoff_factor`|ge=0.0, le=10.0|
+|`rss_retry_total`|ge=0, le=20|
+|`topic_cluster_threshold`|ge=0.0, le=1.0|
+|`vector_chunk_overlap_tokens`|ge=0, le=500|
+|`vector_chunk_size_tokens`|ge=20, le=2000|
+|`vector_upsert_batch_size`|ge=1, le=100000|

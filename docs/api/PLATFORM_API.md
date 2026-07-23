@@ -279,3 +279,72 @@ covers `/api/feeds`, `/api/operator-config`, `/api/ops`, `/api/jobs*`, `/api/sch
 - **Consumer PWA** (RFC-099) — the actual front-end app, a separate workstream.
 
 See the per-route detail in [HTTP_API.md](HTTP_API.md).
+
+## Additional shipped endpoints
+
+Rich catalog with response models, auth, and params. Response-model
+class names resolve against `server/schemas.py`.
+
+**Discovery + home feed**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/discover` | `AppEpisodesResponse` | optional session | `limit` | Home discovery feed. When signed in AND `APP_PERSONALIZED_RANKING=true`, interest-ranked via the user's followed clusters; otherwise recency. |
+| POST | `/api/app/discover/click` | 204 | optional session | JSON body: `slug`, `position` | Fire-and-forget click telemetry for ranking feedback. Silent no-op signed out or on network error. |
+| GET | `/api/app/theme-clusters` | `AppStorylinesResponse` | open | `limit` | Home "Storylines" — theme clusters (topics discussed together). |
+| GET | `/api/app/trending` | `AppTrendingResponse` | optional session | `kind`, `scope`, `limit` | RFC-103 momentum — trending entities of a given `kind`, corpus-wide or `scope=mine`. |
+| GET | `/api/app/ranking-config` | ranking-config JSON | open | — | Discovery-ranking weights + toggles (admin surface; write-gated). |
+| PUT | `/api/app/ranking-config` | ranking-config JSON | open | JSON body | Persist ranking-config changes. |
+
+**User preferences (USERPREFS-1)**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/preferences` | `UserPreferencesResponse` | session (401 signed-out) | — | Full USERPREFS-1 payload. |
+| PUT | `/api/app/preferences` | `UserPreferencesResponse` | session (401 signed-out) | JSON body: full payload | Replace stored payload. |
+| PATCH | `/api/app/preferences` | `UserPreferencesResponse` | session (401 signed-out) | JSON body: partial (null values delete a key) | Shallow-merge — preferred for single-key writes. |
+
+**Podcast signals + topic perspectives**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/podcasts/{feed_id}/signals` | `AppPodcastSignalsResponse` | open | path: `feed_id`; query: `top_k` | Show-level signals: topics, key people, recurring guests, dominant themes, trending topics. |
+| GET | `/api/app/topics/{topic_id}/perspectives` | `AppTopicPerspectivesResponse` | optional session | path: `topic_id`; query: `scope` | Multi-perspective synthesis — each speaker's grounded insights on a topic (#1146). `scope=mine` restricts to the user's heard∪captured set. |
+
+**Capture (deferred CRUD)**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| PATCH | `/api/app/notes/{note_id}` | `Note` | session (401 signed-out) | path: `note_id`; JSON body: text | Edit note text. |
+| DELETE | `/api/app/notes/{note_id}` | `NotesResponse` | session (401 signed-out) | path: `note_id` | Remove a note; returns the remaining list. |
+
+**User state**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| DELETE | `/api/app/library/{feed_id}` | `LibraryResponse` | session (401 signed-out) | path: `feed_id` | Remove a show from the user's Library. |
+
+**Auth surface (probe endpoints)**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/auth/dev-users` | dev-users JSON | open | — | Mock identities for the sign-in picker; populated only when the `MOCK` provider is configured. |
+| GET | `/api/app/auth/status` | auth-status JSON | open | — | Which provider is active + whether signup is open. Used by the login page. |
+
+**Graph-event telemetry**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/api/app/graph-events` | 204 | optional session | JSON body: event array | Client-side ingest — graph interaction events. |
+| GET | `/api/app/graph-events/summary` | summary JSON | open | — | Operator rollup (aggregate counters by event type). |
+| GET | `/api/app/graph-events/sessions` | sessions JSON | open | — | List distinct browsing sessions. |
+| GET | `/api/app/graph-events/session/{session_id}` | session-detail JSON | open | path: `session_id` | Full event stream for one session. |
+
+**Admin users** (admin-only; surface parity with `app_users_cli`)
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/admin/users` | `list[UserOut]` | admin | — | List all users. |
+| POST | `/api/app/admin/users` | `UserOut` (201) | admin | JSON body | Create a user. |
+| PATCH | `/api/app/admin/users/{user_id}` | `UserOut` | admin | path: `user_id`; JSON body | Update user attributes (role, enabled flag, etc.). |
+| DELETE | `/api/app/admin/users/{user_id}` | 204 | admin | path: `user_id` | Delete a user. |

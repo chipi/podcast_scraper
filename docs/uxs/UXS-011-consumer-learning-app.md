@@ -1,6 +1,12 @@
 # UXS-011: Consumer Learning App — Design System + Player
 
-- **Status**: Draft
+- **Status**: Active — foundations + Player + Home + Library +
+  Capture all shipped (v2.7). See
+  [#1261](https://github.com/chipi/podcast_scraper/issues/1261) for
+  the listener-search enhancements layered on top: enriched
+  related-topic chips, transcript-cluster dedupe, related-episodes
+  rail, matched-field kicker, standalone Topic/Person pages,
+  year-header grouping on Search, saved queries.
 - **Authors**: Marko
 - **Related PRDs**:
   - `docs/prd/PRD-035-learning-platform.md` (parent vision)

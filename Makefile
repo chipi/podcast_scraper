@@ -352,6 +352,21 @@ lint:
 	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
 	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
 
+# Search v3 forbidden-imports guard (RFC-107 §S, PRD-045 FR12; #1205 SIGSEGV).
+# Rules: .github/lint/search-v3-forbidden-imports.txt.
+lint-search-v3:
+	$(PYTHON) scripts/check/lint_search_v3_forbidden_imports.py
+
+# Search v3 quality-eval harness (RFC-107 §T2, PRD-045 FR10; #1230 S0(c)).
+# Default corpus + query set = the v3 synthetic fixture; output the S0 baseline
+# under docs/wip/search-v3/eval/. Override via CORPUS= / QUERIES= / OUT= to
+# eval against a different corpus / query set.
+CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
+QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
+OUT ?= docs/wip/search-v3/eval/latest.json
+eval-search:
+	$(PYTHON) scripts/eval/search_quality.py --corpus $(CORPUS) --queries $(QUERIES) --out $(OUT)
+
 # Shared markdownlint CLI args — keep lint-markdown and fix-md identical (and aligned with CI).
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore node_modules \

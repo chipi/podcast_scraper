@@ -1570,10 +1570,6 @@ class SummaryModel:
                     message=r"Your max_length is set to \d+, but your input_length is only \d+.*",
                     category=UserWarning,
                 )
-                # Note: Thinc/spaCy FutureWarning about torch.cuda.amp.autocast is
-                # filtered at CLI startup (see cli.py) to prevent user-facing noise
-                # from version compatibility issues.
-                # Tracked in Issue #416 - see docs/guides/DEPENDENCIES_GUIDE.md for details
                 # Filter "Asking to truncate to max_length but no maximum length
                 # is provided" warning
                 warnings.filterwarnings(

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
 import posthog from 'posthog-js'
-import type { SearchHit } from './api/searchApi'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
 import DigestView from './components/digest/DigestView.vue'
 import GraphTabPanel from './components/graph/GraphTabPanel.vue'
 import LibraryTab from './components/library/LibraryTab.vue'
+import SearchTab from './components/search/SearchTab.vue'
 import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
 import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
@@ -16,6 +16,7 @@ import { useGraphReplayStore, type ReplayEvent } from './stores/graphReplay'
 import { fetchGraphSession } from './api/authApi'
 import LoginView from './components/auth/LoginView.vue'
 import NoAccessView from './components/auth/NoAccessView.vue'
+import CommandPalette from './components/shell/CommandPalette.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
 import StatusBar from './components/shell/StatusBar.vue'
 import SubjectRail from './components/shell/SubjectRail.vue'
@@ -23,12 +24,13 @@ import UserMenu from './components/shell/UserMenu.vue'
 import { useAuthStore } from './stores/auth'
 import { useGraphAnalyticsStore } from './stores/graphAnalytics'
 import { useArtifactsStore } from './stores/artifacts'
-import { useExploreStore } from './stores/explore'
 import { useGraphExpansionStore } from './stores/graphExpansion'
 import { useGraphExplorerStore } from './stores/graphExplorer'
 import { useGraphHandoffStore } from './stores/graphHandoff'
 import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useSearchStore } from './stores/search'
+import { useRecentActivityStore } from './stores/recentActivity'
+import { useSavedQueriesStore } from './stores/savedQueries'
 import { useShellStore } from './stores/shell'
 import { useSubjectStore } from './stores/subject'
 import { useThemeStore } from './stores/theme'
@@ -39,7 +41,6 @@ import {
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
 import { localYmdDaysAgo } from './utils/localCalendarDate'
-import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
 
@@ -87,16 +88,19 @@ async function onReplaySession(sessionId: string): Promise<void> {
 }
 const artifacts = useArtifactsStore()
 const search = useSearchStore()
-const explore = useExploreStore()
 const theme = useThemeStore()
 const subject = useSubjectStore()
+const recentActivity = useRecentActivityStore()
+const savedQueries = useSavedQueriesStore()
 const graphExplorer = useGraphExplorerStore()
 const graphExpansion = useGraphExpansionStore()
 const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
-const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard' | 'ops' | 'admin'>('digest')
-const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
+const mainTab = ref<'digest' | 'library' | 'search' | 'graph' | 'dashboard' | 'ops' | 'admin'>(
+  'digest',
+)
+const commandPaletteRef = ref<{ open: () => void; close: () => void } | null>(null)
 const graphCanvasRef = ref<{
   clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
 } | null>(null)
@@ -158,11 +162,8 @@ watch(
 )
 
 useViewerKeyboard({
-  focusSearch: () => {
-    leftOpen.value = true
-    void nextTick(() => {
-      leftPanelRef.value?.focusQuery()
-    })
+  openCommandPalette: () => {
+    commandPaletteRef.value?.open()
   },
   clearGraphFocus: () => {
     // K1 — Escape key. Fires the FSM ``focusCleared`` event (decision #5 / spec).
@@ -190,6 +191,94 @@ useViewerKeyboard({
  * their own source for accurate FSM telemetry; the existing ``subject.* + requestFocusNode``
  * triplet is preserved while C6 makes the FSM authoritative.
  */
+/**
+ * Command palette → "Open in Workspace" — switch to the Search main tab and
+ * fire the same runSearch that SearchPanel's submit uses (palette pre-sets
+ * ``search.query`` before emitting).
+ */
+async function onPaletteOpenInWorkspace(_q: string): Promise<void> {
+  mainTab.value = 'search'
+  const root = shell.corpusPath?.trim()
+  if (!root) return
+  await search.runSearch(root)
+}
+
+/**
+ * Command palette → "Show on graph" — same handoff shape as SearchPanel's
+ * "Open on graph" (activateGraphTab with the pre-resolved cy id).
+ */
+function onPaletteShowOnGraph(cyId: string): void {
+  void activateGraphTab(cyId, undefined, 'search')
+}
+
+/**
+ * Command palette (#1259-1) — modal opens are forwarded to StatusBar
+ * which owns the shared Sources / Health dialog.
+ */
+const statusBarRef = useTemplateRef<InstanceType<typeof StatusBar>>('statusBarRef')
+function onPaletteOpenConfiguration(): void {
+  void statusBarRef.value?.openConfiguration?.()
+}
+function onPaletteOpenHealth(): void {
+  void statusBarRef.value?.openHealth?.()
+}
+function onPaletteRebuildIndex(): void {
+  // Opens the Configuration dialog at its Index section — the single
+  // rebuild home the status-bar Index button already uses.
+  void statusBarRef.value?.openIndexRebuild?.()
+}
+
+/**
+ * #1259-4 operator kickers — resolve the "last query" (current
+ * ``search.query`` when non-empty, else the head of ``recentQueries``),
+ * seed the search store, switch to the Search tab, and fire the
+ * requested operator. Silent no-op when there's nothing to run.
+ */
+function lastQueryForKickers(): string {
+  const current = search.query.trim()
+  if (current) return current
+  const recent = savedQueries.listRecent(1)
+  return recent[0]?.q?.trim() ?? ''
+}
+
+async function ensureLastQueryLoaded(): Promise<string> {
+  const q = lastQueryForKickers()
+  if (!q) return ''
+  search.query = q
+  mainTab.value = 'search'
+  if (search.results.length === 0 || search.query !== q) {
+    const root = shell.corpusPath.trim()
+    if (root) await search.runSearch(root)
+  }
+  return q
+}
+
+async function onPaletteOperatorOnLast(op: 'cluster' | 'consensus'): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  const root = shell.corpusPath.trim()
+  if (!root) return
+  search.activeOperator = op
+  await search.runOperator(root, op)
+}
+
+async function onPaletteTimelineOnLast(): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  // Timeline is a client-only aggregation over the visible hit page —
+  // flip the active-operator flag so the histogram panel is visible on
+  // arrival; no round-trip needed.
+  search.activeOperator = 'timeline'
+}
+
+async function onPaletteCompareOnLast(): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  // Compare picker lives on ResultSetOperatorBar — flip the flag so the
+  // panel is open with the auto-seeded slots ready for one-click Run.
+  search.activeOperator = 'compare'
+}
+
 async function activateGraphTab(
   targetNodeId?: string,
   focusFallbackId?: string,
@@ -261,7 +350,34 @@ watch(mainTab, (tab) => {
   posthog.capture('main_tab_switched', { tab })
 })
 
-function onSwitchMainTab(tab: 'digest' | 'library' | 'graph' | 'dashboard'): void {
+/**
+ * #1259-3: recent-subjects ring buffer. Every subject-store transition
+ * that lands on a canonical kind (topic / person / episode) pushes an
+ * entry. Duplicates dedupe on ``kind + id`` inside the store; capping
+ * at 20 also handled there. Non-blocking — swallow write errors so a
+ * failed persistence never blocks the UI transition.
+ */
+watch(
+  () => [subject.kind, subject.graphNodeCyId, subject.episodeMetadataPath] as const,
+  ([kind, graphNodeId, episodeRel]) => {
+    if (kind === 'graph-node' && typeof graphNodeId === 'string') {
+      const id = graphNodeId.trim()
+      if (id.startsWith('topic:')) {
+        void recentActivity.pushSubject({ kind: 'topic', id })
+        return
+      }
+      if (id.startsWith('person:')) {
+        void recentActivity.pushSubject({ kind: 'person', id })
+        return
+      }
+    }
+    if (kind === 'episode' && typeof episodeRel === 'string' && episodeRel.trim()) {
+      void recentActivity.pushSubject({ kind: 'episode', id: episodeRel })
+    }
+  },
+)
+
+function onSwitchMainTab(tab: 'digest' | 'library' | 'search' | 'graph' | 'dashboard'): void {
   if (tab === 'graph') {
     // P4.1 race fix: when a handoff is already pending (e.g. Digest pill
     // mid-await), the orchestrator owns the load. Calling
@@ -483,70 +599,113 @@ watch(
   { immediate: true },
 )
 
+/**
+ * §S4-shell pivot — the compact launcher is retired. All "focus search"
+ * handoffs now switch the main tab to Search + run the query (or set the
+ * filter and let the workspace show it). No panel-focus hop.
+ */
+async function focusSearchWorkspace(runIfPossible: boolean = true): Promise<void> {
+  mainTab.value = 'search'
+  if (!runIfPossible) return
+  const root = shell.corpusPath?.trim()
+  if (!root) return
+  await search.runSearch(root)
+}
+
+/** Left rail row (Saved / Recent): run the query in the workspace. */
+function onLeftPanelApplyQuery(q: string): void {
+  const term = q.trim()
+  if (!term) return
+  search.query = term
+  void focusSearchWorkspace(true)
+}
+
 function onLibraryFocusSearch(payload: {
   feed: string
   query: string
   since?: string
   feedDisplayTitle?: string
 }): void {
-  leftOpen.value = true
   search.applyLibrarySearchHandoff(payload.feed, payload.query, {
     since: payload.since,
     feedDisplayTitle: payload.feedDisplayTitle,
   })
-  void nextTick(() => {
-    leftPanelRef.value?.focusQuery()
-  })
+  // §S6 — a show-scoped launcher clears any lingering episode scope so
+  // the user gets show-wide results instead of a stuck episode filter.
+  search.filters.episodeId = ''
+  void focusSearchWorkspace(true)
 }
 
-/** Graph Topic node detail: prefill semantic search (subject rail unchanged). */
+/**
+ * Search v3 §S6 — episode-scoped rail launcher from EpisodeDetailPanel.
+ * Sets the exact ``episode_id`` filter (server-side), pre-fills the
+ * query, and switches to the Search main tab. activeSearchContext
+ * publish is automatic (runSearch owns it).
+ */
+function onOpenSearchInEpisode(payload: { episodeId: string; query?: string }): void {
+  const ep = payload.episodeId?.trim()
+  if (!ep) return
+  search.filters.episodeId = ep
+  // §S6 — an episode-scoped launcher clears show / speaker / topic scope
+  // so the user's mental model of "this episode only" matches the wire.
+  search.filters.feed = ''
+  search.filters.topic = ''
+  search.filters.speaker = ''
+  const q = payload.query?.trim()
+  if (q) search.query = q
+  void focusSearchWorkspace(Boolean(q))
+}
+
+/** Graph Topic node detail: prefill the workspace query + run. */
 function onGraphNodeTopicPrefillSearch(payload: { query: string }): void {
   const q = payload.query.trim()
   if (!q) return
-  leftOpen.value = true
   search.applyLibrarySearchHandoff('', q)
-  void nextTick(() => {
-    leftPanelRef.value?.focusQuery()
-  })
+  void focusSearchWorkspace(true)
 }
 
-/** Graph Topic node detail: Explore + Topic contains filter. */
-function onGraphNodeTopicOpenExploreFilter(payload: { topic: string }): void {
+/**
+ * Graph Topic node detail: set the Search topic-contains filter + switch to
+ * Search workspace. Search v3 §S4-shell pivot — the previous "focus the
+ * launcher" hop is gone; the workspace shows filter state directly.
+ */
+function onGraphNodeTopicOpenSearchFilter(payload: { topic: string }): void {
   const t = payload.topic.trim()
   if (!t) return
-  leftOpen.value = true
-  shell.setLeftPanelSurface('explore')
-  explore.filters.topic = t
-  explore.filters.speaker = ''
-  explore.clearOutput()
+  search.filters.topic = t
+  search.filters.speaker = ''
+  void focusSearchWorkspace(false)
 }
 
-/** Graph Person / Entity (person) detail: Explore + Speaker contains. */
-function onGraphNodeSpeakerOpenExploreFilter(payload: { speaker: string }): void {
+/**
+ * Graph Person / Entity(person) detail: set the Search speaker-contains
+ * filter + switch to Search workspace. Server-side (``/api/search?speaker=``).
+ */
+function onGraphNodeSpeakerOpenSearchFilter(payload: { speaker: string }): void {
   const s = payload.speaker.trim()
   if (!s) return
-  leftOpen.value = true
-  shell.setLeftPanelSurface('explore')
-  explore.filters.topic = ''
-  explore.filters.speaker = s
-  explore.clearOutput()
+  search.filters.topic = ''
+  search.filters.speaker = s
+  void focusSearchWorkspace(false)
 }
 
-/** Graph Insight node detail: Explore + grounded/min-confidence filters. */
-function onGraphNodeInsightOpenExploreFilters(payload: {
+/**
+ * Graph Insight node detail: set grounded/min-confidence on the Search
+ * filters + switch to Search workspace. ``groundedOnly`` is server-side;
+ * ``minConfidence`` is client-side over top-K.
+ */
+function onGraphNodeInsightOpenSearchFilters(payload: {
   groundedOnly: boolean
   minConfidence: number | null
 }): void {
-  leftOpen.value = true
-  shell.setLeftPanelSurface('explore')
-  explore.filters.topic = ''
-  explore.filters.speaker = ''
-  explore.filters.groundedOnly = payload.groundedOnly
-  explore.filters.minConfidence =
+  search.filters.topic = ''
+  search.filters.speaker = ''
+  search.filters.groundedOnly = payload.groundedOnly
+  search.filters.minConfidence =
     payload.minConfidence != null && Number.isFinite(payload.minConfidence)
       ? String(payload.minConfidence)
       : ''
-  explore.clearOutput()
+  void focusSearchWorkspace(false)
 }
 
 /** Digest row / topic hit: episode detail in the subject rail; stay on Digest. */
@@ -555,18 +714,96 @@ function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }):
   subject.focusEpisode(payload.metadata_relative_path)
 }
 
-/** Search hit **L**: open episode in the subject rail (main tab unchanged). */
+/**
+ * Search hit row-click (Search v3 §S4-shell followup): open the episode in
+ * the subject rail (right panel). Retired: the standalone **L** button —
+ * the whole row body is the affordance now.
+ */
 function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
   posthog.capture('episode_focused', { source: 'search' })
   subject.focusEpisode(payload.metadata_relative_path)
 }
 
-function onSearchOpenEpisodeSummary(hit: SearchHit): void {
-  const rel = sourceMetadataRelativePathFromSearchHit(hit)
-  if (rel) {
-    posthog.capture('episode_focused', { source: 'search_summary' })
-    subject.focusEpisode(rel)
+/**
+ * Search v3 §S4a — "On graph" result-set operator. The workspace hands off
+ * the de-duped id set for the current hit page; we mark each as a
+ * ``search-hit`` highlight (yellow ring), ask the canvas to camera-fit
+ * after the next layout, then switch to the Graph main tab.
+ *
+ * 2026-07-22 fix: the default graph lens is a "last 7d" slice — search
+ * hits on older episodes silently dropped because their episode nodes
+ * weren't loaded. Walk the current search results, resolve each hit's
+ * ``metadata.source_metadata_relative_path`` to its gi/kg/bridge
+ * siblings via ``shell.artifactList``, and append them to
+ * ``artifacts.selectedRelPaths`` so every requested id has a chance to
+ * resolve on the canvas.
+ */
+async function onSearchFocusSet(ids: string[]): Promise<void> {
+  const clean = ids.map((s) => s.trim()).filter(Boolean)
+  if (!clean.length) return
+  graphNav.setRequestFitAfterLoad()
+  // Ensure the corpus artifact list is loaded before we scan for
+  // episode-sibling paths. When the user's first Graph visit is via the
+  // Search "On graph" handoff, ``shell.artifactList`` is still empty
+  // (usually populated during ``syncMergedGraphFromCorpusApi``) and the
+  // append loop below would silently no-op.
+  if (shell.artifactList.length === 0) {
+    try {
+      await shell.fetchArtifactList()
+    } catch {
+      /* fall through — proceed with whatever we have */
+    }
   }
+  // Union of already-selected + episode-metadata-sibling paths derived
+  // from the current search hit page. ``appendRelativeArtifacts`` no-ops
+  // when nothing new needs to load; when new episodes DO come in it
+  // triggers a fresh graph parse + redraw. We ``await`` so the highlight
+  // set below applies against the post-append cy — the ``watch`` on
+  // ``libraryHighlightSourceIds`` fires exactly once per assignment and
+  // has already fired for the pre-append cy if we set it earlier.
+  try {
+    const rootedMetaPaths = new Set<string>()
+    for (const hit of search.results) {
+      const rel = hit?.metadata?.source_metadata_relative_path
+      if (typeof rel === 'string' && rel.trim()) {
+        rootedMetaPaths.add(rel.trim().replace(/\\/g, '/'))
+      }
+    }
+    if (rootedMetaPaths.size > 0) {
+      const wantedDirs = new Set<string>()
+      for (const p of rootedMetaPaths) {
+        const idx = p.lastIndexOf('/')
+        wantedDirs.add(idx >= 0 ? p.slice(0, idx) : '')
+      }
+      const wantedBaseNames = new Set<string>()
+      for (const p of rootedMetaPaths) {
+        const base = p.slice(p.lastIndexOf('/') + 1)
+        const stem = base.replace(/\.metadata\.json$/i, '')
+        if (stem) wantedBaseNames.add(stem)
+      }
+      const extras: string[] = []
+      for (const art of shell.artifactList) {
+        const rel = String(art.relative_path || '').replace(/\\/g, '/')
+        if (!rel) continue
+        const dir = rel.slice(0, rel.lastIndexOf('/'))
+        if (!wantedDirs.has(dir)) continue
+        const base = rel.slice(rel.lastIndexOf('/') + 1)
+        const stemMatch = base.match(/^(.+)\.(gi|kg|bridge)\.json$/i)
+        if (!stemMatch) continue
+        if (!wantedBaseNames.has(stemMatch[1])) continue
+        extras.push(rel)
+      }
+      if (extras.length > 0) {
+        await artifacts.appendRelativeArtifacts(extras)
+      }
+    }
+  } catch {
+    /* never block the tab switch on a bookkeeping failure */
+  }
+  // Assign highlights AFTER the append so the watch's re-application
+  // targets the freshly-loaded episode nodes.
+  graphNav.setLibraryEpisodeHighlights(clean)
+  void activateGraphTab(undefined, undefined, 'search')
 }
 
 watch(
@@ -650,6 +887,19 @@ watch(
               @click="mainTab = 'library'"
             >
               Library
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'search'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-search"
+              @click="mainTab = 'search'"
+            >
+              Search
             </button>
             <button
               type="button"
@@ -793,7 +1043,9 @@ watch(
 
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex min-h-0 flex-1">
-      <!-- LEFT SIDEBAR (collapsible) -->
+      <!-- LEFT SIDEBAR (collapsible) — Saved + Recent queries (Search v3
+           §S4-shell pivot). Always visible; the compact launcher retired.
+           Search itself only lives on the Search main tab. -->
       <div
         class="relative z-10 flex min-h-0 min-w-0 shrink-0 flex-col border-r border-border bg-canvas transition-all"
         :class="leftOpen ? 'w-72' : 'w-8'"
@@ -819,23 +1071,15 @@ watch(
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            title="Open left panel (Search and Explore — use Explore corpus → inside for GI explore)"
-            @click="
-              leftOpen = true;
-              void nextTick(() => leftPanelRef?.focusQuery())
-            "
+            title="Open the Saved / Recent queries panel"
+            @click="leftOpen = true"
           >
-            Search / Explore
+            Saved queries
           </button>
         </div>
         <div v-show="leftOpen" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 pb-4 pt-2">
-            <LeftPanel
-              ref="leftPanelRef"
-              @go-graph="activateGraphTab(undefined, undefined, 'search')"
-              @open-library-episode="onSearchOpenLibraryEpisode"
-              @open-episode-summary="onSearchOpenEpisodeSummary"
-            />
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <LeftPanel @apply-query="onLeftPanelApplyQuery" />
           </div>
         </div>
       </div>
@@ -859,6 +1103,15 @@ watch(
               class="h-full"
               @switch-main-tab="onSwitchMainTab($event)"
               @focus-search="onLibraryFocusSearch"
+            />
+          </keep-alive>
+          <keep-alive>
+            <SearchTab
+              v-if="mainTab === 'search'"
+              class="h-full"
+              @go-graph="activateGraphTab(undefined, undefined, 'search')"
+              @open-library-episode="onSearchOpenLibraryEpisode"
+              @focus-set="onSearchFocusSet"
             />
           </keep-alive>
           <div
@@ -935,20 +1188,33 @@ watch(
             @close-subject="onCloseSubjectRail"
             @go-graph="activateGraphTab(undefined, undefined, 'subject-rail')"
             @focus-search-handoff="onLibraryFocusSearch"
+            @open-search-in-episode="onOpenSearchInEpisode"
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
-            @open-explore-topic-filter="onGraphNodeTopicOpenExploreFilter"
-            @open-explore-speaker-filter="onGraphNodeSpeakerOpenExploreFilter"
-            @open-explore-insight-filters="onGraphNodeInsightOpenExploreFilters"
+            @open-search-topic-filter="onGraphNodeTopicOpenSearchFilter"
+            @open-search-speaker-filter="onGraphNodeSpeakerOpenSearchFilter"
+            @open-search-insight-filters="onGraphNodeInsightOpenSearchFilters"
             @open-library-episode="onSearchOpenLibraryEpisode"
-            @open-episode-summary="onSearchOpenEpisodeSummary"
             @switch-main-tab="onSwitchMainTab($event)"
           />
         </div>
       </div>
       </div>
       <StatusBar
+        ref="statusBarRef"
         @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded"
         @go-graph="activateGraphTab(undefined, undefined, 'status-bar')"
+      />
+      <CommandPalette
+        ref="commandPaletteRef"
+        @open-in-workspace="onPaletteOpenInWorkspace"
+        @show-on-graph="onPaletteShowOnGraph"
+        @go-tab="onSwitchMainTab"
+        @open-configuration="onPaletteOpenConfiguration"
+        @open-health="onPaletteOpenHealth"
+        @rebuild-index="onPaletteRebuildIndex"
+        @operator-on-last="onPaletteOperatorOnLast"
+        @timeline-on-last="onPaletteTimelineOnLast"
+        @compare-on-last="onPaletteCompareOnLast"
       />
     </div>
   </div>

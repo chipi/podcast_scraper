@@ -150,6 +150,65 @@ def test_corpus_runs_summary_discovers_run_json(tmp_path: Path) -> None:
     assert row["episode_outcomes"]["ok"] == 2
     assert row["episode_outcomes"]["failed"] == 1
     assert "feeds/pod" in row["relative_path"]
+    # #1269 / UXS-006 §6.5: feed_id inferred from ``feeds/<dir>/run_*/run.json``.
+    assert row["feed_id"] == "pod"
+
+
+def test_corpus_runs_summary_feed_id_per_feed_directory(tmp_path: Path) -> None:
+    """#1269 — one run.json per (feed, timestamp); feed_id resolves per file."""
+
+    def write(feed_dir: str, run_dir_name: str, run_id: str, ok: int, failed: int) -> None:
+        d = tmp_path / "feeds" / feed_dir / run_dir_name
+        d.mkdir(parents=True)
+        payload = {
+            "schema_version": "1.0.0",
+            "run_id": run_id,
+            "created_at": "2024-06-01T12:00:00Z",
+            "metrics": {
+                "run_duration_seconds": 1.0,
+                "episodes_scraped_total": ok + failed,
+                "episode_statuses": [{"status": "ok"}] * ok + [{"status": "failed"}] * failed,
+            },
+        }
+        (d / "run.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    write("rss_alpha_hash", "run_20240601", "r-a1", ok=3, failed=0)
+    write("rss_beta_hash", "run_20240601", "r-b1", ok=2, failed=1)
+    write("rss_alpha_hash", "run_20240602", "r-a2", ok=4, failed=0)
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/runs/summary", params={"path": str(tmp_path)})
+    assert r.status_code == 200
+    body = r.json()
+    feed_ids = sorted({row["feed_id"] for row in body["runs"]})
+    assert feed_ids == ["rss_alpha_hash", "rss_beta_hash"]
+    per_feed = {(row["feed_id"], row["run_id"]) for row in body["runs"]}
+    assert per_feed == {
+        ("rss_alpha_hash", "r-a1"),
+        ("rss_alpha_hash", "r-a2"),
+        ("rss_beta_hash", "r-b1"),
+    }
+
+
+def test_corpus_runs_summary_feed_id_absent_for_legacy_flat_layout(tmp_path: Path) -> None:
+    """Legacy run.json placed directly under the corpus root (no feeds/ prefix)
+    yields ``feed_id=None`` — schema stays compat with pre-#1269 corpora."""
+    run_dir = tmp_path / "run_legacy_flat"
+    run_dir.mkdir()
+    payload = {
+        "schema_version": "1.0.0",
+        "run_id": "flat-1",
+        "created_at": "2024-01-01T00:00:00Z",
+        "metrics": {"run_duration_seconds": 1.0, "episode_statuses": [{"status": "ok"}]},
+    }
+    (run_dir / "run.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/runs/summary", params={"path": str(tmp_path)})
+    assert r.status_code == 200
+    assert r.json()["runs"][0]["feed_id"] is None
 
 
 def test_corpus_runs_summary_legacy_string_episode_statuses(tmp_path: Path) -> None:

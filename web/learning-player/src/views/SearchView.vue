@@ -14,19 +14,51 @@ import type { EntityRef, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
+import { aggregateRelatedTopics } from '../utils/relatedTopics'
+import {
+  collapseFoldableHits,
+  isFoldedCluster,
+  type CollapsedRow,
+  type FoldedHitCluster,
+} from '../utils/collapseFoldableHits'
+import { summarizeMatchedFields } from '../utils/matchedFields'
+import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
 import { useAuthStore } from '../stores/auth'
+import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const savedQueries = useSavedQueriesStore()
+// USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
+// watch reacts when the payload arrives so the Save button flips to
+// "Saved ✓" if the current query was already persisted. No per-view
+// hydrate call — the tests demonstrated that adding one creates
+// test-order flakiness without changing user-visible behaviour.
 
 // Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
 // heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
 const scope = ref<'all' | 'mine'>(route.query.scope === 'mine' ? 'mine' : 'all')
 
 const query = ref(String(route.query.q ?? ''))
+
+// #1261-8: reactive save-state on the current query+scope pair so the button
+// toggles between "Save" and "Saved ✓" as the listener switches scope tabs.
+const currentIsSaved = computed(() =>
+  savedQueries.isSaved(query.value, scope.value),
+)
+
+async function toggleSaveQuery(): Promise<void> {
+  const q = query.value.trim()
+  if (!q) return
+  if (savedQueries.isSaved(q, scope.value)) {
+    await savedQueries.remove(q, scope.value)
+  } else {
+    await savedQueries.save(q, scope.value)
+  }
+}
 const results = ref<SearchHit[]>([])
 const entity = ref<EntityRef | null>(null)
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
@@ -42,6 +74,9 @@ interface EpisodeGroup {
   date: string | null
   art: string | null
   hits: SearchHit[]
+  /** #1261-3: hits collapsed so multiple same-kind foldable rows (transcript,
+   *  title, description, summary) render as one expandable summary row. */
+  rows: CollapsedRow[]
 }
 
 const md = (h: SearchHit) => h.metadata as Record<string, unknown>
@@ -57,6 +92,41 @@ function hitKind(h: SearchHit): Kind {
   if (dt === 'transcript') return 'transcript'
   if (dt === 'kg_topic') return 'topic'
   return 'passage'
+}
+
+// #1261-2: aggregate per-hit related_topics into a chip row above the episode
+// groups. Tapping a chip opens the Topic EntityCard modal — deeper exploration
+// without expanding the search surface itself.
+const relatedTopicChips = computed(() => aggregateRelatedTopics(results.value, 8))
+
+function openTopicChip(topicId: string): void {
+  cardTarget.value = { kind: 'topic', id: topicId }
+}
+
+// #1261-5: shim so the template's inline v-for can call the helper by name.
+// Wrapped so summarizeMatchedFields can be swapped in unit tests independently.
+function matchedFieldChips(hits: SearchHit[]) {
+  return summarizeMatchedFields(hits)
+}
+
+// #1261-7: bucket the episode groups by publish year so the results read as
+// "2026 · 4 episodes" / "2025 · 12 episodes" sections — the mobile-friendly
+// reshape of the operator viewer's timeline chart concept. Sections are only
+// shown when the search spans multiple years; single-year results skip the
+// header to keep the page short.
+const yearSections = computed<YearSection<EpisodeGroup>[]>(() =>
+  groupEpisodesByYear<EpisodeGroup>(groups.value, (g) => g.date),
+)
+const showYearHeaders = computed(() => yearSections.value.length > 1)
+
+function yearLabel(year: number | 'unknown'): string {
+  return year === 'unknown' ? t('search.yearUnknown') : String(year)
+}
+
+// Type-safe key for the collapsed-rows v-for: plain hits carry doc_id,
+// folded clusters use their foldedKind + index (unique within a group).
+function rowKey(row: CollapsedRow, i: number): string {
+  return isFoldedCluster(row) ? `c:${row.foldedKind}:${i}` : `${row.doc_id}:${i}`
 }
 
 // Group passages under their source episode, preserving rank order (results arrive best-first,
@@ -76,14 +146,35 @@ const groups = computed<EpisodeGroup[]>(() => {
         date: hitDate(h),
         art: hitArt(h),
         hits: [],
+        rows: [],
       }
       byKey.set(key, g)
       order.push(key)
     }
     g.hits.push(h)
   }
-  return order.map((k) => byKey.get(k)!)
+  const built = order.map((k) => byKey.get(k)!)
+  for (const g of built) g.rows = collapseFoldableHits(g.hits)
+  return built
 })
+
+// #1261-3: expand/collapse state per folded-cluster row, keyed by "<slug>|<kind>".
+// A Set of expanded keys — reactive because the ref is a plain Set instance and
+// the template mutates via ``clusterExpanded.value = new Set(...)`` on toggle.
+const clusterExpanded = ref<Set<string>>(new Set())
+function clusterKey(groupKey: string | null, cluster: FoldedHitCluster): string {
+  return `${groupKey ?? 'nogroup'}|${cluster.foldedKind}`
+}
+function toggleCluster(groupKey: string | null, cluster: FoldedHitCluster): void {
+  const key = clusterKey(groupKey, cluster)
+  const next = new Set(clusterExpanded.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  clusterExpanded.value = next
+}
+function isClusterOpen(groupKey: string | null, cluster: FoldedHitCluster): boolean {
+  return clusterExpanded.value.has(clusterKey(groupKey, cluster))
+}
 
 async function run(q: string): Promise<void> {
   const term = q.trim()
@@ -105,7 +196,9 @@ async function run(q: string): Promise<void> {
         () => (entity.value = null),
       )
   try {
-    const resp = await searchCorpus(term, 12, recall ? 'mine' : 'all')
+    // #1261-1: always ask the server for related-topic decoration; a broken
+    // enricher chain degrades to plain hits and the chip row simply disappears.
+    const resp = await searchCorpus(term, 12, recall ? 'mine' : 'all', true)
     results.value = resp.results
     error.value = Boolean(resp.error)
   } catch {
@@ -171,6 +264,18 @@ const showEmpty = computed(
       <button type="submit" class="rounded-full bg-accent px-5 py-3 font-bold text-accent-foreground">
         {{ t('search.title') }}
       </button>
+      <!-- #1261-8: save the current query+scope to the listener's saved list.
+           Only surfaces once the query is non-empty. -->
+      <button
+        v-if="query.trim()"
+        type="button"
+        class="rounded-full border border-border px-4 py-3 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+        :aria-label="currentIsSaved ? t('search.unsaveQuery') : t('search.saveQuery')"
+        data-testid="save-query-button"
+        @click="toggleSaveQuery"
+      >
+        {{ currentIsSaved ? t('search.saved') : t('search.save') }}
+      </button>
     </form>
 
     <!-- Recall scope (P3 #1124): search everything, or just your corpus. Auth-gated. -->
@@ -219,12 +324,47 @@ const showEmpty = computed(
         {{ t('search.summary', { passages: results.length, episodes: groups.length }) }}
       </p>
 
-      <ul class="mt-3 flex flex-col gap-3">
-        <li
-          v-for="g in groups"
-          :key="g.slug ?? g.title"
-          class="overflow-hidden rounded-xl border border-border bg-surface"
+      <!-- #1261-2: related-topic chip row above the episode groups. Silent
+           when the QueryEnricher chain returned nothing (broken corpus, no
+           topic_similarity.json, or no hits carried topic decorations). -->
+      <div
+        v-if="relatedTopicChips.length"
+        class="mt-3 flex flex-wrap items-center gap-1.5"
+        data-testid="related-topic-chips"
+      >
+        <span class="lp-kicker mr-1">{{ t('search.alsoAbout') }}</span>
+        <button
+          v-for="chip in relatedTopicChips"
+          :key="chip.topicId"
+          type="button"
+          class="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-canvas-foreground transition hover:bg-overlay"
+          :aria-label="t('search.openTopicChip', { label: chip.label })"
+          @click="openTopicChip(chip.topicId)"
         >
+          {{ chip.label }}
+        </button>
+      </div>
+
+      <!-- #1261-7: year sections wrap the episode-group list. When the
+           results span a single year, the header is suppressed so the
+           results still read as one flat list. -->
+      <template v-for="section in yearSections" :key="section.year">
+        <h2
+          v-if="showYearHeaders"
+          class="mt-6 mb-2 font-display text-sm font-bold uppercase tracking-wider text-muted"
+          data-testid="year-header"
+        >
+          {{ yearLabel(section.year) }}
+          <span class="ml-1 font-normal">
+            · {{ t('search.yearEpisodes', section.groups.length) }}
+          </span>
+        </h2>
+        <ul class="mt-3 flex flex-col gap-3">
+          <li
+            v-for="g in section.groups"
+            :key="g.slug ?? g.title"
+            class="overflow-hidden rounded-xl border border-border bg-surface"
+          >
           <!-- Episode header: opens the player -->
           <button
             type="button"
@@ -245,48 +385,118 @@ const showEmpty = computed(
               <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block">
                 {{ g.show }}<template v-if="g.show && g.date"> · </template>{{ g.date ? formatPublishDate(g.date, locale) : '' }}
               </span>
+              <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary
+                   ×2 · Transcript") — small kicker line so the listener knows
+                   why this episode surfaced without tapping through. Hidden
+                   when nothing resolved to an episode-level field. -->
+              <span
+                v-if="matchedFieldChips(g.hits).length"
+                class="lp-kicker mt-0.5 block"
+                data-testid="matched-fields"
+              >
+                {{ t('search.matchedPrefix') }}
+                <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
+                  <template v-if="mi > 0"> · </template>
+                  <span class="font-semibold text-canvas-foreground">
+                    {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
+                  </span>
+                </template>
+              </span>
             </span>
             <span class="shrink-0 text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>
           </button>
 
-          <!-- Matching passages -->
+          <!-- Matching passages (#1261-3: foldable rows collapse to one
+               expandable summary per (episode, source-kind)). -->
           <ul class="mt-3 flex flex-col">
-            <li
-              v-for="(h, i) in g.hits"
-              :key="h.doc_id + i"
-              class="border-t border-border px-4 py-3"
-            >
-              <div class="flex items-center gap-2">
-                <span
-                  class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                  :class="{
-                    'text-grounded': hitKind(h) === 'insight',
-                    'text-canvas-foreground': hitKind(h) === 'transcript' || hitKind(h) === 'passage',
-                    'text-topic': hitKind(h) === 'topic',
-                  }"
-                >
-                  {{ t(`search.kind.${hitKind(h)}`) }}
-                </span>
+            <template v-for="(row, i) in g.rows" :key="rowKey(row, i)">
+              <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
+                   title / description / summary) collapsed into one expandable row. -->
+              <li v-if="isFoldedCluster(row)" class="border-t border-border">
                 <button
-                  v-if="hitStartSeconds(h) != null && g.slug"
                   type="button"
-                  class="ml-auto font-mono text-xs font-bold text-accent"
-                  :aria-label="t('search.jumpTo', { time: formatTime(hitStartSeconds(h) ?? 0), episode: g.title })"
-                  @click="openEpisode(g.slug, h)"
+                  class="flex w-full items-center gap-2 px-4 py-3 text-left"
+                  :aria-expanded="isClusterOpen(g.slug, row)"
+                  :aria-label="t('search.expandCluster', {
+                    kind: t(`search.foldedKind.${row.foldedKind}`),
+                    count: row.members.length,
+                  })"
+                  data-testid="folded-cluster-row"
+                  @click="toggleCluster(g.slug, row)"
                 >
-                  ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(h) ?? 0) }) }}
+                  <span
+                    class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-canvas-foreground"
+                  >
+                    {{ t(`search.foldedKind.${row.foldedKind}`) }}
+                  </span>
+                  <span class="text-xs font-semibold text-muted">
+                    {{ t('search.foldedCount', row.members.length) }}
+                  </span>
+                  <span class="ml-auto text-xs font-bold text-accent">
+                    {{ isClusterOpen(g.slug, row) ? '▲' : '▼' }}
+                  </span>
                 </button>
-              </div>
-              <p
-                class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
-                :class="hitKind(h) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
-              >
-                {{ h.text }}
-              </p>
-            </li>
+                <ul v-if="isClusterOpen(g.slug, row)" class="flex flex-col">
+                  <li
+                    v-for="(m, mi) in row.members"
+                    :key="m.doc_id + mi"
+                    class="border-t border-border px-6 py-2"
+                  >
+                    <div class="flex items-center gap-2">
+                      <button
+                        v-if="hitStartSeconds(m) != null && g.slug"
+                        type="button"
+                        class="ml-auto font-mono text-xs font-bold text-accent"
+                        :aria-label="t('search.jumpTo', {
+                          time: formatTime(hitStartSeconds(m) ?? 0),
+                          episode: g.title,
+                        })"
+                        @click="openEpisode(g.slug, m)"
+                      >
+                        ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(m) ?? 0) }) }}
+                      </button>
+                    </div>
+                    <p class="mt-1 line-clamp-2 text-sm leading-relaxed text-surface-foreground">
+                      {{ m.text }}
+                    </p>
+                  </li>
+                </ul>
+              </li>
+              <!-- Plain hit (insight / kg_topic / kg_entity / lifted transcript). -->
+              <li v-else class="border-t border-border px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                    :class="{
+                      'text-grounded': hitKind(row) === 'insight',
+                      'text-canvas-foreground': hitKind(row) === 'transcript' || hitKind(row) === 'passage',
+                      'text-topic': hitKind(row) === 'topic',
+                    }"
+                  >
+                    {{ t(`search.kind.${hitKind(row)}`) }}
+                  </span>
+                  <button
+                    v-if="hitStartSeconds(row) != null && g.slug"
+                    type="button"
+                    class="ml-auto font-mono text-xs font-bold text-accent"
+                    :aria-label="t('search.jumpTo', { time: formatTime(hitStartSeconds(row) ?? 0), episode: g.title })"
+                    @click="openEpisode(g.slug, row)"
+                  >
+                    ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(row) ?? 0) }) }}
+                  </button>
+                </div>
+                <p
+                  class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
+                  :class="hitKind(row) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
+                >
+                  {{ row.text }}
+                </p>
+              </li>
+            </template>
           </ul>
         </li>
       </ul>
+      </template>
     </template>
 
     <EntityCard

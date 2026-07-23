@@ -25,15 +25,15 @@ const GraphNodeRailPanelStub = {
       />
       <button
         data-testid="emit-explore-topic"
-        @click="$emit('open-explore-topic-filter', { topic: 't' })"
+        @click="$emit('open-search-topic-filter', { topic: 't' })"
       />
       <button
         data-testid="emit-explore-speaker"
-        @click="$emit('open-explore-speaker-filter', { speaker: 's' })"
+        @click="$emit('open-search-speaker-filter', { speaker: 's' })"
       />
       <button
         data-testid="emit-explore-insight"
-        @click="$emit('open-explore-insight-filters', { groundedOnly: true, minConfidence: 0.5 })"
+        @click="$emit('open-search-insight-filters', { groundedOnly: true, minConfidence: 0.5 })"
       />
       <button
         data-testid="emit-open-library"
@@ -298,22 +298,22 @@ describe('SubjectRail', () => {
       expect(w.emitted('prefillSemanticSearch')![0]).toEqual([{ query: 'q' }])
     })
 
-    it('re-emits open-explore-topic-filter with payload', async () => {
+    it('re-emits open-search-topic-filter with payload', async () => {
       const w = await mountGraphNode()
       await w.get('[data-testid="emit-explore-topic"]').trigger('click')
-      expect(w.emitted('openExploreTopicFilter')![0]).toEqual([{ topic: 't' }])
+      expect(w.emitted('openSearchTopicFilter')![0]).toEqual([{ topic: 't' }])
     })
 
-    it('re-emits open-explore-speaker-filter with payload', async () => {
+    it('re-emits open-search-speaker-filter with payload', async () => {
       const w = await mountGraphNode()
       await w.get('[data-testid="emit-explore-speaker"]').trigger('click')
-      expect(w.emitted('openExploreSpeakerFilter')![0]).toEqual([{ speaker: 's' }])
+      expect(w.emitted('openSearchSpeakerFilter')![0]).toEqual([{ speaker: 's' }])
     })
 
-    it('re-emits open-explore-insight-filters with payload', async () => {
+    it('re-emits open-search-insight-filters with payload', async () => {
       const w = await mountGraphNode()
       await w.get('[data-testid="emit-explore-insight"]').trigger('click')
-      expect(w.emitted('openExploreInsightFilters')![0]).toEqual([
+      expect(w.emitted('openSearchInsightFilters')![0]).toEqual([
         { groundedOnly: true, minConfidence: 0.5 },
       ])
     })

@@ -107,10 +107,39 @@ class TestHealth:
         assert body.get("corpus_digest_api") is True
         assert body.get("corpus_binary_api") is True
         assert body.get("cil_queries_api") is True
+        # Fixture corpus has no enrichments/topic_similarity.json → probe False.
         assert body.get("enriched_search_available") is False
         assert body.get("feeds_api") is False
         assert body.get("operator_config_api") is False
         assert body.get("jobs_api") is False
+
+    def test_enriched_search_available_flips_true_when_topic_similarity_present(
+        self, client: TestClient, corpus: Path
+    ) -> None:
+        """The probe is `enrichments/topic_similarity.json` (the exact
+        file the shipped `query_topic_relatedness` enricher reads). Its
+        presence should flip the capability to True so the S5 Enriched
+        chip auto-adopts and the hero renders."""
+        enrich_dir = corpus / "enrichments"
+        enrich_dir.mkdir(parents=True, exist_ok=True)
+        (enrich_dir / "topic_similarity.json").write_text('{"topics": {}}', encoding="utf-8")
+        resp = client.get("/api/health", params={"path": str(corpus)})
+        assert resp.status_code == 200
+        assert resp.json().get("enriched_search_available") is True
+
+    def test_enriched_search_available_stays_false_without_the_file(
+        self, client: TestClient, corpus: Path
+    ) -> None:
+        """Absent file → probe returns False (indistinguishable to the
+        client from 'no enrichment configured' — matches the previous
+        default behaviour)."""
+        # Make sure the file does not exist for this test.
+        candidate = corpus / "enrichments" / "topic_similarity.json"
+        if candidate.exists():
+            candidate.unlink()
+        resp = client.get("/api/health", params={"path": str(corpus)})
+        assert resp.status_code == 200
+        assert resp.json().get("enriched_search_available") is False
 
 
 # ---------------------------------------------------------------------------

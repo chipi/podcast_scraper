@@ -29,6 +29,33 @@ export interface CorpusSearchLiftStats {
   lift_applied: number
 }
 
+/** Search v3 §S4b: one aggregated cluster over the response's hit page. */
+export interface SearchClusterGroup {
+  cluster_id: string | null
+  /** ``topic_cluster`` / ``theme_cluster`` / ``topic`` / ``ungrouped``. */
+  cluster_kind: string
+  label: string
+  size: number
+  /** Indices into ``results`` (in results order) belonging to this cluster. */
+  hit_indices: number[]
+}
+
+/** Search v3 §S4b: one cross-Person corroboration pair (ADR-108). */
+export interface SearchConsensusPair {
+  topic_id: string
+  topic_label?: string | null
+  person_a_id: string
+  person_a_label?: string | null
+  person_b_id: string
+  person_b_label?: string | null
+  insight_a_id: string
+  insight_b_id: string
+  insight_a_text: string
+  insight_b_text: string
+  contradiction_score: number
+  cosine_similarity?: number | null
+}
+
 export interface SearchResponse {
   query: string
   results: SearchHit[]
@@ -43,6 +70,13 @@ export interface SearchResponse {
   lift_stats?: CorpusSearchLiftStats | null
   /** Optional server hint when enrichment was requested but failed (non-fatal). */
   enrichment_error?: string | null
+  /** Search v3 §S4b: the operator applied (``cluster`` / ``consensus``); null when
+   * the endpoint returned the plain top-k page. */
+  operator?: string | null
+  /** Populated only when ``operator=cluster``. */
+  clusters?: SearchClusterGroup[] | null
+  /** Populated only when ``operator=consensus``. */
+  consensus_pairs?: SearchConsensusPair[] | null
 }
 
 export interface SearchRequestOptions {
@@ -51,11 +85,26 @@ export interface SearchRequestOptions {
   feed?: string
   since?: string
   speaker?: string
+  /** Topic substring (Search v3 SearchTopicChip). Server-side after the follow-up
+   * to S1: matches kg_topic id/text and insight ABOUT-edge topic labels. */
+  topic?: string
+  /** Exact episode_id scope (Search v3 §S6). Enables the rail launcher
+   *  "Search within this episode" on EpisodeDetailPanel. */
+  episodeId?: string
   groundedOnly?: boolean
   topK?: number
   embeddingModel?: string
   /** Default true: collapse duplicate kg_entity/kg_topic surfaces server-side. */
   dedupeKgSurfaces?: boolean
+  /** Search v3 §S4b: request a server-side result-set operator pass. When set
+   * the server returns the top-k page AS-IS and adds ``clusters`` or
+   * ``consensus_pairs`` alongside. Passing an unknown value is a no-op. */
+  operator?: 'cluster' | 'consensus'
+  /** Search v3 §S5: request the shipped QueryEnricher chain (RFC-088 chunk 5).
+   * Server decorates each hit's ``metadata.query_enrichments.related_topics``
+   * when the enrichment output is available; response also carries
+   * ``enrichment_error`` when the chain failed non-fatally. */
+  enrichResults?: boolean
 }
 
 export async function searchCorpus(
@@ -70,6 +119,8 @@ export async function searchCorpus(
   if (options.feed?.trim()) params.set('feed', options.feed.trim())
   if (options.since?.trim()) params.set('since', options.since.trim())
   if (options.speaker?.trim()) params.set('speaker', options.speaker.trim())
+  if (options.topic?.trim()) params.set('topic', options.topic.trim())
+  if (options.episodeId?.trim()) params.set('episode_id', options.episodeId.trim())
   if (options.embeddingModel?.trim()) {
     params.set('embedding_model', options.embeddingModel.trim())
   }
@@ -79,10 +130,88 @@ export async function searchCorpus(
   if (options.dedupeKgSurfaces === false) {
     params.set('dedupe_kg_surfaces', 'false')
   }
+  if (options.operator) {
+    params.set('operator', options.operator)
+  }
+  if (options.enrichResults) {
+    params.set('enrich_results', 'true')
+  }
   const res = await fetchWithTimeout(`/api/search?${params.toString()}`)
   if (!res.ok) {
     const t = await res.text()
     throw new Error(t || `HTTP ${res.status}`)
   }
   return (await res.json()) as SearchResponse
+}
+
+/** Search v3 §S8: picker slot on ``POST /api/search/compare``.
+ * ``kind`` selects the retrieval scope on the server (person → speaker,
+ * topic → topic, episode → episode_id, feed / show → feed). */
+export interface CompareSubjectRef {
+  kind: 'person' | 'topic' | 'episode' | 'feed' | 'show'
+  id: string
+  label?: string | null
+}
+
+/** Search v3 §S8: one side of a compare response — echoes the picker
+ * slot + the LITM-positioned briefing pack fields. ``grounded`` is true
+ * when the pack has a top insight (the judge summary is muted when
+ * either side reports ``grounded=false``). */
+export interface CompareBriefingPack {
+  subject: CompareSubjectRef
+  query: string
+  query_type: string
+  rendered: string
+  token_count: number
+  max_tokens: number
+  top_insight_id: string | null
+  top_insight_text: string
+  supporting_segment_ids: string[]
+  supporting_segment_texts: string[]
+  coverage_summary: Record<string, unknown>
+  confidence_p50: number
+  result_count: number
+  grounded: boolean
+}
+
+export interface SearchCompareResponse {
+  pack_a: CompareBriefingPack
+  pack_b: CompareBriefingPack
+  /** Deterministic (no LLM) comparison string; null when either side is
+   *  ungrounded (RFC-107 §S8 acceptance). */
+  judge_summary: string | null
+  error?: string | null
+  detail?: string | null
+}
+
+export interface CompareRequestOptions {
+  path: string
+  q?: string
+  topK?: number
+  maxTokens?: number
+}
+
+export async function compareSubjects(
+  subjectA: CompareSubjectRef,
+  subjectB: CompareSubjectRef,
+  options: CompareRequestOptions,
+): Promise<SearchCompareResponse> {
+  const body = {
+    subject_a: subjectA,
+    subject_b: subjectB,
+    q: options.q?.trim() ?? '',
+    path: options.path.trim(),
+    top_k: Math.min(100, Math.max(1, options.topK ?? 10)),
+    max_tokens: Math.min(8000, Math.max(1, options.maxTokens ?? 2000)),
+  }
+  const res = await fetchWithTimeout('/api/search/compare', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as SearchCompareResponse
 }

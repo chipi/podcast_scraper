@@ -862,7 +862,11 @@ jobs:
   test-integration-fast:
     runs-on: ubuntu-latest
     # Same ml-models artifact as E2E; allow time for download/unpack + integration pytest.
-    timeout-minutes: 35
+    # 35 min was too tight on days when runner network is slow: PR #1274 saw
+    # the ml-models artifact download take 24 min once and the ffmpeg apt-get
+    # install take 12 min another time, both leaving <10 min for actual tests
+    # before the wall. 50 min gives headroom for either spike.
+    timeout-minutes: 50
     # ``test-unit`` added for fail-fast (don't run integration on Python unit
     # failures). Path-A python gate skips this for viewer-only PRs.
     needs: [detect-changes, preload-ml-models, test-unit]

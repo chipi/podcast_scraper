@@ -19,9 +19,9 @@ const artifacts = useArtifactsStore()
 const emit = defineEmits<{
   'go-graph': []
   'prefill-semantic-search': [{ query: string }]
-  'open-explore-topic-filter': [{ topic: string }]
-  'open-explore-speaker-filter': [{ speaker: string }]
-  'open-explore-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
+  'open-search-topic-filter': [{ topic: string }]
+  'open-search-speaker-filter': [{ speaker: string }]
+  'open-search-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
   'open-library-episode': [{ metadata_relative_path: string }]
   'close-subject-rail': []
 }>()
@@ -141,9 +141,9 @@ function onClose(): void {
       @close="onClose"
       @go-graph="emit('go-graph')"
       @prefill-semantic-search="emit('prefill-semantic-search', $event)"
-      @open-explore-topic-filter="emit('open-explore-topic-filter', $event)"
-      @open-explore-speaker-filter="emit('open-explore-speaker-filter', $event)"
-      @open-explore-insight-filters="emit('open-explore-insight-filters', $event)"
+      @open-search-topic-filter="emit('open-search-topic-filter', $event)"
+      @open-search-speaker-filter="emit('open-search-speaker-filter', $event)"
+      @open-search-insight-filters="emit('open-search-insight-filters', $event)"
       @open-library-episode="emit('open-library-episode', $event)"
     />
   </div>

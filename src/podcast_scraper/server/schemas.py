@@ -1217,6 +1217,97 @@ class CorpusSearchLiftStatsModel(BaseModel):
     )
 
 
+class SearchClusterGroupModel(BaseModel):
+    """One aggregated cluster produced by the ``operator=cluster`` server pass.
+
+    Search v3 §S4b (RFC-107 §7.4). The Python-side aggregation runs AFTER
+    ``rrf_fuse`` returns — no new native combine site (#1205 SIGSEGV class).
+    Emitted only when ``operator=cluster`` was requested; when a hit does
+    not resolve to any topic-cluster / theme-cluster / topic anchor it is
+    dropped into the "ungrouped" bucket surfaced with ``cluster_id=null``
+    so the caller can render an "other" pane.
+    """
+
+    cluster_id: str | None = Field(
+        default=None,
+        description=(
+            "Cluster identifier — topic_cluster compound id (``tc:…``) when the group "
+            "is a topic cluster, theme cluster compound id (``thc:…``) when the group "
+            "is a theme cluster, a bare ``topic:…`` id when the group is a single "
+            "topic (fallback), or null for the ungrouped bucket."
+        ),
+    )
+    cluster_kind: str = Field(
+        description=(
+            "``topic_cluster`` / ``theme_cluster`` / ``topic`` / ``ungrouped`` — which "
+            "aggregation surface produced the group. Callers may filter or badge "
+            "clusters by kind (e.g. render a 'Theme' chip on theme-cluster groups)."
+        ),
+    )
+    label: str = Field(
+        description="Human-readable label for the cluster (anchor topic label, theme label, etc.).",
+    )
+    size: int = Field(
+        ge=0,
+        description="Number of hits assigned to this cluster.",
+    )
+    hit_indices: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Indices into ``results`` of the hits belonging to this cluster, in the "
+            "order they appear in ``results`` (the client renders the group by "
+            "collecting those hits, without re-sorting)."
+        ),
+    )
+
+
+class SearchConsensusPairModel(BaseModel):
+    """One cross-Person corroboration pair from ``operator=consensus`` (ADR-108).
+
+    Sourced from the shipped ``enrichments/topic_consensus.json`` — the enricher
+    hit precision ~0.91 on prod-v2. Server filters the pair list to the topics
+    surfaced in the current hit page (or those most-referenced when no
+    ``kg_topic`` hits are present) so the caller renders "for the topics in
+    this result set, here are corroborating cross-speaker insights".
+    """
+
+    topic_id: str = Field(description="Topic node id the pair is about (``topic:…``).")
+    topic_label: str | None = Field(
+        default=None,
+        description="Topic display label (from the merged KG when resolvable; null otherwise).",
+    )
+    person_a_id: str = Field(description="First speaker Person id (``person:…``).")
+    person_a_label: str | None = Field(
+        default=None,
+        description="First speaker display name (from GI/KG rosters when resolvable).",
+    )
+    person_b_id: str = Field(description="Second speaker Person id (``person:…``).")
+    person_b_label: str | None = Field(
+        default=None,
+        description="Second speaker display name (from GI/KG rosters when resolvable).",
+    )
+    insight_a_id: str = Field(description="First insight id supporting corroboration.")
+    insight_b_id: str = Field(description="Second insight id supporting corroboration.")
+    insight_a_text: str = Field(
+        default="",
+        description="Text of insight_a (from the enricher's serialized pair).",
+    )
+    insight_b_text: str = Field(
+        default="",
+        description="Text of insight_b (from the enricher's serialized pair).",
+    )
+    contradiction_score: float = Field(
+        description="NLI contradiction score (0-1); lower ⇒ stronger agreement (per ADR-108).",
+    )
+    cosine_similarity: float | None = Field(
+        default=None,
+        description=(
+            "Embedding cosine similarity of insight_a vs insight_b (0-1); "
+            "higher ⇒ same-question."
+        ),
+    )
+
+
 class CorpusSearchApiResponse(BaseModel):
     """Response for GET /api/search."""
 
@@ -1236,6 +1327,149 @@ class CorpusSearchApiResponse(BaseModel):
         default=None,
         description="Transcript lift coverage for this response page (#528).",
     )
+    operator: str | None = Field(
+        default=None,
+        description=(
+            "The result-set operator applied (``cluster`` / ``consensus``); null when the "
+            "endpoint returned the plain top-k page. Additive Search v3 §S4b surface — "
+            "response shape stays backward-compatible when no operator is requested."
+        ),
+    )
+    clusters: list[SearchClusterGroupModel] | None = Field(
+        default=None,
+        description=(
+            "Populated only when ``operator=cluster``: aggregated cluster groups over the "
+            "returned ``results`` page (Python-side after ``rrf_fuse``; no LanceDB "
+            "native combine). Ordered by descending group size."
+        ),
+    )
+    consensus_pairs: list[SearchConsensusPairModel] | None = Field(
+        default=None,
+        description=(
+            "Populated only when ``operator=consensus``: cross-Person corroboration pairs "
+            "from ``enrichments/topic_consensus.json`` filtered to topics in the current "
+            "hit page (or the top-referenced topic set when no ``kg_topic`` hits are "
+            "present). Never null unless the enricher output is missing / unreadable."
+        ),
+    )
+
+
+class CompareSubjectRefModel(BaseModel):
+    """One picker slot on ``POST /api/search/compare`` (Search v3 §S8).
+
+    Subjects are addressed by kind + id. ``label`` is display-only — the
+    server never round-trips it into retrieval scope (kind → search filter
+    mapping is: person → speaker substring, topic → topic substring,
+    episode → episode_id exact, feed/show → feed substring).
+    """
+
+    kind: Literal["person", "topic", "episode", "feed", "show"] = Field(
+        description=(
+            "Subject class. Maps to a ``structured_corpus_search`` scope: "
+            "person → speaker=, topic → topic=, episode → episode_id=, "
+            "feed / show → feed=."
+        ),
+    )
+    id: str = Field(
+        min_length=1,
+        description=(
+            "Subject identifier. Bare id or label — the server uses it as the "
+            "scope value (substring for person / topic / feed, exact for episode). "
+            "For persons the client typically passes the display name (matches "
+            "the current speaker= filter), for topics the ``topic:…`` id or bare "
+            "label, for episodes the corpus-stable ``episode_id``."
+        ),
+    )
+    label: str | None = Field(
+        default=None,
+        description="Display-only label; server echoes it back in the response pack.",
+    )
+
+
+class CompareBriefingPackModel(BaseModel):
+    """One side of a Compare response (Search v3 §S8).
+
+    Wraps a single ``build_briefing_pack`` call — the RFC-093 API used
+    unchanged. ``rendered`` is the LITM-positioned text (critical /
+    supporting / caveats) the caller can paste into a summary card.
+    ``grounded`` is True when the pack has a top insight; the judge
+    summary is muted when either side reports ``grounded=false``.
+    """
+
+    subject: CompareSubjectRefModel = Field(description="Echoed subject picker slot.")
+    query: str = Field(description="Query used for this side (echo of ``request.q`` or empty).")
+    query_type: str = Field(default="semantic", description="Detected query intent.")
+    rendered: str = Field(default="", description="LITM-positioned briefing text.")
+    token_count: int = Field(default=0, ge=0)
+    max_tokens: int = Field(default=2000, ge=1)
+    top_insight_id: str | None = Field(
+        default=None,
+        description="doc_id of the top insight (null when no insight tier hit).",
+    )
+    top_insight_text: str = Field(
+        default="",
+        description="Text of the top insight (empty when null).",
+    )
+    supporting_segment_ids: list[str] = Field(default_factory=list)
+    supporting_segment_texts: list[str] = Field(default_factory=list)
+    coverage_summary: dict[str, Any] = Field(
+        default_factory=dict,
+        description="``{show_ids, episode_count, date_range}`` (from build_briefing_pack).",
+    )
+    confidence_p50: float = Field(default=0.0)
+    result_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of hits retrieved for this subject.",
+    )
+    grounded: bool = Field(
+        default=False,
+        description="True when ``top_insight_id`` is non-null (has synthesized insight).",
+    )
+
+
+class SearchCompareRequest(BaseModel):
+    """Request body for ``POST /api/search/compare`` (Search v3 §S8)."""
+
+    subject_a: CompareSubjectRefModel
+    subject_b: CompareSubjectRefModel
+    q: str = Field(
+        default="",
+        description=(
+            "Optional shared query. When empty the two subjects are compared "
+            "on their whole-corpus presence — the underlying "
+            "``structured_corpus_search`` uses the subject label as the query "
+            "in that case (fallback)."
+        ),
+    )
+    path: str | None = Field(
+        default=None,
+        description="Corpus output dir (contains search/). Omit to use server default.",
+    )
+    top_k: int = Field(default=10, ge=1, le=100)
+    max_tokens: int = Field(default=2000, ge=1, le=8000)
+
+
+class SearchCompareResponse(BaseModel):
+    """Response for ``POST /api/search/compare`` (Search v3 §S8).
+
+    Wraps ``build_briefing_pack`` twice — no LanceDB native combine site;
+    ``make lint-search-v3`` remains green.
+    """
+
+    pack_a: CompareBriefingPackModel
+    pack_b: CompareBriefingPackModel
+    judge_summary: str | None = Field(
+        default=None,
+        description=(
+            "Deterministic comparison summary (RFC-107 §S8 acceptance: hidden "
+            "when either pack reports ``grounded=false``). Compares confidence "
+            "p50, episode coverage, and top-insight score across the two sides. "
+            "Never an LLM call — CI stays airgapped."
+        ),
+    )
+    error: str | None = None
+    detail: str | None = None
 
 
 class RelatedNodeModel(BaseModel):
@@ -1639,6 +1873,17 @@ class CorpusEpisodeDetailResponse(BaseModel):
         default_factory=list,
         description="CIL topic pills from bridge (cluster-first order).",
     )
+    transcript_relative_path: str | None = Field(
+        default=None,
+        description=(
+            "Corpus-root-relative path to the raw transcript text file, when "
+            "the episode's metadata JSON carries ``content.transcript_file_path`` "
+            "(or the legacy ``content.transcript_file`` field). ``None`` when "
+            "the metadata omits the reference — for example on episodes that "
+            "were ingested by a summary-only path. Consumers open the transcript "
+            "via ``GET /api/corpus/text-file?path=<root>&relpath=<transcript>``."
+        ),
+    )
     bridge_partition: "BridgePartitionSummary | None" = Field(
         default=None,
         description=(
@@ -1955,6 +2200,12 @@ class CorpusRunSummaryItem(BaseModel):
     ad_chars_excised_preroll: int | None = None
     ad_chars_excised_postroll: int | None = None
     ad_episodes_with_excision_count: int | None = None
+    # #1269 / UXS-006 §6.5: stable feed directory name inferred from the
+    # ``feeds/<stable_feed_dir>/run_*/run.json`` layout. Each run.json is
+    # scoped to a single (feed, timestamp) — the dashboard's Feed history
+    # grid aggregates the flat response client-side by ``feed_id``. ``None``
+    # for legacy layouts that did not nest runs under ``feeds/``.
+    feed_id: str | None = None
 
 
 class CorpusRunsSummaryResponse(BaseModel):

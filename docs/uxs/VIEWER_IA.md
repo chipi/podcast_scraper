@@ -80,9 +80,9 @@ The app has no URL routing. Navigation is tab and store state.
 
 | Axis | Values | Who owns it |
 | --- | --- | --- |
-| Main tab | `digest` / `library` / `graph` / `dashboard` | `App.vue` local ref |
+| Main tab | `digest` / `library` / `search` / `graph` / `dashboard` | `App.vue` local ref (Search v3 — RFC-107) |
 | Subject (right rail) | episode / topic / person / graph-node / none | `subjectStore` |
-| Left panel surface | `search` (semantic UI + results) / `explore` (GI explore UI) | `shellStore.leftPanelSurface` + `searchStore`, `exploreStore` |
+| Left panel surface | `launcher` (compact query field + recent, non-Search tabs only; hidden on Search) | `shellStore.leftPanelSurface` + `searchStore` (Explore mode retired — RFC-107 §5) |
 
 Changing one axis does not reset the others. Switching from Library to Graph
 does not clear the subject rail. Running a search does not change the active tab.
@@ -108,14 +108,14 @@ the subject history stack).
 
 **Always visible.** Permanent on the left regardless of which main tab is active.
 
-**Two modes, one column width (`w-72`):**
+**One surface, one column width (`w-72`):**
 
-- **Search** (default): semantic FAISS-based corpus search — query form, run controls, scrollable
-  results. Quiet footer control **Explore corpus →** (`text-xs`, muted, arrow) slides the column to
-  **Explore** mode (CSS transform on a two-pane strip inside `LeftPanel.vue`; **`data-testid="left-panel-slide-host"`**).
-- **Explore**: GI cross-episode filters and natural-language / preset queries. **← Search** at the
-  top (same quiet treatment) slides back; **search query and results are preserved** (`searchStore`
-  untouched). **`data-testid="left-panel-enter-explore"`** / **`left-panel-back-search`**.
+- **Search**: semantic corpus search — query form, run controls, scrollable results. See
+  [UXS-005 — Semantic Search](UXS-005-semantic-search.md).
+- **Explore mode retired.** The slide mode-switch, `shell.leftPanelSurface = 'explore'`, and the
+  `left-panel-enter-explore` / `left-panel-back-search` / `left-panel-slide-host` test IDs were
+  removed when Explore's filters folded into the Workspace filter chip bar
+  (UXS-016 §Header). See UXS-005 for the full retirement note.
 
 **Keyboard:** **`/`** expands the column if collapsed, sets surface to **Search**, then focuses
 **`#search-q`** (`useViewerKeyboard` + `LeftPanel` `focusQuery`). In **Explore**, **Enter** in
@@ -258,18 +258,21 @@ in UXS-003, UXS-004, UXS-007, UXS-009, UXS-010
 
 ## Main tabs
 
-Four tabs. Each answers a different question about the same corpus.
+Five tabs. Each answers a different question about the same corpus.
 
 | Tab | Question it answers | Default? |
 | --- | --- | --- |
 | **Digest** | What's new in my corpus recently? | ✓ Yes (first load) |
 | **Library** | What episodes and feeds have been processed? | |
+| **Search** | What am I trying to find out? | (Search v3 — RFC-107) |
 | **Graph** | How do entities, topics, and insights connect? | |
 | **Dashboard** | Is my corpus healthy, and what should I do? | |
 
-**Tab order:** Digest · Library · Graph · Dashboard (left to right)
+**Tab order:** Digest · Library · **Search** · Graph · Dashboard (left to right)
 
-**Default on first load:** Digest
+**Default on first load:** Digest (per-user override lands in a future USERPREFS-1 pref — RFC-107 OQ1).
+
+> **Search v3 (RFC-107, in flight).** The Search tab is the operator's first-class query surface — a full-width **Query Workspace** ([UXS-016](UXS-016-query-workspace.md)). The former left-column **Explore** mode is retired; its filters (topic contains / speaker contains / limit / min confidence / grounded only / presets) fold into the Workspace filter chip bar. The LeftPanel Search column is retained as a **compact launcher** on non-Search tabs (see UXS-005). A shell-wide **Cmd-K** command palette is summonable from any tab.
 
 ### Digest
 

@@ -16,20 +16,54 @@ from __future__ import annotations
 
 import http.server
 import shutil
+import socket
 import subprocess
+import tempfile
 import threading
 import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 IMAGE = "podcast-scraper-learning-app:latest"
-STUB_PORT = 8000  # nginx.conf proxies to the literal host `api:8000`
 NGINX_HOST_PORT = 18092
+
+
+def _pick_free_port() -> int:
+    """Ask the kernel for an ephemeral port that's currently free, then close
+    the probe socket so the caller can bind it.
+
+    Race-prone in principle (another process could grab it before we bind),
+    but on a test machine it's stable enough. Alternative would be to bind
+    the actual stub with port 0 and read back the assigned port before
+    docker-run — one more change, saved for later if this races in practice.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+def _render_nginx_conf(source: Path, upstream_port: int) -> str:
+    """Rewrite the shipped nginx.conf to point every `api:8000` upstream at
+    `api:<upstream_port>`. Kept as a text-level replace to preserve every
+    other property (rate limits, headers, SPA fallback) verbatim.
+    """
+    original = source.read_text(encoding="utf-8")
+    # Match "proxy_pass http://api:8000" — the two locations in the shipped
+    # config; brittle to whitespace but the config is committed so any drift
+    # is caught by the test authors, not silently by the runtime.
+    replaced = original.replace("http://api:8000", f"http://api:{upstream_port}")
+    if replaced == original:
+        raise AssertionError(
+            "test_player_nginx_runtime: expected to rewrite http://api:8000 in nginx.conf; "
+            "if the upstream form changed, update _render_nginx_conf.",
+        )
+    return replaced
 
 
 class _StubUpstream(http.server.BaseHTTPRequestHandler):
@@ -53,9 +87,23 @@ def player_base() -> Iterator[str]:
     if subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True).returncode != 0:
         pytest.skip(f"{IMAGE} not built (docker build web/learning-player -t {IMAGE})")
 
-    # nosec B104 - the stub upstream must be reachable from the dockerized nginx
-    # (via host.docker.internal), so it binds all interfaces; test-local only.
-    srv = http.server.ThreadingHTTPServer(("0.0.0.0", STUB_PORT), _StubUpstream)  # nosec B104
+    # #1261 fix: nginx.conf hard-codes `api:8000`, but on Docker Desktop for
+    # macOS the host-gateway route often reaches whatever process is on
+    # localhost:8000 — which locally is a leftover `make serve` FastAPI, not
+    # our stub, so the stub loses even after binding. Pick a random free port
+    # for the stub AND render a nginx.conf that proxies at that port. Both
+    # ends match by construction; no host-machine port conflicts.
+    stub_port = _pick_free_port()
+    conf_source = Path(__file__).resolve().parents[3] / "web/learning-player/nginx.conf"
+    rendered_conf = _render_nginx_conf(conf_source, stub_port)
+    conf_dir = Path(tempfile.mkdtemp(prefix="lp-nginx-runtime-"))
+    conf_path = conf_dir / "default.conf"
+    conf_path.write_text(rendered_conf, encoding="utf-8")
+
+    # Stub upstream binds all interfaces so the container-side nginx can reach
+    # it via host-gateway. Test-local only; test doesn't run in CI without an
+    # explicit slow-integration profile.
+    srv = http.server.ThreadingHTTPServer(("0.0.0.0", stub_port), _StubUpstream)  # nosec B104
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 
     run = subprocess.run(
@@ -68,6 +116,8 @@ def player_base() -> Iterator[str]:
             "api:host-gateway",
             "-p",
             f"{NGINX_HOST_PORT}:80",
+            "-v",
+            f"{conf_path}:/etc/nginx/conf.d/default.conf:ro",
             IMAGE,
         ],
         capture_output=True,
@@ -77,12 +127,33 @@ def player_base() -> Iterator[str]:
     if not cid:
         srv.shutdown()
         pytest.fail(f"failed to start nginx container: {run.stderr}")
-    time.sleep(2)
+    # Wait until the container's nginx actually accepts a connection — a fixed
+    # sleep raced on Docker Desktop for macOS where port publishing lags
+    # container start by ~1-3 seconds (#1261 followup).
+    base = f"http://127.0.0.1:{NGINX_HOST_PORT}"
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(base + "/", timeout=1)  # noqa: S310
+            break
+        except (urllib.error.URLError, OSError):
+            time.sleep(0.5)
+    else:
+        subprocess.run(["docker", "rm", "-f", cid], capture_output=True)
+        srv.shutdown()
+        pytest.fail("nginx container did not accept connections within 30s")
     try:
-        yield f"http://127.0.0.1:{NGINX_HOST_PORT}"
+        yield base
     finally:
         subprocess.run(["docker", "rm", "-f", cid], capture_output=True)
         srv.shutdown()
+        try:
+            conf_path.unlink(missing_ok=True)
+            conf_dir.rmdir()
+        except OSError:
+            # Best-effort cleanup — the tempdir prefix means orphans are
+            # harmless and rare enough not to fail the test on this.
+            pass
 
 
 def _get(url: str) -> tuple[int, str]:
@@ -108,3 +179,25 @@ def test_operator_api_never_reaches_backend(player_base: str) -> None:
 def test_consumer_api_is_rate_limited(player_base: str) -> None:
     codes = [_get(f"{player_base}/api/app/auth/login")[0] for _ in range(60)]
     assert 429 in codes, "a burst on the auth endpoint must hit the rate limit (429)"
+
+
+# --------------------------------------------------------------------------- #
+# #1261-9 — SPA fallback for the new listener routes (topic / person / browse)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/topic/topic:ai",
+        "/person/person:jane-doe",
+        "/browse/topics",
+        "/browse/people",
+    ],
+)
+def test_new_listener_routes_fall_through_to_spa(player_base: str, path: str) -> None:
+    # A direct-load of a client-side route must not 404 — nginx should serve the
+    # SPA (index.html) so vue-router can render the matching view.
+    code, body = _get(f"{player_base}{path}")
+    assert code == 200, f"{path} returned {code}, expected 200 (SPA fallback)"
+    assert '<div id="app">' in body, f"{path} did not serve the SPA index.html"

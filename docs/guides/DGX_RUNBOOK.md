@@ -164,7 +164,7 @@ Three chaos gates here:
 2. **DGX denied mid-run** — block the DGX Whisper port via local proxy returning 503; verify the pipeline falls back to OpenAI cloud Whisper (`transcription_fallback_provider: openai`), emits a `dgx_fallback_active` Sentry breadcrumb, episode still completes.
 3. **DGX + cloud both denied** — both proxied to 503; verify clean abort with operator-visible error, no half-baked output.
 
-Soak: `make preprod-soak` (added with #814) runs nightly happy-path against the last 24h of operator corpus, appends a row to [DGX_PROD_VALIDATION_LOG](../operations/DGX_PROD_VALIDATION_LOG.md), refuses to allow promotion until the rolling 4-week fallback rate is under 1% per ADR-096.
+Soak: the automated nightly soak proposed with #814 (`make preprod-soak`) was never wired. Until it is, promotion follows the manual gate: append a row to [DGX_PROD_VALIDATION_LOG](../operations/DGX_PROD_VALIDATION_LOG.md) after each preprod run and refuse promotion until the rolling 4-week fallback rate is under 1% per ADR-096.
 
 ### Stage C — prod flip
 

@@ -17,6 +17,7 @@ import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
 import EpisodeEnrichmentSection from './EpisodeEnrichmentSection.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
+import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { themeMemberTopicIdSet } from '../../utils/topicClustersOverlay'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
@@ -35,6 +36,7 @@ import {
   SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS,
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
+import { corpusTextFileViewUrl } from '../../utils/transcriptSourceDisplay'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { fetchEpisodeRelatedInsights, type RelatedNode } from '../../api/relationalApi'
 import {
@@ -60,6 +62,13 @@ const emit = defineEmits<{
   'focus-search': [
     payload: { feed: string; query: string; since?: string; feedDisplayTitle?: string },
   ]
+  /**
+   * Search v3 §S6 — episode-scoped rail launcher. Switches to the Search
+   * main tab, sets ``search.filters.episodeId`` to the current episode,
+   * and (when a query is provided) runs immediately. App-level handler
+   * publishes to activeSearchContext for cross-tab reactivity.
+   */
+  'open-search-in-episode': [payload: { episodeId: string; query?: string }]
   'switch-main-tab': [tab: 'graph' | 'dashboard']
   /** Bubbled from EpisodeEnrichmentSection so the rail can hide the Enrichment tab. */
   'enrichment-has-content': [boolean]
@@ -242,6 +251,39 @@ const episodeIdChipTooltip = computed((): string => {
 })
 
 const episodeTitleForCopy = computed(() => detail.value?.episode_title?.trim() ?? '')
+
+/**
+ * Corpus text-file URL for the episode's raw transcript, when the server
+ * reports one on ``detail.transcript_relative_path`` (2026-07-22 rail
+ * addition). Used as the "Open in new tab" fallback inside
+ * ``TranscriptViewerDialog`` when the popup is opened from the rail.
+ */
+const transcriptUrl = computed((): string => {
+  const rel = detail.value?.transcript_relative_path
+  const root = shell.corpusPath.trim()
+  if (!rel || !root) return ''
+  return corpusTextFileViewUrl(root, rel)
+})
+
+const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
+
+/**
+ * Open the whole-episode transcript in the shared ``TranscriptViewerDialog``
+ * popup — same in-app viewer NodeDetail uses for insight supporting quotes,
+ * so the interaction is consistent regardless of entry point. No char
+ * highlighting; the popup renders the plain transcript scrolled to top.
+ */
+function openTranscriptViewer(): void {
+  const rel = detail.value?.transcript_relative_path
+  const root = shell.corpusPath.trim()
+  if (!rel || !root) return
+  transcriptViewerRef.value?.open({
+    corpusRoot: root,
+    transcriptRelpath: rel,
+    rawTabUrl: transcriptUrl.value,
+    subtitle: detail.value?.episode_title || null,
+  })
+}
 
 type EpisodeTitleCopyUi = 'idle' | 'copied' | 'failed'
 
@@ -611,6 +653,24 @@ function openInSearch(): void {
   })
 }
 
+/**
+ * Search v3 §S6 — episode-scoped rail launcher. Sets the exact
+ * ``episode_id`` filter (server-side scope) so the top-k comes from
+ * this episode only. Uses the summary title / bullets as the pre-filled
+ * query so the user has something to run immediately (same
+ * ``build_similarity_query`` shape as Similar episodes).
+ */
+function openSearchInEpisode(): void {
+  const d = detail.value
+  if (!d) return
+  const ep = d.episode_id?.trim()
+  if (!ep) return
+  emit('open-search-in-episode', {
+    episodeId: ep,
+    query: buildLibrarySearchHandoffQuery(d),
+  })
+}
+
 function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
   const p = row.metadata_relative_path?.trim()
   if (!p) {
@@ -621,7 +681,27 @@ function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
 
 watch(
   () => [shell.corpusPath, shell.healthStatus] as const,
-  () => {
+  (curr, prev) => {
+    // Guard against health-hydration transitions that race with a
+    // focus-episode + loadDetail sequence — the initial mount fetchHealth
+    // (or a corpus-path-triggered re-probe) can resolve AFTER the row
+    // click has already populated ``detail``, and firing this reset would
+    // wipe the just-loaded episode data (HANDOFF_MATRIX H1.1 class of
+    // regression). Skip when the corpus path is unchanged AND the health
+    // transitions FROM a not-usable state (null/''/unknown) TO 'ok' —
+    // that's always a hydration, never a corpus swap. Real corpus swaps
+    // and real ok→error transitions still reset the panel below.
+    const prevPath = prev?.[0]
+    const currPath = curr[0]
+    const prevHealth = prev?.[1]
+    const currHealth = curr[1]
+    const pathUnchanged = (prevPath ?? '') === (currPath ?? '')
+    const prevWasNotUsable =
+      prevHealth == null || prevHealth === '' || prevHealth === 'unknown'
+    const currIsOk = currHealth === 'ok'
+    if (pathUnchanged && prevWasNotUsable && currIsOk) {
+      return
+    }
     detailLoadGate.invalidate()
     feeds.value = []
     indexStatsEnvelope.value = null
@@ -873,6 +953,26 @@ watch(
         >
           Prefill semantic search
         </button>
+        <button
+          type="button"
+          class="min-w-0 flex-1 rounded border border-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary hover:bg-primary/10 disabled:opacity-40"
+          data-testid="episode-detail-search-in-episode"
+          :disabled="!detail.episode_id?.trim()"
+          title="Search within this episode — filters /api/search by exact episode_id (Search v3 §S6)."
+          @click="openSearchInEpisode()"
+        >
+          Search within episode
+        </button>
+        <button
+          v-if="detail.transcript_relative_path"
+          type="button"
+          class="min-w-0 flex-1 rounded border border-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary hover:bg-primary/10"
+          data-testid="episode-detail-view-transcript"
+          :title="`Open the transcript for this episode (${detail.transcript_relative_path}) in an in-app viewer.`"
+          @click="openTranscriptViewer()"
+        >
+          View transcript
+        </button>
         <HelpTip class="shrink-0 self-center">
           Opens Search with this feed scoped and the same field order as
           <strong class="font-medium text-surface-foreground/90">Similar episodes</strong>
@@ -1037,5 +1137,6 @@ watch(
         </div>
       </div>
     </template>
+    <TranscriptViewerDialog ref="transcriptViewerRef" />
   </div>
 </template>

@@ -314,7 +314,11 @@ reuse the same pattern (or mock HTTP). See [CONFIGURATION.md — Download resili
 - **`test_viewer_corpus_library.py`** — Corpus Library responses that surface **`has_bridge`**
   and **`bridge_relative_path`**.
 
-**Bridge assembly** (builder invariants, not HTTP): **`tests/integration/test_bridge_integration.py`**.
+**Bridge assembly** (builder invariants, not HTTP): the earlier
+`tests/integration/test_bridge_integration.py` was consolidated into
+per-concern unit tests — **`tests/unit/builders/test_bridge_builder.py`**,
+**`tests/unit/builders/test_bridge_artifact_paths.py`**, and
+**`tests/unit/builders/test_bridge_non_mechanical.py`**.
 
 **Semantic search lift** and **offset verification** are primarily **unit-tested** under
 `tests/unit/podcast_scraper/search/` (`transcript_chunk_lift`, `gil_chunk_offset_verify`).

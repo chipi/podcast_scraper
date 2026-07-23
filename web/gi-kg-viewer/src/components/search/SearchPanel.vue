@@ -3,13 +3,25 @@ import { computed, ref } from 'vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useSavedQueriesStore } from '../../stores/savedQueries'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import type { SearchHit } from '../../api/searchApi'
 import { episodeFallbackForSearchHit, graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
+import EnrichedAnswerHero from './EnrichedAnswerHero.vue'
 import ResultCard from './ResultCard.vue'
+import TranscriptClusterCard from './TranscriptClusterCard.vue'
+import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
+import {
+  collapseTranscriptHitsByEpisode,
+  isTranscriptClusterHit,
+  type CollapsedSearchRow,
+} from '../../utils/collapseTranscriptHitsByEpisode'
+import { fetchCorpusEpisodeDetail } from '../../api/corpusLibraryApi'
+import { corpusTextFileViewUrl } from '../../utils/transcriptSourceDisplay'
+import ResultSetOperatorBar from './ResultSetOperatorBar.vue'
 import SearchFilterBar from './SearchFilterBar.vue'
 import SearchResultsVizDialog from './SearchResultsVizDialog.vue'
 import HelpTip from '../shared/HelpTip.vue'
@@ -17,8 +29,34 @@ import HelpTip from '../shared/HelpTip.vue'
 const emit = defineEmits<{
   'go-graph': []
   'open-library-episode': [payload: { metadata_relative_path: string }]
-  'open-episode-summary': [hit: SearchHit]
+  /**
+   * Result-set operator "On graph" — Search v3 §S4a. Payload is the
+   * de-duped set of graph ids (episode / topic / entity source_id) that
+   * the current hit set resolves to. App.vue hands off to the graph
+   * canvas via ``graphNavigation.setLibraryEpisodeHighlights`` +
+   * ``requestFitAfterLoad`` and switches ``mainTab`` to ``'graph'``.
+   */
+  'focus-set': [ids: string[]]
 }>()
+
+/**
+ * Operator bar mode; ``null`` when no operator is active (results render
+ * plain). ``'timeline'`` shows the histogram inline; ``'graph'`` fires the
+ * ``focus-set`` emit (App handles the tab switch + camera fit). Cluster /
+ * consensus land in S4b.
+ */
+// #1259-4 followup: the active operator lives on the search store now
+// so external surfaces (Cmd-K palette operator kickers) can toggle the
+// panel without also clicking the chip. The v-model binding on
+// ``ResultSetOperatorBar`` writes back through this ref.
+const activeOperator = computed<
+  'cluster' | 'timeline' | 'graph' | 'consensus' | 'compare' | null
+>({
+  get: () => search.activeOperator,
+  set: (v) => {
+    search.activeOperator = v
+  },
+})
 
 const shell = useShellStore()
 const search = useSearchStore()
@@ -26,6 +64,26 @@ const nav = useGraphNavigationStore()
 const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
 const graphHandoff = useGraphHandoffStore()
+const savedQueries = useSavedQueriesStore()
+
+/**
+ * Search v3 §S7 — "Save this query" button state. Derived from
+ * ``search.query`` so an empty / whitespace-only query disables the
+ * button; ``isCurrentQuerySaved`` reflects whether the trimmed query is
+ * already in the USERPREFS-1 Saved list so the button flips to the
+ * "Saved ✓" read-only indicator (dedupe semantics match the store).
+ */
+const currentQueryTrimmed = computed(() => search.query.trim())
+const isCurrentQuerySaved = computed(() =>
+  currentQueryTrimmed.value ? savedQueries.isSaved(currentQueryTrimmed.value) : false,
+)
+
+async function onSaveCurrentQuery(): Promise<void> {
+  const q = currentQueryTrimmed.value
+  if (!q) return
+  if (isCurrentQuerySaved.value) return
+  await savedQueries.saveQuery(q)
+}
 
 const queryRef = ref<HTMLTextAreaElement | null>(null)
 const advancedDialogRef = ref<HTMLDialogElement | null>(null)
@@ -58,6 +116,60 @@ const visibleResults = computed((): SearchHit[] => {
     (h) => (h.source_tier ?? 'aux') === evidenceFilter.value,
   )
 })
+
+/**
+ * The collapsed render list — same order as ``visibleResults`` but
+ * consecutive transcript hits that share ``episode_id`` are folded into
+ * one ``TranscriptClusterHit`` (2026-07-22 UX cleanup). Insight / quote /
+ * kg_topic / kg_entity rows pass through untouched.
+ */
+const collapsedResults = computed<CollapsedSearchRow[]>(() =>
+  collapseTranscriptHitsByEpisode(visibleResults.value),
+)
+
+function rowKey(row: CollapsedSearchRow, i: number): string {
+  return isTranscriptClusterHit(row)
+    ? `transcript-cluster:${row.episodeId}:${i}`
+    : `${row.doc_id}:${i}`
+}
+
+/**
+ * Search v3 followup (2026-07-22): open the shared TranscriptViewerDialog
+ * seeked to the timestamp of a specific transcript chunk that matched
+ * the query. Resolves the transcript relpath server-side (episode-detail
+ * fetch, cached in memory across clicks within one session), then hands
+ * the payload to the popup — same in-app viewer the episode rail uses.
+ */
+const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
+const transcriptRelpathByMetadataPath = new Map<string, string | null>()
+
+async function openTranscriptAtChunk(payload: {
+  metadataRelativePath: string
+  episodeTitle: string
+  audioSeekStartMs: number | null
+  hit: SearchHit
+}): Promise<void> {
+  const root = shell.corpusPath.trim()
+  if (!root) return
+  let rel = transcriptRelpathByMetadataPath.get(payload.metadataRelativePath)
+  if (rel === undefined) {
+    try {
+      const detail = await fetchCorpusEpisodeDetail(root, payload.metadataRelativePath)
+      rel = detail.transcript_relative_path?.trim() || null
+    } catch {
+      rel = null
+    }
+    transcriptRelpathByMetadataPath.set(payload.metadataRelativePath, rel)
+  }
+  if (!rel) return
+  transcriptViewerRef.value?.open({
+    corpusRoot: root,
+    transcriptRelpath: rel,
+    rawTabUrl: corpusTextFileViewUrl(root, rel),
+    subtitle: payload.episodeTitle,
+    audioSeekStartMs: payload.audioSeekStartMs ?? undefined,
+  })
+}
 
 /** PRD-033 FR1.4 — humanized detected query intent for the indicator chip. */
 const QUERY_TYPE_LABELS: Record<string, string> = {
@@ -189,10 +301,6 @@ function onOpenLibraryHit(hit: SearchHit): void {
   const rel = sourceMetadataRelativePathFromSearchHit(hit)
   if (!rel) return
   emit('open-library-episode', { metadata_relative_path: rel })
-}
-
-function onOpenEpisodeSummaryHit(hit: SearchHit): void {
-  emit('open-episode-summary', hit)
 }
 
 async function onSubmit(): Promise<void> {
@@ -378,6 +486,25 @@ const advancedFeedCombinedTitle = computed(() =>
       >
         Clear
       </button>
+      <!-- Search v3 §S7 — Save this query to the USERPREFS-1 Saved list.
+           Enabled once the user has typed a non-empty query. When the
+           current query is ALREADY saved, the button flips to a "Saved ✓"
+           read-only indicator (idempotent — matches the store's dedupe
+           semantics). -->
+      <button
+        type="button"
+        class="rounded border border-border px-3 py-1.5 text-sm hover:bg-overlay disabled:opacity-40"
+        data-testid="search-save-query"
+        :disabled="!currentQueryTrimmed"
+        :title="
+          isCurrentQuerySaved
+            ? 'This query is already in Saved.'
+            : 'Save this query to your Saved list (LeftPanel + Cmd-K palette).'
+        "
+        @click="onSaveCurrentQuery"
+      >
+        {{ isCurrentQuerySaved ? 'Saved ✓' : 'Save query' }}
+      </button>
     </div>
     <dialog
       ref="advancedDialogRef"
@@ -479,6 +606,11 @@ const advancedFeedCombinedTitle = computed(() =>
         v-if="search.results.length"
         class="mt-3 space-y-2"
       >
+        <!-- Search v3 §S5 — EnrichedAnswerHero sits ABOVE the operator bar
+             and the hit cards. Renders nothing when enrichment is off or
+             no decorated hits came back; renders skeleton on loading;
+             renders muted error on non-fatal chain failure. -->
+        <EnrichedAnswerHero />
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p class="text-xs font-medium text-muted">
             {{ visibleResults.length }}
@@ -533,16 +665,43 @@ const advancedFeedCombinedTitle = computed(() =>
             Search result insights
           </button>
         </div>
-        <ResultCard
-          v-for="(h, i) in visibleResults"
-          :key="`${h.doc_id}-${i}`"
-          :hit="h"
-          :library-opens-enabled="libraryOpensEnabled"
-          @focus="(hit: SearchHit) => void onFocusHit(hit)"
-          @open-library="onOpenLibraryHit"
-          @open-episode-summary="onOpenEpisodeSummaryHit"
+        <ResultSetOperatorBar
+          v-model:active="activeOperator"
+          :visible-hits="visibleResults"
+          :clusters="search.clusters"
+          :consensus-pairs="search.consensusPairs"
+          :operator-loading="search.operatorLoading"
+          :operator-error="search.operatorError"
+          :compare-result="search.compareResult"
+          :compare-loading="search.compareLoading"
+          :compare-error="search.compareError"
+          @focus-set="(ids: string[]) => emit('focus-set', ids)"
+          @run-cluster="() => void search.runOperator(shell.corpusPath, 'cluster')"
+          @run-consensus="() => void search.runOperator(shell.corpusPath, 'consensus')"
+          @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB)"
+          @clear-compare="() => search.clearCompare()"
         />
+        <template
+          v-for="(row, i) in collapsedResults"
+          :key="rowKey(row, i)"
+        >
+          <TranscriptClusterCard
+            v-if="isTranscriptClusterHit(row)"
+            :cluster="row"
+            :library-opens-enabled="libraryOpensEnabled"
+            @open-library="onOpenLibraryHit"
+            @open-transcript-at="(payload) => void openTranscriptAtChunk(payload)"
+          />
+          <ResultCard
+            v-else
+            :hit="row"
+            :library-opens-enabled="libraryOpensEnabled"
+            @focus="(hit: SearchHit) => void onFocusHit(hit)"
+            @open-library="onOpenLibraryHit"
+          />
+        </template>
       </div>
     </div>
+    <TranscriptViewerDialog ref="transcriptViewerRef" />
   </section>
 </template>

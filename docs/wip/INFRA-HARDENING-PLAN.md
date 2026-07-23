@@ -16,7 +16,7 @@ independent of the shared edge — so they land first. Edge items land *with* th
 engine; the player-API item gates the player going public.
 
 Each phase must be green (verified) before the next public-exposure step proceeds. No
-new public vhost ships until the [pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) passes.
+new public vhost ships until the [pre-public gate](../security/THREAT_MODEL.md#pre-public-gate-run-before-any-new-public-vhost) passes.
 
 ---
 

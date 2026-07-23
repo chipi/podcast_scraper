@@ -3,6 +3,19 @@
 > **Quick Reference:** This guide covers the git worktree-based development workflow.
 > For complete technical details and rationale, see
 > [RFC-039](../rfc/RFC-039-development-workflow-worktrees-ci.md).
+>
+> ⚠️ **`make wt-*` convenience targets are not currently shipped in the
+> repo Makefile.** The interactive `wt-setup` / `wt-new` / `wt-list` /
+> `wt-prune` / `wt-remove` targets referenced throughout this guide are
+> proposed helpers that never landed. Use the raw `git worktree` commands
+> below (each `make wt-*` mention includes a `# equivalent:` note where
+> the mapping is non-obvious). If someone lands the helper script later,
+> this banner comes out.
+>
+> - `make wt-setup` / `make wt-new`  →  `git worktree add <path> [<branch>]`
+> - `make wt-list`                   →  `git worktree list`
+> - `make wt-remove`                 →  `git worktree remove <path>`
+> - `make wt-prune`                  →  `git worktree prune`
 
 ## Overview
 

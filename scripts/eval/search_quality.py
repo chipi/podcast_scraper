@@ -1,0 +1,508 @@
+#!/usr/bin/env python3
+"""Search v3 quality-eval harness (RFC-107 §T2, PRD-045 FR10; #1230 S0(c)).
+
+Runs a labelled query set (default:
+``tests/fixtures/viewer-validation-corpus/v3/search-queries.json``) against a
+LanceDB corpus (default: the same v3 synthetic fixture) via
+``RetrievalLayer.retrieve``, computes the RFC-107 metric set, and emits a
+JSON report + optional summary.md.
+
+Metric coverage (per-query + aggregate):
+
+- ``nDCG@10`` — per RFC-107 §T2. Skipped when ``expected_top_k_doc_ids`` is
+  ``null`` (label_status: "unlabeled-seed"); the count of skipped queries is
+  reported in the summary.
+- ``MRR@10`` — same skip rule as nDCG.
+- ``intent_router_accuracy`` — predicted vs. ``intent_expected`` (RFC-092
+  taxonomy). Measurable without labels.
+- ``tier_coverage_rate`` — fraction of queries returning ≥1 Insight AND ≥1
+  Transcript in top-10.
+- ``compound_lift_rate`` — fraction of transcript hits that carry ``lifted``.
+- ``enriched_answer_groundedness_rate`` — only computed when
+  ``--enrich`` is passed AND a provider responds. Null otherwise (documented
+  in the report).
+- ``topic_consensus_precision`` — computed against the corpus's
+  ``enrichments/topic_consensus.json`` when it exists; null otherwise.
+
+Usage:
+
+    python scripts/eval/search_quality.py \\
+        --corpus tests/fixtures/viewer-validation-corpus/v3 \\
+        --queries tests/fixtures/viewer-validation-corpus/v3/search-queries.json \\
+        --out docs/wip/search-v3/eval/S0-baseline.json \\
+        --top-k 10
+
+Exit 0 always (this is a report, not a gate). Regression thresholds land later
+via ``make eval-search`` invoking this harness and comparing to a stored
+baseline.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import sys
+import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
+
+
+@dataclass
+class QueryResult:
+    id: str
+    q: str
+    intent_expected: str | None
+    intent_predicted: str | None
+    label_status: str
+    ndcg_at_10: float | None
+    mrr_at_10: float | None
+    tier_counts: dict[str, int]
+    compound_lift_hits: int
+    transcript_hits: int
+    hit_count: int
+    top_doc_ids: list[str] = field(default_factory=list)
+    # Enrichment (--enrich) — null when the API path wasn't invoked or when
+    # the provider returned no enriched answer.
+    enriched_source_count: int | None = None
+    enriched_grounded_source_count: int | None = None
+    # topic_consensus (populated when enrichments/topic_consensus.json exists).
+    consensus_pairs_in_topk: int | None = None
+    consensus_pairs_grounded: int | None = None
+
+
+@dataclass
+class Report:
+    schema_version: str
+    generated_at: str
+    corpus: str
+    queries_path: str
+    query_count: int
+    top_k: int
+    metrics: dict[str, Any]
+    per_query: list[dict[str, Any]]
+
+
+def _dcg(rels: list[float]) -> float:
+    return sum(r / math.log2(i + 2) for i, r in enumerate(rels))
+
+
+def _ndcg_at_k(retrieved_ids: list[str], relevant_ids: set[str], k: int = 10) -> float:
+    """Binary relevance nDCG@k. 1.0 = perfect ranking; 0.0 = no relevant in top-k."""
+    rels = [1.0 if d in relevant_ids else 0.0 for d in retrieved_ids[:k]]
+    dcg = _dcg(rels)
+    ideal_hits = min(len(relevant_ids), k)
+    idcg = _dcg([1.0] * ideal_hits)
+    return dcg / idcg if idcg > 0 else 0.0
+
+
+def _mrr_at_k(retrieved_ids: list[str], relevant_ids: set[str], k: int = 10) -> float:
+    for i, d in enumerate(retrieved_ids[:k], start=1):
+        if d in relevant_ids:
+            return 1.0 / i
+    return 0.0
+
+
+def _load_queries(path: Path) -> list[dict[str, Any]]:
+    data = json.loads(path.read_text())
+    queries = data.get("queries", [])
+    if not isinstance(queries, list):
+        raise SystemExit(f"queries file malformed: 'queries' is not a list ({path})")
+    return queries
+
+
+def _hit_doc_id(hit: Any) -> str:
+    """Extract doc_id from a ScoredResult or CompoundResult; falls back to id."""
+    return getattr(hit, "doc_id", None) or getattr(hit, "id", "") or ""
+
+
+def _hit_tier(hit: Any) -> str:
+    """The source_tier a hit reports (insight / segment / aux / compound / unknown)."""
+    return getattr(hit, "source_tier", None) or "unknown"
+
+
+def _hit_has_lifted(hit: Any) -> bool:
+    """A CompoundResult carries both a segment and an insight; ScoredResult
+    with a 'lifted' payload also counts."""
+    if getattr(hit, "insight", None) and getattr(hit, "segment", None):
+        return True
+    payload = getattr(hit, "payload", None) or {}
+    return bool(payload.get("lifted"))
+
+
+def _load_topic_consensus(corpus: Path) -> list[dict[str, Any]]:
+    """Load topic_consensus enricher output if it exists on the fixture."""
+    for name in ("topic_consensus.json", "topic_consensus_pairs.json"):
+        candidate = corpus / "enrichments" / name
+        if candidate.exists():
+            data = json.loads(candidate.read_text())
+            pairs = data.get("pairs") or data.get("data", {}).get("pairs") or []
+            return list(pairs)
+    return []
+
+
+def _count_consensus_pairs_in_topk(
+    doc_ids: list[str], pairs: list[dict[str, Any]]
+) -> tuple[int, int]:
+    """Return (pairs_touching_topk, pairs_touching_topk_and_grounded).
+
+    A pair "touches" top-K when at least one of its insight_a_id / insight_b_id
+    appears in ``doc_ids`` (RFC-088 tuple shape per ADR-108). ``grounded`` is
+    inferred from the pair's optional ``grounded`` flag, defaulting to True (the
+    shipped enricher only emits pairs both sides of which are grounded).
+    """
+    if not pairs or not doc_ids:
+        return (0, 0)
+    top_set = set(doc_ids)
+    touch = 0
+    grounded_touch = 0
+    for pair in pairs:
+        ia = pair.get("insight_a_id")
+        ib = pair.get("insight_b_id")
+        if not (isinstance(ia, str) or isinstance(ib, str)):
+            continue
+        if (isinstance(ia, str) and ia in top_set) or (isinstance(ib, str) and ib in top_set):
+            touch += 1
+            if pair.get("grounded", True) is True:
+                grounded_touch += 1
+    return (touch, grounded_touch)
+
+
+def _fetch_enriched_answer(
+    api_url: str, query: str, corpus: Path, top_k: int
+) -> dict[str, Any] | None:
+    """Call /api/search?enrich_results=true; return the enriched block if present.
+
+    Best-effort: any network / provider failure returns None. Enabled only when
+    ``--enrich`` is passed and ``--api`` is set (harness runs offline by default).
+    """
+    import urllib.parse
+    import urllib.request
+
+    params = urllib.parse.urlencode(
+        {
+            "q": query,
+            "top_k": top_k,
+            "path": str(corpus),
+            "enrich_results": "true",
+        }
+    )
+    url = f"{api_url.rstrip('/')}/api/search?{params}"
+    try:
+        with urllib.request.urlopen(url, timeout=60) as resp:
+            if resp.status != 200:
+                return None
+            body = json.loads(resp.read())
+    except Exception:  # noqa: BLE001 — best-effort; skip on any failure
+        return None
+    enriched = body.get("enriched")
+    return enriched if isinstance(enriched, dict) else None
+
+
+def _count_enriched_sources(enriched: dict[str, Any] | None) -> tuple[int | None, int | None]:
+    """Return (source_count, grounded_source_count). None only when enriched is None
+    (i.e. no enriched block returned at all); an empty enriched dict counts as (0, 0)."""
+    if enriched is None:
+        return (None, None)
+    sources = enriched.get("sources") or []
+    if not isinstance(sources, list):
+        return (0, 0)
+    grounded = sum(1 for s in sources if isinstance(s, dict) and s.get("grounded") is True)
+    return (len(sources), grounded)
+
+
+def _run_query(layer: Any, q: str, embed_fn: Any, top_k: int) -> list[Any]:
+    """Run one query against the retrieval layer; returns hits."""
+    embedding = embed_fn(q) if embed_fn is not None else [0.0] * 384
+    hits = layer.retrieve(text=q, embedding=embedding, k=top_k, signals="hybrid")
+    return list(hits)
+
+
+def _load_embedder(model_name: str) -> Any:
+    """Load a sentence-transformers embedder that matches the corpus index."""
+    from sentence_transformers import SentenceTransformer
+
+    model = SentenceTransformer(model_name)
+
+    def encode(text: str) -> list[float]:
+        vec: list[float] = list(model.encode(text).tolist())
+        return vec
+
+    return encode
+
+
+def _build_layer(corpus: Path) -> Any:
+    """Construct RetrievalLayer over the corpus's LanceDB index."""
+    from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
+    from podcast_scraper.search.retrieval import RetrievalLayer
+
+    lance_path = corpus / "search" / "lance_index"
+    if not lance_path.is_dir():
+        raise SystemExit(f"lance index not found under {lance_path}")
+    backend = LanceDBBackend(str(lance_path))
+    return backend, RetrievalLayer(backend)
+
+
+def _aggregate(per_query: list[QueryResult]) -> dict[str, Any]:
+    labeled = [q for q in per_query if q.ndcg_at_10 is not None]
+    intent_labeled = [q for q in per_query if q.intent_expected is not None]
+    intent_correct = sum(1 for q in intent_labeled if q.intent_predicted == q.intent_expected)
+    tier_ok = sum(
+        1
+        for q in per_query
+        if q.tier_counts.get("insight", 0) >= 1 and q.tier_counts.get("segment", 0) >= 1
+    )
+    transcript_hits_total = sum(q.transcript_hits for q in per_query)
+    compound_lift_hits_total = sum(q.compound_lift_hits for q in per_query)
+    metrics: dict[str, Any] = {
+        "ndcg_at_10_mean": (
+            sum(q.ndcg_at_10 for q in labeled if q.ndcg_at_10 is not None) / len(labeled)
+            if labeled
+            else None
+        ),
+        "mrr_at_10_mean": (
+            sum(q.mrr_at_10 for q in labeled if q.mrr_at_10 is not None) / len(labeled)
+            if labeled
+            else None
+        ),
+        "labeled_query_count": len(labeled),
+        "unlabeled_query_count": len(per_query) - len(labeled),
+        "intent_router_accuracy": (
+            intent_correct / len(intent_labeled) if intent_labeled else None
+        ),
+        "intent_labeled_count": len(intent_labeled),
+        "tier_coverage_rate": tier_ok / len(per_query) if per_query else None,
+        "compound_lift_rate": (
+            compound_lift_hits_total / transcript_hits_total if transcript_hits_total else None
+        ),
+        "transcript_hit_total": transcript_hits_total,
+        "compound_lift_hit_total": compound_lift_hits_total,
+        # Enriched-answer groundedness rate: fraction of enriched sources marked
+        # grounded=True across all queries that produced an enriched block.
+        # Null when --enrich wasn't used or no provider responded.
+        "enriched_answer_groundedness_rate": _enriched_groundedness_rate(per_query),
+        # topic_consensus precision: fraction of consensus pairs touching the
+        # top-K whose both-insights-grounded flag holds. Null when the corpus
+        # has no topic_consensus enricher output.
+        "topic_consensus_precision": _topic_consensus_precision(per_query),
+    }
+    return metrics
+
+
+def _enriched_groundedness_rate(per_query: list[QueryResult]) -> float | None:
+    total = sum(q.enriched_source_count for q in per_query if q.enriched_source_count is not None)
+    grounded = sum(
+        q.enriched_grounded_source_count
+        for q in per_query
+        if q.enriched_grounded_source_count is not None
+    )
+    if total == 0:
+        return None
+    return grounded / total
+
+
+def _topic_consensus_precision(per_query: list[QueryResult]) -> float | None:
+    total = sum(
+        q.consensus_pairs_in_topk for q in per_query if q.consensus_pairs_in_topk is not None
+    )
+    grounded = sum(
+        q.consensus_pairs_grounded for q in per_query if q.consensus_pairs_grounded is not None
+    )
+    if total == 0:
+        return None
+    return grounded / total
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    default_corpus = Path("tests/fixtures/viewer-validation-corpus/v3")
+    parser.add_argument("--corpus", type=Path, default=default_corpus)
+    parser.add_argument(
+        "--queries",
+        type=Path,
+        default=default_corpus / "search-queries.json",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("docs/wip/search-v3/eval/latest.json"),
+    )
+    parser.add_argument("--top-k", type=int, default=10)
+    parser.add_argument(
+        "--no-embed",
+        action="store_true",
+        help=(
+            "Skip loading the sentence-transformer; embeddings are zero vectors "
+            "(BM25 signal dominates). Cheaper; adequate for the labeled-nDCG check "
+            "when the labels are picked from BM25-visible content."
+        ),
+    )
+    parser.add_argument(
+        "--seed-labels",
+        action="store_true",
+        help=(
+            "REGRESSION-ANCHOR mode: for every query with label_status == "
+            "'unlabeled-seed', write the current top-K back to expected_top_k_doc_ids "
+            "and flip label_status to 'regression-anchor'. Writes back to --queries "
+            "atomically. Detects drift from the anchored commit; NOT correctness "
+            "(the run that seeds trivially scores nDCG@10 = 1.0 for those queries). "
+            "Idempotent — queries already labeled are left untouched."
+        ),
+    )
+    parser.add_argument(
+        "--enrich",
+        action="store_true",
+        help=(
+            "Opt-in: also call /api/search?enrich_results=true for each query and "
+            "populate enriched_answer_groundedness_rate. Requires --api pointing at a "
+            "running api with an enrichment provider configured (RFC-088 chunk 5). "
+            "Best-effort: per-query failures skip that query only."
+        ),
+    )
+    parser.add_argument(
+        "--api",
+        default=None,
+        help=(
+            "Optional api URL for --enrich (default: no api call). The harness's "
+            "in-process RetrievalLayer path is unaffected."
+        ),
+    )
+    args = parser.parse_args()
+
+    queries = _load_queries(args.queries)
+    if not queries:
+        print(f"no queries in {args.queries}", file=sys.stderr)
+        return 2
+
+    backend, layer = _build_layer(args.corpus)
+    meta = backend.read_index_meta() or {}
+    embed_model = meta.get("embedding_model") or "sentence-transformers/all-MiniLM-L6-v2"
+    embed_fn = None if args.no_embed else _load_embedder(embed_model)
+
+    consensus_pairs = _load_topic_consensus(args.corpus)
+    if args.enrich and not args.api:
+        print(
+            "WARN: --enrich set but --api unspecified; enriched-answer metric will stay null",
+            file=sys.stderr,
+        )
+
+    per_query: list[QueryResult] = []
+    seeded_count = 0
+    for entry in queries:
+        qid = entry.get("id", "")
+        qtext = entry.get("q", "")
+        intent_expected = entry.get("intent_expected")
+        label_status = entry.get("label_status", "unlabeled-seed")
+        expected = entry.get("expected_top_k_doc_ids")
+        if not qtext or label_status == "retired":
+            continue
+        hits = _run_query(layer, qtext, embed_fn, args.top_k)
+        doc_ids = [_hit_doc_id(h) for h in hits]
+        # --seed-labels: freeze current top-K as the regression anchor for
+        # this query BEFORE computing metrics, so this run's report shows
+        # nDCG@10 = 1.0 (by construction). Subsequent runs detect drift.
+        # Skips queries that already carry labels (idempotent). Truncated to
+        # ``args.top_k`` — the fused ranked list may exceed it after dedup;
+        # the anchor is only the top-K worth.
+        if args.seed_labels and label_status == "unlabeled-seed":
+            entry["expected_top_k_doc_ids"] = [d for d in doc_ids if d][: args.top_k]
+            entry["label_status"] = "regression-anchor"
+            expected = entry["expected_top_k_doc_ids"]
+            label_status = "regression-anchor"
+            seeded_count += 1
+        tier_counts: dict[str, int] = {}
+        for h in hits:
+            tier = _hit_tier(h)
+            tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        transcript_hits = sum(1 for h in hits if _hit_tier(h) in ("segment", "compound"))
+        compound_lift_hits = sum(1 for h in hits if _hit_has_lifted(h))
+        intent_predicted = layer._classify(qtext)  # noqa: SLF001 - documented delegator
+        ndcg = None
+        mrr = None
+        if isinstance(expected, list) and expected:
+            rel = set(expected)
+            ndcg = _ndcg_at_k(doc_ids, rel, k=args.top_k)
+            mrr = _mrr_at_k(doc_ids, rel, k=args.top_k)
+        consensus_touch, consensus_grounded = (
+            _count_consensus_pairs_in_topk(doc_ids, consensus_pairs)
+            if consensus_pairs
+            else (None, None)
+        )
+        enriched_srcs: int | None = None
+        enriched_grounded_srcs: int | None = None
+        if args.enrich and args.api:
+            enriched = _fetch_enriched_answer(args.api, qtext, args.corpus, args.top_k)
+            enriched_srcs, enriched_grounded_srcs = _count_enriched_sources(enriched)
+        per_query.append(
+            QueryResult(
+                id=qid,
+                q=qtext,
+                intent_expected=intent_expected,
+                intent_predicted=intent_predicted,
+                label_status=label_status,
+                ndcg_at_10=ndcg,
+                mrr_at_10=mrr,
+                tier_counts=tier_counts,
+                compound_lift_hits=compound_lift_hits,
+                transcript_hits=transcript_hits,
+                hit_count=len(hits),
+                top_doc_ids=doc_ids,
+                enriched_source_count=enriched_srcs,
+                enriched_grounded_source_count=enriched_grounded_srcs,
+                consensus_pairs_in_topk=consensus_touch,
+                consensus_pairs_grounded=consensus_grounded,
+            )
+        )
+
+    metrics = _aggregate(per_query)
+    _ = _load_topic_consensus(args.corpus)  # future: populate topic_consensus_precision
+
+    # --seed-labels: write the modified queries file back atomically (tmp + rename)
+    # so a crash mid-write can't leave the file half-updated.
+    if args.seed_labels and seeded_count > 0:
+        top_level = json.loads(args.queries.read_text())
+        top_level["queries"] = queries
+        tmp = args.queries.with_suffix(args.queries.suffix + ".tmp")
+        tmp.write_text(json.dumps(top_level, indent=2) + "\n")
+        tmp.replace(args.queries)
+        print(
+            f"--seed-labels: wrote {seeded_count} regression-anchor labels back to {args.queries}"
+        )
+
+    report = Report(
+        schema_version="1",
+        generated_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        corpus=str(args.corpus),
+        queries_path=str(args.queries),
+        query_count=len(per_query),
+        top_k=args.top_k,
+        metrics=metrics,
+        per_query=[asdict(q) for q in per_query],
+    )
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n")
+
+    labeled = metrics["labeled_query_count"]
+    unlabeled = metrics["unlabeled_query_count"]
+    router_acc = metrics["intent_router_accuracy"]
+    tier_rate = metrics["tier_coverage_rate"]
+    compound_rate = metrics["compound_lift_rate"]
+    ndcg_mean = metrics["ndcg_at_10_mean"]
+    print(f"eval-search: {report.query_count} queries scored, wrote {args.out}")
+    print(f"  labeled: {labeled}   unlabeled (nDCG skipped): {unlabeled}")
+    if ndcg_mean is not None:
+        print(f"  nDCG@10 mean (labeled only): {ndcg_mean:.3f}")
+    if router_acc is not None:
+        labeled_count = metrics["intent_labeled_count"]
+        print(f"  intent-router accuracy: {router_acc:.3f} ({labeled_count} labeled)")
+    if tier_rate is not None:
+        print(f"  tier coverage rate:     {tier_rate:.3f}")
+    if compound_rate is not None:
+        print(f"  compound-lift rate:     {compound_rate:.3f}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

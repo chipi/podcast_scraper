@@ -1,16 +1,23 @@
 /**
  * Person Landing Playwright spec — coverage gap surfaced by #678 PR-A audit;
- * extended for #1048 shared-component shell.
+ * extended for #1048 shared-component shell; entry path re-targeted in Search
+ * v3 §S1 stabilization pass (2026-07-20) from the retired Explore Top-speakers
+ * rollup to a Search-hit → lifted-speaker-link click, which continues to work
+ * against the merged Search launcher (compact-launcher shape after S1).
  *
  * Person Landing is the SubjectRail panel that renders when
- * ``subject.kind === 'person'``. Entry points (per E2E_SURFACE_MAP §223):
+ * ``subject.kind === 'person'``. Entry points:
  *
- *   * Explore "Top speakers" rollup → ``explore-top-speaker-link``
- *   * Search result supporting-quote speaker → ``search-result-speaker-link``
+ *   * Search result with a ``lifted.speaker`` → ``search-result-lifted-speaker-link``
+ *     (this spec; the shipped path today).
+ *   * Rail launcher ``rail-search-in-person`` (Search v3 §S6, #1236; not yet
+ *     landed — no test uses this yet).
  *
- * Both call ``subject.focusPerson(speaker_id)`` which sets the rail's
- * subject store. This spec uses the explore-rollup entry path because it's
- * the more deterministic of the two — it doesn't depend on a search index.
+ * Both call ``subject.focusPerson(speaker_id)`` which sets the rail's subject
+ * store. This spec uses the lifted-speaker-link entry because it's the surface
+ * that ships today after S1's Explore merge; the tests exercise the
+ * Person Landing view + its position/connections coverage the same way the
+ * previous Explore-entry version did.
  *
  * Smoke contract (post node-view unification — the standalone Person rail is
  * retired; PersonLandingView is now folded ``embedded`` into NodeDetail's
@@ -28,12 +35,8 @@
  *     keys on it so a focused speaker renders even outside the graph slice.
  */
 
-import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
-
-const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
+import { SHELL_HEADING_RE, mainViewsNav, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 // Realistic corpus id: GI speaker_ids are ``person:``-prefixed (e.g.
 // ``person:alice-hayes``), which is what NodeDetail's off-slice
@@ -42,45 +45,53 @@ const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 // matches the convention, so the rail would stay an empty "Node" shell.
 const SPEAKER_ID = 'person:speaker-mock-1'
 const SPEAKER_NAME = 'Marko Mock-Guest'
+const SEARCH_QUERY = 'rolling shutter low-light video'
 
-// Minimal Explore mock that rolls up one mock speaker so the
-// ``explore-top-speaker-link`` entry point is rendered.
-const EXPLORE_RESPONSE = {
-  kind: 'explore',
-  data: {
-    episodes_searched: 1,
-    summary: {
-      insight_count: 1,
-      grounded_insight_count: 1,
-      quote_count: 1,
-      episode_count: 1,
-      speaker_count: 1,
-      topic_count: 0,
+// Minimal /api/search response: one insight-tier hit with a ``lifted`` block
+// carrying the mock speaker. That hit renders the ``search-result-lifted-speaker-link``
+// which routes to ``subject.focusPerson(SPEAKER_ID)`` — the entry point this
+// spec exercises.
+const SEARCH_RESPONSE = {
+  query: SEARCH_QUERY,
+  query_type: 'raw_evidence',
+  results: [
+    {
+      doc_id: 'insight:person-landing-mock',
+      score: 0.91,
+      text: `${SPEAKER_NAME} on rolling shutter as the silent killer of low-light video.`,
+      source_tier: 'insight',
+      metadata: {
+        doc_type: 'insight',
+        source_id: 'insight:person-landing-mock',
+        episode_id: 'ep-mock-1',
+        episode_title: 'Mock Episode',
+        feed_id: 'sha256:mock',
+        feed_title: 'Mock Feed',
+        publish_date: '2026-04-18',
+      },
+      supporting_quotes: null,
+      lifted: {
+        insight: {
+          id: 'insight:person-landing-mock',
+          text: `${SPEAKER_NAME} on rolling shutter as the silent killer of low-light video.`,
+          insight_type: 'observation',
+          grounded: true,
+        },
+        speaker: {
+          id: SPEAKER_ID,
+          display_name: SPEAKER_NAME,
+        },
+        topic: null,
+        quote: {
+          timestamp_start_ms: 12000,
+          timestamp_end_ms: 24500,
+        },
+      },
     },
-    insights: [
-      {
-        insight_id: 'ins:person-landing-mock',
-        text: `${SPEAKER_NAME} discussed the rolling shutter problem.`,
-        grounded: true,
-        confidence: 0.91,
-        episode: { episode_id: 'ep-mock-1', title: 'Mock Episode' },
-        supporting_quotes: [
-          {
-            text: 'Rolling shutter is the silent killer of low-light video.',
-            speaker: { speaker_id: SPEAKER_ID, name: SPEAKER_NAME },
-          },
-        ],
-      },
-    ],
-    top_speakers: [
-      {
-        speaker_id: SPEAKER_ID,
-        name: SPEAKER_NAME,
-        quote_count: 1,
-        episode_count: 1,
-      },
-    ],
-  },
+  ],
+  lift_stats: null,
+  error: null,
+  detail: null,
 }
 
 test.describe('Person Landing rail panel', () => {
@@ -89,7 +100,7 @@ test.describe('Person Landing rail panel', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -97,74 +108,57 @@ test.describe('Person Landing rail panel', () => {
           status: 'ok',
           corpus_library_api: true,
           corpus_digest_api: true,
-          explore_api: true,
+          search_api: true,
         }),
       })
     })
 
-    await page.route('**/api/explore?**', async (route) => {
+    await page.route('**/api/search?**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(EXPLORE_RESPONSE),
-      })
-    })
-
-    // Mock one GI artifact so the Graph workspace auto-loads (Fit
-    // toolbar button is the gate the spec then waits on). The Top
-    // speakers rollup itself comes from the explore mock, but the
-    // ``left-panel-enter-explore`` button only renders inside the
-    // Graph workspace, so a graph must be loaded first.
-    await page.route('**/api/artifacts?**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path: '/mock/corpus',
-          artifacts: [
-            {
-              name: 'ci_sample.gi.json',
-              relative_path: 'metadata/ci_sample.gi.json',
-              kind: 'gi',
-              size_bytes: artifactJson.length,
-              mtime_utc: '2026-04-18T12:00:00Z',
-              publish_date: '2026-04-18',
-            },
-          ],
-        }),
-      })
-    })
-
-    await page.route('**/api/artifacts/metadata/ci_sample.gi.json?**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: artifactJson,
+        body: JSON.stringify(SEARCH_RESPONSE),
       })
     })
   })
 
-  test('explore Top speakers → Person Landing renders the contract surface', async ({ page }) => {
+  /**
+   * Shared entry: switch to the Search main tab, fill the query, submit,
+   * wait for the lifted speaker link, click it, wait for Person Landing.
+   *
+   * §S4-shell pivot: search lives ONLY on the Search main tab now — the
+   * compact LeftPanel launcher retired. Switching to Search is mandatory
+   * before ``#search-q`` exists in the DOM.
+   */
+  async function gotoPersonLanding(page: import('@playwright/test').Page): Promise<void> {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
+    await page.locator('#search-q').waitFor({ state: 'visible', timeout: 30_000 })
+    await expect(page.locator('#search-q')).toBeEnabled({ timeout: 10_000 })
+    await page.locator('#search-q').fill(SEARCH_QUERY)
+    // The Search button is form-linked (``form="semantic-search-form"``) but
+    // is a sibling of the form element, so ``page.locator('form#…')
+    // .getByRole('button')`` can't reach it. Submit via Enter on the query
+    // (SearchPanel handles Enter without Shift as the submit signal).
+    await page.locator('#search-q').press('Enter')
+    await page.getByTestId('search-result-lifted-speaker-link').first().waitFor({
+      state: 'visible',
+      timeout: 10_000,
+    })
+    await page.getByTestId('search-result-lifted-speaker-link').first().click()
+    await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
+  }
 
-    // Open Explore + submit so the Top speakers rollup populates.
-    await page.getByTestId('left-panel-enter-explore').click()
-    await page.getByRole('heading', { name: /Explore & query/i }).waitFor({ state: 'visible' })
-    await page.getByTestId('explore-filtered-submit').click()
-
-    // Wait for the explore result list to render then click the speaker
-    // link in the Top speakers rollup.
-    await page.getByText(SPEAKER_NAME, { exact: false }).first().waitFor({ timeout: 10_000 })
-    await page.getByTestId('explore-top-speaker-link').first().click()
+  test('Search hit → lifted speaker link → Person Landing renders the contract surface', async ({
+    page,
+  }) => {
+    await gotoPersonLanding(page)
 
     // Person node view, folded embedded into the NodeDetail rail (Details tab).
     const rail = page.getByTestId('graph-node-detail-rail')
-    await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
 
     // The rail (not PLV) owns the header; an off-slice ``person:`` id titles
     // it "Person" via NodeDetail's inferredKindFromId.
@@ -195,25 +189,27 @@ test.describe('Person Landing rail panel', () => {
         body: JSON.stringify({
           subject: SPEAKER_ID,
           results: [
-            { id: 'insight:1', type: 'insight', text: 'A stated position on policy.', show_id: '', episode_id: 'e1' },
-            { id: 'insight:2', type: 'insight', text: 'Another stated position.', show_id: '', episode_id: 'e1' },
+            {
+              id: 'insight:1',
+              type: 'insight',
+              text: 'A stated position on policy.',
+              show_id: '',
+              episode_id: 'e1',
+            },
+            {
+              id: 'insight:2',
+              type: 'insight',
+              text: 'Another stated position.',
+              show_id: '',
+              episode_id: 'e1',
+            },
           ],
           error: null,
         }),
       })
     })
 
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-    await page.getByTestId('left-panel-enter-explore').click()
-    await page.getByRole('heading', { name: /Explore & query/i }).waitFor({ state: 'visible' })
-    await page.getByTestId('explore-filtered-submit').click()
-    await page.getByText(SPEAKER_NAME, { exact: false }).first().waitFor({ timeout: 10_000 })
-    await page.getByTestId('explore-top-speaker-link').first().click()
-    await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
+    await gotoPersonLanding(page)
 
     // Post node-view unification: stated positions live in the Positions rail
     // tab → "All positions" lens (the default lens is "By topic"), not the
@@ -229,19 +225,6 @@ test.describe('Person Landing rail panel', () => {
   // #1055: the Profile tab's "Connections" section consumes the new relational
   // routes (/relational/topics + /relational/co-speakers). These assert the viewer
   // wiring end-to-end (the real graph traversal is covered by the Python tests).
-  async function gotoPersonLanding(page: import('@playwright/test').Page): Promise<void> {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-    await page.getByTestId('left-panel-enter-explore').click()
-    await page.getByRole('heading', { name: /Explore & query/i }).waitFor({ state: 'visible' })
-    await page.getByTestId('explore-filtered-submit').click()
-    await page.getByText(SPEAKER_NAME, { exact: false }).first().waitFor({ timeout: 10_000 })
-    await page.getByTestId('explore-top-speaker-link').first().click()
-    await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
-  }
 
   test('#1055: Connections section renders topics + co-speakers chips', async ({ page }) => {
     await page.route('**/api/relational/topics**', async (route) => {
@@ -252,7 +235,13 @@ test.describe('Person Landing rail panel', () => {
           subject: SPEAKER_ID,
           results: [
             { id: 'topic:markets', type: 'topic', text: 'Markets', show_id: '', episode_id: '' },
-            { id: 'topic:rates', type: 'topic', text: 'Interest rates', show_id: '', episode_id: '' },
+            {
+              id: 'topic:rates',
+              type: 'topic',
+              text: 'Interest rates',
+              show_id: '',
+              episode_id: '',
+            },
           ],
           error: null,
         }),
@@ -265,7 +254,13 @@ test.describe('Person Landing rail panel', () => {
         body: JSON.stringify({
           subject: SPEAKER_ID,
           results: [
-            { id: 'person:rob', type: 'person', text: 'Rob Armstrong', show_id: '', episode_id: '' },
+            {
+              id: 'person:rob',
+              type: 'person',
+              text: 'Rob Armstrong',
+              show_id: '',
+              episode_id: '',
+            },
           ],
           error: null,
         }),
@@ -290,10 +285,18 @@ test.describe('Person Landing rail panel', () => {
   }) => {
     const empty = { subject: SPEAKER_ID, results: [], error: null }
     await page.route('**/api/relational/topics**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(empty) })
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(empty),
+      })
     })
     await page.route('**/api/relational/co-speakers**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(empty) })
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(empty),
+      })
     })
 
     await gotoPersonLanding(page)

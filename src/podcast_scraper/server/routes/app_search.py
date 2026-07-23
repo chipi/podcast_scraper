@@ -26,6 +26,7 @@ from podcast_scraper.server.corpus_catalog import (
     build_catalog_rows_cumulative,
     index_rows_by_feed_episode,
 )
+from podcast_scraper.server.query_enricher_helper import apply_query_enrichers
 from podcast_scraper.server.routes.app_auth import get_optional_user
 from podcast_scraper.server.schemas import CorpusSearchApiResponse
 
@@ -76,6 +77,15 @@ async def app_search(
         default="all",
         description="'all' = the shared corpus; 'mine' = the signed-in user's heard∪captured set.",
     ),
+    enrich_results: bool = Query(
+        default=False,
+        description=(
+            "RFC-088 Phase 4: run the QueryEnricher chain (currently "
+            "``query_topic_relatedness``) over results so each hit carries "
+            "``metadata.query_enrichments.related_topics``. Chain failures are "
+            "swallowed — response degrades to the plain top-k page."
+        ),
+    ),
     user: User | None = Depends(get_optional_user),
 ) -> CorpusSearchApiResponse:
     """Grounded library-wide search (extractive grounded passages; no request-time LLM).
@@ -103,4 +113,6 @@ async def app_search(
     _attach_consumer_slugs(root, resp)
     if mine is not None:
         resp.results = [r for r in resp.results if r.metadata.get("episode_slug") in mine][:top_k]
+    if enrich_results and resp.results:
+        await apply_query_enrichers(request, root, q, resp.results)
     return resp

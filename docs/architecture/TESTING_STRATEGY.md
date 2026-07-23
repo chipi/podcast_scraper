@@ -115,25 +115,29 @@ The testing strategy follows a three-tier pyramid:
 - **Layout:** Two or more feeds under `<corpus_parent>/feeds/<stable_id>/…`; optional hybrid
   `<corpus_parent>/metadata/` alongside `feeds/` (indexed with per-feed metadata).
 - **Unit tests (primary):**
-  - `tests/unit/podcast_scraper/search/test_corpus_scope.py` — `discover_metadata_files` hybrid merge.
-  - `tests/unit/podcast_scraper/search/test_indexer.py` — nested `feeds/…/metadata` and **hybrid**
+  - `tests/unit/podcast_scraper/search/test_corpus_scope_latest_run.py` — `discover_metadata_files` hybrid merge.
+  - `tests/unit/podcast_scraper/search/test_indexer_episode_metadata.py` — nested `feeds/…/metadata` and **hybrid**
     parent + feeds indexing; composite fingerprint keys (`index_fingerprint_scope_key`).
-  - `tests/unit/podcast_scraper/workflow/test_corpus_operations.py` — manifest/summary JSON,
+  - `tests/unit/podcast_scraper/workflow/test_corpus_operations_incident_rollup.py` — manifest/summary JSON,
     `finished_at`, `finalize_multi_feed_batch` return value.
   - `tests/unit/podcast_scraper/test_service.py` — `ServiceResult.multi_feed_summary` (success,
     partial failure, **GitHub #559** ``multi_feed_strict`` when failures are soft-only).
   - `tests/unit/podcast_scraper/test_cli.py` — `corpus-status` parse/smoke; multi-feed CLI with
     injected `run_pipeline_fn`; **`gi inspect` / `kg inspect`** multi-feed **`--feed-id`** and
     ambiguous **`episode_id`** error paths (`TestGiSubcommand`, `TestKgSubcommandMultiFeed`).
-  - `tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py` — metadata-driven GI/KG paths,
-    **YAML** metadata, **rglob** fallback without `.metadata.*`, **`corpus_search_parent_hint`**.
-  - `tests/unit/podcast_scraper/utils/test_corpus_lock.py` — advisory **`.podcast_scraper.lock`**
-    (`PODCAST_SCRAPER_CORPUS_LOCK`).
+  - Metadata-driven GI/KG paths (**YAML** metadata, **rglob** fallback,
+    **`corpus_search_parent_hint`**) and the advisory
+    **`.podcast_scraper.lock`** — both were previously covered by
+    dedicated `test_corpus_episode_paths.py` and `test_corpus_lock.py`
+    modules; those files were removed as the concerns were consolidated
+    into the callers' own tests. Search
+    `PODCAST_SCRAPER_CORPUS_LOCK` / `corpus_search_parent_hint` across
+    `tests/` to locate current coverage.
   - `tests/unit/podcast_scraper/gi/test_load.py` / `tests/unit/podcast_scraper/kg/test_kg_load.py` —
     **`find_*_by_episode_id`** across **`feeds/`** with **`feed_id`** disambiguation.
   - `web/gi-kg-viewer/src/stores/shell.hints.test.ts` (Vitest) — **`GET /api/artifacts`** `hints`;
     `web/gi-kg-viewer/e2e/corpus-hints.spec.ts` (Playwright; requires **`playwright install`**).
-- **Integration tests:** `tests/integration/test_workflow_integration.py` — multi-feed CLI and
+- **Integration tests:** `tests/integration/workflow/test_workflow_integration.py` — multi-feed CLI and
   `service.run` happy path (manifest + `corpus_run_summary.json` on disk); **partial feed failure**
   still writes both artifacts with `overall_ok: false` (CLI + service).
 - **E2E:** `tests/e2e/test_service_api_e2e.py` — YAML `feeds:` + `multi_feed_summary`;
@@ -531,7 +535,7 @@ trap (see [ADR-100 §A](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-p
 | `tests/e2e/test_cloud_guardrails_e2e.py` | Each cloud provider's `summarize()` against an injected `200 OK + bad-shape` response from the mock server; asserts `GuardrailViolation` propagates raw (not wrapped). Empty content, thinking-prose, `finish_reason=length` per provider. |
 | `tests/e2e/test_cloud_resilience_e2e.py` | Each cloud provider's `summarize()` against an injected permanent 5xx; asserts `ProviderRuntimeError` surfaces with the right provider/stage tag. Baseline for the broader resilience matrix gap documented in `docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`. |
 | `tests/e2e/test_tailnet_dgx_e2e.py` | Self-hosted whisper / diarize equivalents: 5xx → cloud-fallback, watchdog-hang → cloud-fallback, guardrail-violation → cloud-fallback. |
-| `tests/unit/podcast_scraper/test_e2e_mock_server_guardrail_injection.py` | The `inject_violation` / `_pop_injected_violation` / `clear_violations` class methods on the mock server itself, isolated from any provider. |
+| `tests/integration/podcast_scraper/test_e2e_mock_server_guardrail_injection.py` | The `inject_violation` / `_pop_injected_violation` / `clear_violations` class methods on the mock server itself, isolated from any provider. |
 | `tests/unit/podcast_scraper/providers/test_cloud_guardrails_wiring.py` | Per-provider wiring smoke-tests for `check_chat_response` at each call site, using fake SDK response objects. Catches a guardrail wired with the wrong `service=` label or wrong content path. |
 | `tests/unit/podcast_scraper/providers/test_resilience_and_guardrails.py` | Unit-level coverage of the `providers/resilience/` + `providers/guardrails/` packages themselves: `CircuitBreaker` state machine, `hardened_http_client` socket options, helper return shapes. |
 
@@ -770,7 +774,7 @@ LLM judging. See ``data/eval/README.md``.)
   via `PromptStore`. Unit tests mock `PromptStore`;
   integration/E2E tests use real templates.
 - **Test Organization**: See
-  `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed
+  the historical `docs/wip/PROVIDER_TEST_STRATEGY.md` (removed — consolidated into this doc) for detailed
   test organization and separation.
 
 ### Test Organization
@@ -1125,10 +1129,10 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   `test_enrich_edges_cli.py`)
 - [x] `search/indexer.py` — corpus-wide index build,
   nested feeds, hybrid indexing, composite fingerprint
-  keys (unit: `test_indexer.py`)
+  keys (unit: `test_indexer_episode_metadata.py` (+ related `test_indexer_*.py`))
 - [x] `search/corpus_scope.py` — `discover_metadata_files`
   hybrid merge, feed ID normalization
-  (unit: `test_corpus_scope.py`)
+  (unit: `test_corpus_scope_latest_run.py`)
 - [x] `search/corpus_search.py` — shared search logic
   for CLI and HTTP
 - [x] `search/corpus_similar.py` — episode-level
@@ -1165,7 +1169,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   metadata, summarization)
 - [x] `workflow/corpus_operations.py` — multi-feed
   manifest and summary JSON (unit:
-  `test_corpus_operations.py`)
+  `test_corpus_operations_incident_rollup.py`)
 - [x] `workflow/degradation.py` — graceful degradation
   policies for non-critical stage failures
 - [x] `workflow/jsonl_emitter.py` — streaming JSONL
@@ -1178,7 +1182,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 
 > **Note**: Test distribution numbers should be verified periodically by running test collection
 > and counting tests by layer. Historical progress tracking was documented in
-> `docs/wip/TEST_PYRAMID_ANALYSIS.md` and `docs/wip/TEST_PYRAMID_PLAN.md` (now consolidated here).
+> the historical `TEST_PYRAMID_ANALYSIS.md` and `TEST_PYRAMID_PLAN.md` (both removed after) (now consolidated here).
 
 ### Current State vs. Ideal Distribution
 
@@ -1309,7 +1313,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - [x] Workflow: generate_episode_metadata passes quote_extraction_provider and entailment_provider into build_artifact when generate_gi and gi_require_grounding true (`test_metadata_generation.py`)
 - [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`); config logging warnings for GIL stub insights and API summary + local evidence hybrid (`TestLogConfigurationGiStubWarning`, `TestLogConfigurationGilHybridWarning`)
 - [x] CI fixtures: `tests/fixtures/gil_kg_ci_enforce` — GIL + KG quality metrics enforce (GitHub Actions + `make quality-metrics-ci`)
-- [x] Bridge builder (`tests/unit/builders/test_bridge_builder.py`); CIL corpus logic (`test_cil_queries.py`); CIL HTTP (`tests/integration/server/test_cil_api.py`); search lift + offset verify (`tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`); bridge wiring integration (`tests/integration/test_bridge_integration.py`)
+- [x] Bridge builder (`tests/unit/builders/test_bridge_builder.py`); CIL corpus logic (`test_cil_queries.py`); CIL HTTP (`tests/integration/server/test_cil_api.py`); search lift + offset verify (`tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`); bridge wiring integration (`tests/unit/builders/test_bridge_artifact_paths.py`)
 - [x] Insight clustering (#599): unit tests for `collect_insight_rows_from_corpus`, `build_insight_clusters_payload` (`test_insight_clusters.py`); integration test for end-to-end corpus flow (`tests/integration/search/test_insight_clusters_cli.py`)
 - [x] Cluster context expansion (#601): unit tests for `load_insight_clusters`, `expand_with_cluster_context`, `format_cluster_context` (`test_insight_cluster_context.py`); integration test for artifact → expand flow
 - [x] Multi-quote extraction (#600): ML provider test updated for `answer_candidates(top_k=3)` mock; existing provider tests cover backward-compat `quote_text` fallback

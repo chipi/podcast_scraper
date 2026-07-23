@@ -272,3 +272,7 @@ web/learning-player/e2e/.app-state/
 
 # LCP trace raw JSON (large; keep only the .gz alongside)
 docs/wip/graph-v3/traces/*.trace.json
+
+# Search v3 eval — transient `make eval-search` output; keep only labelled
+# baselines (S0-baseline.json, S<N>-<label>.json) checked in.
+docs/wip/search-v3/eval/latest.json

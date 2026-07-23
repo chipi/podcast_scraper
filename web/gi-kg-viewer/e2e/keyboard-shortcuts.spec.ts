@@ -6,8 +6,8 @@ test.describe('Keyboard shortcuts', () => {
     await mockSignIn(page, 'creator')
   })
 
-  test('/ focuses semantic search when API is healthy', async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+  test('/ opens the command palette (Search v3 §S3 + §S4-shell)', async ({ page }) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -20,43 +20,20 @@ test.describe('Keyboard shortcuts', () => {
     })
 
     await page.goto('/')
-    await page.locator('#search-q').waitFor({ state: 'visible', timeout: 30_000 })
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.locator('#search-q')).toBeEnabled({ timeout: 10_000 })
 
+    // Take focus off any input so `/` isn't captured as a literal keystroke.
     await page.locator('body').click({ position: { x: 5, y: 5 } })
     await page.keyboard.press('/')
 
-    await expect(page.locator('#search-q')).toBeFocused()
+    await expect(page.getByTestId('command-palette')).toBeVisible()
+    await expect(page.getByTestId('command-palette-input')).toBeFocused()
   })
 
-  test('/ from Explore mode switches back to Search and focuses query', async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          status: 'ok',
-          corpus_library_api: true,
-          corpus_digest_api: true,
-        }),
-      })
-    })
-
-    await page.goto('/')
-    await page.locator('#search-q').waitFor({ state: 'visible', timeout: 30_000 })
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.locator('#search-q')).toBeEnabled({ timeout: 10_000 })
-
-    await page.getByTestId('left-panel-enter-explore').click()
-    await expect(page.getByRole('heading', { name: /Explore & query/i })).toBeVisible()
-
-    await page.locator('body').click({ position: { x: 5, y: 5 } })
-    await page.keyboard.press('/')
-
-    await expect(page.locator('#search-q')).toBeFocused()
-    await expect(page.locator('#search-q')).toBeVisible()
-  })
+  // Removed in Search v3 §S1 (Explore mode retired) and superseded by §S3
+  // (palette): `/` no longer focuses a launcher — it summons the shell-wide
+  // command palette. The compact SearchPanel launcher itself retired in
+  // §S4-shell (search only lives in the main-window Search tab).
 
   test('Esc clears graph interaction on Graph tab (offline load)', async ({ page }) => {
     await loadGraphViaFilePicker(page)

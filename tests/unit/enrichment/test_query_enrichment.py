@@ -208,6 +208,68 @@ def test_query_topic_relatedness_max_per_hit_config_override(tmp_path: Path) -> 
     assert len(out.hits[0]["related_topics"]) == 3
 
 
+def test_query_topic_relatedness_reads_kg_topic_source_id_from_api_shape(
+    tmp_path: Path,
+) -> None:
+    """The shipped ``/api/search`` response for ``doc_type: kg_topic`` puts
+    the topic id at ``metadata.source_id`` (not ``metadata.topic_id``).
+    Enricher must decorate those hits too. Bug caught 2026-07-22 while
+    exploratory-testing prod-v2 — S5 hero never rendered because 0 hits
+    matched the old ``metadata.topic_id`` lookup."""
+    _seed_topic_similarity(
+        tmp_path,
+        [
+            {
+                "topic_id": "topic:compute",
+                "topic_label": "Compute",
+                "top_k": [
+                    {"topic_id": "topic:policy", "similarity": 0.9},
+                ],
+            }
+        ],
+    )
+    enricher = QueryTopicRelatednessEnricher(corpus_root_provider=lambda: tmp_path)
+    env = QueryResultEnvelope(
+        query="compute",
+        hits=[
+            {
+                "doc_id": "kg_topic:sha256_abc:topic:compute",
+                "metadata": {"doc_type": "kg_topic", "source_id": "topic:compute"},
+            },
+        ],
+    )
+    ctx = make_request_ctx(
+        request_id="r", enricher_id="query_topic_relatedness", tier="deterministic"
+    )
+    out = asyncio.run(enricher.enrich_query_result(envelope=env, config={}, ctx=ctx))
+    assert out.hits[0]["related_topics"][0]["topic_id"] == "topic:policy"
+    assert out.annotations["query_topic_relatedness"]["decorated_hits"] == 1
+
+
+def test_query_topic_relatedness_source_id_not_treated_as_topic_when_doc_type_wrong(
+    tmp_path: Path,
+) -> None:
+    """``source_id`` on a non-kg_topic hit (e.g. kg_entity) may look like
+    ``topic:…`` but is semantically different — don't decorate it as a
+    topic hit. Guardrail against over-eager fallback."""
+    _seed_topic_similarity(
+        tmp_path,
+        [{"topic_id": "topic:x", "topic_label": "X", "top_k": [{"topic_id": "topic:y"}]}],
+    )
+    enricher = QueryTopicRelatednessEnricher(corpus_root_provider=lambda: tmp_path)
+    env = QueryResultEnvelope(
+        query="x",
+        hits=[
+            {"metadata": {"doc_type": "kg_entity", "source_id": "topic:x"}},
+        ],
+    )
+    ctx = make_request_ctx(
+        request_id="r", enricher_id="query_topic_relatedness", tier="deterministic"
+    )
+    out = asyncio.run(enricher.enrich_query_result(envelope=env, config={}, ctx=ctx))
+    assert "related_topics" not in out.hits[0]
+
+
 def test_query_topic_relatedness_validation() -> None:
     with pytest.raises(ValueError):
         QueryTopicRelatednessEnricher(corpus_root_provider=lambda: Path("/tmp"), max_per_hit=0)

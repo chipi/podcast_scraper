@@ -34,12 +34,18 @@ function readInitialCorpusPath(): string {
   return readRuntimeInjectedCorpusPath()
 }
 
-export type LeftPanelSurface = 'search' | 'explore'
+/**
+ * Left query column surface. Single-value since Search v3 §S1 (Explore merge) —
+ * the old ``'search' | 'explore'`` slide-mode is retired; LeftPanel always renders
+ * the Search compact-launcher (per UXS-005 §Compact launcher (RFC-107)). The type
+ * stays a discriminated union so future modes can be added without renaming call sites.
+ */
+export type LeftPanelSurface = 'search'
 
 export const useShellStore = defineStore('shell', () => {
   const corpusPath = ref(readInitialCorpusPath())
 
-  /** Left query column: Search (default) vs Explore mode (`LeftPanel.vue` slide). */
+  /** Left query column surface. Always ``'search'`` since Search v3 §S1 (Explore merged). */
   const leftPanelSurface = ref<LeftPanelSurface>('search')
 
   function setLeftPanelSurface(surface: LeftPanelSurface): void {
@@ -49,7 +55,14 @@ export const useShellStore = defineStore('shell', () => {
     leftPanelSurface.value = surface
   }
 
-  watch(corpusPath, (v) => {
+  /**
+   * Debounce for the corpus-path → health re-probe. 300ms is short enough to
+   * feel instant on paste and long enough to skip mid-typing intermediate
+   * paths. Cleared when the path changes again before it fires.
+   */
+  let healthReprobeTimer: ReturnType<typeof setTimeout> | null = null
+
+  watch(corpusPath, (v, oldV) => {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(CORPUS_PATH_STORAGE_KEY, v)
@@ -60,6 +73,22 @@ export const useShellStore = defineStore('shell', () => {
     if (v.trim()) {
       posthog.capture('corpus_path_changed')
     }
+    // Bug fix (Search v3 followup): the initial ``fetchHealth`` in App.vue's
+    // ``onMounted`` runs once. Without this watcher, changing the corpus
+    // path in the status bar leaves ``healthStatus`` stale — SearchPanel
+    // keeps ``#search-q`` + the Search button disabled with "Requires the
+    // API." until a full reload. Re-probe the API here, debounced so the
+    // status-bar textbox's per-keystroke input events don't spam the api.
+    if (v.trim() === (oldV ?? '').trim()) {
+      return
+    }
+    if (healthReprobeTimer !== null) {
+      clearTimeout(healthReprobeTimer)
+    }
+    healthReprobeTimer = setTimeout(() => {
+      healthReprobeTimer = null
+      void fetchHealth()
+    }, 300)
   })
   const healthStatus = ref<string | null>(null)
   const healthError = ref<string | null>(null)
@@ -79,7 +108,9 @@ export const useShellStore = defineStore('shell', () => {
   const corpusBinaryApiAvailable = ref(true)
   const artifactsApiAvailable = ref(true)
   const searchApiAvailable = ref(true)
-  const exploreApiAvailable = ref(true)
+  // Explore surface merged into Search v3 §S1 (RFC-107 §5). The server may still
+  // advertise ``explore_api`` in /api/health, but no client consumer tracks it
+  // anymore — the field is silently ignored in the health handler below.
   const indexRoutesApiAvailable = ref(true)
   const corpusMetricsApiAvailable = ref(true)
   /** True when /api/health reports CIL query routes. */
@@ -178,7 +209,8 @@ export const useShellStore = defineStore('shell', () => {
       corpusBinaryApiAvailable.value = healthAdvertisesRoute(body.corpus_binary_api)
       artifactsApiAvailable.value = healthAdvertisesRoute(body.artifacts_api)
       searchApiAvailable.value = healthAdvertisesRoute(body.search_api)
-      exploreApiAvailable.value = healthAdvertisesRoute(body.explore_api)
+      // body.explore_api intentionally ignored — Explore surface merged into
+      // Search v3 §S1; no client consumer.
       indexRoutesApiAvailable.value = healthAdvertisesRoute(body.index_routes_api)
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
@@ -199,7 +231,7 @@ export const useShellStore = defineStore('shell', () => {
       corpusBinaryApiAvailable.value = false
       artifactsApiAvailable.value = false
       searchApiAvailable.value = false
-      exploreApiAvailable.value = false
+      // exploreApiAvailable dropped — Search v3 §S1.
       indexRoutesApiAvailable.value = false
       corpusMetricsApiAvailable.value = false
       cilQueriesApiAvailable.value = false
@@ -279,7 +311,6 @@ export const useShellStore = defineStore('shell', () => {
     corpusBinaryApiAvailable,
     artifactsApiAvailable,
     searchApiAvailable,
-    exploreApiAvailable,
     indexRoutesApiAvailable,
     corpusMetricsApiAvailable,
     cilQueriesApiAvailable,

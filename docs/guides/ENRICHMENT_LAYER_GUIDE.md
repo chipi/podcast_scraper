@@ -230,7 +230,7 @@ Per-Topic monthly mention counts over a trailing window, plus EWMA
 trend and a “last completed month / 6-month average” velocity
 signal. The "last month" is the most recent month with corpus-wide
 activity (handles stale / partial current-month data — see
-[real-corpus validation findings](../wip/RFC-088-real-corpus-validation-findings.md#bug-2--temporal_velocityvelocity_last_over_6mo-is-always-00--fixed)).
+[real-corpus validation findings](../wip/RFC-088-real-corpus-validation-findings.md#bug-2-temporal_velocityvelocity_last_over_6mo-is-always-00-fixed)).
 **Reads:** `.kg.json` (Episode publish_date + Topic nodes).
 **Writes:** `enrichments/temporal_velocity.json`. **Output:**
 `{ window_months: [YYYY-MM, ...], now, alpha, effective_last_month, topics: [{topic_id, topic_label, monthly_counts, ewma, velocity_last_over_6mo, total}] }`.

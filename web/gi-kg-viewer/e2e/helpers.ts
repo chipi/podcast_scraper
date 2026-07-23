@@ -169,7 +169,7 @@ export async function dismissGraphGestureOverlayIfPresent(page: Page): Promise<v
 }
 
 export async function loadGraphViaFilePicker(page: Page): Promise<void> {
-  await page.route('**/api/health', async (route) => {
+  await page.route('**/api/health**', async (route) => {
     await route.abort('failed')
   })
 

@@ -12,7 +12,7 @@ test.describe('Search FR1 surfaces (mocked /api/search)', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -70,7 +70,8 @@ test.describe('Search FR1 surfaces (mocked /api/search)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('Jane Doe climate')
     await page
       .locator('section')
@@ -87,10 +88,14 @@ test.describe('Search FR1 surfaces (mocked /api/search)', () => {
 
   test('source_tier badges label each hit', async ({ page }) => {
     await runSearch(page)
+    // 2026-07-22 UX cleanup: text tier badges retired in favor of a
+    // single leading icon (SearchResultRowIcon). The tier label is
+    // still carried on the icon element as ``data-tier`` so this
+    // contract stays testable without needing visible text.
     const tiers = page.getByTestId('search-result-tier')
-    await expect(tiers.nth(0)).toHaveText('Insight')
-    await expect(tiers.nth(1)).toHaveText('Transcript')
-    await expect(tiers.nth(2)).toHaveText('Reference')
+    await expect(tiers.nth(0)).toHaveAttribute('data-tier', 'Insight')
+    await expect(tiers.nth(1)).toHaveAttribute('data-tier', 'Transcript')
+    await expect(tiers.nth(2)).toHaveAttribute('data-tier', 'Reference')
   })
 
   test('compound badge marks a segment hit with a lifted insight', async ({ page }) => {
@@ -103,19 +108,34 @@ test.describe('Search FR1 surfaces (mocked /api/search)', () => {
     await expect(page.getByTestId('search-result-tier')).toHaveCount(3)
     await page.getByTestId('search-evidence-insight').click()
     await expect(page.getByTestId('search-result-tier')).toHaveCount(1)
-    await expect(page.getByTestId('search-result-tier').first()).toHaveText('Insight')
+    await expect(page.getByTestId('search-result-tier').first()).toHaveAttribute(
+      'data-tier',
+      'Insight',
+    )
     await page.getByTestId('search-evidence-segment').click()
     await expect(page.getByTestId('search-result-tier')).toHaveCount(1)
-    await expect(page.getByTestId('search-result-tier').first()).toHaveText('Transcript')
+    await expect(page.getByTestId('search-result-tier').first()).toHaveAttribute(
+      'data-tier',
+      'Transcript',
+    )
     await page.getByTestId('search-evidence-both').click()
     await expect(page.getByTestId('search-result-tier')).toHaveCount(3)
   })
 
   test('entity names link to a Detail panel', async ({ page }) => {
     await runSearch(page)
-    // Lifted speaker + topic on the compound card, and the kg_entity hit's own link.
+    // Lifted speaker + topic still render as inline links inside the compound
+    // card's expandable subsection (they open a DIFFERENT subject than the
+    // row's default action, so they stay explicit).
     await expect(page.getByTestId('search-result-lifted-speaker-link')).toBeVisible()
     await expect(page.getByTestId('search-result-lifted-topic-link')).toBeVisible()
-    await expect(page.getByTestId('search-result-entity-link')).toBeVisible()
+    // The standalone "Open Topic panel →" / "Open Person panel →" text link
+    // on kg_entity / kg_topic rows was retired (2026-07-22 UX cleanup); the
+    // whole row is the affordance now. Assert the row-level aria-label.
+    await expect(
+      page
+        .getByTestId('search-workspace')
+        .locator('article[aria-label="Open Person panel"]'),
+    ).toHaveCount(1)
   })
 })

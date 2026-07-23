@@ -748,6 +748,16 @@ async function onScheduledToggle(name: string, enabled: boolean): Promise<void> 
     sourcesBusy.value = false
   }
 }
+
+// #1259-1: expose the dialog openers so ``CommandPalette`` (via App.vue)
+// can trigger them from the ``Open Configuration`` / ``Open Health``
+// commands. These are thin wrappers around the same functions the
+// StatusBar buttons already call — no new business logic.
+defineExpose({
+  openConfiguration: openSourcesDialogDefault,
+  openHealth: openSourcesDialogHealth,
+  openIndexRebuild: openIndexSection,
+})
 </script>
 
 <template>
@@ -1529,19 +1539,7 @@ async function onScheduledToggle(name: string, enabled: boolean): Promise<void> 
               {{ shell.searchApiAvailable !== false ? 'Yes' : 'No' }}
             </dd>
           </div>
-          <div class="flex justify-between gap-2">
-            <dt class="min-w-0 text-muted">
-              <a
-                :href="healthApiProbeUrl('explore')"
-                :class="healthDocLinkClass"
-                target="_blank"
-                rel="noopener noreferrer"
-              >Graph explore</a>
-            </dt>
-            <dd :class="shell.exploreApiAvailable !== false ? 'text-success' : 'text-danger'">
-              {{ shell.exploreApiAvailable !== false ? 'Yes' : 'No' }}
-            </dd>
-          </div>
+          <!-- "Graph explore" row retired in Search v3 §S1 (Explore surface merged into Search). -->
           <div class="flex justify-between gap-2">
             <dt class="min-w-0 text-muted">
               <a

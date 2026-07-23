@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { SearchHit } from '../../api/searchApi'
 import EpisodeDetailPanel from '../episode/EpisodeDetailPanel.vue'
 import ShowRailPanel from '../episode/ShowRailPanel.vue'
 import GraphConnectionsSection from '../graph/GraphConnectionsSection.vue'
@@ -10,7 +9,7 @@ import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
 
 const props = defineProps<{
-  mainTab: 'digest' | 'library' | 'graph' | 'dashboard' | 'ops' | 'admin'
+  mainTab: 'digest' | 'library' | 'search' | 'graph' | 'dashboard' | 'ops' | 'admin'
 }>()
 
 const subject = useSubjectStore()
@@ -28,12 +27,13 @@ const emit = defineEmits<{
   closeSubject: []
   goGraph: []
   focusSearchHandoff: [FocusSearchPayload]
+  /** Search v3 §S6 — episode-scoped rail launcher from EpisodeDetailPanel. */
+  openSearchInEpisode: [{ episodeId: string; query?: string }]
   prefillSemanticSearch: [{ query: string }]
-  openExploreTopicFilter: [{ topic: string }]
-  openExploreSpeakerFilter: [{ speaker: string }]
-  openExploreInsightFilters: [{ groundedOnly: boolean; minConfidence: number | null }]
+  openSearchTopicFilter: [{ topic: string }]
+  openSearchSpeakerFilter: [{ speaker: string }]
+  openSearchInsightFilters: [{ groundedOnly: boolean; minConfidence: number | null }]
   openLibraryEpisode: [{ metadata_relative_path: string }]
-  openEpisodeSummary: [SearchHit]
   switchMainTab: ['digest' | 'library' | 'graph' | 'dashboard']
 }>()
 
@@ -91,9 +91,9 @@ const emptyHint =
         <GraphNodeRailPanel
           @go-graph="emit('goGraph')"
           @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
-          @open-explore-topic-filter="emit('openExploreTopicFilter', $event)"
-          @open-explore-speaker-filter="emit('openExploreSpeakerFilter', $event)"
-          @open-explore-insight-filters="emit('openExploreInsightFilters', $event)"
+          @open-search-topic-filter="emit('openSearchTopicFilter', $event)"
+          @open-search-speaker-filter="emit('openSearchSpeakerFilter', $event)"
+          @open-search-insight-filters="emit('openSearchInsightFilters', $event)"
           @open-library-episode="emit('openLibraryEpisode', $event)"
           @close-subject-rail="emit('closeSubject')"
         />
@@ -136,6 +136,7 @@ const emptyHint =
             :rail-neighbourhood-enabled="episodeSubjectNeighbourhoodEnabled"
             :rail-detail-tab="episodeSubjectDetailTab"
             @focus-search="emit('focusSearchHandoff', $event)"
+            @open-search-in-episode="emit('openSearchInEpisode', $event)"
             @switch-main-tab="emit('switchMainTab', $event)"
             @enrichment-has-content="episodeEnrichmentHasContent = $event"
           >

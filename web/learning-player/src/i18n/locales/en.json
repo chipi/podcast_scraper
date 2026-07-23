@@ -24,6 +24,9 @@
     "continue": "Continue listening",
     "whatsNew": "What's new",
     "browseAll": "Browse all",
+    "browseTopics": "Browse topics",
+    "browsePeople": "Browse people",
+    "browseNavLabel": "Browse the corpus",
     "recommended": "Recommended for you",
     "shows": "All shows",
     "resume": "Resume",
@@ -71,7 +74,35 @@
       "transcript": "Transcript",
       "topic": "Topic",
       "passage": "Passage"
-    }
+    },
+    "alsoAbout": "Also about",
+    "openTopicChip": "Open {label} topic card",
+    "foldedKind": {
+      "transcript": "Transcript",
+      "episode_title": "Title",
+      "episode_description": "Description",
+      "summary_short": "Summary"
+    },
+    "foldedCount": "1 match | {count} matches",
+    "expandCluster": "Expand {count} {kind} matches",
+    "matchedPrefix": "Matched:",
+    "yearEpisodes": "1 episode | {count} episodes",
+    "yearUnknown": "Undated",
+    "save": "Save",
+    "saved": "Saved ✓",
+    "saveQuery": "Save this search to your library",
+    "unsaveQuery": "Remove this saved search"
+  },
+  "browse": {
+    "topicsTitle": "Browse topics",
+    "peopleTitle": "Browse people",
+    "trending": "Trending",
+    "storylines": "Storylines",
+    "topicCount": "1 topic | {count} topics",
+    "loading": "Loading…",
+    "empty": "Nothing to browse yet — check back after the corpus ingests more episodes.",
+    "topicPage": "Topic page",
+    "personPage": "Person page"
   },
   "auth": {
     "signIn": "Sign in",
@@ -142,7 +173,8 @@
     "syncEarlier": "Shift transcript earlier",
     "syncLater": "Shift transcript later",
     "syncReset": "Reset transcript sync",
-    "summaryRegion": "Episode summary"
+    "summaryRegion": "Episode summary",
+    "relatedEpisodes": "More like this"
   },
   "kp": {
     "title": "Insights",
@@ -199,6 +231,7 @@
     "roleMentioned": "Mentioned",
     "close": "Close",
     "back": "Back",
+    "openInPage": "Open in page",
     "loading": "Loading…",
     "notFound": "Nothing to show for this yet.",
     "searchLibrary": "Search every episode for “{term}”",
@@ -287,6 +320,8 @@
     "savedEmpty": "Nothing saved yet. Tap the heart on an episode or insight to keep it here.",
     "savedEpisodes": "Episodes",
     "savedInsights": "Insights",
+    "savedSearches": "Searches",
+    "savedSearchRemove": "Remove saved search \"{q}\"",
     "recentEmpty": "Nothing played yet."
   },
   "highlights": {

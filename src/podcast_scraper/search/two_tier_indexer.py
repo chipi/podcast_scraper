@@ -48,7 +48,20 @@ DEFAULT_OVERLAP_TOKENS = 32
 DEFAULT_UPSERT_BATCH_SIZE = _config_constants.DEFAULT_VECTOR_UPSERT_BATCH_SIZE
 
 # Non-tiered corpus surfaces indexed into the aux tier for full coverage.
-_AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
+# 2026-07-22: added ``episode_title`` / ``episode_description`` /
+# ``summary_short`` (episode-level metadata surfaces from indexer.py) so the
+# rows land in the aux table instead of being dropped by the else branch.
+_AUX_DOC_TYPES = frozenset(
+    {
+        "kg_entity",
+        "kg_topic",
+        "quote",
+        "summary",
+        "episode_title",
+        "episode_description",
+        "summary_short",
+    }
+)
 
 
 @dataclass

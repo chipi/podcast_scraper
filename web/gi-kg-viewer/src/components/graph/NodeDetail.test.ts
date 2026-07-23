@@ -198,7 +198,7 @@ describe('NodeDetail', () => {
     ])
 
     await w.get('[data-testid="node-detail-topic-explore-filter"]').trigger('click')
-    expect(w.emitted('open-explore-topic-filter')![0]).toEqual([
+    expect(w.emitted('open-search-topic-filter')![0]).toEqual([
       { topic: 'Artificial Intelligence' },
     ])
   })
@@ -251,7 +251,7 @@ describe('NodeDetail', () => {
 
     // Person (not org) routes the second button to the speaker filter.
     await w.get('[data-testid="node-detail-person-entity-explore-filter"]').trigger('click')
-    expect(w.emitted('open-explore-speaker-filter')![0]).toEqual([{ speaker: 'Ada Lovelace' }])
+    expect(w.emitted('open-search-speaker-filter')![0]).toEqual([{ speaker: 'Ada Lovelace' }])
   })
 
   // --- Insight branch --------------------------------------------------------
@@ -301,7 +301,7 @@ describe('NodeDetail', () => {
 
     // Explore filters emit grounded flag + (no confidence) -> null.
     await w.get('[data-testid="node-detail-insight-explore-filters"]').trigger('click')
-    expect(w.emitted('open-explore-insight-filters')![0]).toEqual([
+    expect(w.emitted('open-search-insight-filters')![0]).toEqual([
       { groundedOnly: true, minConfidence: null },
     ])
   })

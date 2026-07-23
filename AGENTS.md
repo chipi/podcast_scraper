@@ -264,11 +264,26 @@ forever than have this violated. Full failure-mode analysis lives in
     TaskCreate. If the operator decides later that it warrants an issue, they
     will say so.
 
-    Failure mode of record (2026-06-15): opened #1002, #1003, #1004 unprompted
-    during a guardrails design session; operator's response was *"stop fucking
-    opening GH issues from now on. no more issues, all things are immediate
-    follow-up in tasks."* The same pattern had played out earlier in the
-    session with autoresearch-vLLM and homelab follow-up tickets.
+    Failure modes of record (each incident logged so the growing count is
+    visible on-file):
+
+    - **2026-06-15** — opened #1002, #1003, #1004 unprompted during a guardrails
+      design session; operator's response was *"stop fucking opening GH issues
+      from now on. no more issues, all things are immediate follow-up in
+      tasks."* The same pattern had played out earlier in the session with
+      autoresearch-vLLM and homelab follow-up tickets.
+    - **2026-07-20** — during a Search v3 stabilization pass, opened 6
+      unsolicited follow-up issues (#1243–#1248) "to track deferred work."
+      Operator's response was *"I told you million times not to open GitHub
+      issues until I approved it… go fucking delete GitHub issues and implement
+      every fucking follow-up now."* All 6 deleted; work implemented in-place,
+      with inline TODO comments where truly blocked.
+
+    Both incidents shared the same failure mode: reading the rule during earlier
+    recon in the session but not retaining it as an active constraint by the
+    time the "wouldn't it be tidy to track this" impulse fired. The fix is not
+    to add another rule; it is to check this rule before every `gh issue create`
+    call.
 
 16. **Deployment-specific words don't belong in code identifiers.** Module
     paths, function names, class names, Prometheus counter names, and any

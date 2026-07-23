@@ -26,6 +26,17 @@
   --ps-danger: #e76a6e;
   --ps-gi: #7dd3a0;
   --ps-kg: #c4a8ff;
+  /* Knowledge-domain hues used across ShowRailPanel, GraphCanvas,
+     NodeDetail, admin surfaces, and the search-result icon.
+     - grounded → aliases to GI green (same concept: grounded claim).
+     - topic → teal, kept in the "concept" family but distinct from
+       KG purple so topic and entity chips don't collide visually.
+     - person → peach, matches the consumer-app person semantic
+       (agents get their own hue), distinct from all other palette
+       colors. */
+  --ps-grounded: var(--ps-gi);
+  --ps-topic: #7cd0d4;
+  --ps-person: #ffb37a;
   /* graph-v3 A — richer contrast for the Cytoscape canvas only (feels
      "constellation" rather than surface-flat). Shell chrome keeps --ps-canvas. */
   --ps-graph-canvas: #0a0d10;
@@ -53,6 +64,9 @@
   --ps-danger: #cd4246;
   --ps-gi: #1e7a4a;
   --ps-kg: #5c4d8a;
+  --ps-grounded: var(--ps-gi);
+  --ps-topic: #1f7a7f;
+  --ps-person: #9c5822;
   --ps-graph-canvas: var(--ps-canvas);
 }
 
@@ -79,6 +93,9 @@
     --ps-danger: #cd4246;
     --ps-gi: #1e7a4a;
     --ps-kg: #5c4d8a;
+    --ps-grounded: var(--ps-gi);
+    --ps-topic: #1f7a7f;
+    --ps-person: #9c5822;
     --ps-graph-canvas: var(--ps-canvas);
   }
 }

@@ -20,7 +20,12 @@ test.describe('Corpus Library tab', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    // Match ``/api/health`` AND ``/api/health?path=…`` — the debounced
+    // re-probe on corpus-path change (shell.ts §S4-shell followup) fires
+    // the query-string form; the narrower ``**/api/health`` glob does not
+    // intercept it, and the empty response flips ``healthStatus`` to
+    // ``'unknown'`` mid-flow, causing Library detail races.
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -152,7 +157,7 @@ test.describe('Corpus Library tab', () => {
     })
   })
 
-  test('Episode subject rail: slash focuses search; episode rail stays visible', async ({
+  test('Episode subject rail: slash opens the command palette; episode rail stays visible (Search v3 §S3 + §S4-shell)', async ({
     page,
   }) => {
     await page.goto('/')
@@ -169,7 +174,10 @@ test.describe('Corpus Library tab', () => {
     ).toBeVisible()
     await page.locator('body').click({ position: { x: 5, y: 5 } })
     await page.keyboard.press('/')
-    await expect(page.locator('#search-q')).toBeFocused()
+    // §S3 palette + §S4-shell: `/` summons the shell palette (there's no
+    // launcher to focus anymore). The episode subject rail is a separate
+    // right-rail surface and must stay visible behind the palette overlay.
+    await expect(page.getByTestId('command-palette')).toBeVisible()
     await expect(
       page
         .getByRole('region', { name: 'Episode', exact: true })
@@ -358,7 +366,7 @@ test.describe('Corpus Library tab', () => {
         r.url().includes('/api/corpus/episodes') &&
         r.url().includes('topic_cluster_only=true'),
     )
-    await page.getByTestId('library-chip-clustered').click()
+    await page.getByTestId('library-topic-cluster-toggle').click()
     const req = await clusterReq
     expect(req.url()).toContain('topic_cluster_only=true')
   })
@@ -408,12 +416,18 @@ test.describe('Corpus Library tab', () => {
     // No snippet before a search context is active.
     await expect(page.getByTestId('library-row-why')).toHaveCount(0)
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('climate')
-    await page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
-      .getByRole('button', { name: 'Search', exact: true })
-      .click()
+    // Submit via Enter (SearchPanel handles Enter as submit); scoped locators
+    // for the form-linked Search button are brittle — see person-landing.spec.
+    await page.locator('#search-q').press('Enter')
+
+    // §S4-shell pivot: search lives on the Search main tab; ``library-row-why``
+    // lives on the Library tab. Switch back to Library to assert the snippet
+    // (activeSearchContext is store-persisted across tab switches).
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
 
     const why = page.getByTestId('library-row-why').first()
     await expect(why).toBeVisible()

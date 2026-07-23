@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeSummary, FavoriteInsight, PlaybackPosition } from '../services/types'
+import { useSavedQueriesStore } from '../stores/savedQueries'
 import LibraryView from './LibraryView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -16,6 +17,7 @@ const router = createRouter({
     { path: '/library', name: 'library', component: LibraryView },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
+    { path: '/search', name: 'search', component: { template: '<div/>' } },
   ],
 })
 
@@ -138,6 +140,43 @@ describe('LibraryView', () => {
     expect(headings).toContain('Insights')
     expect(w.text()).toContain('Alpha Saved')
     expect(w.text()).toContain('A grounded saved insight.')
+  })
+
+  // #1261-8: Saved-searches section in the Saved tab
+  it('Saved tab renders a "Searches" section for each saved query with a re-run link and remove button', async () => {
+    const savedQueries = useSavedQueriesStore()
+    await savedQueries.save('AI regulation', 'all', 1_000)
+    await savedQueries.save('sleep science', 'mine', 2_000)
+    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const section = w.get('[data-testid="saved-searches-section"]')
+    // Header + both entries render.
+    expect(section.text()).toContain('Searches')
+    expect(section.text()).toContain('AI regulation')
+    expect(section.text()).toContain('sleep science')
+    // Re-run links point at the Search route with q + scope query params.
+    const links = section.findAll('a')
+    expect(links.some((a) => a.attributes('href') === '/search?q=sleep+science&scope=mine')).toBe(
+      true,
+    )
+    expect(links.some((a) => a.attributes('href') === '/search?q=AI+regulation&scope=all')).toBe(
+      true,
+    )
+  })
+
+  it('the saved-search × button removes just that entry (leaves others in place)', async () => {
+    const savedQueries = useSavedQueriesStore()
+    await savedQueries.save('AI regulation', 'all')
+    await savedQueries.save('sleep science', 'mine')
+    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const removeBtn = w
+      .get('[data-testid="saved-searches-section"]')
+      .findAll('button')
+      .find((b) => (b.attributes('aria-label') ?? '').includes('AI regulation'))!
+    await removeBtn.trigger('click')
+    await flushPromises()
+    expect(savedQueries.list.map((it) => it.q)).toEqual(['sleep science'])
   })
 
   it('Recent renders an EpisodeCard per playback-history entry (hydrated from detail)', async () => {

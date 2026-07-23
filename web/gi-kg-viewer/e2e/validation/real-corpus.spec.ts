@@ -348,7 +348,8 @@ test.describe('Real-corpus validation', () => {
     await signInIsolated(page, 'real-corpus', testInfo)
     const errs = captureConsoleErrors(page)
     await fillCorpusPath(page)
-    // Search panel is always visible in the left rail.
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').waitFor({ state: 'visible', timeout: 15_000 })
     await page.locator('#search-q').fill('AI')
     await page

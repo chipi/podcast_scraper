@@ -63,7 +63,8 @@ is for CIL aliases only, not for graph ids.
 This UXS defines the visual contract for graph chrome:
 toolbar, bottom bar, filters popover, minimap, degree filter, node detail rail, and
 neighborhood visualization. On the **main graph canvas**, node captions default to
-the **side** of the disc (dynamic `text-margin-x`) with a canvas-tinted halo so edge
+the **side** of the disc (dynamic `text-margin-x` — a Cytoscape node
+stylesheet property, not a Tailwind class) with a canvas-tinted halo so edge
 splines stay readable; **above** / **below** placement remain available via the shared
 Cytoscape stylesheet builder. COSE and the rail mini-map use slightly looser spacing.
 All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).

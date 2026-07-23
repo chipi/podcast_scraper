@@ -494,20 +494,15 @@ pytest-xdist parallel execution (`-n auto`), this causes deadlocks because:
 
 1. Multiple worker processes write to stdout/stderr simultaneously
 2. No buffering means writes can interleave and block
-3. **tqdm progress bars** (used by Whisper) compete for terminal control
+3. Long-running progress bars in ML paths compete for terminal control
 4. Terminal locking causes processes to wait indefinitely
 
-**Files using tqdm:**
-
-| File | Usage |
-| ---- | ----- |
-| `src/podcast_scraper/providers/ml/whisper_utils.py` | `InterceptedTqdm` class |
-| `src/podcast_scraper/transcription/whisper_provider.py` | `InterceptedTqdm` class |
-| `src/podcast_scraper/providers/ml/ml_provider.py` | `InterceptedTqdm` class |
-| `src/podcast_scraper/cli.py` | `_TqdmProgress` class |
-
-**Structural Fix:** Tests set `TQDM_DISABLE=1` environment variable in `tests/conftest.py`
-to disable all tqdm progress bars during test execution.
+**Historical note:** an earlier `InterceptedTqdm` / `_TqdmProgress`
+scaffold and a `TQDM_DISABLE=1` setting in `tests/conftest.py` used to
+guard against this. Both were removed once Whisper progress emission
+was refactored (grep the tree: no `tqdm`, `InterceptedTqdm`,
+`_TqdmProgress`, or `TQDM_DISABLE` remain). The workarounds below still
+apply to any future stdout-interleaving hang under `-s`.
 
 **Workarounds:**
 

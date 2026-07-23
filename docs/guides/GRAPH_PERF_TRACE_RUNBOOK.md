@@ -25,7 +25,7 @@ history stays browsable.
 
 ## 1. Prerequisites
 
-- `.venv/bin/python` present (run `make dev-setup` if missing).
+- `.venv/bin/python` present (run `make init` if missing).
 - `web/gi-kg-viewer/node_modules` present. Missing → the script auto-installs
   when `--ref` is given; on the current worktree, run `cd web/gi-kg-viewer && env -u NODE_OPTIONS npm ci`.
 - Corpus with real data at a known path. For prod-comparable numbers use

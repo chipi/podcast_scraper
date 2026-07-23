@@ -174,7 +174,7 @@ mistral-small3.2 silently truncated and timed out. The fix is in
 - [#698 — GIL evidence stack bundling](https://github.com/chipi/podcast_scraper/issues/698)
 - [PR #711 — implementation + matrix results](https://github.com/chipi/podcast_scraper/pull/711)
 - [Eval report — EVAL_GIL_BUNDLING_2026_05.md](../guides/eval-reports/EVAL_GIL_BUNDLING_2026_05.md)
-- [autoresearch/gil_evidence_bundling/](../../autoresearch/gil_evidence_bundling/)
+- [autoresearch/gil_evidence_bundling/](https://github.com/chipi/podcast_scraper/tree/main/autoresearch/gil_evidence_bundling/)
   — full results.tsv, scaffolds, and per-cell experiment YAMLs
 - [ADR-077 — Local Ollama model selection](ADR-077-local-ollama-model-selection.md)
 - [RFC-073 — Autoresearch v2 framework](../rfc/RFC-073-autoresearch-v2-framework.md)

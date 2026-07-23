@@ -14,6 +14,13 @@ const router = createRouter({
   routes: [
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
+    // #1261-9: EntityCardBody now renders an "Open in page" RouterLink to
+    // /topic/:id and /person/:id in overlay mode. Missing route registrations
+    // fire an unhandled router-resolve error inside a useLink() computed
+    // during mount, which aborts the getPersonCard/getTopicCard chain and
+    // leaves the card stuck on "Loading…".
+    { path: '/topic/:id', name: 'topic', component: { template: '<div/>' }, props: true },
+    { path: '/person/:id', name: 'person', component: { template: '<div/>' }, props: true },
   ],
 })
 

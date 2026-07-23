@@ -90,9 +90,9 @@ const emit = defineEmits<{
   close: []
   'go-graph': []
   'prefill-semantic-search': [{ query: string }]
-  'open-explore-topic-filter': [{ topic: string }]
-  'open-explore-speaker-filter': [{ speaker: string }]
-  'open-explore-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
+  'open-search-topic-filter': [{ topic: string }]
+  'open-search-speaker-filter': [{ speaker: string }]
+  'open-search-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
   'open-library-episode': [{ metadata_relative_path: string }]
 }>()
 
@@ -566,6 +566,35 @@ const topicAliasesLine = computed((): string | null => {
   return parts.length > 0 ? parts.join(', ') : null
 })
 
+/** Optional Person / Entity aliases (UXS-004 line 176). Same shape as
+ *  topicAliasesLine — reads `properties.aliases`, comma-joins. Null when
+ *  absent so the row is `v-if`-hidden. */
+const personEntityAliasesLine = computed((): string | null => {
+  if (!isPersonEntityRailNode.value) return null
+  const a = node.value?.properties?.aliases
+  if (!Array.isArray(a) || a.length === 0) return null
+  const parts = a
+    .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+    .map((x) => x.trim())
+  return parts.length > 0 ? parts.join(', ') : null
+})
+
+/** Optional Person / Entity role label (UXS-004 line 176 —
+ *  Host/Guest/Mentioned). Reads `properties.role`; the SPOKEN_BY /
+ *  SPOKE_IN edge-count breakdown UXS-004 mentions is deferred until the
+ *  graph-analytics store exposes per-node edge counts. */
+const personEntityRoleLabel = computed((): string | null => {
+  if (!isPersonEntityRailNode.value) return null
+  const r = node.value?.properties?.role
+  if (typeof r !== 'string' || !r.trim()) return null
+  const v = r.trim().toLowerCase()
+  if (v === 'host') return 'Host'
+  if (v === 'guest') return 'Guest'
+  if (v === 'mentioned') return 'Mentioned'
+  // Preserve any future role value verbatim rather than dropping it.
+  return r.trim()
+})
+
 /** Topic label for Search / Explore handoff (same primary string as full block). */
 const topicGatewayQuery = computed((): string => {
   if (!isTopicNode.value) return ''
@@ -581,7 +610,7 @@ function emitTopicPrefillSearch(): void {
 function emitTopicExploreFilter(): void {
   const t = topicGatewayQuery.value
   if (!t) return
-  emit('open-explore-topic-filter', { topic: t })
+  emit('open-search-topic-filter', { topic: t })
 }
 
 const personEntityGatewayQuery = computed((): string => {
@@ -607,9 +636,9 @@ function emitPersonEntityExploreHandoff(): void {
   const q = personEntityGatewayQuery.value.trim()
   if (!q) return
   if (visualType.value !== 'Entity_organization') {
-    emit('open-explore-speaker-filter', { speaker: q })
+    emit('open-search-speaker-filter', { speaker: q })
   } else {
-    emit('open-explore-topic-filter', { topic: q })
+    emit('open-search-topic-filter', { topic: q })
   }
 }
 
@@ -776,10 +805,10 @@ function emitInsightPrefillSearch(): void {
   emit('prefill-semantic-search', { query: q })
 }
 
-function emitInsightOpenExploreFilters(): void {
+function emitInsightOpenSearchFilters(): void {
   const p = insightExploreFiltersPayload.value
   if (!p) return
-  emit('open-explore-insight-filters', p)
+  emit('open-search-insight-filters', p)
 }
 
 function focusNeighborOnGraph(nbId: string, ev: MouseEvent): void {
@@ -2090,6 +2119,20 @@ const graphConnectionsCenterInView = computed((): boolean => {
       </template>
 
       <template v-if="isPersonEntityRailNode">
+        <p
+          v-if="personEntityRoleLabel"
+          class="mb-1 text-[11px] leading-tight text-muted"
+          data-testid="node-detail-person-entity-role"
+        >
+          Role: <span class="text-surface-foreground">{{ personEntityRoleLabel }}</span>
+        </p>
+        <p
+          v-if="personEntityAliasesLine"
+          class="mb-2 text-[11px] leading-tight text-muted"
+          data-testid="node-detail-person-entity-aliases"
+        >
+          Aliases: <span class="text-surface-foreground">{{ personEntityAliasesLine }}</span>
+        </p>
         <div
           v-if="personEntityGatewayQuery"
           class="mb-3 flex items-center gap-2"
@@ -2209,7 +2252,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           data-testid="node-detail-insight-explore-filters"
           aria-label="Open Explore with grounded and min confidence from this insight; topic and speaker filters cleared"
           :disabled="!shell.healthStatus"
-          @click="emitInsightOpenExploreFilters"
+          @click="emitInsightOpenSearchFilters"
         >
           Set Explore filters
         </button>

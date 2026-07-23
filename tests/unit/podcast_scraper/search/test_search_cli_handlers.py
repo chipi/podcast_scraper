@@ -155,6 +155,60 @@ def test_hit_passes_cli_feed_filter() -> None:
     )
 
 
+def test_hit_passes_cli_episode_id_filter() -> None:
+    """Search v3 §S6 — the ``episode_id`` kwarg is an EXACT match (not
+    substring) that rejects hits from any other episode. Enables the
+    "Search within this episode" rail launcher's server-side scope."""
+    hit_a = SearchResult("d:a", 1.0, {"doc_type": "insight", "episode_id": "ep-a"})
+    hit_b = SearchResult("d:b", 1.0, {"doc_type": "insight", "episode_id": "ep-b"})
+    # Filter set to ep-a → only ep-a matches.
+    assert cli_handlers._hit_passes_cli_filters(
+        hit_a,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        episode_id="ep-a",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    assert not cli_handlers._hit_passes_cli_filters(
+        hit_b,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        episode_id="ep-a",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    # None filter → both pass (backward-compatible default).
+    assert cli_handlers._hit_passes_cli_filters(
+        hit_a,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    assert cli_handlers._hit_passes_cli_filters(
+        hit_b,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    # Substring semantics NOT applied — "ep" partial must not match "ep-a".
+    assert not cli_handlers._hit_passes_cli_filters(
+        hit_a,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        episode_id="ep",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+
+
 def test_insight_passes_speaker_filter() -> None:
     art = {
         "nodes": [
@@ -168,6 +222,88 @@ def test_insight_passes_speaker_filter() -> None:
     }
     assert cli_handlers._insight_passes_speaker_filter(art, "i1", "alice") is True
     assert cli_handlers._insight_passes_speaker_filter(art, "i1", "zzz") is False
+
+
+def test_insight_passes_topic_filter_id_match() -> None:
+    """topic_key matches when the insight ABOUTs a topic whose id contains it."""
+    art = {
+        "nodes": [
+            {
+                "id": "topic:compute-governance",
+                "type": "Topic",
+                "properties": {"label": "Compute Governance"},
+            },
+        ],
+        "edges": [{"type": "ABOUT", "from": "i1", "to": "topic:compute-governance"}],
+    }
+    assert cli_handlers._insight_passes_topic_filter(art, "i1", "compute") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i1", "governance") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i1", "climate") is False
+
+
+def test_insight_passes_topic_filter_label_fallback() -> None:
+    """When the id slug doesn't carry the term, match against the topic label."""
+    art = {
+        "nodes": [
+            {"id": "topic:t2b7f9", "type": "Topic", "properties": {"label": "Silicon Supply"}},
+        ],
+        "edges": [{"type": "ABOUT", "from": "i2", "to": "topic:t2b7f9"}],
+    }
+    assert cli_handlers._insight_passes_topic_filter(art, "i2", "silicon") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i2", "SUPPLY") is True
+    assert cli_handlers._insight_passes_topic_filter(art, "i2", "nope") is False
+
+
+def test_insight_passes_topic_filter_returns_false_when_no_about_edges() -> None:
+    art = {"nodes": [{"id": "topic:x", "type": "Topic"}], "edges": []}
+    assert cli_handlers._insight_passes_topic_filter(art, "i3", "x") is False
+
+
+def test_hit_passes_cli_topic_filter_kg_topic() -> None:
+    """kg_topic hits match on source_id (slug) and topic_label."""
+    hit = SearchResult(
+        "d",
+        1.0,
+        {
+            "doc_type": "kg_topic",
+            "source_id": "topic:compute-governance",
+            "topic_label": "Compute Governance",
+        },
+    )
+    assert cli_handlers._hit_passes_cli_filters(
+        hit,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        topic_substr="compute",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+    assert not cli_handlers._hit_passes_cli_filters(
+        hit,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=None,
+        topic_substr="climate",
+        grounded_only=False,
+        gi_by_episode={},
+    )
+
+
+def test_hit_passes_cli_topic_filter_drops_off_topic_doc_types() -> None:
+    """Segments / quotes / aux rows are dropped when a topic filter is set (same
+    shape as the speaker filter — those doc_types don't carry topic linkage)."""
+    for dt in ("segment", "quote", "kg_entity", "summary"):
+        hit = SearchResult("d", 1.0, {"doc_type": dt})
+        assert not cli_handlers._hit_passes_cli_filters(
+            hit,
+            feed_substr=None,
+            since_dt=None,
+            speaker_substr=None,
+            topic_substr="anything",
+            grounded_only=False,
+            gi_by_episode={},
+        )
 
 
 @patch("podcast_scraper.search.cli_handlers.index_corpus")

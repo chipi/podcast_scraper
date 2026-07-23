@@ -74,3 +74,54 @@ def test_indexer_routes_aux_doc_types(tmp_path, monkeypatch):
     stats = tti.build_two_tier_index(corpus, corpus / "search" / "lance_index")
     assert stats.aux == 4 and stats.segments == 0 and stats.insights == 0
     assert LanceDBBackend(str(corpus / "search" / "lance_index")).health()["aux"] == 4
+
+
+def test_indexer_routes_episode_metadata_doc_types_into_aux_tier(tmp_path, monkeypatch):
+    """2026-07-22: episode-level metadata surfaces (``episode_title`` /
+    ``episode_description`` / ``summary_short``) added to ``_AUX_DOC_TYPES``
+    so the rows land in the aux table instead of being silently dropped
+    by the else branch in ``build_two_tier_index``."""
+    rows = [
+        (
+            "episode_title:sha256_x:ep-a",
+            "Are AI stocks the new railroad bonds?",
+            {
+                "doc_type": "episode_title",
+                "matched_field": "title",
+                "episode_id": "ep-a",
+                "feed_id": "s",
+            },
+        ),
+        (
+            "episode_description:sha256_x:ep-a",
+            "Transformative technologies create speculative frenzies.",
+            {
+                "doc_type": "episode_description",
+                "matched_field": "description",
+                "episode_id": "ep-a",
+                "feed_id": "s",
+            },
+        ),
+        (
+            "summary_short:sha256_x:ep-a",
+            "Financial history provides valuable lessons for markets.",
+            {
+                "doc_type": "summary_short",
+                "matched_field": "summary",
+                "episode_id": "ep-a",
+                "feed_id": "s",
+            },
+        ),
+    ]
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    monkeypatch.setattr(
+        tti, "discover_metadata_files", lambda root: [corpus / "metadata" / "e1.json"]
+    )
+    monkeypatch.setattr(tti, "_load_metadata_file", lambda p: {"episode": {"episode_id": "ep-a"}})
+    monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: corpus)
+    monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
+
+    stats = tti.build_two_tier_index(corpus, corpus / "search" / "lance_index")
+    assert stats.aux == 3 and stats.segments == 0 and stats.insights == 0
+    assert LanceDBBackend(str(corpus / "search" / "lance_index")).health()["aux"] == 3

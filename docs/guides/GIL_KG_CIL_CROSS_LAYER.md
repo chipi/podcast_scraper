@@ -89,13 +89,13 @@ OpenAPI: **`/docs`** when the server is running.
 | GIL pipeline, schema, CLI | Unit + integration + E2E | `tests/unit/gi/`, `tests/integration/`, `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`gi validate`); see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017-rfc-049050) |
 | KG | Unit + E2E | `tests/unit/kg/`, `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`kg validate`, `kg inspect`) |
 | Bridge builder | Unit | `tests/unit/builders/test_bridge_builder.py` |
-| CIL query logic | Unit | `tests/unit/podcast_scraper/server/test_cil_queries.py` |
+| CIL query logic | Unit | `tests/integration/server/test_cil_queries.py` |
 | CIL HTTP | Integration | `tests/integration/server/test_cil_api.py` |
 | Search lift + offset verify | Unit | `tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py` |
 | Corpus topic clusters (RFC-075) | Unit | `tests/unit/podcast_scraper/search/test_topic_clusters.py` |
 | `GET /api/corpus/topic-clusters` | Integration | `tests/integration/server/test_corpus_topic_clusters.py` |
 | Viewer topic cluster fetch + overlay | Vitest + Playwright | `make test-ui` (`corpusTopicClustersApi`, `topicClustersOverlay`); `e2e/search-to-graph-mocks.spec.ts` (mocked API) |
-| Bridge integration (pipeline-shaped) | Integration | `tests/integration/test_bridge_integration.py` |
+| Bridge integration (pipeline-shaped) | Unit (consolidated) | `tests/unit/builders/test_bridge_builder.py`, `tests/unit/builders/test_bridge_artifact_paths.py`, `tests/unit/builders/test_bridge_non_mechanical.py` |
 | FastAPI viewer (search, health, library, …) | Integration | `tests/integration/server/test_server_api.py`, `test_viewer_search.py`, … |
 | Viewer TS merge / bridge types | Vitest | `make test-ui` |
 | Viewer UX | Playwright | `make test-ui-e2e` |

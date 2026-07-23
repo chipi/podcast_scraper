@@ -4,8 +4,8 @@
 **Date:** 2026-07-16
 **Hardware:** DGX GB10 (sm_121), `nvcr.io/nvidia/vllm:26.05-py3` (torch 2.12/CUDA13, transformers 5.6)
 **Runtime:** MOSS via the upstream `moss_transcribe_diarize` package (bare transformers)
-**Fixture artifacts:** [`tests/fixtures/eval/moss_bakeoff_v1/`](../../../tests/fixtures/eval/moss_bakeoff_v1/)
-**Harness:** [`scripts/eval/moss/`](../../../scripts/eval/moss/)
+**Fixture artifacts:** [`tests/fixtures/eval/moss_bakeoff_v1/`](https://github.com/chipi/podcast_scraper/tree/main/tests/fixtures/eval/moss_bakeoff_v1/)
+**Harness:** [`scripts/eval/moss/`](https://github.com/chipi/podcast_scraper/tree/main/scripts/eval/moss/)
 
 ## TL;DR
 

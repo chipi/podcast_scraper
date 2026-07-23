@@ -1,0 +1,30 @@
+# .github/lint/search-v3-forbidden-imports.txt
+#
+# Consumed by `make lint-search-v3` (see Makefile). One symbol per line;
+# `#` comments and blank lines are ignored. Every hit under src/ that is not
+# on the whitelist below fails the lint.
+#
+# Rule (RFC-107 §S + PRD-045 FR12; #1205 SIGSEGV):
+#   The LanceDB native hybrid combine (`_combine_hybrid_results` /
+#   `_normalize_scores` via `pyarrow.compute`) segfaulted the api under
+#   stack-test. Fix `0fe0854b` bypassed the native combine via the
+#   Python-side `search_bm25 + search_vector + rrf_fuse` fan-out in
+#   `retrieval.py`. No code path may re-enable the native combine until
+#   #1205's root cause is fixed upstream (LanceDB / pyarrow) and
+#   independently verified.
+
+# --- FORBIDDEN symbols ---
+# Each line is a literal fixed-string. Presence in any src/ file (outside
+# the whitelist) fails the lint.
+_combine_hybrid_results
+_normalize_scores
+
+# --- WHITELIST (paths, one per line, `WHITELIST:` prefix) ---
+# Files listed here may reference the forbidden symbols. Currently empty —
+# no source file has legitimate need. Add sparingly, and only with an ADR
+# update explaining why the guardrail is being relaxed for that file.
+#
+# Format:
+#   WHITELIST: relative/path/to/file.py
+#
+# (no entries)

@@ -57,15 +57,33 @@ def _load_topic_similarity(corpus_root: Path) -> dict[str, list[dict[str, Any]]]
 
 
 def _topic_id_of(hit: dict[str, Any]) -> str | None:
-    """Best-effort extraction of a topic_id from a hit."""
+    """Best-effort extraction of a topic_id from a hit.
+
+    Order of preference:
+      1. ``hit.topic_id`` — legacy synthetic hits (tests, MCP path).
+      2. ``hit.metadata.topic_id`` — MCP path emitting explicit metadata.
+      3. ``hit.metadata.source_id`` — the shipped ``/api/search`` shape
+         for ``kg_topic`` docs (source_id already carries ``topic:…``).
+      4. ``hit.metadata.doc_id`` starting with ``topic:`` — extreme
+         fallback if the caller didn't include source_id.
+    Returns None when none of those look like a ``topic:…`` id.
+    """
     tid = hit.get("topic_id")
-    if isinstance(tid, str):
+    if isinstance(tid, str) and tid.startswith("topic:"):
         return tid
     meta = hit.get("metadata") or {}
     if isinstance(meta, dict):
         meta_tid = meta.get("topic_id")
-        if isinstance(meta_tid, str):
+        if isinstance(meta_tid, str) and meta_tid.startswith("topic:"):
             return meta_tid
+        doc_type = meta.get("doc_type")
+        source_id = meta.get("source_id")
+        if (
+            isinstance(source_id, str)
+            and source_id.startswith("topic:")
+            and (doc_type == "kg_topic" or doc_type is None)
+        ):
+            return source_id
     return None
 
 

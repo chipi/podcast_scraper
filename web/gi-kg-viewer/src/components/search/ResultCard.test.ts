@@ -32,40 +32,56 @@ describe('ResultCard', () => {
 
   // --- Basic render --------------------------------------------------------
 
-  it('renders the doc_type, the hit text and the formatted score', () => {
+  it('renders the doc_type on the leading icon, the hit text and the formatted score', () => {
+    // 2026-07-22 UX cleanup: doc_type text badge retired; the doc_type
+    // lives on the leading icon via ``data-doc-type`` + the letter glyph.
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'insight' }, text: 'Hello world.', score: 0.5 }),
     })
-    expect(w.text()).toContain('insight')
+    expect(
+      w.get('[data-testid="search-result-tier"]').attributes('data-doc-type'),
+    ).toBe('insight')
     expect(w.text()).toContain('Hello world.')
     // score.toFixed(4)
     expect(w.text()).toContain('0.5000')
   })
 
-  it('falls back to "?" doc_type and "(no text)" when text is empty', () => {
+  it('shows "(no text)" placeholder when text is empty', () => {
     const w = mountCard({ hit: hitOf({ metadata: {}, text: '' }) })
-    expect(w.find('.font-mono.text-primary').text()).toBe('?')
     expect(w.text()).toContain('(no text)')
   })
 
-  it('renders the retrieval-tier badge label per source_tier', () => {
+  it('carries the retrieval-tier label as data-tier on the row icon (2026-07-22 UX)', () => {
+    // Text tier badges were retired in favor of a single leading icon
+    // (SearchResultRowIcon); the tier label lives on the icon as
+    // ``data-tier`` so downstream specs can still assert per-tier.
     const insight = mountCard({ hit: hitOf({ source_tier: 'insight' }) })
-    expect(insight.get('[data-testid="search-result-tier"]').text()).toBe('Insight')
+    expect(insight.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Insight',
+    )
 
     const segment = mountCard({ hit: hitOf({ source_tier: 'segment' }) })
-    expect(segment.get('[data-testid="search-result-tier"]').text()).toBe('Transcript')
+    expect(segment.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Transcript',
+    )
 
     const aux = mountCard({ hit: hitOf({ source_tier: 'aux' }) })
-    expect(aux.get('[data-testid="search-result-tier"]').text()).toBe('Reference')
+    expect(aux.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Reference',
+    )
 
     // Unknown tier -> Reference fallback.
     const unknown = mountCard({ hit: hitOf({ source_tier: 'mystery' }) })
-    expect(unknown.get('[data-testid="search-result-tier"]').text()).toBe('Reference')
+    expect(unknown.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Reference',
+    )
   })
 
   it('defaults the tier to Reference when source_tier is absent', () => {
     const w = mountCard({ hit: hitOf({}) })
-    expect(w.get('[data-testid="search-result-tier"]').text()).toBe('Reference')
+    expect(w.get('[data-testid="search-result-tier"]').attributes('data-tier')).toBe(
+      'Reference',
+    )
   })
 
   // --- Compound (segment + lifted) badge -----------------------------------
@@ -128,7 +144,10 @@ describe('ResultCard', () => {
     expect(w.find('button[aria-label="Show on graph"]').exists()).toBe(false)
   })
 
-  it('renders L + S buttons and emits open-library / open-episode-summary when library opens are enabled', async () => {
+  it('exposes the row as click-to-open (role=button, tabindex=0) and emits open-library on row click', async () => {
+    // §S4-shell followup: the L and S standalone buttons are retired; the
+    // whole ``<article>`` body is the affordance now. Clicking anywhere
+    // outside the inner action buttons opens the Episode subject panel.
     const w = mountCard({
       hit: hitOf({
         metadata: {
@@ -138,24 +157,51 @@ describe('ResultCard', () => {
       }),
       libraryOpensEnabled: true,
     })
-    const l = w.get('button[aria-label="Open episode in subject panel"]')
-    await l.trigger('click')
+    // The standalone L and S buttons are gone.
+    expect(w.find('button[aria-label="Open episode in subject panel"]').exists()).toBe(false)
+    expect(w.find('button[aria-label="Episode summary in right panel"]').exists()).toBe(false)
+    // The article itself is the affordance.
+    const article = w.get('article')
+    expect(article.attributes('role')).toBe('button')
+    expect(article.attributes('tabindex')).toBe('0')
+    expect(article.attributes('aria-label')).toBe('Open episode in subject panel')
+    await article.trigger('click')
     expect(w.emitted('open-library')).toHaveLength(1)
-
-    const s = w.get('button[aria-label="Episode summary in right panel"]')
-    await s.trigger('click')
-    expect(w.emitted('open-episode-summary')).toHaveLength(1)
+    // Retired: no separate open-episode-summary emit.
+    expect(w.emitted('open-episode-summary')).toBeUndefined()
   })
 
-  it('hides L / S when libraryOpensEnabled is false even with a metadata path', () => {
+  it('keyboard: Enter / Space on the article activates open-library', async () => {
+    const w = mountCard({
+      hit: hitOf({
+        metadata: {
+          doc_type: 'segment',
+          source_metadata_relative_path: 'feed/ep.metadata.json',
+        },
+      }),
+      libraryOpensEnabled: true,
+    })
+    const article = w.get('article')
+    await article.trigger('keydown', { key: 'Enter' })
+    expect(w.emitted('open-library')).toHaveLength(1)
+    await article.trigger('keydown', { key: ' ' })
+    expect(w.emitted('open-library')).toHaveLength(2)
+    // Other keys do NOT fire.
+    await article.trigger('keydown', { key: 'Escape' })
+    expect(w.emitted('open-library')).toHaveLength(2)
+  })
+
+  it('row is NOT click-to-open (no role/tabindex) when libraryOpensEnabled is false', () => {
     const w = mountCard({
       hit: hitOf({
         metadata: { source_metadata_relative_path: 'feed/ep.metadata.json' },
       }),
       libraryOpensEnabled: false,
     })
-    expect(w.find('button[aria-label="Open episode in subject panel"]').exists()).toBe(false)
-    expect(w.find('button[aria-label="Episode summary in right panel"]').exists()).toBe(false)
+    const article = w.get('article')
+    expect(article.attributes('role')).toBeUndefined()
+    expect(article.attributes('tabindex')).toBeUndefined()
+    expect(article.attributes('aria-label')).toBeUndefined()
   })
 
   it('renders the E (episode id) chip when an episode_id is present, but suppresses it for a merged KG surface', () => {
@@ -188,41 +234,60 @@ describe('ResultCard', () => {
     expect(w.find('.ml-auto').exists()).toBe(false)
   })
 
-  // --- Entity link (kg_topic / kg_entity) ----------------------------------
+  // --- Row default action for kg_topic / kg_entity (2026-07-22 UX cleanup) ---
+  //
+  // The standalone "Open Topic panel →" / "Open Person panel →" text link
+  // was retired; clicking anywhere on the row body now opens the Topic /
+  // Person subject panel directly.
 
-  it('renders an "Open Topic panel" link for a kg_topic hit and focuses the topic subject', async () => {
+  it('a kg_topic row is clickable + focuses the topic subject on row click', async () => {
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'kg_topic', source_id: 'topic:ai' } }),
     })
-    const link = w.get('[data-testid="search-result-entity-link"]')
-    expect(link.text()).toContain('Open Topic panel')
+    const row = w.get('article')
+    expect(row.attributes('role')).toBe('button')
+    expect(row.attributes('aria-label')).toBe('Open Topic panel')
     const subject = useSubjectStore()
-    await link.trigger('click')
+    await row.trigger('click')
     expect(subject.kind).toBe('graph-node')
     expect(subject.graphNodeCyId).toBe('topic:ai')
   })
 
-  it('renders an "Open Person panel" link for a kg_entity hit and focuses the person subject', async () => {
+  it('a kg_entity row is clickable + focuses the person subject on row click', async () => {
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'kg_entity', source_id: 'person:ada' } }),
     })
-    const link = w.get('[data-testid="search-result-entity-link"]')
-    expect(link.text()).toContain('Open Person panel')
+    const row = w.get('article')
+    expect(row.attributes('role')).toBe('button')
+    expect(row.attributes('aria-label')).toBe('Open Person panel')
     const subject = useSubjectStore()
-    await link.trigger('click')
+    await row.trigger('click')
     expect(subject.kind).toBe('graph-node')
     expect(subject.graphNodeCyId).toBe('person:ada')
   })
 
-  it('treats an id starting with topic: as a topic entity even without a kg_topic doc_type', () => {
+  it('treats an id starting with topic: as a topic entity even without a kg_topic doc_type', async () => {
     const w = mountCard({
       hit: hitOf({ metadata: { doc_type: 'insight', source_id: 'topic:foo' } }),
     })
-    expect(w.get('[data-testid="search-result-entity-link"]').text()).toContain('Open Topic panel')
+    const row = w.get('article')
+    expect(row.attributes('aria-label')).toBe('Open Topic panel')
+    const subject = useSubjectStore()
+    await row.trigger('click')
+    expect(subject.graphNodeCyId).toBe('topic:foo')
   })
 
-  it('omits the entity link when there is no source_id', () => {
+  it('a kg_topic hit without source_id and without library metadata is NOT row-clickable', () => {
     const w = mountCard({ hit: hitOf({ metadata: { doc_type: 'kg_topic' } }) })
+    const row = w.get('article')
+    expect(row.attributes('role')).toBeUndefined()
+    expect(row.attributes('aria-label')).toBeUndefined()
+  })
+
+  it('the retired "Open Topic panel →" text link no longer renders', () => {
+    const w = mountCard({
+      hit: hitOf({ metadata: { doc_type: 'kg_topic', source_id: 'topic:ai' } }),
+    })
     expect(w.find('[data-testid="search-result-entity-link"]').exists()).toBe(false)
   })
 

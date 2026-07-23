@@ -15,7 +15,7 @@ test.describe('Search → graph (mocked API)', () => {
   })
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health', async (route) => {
+    await page.route('**/api/health**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -288,6 +288,8 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('climate insights')
     await page
       .locator('section')
@@ -295,7 +297,7 @@ test.describe('Search → graph (mocked API)', () => {
       .getByRole('button', { name: 'Search', exact: true })
       .click()
 
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
 
     await page.getByRole('button', { name: 'Search result insights' }).click()
     const vizDialog = page.getByRole('dialog', { name: 'Search result insights' })
@@ -309,7 +311,7 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(page.locator('.graph-canvas')).toBeVisible()
   })
 
-  test('insight graph detail: provenance, related topics, Library, quotes, Explore, Search', async ({
+  test('insight graph detail: provenance, related topics, Library, quotes, Search', async ({
     page,
   }) => {
     await page.goto('/')
@@ -320,6 +322,8 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('climate insights')
     await page
       .locator('section')
@@ -327,7 +331,7 @@ test.describe('Search → graph (mocked API)', () => {
       .getByRole('button', { name: 'Search', exact: true })
       .click()
 
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Show on graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
@@ -391,25 +395,27 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByTestId('node-detail-rail-tab-details').click()
 
+    // §S1 (Explore merge) + §S4-shell pivot: the "Set Explore filters" button
+    // now sets Search filters (grounded + min-confidence, cleared topic +
+    // speaker) and switches the main tab to Search (no launcher hop, no
+    // "Advanced explore" dialog — Explore chips are gone).
     await page.getByTestId('node-detail-insight-explore-filters').click()
-    await expect(
-      page.getByRole('heading', { name: 'Explore & query', exact: false }),
-    ).toBeVisible({ timeout: 10_000 })
-    // #671 — Topic/Speaker inputs moved inside chip popovers; default chip
-    // label "Topic ▾" / "Speaker ▾" reflects the empty (cleared) filter state.
-    await expect(page.getByTestId('explore-chip-topic')).toContainText('Topic ▾')
-    await expect(page.getByTestId('explore-chip-speaker')).toContainText('Speaker ▾')
-    await page.getByTestId('explore-chip-more').click()
-    const exploreAdvanced = page.getByRole('dialog', { name: 'Advanced explore' })
-    await expect(exploreAdvanced).toBeVisible()
-    await expect(exploreAdvanced.getByRole('checkbox', { name: /Grounded only/i })).toBeChecked()
-    await exploreAdvanced.getByRole('button', { name: 'Close' }).click()
-    await expect(exploreAdvanced).toBeHidden()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
 
-    await expect(page.getByTestId('node-detail-insight-details-tip')).toBeVisible()
-
+    // "Prefill semantic search" is the other insight shortcut. §S4-shell:
+    // clicking it switches to Search + runs the query in the workspace;
+    // ``#search-q`` lives inside SearchPanel on the Search tab.
+    // First, return to the graph node so we can hit the prefill button.
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await expect(page.getByRole('region', { name: 'Graph node: Insight' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await page.getByTestId('node-detail-rail-tab-details').click()
     await page.getByTestId('node-detail-insight-prefill-search').click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await expect(page.locator('#search-q')).toHaveValue(/Summary insight \(stub\)/)
+    // Return to Graph before the remainder of the test walks node detail.
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByTestId('node-detail-rail-tab-details').click()
     await expect(page.getByTestId('node-detail-insight-related-topics')).toBeVisible()
@@ -434,13 +440,15 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
     await expect(page.getByTestId('node-detail-topic-timeline')).toHaveCount(0)
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('climate insights')
     await page
       .locator('section')
       .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
       .getByRole('button', { name: 'Search', exact: true })
       .click()
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Show on graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.getByRole('region', { name: 'Graph node: Insight' })).toBeVisible({
@@ -498,6 +506,8 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('with quotes')
     await page
       .locator('section')
@@ -538,13 +548,15 @@ test.describe('Search → graph (mocked API)', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('climate insights')
     await page
       .locator('section')
       .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
       .getByRole('button', { name: 'Search', exact: true })
       .click()
-    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Show on graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await page.getByTestId('node-detail-rail-tab-details').click()
@@ -610,6 +622,8 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('lift no speaker')
     await page
       .locator('section')
