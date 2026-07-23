@@ -49,7 +49,7 @@ Concretely, mirroring the ADR-114 Caddy edge:
 | Base `Caddyfile` (infra-owned, repo-tracked) | Base `base.alloy`: `discovery.docker "all"` (socket reader) + `loki.write "sink"` (→ homelab) + journal + caddy sources |
 | Drop-in dir `/etc/caddy/sites/*.caddy` (deploy-writable) | Config dir `/etc/alloy/config.d/*.alloy` (deploy-writable) — Alloy runs against the **directory** and merges all files into one config |
 | App drops `sites/<app>.caddy` | App drops `config.d/<app>.alloy` |
-| `sudo systemctl reload caddy` (narrow grant) | `sudo systemctl reload alloy` (narrow grant) |
+| `sudo systemctl reload caddy` (narrow grant) | `docker kill -s HUP alloy` (deploy is in the docker group — NO sudoers grant needed) |
 
 **Mechanism.** Alloy natively loads a *directory* (`alloy run /etc/alloy/config.d/`)
 and merges every `.alloy` file into one namespace, so an app fragment can reference
