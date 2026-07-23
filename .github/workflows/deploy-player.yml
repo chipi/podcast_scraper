@@ -184,6 +184,10 @@ jobs:
             # silently drops errors (GlitchTip ingest accepts both, so a curl test
             # misleads). See the same note in stack-test.yml (viewer). 2026-07-22.
             echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER}"
+            # Player BACKEND (server-side) errors -> the SAME GlitchTip project 5 as the
+            # browser errors (the SDK tags them by runtime). Reuses the player DSN; the
+            # app-only api ships via the public telemetry ingest edge (it has no tailnet).
+            echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER}"
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
             # Both empty -> the bundle's Umami injection stays a no-op.

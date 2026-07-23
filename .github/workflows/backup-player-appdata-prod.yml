@@ -3,8 +3,12 @@
 # player_appdata (playback/notes/favorites) is a HOST bind mount at
 # /srv/podcast-scraper/player-appdata (see docker-compose.player-public.yml). Unlike the
 # corpus it is NOT regenerable — it's real user data — so it needs its own backup. Streams
-# the dir as a tarball over the tailnet and uploads to the backup repo. workflow_dispatch
-# only for now (a schedule can be added once the player is live).
+# the dir as a tarball over the tailnet and uploads to the backup repo.
+#
+# Now the player is LIVE with real user data, this runs on a daily schedule (releases are
+# date-tagged YYYYMMDD, clobbered within a day). The tag rotation lives in the backup repo.
+# (The corpus prod backup schedule is separately deferred to the #723 cutover — corpus is
+# regenerable, this is not, so the player's runs ahead.)
 
 name: Backup player app-data (prod VPS)
 
@@ -15,6 +19,9 @@ on:
         description: "Run without uploading (log the would-do tarball size)"
         type: boolean
         default: false
+  schedule:
+    # Daily at 04:17 UTC (off-peak). Date-tagged releases -> one snapshot/day.
+    - cron: "17 4 * * *"
 
 concurrency:
   group: backup-player-appdata
