@@ -32,6 +32,22 @@ closelistening.app {
 	# So closelistening.app cert/expiry notices go to info@closelistening.app.
 	tls info@closelistening.app
 
+	# Preview UNLOCK — visit https://closelistening.app/preview ONCE. It always issues a
+	# Basic-auth challenge (401 -> the browser PROMPTS for user/pass), then 302s to /.
+	# After authenticating here the browser caches the credentials for the whole origin
+	# and sends them on every request, so / then reaches the app. This is the reliable
+	# browser path: modern browsers STRIP user:pass@ from URLs (deprecated), so a bare
+	# https://user:pass@closelistening.app never sends the header (only curl honours it),
+	# which is why the plain bypass got stuck on the coming-soon page.
+	@preview path /preview
+	handle @preview {
+		basic_auth {
+			marko $2a$14$GV8EL65DWyPcI3qYoZsDXunPwdPCevcAT4/Wfg55gJpTtyyWn3..O
+			guest $2a$14$uhMHys8DHkU9P/F2IBgAWutTwz0eznL1yCwzHaEDsEKGhb8dJ9ZO2
+		}
+		redir https://closelistening.app/ 302
+	}
+
 	# Preview users: any request carrying a valid Authorization header reaches the app.
 	@authed header Authorization *
 	handle @authed {
@@ -42,9 +58,11 @@ closelistening.app {
 		reverse_proxy 127.0.0.1:8092
 	}
 
-	# Everyone else -> coming soon.
+	# Everyone else -> coming soon. no-store so the browser never caches it (else a first
+	# no-auth visit would keep showing coming-soon even after unlocking).
 	handle {
 		header Content-Type "text/html; charset=utf-8"
+		header Cache-Control "no-store"
 		respond <<HTML
 <!DOCTYPE html>
 <html lang="en">
