@@ -302,6 +302,8 @@ number, file, line, date, and a short comment.
 | 1 | #430 | server/routes/health.py | 40 | 2026-07-23 | Type 1: ``candidate`` is ``corpus_dir / 'enrichments' / 'topic_similarity.json'`` where ``corpus_dir`` is route-validated (``_corpus_dir_for_health`` → ``resolve_corpus_path_param``); the suffix is a constant. Same class as #419. Dismissed via ``gh api`` (PR #1274) |
 | 1 | #431 | search/operators.py | 186 | 2026-07-23 | Type 1: ``path`` is ``corpus_root / _TOPIC_CONSENSUS_REL`` where ``corpus_root`` is route-validated (``/api/search`` → ``resolve_corpus_path_param``) and the suffix is a constant. Dismissed via ``gh api`` (PR #1274) |
 | 1 | #432 | search/operators.py | 189 | 2026-07-23 | Type 1: same as #431 — ``path.read_text()`` on the validated corpus-root-anchored path. Dismissed via ``gh api`` (PR #1274) |
+| 1 | #364 | search/hybrid_search.py | 190 | 2026-07-23 | Type 1: ``index_dir_str`` passes through ``safe_relpath_under_corpus_root`` + ``normpath_if_under_root`` before ``os.path.isdir``. Pre-existing on main (never dismissed); dismissed here since inline ``# codeql[]`` pragma is docs-only per registry policy. Dismissed via ``gh api`` (PR #1274) |
+| 1 | #387 | search/topic_clusters.py | 104 | 2026-07-23 | Type 1: ``joined`` built with inline ``normpath + startswith(safe_prefix)`` guard in the same function before ``os.path.isfile``. Pre-existing on main; dismissed here since inline ``# codeql[]`` pragma is docs-only. Dismissed via ``gh api`` (PR #1274) |
 
 ## Still open (not yet dismissed)
 
