@@ -49,6 +49,23 @@ if (SENTRY_DSN_PLAYER) {
   })
 }
 
+// Umami analytics for the consumer player — cookieless, privacy-friendly page +
+// route tracking, mirroring orrery. Gated on both VITE_UMAMI_WEBSITE_ID and
+// VITE_UMAMI_SRC (the public tracking-script URL on the analytics ingest edge,
+// e.g. https://analytics.<domain>/script.js), baked at build time via docker
+// build-args. Both empty by default => true no-op for dev / CI / any build
+// without the args. Umami's script auto-tracks SPA route changes (it hooks the
+// History API), so injecting the tag is all that's needed.
+const UMAMI_WEBSITE_ID = import.meta.env.VITE_UMAMI_WEBSITE_ID
+const UMAMI_SRC = import.meta.env.VITE_UMAMI_SRC
+if (UMAMI_WEBSITE_ID && UMAMI_SRC) {
+  const umami = document.createElement('script')
+  umami.defer = true
+  umami.src = UMAMI_SRC
+  umami.setAttribute('data-website-id', UMAMI_WEBSITE_ID)
+  document.head.appendChild(umami)
+}
+
 app.use(createPinia()).use(router).use(i18n).mount('#app')
 
 // USERPREFS-1 (#1213) — hydrate the user preferences payload once at app

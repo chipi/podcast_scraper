@@ -162,6 +162,8 @@ jobs:
           # Player's browser error DSN → self-hosted GlitchTip (own project) via the
           # public ingest edge. Empty until the project + edge exist → Sentry no-op.
           PROD_SENTRY_DSN_PLAYER: ${{ secrets.PROD_SENTRY_DSN_PLAYER }}
+          # Umami website UUID (public — ships in the bundle; a var, not a secret).
+          PLAYER_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -182,6 +184,11 @@ jobs:
             # silently drops errors (GlitchTip ingest accepts both, so a curl test
             # misleads). See the same note in stack-test.yml (viewer). 2026-07-22.
             echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER}"
+            # Umami analytics build args. website-id from a GH var; the tracking
+            # script URL is derived from the player domain (analytics.<domain>).
+            # Both empty -> the bundle's Umami injection stays a no-op.
+            echo "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
+            echo "VITE_UMAMI_SRC=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/script.js}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
@@ -204,12 +211,19 @@ jobs:
       - name: External health probe (public player domain)
         if: steps.preflight.outputs.skip != 'true'
         env:
-          PROBE: https://${{ vars.PLAYER_DOMAIN }}/api/app/auth/status
+          # Probe the public ROOT (edge + Cloudflare + TLS reachability), NOT an app path.
+          # During the pre-launch coming-soon phase the edge gate returns the coming-soon
+          # page (200) for every path incl. /api/app/*, so an app-path probe validates
+          # nothing extra; and the backend itself is already validated in-container by the
+          # deploy step's /api/health check. A 200 here means DNS+CF+origin-lock+TLS+edge
+          # are all serving. (Earlier red runs were the origin lock blocking direct :443
+          # before Cloudflare fronted the domain — not a deploy failure.)
+          PROBE: https://${{ vars.PLAYER_DOMAIN }}/
         run: |
           set -euo pipefail
           for _ in $(seq 1 12); do
             code=$(curl -s -o /dev/null -w '%{http_code}' "$PROBE" || echo 000)
-            if [ "$code" = "200" ]; then echo "player public health OK"; exit 0; fi
+            if [ "$code" = "200" ]; then echo "player public edge OK ($PROBE)"; exit 0; fi
             sleep 5
           done
-          echo "::error::public player probe did not return 200 ($PROBE)"; exit 1
+          echo "::error::public player edge probe did not return 200 ($PROBE)"; exit 1

@@ -16,6 +16,13 @@ COPY . .
 #   docker buildx build --build-arg VITE_SENTRY_DSN_PLAYER=...
 ARG VITE_SENTRY_DSN_PLAYER
 ENV VITE_SENTRY_DSN_PLAYER=${VITE_SENTRY_DSN_PLAYER}
+# Umami analytics (optional, cookieless). main.ts injects the tracking script only
+# when BOTH are set, so a build without them is a no-op. Baked at `npm run build`.
+#   docker buildx build --build-arg VITE_UMAMI_WEBSITE_ID=... --build-arg VITE_UMAMI_SRC=...
+ARG VITE_UMAMI_WEBSITE_ID
+ENV VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}
+ARG VITE_UMAMI_SRC
+ENV VITE_UMAMI_SRC=${VITE_UMAMI_SRC}
 RUN npm run build
 
 # ---- serve ----

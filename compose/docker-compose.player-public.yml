@@ -67,6 +67,10 @@ services:
         # Empty by default (no-op); prod sets it from PROD_SENTRY_DSN_PLAYER
         # via the deploy .env render → GlitchTip through the public ingest edge.
         VITE_SENTRY_DSN_PLAYER: ${VITE_SENTRY_DSN_PLAYER:-}
+        # Umami analytics (cookieless). website-id is public; src is the tracking
+        # script on the analytics ingest edge. Empty by default -> no-op bundle.
+        VITE_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
+        VITE_UMAMI_SRC: ${VITE_UMAMI_SRC:-}
     image: podcast-scraper-learning-app:latest
     restart: unless-stopped
     ports:
