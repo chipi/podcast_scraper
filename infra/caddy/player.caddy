@@ -1,11 +1,11 @@
 # Public consumer player vhost (#1163 / ADR-114). Deploy drops this into
 # /etc/caddy/sites/player.caddy and runs `sudo -n systemctl restart caddy`.
 #
-# OPERATOR: replace player.example.com with the real player domain (+ www if used).
+# OPERATOR: replace closelistening.app with the real player domain (+ www if used).
 # Upstream is the learning-app container (loopback PLAYER_PORT, default 8092) from
 # compose/docker-compose.player-public.yml — which proxies only /api/app/* to the
 # app-only backend. Caddy auto-issues the Let's Encrypt cert once DNS + :80/:443 are live.
-player.example.com {
+closelistening.app {
 	import hardened
 	reverse_proxy 127.0.0.1:8092
 }
