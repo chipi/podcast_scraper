@@ -172,9 +172,9 @@ Removed: ``graph-toolbar-types``, ``graph-toolbar-more-filters``,
 | Element | testid |
 | ---- | ----- |
 | Bar container | ``library-filter-bar`` |
-| Feed chip button / popover | ``library-chip-feed`` / ``library-popover-feed`` (+ ``library-feed-filter-panel`` / ``library-feed-filter-search`` / ``library-feed-filter-list``) |
+| Feed chip button / popover | ``library-chip-feed`` / ``library-popover-feed`` (+ ``library-feed-filter-panel`` / ``library-feed-filter-search`` / ``library-feed-list-scroll`` / ``library-feed-filter-list``) |
 | Date chip button / popover | ``library-chip-date`` / ``library-popover-date`` |
-| Clustered toggle chip | ``library-chip-clustered`` |
+| Clustered toggle chip | ``library-topic-cluster-toggle`` |
 | Reset | ``library-chip-reset`` |
 | Title persistent input | ``library-filter-title`` |
 | Summary persistent input | ``library-filter-summary`` |
