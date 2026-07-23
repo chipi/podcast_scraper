@@ -227,6 +227,14 @@ function episodeOutcomeLine(r: CorpusRunSummaryItem): string {
   return `${o.toLocaleString()} ok · ${f.toLocaleString()} failed · ${s.toLocaleString()} skipped`
 }
 
+function runDotTitle(r: CorpusRunSummaryItem): string {
+  const when = formatRunCreated(r.created_at) || '—'
+  const ep = (r.episodes_scraped_total ?? 0).toLocaleString()
+  const dur = formatDashboardRunDurationSeconds(r.run_duration_seconds ?? null) || '—'
+  const st = runOutcomeKey(r)
+  return `Run ${when} · ${ep} episodes · ${dur} · ${st}`
+}
+
 function runListOutcomeBarClass(r: CorpusRunSummaryItem): string {
   const k = runOutcomeKey(r)
   if (k === 'partial') {
@@ -330,6 +338,9 @@ function onRunListKeydown(e: KeyboardEvent): void {
                   <span
                     class="w-1 shrink-0 self-stretch"
                     :class="runListOutcomeBarClass(r)"
+                    :title="runDotTitle(r)"
+                    :data-run-outcome="runOutcomeKey(r)"
+                    data-testid="pipeline-run-dot"
                     aria-hidden="true"
                   />
                   <span class="min-w-0 flex-1 py-1 pr-2 font-mono text-[10px] leading-snug text-surface-foreground">
