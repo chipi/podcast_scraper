@@ -102,38 +102,42 @@ Pydantic response schemas are defined in
 
 [schemas-py]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/schemas.py
 
-## Additional shipped endpoints (catalog only)
+## Additional shipped endpoints
 
-Endpoints below are wired and in use but weren't in the main table
-above. One-line catalog + handler file pointer — read the handler for
-the full contract.
+Rich catalog with response models, auth, and params — extracted from
+handler decorators and function signatures. Response-model class names
+resolve against [`server/schemas.py`][schemas-py].
 
-| Method | Path | Handler | Purpose |
-| --- | --- | --- | --- |
-| GET | `/api/corpus/binary` | `corpus_binary.py` | Serve a corpus-relative binary artifact (audio-thumbnail bytes, etc.) with proper Content-Type. |
-| GET | `/api/corpus/enrichments` | `corpus_enrichments.py` | List available corpus-scope enrichers (id + envelope metadata). |
-| GET | `/api/corpus/enrichments/{enricher_id}` | `corpus_enrichments.py` | Full envelope for one corpus-scope enricher. |
-| GET | `/api/corpus/episode/enrichments/{enricher_id}` | `corpus_enrichments.py` | Per-episode enricher output (via `?episode_id=` or via bridge slug). |
-| GET | `/api/corpus/feed-signals` | `corpus_library.py` | Feed-level signals (topic distribution, cadence) for a single feed. |
-| GET | `/api/corpus/media` | `corpus_media.py` | Locally-stored audio bytes for an episode when persisted per RFC-096. |
-| GET | `/api/corpus/theme-clusters` | `corpus_theme_clusters.py` | Co-occurrence "theme" clusters over the corpus (topics discussed together). |
-| GET | `/api/corpus/trending` | `corpus_trending.py` | Corpus-scope trending entities (RFC-103 momentum) — operator equivalent of `/api/app/trending`. |
-| GET | `/api/index/timeseries` | `index_stats.py` | Historical index-rebuild + staleness stats over time. |
-| GET | `/api/jobs/subprocess-log` | `jobs.py` | Full stdout+stderr of a pipeline job's subprocess. |
-| GET | `/api/jobs/subprocess-log-tail` | `jobs.py` | Tail-slice + optional live polling of a running job's subprocess log. |
-| GET | `/api/jobs/{job_id}/log` | `jobs.py` | Full log of the parent job (wraps subprocess log with job envelope). |
-| GET | `/api/jobs/{job_id}/log-tail` | `jobs.py` | Tail-slice of the parent job log. |
-| GET | `/api/operator-config/profiles` | `operator_config.py` | List packaged `config/profiles/*.yaml` presets available for `profile:` in `viewer_operator.yaml`. |
-| GET | `/api/ops/summary` | `ops.py` | Ops dashboard summary — costs, model spend, provider health. |
-| POST | `/api/ops/resilience/reset` | `resilience.py` | Force-reset a resilience breaker before its cooldown (ADR-113). |
-| GET | `/api/resilience` | `resilience.py` | Current resilience-layer state per provider (open breakers, blown fuses). |
-| GET | `/api/topics/perspective-leaders` | `cil.py` | Corpus-wide "who talks most about X" leaderboard across topics. |
-| GET | `/api/topics/{topic_id}/perspectives` | `cil.py` | CIL topic-perspectives (operator equivalent of `/api/app/topics/…/perspectives`). |
-| POST | `/api/search/compare` | `search.py` | Two-subject briefing pack (Search v3 compare operator, RFC-093). |
-| GET | `/api/usage` | `usage.py` | Provider usage rollup — token / spend counters over the current window. |
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/corpus/binary` | binary stream | open | `path`, `relpath` | Serve a corpus-relative binary artifact (audio-thumbnail bytes etc.) with the right Content-Type. |
+| GET | `/api/corpus/enrichments` | envelope list | open | `path` | List available corpus-scope enricher envelopes (id + status metadata). |
+| GET | `/api/corpus/enrichments/{enricher_id}` | envelope | open | path: `enricher_id`; query: `path` | Full envelope for one corpus-scope enricher. |
+| GET | `/api/corpus/episode/enrichments/{enricher_id}` | envelope | open | path: `enricher_id`; query: `metadata_relpath`, `path` | Per-episode enricher output; identify the episode by its `.metadata.json` relative path. |
+| GET | `/api/corpus/feed-signals` | `CorpusFeedSignalsResponse` | open | `path`, `feed_id`, `top_k`, `max_episodes` | Feed-level signals for one show (topic distribution, cadence). |
+| GET | `/api/corpus/media` | binary stream | open | `path`, `relpath` | Locally-persisted audio bytes (RFC-096). |
+| GET | `/api/corpus/theme-clusters` | envelope | open | `path` | Co-occurrence theme clusters (topics discussed together). |
+| GET | `/api/corpus/trending` | `AppCorpusTrendingResponse` | open | `limit_per_kind` | Corpus-scope trending entities (RFC-103 momentum) — operator counterpart to `/api/app/trending`. |
+| GET | `/api/index/timeseries` | `IndexTimeseriesResponse` | open | `path` | Historical index-rebuild + staleness stats over time. |
+| GET | `/api/jobs/subprocess-log` | plain text | open | `job_id`, `path` | Full stdout+stderr of a pipeline job's subprocess. |
+| GET | `/api/jobs/subprocess-log-tail` | `PipelineJobLogTailResponse` | open | `job_id`, `path`, `max_bytes` | Tail-slice + optional live polling of a running job's subprocess log. |
+| GET | `/api/jobs/{job_id}/log` | plain text | open | path: `job_id`; query: `path` | Full log of the parent job (wraps subprocess log with job envelope). |
+| GET | `/api/jobs/{job_id}/log-tail` | `PipelineJobLogTailResponse` | open | path: `job_id`; query: `path`, `max_bytes` | Tail-slice of the parent job log. |
+| GET | `/api/operator-config/profiles` | `OperatorProfilesResponse` | open | — | List packaged `config/profiles/*.yaml` presets available for the `profile:` key in `viewer_operator.yaml`. |
+| GET | `/api/ops/summary` | ops summary JSON | open | — | Ops dashboard summary — costs, model spend, provider health. |
+| POST | `/api/ops/resilience/reset` | 200 OK | open | `scope` (query) | Force-reset a resilience breaker before its cooldown (ADR-113). |
+| GET | `/api/resilience` | resilience-state JSON | open | — | Current resilience-layer state per provider (open breakers, blown fuses). |
+| GET | `/api/topics/perspective-leaders` | `CilTopicPerspectiveLeadersResponse` | open | `path`, `limit` | Corpus-wide "who talks most about X" leaderboard across topics. |
+| GET | `/api/topics/{topic_id}/perspectives` | topic-perspectives JSON | open | path: `topic_id`; query: `path`, `scope` | CIL topic-perspectives (operator equivalent of `/api/app/topics/…/perspectives`). |
+| POST | `/api/search/compare` | `SearchCompareResponse` | open | JSON body: `SearchCompareRequest` | Two-subject briefing pack (Search v3 compare operator, RFC-093). |
+| GET | `/api/usage` | usage rollup JSON | open | `window`, `provider` | Provider usage rollup — token / spend counters over the current window. |
 
 **Relational sub-routes** (the `/api/relational/*` row above is the
 catch-all; each is real and used): `/positions`, `/insights-about`,
 `/topic-entities`, `/entities-in`, `/episodes`, `/related-insights`,
 `/insight-detail`, `/episode-insights`, `/who-said`, `/cross-show`,
-`/topics`, `/co-speakers`, `/related-topics`.
+`/topics`, `/co-speakers`, `/related-topics`. All return a
+`RelatedNode` projection (`RelationalListResponse` for flat lists,
+`RelationalGroupedResponse` for grouped shapes); each takes `path` +
+its scope key (`person` / `entity` / `insight` / `topic` / `podcast` /
+`episode`) plus an optional `k` cap.

@@ -280,26 +280,71 @@ covers `/api/feeds`, `/api/operator-config`, `/api/ops`, `/api/jobs*`, `/api/sch
 
 See the per-route detail in [HTTP_API.md](HTTP_API.md).
 
-## Additional shipped endpoints (catalog only)
+## Additional shipped endpoints
 
-Endpoints below are wired and used in production but weren't in the
-main table above. One-line catalog + handler pointer — read the
-handler for the full contract.
+Rich catalog with response models, auth, and params. Response-model
+class names resolve against `server/schemas.py`.
 
-| Method | Path | Handler | Purpose |
-| --- | --- | --- | --- |
-| GET | `/api/app/discover` | `app_discover.py` | Home discovery feed, interest-ranked when signed in and personalized ranking is on; recency otherwise. |
-| POST | `/api/app/discover/click` | `app_discover.py` | Fire-and-forget click telemetry (episode slug + shown rank) for ranking feedback. |
-| GET | `/api/app/theme-clusters` | `app_discover.py` | Home "Storylines" — theme clusters (topics discussed together). |
-| GET | `/api/app/trending` | `app_discover.py` | RFC-103 momentum — trending entities of a given `kind`, corpus-wide or `scope=mine`. |
-| GET, PUT | `/api/app/ranking-config` | `app_discover.py` | Admin-only discovery-ranking weights + toggles (auth-gated). |
-| GET, PUT, PATCH | `/api/app/preferences` | `app_user_preferences.py` | USERPREFS-1 — cross-device user preferences JSON payload (learning player + gi-kg-viewer both consume). PUT replaces; PATCH shallow-merges (null values delete). |
-| GET | `/api/app/podcasts/{feed_id}/signals` | `app_episodes.py` | Show-level signals for a podcast page — topics, key people, recurring guests, dominant themes, trending topics. |
-| GET | `/api/app/topics/{topic_id}/perspectives` | `app_relational.py` | Multi-perspective synthesis — each speaker's grounded insights on a topic (#1146). |
-| PATCH, DELETE | `/api/app/notes/{note_id}` | `app_capture.py` | Edit / remove a captured note (auth-gated). |
-| DELETE | `/api/app/library/{feed_id}` | `app_user_state.py` | Remove a podcast from the signed-in user's Library. |
-| GET | `/api/app/auth/dev-users` | `app_auth.py` | Predefined mock identities for the sign-in picker (dev/e2e MOCK provider only). |
-| GET | `/api/app/auth/status` | `app_auth.py` | Auth-provider capability probe (which provider, whether signup is open). |
-| POST | `/api/app/graph-events` | `app_graph_events.py` | Client-side telemetry ingest — graph interaction events. |
-| GET | `/api/app/graph-events/{summary,sessions,session/{id}}` | `app_graph_events.py` | Operator read-back of graph-events analytics. |
-| GET, POST, PATCH, DELETE | `/api/app/admin/users` (+ `/{user_id}`) | `app_admin.py` | Admin user CRUD (auth-gated, admin-only). Same surface as `app_users_cli`. |
+**Discovery + home feed**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/discover` | `AppEpisodesResponse` | optional session | `limit` | Home discovery feed. When signed in AND `APP_PERSONALIZED_RANKING=true`, interest-ranked via the user's followed clusters; otherwise recency. |
+| POST | `/api/app/discover/click` | 204 | optional session | JSON body: `slug`, `position` | Fire-and-forget click telemetry for ranking feedback. Silent no-op signed out or on network error. |
+| GET | `/api/app/theme-clusters` | `AppStorylinesResponse` | open | `limit` | Home "Storylines" — theme clusters (topics discussed together). |
+| GET | `/api/app/trending` | `AppTrendingResponse` | optional session | `kind`, `scope`, `limit` | RFC-103 momentum — trending entities of a given `kind`, corpus-wide or `scope=mine`. |
+| GET | `/api/app/ranking-config` | ranking-config JSON | open | — | Discovery-ranking weights + toggles (admin surface; write-gated). |
+| PUT | `/api/app/ranking-config` | ranking-config JSON | open | JSON body | Persist ranking-config changes. |
+
+**User preferences (USERPREFS-1)**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/preferences` | `UserPreferencesResponse` | session (401 signed-out) | — | Full USERPREFS-1 payload. |
+| PUT | `/api/app/preferences` | `UserPreferencesResponse` | session (401 signed-out) | JSON body: full payload | Replace stored payload. |
+| PATCH | `/api/app/preferences` | `UserPreferencesResponse` | session (401 signed-out) | JSON body: partial (null values delete a key) | Shallow-merge — preferred for single-key writes. |
+
+**Podcast signals + topic perspectives**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/podcasts/{feed_id}/signals` | `AppPodcastSignalsResponse` | open | path: `feed_id`; query: `top_k` | Show-level signals: topics, key people, recurring guests, dominant themes, trending topics. |
+| GET | `/api/app/topics/{topic_id}/perspectives` | `AppTopicPerspectivesResponse` | optional session | path: `topic_id`; query: `scope` | Multi-perspective synthesis — each speaker's grounded insights on a topic (#1146). `scope=mine` restricts to the user's heard∪captured set. |
+
+**Capture (deferred CRUD)**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| PATCH | `/api/app/notes/{note_id}` | `Note` | session (401 signed-out) | path: `note_id`; JSON body: text | Edit note text. |
+| DELETE | `/api/app/notes/{note_id}` | `NotesResponse` | session (401 signed-out) | path: `note_id` | Remove a note; returns the remaining list. |
+
+**User state**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| DELETE | `/api/app/library/{feed_id}` | `LibraryResponse` | session (401 signed-out) | path: `feed_id` | Remove a show from the user's Library. |
+
+**Auth surface (probe endpoints)**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/auth/dev-users` | dev-users JSON | open | — | Mock identities for the sign-in picker; populated only when the `MOCK` provider is configured. |
+| GET | `/api/app/auth/status` | auth-status JSON | open | — | Which provider is active + whether signup is open. Used by the login page. |
+
+**Graph-event telemetry**
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/api/app/graph-events` | 204 | optional session | JSON body: event array | Client-side ingest — graph interaction events. |
+| GET | `/api/app/graph-events/summary` | summary JSON | open | — | Operator rollup (aggregate counters by event type). |
+| GET | `/api/app/graph-events/sessions` | sessions JSON | open | — | List distinct browsing sessions. |
+| GET | `/api/app/graph-events/session/{session_id}` | session-detail JSON | open | path: `session_id` | Full event stream for one session. |
+
+**Admin users** (admin-only; surface parity with `app_users_cli`)
+
+| Method | Path | Response model | Auth | Params | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/app/admin/users` | `list[UserOut]` | admin | — | List all users. |
+| POST | `/api/app/admin/users` | `UserOut` (201) | admin | JSON body | Create a user. |
+| PATCH | `/api/app/admin/users/{user_id}` | `UserOut` | admin | path: `user_id`; JSON body | Update user attributes (role, enabled flag, etc.). |
+| DELETE | `/api/app/admin/users/{user_id}` | 204 | admin | path: `user_id` | Delete a user. |
