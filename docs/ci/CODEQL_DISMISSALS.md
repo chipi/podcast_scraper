@@ -298,6 +298,10 @@ number, file, line, date, and a short comment.
 | 1 | #420 | utils/usage_status.py | 48 | 2026-07-16 | Type 1: ``_discover_event_files`` globs under ``root``, which is validated by ``resolve_corpus_path_param`` at the ``/api/usage`` route (normpath+startswith anchor); ``run_id`` is a substring filter, not a path component. Same class as the corpus routes. Dismissed via ``gh api`` (PR #1190) |
 | 1 | #421 | utils/usage_status.py | 72 | 2026-07-16 | Type 1: ``usage_rollup_snapshot`` — ``source`` is the route-validated corpus root (``resolve_corpus_path_param``). Dismissed via ``gh api`` (PR #1190) |
 | 1 | #422 | utils/usage_status.py | 74 | 2026-07-16 | Type 1: same as #421 — route-validated corpus root. Dismissed via ``gh api`` (PR #1190) |
+| 1 | #429 | server/routes/corpus_library.py | 494 | 2026-07-23 | Type 1: ``metadata_abs_path`` is joined onto the route-validated corpus root (``resolve_corpus_path_param``) — same normpath+startswith chain as the other corpus routes. Dismissed via ``gh api`` (PR #1274) |
+| 1 | #430 | server/routes/health.py | 40 | 2026-07-23 | Type 1: ``candidate`` is ``corpus_dir / 'enrichments' / 'topic_similarity.json'`` where ``corpus_dir`` is route-validated (``_corpus_dir_for_health`` → ``resolve_corpus_path_param``); the suffix is a constant. Same class as #419. Dismissed via ``gh api`` (PR #1274) |
+| 1 | #431 | search/operators.py | 186 | 2026-07-23 | Type 1: ``path`` is ``corpus_root / _TOPIC_CONSENSUS_REL`` where ``corpus_root`` is route-validated (``/api/search`` → ``resolve_corpus_path_param``) and the suffix is a constant. Dismissed via ``gh api`` (PR #1274) |
+| 1 | #432 | search/operators.py | 189 | 2026-07-23 | Type 1: same as #431 — ``path.read_text()`` on the validated corpus-root-anchored path. Dismissed via ``gh api`` (PR #1274) |
 
 ## Still open (not yet dismissed)
 
