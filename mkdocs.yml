@@ -280,7 +280,7 @@ nav:
       - ADR-093 Canonical Stack Contract Versus Environment Adapters: adr/ADR-093-canonical-stack-contract-and-environment-adapters.md
       - ADR-094 Graph Handoff Orchestrator FSM: adr/ADR-094-graph-handoff-orchestrator-fsm.md
       - ADR-095 Three-Tier Viewer Test Pyramid + Production-Shaped Fixtures: adr/ADR-095-viewer-test-pyramid.md
-      - ADR-119 No Per-Corpus UI State — USERPREFS-1 for User-Scoped Features: adr/ADR-119-no-per-corpus-ui-state.md
+      - ADR-125 No Per-Corpus UI State — USERPREFS-1 for User-Scoped Features: adr/ADR-125-no-per-corpus-ui-state.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

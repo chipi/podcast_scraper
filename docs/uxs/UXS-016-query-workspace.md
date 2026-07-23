@@ -14,7 +14,7 @@
   - [RFC-092](../rfc/RFC-092-ml-query-router.md) — intent taxonomy
 - **Related ADRs**:
   - [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` (Consensus operator source)
-  - [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md) — saved-queries persistence
+  - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — saved-queries persistence
 - **Related UX specs**:
   - [UXS-005](UXS-005-semantic-search.md) — retains compact-launcher role after Workspace lands
   - [UXS-008](UXS-008-enriched-search.md) — Enriched Answer surface (heroified here)

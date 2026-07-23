@@ -142,7 +142,7 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **124** files under `docs/adr/ADR-*.md` (ADR-001–ADR-124;
+**Counts (reconcile when adding ADRs):** **125** files under `docs/adr/ADR-*.md` (ADR-001–ADR-125;
 numbering has historical gaps). ADR-099 was a duplicate — the response-shape-guardrails file was
 renumbered to ADR-105 (2026-07-07); ADR-106/107/108 added the same day. ADR-114–119 are the
 infra/edge programme (shared Caddy edge, secrets, privilege-split, observability, Cloudflare,

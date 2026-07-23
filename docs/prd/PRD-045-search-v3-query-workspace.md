@@ -7,7 +7,7 @@
 - **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), [RFC-093](../rfc/RFC-093-litm-context-packs.md) (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/wip/USERPREFS-1.md`, shipped)
 - **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies [UXS-008](../uxs/UXS-008-enriched-search.md); shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
 - **Related RFC**: [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) (technical design)
-- **Related ADRs**: [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (`topic_consensus` activated, `stance_*` retired), [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md) (no per-corpus UI state)
+- **Related ADRs**: [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (`topic_consensus` activated, `stance_*` retired), [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
 - **Related epic**: [#1229](https://github.com/chipi/podcast_scraper/issues/1229)
 - **Scope**: operator viewer only (`web/gi-kg-viewer`). Consumer learning-player search is **out of scope** for this PRD.
 
@@ -218,7 +218,7 @@ Slices missing any of these get rejected at review, not deferred.
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier test pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
 - [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` activated; `stance_*` retired
-- [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md) — no per-corpus UI state
+- [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab order + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — extended (compact launcher role)
 - [UXS-008](../uxs/UXS-008-enriched-search.md) — heroified

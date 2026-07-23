@@ -18,7 +18,7 @@
   - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier pyramid (adopted)
   - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
   - [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` activated; `stance_*` retired
-  - [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's Section 8 conforms)
+  - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's Section 8 conforms)
 - **Related incident**: #1205 — LanceDB native hybrid combine SIGSEGV (fix `0fe0854b`)
 
 ---
@@ -141,7 +141,7 @@ Hoist `EnrichedAnswerPanel` (currently gated behind UXS-005 Advanced dialog) int
 
 ### §8 Saved queries + query history — USERPREFS-1 backed
 
-**Storage decision (retracts an earlier per-corpus draft):** per-user via USERPREFS-1 (`/api/app/preferences`). Rationale + full ruleset in [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md).
+**Storage decision (retracts an earlier per-corpus draft):** per-user via USERPREFS-1 (`/api/app/preferences`). Rationale + full ruleset in [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md).
 
 **No new server endpoints.** All round-trips go through the shipped `GET/PUT/PATCH /api/app/preferences`.
 
@@ -367,7 +367,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
 - [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` activated; `stance_*` retired
-- [ADR-119](../adr/ADR-119-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's §8 conforms)
+- [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's §8 conforms)
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — semantic search (compact-launcher role)
 - [UXS-008](../uxs/UXS-008-enriched-search.md) — enriched search (heroified)
