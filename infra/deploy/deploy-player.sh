@@ -44,6 +44,9 @@ else
     echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
     echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS:-}"
     echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS:-}"
+    # OTEL traces (ADR-119). Default OFF for a manual run; set both to enable.
+    echo "OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-none}"
+    echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}"
     echo "PLAYER_PORT=8092"
   } >"$PLAYER_ENV"
 fi
@@ -55,6 +58,24 @@ chmod 600 "$PLAYER_ENV"
 # value would ship `cl_preview=` as the gate, which is guessable → the gate opens for
 # anyone. Fail loudly rather than deploy a broken gate.
 : "${PLAYER_PREVIEW_COOKIE:?PLAYER_PREVIEW_COOKIE missing from .env.player and env (coming-soon gate cookie secret)}"
+
+# OTEL traces (ADR-119) reach the homelab VictoriaTraces OTLP ingest via the Tailscale
+# MagicDNS name `homelab`, which Docker's embedded DNS can't resolve — so the player
+# containers get a static `extra_hosts` entry. Resolve the tailnet IP FRESH here (never
+# hardcoded, mirrors deploy.sh) and write it into .env.player for compose interpolation.
+# NON-fatal: if it can't resolve, the compose default (loopback) applies and OTEL export
+# just fails silently — the app keeps serving; only traces are lost.
+HL_IP="$(tailscale ip -4 homelab 2>/dev/null | head -1 || true)"
+if [ -n "$HL_IP" ]; then
+  if grep -qE '^HOMELAB_TAILNET_IP=' "$PLAYER_ENV"; then
+    sed -i "s#^HOMELAB_TAILNET_IP=.*#HOMELAB_TAILNET_IP=$HL_IP#" "$PLAYER_ENV"
+  else
+    echo "HOMELAB_TAILNET_IP=$HL_IP" >>"$PLAYER_ENV"
+  fi
+  echo "[$(date -u +%FT%TZ)] resolved homelab tailnet IP for OTEL traces: $HL_IP"
+else
+  echo "WARN: could not resolve 'homelab' tailnet IP; player OTEL traces will not reach VictoriaTraces" >&2
+fi
 
 # Pin the api image to a CURRENT sha — NEVER the literal :main tag. CI stopped updating
 # :main 2026-05-28, so it is 8 weeks stale: pre-ADR-116, with no /api/app/* consumer
