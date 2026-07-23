@@ -73,6 +73,21 @@ export PODCAST_IMAGE_TAG
 # corpus volume, separate containers/network/lifecycle.
 COMPOSE=(docker compose -p player --env-file "$PLAYER_ENV" -f compose/docker-compose.player-public.yml)
 
+# ADR-115 Option A secret delivery (mirrors the operator stack). When
+# PLAYER_SECRETS_VIA_FILES=1 the player runtime secrets are delivered as files in host
+# tmpfs /dev/shm/player-secrets/ (staged from GH Secrets by deploy-player.yml, never on
+# disk), mounted via the secrets overlay -> /run/secrets/*, and exported by the image's
+# baked shim. Default off = today's .env.player env-var behaviour. Fail loudly if the flag
+# is on but the files never arrived (exit 5) — never boot with silently-missing secrets.
+if [ "${PLAYER_SECRETS_VIA_FILES:-}" = "1" ]; then
+  if [ ! -d /dev/shm/player-secrets ] || [ -z "$(ls -A /dev/shm/player-secrets 2>/dev/null)" ]; then
+    echo "ERROR: PLAYER_SECRETS_VIA_FILES=1 but /dev/shm/player-secrets/ is empty/missing — refusing to boot the player with missing secrets." >&2
+    exit 5
+  fi
+  COMPOSE+=(-f compose/docker-compose.player-secrets.yml)
+  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/player-secrets ($(ls -1 /dev/shm/player-secrets | wc -l | tr -d ' ') files)"
+fi
+
 # Ensure the host bind-mount source for per-user data exists and is writable by the
 # container's non-root ``podcast`` uid (1000) before compose up. #3.
 APPDATA_DIR="${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}"
@@ -154,4 +169,22 @@ done
   echo "ERROR: player backend /api/health did not return 200" >&2
   exit 3
 }
+
+# ADR-115 Option A: when delivering via files, assert the secrets actually reached the
+# player-api container as non-empty /run/secrets/* (mirrors the operator exit-6 gate) —
+# a green /api/health must not mask a keyless app (bad DSN / no session secret / OAuth
+# broken). Only checks the flag-on path.
+if [ "${PLAYER_SECRETS_VIA_FILES:-}" = "1" ]; then
+  _missing=""
+  for s in app_oauth_google_client_secret app_session_secret podcast_sentry_dsn_api; do
+    if ! "${COMPOSE[@]}" exec -T api sh -c "[ -s /run/secrets/$s ]" 2>/dev/null; then
+      _missing="$_missing $s"
+    fi
+  done
+  if [ -n "$_missing" ]; then
+    echo "ERROR: PLAYER_SECRETS_VIA_FILES=1 but the player-api container is missing non-empty /run/secrets:${_missing}." >&2
+    exit 6
+  fi
+  echo "[$(date -u +%FT%TZ)] secrets: verified /run/secrets present + non-empty in player-api"
+fi
 echo "[$(date -u +%FT%TZ)] player-public up + healthy; vhost live for https://${PLAYER_DOMAIN}"

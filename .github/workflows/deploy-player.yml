@@ -164,6 +164,11 @@ jobs:
           PROD_SENTRY_DSN_PLAYER: ${{ secrets.PROD_SENTRY_DSN_PLAYER }}
           # Umami website UUID (public — ships in the bundle; a var, not a secret).
           PLAYER_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
+          # ADR-115 Option A: when '1', the RUNTIME secrets (client secret, session secret,
+          # backend DSN) are delivered as tmpfs files + exported by the shim, so they are
+          # DROPPED from .env.player. Default empty = today's env behaviour. Cutover = set
+          # the GH var. Mirrors the operator's PODCAST_SECRETS_VIA_FILES.
+          PLAYER_SECRETS_VIA_FILES: ${{ vars.PLAYER_SECRETS_VIA_FILES }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -177,8 +182,13 @@ jobs:
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
             echo "APP_OAUTH_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
-            echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
-            echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
+            # Runtime secrets (ADR-115 Option A): under PLAYER_SECRETS_VIA_FILES=1 these are
+            # delivered as /run/secrets files + exported by the shim, so DROPPED from
+            # .env.player (no secrets at rest on disk). Flag off = today's env behaviour.
+            if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
+              echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
+              echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
+            fi
             echo "PLAYER_PORT=8092"
             # Build-time DSN for the player bundle (compose build-arg reads this
             # from --env-file .env.player). Empty = Sentry stays a no-op.
@@ -188,9 +198,12 @@ jobs:
             # misleads). See the same note in stack-test.yml (viewer). 2026-07-22.
             echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER}"
             # Player BACKEND (server-side) errors -> the SAME GlitchTip project 5 as the
-            # browser errors (the SDK tags them by runtime). Reuses the player DSN; the
-            # app-only api ships via the public telemetry ingest edge (it has no tailnet).
-            echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER}"
+            # browser errors. RUNTIME secret -> delivered as a file under Option A, so
+            # DROPPED from .env.player when PLAYER_SECRETS_VIA_FILES=1. (VITE_SENTRY_DSN_PLAYER
+            # above is a build-time FRONTEND var, baked public into the bundle — always kept.)
+            if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
+              echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER}"
+            fi
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
             # Both empty -> the bundle's Umami injection stays a no-op.
@@ -205,6 +218,39 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              mv .env.player.staged .env.player; chmod 600 .env.player"
+
+      - name: Stage tmpfs secret files (ADR-115 Option A)
+        # When PLAYER_SECRETS_VIA_FILES=1, write the player runtime secrets to HOST tmpfs
+        # /dev/shm/player-secrets/ (RAM, never disk). deploy-player.sh joins the secrets
+        # overlay so they mount as /run/secrets/* and the image shim exports them. Atomic:
+        # build the dir on the runner in /dev/shm, scp, then swap into place. Mirrors the
+        # operator's "Stage tmpfs secret files" step. Filenames are the LOWERCASE of the env
+        # the shim must export (app_session_secret -> APP_SESSION_SECRET).
+        if: steps.preflight.outputs.skip != 'true' && vars.PLAYER_SECRETS_VIA_FILES == '1'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
+          APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          PROD_SENTRY_DSN_PLAYER: ${{ secrets.PROD_SENTRY_DSN_PLAYER }}
+        run: |
+          set -euo pipefail
+          STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)
+          trap 'rm -rf "$STAGE" 2>/dev/null || true' EXIT
+          printf '%s' "$GOOGLE_CLIENT_SECRET"   > "$STAGE/app_oauth_google_client_secret"
+          printf '%s' "$APP_SESSION_SECRET"     > "$STAGE/app_session_secret"
+          printf '%s' "$PROD_SENTRY_DSN_PLAYER" > "$STAGE/podcast_sentry_dsn_api"
+          chmod 400 "$STAGE"/*
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /dev/shm/player-secrets.staged && mkdir -p /dev/shm/player-secrets.staged && chmod 700 /dev/shm/player-secrets.staged"
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "$STAGE"/* "${SSH_TARGET}:/dev/shm/player-secrets.staged/"
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -euo pipefail; chmod 400 /dev/shm/player-secrets.staged/*; \
+             rm -rf /dev/shm/player-secrets; \
+             mv /dev/shm/player-secrets.staged /dev/shm/player-secrets"
 
       - name: Deploy (build + up + vhost drop + reload + health)
         if: steps.preflight.outputs.skip != 'true'
