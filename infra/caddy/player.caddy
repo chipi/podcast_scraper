@@ -17,6 +17,10 @@
 # `reverse_proxy 127.0.0.1:8092` so the app serves the public directly.
 closelistening.app {
 	import hardened
+	# Per-site ACME account email — each domain registers its LE cert under info@<its
+	# own domain>, NOT the box's global email (info@orrerylearn.com, which is orrery's).
+	# So closelistening.app cert/expiry notices go to info@closelistening.app.
+	tls info@closelistening.app
 
 	# Preview users: any request carrying a valid Authorization header reaches the app.
 	@authed header Authorization *

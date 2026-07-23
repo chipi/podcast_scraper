@@ -17,6 +17,8 @@
 # Rollback: `rm /etc/caddy/sites/player-telemetry.caddy && sudo systemctl restart caddy`.
 telemetry.player.example.com {
 	import hardened
+	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
+	tls info@player.example.com
 
 	# Ingest surface only: /api/<project_id>/{envelope,store,security}/ — the transports
 	# the browser SDK uses. GlitchTip sets its own CORS headers, so the cross-origin POST
