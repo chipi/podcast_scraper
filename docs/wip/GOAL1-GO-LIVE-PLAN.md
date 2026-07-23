@@ -9,6 +9,30 @@ authorize + we verify together).
 
 ---
 
+## 2026-07-23 — where it actually stands (most of this plan is DONE)
+
+The box is **live and public**: the edge converged (Phase 1), firewall open (Phase 4),
+**orrery** + **podcast player** (`closelistening.app`) both serving behind **Cloudflare**
+(Phase 5/6), and the **secrets cutover is done for both tenants** (3.4 — file-based
+`/run/secrets`, no plaintext at rest). Player launch, its telemetry/analytics/logs, and
+the Grafana o11y reorg all shipped this session.
+
+**Still open (the real remaining list):**
+- **2.4** — wire a *real* alert channel (Slack/email/GlitchTip webhook) + prove one
+  end-to-end fire. Channels are scaffolded in provisioning; nothing actually notifies yet.
+- **Phase 7 — re-rebase `production` onto `main`.** All this session's work (player +
+  secrets + o11y) is on `production`, **not merged to `main`**. This is why a `deploy-prod`
+  git-reset transiently reverts the player's on-box files — the branches must converge.
+- **T-12** — ramp HSTS from `max-age=86400` to `max-age=31536000; includeSubDomains;
+  preload` now HTTPS is proven live.
+- **C2 (#1252)** — remove the runtime-*env* exposure (app reads `*_FILE` at point of use);
+  the paired follow-up to the 3.4 cutover. **#1251** — sops/private-repo secret model.
+- **Phase 8 (#1199)** — audio-archive → Storage Box transition (gated on DR-drill green).
+- **3.2 (orrery-side)** — orrery `web` hardening / digest-pin / rollback rehearsal sign-off
+  (orrery repo; orrery is live so likely closed — confirm on that side).
+
+---
+
 ## Where we are now
 
 Everything for Goal-1 is **built and on `production`** but **not yet applied to
@@ -146,9 +170,9 @@ channels are provisioned as code (homelab `backend/grafana/provisioning/alerting
 | 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) checklist — **pre-walked** in [GOAL1-PHASE3-PREP.md](GOAL1-PHASE3-PREP.md) (substrate items done; open: orrery cap_drop / digest-pin / rollback rehearsal) | 🤝 |
 | 3.2 | Sign off: orrery clears it (static, no `docker.sock`, no keys) | 🧑 |
 | 3.3 | ✅ **Folded into `apply-edge.sh`** (1.1) — the metadata-egress guard (script + unit + `enable --now` + live `iptables -C DOCKER-USER` re-assert) is applied by `apply-edge.sh §3` and asserted by `verify-edge.sh §3`. Nothing separate to run; converges when 1.2 runs. (review 2026-07-17 H8 / T-07) | 🤝 |
-| 3.4 | **Secrets cutover — ADR-115 Option A** (#1250, T-08). Code shipped + flag-gated (`PODCAST_SECRETS_VIA_FILES`): deploy writes the 6 LLM keys + 2 GlitchTip DSNs to host tmpfs `/dev/shm/podcast-secrets/` (RAM), the shim exports them, and they are DROPPED from the plaintext `.env` — no secrets at rest on disk, no ciphertext in this public repo. **Cutover = set the repo Variable `PODCAST_SECRETS_VIA_FILES=1` → run deploy-prod → verify LLM+error paths → confirm `.env` has no keys.** Gates **Phase 4** — opening the firewall exposes the whole box, so every on-box secret must be off-plaintext first (not just the api). C2 (remove runtime-env exposure) = #1252; sops/private-repo model = #1251. | 🤝 |
+| 3.4 | ✅ **DONE (2026-07-23) — Secrets cutover, ADR-115 Option A** (#1250, T-08). **Operator:** `PODCAST_SECRETS_VIA_FILES=1`, cut over — verified `.env` carries **no** LLM keys / DSNs, `/run/secrets` mounted into `compose-api-1` from `/dev/shm/podcast-secrets/`, shim exports them, api healthy + 6-surface smoke green. **Player (tenant 1, this session):** `PLAYER_SECRETS_VIA_FILES=1`, its 3 runtime secrets (OAuth client secret, session secret, backend DSN) delivered via `/dev/shm/player-secrets/` → `/run/secrets/*` + shim; `.env.player` clean; login 307. Found+fixed a player-only bug: the Deploy step didn't pass the flag to `deploy-player.sh` so the overlay wasn't joined → keyless 503; now passed inline like deploy-prod (commit `2cdb3ffc`). C2 (remove runtime-env exposure) = #1252; sops/private-repo model = #1251 — both still open. | 🤝 |
 
-**No firewall opens until 3.2 is signed off AND 3.4 is cut over (verified `.env` carries no plaintext secrets).**
+**Firewall already open + boxes public (orrery + player live behind Cloudflare); 3.4 secrets cutover done for both tenants.**
 
 ### Phase 4 — Open the firewall (the exposure moment)
 
