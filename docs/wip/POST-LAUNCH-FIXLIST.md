@@ -46,6 +46,36 @@ Both are real user-facing, 1 occurrence each in GlitchTip **project 4**:
    `https://prod-podcast.tail6d0ed4.ts.net/`, trigger a JS error, confirm it lands in
    GlitchTip project 1. (Needs Tailscale, not the prod key.)
 
+## D. Cloudflare settings to tune (orrery zone) — free plan
+
+Static SPA behind CF + the `telemetry` / `analytics` ingest subdomains. The two
+DANGER options are called out because they'd silently break this specific setup.
+
+**✅ Enable (safe wins):**
+- **SSL/TLS → Full (strict)** — origin has a valid LE cert; strict rejects a MITM'd origin.
+- **Always Use HTTPS** + **Automatic HTTPS Rewrites** (kills mixed content).
+- **Minimum TLS Version → 1.2** (drop 1.0/1.1).
+- **DNSSEC** — prevents domain DNS spoofing.
+- **Managed WAF ruleset** (free tier) — baseline filtering.
+- **HTTP/3 (QUIC)** · **0-RTT** · **Early Hints** · **Brotli** — free perf, all safe.
+- Caching: default already caches orrery's static assets = the big perf win. Leave on.
+
+**❌ Do NOT enable — breaks this setup:**
+- **Rocket Loader** — reorders/defers JS → routinely breaks SPAs (orrery = Svelte). OFF.
+- **Bot Fight Mode / Super Bot Fight** — challenges automated browser POSTs, i.e. the
+  telemetry `/api/*/envelope` + analytics `/api/send` ingest → silent drops. OFF —
+  or first add WAF **skip** rules for `telemetry.orrerylearn.com` + `analytics.orrerylearn.com`.
+
+**⚠️ Watch:**
+- Rate Limiting: OK for the orrery site; DON'T tighten it on the `telemetry`/`analytics`
+  hosts (ingest needs headroom).
+- Security Level: leave **Medium**; "High"/"Under Attack" challenge real users.
+- CF won't cache POST by default, so `/api/send` + `/api/*/envelope` are safe.
+
+**Validation (what's externally checkable):** min-TLS enforcement, HTTP/3 alt-svc,
+Always-Use-HTTPS redirect, HSTS header, Brotli, DNSSEC, Rocket-Loader injection,
+Bot-Fight not challenging ingest (POST still 200). SSL-mode + WAF need the dashboard.
+
 ## Not broken — verified healthy (no action)
 - Orrery `200` + valid TLS; CDN + origin-lock intact.
 - All 4 o11y signals + Umami analytics flowing.
