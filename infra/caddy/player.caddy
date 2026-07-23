@@ -1,11 +1,66 @@
 # Public consumer player vhost (#1163 / ADR-114). Deploy drops this into
 # /etc/caddy/sites/player.caddy and runs `sudo -n systemctl restart caddy`.
 #
-# OPERATOR: replace closelistening.app with the real player domain (+ www if used).
-# Upstream is the learning-app container (loopback PLAYER_PORT, default 8092) from
-# compose/docker-compose.player-public.yml — which proxies only /api/app/* to the
-# app-only backend. Caddy auto-issues the Let's Encrypt cert once DNS + :80/:443 are live.
+# PRE-LAUNCH GATE (#1262): the public sees a "coming soon" page; preview users reach
+# the real player (learning-app on 127.0.0.1:8092) via HTTP basic auth, then log in with
+# Google as normal. No secret is committed — only bcrypt hashes (one-way); the plaintext
+# passwords are shared privately.
+#
+# HOW A PREVIEW USER GETS IN: visit  https://<user>:<password>@closelistening.app/  once.
+# The browser caches the basic-auth and sends it on every subsequent request (incl. the
+# SPA's /api/app/* calls + the Google OAuth callback), so you get the real app. Public
+# visitors send no Authorization header and get the coming-soon page.
+#
+# ADD MORE USERS: append `<user> <bcrypt-hash>` lines to the basic_auth block
+# (hash: `caddy hash-password --plaintext '<pw>'`).
+# LAUNCH (open to everyone): delete the `@authed` route + this basic_auth, leaving just
+# `reverse_proxy 127.0.0.1:8092` so the app serves the public directly.
 closelistening.app {
 	import hardened
-	reverse_proxy 127.0.0.1:8092
+
+	# Preview users: any request carrying a valid Authorization header reaches the app.
+	@authed header Authorization *
+	handle @authed {
+		basic_auth {
+			marko $2a$14$GV8EL65DWyPcI3qYoZsDXunPwdPCevcAT4/Wfg55gJpTtyyWn3..O
+			guest $2a$14$uhMHys8DHkU9P/F2IBgAWutTwz0eznL1yCwzHaEDsEKGhb8dJ9ZO2
+		}
+		reverse_proxy 127.0.0.1:8092
+	}
+
+	# Everyone else -> coming soon.
+	handle {
+		header Content-Type "text/html; charset=utf-8"
+		respond <<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Close Listening</title>
+  <style>
+    :root { color-scheme: dark; }
+    html,body { height:100%; margin:0; }
+    body { display:grid; place-items:center; min-height:100vh;
+      font: 400 17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #1a2233, #0b0e14 60%); color:#e7ecf3; }
+    .wrap { text-align:center; padding:2rem; max-width:34rem; }
+    .mark { letter-spacing:.14em; font-size:.8rem; text-transform:uppercase; color:#8aa0bd; }
+    h1 { font-size:clamp(2rem,6vw,3.2rem); margin:.4rem 0 .6rem; font-weight:600; }
+    p { color:#aab6c7; margin:0 auto; max-width:26rem; }
+    .soon { display:inline-block; margin-top:1.6rem; padding:.5rem 1rem; border:1px solid #2b3a52;
+      border-radius:999px; font-size:.85rem; color:#9fb2cc; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="mark">Close Listening</div>
+    <h1>Something worth hearing.</h1>
+    <p>A calmer way to listen to podcasts — with the good parts surfaced. We're putting on the finishing touches.</p>
+    <div class="soon">Coming soon</div>
+  </div>
+</body>
+</html>
+HTML 200
+	}
 }
