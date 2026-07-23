@@ -24,25 +24,26 @@ from podcast_scraper.providers.ml.model_registry import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
-# The three DGX prod presets promoted to MOSS transcription (#1174) share one ladder shape:
-# on-prem tier(s) first, then the cloud_balanced tier for that stage.
+# The three DGX prod presets run turbo (tailnet_dgx_whisper) as the transcription primary since the
+# real-GT bake-off (#1178/#1179) — MOSS was demoted to an accurate-but-slow fallback. They share one
+# ladder shape: on-prem tier(s) first, then the cloud_balanced tier for that stage.
 _DGX_PRESETS = ["cloud_with_dgx_primary", "prod_dgx_full_with_fallback", "prod_dgx_balanced"]
 
 
 @pytest.mark.parametrize("name", _DGX_PRESETS)
 def test_transcription_ladder_prefers_free_tiers_before_paid_cloud(name: str) -> None:
-    """MOSS -> DGX faster-whisper -> local in-process whisper -> cloud whisper: the free/on-prem
-    tiers are exhausted before the ladder pays for openai."""
+    """DGX turbo -> DGX large-v3 (coverage failover) -> local in-process whisper -> cloud whisper:
+    the free/on-prem tiers are exhausted before the ladder pays for openai. Turbo replaced MOSS as
+    the primary per the #1178/#1179 bake-off; MOSS is now an accurate-but-slow fallback."""
     resolved = resolve_profile_to_settings(name)
-    assert (
-        resolved["transcription_provider"]
-        == get_transcription_option("moss_transcribe_diarize").provider
-    )
+    assert resolved["transcription_provider"] == "tailnet_dgx_whisper"
     assert resolved["transcription_fallback_providers"] == [
         "tailnet_dgx_whisper",
         "whisper",
         "openai",
     ]
+    # cost invariant: the paid cloud tier stays LAST, after the free/on-prem tiers.
+    assert resolved["transcription_fallback_providers"][-1] == "openai"
 
 
 @pytest.mark.parametrize("name", _DGX_PRESETS)
