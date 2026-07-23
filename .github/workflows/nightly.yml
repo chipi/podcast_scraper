@@ -92,7 +92,7 @@ jobs:
           ml-models-nightly-${{ runner.os }}-
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -146,7 +146,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -182,7 +182,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -224,7 +224,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -257,7 +257,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -290,7 +290,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -397,7 +397,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -486,7 +486,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -599,7 +599,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11.8"
           cache: "pip"
@@ -840,7 +840,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up Python 3.11 (for the real API server)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11.8"
           cache: "pip"
@@ -1018,7 +1018,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1109,7 +1109,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
