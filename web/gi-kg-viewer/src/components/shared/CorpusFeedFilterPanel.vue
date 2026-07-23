@@ -107,8 +107,10 @@ function selectFeed(f: CorpusFeedItem): void {
       role="region"
       aria-label="Feeds"
       class="min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-y-contain max-h-[18rem] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
-      :data-testid="props.listTestid"
+      data-testid="library-feed-list-scroll"
+      :data-list-testid="props.listTestid"
     >
+      <div :data-testid="props.listTestid">
       <ul class="space-y-0.5 text-sm">
         <li>
           <button
@@ -156,6 +158,7 @@ function selectFeed(f: CorpusFeedItem): void {
           </button>
         </li>
       </ul>
+      </div>
     </div>
     <button
       v-if="props.showClear && !isAllSelected"
