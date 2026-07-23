@@ -48,6 +48,23 @@ chmod 600 "$PLAYER_ENV"
 : "${PLAYER_DOMAIN:?PLAYER_DOMAIN missing from .env.player and env}"
 : "${PODCAST_CORPUS_VOLUME:?PODCAST_CORPUS_VOLUME missing from .env.player and env}"
 
+# Pin the api image to a CURRENT sha — NEVER the literal :main tag. CI stopped updating
+# :main 2026-05-28, so it is 8 weeks stale: pre-ADR-116, with no /api/app/* consumer
+# surface, which makes the player 404 every API call (prod incident 2026-07-23). The
+# deploy workflow stages PODCAST_IMAGE_TAG (newest published sha from main) into
+# .env.player. For a manual run where it is still unset, fall back to the SAME engine the
+# operator stack is running ("one engine, two surfaces", ADR-116) by reading its live api
+# container. Refuse to deploy if neither resolves — do not silently ship stale :main.
+if [ -z "${PODCAST_IMAGE_TAG:-}" ]; then
+  op_img=$(docker inspect compose-api-1 --format '{{.Config.Image}}' 2>/dev/null || true)
+  PODCAST_IMAGE_TAG="${op_img##*:}"
+  case "${PODCAST_IMAGE_TAG:-}" in
+    sha-*) echo "[$(date -u +%FT%TZ)] pinned PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG} (from running operator api)" ;;
+    *) echo "ERROR: PODCAST_IMAGE_TAG unset and could not resolve the operator api image (got: '${PODCAST_IMAGE_TAG:-}'); set PODCAST_IMAGE_TAG=sha-<7> explicitly — refusing to deploy stale :main" >&2; exit 1 ;;
+  esac
+fi
+export PODCAST_IMAGE_TAG
+
 # CRITICAL: run the player-public stack under its OWN compose project (`-p player`),
 # NOT the default (`compose`, derived from the compose/ dir) which is the OPERATOR
 # stack's project. Without this, `up --remove-orphans` reconciles the operator project
