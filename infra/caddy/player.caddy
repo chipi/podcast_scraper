@@ -39,13 +39,20 @@ closelistening.app {
 	# browser path: modern browsers STRIP user:pass@ from URLs (deprecated), so a bare
 	# https://user:pass@closelistening.app never sends the header (only curl honours it),
 	# which is why the plain bypass got stuck on the coming-soon page.
+	# `handle` keeps this block mutually exclusive from the @authed / coming-soon blocks;
+	# the inner `route` forces WRITTEN order — basic_auth first (401-challenge when no/
+	# invalid creds -> the browser prompts), then redir only after a successful auth. (A
+	# bare `handle` runs Caddy's default directive order, which fires `redir` BEFORE
+	# `basic_auth`, so it 302'd everyone to / without ever challenging.)
 	@preview path /preview
 	handle @preview {
-		basic_auth {
-			marko $2a$14$GV8EL65DWyPcI3qYoZsDXunPwdPCevcAT4/Wfg55gJpTtyyWn3..O
-			guest $2a$14$uhMHys8DHkU9P/F2IBgAWutTwz0eznL1yCwzHaEDsEKGhb8dJ9ZO2
+		route {
+			basic_auth {
+				marko $2a$14$GV8EL65DWyPcI3qYoZsDXunPwdPCevcAT4/Wfg55gJpTtyyWn3..O
+				guest $2a$14$uhMHys8DHkU9P/F2IBgAWutTwz0eznL1yCwzHaEDsEKGhb8dJ9ZO2
+			}
+			redir https://closelistening.app/ 302
 		}
-		redir https://closelistening.app/ 302
 	}
 
 	# Preview users: any request carrying a valid Authorization header reaches the app.
