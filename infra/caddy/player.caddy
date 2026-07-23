@@ -15,6 +15,16 @@
 # (hash: `caddy hash-password --plaintext '<pw>'`).
 # LAUNCH (open to everyone): delete the `@authed` route + this basic_auth, leaving just
 # `reverse_proxy 127.0.0.1:8092` so the app serves the public directly.
+
+# www -> apex canonical redirect. www DNS is CF-proxied but the apex is the one
+# canonical host (the OAuth callback + coming-soon basic-auth live on the apex), so
+# www just 301s there. Own LE cert under info@closelistening.app.
+www.closelistening.app {
+	import hardened
+	tls info@closelistening.app
+	redir https://closelistening.app{uri} permanent
+}
+
 closelistening.app {
 	import hardened
 	# Per-site ACME account email — each domain registers its LE cert under info@<its
