@@ -20,6 +20,8 @@
 # Rollback: `rm /etc/caddy/sites/player-analytics.caddy && sudo systemctl restart caddy`.
 analytics.player.example.com {
 	import hardened
+	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
+	tls info@player.example.com
 
 	# Tracking-only surface — the script + the collect endpoint (any method, so the CORS
 	# OPTIONS preflight to /api/send is proxied and Umami answers it).
