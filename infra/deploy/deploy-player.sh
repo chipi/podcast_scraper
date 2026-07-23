@@ -48,7 +48,13 @@ chmod 600 "$PLAYER_ENV"
 : "${PLAYER_DOMAIN:?PLAYER_DOMAIN missing from .env.player and env}"
 : "${PODCAST_CORPUS_VOLUME:?PODCAST_CORPUS_VOLUME missing from .env.player and env}"
 
-COMPOSE=(docker compose --env-file "$PLAYER_ENV" -f compose/docker-compose.player-public.yml)
+# CRITICAL: run the player-public stack under its OWN compose project (`-p player`),
+# NOT the default (`compose`, derived from the compose/ dir) which is the OPERATOR
+# stack's project. Without this, `up --remove-orphans` reconciles the operator project
+# — removing the operator viewer and replacing the operator api with the player's
+# app-only image (prod incident 2026-07-23). `-p player` isolates it: shared read-only
+# corpus volume, separate containers/network/lifecycle.
+COMPOSE=(docker compose -p player --env-file "$PLAYER_ENV" -f compose/docker-compose.player-public.yml)
 
 # Ensure the host bind-mount source for per-user data exists and is writable by the
 # container's non-root ``podcast`` uid (1000) before compose up. #3.
@@ -67,14 +73,23 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
 # (ADR-114 validate-before-reload contract).
 echo "[$(date -u +%FT%TZ)] installing player.caddy vhost for ${PLAYER_DOMAIN}..."
 sed "s/player\.example\.com/${PLAYER_DOMAIN}/g" infra/caddy/player.caddy >/etc/caddy/sites/player.caddy
-if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+# Validate with `caddy adapt` (Caddyfile -> JSON, reports real config/syntax errors)
+# — NOT `caddy validate`, which also PROVISIONS (opens the caddy-owned access.log) and
+# false-fails with "permission denied" when run as the deploy user, even on a valid
+# config (prod incident 2026-07-23). adapt does not touch the log writer.
+if ! caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
   echo "ERROR: Caddy config invalid after adding player vhost; rolling back" >&2
+  caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1 | head -5 >&2
   rm -f /etc/caddy/sites/player.caddy
   exit 2
 fi
-if ! sudo -n /usr/bin/systemctl reload caddy; then
-  echo "ERROR: caddy reload failed; rolling back vhost" >&2
+# RESTART, not reload: the base Caddyfile sets `admin off` (T-02), so admin-API-based
+# `caddy reload` fails — a vhost change needs a restart (task #27). If caddy doesn't
+# come back active, roll back the vhost + restart to the last-good config.
+if ! sudo -n /usr/bin/systemctl restart caddy || ! systemctl is-active --quiet caddy; then
+  echo "ERROR: caddy failed to restart with player vhost; rolling back" >&2
   rm -f /etc/caddy/sites/player.caddy
+  sudo -n /usr/bin/systemctl restart caddy || true
   exit 2
 fi
 
