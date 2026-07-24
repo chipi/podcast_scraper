@@ -106,8 +106,9 @@ services:
       dockerfile: Dockerfile
       args:
         # Browser error reporting DSN, baked into the bundle at build time.
-        # Empty by default (no-op); prod sets it from PROD_SENTRY_DSN_PLAYER
+        # Empty by default (no-op); prod sets it from PROD_SENTRY_DSN_PLAYER_WEB
         # via the deploy .env render → GlitchTip through the public ingest edge.
+        # (The backend DSN is the separate PROD_SENTRY_DSN_PLAYER_API — split per surface.)
         VITE_SENTRY_DSN_PLAYER: ${VITE_SENTRY_DSN_PLAYER:-}
         # Umami analytics (cookieless). website-id is public; src is the tracking
         # script on the analytics ingest edge. Empty by default -> no-op bundle.
