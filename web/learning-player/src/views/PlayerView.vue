@@ -549,31 +549,6 @@ onBeforeUnmount(() => {
         <div
           class="sticky top-0 z-20 mt-4 bg-canvas pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
         >
-          <!-- Transcript toggle: top-right of the floating controls cluster, mobile-only, so it's
-               reachable at any scroll position AND independent of audio state (a listener whose
-               audio fails must still be able to open the transcript). Desktop shows the transcript
-               as the always-visible side column, so it's hidden there (lg:hidden). -->
-          <div v-if="segments.length" class="mb-2 flex justify-end lg:hidden">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition"
-              :class="
-                transcriptOpen
-                  ? 'border-accent bg-overlay text-accent'
-                  : 'border-border bg-surface text-canvas-foreground hover:bg-overlay'
-              "
-              :aria-expanded="transcriptOpen"
-              :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
-              :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
-              data-testid="transcript-toggle"
-              @click="toggleTranscript"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true">
-                <path d="M4 6h16M4 10h16M4 14h10M4 18h10" />
-              </svg>
-              {{ t('player.transcript') }}
-            </button>
-          </div>
           <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
             {{ t('player.audioError') }}
           </p>
@@ -588,7 +563,33 @@ onBeforeUnmount(() => {
             @seek="seek"
             @skip="skip"
             @cycle-rate="cycleRate"
-          />
+          >
+            <!-- Transcript toggle INSIDE the panel, top-right (mobile only). It floats with the
+                 panel so it's reachable at any scroll position; hidden on desktop where the
+                 transcript is the always-visible side column. -->
+            <template #corner>
+              <button
+                v-if="segments.length"
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition"
+                :class="
+                  transcriptOpen
+                    ? 'border-accent bg-overlay text-accent'
+                    : 'border-border text-canvas-foreground hover:bg-overlay'
+                "
+                :aria-expanded="transcriptOpen"
+                :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
+                :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
+                data-testid="transcript-toggle"
+                @click="toggleTranscript"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true">
+                  <path d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                </svg>
+                {{ t('player.transcript') }}
+              </button>
+            </template>
+          </PlayerControls>
           <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
             {{ t('player.audioUnavailable') }}
           </p>

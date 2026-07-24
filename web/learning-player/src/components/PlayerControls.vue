@@ -55,6 +55,12 @@ function onScrub(ev: Event): void {
 
 <template>
   <div class="rounded-2xl border border-border bg-surface p-4">
+    <!-- Optional top-right affordance INSIDE the panel (the transcript toggle on mobile). Hidden
+         on desktop, where the transcript is the always-visible side column. Caller owns the button
+         + its semantics; the panel just offers the corner. -->
+    <div v-if="$slots.corner" class="mb-2 flex justify-end lg:hidden">
+      <slot name="corner" />
+    </div>
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show
          where the substance is. Grounded → accent colour; opacity = confidence (the "weight"). -->
     <div

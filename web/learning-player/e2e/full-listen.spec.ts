@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { openTranscript, signInIsolated } from './helpers'
+import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
 
 /**
  * Full listen critical-path — the browse → play → capture → verify chain
@@ -21,6 +21,7 @@ import { openTranscript, signInIsolated } from './helpers'
 test('sign in → open episode → play → capture at current time → verify in library', async ({
   page,
 }, testInfo) => {
+  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'fulllisten', testInfo)
 
   // === 1. Navigate to the episode ============================================
