@@ -17,7 +17,7 @@
 #   scripts/dev/capture-search-perf.sh \
 #       --corpus /abs/path/to/corpus \
 #       --label search-v3-s1-tip \
-#       [--output-dir docs/wip/search-v3/traces] \
+#       [--output-dir data/perf/traces/search] \
 #       [--api-port 8601] [--viewer-port 5601] \
 #       [--wait-ms 3000]
 #
@@ -28,7 +28,7 @@ set -euo pipefail
 
 CORPUS=""
 LABEL=""
-OUTPUT_DIR="docs/wip/search-v3/traces"
+OUTPUT_DIR="data/perf/traces/search"
 API_PORT="8601"
 VIEWER_PORT="5601"
 WAIT_MS="3000"

@@ -173,6 +173,77 @@ def test_indexer_omits_episode_metadata_rows_when_source_field_absent(
     assert "episode_title" in by_type
 
 
+def _write_gi(root: Path, nodes: list[dict]) -> None:
+    """Write a sibling ``ep.gi.json`` (next to ``ep.metadata.json``) so
+    ``_collect_docs_for_episode`` picks up insight nodes."""
+    (root / "metadata" / "ep.gi.json").write_text(
+        json.dumps({"nodes": nodes, "edges": []}), encoding="utf-8"
+    )
+
+
+def test_indexer_emits_insight_type_on_insight_rows(tmp_path: Path) -> None:
+    """Search v3 §S8 — insight docs carry ``insight_type`` (RFC-072 GIL v1.1)
+    from the GI node properties so the compare ``insight_types`` filter can
+    scope by type."""
+    doc = _base_doc()
+    p = _write_meta(tmp_path, doc)
+    _write_gi(
+        tmp_path,
+        [
+            {
+                "id": "insight-claim",
+                "type": "Insight",
+                "properties": {"text": "A claim.", "insight_type": "claim", "grounded": True},
+            },
+            {
+                "id": "insight-obs",
+                "type": "Insight",
+                "properties": {"text": "An observation.", "insight_type": "observation"},
+            },
+        ],
+    )
+    rows = _collect_docs_for_episode(
+        tmp_path,
+        p,
+        doc,
+        target_tokens=200,
+        overlap_tokens=20,
+        metadata_relative_path="metadata/ep.metadata.json",
+    )
+    by_type = _rows_by_doc_type(rows)
+    insight_rows = {text: meta for text, meta in by_type.get("insight", [])}
+    assert insight_rows["A claim."]["insight_type"] == "claim"
+    assert insight_rows["An observation."]["insight_type"] == "observation"
+
+
+def test_indexer_defaults_missing_insight_type_to_unknown(tmp_path: Path) -> None:
+    """A legacy insight node with no ``insight_type`` indexes as ``unknown`` —
+    matching the migration in ``gil_kg_identity_migrations.py``."""
+    doc = _base_doc()
+    p = _write_meta(tmp_path, doc)
+    _write_gi(
+        tmp_path,
+        [
+            {
+                "id": "insight-legacy",
+                "type": "Insight",
+                "properties": {"text": "Legacy insight, no type."},
+            },
+        ],
+    )
+    rows = _collect_docs_for_episode(
+        tmp_path,
+        p,
+        doc,
+        target_tokens=200,
+        overlap_tokens=20,
+        metadata_relative_path="metadata/ep.metadata.json",
+    )
+    by_type = _rows_by_doc_type(rows)
+    text, meta = by_type["insight"][0]
+    assert meta["insight_type"] == "unknown"
+
+
 def test_indexer_omits_episode_title_when_title_is_blank(tmp_path: Path) -> None:
     doc = _base_doc()
     doc["episode"]["title"] = "   "

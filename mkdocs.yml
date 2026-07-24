@@ -81,6 +81,14 @@ nav:
       - Experiment Guide: guides/EXPERIMENT_GUIDE.md
       - Performance: guides/PERFORMANCE.md
       - Performance Profile Guide: guides/PERFORMANCE_PROFILE_GUIDE.md
+      - Performance Traces:
+          - guides/perf-traces/index.md
+          - Search: guides/perf-traces/search.md
+          - Graph: guides/perf-traces/graph.md
+          - Surfaces: guides/perf-traces/surfaces.md
+          - Reports:
+              - guides/perf-traces/reports/index.md
+              - "graph-v3 tuning (Jul 2026)": guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md
       - Optimization Workflow: guides/OPTIMIZATION_WORKFLOW_GUIDE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
       - Tufte Chart Critique: guides/TUFTE_CHART_CRITIQUE.md
@@ -283,6 +291,7 @@ nav:
       - ADR-095 Three-Tier Viewer Test Pyramid + Production-Shaped Fixtures: adr/ADR-095-viewer-test-pyramid.md
       - ADR-125 No Per-Corpus UI State — USERPREFS-1 for User-Scoped Features: adr/ADR-125-no-per-corpus-ui-state.md
       - ADR-126 Operator Analytics on Umami + Podcast Telemetry Ladder: adr/ADR-126-operator-analytics-umami-and-podcast-telemetry-ladder.md
+      - ADR-127 Search-Index insight_type Column + Reindex-on-Upgrade: adr/ADR-127-search-index-insight-type-column.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

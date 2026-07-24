@@ -88,9 +88,17 @@ const emit = defineEmits<{
   /**
    * Search v3 §S8 — request a compare against 2 picker-selected
    * subjects (from the current visible hits). Parent triggers
-   * ``search.runCompare(subjectA, subjectB)``.
+   * ``search.runCompare(subjectA, subjectB, {insightTypes})``.
    */
-  'run-compare': [payload: { subjectA: CompareSubjectRef; subjectB: CompareSubjectRef }]
+  'run-compare': [
+    payload: {
+      subjectA: CompareSubjectRef
+      subjectB: CompareSubjectRef
+      /** RFC-072 GIL v1.1 insight_type filter — narrows both sides
+       *  symmetrically on the server. Empty ⇒ no filter. */
+      insightTypes: string[]
+    },
+  ]
   /** Parent triggers ``search.clearCompare()``. */
   'clear-compare': []
 }>()
@@ -263,6 +271,7 @@ function onCompareClick(): void {
 function onCompareRun(payload: {
   subjectA: CompareSubjectRef
   subjectB: CompareSubjectRef
+  insightTypes: string[]
 }): void {
   emit('run-compare', payload)
 }

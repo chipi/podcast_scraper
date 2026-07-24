@@ -187,9 +187,29 @@ test.describe('Search — command palette (#1233)', () => {
     await expect(page.getByTestId('command-palette-results')).toBeVisible()
     await expect(page.getByTestId('command-palette-action-open-workspace')).toBeVisible()
     await expect(page.getByTestId('command-palette-action-pin-rail')).toBeVisible()
+    // Search v3 §S8 — "Pin to Compare" is the 4th per-hit action.
+    await expect(page.getByTestId('command-palette-action-pin-compare')).toBeVisible()
     // Show on graph resolves via the hit's graph id; the mock's insight hit
     // has ``source_id`` so it should be enabled.
     await expect(page.getByTestId('command-palette-action-show-graph')).toBeVisible()
+  })
+
+  test('"Pin to Compare" pins the hit subject and closes the palette (§S8)', async ({
+    page,
+  }) => {
+    // Tier-1 scope: this asserts the palette action fires + closes. The
+    // downstream "pins prefill the Compare picker slots" behaviour is
+    // covered at unit level (CompareOperatorPanel.test.ts) because the
+    // Compare chip is gated on ≥ 2 in-hit subjects, which a single pinned
+    // subject does not by itself satisfy.
+    await landOnDigestWithCorpus(page)
+    await openPalette(page)
+    await page.getByTestId('command-palette-input').fill('climate')
+    const pin = page.getByTestId('command-palette-action-pin-compare')
+    await expect(pin).toBeVisible()
+    await pin.click()
+    // Palette closes after the pin.
+    await expect(page.getByTestId('command-palette')).toHaveCount(0)
   })
 
   test('empty result set renders the "no results" line', async ({ page }) => {

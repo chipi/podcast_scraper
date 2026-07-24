@@ -290,6 +290,7 @@ async def search_compare(
         q=body.q,
         top_k=body.top_k,
         max_tokens=body.max_tokens,
+        insight_types=body.insight_types,
     )
     return SearchCompareResponse(
         pack_a=_pack_to_model(outcome.pack_a),

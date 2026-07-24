@@ -79,6 +79,7 @@ def test_run_yes_json_on_empty_corpus(tmp_path, capsys):
         "0001_faiss_to_lance",
         "0002_two_tier_native_reindex",
         "0003_gi_v3_typed_mentions",
+        "0004_insight_type_reindex",
     }
 
 

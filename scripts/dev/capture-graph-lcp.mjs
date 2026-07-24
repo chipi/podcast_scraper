@@ -4,7 +4,7 @@
  * Performance recording (chrome://tracing format, `traceEvents` shape) of the
  * gi-kg-viewer graph route's initial paint.
  *
- * Output shape matches `docs/wip/graph-v3/traces/03-C-first-paint.json.json.gz`
+ * Output shape matches `data/perf/traces/graph/03-C-first-paint.json.json.gz`
  * so tier-C traces stay comparable to future runs. Also emits a summary JSON
  * with LCP / FCP / TTI / main-thread-blocking-time so a human can diff the
  * numbers without opening chrome://tracing.
@@ -408,7 +408,7 @@ const traceJson = JSON.stringify(traceDoc)
 writeFileSync(tracePathRaw, traceJson, 'utf-8')
 
 // gzip alongside the raw so the trace file matches the shape checked in at
-// docs/wip/graph-v3/traces/03-C-first-paint.json.json.gz (they compress ~10x).
+// data/perf/traces/graph/03-C-first-paint.json.json.gz (they compress ~10x).
 await pipeline(Readable.from(traceJson), createGzip(), createWriteStream(tracePathGz))
 
 const summary = {

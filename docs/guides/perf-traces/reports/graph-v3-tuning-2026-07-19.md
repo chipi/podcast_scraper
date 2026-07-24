@@ -1,4 +1,10 @@
-# graph-v3 LCP traces
+# graph-v3 LCP traces (report, 2026-07-19)
+
+> **Historical report**, migrated into the perf-traces framework
+> ([../index.md](../index.md)) verbatim from `docs/wip/graph-v3/traces/README.md`.
+> The raw artifacts it references (`prod-v2-*.metrics.json`, `*.trace.json.gz`,
+> `*.screenshot.png`) now live under **`data/perf/traces/graph/`**. First entry
+> in the [report index](index.md).
 
 Captured with `scripts/dev/capture-graph-lcp.sh` (runbook:
 `docs/guides/GRAPH_PERF_TRACE_RUNBOOK.md`).

@@ -189,6 +189,11 @@ export interface CompareRequestOptions {
   q?: string
   topK?: number
   maxTokens?: number
+  /** Search v3 §S8 — RFC-072 GIL v1.1 insight_type filter. Narrows both
+   *  subjects symmetrically on the server (``claim`` / ``recommendation`` /
+   *  ``observation`` / ``question`` / ``unknown``). ``undefined`` / empty
+   *  array is a no-op. */
+  insightTypes?: string[]
 }
 
 export async function compareSubjects(
@@ -196,7 +201,10 @@ export async function compareSubjects(
   subjectB: CompareSubjectRef,
   options: CompareRequestOptions,
 ): Promise<SearchCompareResponse> {
-  const body = {
+  const insightTypes = (options.insightTypes ?? [])
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+  const body: Record<string, unknown> = {
     subject_a: subjectA,
     subject_b: subjectB,
     q: options.q?.trim() ?? '',
@@ -204,6 +212,7 @@ export async function compareSubjects(
     top_k: Math.min(100, Math.max(1, options.topK ?? 10)),
     max_tokens: Math.min(8000, Math.max(1, options.maxTokens ?? 2000)),
   }
+  if (insightTypes.length > 0) body.insight_types = insightTypes
   const res = await fetchWithTimeout('/api/search/compare', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

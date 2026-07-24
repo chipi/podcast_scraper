@@ -292,4 +292,168 @@ test.describe('Search — Compare operator (§S8)', () => {
     await expect(page.getByTestId('operator-compare-error')).toContainText('boom')
     await expect(page.getByTestId('operator-compare-columns')).toHaveCount(0)
   })
+
+  test('insight_types filter chips propagate to /api/search/compare symmetrically', async ({
+    page,
+  }) => {
+    // Record every compare request so the assertion can inspect the JSON body.
+    const requests: Array<Record<string, unknown>> = []
+    await page.route('**/api/search/compare', async (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown>
+      requests.push(body)
+      const subjectA = body.subject_a as { id: string; label: string; kind: string }
+      const subjectB = body.subject_b as { id: string; label: string; kind: string }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          pack_a: {
+            subject: subjectA,
+            query: 'compute',
+            query_type: 'semantic',
+            rendered: '[CRITICAL] A',
+            token_count: 8,
+            max_tokens: 2000,
+            top_insight_id: 'insight:e1:1',
+            top_insight_text: 'A insight',
+            supporting_segment_ids: [],
+            supporting_segment_texts: [],
+            coverage_summary: { episode_count: 1, show_ids: [], date_range: null },
+            confidence_p50: 0.9,
+            result_count: 1,
+            grounded: true,
+          },
+          pack_b: {
+            subject: subjectB,
+            query: 'compute',
+            query_type: 'semantic',
+            rendered: '[CRITICAL] B',
+            token_count: 6,
+            max_tokens: 2000,
+            top_insight_id: 'insight:e2:1',
+            top_insight_text: 'B insight',
+            supporting_segment_ids: [],
+            supporting_segment_texts: [],
+            coverage_summary: { episode_count: 1, show_ids: [], date_range: null },
+            confidence_p50: 0.7,
+            result_count: 1,
+            grounded: true,
+          },
+          judge_summary: null,
+          error: null,
+          detail: null,
+        }),
+      })
+    })
+
+    await landOnSearchAndQuery(page)
+    await page.getByTestId('operator-chip-compare').click()
+
+    // Baseline: no chips selected → body has NO insight_types key.
+    await page.getByTestId('operator-compare-run').click()
+    await expect(page.getByTestId('operator-compare-columns')).toBeVisible()
+    expect(requests).toHaveLength(1)
+    expect(requests[0].insight_types).toBeUndefined()
+
+    // Toggle two chips → next request carries them; both sides get the same
+    // filter (server-side symmetry — the request body drives both).
+    await page.getByTestId('operator-compare-insight-type-claim').click()
+    await page.getByTestId('operator-compare-insight-type-recommendation').click()
+    await page.getByTestId('operator-compare-run').click()
+    await expect.poll(() => requests.length).toBe(2)
+    expect(requests[1].insight_types).toEqual(['claim', 'recommendation'])
+    // subject_a / subject_b are still the same picker slots — the filter is
+    // parallel to them, not a per-side override.
+    expect(requests[1].subject_a).toEqual(requests[0].subject_a)
+    expect(requests[1].subject_b).toEqual(requests[0].subject_b)
+  })
+
+  test('KL2 alias hint renders when both picker slots resolve to Persons', async ({
+    page,
+  }) => {
+    // Override the default fixture so the picker's auto-seed lands on TWO
+    // Persons — no shared topic_label, no episode_id (either would outrank
+    // the person entries by count-then-alpha in slot seeding).
+    await page.unroute('**/api/search?**')
+    await page.route('**/api/search?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'compute',
+          query_type: 'semantic',
+          results: [
+            {
+              doc_id: 'insight:e1:1',
+              score: 0.9,
+              source_tier: 'insight',
+              text: 'A insight',
+              metadata: { doc_type: 'insight', speaker_name: 'Alice' },
+            },
+            {
+              doc_id: 'insight:e2:1',
+              score: 0.7,
+              source_tier: 'insight',
+              text: 'B insight',
+              metadata: { doc_type: 'insight', speaker_name: 'Bob' },
+            },
+          ],
+        }),
+      })
+    })
+    await landOnSearchAndQuery(page)
+    await page.getByTestId('operator-chip-compare').click()
+    const hint = page.getByTestId('operator-compare-alias-hint')
+    await expect(hint).toBeVisible()
+    await expect(hint).toContainText('Persons')
+    await expect(hint).toContainText('aliased')
+  })
+
+  test('KL3 alias hint renders when both picker slots resolve to Topics', async ({
+    page,
+  }) => {
+    // Two distinct topics, no persons/episodes competing for the top-2 slot
+    // seeds → picker auto-seeds slotA/slotB both as Topics → KL3 hint fires.
+    await page.unroute('**/api/search?**')
+    await page.route('**/api/search?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'compute',
+          query_type: 'semantic',
+          results: [
+            {
+              doc_id: 'kg:t1',
+              score: 0.9,
+              source_tier: 'insight',
+              text: 'topic 1',
+              metadata: {
+                doc_type: 'kg_topic',
+                source_id: 'topic:compute',
+                topic_label: 'Compute',
+              },
+            },
+            {
+              doc_id: 'kg:t2',
+              score: 0.7,
+              source_tier: 'insight',
+              text: 'topic 2',
+              metadata: {
+                doc_type: 'kg_topic',
+                source_id: 'topic:governance',
+                topic_label: 'Governance',
+              },
+            },
+          ],
+        }),
+      })
+    })
+    await landOnSearchAndQuery(page)
+    await page.getByTestId('operator-chip-compare').click()
+    const hint = page.getByTestId('operator-compare-alias-hint')
+    await expect(hint).toBeVisible()
+    await expect(hint).toContainText('Topics')
+    await expect(hint).toContainText('aliased')
+  })
 })

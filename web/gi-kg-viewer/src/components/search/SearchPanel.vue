@@ -678,7 +678,7 @@ const advancedFeedCombinedTitle = computed(() =>
           @focus-set="(ids: string[]) => emit('focus-set', ids)"
           @run-cluster="() => void search.runOperator(shell.corpusPath, 'cluster')"
           @run-consensus="() => void search.runOperator(shell.corpusPath, 'consensus')"
-          @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB)"
+          @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB, { insightTypes: payload.insightTypes })"
           @clear-compare="() => search.clearCompare()"
         />
         <template

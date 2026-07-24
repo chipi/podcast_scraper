@@ -290,6 +290,19 @@ def _collect_docs_for_episode(  # noqa: C901
             if nt == "Insight":
                 text = props.get("text")
                 if isinstance(text, str) and text.strip():
+                    # RFC-072 GIL v1.1 insight_type is carried on the GI node
+                    # properties (claim / recommendation / observation /
+                    # question / unknown). Emit it into the index payload so
+                    # downstream scope filters (Search v3 §S8 compare
+                    # ``insight_types``) can narrow by type. Legacy nodes with
+                    # no type default to ``unknown`` — matching the migration
+                    # in ``migrations/gil_kg_identity_migrations.py``.
+                    raw_itype = props.get("insight_type")
+                    insight_type = (
+                        str(raw_itype).strip().lower()
+                        if isinstance(raw_itype, str) and raw_itype.strip()
+                        else "unknown"
+                    )
                     rows.append(
                         (
                             f"insight:{scope_tag}:{nid}",
@@ -301,6 +314,7 @@ def _collect_docs_for_episode(  # noqa: C901
                                 "publish_date": published,
                                 "source_id": nid,
                                 "grounded": bool(props.get("grounded")),
+                                "insight_type": insight_type,
                             },
                         )
                     )

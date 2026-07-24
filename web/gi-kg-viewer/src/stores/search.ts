@@ -77,6 +77,33 @@ export const useSearchStore = defineStore('search', () => {
   const compareLoading = ref(false)
   const compareError = ref<string | null>(null)
 
+  /**
+   * Search v3 §S8 — subjects pinned for Compare. The CompareOperatorPanel
+   * seeds slot A / slot B from the LAST TWO pins (pin[0] → A, pin[1] → B)
+   * in preference to the visible-hit discovery default, so a user can
+   * assemble a comparison from anywhere in the app (e.g. the command
+   * palette "Pin to Compare" action) before opening the operator.
+   *
+   * Ring buffer of length 2, deduped on ``kind + id``: pinning a third
+   * distinct subject evicts the oldest. Pinning an already-pinned subject
+   * is a no-op (no reorder — avoids surprising slot churn).
+   */
+  const comparePins = ref<CompareSubjectRef[]>([])
+
+  function pinCompareSubject(ref_: CompareSubjectRef): void {
+    const id = ref_.id.trim()
+    if (!id) return
+    const key = `${ref_.kind}::${id}`
+    if (comparePins.value.some((p) => `${p.kind}::${p.id.trim()}` === key)) return
+    const next = [...comparePins.value, { ...ref_, id }]
+    // Keep only the two most recent pins.
+    comparePins.value = next.slice(-2)
+  }
+
+  function clearComparePins(): void {
+    comparePins.value = []
+  }
+
   const searchRunGate = new StaleGeneration()
   const operatorRunGate = new StaleGeneration()
   const compareRunGate = new StaleGeneration()
@@ -380,7 +407,15 @@ export const useSearchStore = defineStore('search', () => {
     corpusPath: string,
     subjectA: CompareSubjectRef,
     subjectB: CompareSubjectRef,
-    opts: { q?: string; topK?: number; maxTokens?: number } = {},
+    opts: {
+      q?: string
+      topK?: number
+      maxTokens?: number
+      /** Search v3 §S8 — RFC-072 GIL v1.1 insight_type filter forwarded
+       *  to ``POST /api/search/compare``. Undefined / empty array ⇒
+       *  no server-side filter. */
+      insightTypes?: string[]
+    } = {},
   ): Promise<void> {
     const root = corpusPath.trim()
     if (!root) return
@@ -394,6 +429,7 @@ export const useSearchStore = defineStore('search', () => {
         q: opts.q ?? query.value,
         topK: opts.topK ?? filters.topK,
         maxTokens: opts.maxTokens,
+        insightTypes: opts.insightTypes,
       })
       if (compareRunGate.isStale(seq)) return
       if (body.error) {
@@ -446,5 +482,8 @@ export const useSearchStore = defineStore('search', () => {
     compareError,
     runCompare,
     clearCompare,
+    comparePins,
+    pinCompareSubject,
+    clearComparePins,
   }
 })

@@ -130,6 +130,11 @@ def _to_search_result(result: ScoredResult) -> SearchResult:
     # (insight / quote / kg_topic / kg_entity). Absent it, no graph handoff renders.
     if payload.get("source_id"):
         metadata["source_id"] = payload["source_id"]
+    # RFC-072 GIL v1.1 insight_type (insight tier only) — carried so the Search
+    # v3 §S8 compare ``insight_types`` filter can narrow by type. Only present on
+    # insight rows indexed at LANCE_SCHEMA_VERSION ≥ 3.
+    if payload.get("insight_type"):
+        metadata["insight_type"] = payload["insight_type"]
     return SearchResult(doc_id=str(result.doc_id), score=float(result.score), metadata=metadata)
 
 

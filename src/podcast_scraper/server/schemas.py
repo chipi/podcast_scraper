@@ -1448,6 +1448,18 @@ class SearchCompareRequest(BaseModel):
     )
     top_k: int = Field(default=10, ge=1, le=100)
     max_tokens: int = Field(default=2000, ge=1, le=8000)
+    insight_types: list[str] | None = Field(
+        default=None,
+        description=(
+            "Optional RFC-072 GIL v1.1 insight_type filter — one of "
+            "``claim`` / ``recommendation`` / ``observation`` / "
+            "``question`` / ``unknown``. Narrows both subjects symmetrically: "
+            "only insight-tier hits whose ``metadata.insight_type`` is in the "
+            "allowed set contribute to each pack's ``top_insight`` / "
+            "confidence rollup. Segment-tier hits (supporting evidence) are "
+            "preserved. ``None`` or an empty list is a no-op."
+        ),
+    )
 
 
 class SearchCompareResponse(BaseModel):

@@ -3,7 +3,7 @@
 **Purpose:** capture reproducible Chrome DevTools Performance recordings of
 the gi-kg-viewer graph route so we can compare LCP / FCP / TTI / main-thread
 blocking time across git refs, layout parameter changes, or corpora. Every
-trace lands in `docs/wip/graph-v3/traces/` under a labelled name so the
+trace lands in `data/perf/traces/graph/` under a labelled name so the
 history stays browsable.
 
 **When to use:**
@@ -85,8 +85,8 @@ scripts/dev/capture-graph-lcp.sh --corpus $(pwd)/.test_outputs/manual/prod-v2/co
 scripts/dev/capture-graph-lcp.sh --corpus $(pwd)/.test_outputs/manual/prod-v2/corpus --label fcose-B-repulsion-660k
 
 # repeat, or diff the metrics JSONs
-diff <(jq . docs/wip/graph-v3/traces/fcose-A-baseline.metrics.json) \
-     <(jq . docs/wip/graph-v3/traces/fcose-B-repulsion-660k.metrics.json)
+diff <(jq . data/perf/traces/graph/fcose-A-baseline.metrics.json) \
+     <(jq . data/perf/traces/graph/fcose-B-repulsion-660k.metrics.json)
 ```
 
 ### CI trending later (out of scope now)
@@ -98,7 +98,7 @@ against a checked-in synthetic corpus and post a comment on regression.
 ## 4. Reading the outputs
 
 Each run drops **three** files into `--output-dir` (default
-`docs/wip/graph-v3/traces/`):
+`data/perf/traces/graph/`):
 
 - **`${label}.trace.json`** — raw Chrome DevTools trace (`traceEvents` shape).
   Open at [chrome://tracing](chrome://tracing) or at
@@ -191,5 +191,5 @@ For any perf claim on a PR:
   there. First entry above.
 - `web/gi-kg-viewer/src/utils/cyCoseLayoutOptions.ts` — fcose params. The
   most common target for capture-driven tuning.
-- `docs/wip/graph-v3/traces/` — canonical dir. Every checked-in trace lives
+- `data/perf/traces/graph/` — canonical dir. Every checked-in trace lives
   here.

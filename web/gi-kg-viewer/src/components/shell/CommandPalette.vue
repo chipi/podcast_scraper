@@ -37,6 +37,7 @@ import { useAuthStore } from '../../stores/auth'
 import {
   episodeFallbackForSearchHit,
   graphNodeIdFromSearchHit,
+  primaryCompareSubjectFromHit,
 } from '../../utils/searchFocus'
 import { copyTextToClipboard } from '../../utils/clipboard'
 import {
@@ -404,6 +405,19 @@ function showOnGraph(hit: SearchHit): void {
   closePalette()
 }
 
+/**
+ * Search v3 §S8 — pin the hit's primary subject for Compare. Stashes it in
+ * ``search.comparePins`` (ring buffer of 2); the CompareOperatorPanel seeds
+ * its picker slots from those pins next time Compare is opened. Distinct
+ * from "Pin to rail" (which focuses the graph/detail rail).
+ */
+function pinToCompare(hit: SearchHit): void {
+  const ref = primaryCompareSubjectFromHit(hit)
+  if (!ref) return
+  search.pinCompareSubject(ref)
+  closePalette()
+}
+
 function useRecent(q: string): void {
   query.value = q
   void nextTick(() => inputRef.value?.focus())
@@ -675,6 +689,15 @@ onBeforeUnmount(() => {
                   @click="pinToRail(hit)"
                 >
                   Pin to rail
+                </button>
+                <button
+                  type="button"
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] text-primary hover:bg-overlay disabled:opacity-40"
+                  :disabled="!primaryCompareSubjectFromHit(hit)"
+                  data-testid="command-palette-action-pin-compare"
+                  @click="pinToCompare(hit)"
+                >
+                  Pin to Compare
                 </button>
                 <button
                   type="button"

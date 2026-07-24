@@ -10,7 +10,7 @@
 #   scripts/dev/capture-graph-lcp.sh \
 #       --corpus /abs/path/to/corpus \
 #       --label main-baseline \
-#       [--output-dir docs/wip/graph-v3/traces] \
+#       [--output-dir data/perf/traces/graph] \
 #       [--ref main]            # if set, checks out via git worktree
 #       [--api-port 8600] [--viewer-port 5600] \
 #       [--wait-ms 5000] \
@@ -25,7 +25,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------- args
 CORPUS=""
 LABEL=""
-OUTPUT_DIR="docs/wip/graph-v3/traces"
+OUTPUT_DIR="data/perf/traces/graph"
 REF=""
 API_PORT="8600"
 VIEWER_PORT="5600"
