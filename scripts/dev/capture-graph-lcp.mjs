@@ -54,6 +54,15 @@ const {
   VIEWPORT_DPR = '2',
   LCP_WAIT_MS = '5000',
   /**
+   * Ceiling for the graph-canvas-appearance wait, INDEPENDENT of LCP_WAIT_MS
+   * (which is the post-LCP trace-settle window). Time-to-canvas is a slow
+   * client-side rebuild (~6 s on prod-v2, #1219); with the two coupled at
+   * 5000 ms a default run timed out and recorded graph_time_to_canvas_ms=null,
+   * i.e. the harness could not measure its own headline metric. Default well
+   * above the known ttc so the metric is captured without inflating the trace.
+   */
+  GRAPH_CANVAS_WAIT_MS = '12000',
+  /**
    * Optional: seed the viewer's `useGraphLoadModeStore` before the app
    * boots. `'topDown'` mounts the tier-8 super-theme rollup (3–8 nodes,
    * expand-on-tap); `'everything'` is today's default (full merged
@@ -191,12 +200,12 @@ try {
       return !!el && (el.children.length > 0 || el.querySelector('canvas') !== null)
     },
     undefined,
-    { timeout: parseInt(LCP_WAIT_MS) },
+    { timeout: parseInt(GRAPH_CANVAS_WAIT_MS) },
   )
   graphTimeToCanvasMs = await page.evaluate((clickAt) => performance.now() - clickAt, clickAt)
   console.log(`[lcp-capture] graph_time_to_canvas=${graphTimeToCanvasMs?.toFixed(0)}ms (click→cy mounted)`)
 } catch (e) {
-  console.log(`[lcp-capture] WARNING: graph canvas did not appear within ${LCP_WAIT_MS}ms — ${e.message.split('\n')[0]}`)
+  console.log(`[lcp-capture] WARNING: graph canvas did not appear within ${GRAPH_CANVAS_WAIT_MS}ms — ${e.message.split('\n')[0]}`)
 }
 
 const metrics = await page.evaluate(async (waitMs) => {

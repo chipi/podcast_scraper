@@ -13,7 +13,8 @@
 #       [--output-dir data/perf/traces/graph] \
 #       [--ref main]            # if set, checks out via git worktree
 #       [--api-port 8600] [--viewer-port 5600] \
-#       [--wait-ms 5000] \
+#       [--wait-ms 5000] \           # post-LCP trace-settle window
+#       [--canvas-wait-ms 12000] \   # graph-canvas-appearance ceiling (> ttc)
 #       [--load-mode topDown|everything] \
 #       [--expand-first-super-theme]
 #
@@ -29,6 +30,10 @@ OUTPUT_DIR="data/perf/traces/graph"
 REF=""
 API_PORT="8600"
 VIEWER_PORT="5600"
+# Canvas-appearance ceiling, independent of --wait-ms (post-LCP trace settle).
+# Time-to-canvas is a slow client-side rebuild (~6s on prod-v2, #1219); a 5s
+# coupling silently recorded graph_time_to_canvas_ms=null. Default above ttc.
+CANVAS_WAIT_MS="12000"
 WAIT_MS="5000"
 VIEWPORT_WIDTH="1440"
 VIEWPORT_HEIGHT="900"
@@ -45,6 +50,7 @@ while [ $# -gt 0 ]; do
     --api-port)       API_PORT="$2"; shift 2 ;;
     --viewer-port)    VIEWER_PORT="$2"; shift 2 ;;
     --wait-ms)        WAIT_MS="$2"; shift 2 ;;
+    --canvas-wait-ms) CANVAS_WAIT_MS="$2"; shift 2 ;;
     --viewport-w)     VIEWPORT_WIDTH="$2"; shift 2 ;;
     --viewport-h)     VIEWPORT_HEIGHT="$2"; shift 2 ;;
     --viewport-dpr)   VIEWPORT_DPR="$2"; shift 2 ;;
@@ -207,6 +213,7 @@ echo "[capture-graph-lcp] capturing trace: $TARGET_URL"
     VIEWPORT_HEIGHT="$VIEWPORT_HEIGHT" \
     VIEWPORT_DPR="$VIEWPORT_DPR" \
     LCP_WAIT_MS="$WAIT_MS" \
+    GRAPH_CANVAS_WAIT_MS="$CANVAS_WAIT_MS" \
     LCP_LOAD_MODE="$LOAD_MODE" \
     LCP_EXPAND_FIRST_SUPERTHEME="$EXPAND_FIRST" \
     node "$REPO_ROOT/scripts/dev/capture-graph-lcp.mjs"
