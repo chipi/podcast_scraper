@@ -163,9 +163,13 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
-          # Player's browser error DSN → self-hosted GlitchTip (own project) via the
-          # public ingest edge. Empty until the project + edge exist → Sentry no-op.
-          PROD_SENTRY_DSN_PLAYER: ${{ secrets.PROD_SENTRY_DSN_PLAYER }}
+          # Player error DSNs → self-hosted GlitchTip project 5. SPLIT per surface (like the
+          # operator's _API / _VIEWER) for flexibility: _WEB is the BROWSER DSN (dashless key,
+          # via the public telemetry edge, baked into the bundle); _API is the BACKEND DSN
+          # (server-side). Both point at project 5 today but are independently repointable
+          # (e.g. a distinct backend project, or the tailnet host for _API). Empty → no-op.
+          PROD_SENTRY_DSN_PLAYER_WEB: ${{ secrets.PROD_SENTRY_DSN_PLAYER_WEB }}
+          PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
           # Umami website UUID (public — ships in the bundle; a var, not a secret).
           PLAYER_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
           # ADR-115 Option A: when '1', the RUNTIME secrets (client secret, session secret,
@@ -218,19 +222,20 @@ jobs:
               echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
             fi
             echo "PLAYER_PORT=8092"
-            # Build-time DSN for the player bundle (compose build-arg reads this
-            # from --env-file .env.player). Empty = Sentry stays a no-op.
-            # ⚠ Use the DASHLESS GlitchTip key in PROD_SENTRY_DSN_PLAYER — the
-            # browser @sentry SDK rejects dashed-UUID keys ("Invalid Dsn") and
-            # silently drops errors (GlitchTip ingest accepts both, so a curl test
-            # misleads). See the same note in stack-test.yml (viewer). 2026-07-22.
-            echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER}"
-            # Player BACKEND (server-side) errors -> the SAME GlitchTip project 5 as the
-            # browser errors. RUNTIME secret -> delivered as a file under Option A, so
-            # DROPPED from .env.player when PLAYER_SECRETS_VIA_FILES=1. (VITE_SENTRY_DSN_PLAYER
-            # above is a build-time FRONTEND var, baked public into the bundle — always kept.)
+            # Build-time BROWSER DSN for the player bundle (compose build-arg reads this from
+            # --env-file .env.player). Empty = Sentry no-op.
+            # ⚠ Use the DASHLESS GlitchTip key in PROD_SENTRY_DSN_PLAYER_WEB — the browser
+            # @sentry SDK rejects dashed-UUID keys ("Invalid Dsn") and silently drops errors
+            # (GlitchTip ingest accepts both, so a curl test misleads). See the same note in
+            # stack-test.yml (viewer). 2026-07-22.
+            echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER_WEB}"
+            # Player BACKEND (server-side) errors -> GlitchTip project 5 (same as the browser
+            # today; independently repointable via PROD_SENTRY_DSN_PLAYER_API). RUNTIME secret
+            # -> delivered as a file under Option A, so DROPPED from .env.player when
+            # PLAYER_SECRETS_VIA_FILES=1. (VITE_SENTRY_DSN_PLAYER above is a build-time FRONTEND
+            # var, baked public into the bundle — always kept.)
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
-              echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER}"
+              echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER_API}"
             fi
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
@@ -259,14 +264,14 @@ jobs:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
-          PROD_SENTRY_DSN_PLAYER: ${{ secrets.PROD_SENTRY_DSN_PLAYER }}
+          PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)
           trap 'rm -rf "$STAGE" 2>/dev/null || true' EXIT
-          printf '%s' "$GOOGLE_CLIENT_SECRET"   > "$STAGE/app_oauth_google_client_secret"
-          printf '%s' "$APP_SESSION_SECRET"     > "$STAGE/app_session_secret"
-          printf '%s' "$PROD_SENTRY_DSN_PLAYER" > "$STAGE/podcast_sentry_dsn_api"
+          printf '%s' "$GOOGLE_CLIENT_SECRET"       > "$STAGE/app_oauth_google_client_secret"
+          printf '%s' "$APP_SESSION_SECRET"         > "$STAGE/app_session_secret"
+          printf '%s' "$PROD_SENTRY_DSN_PLAYER_API" > "$STAGE/podcast_sentry_dsn_api"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
