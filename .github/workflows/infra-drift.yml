@@ -91,6 +91,11 @@ jobs:
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          # MUST mirror infra-apply.yml. Without it, cloudflare_origin_lock defaults to
+          # false, so drift plans :443 as 0.0.0.0/0 and perpetually reports a spurious
+          # "firewall opening" against a live firewall that is CF-CIDR-locked (T-05/ADR-118).
+          # That false positive would also mask a *real* firewall drift someday.
+          TF_VAR_cloudflare_origin_lock: ${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}
         run: |
           set +e
           tofu init -input=false
