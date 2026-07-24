@@ -185,7 +185,9 @@ documented as such.
     routed through the orchestrator in F3b.
   - **PostHog telemetry added**. Four events
     (`graph_handoff_started/applied/failed/stuck`) emit on every transition;
-    wrapped in try/catch so telemetry can never affect runtime.
+    wrapped in try/catch so telemetry can never affect runtime. _(Later migrated
+    PostHog Cloud → self-hosted Umami; the events are unchanged but now fire via
+    `lib/analytics.ts` `track()` — see ADR-126.)_
 
 ## Implementation Notes
 
@@ -194,7 +196,7 @@ documented as such.
   `isStale`, `STUCK_TIMEOUT_MS`).
 - **Pinia wrapper**: `web/gi-kg-viewer/src/stores/graphHandoff.ts`
   (reactive state, stuck timer, dev-only `window.__GIKG_FSM__` hook,
-  PostHog telemetry).
+  analytics telemetry — PostHog originally, now Umami via ADR-126).
 - **Service-level README**: `web/gi-kg-viewer/src/services/README.md`
   (FSM contract for code-local audience).
 - **Failure UX**: `web/gi-kg-viewer/src/components/graph/HandoffErrorStrip.vue`.

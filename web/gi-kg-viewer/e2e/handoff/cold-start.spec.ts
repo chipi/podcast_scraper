@@ -203,7 +203,10 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       r.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+        // Shape must match CorpusCoverageResponse (by_month/by_feed) — NOT `items`.
+        // A wrong shape leaves coverage.by_month undefined and CoverageByMonthChart
+        // throws on props.rows.filter(), aborting the Dashboard tab render.
+        body: JSON.stringify({ path: '/mock/corpus', by_month: [], by_feed: [] }),
       }),
     )
     await page.route('**/api/corpus/persons/top?**', (r) =>
@@ -471,7 +474,10 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       r.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+        // Shape must match CorpusCoverageResponse (by_month/by_feed) — NOT `items`.
+        // A wrong shape leaves coverage.by_month undefined and CoverageByMonthChart
+        // throws on props.rows.filter(), aborting the Dashboard tab render.
+        body: JSON.stringify({ path: '/mock/corpus', by_month: [], by_feed: [] }),
       }),
     )
     await page.route('**/api/corpus/persons/top?**', (r) =>

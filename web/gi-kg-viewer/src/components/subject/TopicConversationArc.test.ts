@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
+vi.mock('../../lib/analytics', () => ({ track: vi.fn() }))
 
 const fetchTopicConversationArc = vi.fn()
 const fetchTopicTimeline = vi.fn()

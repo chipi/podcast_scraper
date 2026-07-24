@@ -601,9 +601,10 @@ covers it end-to-end.
   sample=...` on every `layoutstop`. After a targeted reconciliation:
   `reconciled missing=N via targeted core.add (retry budget consumed for
   gen=G)`. After exhausted retry: `divergence accepted: missing=N retried=true`.
-- **PostHog telemetry**: `graph_handoff_started/applied/failed/superseded/stuck`
-  events fire from `stores/graphHandoff.ts`. Use to track handoff success
-  rates per source in production.
+- **Umami telemetry**: `graph_handoff_started/applied/failed/stuck` events fire
+  from `stores/graphHandoff.ts` via `lib/analytics.ts` `track()`. Use to track
+  handoff success rates per source in production. (Migrated off PostHog Cloud →
+  self-hosted Umami; see ADR-126.)
 
 ---
 

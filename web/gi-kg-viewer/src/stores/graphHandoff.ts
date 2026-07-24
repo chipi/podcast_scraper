@@ -16,7 +16,7 @@
  */
 
 import { defineStore } from 'pinia'
-import posthog from 'posthog-js'
+import { track } from '../lib/analytics'
 import { useGraphAnalyticsStore } from './graphAnalytics'
 import { computed, ref } from 'vue'
 import {
@@ -51,7 +51,7 @@ let _moduleLastInvariant: {
 
 export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   const fsm: Fsm = createFsm()
-  const analytics = useGraphAnalyticsStore() // owned self-hosted graph analytics (alongside posthog)
+  const analytics = useGraphAnalyticsStore() // owned self-hosted graph analytics (alongside Umami page/event tracking)
 
   // Reactive mirrors so components / dev tools can `storeToRefs` them.
   const state = ref<FsmState>(fsm.state)
@@ -162,7 +162,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       )
       // F6 — telemetry: record the stuck event for monitoring.
       try {
-        posthog.capture('graph_handoff_stuck', {
+        track('graph_handoff_stuck', {
           source: envelope.source,
           kind: envelope.kind,
           load_source: envelope.loadSource,
@@ -229,7 +229,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       scheduleStuckTimer(disp.envelope)
       // F6 — telemetry: record the handoff start.
       try {
-        posthog.capture('graph_handoff_started', {
+        track('graph_handoff_started', {
           source: disp.envelope.source,
           kind: disp.envelope.kind,
           load_source: disp.envelope.loadSource,
@@ -259,7 +259,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       lastResult.value = { status: 'failed', reason: disp.reason }
       clearStuckTimer()
       try {
-        posthog.capture('graph_handoff_failed', {
+        track('graph_handoff_failed', {
           reason: disp.reason,
           event_type: event.type,
         })
@@ -387,7 +387,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     // F6 — telemetry: record successful handoff completion.
     if (previousPending) {
       try {
-        posthog.capture('graph_handoff_applied', {
+        track('graph_handoff_applied', {
           source: previousPending.source,
           kind: previousPending.kind,
           load_source: previousPending.loadSource,

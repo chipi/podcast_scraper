@@ -11,6 +11,11 @@ fork can point observability at a different backend without touching app code.
 - **Sibling guides:** [OBSERVABILITY_CONTROL_PLANE](OBSERVABILITY_CONTROL_PLANE.md)
   (the `podcast_obs` cross-source probe CLI/MCP — "what is a deploy doing now?"),
   [OBSERVABILITY_EXTENSIONS](OBSERVABILITY_EXTENSIONS.md) (alerting / Sentry / Grafana).
+- **Operate / debug prod + current live state:** [OBSERVABILITY_RUNBOOK](OBSERVABILITY_RUNBOOK.md)
+  — the verified coverage matrix, debugging flows, and gaps. **This design guide has drifted
+  in places** (backend host, dashboards, GlitchTip player project); the runbook is the
+  verified current-state. Notably: the reference backend **moved DGX → `homelab`** (Mac mini,
+  tailnet `100.87.33.61`) — anywhere below that says `dgx-llm-1:8428/9428/10428`, read `homelab:…`.
 
 ## The one idea
 
@@ -154,8 +159,10 @@ request / episode / person. IDs the app propagates:
 Navigation recipes:
 
 - **Log → trace:** click the `trace_id` on a log line in Explore — the VictoriaLogs
-  derivedField renders a "View trace" link into VictoriaTraces.
-- **Trace → logs:** copy the trace_id → VictoriaLogs `trace_id:<hex>`.
+  derivedField renders a "View trace" link into VictoriaTraces. (Live for logs that carry a
+  trace id — pipeline logs today; API access logs once the G1 middleware ships.)
+- **Trace → logs:** the Tempo datasource's `tracesToLogsV2` (G3a, 2026-07-24) — one click
+  from a span to its logs; no more manual copy-paste of the trace id.
 - **Error → trace:** the GlitchTip event's `trace_id` tag opens the same trace.
 - **Whole run:** filter every signal by `run_id` — logs `run_id:<id>`, cost events,
   Langfuse `run_seed`, Sentry `run_id` tag — to see the run end-to-end.
@@ -200,17 +207,18 @@ Deep-dive dashboards (Node Exporter Full, cAdvisor) stay in the Homelab folder �
 not the daily surface. Keep the set at ~4; add a dashboard only when a recurring
 question has no home.
 
-## Verify (tailnet, DGX `dgx-llm-1`)
+## Verify (tailnet, backend host `homelab`)
 
 ```sh
 # metrics: api RED + host + cadvisor for prod-podcast
-curl -s "http://dgx-llm-1:8428/api/v1/query?query=up{instance='prod-podcast'}"
-# events/logs: what podcast-* jobs are landing
-curl -sG "http://dgx-llm-1:9428/select/logsql/query" \
-  --data-urlencode "query=instance:prod-podcast AND job:~'podcast-' AND _time:1h | stats by (job) count()"
+curl -s "http://homelab:8428/api/v1/query?query=up{instance='prod-podcast'}"
+# logs: recent podcast api lines
+curl -sG "http://homelab:9428/select/logsql/query" \
+  --data-urlencode 'query={app="podcast",surface="api"}' --data-urlencode limit=10
 # traces: services reporting
-curl -s "http://dgx-llm-1:10428/select/jaeger/api/services"
+curl -s "http://homelab:10428/select/jaeger/api/services"
 ```
 
-Then Grafana → the `VPS — Podcast` folder (dashboards), Explore (logs/metrics),
-Explore Traces (spans).
+Then Grafana `http://homelab:3000` → the **Podcast Operator** / **Podcast Player**
+folders (dashboards), Explore (logs/metrics), Explore Traces (spans). See
+[OBSERVABILITY_RUNBOOK](OBSERVABILITY_RUNBOOK.md) for the full debugging flows + gaps.

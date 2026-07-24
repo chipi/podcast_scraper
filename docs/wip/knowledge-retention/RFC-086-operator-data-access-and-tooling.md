@@ -129,7 +129,7 @@ now gated by this preview.
 | `POST` | `/api/ops/sandbox` | create isolated sandbox (anchors+changelog) | RI3 |
 | `GET` | `/api/corpus/coverage` | corpus coverage/density (unblocks flagged dep) | DB2 |
 
-Metrics (FR-DB1) read the existing Langfuse/PostHog stores; no new endpoint.
+Metrics (FR-DB1) read the existing Langfuse/Umami stores; no new endpoint.
 
 ---
 

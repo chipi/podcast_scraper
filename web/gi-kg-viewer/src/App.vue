@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
-import posthog from 'posthog-js'
+import { track } from './lib/analytics'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
 import DigestView from './components/digest/DigestView.vue'
@@ -347,7 +347,7 @@ async function activateGraphTab(
 }
 
 watch(mainTab, (tab) => {
-  posthog.capture('main_tab_switched', { tab })
+  track('main_tab_switched', { tab })
 })
 
 /**
@@ -531,7 +531,7 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   }
   artifacts.selectAllListed(selectedRelPaths)
   await artifacts.loadSelected()
-  posthog.capture('graph_corpus_synced', {
+  track('graph_corpus_synced', {
     episode_count: selectedRelPaths.length,
     was_capped: wasCapped,
     window_widened_to: appliedStep?.label ?? 'default',
@@ -710,7 +710,7 @@ function onGraphNodeInsightOpenSearchFilters(payload: {
 
 /** Digest row / topic hit: episode detail in the subject rail; stay on Digest. */
 function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }): void {
-  posthog.capture('episode_focused', { source: 'digest' })
+  track('episode_focused', { source: 'digest' })
   subject.focusEpisode(payload.metadata_relative_path)
 }
 
@@ -720,7 +720,7 @@ function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }):
  * the whole row body is the affordance now.
  */
 function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
-  posthog.capture('episode_focused', { source: 'search' })
+  track('episode_focused', { source: 'search' })
   subject.focusEpisode(payload.metadata_relative_path)
 }
 

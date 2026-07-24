@@ -40,6 +40,13 @@ else
     echo "APP_OAUTH_GOOGLE_CLIENT_ID=${APP_OAUTH_GOOGLE_CLIENT_ID:-}"
     echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${APP_OAUTH_GOOGLE_CLIENT_SECRET:-}"
     echo "APP_SESSION_SECRET=${APP_SESSION_SECRET:-}"
+    echo "PLAYER_PREVIEW_COOKIE=${PLAYER_PREVIEW_COOKIE:-}"
+    echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
+    echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS:-}"
+    echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS:-}"
+    # OTEL traces (ADR-119). Default OFF for a manual run; set both to enable.
+    echo "OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-none}"
+    echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}"
     echo "PLAYER_PORT=8092"
   } >"$PLAYER_ENV"
 fi
@@ -47,6 +54,45 @@ chmod 600 "$PLAYER_ENV"
 
 : "${PLAYER_DOMAIN:?PLAYER_DOMAIN missing from .env.player and env}"
 : "${PODCAST_CORPUS_VOLUME:?PODCAST_CORPUS_VOLUME missing from .env.player and env}"
+# Coming-soon gate cookie secret — substituted into player.caddy below. REQUIRED: an empty
+# value would ship `cl_preview=` as the gate, which is guessable → the gate opens for
+# anyone. Fail loudly rather than deploy a broken gate.
+: "${PLAYER_PREVIEW_COOKIE:?PLAYER_PREVIEW_COOKIE missing from .env.player and env (coming-soon gate cookie secret)}"
+
+# OTEL traces (ADR-119) reach the homelab VictoriaTraces OTLP ingest via the Tailscale
+# MagicDNS name `homelab`, which Docker's embedded DNS can't resolve — so the player
+# containers get a static `extra_hosts` entry. Resolve the tailnet IP FRESH here (never
+# hardcoded, mirrors deploy.sh) and write it into .env.player for compose interpolation.
+# NON-fatal: if it can't resolve, the compose default (loopback) applies and OTEL export
+# just fails silently — the app keeps serving; only traces are lost.
+HL_IP="$(tailscale ip -4 homelab 2>/dev/null | head -1 || true)"
+if [ -n "$HL_IP" ]; then
+  if grep -qE '^HOMELAB_TAILNET_IP=' "$PLAYER_ENV"; then
+    sed -i "s#^HOMELAB_TAILNET_IP=.*#HOMELAB_TAILNET_IP=$HL_IP#" "$PLAYER_ENV"
+  else
+    echo "HOMELAB_TAILNET_IP=$HL_IP" >>"$PLAYER_ENV"
+  fi
+  echo "[$(date -u +%FT%TZ)] resolved homelab tailnet IP for OTEL traces: $HL_IP"
+else
+  echo "WARN: could not resolve 'homelab' tailnet IP; player OTEL traces will not reach VictoriaTraces" >&2
+fi
+
+# Pin the api image to a CURRENT sha — NEVER the literal :main tag. CI stopped updating
+# :main 2026-05-28, so it is 8 weeks stale: pre-ADR-116, with no /api/app/* consumer
+# surface, which makes the player 404 every API call (prod incident 2026-07-23). The
+# deploy workflow stages PODCAST_IMAGE_TAG (newest published sha from main) into
+# .env.player. For a manual run where it is still unset, fall back to the SAME engine the
+# operator stack is running ("one engine, two surfaces", ADR-116) by reading its live api
+# container. Refuse to deploy if neither resolves — do not silently ship stale :main.
+if [ -z "${PODCAST_IMAGE_TAG:-}" ]; then
+  op_img=$(docker inspect compose-api-1 --format '{{.Config.Image}}' 2>/dev/null || true)
+  PODCAST_IMAGE_TAG="${op_img##*:}"
+  case "${PODCAST_IMAGE_TAG:-}" in
+    sha-*) echo "[$(date -u +%FT%TZ)] pinned PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG} (from running operator api)" ;;
+    *) echo "ERROR: PODCAST_IMAGE_TAG unset and could not resolve the operator api image (got: '${PODCAST_IMAGE_TAG:-}'); set PODCAST_IMAGE_TAG=sha-<7> explicitly — refusing to deploy stale :main" >&2; exit 1 ;;
+  esac
+fi
+export PODCAST_IMAGE_TAG
 
 # CRITICAL: run the player-public stack under its OWN compose project (`-p player`),
 # NOT the default (`compose`, derived from the compose/ dir) which is the OPERATOR
@@ -55,6 +101,21 @@ chmod 600 "$PLAYER_ENV"
 # app-only image (prod incident 2026-07-23). `-p player` isolates it: shared read-only
 # corpus volume, separate containers/network/lifecycle.
 COMPOSE=(docker compose -p player --env-file "$PLAYER_ENV" -f compose/docker-compose.player-public.yml)
+
+# ADR-115 Option A secret delivery (mirrors the operator stack). When
+# PLAYER_SECRETS_VIA_FILES=1 the player runtime secrets are delivered as files in host
+# tmpfs /dev/shm/player-secrets/ (staged from GH Secrets by deploy-player.yml, never on
+# disk), mounted via the secrets overlay -> /run/secrets/*, and exported by the image's
+# baked shim. Default off = today's .env.player env-var behaviour. Fail loudly if the flag
+# is on but the files never arrived (exit 5) — never boot with silently-missing secrets.
+if [ "${PLAYER_SECRETS_VIA_FILES:-}" = "1" ]; then
+  if [ ! -d /dev/shm/player-secrets ] || [ -z "$(ls -A /dev/shm/player-secrets 2>/dev/null)" ]; then
+    echo "ERROR: PLAYER_SECRETS_VIA_FILES=1 but /dev/shm/player-secrets/ is empty/missing — refusing to boot the player with missing secrets." >&2
+    exit 5
+  fi
+  COMPOSE+=(-f compose/docker-compose.player-secrets.yml)
+  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/player-secrets ($(ls -1 /dev/shm/player-secrets | wc -l | tr -d ' ') files)"
+fi
 
 # Ensure the host bind-mount source for per-user data exists and is writable by the
 # container's non-root ``podcast`` uid (1000) before compose up. #3.
@@ -68,29 +129,64 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
   exit 1
 }
 
-# Drop the player vhost into the shared Caddy sites dir (deploy-owned) with the real
-# domain, VALIDATE the merged Caddy config, then reload — roll back the drop-in on failure
-# (ADR-114 validate-before-reload contract).
-echo "[$(date -u +%FT%TZ)] installing player.caddy vhost for ${PLAYER_DOMAIN}..."
-sed "s/player\.example\.com/${PLAYER_DOMAIN}/g" infra/caddy/player.caddy >/etc/caddy/sites/player.caddy
+# Drop the player Caddy vhosts into the shared sites dir (deploy-owned) with the real
+# domain, VALIDATE the merged config once, then restart — roll back ALL player drop-ins
+# on failure (ADR-114 validate-before-reload contract). The subdomains reuse the same
+# `player.example.com` placeholder so one sed rewrites all three:
+#   player.caddy            -> ${PLAYER_DOMAIN}             SPA + app-only api (coming-soon gated)
+#   player-telemetry.caddy  -> telemetry.${PLAYER_DOMAIN}  GlitchTip ingest (browser error SDK)
+#   player-analytics.caddy  -> analytics.${PLAYER_DOMAIN}  Umami tracking
+PLAYER_VHOSTS=(player player-telemetry player-analytics)
+echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
+for v in "${PLAYER_VHOSTS[@]}"; do
+  # Two substitutions: the shared `player.example.com` placeholder -> real domain (all
+  # three vhosts), and the __PREVIEW_COOKIE__ placeholder -> the gate cookie secret (only
+  # player.caddy carries it; a no-op for the other two). Different sed delimiters so
+  # neither value's characters can clash with the delimiter.
+  sed -e "s/player\.example\.com/${PLAYER_DOMAIN}/g" \
+      -e "s|__PREVIEW_COOKIE__|${PLAYER_PREVIEW_COOKIE}|g" \
+      "infra/caddy/${v}.caddy" >"/etc/caddy/sites/${v}.caddy"
+  # umask 077 makes the `>` land 0600/deploy-owned; the `caddy` user (User=caddy) cannot
+  # read a 0600 file -> import "permission denied" -> restart fails (prod incident
+  # 2026-07-23). Match the 0644 sibling vhosts so the caddy user can read the drop-in.
+  chmod 0644 "/etc/caddy/sites/${v}.caddy"
+done
+_rollback_player_vhosts() { for v in "${PLAYER_VHOSTS[@]}"; do rm -f "/etc/caddy/sites/${v}.caddy"; done; }
 # Validate with `caddy adapt` (Caddyfile -> JSON, reports real config/syntax errors)
 # — NOT `caddy validate`, which also PROVISIONS (opens the caddy-owned access.log) and
 # false-fails with "permission denied" when run as the deploy user, even on a valid
 # config (prod incident 2026-07-23). adapt does not touch the log writer.
 if ! caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
-  echo "ERROR: Caddy config invalid after adding player vhost; rolling back" >&2
+  echo "ERROR: Caddy config invalid after adding player vhosts; rolling back" >&2
   caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1 | head -5 >&2
-  rm -f /etc/caddy/sites/player.caddy
+  _rollback_player_vhosts
   exit 2
 fi
 # RESTART, not reload: the base Caddyfile sets `admin off` (T-02), so admin-API-based
 # `caddy reload` fails — a vhost change needs a restart (task #27). If caddy doesn't
-# come back active, roll back the vhost + restart to the last-good config.
+# come back active, roll back the vhosts + restart to the last-good config. (A missing LE
+# cert for a not-yet-DNS'd telemetry/analytics subdomain is NON-fatal — caddy still starts
+# and retries issuance in the background.)
 if ! sudo -n /usr/bin/systemctl restart caddy || ! systemctl is-active --quiet caddy; then
-  echo "ERROR: caddy failed to restart with player vhost; rolling back" >&2
-  rm -f /etc/caddy/sites/player.caddy
+  echo "ERROR: caddy failed to restart with player vhosts; rolling back" >&2
+  _rollback_player_vhosts
   sudo -n /usr/bin/systemctl restart caddy || true
   exit 2
+fi
+
+# Ship the player stack's container logs to Grafana/Loki via the shared node Alloy
+# (ADR-121): drop player.alloy into the deploy-writable config.d + hot-reload Alloy
+# (`docker kill -s HUP alloy`, no sudo — deploy is in the docker group). NON-fatal: a
+# logging hiccup must not fail the player deploy.
+ALLOY_DIR=/opt/vps-observability/config.d
+if [ -d "$ALLOY_DIR" ]; then
+  echo "[$(date -u +%FT%TZ)] installing player.alloy log rules + reloading Alloy..."
+  cp infra/observability/player.alloy "$ALLOY_DIR/player.alloy"
+  chmod 0644 "$ALLOY_DIR/player.alloy"
+  docker kill -s HUP alloy >/dev/null 2>&1 \
+    || echo "WARN: could not HUP alloy — player logs may lag until its next reload" >&2
+else
+  echo "WARN: $ALLOY_DIR absent — skipping player.alloy (node Alloy not deployed here?)" >&2
 fi
 
 echo "[$(date -u +%FT%TZ)] health check (app-only backend, in-container)..."
@@ -108,4 +204,22 @@ done
   echo "ERROR: player backend /api/health did not return 200" >&2
   exit 3
 }
+
+# ADR-115 Option A: when delivering via files, assert the secrets actually reached the
+# player-api container as non-empty /run/secrets/* (mirrors the operator exit-6 gate) —
+# a green /api/health must not mask a keyless app (bad DSN / no session secret / OAuth
+# broken). Only checks the flag-on path.
+if [ "${PLAYER_SECRETS_VIA_FILES:-}" = "1" ]; then
+  _missing=""
+  for s in app_oauth_google_client_secret app_session_secret podcast_sentry_dsn_api; do
+    if ! "${COMPOSE[@]}" exec -T api sh -c "[ -s /run/secrets/$s ]" 2>/dev/null; then
+      _missing="$_missing $s"
+    fi
+  done
+  if [ -n "$_missing" ]; then
+    echo "ERROR: PLAYER_SECRETS_VIA_FILES=1 but the player-api container is missing non-empty /run/secrets:${_missing}." >&2
+    exit 6
+  fi
+  echo "[$(date -u +%FT%TZ)] secrets: verified /run/secrets present + non-empty in player-api"
+fi
 echo "[$(date -u +%FT%TZ)] player-public up + healthy; vhost live for https://${PLAYER_DOMAIN}"

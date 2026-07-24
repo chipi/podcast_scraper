@@ -45,6 +45,25 @@ test.describe('Search — main tab surface (#1232)', () => {
         body: JSON.stringify({ preferences: {} }),
       })
     })
+    // Corpus feeds — the shell's CorpusFeedFilterPanel reads props.feeds.length on
+    // corpus-path set; the `{}` fallback leaves feeds undefined → render crash →
+    // the whole shell (incl. search-workspace) fails to mount. Shape: { feeds }.
+    await page.route('**/api/corpus/feeds**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', feeds: [] }),
+      })
+    })
+    // Corpus episodes — the Library view reads `episodes.value.length` after
+    // `episodes.value = body.items`; the `{}` fallback leaves items undefined.
+    await page.route('**/api/corpus/episodes**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [], next_cursor: null }),
+      })
+    })
   })
 
   test('Search appears as the 3rd main tab (Digest / Library / Search / Graph / Dashboard)', async ({

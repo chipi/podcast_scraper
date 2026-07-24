@@ -133,7 +133,7 @@ filterable by node / change-type / time window.
 rates** (resurface + what-changed), deposit→resolve latency, Map opens + density.
 **FR-DB2** — **Corpus coverage / density** view (unblocks the flagged
 `GET /api/corpus/coverage` dependency; prerequisite for temporal/coverage-aware features).
-*Binds:* existing metrics store (Langfuse/PostHog) + `GET /api/corpus/coverage`.
+*Binds:* existing metrics store (Langfuse/Umami) + `GET /api/corpus/coverage`.
 
 ### New — Reconcile inspector + synthetic sandbox *(P0)*
 
@@ -204,7 +204,7 @@ those milestones are debugged. Treat them as part of the v1 build loop.
 - **inspect-as-user (FR-G2) is the sensitive capability.** It exposes per-user L2 →
   GDPR-relevant and moat-bearing. Gate behind an operator role; **audit every access**;
   support redaction; **never expose in OSS**; never leak production-derived data into public
-  artifacts (consistent with the private-eval/PostHog-self-host posture).
+  artifacts (consistent with the private-eval/Umami-self-host posture).
 - **Synthetic sandbox is strictly isolated** — fake data never reaches real users or the
   real changelog (RFC-086 isolation).
 - **Operator API is namespaced + gated** (`/api/ops/*`, operator-only).

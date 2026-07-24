@@ -297,9 +297,14 @@ jobs:
           # passes while the browser SDK fails. Use the DASHLESS key here
           # (d8aa7c66bfc9...). The Python SDK (api/pipeline) accepts both.
           VITE_SENTRY_DSN_VIEWER: ${{ secrets.VITE_SENTRY_DSN_VIEWER }}
-          # PostHog project token is optional; omit secret for silent analytics in images.
-          VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.VITE_POSTHOG_PROJECT_TOKEN }}
-          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
+          # Umami analytics (replaced PostHog Cloud 2026-07-24). The website id +
+          # script URL are PUBLIC (they ship in the bundle) → GH vars, not secrets.
+          # Empty ⇒ a silent-analytics image. The operator viewer is HTTPS-over-
+          # tailscale today, so VITE_UMAMI_SRC must be an HTTPS edge (an http://
+          # homelab URL is mixed-content-blocked); operator prod analytics stays
+          # off until that edge exists — see ADR-116 public-domain cutover.
+          VITE_UMAMI_SRC: ${{ vars.OPERATOR_UMAMI_SRC }}
+          VITE_UMAMI_WEBSITE_ID: ${{ vars.OPERATOR_UMAMI_WEBSITE_ID }}
         run: |
           set -euo pipefail
           docker buildx build \
@@ -309,8 +314,8 @@ jobs:
             --cache-from "type=gha,scope=publish-viewer" \
             --cache-to "type=gha,scope=publish-viewer,mode=max" \
             --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
-            --build-arg "VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}" \
-            --build-arg "VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}" \
+            --build-arg "VITE_UMAMI_SRC=${VITE_UMAMI_SRC}" \
+            --build-arg "VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}" \
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
@@ -322,8 +327,8 @@ jobs:
             --cache-from "type=gha,scope=publish-viewer" \
             --cache-to "type=gha,scope=publish-viewer,mode=max" \
             --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
-            --build-arg "VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}" \
-            --build-arg "VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}" \
+            --build-arg "VITE_UMAMI_SRC=${VITE_UMAMI_SRC}" \
+            --build-arg "VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}" \
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
 

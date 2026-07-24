@@ -95,13 +95,17 @@
     // telemetry to it. These grants were previously hand-added in the admin
     // console and got wiped by a `tofu apply` (they lived nowhere in-repo);
     // pinned here so they survive future applies.
+    //   :443  Umami over HTTPS via `tailscale serve` (homelab.<tailnet>/umami).
+    //         The operator viewer is served HTTPS-over-tailscale, so it can't load
+    //         the http://homelab:3001 script (mixed-content-blocked); this tailnet-
+    //         only HTTPS entry point is the fix. NO public surface (serve, not funnel).
     //   :3000 Grafana  :3001 Umami  :4000 Langfuse  :8090 GlitchTip
     //   :8428 VictoriaMetrics  :9428 VictoriaLogs  :10428 VictoriaTraces
     //   :8888 homelab start page (service links + creds; basic-auth, tailnet-only)
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:homelab-host:22,3000,3001,4000,8090,8428,8888,9428,10428"]
+      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,8090,8428,8888,9428,10428"]
     },
     {
       // prod (the box) also reaches Umami :3001 — it proxies public analytics

@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import time
 from pathlib import Path
 from typing import AsyncIterator, cast
 
@@ -13,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from podcast_scraper import __version__
 from podcast_scraper.server import app_roles
@@ -66,6 +68,7 @@ from podcast_scraper.server.routes import (
     search,
     usage as usage_routes,
 )
+from podcast_scraper.utils.correlation import current_trace_id
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +188,56 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool) -> None:
         app.include_router(module.router, prefix="/api/app")
 
 
+class _AccessLogMiddleware:
+    """Pure-ASGI request access log with trace correlation (ADR-119, G1 correlation).
+
+    Deliberately NOT a Starlette ``BaseHTTPMiddleware`` (``@app.middleware("http")``): that
+    wrapper buffers the response and BREAKS endpoint background tasks — which silently
+    dropped queue-add / favourite persistence (caught by the auth-queue + library-saved
+    e2e). A pure ASGI middleware wraps ``send`` without touching the body or the
+    background-task lifecycle.
+
+    Logs ONE line per request. The trace id is captured at ``http.response.start`` — the
+    span is still active there (uvicorn's own access log runs AFTER the span closes, so it
+    can only ever see ``"-"``) — so a VictoriaLogs line pivots to its VictoriaTraces span.
+    ``trace=-`` when tracing is off, so it is a no-op-safe structured access log in every
+    environment; ``/health`` + ``/metrics`` are skipped to keep the log readable.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self._logger = logging.getLogger("podcast.access")
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = scope.get("path", "")
+        if scope.get("type") != "http" or path.endswith("/health") or path == "/metrics":
+            await self.app(scope, receive, send)
+            return
+        start = time.perf_counter()
+        captured = {"status": 0, "trace": "-"}
+
+        async def _send(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                captured["status"] = message["status"]
+                captured["trace"] = current_trace_id()
+            await send(message)
+
+        await self.app(scope, receive, _send)
+        self._logger.info(
+            "%s %s -> %s in %.1fms trace=%s",
+            scope.get("method", "?"),
+            path,
+            captured["status"],
+            (time.perf_counter() - start) * 1000.0,
+            captured["trace"],
+        )
+
+
+def _install_access_logging(app: FastAPI) -> None:
+    """Attach the trace-correlated request access log (ADR-119, G1). See _AccessLogMiddleware."""
+    app.add_middleware(_AccessLogMiddleware)
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -274,6 +327,9 @@ def create_app(
     # Operator write-path authz (optional API key) + audit trail (#1071). Inert unless
     # APP_OPERATOR_API_KEY is set; consumer /api/app routes are never gated here.
     app.add_middleware(OperatorWriteGuard)
+
+    # Request access log with trace correlation (ADR-119, G1). See _install_access_logging.
+    _install_access_logging(app)
 
     # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
     # so the default behaviour (no Grafana account, no agent running)

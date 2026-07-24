@@ -37,6 +37,48 @@ services:
       FORWARDED_ALLOW_IPS: "*"
       APP_DATA_DIR: /app/appdata
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      # Tags backend Sentry events as prod (sentry_init reads PODCAST_ENV, default dev).
+      # Must be listed here — the --env-file only feeds compose interpolation, not the
+      # container env, so a var absent from this block never reaches the process.
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      # Sign-in access policy (server/app_access.py). The backend default is
+      # allowlist + EMPTY list = DEFAULT-DENY: every account gets "This account is not
+      # allowed to sign in." Must be listed here (see note above) or the values in
+      # .env.player never reach the process. `allowlist` = only APP_ALLOWED_EMAILS /
+      # APP_ALLOWED_DOMAINS may sign in; `open` = any successful Google login is allowed.
+      APP_SIGNUP_MODE: ${APP_SIGNUP_MODE:-allowlist}
+      APP_ALLOWED_EMAILS: ${APP_ALLOWED_EMAILS:-}
+      APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
+      # OTEL distributed tracing (ADR-119) — mirror the operator (vps-prod.yml). The api
+      # image already wraps the process in `opentelemetry-instrument` (auto FastAPI + HTTP
+      # spans); flipping the exporter to otlp + pointing at the homelab VictoriaTraces OTLP
+      # ingest turns player API request spans ON, so a user-triggered error on the player
+      # surface pivots to its trace. Exporter + endpoint + homelab tailnet IP are staged
+      # host-side by deploy-player.sh (never hardcoded); default `none` = tracing off, and
+      # an unreachable endpoint is non-fatal (the SDK logs + drops, the app keeps serving).
+      OTEL_SERVICE_NAME: player-api
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      # Metrics/logs OTLP export OFF (like the operator, stack.yml): metrics already flow via
+      # Alloy scrape, and — crucially — the default OTLP exporter is gRPC (`otlp_proto_grpc`),
+      # which is NOT installed (only the http/protobuf exporter is). Leaving these at their
+      # `otlp` default made `opentelemetry-instrument` abort ALL init ("Requested component
+      # 'otlp_proto_grpc' not found") → the player exported no traces at all. Only traces
+      # export, over http/protobuf.
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      # G1: stamp the active trace_id/span_id on every request log line (LoggingInstrumentor)
+      # so a player log pivots to its trace. G4: drop /health spans so probe traffic doesn't
+      # drown real user requests in VictoriaTraces. Inert unless tracing is on.
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: "health"
+    extra_hosts:
+      # VictoriaTraces (+ GlitchTip) are addressed by Tailscale MagicDNS name `homelab`,
+      # which Docker's embedded DNS can't resolve — static hosts entry, IP resolved fresh at
+      # deploy by deploy-player.sh (`tailscale ip -4 homelab`), never hardcoded. Default is
+      # loopback so compose interpolation never fails when tracing is off.
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     volumes:
       # Corpus is READ-ONLY here — the consumer plane reads it; per-user data is separate.
       - corpus_data:/app/output:ro
@@ -64,9 +106,14 @@ services:
       dockerfile: Dockerfile
       args:
         # Browser error reporting DSN, baked into the bundle at build time.
-        # Empty by default (no-op); prod sets it from PROD_SENTRY_DSN_PLAYER
+        # Empty by default (no-op); prod sets it from PROD_SENTRY_DSN_PLAYER_WEB
         # via the deploy .env render → GlitchTip through the public ingest edge.
+        # (The backend DSN is the separate PROD_SENTRY_DSN_PLAYER_API — split per surface.)
         VITE_SENTRY_DSN_PLAYER: ${VITE_SENTRY_DSN_PLAYER:-}
+        # Umami analytics (cookieless). website-id is public; src is the tracking
+        # script on the analytics ingest edge. Empty by default -> no-op bundle.
+        VITE_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
+        VITE_UMAMI_SRC: ${VITE_UMAMI_SRC:-}
     image: podcast-scraper-learning-app:latest
     restart: unless-stopped
     ports:
@@ -84,10 +131,14 @@ services:
       - DAC_OVERRIDE
     read_only: true
     tmpfs:
+      # nginx runtime scratch only. Do NOT tmpfs /etc/nginx/conf.d — the image bakes the
+      # server block (default.conf: listen 80 + SPA root + /api/app proxy) there, and there
+      # are no *.template files to regenerate it, so an empty tmpfs masks it and nginx starts
+      # with zero server blocks → listens on nothing → unhealthy (prod incident 2026-07-23).
+      # conf.d is static baked content nginx only reads; read_only rootfs is fine.
       - /var/cache/nginx
       - /var/run
       - /tmp
-      - /etc/nginx/conf.d
     depends_on:
       api:
         condition: service_healthy

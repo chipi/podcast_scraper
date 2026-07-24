@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import posthog from 'posthog-js'
+import { track } from '../lib/analytics'
 import { fetchWithTimeout } from '../api/httpClient'
 import { StaleGeneration } from '../utils/staleGeneration'
 
@@ -50,7 +50,7 @@ export const useShellStore = defineStore('shell', () => {
 
   function setLeftPanelSurface(surface: LeftPanelSurface): void {
     if (leftPanelSurface.value !== surface) {
-      posthog.capture('left_panel_surface_switched', { surface })
+      track('left_panel_surface_switched', { surface })
     }
     leftPanelSurface.value = surface
   }
@@ -71,7 +71,7 @@ export const useShellStore = defineStore('shell', () => {
       /* ignore */
     }
     if (v.trim()) {
-      posthog.capture('corpus_path_changed')
+      track('corpus_path_changed')
     }
     // Bug fix (Search v3 followup): the initial ``fetchHealth`` in App.vue's
     // ``onMounted`` runs once. Without this watcher, changing the corpus

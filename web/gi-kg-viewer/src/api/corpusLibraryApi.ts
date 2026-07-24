@@ -126,7 +126,10 @@ export async function fetchCorpusFeeds(corpusPath: string): Promise<CorpusFeedsR
       const t = await res.text()
       raiseCorpusHttpError(res, t)
     }
-    return (await res.json()) as CorpusFeedsResponse
+    const body = (await res.json()) as CorpusFeedsResponse
+    // Defensive: guarantee `feeds` is an array even if the payload omits it
+    // (malformed/partial response) so consumers never crash on feeds.length/.find.
+    return { ...body, feeds: body.feeds ?? [] }
   })
 }
 
@@ -247,7 +250,10 @@ export async function fetchCorpusEpisodes(
       const t = await res.text()
       raiseCorpusHttpError(res, t)
     }
-    return (await res.json()) as CorpusEpisodesResponse
+    const body = (await res.json()) as CorpusEpisodesResponse
+    // Defensive: guarantee `items` is an array even if the payload omits it,
+    // so `episodes.value = body.items` never becomes undefined (→ .length crash).
+    return { ...body, items: body.items ?? [] }
   })
 }
 

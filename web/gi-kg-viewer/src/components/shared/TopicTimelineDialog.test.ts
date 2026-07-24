@@ -3,9 +3,9 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// The shell store fires posthog.capture; mock the SDK so nothing reaches the
+// The shell store fires analytics track(); mock the module so nothing reaches the
 // network during mount.
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
+vi.mock('../../lib/analytics', () => ({ track: vi.fn() }))
 
 // The dialog loads timelines through cilApi. Mock both entry points and drive
 // their resolution per test.
