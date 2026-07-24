@@ -68,6 +68,22 @@ test.describe('Search — command palette (#1233)', () => {
       }
       await route.fulfill({ status: 405, body: '' })
     })
+    // Corpus feeds + episodes — the Library tab reads feeds.length / episodes.length;
+    // the `{}` fallback leaves them undefined (crash). Empty arrays keep it honest.
+    await page.route('**/api/corpus/feeds**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', feeds: [] }),
+      }),
+    )
+    await page.route('**/api/corpus/episodes**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [], next_cursor: null }),
+      }),
+    )
     // Search route: one static hit for "climate" queries + empty for
     // everything else so the palette's live-fetch is deterministic.
     await page.route('**/api/search?**', async (route) => {
