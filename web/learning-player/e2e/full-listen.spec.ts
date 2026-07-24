@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * Full listen critical-path — the browse → play → capture → verify chain
@@ -26,6 +26,7 @@ test('sign in → open episode → play → capture at current time → verify i
   // === 1. Navigate to the episode ============================================
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
+  await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   // Wait for the real /segments fetch → transcript render (from transcript.spec).
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
 

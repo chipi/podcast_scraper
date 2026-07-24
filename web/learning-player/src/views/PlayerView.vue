@@ -140,6 +140,11 @@ const duration = ref(0)
 const rate = ref(1)
 const audioError = ref(false)
 
+// Manual sync-nudge UI is HIDDEN for now (not deleted): a better synchronization fix is coming,
+// so the listener-facing nudge control is temporarily off. The offset machinery below still
+// applies any previously-stored / server-mirrored offset to the highlight. Flip to re-expose.
+const SHOW_SYNC_CONTROL = false
+
 // Manual transcript-sync offset (seconds): the bridged stream (acast) injects ads not in our
 // transcribed copy, so the transcript can lead the played audio. This lets the listener nudge
 // the highlight to match what they hear. Maps content-time ↔ audio-time; persisted per episode.
@@ -204,7 +209,7 @@ async function load(slug: string): Promise<void> {
   loading.value = true
   notFound.value = false
   audioError.value = false
-  scrolledToTranscript = false // re-arm scroll-to-transcript for the new episode
+  transcriptOpen.value = false // new episode → transcript starts closed (opt-in per episode)
   segments.value = []
   audioUrl.value = null
   insights.value = []
@@ -285,25 +290,26 @@ function onTimeUpdate(): void {
   }
 }
 
-// Transcript section — on the first play of an episode, bring it into view (the masthead/artwork
-// is tall; pressing play means "I'm listening", so surface the synced transcript).
+// Transcript is OPTIONAL and closed by default (mobile): pressing play should NOT jump the
+// listener into the transcript. A Show/Hide toggle reveals it; opening scrolls it into view.
+// (Desktop keeps the transcript visible as the side column — see the template's lg: classes.)
 const transcriptEl = ref<HTMLElement | null>(null)
-let scrolledToTranscript = false
+const transcriptOpen = ref(false)
+
+function toggleTranscript(): void {
+  transcriptOpen.value = !transcriptOpen.value
+  if (transcriptOpen.value) {
+    void nextTick(() =>
+      transcriptEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    )
+  }
+}
 
 function toggle(): void {
   const el = audioEl.value
   if (!el) return
-  if (el.paused) {
-    void el.play()
-    if (!scrolledToTranscript) {
-      scrolledToTranscript = true
-      void nextTick(() =>
-        transcriptEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-      )
-    }
-  } else {
-    el.pause()
-  }
+  if (el.paused) void el.play()
+  else el.pause()
 }
 
 function seek(to: number): void {
@@ -395,8 +401,12 @@ onBeforeUnmount(() => {
           : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]'
       "
     >
-      <!-- Left rail: masthead + intelligent artwork zone + controls -->
-      <div>
+      <!-- Left rail: masthead + intelligent artwork zone + controls.
+           On mobile the rail is `display:contents` so its children (incl. the sticky controls)
+           flow directly into the page scroll — that makes the controls' containing block span
+           the transcript, so `sticky top-0` keeps them pinned while the transcript scrolls under.
+           On desktop (lg) it's a normal grid column again. -->
+      <div class="contents lg:block">
         <div class="flex items-start justify-between gap-3">
           <RouterLink
             v-if="episode.podcast_title"
@@ -534,9 +544,11 @@ onBeforeUnmount(() => {
         <p v-if="audioError" class="mt-4 rounded-2xl border border-border bg-surface p-4 text-danger">
           {{ t('player.audioError') }}
         </p>
+        <!-- Mobile: controls float (sticky) at the top so they stay reachable while the
+             transcript scrolls underneath. Desktop: static in the left column. -->
         <PlayerControls
           v-else-if="audioUrl"
-          class="mt-4"
+          class="mt-4 sticky top-0 z-20 lg:static lg:z-auto"
           :playing="playing"
           :current-time="currentTime"
           :duration="duration"
@@ -554,55 +566,74 @@ onBeforeUnmount(() => {
 
       <!-- Middle: synced transcript -->
       <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70vh] lg:flex-col">
-        <!-- Manual sync nudge: align the highlight with the played audio (ad-insertion drift). -->
-        <div
+        <!-- Show/Hide transcript (mobile only): the transcript is opt-in so pressing play does
+             not jump the listener down here. On desktop the transcript is the side column, so
+             this toggle is hidden there (lg:hidden). -->
+        <button
           v-if="segments.length"
-          class="mb-2 flex items-center justify-end gap-2 text-xs text-muted"
+          type="button"
+          class="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2.5 font-bold text-canvas-foreground transition hover:bg-overlay lg:hidden"
+          :aria-expanded="transcriptOpen"
+          data-testid="transcript-toggle"
+          @click="toggleTranscript"
         >
-          <span :title="t('player.syncHelp')">{{ t('player.sync') }}</span>
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              class="rounded-full border border-border px-2 py-0.5 font-mono leading-none"
-              :aria-label="t('player.syncEarlier')"
-              @click="adjustSync(-1)"
-            >
-              −
-            </button>
-            <button
-              type="button"
-              class="min-w-[3.5rem] rounded-full px-1 py-0.5 text-center font-mono tabular-nums"
-              :class="syncOffset !== 0 ? 'text-accent' : 'text-muted'"
-              :aria-label="t('player.syncReset')"
-              @click="resetSync"
-            >
-              {{ syncOffset > 0 ? '+' : '' }}{{ syncOffset }}s
-            </button>
-            <button
-              type="button"
-              class="rounded-full border border-border px-2 py-0.5 font-mono leading-none"
-              :aria-label="t('player.syncLater')"
-              @click="adjustSync(1)"
-            >
-              +
-            </button>
+          {{ transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript') }}
+        </button>
+
+        <!-- Transcript body — opt-in on mobile (toggled), always shown on desktop. `lg:contents`
+             dissolves this wrapper at lg so the transcript keeps flowing inside the flex column
+             (lg:flex-1 scroll) exactly as before. -->
+        <div :class="transcriptOpen ? 'block' : 'hidden'" class="lg:contents">
+          <!-- Manual sync nudge — HIDDEN for now (SHOW_SYNC_CONTROL); a better sync fix is coming. -->
+          <div
+            v-if="segments.length && SHOW_SYNC_CONTROL"
+            class="mb-2 flex items-center justify-end gap-2 text-xs text-muted"
+          >
+            <span :title="t('player.syncHelp')">{{ t('player.sync') }}</span>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                class="rounded-full border border-border px-2 py-0.5 font-mono leading-none"
+                :aria-label="t('player.syncEarlier')"
+                @click="adjustSync(-1)"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                class="min-w-[3.5rem] rounded-full px-1 py-0.5 text-center font-mono tabular-nums"
+                :class="syncOffset !== 0 ? 'text-accent' : 'text-muted'"
+                :aria-label="t('player.syncReset')"
+                @click="resetSync"
+              >
+                {{ syncOffset > 0 ? '+' : '' }}{{ syncOffset }}s
+              </button>
+              <button
+                type="button"
+                class="rounded-full border border-border px-2 py-0.5 font-mono leading-none"
+                :aria-label="t('player.syncLater')"
+                @click="adjustSync(1)"
+              >
+                +
+              </button>
+            </div>
           </div>
+          <TranscriptList
+            v-if="segments.length"
+            :segments="segments"
+            :active-index="activeIndex"
+            :grounded="groundedSpans"
+            :can-capture="auth.isAuthenticated"
+            :saved-segment-ids="savedSegmentIds"
+            class="min-h-0 lg:flex-1"
+            @seek="seekContent"
+            @insight="openInsight"
+            @capture="onCaptureParagraph"
+          />
+          <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
+            {{ t('player.transcriptPending') }}
+          </p>
         </div>
-        <TranscriptList
-          v-if="segments.length"
-          :segments="segments"
-          :active-index="activeIndex"
-          :grounded="groundedSpans"
-          :can-capture="auth.isAuthenticated"
-          :saved-segment-ids="savedSegmentIds"
-          class="min-h-0 lg:flex-1"
-          @seek="seekContent"
-          @insight="openInsight"
-          @capture="onCaptureParagraph"
-        />
-        <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
-          {{ t('player.transcriptPending') }}
-        </p>
 
         <!-- #1261-4: "More like this" — related episodes rail below the
              transcript. Silent when the endpoint returns empty. -->

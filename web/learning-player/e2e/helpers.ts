@@ -10,3 +10,19 @@ export async function signInIsolated(page: Page, who: string, testInfo: TestInfo
   await page.goto(`/api/app/auth/login?as=${encodeURIComponent(id)}`)
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 }
+
+/**
+ * Reveal the transcript when it's collapsed.
+ *
+ * The transcript is opt-in on mobile (a "Show transcript" toggle) so pressing
+ * play doesn't jump the listener into it; on desktop it's the always-visible
+ * side column and the toggle is hidden. This clicks the toggle only when it's
+ * actually visible — a no-op on desktop — so transcript specs pass under both
+ * Playwright projects (mobile-chrome + desktop-chrome).
+ */
+export async function openTranscript(page: Page): Promise<void> {
+  const toggle = page.getByTestId('transcript-toggle')
+  if (await toggle.isVisible().catch(() => false)) {
+    await toggle.click()
+  }
+}

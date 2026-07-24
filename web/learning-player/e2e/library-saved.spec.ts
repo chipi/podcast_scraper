@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * Library hub (this session): the Saved tab shows per-kind sections (Episodes, Insights) instead of
@@ -32,6 +32,7 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   await page.goto('/')
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
+  await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
   const epFav = page.getByRole('button', { name: 'Save to favorites' }).first()
   if (await epFav.isVisible().catch(() => false)) await epFav.click()

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 const serious = (vs: { impact?: string | null }[]) =>
   vs.filter((v) => v.impact === 'critical' || v.impact === 'serious')
@@ -26,6 +26,7 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   await page.goto('/')
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
+  await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
 
   // a11y: the signed-in player (with the auth-gated capture controls present) has no serious axe
