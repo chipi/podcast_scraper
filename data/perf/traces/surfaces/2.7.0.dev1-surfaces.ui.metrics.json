@@ -1,10 +1,10 @@
 {
   "schema_version": "2",
   "label": "2.7.0.dev1-surfaces",
-  "captured_at": "2026-07-24T10:38:39.176Z",
+  "captured_at": "2026-07-24T11:08:04.696Z",
   "viewer": "http://127.0.0.1:5621",
   "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
-  "runs": 5,
+  "runs": 6,
   "viewport": {
     "width": 1440,
     "height": 900,
@@ -14,41 +14,53 @@
     {
       "name": "library-load",
       "metric": "tti_ms",
-      "median_ms": 20,
+      "median_ms": 19,
+      "min_ms": 17,
+      "max_ms": 24,
+      "cold_ms": 17,
       "runs": [
-        22,
+        17,
+        24,
         23,
+        17,
         19,
-        20,
-        20
+        18
       ],
-      "samples": 5
+      "warm_samples": 5
     },
     {
       "name": "digest-load",
       "metric": "tti_ms",
-      "median_ms": 27,
+      "median_ms": 26,
+      "min_ms": 25,
+      "max_ms": 28,
+      "cold_ms": 29,
       "runs": [
-        38,
         29,
         26,
-        25,
-        27
+        26,
+        28,
+        27,
+        25
       ],
-      "samples": 5
+      "warm_samples": 5
     },
     {
       "name": "entity-load",
       "metric": "open_ms",
-      "median_ms": 14,
+      "median_ms": 12,
+      "min_ms": 4,
+      "max_ms": 19,
+      "cold_ms": 15,
       "runs": [
-        23,
-        18,
-        11,
+        15,
         12,
-        14
+        14,
+        12,
+        4,
+        19
       ],
-      "samples": 5
+      "warm_samples": 5
     }
   ]
 }

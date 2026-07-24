@@ -1,10 +1,10 @@
 {
   "schema_version": "2",
   "label": "2.7.0.dev1-search-ui",
-  "captured_at": "2026-07-24T10:37:52.442Z",
+  "captured_at": "2026-07-24T11:07:15.582Z",
   "viewer": "http://127.0.0.1:5601",
   "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
-  "runs": 5,
+  "runs": 6,
   "viewport": {
     "width": 1440,
     "height": 900,
@@ -14,80 +14,104 @@
     {
       "name": "workspace-open",
       "metric": "tti_ms",
-      "median_ms": 248,
+      "median_ms": 211,
+      "min_ms": 198,
+      "max_ms": 245,
+      "cold_ms": 988,
       "runs": [
-        1008,
-        248,
+        988,
+        245,
         211,
-        219,
-        248
+        207,
+        198,
+        214
       ],
-      "samples": 5
+      "warm_samples": 5
     },
     {
       "name": "filter-apply",
       "metric": "open_ms",
-      "median_ms": 15,
+      "median_ms": 36,
+      "min_ms": 14,
+      "max_ms": 37,
+      "cold_ms": 18,
       "runs": [
-        13,
+        18,
         14,
-        29,
         36,
-        15
+        37,
+        16,
+        36
       ],
-      "samples": 5
+      "warm_samples": 5
     },
     {
       "name": "results-paint",
       "metric": "paint_ms",
-      "median_ms": 784,
+      "median_ms": 783,
+      "min_ms": 782,
+      "max_ms": 784,
+      "cold_ms": 6811,
       "runs": [
-        5806,
-        786,
-        783,
+        6811,
         784,
-        784
+        783,
+        782,
+        783,
+        783
       ],
-      "samples": 5
+      "warm_samples": 5
     },
     {
       "name": "cmdk-open",
       "metric": "open_ms",
       "median_ms": 3,
+      "min_ms": 2,
+      "max_ms": 4,
+      "cold_ms": 4,
       "runs": [
-        2,
+        4,
+        4,
         3,
         3,
-        3,
-        3
+        4,
+        2
       ],
-      "samples": 5
+      "warm_samples": 5
     },
     {
       "name": "operator-cluster",
       "metric": "run_ms",
       "median_ms": 15,
+      "min_ms": 14,
+      "max_ms": 22,
+      "cold_ms": 29,
       "runs": [
-        23,
+        29,
+        22,
+        14,
         15,
         15,
-        15,
-        15
+        16
       ],
-      "samples": 5
+      "warm_samples": 5
     },
     {
       "name": "operator-compare",
       "metric": "run_ms",
-      "median_ms": 796,
+      "median_ms": 803,
+      "min_ms": 796,
+      "max_ms": 808,
+      "cold_ms": 803,
       "runs": [
         803,
-        796,
+        808,
+        803,
         798,
-        796,
+        804,
         796
       ],
-      "samples": 5
+      "warm_samples": 5
     }
   ]
 }

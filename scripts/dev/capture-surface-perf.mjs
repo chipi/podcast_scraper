@@ -147,19 +147,26 @@ async function main() {
     await browser.close()
   }
 
+  // First pass is cold — excluded from the target metrics (warm min/median/max
+  // over runs 2..N); cold recorded separately. See capture-search-perf.mjs.
   const names = perRun[0].map((s) => s.name)
   const scenarios = names.map((name) => {
     const entries = perRun.map((run) => run.find((s) => s.name === name)).filter(Boolean)
-    const metric =
-      Object.keys(entries[0]).find((k) => k !== 'name' && k !== 'error') || 'ms'
-    const values = entries.map((e) => e[metric]).filter((v) => v != null)
+    const metric = Object.keys(entries[0]).find((k) => k !== 'name' && k !== 'error') || 'ms'
+    const allRuns = entries.map((e) => (e[metric] == null ? null : e[metric]))
+    const cold = allRuns.length ? allRuns[0] : null
+    let warm = allRuns.slice(1).filter((v) => v != null)
+    if (!warm.length) warm = allRuns.filter((v) => v != null)
     const errors = entries.map((e) => e.error).filter(Boolean)
     return {
       name,
       metric,
-      median_ms: median(values),
-      runs: entries.map((e) => (e[metric] == null ? null : e[metric])),
-      samples: values.length,
+      median_ms: median(warm),
+      min_ms: warm.length ? Math.min(...warm) : null,
+      max_ms: warm.length ? Math.max(...warm) : null,
+      cold_ms: cold,
+      runs: allRuns,
+      warm_samples: warm.length,
       ...(errors.length ? { errors } : {}),
     }
   })
@@ -176,12 +183,12 @@ async function main() {
   }
   fs.writeFileSync(OUT, JSON.stringify(payload, null, 2) + '\n')
   console.log(
-    `\ncapture-surface-perf: ${scenarios.length} scenarios, median-of-${RUNS} → ${path.basename(OUT)}`,
+    `\ncapture-surface-perf: ${scenarios.length} scenarios, warm median-of-${RUNS} (cold run-1 excluded) → ${path.basename(OUT)}`,
   )
   for (const s of scenarios) {
-    const note = s.errors ? `  (${s.samples}/${RUNS} ok)` : ''
+    const note = s.errors ? `  (${s.warm_samples} warm ok)` : ''
     console.log(
-      `  ${s.name.padEnd(16)} ${s.metric}=${s.median_ms ?? 'n/a'} ms  runs=[${s.runs.join(', ')}]${note}`,
+      `  ${s.name.padEnd(16)} ${s.metric} min/med/max=${s.min_ms}/${s.median_ms}/${s.max_ms} ms  cold=${s.cold_ms}${note}`,
     )
   }
 }

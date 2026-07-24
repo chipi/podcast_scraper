@@ -63,11 +63,12 @@ Keep these constant so runs are comparable:
 - **Corpus:** `.test_outputs/manual/prod-v2/corpus` (the reference corpus) unless
   a change specifically targets fixture-corpus behavior.
 - **Viewport:** 1440×900 @ DPR-2 (retina), headless Chromium.
-- **Median-of-N** per scenario (floor 3): the UI capturers take `--runs N`
-  (default 3) and run each scenario in N fresh contexts, emitting `median_ms` +
-  the full `runs` array. **Run-1 is cold** (index-open + embedding-model load);
-  keep it in the array but read the median as the warm headline and call out the
-  cold value explicitly — the cold/warm gap is often the real story.
+- **Warm min/median/max, cold excluded** per scenario: the UI capturers take
+  `--runs N` (default 3; use 6 for a 5-warm-sample set) and run each scenario in
+  N fresh contexts. **Run-1 is cold** (index-open + embedding-model load) and is
+  **excluded from the target metrics** — the report headline is warm
+  `min_ms` / `median_ms` / `max_ms` over runs 2..N, with `cold_ms` recorded in
+  its own column. The cold/warm gap is often the real story.
 
 ## Adding a new surface
 
