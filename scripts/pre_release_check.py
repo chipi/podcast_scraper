@@ -95,6 +95,47 @@ def _check_compatibility_matrix(root: Path, version: str) -> None:
         sys.exit(1)
 
 
+def check_perf_report(root: Path, version: str) -> bool:
+    """Forced-but-NON-GATING: warn loudly when no perf-trace report mentions
+    *version* (perf-traces framework, docs/guides/perf-traces/reports/).
+
+    Official per-release performance results are a required release step but not
+    a CI gate — you generate + iterate the numbers until happy. This check makes
+    skipping it impossible to miss (a prominent stderr banner) without ever
+    failing the build. Returns True when a matching report is found.
+
+    See docs/guides/perf-traces/index.md ("Per release").
+    """
+    reports_dir = root / "docs" / "guides" / "perf-traces" / "reports"
+    found = False
+    if reports_dir.is_dir():
+        # Reports follow the framework convention ``<date>-<version>.md``; match on
+        # the FILENAME (a report may mention other versions in prose, so a content
+        # substring is too loose — it would spuriously satisfy a neighbouring bump).
+        for md in reports_dir.glob(f"*{version}.md"):
+            if md.name == "index.md":
+                continue
+            found = True
+            print(f"pre_release_check: perf report present for {version} ({md.name})")
+            break
+    if not found:
+        print(
+            "\n"
+            "  ============================================================\n"
+            f"  ⚠  NO PERF REPORT for {version}.\n"
+            "     Official per-release performance results are REQUIRED\n"
+            "     (not a CI gate — generate + iterate until happy):\n"
+            "       1. capture: scripts/dev/capture-{search,graph,surface}-*.sh\n"
+            "       2. author:  docs/guides/perf-traces/reports/"
+            "<date>-<version>.md\n"
+            "       3. index:   add a row to reports/index.md\n"
+            "     See docs/guides/perf-traces/index.md. NOT skipping the build.\n"
+            "  ============================================================\n",
+            file=sys.stderr,
+        )
+    return found
+
+
 def run_checks(root: Path | None = None) -> str:
     """Run all checks. Returns the resolved version string.
 
@@ -115,6 +156,9 @@ def run_checks(root: Path | None = None) -> str:
     # a real release. The pyproject↔__init__ match above still runs (drift guard).
     from packaging.version import InvalidVersion, Version
 
+    # Forced-but-non-gating perf report reminder — runs for BOTH pre-release and
+    # final versions (we want the nudge on every dev bump), never fails the build.
+    check_perf_report(base, pv)
     try:
         is_pre = Version(pv).is_prerelease
     except InvalidVersion:

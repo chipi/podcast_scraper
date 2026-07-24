@@ -78,10 +78,18 @@ Keep these constant so runs are comparable:
 
 ## Per release
 
-Generating an official perf report is a **required, non-gating** release step —
-see [reports/index.md](reports/index.md) and the release runbook. Capture →
-iterate the numbers until happy → author the timestamped report → it ships with
-the release. Not a CI gate; a discipline that can't be silently skipped.
+Generating an official perf report is a **required, non-gating** release step.
+Capture → iterate the numbers until happy → author the timestamped report → it
+ships with the release. Not a CI gate; a discipline that can't be silently
+skipped.
+
+**How it's forced:** `scripts/pre_release_check.py` (run by `make pre-release`)
+calls `check_perf_report(version)`, which looks for a
+`reports/<date>-<version>.md`. If none exists it prints a prominent stderr banner
+naming the exact steps — but **never fails the build** (returns, doesn't
+`sys.exit`). So a release can't quietly skip perf results, yet a temporary perf
+regression never blocks the cut. Runs on pre-release (`dev`) bumps too, so the
+nudge lands every release train, not just finals.
 
 ## Related
 
