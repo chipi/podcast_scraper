@@ -263,11 +263,13 @@ async function main() {
     let warm = allRuns.slice(1).filter((v) => v != null)
     if (!warm.length) warm = allRuns.filter((v) => v != null)
     const errors = entries.map((e) => e.error).filter(Boolean)
+    const mean = warm.length ? Math.round(warm.reduce((a, b) => a + b, 0) / warm.length) : null
     return {
       name,
       metric,
-      median_ms: median(warm),
       min_ms: warm.length ? Math.min(...warm) : null,
+      mean_ms: mean,
+      median_ms: median(warm),
       max_ms: warm.length ? Math.max(...warm) : null,
       cold_ms: cold,
       runs: allRuns,
@@ -293,7 +295,7 @@ async function main() {
   for (const s of scenarios) {
     const note = s.errors ? `  (${s.warm_samples} warm ok)` : ''
     console.log(
-      `  ${s.name.padEnd(20)} ${s.metric} min/med/max=${s.min_ms}/${s.median_ms}/${s.max_ms} ms  cold=${s.cold_ms}  runs=[${s.runs.join(', ')}]${note}`,
+      `  ${s.name.padEnd(20)} ${s.metric} min/mean/med/max=${s.min_ms}/${s.mean_ms}/${s.median_ms}/${s.max_ms} ms  cold=${s.cold_ms}  runs=[${s.runs.join(', ')}]${note}`,
     )
   }
 }
