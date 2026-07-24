@@ -9,6 +9,31 @@ export interface RisingTopic {
   series: number[]
 }
 
+/** Per-topic theme ("storyline") colouring for the sparkline view: topics in the same
+ *  co-occurrence cluster share a hue; unclustered topics use {@link THEME_NEUTRAL}. */
+export interface TopicTheme {
+  color: string
+  label: string | null
+  /** Stable group index for ordering (clusters by declaration order; unclustered sorts last). */
+  group: number
+}
+
+/** Distinct, dark-theme-legible categorical hues (sky / violet / emerald / amber / pink / cyan /
+ *  lime / orange). Cycled across theme clusters. */
+export const THEME_PALETTE = [
+  '#38bdf8',
+  '#a78bfa',
+  '#34d399',
+  '#fbbf24',
+  '#f472b6',
+  '#22d3ee',
+  '#a3e635',
+  '#fb923c',
+]
+
+/** Fallback hue for topics not in any theme cluster. */
+export const THEME_NEUTRAL = '#94a3b8'
+
 export type TrendDirection = 'up' | 'down' | 'steady'
 
 /** Velocity → trend direction. A neutral band around 1.0 (flat) stops tiny wobbles from
