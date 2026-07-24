@@ -541,27 +541,33 @@ onBeforeUnmount(() => {
           @error="audioError = true"
         />
 
-        <p v-if="audioError" class="mt-4 rounded-2xl border border-border bg-surface p-4 text-danger">
-          {{ t('player.audioError') }}
-        </p>
-        <!-- Mobile: controls float (sticky) at the top so they stay reachable while the
-             transcript scrolls underneath. Desktop: static in the left column. -->
-        <PlayerControls
-          v-else-if="audioUrl"
-          class="mt-4 sticky top-0 z-20 lg:static lg:z-auto"
-          :playing="playing"
-          :current-time="currentTime"
-          :duration="duration"
-          :rate="rate"
-          :markers="insightMarkers"
-          @toggle="toggle"
-          @seek="seek"
-          @skip="skip"
-          @cycle-rate="cycleRate"
-        />
-        <p v-else class="mt-4 rounded-2xl border border-border bg-surface p-4 text-muted">
-          {{ t('player.audioUnavailable') }}
-        </p>
+        <!-- Mobile: the controls float (sticky) at the top so they stay reachable while the
+             transcript scrolls underneath. The wrapper carries an opaque page background + a
+             little top padding (safe-area aware) so the transcript is masked as it scrolls under,
+             the rounded panel keeps breathing room, and it clears a device status bar instead of
+             being clipped at y=0. Desktop: static in the left column (wrapper is inert). -->
+        <div
+          class="sticky top-0 z-20 mt-4 bg-canvas pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
+        >
+          <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
+            {{ t('player.audioError') }}
+          </p>
+          <PlayerControls
+            v-else-if="audioUrl"
+            :playing="playing"
+            :current-time="currentTime"
+            :duration="duration"
+            :rate="rate"
+            :markers="insightMarkers"
+            @toggle="toggle"
+            @seek="seek"
+            @skip="skip"
+            @cycle-rate="cycleRate"
+          />
+          <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
+            {{ t('player.audioUnavailable') }}
+          </p>
+        </div>
       </div>
 
       <!-- Middle: synced transcript -->
