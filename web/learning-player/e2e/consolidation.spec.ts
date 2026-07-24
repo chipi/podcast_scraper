@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
 
 /**
  * P3 Consolidation end-to-end — REAL API over the COMMITTED validation corpus (now carrying RFC-088
@@ -10,12 +10,14 @@ import { signInIsolated } from './helpers'
 test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox', async ({
   page,
 }, testInfo) => {
+  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'consolidation', testInfo)
 
   // Open an episode and capture its slug from the URL.
   await page.goto('/')
   await page.goto('/podcast/p09') // #1148: open a RECENT episode so it isn't due for resurfacing
   await page.getByText('Risk Is a Systems Property').first().click()
+  await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   await expect(page.getByText(/Risk lives in the couplings/).first()).toBeVisible()
   const slug = new URL(page.url()).pathname.split('/').pop()!
 

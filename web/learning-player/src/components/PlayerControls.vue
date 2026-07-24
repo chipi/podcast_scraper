@@ -102,7 +102,7 @@ function onScrub(ev: Event): void {
          the speed toggle is pinned right, and the optional `corner` affordance (transcript toggle
          on mobile) is pinned left — both absolute so they add no height and don't tilt the row. -->
     <div class="relative mt-3 flex items-center justify-center gap-6">
-      <div v-if="$slots.corner" class="absolute left-0 top-1/2 -translate-y-1/2">
+      <div v-if="$slots.corner" class="absolute left-0 top-1/2 -translate-y-1/2 lg:hidden">
         <slot name="corner" />
       </div>
       <button type="button" class="font-bold" :aria-label="t('player.back15')" @click="emit('skip', -15)">

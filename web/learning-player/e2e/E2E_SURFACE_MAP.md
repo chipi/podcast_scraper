@@ -66,14 +66,14 @@ Header brand (→ **home**) + `<nav>` of [NavIconLink](../src/components/NavIcon
 | ------- | -------------- | ------------- | ---------- |
 | **App shell / nav** | Header brand → home; `<nav>` NavIconLink **Browse** / **Library** / **Profile**; **Sign in** / **Sign up** when signed out | Every page | `smoke.spec.ts` (+ implicit in all) |
 | **Home** | Adaptive hero (**Continue** when signed-in with in-progress history, else **Ask your library**); search bar (`#home-search`); dismissible **set-your-interests** card → picker; **What's new** (featured `01` + ranked rows `02–06`); **Trending topics**; **Storylines**; **Recommended**; **Your shows** | `goto('/')` | `home-search.spec.ts`, `smoke.spec.ts`, `full-listen.spec.ts` (entry) |
-| **Trending topics** | Corpus "heating up" (`temporal_velocity`) — views **Pills / Sparklines / Over time / Momentum** (`trend-view-*`); chips open the topic card + one-tap follow | Home, below What's new | ⚠️ **none** — see [gaps](#coverage-gaps) |
+| **Trending topics** | Corpus "heating up" (`temporal_velocity`) — views **Pills / Sparklines (default) / Over time / Momentum** (`trend-view-*`), all coloured by **storyline** (theme cluster); Sparklines groups by storyline + collapses to top 5 (`trend-spark-expand`); chips open the topic card + one-tap follow | Home, below What's new | ⚠️ **none** — see [gaps](#coverage-gaps) |
 | **Storylines** | Theme clusters (topics discussed together) as a browsable rail; chip opens the anchor topic card, `＋`/`✓` follows the `thc:` cluster | Home, below Trending | ⚠️ **none** — see [gaps](#coverage-gaps) |
 | **Momentum rail (RFC-103)** | Read-time "Trending now" (`GET /api/app/trending`, EWMA momentum anchored to `APP_TRENDING_NOW`) — generic per-kind chips: label + weekly sparkline + `↑` velocity + follow (interest-token kinds). `momentum-rail-{kind}`, `momentum-chip`, `momentum-follow`. Wired for `kind=topic` (opens topic card) | Home, below Storylines | `trending.spec.ts` |
 | **EntityCard (person/topic)** | Overlay (from Search/Home) or inline (from Insights) card: **Follow**, **Your corpus** scope (all/mine), cluster identity (**Theme** + **Similar**), theme members, **Follow storyline**, **Perspectives**, **Signals**, related people/topics; re-entrant back stack | Trending/Storyline chip, Search entity hit, KnowledgePanel | `perspectives.spec.ts` (Perspectives), `entity-signals.spec.ts` (Signals) |
 | **Interests picker** | Modal: **Topics** (semantic `tc:`) + **Storylines** (`thc:`) sections; Save replaces only the offered subset (preserves `topic:`/`person:` follows) | Home interests card **or** Profile → **Choose interests** | ⚠️ **UI: none** — `recommendation.spec.ts` drives `/api/app/interests` directly |
 | **Catalog (Browse)** | Episode catalog / browse-all | `goto('/catalog')` (nav **Browse**, Home **Browse all →**) | ⚠️ **none dedicated** |
 | **Search** | Corpus semantic search; passage hits + **KnowledgePanel** (entity chips → card); entity-in-search resolution | `goto('/search?q=…')`, Home search submit | `home-search.spec.ts`, `consolidation.spec.ts` (`?q=index`) |
-| **Player (episode)** | Transcript (paragraph-grouped), playback, **capture** (mark moment), summary region, transcript↔audio sync controls, insight **density** strip | `goto('/episode/:slug')`, via Podcast/Library/Queue/Home rows | `transcript.spec.ts`, `transcript-paragraphs.spec.ts`, `full-listen.spec.ts`, `capture.spec.ts`, `entity-signals.spec.ts` |
+| **Player (episode)** | Transcript (paragraph-grouped; **opt-in on mobile** via the controls-panel `transcript-toggle`, always-visible side column on desktop), floating/sticky controls on mobile, **capture** (mark moment), summary region, insight **density** strip. Manual sync controls are currently hidden. | `goto('/episode/:slug')`, via Podcast/Library/Queue/Home rows | `transcript.spec.ts`, `transcript-toggle.spec.ts`, `transcript-paragraphs.spec.ts`, `full-listen.spec.ts`, `capture.spec.ts`, `entity-signals.spec.ts` |
 | **Podcast (show)** | Show page → episode list | `goto('/podcast/:feedId')` (e.g. `p05`) | reached by `auth-queue`, `capture`, `consolidation`, `perspectives`, `entity-signals`, `transcript*` |
 | **Queue** | Play queue; reorder via `↑`/`↓` chevrons; QueueButton add/remove | `goto('/queue')` (auth) | `auth-queue.spec.ts`, `queue-reorder.spec.ts` |
 | **Library** | Saved tab (per-kind **Episodes** / **Insights**), highlights, resurfacing inbox | `goto('/library')` (auth) | `library-saved.spec.ts`, `capture.spec.ts`, `consolidation.spec.ts` |
@@ -117,9 +117,11 @@ on **roles / accessible names / RouterLinks**; reusable widgets carry `data-test
 
 | Element | Hook |
 | ------- | ---- |
-| View tabs | `data-testid="trend-view-{chips\|sparks\|stream\|momentum}"` (`role="tab"`) |
+| View tabs | `data-testid="trend-view-{chips\|sparks\|stream\|momentum}"` (`role="tab"`); **default = `sparks`** |
 | Pills chip / follow | `data-testid="trend-chip"` / `trend-chip-follow` (`aria-pressed`) |
-| Sparklines | `data-testid="trend-sparks"`, `trend-spark-row`, `trend-spark-follow` |
+| Sparklines | `data-testid="trend-sparks"`, `trend-spark-row`, `trend-spark-follow`, `trend-spark-expand` (collapsed to top 5 + "Show N more") |
+
+All views colour topics by **storyline** (theme cluster) — same-cluster topics share a hue, unclustered use a neutral hue; the Sparklines view groups by storyline (hottest cluster first).
 | Over-time stream | `data-testid="trend-stream"`, `trend-stream-band`, `trend-stream-legend` |
 | Momentum map | `data-testid="trend-momentum"`, `trend-momentum-point` |
 
@@ -155,9 +157,10 @@ on **roles / accessible names / RouterLinks**; reusable widgets carry `data-test
 
 | Element | Hook |
 | ------- | ---- |
+| Transcript toggle (mobile) | `data-testid="transcript-toggle"` (in the controls panel; `aria-expanded`). Transcript is **opt-in on mobile** — closed by default, this opens/closes it. Hidden on desktop (transcript is the always-visible side column). |
 | Insight density | `data-testid="episode-density"` / `player-insight-density`; bands `player-density-band`, ticks `player-density-tick`, segments `density-{early,mid,late,peak}` |
 | Capture | `aria-label` `capture.markMoment` → `capture.marked` |
-| Sync controls | `aria-label` `player.syncEarlier` / `player.syncLater` / `player.syncReset` |
+| Sync controls | **Hidden** (`SHOW_SYNC_CONTROL=false`) pending a better sync fix — the `player.syncEarlier`/`syncLater`/`syncReset` UI is off; the offset machinery still applies any stored value. |
 | Summary region | `role="region"` `player.summaryRegion` |
 
 ### Queue ([QueueView](../src/views/QueueView.vue))
