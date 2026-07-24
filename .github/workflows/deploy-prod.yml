@@ -28,16 +28,18 @@ on:
         required: true
         default: ''
       override_image_sha:
-        description: "Image :sha-<7> tag to deploy (blank = current workflow SHA short)"
+        description: "Image :sha-<7> tag to deploy (blank = newest sha-<7> published to GHCR)"
         required: false
         default: ""
 
 permissions:
   actions: read
-  # contents:write — the post-deploy prod-marker step commits the bump DIRECTLY to
-  # main (#25, replacing the create-pull-request approach). No pull-requests scope
-  # needed anymore.
-  contents: write
+  # contents:read — deploy-prod no longer writes to the repo. The prod-marker step
+  # used to commit the bump directly to main (#25), but the `main protection` ruleset
+  # requires PRs, so the bot push was rejected on every run (GH013) and never landed.
+  # The marker is now bumped by hand in a release PR; the step only computes + surfaces
+  # the values. No contents:write, no pull-requests scope needed.
+  contents: read
   packages: read
 
 concurrency:
@@ -88,11 +90,10 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
-          # Persist the checkout token so the post-deploy prod-marker step can
-          # push its bump directly to main (#25). (Previously persist-credentials
-          # was false to avoid a header collision with peter-evans/create-pull-request,
-          # which has been removed in favour of the direct commit.)
-          persist-credentials: true
+          # persist-credentials:false — nothing in this workflow pushes to the repo
+          # anymore. The prod-marker step only computes + surfaces the bump (the
+          # `main` ruleset blocks bot direct-push; the bump lands via a release PR).
+          persist-credentials: false
 
       - name: Resolve target image SHA
         id: sha
@@ -102,19 +103,38 @@ jobs:
           # `workflow_call` trigger is ever added (RFC-082 Decision 6); equivalent
           # under the current workflow_dispatch trigger.
           OVERRIDE: ${{ inputs.override_image_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: chipi
+          PKG: podcast-scraper-stack-api
         run: |
           set -euo pipefail
+          # An explicit override always wins. Otherwise resolve to the NEWEST sha-<7>
+          # tag actually PUBLISHED to GHCR — NOT github.sha (main HEAD). main HEAD is
+          # frequently a commit with no image: the tofu-state auto-commit from
+          # infra-apply, or a marker/bookkeeping commit. Blindly pinning github.sha
+          # then dies one step later on `docker manifest inspect: manifest unknown`.
+          # The newest published image is both real (it exists) and prod-equivalent —
+          # the last green stack-test build on main. Mirrors the drill fix (#1088).
           SHA_SHORT="${OVERRIDE:-}"
+          SHA_SHORT="${SHA_SHORT#sha-}"
+          SRC="override"
           if [ -z "$SHA_SHORT" ]; then
-            SHA_SHORT=$(echo "${{ github.event.workflow_run.head_sha || github.sha }}" | cut -c1-7)
+            SRC="latest-published"
+            TAG=$(gh api "/users/${OWNER}/packages/container/${PKG}/versions?per_page=100" \
+              --jq '[.[].metadata.container.tags[]? | select(test("^sha-[0-9a-f]{7,40}$"))] | .[0] // empty')
+            SHA_SHORT="${TAG#sha-}"
+          fi
+          if [ -z "$SHA_SHORT" ]; then
+            echo "::error::no published sha-<7> image for ${PKG} (source: ${SRC}). Has any stack-test build succeeded?"
+            exit 1
           fi
           if ! [[ "$SHA_SHORT" =~ ^[a-f0-9]{7,40}$ ]]; then
-            echo "::error::override_image_sha must match ^[a-f0-9]{7,40}$ (got: ${SHA_SHORT})"
+            echo "::error::resolved image sha must match ^[a-f0-9]{7,40}$ (source: ${SRC}, got: ${SHA_SHORT})"
             exit 1
           fi
           echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
           echo "git_ref=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "::notice::Deploying image tag sha-$SHA_SHORT (git reset target: $SHA_SHORT)"
+          echo "::notice::Deploying image tag sha-$SHA_SHORT (source: ${SRC}, git reset target: $SHA_SHORT)"
 
       - name: Validate GHCR image manifest exists (pre-SSH)
         if: steps.preflight.outputs.skip != 'true'
@@ -465,58 +485,64 @@ jobs:
             --environment prod --projects "$SENTRY_PROJECTS" \
             || echo "::warning::Sentry release boundary failed (non-fatal)"
 
-      # #1176 — after a green prod deploy, bump the prod-state marker + pinned
+      # #1176 — after a green prod deploy, compute the prod-state marker + pinned
       # fixture so the CI net C "prod-gap" test measures gap-to-current-prod
-      # rather than gap-to-some-old-baseline. Opens a PR against main (no direct
-      # push) so a human eyeballs any fixture-shape drift the marker+ledger
-      # bump cannot repair. The migration-guard workflow and
+      # rather than gap-to-some-old-baseline. Surfaced (not committed) for a human
+      # to land in the next release PR, so any fixture-shape drift the marker+ledger
+      # bump cannot repair gets eyeballed. The migration-guard workflow and
       # test_pinned_fixture_shape.py provide the second layer of safety.
-      - name: Bump prod-state marker + pinned fixture (direct commit to main)
-        # #25: commit the marker bump DIRECTLY to main instead of opening a PR.
-        # The bump only touches 3 bookkeeping files (marker JSON + pinned fixture
-        # ledger/manifest); opening a PR for it triggered the FULL CI cascade
-        # (stack-test/Playwright/CodeQL) on a pure-bookkeeping change — wasteful +
-        # confusing. A direct commit records prod state with zero CI cost. The job
-        # already has contents:write. `[skip ci]` in the message keeps even the
-        # push-triggered workflows from firing on the bump.
+      - name: Compute prod-state marker + pinned fixture (surface for a release PR)
+        # The marker (config/last_deployed_prod_version.json + the pinned upgrade
+        # fixture) records what is running on prod, so upgrade tests baseline against
+        # the real last release. It must be bumped after a prod deploy.
+        #
+        # It is NOT committed here. #25 tried to direct-push the bump to main, but the
+        # `main protection` ruleset requires PRs, so the bot push was rejected on every
+        # deploy (GH013) and never landed — the marker on main has been stale since.
+        # Rather than loosen branch protection or open a CI-cascading PR per deploy, we
+        # compute the bump and SURFACE it: the values + a ready-to-apply diff go to the
+        # job summary, and the operator lands it in the next release PR (as history
+        # already does, e.g. 54acd0cf).
+        #
         # CAVEAT: if a deploy included a migration that changes a .gi.json/.kg.json
-        # SHAPE, the pinned fixture still carries the pre-deploy shape and
-        # test_pinned_fixture_shape.py will fail on the NEXT real PR — hand-edit the
-        # fixture then (see tests/fixtures/upgrade/corpus_at_last_prod_release/README.md).
-        # Marker bumps are metadata-only, so this is rare; the loud test failure on
-        # the next PR is the backstop the old PR-review provided.
+        # SHAPE, the pinned fixture carries the pre-deploy shape and
+        # test_pinned_fixture_shape.py will fail on the NEXT real PR until the fixture
+        # is hand-edited (see tests/fixtures/upgrade/corpus_at_last_prod_release/README.md).
         if: success() && steps.preflight.outputs.skip != 'true'
         env:
           SHA_SHORT: ${{ steps.sha.outputs.short }}
         run: |
           set -euo pipefail
-          python -V >/dev/null 2>&1 || { echo "::warning::python missing; skipping prod-marker bump"; exit 0; }
+          python -V >/dev/null 2>&1 || { echo "::warning::python missing; skipping prod-marker compute"; exit 0; }
           # Install just enough to import the registry — no test deps.
           python -m pip install --quiet -e . >/dev/null 2>&1 || {
-            echo "::warning::pip install -e . failed; skipping prod-marker bump"
+            echo "::warning::pip install -e . failed; skipping prod-marker compute"
             exit 0
           }
           CODE_VERSION="$(python -c 'import podcast_scraper as p; print(p.__version__)')"
           python scripts/ops/bump_prod_marker.py \
             --code-version "$CODE_VERSION" \
             --sha "$SHA_SHORT"
-          # Commit + push directly to main. Nothing changed → no-op (exit clean).
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            config/last_deployed_prod_version.json \
-            tests/fixtures/upgrade/corpus_at_last_prod_release/upgrade_ledger.json \
+          FILES=(
+            config/last_deployed_prod_version.json
+            tests/fixtures/upgrade/corpus_at_last_prod_release/upgrade_ledger.json
             tests/fixtures/upgrade/corpus_at_last_prod_release/corpus_manifest.json
-          if git diff --cached --quiet; then
-            echo "prod-marker already current — nothing to commit"
+          )
+          if git diff --quiet -- "${FILES[@]}"; then
+            echo "prod-marker already current — nothing to bump."
+            { echo "### prod-state marker"; echo; echo "Already current for \`sha-${SHA_SHORT}\` — no bump needed."; } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          git commit -m "chore(prod-marker): bump to sha-${SHA_SHORT} after prod deploy [skip ci]" \
-            -m "Auto-committed by deploy-prod.yml (#1176/#25). Marker + pinned fixture only."
-          # Push to main; rebase-retry once if the tip moved during the deploy.
-          for attempt in 1 2 3; do
-            if git push origin HEAD:main; then echo "prod-marker pushed"; exit 0; fi
-            echo "push rejected (attempt $attempt) — rebasing on origin/main"; git fetch origin main --quiet
-            git rebase origin/main || { echo "::warning::prod-marker rebase conflict; skipping bump"; exit 0; }
-          done
-          echo "::warning::prod-marker push failed after 3 attempts; skipping (non-fatal)"
+          echo "::notice::prod-marker bump computed for sha-${SHA_SHORT} — land it in the next release PR (not auto-committed; main requires PRs)."
+          DIFF="$(git diff -- "${FILES[@]}")"
+          {
+            echo "### prod-state marker — bump me in the next release PR"
+            echo
+            echo "Deploy pinned \`sha-${SHA_SHORT}\`. The marker + pinned fixture below reflect the"
+            echo "new prod state but were **not** committed (the \`main\` ruleset requires a PR)."
+            echo "Apply this diff in your next PR (or run \`scripts/ops/bump_prod_marker.py --code-version ${CODE_VERSION} --sha ${SHA_SHORT}\` locally):"
+            echo
+            echo '```diff'
+            echo "$DIFF"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

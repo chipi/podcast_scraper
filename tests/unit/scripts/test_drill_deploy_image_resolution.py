@@ -42,3 +42,25 @@ def test_deploy_prod_reads_inputs_not_event_inputs() -> None:
     text = DEPLOY_PROD.read_text(encoding="utf-8")
     assert "OVERRIDE: ${{ inputs.override_image_sha }}" in text
     assert "github.event.inputs.override_image_sha" not in text
+
+
+def test_deploy_prod_resolves_to_published_ghcr_image_not_main_head() -> None:
+    # Same footgun as the drill (#1088): blank override used to pin github.sha
+    # (main HEAD), which is often a commit with no image — a tofu-state auto-commit
+    # from infra-apply, or a marker/bookkeeping commit — so the deploy died on
+    # `docker manifest inspect: manifest unknown`. deploy-prod now resolves to the
+    # newest published sha-<7> tag on GHCR instead.
+    text = DEPLOY_PROD.read_text(encoding="utf-8")
+    assert "PKG: podcast-scraper-stack-api" in text
+    assert "packages/container/${PKG}/versions" in text
+    assert 'select(test("^sha-[0-9a-f]{7,40}$"))' in text
+    # ...and must NOT fall back to blind main HEAD.
+    assert 'github.sha }}" | cut' not in text, "blind github.sha fallback reintroduced"
+    assert "workflow_run.head_sha || github.sha" not in text
+
+
+def test_deploy_prod_override_still_takes_precedence_and_empty_fails_loudly() -> None:
+    text = DEPLOY_PROD.read_text(encoding="utf-8")
+    assert "OVERRIDE: ${{ inputs.override_image_sha }}" in text
+    # An empty resolution must fail loudly, not silently deploy a bad tag.
+    assert "no published sha-<7> image" in text
