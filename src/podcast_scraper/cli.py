@@ -4760,6 +4760,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
     from podcast_scraper.utils.sentry_init import init_sentry
 
     init_sentry("pipeline")
+    # OTLP tracing (ADR-119): no-op unless OTEL_TRACES_EXPORTER=otlp + an endpoint are set. In-app
+    # so a bare `python -m …cli` run traces without the opentelemetry-instrument launcher.
+    from podcast_scraper.utils.otel_init import init_otel
+
+    init_otel()
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi/kg subcommands
