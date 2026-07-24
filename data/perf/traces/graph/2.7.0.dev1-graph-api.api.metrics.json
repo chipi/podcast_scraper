@@ -1,0 +1,62 @@
+{
+  "schema_version": "1",
+  "label": "2.7.0.dev1-graph-api",
+  "api": "http://127.0.0.1:8611",
+  "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "iterations": 3,
+  "artifact_sample": 20,
+  "scenarios": [
+    {
+      "name": "api-artifacts-list",
+      "iterations": 3,
+      "request_count": 3,
+      "ok_count": 3,
+      "p50_ms": 108.0,
+      "p95_ms": 109.0,
+      "p99_ms": 109.0,
+      "max_ms": 109.0,
+      "mean_ms": 108.0,
+      "sigsegv_free": null,
+      "notes": []
+    },
+    {
+      "name": "api-artifact-fetch",
+      "iterations": 3,
+      "request_count": 60,
+      "ok_count": 60,
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "p99_ms": 1.0,
+      "max_ms": 1.0,
+      "mean_ms": 0.05,
+      "sigsegv_free": null,
+      "notes": []
+    },
+    {
+      "name": "api-topic-clusters",
+      "iterations": 3,
+      "request_count": 3,
+      "ok_count": 3,
+      "p50_ms": 0.0,
+      "p95_ms": 1.0,
+      "p99_ms": 1.0,
+      "max_ms": 1.0,
+      "mean_ms": 0.3333333333333333,
+      "sigsegv_free": null,
+      "notes": []
+    },
+    {
+      "name": "api-concurrent-4",
+      "iterations": 3,
+      "request_count": 60,
+      "ok_count": 60,
+      "p50_ms": 1.0,
+      "p95_ms": 1.0,
+      "p99_ms": 2.0,
+      "max_ms": 2.0,
+      "mean_ms": 1.0,
+      "sigsegv_free": true,
+      "notes": []
+    }
+  ]
+}
