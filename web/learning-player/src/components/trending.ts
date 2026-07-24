@@ -48,7 +48,9 @@ export function trendDirection(v: number): TrendDirection {
  *  both SVG ``fill`` and CSS ``color`` without depending on the configured Tailwind palette. */
 export function trendColor(v: number): string {
   const d = trendDirection(v)
-  return d === 'up' ? '#22c55e' : d === 'down' ? '#ef4444' : '#f59e0b'
+  // Cooling uses red-400 (#f87171), not red-500 — the darker red failed WCAG AA (4.49:1) as small
+  // bold text on the dark surface / over artwork scrims; the lighter red clears it (~6:1).
+  return d === 'up' ? '#22c55e' : d === 'down' ? '#f87171' : '#f59e0b'
 }
 
 /** ↑ rising / ↓ cooling / → steady — pairs with {@link trendColor}. */

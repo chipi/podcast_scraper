@@ -15,7 +15,7 @@ describe('trend direction thresholds', () => {
 describe('trendColor', () => {
   it('maps direction to green / red / amber', () => {
     expect(trendColor(2.0)).toBe('#22c55e')
-    expect(trendColor(0.5)).toBe('#ef4444')
+    expect(trendColor(0.5)).toBe('#f87171') // red-400 (AA-legible on dark; was red-500 #ef4444)
     expect(trendColor(1.0)).toBe('#f59e0b')
   })
 })
