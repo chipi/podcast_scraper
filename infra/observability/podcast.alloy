@@ -50,6 +50,18 @@ discovery.relabel "podcast" {
 loki.source.docker "podcast" {
 	host       = "unix:///var/run/docker.sock"
 	targets    = discovery.relabel.podcast.output
-	forward_to = [loki.write.logs_sink.receiver]
+	forward_to = [loki.process.podcast_denoise.receiver]
 	labels     = {app = "podcast"}
+}
+
+// Drop the uvicorn access-log NOISE for successful health/metrics polls (probes +
+// Prometheus scrapes hit these every few seconds). Matches only 2xx (`" 2`), so a FAILING
+// health check (4xx/5xx) is still kept as a signal.
+loki.process "podcast_denoise" {
+	forward_to = [loki.write.logs_sink.receiver]
+
+	stage.drop {
+		expression          = "\"(GET|HEAD) /(api/(app/)?)?(health|metrics) HTTP/1[^\"]*\" 2"
+		drop_counter_reason = "healthcheck_noise"
+	}
 }
