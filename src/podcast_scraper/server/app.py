@@ -282,6 +282,16 @@ def _install_access_logging(app: FastAPI) -> None:
     app.add_middleware(_AccessLogMiddleware)
 
 
+def _start_dev_metrics_pusher() -> None:
+    """Start the dev-only metrics push (no-op unless PODCAST_METRICS_PUSH_URL is set)."""
+    try:
+        from ..obs.dev_push import start_metrics_pusher
+
+        start_metrics_pusher()
+    except Exception:  # noqa: BLE001 — telemetry must never break the app
+        logger.debug("dev metrics pusher not started", exc_info=True)
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -413,6 +423,11 @@ def create_app(
                 "— continuing WITHOUT metrics. If the package is missing, install "
                 "via ``pip install -e '.[dev]'`` (or add it to the image)."
             )
+
+        # Dev-only: push the metrics registry straight to VictoriaMetrics when
+        # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
+        # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.
+        _start_dev_metrics_pusher()
 
     # #1163 / ADR-116: app-only public serve mode. When ``PODCAST_SERVE_APP_ONLY``
     # is set, mount ONLY health + the consumer ``/api/app/*`` plane — none of the

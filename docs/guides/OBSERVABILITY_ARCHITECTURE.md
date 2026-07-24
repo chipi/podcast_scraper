@@ -110,6 +110,31 @@ Because the app emits only open formats, a fork changes **config, not code**:
 - **No backend at all:** events still land in stdout + the corpus JSONL files; the
   `emit_event` file sink works with no agent attached.
 
+## Dev — in-app push, no daemon (`environment=dev`)
+
+Prod ships via the node **Alloy** collector (it reads the Docker socket and tails
+containers). A developer running a server or CLI from a checked-out worktree has no
+container for Alloy to tail — so **dev pushes every signal from the process itself**,
+and needs nothing installed or kept running:
+
+- **Errors / LLM / traces** already self-push via their SDKs (Sentry / Langfuse / OTLP).
+- **Logs / metrics** push direct too, gated on two env vars (VictoriaLogs `jsonline`
+  and VictoriaMetrics `import/prometheus` both accept a plain POST):
+  `src/podcast_scraper/obs/dev_push.py`. `emit_event` also POSTs each event;
+  the api pushes its Prometheus registry on a timer.
+
+**This is inert in the packaged image.** `dev_push` is a true no-op unless
+`PODCAST_LOGS_PUSH_URL` / `PODCAST_METRICS_PUSH_URL` are set — the Docker/prod deploy
+leaves them unset, so Alloy remains the one shipper there (consistent with ADR-119's
+"shipping is pluggable": dev just plugs in a different, daemon-less shipper).
+
+**Setup:** `cp .env.obs.dev.example .env.obs.dev`, fill the homelab keys/URLs (gitignored),
+then `make serve` (auto-loads it) or, for a raw CLI run,
+`set -a; source .env.obs.dev; set +a`. Every signal is tagged
+`environment=dev, instance=<worktree>-<port>`, so **N servers on N ports across N
+worktrees never collide** — each is a distinct `instance` in Grafana. Kill the process,
+the stream stops.
+
 ## Component taxonomy — the universal `component` tag
 
 Every signal carries a **`component`** value (Sentry tag = metric `job` = log label

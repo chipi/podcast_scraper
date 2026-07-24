@@ -108,6 +108,16 @@ def emit_event(
         record.update(_trace_context())  # trace↔event correlation (no-op without a span)
         line = json.dumps(record, default=str, ensure_ascii=False)
 
+        # Dev-only: also push straight to VictoriaLogs when PODCAST_LOGS_PUSH_URL is set
+        # (true no-op otherwise; the packaged image leaves it unset and Alloy ships logs).
+        # Lazy import keeps the emit side vendor-neutral at module load (ADR-119).
+        try:
+            from .dev_push import push_event as _dev_push_event
+
+            _dev_push_event(record)
+        except Exception:  # noqa: BLE001 — telemetry must never break the caller
+            pass
+
         if sink == "file":
             out = Path(path) if path is not None else _corpus_path(corpus_dir, event_type)
             out.parent.mkdir(parents=True, exist_ok=True)

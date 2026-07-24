@@ -224,6 +224,9 @@ data/query_router.joblib
 .env.local
 .env.autoresearch
 .env.*.local
+# Dev observability secrets (GlitchTip DSN + Langfuse keys pointing at the homelab).
+# Template committed as .env.obs.dev.example; the real keys stay local-only.
+.env.obs.dev
 
 # Local ML model cache - ignore all contents except README.md
 .cache/*
