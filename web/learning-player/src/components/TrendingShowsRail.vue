@@ -1,18 +1,20 @@
 <script setup lang="ts">
 /**
- * Trending shows (RFC-103 §show) — a stack of full-width artwork "slices". The top few shows each
- * become a short horizontal band cut from the show's cover art, with a legibility scrim, the show
- * name set large over it, and its weekly-cadence sparkline blended on top in the trend colour
- * (rising green / cooling red). A collage of cover slices — colourful + graphic in a short space.
+ * Trending shows (RFC-103 §show) — a stack of full-width artwork "slices", composed as LAYERS:
+ *   1. background: a horizontal band cut from the show's cover art,
+ *   2. a legibility scrim,
+ *   3. the cadence sparkline drawn as a full-width glowing "horizon" (gradient area + soft glow)
+ *      woven across the whole slice in the trend colour — a graphic layer, not a chart in a column,
+ *   4. the show name spanning the whole width on top (truncates only at the edge),
+ *   5. a small velocity chip tucked in the corner.
  *
- * Cover art is joined from the already-loaded podcasts list by feed_id (trending show entity_id ==
- * feed_id), so no extra fetch / back-end change. Each band links to the show page.
+ * Cover art joins from the loaded podcasts list by feed_id (trending show entity_id == feed_id) —
+ * no back-end change. Each band links to the show page.
  */
 import { computed, ref } from 'vue'
 import { getTrending } from '../services/api'
 import type { Podcast, TrendingEntity } from '../services/types'
 import { showArtwork } from '../utils/episode'
-import Sparkline from './Sparkline.vue'
 import { trendArrow, trendColor, trendDirection } from './trending'
 
 const props = withDefaults(
@@ -27,7 +29,6 @@ void getTrending('show', props.scope, 12)
 const shown = computed(() => items.value.slice(0, props.top))
 const hasAny = computed(() => shown.value.length > 0)
 
-// feed_id → artwork url (trending show entity_id == feed_id).
 const artById = computed<Record<string, string | null>>(() => {
   const out: Record<string, string | null> = {}
   for (const p of props.podcasts) out[p.feed_id] = showArtwork(p)
@@ -36,14 +37,13 @@ const artById = computed<Record<string, string | null>>(() => {
 function artFor(id: string): string | null {
   return artById.value[id] ?? null
 }
-// A different horizontal band of each cover, so stacked slices don't all show the same region.
+// A different horizontal band of each cover per row, so stacked slices vary.
 function slicePos(i: number): string {
   return `50% ${20 + i * 15}%`
 }
-// Fallback gradient hue when a show has no artwork — keep the collage colourful.
 function fallbackBg(i: number): string {
   const h = (i * 61) % 360
-  return `linear-gradient(120deg, hsl(${h},60%,32%), hsl(${(h + 40) % 360},60%,20%))`
+  return `linear-gradient(120deg, hsl(${h},60%,32%), hsl(${(h + 40) % 360},60%,18%))`
 }
 function vFmt(v: number): number {
   return Math.round(v * 10) / 10
@@ -52,6 +52,22 @@ function titleOf(e: TrendingEntity): string {
   const dir = trendDirection(e.velocity)
   const word = dir === 'up' ? 'rising' : dir === 'down' ? 'cooling' : 'steady'
   return `${e.label} — ${vFmt(e.velocity)}× (${word})`
+}
+
+// Full-width sparkline "horizon": the line lives in the lower band of the slice; the area fills
+// beneath it. Drawn in a 100×100 viewBox stretched across the slice (preserveAspectRatio none).
+function spark(series: number[]): { line: string; area: string } {
+  const vals = series.length ? series : [0]
+  const max = Math.max(1, ...vals)
+  const n = vals.length
+  const pts = vals.map((v, i) => {
+    const x = n > 1 ? (i / (n - 1)) * 100 : 50
+    // Lower ~45% of the slice: peak value → y=52, trough → y=96.
+    const y = 52 + (1 - v / max) * 44
+    return [x, y] as const
+  })
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
+  return { line, area: `${line} L100,100 L0,100 Z` }
 }
 </script>
 
@@ -63,11 +79,11 @@ function titleOf(e: TrendingEntity): string {
         v-for="(e, i) in shown"
         :key="e.entity_id"
         :to="{ name: 'podcast', params: { feedId: e.entity_id } }"
-        class="group relative flex h-[4.25rem] items-center overflow-hidden no-underline [&:not(:first-child)]:border-t [&:not(:first-child)]:border-black/40"
+        class="group relative block h-[4.5rem] overflow-hidden no-underline [&:not(:first-child)]:border-t [&:not(:first-child)]:border-black/40"
         :title="titleOf(e)"
         data-testid="trending-show-card"
       >
-        <!-- Artwork slice (a horizontal band of the cover), or a colourful fallback gradient. -->
+        <!-- 1. Art slice (or colourful fallback). -->
         <img
           v-if="artFor(e.entity_id)"
           :src="artFor(e.entity_id)!"
@@ -76,28 +92,48 @@ function titleOf(e: TrendingEntity): string {
           :style="{ objectPosition: slicePos(i) }"
         />
         <div v-else class="absolute inset-0" :style="{ background: fallbackBg(i) }" />
-        <!-- Left-weighted scrim so the name stays legible over any art. -->
-        <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/25" />
-
-        <div class="relative flex w-full items-center gap-3 px-4">
-          <span class="w-4 shrink-0 text-sm font-bold tabular-nums text-white/60">{{ i + 1 }}</span>
+        <!-- 2. Scrim: dark on the left (name), fading right; plus a floor darken. -->
+        <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/35" />
+        <!-- 3. Sparkline HORIZON layer — gradient area + glowing line, full width. -->
+        <svg
+          class="absolute inset-0 h-full w-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          :style="{ color: trendColor(e.velocity), filter: `drop-shadow(0 0 3px ${trendColor(e.velocity)})` }"
+        >
+          <defs>
+            <linearGradient :id="`sg-${e.entity_id}`" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="currentColor" stop-opacity="0.5" />
+              <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <path :d="spark(e.series).area" :fill="`url(#sg-${e.entity_id})`" />
+          <path
+            :d="spark(e.series).line"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-opacity="0.95"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+            vector-effect="non-scaling-stroke"
+          />
+        </svg>
+        <!-- 4. Name across the whole slice (truncates only at the edge). -->
+        <div class="relative flex h-full items-center gap-2.5 px-4">
+          <span class="shrink-0 text-sm font-bold tabular-nums text-white/55">{{ i + 1 }}</span>
           <span
-            class="min-w-0 flex-1 truncate font-display text-lg font-extrabold tracking-tight text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.7)]"
+            class="min-w-0 flex-1 truncate pr-12 font-display text-lg font-extrabold tracking-tight text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.85)]"
             >{{ e.label }}</span
           >
-          <Sparkline
-            :values="e.series"
-            :width="72"
-            :height="28"
-            class="shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
-            :style="{ color: trendColor(e.velocity) }"
-          />
-          <span
-            class="shrink-0 rounded-full bg-black/55 px-2 py-0.5 text-xs font-bold tabular-nums backdrop-blur"
-            :style="{ color: trendColor(e.velocity) }"
-            >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
-          >
         </div>
+        <!-- 5. Velocity chip, tucked top-right. -->
+        <span
+          class="absolute right-3 top-2 rounded-full bg-black/50 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums backdrop-blur"
+          :style="{ color: trendColor(e.velocity) }"
+          >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
+        >
       </RouterLink>
     </div>
   </section>
