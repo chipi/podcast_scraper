@@ -299,3 +299,40 @@ def test_doc_type_by_month_returns_empty_for_absent_dir(tmp_path):
 def test_doc_type_by_month_accepts_str_path(lance_dir_dated):
     out = read_lance_doc_type_by_month(str(lance_dir_dated))
     assert out["2026-02"] == {"transcript": 1}
+
+
+def test_stats_cached_per_dir_and_invalidate_on_mtime(lance_dir, monkeypatch):
+    """read_lance_index_stats does a full per-tier scan (~100ms+); cache it per
+    lance dir, stamped with mtime, so /api/index/stats doesn't re-scan on every
+    page load. Cache hit avoids reopening the backend; explicit clear and an
+    mtime bump (reindex) force a recompute (perf-traces FU1 / #1276)."""
+    import os as _os
+
+    from podcast_scraper.search.lance_index_stats import clear_index_stats_cache
+
+    clear_index_stats_cache()
+    opens = {"n": 0}
+    real_backend = LanceDBBackend
+
+    def _counting(*a, **k):
+        opens["n"] += 1
+        return real_backend(*a, **k)
+
+    monkeypatch.setattr(lis, "LanceDBBackend", _counting)
+
+    s1 = read_lance_index_stats(lance_dir)
+    assert s1 is not None and s1.total_vectors == 3
+    assert opens["n"] == 1  # computed once
+
+    s2 = read_lance_index_stats(lance_dir)
+    assert s2 is not None and s2.total_vectors == 3
+    assert opens["n"] == 1  # cache HIT — backend not reopened
+
+    clear_index_stats_cache()
+    read_lance_index_stats(lance_dir)
+    assert opens["n"] == 2  # explicit clear → recompute
+
+    future = _os.path.getmtime(lance_dir) + 100
+    _os.utime(lance_dir, (future, future))
+    read_lance_index_stats(lance_dir)
+    assert opens["n"] == 3  # mtime changed (reindex) → recompute

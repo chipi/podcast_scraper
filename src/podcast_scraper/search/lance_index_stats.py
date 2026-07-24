@@ -8,15 +8,38 @@ Aggregates row counts, doc-type breakdown, and indexed feeds from the two-tier L
 from __future__ import annotations
 
 import os
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .backends.lancedb_backend import LanceDBBackend
 
 # segment/insight rows have an implicit doc_type (the tier); aux rows carry their own.
 _TIER_DEFAULT_DOC_TYPE = {"segment": "transcript", "insight": "insight"}
+
+# In-process cache: reading stats does a FULL per-tier row scan (count_rows +
+# doc_type/feed aggregation) — ~100ms+ on a 99-episode index — and the result
+# only changes on reindex. Cache per lance dir, stamped with its mtime (the same
+# reindex signal search.index_pool / the digest cache use), so /api/index/stats
+# doesn't re-scan (and block the event loop) on every page load. Self-invalidates
+# on reindex (mtime bump).
+_STATS_CACHE_LOCK = threading.Lock()
+_STATS_CACHE: Dict[str, Tuple[float, "LanceIndexStats"]] = {}
+
+
+def _stats_freshness_token(p: Path) -> float:
+    try:
+        return os.path.getmtime(p)
+    except OSError:
+        return -1.0
+
+
+def clear_index_stats_cache() -> None:
+    """Drop the in-process index-stats cache (tests / explicit reindex hooks)."""
+    with _STATS_CACHE_LOCK:
+        _STATS_CACHE.clear()
 
 
 @dataclass
@@ -49,6 +72,12 @@ def read_lance_index_stats(lance_dir: Path | str) -> Optional[LanceIndexStats]:
     p = Path(lance_dir)
     if not p.is_dir():
         return None
+    key = str(p.resolve())
+    token = _stats_freshness_token(p)
+    with _STATS_CACHE_LOCK:
+        cached = _STATS_CACHE.get(key)
+    if cached is not None and cached[0] == token:
+        return cached[1]
     try:
         be = LanceDBBackend(str(p))
     except Exception:
@@ -86,6 +115,8 @@ def read_lance_index_stats(lance_dir: Path | str) -> Optional[LanceIndexStats]:
     except OSError:
         pass
     st.index_size_bytes = _dir_size(p)
+    with _STATS_CACHE_LOCK:
+        _STATS_CACHE[key] = (token, st)
     return st
 
 

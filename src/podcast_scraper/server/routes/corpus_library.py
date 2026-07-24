@@ -229,7 +229,7 @@ async def corpus_node_episodes(
 
 
 @router.get("/corpus/feeds", response_model=CorpusFeedsResponse)
-async def corpus_feeds(
+def corpus_feeds(
     request: Request,
     path: str | None = Query(
         default=None,
@@ -237,6 +237,12 @@ async def corpus_feeds(
     ),
 ) -> CorpusFeedsResponse:
     """List feeds and per-feed episode counts for the corpus library API.
+
+    Sync ``def`` (not ``async``) on purpose: the body is CPU/file work
+    (``build_catalog_rows_cumulative`` over the corpus) with no awaits, so
+    FastAPI runs it in its threadpool — it must NOT block the single-worker
+    event loop during the page-load burst, or it head-of-line-blocks the first
+    /api/search (perf-traces 2026-07-24; #1276).
 
     v2.6.1 #820: per-feed ``episode_count`` is cumulative-unique across all
     runs (was last-run-only). Dashboard "Total Episodes per Feed" widget
