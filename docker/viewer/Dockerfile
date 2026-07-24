@@ -29,15 +29,17 @@ ENV VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}
 ARG VITE_PODCAST_RELEASE
 ENV VITE_PODCAST_RELEASE=${VITE_PODCAST_RELEASE}
 
-# PostHog Cloud (optional). Same pattern as Sentry: unset build-args yield a no-op
-# bundle — ``main.ts`` only calls ``posthog.init`` when ``VITE_POSTHOG_PROJECT_TOKEN``
-# is non-empty.
-#   docker buildx build --build-arg VITE_POSTHOG_PROJECT_TOKEN=phc_... \
-#     --build-arg VITE_POSTHOG_HOST=https://eu.i.posthog.com ...
-ARG VITE_POSTHOG_PROJECT_TOKEN
-ENV VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}
-ARG VITE_POSTHOG_HOST
-ENV VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}
+# Umami analytics (optional; replaced PostHog Cloud 2026-07-24). Same pattern as
+# Sentry: unset build-args yield a no-op bundle — ``src/lib/analytics.ts`` only
+# injects the tracking script when both are non-empty. ``VITE_UMAMI_SRC`` is the
+# FULL tracking-script URL; it must be HTTPS in production (the viewer is served
+# over TLS, so an http:// script is mixed-content-blocked).
+#   docker buildx build --build-arg VITE_UMAMI_SRC=https://analytics.<domain>/script.js \
+#     --build-arg VITE_UMAMI_WEBSITE_ID=<uuid> ...
+ARG VITE_UMAMI_SRC
+ENV VITE_UMAMI_SRC=${VITE_UMAMI_SRC}
+ARG VITE_UMAMI_WEBSITE_ID
+ENV VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}
 
 # E2E hooks (Playwright stack-test). Opt-in: build with
 # ``--build-arg VITE_E2E_HOOKS=true`` to keep the ``window.__GIKG_SUBJECT__``

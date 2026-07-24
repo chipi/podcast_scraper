@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from podcast_scraper.utils.sentry_init import init_sentry, set_run_tag
+from podcast_scraper.utils.sentry_init import _DEV_DSN, init_sentry, set_run_tag
 
 
 @pytest.mark.unit
@@ -153,6 +153,67 @@ class TestInitSentryInitPath(unittest.TestCase):
         self.assertTrue(init_sentry("api"))
         kwargs = self._mock_sentry_sdk.init.call_args.kwargs
         self.assertEqual(kwargs["environment"], "dev")
+
+
+@pytest.mark.unit
+class TestInitSentryDevDefault(unittest.TestCase):
+    """Dev rung of the env ladder: with no DSN set, GENUINE local dev falls back
+    to the ``operator-dev`` homelab DSN — but NEVER under pytest, CI, or prod.
+    The suppression markers (``PYTEST_CURRENT_TEST`` / ``CI``) are popped here to
+    simulate a laptop; every other test keeps them set, so the unset-DSN no-op
+    contract (TestInitSentryNoOp) is unaffected."""
+
+    def setUp(self) -> None:
+        self._prior_env = {
+            k: os.environ.get(k)
+            for k in (
+                "PODCAST_SENTRY_DSN_API",
+                "PODCAST_SENTRY_DSN_PIPELINE",
+                "PODCAST_ENV",
+                "PODCAST_RELEASE",
+                "PYTEST_CURRENT_TEST",
+                "CI",
+            )
+        }
+        for k in self._prior_env:
+            os.environ.pop(k, None)
+        self._mock_sentry_sdk = MagicMock()
+        self._mock_sentry_sdk.init = Mock()
+        self._mock_sentry_sdk.set_tag = Mock()
+        self._patch_sentry = patch.dict(sys.modules, {"sentry_sdk": self._mock_sentry_sdk})
+        self._patch_sentry.start()
+
+    def tearDown(self) -> None:
+        self._patch_sentry.stop()
+        for k, v in self._prior_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def test_local_dev_no_dsn_uses_operator_dev_default(self) -> None:
+        os.environ["PODCAST_ENV"] = "dev"
+        self.assertTrue(init_sentry("api"))
+        kwargs = self._mock_sentry_sdk.init.call_args.kwargs
+        self.assertEqual(kwargs["dsn"], _DEV_DSN)
+        self.assertEqual(kwargs["environment"], "dev")
+
+    def test_ci_marker_suppresses_dev_default(self) -> None:
+        os.environ["PODCAST_ENV"] = "dev"
+        os.environ["CI"] = "true"
+        self.assertFalse(init_sentry("api"))
+        self._mock_sentry_sdk.init.assert_not_called()
+
+    def test_pytest_marker_suppresses_dev_default(self) -> None:
+        os.environ["PODCAST_ENV"] = "dev"
+        os.environ["PYTEST_CURRENT_TEST"] = "something::test"
+        self.assertFalse(init_sentry("api"))
+        self._mock_sentry_sdk.init.assert_not_called()
+
+    def test_prod_env_no_dsn_stays_silent(self) -> None:
+        os.environ["PODCAST_ENV"] = "production"
+        self.assertFalse(init_sentry("api"))
+        self._mock_sentry_sdk.init.assert_not_called()
 
 
 @pytest.mark.unit

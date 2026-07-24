@@ -48,9 +48,10 @@ export default defineConfig({
        teardown is more permissive when a store transitively leaks
        another handle than threads. */
     pool: 'forks',
-    // Ensure Vitest never initializes PostHog (no token); avoids flaky network side effects.
+    // Hard-disable analytics under Vitest so the dev-default Umami never injects
+    // / emits (avoids flaky network side effects). See src/lib/analytics.ts.
     env: {
-      VITE_POSTHOG_PROJECT_TOKEN: '',
+      VITE_ANALYTICS_OFF: '1',
     },
     // UI test-coverage track (#914): a parallel gate to the Python coverage gate.
     // Thresholds are a ratchetable floor set a few points below the current

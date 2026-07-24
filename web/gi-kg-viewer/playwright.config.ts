@@ -50,8 +50,9 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_DEFAULT_GRAPH_LENS_DAYS: '0',
-      // Dev server used by E2E must not ship PostHog keys from the operator's shell/.env.local.
-      VITE_POSTHOG_PROJECT_TOKEN: '',
+      // E2E dev server must emit no analytics: hard-disable the dev-default Umami
+      // (it would otherwise inject the tracking script in `vite dev`).
+      VITE_ANALYTICS_OFF: '1',
     },
     /** Reuse a dev server on 5174 when present so local runs do not fail if `CI=true`. */
     reuseExistingServer: true,

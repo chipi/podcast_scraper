@@ -1,32 +1,12 @@
-import { createPinia } from 'pinia'
-import * as Sentry from '@sentry/vue'
-import { createApp } from 'vue'
-import posthog from 'posthog-js'
-import './style.css'
-import App from './App.vue'
-import { applyPreset } from './theme/theme'
+import { createPinia } from "pinia"
+import * as Sentry from "@sentry/vue"
+import { createApp } from "vue"
+import "./style.css"
+import App from "./App.vue"
+import { applyPreset } from "./theme/theme"
+import { initAnalytics } from "./lib/analytics"
 
 applyPreset()
-
-/** Non-empty => PostHog Cloud ingestion enabled (public project token only). */
-const POSTHOG_TOKEN = (
-  import.meta.env.VITE_POSTHOG_PROJECT_TOKEN as string | undefined
-)?.trim()
-const POSTHOG_HOST =
-  (import.meta.env.VITE_POSTHOG_HOST as string | undefined)?.trim() ||
-  'https://eu.i.posthog.com'
-
-if (POSTHOG_TOKEN) {
-  posthog.init(POSTHOG_TOKEN, {
-    api_host: POSTHOG_HOST,
-    // Align SDK defaults with current PostHog baseline (performance / surveys posture).
-    defaults: '2026-01-30',
-    // Custom events only — keeps Cloud free tier sane for this SPA (tab churn otherwise spams events).
-    autocapture: false,
-    capture_pageview: false,
-    disable_session_recording: true,
-  })
-}
 
 const app = createApp(App)
 
@@ -48,7 +28,21 @@ const app = createApp(App)
 // in ``src/podcast_scraper/utils/sentry_init.py`` so api / pipeline /
 // viewer all stream into separate Sentry projects with
 // ``component=`` tags on each event.
-const SENTRY_DSN_VIEWER = import.meta.env.VITE_SENTRY_DSN_VIEWER as string | undefined
+//
+// Dev rung of the env ladder (dev → prod; the operator has no staging). In
+// ``vite dev``, with no build-injected DSN, errors go to the dedicated
+// ``operator-dev`` GlitchTip project via the Tailscale host ``homelab`` — NO
+// fixed IP, so only a device on the tailnet resolves it; a stranger who runs
+// the repo reports nothing (the transport silently fails). The key is a public
+// browser id (ships in the bundle) — safe to commit. ``VITE_ANALYTICS_OFF=1``
+// (set by the vitest + playwright configs) suppresses the dev default in tests.
+const DEV_SENTRY_DSN_VIEWER = "http://53a88592c99e48bc8d505d258597ab78@homelab:8090/9"
+const devSentryDefault =
+  import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== "1"
+    ? DEV_SENTRY_DSN_VIEWER
+    : undefined
+const SENTRY_DSN_VIEWER =
+  (import.meta.env.VITE_SENTRY_DSN_VIEWER as string | undefined) || devSentryDefault
 if (SENTRY_DSN_VIEWER) {
   const w = window as Window & {
     __PODCAST_ENV__?: string
@@ -57,7 +51,7 @@ if (SENTRY_DSN_VIEWER) {
   Sentry.init({
     app,
     dsn: SENTRY_DSN_VIEWER,
-    environment: w.__PODCAST_ENV__ || 'dev',
+    environment: w.__PODCAST_ENV__ || (import.meta.env.DEV ? "dev" : "prod"),
     release: w.__PODCAST_RELEASE__ || (import.meta.env.VITE_PODCAST_RELEASE as string) || undefined,
     // Keep PII off by default.
     sendDefaultPii: false,
@@ -67,7 +61,7 @@ if (SENTRY_DSN_VIEWER) {
     // Tag every event so the api / pipeline / viewer streams stay
     // separable in the Sentry UI.
     initialScope: {
-      tags: { component: 'viewer' },
+      tags: { component: "viewer" },
     },
   })
 }
@@ -81,18 +75,15 @@ app.use(createPinia())
 // Fire-and-forget: mount doesn't wait on the hydrate to avoid delaying first
 // paint; consuming stores react when the promise resolves.
 void (async () => {
-  const { useUserPreferencesStore } = await import('./stores/userPreferences')
+  const { useUserPreferencesStore } = await import("./stores/userPreferences")
   await useUserPreferencesStore().hydrate()
 })()
 
-const vueErrorHandler = app.config.errorHandler
-app.config.errorHandler = (err, instance, info) => {
-  if (POSTHOG_TOKEN) {
-    posthog.captureException(err)
-  }
-  if (typeof vueErrorHandler === 'function') {
-    vueErrorHandler(err, instance, info)
-  }
-}
+// Umami analytics — cookieless page + custom-event tracking (replaces PostHog
+// Cloud, 2026-07-24). Injects the tracking script once when enabled; a no-op
+// for fork / non-dev builds with no env. Vue errors are captured by the
+// @sentry/vue integration installed by Sentry.init({ app }) above, so no
+// custom errorHandler wrapper is needed anymore.
+initAnalytics()
 
-app.mount('#app')
+app.mount("#app")

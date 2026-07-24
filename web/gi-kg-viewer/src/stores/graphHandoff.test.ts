@@ -2,32 +2,28 @@
 /**
  * T5 — Telemetry firing unit test for the graph handoff store.
  *
- * Asserts each FSM event fires the matching PostHog `graph_handoff_*` event
- * with the expected payload. If a future PR drops a `posthog.capture(...)`
+ * Asserts each FSM event fires the matching `graph_handoff_*` analytics event
+ * with the expected payload. If a future PR drops a `track(...)`
  * call from the store, that event's test goes red — telemetry breakage is
  * caught at PR time rather than weeks later when dashboards go quiet.
  *
- * Pattern: `vi.mock('posthog-js')` to spy on the default export's `capture`
+ * Pattern: `vi.mock('../lib/analytics')` to spy on the exported `track`
  * method, then drive the store via its public API.
  */
 
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('posthog-js', () => ({
-  default: {
-    capture: vi.fn(),
-  },
-}))
+vi.mock('../lib/analytics', () => ({ track: vi.fn() }))
 
-// posthog-js needs to be imported AFTER the vi.mock declaration (Vitest
+// track is imported AFTER the vi.mock declaration (Vitest
 // hoists `vi.mock` to the top of the module so this works either way; the
 // import below resolves to the mocked module).
-import posthog from 'posthog-js'
+import { track } from '../lib/analytics'
 import type { EnvelopeInput } from '../services/graphHandoffFsm'
 import { useGraphHandoffStore } from './graphHandoff'
 
-const captureSpy = vi.mocked(posthog.capture)
+const captureSpy = vi.mocked(track)
 
 function envelope(over: Partial<EnvelopeInput> = {}): EnvelopeInput {
   return {

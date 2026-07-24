@@ -3,9 +3,9 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Telemetry: the shell store fires posthog.capture on corpus-path change. Mock
+// Telemetry: the shell store fires analytics track() on corpus-path change. Mock
 // the SDK so v-model edits don't reach the network.
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
+vi.mock('../../lib/analytics', () => ({ track: vi.fn() }))
 
 // ── API mocks ────────────────────────────────────────────────────────────────
 // The Configuration dialog loads feeds / operator-config over HTTP. Mock those
