@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,6 +59,39 @@ _MAX_ROWS_COMPACT_ABS = 8
 _PER_FEED_FULL = 3
 _PER_FEED_COMPACT = 2
 _MAX_HITS_PER_TOPIC = 8
+
+# --- in-process digest topic-band cache --------------------------------------
+# The topic bands are the expensive part of the digest — one hybrid LanceDB
+# search per configured topic (~200 ms each; ~520 ms wall-clock for the current
+# 3 bands). They only change when the index changes, so cache them per process
+# keyed on (corpus, window, since-day, band-config) and stamp with the lance
+# index dir mtime — the SAME freshness signal ``search.index_pool`` uses. A
+# reindex bumps that mtime, so this cache self-invalidates on the next request,
+# exactly as the pooled backend does; no explicit bust needed. Rows are cheap
+# and recomputed every call, so they never go stale between ingest and reindex.
+_TOPICS_CACHE_LOCK = threading.Lock()
+# key -> (freshness_token, topic bands)
+_TOPICS_CACHE: dict[tuple[Any, ...], tuple[float, list[Any]]] = {}
+
+
+def _lance_freshness_token(lance_dir: Path) -> float:
+    """Index-dir mtime — the shared reindex signal (mirrors index_pool)."""
+    try:
+        return os.path.getmtime(lance_dir)
+    except OSError:
+        return -1.0
+
+
+def clear_digest_topics_cache() -> None:
+    """Drop the in-process digest topic-band cache.
+
+    For tests and any future explicit invalidation hook (an "ingest / reindex /
+    enrich → invalidate" central point). The cache also self-invalidates via the
+    lance mtime token, so this is belt-and-suspenders, not the primary path —
+    mirrors ``search.index_pool.clear``.
+    """
+    with _TOPICS_CACHE_LOCK:
+        _TOPICS_CACHE.clear()
 
 
 def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path:
@@ -278,27 +313,40 @@ async def corpus_digest(
         has_index = lance_dir.is_dir() and any(lance_dir.iterdir())
         if not has_index:
             topics_reason = "no_index"
-        else:
-            # ADR-099 Stage 2 (#995): the topic-band searches are independent reads on the
-            # shared (pooled, warm) index — run them concurrently instead of one after another.
-            # With the per-query cost now ~0.2s, sequential bands made the digest ~Nx0.2s; in
-            # parallel the wall-clock is ~one band. LanceDB reads are concurrent-safe.
-            def _band(t: dict) -> CorpusDigestTopicBand | None:
-                return _topic_band_for_query(
-                    root,
-                    t["id"],
-                    t["label"],
-                    t["query"],
-                    start=start,
-                    end=end,
-                    since=since_s,
-                    scope=scope,
-                    feed_titles_by_feed_id=titles_by_feed,
-                    feed_rss_urls_by_feed_id=rss_by_feed,
-                    feed_descriptions_by_feed_id=desc_by_feed,
-                )
+        elif topics_cfg:
+            # Cache the expensive bands per (corpus, window, since-day, band-config),
+            # stamped with the lance mtime — self-invalidates on reindex (#1276).
+            cache_key = (
+                str(root.resolve()),
+                eff_window,
+                since_s or "",
+                tuple((t["id"], t["query"]) for t in topics_cfg),
+            )
+            token = _lance_freshness_token(lance_dir)
+            with _TOPICS_CACHE_LOCK:
+                cached = _TOPICS_CACHE.get(cache_key)
+            if cached is not None and cached[0] == token:
+                topics = list(cached[1])
+            else:
+                # ADR-099 Stage 2 (#995): the topic-band searches are independent reads on the
+                # shared (pooled, warm) index — run them concurrently instead of one after another.
+                # With the per-query cost now ~0.2s, sequential bands made the digest ~Nx0.2s; in
+                # parallel the wall-clock is ~one band. LanceDB reads are concurrent-safe.
+                def _band(t: dict) -> CorpusDigestTopicBand | None:
+                    return _topic_band_for_query(
+                        root,
+                        t["id"],
+                        t["label"],
+                        t["query"],
+                        start=start,
+                        end=end,
+                        since=since_s,
+                        scope=scope,
+                        feed_titles_by_feed_id=titles_by_feed,
+                        feed_rss_urls_by_feed_id=rss_by_feed,
+                        feed_descriptions_by_feed_id=desc_by_feed,
+                    )
 
-            if topics_cfg:
                 # #1205: warm the native search stack (query-embedding model + LanceDB) with ONE
                 # serial query before fanning out. Concurrent first-touch of the native layers is
                 # the fragile moment; one inline query initialises them before the parallel bands
@@ -309,6 +357,8 @@ async def corpus_digest(
                 if rest:
                     with ThreadPoolExecutor(max_workers=min(len(rest), 8)) as ex:
                         topics += [band for band in ex.map(_band, rest) if band is not None]
+                with _TOPICS_CACHE_LOCK:
+                    _TOPICS_CACHE[cache_key] = (token, list(topics))
 
     return CorpusDigestResponse(
         path=str(root),
