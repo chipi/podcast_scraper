@@ -1424,6 +1424,20 @@ class TestPipelineStage(unittest.TestCase):
         cfg = Config(rss="https://example.com/feed.xml", pipeline_stage="relabel_only")
         self.assertEqual(cfg.pipeline_stage, "relabel_only")
 
+    def test_rediarize_only_forces_audio_and_diarize(self) -> None:
+        # v2.2: needs the audio (transcribe_missing True so the episode reaches the transcribe
+        # stage where rediarize intercepts) and diarize on (re-diarization IS the point).
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            pipeline_stage="rediarize_only",
+            transcribe_missing=False,  # coercion forces back to True
+            diarize=False,  # coercion forces back to True
+        )
+        self.assertEqual(cfg.pipeline_stage, "rediarize_only")
+        self.assertTrue(cfg.transcribe_missing)
+        self.assertTrue(cfg.diarize)
+
 
 if __name__ == "__main__":
     unittest.main()

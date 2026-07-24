@@ -1686,6 +1686,121 @@ def _relabel_existing_transcript(
     return True, rel_path, 0
 
 
+def _rediarize_existing_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> tuple[bool, Optional[str], int]:
+    """pipeline_stage=rediarize_only (v2.2): re-diarize the downloaded audio with the profile's
+    diarizer (DGX pyannote) and align the FRESH voices to the existing on-disk ASR transcript —
+    reusing its text + timestamps, so NO re-ASR — then re-resolve names, re-render the screenplay,
+    and overwrite in place. GI/KG cascade. The decoupled sibling of ``relabel_only``: same
+    read/render/save machinery, but the diarization is regenerated from audio rather than frozen.
+    """
+    import json as _json
+
+    from ..providers.ml.diarization.pipeline import apply_diarization_to_result
+
+    audio_path = job.temp_media
+    if not audio_path or not os.path.exists(audio_path):
+        logger.warning("[%s] rediarize_only: no downloaded audio; cannot re-diarize", job.idx)
+        return False, None, 0
+
+    # Locate the existing transcript (same discovery as relabel): unique idx prefix, feed root.
+    run_dir = Path(effective_output_dir)
+    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
+    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
+    matches = [
+        p
+        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
+        if ".adfree." not in p.name
+        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
+    ]
+    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    if not matches:
+        logger.warning(
+            "[%s] rediarize_only: no on-disk transcript to align under %s (idx prefix %r)",
+            job.idx,
+            search_root,
+            idx_prefix,
+        )
+        return False, None, 0
+    txt_path = matches[0]
+    seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
+
+    text = txt_path.read_text(encoding="utf-8")
+    segs = _json.loads(seg_path.read_text(encoding="utf-8"))
+    # Reuse the existing ASR text + per-segment timestamps; the fresh diarization aligns to THESE.
+    result: dict = {
+        "text": text,
+        "segments": [
+            {"start": s.get("start"), "end": s.get("end"), "text": s.get("text", "")}
+            for s in segs
+            if isinstance(s, dict)
+        ],
+    }
+    if not result["segments"]:
+        logger.warning("[%s] rediarize_only: transcript has no segments to align", job.idx)
+        return False, None, 0
+
+    feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    # No precomputed diarization + bypass_cache_read -> apply_diarization diarizes the AUDIO fresh
+    # with the profile's diarizer and aligns the new voices to result["segments"] (the ASR text).
+    result = apply_diarization_to_result(
+        result,
+        audio_path,
+        cfg,
+        job.detected_speaker_names,
+        metadata_named=job.metadata_named,
+        feed_hosts=feed_hosts,
+        bypass_cache_read=True,
+    )
+    new_text = _format_transcript_if_needed(
+        result, cfg, job.detected_speaker_names, transcription_provider
+    )
+    txt_path.write_text(new_text, encoding="utf-8")
+    rel_path = os.path.relpath(str(txt_path), effective_output_dir)
+    new_segs = result.get("segments") if isinstance(result, dict) else None
+    if isinstance(new_segs, list) and new_segs:
+        _save_transcript_segments_file(new_segs, rel_path, effective_output_dir)
+        _save_speaker_diagnostics_file(
+            result.get("speaker_diagnostics") if isinstance(result, dict) else None,
+            rel_path,
+            effective_output_dir,
+        )
+        _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+    logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
+    return True, rel_path, 0
+
+
+def _maybe_dispatch_reprocess_stage(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> Optional[tuple[bool, Optional[str], int]]:
+    """Intercept the transcribe stage for the reprocess modes that must NOT re-ASR.
+
+    ``relabel_only`` re-resolves names on frozen diarization; ``rediarize_only`` re-diarizes the
+    audio and aligns to the existing transcript. Returns the stage result, or ``None`` to continue
+    with normal transcription.
+    """
+    if cfg.pipeline_stage == "relabel_only":
+        return _relabel_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
+    if cfg.pipeline_stage == "rediarize_only":
+        return _rediarize_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
+    return None
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1742,10 +1857,11 @@ def transcribe_media_to_text(
     # relabel_only: re-resolve speaker NAMES on the existing on-disk transcript + frozen
     # SPEAKER_NN diarization, then re-render + re-save in place. No audio, no re-ASR, no
     # re-diarize — just the profile's resolver over the existing voices.
-    if cfg.pipeline_stage == "relabel_only":
-        return _relabel_existing_transcript(
-            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
-        )
+    _reprocess = _maybe_dispatch_reprocess_stage(
+        job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    )
+    if _reprocess is not None:
+        return _reprocess
 
     # Check if existing transcript can be reused
     reuse_result = _check_and_reuse_existing_transcript(

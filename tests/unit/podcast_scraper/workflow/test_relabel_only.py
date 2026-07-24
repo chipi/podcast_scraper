@@ -79,7 +79,7 @@ def _write_corpus(
 
 def _cfg(
     pipeline_stage: Literal[
-        "full", "audio_only", "enrich_only", "download_only", "relabel_only"
+        "full", "audio_only", "enrich_only", "download_only", "relabel_only", "rediarize_only"
     ] = "full",
 ) -> config.Config:
     return config.Config(
@@ -249,4 +249,75 @@ def test_transcribe_media_to_text_dispatches_to_relabel(tmp_path: Path, monkeypa
         None,
     )
     assert seen.get("dispatched") is True
+    assert result == sentinel
+
+
+# --- rediarize_only (v2.2): fresh diarization aligned to the existing ASR transcript ---
+
+
+def test_rediarize_reruns_diarization_and_aligns(tmp_path: Path) -> None:
+    from unittest.mock import MagicMock, patch
+
+    from podcast_scraper.providers.ml.diarization.base import (
+        DiarizationResult,
+        DiarizationSegment,
+    )
+    from podcast_scraper.workflow.episode_processor import _rediarize_existing_transcript
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    host_text = "Welcome to Hard Fork. I'm Kevin Russo. " + ("Host turn. " * 60)
+    co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
+    old_run, stem = _write_corpus(
+        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+    audio = tmp_path / "ep.mp3"
+    audio.write_bytes(b"AUDIO")  # the stage checks the downloaded audio exists
+    job = TranscriptionJob(idx=1, ep_title="Ep", ep_title_safe="Ep", temp_media=str(audio))
+
+    # fresh diarization aligned to the fixture's 0-60 / 60-120 ASR segments
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[
+            DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00"),
+            DiarizationSegment(start=60.0, end=120.0, speaker="SPEAKER_01"),
+        ],
+        num_speakers=2,
+    )
+    with patch(
+        "podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider",
+        return_value=mock_provider,
+    ):
+        ok, _rel, _ = _rediarize_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+
+    assert ok is True
+    assert mock_provider.diarize.called  # re-diarized fresh (bypassed the audio-hash cache)
+    out = (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")
+    assert "Amy Lawrence" not in out  # fresh diarization + resolution, v2's name not inherited
+    assert "Kevin Roose:" in out  # feed_hosts canonicalized the self-intro on the fresh voices
+
+
+def test_rediarize_skips_when_no_audio(tmp_path: Path) -> None:
+    from podcast_scraper.workflow.episode_processor import _rediarize_existing_transcript
+
+    job = TranscriptionJob(idx=1, ep_title="Ep", ep_title_safe="Ep", temp_media="")  # no audio
+    ok, _, _ = _rediarize_existing_transcript(job, _cfg(), "tag", str(tmp_path), None, None)
+    assert ok is False
+
+
+def test_transcribe_dispatches_to_rediarize(tmp_path: Path, monkeypatch) -> None:
+    sentinel = (True, "run/transcripts/0001 - Ep.txt", 0)
+    seen = {}
+
+    def _fake(job, cfg, run_suffix, out_dir, provider, metrics):
+        seen["hit"] = True
+        return sentinel
+
+    monkeypatch.setattr(ep_mod, "_rediarize_existing_transcript", _fake)
+    result = transcribe_media_to_text(
+        _job(), _cfg("rediarize_only"), None, "tag", str(tmp_path), None, None
+    )
+    assert seen.get("hit") is True
     assert result == sentinel

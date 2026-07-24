@@ -219,6 +219,7 @@ def apply_diarization_to_result(
     cache_dir: Optional[str] = None,
     precomputed_diarization: Optional[DiarizationResult] = None,
     feed_hosts: Optional[List[str]] = None,
+    bypass_cache_read: bool = False,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
 
@@ -240,7 +241,10 @@ def apply_diarization_to_result(
 
     resolved_cache_dir = _resolve_diarization_cache_dir(cfg, cache_dir)
     diarization = precomputed_diarization
-    if diarization is None and resolved_cache_dir:
+    # rediarize_only (v2.2) passes bypass_cache_read=True so a re-diarize is genuinely fresh even
+    # when the diarizer config is unchanged — otherwise the audio-hash cache would return the old
+    # diarization and the re-diarize would no-op. The fresh result is still cached below.
+    if diarization is None and resolved_cache_dir and not bypass_cache_read:
         cache_path = diarization_cache_path(audio_path, cfg, resolved_cache_dir)
         diarization = load_cached_diarization(cache_path)
         if diarization is not None:

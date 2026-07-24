@@ -3271,7 +3271,7 @@ class Config(BaseModel):
         ),
     )
     pipeline_stage: Literal[
-        "full", "audio_only", "enrich_only", "download_only", "relabel_only"
+        "full", "audio_only", "enrich_only", "download_only", "relabel_only", "rediarize_only"
     ] = Field(
         default="full",
         alias="pipeline_stage",
@@ -3279,9 +3279,12 @@ class Config(BaseModel):
             "Pipeline stage mode: full (default), audio_only (transcribe + media only), "
             "enrich_only (skip transcription; reuse on-disk transcripts), download_only "
             "(#947: download + cache raw audio, then stop before transcription/diarization), "
-            "or relabel_only (re-resolve speaker NAMES on the existing frozen SPEAKER_NN "
+            "relabel_only (re-resolve speaker NAMES on the existing frozen SPEAKER_NN "
             "diarization via the profile's resolver — no audio, no re-ASR, no re-diarize; "
-            "rewrites the screenplay + cascades GI/KG)."
+            "rewrites the screenplay + cascades GI/KG), or rediarize_only (v2.2: DOWNLOAD audio "
+            "and RE-DIARIZE with the profile's diarizer, aligning the fresh voices to the existing "
+            "ASR transcript — reuses the transcript text + timestamps, so no re-ASR; re-resolves "
+            "names, rewrites the screenplay + cascades GI/KG)."
         ),
     )
     audio_cache_enabled: bool = Field(
@@ -3860,7 +3863,14 @@ class Config(BaseModel):
             return data
         merged = dict(data)
         stage = merged.get("pipeline_stage", "full")
-        if stage not in ("full", "audio_only", "enrich_only", "download_only", "relabel_only"):
+        if stage not in (
+            "full",
+            "audio_only",
+            "enrich_only",
+            "download_only",
+            "relabel_only",
+            "rediarize_only",
+        ):
             return merged
         message: Optional[str] = None
         if stage in ("audio_only", "download_only"):
@@ -3903,6 +3913,17 @@ class Config(BaseModel):
             message = (
                 "pipeline_stage=relabel_only: re-resolving speaker names on the existing "
                 "diarization (no audio, no re-ASR, no re-diarize)."
+            )
+        elif stage == "rediarize_only":
+            # v2.2: DOWNLOAD audio + RE-DIARIZE with the profile's diarizer, align the fresh
+            # voices to the EXISTING ASR transcript (reuse text + timestamps, no re-ASR), then
+            # re-resolve. transcribe_missing=true so a whisper episode reaches the transcription
+            # stage where rediarize intercepts; diarize is forced on since diarization IS the point.
+            merged["transcribe_missing"] = True
+            merged["diarize"] = True
+            message = (
+                "pipeline_stage=rediarize_only: downloading audio and re-diarizing, aligned to the "
+                "existing transcript (no re-ASR); re-resolving names + cascading GI/KG."
             )
         if message is not None:
             # Compute the once-per-process gate inside the lock, but log outside it

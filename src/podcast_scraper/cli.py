@@ -1832,13 +1832,21 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--pipeline-stage",
         type=str,
-        choices=("full", "audio_only", "enrich_only", "download_only", "relabel_only"),
+        choices=(
+            "full",
+            "audio_only",
+            "enrich_only",
+            "download_only",
+            "relabel_only",
+            "rediarize_only",
+        ),
         default=None,
         help=(
             "Pipeline stage: full (default), audio_only (transcribe + media only), "
             "enrich_only (skip transcription), download_only (#947: download + cache "
-            "raw audio only, no transcription), or relabel_only (re-resolve speaker names "
-            "on the existing diarization; no audio/ASR/re-diarize)"
+            "raw audio only, no transcription), relabel_only (re-resolve speaker names "
+            "on the existing diarization; no audio/ASR/re-diarize), or rediarize_only "
+            "(v2.2: re-diarize the audio + align to the existing transcript; no re-ASR)"
         ),
     )
     parser.add_argument(
