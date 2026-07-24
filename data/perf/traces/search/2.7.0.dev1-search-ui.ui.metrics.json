@@ -1,0 +1,38 @@
+{
+  "schema_version": "1",
+  "label": "2.7.0.dev1-search-ui",
+  "captured_at": "2026-07-24T10:08:51.868Z",
+  "viewer": "http://127.0.0.1:5601",
+  "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "device_scale_factor": 2
+  },
+  "scenarios": [
+    {
+      "name": "workspace-open",
+      "tti_ms": 1012
+    },
+    {
+      "name": "filter-apply",
+      "open_ms": 37
+    },
+    {
+      "name": "results-paint",
+      "paint_ms": 4313
+    },
+    {
+      "name": "cmdk-open",
+      "open_ms": 3
+    },
+    {
+      "name": "operator-cluster",
+      "run_ms": 26
+    },
+    {
+      "name": "operator-compare",
+      "run_ms": 808
+    }
+  ]
+}

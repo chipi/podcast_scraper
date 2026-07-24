@@ -116,8 +116,10 @@ if ! curl -fsS -o /dev/null "http://127.0.0.1:${API_PORT}/api/health"; then
 fi
 
 echo "[capture-search-perf] booting viewer on :${VIEWER_PORT}"
+# The viewer proxies /api via vite.config.ts using VITE_API_TARGET (default
+# :8000). Point it at our isolated api port so the viewer sees a healthy API.
 env -u NODE_OPTIONS bash -c "cd ${VIEWER_DIR} && \
-  VITE_API_BASE=http://127.0.0.1:${API_PORT} \
+  VITE_API_TARGET=http://127.0.0.1:${API_PORT} \
   node_modules/.bin/vite --host 127.0.0.1 --port ${VIEWER_PORT} --strictPort" \
   > "${VIEWER_LOG}" 2>&1 &
 VIEWER_PID=$!

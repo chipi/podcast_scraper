@@ -37,12 +37,17 @@ S2–S8 scenarios.
 
 | Scenario | Measures | Status |
 | --- | --- | --- |
-| `workspace-open` (TTI) | page load → Search tab → `#search-q` visible | Implemented |
-| `filter-apply` | chip click → popover visible | Implemented |
-| `results-paint` | submit → first result card visible | Implemented |
-| `cmdk-open` | `/` → palette overlay visible (S3) | Chunk 1 |
-| `operator-cluster` | Cluster chip → cluster panel populated (S4) | Chunk 1 |
-| `operator-compare` | Compare run → 2-column packs rendered (S8) | Chunk 1 |
+| `workspace-open` (TTI) | page load → set corpus path → Search tab → `#search-q` visible | Implemented |
+| `filter-apply` | top-k chip click → popover visible | Implemented |
+| `results-paint` | submit query → first result card visible | Implemented |
+| `cmdk-open` | `/` → palette overlay visible (S3) | Implemented |
+| `operator-cluster` | Cluster chip → cluster panel populated (S4) | Implemented |
+| `operator-compare` | Compare run → 2-column packs rendered (S8) | Implemented |
+
+`--query <q>` overrides the results/operator query (default `the economy`, suited
+to the prod-v2 finance corpus). Every scenario degrades gracefully (records an
+`error` field, never aborts the run) so a report is always produced. Latest run:
+`data/perf/traces/search/2.7.0.dev1-search-ui.ui.metrics.json`.
 
 ## Scenario catalog (API)
 
