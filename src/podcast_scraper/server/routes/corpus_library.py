@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper import perf_cache
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
@@ -252,7 +253,15 @@ def corpus_feeds(
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = build_catalog_rows_cumulative(root)
+    # Cumulative catalog scan (~150 ms of Python) only changes on INGEST — cache
+    # at this route via the corpus-mtime token so it doesn't contend (GIL) with a
+    # concurrent search. Shared build_catalog_rows_cumulative stays uncached.
+    rows = perf_cache.get_or_compute(
+        "catalog_feeds",
+        str(root.resolve()),
+        perf_cache.corpus_mtime(root),
+        lambda: build_catalog_rows_cumulative(root),
+    )
     feeds_raw = aggregate_feeds(rows)
     feeds = [
         CorpusFeedItem(

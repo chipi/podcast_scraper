@@ -37,3 +37,14 @@ def ops_summary() -> dict:
     target = replace(target, **overrides)
     data: dict = obs_summary(target)["data"]
     return data
+
+
+@router.get("/ops/cache-stats")
+def ops_cache_stats() -> dict:
+    """Per-namespace hit/miss/size for the central in-process perf caches
+    (``podcast_scraper.perf_cache``): index_stats, digest_bands, catalog_rows,
+    catalog_feeds. Handy for "are the caches actually hitting" without a profiler.
+    """
+    from podcast_scraper import perf_cache
+
+    return {"namespaces": perf_cache.stats()}
