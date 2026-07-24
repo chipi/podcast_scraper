@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
  * Momentum rail (RFC-103) — one generic "trending now" rail for any entity kind, powered by the
- * read-time momentum endpoint (GET /api/app/trending). Each chip shows the entity's label, its
- * velocity (↑ rising), a weekly sparkline, and — for interest-token kinds (topic / cluster /
- * storyline / person) — a one-tap follow. Emits `open` with the entity so the parent decides how to
- * open it. Hides when nothing is trending.
+ * read-time momentum endpoint (GET /api/app/trending). A compact, aligned list: each row is the
+ * entity's label, a direction-coloured ×velocity, and a weekly sparkline in the SAME hue (rising
+ * green / cooling red / steady amber — so the pulse itself carries the trend). Interest-token kinds
+ * (topic / cluster / storyline / person) get a one-tap follow. Collapsed to the top few (mobile
+ * vertical space is precious) with an expand toggle. Emits `open` with the entity.
  */
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -13,7 +14,7 @@ import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import type { TrendingEntity } from '../services/types'
 import Sparkline from './Sparkline.vue'
-import { trendArrow, trendColor } from './trending'
+import { trendArrow, trendColor, trendDirection } from './trending'
 
 const props = withDefaults(
   defineProps<{ kind: string; title: string; scope?: 'corpus' | 'mine'; limit?: number }>(),
@@ -43,39 +44,74 @@ void getTrending(props.kind, props.scope, props.limit)
   .then((rows) => (items.value = rows))
   .catch(() => (items.value = []))
 const hasAny = computed(() => items.value.length > 0)
+
+const COLLAPSED = 5
+const expanded = ref(false)
+const visible = computed(() => (expanded.value ? items.value : items.value.slice(0, COLLAPSED)))
+const hiddenCount = computed(() => Math.max(0, items.value.length - COLLAPSED))
+
+function vFmt(v: number): number {
+  return Math.round(v * 10) / 10
+}
+function titleOf(e: TrendingEntity): string {
+  const dir = trendDirection(e.velocity)
+  const word = dir === 'up' ? 'rising' : dir === 'down' ? 'cooling' : 'steady'
+  return `${e.label} — ${vFmt(e.velocity)}× (${word})`
+}
 </script>
 
 <template>
   <section v-if="hasAny" class="mt-7" :data-testid="`momentum-rail-${kind}`">
     <h2 class="lp-section mb-2">{{ title }}</h2>
-    <div class="flex flex-wrap gap-1.5">
-      <div
-        v-for="e in items"
+    <ul class="flex flex-col">
+      <li
+        v-for="e in visible"
         :key="e.entity_id"
-        class="inline-flex items-center gap-2 rounded-full bg-overlay px-1 text-sm text-topic transition hover:bg-elevated"
+        class="flex items-center gap-1 rounded-lg transition hover:bg-overlay"
         data-testid="momentum-chip"
       >
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 py-1.5 pl-2"
+          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left"
+          :title="titleOf(e)"
+          :aria-label="titleOf(e)"
           @click="emit('open', e)"
         >
-          <span class="font-semibold">{{ e.label }}</span>
-          <Sparkline :values="e.series" :width="44" :height="16" />
-          <span class="text-xs font-semibold" :style="{ color: trendColor(e.velocity) }"
-            >{{ trendArrow(e.velocity) }} {{ Math.round(e.velocity * 10) / 10 }}×</span
+          <span class="min-w-0 flex-1 truncate text-sm">{{ e.label }}</span>
+          <span
+            class="w-12 shrink-0 text-right text-xs font-semibold tabular-nums"
+            :style="{ color: trendColor(e.velocity) }"
+            >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
           >
+          <Sparkline
+            :values="e.series"
+            :width="56"
+            :height="20"
+            class="shrink-0"
+            :style="{ color: trendColor(e.velocity) }"
+          />
         </button>
         <button
           v-if="isFollowable(e.entity_id)"
           type="button"
-          class="rounded-r-full py-1.5 pl-0.5 pr-2.5 text-base leading-none transition"
+          class="shrink-0 rounded-full px-2 py-1 text-base leading-none transition"
           :class="isFollowed(e.entity_id) ? 'text-accent' : 'text-muted hover:text-accent'"
           data-testid="momentum-follow"
           :aria-pressed="isFollowed(e.entity_id)"
           @click="onFollow(e.entity_id)"
         >{{ isFollowed(e.entity_id) ? '✓' : '＋' }}</button>
-      </div>
-    </div>
+      </li>
+    </ul>
+
+    <button
+      v-if="hiddenCount > 0"
+      type="button"
+      class="mt-1 px-2 py-1 text-xs font-semibold text-accent transition hover:opacity-80"
+      data-testid="momentum-expand"
+      :aria-expanded="expanded"
+      @click="expanded = !expanded"
+    >
+      {{ expanded ? 'Show less' : `Show ${hiddenCount} more` }}
+    </button>
   </section>
 </template>
