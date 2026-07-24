@@ -1,0 +1,26 @@
+{
+  "schema_version": "1",
+  "label": "2.7.0.dev1-surfaces",
+  "captured_at": "2026-07-24T10:20:28.549Z",
+  "viewer": "http://127.0.0.1:5621",
+  "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "device_scale_factor": 2
+  },
+  "scenarios": [
+    {
+      "name": "library-load",
+      "tti_ms": 39
+    },
+    {
+      "name": "digest-load",
+      "tti_ms": 16
+    },
+    {
+      "name": "entity-load",
+      "open_ms": 20
+    }
+  ]
+}
