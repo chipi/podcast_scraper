@@ -58,6 +58,14 @@ services:
       # an unreachable endpoint is non-fatal (the SDK logs + drops, the app keeps serving).
       OTEL_SERVICE_NAME: player-api
       OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      # Metrics/logs OTLP export OFF (like the operator, stack.yml): metrics already flow via
+      # Alloy scrape, and — crucially — the default OTLP exporter is gRPC (`otlp_proto_grpc`),
+      # which is NOT installed (only the http/protobuf exporter is). Leaving these at their
+      # `otlp` default made `opentelemetry-instrument` abort ALL init ("Requested component
+      # 'otlp_proto_grpc' not found") → the player exported no traces at all. Only traces
+      # export, over http/protobuf.
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       # G1: stamp the active trace_id/span_id on every request log line (LoggingInstrumentor)
