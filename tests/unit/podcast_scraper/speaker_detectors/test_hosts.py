@@ -15,6 +15,7 @@ from podcast_scraper.speaker_detectors.hosts import (
     has_org_markers,
     is_known_network,
     is_network_or_org_author,
+    is_plausible_mononym,
     looks_like_publisher,
 )
 
@@ -145,3 +146,38 @@ def test_detect_hosts_from_feed_extracts_journalists_phrase() -> None:
         ["The New York Times"],
     )
     assert hosts == {"Kevin Roose", "Casey Newton"}
+
+
+# --- single-name self-intro recovery + introduced-guest greeting (no-anchor feed recall) ---
+
+
+@pytest.mark.parametrize(
+    ("token", "ok"),
+    [
+        ("Brandon", True),  # real mononym self-intro (Latent Space host)
+        ("Neeraj", True),
+        ("Oprah", True),
+        ("Sting", True),
+        ("American", False),  # the "I'm American" class the guard exists for
+        ("Republican", False),
+        ("Christian", False),
+        ("Here", False),  # ordinary word, capitalised by ASR
+        ("sorry", False),
+        ("", False),
+        ("A", False),
+    ],
+)
+def test_is_plausible_mononym(token, ok) -> None:
+    assert is_plausible_mononym(token) is ok
+
+
+def test_guest_greeting_name_then_welcome() -> None:
+    """The host greets a just-introduced guest by name: 'Jody Rosen, welcome …'."""
+    assert guests_introduced_by_the_host({"v": "Jody Rosen, welcome to the show."}) == {
+        "Jody Rosen"
+    }
+    assert guests_introduced_by_the_host({"v": "Nic Harrigan, thanks so much for coming on."}) == {
+        "Nic Harrigan"
+    }
+    # a bare greeting with no preceding name is NOT a guest introduction
+    assert guests_introduced_by_the_host({"v": "welcome to Hard Fork this week"}) == set()

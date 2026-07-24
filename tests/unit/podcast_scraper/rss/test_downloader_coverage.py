@@ -367,3 +367,20 @@ class TestSyntheticRssResponse(unittest.TestCase):
         self.assertEqual(resp.content, b"<rss></rss>")
         self.assertEqual(str(resp.url), "https://f.example/rss")
         self.assertIn("Content-Type", resp.headers)
+
+
+def test_rss_feed_client_follows_redirects() -> None:
+    """A moved-but-live feed (301 rss.->feeds.) must still fetch — the RSS feed client
+    follows redirects (httpx defaults to False, which turned a redirect into a hard failure)."""
+    from podcast_scraper.rss import downloader as d
+
+    # fresh thread-local client so the test isn't affected by a prior cached one
+    if hasattr(d._THREAD_LOCAL, "feed_client"):
+        delattr(d._THREAD_LOCAL, "feed_client")
+    client = d._get_thread_feed_request_client()
+    try:
+        assert client.follow_redirects is True
+    finally:
+        client.close()
+        if hasattr(d._THREAD_LOCAL, "feed_client"):
+            delattr(d._THREAD_LOCAL, "feed_client")

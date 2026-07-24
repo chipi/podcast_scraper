@@ -393,6 +393,17 @@ _GUEST_INTRODUCED_NAME_FIRST = re.compile(
     re.IGNORECASE,
 )
 
+# The host greets a just-introduced guest BY NAME: "Jody Rosen, welcome to the show",
+# "Nic Harrigan, thanks so much for coming on". Name-then-greeting — the mirror of the cue-first
+# forms, and the ordering a narrated interview show (The Daily) actually uses to bring a guest in.
+_GUEST_GREETED = re.compile(
+    rf"(?P<names>{_NAMES})\s*,\s*"
+    r"(?:welcome\b"
+    r"|thanks?(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being)"
+    r"|thank\s+you(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being))",
+    re.IGNORECASE,
+)
+
 # "I'm Coming Out", "I'm Not Sure" — the self-introduction regex matches any capitalised run, and
 # the ASR capitalises plenty of things that are not people. Found in The Daily, where a voice was
 # recorded as introducing itself as "Coming Out".
@@ -452,6 +463,75 @@ def looks_like_a_person_name(name: str) -> bool:
     return not any(t.lower().strip(".,'’") in _NOT_A_NAME_TOKEN for t in toks)
 
 
+# Capitalised single words that follow "I'm <Cap>" but are NOT names — the "I'm American" class.
+# The self-intro regex is case-SENSITIVE, so lowercase adjectives ("I'm ready") never reach here;
+# the residual risk is demonyms / religion / politics, which do get capitalised.
+_NOT_A_MONONYM = frozenset(
+    {
+        "american",
+        "british",
+        "canadian",
+        "australian",
+        "irish",
+        "scottish",
+        "english",
+        "welsh",
+        "german",
+        "french",
+        "italian",
+        "spanish",
+        "portuguese",
+        "chinese",
+        "japanese",
+        "korean",
+        "indian",
+        "russian",
+        "mexican",
+        "brazilian",
+        "dutch",
+        "swedish",
+        "norwegian",
+        "danish",
+        "european",
+        "african",
+        "asian",
+        "latino",
+        "latina",
+        "hispanic",
+        "jewish",
+        "christian",
+        "catholic",
+        "protestant",
+        "muslim",
+        "hindu",
+        "buddhist",
+        "atheist",
+        "republican",
+        "democrat",
+        "democratic",
+        "conservative",
+        "liberal",
+        "progressive",
+        "independent",
+    }
+)
+
+
+def is_plausible_mononym(token: Optional[str]) -> bool:
+    """True if a one-token self-intro ("I'm Brandon") is a plausible name, not "I'm American".
+
+    Accepts a capitalised alphabetic token (apostrophes/hyphens allowed) that is neither an
+    ordinary word (:data:`_NOT_A_NAME_TOKEN`) nor a demonym/religion/politics label
+    (:data:`_NOT_A_MONONYM`). Used to let a voice's own single-name self-introduction name it
+    on feeds with no host anchor — without re-admitting the false positives the guard exists for.
+    """
+    t = (token or "").strip(" .,")
+    if not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
+        return False
+    tl = t.lower()
+    return tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM
+
+
 def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
     """``{voice: "host" | "guest"}`` for the voices that PERFORM one of the two roles.
 
@@ -487,6 +567,7 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
     for text in (voice_texts or {}).values():
         matches = list(_GUEST_INTRODUCED_BY_HOST.finditer(text or ""))
         matches += list(_GUEST_INTRODUCED_NAME_FIRST.finditer(text or ""))
+        matches += list(_GUEST_GREETED.finditer(text or ""))
         for m in matches:
             for raw in _NAME_RE.findall(m.group("names")):
                 name = _clean_stated_name(raw)

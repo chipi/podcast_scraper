@@ -35,6 +35,7 @@ from ....speaker_detectors.hosts import (
     guests_introduced_by_the_host,
     has_org_markers,
     is_network_or_org_author,
+    is_plausible_mononym,
     roles_from_conversation,
 )
 from .base import DiarizationResult
@@ -590,7 +591,13 @@ def _self_intros_by_voice(
         if name and len(name.split()) >= 2:
             out[voice] = name
             continue
-        # A bare first name, or a "this is <X>" — neither stands up alone. The metadata decides.
+        # A single-token self-intro on the voice's OWN turns ("I'm Brandon", "I'm Neeraj") names it,
+        # provided the token is a plausible mononym and not the "I'm American" class — the guard the
+        # ≥2-token rule used to enforce, now sharpened so no-anchor feeds don't lose real speakers.
+        if name and is_plausible_mononym(name):
+            out[voice] = name
+            continue
+        # A bare first name we couldn't vouch, or a "this is <X>" — neither stands alone. Metadata.
         candidates = [name] if name else []
         candidates += [m.group(1).strip(" .,") for m in _THIS_IS_INTRO.finditer(head)]
         for cand in candidates:

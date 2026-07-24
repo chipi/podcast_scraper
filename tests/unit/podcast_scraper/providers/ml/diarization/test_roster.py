@@ -389,3 +389,19 @@ def test_voice_type_commercial_needs_ad_intervals() -> None:
     r = resolve_speaker_roster(diar, "I'm Noah Kravitz.")
     # 60s, no ad info, and nobody names them -> unidentified (tape), not a defect
     assert r.by_voice["SPEAKER_03"].voice_type == "unidentified"
+
+
+def test_self_intro_single_name_accepted_on_own_turns() -> None:
+    """A voice that says 'I'm Brandon' in its own turns IS Brandon (no anchor needed)."""
+    from podcast_scraper.providers.ml.diarization.roster import _self_intros_by_voice
+
+    vt = {"SPEAKER_00": "Welcome. I'm Brandon. I develop RNA therapeutics and love it."}
+    assert _self_intros_by_voice(vt) == {"SPEAKER_00": "Brandon"}
+
+
+def test_self_intro_rejects_nationality_mononym() -> None:
+    """'I'm American' must NOT name a voice (the guard the single-name path preserves)."""
+    from podcast_scraper.providers.ml.diarization.roster import _self_intros_by_voice
+
+    vt = {"SPEAKER_00": "I'm American and I think this is a great question, honestly."}
+    assert _self_intros_by_voice(vt) == {}
