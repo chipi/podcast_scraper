@@ -37,6 +37,7 @@ class TestPatternBasedCleaner(unittest.TestCase):
             diarization_segments=None,
             host_speaker_id=None,
             confidence_threshold=None,
+            crosspromo_cue_patterns=None,
         )
 
     @patch("podcast_scraper.preprocessing.remove_sponsor_blocks")
@@ -209,6 +210,7 @@ class TestHybridCleaner(unittest.TestCase):
             diarization_segments=None,
             host_speaker_id=None,
             confidence_threshold=None,
+            crosspromo_cue_patterns=None,
         )
 
     @patch("podcast_scraper.preprocessing.clean_for_summarization")
@@ -230,6 +232,7 @@ class TestHybridCleaner(unittest.TestCase):
             diarization_segments=None,
             host_speaker_id=None,
             confidence_threshold=None,
+            crosspromo_cue_patterns=None,
         )
         # Should not call LLM
         mock_provider.clean_transcript.assert_not_called()
@@ -256,6 +259,7 @@ class TestHybridCleaner(unittest.TestCase):
             diarization_segments=None,
             host_speaker_id=None,
             confidence_threshold=None,
+            crosspromo_cue_patterns=None,
         )
         # Should call LLM after pattern cleaning (sponsor keywords detected)
         mock_provider.clean_transcript.assert_called_once()
@@ -393,6 +397,7 @@ class TestPatternBasedCleanerEdgeCases(unittest.TestCase):
             diarization_segments=None,
             host_speaker_id=None,
             confidence_threshold=None,
+            crosspromo_cue_patterns=None,
         )
         self.assertEqual(result, "")
 
@@ -406,6 +411,7 @@ class TestPatternBasedCleanerEdgeCases(unittest.TestCase):
             diarization_segments=None,
             host_speaker_id=None,
             confidence_threshold=None,
+            crosspromo_cue_patterns=None,
         )
         self.assertEqual(result, "")
 
@@ -538,6 +544,7 @@ class TestHybridCleanerBoundaries(unittest.TestCase):
             diarization_segments=None,
             host_speaker_id=None,
             confidence_threshold=None,
+            crosspromo_cue_patterns=None,
         )
 
     def test_needs_llm_cleaning_empty_original_skips_reduction_heuristic(self):

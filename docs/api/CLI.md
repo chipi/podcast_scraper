@@ -132,6 +132,20 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may b
 
 **Note**: Preprocessing requires `ffmpeg` to be installed. If `ffmpeg` is not available, preprocessing is automatically disabled with a warning.
 
+### Reprocessing an existing corpus
+
+To rebuild a corpus's artifacts (diarization, cleaning, GI, KG, enrichment) from
+existing episodes, use the **profile-driven pipeline** — never a bespoke script. See
+the **[Corpus reprocessing runbook](../guides/CORPUS_REPROCESSING.md)** for the full
+procedure, modes, and gotchas. The relevant flags:
+
+- `--reprocess-existing-only` — scope to the corpus's on-disk GUIDs (do **not** scrape the live feed).
+- `--reprocess-source whisper_transcription` — force-reprocess the matching episodes (overrides `--skip-existing`).
+- `--pipeline-stage {full,enrich_only,audio_only,download_only}` — `enrich_only` reuses on-disk transcripts (no re-ASR).
+- `--no-transcribe-missing` — never transcribe episodes lacking a transcript.
+
+Canonical entry point: `make migrate-diarization CORPUS_DIR=<corpus> PROFILE=<profile>.yaml`.
+
 <a id="transcript-cleaning-hybrid-ml-preprocessing-issue-419"></a>
 
 ### Transcript cleaning and hybrid ML preprocessing (Issue #419)

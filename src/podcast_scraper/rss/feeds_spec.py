@@ -52,6 +52,7 @@ RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
         "known_hosts",
         "show_centric",
         "diarization_min_segment_ms",
+        "crosspromo_cue_patterns",
     }
 )
 
@@ -103,6 +104,9 @@ class RssFeedEntry(BaseModel):
     # Per-feed diarization squelch (ms). Override the global diarization_min_segment_ms — e.g. a
     # news-desk feed with no real brief cameos can squelch harder to kill phantom micro-speakers.
     diarization_min_segment_ms: Optional[int] = Field(default=None, ge=0, le=60000)
+    # Per-feed opening cross-promo cue patterns (#1188). Extend the built-in cue set with a feed's
+    # cross-promo phrasing at onboarding — the intended evolving surface for ads the defaults miss.
+    crosspromo_cue_patterns: Optional[List[str]] = None
 
     @field_validator("url", mode="after")
     @classmethod

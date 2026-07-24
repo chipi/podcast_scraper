@@ -353,6 +353,38 @@ def _overlaps_any(cs: int, ce: int, ranges: List[Tuple[int, int]]) -> bool:
     return any(max(cs, lo) < min(ce, hi) for lo, hi in ranges)
 
 
+def _complement_text(text: str, ranges: List[Tuple[int, int]]) -> str:
+    """Return ``text`` with every ``[lo, hi)`` range removed (ranges are sorted,
+    non-overlapping — pre-roll then post-roll)."""
+    kept: List[str] = []
+    prev = 0
+    for lo, hi in ranges:
+        if prev < lo:
+            kept.append(text[prev:lo])
+        prev = hi
+    if prev < len(text):
+        kept.append(text[prev:])
+    return "".join(kept)
+
+
+def merge_preroll_range(meta: AdRegionMetadata, preroll_end: int) -> None:
+    """Fold an extra pre-roll range ``[0, preroll_end)`` into ``meta`` in place.
+
+    The single seam both ad-free branches use to add a diarization-detected opening
+    cross-promo (#1188) to the ad-map: merge it with any density-detected pre-roll so
+    ``excised_ranges`` / ``chars_removed`` / ``preroll_cut_end`` stay one coordinate
+    space for consumers and raw reconciliation."""
+    if preroll_end <= 0:
+        return
+    new_preroll_end = max(meta.preroll_cut_end or 0, preroll_end)
+    ranges: List[Tuple[int, int]] = [(0, new_preroll_end)]
+    if meta.postroll_cut_start is not None and meta.postroll_cut_start > new_preroll_end:
+        ranges.append((meta.postroll_cut_start, meta.source_length))
+    meta.preroll_cut_end = new_preroll_end
+    meta.excised_ranges = ranges
+    meta.chars_removed = sum(hi - lo for lo, hi in ranges)
+
+
 def excise_ad_regions_with_offsets(
     text: str,
     offset_segments: List[Dict[str, Any]],
@@ -360,6 +392,7 @@ def excise_ad_regions_with_offsets(
     scan_chars: int = SCAN_CHARS,
     preroll_threshold: int = PREROLL_THRESHOLD,
     postroll_threshold: int = POSTROLL_THRESHOLD,
+    extra_preroll_end: int = 0,
 ) -> Tuple[str, List[Dict[str, Any]], AdRegionMetadata]:
     """Excise ad regions from a screenplay while keeping segment char ranges exact.
 
@@ -383,6 +416,11 @@ def excise_ad_regions_with_offsets(
         preroll_threshold=preroll_threshold,
         postroll_threshold=postroll_threshold,
     )
+    if extra_preroll_end > 0:
+        # Caller-supplied opening cut (e.g. a diarization-detected cross-promo, #1188)
+        # the density pass missed. Merge it in and re-cut the text from the new ranges.
+        merge_preroll_range(meta, extra_preroll_end)
+        cleaned_text = _complement_text(text, meta.excised_ranges)
     ranges = meta.excised_ranges
     if not ranges:
         # Nothing cut → ranges/text unchanged; return segments verbatim.

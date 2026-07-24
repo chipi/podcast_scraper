@@ -1401,6 +1401,29 @@ class TestPipelineStage(unittest.TestCase):
         self.assertFalse(cfg.generate_gi)
         self.assertFalse(cfg.generate_kg)
 
+    def test_relabel_only_keeps_transcribe_missing_and_enrichment(self) -> None:
+        # relabel_only forces transcribe_missing back to True so a whisper episode reaches the
+        # transcription stage (where relabel intercepts and re-resolves names on the on-disk
+        # SPEAKER_NN); enrichment stays ON so GI/KG re-run on the corrected attribution.
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            pipeline_stage="relabel_only",
+            transcribe_missing=False,  # coercion should force this back to True
+            generate_metadata=True,
+            generate_gi=True,
+            generate_kg=True,
+        )
+        self.assertTrue(cfg.transcribe_missing)
+        self.assertTrue(cfg.generate_metadata)
+        self.assertTrue(cfg.generate_gi)
+        self.assertTrue(cfg.generate_kg)
+
+    def test_relabel_only_is_an_accepted_stage(self) -> None:
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(rss="https://example.com/feed.xml", pipeline_stage="relabel_only")
+        self.assertEqual(cfg.pipeline_stage, "relabel_only")
+
 
 if __name__ == "__main__":
     unittest.main()

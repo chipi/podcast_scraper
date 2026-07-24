@@ -1,0 +1,149 @@
+# Corpus reprocessing runbook
+
+**How to rebuild an existing corpus's artifacts (diarization, cleaning, GI, KG,
+enrichment) by re-running our real, profile-driven pipeline — never a bespoke
+script.**
+
+## Purpose & the one rule
+
+You have a corpus on disk and you want to regenerate some or all of its derived
+artifacts — because the code improved (better diarization, new cleaning like the
+`#1188` cross-promo removal, a GI/KG schema change), or because the existing
+artifacts are wrong (mislabeled speakers). Reprocessing does that **through the
+same pipeline that produced the corpus**, scoped to the episodes already on disk.
+
+> **The rule: reprocess only via the profile-driven `podcast_scraper.cli`.**
+> Everything — transcription provider, diarization provider, speaker-detection NER,
+> summary/GI/KG models — is decided by the **profile** (`--config <profile>.yaml`).
+> Do **not** hand-assemble stages in a script or point tools at the corpus directly;
+> that reproduces combinations that don't exist in production (e.g. spaCy NER when the
+> profile says Gemini) and quietly diverges from how the pipeline actually runs. If a
+> capability is missing, add it to the pipeline (a `pipeline_stage` mode), don't fork it.
+
+## Which mode do you want?
+
+| Goal | Mode | Re-ASR? | Re-diarize? | Command |
+| --- | --- | --- | --- | --- |
+| **Fix speakers / full rebuild** (correct diarization + named screenplays, current ASR, re-clean, re-extract) | full reprocess | yes | yes | `make migrate-diarization` |
+| **Re-extract only** (reuse transcript + diarization; re-run cleaning + GI + KG on the existing base) | `--pipeline-stage enrich_only` | no | no | see [Re-extract only](#re-extract-only) |
+| **Enrich gaps** (fill missing corpus-level enrichments) | `cli enrich` | no | no | `make enrich CORPUS=<corpus>` |
+
+Key fact that drives the choice: **transcription and diarization are coupled** — the
+transcript *is* the diarized screenplay. So you cannot "keep the transcript but
+re-diarize"; fixing speaker labels means a **full** reprocess (which re-transcribes).
+If the speakers are already correct and you only changed a downstream stage
+(cleaning, GI, KG), use re-extract-only and skip the expensive ASR/diarize.
+
+---
+
+## Full reprocess — `make migrate-diarization`
+
+Re-runs, per on-disk episode, the **full cascade**: transcribe → diarize →
+screenplay → clean → GI → KG → bridge → search index, then re-derives corpus-wide
+`SPOKEN_BY` edges. Everything is profile-driven.
+
+```bash
+make migrate-diarization \
+  CORPUS_DIR=<corpus> \
+  PROFILE=config/profiles/cloud_with_dgx_primary.yaml
+```
+
+> ⚠️ **`migrate-diarization`, NOT `redo-diarization`.** They differ by one flag with a
+> huge consequence:
+>
+> | target | `--reprocess-existing-only`? | what it processes |
+> | --- | --- | --- |
+> | `make migrate-diarization` | **yes** | the corpus's on-disk GUIDs — **correct** |
+> | `make redo-diarization` | no | scrapes the **live feed** and processes the newest items (a 583-episode feed → wrong episodes) |
+>
+> Always confirm the log line reads `Existing-only re-diarization: kept N, dropped …
+> new feed item(s)`. If you see episodes downloading by title from the feed, stop.
+
+The two things that silently break a re-diarization:
+
+> ⚠️ **Clear `.cache/transcripts` first** (`rm -rf .cache/transcripts`). The transcript
+> cache is keyed by audio hash and stores the *already-formatted* (post-diarization)
+> screenplay. A warm cache short-circuits transcribe→diarize→format, so the run reuses
+> the **old** diarization and re-diarization becomes a silent no-op (`Transcript cache
+> hit … transcribe_sec=0.0`). Clearing the dir is reliable; `transcript_cache_enabled:
+> false` in the profile does **not** always take effect through the CLI merge.
+>
+> ⚠️ **Keep the machine awake for DGX runs** (`caffeinate -i …`, mains power). If it
+> sleeps mid-run the tailnet drops and every DGX diarize POST fails with `Connection
+> reset by peer`, falling back to slow in-process pyannote.
+
+### Full-reprocess procedure
+
+1. **Health gate** (abort if a required service is down). For DGX profiles, check the
+   Whisper (`:8000`) and pyannote (`:8001`) endpoints on the tailnet host before starting.
+2. **Backup** — the reprocess **overwrites** transcripts/diarization/GI/KG/index:
+
+   ```bash
+   tar -czf "$HOME/corpus_backup_$(date +%Y%m%d-%H%M%S).tar.gz" \
+     -C "$(dirname "$CORPUS_DIR")" "$(basename "$CORPUS_DIR")"
+   ```
+
+3. **Pilot 2–3 episodes on a COPY** before the full run.
+   > ⚠️ **`--max-episodes` is ignored under `--reprocess-existing-only`** — it processes
+   > *all* on-disk GUIDs. To pilot a subset, **trim the corpus copy** to the episodes you
+   > want (delete the other `metadata/*.metadata.json` + `transcripts/*`), then run
+   > existing-only; the GUID scan picks up exactly what remains.
+
+   Pilot acceptance: ≥2 distinct **named** `Name:` markers on multi-speaker episodes;
+   `diarization_num_speakers` matches the known cast; GI `Quote` nodes carry
+   `timestamp_start_ms`; `SPOKEN_BY` edges present after `enrich-edges`; no offset-guard
+   warnings.
+4. **Verify offsets** (`make verify-gil-offsets-strict CORPUS_DIR=<pilot>`). Re-diarization
+   shifts char offsets; GI is rebuilt against the new ad-free base so quotes re-derive
+   exactly. A mismatch means GI was not rebuilt against the new transcript — investigate,
+   do not proceed.
+5. **Full run** (`make migrate-diarization`), watch the scoping log line and DGX
+   fallback breadcrumbs. Budget ~6–7 min/episode for large-v3 + pyannote.
+6. **Post-run**: offsets clean, spot-check ~5 episodes (named screenplay + `SPOKEN_BY` +
+   KG entities), episode count unchanged, a vector search returns sensible results.
+7. **Rollback** if needed: `rm -rf "$CORPUS_DIR" && tar -xzf <backup> -C "$(dirname "$CORPUS_DIR")"`.
+
+---
+
+## Re-extract only
+
+When the speakers are already correct and you only changed a **downstream** stage
+(cleaning / GI / KG), skip ASR and diarization and re-run the extraction on the
+existing transcript + diarization. `--pipeline-stage enrich_only` reuses on-disk
+transcripts (coerces `transcribe_missing=false`); pair it with the existing-only
+reprocess scoping to force the downstream stages to regenerate:
+
+```bash
+rm -rf .cache/transcripts   # avoid reusing stale formatted screenplays
+.venv/bin/python -m podcast_scraper.cli \
+  --config <profile>.yaml \
+  --feeds-spec <corpus>/feeds.spec.yaml \
+  --output-dir <corpus> \
+  --pipeline-stage enrich_only \
+  --reprocess-existing-only --reprocess-source whisper_transcription
+```
+
+This does **not** fix speaker labels (it reuses the existing screenplay) — it only
+regenerates cleaning + GI + KG on the base you already have. Use the full reprocess if
+the speakers are wrong.
+
+---
+
+## Enrich gaps
+
+To (re)build only corpus-level enrichments (topic clusters, co-appearance, etc.):
+
+```bash
+make enrich CORPUS=<corpus> [WITH_ML=1] [PROFILE=<profile>.yaml]
+make enrich-relational-edges CORPUS_DIR=<corpus>   # re-derive SPOKEN_BY
+```
+
+---
+
+## Notes
+
+- This is a **data operation**, not a code change — run it from `main` as a tracked
+  operation, not bundled into a feature PR.
+- If the corpus feeds eval, record quality-vs-baseline before/after.
+- Profiles: DGX diarization → `cloud_with_dgx_primary.yaml`; cloud-only → `cloud_balanced.yaml`
+  (Deepgram diarization, Gemini everything-else, `gemini-2.5-flash-lite`).

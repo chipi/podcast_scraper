@@ -118,6 +118,10 @@ class TranscriptionJob:
     # nobody on its own — it only lets the roster tell "we failed to place a stated name" (a defect)
     # apart from "nobody in the episode was ever named" (the vox-pop of a narrated show).
     metadata_named: Optional[List[str]] = None
+    # Feed-stated host names (from the show blurb, via detect_hosts_from_feed). Anchors the
+    # diarization roster so an ASR-garbled host surname canonicalizes to the feed's spelling.
+    # Set on the transcription path from host_detection_result.cached_hosts.
+    feed_hosts: Optional[List[str]] = None
     episode: Optional[Episode] = None
     # Wall time for the media HTTP download (set when enqueueing Whisper jobs). Recorded in
     # metrics only after a transcript-cache miss so cache hits stay 0 for download_media_time.

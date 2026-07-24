@@ -9,7 +9,9 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.speaker_detectors.hosts import (
+    detect_hosts_from_feed,
     extract_self_introduced_host,
+    guests_introduced_by_the_host,
     has_org_markers,
     is_known_network,
     is_network_or_org_author,
@@ -105,3 +107,41 @@ def test_extract_self_introduced_host_only_scans_intro_window() -> None:
     # A self-intro past the intro window is ignored (a later guest "I'm …").
     text = "x" * 2100 + " I'm Late Guest"
     assert extract_self_introduced_host(text, intro_chars=2000) is None
+
+
+# --- Regression: the catastrophic-backtracking hang + the IGNORECASE case-sensitivity bug ---
+# The guest-intro name pattern compiles with re.IGNORECASE for its lowercase cue words. Before the
+# `(?-i:...)` fix, IGNORECASE made `[A-Z]` match lowercase too, so the name pattern matched every
+# multi-word lowercase phrase in the transcript — crowning non-names AND backtracking for minutes
+# on a 77k-char episode (found via a faulthandler stack dump).
+
+
+def test_guest_intro_name_pattern_is_case_sensitive() -> None:
+    """A capitalised introduction is caught; the same words as lowercase prose are not a name."""
+    assert guests_introduced_by_the_host({"v": "Jia Li is with us today."}) == {"Jia Li"}
+    # Under the IGNORECASE bug this lowercase clause matched as a two-word "name". It must not.
+    assert guests_introduced_by_the_host({"v": "the plan is with us today, it is."}) == set()
+
+
+def test_guest_intro_no_catastrophic_backtracking_on_long_prose() -> None:
+    """A long capitalisation-heavy lowercase transcript resolves fast, not in minutes.
+
+    Budget is deliberately generous (the fix runs in ~ms; the bug took minutes) so the test guards
+    the O(n^2)/backtracking regression without being flaky under CI load.
+    """
+    import time
+
+    text = "the market is with us today and the future is with us now " * 2000  # ~58k chars
+    start = time.perf_counter()
+    guests_introduced_by_the_host({"v": text})
+    assert time.perf_counter() - start < 5.0, "guest-intro scan backtracked catastrophically"
+
+
+def test_detect_hosts_from_feed_extracts_journalists_phrase() -> None:
+    """The feed_hosts wiring depends on this: the show blurb's "journalists X and Y" names hosts."""
+    hosts = detect_hosts_from_feed(
+        "Hard Fork",
+        "Each week, journalists Kevin Roose and Casey Newton explore the world of tech.",
+        ["The New York Times"],
+    )
+    assert hosts == {"Kevin Roose", "Casey Newton"}

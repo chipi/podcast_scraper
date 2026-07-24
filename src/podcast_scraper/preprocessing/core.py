@@ -545,6 +545,7 @@ def clean_for_summarization(
     diarization_segments: Optional[List[dict]] = None,
     host_speaker_id: Optional[str] = None,
     confidence_threshold: Optional[float] = None,
+    crosspromo_cue_patterns: Optional[List[str]] = None,
 ) -> str:
     """High-level cleaner for BOTH:
       - offline .cleaned.txt generation
@@ -568,6 +569,19 @@ def clean_for_summarization(
     Returns:
         Cleaned transcript text ready for summarization
     """
+    # Excise an opening host-read cross-promo FIRST, while the text still matches
+    # the diarization segment texts (before normalization). Diarization-driven:
+    # a leading block by voices that never recur later (#1188). No-op without
+    # segments.
+    from ..cleaning.commercial.crosspromo import excise_opening_crosspromo
+
+    text = excise_opening_crosspromo(
+        text,
+        diarization_segments=diarization_segments,
+        host_speaker_id=host_speaker_id,
+        extra_cue_patterns=crosspromo_cue_patterns,
+    )
+
     # Strip credits FIRST - they're high-confidence summary targets if left in
     # Credits are grammatically perfect, compact, and named-entity rich
     text = strip_credits(text)

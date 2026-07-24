@@ -25,7 +25,13 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from ..gi.ad_regions import _overlaps_any, excise_ad_regions, excise_ad_regions_with_offsets
+from ..cleaning.commercial.crosspromo import crosspromo_char_end
+from ..gi.ad_regions import (
+    _overlaps_any,
+    excise_ad_regions,
+    excise_ad_regions_with_offsets,
+    merge_preroll_range,
+)
 from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
 
 logger = logging.getLogger(__name__)
@@ -83,18 +89,29 @@ def _derive_offsets_by_find(text: str, segments: List[Dict[str, Any]]) -> List[D
 
 
 def build_adfree_artifacts(
-    text: str, segments: Optional[List[Dict[str, Any]]]
+    text: str,
+    segments: Optional[List[Dict[str, Any]]],
+    *,
+    extra_cue_patterns: Optional[List[str]] = None,
 ) -> Optional[AdfreeArtifacts]:
     """Build the ad-free text + offset segments + ad-map from the saved transcript.
 
     Returns ``None`` when there is nothing to process (no text / no segments). When no
     ad regions are detected the ad-free text equals the input and all segments survive
     — still a valid (identity) processing base, so consumers can always read it.
+
+    ``extra_cue_patterns`` extends the built-in opening cross-promo cue set (#1188)
+    with feed-onboarding patterns; ``None`` uses the built-ins.
     """
     if not text or not segments:
         return None
 
     rebuilt, offset_segs = format_diarized_screenplay_with_offsets(segments)
+    # Opening host-read cross-promo (#1188): a diarization-detected leading ad the
+    # pattern/density passes miss. Both branches locate it the same way — the char
+    # offset where it ends — then fold it into the pre-roll so the roster (dropped
+    # segments), text, offsets, and ad-map all stay in one coordinate space.
+    cp_end = crosspromo_char_end(offset_segs, extra_cue_patterns=extra_cue_patterns)
     if rebuilt == text:
         # Diarized screenplay: detect ad ranges, DROP the segments inside them, then
         # RE-RENDER the survivors. Re-rendering (vs a raw char-cut) guarantees every
@@ -102,6 +119,7 @@ def build_adfree_artifacts(
         # of an ad that coalesced into the same-speaker turn as the following content —
         # and the offsets come straight from the formatter, so they stay exact.
         _, _, meta = excise_ad_regions(text)
+        merge_preroll_range(meta, cp_end)
         ranges = meta.excised_ranges
         survivors = (
             [s for s in offset_segs if not _overlaps_any(s["char_start"], s["char_end"], ranges)]
@@ -117,11 +135,15 @@ def build_adfree_artifacts(
         )
 
     # Plain / provider transcript (no speaker markers to preserve): a char-level cut is
-    # exact. Derive each segment's offset by progressive search, then excise.
+    # exact. Derive each segment's offset by progressive search, then excise. The
+    # cross-promo end is recomputed on THESE offsets (their own char space).
     offset_segs = _derive_offsets_by_find(text, segments)
     if not offset_segs:
         return None
-    adfree_text, adfree_segs, meta = excise_ad_regions_with_offsets(text, offset_segs)
+    cp_end = crosspromo_char_end(offset_segs, extra_cue_patterns=extra_cue_patterns)
+    adfree_text, adfree_segs, meta = excise_ad_regions_with_offsets(
+        text, offset_segs, extra_preroll_end=cp_end
+    )
     return AdfreeArtifacts(
         text=adfree_text,
         segments=adfree_segs,
@@ -236,9 +258,11 @@ def produce_adfree_transcript(
     segments: Optional[List[Dict[str, Any]]],
     rel_transcript_path: str,
     effective_output_dir: str,
+    *,
+    extra_cue_patterns: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Convenience: build + save the ad-free artifacts. Returns the ``.adfree.txt`` relpath."""
-    artifacts = build_adfree_artifacts(text, segments)
+    artifacts = build_adfree_artifacts(text, segments, extra_cue_patterns=extra_cue_patterns)
     if artifacts is None:
         return None
     return save_adfree_artifacts(rel_transcript_path, effective_output_dir, artifacts)

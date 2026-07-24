@@ -149,6 +149,89 @@ def test_apply_diarization_names_host_from_transcript_self_intro(mock_create_pro
     assert enriched["segments"][1]["speaker_label"] == "Brian Chesky", "guest named"
 
 
+def _two_voice_result(host_intro: str):
+    return {
+        "text": f"Hello and welcome. {host_intro} My guest is Brian Chesky.",
+        "segments": [
+            {"start": 0.0, "end": 60.0, "text": f"Hello and welcome. {host_intro}"},
+            {"start": 60.0, "end": 400.0, "text": "Thanks for having me."},
+        ],
+    }
+
+
+@patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
+def test_apply_diarization_feed_hosts_canonicalize_garbled_surname(mock_create_provider) -> None:
+    """feed_hosts anchors the roster so an ASR-garbled self-intro surname canonicalizes to the
+    feed's spelling: "I'm Kevin Russo" -> "Kevin Roose" (the reprocess canonicalization path)."""
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[
+            DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00"),
+            DiarizationSegment(start=60.0, end=400.0, speaker="SPEAKER_01"),
+        ],
+        num_speakers=2,
+        model_name="test",
+    )
+    mock_create_provider.return_value = mock_provider
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        screenplay=True,
+        hf_token="hf-test",
+    )
+
+    enriched = apply_diarization_to_result(
+        _two_voice_result("I'm Kevin Russo."),
+        "/tmp/audio.wav",
+        cfg,
+        ["Brian Chesky"],
+        feed_hosts=["Kevin Roose"],
+    )
+    assert enriched["segments"][0]["speaker_label"] == "Kevin Roose", "canonicalized"
+
+    # Without the anchor the garbled surname survives — proves feed_hosts is load-bearing.
+    no_anchor = apply_diarization_to_result(
+        _two_voice_result("I'm Kevin Russo."),
+        "/tmp/audio.wav",
+        cfg,
+        ["Brian Chesky"],
+    )
+    assert no_anchor["segments"][0]["speaker_label"] == "Kevin Russo", "no anchor"
+
+
+@patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
+def test_apply_diarization_feed_hosts_merges_with_cfg_known_hosts(mock_create_provider) -> None:
+    """feed_hosts is merged with cfg.known_hosts (both anchor the roster, neither shadows)."""
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00")],
+        num_speakers=1,
+        model_name="test",
+    )
+    mock_create_provider.return_value = mock_provider
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        screenplay=True,
+        hf_token="hf-test",
+        known_hosts=["Someone Else"],
+    )
+    enriched = apply_diarization_to_result(
+        {
+            "text": "Hello and welcome. I'm Casey Noon.",
+            "segments": [{"start": 0.0, "end": 60.0, "text": "Hello and welcome. I'm Casey Noon."}],
+        },
+        "/tmp/audio.wav",
+        cfg,
+        None,
+        feed_hosts=["Casey Newton"],
+    )
+    # cfg.known_hosts did not shadow feed_hosts: the feed-stated host still anchored the match.
+    assert enriched["segments"][0]["speaker_label"] == "Casey Newton"
+
+
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
 def test_apply_diarization_degrades_when_no_turns(mock_create_provider) -> None:
     """Zero diarization turns → segments returned unlabelled so the caller degrades (A3)."""

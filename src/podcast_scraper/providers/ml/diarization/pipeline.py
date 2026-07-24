@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .... import config
 from .alignment import align_segments_to_speakers
+from .base import DiarizationResult
 from .cache import (
     diarization_cache_dir_for_output,
     diarization_cache_path,
@@ -216,20 +217,30 @@ def apply_diarization_to_result(
     *,
     metadata_named: Optional[List[str]] = None,
     cache_dir: Optional[str] = None,
+    precomputed_diarization: Optional[DiarizationResult] = None,
+    feed_hosts: Optional[List[str]] = None,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
 
     ``metadata_named`` is every name the episode metadata stated, *before* corroboration filtered
     it. It never names a voice — it only lets the roster tell our own failures apart from the
     voices nobody could have named.
+
+    ``precomputed_diarization`` supplies the diarized voices directly, skipping the
+    cache/provider (audio) path — used by ``pipeline_stage=relabel_only`` to re-resolve
+    names on an existing corpus's frozen ``SPEAKER_NN`` diarization, no audio / re-diarize.
+
+    ``feed_hosts`` are the host names the feed's own blurb states (via
+    ``detect_hosts_from_feed``); merged with ``cfg.known_hosts`` to anchor the roster and
+    canonicalize ASR-garbled host surnames.
     """
     segments = result.get("segments")
     if not isinstance(segments, list) or not segments:
         return result
 
     resolved_cache_dir = _resolve_diarization_cache_dir(cfg, cache_dir)
-    diarization = None
-    if resolved_cache_dir:
+    diarization = precomputed_diarization
+    if diarization is None and resolved_cache_dir:
         cache_path = diarization_cache_path(audio_path, cfg, resolved_cache_dir)
         diarization = load_cached_diarization(cache_path)
         if diarization is not None:
@@ -274,7 +285,15 @@ def apply_diarization_to_result(
     aligned = align_segments_to_speakers(segments, diarization)
     voice_texts = _voice_texts_from_aligned(aligned)
     guests = detected_speaker_names or []
-    known_hosts = list(getattr(cfg, "known_hosts", None) or [])
+    # known_hosts anchors the roster: it names the opening voice and lets
+    # _canonicalize_to_known_host repair an ASR-garbled spoken surname ("Kevin Russo" -> "Kevin
+    # Roose"). cfg.known_hosts is the manual show-level override; feed_hosts is what the feed's own
+    # blurb states ("journalists Kevin Roose and Casey Newton explore..."), detected via
+    # detect_hosts_from_feed by the caller. Without this the roster ran with an empty anchor on
+    # every feed that did not hard-code cfg.known_hosts.
+    known_hosts = list(
+        dict.fromkeys(list(getattr(cfg, "known_hosts", None) or []) + list(feed_hosts or []))
+    )
     # Ordered turns let the roster use the host's introduction ("and now, Bobby Allen") to name the
     # voice that speaks NEXT — the only per-voice way to use an introduction.
     ordered_turns = [

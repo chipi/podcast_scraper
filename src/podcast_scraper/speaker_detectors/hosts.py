@@ -246,7 +246,13 @@ def detect_hosts_from_transcript_intro(
 # Bare NER over the description is not good enough, and Latent Space is the proof: its description
 # lists PAST GUESTS (Bret Taylor, Chris Lattner, George Hotz...), and NER offered every one of them
 # as a host. The phrase is the signal, not the entity.
-_NAME = r"[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+"
+# A name is a run of Capitalised words, and that capitalisation is the whole signal. The
+# `(?-i:...)` keeps the character classes case-SENSITIVE even where the surrounding pattern is
+# compiled with re.IGNORECASE for its lowercase cue words ("joined by", "is with us"). Without it,
+# IGNORECASE makes `[A-Z]` match a-z too, so this pattern matches every multi-word lowercase phrase
+# in the transcript — which both crowned non-names as guests AND made the conversation scan
+# backtrack catastrophically (a 77k-char episode spun for minutes in guests_introduced_by_the_host).
+_NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+)"
 _NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME})*"
 # Presenting verbs — what a show's own description says its hosts DO.
 _PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"

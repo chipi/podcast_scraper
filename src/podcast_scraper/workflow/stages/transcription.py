@@ -206,6 +206,9 @@ def process_transcription_jobs(
         jobs_processed = 0
         for job in jobs_list:
             try:
+                # Anchor the diarization roster with the feed-stated hosts (canonicalizes
+                # ASR-garbled host surnames). cached_hosts already merges feed + config hosts.
+                job.feed_hosts = sorted(host_detection_result.cached_hosts or [])
                 # Stage 2: Use provider if available, otherwise fall back to direct model
                 # For backward compatibility, we pass both provider and model
                 # transcribe_media_to_text will use provider if available
@@ -410,6 +413,8 @@ def process_transcription_jobs_concurrent(  # noqa: C901
         """
         _tx_active_start = time.monotonic()
         try:
+            # Anchor the roster with the feed-stated hosts (see the sequential path above).
+            job.feed_hosts = sorted(host_detection_result.cached_hosts or [])
             success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                 job,
                 cfg,

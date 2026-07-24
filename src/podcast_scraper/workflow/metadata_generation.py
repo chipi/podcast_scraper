@@ -2354,6 +2354,7 @@ def _generate_episode_summary(  # noqa: C901
         pattern_clean_kwargs = {
             "diarization_segments": diarization_segments,
             "host_speaker_id": host_speaker_id,
+            "crosspromo_cue_patterns": cfg.crosspromo_cue_patterns,
         }
 
     # Use provider if available (preferred path)

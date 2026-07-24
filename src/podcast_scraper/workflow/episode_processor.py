@@ -320,6 +320,20 @@ def download_media_for_transcription(
     final_out_path = filesystem.build_whisper_output_path(
         episode.idx, episode.title_safe, run_suffix, effective_output_dir
     )
+    # pipeline_stage=relabel_only reuses the on-disk transcript + diarization and re-runs
+    # only the speaker-name resolution — no audio is needed. Return a no-download job so
+    # transcribe_media_to_text reaches the relabel branch (which loads from disk).
+    if cfg.pipeline_stage == "relabel_only":
+        speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
+        return TranscriptionJob(  # type: ignore[no-any-return]
+            idx=episode.idx,
+            ep_title=episode.title,
+            ep_title_safe=episode.title_safe,
+            temp_media="",
+            detected_speaker_names=speaker_names_copy,
+            metadata_named=list(metadata_named) if metadata_named else None,
+            episode=episode,
+        )
     if cfg.skip_existing and os.path.exists(final_out_path):
         if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
             # #925: a scoped reprocess (--reprocess-source) forces matching episodes
@@ -625,7 +639,11 @@ def _maybe_produce_adfree(
     from .adfree_transcript import produce_adfree_transcript
 
     adfree_rel = produce_adfree_transcript(
-        text, segments, rel_transcript_path, effective_output_dir
+        text,
+        segments,
+        rel_transcript_path,
+        effective_output_dir,
+        extra_cue_patterns=cfg.crosspromo_cue_patterns,
     )
     if adfree_rel:
         logger.info("    saved ad-free transcript base: %s", adfree_rel)
@@ -1525,6 +1543,149 @@ def _transcribe_with_segments_maybe_chunked(
         raise
 
 
+def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
+    """Read the feed-stated host names from a transcript's sibling metadata JSON.
+
+    ``<run>/transcripts/<name>.txt`` -> ``<run>/metadata/<name>.metadata.json``. The feed blurb
+    usually names the hosts; ``detect_hosts_from_feed`` extracts them. Any failure (missing file,
+    malformed JSON, no feed block) returns ``[]`` — the roster then falls back to self-intro only.
+    """
+    import json as _json
+
+    from ..speaker_detectors.hosts import detect_hosts_from_feed
+
+    stem = txt_path.name[: -len(".txt")] if txt_path.name.endswith(".txt") else txt_path.stem
+    md_path = txt_path.parent.parent / filesystem.METADATA_SUBDIR / f"{stem}.metadata.json"
+    try:
+        feed = _json.loads(md_path.read_text(encoding="utf-8")).get("feed", {})
+    except (OSError, ValueError):
+        return []
+    if not isinstance(feed, dict):
+        return []
+    return sorted(
+        detect_hosts_from_feed(
+            feed.get("title"), feed.get("description"), feed.get("authors") or []
+        )
+    )
+
+
+def _relabel_existing_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> tuple[bool, Optional[str], int]:
+    """pipeline_stage=relabel_only: re-resolve speaker names on the existing on-disk
+    transcript + frozen ``SPEAKER_NN`` diarization, re-render the screenplay, and overwrite
+    the transcript / segments / ad-free base in place. No audio, no re-ASR, no re-diarize.
+    """
+    import json as _json
+
+    from ..providers.ml.diarization.base import DiarizationResult, DiarizationSegment
+    from ..providers.ml.diarization.pipeline import apply_diarization_to_result
+
+    # effective_output_dir is the *new* run dir this invocation created; the existing corpus
+    # transcript lives in a sibling run_<old-tag>/transcripts/ with a truncated title + run-tag
+    # suffix. Search the whole feed root by the unique episode-index prefix ("0001 - "),
+    # requiring a .segments.json sibling, and overwrite that file in place.
+    run_dir = Path(effective_output_dir)
+    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
+    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
+    matches = [
+        p
+        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
+        if ".adfree." not in p.name
+        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
+    ]
+    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    if not matches:
+        logger.warning(
+            "[%s] relabel_only: no on-disk transcript to relabel under %s (idx prefix %r)",
+            job.idx,
+            search_root,
+            idx_prefix,
+        )
+        return False, None, 0
+    txt_path = matches[0]
+    seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
+    if not seg_path.exists():
+        logger.warning(
+            "[%s] relabel_only: transcript has no .segments.json; cannot relabel", job.idx
+        )
+        return False, None, 0
+
+    text = txt_path.read_text(encoding="utf-8")
+    segs = _json.loads(seg_path.read_text(encoding="utf-8"))
+    # Frozen-clustering source. A finished corpus stores the diarization identity in
+    # ``speaker_label`` (``speaker`` is None), and for already-resolved voices that label is v2's
+    # RESOLVED NAME ("Amy Lawrence"), not a raw ``SPEAKER_NN``. Relabel must re-resolve from the
+    # transcript, NOT inherit v2's names — so remap every distinct label (name or SPEAKER_NN) to a
+    # fresh anonymous ``SPEAKER_NN`` in first-appearance order. This preserves the clustering (same
+    # label -> same voice) while stripping v2's naming, so the roster decides afresh.
+    _cluster_ids: Dict[str, str] = {}
+
+    def _anon(label: str) -> str:
+        if label not in _cluster_ids:
+            _cluster_ids[label] = f"SPEAKER_{len(_cluster_ids):02d}"
+        return _cluster_ids[label]
+
+    dsegs = [
+        DiarizationSegment(
+            start=float(s["start"]),
+            end=float(s["end"]),
+            speaker=_anon(str(s.get("speaker") or s.get("speaker_label"))),
+        )
+        for s in segs
+        if isinstance(s, dict) and (s.get("speaker") or s.get("speaker_label"))
+    ]
+    if not dsegs:
+        logger.warning(
+            "[%s] relabel_only: segments carry no speaker identity; nothing to relabel", job.idx
+        )
+        return False, None, 0
+    diar = DiarizationResult(segments=dsegs, num_speakers=len(_cluster_ids))
+    result: dict = {
+        "text": text,
+        "segments": [
+            {"start": s.get("start"), "end": s.get("end"), "text": s.get("text", "")}
+            for s in segs
+            if isinstance(s, dict)
+        ],
+    }
+    # The corpus's own stored metadata carries the feed blurb that names the hosts
+    # ("journalists Kevin Roose and Casey Newton explore..."). Feed it to the roster so an
+    # ASR-garbled spoken surname ("Kevin Russo") canonicalizes to the feed's spelling. Read from
+    # the sibling <run>/metadata/<name>.metadata.json; absence is non-fatal (relabel still runs).
+    feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    result = apply_diarization_to_result(
+        result,
+        "",
+        cfg,
+        job.detected_speaker_names,
+        metadata_named=job.metadata_named,
+        precomputed_diarization=diar,
+        feed_hosts=feed_hosts,
+    )
+    new_text = _format_transcript_if_needed(
+        result, cfg, job.detected_speaker_names, transcription_provider
+    )
+    txt_path.write_text(new_text, encoding="utf-8")
+    rel_path = os.path.relpath(str(txt_path), effective_output_dir)
+    new_segs = result.get("segments") if isinstance(result, dict) else None
+    if isinstance(new_segs, list) and new_segs:
+        _save_transcript_segments_file(new_segs, rel_path, effective_output_dir)
+        _save_speaker_diagnostics_file(
+            result.get("speaker_diagnostics") if isinstance(result, dict) else None,
+            rel_path,
+            effective_output_dir,
+        )
+        _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+    logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
+    return True, rel_path, 0
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1577,6 +1738,14 @@ def transcribe_media_to_text(
         )
         _cleanup_temp_media(temp_media, cfg)
         return True, None, bytes_dl
+
+    # relabel_only: re-resolve speaker NAMES on the existing on-disk transcript + frozen
+    # SPEAKER_NN diarization, then re-render + re-save in place. No audio, no re-ASR, no
+    # re-diarize — just the profile's resolver over the existing voices.
+    if cfg.pipeline_stage == "relabel_only":
+        return _relabel_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
 
     # Check if existing transcript can be reused
     reuse_result = _check_and_reuse_existing_transcript(
@@ -1671,6 +1840,7 @@ def transcribe_media_to_text(
                     job.detected_speaker_names,
                     metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
+                    feed_hosts=job.feed_hosts,
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).

@@ -31,6 +31,17 @@ summary_provider: transformers  # Options: transformers, openai, gemini, mistral
 transcribe_missing: true  # Enable automatic transcription of missing transcripts
 whisper_model: base.en  # Whisper model to use (tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v1, large-v2, large-v3)
 
+# Pipeline stage (also settable via --pipeline-stage). Controls how much of the run executes:
+#   full          - default: download -> transcribe -> diarize -> enrich (GI/KG)
+#   audio_only    - transcribe + media only; skip metadata/summaries/GI/KG
+#   download_only - download + cache raw audio only, no transcription (#947)
+#   enrich_only   - reuse on-disk transcripts, skip transcription; re-run enrichment
+#   relabel_only  - re-resolve speaker NAMES on the existing frozen SPEAKER_NN diarization
+#                   (no audio, no re-ASR, no re-diarize); overwrites transcript/segments/ad-free
+#                   in place, then re-runs enrichment. Used to reprocess a corpus's speaker
+#                   attribution after resolver improvements. See docs/guides/CORPUS_REPROCESSING.md
+# pipeline_stage: full
+
 delay_ms: 1000
 # Download resilience (HTTP urllib3 retries, optional Issue #522 fair HTTP): defaults are
 # tuned for batch runs. Examples: config.example.download-resilience.yaml,

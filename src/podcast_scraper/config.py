@@ -3119,6 +3119,15 @@ class Config(BaseModel):
     save_adfree_transcript: bool = Field(
         default=True, alias="save_adfree_transcript"
     )  # Save ad-free processing-base transcript (.adfree.txt) + segments + ad-map (#974)
+    crosspromo_cue_patterns: Optional[List[str]] = Field(
+        default=None,
+        alias="crosspromo_cue_patterns",
+        description=(
+            "Extra regex patterns (English-general or feed-specific) that extend the "
+            "built-in opening cross-promo cue set (#1188). Set globally or per-feed at "
+            "onboarding to catch a feed's cross-promo phrasing the defaults miss."
+        ),
+    )
     # Transcript cleaning configuration (Issue #418)
     transcript_cleaning_strategy: Literal["pattern", "llm", "hybrid"] = Field(
         default="hybrid",
@@ -3261,14 +3270,18 @@ class Config(BaseModel):
             "Transcripts are cached by audio hash to enable fast re-runs."
         ),
     )
-    pipeline_stage: Literal["full", "audio_only", "enrich_only", "download_only"] = Field(
+    pipeline_stage: Literal[
+        "full", "audio_only", "enrich_only", "download_only", "relabel_only"
+    ] = Field(
         default="full",
         alias="pipeline_stage",
         description=(
             "Pipeline stage mode: full (default), audio_only (transcribe + media only), "
-            "enrich_only (skip transcription; reuse on-disk transcripts), or download_only "
-            "(#947: download + cache raw audio for the selected episodes, then stop before "
-            "transcription/diarization — phase 1 of a staged re-diarization)."
+            "enrich_only (skip transcription; reuse on-disk transcripts), download_only "
+            "(#947: download + cache raw audio, then stop before transcription/diarization), "
+            "or relabel_only (re-resolve speaker NAMES on the existing frozen SPEAKER_NN "
+            "diarization via the profile's resolver — no audio, no re-ASR, no re-diarize; "
+            "rewrites the screenplay + cascades GI/KG)."
         ),
     )
     audio_cache_enabled: bool = Field(
@@ -3847,7 +3860,7 @@ class Config(BaseModel):
             return data
         merged = dict(data)
         stage = merged.get("pipeline_stage", "full")
-        if stage not in ("full", "audio_only", "enrich_only", "download_only"):
+        if stage not in ("full", "audio_only", "enrich_only", "download_only", "relabel_only"):
             return merged
         message: Optional[str] = None
         if stage in ("audio_only", "download_only"):
@@ -3880,6 +3893,16 @@ class Config(BaseModel):
             message = (
                 "pipeline_stage=enrich_only: coercing transcribe_missing=false "
                 "and skip_existing=true (reuse on-disk transcripts for enrichment)."
+            )
+        elif stage == "relabel_only":
+            # Re-resolve names on the on-disk diarization. Keep transcribe_missing=true so
+            # a whisper episode reaches the transcription stage (where relabel intercepts,
+            # loads the existing transcript + SPEAKER_NN, and re-runs only the naming). The
+            # audio download is skipped in download_media_for_transcription for this stage.
+            merged["transcribe_missing"] = True
+            message = (
+                "pipeline_stage=relabel_only: re-resolving speaker names on the existing "
+                "diarization (no audio, no re-ASR, no re-diarize)."
             )
         if message is not None:
             # Compute the once-per-process gate inside the lock, but log outside it
