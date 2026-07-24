@@ -88,6 +88,7 @@ nav:
           - Surfaces: guides/perf-traces/surfaces.md
           - Reports:
               - guides/perf-traces/reports/index.md
+              - "2.7.0.dev1 (Jul 2026)": guides/perf-traces/reports/2026-07-24-2.7.0.dev1.md
               - "graph-v3 tuning (Jul 2026)": guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md
       - Optimization Workflow: guides/OPTIMIZATION_WORKFLOW_GUIDE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
