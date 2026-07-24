@@ -55,12 +55,6 @@ function onScrub(ev: Event): void {
 
 <template>
   <div class="rounded-2xl border border-border bg-surface p-4">
-    <!-- Optional top-right affordance INSIDE the panel (the transcript toggle on mobile). Hidden
-         on desktop, where the transcript is the always-visible side column. Caller owns the button
-         + its semantics; the panel just offers the corner. -->
-    <div v-if="$slots.corner" class="mb-2 flex justify-end lg:hidden">
-      <slot name="corner" />
-    </div>
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show
          where the substance is. Grounded → accent colour; opacity = confidence (the "weight"). -->
     <div
@@ -104,9 +98,13 @@ function onScrub(ev: Event): void {
       <span>{{ formatTime(duration) }}</span>
     </div>
 
-    <!-- Play is DEAD-CENTRE: back-15 / forward-30 flank it symmetrically in the centred flow,
-         and the speed toggle is pinned to the right edge (absolute) so it doesn't tilt the row. -->
+    <!-- Play is DEAD-CENTRE: back-15 / forward-30 flank it symmetrically in the centred flow;
+         the speed toggle is pinned right, and the optional `corner` affordance (transcript toggle
+         on mobile) is pinned left — both absolute so they add no height and don't tilt the row. -->
     <div class="relative mt-3 flex items-center justify-center gap-6">
+      <div v-if="$slots.corner" class="absolute left-0 top-1/2 -translate-y-1/2">
+        <slot name="corner" />
+      </div>
       <button type="button" class="font-bold" :aria-label="t('player.back15')" @click="emit('skip', -15)">
         ↺15
       </button>

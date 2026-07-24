@@ -564,29 +564,28 @@ onBeforeUnmount(() => {
             @skip="skip"
             @cycle-rate="cycleRate"
           >
-            <!-- Transcript toggle INSIDE the panel, top-right (mobile only). It floats with the
-                 panel so it's reachable at any scroll position; hidden on desktop where the
-                 transcript is the always-visible side column. -->
+            <!-- Transcript toggle: a compact icon pill pinned to the LEFT of the controls row,
+                 mirroring the speed pill on the right. Adds zero height (absolute in the existing
+                 row). A CC-style transport affordance — accent when the transcript is open, plus a
+                 tooltip. Mobile only (desktop shows the transcript as the side column). -->
             <template #corner>
               <button
                 v-if="segments.length"
                 type="button"
-                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition"
-                :class="
-                  transcriptOpen
-                    ? 'border-accent bg-overlay text-accent'
-                    : 'border-border text-canvas-foreground hover:bg-overlay'
-                "
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold transition"
+                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'bg-overlay text-accent'"
                 :aria-expanded="transcriptOpen"
                 :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
                 :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
                 data-testid="transcript-toggle"
                 @click="toggleTranscript"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true">
-                  <path d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                <!-- Transcript glyph: a captions/subtitles mark — a framed screen with text lines,
+                     the universal "read the text" transport affordance. -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                  <path d="M7 10.5h7M7 14h10" />
                 </svg>
-                {{ t('player.transcript') }}
               </button>
             </template>
           </PlayerControls>
