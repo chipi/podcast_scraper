@@ -39,21 +39,62 @@ One-time setup (per operator):
 1. `brew install opentofu sops age`
 2. `age-keygen -o ~/.config/sops/age/keys.txt`
 3. Copy the public key (the `# public key:` comment) into [`.sops.yaml`](.sops.yaml), replacing the `age1PLACEHOLDER…` value.
-4. Save the **private** key to 1Password as `sops/podcast-scraper/tofu-state-age-key`.
+4. Back up the **private** key somewhere durable — it's the only thing that decrypts prod
+   tofu state (`~/.config/sops/age/keys.txt` locally; the same value is the `TFSTATE_AGE_KEY`
+   repo Actions secret for CI).
 5. Stage `HCLOUD_TOKEN`, `TS_AUTHKEY` (device-join), `TS_API_KEY` (terraform's tailscale provider; Free-plan substitute for OAuth — see [PROD_RUNBOOK.md "Tailscale credentials"](../docs/guides/PROD_RUNBOOK.md)), `TFSTATE_AGE_KEY` in repo Actions secrets (see [#714](https://github.com/chipi/podcast_scraper/issues/714)).
 
-Per-operation:
+## Prod plan & apply — the whole flow (read this before touching prod)
+
+Prod tofu manages the **entire estate in one state**: `hcloud_server.prod` (the VPS),
+volumes, storage box, network, firewall, **and** `tailscale_acl.main`. **Any apply
+reconciles all of it** — so a one-line ACL change is *not* an isolated apply. Plan first,
+every time, and read the diff.
+
+**Recommended path — GitHub Actions (no local creds needed; guarded):**
+
+| Step | Workflow | What it does |
+| --- | --- | --- |
+| **Plan / review** | **`infra-drift.yml`** (`workflow_dispatch`) | Read-only `tofu plan` vs live; opens/updates a drift issue with the diff. Run this first: `gh workflow run infra-drift.yml` (add `--ref <branch>` to test a workflow change). |
+| **Apply** | **`infra-apply.yml`** (`workflow_dispatch`, `mode=apply`, type `APPLY`) | Re-plans, then applies. `environment: prod` (approval gate) **and** `override_destructive` **blocks any plan containing "forces replacement / must be replaced / will be destroyed"** unless you explicitly override. So it cannot recreate the VPS by accident. |
+
+> **Guard gap to know:** `override_destructive` only blocks *destroy/replace*. An **in-place**
+> change that *opens the firewall* (`0 to destroy`) is **not** blocked — so you must still read
+> the plan's firewall diff yourself.
+
+**Gotcha — `cloudflare_origin_lock` (T-05 / ADR-118):** the firewall's `:443`/`:80` `source_ips`
+switch on this bool — `true` → Cloudflare CIDRs (origin-lock), `false` (the variable default) →
+`0.0.0.0/0`. The live prod firewall is **locked** (repo var `CLOUDFLARE_ORIGIN_LOCK=true`).
+Every workflow that plans/applies prod **must** pass `TF_VAR_cloudflare_origin_lock:
+${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}` — otherwise it plans with the `false` default and
+reports a **spurious "opening :443 to 0.0.0.0/0"** drift against a firewall that is actually
+locked. If a plan shows `443/80 → 0.0.0.0/0`, check that the workflow passes this var before
+believing the diff.
+
+**Scoped apply (change *only* the ACL, leave the rest alone):**
+
+```bash
+cd infra && ./tofu apply -target='tailscale_acl.main[0]'
+```
+
+`infra-apply.yml` does a *full* apply (no `-target`), so use the CLI for a surgical ACL-only
+change when you don't want to touch anything else in the same run.
+
+**Local path (if you hold the tokens — no 1Password):** export the two provider tokens from
+your own secret store, then use the sops-aware wrapper:
 
 ```bash
 cd infra
-export HCLOUD_TOKEN=$(op read 'op://Personal/Hetzner Cloud/podcast-scraper-prod/api-token')
-export TF_VAR_tailscale_api_key=$(op read 'op://Personal/Tailscale/podcast-scraper/api-key')
-./tofu init
-./tofu plan
-./tofu apply
+export TF_VAR_hcloud_token=…            # Hetzner Cloud API token (prod project)
+export TF_VAR_tailscale_api_key=…       # Tailscale API key (provider; Free-plan OAuth substitute)
+export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"
+export TF_VAR_cloudflare_origin_lock=true   # match live — else you'll plan the firewall open
+./tofu init && ./tofu plan               # or: make infra-plan (sources infra/.env.local)
+./tofu apply                             # prompts y/n; ./tofu apply -target=… to scope
 ```
 
-The `tofu` wrapper auto-decrypts state before invocation and re-encrypts after.
+The `tofu` wrapper auto-decrypts state before invocation and re-encrypts after (see § State
+encryption model).
 
 ## DR drill workspace (OpenTofu, GitHub #752)
 
