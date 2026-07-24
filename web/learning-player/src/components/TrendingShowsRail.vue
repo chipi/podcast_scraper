@@ -79,7 +79,7 @@ function spark(series: number[]): { line: string; area: string } {
         v-for="(e, i) in shown"
         :key="e.entity_id"
         :to="{ name: 'podcast', params: { feedId: e.entity_id } }"
-        class="group relative block h-[4.5rem] overflow-hidden no-underline [&:not(:first-child)]:border-t [&:not(:first-child)]:border-black/40"
+        class="group relative block h-14 overflow-hidden no-underline [&:not(:first-child)]:border-t [&:not(:first-child)]:border-black/40"
         :title="titleOf(e)"
         data-testid="trending-show-card"
       >
