@@ -1,8 +1,10 @@
 # Observability correlation: traces ⇄ logs ⇄ metrics
 
 **Status:** In progress (reconstructed 2026-07-23). G0 + G1 + G4 implemented this-repo
-(pending a player deploy); G3a handed to homelab (`HOMELAB-HANDOVER-correlation-pivot.md`);
-G5 + exemplars open.
+(held, pending a player deploy / main-image for G1); **G3a DONE** — `tracesToLogsV2`
+trace→logs applied on the homelab Grafana 2026-07-24 (pending the homelab-repo commit; the
+log→trace derivedField already existed). G5 + metric exemplars open. Live-state assessment:
+`docs/guides/OBSERVABILITY_RUNBOOK.md`.
 **Owner:** Marko
 **Scope:** self-hosted o11y (VictoriaLogs + VictoriaTraces + VictoriaMetrics behind Grafana)
 
