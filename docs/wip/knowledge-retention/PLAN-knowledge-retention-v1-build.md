@@ -182,7 +182,7 @@ matches L2 touch; cold-start renders honest empty state.
 - Metrics: **time-to-first-aha**, anchors-per-session, resurface/what-changed **acknowledge
   vs dismiss rates** (the data to later fit `λ`/`θ` and the per-node-watermark trigger),
   Map open + density, deposit→resolve latency.
-- Wire via existing Langfuse (LLM traces on resolution/question-gen later) + PostHog
+- Wire via existing Langfuse (LLM traces on resolution/question-gen later) + Umami
   (product events). Keep production-derived data private (GDPR + competitive sensitivity).
 
 **Acceptance.** Dashboards emit the above; acknowledgement data is queryable for parameter

@@ -218,6 +218,11 @@ extracted helper at `utils/graphHandoffInvariant.ts`), error-strip
 rendering (T4 — 2 Playwright tests), and PostHog telemetry firing (T5 —
 8 Vitest tests on the store with `vi.mock('posthog-js')`).
 
+> **Update (ADR-126):** analytics later migrated PostHog Cloud → self-hosted
+> Umami. The `graph_handoff_*` events are unchanged; the store now calls
+> `lib/analytics.ts` `track()` and the T5 tests mock that module instead of
+> `posthog-js`.
+
 ## Lessons learned
 
 - **Audit before designing**. The pre-fix entry-point catalogue (13
