@@ -67,6 +67,16 @@ const DPR = Number(args['viewport-dpr'] ?? '2')
 // Query to drive results-paint / operator scenarios. Default suits the prod-v2
 // reference corpus (finance); override with --query for other corpora.
 const QUERY = args.query ?? 'the economy'
+// Median-of-N: each scenario runs in N fresh contexts; the report headline is
+// the median (framework standard is ≥ 3). Override with --runs.
+const RUNS = Math.max(1, Number(args.runs ?? '3'))
+
+function median(nums) {
+  const s = nums.filter((n) => n != null).sort((a, b) => a - b)
+  if (!s.length) return null
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2)
+}
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true })
 const OUT = path.join(OUTPUT_DIR, `${LABEL}.ui.metrics.json`)
@@ -86,8 +96,6 @@ const OPERATOR_CLUSTER_PANEL_SEL = '[data-testid="operator-cluster-panel"]'
 const OPERATOR_COMPARE_CHIP_SEL = '[data-testid="operator-chip-compare"]'
 const OPERATOR_COMPARE_RUN_SEL = '[data-testid="operator-compare-run"]'
 const OPERATOR_COMPARE_COLUMNS_SEL = '[data-testid="operator-compare-columns"]'
-
-const scenarios = []
 
 async function captureWorkspaceOpen(page) {
   // S2 (#1232) — page load → set corpus path (enables search) → Search main tab
@@ -211,51 +219,74 @@ async function captureOperatorCompare(page) {
   return { name: 'operator-compare', run_ms: elapsed }
 }
 
+async function runAllScenarios(page) {
+  // Order matters: workspace-open navigates to the Search tab; results-paint
+  // must precede the operator scenarios (they read the current hit set).
+  return [
+    await captureWorkspaceOpen(page),
+    await captureFilterApply(page),
+    await captureResultsPaint(page),
+    await captureCmdkOpen(page),
+    await captureOperatorCluster(page),
+    await captureOperatorCompare(page),
+  ]
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true })
+  const perRun = []
   try {
-    const ctx = await browser.newContext({
-      viewport: { width: VW, height: VH },
-      deviceScaleFactor: DPR,
-    })
-    const page = await ctx.newPage()
-
-    // Order matters: workspace-open navigates to the Search tab; results-paint
-    // must precede the operator scenarios (they read the current hit set).
-    scenarios.push(await captureWorkspaceOpen(page))
-    scenarios.push(await captureFilterApply(page))
-    scenarios.push(await captureResultsPaint(page))
-    scenarios.push(await captureCmdkOpen(page))
-    scenarios.push(await captureOperatorCluster(page))
-    scenarios.push(await captureOperatorCompare(page))
-
-    // Warmup grace so any last CDP events settle.
-    await page.waitForTimeout(WAIT_MS)
-    await ctx.close()
+    for (let r = 0; r < RUNS; r++) {
+      const ctx = await browser.newContext({
+        viewport: { width: VW, height: VH },
+        deviceScaleFactor: DPR,
+      })
+      const page = await ctx.newPage()
+      perRun.push(await runAllScenarios(page))
+      await page.waitForTimeout(WAIT_MS)
+      await ctx.close()
+    }
   } finally {
     await browser.close()
   }
 
+  // Aggregate by scenario name → median of the per-run metric values.
+  const names = perRun[0].map((s) => s.name)
+  const scenarios = names.map((name) => {
+    const entries = perRun.map((run) => run.find((s) => s.name === name)).filter(Boolean)
+    const metric =
+      Object.keys(entries[0]).find((k) => k !== 'name' && k !== 'error') || 'ms'
+    const values = entries.map((e) => e[metric]).filter((v) => v != null)
+    const errors = entries.map((e) => e.error).filter(Boolean)
+    return {
+      name,
+      metric,
+      median_ms: median(values),
+      runs: entries.map((e) => (e[metric] == null ? null : e[metric])),
+      samples: values.length,
+      ...(errors.length ? { errors } : {}),
+    }
+  })
+
   const payload = {
-    schema_version: '1',
+    schema_version: '2',
     label: LABEL,
     captured_at: new Date().toISOString(),
     viewer: VIEWER,
     corpus: CORPUS,
+    runs: RUNS,
     viewport: { width: VW, height: VH, device_scale_factor: DPR },
     scenarios,
   }
   fs.writeFileSync(OUT, JSON.stringify(payload, null, 2) + '\n')
-  console.log(`\ncapture-search-perf: ${scenarios.length} scenarios → ${path.basename(OUT)}`)
+  console.log(
+    `\ncapture-search-perf: ${scenarios.length} scenarios, median-of-${RUNS} → ${path.basename(OUT)}`,
+  )
   for (const s of scenarios) {
-    if (s.status === 'NOT_APPLICABLE_YET') {
-      console.log(`  ${s.name.padEnd(24)} NOT_APPLICABLE_YET (${s.unblocks_with})`)
-    } else if (s.error) {
-      console.log(`  ${s.name.padEnd(24)} ERROR: ${s.error}`)
-    } else {
-      const key = Object.keys(s).find((k) => k !== 'name' && s[k] !== null)
-      console.log(`  ${s.name.padEnd(24)} ${key}=${s[key]} ms`)
-    }
+    const note = s.errors ? `  (${s.samples}/${RUNS} ok)` : ''
+    console.log(
+      `  ${s.name.padEnd(20)} ${s.metric}=${s.median_ms ?? 'n/a'} ms  runs=[${s.runs.join(', ')}]${note}`,
+    )
   }
 }
 

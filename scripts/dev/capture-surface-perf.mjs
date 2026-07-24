@@ -54,6 +54,15 @@ const WAIT_MS = Number(args['wait-ms'] ?? '3000')
 const VW = Number(args['viewport-w'] ?? '1440')
 const VH = Number(args['viewport-h'] ?? '900')
 const DPR = Number(args['viewport-dpr'] ?? '2')
+// Median-of-N: each scenario runs in N fresh contexts (framework standard ≥ 3).
+const RUNS = Math.max(1, Number(args.runs ?? '3'))
+
+function median(nums) {
+  const s = nums.filter((n) => n != null).sort((a, b) => a - b)
+  if (!s.length) return null
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2)
+}
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true })
 const OUT = path.join(OUTPUT_DIR, `${LABEL}.ui.metrics.json`)
@@ -65,8 +74,6 @@ const LIBRARY_ROW_SEL = '[data-library-episode-row]'
 const DIGEST_TAB_SEL = '[data-testid="main-tab-digest"]'
 const DIGEST_ROOT_SEL = '[data-testid="digest-root"]'
 const EPISODE_RAIL_SEL = '[data-testid="episode-detail-rail"]'
-
-const scenarios = []
 
 async function landAndSetCorpus(page) {
   await page.goto(`${VIEWER}/?path=${encodeURIComponent(CORPUS)}`)
@@ -113,44 +120,69 @@ async function captureEntityLoad(page) {
   }
 }
 
+async function runAllScenarios(page) {
+  await landAndSetCorpus(page)
+  return [
+    await captureLibraryLoad(page),
+    await captureDigestLoad(page),
+    await captureEntityLoad(page),
+  ]
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true })
+  const perRun = []
   try {
-    const ctx = await browser.newContext({
-      viewport: { width: VW, height: VH },
-      deviceScaleFactor: DPR,
-    })
-    const page = await ctx.newPage()
-
-    await landAndSetCorpus(page)
-    scenarios.push(await captureLibraryLoad(page))
-    scenarios.push(await captureDigestLoad(page))
-    scenarios.push(await captureEntityLoad(page))
-
-    await page.waitForTimeout(WAIT_MS)
-    await ctx.close()
+    for (let r = 0; r < RUNS; r++) {
+      const ctx = await browser.newContext({
+        viewport: { width: VW, height: VH },
+        deviceScaleFactor: DPR,
+      })
+      const page = await ctx.newPage()
+      perRun.push(await runAllScenarios(page))
+      await page.waitForTimeout(WAIT_MS)
+      await ctx.close()
+    }
   } finally {
     await browser.close()
   }
 
+  const names = perRun[0].map((s) => s.name)
+  const scenarios = names.map((name) => {
+    const entries = perRun.map((run) => run.find((s) => s.name === name)).filter(Boolean)
+    const metric =
+      Object.keys(entries[0]).find((k) => k !== 'name' && k !== 'error') || 'ms'
+    const values = entries.map((e) => e[metric]).filter((v) => v != null)
+    const errors = entries.map((e) => e.error).filter(Boolean)
+    return {
+      name,
+      metric,
+      median_ms: median(values),
+      runs: entries.map((e) => (e[metric] == null ? null : e[metric])),
+      samples: values.length,
+      ...(errors.length ? { errors } : {}),
+    }
+  })
+
   const payload = {
-    schema_version: '1',
+    schema_version: '2',
     label: LABEL,
     captured_at: new Date().toISOString(),
     viewer: VIEWER,
     corpus: CORPUS,
+    runs: RUNS,
     viewport: { width: VW, height: VH, device_scale_factor: DPR },
     scenarios,
   }
   fs.writeFileSync(OUT, JSON.stringify(payload, null, 2) + '\n')
-  console.log(`\ncapture-surface-perf: ${scenarios.length} scenarios → ${path.basename(OUT)}`)
+  console.log(
+    `\ncapture-surface-perf: ${scenarios.length} scenarios, median-of-${RUNS} → ${path.basename(OUT)}`,
+  )
   for (const s of scenarios) {
-    if (s.error) {
-      console.log(`  ${s.name.padEnd(16)} ERROR: ${s.error}`)
-    } else {
-      const key = Object.keys(s).find((k) => k !== 'name' && s[k] !== null)
-      console.log(`  ${s.name.padEnd(16)} ${key}=${s[key]} ms`)
-    }
+    const note = s.errors ? `  (${s.samples}/${RUNS} ok)` : ''
+    console.log(
+      `  ${s.name.padEnd(16)} ${s.metric}=${s.median_ms ?? 'n/a'} ms  runs=[${s.runs.join(', ')}]${note}`,
+    )
   }
 }
 

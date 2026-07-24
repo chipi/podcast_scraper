@@ -1,9 +1,10 @@
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "label": "2.7.0.dev1-search-ui",
-  "captured_at": "2026-07-24T10:08:51.868Z",
+  "captured_at": "2026-07-24T10:37:52.442Z",
   "viewer": "http://127.0.0.1:5601",
   "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "runs": 5,
   "viewport": {
     "width": 1440,
     "height": 900,
@@ -12,27 +13,81 @@
   "scenarios": [
     {
       "name": "workspace-open",
-      "tti_ms": 1012
+      "metric": "tti_ms",
+      "median_ms": 248,
+      "runs": [
+        1008,
+        248,
+        211,
+        219,
+        248
+      ],
+      "samples": 5
     },
     {
       "name": "filter-apply",
-      "open_ms": 37
+      "metric": "open_ms",
+      "median_ms": 15,
+      "runs": [
+        13,
+        14,
+        29,
+        36,
+        15
+      ],
+      "samples": 5
     },
     {
       "name": "results-paint",
-      "paint_ms": 4313
+      "metric": "paint_ms",
+      "median_ms": 784,
+      "runs": [
+        5806,
+        786,
+        783,
+        784,
+        784
+      ],
+      "samples": 5
     },
     {
       "name": "cmdk-open",
-      "open_ms": 3
+      "metric": "open_ms",
+      "median_ms": 3,
+      "runs": [
+        2,
+        3,
+        3,
+        3,
+        3
+      ],
+      "samples": 5
     },
     {
       "name": "operator-cluster",
-      "run_ms": 26
+      "metric": "run_ms",
+      "median_ms": 15,
+      "runs": [
+        23,
+        15,
+        15,
+        15,
+        15
+      ],
+      "samples": 5
     },
     {
       "name": "operator-compare",
-      "run_ms": 808
+      "metric": "run_ms",
+      "median_ms": 796,
+      "runs": [
+        803,
+        796,
+        798,
+        796,
+        796
+      ],
+      "samples": 5
     }
   ]
 }

@@ -32,6 +32,7 @@ OUTPUT_DIR="data/perf/traces/search"
 API_PORT="8601"
 VIEWER_PORT="5601"
 WAIT_MS="3000"
+RUNS="3"
 VIEWPORT_WIDTH="1440"
 VIEWPORT_HEIGHT="900"
 VIEWPORT_DPR="2"
@@ -44,6 +45,7 @@ while [ $# -gt 0 ]; do
     --api-port)       API_PORT="$2"; shift 2 ;;
     --viewer-port)    VIEWER_PORT="$2"; shift 2 ;;
     --wait-ms)        WAIT_MS="$2"; shift 2 ;;
+    --runs)           RUNS="$2"; shift 2 ;;
     --viewport-w)     VIEWPORT_WIDTH="$2"; shift 2 ;;
     --viewport-h)     VIEWPORT_HEIGHT="$2"; shift 2 ;;
     --viewport-dpr)   VIEWPORT_DPR="$2"; shift 2 ;;
@@ -142,6 +144,7 @@ env -u NODE_OPTIONS bash -c "cd ${VIEWER_DIR} && \
     --label '${LABEL}' \
     --output-dir '${OUTPUT_DIR}' \
     --wait-ms '${WAIT_MS}' \
+    --runs '${RUNS}' \
     --viewport-w '${VIEWPORT_WIDTH}' \
     --viewport-h '${VIEWPORT_HEIGHT}' \
     --viewport-dpr '${VIEWPORT_DPR}'"
