@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
+vi.mock('../lib/analytics', () => ({ track: vi.fn() }))
 
 const searchCorpusMock = vi.fn()
 vi.mock('../api/searchApi', () => ({

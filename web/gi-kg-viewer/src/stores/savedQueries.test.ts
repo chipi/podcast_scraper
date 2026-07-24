@@ -2,7 +2,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
+vi.mock('../lib/analytics', () => ({ track: vi.fn() }))
 
 import { useSavedQueriesStore } from './savedQueries'
 import { useUserPreferencesStore } from './userPreferences'

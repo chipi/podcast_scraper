@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
-import posthog from 'posthog-js'
+import { track } from '../lib/analytics'
 import {
   compareSubjects as compareSubjectsApi,
   searchCorpus,
@@ -262,7 +262,7 @@ export const useSearchStore = defineStore('search', () => {
       enrichmentCallFailed.value = Boolean(
         body.enrichment_error && String(body.enrichment_error).trim(),
       )
-      posthog.capture('search_run', {
+      track('search_run', {
         query_length: q.length,
         result_count: body.results.length,
         filter_types: filters.types.length ? filters.types : [],

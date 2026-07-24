@@ -27,36 +27,34 @@
 /** The `operator-dev` Umami site, reached over the tailnet in `vite dev`.
  *  `VITE_UMAMI_SRC` is the FULL tracking-script URL (same convention as the
  *  player) — injected verbatim, never suffixed. */
-const DEV_UMAMI_SRC = "http://homelab:3001/script.js"
-const DEV_UMAMI_WEBSITE_ID = "3bc8920d-d2bb-4a7f-a16b-057b1ed944c4"
+const DEV_UMAMI_SRC = 'http://homelab:3001/script.js'
+const DEV_UMAMI_WEBSITE_ID = '3bc8920d-d2bb-4a7f-a16b-057b1ed944c4'
 
 /** Dev default is live in `vite dev` unless a test runner explicitly opted out. */
-const devDefaultEnabled = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== "1"
+const devDefaultEnabled = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
 
 function umamiSrc(): string {
-  return (import.meta.env.VITE_UMAMI_SRC as string) || (devDefaultEnabled ? DEV_UMAMI_SRC : "")
+  return (import.meta.env.VITE_UMAMI_SRC as string) || (devDefaultEnabled ? DEV_UMAMI_SRC : '')
 }
 function umamiWebsiteId(): string {
   return (
     (import.meta.env.VITE_UMAMI_WEBSITE_ID as string) ||
-    (devDefaultEnabled ? DEV_UMAMI_WEBSITE_ID : "")
+    (devDefaultEnabled ? DEV_UMAMI_WEBSITE_ID : '')
   )
 }
 
 /** The canonical viewer event vocabulary. `track()` accepts only these. */
 export const EVENT_NAMES = [
-  "main_tab_switched",
-  "graph_corpus_synced",
-  "episode_focused",
-  "search_run",
-  "explore_filtered_run",
-  "explore_natural_language_run",
-  "graph_handoff_stuck",
-  "graph_handoff_started",
-  "graph_handoff_failed",
-  "graph_handoff_applied",
-  "left_panel_surface_switched",
-  "corpus_path_changed",
+  'main_tab_switched',
+  'graph_corpus_synced',
+  'episode_focused',
+  'search_run',
+  'graph_handoff_stuck',
+  'graph_handoff_started',
+  'graph_handoff_failed',
+  'graph_handoff_applied',
+  'left_panel_surface_switched',
+  'corpus_path_changed',
 ] as const
 
 export type EventName = (typeof EVENT_NAMES)[number]
@@ -73,16 +71,16 @@ function analyticsEnabled(): boolean {
  *  Idempotent. Call from `main.ts` after the app is created. Umami hooks the
  *  History API, so SPA route changes auto-track without extra wiring. */
 export function initAnalytics(): void {
-  if (typeof document === "undefined") return
+  if (typeof document === 'undefined') return
   const src = umamiSrc()
   const websiteId = umamiWebsiteId()
   if (!src || !websiteId) return // fork-silent (non-dev build, no env) by construction
-  if (document.querySelector("script[data-umami-installed]")) return
-  const s = document.createElement("script")
+  if (document.querySelector('script[data-umami-installed]')) return
+  const s = document.createElement('script')
   s.defer = true
   s.src = src
-  s.setAttribute("data-website-id", websiteId)
-  s.setAttribute("data-umami-installed", "1")
+  s.setAttribute('data-website-id', websiteId)
+  s.setAttribute('data-umami-installed', '1')
   document.head.appendChild(s)
 }
 
@@ -95,7 +93,7 @@ type UmamiGlobal = {
  *  analytics is disabled. Drop-in for the old `posthog.capture(name, props)`. */
 export function track(name: EventName, props?: Record<string, unknown>): void {
   if (!analyticsEnabled()) return
-  if (typeof window === "undefined") return
+  if (typeof window === 'undefined') return
   const u = (window as unknown as { umami?: UmamiGlobal }).umami
   u?.track?.(name, props)
 }

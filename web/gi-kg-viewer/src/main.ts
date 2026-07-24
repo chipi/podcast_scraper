@@ -1,10 +1,10 @@
-import { createPinia } from "pinia"
-import * as Sentry from "@sentry/vue"
-import { createApp } from "vue"
-import "./style.css"
-import App from "./App.vue"
-import { applyPreset } from "./theme/theme"
-import { initAnalytics } from "./lib/analytics"
+import { createPinia } from 'pinia'
+import * as Sentry from '@sentry/vue'
+import { createApp } from 'vue'
+import './style.css'
+import App from './App.vue'
+import { applyPreset } from './theme/theme'
+import { initAnalytics } from './lib/analytics'
 
 applyPreset()
 
@@ -36,9 +36,9 @@ const app = createApp(App)
 // the repo reports nothing (the transport silently fails). The key is a public
 // browser id (ships in the bundle) — safe to commit. ``VITE_ANALYTICS_OFF=1``
 // (set by the vitest + playwright configs) suppresses the dev default in tests.
-const DEV_SENTRY_DSN_VIEWER = "http://53a88592c99e48bc8d505d258597ab78@homelab:8090/9"
+const DEV_SENTRY_DSN_VIEWER = 'http://53a88592c99e48bc8d505d258597ab78@homelab:8090/9'
 const devSentryDefault =
-  import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== "1"
+  import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
     ? DEV_SENTRY_DSN_VIEWER
     : undefined
 const SENTRY_DSN_VIEWER =
@@ -51,7 +51,7 @@ if (SENTRY_DSN_VIEWER) {
   Sentry.init({
     app,
     dsn: SENTRY_DSN_VIEWER,
-    environment: w.__PODCAST_ENV__ || (import.meta.env.DEV ? "dev" : "prod"),
+    environment: w.__PODCAST_ENV__ || (import.meta.env.DEV ? 'dev' : 'prod'),
     release: w.__PODCAST_RELEASE__ || (import.meta.env.VITE_PODCAST_RELEASE as string) || undefined,
     // Keep PII off by default.
     sendDefaultPii: false,
@@ -61,7 +61,7 @@ if (SENTRY_DSN_VIEWER) {
     // Tag every event so the api / pipeline / viewer streams stay
     // separable in the Sentry UI.
     initialScope: {
-      tags: { component: "viewer" },
+      tags: { component: 'viewer' },
     },
   })
 }
@@ -75,7 +75,7 @@ app.use(createPinia())
 // Fire-and-forget: mount doesn't wait on the hydrate to avoid delaying first
 // paint; consuming stores react when the promise resolves.
 void (async () => {
-  const { useUserPreferencesStore } = await import("./stores/userPreferences")
+  const { useUserPreferencesStore } = await import('./stores/userPreferences')
   await useUserPreferencesStore().hydrate()
 })()
 
@@ -86,4 +86,4 @@ void (async () => {
 // custom errorHandler wrapper is needed anymore.
 initAnalytics()
 
-app.mount("#app")
+app.mount('#app')
