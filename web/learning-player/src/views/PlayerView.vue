@@ -549,6 +549,31 @@ onBeforeUnmount(() => {
         <div
           class="sticky top-0 z-20 mt-4 bg-canvas pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
         >
+          <!-- Transcript toggle: top-right of the floating controls cluster, mobile-only, so it's
+               reachable at any scroll position AND independent of audio state (a listener whose
+               audio fails must still be able to open the transcript). Desktop shows the transcript
+               as the always-visible side column, so it's hidden there (lg:hidden). -->
+          <div v-if="segments.length" class="mb-2 flex justify-end lg:hidden">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition"
+              :class="
+                transcriptOpen
+                  ? 'border-accent bg-overlay text-accent'
+                  : 'border-border bg-surface text-canvas-foreground hover:bg-overlay'
+              "
+              :aria-expanded="transcriptOpen"
+              :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
+              :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
+              data-testid="transcript-toggle"
+              @click="toggleTranscript"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true">
+                <path d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+              </svg>
+              {{ t('player.transcript') }}
+            </button>
+          </div>
           <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
             {{ t('player.audioError') }}
           </p>
@@ -570,22 +595,9 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Middle: synced transcript -->
+      <!-- Middle: synced transcript. The mobile show/hide toggle lives in the floating controls
+           panel (PlayerControls #corner slot) so it's reachable at any scroll position. -->
       <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70vh] lg:flex-col">
-        <!-- Show/Hide transcript (mobile only): the transcript is opt-in so pressing play does
-             not jump the listener down here. On desktop the transcript is the side column, so
-             this toggle is hidden there (lg:hidden). -->
-        <button
-          v-if="segments.length"
-          type="button"
-          class="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2.5 font-bold text-canvas-foreground transition hover:bg-overlay lg:hidden"
-          :aria-expanded="transcriptOpen"
-          data-testid="transcript-toggle"
-          @click="toggleTranscript"
-        >
-          {{ transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript') }}
-        </button>
-
         <!-- Transcript body — opt-in on mobile (toggled), always shown on desktop. `lg:contents`
              dissolves this wrapper at lg so the transcript keeps flowing inside the flex column
              (lg:flex-1 scroll) exactly as before. -->

@@ -22,6 +22,10 @@ export async function signInIsolated(page: Page, who: string, testInfo: TestInfo
  */
 export async function openTranscript(page: Page): Promise<void> {
   const toggle = page.getByTestId('transcript-toggle')
+  // Wait for the toggle to attach — it renders once segments load, on BOTH viewports
+  // (lg:hidden on desktop). Then click only if it's actually visible (mobile); on desktop
+  // it's attached-but-hidden and the transcript is already the side column, so this no-ops.
+  await toggle.waitFor({ state: 'attached', timeout: 15_000 }).catch(() => {})
   if (await toggle.isVisible().catch(() => false)) {
     await toggle.click()
   }
