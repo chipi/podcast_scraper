@@ -27,6 +27,7 @@ import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { aggregateScenarios } from './perf-agg.mjs'
 
 // @playwright/test is installed in the viewer's node_modules, not repo-root.
 // This script lives in scripts/dev/, so ESM bare-import resolution never reaches
@@ -71,12 +72,7 @@ const QUERY = args.query ?? 'the economy'
 // the median (framework standard is ≥ 3). Override with --runs.
 const RUNS = Math.max(1, Number(args.runs ?? '3'))
 
-function median(nums) {
-  const s = nums.filter((n) => n != null).sort((a, b) => a - b)
-  if (!s.length) return null
-  const mid = Math.floor(s.length / 2)
-  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2)
-}
+// median + scenario aggregation live in perf-agg.mjs (pure, unit-tested).
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true })
 const OUT = path.join(OUTPUT_DIR, `${LABEL}.ui.metrics.json`)
@@ -262,40 +258,10 @@ async function main() {
     await browser.close()
   }
 
-  // Aggregate by scenario name. The FIRST pass is cold (index-open +
-  // embedding-model load) and is EXCLUDED from the target metrics — we track
-  // warm steady-state (min / median / max over runs 2..N) and record the cold
-  // value separately. If only one run was requested, fall back to it.
-  const names = perRun[0].map((s) => s.name)
-  const scenarios = names.map((name) => {
-    const entries = perRun.map((run) => run.find((s) => s.name === name)).filter(Boolean)
-    const metric = Object.keys(entries[0]).find((k) => k !== 'name' && k !== 'error') || 'ms'
-    const allRuns = entries.map((e) => (e[metric] == null ? null : e[metric]))
-    const cold = allRuns.length ? allRuns[0] : null
-    let warm = allRuns.slice(1).filter((v) => v != null)
-    if (!warm.length) warm = allRuns.filter((v) => v != null)
-    const errors = entries.map((e) => e.error).filter(Boolean)
-    const mean = warm.length ? Math.round(warm.reduce((a, b) => a + b, 0) / warm.length) : null
-    // Scenarios that record a sub-split (operator-compare: net vs render) expose
-    // warm medians so run_ms stays the single headline metric but the split is
-    // auditable in the JSON.
-    const warmEntries = entries.length > 1 ? entries.slice(1) : entries
-    const splitMedian = (key) => median(warmEntries.map((e) => e[key]).filter((v) => v != null))
-    const hasSplit = entries.some((e) => e.net_ms != null)
-    return {
-      name,
-      metric,
-      min_ms: warm.length ? Math.min(...warm) : null,
-      mean_ms: mean,
-      median_ms: median(warm),
-      max_ms: warm.length ? Math.max(...warm) : null,
-      cold_ms: cold,
-      runs: allRuns,
-      warm_samples: warm.length,
-      ...(hasSplit ? { split_median: { net_ms: splitMedian('net_ms'), render_ms: splitMedian('render_ms') } } : {}),
-      ...(errors.length ? { errors } : {}),
-    }
-  })
+  // Aggregate by scenario name (pure math in perf-agg.mjs, unit-tested). The
+  // FIRST pass is cold (index-open + embedding-model load) and is EXCLUDED from
+  // the warm min/median/max; its value is recorded separately as cold_ms.
+  const scenarios = aggregateScenarios(perRun)
 
   const payload = {
     schema_version: '2',
