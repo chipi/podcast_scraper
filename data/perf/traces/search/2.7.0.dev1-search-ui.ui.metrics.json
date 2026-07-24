@@ -1,7 +1,7 @@
 {
   "schema_version": "2",
   "label": "2.7.0.dev1-search-ui",
-  "captured_at": "2026-07-24T14:38:32.283Z",
+  "captured_at": "2026-07-24T15:37:59.563Z",
   "viewer": "http://127.0.0.1:5601",
   "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
   "runs": 6,
@@ -14,54 +14,54 @@
     {
       "name": "workspace-open",
       "metric": "tti_ms",
-      "min_ms": 212,
-      "mean_ms": 230,
-      "median_ms": 234,
-      "max_ms": 236,
-      "cold_ms": 1158,
+      "min_ms": 196,
+      "mean_ms": 255,
+      "median_ms": 206,
+      "max_ms": 395,
+      "cold_ms": 1180,
       "runs": [
-        1158,
-        234,
-        212,
-        234,
-        234,
-        236
+        1180,
+        395,
+        196,
+        276,
+        204,
+        206
       ],
       "warm_samples": 5
     },
     {
       "name": "filter-apply",
       "metric": "open_ms",
-      "min_ms": 6,
-      "mean_ms": 19,
-      "median_ms": 13,
-      "max_ms": 46,
-      "cold_ms": 13,
+      "min_ms": 13,
+      "mean_ms": 23,
+      "median_ms": 14,
+      "max_ms": 53,
+      "cold_ms": 18,
       "runs": [
+        18,
+        14,
         13,
-        13,
-        46,
-        6,
-        13,
-        16
+        14,
+        21,
+        53
       ],
       "warm_samples": 5
     },
     {
       "name": "results-paint",
       "metric": "paint_ms",
-      "min_ms": 182,
-      "mean_ms": 183,
-      "median_ms": 183,
-      "max_ms": 184,
-      "cold_ms": 4316,
+      "min_ms": 180,
+      "mean_ms": 181,
+      "median_ms": 181,
+      "max_ms": 182,
+      "cold_ms": 5309,
       "runs": [
-        4316,
-        184,
+        5309,
         182,
-        183,
-        182,
-        184
+        181,
+        180,
+        181,
+        180
       ],
       "warm_samples": 5
     },
@@ -72,9 +72,9 @@
       "mean_ms": 2,
       "median_ms": 2,
       "max_ms": 3,
-      "cold_ms": 5,
+      "cold_ms": 3,
       "runs": [
-        5,
+        3,
         3,
         2,
         3,
@@ -86,38 +86,42 @@
     {
       "name": "operator-cluster",
       "metric": "run_ms",
-      "min_ms": 13,
+      "min_ms": 14,
       "mean_ms": 15,
       "median_ms": 15,
       "max_ms": 16,
-      "cold_ms": 27,
+      "cold_ms": 22,
       "runs": [
-        27,
-        15,
+        22,
+        14,
+        14,
         15,
         16,
-        13,
-        16
+        15
       ],
       "warm_samples": 5
     },
     {
       "name": "operator-compare",
       "metric": "run_ms",
-      "min_ms": 799,
-      "mean_ms": 802,
-      "median_ms": 802,
-      "max_ms": 805,
-      "cold_ms": 809,
+      "min_ms": 349,
+      "mean_ms": 367,
+      "median_ms": 356,
+      "max_ms": 421,
+      "cold_ms": 355,
       "runs": [
-        809,
-        805,
-        802,
-        799,
-        800,
-        802
+        355,
+        358,
+        350,
+        421,
+        349,
+        356
       ],
-      "warm_samples": 5
+      "warm_samples": 5,
+      "split_median": {
+        "net_ms": 352,
+        "render_ms": 4
+      }
     }
   ]
 }

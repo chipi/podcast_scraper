@@ -208,15 +208,27 @@ async function captureOperatorCompare(page) {
   } catch {
     return { name: 'operator-compare', run_ms: null, error: 'compare picker did not open' }
   }
+  // Gate the timer end on the /api/search/compare response FIRST, then the
+  // columns paint. Waiting on columns-visible alone over-reported by ~480 ms:
+  // the response lands at ~300 ms and the columns paint ~3 ms later, but a bare
+  // `waitFor({ state: 'visible' })` on the columns container settled ~480 ms
+  // after that paint (Playwright visibility-settle latency on this node).
+  // Anchoring on the response collapses run_ms to the true wall (~320 ms) and
+  // lets us record the net (click→response) vs render (response→paint) split.
   const t0 = Date.now()
+  const responsePromise = page
+    .waitForResponse((r) => r.url().includes('/api/search/compare'), { timeout: 20_000 })
+    .catch(() => null)
   await run.click()
+  await responsePromise
+  const netMs = Date.now() - t0
   try {
     await page.locator(OPERATOR_COMPARE_COLUMNS_SEL).waitFor({ state: 'visible', timeout: 20_000 })
   } catch {
     return { name: 'operator-compare', run_ms: null, error: 'compare columns not shown in 20s' }
   }
   const elapsed = Date.now() - t0
-  return { name: 'operator-compare', run_ms: elapsed }
+  return { name: 'operator-compare', run_ms: elapsed, net_ms: netMs, render_ms: elapsed - netMs }
 }
 
 async function runAllScenarios(page) {
@@ -264,6 +276,12 @@ async function main() {
     if (!warm.length) warm = allRuns.filter((v) => v != null)
     const errors = entries.map((e) => e.error).filter(Boolean)
     const mean = warm.length ? Math.round(warm.reduce((a, b) => a + b, 0) / warm.length) : null
+    // Scenarios that record a sub-split (operator-compare: net vs render) expose
+    // warm medians so run_ms stays the single headline metric but the split is
+    // auditable in the JSON.
+    const warmEntries = entries.length > 1 ? entries.slice(1) : entries
+    const splitMedian = (key) => median(warmEntries.map((e) => e[key]).filter((v) => v != null))
+    const hasSplit = entries.some((e) => e.net_ms != null)
     return {
       name,
       metric,
@@ -274,6 +292,7 @@ async function main() {
       cold_ms: cold,
       runs: allRuns,
       warm_samples: warm.length,
+      ...(hasSplit ? { split_median: { net_ms: splitMedian('net_ms'), render_ms: splitMedian('render_ms') } } : {}),
       ...(errors.length ? { errors } : {}),
     }
   })
@@ -294,8 +313,11 @@ async function main() {
   )
   for (const s of scenarios) {
     const note = s.errors ? `  (${s.warm_samples} warm ok)` : ''
+    const split = s.split_median
+      ? `  split(net/render)=${s.split_median.net_ms}/${s.split_median.render_ms} ms`
+      : ''
     console.log(
-      `  ${s.name.padEnd(20)} ${s.metric} min/mean/med/max=${s.min_ms}/${s.mean_ms}/${s.median_ms}/${s.max_ms} ms  cold=${s.cold_ms}  runs=[${s.runs.join(', ')}]${note}`,
+      `  ${s.name.padEnd(20)} ${s.metric} min/mean/med/max=${s.min_ms}/${s.mean_ms}/${s.median_ms}/${s.max_ms} ms  cold=${s.cold_ms}  runs=[${s.runs.join(', ')}]${split}${note}`,
     )
   }
 }
