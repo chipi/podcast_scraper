@@ -16,6 +16,9 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import _install_access_logging
 
+# ASGI/FastAPI TestClient test → integration tier (3-tier policy: no ASGI in tests/unit/).
+pytestmark = pytest.mark.integration
+
 
 def _app() -> FastAPI:
     app = FastAPI()
