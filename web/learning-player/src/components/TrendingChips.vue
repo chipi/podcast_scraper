@@ -1,13 +1,17 @@
 <script setup lang="ts">
-/** Trending view 0 (the original) — rising topics as number pills "topic ↑N×", with a one-tap
- *  follow (＋/✓) to add the topic to your profile interests (#12). Simplest / most familiar. */
-import { trendArrow, trendColor, type RisingTopic } from './trending'
+/** Trending view "Pills" — rising topics as pills "• topic ↑N×", with a one-tap follow (＋/✓) to
+ *  add the topic to your profile interests (#12). A storyline swatch + hue-matched ×velocity colour
+ *  the pill by theme cluster (unclustered → neutral), consistent with the Sparklines view. */
+import { THEME_NEUTRAL, trendArrow, type RisingTopic, type TopicTheme } from './trending'
 
 const props = defineProps<{
   topics: RisingTopic[]
+  /** topic id → { colour, theme label, group } (see TrendingTopics). */
+  topicTheme?: Record<string, TopicTheme>
+  neutralColor?: string
   followedIds?: string[]
   canFollow?: boolean
-  /** Topic ids in a co-occurrence theme cluster — marked with the standard teal theme chrome. */
+  /** Topic ids in a co-occurrence theme cluster — kept for compatibility; colour comes from topicTheme. */
   themeMemberIds?: Set<string>
 }>()
 const emit = defineEmits<{ (e: 'open', id: string): void; (e: 'follow', id: string): void }>()
@@ -15,8 +19,13 @@ const emit = defineEmits<{ (e: 'open', id: string): void; (e: 'follow', id: stri
 function isFollowed(id: string): boolean {
   return props.followedIds?.includes(id) ?? false
 }
-function isTheme(id: string): boolean {
-  return props.themeMemberIds?.has(id) ?? false
+function colorOf(id: string): string {
+  return props.topicTheme?.[id]?.color ?? props.neutralColor ?? THEME_NEUTRAL
+}
+function titleOf(tp: RisingTopic): string {
+  const theme = props.topicTheme?.[tp.id]?.label
+  const base = `${tp.label} — ${tp.v}× vs recent average · ${tp.total} mentions`
+  return theme ? `${base} · ${theme}` : base
 }
 </script>
 
@@ -25,20 +34,25 @@ function isTheme(id: string): boolean {
     <div
       v-for="tp in topics"
       :key="tp.id"
-      class="inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full text-sm transition sm:max-w-none"
-      :class="isTheme(tp.id) ? 'lp-theme-chip text-surface-foreground' : 'bg-overlay text-topic hover:bg-elevated'"
-      :data-theme-member="isTheme(tp.id) ? '' : undefined"
+      class="inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full bg-overlay text-sm text-topic transition hover:bg-elevated sm:max-w-none"
       data-testid="trend-chip"
     >
       <button
         type="button"
-        class="inline-flex min-w-0 items-center gap-1.5 py-1.5 pl-3"
+        class="inline-flex min-w-0 items-center gap-1.5 py-1.5 pl-2.5"
         :class="canFollow ? 'pr-1.5' : 'rounded-full pr-3'"
+        :title="titleOf(tp)"
         :aria-label="`${tp.label}, trending at ${tp.v} times its recent average`"
         @click="emit('open', tp.id)"
       >
+        <!-- Storyline swatch: same hue as this topic's cluster (neutral when unclustered). -->
+        <span
+          class="h-2 w-2 shrink-0 rounded-full"
+          :style="{ backgroundColor: colorOf(tp.id) }"
+          aria-hidden="true"
+        />
         <span class="truncate">{{ tp.label }}</span>
-        <span class="shrink-0 text-xs font-semibold" :style="{ color: trendColor(tp.v) }"
+        <span class="shrink-0 text-xs font-semibold" :style="{ color: colorOf(tp.id) }"
           >{{ trendArrow(tp.v) }} {{ tp.v }}×</span
         >
       </button>

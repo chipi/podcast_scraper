@@ -3,9 +3,15 @@
  *  months ("what the library's been about, and what's climbing"). SVG, no lib.
  *  Bands + legend are clickable → the topic card. */
 import { computed } from 'vue'
-import type { RisingTopic } from './trending'
+import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from './trending'
 
-const props = defineProps<{ topics: RisingTopic[]; months: string[] }>()
+const props = defineProps<{
+  topics: RisingTopic[]
+  months: string[]
+  /** topic id → { colour, theme label, group } — bands are coloured by storyline (see TrendingTopics). */
+  topicTheme?: Record<string, TopicTheme>
+  neutralColor?: string
+}>()
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
 
 const TOP = 6
@@ -13,7 +19,9 @@ const W = 320
 const H = 120
 const PAD_B = 16
 const PAD_T = 6
-const COLORS = ['#8b5cf6', '#22d3ee', '#f59e0b', '#34d399', '#f472b6', '#60a5fa']
+function colorOf(id: string): string {
+  return props.topicTheme?.[id]?.color ?? props.neutralColor ?? THEME_NEUTRAL
+}
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 function shortMonth(ym: string): string {
   const m = /^(\d{4})-(\d{2})/.exec(ym)
@@ -49,7 +57,7 @@ const geom = computed(() => {
     return {
       id: tp.id,
       label: tp.label,
-      color: COLORS[k % COLORS.length],
+      color: colorOf(tp.id),
       path: `M${upper.join(' L')} L${lower.reverse().join(' L')} Z`,
     }
   })

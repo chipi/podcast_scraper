@@ -87,7 +87,9 @@ void getCorpusEnrichment()
   })
 
 type View = 'chips' | 'sparks' | 'stream' | 'momentum'
-const view = ref<View>('chips')
+// Default to the redesigned Sparklines (storyline colour + grouped + collapsible) — the richest,
+// most legible view of what's rising.
+const view = ref<View>('sparks')
 const VIEWS: Array<{ key: View; label: string }> = [
   { key: 'chips', label: 'trendViewChips' },
   { key: 'sparks', label: 'trendViewSparks' },
@@ -125,6 +127,8 @@ const hasAny = computed(() => topics.value.length > 0)
     <TrendingChips
       v-if="view === 'chips'"
       :topics="topics"
+      :topic-theme="topicTheme"
+      :neutral-color="THEME_NEUTRAL"
       :followed-ids="followedIds"
       :can-follow="canFollow"
       :theme-member-ids="themeMemberIds"
@@ -145,11 +149,15 @@ const hasAny = computed(() => topics.value.length > 0)
       v-else-if="view === 'stream'"
       :topics="topics"
       :months="months"
+      :topic-theme="topicTheme"
+      :neutral-color="THEME_NEUTRAL"
       @open="emit('open', $event)"
     />
     <TrendingMomentum
       v-else
       :topics="topics"
+      :topic-theme="topicTheme"
+      :neutral-color="THEME_NEUTRAL"
       :theme-member-ids="themeMemberIds"
       @open="emit('open', $event)"
     />
