@@ -131,7 +131,10 @@ curl -sG http://homelab:9428/select/logsql/query \
    not fixable by flag. Tracked separately.
 6. **GlitchTip client-side reachability** — browsers can't reach tailnet-only GlitchTip, so
    the **player** frontend ships errors via a **public ingest edge** (`telemetry.closelistening.app`).
-   The **operator** frontend has no such edge → its client-side errors are **not captured**.
+   The **operator** frontend was previously mis-routed via *orrery's* edge (bug); #49 repointed
+   the viewer DSN to `telemetry.closelistening.app/1`, and RFC-108 / #1320 makes the operator a
+   public+gated surface with its own closelistening ingest — so operator client-side errors land
+   on the podcast's own project (1) once the next viewer build + operator-public deploy land.
 
 **Doc drift (fix or distrust):**
 7. `OBSERVABILITY_ARCHITECTURE.md` still says the backend is on the **DGX**
