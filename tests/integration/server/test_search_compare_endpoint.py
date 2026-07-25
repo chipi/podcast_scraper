@@ -1,10 +1,10 @@
 """Endpoint-level tests for ``POST /api/search/compare`` (Search v3 §S8).
 
-Unit-scope: mounts the FastAPI app via ``create_app`` on a tmp corpus and
-monkeypatches ``compare_subjects`` — so we assert the endpoint's
-request-body → orchestrator-kwargs contract (including
-``insight_types``) without touching LanceDB. Orchestrator internals are
-covered by ``test_compare.py``.
+Integration-scope (tests/integration/server/, per the 3-tier policy — FastAPI/ASGI tests never
+live in tests/unit/): mounts the FastAPI app via ``create_app`` on a tmp corpus and monkeypatches
+``compare_subjects`` — so we assert the endpoint's request-body → orchestrator-kwargs contract
+(including ``insight_types``) without touching LanceDB. Orchestrator internals are covered by
+``test_compare.py``.
 """
 
 from __future__ import annotations
@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
+
+pytest.importorskip("fastapi")
+
 from fastapi.testclient import TestClient
 
 from podcast_scraper.search.compare import (
@@ -21,6 +24,8 @@ from podcast_scraper.search.compare import (
     SubjectRef,
 )
 from podcast_scraper.server.app import create_app
+
+pytestmark = [pytest.mark.integration]
 
 
 @pytest.fixture()
