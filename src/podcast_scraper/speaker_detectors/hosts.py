@@ -179,6 +179,31 @@ def extract_self_introduced_host(
     return None
 
 
+def distinct_self_introductions(
+    transcript_text: Optional[str], *, intro_chars: int = 2000
+) -> List[str]:
+    """Every DISTINCT person-name a voice introduces itself as ("I'm <Name>"), same filtering as
+    :func:`extract_self_introduced_host` (network bumpers + ordinary-word runs skipped).
+
+    One physical speaker introduces itself once. Two or more distinct self-introductions in a single
+    diarization cluster is the signature of a MERGED cluster — a cold-open montage that strings
+    several hosts' intros together ("I'm Kevin Russo… I'm Casey Noon…") collapses into one voice.
+    The caller uses ``len(...) >= 2`` to refuse naming such a cluster after any one of them.
+    """
+    seen: List[str] = []
+    lowered: Set[str] = set()
+    for match in _HOST_SELF_INTRO.finditer((transcript_text or "")[:intro_chars]):
+        name = match.group(1).strip(" .,")
+        if len(name) < 2 or is_known_network(name):
+            continue
+        if len(name.split()) >= 2 and not looks_like_a_person_name(name):
+            continue
+        if name.lower() not in lowered:
+            lowered.add(name.lower())
+            seen.append(name)
+    return seen
+
+
 def _extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:
     """Resolve extract_person_entities via public wrapper when loaded (patchable in tests)."""
     try:

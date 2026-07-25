@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
-from typing import AbstractSet, Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from ....speaker_detectors.boilerplate import recorded_voices
 from ....speaker_detectors.hosts import (
@@ -33,6 +33,7 @@ from ....speaker_detectors.hosts import (
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _NAME_RE as _INTRO_NAME_RE,
+    distinct_self_introductions,
     extract_self_introduced_host,
     guests_introduced_by_the_host,
     has_org_markers,
@@ -41,7 +42,6 @@ from ....speaker_detectors.hosts import (
     looks_like_a_person_name,
     roles_from_conversation,
 )
-from ....speaker_detectors.resolution import _refuted_by_third_person
 from .base import DiarizationResult
 
 INTRO_WINDOW_SECONDS = 90.0
@@ -505,6 +505,19 @@ def _edit_distance(a: str, b: str) -> int:
     return prev[-1]
 
 
+def _surname_token(name: str) -> Optional[str]:
+    """The lowercased last name-token, or ``None`` for a mononym/too-short token. Used to tell that
+
+    "Robert Pape", "Professor Pape" and "Dr. Pape" are the same person for de-duplication. A ≥3-char
+    floor keeps an initial ("R.") from matching everything.
+    """
+    toks = (name or "").split()
+    if len(toks) < 2:
+        return None
+    last = toks[-1].strip(".,'’").lower()
+    return last if len(last) >= 3 else None
+
+
 def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
     """Snap an ASR-mangled self-introduction onto the configured host name.
 
@@ -591,6 +604,11 @@ def _self_intros_by_voice(
     out: Dict[str, str] = {}
     for voice, text in (voice_texts or {}).items():
         head = (text or "")[:5000]
+        # A single voice that introduces itself as TWO different people is a merged/cold-open
+        # montage cluster ("I'm Kevin Russo… I'm Casey Noon…"), not a person — naming it after
+        # either one fabricates a speaker. One real person self-introduces once (#1330).
+        if len(distinct_self_introductions(text, intro_chars=5000)) >= 2:
+            continue
         name = extract_self_introduced_host(text, intro_chars=5000)
         if name and len(name.split()) >= 2:
             out[voice] = name
@@ -677,7 +695,19 @@ def _name_guest_voices(
         and v not in voice_intro
         and (talk is None or talk.get(v, 0.0) >= CAMEO_MAX_TALK_S)
     ]
-    spare = [g for g in guest_names if g.lower() not in used_lower]
+    # A detected-guest name is only spare if NOBODY on the roster already carries it — not just by
+    # exact string but by SURNAME. A guest introduced in the text under a title ("Professor Pape")
+    # is the same person as the metadata's "Robert Pape"; treating that as still-unclaimed forces
+    # it onto a leftover voice (a bumper, a cameo) and fabricates a second Pape (#876). The claimed
+    # surnames are those already assigned (used_lower) or resolved onto a voice (voice_intro).
+    claimed_surnames = {
+        s for s in (_surname_token(n) for n in (*used_lower, *voice_intro.values())) if s
+    }
+    spare = [
+        g
+        for g in guest_names
+        if g.lower() not in used_lower and _surname_token(g) not in claimed_surnames
+    ]
     # One name, one voice: the assignment is forced, so it is not a guess.
     forced = spare[0] if (len(spare) == 1 and len(unassigned) == 1) else None
     # The cameo floor exists to avoid painting a name onto a brief cutaway when
@@ -863,7 +893,6 @@ def _self_intro_voice_names(
     intro_sources: Sequence[str],
     known_hosts: Sequence[str],
     ad_voices: Set[str],
-    conv_guests: AbstractSet[str] = frozenset(),
 ) -> Dict[str, str]:
     """``{voice: name}`` from each voice's OWN self-introduction, ads excluded (#876).
 
@@ -875,15 +904,9 @@ def _self_intro_voice_names(
     published as the host and the real host demoted to guest (N1). Co-hosts still open the show, so
     their mangled names still canonicalize; a guest speaking after the hosts keeps its own name.
 
-    One case the host-candidate prefix misses: diarization SPLITS a host's voice into two clusters,
-    and only the earlier-speaking one is in the prefix. The later cluster carries the SAME mangled
-    self-intro ("Kevin Russo") but is not a host-candidate, so it kept that raw string and published
-    as a fabricated extra person (R2/#876). A non-candidate voice whose raw self-intro is
-    character-identical to a host-candidate's raw that snapped to a known host is that same split
-    host — snap it to the same host. It is vouched-for by the opening host saying the identical
-    thing, so a guest with a DIFFERENT mangling is untouched (N1 preserved); and never a voice the
-    conversation heard perform the guest role. This removes the fabricated person; the split itself
-    (a diarization-layer defect) is not repaired here — the second cluster's turns stay separate.
+    A cold-open montage that strings several hosts' garbled self-intros into one diarization cluster
+    ("I'm Kevin Russo… I'm Casey Noon…") is refused upstream in ``_self_intros_by_voice`` (a voice
+    that introduces itself as two people is not a person), so it never reaches this map.
     """
     first_start: Dict[str, float] = {}
     for s in diarization.segments:
@@ -894,30 +917,11 @@ def _self_intro_voice_names(
     host_candidate_voices = set(
         sorted(first_start, key=lambda v: first_start[v])[: len(known_hosts)]
     )
-    intros = {
-        v: n
-        for v, n in _self_intros_by_voice(voice_texts, intro_sources).items()
-        if v not in ad_voices
-    }
-    known_lower = {h.lower() for h in known_hosts}
-    # raw self-intro string (lower) -> canonical host it snapped to, recorded for host-candidate
-    # voices whose raw actually needed canonicalisation. A split sibling matches against this.
-    vouched: Dict[str, str] = {}
     out: Dict[str, str] = {}
-    for v, n in intros.items():
-        if v in host_candidate_voices:
-            canon = _canonicalize_to_known_host(n, known_hosts)
-            out[v] = canon
-            if canon.lower() in known_lower and canon.strip().lower() != n.strip().lower():
-                vouched.setdefault(n.strip().lower(), canon)
-        else:
-            out[v] = n
-    for v, n in intros.items():
-        if v in host_candidate_voices or v in conv_guests:
+    for v, n in _self_intros_by_voice(voice_texts, intro_sources).items():
+        if v in ad_voices:
             continue
-        vouched_host = vouched.get(n.strip().lower())
-        if vouched_host:
-            out[v] = vouched_host
+        out[v] = _canonicalize_to_known_host(n, known_hosts) if v in host_candidate_voices else n
     return out
 
 
@@ -932,24 +936,10 @@ def _intro_reader_voice_names(
     since the person a host introduces is the one who speaks next. Complements the self-intro:
     plenty of guests never say their own name and are named FOR them; a voice that already named
     itself keeps its own word for it (skipped here).
-
-    "Whoever speaks next" is false at an interview CLOSE ("Well, Professor Pape, thank you for
-    coming on") — the next voice is the host/correspondent resuming, not the guest — so a proposed
-    name could land on a host's own voice (R3/#876). Each proposed name is routed through the same
-    third-person guard the LLM path uses: a voice that talks ABOUT a person and never introduces
-    itself as them is not that person. The per-voice text is built from the RECLAIMED turns, NOT raw
-    voice_texts — else a host greeting mis-merged into a guest's cluster (#1290) leaves "X, welcome"
-    in the guest's text and the guard would wrongly refuse the correct name.
     """
-    reclaimed_voice_text: Dict[str, str] = {}
-    for spk, txt in reclaimed_turns:
-        if txt:
-            reclaimed_voice_text[spk] = (reclaimed_voice_text.get(spk, "") + " " + txt).strip()
     out: Dict[str, str] = {}
     for v, n in _voice_named_by_the_introduction(reclaimed_turns, host_hint_voices).items():
         if v in ad_voices or v in voice_intro:
-            continue
-        if _refuted_by_third_person(reclaimed_voice_text.get(v, ""), n):
             continue
         out[v] = _canonicalize_to_known_host(n, known_hosts)
     return out
@@ -1036,10 +1026,8 @@ def resolve_speaker_roster(
     intro_sources = (
         list(metadata_named or ()) + list(known_hosts or ()) + list(detected_guests or ())
     )
-    # Conversation-performed roles, computed once here and reused for host selection below. A voice
-    # that says "thanks for having me" is a guest even if it speaks first. Needed BEFORE the
-    # self-intro pass so a split-host sibling vouch never snaps a voice the conversation heard as a
-    # guest onto a host (R2).
+    # Conversation-performed roles, computed once and reused for host selection below. A voice that
+    # says "thanks for having me" is a guest even if it speaks first.
     conv_roles = roles_from_conversation(voice_texts)
     conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
 
@@ -1049,7 +1037,7 @@ def resolve_speaker_roster(
     # ...and the name it gives is the ASR's spelling, so it is snapped onto the configured host
     # when it is plainly the same person ("Kevin Russo" / "Kevin Roos" -> "Kevin Roose").
     voice_intro = _self_intro_voice_names(
-        diarization, voice_texts, intro_sources, known_hosts, ad_voices, conv_guests
+        diarization, voice_texts, intro_sources, known_hosts, ad_voices
     )
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting

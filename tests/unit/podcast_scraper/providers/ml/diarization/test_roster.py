@@ -471,41 +471,6 @@ def test_contaminated_greeting_reclaimed_off_guest_cluster() -> None:
     assert r.by_voice["GUEST"].name == "Kara Swisher"
 
 
-def test_intro_reader_does_not_name_a_voice_that_talks_about_the_person(caplog) -> None:
-    # R3 (#876): "the introduced person speaks next" is false at an interview CLOSE — a host's
-    # "Professor Pape, thank you so much for coming on" is followed by the CORRESPONDENT resuming,
-    # not the guest. That correspondent talks ABOUT Professor Pape in the third person throughout,
-    # never introduces itself as him, so the third-person guard must refuse naming its voice "Pape".
-    # (Real regression: Natalie Kitroeff's voice was renamed to "Professor Pape".)
-    corr = (
-        "So I sat down with Professor Pape. Professor Pape studies political violence for a job. "
-        "Professor Pape told me the numbers are unambiguous and worth taking very seriously indeed."
-    )
-    diar = _diar([("HOST", 0, 30), ("CORR", 30, 400), ("HOST", 400, 420)], 2)
-    r = resolve_speaker_roster(
-        diar,
-        "Welcome. I'm Michael Barbaro.",
-        known_hosts=["Michael Barbaro"],
-        # >1 detected guest so the forced one-name-one-voice path does NOT fire — this isolates the
-        # introduction-reader path that R3 guards (the real episode had multiple unassigned voices).
-        detected_guests=["Robert Pape", "Rachel Abrams"],
-        voice_texts={
-            "HOST": (
-                "Welcome to the show. I'm Michael Barbaro. Well, Professor Pape, thank you so much "
-                "for coming on the show today."
-            ),
-            "CORR": corr,
-        },
-        ordered_turns=[
-            ("HOST", "Welcome to the show. I'm Michael Barbaro."),
-            ("HOST", "Well, Professor Pape, thank you so much for coming on the show today."),
-            ("CORR", corr),
-        ],
-    )
-    # The correspondent voice must NOT be named after the person it merely discusses.
-    assert r.by_voice["CORR"].name != "Professor Pape"
-
-
 @pytest.mark.parametrize("opener", ["But", "Well", "Anyway", "So", "Now"])
 def test_greeted_names_reject_a_swept_up_discourse_opener(opener) -> None:
     """R1/#876 fu on the intro-reader path: ``_greeted_names`` fed the introduction reader a
@@ -568,87 +533,50 @@ def test_asr_mangled_co_host_still_canonicalizes() -> None:
     assert r.by_voice["HOST2"].name == "Casey Newton"
 
 
-def _split_host_intros():
-    """A host's voice split by diarization into two clusters, both carrying the SAME mangled
+def test_montage_cluster_with_two_self_intros_is_not_named() -> None:
+    # 1a/#1330: a cold-open montage merges several hosts' garbled self-intros into ONE diarization
+    # cluster ("I'm Kevin Russo… I'm Casey Noon…" was one 13s cluster on Hard Fork). One person
+    # self-introduces once; a voice that introduces itself as TWO people is not a person and must
+    # not be named after either — else it fabricates a speaker while the real host is named on its
+    # own, longer cluster. Modelled on that real cluster with synthetic names.
+    from podcast_scraper.providers.ml.diarization.roster import _self_intros_by_voice
 
-    self-intro ("Dana Whitfeld" for configured host "Dana Whitfield"). V1 speaks first (the sole
-    host-candidate); V2 is the later split-off cluster.
-    """
-    diar = _diar([("V1", 0, 30), ("V2", 200, 260), ("V1", 300, 500), ("V2", 500, 600)], 2)
-    known_hosts = ["Dana Whitfield"]
-    intro_sources = list(known_hosts)
-    return diar, known_hosts, intro_sources
-
-
-def test_split_host_second_cluster_inherits_the_canonical_host_name() -> None:
-    # R2/#876 fu: the later split-off cluster is not in the host-candidate prefix, so its raw
-    # self-intro was published verbatim as a fabricated extra person. Vouched by the opening host
-    # saying the IDENTICAL raw string, it snaps to the same host.
-    from podcast_scraper.providers.ml.diarization.roster import _self_intro_voice_names
-
-    diar, known_hosts, intro_sources = _split_host_intros()
-    voice_texts = {
-        "V1": "Welcome to the show. I'm Dana Whitfeld.",
-        "V2": "I'm Dana Whitfeld, and back to our story after the break.",
-    }
-    out = _self_intro_voice_names(diar, voice_texts, intro_sources, known_hosts, set())
-    assert out["V1"] == "Dana Whitfield"  # host-candidate canonicalizes
-    assert out["V2"] == "Dana Whitfield"  # split sibling inherits, NOT the raw "Dana Whitfeld"
+    montage = "I'm Ada Brightwell, tech columnist. I'm Ben Coalcrest from Platformer."
+    out = _self_intros_by_voice({"MONT": montage, "SOLO": "Hi, I'm Ada Brightwell, welcome."})
+    assert "MONT" not in out  # two distinct self-intros -> refused as a merged cluster
+    assert out.get("SOLO") == "Ada Brightwell"  # a single self-intro is still named
 
 
-def test_split_host_vouch_does_not_snap_a_different_mangling() -> None:
-    # N1 preserved: the vouch requires a CHARACTER-IDENTICAL raw string. A later voice that mangles
-    # the name DIFFERENTLY ("Dana Whitfill") is not vouched-for and keeps its own name — a guest
-    # who merely shares the host's first name is never snapped onto the host.
-    from podcast_scraper.providers.ml.diarization.roster import _self_intro_voice_names
-
-    diar, known_hosts, intro_sources = _split_host_intros()
-    voice_texts = {
-        "V1": "Welcome to the show. I'm Dana Whitfeld.",
-        "V2": "I'm Dana Whitfill, thrilled to be talking about my new book today.",
-    }
-    out = _self_intro_voice_names(diar, voice_texts, intro_sources, known_hosts, set())
-    assert out["V1"] == "Dana Whitfield"
-    assert out["V2"] == "Dana Whitfill"  # its own (different) name, not the host's
-
-
-def test_split_host_vouch_never_snaps_a_conversational_guest() -> None:
-    # A voice with the exact same raw self-intro as the candidate but which the conversation heard
-    # perform the GUEST role ("thanks for having me") is not snapped — conv_guests vetoes the vouch.
-    from podcast_scraper.providers.ml.diarization.roster import _self_intro_voice_names
-
-    diar, known_hosts, intro_sources = _split_host_intros()
-    voice_texts = {
-        "V1": "Welcome to the show. I'm Dana Whitfeld.",
-        "V2": "I'm Dana Whitfeld. Thanks so much for having me on, it's a real pleasure.",
-    }
-    out = _self_intro_voice_names(diar, voice_texts, intro_sources, known_hosts, set(), {"V2"})
-    assert out["V1"] == "Dana Whitfield"
-    assert out["V2"] != "Dana Whitfield"  # guest veto keeps it off the host identity
-
-
-def test_split_host_publishes_no_fabricated_person() -> None:
-    # Resolver-level CLASS property (not the literal strings): after the fix, the fabricated person
-    # (the raw mangled name) is never published, and at most one voice carries the host's name. The
-    # split itself is a diarization defect not repaired here — V2 may end up unnamed, which is the
-    # naming layer's safe direction.
-    diar, known_hosts, _ = _split_host_intros()
+def test_detected_guest_is_not_forced_when_its_surname_is_already_on_the_roster() -> None:
+    # 2a/#876: an interviewer names the guest under a title ("Professor Fenwick"); the metadata
+    # lists the SAME person as "Alan Fenwick". The forced one-name-one-voice path treated "Alan
+    # Fenwick" as still-unclaimed and painted it onto a leftover BUMPER voice ("We'll be right
+    # back"), fabricating a second Fenwick (The Daily ep 0002 did this with "Robert Pape"). A
+    # detected-guest name whose SURNAME already appears on the roster is not spare.
+    diar = _diar([("HOST", 0, 40), ("GUEST", 40, 600), ("BUMPER", 600, 631)], 3)
+    guest = (
+        "Thank you for having me. I'm Professor Fenwick and I study political violence at length."
+    )
     r = resolve_speaker_roster(
         diar,
-        "Welcome to the show. I'm Dana Whitfeld.",
-        known_hosts=known_hosts,
+        "Welcome. I'm Dana Reyes.",
+        known_hosts=["Dana Reyes"],
+        detected_guests=["Alan Fenwick"],
+        metadata_named=["Alan Fenwick"],
         voice_texts={
-            "V1": "Welcome to the show. I'm Dana Whitfeld.",
-            "V2": "I'm Dana Whitfeld, and back to our story after the break.",
+            "HOST": "Welcome. I'm Dana Reyes. Professor Fenwick, thanks so much for coming on.",
+            "GUEST": guest,
+            "BUMPER": "We'll be right back.",
         },
         ordered_turns=[
-            ("V1", "Welcome to the show. I'm Dana Whitfeld."),
-            ("V2", "I'm Dana Whitfeld, and back to our story after the break."),
+            ("HOST", "Welcome. I'm Dana Reyes. Professor Fenwick, thanks so much for coming on."),
+            ("GUEST", guest),
+            ("BUMPER", "We'll be right back."),
         ],
     )
-    published = [role.name for role in r.by_voice.values()]
-    assert "Dana Whitfeld" not in published  # the fabricated person is gone
-    assert sum(1 for n in published if n == "Dana Whitfield") <= 1  # one-name-one-voice preserved
+    names = [role.name for role in r.by_voice.values()]
+    assert "Alan Fenwick" not in names  # not force-fabricated onto the bumper
+    assert r.by_voice["BUMPER"].name == "BUMPER"  # the bumper stays unnamed (safe direction)
 
 
 def test_a_quoted_greeting_by_a_non_host_never_force_names_a_voice() -> None:
