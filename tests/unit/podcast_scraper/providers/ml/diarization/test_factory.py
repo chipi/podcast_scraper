@@ -73,3 +73,17 @@ def test_no_tuning_knob_warning_for_local_backend(caplog) -> None:
     with caplog.at_level("WARNING"):
         factory._warn_if_tuning_knobs_ignored(cfg, "local")
     assert "1295" not in caplog.text
+
+
+def test_warns_when_hold_drops_retry_for_non_self_resilient_backend(caplog) -> None:
+    # D4: under HOLD the factory drops the fallback ladder; local/gemini/deepgram have no retry of
+    # their own, so a transient failure fails the episode. Surface it.
+    with caplog.at_level("WARNING"):
+        factory._warn_if_hold_drops_retry("local", ["deepgram"])
+    assert "no retry" in caplog.text
+
+
+def test_no_hold_retry_warning_for_self_resilient_backend(caplog) -> None:
+    with caplog.at_level("WARNING"):
+        factory._warn_if_hold_drops_retry("tailnet_dgx", ["local"])
+    assert "no retry" not in caplog.text

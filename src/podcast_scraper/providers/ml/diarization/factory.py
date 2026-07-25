@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 from .... import config
 from .base import DiarizationProvider
@@ -113,6 +113,27 @@ def _warn_if_tuning_knobs_ignored(cfg: config.Config, backend: str) -> None:
         )
 
 
+# Providers that own a hold-and-probe resilience policy (backoff-retry the same model).
+_SELF_RESILIENT_DIARIZE_BACKENDS = ("tailnet_dgx", "moss")
+
+
+def _warn_if_hold_drops_retry(backend: str, tiers: Sequence[str]) -> None:
+    """Under HOLD the factory drops the fallback ladder, trusting the provider's own retry (D4).
+
+    That policy exists only for ``tailnet_dgx`` / ``moss``. ``local`` / ``gemini`` / ``deepgram``
+    have no retry of their own, so under HOLD a single transient blip fails the episode outright —
+    strictly worse than either failover or a real hold. Surface the mismatch.
+    """
+    if backend not in _SELF_RESILIENT_DIARIZE_BACKENDS:
+        logger.warning(
+            "diarization_provider=%s has no hold-and-probe policy, but HOLD dropped its fallback "
+            "ladder %s — a transient failure will fail the episode with no retry. Use FAILOVER, or "
+            "a self-resilient provider (tailnet_dgx/moss), for this backend.",
+            backend,
+            list(tiers),
+        )
+
+
 def create_diarization_provider(
     cfg: config.Config, *, _wrap_fallback: bool = True
 ) -> DiarizationProvider:
@@ -150,6 +171,7 @@ def create_diarization_provider(
                 "cross-model fallover)",
                 tiers,
             )
+            _warn_if_hold_drops_retry(backend, tiers)
         elif tiers:
             from ...resilience.fallback import FallbackChainDiarizationProvider
 
