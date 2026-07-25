@@ -388,8 +388,11 @@ _HOST_SPEECH_ACTS = [
 _GUEST_SPEECH_ACTS = [
     re.compile(p, re.IGNORECASE)
     for p in (
-        r"\bthanks? (?:so much )?for having me\b",
-        r"\bthank you for having me\b",
+        # "thanks/thank you [so much | very much] for having me" — the intensifier is optional AND
+        # may be "very much", not only "so much". "Thank you very much for having me" (The Daily's
+        # guest Robert Pape) matched NEITHER old fixed pattern, so the dominant guest was never
+        # flagged and community-1's clustering then crowned him a host (#1169).
+        r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)? for having me\b",
         r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
     )
 ]

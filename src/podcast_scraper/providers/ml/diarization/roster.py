@@ -564,6 +564,20 @@ def _same_person(a: str, b: str) -> bool:
     return True  # one side is title + surname only ("Professor Pape")
 
 
+def _canonicalize_to_stated_person(name: str, stated: Sequence[str]) -> str:
+    """Upgrade a host-introduced title-form ("Professor Pape") to the metadata-stated WHOLE name of
+    the same person ("Robert Pape").
+
+    When the host greets a guest by a title + surname the intro reader names the RIGHT voice but
+    with a degraded label; the metadata already states that person's full name, and the code already
+    knows they are the same (:func:`_same_person`) — it just never used that to upgrade the label.
+    We adopt a stated name, never strip the title to fabricate one — this respects reject-not-strip.
+    Snap only when exactly one stated person carries a real given name AND is that same person; on
+    ambiguity (two people share the surname) keep the title form (#1169)."""
+    matches = {s for s in stated if len(_given_tokens(s)) >= 2 and _same_person(name, s)}
+    return next(iter(matches)) if len(matches) == 1 else name
+
+
 def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
     """Snap an ASR-mangled self-introduction onto the configured host name.
 
@@ -863,6 +877,8 @@ def _reclaim_greeting_turns(
 def _voice_named_by_the_introduction(
     ordered_turns: Optional[Sequence[Tuple[str, str]]],
     host_hint_voices: Optional[Set[str]] = None,
+    conv_hosts: Optional[Set[str]] = None,
+    known_hosts_lower: AbstractSet[str] = frozenset(),
 ) -> Dict[str, str]:
     """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
 
@@ -899,15 +915,25 @@ def _voice_named_by_the_introduction(
 
     out: Dict[str, str] = {}
     taken: set = set()
+    host_voices = (host_hint_voices or set()) | (conv_hosts or set())
 
     def _assign(i: int, names: List[str]) -> None:
         # whoever speaks next, that is who was just introduced
         introducer = ordered_turns[i][0]
+        name = names[0]
+        # The introduced GUEST is not one of the show's hosts. When the host names the guest and the
+        # CO-HOST banters back before the guest actually answers ("Adam Rodman, welcome" → co-host:
+        # "great to have you" → guest), the next voice is a host, and naming it paints the guest's
+        # name on the host AND blocks the host's own name from the pool (#1169). Skip a host as
+        # the target — UNLESS the introduction is OF a stated host ("welcome back, my co-host Kevin
+        # Roose"), which legitimately names a host voice.
+        name_is_host = name.lower() in known_hosts_lower
         for j in range(i + 1, min(i + 6, len(ordered_turns))):
             nxt = ordered_turns[j][0]
             if nxt == introducer or nxt in out:
                 continue
-            name = names[0]
+            if nxt in host_voices and not name_is_host:
+                continue
             if name.lower() in taken:
                 return
             out[nxt] = name
@@ -994,17 +1020,28 @@ def _intro_reader_voice_names(
     voice_intro: Dict[str, str],
     ad_voices: Set[str],
     known_hosts: Sequence[str],
+    conv_hosts: Optional[Set[str]] = None,
+    stated_persons: Sequence[str] = (),
 ) -> Dict[str, str]:
     """``{voice: canonical name}`` for voices a host introduced by name — "and now, Bobby Allen" —
     since the person a host introduces is the one who speaks next. Complements the self-intro:
     plenty of guests never say their own name and are named FOR them; a voice that already named
     itself keeps its own word for it (skipped here).
+
+    The introduced person is a guest unless the introduction names a stated host, so a host voice is
+    not a valid target (``conv_hosts``/``known_hosts`` gate that in :func:`_voice_named_by_the_
+    introduction`). A title-form greeting ("Professor Pape, thanks for coming") is upgraded to the
+    stated full name of the same person when the host-ward snap does not fire (#1169).
     """
     out: Dict[str, str] = {}
-    for v, n in _voice_named_by_the_introduction(reclaimed_turns, host_hint_voices).items():
+    known_lower = {h.lower() for h in known_hosts}
+    for v, n in _voice_named_by_the_introduction(
+        reclaimed_turns, host_hint_voices, conv_hosts, known_lower
+    ).items():
         if v in ad_voices or v in voice_intro:
             continue
-        out[v] = _canonicalize_to_known_host(n, known_hosts)
+        canon = _canonicalize_to_known_host(n, known_hosts)
+        out[v] = canon if canon != n else _canonicalize_to_stated_person(n, stated_persons)
     return out
 
 
@@ -1098,6 +1135,7 @@ def resolve_speaker_roster(
     # says "thanks for having me" is a guest even if it speaks first.
     conv_roles = roles_from_conversation(voice_texts)
     conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
+    conv_host_voices = {v for v, r in conv_roles.items() if r == "host"}
 
     # A voice that introduces itself in its own turns is named from that, most-trusted (#876) —
     # but not if it is an ad. An ad narrator reads its own name aloud by design, which is precisely
@@ -1133,7 +1171,13 @@ def resolve_speaker_roster(
     # guarded against the interview-CLOSE case where the next voice is the host resuming (R3/#876).
     voice_intro.update(
         _intro_reader_voice_names(
-            reclaimed_turns, host_hint_voices, voice_intro, ad_voices, known_hosts
+            reclaimed_turns,
+            host_hint_voices,
+            voice_intro,
+            ad_voices,
+            known_hosts,
+            conv_host_voices,
+            list(detected_guests or ()) + list(metadata_named or ()),
         )
     )
 
