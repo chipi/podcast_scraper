@@ -43,7 +43,12 @@ import type {
   UserStats,
 } from './types'
 
-const BASE = '/api/app'
+// Origin-relative on the web (same-origin '/api/app'); absolute on native (Capacitor) builds where
+// the WebView origin is capacitor://localhost and a relative path can't reach the API. Set
+// VITE_API_BASE_URL to the full base incl. the /api/app prefix (e.g. https://host/api/app) for
+// native builds. Every call site does `${BASE}${path}` → when BASE is absolute the resulting string
+// is absolute, so both `new URL(str, origin)` and `fetch(str)` ignore the origin — no other change.
+const BASE = import.meta.env.VITE_API_BASE_URL || '/api/app'
 
 /** Raised on a non-2xx response; carries the HTTP status for callers to branch on (401 etc). */
 export class ApiError extends Error {
