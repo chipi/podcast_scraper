@@ -444,29 +444,33 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CONTAINER_CORPUS"
 
-      - name: Emit deploy event to Loki (#803 D1)
-        # Pushed directly to Loki: the GHA runner's logs don't reach it. Fires on success AND
-        # failure (feeds the failure-rate / MTTR panels). Non-fatal — never turns a deploy red.
+      - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        # Self-hosted sink over the tailnet (homelab VictoriaLogs :9428) — the runner is
+        # already on the tailnet from the deploy join, and tag:gha-deployer has the
+        # homelab-host:9428 ACL grant. Fires on success AND failure (feeds failure-rate /
+        # MTTR panels). Non-fatal — never turns a deploy red. (Was Grafana Cloud Loki;
+        # migrated to the self-hosted sink to finish ADR-119.)
         if: always() && steps.preflight.outputs.skip != 'true'
         env:
-          LOKI_PUSH_URL: ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_URL }}
-          LOKI_USER: ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_USER }}
-          LOKI_TOKEN: ${{ secrets.PROD_GRAFANA_CLOUD_API_KEY }}
+          VICTORIALOGS_URL: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
           START_MS: ${{ steps.deploy_t0.outputs.ms }}
           JOB_STATUS: ${{ job.status }}
           SHA_SHORT: ${{ steps.sha.outputs.short }}
           ACTOR: ${{ github.actor }}
         run: |
           set -euo pipefail
-          if [ -z "${LOKI_PUSH_URL:-}" ] || [ -z "${LOKI_TOKEN:-}" ]; then
-            echo "::warning::Grafana Loki creds absent; skipping deploy-event emission"
+          if [ -z "${VICTORIALOGS_URL:-}" ]; then
+            echo "::warning::HOMELAB_VICTORIALOGS_URL unset; skipping deploy-event emit (non-fatal)"
             exit 0
           fi
           duration_ms=$(( $(date +%s%3N) - ${START_MS:-$(date +%s%3N)} ))
-          bash scripts/ops/emit_deploy_event.sh \
-            --status "$JOB_STATUS" --sha "$SHA_SHORT" \
-            --duration-ms "$duration_ms" --triggered-by "$ACTOR" \
-            || echo "::warning::deploy-event emission failed (non-fatal)"
+          bash scripts/ops/emit_ops_event.sh \
+            --event-type deploy --env prod \
+            --msg "prod deploy ${JOB_STATUS} sha-${SHA_SHORT}" \
+            --field status="$JOB_STATUS" --field sha="$SHA_SHORT" \
+            --field surface=operator --field duration_ms="$duration_ms" \
+            --field triggered_by="$ACTOR" \
+            || echo "::warning::deploy-event emit failed (non-fatal)"
 
       - name: Mark Sentry release boundary (#803 D2)
         # Draws the release boundary on the Sentry error timeline. Only on a fully green deploy.

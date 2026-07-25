@@ -1,0 +1,50 @@
+name: Emit ops event
+description: >-
+  Push a canonical ops event (ADR-119 envelope) to the homelab VictoriaLogs sink
+  over the tailnet. Tier-1 CI/ops observability. Non-fatal by design — a telemetry
+  failure never fails the caller. Requires the caller to have joined the tailnet
+  (VictoriaLogs :9428 is tailnet-only) and the tag:gha-deployer → homelab-host:9428
+  ACL grant.
+inputs:
+  event-type:
+    description: 'Event class, e.g. deploy | backup | drill | drift.'
+    required: true
+  env:
+    description: 'Environment label (stream field).'
+    required: false
+    default: prod
+  msg:
+    description: 'Human-readable summary (_msg). Defaults to "event-type status".'
+    required: false
+    default: ''
+  fields:
+    description: 'Space/newline-separated key=value pairs (searchable fields), e.g. "status=success sha=abc1234".'
+    required: false
+    default: ''
+  victorialogs-url:
+    description: 'VictoriaLogs base URL (tailnet), e.g. http://homelab:9428. Empty = skip (non-fatal).'
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Emit ops event to VictoriaLogs
+      shell: bash
+      env:
+        VICTORIALOGS_URL: ${{ inputs.victorialogs-url }}
+        EV_TYPE: ${{ inputs.event-type }}
+        EV_ENV: ${{ inputs.env }}
+        EV_MSG: ${{ inputs.msg }}
+        EV_FIELDS: ${{ inputs.fields }}
+      run: |
+        set -euo pipefail
+        if [ -z "${VICTORIALOGS_URL:-}" ]; then
+          echo "::notice::VICTORIALOGS_URL empty; skipping ops-event emit (non-fatal)"
+          exit 0
+        fi
+        args=(--event-type "$EV_TYPE" --env "$EV_ENV")
+        [ -n "${EV_MSG:-}" ] && args+=(--msg "$EV_MSG")
+        # EV_FIELDS is a controlled, space-separated list of k=v tokens (word-split intended).
+        for kv in $EV_FIELDS; do args+=(--field "$kv"); done
+        bash "${GITHUB_WORKSPACE}/scripts/ops/emit_ops_event.sh" "${args[@]}" \
+          || echo "::warning::ops-event emit failed (non-fatal)"

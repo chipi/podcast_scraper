@@ -114,6 +114,15 @@
       "action": "accept",
       "src":    ["tag:dgx-llm-host", "tag:prod"],
       "dst":    ["tag:homelab-host:3001,4000,8090,8428,9428,10428"]
+    },
+    {
+      // gha-deployer (ephemeral GHA runner) pushes Tier-1 CI/ops events —
+      // deploy / backup / drill / drift — to homelab VictoriaLogs :9428 over the
+      // tailnet (ADR-119; scripts/ops/emit_ops_event.sh). Write-only ingest, :9428
+      // only, so runner-side events land next to app telemetry on one Grafana pane.
+      "action": "accept",
+      "src":    ["tag:gha-deployer"],
+      "dst":    ["tag:homelab-host:9428"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.

@@ -229,3 +229,15 @@ jobs:
           fi
           echo ""
           echo "Nothing uploaded (dry_run=true)."
+
+      - name: Emit backup event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        # Self-hosted sink over the tailnet (runner already joined above). Fires on
+        # success AND failure. Non-fatal — never turns the backup red.
+        if: always() && steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/emit-ops-event
+        with:
+          event-type: backup
+          env: prod
+          victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
+          msg: "corpus backup ${{ job.status }}"
+          fields: status=${{ job.status }} surface=corpus dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}
