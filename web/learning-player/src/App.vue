@@ -8,6 +8,7 @@ import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { useFavoritesStore } from './stores/favorites'
+import { initNativeAuth } from './services/native'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -15,13 +16,24 @@ const queue = useQueueStore()
 const favorites = useFavoritesStore()
 const router = useRouter()
 
-onMounted(async () => {
-  // Best-effort: resolve the session cookie to a user (null when signed out — reads still work).
-  await auth.refresh()
+async function hydrateUser(): Promise<void> {
   if (auth.isAuthenticated) {
     await queue.ensureLoaded()
     await favorites.ensureLoaded()
   }
+}
+
+onMounted(async () => {
+  // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE
+  // the first refresh so a saved session is picked up; the callback re-refreshes after a fresh login.
+  await initNativeAuth(async () => {
+    await auth.refresh()
+    await hydrateUser()
+  })
+  // Best-effort: resolve the session (cookie on web, bearer token on native) to a user — null when
+  // signed out, reads still work.
+  await auth.refresh()
+  await hydrateUser()
 })
 
 async function onSignOut(): Promise<void> {

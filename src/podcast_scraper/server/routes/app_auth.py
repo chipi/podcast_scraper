@@ -22,6 +22,14 @@ from podcast_scraper.server.app_user_store import get_or_create_user, get_user, 
 
 router = APIRouter(tags=["app"])
 
+# Custom URL scheme the native shell registers for the OAuth deep-link callback (#1310). The app
+# opens login in an external browser; on success the callback redirects here with the signed token.
+NATIVE_AUTH_SCHEME = "closelistening"
+
+
+def _native_scheme(request: Request) -> str:
+    return getattr(request.app.state, "native_auth_scheme", None) or NATIVE_AUTH_SCHEME
+
 
 def _secret(request: Request) -> str:
     return getattr(request.app.state, "session_secret", "") or ""
@@ -44,13 +52,31 @@ def _callback_uri(request: Request) -> str:
     return str(request.url_for("app_auth_callback"))
 
 
+def _bearer_token(request: Request) -> str | None:
+    """The token from an ``Authorization: Bearer <token>`` header, or ``None``.
+
+    The native shell (#1310) can't use the session cookie (OAuth completes in an external browser
+    whose cookie jar the WebView can't see), so it carries the SAME signed session token as a Bearer
+    header instead. Web clients keep sending the cookie; both verify identically.
+    """
+    header = request.headers.get("Authorization") or request.headers.get("authorization") or ""
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() == "bearer":
+        return value.strip() or None
+    return None
+
+
 def get_current_user(request: Request) -> User:
-    """Resolve the signed session cookie to a ``User``; raise 401 otherwise."""
+    """Resolve the signed session (cookie OR Bearer token) to a ``User``; raise 401 otherwise."""
     secret = _secret(request)
     data_dir = _data_dir(request)
     if not secret or data_dir is None:
         raise HTTPException(status_code=401, detail="Not authenticated.")
+    # Cookie is the web path; the Bearer token is the native-shell path (#1310). Same signer/secret,
+    # same payload shape — try the cookie first, then fall back to the header.
     payload = app_sessions.verify(request.cookies.get(app_sessions.SESSION_COOKIE), secret)
+    if not payload:
+        payload = app_sessions.verify(_bearer_token(request), secret)
     user_id = payload.get("user_id") if payload else None
     user = get_user(data_dir, str(user_id)) if user_id else None
     if user is None or user.disabled:
@@ -99,6 +125,9 @@ async def app_auth_login(
     grant: str | None = Query(
         default=None, description="Role hint for new users; only 'creator' is honoured."
     ),
+    platform: str | None = Query(
+        default=None, description="'native' → callback returns a deep-link token, not a cookie."
+    ),
 ) -> RedirectResponse:
     """Begin the OAuth flow: redirect to the provider with a CSRF state cookie.
 
@@ -119,7 +148,15 @@ async def app_auth_login(
     resp = RedirectResponse(url, status_code=307)
     resp.set_cookie(
         app_sessions.STATE_COOKIE,
-        app_sessions.sign({"state": state, "iat": int(time.time()), "grant": grant or ""}, secret),
+        app_sessions.sign(
+            {
+                "state": state,
+                "iat": int(time.time()),
+                "grant": grant or "",
+                "platform": "native" if platform == "native" else "",
+            },
+            secret,
+        ),
         max_age=600,
         httponly=True,
         samesite="lax",
@@ -165,10 +202,20 @@ async def app_auth_callback(
     if effective != user.role:
         set_role(data_dir, user.user_id, effective)
         user = replace(user, role=effective)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, secret)
+    # Native shell (#1310): the OAuth completed in an external browser, so a cookie can't reach the
+    # WebView. Hand the SAME signed token back via the app's custom-scheme deep link; the app stores
+    # it and sends it as a Bearer header. The token rides the URL fragment (never logged/cached by
+    # proxies the way a query string is), and the state cookie is cleared either way.
+    if saved.get("platform") == "native":
+        deep_link = f"{_native_scheme(request)}://auth#token={token}"
+        resp = RedirectResponse(deep_link, status_code=307)
+        resp.delete_cookie(app_sessions.STATE_COOKIE)
+        return resp
     resp = RedirectResponse("/", status_code=307)
     resp.set_cookie(
         app_sessions.SESSION_COOKIE,
-        app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, secret),
+        token,
         max_age=app_sessions.DEFAULT_MAX_AGE,
         httponly=True,
         samesite="lax",

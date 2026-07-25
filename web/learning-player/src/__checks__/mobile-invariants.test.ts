@@ -4,9 +4,11 @@ import playerStoreSrc from '../stores/player.ts?raw'
 import playerViewSrc from '../views/PlayerView.vue?raw'
 import highlightsViewSrc from '../views/HighlightsView.vue?raw'
 import mainSrc from '../main.ts?raw'
+import authStoreSrc from '../stores/auth.ts?raw'
 import indexHtml from '../../index.html?raw'
 import iosInfoPlist from '../../ios/App/App/Info.plist?raw'
 import iosAppDelegate from '../../ios/App/App/AppDelegate.swift?raw'
+import androidManifest from '../../android/app/src/main/AndroidManifest.xml?raw'
 
 /**
  * Guardrail (#1311) — codified mobile-readiness invariants that must not regress. These are static
@@ -82,6 +84,24 @@ describe('native-shell invariants (guardrail #1310)', () => {
     )
     expect(iosAppDelegate, 'AppDelegate must set an AVAudioSession playback category').toMatch(
       /AVAudioSession[\s\S]*?setCategory\(\.playback/,
+    )
+  })
+
+  it('native OAuth: bearer plumbing + browser login + deep-link scheme are all wired', () => {
+    // API client carries the bearer token (external OAuth browser can't hand the cookie to the WebView).
+    expect(apiSrc, 'api.ts must set an Authorization: Bearer header from setAuthToken').toMatch(
+      /Authorization/,
+    )
+    expect(apiSrc).toMatch(/setAuthToken/)
+    // Auth store opens login in the system browser on native instead of a dead-end WebView redirect.
+    expect(authStoreSrc).toMatch(/isNative\(\)/)
+    expect(authStoreSrc).toMatch(/openOAuth/)
+    // The closelistening:// scheme must be registered on BOTH platforms or the callback can't return.
+    expect(iosInfoPlist, 'iOS Info.plist must register the closelistening URL scheme').toMatch(
+      /<key>CFBundleURLSchemes<\/key>[\s\S]*?<string>closelistening<\/string>/,
+    )
+    expect(androidManifest, 'AndroidManifest must register the closelistening deep-link scheme').toMatch(
+      /android:scheme="closelistening"/,
     )
   })
 })

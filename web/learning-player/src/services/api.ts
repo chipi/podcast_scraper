@@ -61,6 +61,29 @@ export class ApiError extends Error {
   }
 }
 
+// Native-shell bearer token (#1310). On the web, auth rides the session cookie (`credentials:
+// 'include'`) and this stays null. In the Capacitor shell the OAuth completes in an external
+// browser whose cookie the WebView can't see, so we carry the SAME signed session token here and
+// send it as `Authorization: Bearer` on every request. Set from the OAuth deep-link callback
+// (services/native.ts) and rehydrated from Preferences on launch.
+let authToken: string | null = null
+export function setAuthToken(token: string | null): void {
+  authToken = token
+}
+export function getAuthToken(): string | null {
+  return authToken
+}
+
+/**
+ * `fetch` wrapper that adds the bearer token when present (native) and keeps every caller's
+ * `credentials: 'include'` cookie path intact (web). Callers' own headers win over the injected one.
+ */
+function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers)
+  if (authToken && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${authToken}`)
+  return fetch(input, { ...init, headers })
+}
+
 async function getJSON<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
   const url = new URL(`${BASE}${path}`, window.location.origin)
   if (params) {
@@ -68,7 +91,7 @@ async function getJSON<T>(path: string, params?: Record<string, string | number 
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v))
     }
   }
-  const resp = await fetch(url.toString(), {
+  const resp = await apiFetch(url.toString(), {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
@@ -246,7 +269,7 @@ export function getDiscover(limit = 8): Promise<EpisodesPage> {
 /** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
  *  ranking telemetry (#11). Silent no-op when signed out or on any network error. */
 export function recordDiscoverClick(slug: string, position: number): void {
-  void fetch(`${BASE}/discover/click`, {
+  void apiFetch(`${BASE}/discover/click`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -295,7 +318,7 @@ export async function getFavorites(): Promise<FavoritesResponse> {
 
 /** Save an item (auth-gated); returns the updated favorites. */
 export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse> {
-  const resp = await fetch(`${BASE}/favorites`, {
+  const resp = await apiFetch(`${BASE}/favorites`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -307,7 +330,7 @@ export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse>
 
 /** Remove a saved item by kind+ref (auth-gated); returns the updated favorites. */
 export async function removeFavorite(kind: string, ref: string): Promise<FavoritesResponse> {
-  const resp = await fetch(
+  const resp = await apiFetch(
     `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
     { method: 'DELETE', credentials: 'include' },
   )
@@ -317,7 +340,7 @@ export async function removeFavorite(kind: string, ref: string): Promise<Favorit
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
 export async function addInterest(token: string): Promise<string[]> {
-  const resp = await fetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
+  const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
     method: 'POST',
     credentials: 'include',
   })
@@ -327,7 +350,7 @@ export async function addInterest(token: string): Promise<string[]> {
 
 /** Unfollow one interest token (auth-gated); returns the remaining list. */
 export async function removeInterest(token: string): Promise<string[]> {
-  const resp = await fetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
+  const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
     method: 'DELETE',
     credentials: 'include',
   })
@@ -337,7 +360,7 @@ export async function removeInterest(token: string): Promise<string[]> {
 
 /** Replace the user's interest cluster ids (auth-gated); returns the stored list. */
 export async function putUserInterests(clusterIds: string[]): Promise<string[]> {
-  const resp = await fetch(`${BASE}/interests`, {
+  const resp = await apiFetch(`${BASE}/interests`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -382,7 +405,7 @@ export async function getPlayback(slug: string): Promise<PlaybackPosition | null
 
 /** Persist the playback position (auth-gated); silently no-ops when signed out (401). */
 export async function putPlayback(slug: string, positionSeconds: number): Promise<void> {
-  const resp = await fetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
+  const resp = await apiFetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -405,7 +428,7 @@ export async function getQueue(): Promise<string[]> {
 
 /** Replace the play queue (auth-gated); silently no-ops when signed out (401). */
 export async function putQueue(items: string[]): Promise<void> {
-  const resp = await fetch(`${BASE}/queue`, {
+  const resp = await apiFetch(`${BASE}/queue`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -419,7 +442,7 @@ export async function putQueue(items: string[]): Promise<void> {
 /** Record that the user opened an episode (listen-event log, ). Best-effort; ignores 401. */
 export async function logListen(slug: string): Promise<void> {
   try {
-    const resp = await fetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
+    const resp = await apiFetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
       method: 'POST',
       credentials: 'include',
     })
@@ -447,8 +470,16 @@ export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */
-export function loginUrl(as?: string): string {
-  return as ? `${BASE}/auth/login?as=${encodeURIComponent(as)}` : `${BASE}/auth/login`
+export function loginUrl(as?: string, native = false): string {
+  const params = new URLSearchParams()
+  if (as) params.set('as', as)
+  // Native (#1310): tells the backend to return the signed token via the app's deep link instead of
+  // setting a cookie (which an external OAuth browser can't hand back to the WebView).
+  if (native) params.set('platform', 'native')
+  // Absolute base on native, so build a full URL the external browser can open.
+  const base = `${BASE}/auth/login`
+  const qs = params.toString()
+  return qs ? `${base}?${qs}` : base
 }
 
 export interface DevUser {
@@ -463,7 +494,7 @@ export interface DevUser {
  */
 export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[] }> {
   try {
-    const res = await fetch(`${BASE}/auth/dev-users`, { credentials: 'include' })
+    const res = await apiFetch(`${BASE}/auth/dev-users`, { credentials: 'include' })
     if (!res.ok) return { enabled: false, users: [] }
     const body = (await res.json()) as { enabled?: boolean; users?: DevUser[] }
     return { enabled: body.enabled === true, users: Array.isArray(body.users) ? body.users : [] }
@@ -474,7 +505,7 @@ export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[
 
 /** Clear the session server-side (deletes the cookie). Best-effort; resolves on 204. */
 export async function logout(): Promise<void> {
-  await fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
+  await apiFetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
@@ -491,7 +522,7 @@ export async function getHighlights(episode?: string): Promise<Highlight[]> {
 
 /** Capture a highlight (auth-gated); returns the created record. */
 export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
-  const resp = await fetch(`${BASE}/highlights`, {
+  const resp = await apiFetch(`${BASE}/highlights`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -503,7 +534,7 @@ export async function createHighlight(body: HighlightCreate): Promise<Highlight>
 
 /** Edit a highlight's colour / captured text (auth-gated); returns the updated record. */
 export async function patchHighlight(id: string, body: HighlightUpdate): Promise<Highlight> {
-  const resp = await fetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
+  const resp = await apiFetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -515,7 +546,7 @@ export async function patchHighlight(id: string, body: HighlightUpdate): Promise
 
 /** Remove a highlight by id (auth-gated); returns the remaining list. */
 export async function deleteHighlight(id: string): Promise<Highlight[]> {
-  const resp = await fetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
+  const resp = await apiFetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     credentials: 'include',
   })
@@ -537,7 +568,7 @@ export async function getNotes(target?: string, targetId?: string): Promise<Note
 
 /** Attach a free-text note to a highlight / insight / episode (auth-gated). */
 export async function createNote(body: NoteCreate): Promise<Note> {
-  const resp = await fetch(`${BASE}/notes`, {
+  const resp = await apiFetch(`${BASE}/notes`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -550,7 +581,7 @@ export async function createNote(body: NoteCreate): Promise<Note> {
 /** Edit a note's text (auth-gated); returns the updated record. */
 export async function patchNote(id: string, text: string): Promise<Note> {
   const body: NoteUpdate = { text }
-  const resp = await fetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
+  const resp = await apiFetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -562,7 +593,7 @@ export async function patchNote(id: string, text: string): Promise<Note> {
 
 /** Remove a note by id (auth-gated); returns the remaining list. */
 export async function deleteNote(id: string): Promise<Note[]> {
-  const resp = await fetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
+  const resp = await apiFetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     credentials: 'include',
   })
@@ -580,7 +611,7 @@ export function highlightsExportUrl(): string {
  * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link.
  */
 export async function fetchHighlightsExport(): Promise<string> {
-  const resp = await fetch(highlightsExportUrl(), { credentials: 'include' })
+  const resp = await apiFetch(highlightsExportUrl(), { credentials: 'include' })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
   return resp.text()
 }
@@ -599,7 +630,7 @@ export async function getResurfacing(): Promise<ResurfacingResponse> {
 
 /** Record that the user has seen a resurfaced highlight (advances its ladder). Best-effort. */
 export async function markSurfaced(id: string): Promise<void> {
-  const resp = await fetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/surfaced`, {
+  const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/surfaced`, {
     method: 'POST',
     credentials: 'include',
   })
@@ -610,7 +641,7 @@ export async function markSurfaced(id: string): Promise<void> {
 
 /** Update resurfacing pacing (pause/resume); returns the stored settings. */
 export async function putResurfacingSettings(paused: boolean): Promise<ResurfacingSettings> {
-  const resp = await fetch(`${BASE}/resurfacing/settings`, {
+  const resp = await apiFetch(`${BASE}/resurfacing/settings`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
