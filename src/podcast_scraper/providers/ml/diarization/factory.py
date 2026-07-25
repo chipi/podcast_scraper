@@ -86,6 +86,33 @@ def _diarization_tier_builder(
     return lambda: _build_diarization_tier(cfg, backend)
 
 
+_DIARIZE_TUNING_KNOBS = (
+    "diarization_clustering_threshold",
+    "diarization_min_cluster_size",
+    "diarization_min_segment_ms",
+)
+
+
+def _warn_if_tuning_knobs_ignored(cfg: config.Config, backend: str) -> None:
+    """Only the ``local`` pyannote backend applies the clustering/squelch tuning knobs (D1 / #1295).
+
+    The DGX/cloud providers send only speaker-count bounds, so a set-but-ignored knob is a silent
+    no-op on the primary path — an operator who tunes ``diarization_min_segment_ms`` to fix
+    over-segmentation gets zero effect while DGX is healthy. Surface it rather than swallow it.
+    """
+    if backend == "local":
+        return
+    set_knobs = [k for k in _DIARIZE_TUNING_KNOBS if getattr(cfg, k, None) is not None]
+    if set_knobs:
+        logger.warning(
+            "diarization_provider=%s does NOT apply the pyannote tuning knobs %s — only the "
+            "'local' backend does. They have no effect on this diarization unless it fails over "
+            "to local. (#1295)",
+            backend,
+            ", ".join(set_knobs),
+        )
+
+
 def create_diarization_provider(
     cfg: config.Config, *, _wrap_fallback: bool = True
 ) -> DiarizationProvider:
@@ -105,6 +132,7 @@ def create_diarization_provider(
     ``TailnetDgxDiarizationProvider`` is retired in favour of that chain.
     """
     backend = getattr(cfg, "diarization_provider", "local")
+    _warn_if_tuning_knobs_ignored(cfg, backend)
 
     if _wrap_fallback:
         tiers = _diarization_fallback_tiers(cfg)

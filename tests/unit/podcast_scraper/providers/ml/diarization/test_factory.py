@@ -46,3 +46,30 @@ def test_resolve_hf_token_none_when_absent(monkeypatch, tmp_path: Path) -> None:
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(factory.Path, "home", classmethod(lambda cls: tmp_path))
     assert factory.resolve_hf_token(_cfg()) is None
+
+
+def test_warns_when_pyannote_tuning_knobs_set_against_dgx(caplog) -> None:
+    # D1 (#1295): the DGX/cloud providers do not apply the pyannote clustering/squelch knobs, so a
+    # set-but-ignored knob must not be a silent no-op.
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarization_provider="tailnet_dgx",
+        diarization_min_segment_ms=500,
+    )
+    with caplog.at_level("WARNING"):
+        factory._warn_if_tuning_knobs_ignored(cfg, "tailnet_dgx")
+    assert "diarization_min_segment_ms" in caplog.text
+    assert "#1295" in caplog.text
+
+
+def test_no_tuning_knob_warning_for_local_backend(caplog) -> None:
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarization_provider="local",
+        diarization_min_segment_ms=500,
+    )
+    with caplog.at_level("WARNING"):
+        factory._warn_if_tuning_knobs_ignored(cfg, "local")
+    assert "1295" not in caplog.text
