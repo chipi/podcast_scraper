@@ -176,7 +176,10 @@ def save_adfree_artifacts(
         with open(adfree_admap, "w", encoding="utf-8") as f:
             json.dump(artifacts.ad_map, f, indent=2)
     except OSError as exc:
-        logger.debug("Could not save ad-free artifacts for %s: %s", rel_transcript_path, exc)
+        # A write failure here silently degrades every downstream NLP consumer to the RAW,
+        # ad-laden transcript (is_adfree=False) with no other signal — so it is a WARNING, not a
+        # swallowed DEBUG (C3).
+        logger.warning("Could not save ad-free artifacts for %s: %s", rel_transcript_path, exc)
         return None
     logger.debug(
         "Saved ad-free transcript base: %s (%d ad chars removed)",

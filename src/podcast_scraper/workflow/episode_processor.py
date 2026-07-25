@@ -1609,6 +1609,19 @@ def _relabel_existing_transcript(
         )
         return False, None, 0
     txt_path = matches[0]
+    if len(matches) > 1:
+        # The feed root can hold several run_* dirs for the same episode (pilots, prior reprocesses,
+        # enrich_only passes). We pick the newest by mtime — surface that choice and the skipped
+        # alternates so a relabel that targeted the wrong run is diagnosable (B1).
+        logger.warning(
+            "[%s] relabel_only: %d on-disk transcripts match idx %r; using newest-mtime %s "
+            "(skipped %d older)",
+            job.idx,
+            len(matches),
+            idx_prefix,
+            txt_path,
+            len(matches) - 1,
+        )
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
     if not seg_path.exists():
         logger.warning(
@@ -1729,6 +1742,18 @@ def _rediarize_existing_transcript(
         )
         return False, None, 0
     txt_path = matches[0]
+    if len(matches) > 1:
+        # Several run_* dirs can match the same episode; we pick the newest by mtime. Surface it and
+        # the skipped alternates so a rediarize that targeted the wrong run is diagnosable (B1).
+        logger.warning(
+            "[%s] rediarize_only: %d on-disk transcripts match idx %r; using newest-mtime %s "
+            "(skipped %d older)",
+            job.idx,
+            len(matches),
+            idx_prefix,
+            txt_path,
+            len(matches) - 1,
+        )
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
 
     text = txt_path.read_text(encoding="utf-8")
