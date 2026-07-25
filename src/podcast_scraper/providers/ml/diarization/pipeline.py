@@ -106,7 +106,11 @@ def _resolve_diarization_cache_dir(cfg: config.Config, cache_dir: Optional[str])
     return diarization_cache_dir_for_output(cfg.output_dir)
 
 
-_recurring_cache: Dict[str, set] = {}
+# Cache maps output_dir -> (transcript_count_at_build, shingles). The count lets a batch's LATER
+# episodes rebuild the index once earlier episodes have written their transcripts (D3): keying on
+# out_dir alone froze the index at the first episode's state — on a fresh feed's first full pass
+# that is near-empty, so the mid-roll-ad rule ran blind for the whole batch.
+_recurring_cache: Dict[str, tuple[int, set]] = {}
 _recurring_lock = threading.Lock()
 
 
@@ -118,39 +122,41 @@ def _feed_recurring_text(cfg: config.Config) -> set:
     across episodes: it is read from the same script every week. `Jonathan Knight` (NYT Games) got
     into 7 of 10 Hard Fork episodes as a named person because no single episode could tell.
 
-    Built from the transcripts already on disk for this output dir, once per feed. Fewer than three
-    transcripts and there is nothing to compare, so the rule abstains.
+    Built from the transcripts already on disk for this output dir, and REBUILT when more
+    transcripts have since landed (so a batch's later episodes see the passages its earlier ones
+    just wrote). Fewer than three transcripts and there is nothing to compare, so the rule abstains.
     """
     out_dir = str(getattr(cfg, "output_dir", "") or "")
     if not out_dir:
         return set()
+    paths = [
+        p
+        for p in Path(out_dir).glob("**/transcripts/*.txt")
+        if ".adfree" not in p.name and ".cleaned" not in p.name
+    ]
+    count = len(paths)
     cached = _recurring_cache.get(out_dir)
-    if cached is not None:
-        return cached
+    if cached is not None and count <= cached[0]:
+        return cached[1]  # no new transcripts since the last build
     with _recurring_lock:
         cached = _recurring_cache.get(out_dir)
-        if cached is not None:
-            return cached
+        if cached is not None and count <= cached[0]:
+            return cached[1]
         try:
             from ....speaker_detectors.boilerplate import shingles_from_transcript_files
 
-            paths = [
-                p
-                for p in Path(out_dir).glob("**/transcripts/*.txt")
-                if ".adfree" not in p.name and ".cleaned" not in p.name
-            ]
-            shingles = shingles_from_transcript_files(paths)
+            shingles = shingles_from_transcript_files(paths) if count >= 3 else set()
             if shingles:
                 logger.info(
                     "#1188: indexed %d repeated passages across %d transcripts of this feed — "
                     "a voice that only reads them is a recording, not a person",
                     len(shingles),
-                    len(paths),
+                    count,
                 )
         except Exception as exc:  # noqa: BLE001
             logger.debug("recurring-text index unavailable (%s); mid-roll ad rule abstains", exc)
             shingles = set()
-        _recurring_cache[out_dir] = shingles
+        _recurring_cache[out_dir] = (count, shingles)
         return shingles
 
 

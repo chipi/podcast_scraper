@@ -261,3 +261,31 @@ def test_apply_diarization_degrades_when_no_turns(mock_create_provider) -> None:
     # gate falls back to gap-based formatting.
     assert "speaker_label" not in enriched["segments"][0]
     assert "speaker" not in enriched["segments"][0]
+
+
+def test_recurring_text_index_rebuilds_as_more_transcripts_land(tmp_path) -> None:
+    # D3: the mid-roll-ad recurring-script index must rebuild once a batch's later episodes have
+    # written more transcripts. Keying on output_dir alone froze it at the first episode's
+    # near-empty state, so the rule ran blind for the whole first pass of a fresh feed.
+    from podcast_scraper import config as _config
+    from podcast_scraper.providers.ml.diarization import pipeline as _pipeline
+
+    _pipeline._recurring_cache.clear()
+    tdir = tmp_path / "feeds" / "f" / "run_1" / "transcripts"
+    tdir.mkdir(parents=True)
+    cfg = _config.Config(
+        rss="https://example.com/f.xml",
+        transcription_provider="whisper",
+        output_dir=str(tmp_path),
+    )
+    passage = "and now a quick word from our longtime friends at the acme house of widgets"
+
+    def write(n: int) -> None:
+        (tdir / f"{n}.txt").write_text(passage + f". Unique content number {n}. " * 20)
+
+    write(1)
+    write(2)
+    assert _pipeline._feed_recurring_text(cfg) == set()  # <3 transcripts -> abstain
+    write(3)
+    write(4)
+    assert _pipeline._feed_recurring_text(cfg)  # >=3 sharing a passage -> rebuilt, non-empty
