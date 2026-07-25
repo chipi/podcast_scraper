@@ -213,10 +213,14 @@ def detect_hosts_from_transcript_intro(
     words = transcript_text.split()[:intro_word_count]
     intro_text = " ".join(words)
 
+    # The cue ("I'm" / "welcome to") is matched case-insensitively, but the NAME capture is scoped
+    # case-SENSITIVE with (?-i:...): under a blanket re.IGNORECASE the [A-Z][a-z]+ classes matched
+    # any letter, so "I'm going to explain how this works" captured "going to explain..." as a host
+    # name (N3). Same fix the module's _NAME pattern already uses elsewhere.
     intro_patterns = [
-        r"I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
-        r"This is\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
-        r"Welcome to\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
+        r"I'?m\s+((?-i:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*))",
+        r"This is\s+[^.]+\s+I'?m\s+((?-i:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*))",
+        r"Welcome to\s+[^.]+\s+I'?m\s+((?-i:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*))",
     ]
 
     detected_names = set()

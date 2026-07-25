@@ -181,3 +181,22 @@ def test_guest_greeting_name_then_welcome() -> None:
     }
     # a bare greeting with no preceding name is NOT a guest introduction
     assert guests_introduced_by_the_host({"v": "welcome to Hard Fork this week"}) == set()
+
+
+def test_transcript_intro_does_not_capture_a_lowercase_run_as_a_host(monkeypatch) -> None:
+    # N3: under a blanket re.IGNORECASE the [A-Z][a-z]+ name classes matched any letter, so
+    # "I'm going to explain how this works" captured "going to explain..." as a host name. The name
+    # capture is now case-SENSITIVE via (?-i:...); the cue stays case-insensitive.
+    from podcast_scraper.speaker_detectors import hosts
+
+    monkeypatch.setattr(hosts, "_extract_person_entities", lambda text, nlp: [])
+    nlp = object()  # truthy so the function does not early-return; NER is patched out above
+    assert (
+        hosts.detect_hosts_from_transcript_intro(
+            "I'm going to explain how this works today before we begin.", nlp
+        )
+        == set()
+    )
+    assert "Noah Kravitz" in hosts.detect_hosts_from_transcript_intro(
+        "Welcome to the show. I'm Noah Kravitz and today we go deep.", nlp
+    )
