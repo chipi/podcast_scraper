@@ -36,6 +36,15 @@ Tracking: hardening [#1160](https://github.com/chipi/podcast_scraper/issues/1160
 - **Public plane (new):** Hetzner firewall opens `80 + 443` to `0.0.0.0/0`; a single
   host-level Caddy terminates TLS and routes by `Host` to per-tenant containers on
   loopback. This is the new, internet-facing boundary.
+- **Operator *read* plane (public, gated — [RFC-108](../rfc/RFC-108-operator-public-gated-surface.md)):**
+  `operator.closelistening.app` serves the gi-kg-viewer + a **separate least-privilege**
+  backend (`PODCAST_SERVE_OPERATOR_PUBLIC`: a curated read-only subset of the operator
+  routes, each **≥creator-gated**; **no `docker.sock`, no keys**), behind the coming-soon
+  cookie gate → Google OAuth → admin/creator role → CF origin-lock + rate-limit. The
+  **privileged** operator api (`docker.sock` + LLM keys + `index_rebuild`/`ops`/pipeline
+  triggers) **stays tailnet-only** — so **T-01's D1 basis is unchanged**. This is a *new
+  public tenant that passes the pre-public gate by construction*, not an exposure of the
+  private operator plane.
 - **Tenant boundary (weak today):** all tenants share one host, one Docker daemon, one
   `deploy` user, one `.env`. A container escape or app RCE crosses into every tenant.
 

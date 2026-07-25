@@ -392,6 +392,7 @@ nav:
       - RFC-105 Cross-feed audio↔LLM pipelining: rfc/RFC-105-cross-feed-audio-llm-pipelining.md
       - RFC-106 Tiered DGX Service Fallback: rfc/RFC-106-tiered-dgx-service-fallback.md
       - RFC-107 Search v3 — Query Workspace: rfc/RFC-107-search-v3-query-workspace.md
+      - RFC-108 Operator public gated surface: rfc/RFC-108-operator-public-gated-surface.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

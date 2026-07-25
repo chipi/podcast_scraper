@@ -127,7 +127,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **106** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-107**
+**Counts (reconcile when moving RFCs):** **107** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-108**
 with **no RFC-014**. Open / completed / Draft breakdown in the tables above (last recount 2026-07-23);
 re-tally when the tables change.
 
