@@ -9,10 +9,29 @@
  */
 import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { setAuthToken } from './api'
+
+// Local Android plugin (#1310): a foreground media service keep-alive so the OS doesn't suspend the
+// WebView's <audio> when backgrounded. iOS handles background audio via AVAudioSession (AppDelegate)
+// + UIBackgroundModes, so this is Android-only; the calls no-op elsewhere.
+interface BackgroundAudioPlugin {
+  start(): Promise<void>
+  stop(): Promise<void>
+}
+const BackgroundAudio = registerPlugin<BackgroundAudioPlugin>('BackgroundAudio')
+
+/** Start the Android foreground keep-alive (on play). No-op on iOS/web. */
+export async function startBackgroundAudio(): Promise<void> {
+  if (isNative() && platform() === 'android') await BackgroundAudio.start().catch(() => {})
+}
+
+/** Stop the Android foreground keep-alive (on pause/end). No-op on iOS/web. */
+export async function stopBackgroundAudio(): Promise<void> {
+  if (isNative() && platform() === 'android') await BackgroundAudio.stop().catch(() => {})
+}
 
 /** True inside the iOS/Android Capacitor shell; false on the web (SSR/dev/preview/prod web). */
 export function isNative(): boolean {

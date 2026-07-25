@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
+import { startBackgroundAudio, stopBackgroundAudio } from '../services/native'
 
 /**
  * Player store — the single source of truth for audio playback state + transport (#1307).
@@ -36,10 +37,12 @@ export const usePlayerStore = defineStore('player', () => {
   function onPlay(): void {
     playing.value = true
     setPlaybackState('playing')
+    void startBackgroundAudio() // Android foreground keep-alive (#1310); no-op on iOS/web
   }
   function onPause(): void {
     playing.value = false
     setPlaybackState('paused')
+    void stopBackgroundAudio()
   }
   function onTimeUpdate(): void {
     currentTime.value = el.value?.currentTime ?? 0
@@ -51,6 +54,7 @@ export const usePlayerStore = defineStore('player', () => {
   }
   function onError(): void {
     audioError.value = true
+    void stopBackgroundAudio()
   }
   /** New episode loading — clear transient state (source swap happens in the view). */
   function resetForLoad(): void {
@@ -58,6 +62,7 @@ export const usePlayerStore = defineStore('player', () => {
     currentTime.value = 0
     duration.value = 0
     audioError.value = false
+    void stopBackgroundAudio()
   }
 
   // --- transport (MediaSession + UI both call these) ---

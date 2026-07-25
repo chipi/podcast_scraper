@@ -104,4 +104,14 @@ describe('native-shell invariants (guardrail #1310)', () => {
       /android:scheme="closelistening"/,
     )
   })
+
+  it('Android background audio: foreground media service + permission declared, wired to play/pause', () => {
+    expect(androidManifest, 'manifest must declare the PlaybackService as mediaPlayback FGS').toMatch(
+      /android:name="\.PlaybackService"[\s\S]*?android:foregroundServiceType="mediaPlayback"/,
+    )
+    expect(androidManifest).toMatch(/FOREGROUND_SERVICE_MEDIA_PLAYBACK/)
+    // The store must start/stop the keep-alive on play/pause or backgrounded audio dies.
+    expect(playerStoreSrc).toMatch(/startBackgroundAudio\(\)/)
+    expect(playerStoreSrc).toMatch(/stopBackgroundAudio\(\)/)
+  })
 })
