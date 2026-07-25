@@ -50,7 +50,10 @@ public class AuthSession: CAPPlugin, CAPBridgedPlugin {
                 call.resolve(["url": callbackURL?.absoluteString ?? ""])
             }
             session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = false // keep the SSO session cookie
+            // Ephemeral: no Safari cookie sharing → no one-time "wants to use X to sign in" consent
+            // (#1310, operator's call). Trade-off: no Google SSO — but we mint our own 30-day token so
+            // real OAuth logins are rare, and a dialog-free flow is preferred. Flip to false for SSO.
+            session.prefersEphemeralWebBrowserSession = true
             self.session = session
             session.start()
         }
