@@ -7,6 +7,7 @@ import { router } from './router'
 import { i18n } from './i18n'
 import { applyTheme } from './theme/theme'
 import { platform } from './services/native'
+import { getTier, tierSwitchEnabled } from './services/tier'
 
 applyTheme('dark')
 
@@ -39,13 +40,18 @@ const app = createApp(App)
 // in the bundle) — safe to commit. `VITE_ANALYTICS_OFF=1` disables the default.
 const DEV_SENTRY_DSN_PLAYER = 'http://66dba2f7683848c8b4ef0968ff073e82@homelab:8090/8'
 const devDefault = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
-const SENTRY_DSN_PLAYER =
-  import.meta.env.VITE_SENTRY_DSN_PLAYER || (devDefault ? DEV_SENTRY_DSN_PLAYER : '')
+// Native dev↔prod switch (#1310): when the shell's tier is 'dev', errors go to the tailnet
+// player-dev GlitchTip + environment='dev' — same channel split as the web dev rung. prod (+ web +
+// release) keeps the baked prod DSN. Umami stays the prod site (unified UX), so it is NOT switched.
+const nativeDevTier = tierSwitchEnabled() && getTier() === 'dev'
+const SENTRY_DSN_PLAYER = nativeDevTier
+  ? DEV_SENTRY_DSN_PLAYER
+  : import.meta.env.VITE_SENTRY_DSN_PLAYER || (devDefault ? DEV_SENTRY_DSN_PLAYER : '')
 if (SENTRY_DSN_PLAYER) {
   Sentry.init({
     app,
     dsn: SENTRY_DSN_PLAYER,
-    environment: import.meta.env.PROD ? 'prod' : 'dev',
+    environment: nativeDevTier ? 'dev' : import.meta.env.PROD ? 'prod' : 'dev',
     release: __BUILD_SHA__ || undefined,
     // Keep PII off by default.
     sendDefaultPii: false,

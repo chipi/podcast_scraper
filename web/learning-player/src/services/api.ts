@@ -42,13 +42,16 @@ import type {
   TrendingEntity,
   UserStats,
 } from './types'
+import { resolveApiBase } from './tier'
 
-// Origin-relative on the web (same-origin '/api/app'); absolute on native (Capacitor) builds where
-// the WebView origin is capacitor://localhost and a relative path can't reach the API. Set
-// VITE_API_BASE_URL to the full base incl. the /api/app prefix (e.g. https://host/api/app) for
-// native builds. Every call site does `${BASE}${path}` → when BASE is absolute the resulting string
-// is absolute, so both `new URL(str, origin)` and `fetch(str)` ignore the origin — no other change.
-const BASE = import.meta.env.VITE_API_BASE_URL || '/api/app'
+// API base, resolved once at load (#1305/#1310):
+//   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
+//   - native prod/release: the live player API (or baked VITE_API_BASE_URL).
+//   - native dev (internal build + dev tier): the local machine (make serve-app :5174).
+// The dev↔prod switch (services/tier.ts) reloads the app on change so this re-resolves. Every call
+// site does `${BASE}${path}` → when BASE is absolute both `new URL(str, origin)` and `fetch(str)`
+// ignore the origin, so no other change is needed.
+const BASE = resolveApiBase()
 
 /** Raised on a non-2xx response; carries the HTTP status for callers to branch on (401 etc). */
 export class ApiError extends Error {

@@ -6,6 +6,7 @@ import highlightsViewSrc from '../views/HighlightsView.vue?raw'
 import mainSrc from '../main.ts?raw'
 import authStoreSrc from '../stores/auth.ts?raw'
 import nativeSrc from '../services/native.ts?raw'
+import tierSrc from '../services/tier.ts?raw'
 import indexHtml from '../../index.html?raw'
 import iosInfoPlist from '../../ios/App/App/Info.plist?raw'
 import iosAppDelegate from '../../ios/App/App/AppDelegate.swift?raw'
@@ -123,5 +124,17 @@ describe('native-shell invariants (guardrail #1310)', () => {
     // The store must start/stop the keep-alive on play/pause or backgrounded audio dies.
     expect(playerStoreSrc).toMatch(/startBackgroundAudio\(\)/)
     expect(playerStoreSrc).toMatch(/stopBackgroundAudio\(\)/)
+  })
+
+  it('dev/prod tier switch: api base resolves per-tier, no staging, prod-locked in release', () => {
+    // The API base flows through the tier resolver, not a bare env const.
+    expect(apiSrc).toMatch(/resolveApiBase\(\)/)
+    // Podcast has no staging (ADR-126): the Tier type is only dev + prod.
+    expect(tierSrc).toMatch(/type Tier = 'dev' \| 'prod'/)
+    // Release is prod-locked via the build flag; the switch is native + internal only.
+    expect(tierSrc).toMatch(/__MOBILE_INTERNAL__/)
+    expect(tierSrc).toMatch(/isNativePlatform\(\)/)
+    // Telemetry follows the tier (Sentry), Umami stays prod (unified) — main switches Sentry by tier.
+    expect(mainSrc).toMatch(/nativeDevTier/)
   })
 })

@@ -5,6 +5,7 @@ import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
 import NavIconLink from './components/NavIconLink.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
+import TierSwitch from './components/TierSwitch.vue'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { useFavoritesStore } from './stores/favorites'
@@ -54,6 +55,7 @@ async function onSignOut(): Promise<void> {
         <span class="font-display text-2xl font-extrabold tracking-tight">{{ t('app.title') }}</span>
       </RouterLink>
       <nav class="text-sm flex items-center gap-1.5">
+        <TierSwitch />
         <NavIconLink :to="{ name: 'catalog' }" :label="t('nav.browse')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
