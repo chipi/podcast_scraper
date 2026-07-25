@@ -198,3 +198,15 @@ class TestAbstractContract:
 
         with pytest.raises(TypeError):
             Broken("minilm-l6")  # type: ignore[abstract]
+
+
+def test_embedding_evidence_backend_never_resolves_to_mps() -> None:
+    # The all-MiniLM SentenceTransformer flaky-SIGSEGVs mid-`encode` on Apple MPS (the native crash
+    # that paused Goal-1). The embedding evidence backend must opt out of MPS — a third embedding
+    # path the earlier never-MPS fix missed. QA/NLI backends may keep MPS.
+    from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend
+    from podcast_scraper.providers.ml.hf_evidence_backend import resolve_evidence_device
+
+    assert EmbeddingEvidenceBackend.mps_supported is False
+    assert resolve_evidence_device("mps", mps_supported=False) == "cpu"  # explicit mps downgraded
+    assert resolve_evidence_device(None, mps_supported=False) != "mps"  # auto never picks mps
