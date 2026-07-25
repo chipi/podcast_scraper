@@ -235,6 +235,58 @@ def test_a_brief_mid_episode_speaker_is_not_an_ad() -> None:
     assert "SPEAKER_CLIP" not in _edge_ad_voices(DiarizationResult(segments=segs, num_speakers=5))
 
 
+def _two_voice_interview() -> DiarizationResult:
+    segs: List[DiarizationSegment] = []
+    t = 0.0
+    while t < 2400.0:
+        segs.append(_seg("SPEAKER_HOST", t, t + 20))
+        segs.append(_seg("SPEAKER_GUEST", t + 20, t + 45))
+        t += 60.0
+    return DiarizationResult(segments=segs, num_speakers=2)
+
+
+def test_the_final_gate_demotes_an_opener_laden_name_reaching_the_roster() -> None:
+    """ADR-126 opener-leak. community-1's finer clustering surfaced turn-boundary openers the ASR
+    capitalised ("But Sun", "So Nick") that slipped a per-path filter; the guest-detection path in
+    particular gates only on token count, so a two-token "But Sun" reaches the roster. The final
+    plausibility gate in ``resolve_speaker_roster`` is the last line: it must demote such a name
+    back to the raw SPEAKER_NN — a wrong label is worse than an unnamed voice. (Bypassing the gate
+    republishes "But Sun", so this is not a vacuous assertion.)
+    """
+    roster = resolve_speaker_roster(
+        _two_voice_interview(),
+        "Welcome to the show. So please welcome But Sun, our guest today.",
+        detected_guests=["But Sun"],  # as if NER handed a turn-boundary opener over as a guest
+        known_hosts=[],
+        voice_texts={
+            "SPEAKER_HOST": "Welcome to the show. So please welcome But Sun, our guest today.",
+            "SPEAKER_GUEST": "Thanks for having me. Our work started a while ago.",
+        },
+        metadata_named=["But Sun"],
+    )
+    named = {r.name for r in roster.by_voice.values() if r.named}
+    assert (
+        "But Sun" not in named
+    ), "an opener-laden name reached publish — the final gate must reject it"
+    assert not roster.by_voice["SPEAKER_GUEST"].named  # demoted to the raw defect marker
+
+
+def test_the_final_gate_keeps_a_real_two_token_guest() -> None:
+    """The gate is a garbage filter, not a naming regression: a real guest name still publishes."""
+    roster = resolve_speaker_roster(
+        _two_voice_interview(),
+        "Welcome to the show. My guest today is Fan-yun Sun.",
+        detected_guests=["Fan-yun Sun"],
+        known_hosts=[],
+        voice_texts={
+            "SPEAKER_HOST": "Welcome to the show. My guest today is Fan-yun Sun.",
+            "SPEAKER_GUEST": "Thanks for having me. Our work started a while ago.",
+        },
+        metadata_named=["Fan-yun Sun"],
+    )
+    assert roster.by_voice["SPEAKER_GUEST"].name == "Fan-yun Sun"
+
+
 class TestCanonicalizingAnAsrMangledHost:
     """The self-intro is transcribed, so it carries the ASR's spelling, and the roster trusts it
     above ``known_hosts``. That is how one host became three people, none spelled correctly."""

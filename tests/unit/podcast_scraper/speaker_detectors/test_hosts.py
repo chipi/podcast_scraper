@@ -16,6 +16,7 @@ from podcast_scraper.speaker_detectors.hosts import (
     is_known_network,
     is_network_or_org_author,
     is_plausible_mononym,
+    is_publishable_speaker_name,
     looks_like_publisher,
 )
 
@@ -108,6 +109,57 @@ def test_extract_self_introduced_host_only_scans_intro_window() -> None:
     # A self-intro past the intro window is ignored (a later guest "I'm …").
     text = "x" * 2100 + " I'm Late Guest"
     assert extract_self_introduced_host(text, intro_chars=2000) is None
+
+
+def test_extract_self_introduced_host_rejects_a_single_opener_token() -> None:
+    # ADR-126 opener-leak: ASR renders a disfluency as "I'm But it …"; the "I'm <Cap>" regex
+    # captures a bare "But". The 1-token branch used to return it unchecked (its sibling
+    # ``distinct_self_introductions`` already guarded this); now a sentence-opener is refused.
+    assert extract_self_introduced_host("Well, I'm But it, so let's get started.") is None
+
+
+def test_extract_self_introduced_host_keeps_scanning_past_an_opener_to_the_real_intro() -> None:
+    # ``continue`` (not ``return None``) on rejection: a bogus "I'm But" must not SHADOW a real
+    # later self-introduction in the same window. Community-1 "Moonlake" lost the real speaker this
+    # way when the opener returned first.
+    text = "Well, I'm But it. A moment later — I'm Sarah Chen, and I built this."
+    assert extract_self_introduced_host(text) == "Sarah Chen"
+
+
+def test_extract_self_introduced_host_still_accepts_a_real_mononym() -> None:
+    # The 1-token guard rejects openers, not real single-name hosts (Brandon, Oprah, Sting).
+    assert (
+        extract_self_introduced_host("Hey, I'm Brandon, welcome to the AI for Science podcast.")
+        == "Brandon"
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "publishable"),
+    [
+        # Opener/stop-word leaks the final gate must reject (ADR-126).
+        ("But Sun", False),  # community-1 "Moonlake": opener + real surname
+        ("So Nick", False),  # community-1 "Quantum": opener + real first name
+        ("But", False),  # bare opener from "I'm But it"
+        ("Dr", False),  # bare honorific
+        ("Andrew Look", False),  # accepted collateral: a surname colliding with a stop-token
+        # Real names the gate must keep.
+        ("Kevin Roose", True),
+        ("Fan-yun Sun", True),
+        ("RJ Scringe", True),
+        ("Lulu Garcia Navarro", True),
+        # One-token names must survive WITHOUT requiring a capital first letter — a lowercase handle
+        # already vouched by a trusted source (Latent Space's "swyx") is real. This is why the gate
+        # uses a stop-word reject, not the stricter ``is_plausible_mononym``.
+        ("swyx", True),
+        ("Rohan", True),
+        ("Kalshi", True),
+        ("Kevin", True),
+        ("", False),
+    ],
+)
+def test_is_publishable_speaker_name(name: str, publishable: bool) -> None:
+    assert is_publishable_speaker_name(name) is publishable
 
 
 # --- Regression: the catastrophic-backtracking hang + the IGNORECASE case-sensitivity bug ---

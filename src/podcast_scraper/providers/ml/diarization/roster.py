@@ -39,6 +39,7 @@ from ....speaker_detectors.hosts import (
     HONORIFIC_TITLES,
     is_network_or_org_author,
     is_plausible_mononym,
+    is_publishable_speaker_name,
     looks_like_a_person_name,
     roles_from_conversation,
 )
@@ -1325,6 +1326,18 @@ def resolve_speaker_roster(
     # They still belong in the roster — as "Advertisement", not as a missing id.
     for v in ad_voices:
         by_voice.setdefault(v, SpeakerRole(name=v, role="unknown", named=False, source="raw"))
+
+    # FINAL PLAUSIBILITY GATE (ADR-126 shared core). Every naming path above — self-intro, host
+    # pool, greeting reader, strategy snap, LLM, metadata — writes into `by_voice`, and each has its
+    # own filters; community-1's finer clustering surfaced turn-boundary openers the ASR capitalised
+    # ("But Sun", "So Nick", a bare "But") slipping through one path or another. Rather than reaudit
+    # every path, refuse to PUBLISH a name that is not a plausible speaker name: demote it back to
+    # the raw SPEAKER_NN (a defect marker), because a wrong label is worse than an unnamed voice.
+    # Placed before the leftover/nameable accounting and `_classify_voice_types` so a demoted voice
+    # is counted as an unnamed defect and re-typed correctly.
+    for _v, _role in list(by_voice.items()):
+        if _role.named and not is_publishable_speaker_name(_role.name):
+            by_voice[_v] = replace(_role, name=_v, named=False, source="raw")
 
     # Which unnamed voices did we FAIL on, and which could nobody have named?
     #

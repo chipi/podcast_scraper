@@ -175,6 +175,13 @@ def extract_self_introduced_host(
         # so the guard only fires on a multi-token run containing an ordinary English word.
         if len(name.split()) >= 2 and not looks_like_a_person_name(name):
             continue
+        # A single-token capture must be a plausible mononym, not a sentence-opener the ASR
+        # capitalised at a turn boundary. "I'm But it …" (a disfluency) captured a bare "But" and,
+        # because the loop returns on the FIRST hit, shadowed a real later "I'm <Name>". This is the
+        # guard `distinct_self_introductions` already applies; without it here the two sibling
+        # scanners disagreed. ``continue`` (not ``return None``) keeps scanning for the real intro.
+        if len(name.split()) == 1 and not is_plausible_mononym(name):
+            continue
         return name
     return None
 
@@ -620,6 +627,31 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
         return False
     tl = t.lower()
     return tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
+
+
+def is_publishable_speaker_name(name: Optional[str]) -> bool:
+    """Final reject filter for a name about to be painted on a diarized voice (ADR-126 shared core).
+
+    Every extraction path (self-intro, host-pool, greeting reader, strategy snap, LLM, metadata)
+    converges on the roster; a name that carries a sentence-opener the ASR capitalised at a turn
+    boundary ("But Sun", "So Nick", bare "But") is not a person, and a wrong label is worse than an
+    unnamed voice. This is the last gate before publish, so no single path can bypass it.
+
+    Deliberately WEAKER than :func:`is_plausible_mononym` for a one-token name: it rejects only a
+    token that is a *known* non-name word, and does NOT require a capitalised first letter — else a
+    real lowercase handle already vouched by a trusted source ("swyx") would be thrown away. The
+    contract is "drop the garbage", not "re-validate every accepted name".
+    """
+    nm = name or ""
+    toks = nm.split()
+    if len(toks) >= 2:
+        return looks_like_a_person_name(nm)
+    if len(toks) == 1:
+        tl = toks[0].lower().strip(".,'’")
+        return (
+            tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
+        )
+    return False
 
 
 def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
