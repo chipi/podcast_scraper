@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { getMe, loginUrl, logout as apiLogout } from '../services/api'
-import { isNative, openOAuth, storeAuthToken } from '../services/native'
+import { isNative, startNativeLogin, storeAuthToken } from '../services/native'
 import type { Me } from '../services/types'
 
 interface AuthState {
@@ -29,10 +29,10 @@ export const useAuthStore = defineStore('auth', {
     },
     login(as?: string): void {
       if (isNative()) {
-        // Native (#1310): open OAuth in the system browser; the backend returns the token via the
-        // `closelistening://auth` deep link, handled by initNativeAuth() → refresh(). A full-page
-        // redirect here would navigate the WebView away with no way back.
-        void openOAuth(loginUrl(as, true))
+        // Native (#1310): iOS uses ASWebAuthenticationSession (prompt-free), Android the system
+        // browser + intent-filter callback; both return the signed token → refresh() via
+        // initNativeAuth's onAuthed. A full-page redirect here would strand the WebView.
+        void startNativeLogin(loginUrl(as, true))
         return
       }
       // Web: full-page redirect into the OAuth flow (Google in prod, mock provider in dev/e2e).

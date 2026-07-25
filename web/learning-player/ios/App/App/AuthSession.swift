@@ -1,0 +1,62 @@
+import Foundation
+import Capacitor
+import AuthenticationServices
+
+/**
+ * AuthSession (#1310) — prompt-free native OAuth return on iOS.
+ *
+ * `@capacitor/browser` + a custom-scheme deep link makes iOS show an "Open in <app>?" confirmation
+ * on the callback (custom-scheme app handoff). ASWebAuthenticationSession is Apple's purpose-built
+ * OAuth primitive: it presents the auth page and, when the page redirects to `callbackScheme://…`,
+ * the OS captures it and returns the URL directly to the completion handler — no dialog, no global
+ * deep-link listener. Android returns prompt-free via its intent-filter, so this is iOS-only; the
+ * JS layer branches by platform.
+ */
+@objc(AuthSession)
+public class AuthSession: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "AuthSession"
+    public let jsName = "AuthSession"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise)
+    ]
+
+    // Held for the session's lifetime so it isn't deallocated mid-flight.
+    private var session: ASWebAuthenticationSession?
+
+    @objc func start(_ call: CAPPluginCall) {
+        guard let urlString = call.getString("url"), let url = URL(string: urlString) else {
+            call.reject("A valid 'url' is required")
+            return
+        }
+        guard let scheme = call.getString("callbackScheme") else {
+            call.reject("A 'callbackScheme' is required")
+            return
+        }
+        DispatchQueue.main.async {
+            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: scheme) { callbackURL, error in
+                if let error = error {
+                    // User cancel is a normal outcome — report it so JS can no-op quietly.
+                    let nsError = error as NSError
+                    if nsError.domain == ASWebAuthenticationSessionError.errorDomain
+                        && nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
+                        call.reject("cancelled", "CANCELLED")
+                    } else {
+                        call.reject("auth session failed: \(error.localizedDescription)")
+                    }
+                    return
+                }
+                call.resolve(["url": callbackURL?.absoluteString ?? ""])
+            }
+            session.presentationContextProvider = self
+            session.prefersEphemeralWebBrowserSession = false // keep the OAuth session (SSO) cookie
+            self.session = session
+            session.start()
+        }
+    }
+}
+
+extension AuthSession: ASWebAuthenticationPresentationContextProviding {
+    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return self.bridge?.viewController?.view.window ?? ASPresentationAnchor()
+    }
+}

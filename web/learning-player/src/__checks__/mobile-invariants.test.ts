@@ -5,9 +5,11 @@ import playerViewSrc from '../views/PlayerView.vue?raw'
 import highlightsViewSrc from '../views/HighlightsView.vue?raw'
 import mainSrc from '../main.ts?raw'
 import authStoreSrc from '../stores/auth.ts?raw'
+import nativeSrc from '../services/native.ts?raw'
 import indexHtml from '../../index.html?raw'
 import iosInfoPlist from '../../ios/App/App/Info.plist?raw'
 import iosAppDelegate from '../../ios/App/App/AppDelegate.swift?raw'
+import iosAuthSession from '../../ios/App/App/AuthSession.swift?raw'
 import androidManifest from '../../android/app/src/main/AndroidManifest.xml?raw'
 
 /**
@@ -93,9 +95,17 @@ describe('native-shell invariants (guardrail #1310)', () => {
       /Authorization/,
     )
     expect(apiSrc).toMatch(/setAuthToken/)
-    // Auth store opens login in the system browser on native instead of a dead-end WebView redirect.
+    // Auth store starts native login instead of a dead-end WebView redirect.
     expect(authStoreSrc).toMatch(/isNative\(\)/)
-    expect(authStoreSrc).toMatch(/openOAuth/)
+    expect(authStoreSrc).toMatch(/startNativeLogin/)
+    // iOS returns prompt-free via ASWebAuthenticationSession (no "Open in app?" dialog); Android via
+    // the intent-filter callback. native.ts must branch iOS → AuthSession.
+    expect(iosAuthSession, 'AuthSession.swift must use ASWebAuthenticationSession').toMatch(
+      /ASWebAuthenticationSession/,
+    )
+    expect(nativeSrc, 'native.ts must route iOS login through the AuthSession plugin').toMatch(
+      /AuthSession/,
+    )
     // The closelistening:// scheme must be registered on BOTH platforms or the callback can't return.
     expect(iosInfoPlist, 'iOS Info.plist must register the closelistening URL scheme').toMatch(
       /<key>CFBundleURLSchemes<\/key>[\s\S]*?<string>closelistening<\/string>/,

@@ -45,10 +45,32 @@ export function platform(): string {
 
 // --- native OAuth (#1310) -------------------------------------------------------------------------
 // The session cookie can't cross an external OAuth browser into the WebView, so the backend hands
-// back the SAME signed token via a `closelistening://auth#token=...` deep link. We persist it in
+// back the SAME signed token via a `closelistening://auth#token=...` callback. We persist it in
 // localStorage (durable in WKWebView across launches; re-login if the OS evicts it) and set it as
 // the bearer token used by services/api.ts. Kept out of Preferences to avoid another plugin dep.
+//
+// Return mechanism differs by platform so there is NO "Open in app?" dialog:
+//   - iOS: ASWebAuthenticationSession (local AuthSession plugin) — Apple's OAuth primitive returns
+//     the callback URL directly to a promise; no custom-scheme confirmation, no deep-link listener.
+//   - Android: @capacitor/browser + the manifest intent-filter delivers the callback via appUrlOpen
+//     with no prompt.
+const CALLBACK_SCHEME = 'closelistening'
 const TOKEN_KEY = 'lp_native_token'
+
+// Local iOS plugin: wraps ASWebAuthenticationSession (see ios/App/App/AuthSession.swift).
+interface AuthSessionPlugin {
+  start(opts: { url: string; callbackScheme: string }): Promise<{ url: string }>
+}
+const AuthSession = registerPlugin<AuthSessionPlugin>('AuthSession')
+
+// After a token arrives (either platform), refresh the auth store. Set by initNativeAuth().
+let onAuthedCb: (() => void) | null = null
+
+/** Pull the signed token out of a `closelistening://auth#token=<signed>` callback URL. */
+function tokenFromCallback(url: string): string | null {
+  const frag = url.includes('#') ? url.slice(url.indexOf('#') + 1) : ''
+  return new URLSearchParams(frag).get('token')
+}
 
 /** Persist (or clear) the native bearer token + apply it to the API client. */
 export function storeAuthToken(token: string | null): void {
@@ -61,28 +83,47 @@ export function storeAuthToken(token: string | null): void {
   setAuthToken(token)
 }
 
-/** Open the OAuth login URL in the system browser (native). Web callers use a full-page redirect. */
-export async function openOAuth(url: string): Promise<void> {
-  await Browser.open({ url })
+/**
+ * Begin native OAuth (#1310). iOS uses ASWebAuthenticationSession (prompt-free, returns the callback
+ * URL directly); Android opens the system browser and the appUrlOpen listener (initNativeAuth)
+ * receives the intent-filter callback. Both end by storing the token + refreshing the auth store.
+ */
+export async function startNativeLogin(loginUrl: string): Promise<void> {
+  if (!isNative()) return
+  if (platform() === 'ios') {
+    try {
+      const { url } = await AuthSession.start({ url: loginUrl, callbackScheme: CALLBACK_SCHEME })
+      const token = tokenFromCallback(url)
+      if (token) {
+        storeAuthToken(token)
+        onAuthedCb?.()
+      }
+    } catch {
+      /* user cancelled or the session failed — stay signed out */
+    }
+    return
+  }
+  // Android: the manifest intent-filter routes the callback back via appUrlOpen (no prompt).
+  await Browser.open({ url: loginUrl })
 }
 
 /**
- * Rehydrate the stored token and register the deep-link handler that receives the OAuth callback.
- * Idempotent-ish: call once at startup (App.vue). `onAuthed` runs after a token arrives so the app
- * can refresh the auth store. No-op on the web.
+ * Rehydrate the stored token and register the Android deep-link handler. Call once at startup
+ * (App.vue). `onAuthed` runs after a token arrives (either platform) so the app can refresh the
+ * auth store. No-op on the web.
  */
 export async function initNativeAuth(onAuthed: () => void): Promise<void> {
   if (!isNative()) return
+  onAuthedCb = onAuthed
   try {
     const saved = localStorage.getItem(TOKEN_KEY)
     if (saved) setAuthToken(saved)
   } catch {
     /* ignore */
   }
+  // Android callback path (iOS returns via the AuthSession promise instead).
   await App.addListener('appUrlOpen', ({ url }) => {
-    // Expect closelistening://auth#token=<signed> (token in the fragment, not the query).
-    const frag = url.includes('#') ? url.slice(url.indexOf('#') + 1) : ''
-    const token = new URLSearchParams(frag).get('token')
+    const token = tokenFromCallback(url)
     if (token) {
       storeAuthToken(token)
       void Browser.close().catch(() => {})
