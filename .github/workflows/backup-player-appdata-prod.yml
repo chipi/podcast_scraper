@@ -35,14 +35,16 @@ jobs:
       - name: Pre-flight — required secrets/variables present?
         id: preflight
         env:
-          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
           BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_AUTHKEY:-}" ] && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
           [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
           [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
           [ -z "${BACKUP_REPO_TOKEN:-}" ] && MISSING="$MISSING BACKUP_REPO_TOKEN"
@@ -63,7 +65,8 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         uses: tailscale/github-action@v4
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:gha-deployer
           version: 1.96.4
 

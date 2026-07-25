@@ -6,7 +6,7 @@ name: DR drill — deploy VPS
 # hard-coded prod values.
 #
 # Prerequisites:
-#   - secrets: TS_AUTHKEY, DRILL_DEPLOY_SSH_PRIVATE_KEY (Ed25519 PEM for
+#   - secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, DRILL_DEPLOY_SSH_PRIVATE_KEY (Ed25519 PEM for
 #              deploy@ on the drill host — same pattern as PROD_SSH_PRIVATE_KEY;
 #              public half must be in deploy@ ~/.ssh/authorized_keys; can be
 #              the same keypair as prod if you appended the same .pub to drill)
@@ -28,7 +28,9 @@ on:
         default: ""
   workflow_call:
     secrets:
-      TS_AUTHKEY:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
         required: true
       DRILL_DEPLOY_SSH_PRIVATE_KEY:
         required: true
@@ -57,13 +59,15 @@ jobs:
       - name: "DR drill — pre-flight: secrets and variables"
         id: preflight
         env:
-          TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
           DRILL_TAILNET_FQDN:          ${{ vars.DRILL_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_AUTHKEY:-}" ]                    && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
           [ -z "${DRILL_DEPLOY_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING DRILL_DEPLOY_SSH_PRIVATE_KEY"
           [ -z "${DRILL_TAILNET_FQDN:-}" ]          && MISSING="$MISSING DRILL_TAILNET_FQDN"
           if [ -n "$MISSING" ]; then
@@ -135,7 +139,8 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         uses: tailscale/github-action@v4
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags:    tag:gha-deployer
           version: 1.96.4
 

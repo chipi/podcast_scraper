@@ -6,7 +6,7 @@ name: DR drill — smoke (post_deploy_smoke)
 # prod make smoke-prod).
 #
 # Prerequisites:
-#   secrets: TS_AUTHKEY, DRILL_DEPLOY_SSH_PRIVATE_KEY (deploy@ PEM, same as drill-deploy)
+#   secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, DRILL_DEPLOY_SSH_PRIVATE_KEY (deploy@ PEM, same as drill-deploy)
 #   vars:    DRILL_TAILNET_FQDN (e.g. dr-podcast.tail-xxxx.ts.net)
 #
 # Tailscale ACL must allow tag:gha-deployer → tag:dr-drill:443 for HTTPS in
@@ -22,7 +22,9 @@ on:
         default: ''
   workflow_call:
     secrets:
-      TS_AUTHKEY:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
         required: true
       DRILL_DEPLOY_SSH_PRIVATE_KEY:
         required: true
@@ -54,13 +56,15 @@ jobs:
 
       - name: "DR drill — pre-flight: secrets and variables"
         env:
-          TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
           DRILL_TAILNET_FQDN:          ${{ vars.DRILL_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_AUTHKEY:-}" ]                    && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
           [ -z "${DRILL_DEPLOY_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING DRILL_DEPLOY_SSH_PRIVATE_KEY"
           [ -z "${DRILL_TAILNET_FQDN:-}" ]          && MISSING="$MISSING DRILL_TAILNET_FQDN"
           if [ -n "$MISSING" ]; then
@@ -82,7 +86,8 @@ jobs:
       - name: "DR drill — join: tailnet (tag:gha-deployer)"
         uses: tailscale/github-action@v4
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags:    tag:gha-deployer
           # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
           version: 1.96.4

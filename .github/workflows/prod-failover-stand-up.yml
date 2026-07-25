@@ -121,7 +121,8 @@ jobs:
       - name: "Prod failover — join: tailnet (tag:gha-deployer)"
         uses: tailscale/github-action@v4
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags:    tag:gha-deployer
           version: 1.96.4
 
