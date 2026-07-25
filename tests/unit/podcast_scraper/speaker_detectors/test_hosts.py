@@ -183,6 +183,40 @@ def test_guest_greeting_name_then_welcome() -> None:
     assert guests_introduced_by_the_host({"v": "welcome to Hard Fork this week"}) == set()
 
 
+@pytest.mark.parametrize("opener", ["But", "Well", "Anyway", "So", "Now"])
+def test_greeting_opener_is_not_swept_into_a_name(opener) -> None:
+    """R1/#876 fu: a sentence-opening discourse marker the ASR capitalised at a turn boundary
+
+    ("So Nick, welcome") was captured as a 2-word "name" ("So Nick") because the greeting paths
+    lacked the ordinary-word guard the self-intro path applies. It must yield NO guest — a wrong
+    label is worse than an unnamed voice. Deliberately parametrised over openers other than the two
+    incident strings so the test pins the CLASS, not the literals.
+    """
+    assert guests_introduced_by_the_host({"v": f"{opener} Nick, welcome to the show."}) == set()
+    assert (
+        guests_introduced_by_the_host({"v": f"{opener} Sun, thanks so much for coming on."})
+        == set()
+    )
+    # positive control in the same shape: a real two-word name is still captured, so the guard is
+    # not merely rejecting everything.
+    assert guests_introduced_by_the_host({"v": "Jody Rosen, welcome to the show."}) == {
+        "Jody Rosen"
+    }
+
+
+def test_discourse_opener_is_not_a_plausible_mononym() -> None:
+    """The shared ``_NOT_A_NAME_TOKEN`` set couples both paths: adding the openers to reject
+
+    "So Nick" also (intentionally) makes "I'm Well"/"I'm Now" fail mononym self-intro — same ASR
+    capitalisation noise class. Pinned so the side-effect is visible, not latent. Real mononyms are
+    unaffected.
+    """
+    assert is_plausible_mononym("Nick") is True
+    assert is_plausible_mononym("Sun") is True
+    for opener in ("But", "Well", "Anyway", "Now", "Then", "Look"):
+        assert is_plausible_mononym(opener) is False
+
+
 def test_transcript_intro_does_not_capture_a_lowercase_run_as_a_host(monkeypatch) -> None:
     # N3: under a blanket re.IGNORECASE the [A-Z][a-z]+ name classes matched any letter, so
     # "I'm going to explain how this works" captured "going to explain..." as a host name. The name

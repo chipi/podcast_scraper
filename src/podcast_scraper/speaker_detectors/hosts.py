@@ -452,6 +452,21 @@ _NOT_A_NAME_TOKEN = frozenset(
         "the",
         "a",
         "an",
+        # Sentence-opening discourse markers the ASR capitalises at a turn boundary and the greeting
+        # regexes then sweep into a 2-word "name" ("So Nick, welcome" -> "So Nick", "But Sun, thanks
+        # for coming" -> "But Sun"). They are ordinary English words, so they belong to this set by
+        # its own contract. Any-position match means a real surname colliding with one ("Andrew
+        # Look") is also dropped — accepted per "a wrong label is worse than an unnamed voice".
+        "but",
+        "and",
+        "well",
+        "now",
+        "then",
+        "because",
+        "plus",
+        "anyway",
+        "look",
+        "yeah",
     }
 )
 
@@ -575,7 +590,13 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
         for m in matches:
             for raw in _NAME_RE.findall(m.group("names")):
                 name = _clean_stated_name(raw)
-                if len(name.split()) >= 2 and not has_org_markers(name):
+                # Same person-name guard the self-intro and intro-reader paths apply: a run with an
+                # ordinary English word in it ("So Nick") is ASR noise the greeting regex swept up.
+                if (
+                    len(name.split()) >= 2
+                    and not has_org_markers(name)
+                    and looks_like_a_person_name(name)
+                ):
                     out.add(name)
     return out
 
