@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import AsyncIterator, cast
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -157,6 +157,38 @@ _OPERATOR_READ_ROUTES = (
     cil,
     ops,
 )
+# RFC-108: the CURATED subset of operator-read routers safe for the PUBLIC operator
+# surface (operator.closelistening.app). This is ``_OPERATOR_READ_ROUTES`` MINUS the ones
+# that mutate / control:
+#   - ``index_rebuild`` (rebuilds the index — compute/write)
+#   - ``ops`` (operational controls)
+#   - ``resilience_routes`` (carries POST ``/api/ops/resilience/reset`` — a reset)
+# Those stay on the tailnet-only operator serve. Everything kept here is read-only (the
+# remaining POST routes are POST-for-query: search/compare, corpus resolve, topics/timeline
+# — they compute + return, they do not mutate). Mounted with a router-level ≥creator gate.
+# A new operator-read router MUST be consciously classified here (audit its non-GET routes).
+_OPERATOR_PUBLIC_READ_ROUTES = (
+    usage_routes,
+    artifacts,
+    index_stats,
+    search,
+    relational,
+    query_activity,
+    explore,
+    corpus_library,
+    corpus_binary,
+    corpus_media,
+    corpus_text_file,
+    corpus_metrics,
+    corpus_coverage,
+    corpus_persons,
+    corpus_digest,
+    corpus_enrichments,
+    corpus_topic_clusters,
+    corpus_theme_clusters,
+    corpus_trending,
+    cil,
+)
 # Consumer Learning Platform API (RFC-098): slug-addressed routes under their own
 # ``/api/app`` namespace, auth-gated (#1063/#1066). Always mounted.
 _APP_ROUTES = (
@@ -176,12 +208,24 @@ _APP_ROUTES = (
 )
 
 
-def _mount_api_routers(app: FastAPI, *, app_only: bool) -> None:
-    """Mount HTTP routers. ``health`` + the consumer ``/api/app/*`` plane always mount;
-    the operator/read ``/api/*`` routes mount only when NOT app-only — the low-privilege
-    public player backend (#1163 / ADR-116)."""
+def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = False) -> None:
+    """Mount HTTP routers. ``health`` + the consumer ``/api/app/*`` plane always mount.
+
+    Three serve postures for the operator/read ``/api/*`` plane:
+
+    - **full** (tailnet operator, default): all ``_OPERATOR_READ_ROUTES``, **ungated** —
+      tailnet privacy is the gate.
+    - **app_only** (public player, #1163 / ADR-116): none of them — low-privilege backend.
+    - **operator_public** (RFC-108, public operator surface): only the CURATED
+      ``_OPERATOR_PUBLIC_READ_ROUTES`` subset, each mounted with a **router-level ≥creator
+      gate** (``require_viewer_access``). ``index_rebuild`` / ``ops`` are NOT mounted here.
+    """
     app.include_router(health.router, prefix="/api")
-    if not app_only:
+    if operator_public:
+        gate = [Depends(app_auth.require_viewer_access)]
+        for module in _OPERATOR_PUBLIC_READ_ROUTES:
+            app.include_router(module.router, prefix="/api", dependencies=gate)
+    elif not app_only:
         for module in _OPERATOR_READ_ROUTES:
             app.include_router(module.router, prefix="/api")
     for module in _APP_ROUTES:
@@ -369,12 +413,17 @@ def create_app(
     # here too, belt-and-suspenders, so the privileged surface can never mount on a
     # public deployment even if a flag env leaks in.
     app_only = _env_truthy("PODCAST_SERVE_APP_ONLY")
-    if app_only:
+    # RFC-108: public operator surface — curated operator-read subset, each ≥creator-gated.
+    # A separate least-privilege deployment (no docker.sock, no keys) like the player.
+    operator_public = _env_truthy("PODCAST_SERVE_OPERATOR_PUBLIC")
+    if app_only or operator_public:
+        # Public deployments never mount the privileged flag-gated routers
+        # (jobs/operator-config/feeds) — belt-and-suspenders even if a flag env leaks in.
         enable_feeds_api = False
         enable_operator_config_api = False
         enable_jobs_api = False
 
-    _mount_api_routers(app, app_only=app_only)
+    _mount_api_routers(app, app_only=app_only, operator_public=operator_public)
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output
