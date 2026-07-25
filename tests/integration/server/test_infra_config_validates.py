@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parents[3]
 NGINX_CONF = REPO / "web" / "learning-player" / "nginx.conf"
 CADDYFILE = REPO / "infra" / "cloud-init" / "Caddyfile"
 PLAYER_CADDY = REPO / "infra" / "caddy" / "player.caddy"
+OPERATOR_CADDY = REPO / "infra" / "caddy" / "operator.caddy"
 PROD_USER_DATA = REPO / "infra" / "cloud-init" / "prod.user-data"
 SHELL_SCRIPTS = [
     REPO / "infra" / "cloud-init" / "decrypt-secrets.sh",
@@ -107,6 +108,9 @@ def test_caddy_config_validates(tmp_path: Path) -> None:
     sites = tmp_path / "sites"
     sites.mkdir()
     (sites / "player.caddy").write_text(PLAYER_CADDY.read_text())
+    # RFC-108: the operator-public vhost is validated alongside the player (distinct host,
+    # so they coexist; the __*_PREVIEW_COOKIE__ placeholders are valid literal values).
+    (sites / "operator.caddy").write_text(OPERATOR_CADDY.read_text())
     proc = subprocess.run(  # noqa: S603
         [
             "docker",

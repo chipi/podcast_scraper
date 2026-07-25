@@ -72,8 +72,12 @@ owns the CF account + DNS; the origin-side prep is minimal and lands here:
 **Negative**
 
 - CF terminates TLS → CF sees plaintext. Acceptable for public **static /
-  consumer** content; the **operator / api plane stays tailnet-only and is never
-  CF-fronted** (T-01). This ADR must not be read as license to expose api.
+  consumer** content; the **privileged operator / api plane stays tailnet-only and is never
+  CF-fronted** (T-01). This ADR must not be read as license to expose the *privileged* api.
+  **Update ([RFC-108](../rfc/RFC-108-operator-public-gated-surface.md)):** a *separate
+  least-privilege* operator **read** plane (`operator.closelistening.app`) IS public +
+  CF-fronted — behind the coming-soon gate + OAuth + ≥creator role — while the privileged
+  plane (`docker.sock`/keys/`index_rebuild`/`ops`/triggers) stays tailnet-only, so T-01 holds.
 - CF IP ranges are baked in **two** places (Caddyfile `trusted_proxies` + TF
   `cloudflare_ip_ranges`) and need a ~yearly refresh from
   <https://www.cloudflare.com/ips/>.
