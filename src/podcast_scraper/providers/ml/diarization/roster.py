@@ -24,12 +24,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from ....speaker_detectors.boilerplate import recorded_voices
 from ....speaker_detectors.hosts import (
     _clean_stated_name as _clean_intro_name,
+    _GUEST_GREETED as _GUEST_GREETED_RE,
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
+    _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _NAME_RE as _INTRO_NAME_RE,
     extract_self_introduced_host,
     guests_introduced_by_the_host,
@@ -709,8 +711,78 @@ def _name_guest_voices(
     return out
 
 
+def _intro_names(m: "re.Match[str]") -> List[str]:
+    """The person-names an introduction/greeting match named (order preserved)."""
+    return [
+        n for n in (_clean_intro_name(x) for x in _INTRO_NAME_RE.findall(m.group("names"))) if n
+    ]
+
+
+def _greeted_names(text: str) -> List[str]:
+    """Names in a NAME-ANCHORED greeting/introduction ("Kara Swisher, welcome" / "X is with us").
+
+    Deliberately excludes the cue-first form (already handled) and never the loose show-structure
+    cues ("when we come back") — those are not name-anchored and reclaiming on them corrupts real
+    guest speech (a wrong label is worse than an unnamed voice).
+    """
+    names: List[str] = []
+    for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
+        for m in rx.finditer(text or ""):
+            names += _intro_names(m)
+    return names
+
+
+def _nearest_host_voice(
+    turns: Sequence[Tuple[str, str]], i: int, host_hint_voices: Set[str]
+) -> Optional[str]:
+    """The host-hint voice nearest turn ``i`` (preceding preferred), or ``None`` if none is."""
+    for d in range(1, len(turns)):
+        for j in (i - d, i + d):
+            if 0 <= j < len(turns) and turns[j][0] in host_hint_voices:
+                return turns[j][0]
+    return None
+
+
+def _reclaim_greeting_turns(
+    ordered_turns: Sequence[Tuple[str, str]],
+    host_hint_voices: Set[str],
+    known_hosts: Sequence[str],
+) -> List[Tuple[str, str]]:
+    """Move a host's name-anchored greeting off a guest cluster it was mis-merged into (#1226 fu).
+
+    Diarization (community-1 especially) merges the host's "Kara Swisher, welcome back" turn into
+    the GUEST's own voice cluster. The greeting then reads as the guest naming themselves in the
+    third person — the resolver's third-person guard refuses it, and the introduction reader, seeing
+    the guest as the introducer, would name whoever speaks NEXT (a host). Reclaiming the greeting to
+    a host cluster restores both: the guard is never involved (deterministic naming), and the reader
+    names the greeted guest.
+
+    Conservative by construction: only NAME-ANCHORED greeting/introduction turns, only when the
+    turn sits on a NON-host cluster, only when the greeted name is not itself a stated host, and
+    only when a host destination is determinable. Anything ambiguous is left untouched.
+    """
+    if not host_hint_voices:
+        return list(ordered_turns)
+    known_lower = {h.lower().strip() for h in (known_hosts or ())}
+    out = list(ordered_turns)
+    for i, (speaker, text) in enumerate(out):
+        if speaker in host_hint_voices:
+            continue  # greeting already on a host cluster — nothing to reclaim
+        greeted = _greeted_names(text)
+        if not greeted:
+            continue
+        # A stated host being "greeted" is a co-host intro / self-reference, not contamination.
+        if all(n.lower() in known_lower for n in greeted):
+            continue
+        dest = _nearest_host_voice(out, i, host_hint_voices)
+        if dest is not None:
+            out[i] = (dest, text)
+    return out
+
+
 def _voice_named_by_the_introduction(
     ordered_turns: Optional[Sequence[Tuple[str, str]]],
+    host_hint_voices: Optional[Set[str]] = None,
 ) -> Dict[str, str]:
     """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
 
@@ -721,6 +793,11 @@ def _voice_named_by_the_introduction(
 
     Worth 5% of the corpus's talk. Planet Money is a narrated desk that hands off constantly
     ("joined by...", "here with me is..."), and every one of those reporters came out as SPEAKER_NN.
+
+    The cue-first form ("joined by X") is a host act on its own and is read unconditionally. The
+    weaker name-first ("X is with us") and greeting ("X, welcome back") forms — a guest can utter
+    a name-first sentence — name the next voice ONLY when ``host_hint_voices`` says the introducer
+    is a plausible host. Given ``None`` those two forms are skipped, preserving prior behaviour.
 
     Only the FIRST introduction of a voice is used, and a name already claimed by another voice is
     never reused — under-naming beats naming the wrong person (#876).
@@ -742,27 +819,32 @@ def _voice_named_by_the_introduction(
 
     out: Dict[str, str] = {}
     taken: set = set()
-    for i, (_speaker, text) in enumerate(ordered_turns):
-        for m in _GUEST_INTRODUCED_BY_HOST_RE.finditer(text or ""):
-            names = [
-                n
-                for n in (_clean_intro_name(x) for x in _INTRO_NAME_RE.findall(m.group("names")))
-                if n
-            ]
-            if not names:
+
+    def _assign(i: int, names: List[str]) -> None:
+        # whoever speaks next, that is who was just introduced
+        introducer = ordered_turns[i][0]
+        for j in range(i + 1, min(i + 6, len(ordered_turns))):
+            nxt = ordered_turns[j][0]
+            if nxt == introducer or nxt in out:
                 continue
-            # whoever speaks next, that is who was just introduced
-            introducer = ordered_turns[i][0]
-            for j in range(i + 1, min(i + 6, len(ordered_turns))):
-                nxt = ordered_turns[j][0]
-                if nxt == introducer or nxt in out:
-                    continue
-                name = names[0]
-                if name.lower() in taken:
-                    break
-                out[nxt] = name
-                taken.add(name.lower())
-                break
+            name = names[0]
+            if name.lower() in taken:
+                return
+            out[nxt] = name
+            taken.add(name.lower())
+            return
+
+    for i, (speaker, text) in enumerate(ordered_turns):
+        for m in _GUEST_INTRODUCED_BY_HOST_RE.finditer(text or ""):
+            names = _intro_names(m)
+            if names:
+                _assign(i, names)
+        if host_hint_voices is not None and speaker in host_hint_voices:
+            for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
+                for m in rx.finditer(text or ""):
+                    names = _intro_names(m)
+                    if names:
+                        _assign(i, names)
     return out
 
 
@@ -853,11 +935,28 @@ def resolve_speaker_roster(
         if v not in ad_voices
     }
 
+    # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting
+    # reclamation (#1226 follow-up): a voice that self-introduced as a STATED host, plus the first
+    # non-ad speaker (the opener does the intro). Kept deliberately small — it only decides who is
+    # allowed to *introduce*, never who gets named.
+    known_lower_hint = {h.lower() for h in known_hosts}
+    host_hint_voices: Set[str] = {
+        v for v, n in voice_intro.items() if n and n.lower() in known_lower_hint
+    }
+    for spk, _t in ordered_turns or []:
+        if spk not in ad_voices:
+            host_hint_voices.add(spk)
+            break
+
+    # A host's name-anchored greeting mis-merged into the guest's cluster is moved back to a host,
+    # so the guest is named from it deterministically rather than refused by the third-person guard.
+    reclaimed_turns = _reclaim_greeting_turns(ordered_turns or [], host_hint_voices, known_hosts)
+
     # A voice the HOST introduced by name — "and now, Bobby Allen" — is that person, because the
     # person a host introduces is the person who speaks next. It complements the self-introduction:
     # plenty of guests never say their own name, and are named FOR them. A voice that already
     # introduced itself keeps its own word for it.
-    for v, n in _voice_named_by_the_introduction(ordered_turns).items():
+    for v, n in _voice_named_by_the_introduction(reclaimed_turns, host_hint_voices).items():
         if v not in ad_voices and v not in voice_intro:
             voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
 

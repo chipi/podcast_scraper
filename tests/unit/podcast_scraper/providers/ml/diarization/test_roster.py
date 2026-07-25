@@ -405,3 +405,67 @@ def test_self_intro_rejects_nationality_mononym() -> None:
 
     vt = {"SPEAKER_00": "I'm American and I think this is a great question, honestly."}
     assert _self_intros_by_voice(vt) == {}
+
+
+# --- host GREETS the guest by name: "Kara Swisher, welcome back" (#1226 follow-up) -----------
+# The deterministic introduction reader only read the cue-FIRST form ("joined by X"); a host who
+# greets a just-arrived guest name-first ("Jody Rosen, welcome to the show") named nobody. Two
+# detected guests + one guest voice defeats the forced-single-name path, so the greeting is the
+# ONLY signal that can name the voice.
+
+
+def test_guest_named_by_host_greeting_name_first() -> None:
+    # Clean case: the greeting sits on the HOST's own turn. The host-gated intro reader names the
+    # voice that speaks NEXT (the greeted guest).
+    diar = _diar([("HOST", 0, 20), ("HOST", 20, 40), ("GUEST", 40, 340), ("HOST", 340, 360)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back. I'm Patrick O'Shaughnessy.",
+        known_hosts=["Patrick O'Shaughnessy"],
+        detected_guests=["Kara Swisher", "Andrew Yang"],  # 2 names -> no forced-single naming
+        voice_texts={
+            "HOST": "Welcome back. I'm Patrick O'Shaughnessy. Kara Swisher, welcome to the show.",
+            "GUEST": "Thanks, it is great to be here. My new project is about longevity.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back. I'm Patrick O'Shaughnessy."),
+            ("HOST", "Kara Swisher, welcome to the show."),
+            ("GUEST", "Thanks, it is great to be here. My new project is about longevity."),
+            ("HOST", "Tell us all about it."),
+        ],
+    )
+    assert r.by_voice["HOST"].name == "Patrick O'Shaughnessy"
+    assert r.by_voice["GUEST"].name == "Kara Swisher"
+    assert r.by_voice["GUEST"].role == "guest"
+
+
+def test_contaminated_greeting_reclaimed_off_guest_cluster() -> None:
+    # Contamination (the v2.2 / community-1 failure): the host's greeting "Kara Swisher, welcome
+    # back" was mis-merged into the GUEST's own voice cluster. Un-fixed, the greeting reader would
+    # see the GUEST introducing "Kara" and name whoever speaks next -> the HOST, painting the host
+    # with the guest's name. The reclamation moves the name-anchored greeting back to the host, and
+    # the host-gated reader then names the guest voice correctly. The HOST must never become Kara.
+    diar = _diar([("HOST", 0, 20), ("GUEST", 20, 40), ("GUEST", 40, 340), ("HOST", 340, 360)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back. I'm Patrick O'Shaughnessy.",
+        known_hosts=["Patrick O'Shaughnessy"],
+        detected_guests=["Kara Swisher", "Andrew Yang"],
+        voice_texts={
+            "HOST": "Welcome back. I'm Patrick O'Shaughnessy. Big news today.",
+            "GUEST": (
+                "Kara Swisher, welcome back, we are delighted to have you. "
+                "Thanks, it is great to be here. My new project is about longevity."
+            ),
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back. I'm Patrick O'Shaughnessy. Big news today."),
+            ("GUEST", "Kara Swisher, welcome back, we are delighted to have you."),
+            ("GUEST", "Thanks, it is great to be here. My new project is about longevity."),
+            ("HOST", "Tell us all about it."),
+        ],
+    )
+    # The host is NEVER painted with the guest's name (the safety invariant).
+    assert r.by_voice["HOST"].name == "Patrick O'Shaughnessy"
+    # The guest voice is recovered by the reclaimed greeting.
+    assert r.by_voice["GUEST"].name == "Kara Swisher"
