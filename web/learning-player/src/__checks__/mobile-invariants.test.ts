@@ -11,6 +11,7 @@ import indexHtml from '../../index.html?raw'
 import iosInfoPlist from '../../ios/App/App/Info.plist?raw'
 import iosAppDelegate from '../../ios/App/App/AppDelegate.swift?raw'
 import iosAuthSession from '../../ios/App/App/AuthSession.swift?raw'
+import iosMainVC from '../../ios/App/App/MainViewController.swift?raw'
 import androidManifest from '../../android/app/src/main/AndroidManifest.xml?raw'
 
 /**
@@ -103,6 +104,14 @@ describe('native-shell invariants (guardrail #1310)', () => {
     // the intent-filter callback. native.ts must branch iOS → AuthSession.
     expect(iosAuthSession, 'AuthSession.swift must use ASWebAuthenticationSession').toMatch(
       /ASWebAuthenticationSession/,
+    )
+    // App-embedded plugins aren't in capacitor.config.json's packageClassList, so they must be
+    // registered explicitly in the bridge VC — without this the plugin is "not implemented on ios".
+    expect(iosMainVC, 'MainViewController must register the AuthSession plugin instance').toMatch(
+      /registerPluginInstance\(AuthSession\(\)\)/,
+    )
+    expect(iosAuthSession, 'AuthSession must be a CAPBridgedPlugin (registerPluginInstance requires it)').toMatch(
+      /CAPBridgedPlugin/,
     )
     expect(nativeSrc, 'native.ts must route iOS login through the AuthSession plugin').toMatch(
       /AuthSession/,

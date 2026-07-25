@@ -9,8 +9,11 @@ import AuthenticationServices
  * on the callback (custom-scheme app handoff). ASWebAuthenticationSession is Apple's purpose-built
  * OAuth primitive: it presents the auth page and, when the page redirects to `callbackScheme://…`,
  * the OS captures it and returns the URL directly to the completion handler — no dialog, no global
- * deep-link listener. Android returns prompt-free via its intent-filter, so this is iOS-only; the
- * JS layer branches by platform.
+ * deep-link listener. Android returns prompt-free via its intent-filter, so this is iOS-only.
+ *
+ * App-embedded plugins are NOT in capacitor.config.json's packageClassList, so Capacitor's
+ * auto-registration never loads them — this instance is registered explicitly in
+ * MainViewController.capacitorDidLoad(). CAPBridgedPlugin is required by registerPluginInstance().
  */
 @objc(AuthSession)
 public class AuthSession: CAPPlugin, CAPBridgedPlugin {
@@ -35,7 +38,6 @@ public class AuthSession: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async {
             let session = ASWebAuthenticationSession(url: url, callbackURLScheme: scheme) { callbackURL, error in
                 if let error = error {
-                    // User cancel is a normal outcome — report it so JS can no-op quietly.
                     let nsError = error as NSError
                     if nsError.domain == ASWebAuthenticationSessionError.errorDomain
                         && nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
@@ -48,7 +50,7 @@ public class AuthSession: CAPPlugin, CAPBridgedPlugin {
                 call.resolve(["url": callbackURL?.absoluteString ?? ""])
             }
             session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = false // keep the OAuth session (SSO) cookie
+            session.prefersEphemeralWebBrowserSession = false // keep the SSO session cookie
             self.session = session
             session.start()
         }
@@ -57,6 +59,14 @@ public class AuthSession: CAPPlugin, CAPBridgedPlugin {
 
 extension AuthSession: ASWebAuthenticationPresentationContextProviding {
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return self.bridge?.viewController?.view.window ?? ASPresentationAnchor()
+        if let window = self.bridge?.viewController?.view.window {
+            return window
+        }
+        // Fallback: the app's current key window (bridge VC window can be nil mid-launch).
+        let keyWindow = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+        return keyWindow ?? ASPresentationAnchor()
     }
 }
