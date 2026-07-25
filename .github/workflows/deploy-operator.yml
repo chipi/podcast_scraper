@@ -7,10 +7,11 @@
 # Manual (workflow_dispatch); typed confirm; tailnet-only SSH.
 #
 # Prereqs (stage once, like deploy-prod #714):
-#   secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, PROD_SSH_PRIVATE_KEY, APP_SESSION_SECRET,
-#            APP_OAUTH_GOOGLE_CLIENT_SECRET, OPERATOR_PREVIEW_COOKIE
-#   vars:    PROD_TAILNET_FQDN, OPERATOR_DOMAIN, PODCAST_CORPUS_VOLUME,
-#            APP_OAUTH_GOOGLE_CLIENT_ID
+#   secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, PROD_SSH_PRIVATE_KEY, OPERATOR_PREVIEW_COOKIE,
+#            PROD_SENTRY_DSN_API, and — reused from the player (same Google OAuth client,
+#            RFC-108) — PLAYER_GOOGLE_CLIENT_SECRET, PLAYER_APP_SESSION_SECRET
+#   vars:    PROD_TAILNET_FQDN, OPERATOR_DOMAIN, PODCAST_CORPUS_VOLUME, APP_ADMIN_EMAILS,
+#            OPERATOR_ALLOWED_EMAILS, PLAYER_GOOGLE_CLIENT_ID (reused)
 # The Caddy edge + firewall 80/443 must already be live on the box, and DNS for
 # OPERATOR_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md).
 
@@ -165,11 +166,14 @@ jobs:
           PODCAST_CORPUS_VOLUME: ${{ vars.PODCAST_CORPUS_VOLUME }}
           # Empty by default -> deploy-operator.sh pins to the privileged stack's running engine sha.
           PODCAST_IMAGE_TAG: ${{ steps.imgsha.outputs.tag }}
-          GOOGLE_CLIENT_ID: ${{ vars.APP_OAUTH_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.APP_OAUTH_GOOGLE_CLIENT_SECRET }}
-          APP_SESSION_SECRET: ${{ secrets.APP_SESSION_SECRET }}
+          # Reuse the player's Google OAuth client + session secret (same client per RFC-108;
+          # the operator's own domain redirect URI is added to it). The app env keys written
+          # into .env.operator below stay APP_OAUTH_GOOGLE_* / APP_SESSION_SECRET.
+          GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
+          APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           # Operator error DSN → self-hosted GlitchTip. Empty → no-op.
-          PODCAST_SENTRY_DSN_API: ${{ secrets.PODCAST_SENTRY_DSN_API }}
+          PODCAST_SENTRY_DSN_API: ${{ secrets.PROD_SENTRY_DSN_API }}
           # ADR-115 Option A: when '1', the RUNTIME secrets (client secret, session secret,
           # backend DSN) are delivered as tmpfs files + exported by the shim, so they are
           # DROPPED from .env.operator. Default empty = today's env behaviour. Cutover = set
@@ -251,9 +255,9 @@ jobs:
         if: steps.preflight.outputs.skip != 'true' && vars.OPERATOR_SECRETS_VIA_FILES == '1'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.APP_OAUTH_GOOGLE_CLIENT_SECRET }}
-          APP_SESSION_SECRET: ${{ secrets.APP_SESSION_SECRET }}
-          PODCAST_SENTRY_DSN_API: ${{ secrets.PODCAST_SENTRY_DSN_API }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
+          APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          PODCAST_SENTRY_DSN_API: ${{ secrets.PROD_SENTRY_DSN_API }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm opsecstage.XXXXXX)
