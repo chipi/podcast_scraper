@@ -6,7 +6,7 @@
 # surface is untouched. Manual (workflow_dispatch); typed confirm; tailnet-only SSH.
 #
 # Prereqs (stage once, like deploy-prod #714):
-#   secrets: TS_AUTHKEY, PROD_SSH_PRIVATE_KEY, PLAYER_APP_SESSION_SECRET,
+#   secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, PROD_SSH_PRIVATE_KEY, PLAYER_APP_SESSION_SECRET,
 #            PLAYER_GOOGLE_CLIENT_SECRET
 #   vars:    PROD_TAILNET_FQDN, PLAYER_DOMAIN, PODCAST_CORPUS_VOLUME, PLAYER_GOOGLE_CLIENT_ID
 # The Caddy edge + firewall 80/443 must already be live on the box, and DNS for
@@ -48,7 +48,8 @@ jobs:
       - name: Pre-flight — required secrets/variables present?
         id: preflight
         env:
-          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
           PLAYER_DOMAIN: ${{ vars.PLAYER_DOMAIN }}
@@ -59,7 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_AUTHKEY:-}" ] && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
           [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
           [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
           [ -z "${PLAYER_DOMAIN:-}" ] && MISSING="$MISSING PLAYER_DOMAIN"
@@ -82,7 +84,8 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         uses: tailscale/github-action@v4
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:gha-deployer
           version: 1.96.4
 
