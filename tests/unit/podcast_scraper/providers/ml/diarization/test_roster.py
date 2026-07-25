@@ -533,18 +533,23 @@ def test_asr_mangled_co_host_still_canonicalizes() -> None:
     assert r.by_voice["HOST2"].name == "Casey Newton"
 
 
-def test_montage_cluster_with_two_self_intros_is_not_named() -> None:
-    # 1a/#1330: a cold-open montage merges several hosts' garbled self-intros into ONE diarization
-    # cluster ("I'm Kevin Russo… I'm Casey Noon…" was one 13s cluster on Hard Fork). One person
-    # self-introduces once; a voice that introduces itself as TWO people is not a person and must
-    # not be named after either — else it fabricates a speaker while the real host is named on its
-    # own, longer cluster. Modelled on that real cluster with synthetic names.
-    from podcast_scraper.providers.ml.diarization.roster import _self_intros_by_voice
+def test_short_montage_is_suppressed_but_a_long_dominant_voice_is_kept() -> None:
+    # 1a/#1330: a SHORT cold-open montage merges several hosts' garbled self-intros into one 13s
+    # cluster ("I'm Kevin Russo… I'm Casey Noon…" on Hard Fork) — not a person, suppress it. But a
+    # LONG dominant voice with the SAME double self-intro is the real host whose cluster absorbed a
+    # merged cold-open clip (the real Kevin Roose measured 1500s) — keep it, named from its own
+    # leading self-intro. Talk time is what tells the clip from the speaker. Synthetic names.
+    from podcast_scraper.providers.ml.diarization.roster import _self_intro_voice_names
 
     montage = "I'm Ada Brightwell, tech columnist. I'm Ben Coalcrest from Platformer."
-    out = _self_intros_by_voice({"MONT": montage, "SOLO": "Hi, I'm Ada Brightwell, welcome."})
-    assert "MONT" not in out  # two distinct self-intros -> refused as a merged cluster
-    assert out.get("SOLO") == "Ada Brightwell"  # a single self-intro is still named
+    diar = _diar([("MONT", 0, 13), ("HOST", 13, 900), ("HOST", 950, 1500)], 2)
+    voice_texts = {
+        "MONT": montage,  # 13s clip: two self-intros -> montage, suppressed
+        "HOST": "I'm Ada Brightwell. " + montage,  # 1437s dominant voice absorbed the same clip
+    }
+    out = _self_intro_voice_names(diar, voice_texts, [], known_hosts=[], ad_voices=set())
+    assert "MONT" not in out  # the short montage clip is suppressed
+    assert out.get("HOST") == "Ada Brightwell"  # the long dominant voice is kept (first self-intro)
 
 
 def test_detected_guest_is_not_forced_when_its_surname_is_already_on_the_roster() -> None:

@@ -51,6 +51,11 @@ CO_HOST_INTRO_SHARE = 0.30
 # An unnamed voice with less than this much total speaking time is a one-off "cameo" — a brief
 # interjection not worth naming (measured: ~60% of unresolved voices, ~4% of unknown talk time).
 CAMEO_MAX_TALK_S = 20.0
+# A SHORT voice that introduces itself as several people is a cold-open montage clip (the merged
+# "I'm Kevin Russo… I'm Casey Noon…" opener measured 13s). Above this, a voice with two self-intros
+# is a real dominant speaker whose cluster absorbed a merged intro (real hosts measured 400–1500s),
+# so it keeps its name — only the brief clip is suppressed.
+MONTAGE_CLIP_MAX_TALK_S = 90.0
 # An unnamed voice whose turns sit mostly inside ad regions is an ad read, not a person.
 COMMERCIAL_AD_FRACTION = 0.6
 
@@ -604,11 +609,6 @@ def _self_intros_by_voice(
     out: Dict[str, str] = {}
     for voice, text in (voice_texts or {}).items():
         head = (text or "")[:5000]
-        # A single voice that introduces itself as TWO different people is a merged/cold-open
-        # montage cluster ("I'm Kevin Russo… I'm Casey Noon…"), not a person — naming it after
-        # either one fabricates a speaker. One real person self-introduces once (#1330).
-        if len(distinct_self_introductions(text, intro_chars=5000)) >= 2:
-            continue
         name = extract_self_introduced_host(text, intro_chars=5000)
         if name and len(name.split()) >= 2:
             out[voice] = name
@@ -904,22 +904,32 @@ def _self_intro_voice_names(
     published as the host and the real host demoted to guest (N1). Co-hosts still open the show, so
     their mangled names still canonicalize; a guest speaking after the hosts keeps its own name.
 
-    A cold-open montage that strings several hosts' garbled self-intros into one diarization cluster
-    ("I'm Kevin Russo… I'm Casey Noon…") is refused upstream in ``_self_intros_by_voice`` (a voice
-    that introduces itself as two people is not a person), so it never reaches this map.
+    A SHORT cold-open montage that strings several hosts' garbled self-intros into one diarization
+    cluster ("I'm Kevin Russo… I'm Casey Noon…", 13s) is not a person and is suppressed (#1330). A
+    LONG voice with the same double self-intro is a real dominant speaker whose cluster absorbed a
+    merged cold-open clip (the real Kevin Roose, 1500s) — it keeps its name, resolved from its own
+    leading self-intro. Talk time is what tells the clip from the speaker.
     """
     first_start: Dict[str, float] = {}
+    talk: Dict[str, float] = {}
     for s in diarization.segments:
         if s.speaker in ad_voices:
             continue
         if s.speaker not in first_start or s.start < first_start[s.speaker]:
             first_start[s.speaker] = s.start
+        talk[s.speaker] = talk.get(s.speaker, 0.0) + (s.end - s.start)
     host_candidate_voices = set(
         sorted(first_start, key=lambda v: first_start[v])[: len(known_hosts)]
     )
+    texts = voice_texts or {}
     out: Dict[str, str] = {}
     for v, n in _self_intros_by_voice(voice_texts, intro_sources).items():
         if v in ad_voices:
+            continue
+        if (
+            talk.get(v, 0.0) < MONTAGE_CLIP_MAX_TALK_S
+            and len(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
+        ):
             continue
         out[v] = _canonicalize_to_known_host(n, known_hosts) if v in host_candidate_voices else n
     return out
