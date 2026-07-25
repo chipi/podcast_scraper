@@ -36,9 +36,11 @@ test.describe('preview surface', () => {
   test.skip(!gated, 'set OPERATOR_PREVIEW_PASS (or PLAYER_PREVIEW_PASS) to run the gated live specs')
 
   test('preview users reach the viewer login wall', async ({ page }) => {
-    // Past the doorman (basic-auth) the SPA boots, sees no ≥creator session, and renders the
-    // LoginView — the real-provider "Sign in" button, not the mock picker.
-    await page.goto('/')
+    // /preview issues the basic-auth challenge (satisfied by httpCredentials), sets the preview
+    // cookie, and 302s to /. Going straight to / would only get the coming-soon page (200, no
+    // 401 → httpCredentials never fires). Past the gate the SPA boots, sees no ≥creator session,
+    // and renders the LoginView — the real-provider "Sign in" button, not the mock picker.
+    await page.goto('/preview')
     await expect(page.getByText('Sign in to explore the knowledge graph')).toBeVisible()
     await expect(page.getByTestId('login-button')).toBeVisible()
   })
@@ -46,7 +48,8 @@ test.describe('preview surface', () => {
   test('sign-in entrypoint 307s to Google OAuth with the HTTPS operator callback', async ({
     page,
   }) => {
-    await page.goto('/')
+    // Through /preview first (sets the cookie + lands on the app), so the login wall renders.
+    await page.goto('/preview')
     // Clicking sign-in calls auth.login() -> location.assign('/api/app/auth/login?grant=creator'),
     // which the backend 307s to Google's consent screen. Assert that redirect directly — the
     // exact chain the redirect_uri_mismatch broke — rather than loading Google's heavy page.
