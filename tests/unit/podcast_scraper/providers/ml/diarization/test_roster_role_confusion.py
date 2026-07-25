@@ -175,3 +175,41 @@ def test_an_introduction_of_a_stated_host_may_still_name_a_host_voice() -> None:
     )
     assert roster.by_voice["H2"].name == "Kevin Roose"
     assert roster.by_voice["H2"].role == "host"
+
+
+def test_a_co_host_self_naming_survives_a_merged_ad_testimonial() -> None:
+    """Regression from the mech-1 widen. community-1 merged an ad testimonial ("...thank you so much
+    for having me") into a co-host's cluster; the widened guest-act then flipped him to a guest,
+    dropped his host-candidacy, and his ASR-mangled self-intro never canonicalized. A voice naming
+    itself as a STATED host is a host despite the stray guest phrase — matching deepgram's result.
+    """
+    diar, vtext, ordered = _scripted(
+        [
+            ("H1", "Welcome to the show. I'm Casey Newton."),
+            ("H1", "Big week in tech — let us get into the first story before the break."),
+            # the co-host names himself (ASR-mangled) AND his cluster absorbed an ad testimonial
+            (
+                "H2",
+                "I'm Kevin Russo. It protects my child. Thank you so much for having me.",
+            ),
+            ("H1", "Right, so back to the story, what did the company actually announce today?"),
+            (
+                "H2",
+                "They shipped a new model, and the benchmarks are genuinely striking this time.",
+            ),
+        ]
+    )
+    roster = resolve_speaker_roster(
+        diar,
+        vtext["H1"],
+        detected_guests=[],
+        known_hosts=["Casey Newton", "Kevin Roose"],
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=[],
+        diarization_provider="tailnet_dgx",
+    )
+    assert (
+        roster.by_voice["H2"].name == "Kevin Roose"
+    )  # canonicalized, not the mangled "Kevin Russo"
+    assert roster.by_voice["H2"].role == "host"

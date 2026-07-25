@@ -1136,6 +1136,18 @@ def resolve_speaker_roster(
     conv_roles = roles_from_conversation(voice_texts)
     conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
     conv_host_voices = {v for v, r in conv_roles.items() if r == "host"}
+    # A voice that IDENTIFIES ITSELF as one of the feed's stated hosts is a host, even if a guest
+    # speech act also appears in its cluster. community-1 merged an ad testimonial ("...thank you so
+    # much for having me") into a co-host's cluster; that flipped him to a conv_guest, dropped his
+    # host-candidacy, and his ASR-mangled self-intro ("Kevin Russo") then never canonicalized to the
+    # stated host ("Kevin Roose"). Self-identifying as a stated host is the stronger signal (#1169).
+    _stated_host_set = set(known_hosts)
+    _names_self_intro = _self_intros_by_voice(voice_texts, intro_sources)
+    conv_guests -= {
+        v
+        for v, n in _names_self_intro.items()
+        if _canonicalize_to_known_host(n, known_hosts) in _stated_host_set
+    }
 
     # A voice that introduces itself in its own turns is named from that, most-trusted (#876) —
     # but not if it is an ad. An ad narrator reads its own name aloud by design, which is precisely
