@@ -119,3 +119,15 @@ jobs:
               --notes "Automated backup of /srv/podcast-scraper/player-appdata (consumer user data) over Tailscale."
           fi
           echo "Uploaded player-appdata.tgz as release tag $TAG"
+
+      - name: Emit backup event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        # Self-hosted sink over the tailnet (runner already joined above). Fires on
+        # success AND failure. Non-fatal — never turns the backup red.
+        if: always() && steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/emit-ops-event
+        with:
+          event-type: backup
+          env: prod
+          victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
+          msg: "player-appdata backup ${{ job.status }}"
+          fields: status=${{ job.status }} surface=player-appdata dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}

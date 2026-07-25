@@ -322,3 +322,15 @@ jobs:
             sleep 5
           done
           echo "::error::public player edge probe did not return 200 ($PROBE)"; exit 1
+
+      - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        # Self-hosted sink over the tailnet (runner already joined above). Fires on
+        # success AND failure. Non-fatal — never turns a deploy red.
+        if: always() && steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/emit-ops-event
+        with:
+          event-type: deploy
+          env: prod
+          victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
+          msg: "player deploy ${{ job.status }}"
+          fields: status=${{ job.status }} surface=player triggered_by=${{ github.actor }}

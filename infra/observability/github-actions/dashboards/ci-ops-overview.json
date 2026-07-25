@@ -1,0 +1,193 @@
+{
+  "panels": [
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\" AND event_type:deploy | stats count() deploys",
+          "queryType": "stats",
+          "refId": "A"
+        }
+      ],
+      "title": "Deploys",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\" AND event_type:deploy AND status:failure | stats count() failures",
+          "queryType": "stats",
+          "refId": "A"
+        }
+      ],
+      "title": "Deploy failures",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\" AND event_type:backup | stats count() backups",
+          "queryType": "stats",
+          "refId": "A"
+        }
+      ],
+      "title": "Backups",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\" AND event_type:deploy AND status:success | stats avg(duration_ms) avg_ms",
+          "queryType": "stats",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg deploy duration (success)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\" | stats by (event_type) count() events",
+          "queryType": "statsRange",
+          "refId": "A"
+        }
+      ],
+      "title": "Ops event volume by type",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\" AND event_type:deploy | stats by (status) count() deploys",
+          "queryType": "statsRange",
+          "refId": "A"
+        }
+      ],
+      "title": "Deploys by status over time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\" | stats by (event_type, surface, status) count() n | sort by (n) desc",
+          "queryType": "stats",
+          "refId": "A"
+        }
+      ],
+      "title": "Event breakdown (type × surface × status)",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 21 },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "expr": "schema:\"ops_event/v1\" AND env:~\"$env\"",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Recent ops events — tail",
+      "type": "logs"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["ci-ops", "github-actions"],
+  "templating": {
+    "list": [
+      {
+        "current": { "text": "Prod", "value": "prod" },
+        "includeAll": false,
+        "label": "Env",
+        "multi": false,
+        "name": "env",
+        "query": "All : .* , Prod : prod , Test : test",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": { "from": "now-30d", "to": "now" },
+  "timezone": "",
+  "title": "CI / Ops — GitHub Actions",
+  "uid": "podcast-ci-ops-overview"
+}
