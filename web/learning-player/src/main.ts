@@ -6,6 +6,7 @@ import App from './App.vue'
 import { router } from './router'
 import { i18n } from './i18n'
 import { applyTheme } from './theme/theme'
+import { platform } from './services/native'
 
 applyTheme('dark')
 
@@ -51,9 +52,10 @@ if (SENTRY_DSN_PLAYER) {
     // Conservative tracing rate — parity with the viewer.
     tracesSampleRate: 0.1,
     // Tag every event so the player stream stays separable from api / pipeline
-    // / viewer in the GlitchTip UI.
+    // / viewer in the GlitchTip UI. `platform` (web|ios|android) separates the
+    // native-shell builds from the web player in the same stream (#1310).
     initialScope: {
-      tags: { component: 'player' },
+      tags: { component: 'player', platform: platform() },
     },
   })
 }

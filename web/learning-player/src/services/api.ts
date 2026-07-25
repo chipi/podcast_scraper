@@ -575,6 +575,16 @@ export function highlightsExportUrl(): string {
   return `${BASE}/highlights/export.md`
 }
 
+/**
+ * Fetch the highlights Markdown export as text — used by the native shell, where `<a download>`
+ * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link.
+ */
+export async function fetchHighlightsExport(): Promise<string> {
+  const resp = await fetch(highlightsExportUrl(), { credentials: 'include' })
+  if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
+  return resp.text()
+}
+
 // --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
 
 /** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */

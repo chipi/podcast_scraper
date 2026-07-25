@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import apiSrc from '../services/api.ts?raw'
 import playerStoreSrc from '../stores/player.ts?raw'
 import playerViewSrc from '../views/PlayerView.vue?raw'
+import highlightsViewSrc from '../views/HighlightsView.vue?raw'
+import mainSrc from '../main.ts?raw'
 import indexHtml from '../../index.html?raw'
+import iosInfoPlist from '../../ios/App/App/Info.plist?raw'
+import iosAppDelegate from '../../ios/App/App/AppDelegate.swift?raw'
 
 /**
  * Guardrail (#1311) — codified mobile-readiness invariants that must not regress. These are static
@@ -56,5 +60,28 @@ describe('mobile invariants (guardrail #1311)', () => {
   it('MediaSession is wired in the player store (lock-screen / headphone controls)', () => {
     expect(playerStoreSrc).toMatch(/navigator\.mediaSession/)
     expect(playerStoreSrc).toMatch(/setActionHandler/)
+  })
+})
+
+describe('native-shell invariants (guardrail #1310)', () => {
+  it('highlights export has a native (write+share) path — <a download> cannot save in WKWebView', () => {
+    expect(highlightsViewSrc, 'HighlightsView must branch on isNative() for export').toMatch(
+      /isNative\(\)/,
+    )
+    expect(highlightsViewSrc).toMatch(/saveAndShareText/)
+  })
+
+  it('telemetry tags the platform (web|ios|android) so native builds stay separable', () => {
+    expect(mainSrc).toMatch(/platform:\s*platform\(\)/)
+  })
+
+  it('iOS background audio is configured (UIBackgroundModes audio + AVAudioSession playback)', () => {
+    // Both halves are required — the plist mode alone does nothing without an active playback session.
+    expect(iosInfoPlist, 'Info.plist must declare the audio background mode').toMatch(
+      /<key>UIBackgroundModes<\/key>[\s\S]*?<string>audio<\/string>/,
+    )
+    expect(iosAppDelegate, 'AppDelegate must set an AVAudioSession playback category').toMatch(
+      /AVAudioSession[\s\S]*?setCategory\(\.playback/,
+    )
   })
 })

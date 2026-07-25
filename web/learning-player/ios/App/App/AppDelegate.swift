@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Background audio (#1310): pair the `audio` UIBackgroundMode (Info.plist) with a `playback`
+        // audio session so the WebView's <audio> keeps playing when the app is backgrounded / the
+        // screen locks, and drives the lock-screen MediaSession controls wired in the player store.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("[AppDelegate] AVAudioSession setup failed: \(error)")
+        }
         return true
     }
 
