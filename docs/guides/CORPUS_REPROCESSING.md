@@ -25,14 +25,19 @@ same pipeline that produced the corpus**, scoped to the episodes already on disk
 | Goal | Mode | Re-ASR? | Re-diarize? | Command |
 | --- | --- | --- | --- | --- |
 | **Fix speakers / full rebuild** (correct diarization + named screenplays, current ASR, re-clean, re-extract) | full reprocess | yes | yes | `make migrate-diarization` |
+| **Re-name speakers only** (re-resolve names on the FROZEN diarization; re-render + cascade GI/KG) | `--pipeline-stage relabel_only` | no | no | see [Re-name / re-diarize only](#re-name--re-diarize-only) |
+| **Re-diarize only** (fresh diarization aligned to the existing ASR; no re-transcribe; re-name + cascade) | `--pipeline-stage rediarize_only` | no | yes | see [Re-name / re-diarize only](#re-name--re-diarize-only) |
 | **Re-extract only** (reuse transcript + diarization; re-run cleaning + GI + KG on the existing base) | `--pipeline-stage enrich_only` | no | no | see [Re-extract only](#re-extract-only) |
 | **Enrich gaps** (fill missing corpus-level enrichments) | `cli enrich` | no | no | `make enrich CORPUS=<corpus>` |
 
-Key fact that drives the choice: **transcription and diarization are coupled** — the
-transcript *is* the diarized screenplay. So you cannot "keep the transcript but
-re-diarize"; fixing speaker labels means a **full** reprocess (which re-transcribes).
-If the speakers are already correct and you only changed a downstream stage
-(cleaning, GI, KG), use re-extract-only and skip the expensive ASR/diarize.
+Key fact that drives the choice: the three stages of the transcript — **ASR text**,
+**diarization** (which voice), and **naming** (who) — are now **decoupled** for
+reprocessing. `relabel_only` re-resolves names on the frozen diarization; `rediarize_only`
+re-diarizes the audio and aligns the fresh voices to the existing ASR (no re-transcribe);
+a **full** reprocess re-transcribes and re-diarizes together. Pick the narrowest stage that
+covers what actually changed — each freezes everything below it, so a single-variable
+reprocess is a clean before/after gate. (Note: `rediarize_only` needs the source audio and
+does not apply to direct-download transcript feeds, which never went through ASR.)
 
 ---
 
@@ -105,6 +110,33 @@ The two things that silently break a re-diarization:
 
 ---
 
+## Re-name / re-diarize only
+
+When the **ASR text is correct** but the speaker labels are not, you no longer need a full
+reprocess:
+
+- **`--pipeline-stage relabel_only`** — freeze the diarization (the `SPEAKER_NN` clustering on
+  disk) and re-resolve only the *names* on it, then re-render the screenplay and cascade GI/KG.
+  Use it after a change to the naming/roster logic. No audio, no ASR, no re-diarize.
+- **`--pipeline-stage rediarize_only`** — freeze the ASR text and re-diarize the **audio** with the
+  profile's diarizer (e.g. DGX pyannote `community-1`), align the fresh voices to the existing
+  transcript, then re-name and cascade. Use it to test a different diarizer without paying for ASR.
+  Needs the source audio; does **not** apply to direct-download transcript feeds (they never had
+  ASR to align to).
+
+```bash
+.venv/bin/python -m podcast_scraper.cli \
+  --config <profile>.yaml \
+  --feeds-spec <corpus>/feeds.spec.yaml \
+  --output-dir <corpus> \
+  --pipeline-stage relabel_only   # or rediarize_only
+```
+
+Each stage freezes everything below it, so the run is a clean single-variable before/after gate
+against the prior corpus.
+
+---
+
 ## Re-extract only
 
 When the speakers are already correct and you only changed a **downstream** stage
@@ -124,8 +156,9 @@ rm -rf .cache/transcripts   # avoid reusing stale formatted screenplays
 ```
 
 This does **not** fix speaker labels (it reuses the existing screenplay) — it only
-regenerates cleaning + GI + KG on the base you already have. Use the full reprocess if
-the speakers are wrong.
+regenerates cleaning + GI + KG on the base you already have. If the *names* are wrong use
+`relabel_only`; if the *diarization* is wrong use `rediarize_only`; only a wrong ASR
+transcript needs the full reprocess.
 
 ---
 
