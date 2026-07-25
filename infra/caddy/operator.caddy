@@ -1,0 +1,93 @@
+# operator.closelistening.app — the PUBLIC operator surface (RFC-108 / epic #1320).
+#
+# Same coming-soon SECRET-COOKIE gate as player.caddy, one rung wider: past the gate the
+# gi-kg-viewer SPA loads and Google sign-in gates the app; the backend (operator-public
+# compose, 127.0.0.1:8093) enforces the ≥creator role on the operator-read routes. A
+# DISTINCT preview cookie (cl_op_preview) keeps the operator gate separate from the player.
+#
+# Deploy substitutes __OPERATOR_PREVIEW_COOKIE__ -> the OPERATOR_PREVIEW_COOKIE secret
+# (host-side .env, never committed), exactly like player.caddy's __PREVIEW_COOKIE__.
+
+operator.closelistening.app {
+	import hardened
+	# Per-site ACME email (same domain family; LE cert under info@closelistening.app).
+	tls info@closelistening.app
+
+	# /preview — the one-time doorman. Basic-auth challenge; on success set the secret
+	# preview cookie + 302 to /. `route` forces basic_auth FIRST, then Set-Cookie + redir
+	# (a bare `handle` fires redir before basic_auth → 302s everyone unchallenged).
+	@preview path /preview
+	handle @preview {
+		route {
+			basic_auth {
+				marko $2a$14$GV8EL65DWyPcI3qYoZsDXunPwdPCevcAT4/Wfg55gJpTtyyWn3..O
+				guest $2a$14$uhMHys8DHkU9P/F2IBgAWutTwz0eznL1yCwzHaEDsEKGhb8dJ9ZO2
+			}
+			header +Set-Cookie "cl_op_preview=__OPERATOR_PREVIEW_COOKIE__; Path=/; Max-Age=2592000; Secure; HttpOnly; SameSite=Lax"
+			redir https://operator.closelistening.app/ 302
+		}
+	}
+
+	# Static app-shell files (JS/CSS/fonts/icons/SW) — served to everyone, gate or not.
+	# They carry no data (the API stays gated + role-gated) and the coming-soon HTML must
+	# NEVER return under an asset URL (crossorigin ES-module imports don't carry the gate).
+	@static path_regexp \.(js|mjs|css|map|woff2?|ttf|otf|eot|png|jpe?g|gif|svg|ico|webmanifest|webp|avif)$
+	handle @static {
+		reverse_proxy 127.0.0.1:8093
+	}
+
+	# Preview cookie present -> the real operator app (PRIMARY gate: sent on navigations,
+	# XHR, module imports, and the OAuth callback alike).
+	@preview_ok header Cookie *cl_op_preview=__OPERATOR_PREVIEW_COOKIE__*
+	handle @preview_ok {
+		reverse_proxy 127.0.0.1:8093
+	}
+
+	# Fallback: a valid Basic-auth Authorization header also reaches the app (keeps
+	# `curl -u` verification working; browsers use the cookie above).
+	@authed header Authorization *
+	handle @authed {
+		basic_auth {
+			marko $2a$14$GV8EL65DWyPcI3qYoZsDXunPwdPCevcAT4/Wfg55gJpTtyyWn3..O
+			guest $2a$14$uhMHys8DHkU9P/F2IBgAWutTwz0eznL1yCwzHaEDsEKGhb8dJ9ZO2
+		}
+		reverse_proxy 127.0.0.1:8093
+	}
+
+	# Everyone else -> coming soon (no-store so a first no-cookie visit isn't cached).
+	handle {
+		header Content-Type "text/html; charset=utf-8"
+		header Cache-Control "no-store"
+		respond <<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Close Listening</title>
+  <style>
+    :root { color-scheme: dark; }
+    html,body { height:100%; margin:0; }
+    body { display:grid; place-items:center; min-height:100vh;
+      font: 400 17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #1a2233, #0b0e14 60%); color:#e7ecf3; }
+    .wrap { text-align:center; padding:2rem; max-width:34rem; }
+    .mark { letter-spacing:.14em; font-size:.8rem; text-transform:uppercase; color:#8aa0bd; }
+    h1 { font-size:clamp(2rem,6vw,3.2rem); margin:.4rem 0 .6rem; font-weight:600; }
+    p { color:#aab6c7; margin:0 auto; max-width:26rem; }
+    .soon { display:inline-block; margin-top:1.6rem; padding:.5rem 1rem; border:1px solid #2b3a52;
+      border-radius:999px; font-size:.85rem; color:#9fb2cc; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="mark">Close Listening</div>
+    <h1>Something worth hearing.</h1>
+    <p>A calmer way to listen to podcasts — with the good parts surfaced. We're putting on the finishing touches.</p>
+    <div class="soon">Coming soon</div>
+  </div>
+</body>
+</html>
+HTML 200
+	}
+}
