@@ -259,6 +259,12 @@ async function load(slug: string): Promise<void> {
     topics.value = ents?.topics ?? []
     persons.value = ents?.persons ?? []
     resumeSeconds = playback?.position_seconds ?? 0
+    // Lock-screen / headphone / BT metadata for the current episode (#1308).
+    player.setMetadata({
+      title: detail.title,
+      artist: detail.podcast_title ?? undefined,
+      artworkUrl: episodeArtwork(detail) ?? undefined,
+    })
   } catch {
     notFound.value = true
   } finally {
@@ -356,6 +362,17 @@ function ensureCaptureLoaded(): void {
 onMounted(() => {
   load(props.slug)
   ensureCaptureLoaded()
+  // MediaSession prev/next → the queue (#1308). Handlers read props.slug at call time.
+  player.setSkipHandlers({
+    next: () => {
+      const n = queue.nextAfter(props.slug)
+      if (n) void router.push({ name: 'player', params: { slug: n } })
+    },
+    prev: () => {
+      const p = queue.prevBefore(props.slug)
+      if (p) void router.push({ name: 'player', params: { slug: p } })
+    },
+  })
 })
 watch(() => props.slug, (s) => load(s))
 watch(() => auth.isAuthenticated, ensureCaptureLoaded)

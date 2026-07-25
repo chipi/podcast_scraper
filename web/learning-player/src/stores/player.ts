@@ -29,20 +29,25 @@ export const usePlayerStore = defineStore('player', () => {
   function bind(element: HTMLAudioElement | null): void {
     el.value = element
     if (element) element.playbackRate = rate.value
+    wireMediaHandlers() // headphone / BT transport works as soon as an element is bound
   }
 
   // --- element event sinks (PlayerView's <audio> forwards these) ---
   function onPlay(): void {
     playing.value = true
+    setPlaybackState('playing')
   }
   function onPause(): void {
     playing.value = false
+    setPlaybackState('paused')
   }
   function onTimeUpdate(): void {
     currentTime.value = el.value?.currentTime ?? 0
+    syncPositionState()
   }
   function onDurationChange(): void {
     duration.value = el.value?.duration || 0
+    syncPositionState()
   }
   function onError(): void {
     audioError.value = true
@@ -73,10 +78,79 @@ export const usePlayerStore = defineStore('player', () => {
   function setRate(r: number): void {
     rate.value = r
     if (el.value) el.value.playbackRate = r
+    syncPositionState()
   }
   function cycleRate(): void {
     const i = PLAYBACK_RATES.indexOf(rate.value as (typeof PLAYBACK_RATES)[number])
     setRate(PLAYBACK_RATES[(i + 1) % PLAYBACK_RATES.length])
+  }
+
+  // --- MediaSession: lock-screen / notification / headphone / BT controls (#1308) ---
+  // Metadata comes from the view (episode); prev/next come from the queue (view wires them). All
+  // guarded so it's a no-op where MediaSession is absent (jsdom, older engines).
+  const skipHandlers: { prev?: () => void; next?: () => void } = {}
+  let handlersWired = false
+  function hasMediaSession(): boolean {
+    return typeof navigator !== 'undefined' && 'mediaSession' in navigator
+  }
+  function setPlaybackState(state: MediaSessionPlaybackState): void {
+    if (hasMediaSession()) navigator.mediaSession.playbackState = state
+  }
+  function syncPositionState(): void {
+    if (!hasMediaSession() || typeof navigator.mediaSession.setPositionState !== 'function') return
+    const d = duration.value
+    if (!d || !Number.isFinite(d)) return
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: d,
+        playbackRate: rate.value || 1,
+        position: Math.min(Math.max(0, currentTime.value), d),
+      })
+    } catch {
+      /* some engines throw on out-of-range while seeking — ignore */
+    }
+  }
+  function wireMediaHandlers(): void {
+    if (handlersWired || !hasMediaSession()) return
+    handlersWired = true
+    const ms = navigator.mediaSession
+    const set = (a: MediaSessionAction, h: MediaSessionActionHandler | null): void => {
+      try {
+        ms.setActionHandler(a, h)
+      } catch {
+        /* action unsupported on this engine — skip */
+      }
+    }
+    set('play', () => {
+      if (el.value?.paused) toggle()
+    })
+    set('pause', () => {
+      if (el.value && !el.value.paused) toggle()
+    })
+    set('seekbackward', (d) => skip(-(d.seekOffset ?? 15)))
+    set('seekforward', (d) => skip(d.seekOffset ?? 30))
+    set('seekto', (d) => {
+      if (typeof d.seekTime === 'number') seek(d.seekTime)
+    })
+    set('previoustrack', () => skipHandlers.prev?.())
+    set('nexttrack', () => skipHandlers.next?.())
+  }
+  /** Lock-screen metadata for the current episode (view calls this on load). */
+  function setMetadata(m: { title: string; artist?: string; album?: string; artworkUrl?: string }): void {
+    if (!hasMediaSession() || typeof MediaMetadata === 'undefined') return
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: m.title,
+      artist: m.artist ?? '',
+      album: m.album ?? '',
+      artwork: m.artworkUrl ? [{ src: m.artworkUrl, sizes: '512x512', type: 'image/png' }] : [],
+    })
+    wireMediaHandlers()
+  }
+  /** Prev/next track handlers (view wires them to the queue + router). */
+  function setSkipHandlers(h: { prev?: () => void; next?: () => void }): void {
+    skipHandlers.prev = h.prev
+    skipHandlers.next = h.next
+    wireMediaHandlers()
   }
 
   return {
@@ -98,5 +172,7 @@ export const usePlayerStore = defineStore('player', () => {
     skip,
     setRate,
     cycleRate,
+    setMetadata,
+    setSkipHandlers,
   }
 })

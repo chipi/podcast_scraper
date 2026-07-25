@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
 import { usePlayerStore } from './player'
 
@@ -104,5 +104,63 @@ describe('player store', () => {
     expect(p.currentTime).toBe(0)
     expect(p.duration).toBe(0)
     expect(p.audioError).toBe(false)
+  })
+})
+
+describe('player store — MediaSession (#1308)', () => {
+  let ms: {
+    metadata: unknown
+    playbackState: string
+    setActionHandler: ReturnType<typeof vi.fn>
+    setPositionState: ReturnType<typeof vi.fn>
+  }
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    ms = { metadata: null, playbackState: 'none', setActionHandler: vi.fn(), setPositionState: vi.fn() }
+    ;(navigator as unknown as { mediaSession: unknown }).mediaSession = ms
+    ;(globalThis as unknown as { MediaMetadata: unknown }).MediaMetadata = class {
+      constructor(public init: Record<string, unknown>) {}
+    }
+  })
+  afterEach(() => {
+    delete (navigator as unknown as { mediaSession?: unknown }).mediaSession
+    delete (globalThis as unknown as { MediaMetadata?: unknown }).MediaMetadata
+  })
+
+  it('setMetadata sets lock-screen metadata + wires the action handlers', () => {
+    const p = usePlayerStore()
+    p.setMetadata({ title: 'Ep 1', artist: 'The Show', artworkUrl: 'a.png' })
+    expect((ms.metadata as { init: { title: string } }).init.title).toBe('Ep 1')
+    const actions = ms.setActionHandler.mock.calls.map((c) => c[0])
+    expect(actions).toEqual(
+      expect.arrayContaining(['play', 'pause', 'seekbackward', 'seekforward', 'seekto', 'previoustrack', 'nexttrack']),
+    )
+  })
+
+  it('reflects playbackState + positionState from element events', () => {
+    const p = usePlayerStore()
+    p.bind(fakeAudio({ currentTime: 10, duration: 120 }))
+    p.onPlay()
+    expect(ms.playbackState).toBe('playing')
+    p.onPause()
+    expect(ms.playbackState).toBe('paused')
+    p.onDurationChange()
+    p.onTimeUpdate()
+    const last = ms.setPositionState.mock.calls.at(-1)![0]
+    expect(last.duration).toBe(120)
+    expect(last.position).toBe(10)
+  })
+
+  it('nexttrack / previoustrack invoke the registered skip handlers', () => {
+    const p = usePlayerStore()
+    const next = vi.fn()
+    const prev = vi.fn()
+    p.setSkipHandlers({ next, prev })
+    const byAction: Record<string, (d?: unknown) => void> = {}
+    for (const [a, h] of ms.setActionHandler.mock.calls) byAction[a as string] = h as (d?: unknown) => void
+    byAction['nexttrack']()
+    byAction['previoustrack']()
+    expect(next).toHaveBeenCalledOnce()
+    expect(prev).toHaveBeenCalledOnce()
   })
 })
