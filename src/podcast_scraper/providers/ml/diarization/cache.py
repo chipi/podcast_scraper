@@ -52,8 +52,19 @@ def diarization_config_fingerprint(cfg: config.Config) -> str:
     # min_segment_ms against a warm cache otherwise silently served the old, wrong
     # result. getattr defaults keep Deepgram/Gemini paths (which ignore these)
     # stable. Device is deliberately excluded — it doesn't affect output.
+    #
+    # The PROVIDER backend and its per-provider model are part of the key too (D2 / #1296):
+    # different diarizers produce different segmentations, but the fields above are shared, so
+    # reprocessing the same audio under `local` then `tailnet_dgx` (or deepgram/gemini/moss)
+    # previously computed an IDENTICAL key and silently served the first provider's result under
+    # the second's name — quietly corrupting a diarizer bake-off.
     parts = (
+        str(getattr(cfg, "diarization_provider", "local")),
         cfg.diarization_model,
+        str(getattr(cfg, "dgx_diarize_model", None)),
+        str(getattr(cfg, "moss_model", None)),
+        str(getattr(cfg, "deepgram_diarization_model", None)),
+        str(getattr(cfg, "gemini_diarization_model", None)),
         str(cfg.diarization_num_speakers),
         str(cfg.diarization_min_speakers),
         str(cfg.diarization_max_speakers),
