@@ -16,7 +16,7 @@
 #       --corpus /abs/path/to/corpus \
 #       --queries tests/fixtures/viewer-validation-corpus/v3/search-queries.json \
 #       --label S0-baseline \
-#       [--output-dir docs/wip/search-v3/traces] \
+#       [--output-dir data/perf/traces/search] \
 #       [--iterations 3]
 #
 # Assertions:
@@ -31,7 +31,7 @@ API=""
 CORPUS=""
 QUERIES=""
 LABEL=""
-OUTPUT_DIR="docs/wip/search-v3/traces"
+OUTPUT_DIR="data/perf/traces/search"
 ITERATIONS=3
 
 while [ $# -gt 0 ]; do

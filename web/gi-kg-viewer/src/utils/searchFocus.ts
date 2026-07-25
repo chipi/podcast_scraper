@@ -1,7 +1,49 @@
 import type { Core } from 'cytoscape'
-import type { SearchHit } from '../api/searchApi'
+import type { CompareSubjectRef, SearchHit } from '../api/searchApi'
 
 const FOCUSABLE_DOC_TYPES = new Set(['insight', 'quote', 'kg_topic', 'kg_entity'])
+
+/**
+ * Search v3 §S8 — map a search hit to the single subject it most naturally
+ * represents, for the "Pin to Compare" action. A hit can mention several
+ * comparable subjects (the CompareOperatorPanel discovery walk surfaces them
+ * all for the picker); pinning needs ONE — the hit's own primary anchor:
+ *
+ *   * ``kg_topic``  → that Topic (``source_id``).
+ *   * ``kg_entity`` → that Person / entity (``source_id``).
+ *   * otherwise (insight / quote / transcript) → the speaker (Person) when
+ *     one is present, else the hit's Episode.
+ *
+ * Returns null when nothing usable is on the hit (the caller no-ops).
+ */
+export function primaryCompareSubjectFromHit(row: SearchHit): CompareSubjectRef | null {
+  const md = (row.metadata ?? {}) as Record<string, unknown>
+  const docType = typeof md.doc_type === 'string' ? md.doc_type : ''
+  const sourceId = typeof md.source_id === 'string' ? md.source_id.trim() : ''
+  if (docType === 'kg_topic' && sourceId) {
+    const label = typeof md.topic_label === 'string' ? md.topic_label : null
+    return { kind: 'topic', id: sourceId, label: label || sourceId }
+  }
+  if (docType === 'kg_entity' && sourceId) {
+    const label = typeof md.entity_label === 'string' ? md.entity_label : null
+    return { kind: 'person', id: sourceId, label: label || sourceId }
+  }
+  const speaker =
+    typeof md.speaker_name === 'string'
+      ? md.speaker_name
+      : typeof md.speaker === 'string'
+        ? md.speaker
+        : ''
+  if (speaker.trim()) {
+    return { kind: 'person', id: speaker.trim(), label: speaker.trim() }
+  }
+  const epId = typeof md.episode_id === 'string' ? md.episode_id.trim() : ''
+  if (epId) {
+    const epTitle = typeof md.episode_title === 'string' ? md.episode_title : null
+    return { kind: 'episode', id: epId, label: epTitle || epId }
+  }
+  return null
+}
 
 /**
  * Return the raw source_id for a search hit when the doc_type maps to a graph

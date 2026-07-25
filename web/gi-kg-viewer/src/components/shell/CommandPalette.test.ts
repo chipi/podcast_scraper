@@ -18,6 +18,7 @@ vi.mock('../../api/corpusLibraryApi', () => ({
 import CommandPalette from './CommandPalette.vue'
 import type { SearchHit } from '../../api/searchApi'
 import { useShellStore } from '../../stores/shell'
+import { useSearchStore } from '../../stores/search'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
 
 /**
@@ -147,6 +148,44 @@ describe('CommandPalette (Cmd-K shell overlay)', () => {
         '[data-testid="command-palette-action-show-graph"]',
       ),
     ).toHaveLength(1)
+    w.unmount()
+  })
+
+  it('Pin to Compare stashes the hit primary subject in search.comparePins and closes', async () => {
+    const shell = useShellStore()
+    shell.corpusPath = '/tmp/corpus'
+    const search = useSearchStore()
+    searchCorpusMock.mockResolvedValue({
+      results: [
+        fakeHit({
+          doc_id: 'insight:test:1',
+          metadata: { doc_type: 'insight', speaker_name: 'Alice', episode_id: 'ep1' },
+        }),
+      ],
+      error: null,
+    })
+    const w = mountPalette()
+    ;(w.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+    const input = document.querySelector<HTMLInputElement>(
+      '[data-testid="command-palette-input"]',
+    )!
+    input.value = 'demo'
+    input.dispatchEvent(new Event('input'))
+    await vi.advanceTimersByTimeAsync(210)
+    await flushPromises()
+
+    const pinBtn = document.querySelector<HTMLButtonElement>(
+      '[data-testid="command-palette-action-pin-compare"]',
+    )
+    expect(pinBtn).not.toBeNull()
+    pinBtn!.click()
+    await flushPromises()
+
+    // Speaker present → pinned as a Person subject.
+    expect(search.comparePins).toEqual([{ kind: 'person', id: 'Alice', label: 'Alice' }])
+    // Palette closes after pinning.
+    expect(document.querySelector('[data-testid="command-palette"]')).toBeNull()
     w.unmount()
   })
 

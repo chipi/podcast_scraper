@@ -84,6 +84,10 @@ reports/
 # Exclude dependency graphs (generated files)
 reports/deps*.svg
 reports/deps*.json
+# Perf-trace per-release reports are tracked DOCS (eval-style history), not
+# generated build reports — re-include them past the broad ``reports/`` rule.
+!docs/guides/perf-traces/reports/
+!docs/guides/perf-traces/reports/**
 
 # Architecture diagram intermediates (only .svg outputs are committed)
 docs/architecture/*.dot

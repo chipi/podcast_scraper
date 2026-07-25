@@ -506,7 +506,7 @@ for perf on 800+ node corpora — fcose settles in ~1.5s vs cose's 8s+.
   so screenshots + fixtures are stable.
 
 **LCP baseline:** 1561ms on prod-v2 (833 nodes, DPR-2, 1440×900) after
-Tiers A/B/C. Trace at `docs/wip/graph-v3/traces/03-C-first-paint.json.gz`.
+Tiers A/B/C. Trace at `data/perf/traces/graph/03-C-first-paint.json.gz`.
 
 **Why not cose-bilkent / cola / dagre:** cose-bilkent settled slower on the
 bipartite shape; cola scales worse past 300 nodes; dagre wants a DAG and

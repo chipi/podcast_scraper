@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { getCorpusEnrichment } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
-import type { RisingTopic } from './trending'
+import { THEME_NEUTRAL, THEME_PALETTE, type RisingTopic, type TopicTheme } from './trending'
 import TrendingChips from './TrendingChips.vue'
 import TrendingSparkChips from './TrendingSparkChips.vue'
 import TrendingStream from './TrendingStream.vue'
@@ -44,15 +44,26 @@ const topics = ref<RisingTopic[]>([])
 // the standard way (teal theme chrome), same as the topic card + storyline chips.
 const themeMemberIds = ref<Set<string>>(new Set())
 
+// Per-topic theme colour + label: topics in the same co-occurrence theme ("storyline") share a
+// distinct hue so related trending topics read as a group; unclustered topics fall back to neutral.
+const topicTheme = ref<Record<string, TopicTheme>>({})
+
 void getCorpusEnrichment()
   .then((s) => {
     const tv = s.temporal_velocity
     const rows = tv?.topics ?? []
+    const clusters = s.topic_theme_clusters?.clusters ?? []
     themeMemberIds.value = new Set(
-      (s.topic_theme_clusters?.clusters ?? []).flatMap((c) =>
-        (c.members ?? []).map((m) => m.topic_id),
-      ),
+      clusters.flatMap((c) => (c.members ?? []).map((m) => m.topic_id)),
     )
+    // topic → { hue, theme label, group } so the sparkline view can colour + group by storyline.
+    const themeMap: Record<string, TopicTheme> = {}
+    clusters.forEach((c, i) => {
+      const color = THEME_PALETTE[i % THEME_PALETTE.length]
+      const label = c.canonical_label?.trim() || null
+      for (const m of c.members ?? []) themeMap[m.topic_id] = { color, label, group: i }
+    })
+    topicTheme.value = themeMap
     // Month axis: the envelope's window_months, else the union of keys seen.
     const axis =
       tv?.window_months && tv.window_months.length
@@ -76,7 +87,9 @@ void getCorpusEnrichment()
   })
 
 type View = 'chips' | 'sparks' | 'stream' | 'momentum'
-const view = ref<View>('chips')
+// Default to the redesigned Sparklines (storyline colour + grouped + collapsible) — the richest,
+// most legible view of what's rising.
+const view = ref<View>('sparks')
 const VIEWS: Array<{ key: View; label: string }> = [
   { key: 'chips', label: 'trendViewChips' },
   { key: 'sparks', label: 'trendViewSparks' },
@@ -114,6 +127,8 @@ const hasAny = computed(() => topics.value.length > 0)
     <TrendingChips
       v-if="view === 'chips'"
       :topics="topics"
+      :topic-theme="topicTheme"
+      :neutral-color="THEME_NEUTRAL"
       :followed-ids="followedIds"
       :can-follow="canFollow"
       :theme-member-ids="themeMemberIds"
@@ -123,6 +138,8 @@ const hasAny = computed(() => topics.value.length > 0)
     <TrendingSparkChips
       v-else-if="view === 'sparks'"
       :topics="topics"
+      :topic-theme="topicTheme"
+      :neutral-color="THEME_NEUTRAL"
       :followed-ids="followedIds"
       :can-follow="canFollow"
       @open="emit('open', $event)"
@@ -132,11 +149,15 @@ const hasAny = computed(() => topics.value.length > 0)
       v-else-if="view === 'stream'"
       :topics="topics"
       :months="months"
+      :topic-theme="topicTheme"
+      :neutral-color="THEME_NEUTRAL"
       @open="emit('open', $event)"
     />
     <TrendingMomentum
       v-else
       :topics="topics"
+      :topic-theme="topicTheme"
+      :neutral-color="THEME_NEUTRAL"
       :theme-member-ids="themeMemberIds"
       @open="emit('open', $event)"
     />

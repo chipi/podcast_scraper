@@ -150,6 +150,37 @@ def _pack_from_search_dicts(
     )
 
 
+def _filter_rows_by_insight_type(
+    rows: Sequence[Dict[str, Any]],
+    insight_types: Optional[Sequence[str]],
+) -> List[Dict[str, Any]]:
+    """Narrow a search-result page to the RFC-072 GIL v1.1 insight types in
+    *insight_types* (``claim`` / ``recommendation`` / ``observation`` /
+    ``question`` / ``unknown``).
+
+    Applied symmetrically to both sides in ``compare_subjects``. Only
+    insight-tier rows are filtered; segment-tier rows (supporting
+    evidence) always pass through — they carry no ``insight_type``.
+    Case-insensitive match on ``metadata.insight_type``. ``None`` or an
+    empty allowed set is a no-op (returns the input verbatim).
+    """
+    if not insight_types:
+        return list(rows)
+    allowed = {x.strip().lower() for x in insight_types if x and x.strip()}
+    if not allowed:
+        return list(rows)
+    kept: List[Dict[str, Any]] = []
+    for row in rows:
+        if str(row.get("source_tier") or "") != "insight":
+            kept.append(row)
+            continue
+        metadata = row.get("metadata") or {}
+        row_type = str(metadata.get("insight_type") or "").strip().lower()
+        if row_type in allowed:
+            kept.append(row)
+    return kept
+
+
 def _ungrounded_pack(subject: SubjectRef, query: str, max_tokens: int) -> BriefingPack:
     """Return a placeholder pack when retrieval failed / returned nothing."""
     return BriefingPack(
@@ -192,12 +223,16 @@ def compare_subjects(
     q: str = "",
     top_k: int = 10,
     max_tokens: int = 2000,
+    insight_types: Optional[Sequence[str]] = None,
 ) -> CompareOutcome:
     """Build briefing packs for *subject_a* and *subject_b* over the corpus.
 
     Runs ``structured_corpus_search`` twice (one subject scope per call),
     feeds each result set through ``build_briefing_pack``, and returns a
-    deterministic judge summary when both sides are grounded.
+    deterministic judge summary when both sides are grounded. When
+    ``insight_types`` is supplied, insight-tier hits are narrowed to the
+    RFC-072 GIL v1.1 types in the allowed set — symmetrically for both
+    subjects, so the compare stays balanced.
     """
     from .capability import structured_corpus_search
 
@@ -215,6 +250,7 @@ def compare_subjects(
         if outcome.get("error"):
             return _ungrounded_pack(subject, query, max_tokens)
         rows: List[Dict[str, Any]] = list(outcome.get("results") or [])
+        rows = _filter_rows_by_insight_type(rows, insight_types)
         if not rows:
             return _ungrounded_pack(subject, query, max_tokens)
         query_type = str(outcome.get("query_type") or "semantic")

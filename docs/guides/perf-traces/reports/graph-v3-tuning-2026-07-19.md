@@ -1,4 +1,10 @@
-# graph-v3 LCP traces
+# graph-v3 LCP traces (report, 2026-07-19)
+
+> **Historical report**, migrated into the perf-traces framework
+> ([../index.md](../index.md)) verbatim from `docs/wip/graph-v3/traces/README.md`.
+> The raw artifacts it references (`prod-v2-*.metrics.json`, `*.trace.json.gz`,
+> `*.screenshot.png`) now live under **`data/perf/traces/graph/`**. First entry
+> in the [report index](index.md).
 
 Captured with `scripts/dev/capture-graph-lcp.sh` (runbook:
 `docs/guides/GRAPH_PERF_TRACE_RUNBOOK.md`).
@@ -208,12 +214,12 @@ median-of-3, feat/graph-v3 tip. LocalStorage seeded to
 
 ### Median-of-3 (feat/graph-v3 tip, 2026-07-19)
 
-| Load mode                | ttcanvas  | Δ vs `main` | Notes                              |
-| ------------------------ | --------- | ----------- | ---------------------------------- |
-| `main` (historical)      | 5795 ms   | —           | Pre-graph-v3 reference             |
-| `everything` (re-baseline)| **6228 ms** | +433 ms (+7.5%) | This-branch tuned everything mode  |
-| `topDown` (rollup)       | **5328 ms** | −467 ms (−8%)   | 6-SuperTheme mount, no expand |
-| **Δ topDown vs everything** | **−900 ms (−14%)** | — | The load-mode savings on this branch |
+| Load mode                   | ttcanvas           | Δ vs `main`     | Notes                                |
+| --------------------------- | ------------------ | --------------- | ------------------------------------ |
+| `main` (historical)         | 5795 ms            | —               | Pre-graph-v3 reference               |
+| `everything` (re-baseline)  | **6228 ms**        | +433 ms (+7.5%) | This-branch tuned everything mode    |
+| `topDown` (rollup)          | **5328 ms**        | −467 ms (−8%)   | 6-SuperTheme mount, no expand        |
+| **Δ topDown vs everything** | **−900 ms (−14%)** | —               | The load-mode savings on this branch |
 
 Per-run detail:
 
@@ -237,11 +243,11 @@ per-phase instrumentation currently active — inferred from the
 `everything`-mode diagnostic table earlier in this doc + the fact that
 fcose on 6 nodes is essentially free):
 
-- **~800–1000 ms** shell + Graph tab click + FSM warmup.
-- **~2000–3000 ms** corpus envelope fetch + full artifact parse
++ **~800–1000 ms** shell + Graph tab click + FSM warmup.
++ **~2000–3000 ms** corpus envelope fetch + full artifact parse
   (same in both modes).
-- **~500 ms** cy init + tiny fcose settle on 6 nodes.
-- **~500–1000 ms** finishLayoutPass housekeeping (theme-region
++ **~500 ms** cy init + tiny fcose settle on 6 nodes.
++ **~500–1000 ms** finishLayoutPass housekeeping (theme-region
   regions, degree histogram, viewport-preserve).
 
 The 900 ms delta vs `everything` is roughly the fcose-on-833-nodes
@@ -276,6 +282,7 @@ settle time.
 **Correction (HD23 instrumentation-on rerun, prod-v2, 2026-07-19):**
 
 `finishLayoutPass` now always emits `performance.mark('flp:start:<n>')`
+
 + `flp:end:<n>` + `flp:total` measures (see `GraphCanvas.vue` around
 line 1834 and its tail). Re-running the same probe:
 
@@ -341,20 +348,21 @@ This branch ships instrumentation + audit only.
 
 **What we DO know from the probe:**
 
-- Every expand adds **100 nodes** to cy (6 → 106). The current code
++ Every expand adds **100 nodes** to cy (6 → 106). The current code
   destroys + recreates cy for each expand (same code path as the
   KG-second-wave rebuild), so we pay the full fcose settle on 106
   nodes every tap. That is directly measurable: fcose on 100 nodes
   is not free — the trace README shows fcose on 833 nodes as
   ~1461 ms + ~3109 ms in the two-wave case; a proportional
   estimate for 106 nodes is ~200–400 ms of fcose alone.
-- The 4000 ms wall we hit suggests the rest is Vue reactivity
++ The 4000 ms wall we hit suggests the rest is Vue reactivity
   cascades from filter re-scope + FSM handoff + theme-region
   repaint on the enlarged slice — the same finishLayoutPass work
   the `everything` mode pays on every layoutstop, now paid per
   expand.
 
 To break this ceiling we need one of:
+
 1. Re-instrument `finishLayoutPass` (small revert) to see the
    true expand cost.
 2. `cy.add(delta)` on expand instead of full rebuild — same
@@ -366,12 +374,12 @@ To break this ceiling we need one of:
 HD22 delivered the measurement contract for the topDown critical
 path. What it made visible:
 
-- **Initial mount:** fcose is NOT the bottleneck for topDown.
++ **Initial mount:** fcose is NOT the bottleneck for topDown.
   Corpus-fetch + full-artifact-parse dominate. A real fcose wave-2
   focused on the initial mount would need to *also* shortcut the
   full-artifact parse when in topDown mode. That's an
   `artifacts.ts` refactor, not an fcose-options tune.
-- **Expand-on-tap:** fcose IS a real cost (100-node settle per
++ **Expand-on-tap:** fcose IS a real cost (100-node settle per
   tap). The `cy.add(delta)` refactor called out in
   `docs/wip/graph-tech-debt.md:31` applies here just as much as
   to the KG-second-wave `everything` path.
@@ -386,7 +394,7 @@ PR of their own; see the follow-up items in `graph-tech-debt.md`.
 
 ### Reproducing
 
-```
+```sh
 scripts/dev/capture-graph-lcp.sh \
   --corpus .test_outputs/manual/prod-v2/corpus \
   --label prod-v2-topdown-runN \

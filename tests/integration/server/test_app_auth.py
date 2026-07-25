@@ -15,6 +15,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_oauth import MockOAuthProvider, OAuthError, OAuthIdentity
@@ -153,6 +154,51 @@ def test_mock_provider_full_flow_dev_identity(tmp_path: Path) -> None:
     me = client.get("/api/app/me")
     assert me.status_code == 200
     assert me.json()["email"] == "dev@localhost"
+
+
+def test_native_login_callback_returns_deep_link_token(tmp_path: Path) -> None:
+    """Native (#1310): ?platform=native → callback redirects to the app's custom-scheme deep link
+    carrying the signed token (no cookie), and that token authenticates /me as a Bearer header."""
+    client = TestClient(_app(tmp_path))
+    resp = client.get("/api/app/auth/login", params={"platform": "native"}, follow_redirects=False)
+    assert resp.status_code == 307
+    state = str(parse_qs(urlparse(resp.headers["location"]).query)["state"][0])
+
+    cb = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    assert cb.status_code == 307
+    loc = cb.headers["location"]
+    assert loc.startswith("closelistening://auth#token="), loc
+    # No session cookie on the native path — the token rides the deep link instead.
+    assert app_sessions.SESSION_COOKIE not in cb.headers.get("set-cookie", "")
+
+    token = loc.split("#token=", 1)[1]
+    # The native path set no session cookie, so this client has none — /me now succeeds purely on
+    # the Bearer header (the exact native scenario), and still 401s without it.
+    assert client.get("/api/app/me").status_code == 401
+    me = client.get("/api/app/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert me.json()["email"] == "jane@example.com"
+
+
+def test_bearer_token_rejected_when_invalid(tmp_path: Path) -> None:
+    client = TestClient(_app(tmp_path))
+    assert (
+        client.get("/api/app/me", headers={"Authorization": "Bearer not.a.valid.token"}).status_code
+        == 401
+    )
+
+
+def test_web_callback_still_sets_cookie_not_deep_link(tmp_path: Path) -> None:
+    """Regression guard: the web path (no platform hint) is unchanged — cookie + redirect to /."""
+    client = TestClient(_app(tmp_path))
+    state = _login_state(client)
+    cb = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    assert cb.headers["location"] == "/"
+    assert app_sessions.SESSION_COOKIE in cb.headers.get("set-cookie", "")
 
 
 def test_disabled_user_is_locked_out(tmp_path: Path) -> None:

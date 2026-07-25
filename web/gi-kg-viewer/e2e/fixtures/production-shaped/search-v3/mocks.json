@@ -347,6 +347,66 @@
         "detail": null
       }
     },
+    "operator-compare-insight-types": {
+      "description": "Compare (Search v3 §S8) with the RFC-072 GIL v1.1 insight_types filter set. The server narrows BOTH subjects symmetrically to the allowed insight types (here: claim) before build_briefing_pack runs — only insight-tier hits whose metadata.insight_type is in the set contribute to each pack's top_insight / confidence rollup; segment-tier supporting hits are preserved. Compared to the unfiltered operator-compare scenario, each side's result_count drops to the claim subset and the top_insight is a claim.",
+      "request": {
+        "endpoint": "POST /api/search/compare",
+        "body": {
+          "subject_a": {"kind": "person", "id": "person:rob-goldstein", "label": "Rob Goldstein"},
+          "subject_b": {"kind": "person", "id": "person:tracy-alloway", "label": "Tracy Alloway"},
+          "q": "compute governance",
+          "top_k": 10,
+          "max_tokens": 2000,
+          "insight_types": ["claim"],
+          "path": "<corpus>"
+        }
+      },
+      "response": {
+        "pack_a": {
+          "subject": {"kind": "person", "id": "person:rob-goldstein", "label": "Rob Goldstein"},
+          "query": "compute governance",
+          "query_type": "semantic",
+          "rendered": "[CRITICAL GROUNDING]\nTop insight: The actual envelope of compute is set by the firms deciding where to put the next datacenter, not by any regulator.\nContradiction: none detected\n\n[SUPPORTING EVIDENCE]\nCoverage: 1 shows, 2 episodes\n\n[CAVEATS]\nCoverage gaps: none\nConfidence (p50): 0.89\nDate range: 2026-04-15 – 2026-05-04",
+          "token_count": 78,
+          "max_tokens": 2000,
+          "top_insight_id": "insight:4cec22d8__compute-gov-private-0014",
+          "top_insight_text": "The actual envelope of compute is set by the firms deciding where to put the next datacenter, not by any regulator.",
+          "supporting_segment_ids": [],
+          "supporting_segment_texts": [],
+          "coverage_summary": {
+            "show_ids": ["sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"],
+            "episode_count": 2,
+            "date_range": "2026-04-15 – 2026-05-04"
+          },
+          "confidence_p50": 0.89,
+          "result_count": 2,
+          "grounded": true
+        },
+        "pack_b": {
+          "subject": {"kind": "person", "id": "person:tracy-alloway", "label": "Tracy Alloway"},
+          "query": "compute governance",
+          "query_type": "semantic",
+          "rendered": "[CRITICAL GROUNDING]\nTop insight: Compute governance is being determined by private-sector datacenter siting decisions rather than public regulation.\nContradiction: none detected\n\n[SUPPORTING EVIDENCE]\nCoverage: 1 shows, 1 episodes\n\n[CAVEATS]\nCoverage gaps: none\nConfidence (p50): 0.72\nDate range: 2026-04-27 – 2026-04-27",
+          "token_count": 74,
+          "max_tokens": 2000,
+          "top_insight_id": "insight:74a9745d__compute-governance-0001",
+          "top_insight_text": "Compute governance is being determined by private-sector datacenter siting decisions rather than public regulation.",
+          "supporting_segment_ids": [],
+          "supporting_segment_texts": [],
+          "coverage_summary": {
+            "show_ids": ["sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"],
+            "episode_count": 1,
+            "date_range": "2026-04-27 – 2026-04-27"
+          },
+          "confidence_p50": 0.72,
+          "result_count": 1,
+          "grounded": true
+        },
+        "judge_summary": "Rob Goldstein shows higher confidence (0.89 vs 0.72 for Tracy Alloway); episode coverage 2 (Rob Goldstein) vs 1 (Tracy Alloway).",
+        "error": null,
+        "detail": null
+      }
+    },
     "temporal-intent": {
       "description": "Query the router classifies as temporal_tracking (RFC-092 taxonomy). Header IntentChip renders 'Temporal tracking' (UXS-016 §Header §Intent row). Timeline operator would bucket these hits by publish_date.",
       "request": {

@@ -16,6 +16,9 @@ import type {
   SearchCompareResponse,
   SearchHit,
 } from '../../api/searchApi'
+import { useSearchStore } from '../../stores/search'
+
+const search = useSearchStore()
 
 const props = defineProps<{
   visibleHits: SearchHit[]
@@ -25,9 +28,30 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'run-compare': [payload: { subjectA: CompareSubjectRef; subjectB: CompareSubjectRef }]
+  'run-compare': [
+    payload: {
+      subjectA: CompareSubjectRef
+      subjectB: CompareSubjectRef
+      /** RFC-072 GIL v1.1 insight_type filter (``claim`` /
+       *  ``recommendation`` / ``observation`` / ``question`` /
+       *  ``unknown``). Empty ⇒ no filter — narrows both sides
+       *  symmetrically on the server. */
+      insightTypes: string[]
+    },
+  ]
   'clear-compare': []
 }>()
+
+/** RFC-072 GIL v1.1 insight_type filter options — mirrors the migration in
+ * ``migrations/gil_kg_identity_migrations.py`` and the server's
+ * ``SearchCompareRequest.insight_types`` field. */
+const INSIGHT_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'claim', label: 'Claim' },
+  { value: 'recommendation', label: 'Recommendation' },
+  { value: 'observation', label: 'Observation' },
+  { value: 'question', label: 'Question' },
+  { value: 'unknown', label: 'Unknown' },
+]
 
 interface DiscoveredSubject {
   key: string // unique — used as picker option value
@@ -105,22 +129,81 @@ const discoveredSubjects = computed<DiscoveredSubject[]>(() => {
   })
 })
 
+/**
+ * Search v3 §S8 — subjects pinned via the "Pin to Compare" action, in pin
+ * order (pin[0] → slot A, pin[1] → slot B). A pinned subject need not be in
+ * the current visible hits, so it becomes a selectable picker option in its
+ * own right.
+ */
+const pinnedSubjects = computed<DiscoveredSubject[]>(() =>
+  search.comparePins.map((r) => ({
+    key: `${r.kind}::${r.id.trim()}`,
+    ref: { kind: r.kind, id: r.id.trim(), label: r.label ?? null },
+    count: 0,
+  })),
+)
+
+/**
+ * The picker's full option list: pinned subjects first (in pin order), then
+ * the hit-discovered subjects, deduped on ``kind + id``. A pinned subject
+ * that also appears in the visible hits adopts the discovered mention count
+ * (and label) for its option row.
+ */
+const allSubjects = computed<DiscoveredSubject[]>(() => {
+  const merged = new Map<string, DiscoveredSubject>()
+  for (const s of pinnedSubjects.value) {
+    if (!merged.has(s.key)) merged.set(s.key, { ...s, ref: { ...s.ref } })
+  }
+  for (const s of discoveredSubjects.value) {
+    const existing = merged.get(s.key)
+    if (existing) {
+      existing.count = s.count
+      if (!existing.ref.label && s.ref.label) existing.ref.label = s.ref.label
+    } else {
+      merged.set(s.key, s)
+    }
+  }
+  return Array.from(merged.values())
+})
+
 const slotA = ref<string>('')
 const slotB = ref<string>('')
+const selectedInsightTypes = ref<string[]>([])
 
-// Seed both slots when the discovered set first grows to ≥ 2 members so
-// the user gets a working default without a picker interaction.
+function toggleInsightType(value: string): void {
+  const idx = selectedInsightTypes.value.indexOf(value)
+  if (idx >= 0) selectedInsightTypes.value.splice(idx, 1)
+  else selectedInsightTypes.value.push(value)
+}
+
+// Pin change → prefill the picker. This is the §S8 "pinning a subject
+// prefills the Compare picker" behaviour: a fresh pin explicitly overrides
+// any earlier auto-seed so the pinned subjects land in the slots.
 watch(
-  discoveredSubjects,
-  (next) => {
-    if (!slotA.value && next.length >= 1) slotA.value = next[0].key
-    if (!slotB.value && next.length >= 2) slotB.value = next[1].key
+  pinnedSubjects,
+  (pins) => {
+    if (pins.length >= 1) slotA.value = pins[0].key
+    if (pins.length >= 2) slotB.value = pins[1].key
+  },
+  { immediate: true },
+)
+
+// New candidates → fill only the slots the user (or a pin) has NOT set, so
+// the picker always has a working default without stomping a manual choice.
+watch(
+  allSubjects,
+  (all) => {
+    if (!slotA.value && all.length >= 1) slotA.value = all[0].key
+    if (!slotB.value && all.length >= 2) {
+      const other = all.find((s) => s.key !== slotA.value)
+      slotB.value = other ? other.key : all[1].key
+    }
   },
   { immediate: true },
 )
 
 function resolve(key: string): CompareSubjectRef | null {
-  const found = discoveredSubjects.value.find((s) => s.key === key)
+  const found = allSubjects.value.find((s) => s.key === key)
   return found ? found.ref : null
 }
 
@@ -134,8 +217,35 @@ function onRun(): void {
   const a = resolve(slotA.value)
   const b = resolve(slotB.value)
   if (!a || !b) return
-  emit('run-compare', { subjectA: a, subjectB: b })
+  emit('run-compare', {
+    subjectA: a,
+    subjectB: b,
+    insightTypes: [...selectedInsightTypes.value],
+  })
 }
+
+/**
+ * RFC-107 §Inherited Known Limitations — RFC-072 KL2 (Person) / KL3
+ * (Topic). Alias variants can split the same real entity across the
+ * corpus into distinct ``person:{slug}`` / topic ids, so a same-kind
+ * Person↔Person or Topic↔Topic compare may miss the aliased twin. We
+ * surface a muted hint whenever both picker slots resolve to the same
+ * ``kind`` in {person, topic} — the ONLY two kinds RFC-072 flags. Feed /
+ * episode / show ids are corpus-stable and don't trip the limitation.
+ */
+const aliasHint = computed<string | null>(() => {
+  const a = resolve(slotA.value)
+  const b = resolve(slotB.value)
+  if (!a || !b) return null
+  if (a.kind !== b.kind) return null
+  if (a.kind === 'person') {
+    return 'May miss aliased variants — comparing two Persons; aliased ids can split the same real speaker across the corpus.'
+  }
+  if (a.kind === 'topic') {
+    return 'May miss aliased variants — comparing two Topics; aliased ids can split the same real topic across the corpus.'
+  }
+  return null
+})
 
 function onClear(): void {
   emit('clear-compare')
@@ -143,7 +253,10 @@ function onClear(): void {
 
 function optionLabel(subject: DiscoveredSubject): string {
   const label = subject.ref.label || subject.ref.id
-  return `${label} (${subject.ref.kind}) — ${subject.count}`
+  // count 0 ⇒ pinned-only (not present in the visible hits) — say "pinned"
+  // rather than showing a misleading "— 0" mention count.
+  const suffix = subject.count > 0 ? `— ${subject.count}` : 'pinned'
+  return `${label} (${subject.ref.kind}) ${suffix}`
 }
 </script>
 
@@ -165,7 +278,7 @@ function optionLabel(subject: DiscoveredSubject): string {
           data-testid="operator-compare-slot-a"
         >
           <option
-            v-for="s in discoveredSubjects"
+            v-for="s in allSubjects"
             :key="s.key"
             :value="s.key"
           >
@@ -181,7 +294,7 @@ function optionLabel(subject: DiscoveredSubject): string {
           data-testid="operator-compare-slot-b"
         >
           <option
-            v-for="s in discoveredSubjects"
+            v-for="s in allSubjects"
             :key="s.key"
             :value="s.key"
           >
@@ -209,8 +322,47 @@ function optionLabel(subject: DiscoveredSubject): string {
       </button>
     </div>
 
+    <div
+      class="mt-2 flex flex-wrap items-center gap-1"
+      data-testid="operator-compare-insight-types"
+      aria-label="Insight type filter (both subjects narrowed symmetrically)"
+    >
+      <span class="text-[10px] uppercase tracking-wide text-muted">Insight types</span>
+      <button
+        v-for="opt in INSIGHT_TYPE_OPTIONS"
+        :key="opt.value"
+        type="button"
+        class="rounded border px-1.5 py-0.5 text-[10px] font-medium leading-none transition-colors"
+        :class="
+          selectedInsightTypes.includes(opt.value)
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border text-muted hover:bg-overlay'
+        "
+        :aria-pressed="selectedInsightTypes.includes(opt.value)"
+        :data-testid="`operator-compare-insight-type-${opt.value}`"
+        @click="toggleInsightType(opt.value)"
+      >
+        {{ opt.label }}
+      </button>
+      <span
+        v-if="!selectedInsightTypes.length"
+        class="text-[10px] italic text-muted"
+      >
+        (none — no filter)
+      </span>
+    </div>
+
     <p
-      v-if="discoveredSubjects.length < 2"
+      v-if="aliasHint"
+      class="mt-1 text-[10px] italic text-muted"
+      data-testid="operator-compare-alias-hint"
+      role="note"
+    >
+      {{ aliasHint }}
+    </p>
+
+    <p
+      v-if="allSubjects.length < 2"
       class="mt-1 text-[10px] text-muted"
       data-testid="operator-compare-empty"
     >

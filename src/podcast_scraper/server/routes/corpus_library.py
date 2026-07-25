@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper import perf_cache
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
@@ -229,7 +230,7 @@ async def corpus_node_episodes(
 
 
 @router.get("/corpus/feeds", response_model=CorpusFeedsResponse)
-async def corpus_feeds(
+def corpus_feeds(
     request: Request,
     path: str | None = Query(
         default=None,
@@ -237,6 +238,12 @@ async def corpus_feeds(
     ),
 ) -> CorpusFeedsResponse:
     """List feeds and per-feed episode counts for the corpus library API.
+
+    Sync ``def`` (not ``async``) on purpose: the body is CPU/file work
+    (``build_catalog_rows_cumulative`` over the corpus) with no awaits, so
+    FastAPI runs it in its threadpool — it must NOT block the single-worker
+    event loop during the page-load burst, or it head-of-line-blocks the first
+    /api/search (perf-traces 2026-07-24; #1276).
 
     v2.6.1 #820: per-feed ``episode_count`` is cumulative-unique across all
     runs (was last-run-only). Dashboard "Total Episodes per Feed" widget
@@ -246,7 +253,15 @@ async def corpus_feeds(
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = build_catalog_rows_cumulative(root)
+    # Cumulative catalog scan (~150 ms of Python) only changes on INGEST — cache
+    # at this route via the corpus-mtime token so it doesn't contend (GIL) with a
+    # concurrent search. Shared build_catalog_rows_cumulative stays uncached.
+    rows = perf_cache.get_or_compute(
+        "catalog_feeds",
+        str(root.resolve()),
+        perf_cache.corpus_mtime(root),
+        lambda: build_catalog_rows_cumulative(root),
+    )
     feeds_raw = aggregate_feeds(rows)
     feeds = [
         CorpusFeedItem(

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
 
 /**
  * Library hub (this session): the Saved tab shows per-kind sections (Episodes, Insights) instead of
@@ -26,12 +26,14 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
 test('favouriting an episode + an insight fills the Saved per-kind sections', async ({
   page,
 }, testInfo) => {
+  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'library-fill', testInfo)
 
   // Favourite the episode from its player screen (the heart). Guarded: only ever ADD.
   await page.goto('/')
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
+  await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
   const epFav = page.getByRole('button', { name: 'Save to favorites' }).first()
   if (await epFav.isVisible().catch(() => false)) await epFav.click()

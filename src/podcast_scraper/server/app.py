@@ -360,9 +360,18 @@ def create_app(
     ]
     _cors_env = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
     _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _default_cors
+    # The Capacitor native shell's WebView serves the app from a FIXED local origin (not a network
+    # host), so its cross-origin calls to this API need explicit CORS allowance (#1310). These are
+    # constant app origins — safe to always allow, even when prod pins the web hostname above. Auth
+    # rides a Bearer token on native (not the cookie), but allow_credentials stays on for the web.
+    _native_origins = [
+        "capacitor://localhost",  # iOS default
+        "https://localhost",  # Android (androidScheme: https, our default)
+        "http://localhost",  # Android (http scheme) / fallback
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_cors_origins,
+        allow_origins=[*_cors_origins, *_native_origins],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

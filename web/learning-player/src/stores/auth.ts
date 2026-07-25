@@ -5,6 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { getMe, loginUrl, logout as apiLogout } from '../services/api'
+import { isNative, startNativeLogin, storeAuthToken } from '../services/native'
 import type { Me } from '../services/types'
 
 interface AuthState {
@@ -27,12 +28,20 @@ export const useAuthStore = defineStore('auth', {
       if (!this.loaded) await this.refresh()
     },
     login(as?: string): void {
-      // Full-page redirect into the OAuth flow (Google in prod, mock provider in dev/e2e).
+      if (isNative()) {
+        // Native (#1310): iOS uses ASWebAuthenticationSession (prompt-free), Android the system
+        // browser + intent-filter callback; both return the signed token → refresh() via
+        // initNativeAuth's onAuthed. A full-page redirect here would strand the WebView.
+        void startNativeLogin(loginUrl(as, true))
+        return
+      }
+      // Web: full-page redirect into the OAuth flow (Google in prod, mock provider in dev/e2e).
       // `as` is the dev-picker identity hint (mock provider only).
       window.location.assign(loginUrl(as))
     },
     async logout(): Promise<void> {
       await apiLogout()
+      if (isNative()) storeAuthToken(null) // stateless token → client-side discard
       this.user = null
     },
   },

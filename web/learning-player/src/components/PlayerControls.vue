@@ -98,7 +98,13 @@ function onScrub(ev: Event): void {
       <span>{{ formatTime(duration) }}</span>
     </div>
 
-    <div class="mt-3 flex items-center justify-center gap-6">
+    <!-- Play is DEAD-CENTRE: back-15 / forward-30 flank it symmetrically in the centred flow;
+         the speed toggle is pinned right, and the optional `corner` affordance (transcript toggle
+         on mobile) is pinned left — both absolute so they add no height and don't tilt the row. -->
+    <div class="relative mt-3 flex items-center justify-center gap-6">
+      <div v-if="$slots.corner" class="absolute left-0 top-1/2 -translate-y-1/2 lg:hidden">
+        <slot name="corner" />
+      </div>
       <button type="button" class="font-bold" :aria-label="t('player.back15')" @click="emit('skip', -15)">
         ↺15
       </button>
@@ -122,7 +128,7 @@ function onScrub(ev: Event): void {
       </button>
       <button
         type="button"
-        class="rounded-full bg-overlay px-3 py-1 text-sm font-bold text-accent"
+        class="absolute right-0 top-1/2 -translate-y-1/2 rounded-full bg-overlay px-3 py-1 text-sm font-bold text-accent"
         :aria-label="t('player.speed')"
         @click="emit('cycle-rate')"
       >

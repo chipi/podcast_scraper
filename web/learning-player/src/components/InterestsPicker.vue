@@ -116,7 +116,7 @@ onUnmounted(() => {
     <div
       ref="dialogEl"
       tabindex="-1"
-      class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+      class="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
     >
       <header class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <span class="min-w-0">

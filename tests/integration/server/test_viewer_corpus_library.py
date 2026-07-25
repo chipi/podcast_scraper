@@ -369,6 +369,12 @@ def test_corpus_feeds_and_episodes_flat_layout(tmp_path: Path) -> None:
     doc["episode"]["episode_number"] = 3
     (meta / "one.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
 
+    # /api/corpus/feeds caches the catalog scan keyed on the corpus run-summary
+    # mtime (perf_cache "catalog_feeds"). In production, changed episode metadata
+    # only ever arrives via a pipeline run, which rewrites corpus_run_summary.json
+    # — so signal that here (a raw file edit with no run isn't a real flow).
+    (tmp_path / "corpus_run_summary.json").write_text("{}", encoding="utf-8")
+
     fr2 = client.get("/api/corpus/feeds", params={"path": str(tmp_path)})
     assert fr2.status_code == 200
     assert fr2.json()["feeds"][0]["image_url"] == "https://cdn.example/feed-art.png"

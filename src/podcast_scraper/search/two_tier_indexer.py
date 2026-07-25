@@ -334,6 +334,7 @@ def build_two_tier_index(
                         derived=bool(meta.get("grounded")),
                         publish_date=meta.get("publish_date"),
                         source_id=meta.get("source_id"),
+                        insight_type=meta.get("insight_type"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )

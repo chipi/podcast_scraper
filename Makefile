@@ -1321,6 +1321,13 @@ test-ui:
 	@echo "Vitest unit tests + coverage gate (gi-kg-viewer, #914)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
+# Perf-harness aggregation math (pure JS in scripts/dev/perf-agg.mjs). Node's
+# built-in runner, no deps. Guards the median / cold-exclusion / split math that
+# produces the report numbers.
+test-perf-agg:
+	@echo "Perf-harness aggregation unit tests (node --test)..."
+	node --test tests/unit/scripts/dev/perf-agg.test.mjs; echo "MAKE_EXIT=$$?"
+
 # Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."

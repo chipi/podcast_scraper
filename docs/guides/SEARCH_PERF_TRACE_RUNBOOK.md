@@ -62,7 +62,7 @@ against a running api and records latency + concurrent-load behavior.
     api worker) and fails the run non-zero.
 
 Emits one aggregated `<label>.api.metrics.json` under `--output-dir`
-(default `docs/wip/search-v3/traces/`) with p50/p95/p99/max/mean per
+(default `data/perf/traces/search/`) with p50/p95/p99/max/mean per
 scenario + a `sigsegv_free` flag on the concurrent scenario.
 
 ### 2.2 `scripts/dev/capture-search-perf.{sh,mjs}` (partial — ships in stabilization pass, extends with S2)
@@ -111,7 +111,7 @@ scripts/dev/capture-search-api.sh \
     --iterations 3
 
 # 3. Commit the JSON.
-git add docs/wip/search-v3/traces/S0-api-baseline.api.metrics.json
+git add data/perf/traces/search/S0-api-baseline.api.metrics.json
 ```
 
 ### Per-slice diff (every slice PR under #1229 that touches search)
@@ -125,8 +125,8 @@ scripts/dev/capture-search-api.sh \
     --iterations 3
 
 # Diff against the S0 baseline in the PR body:
-diff <(jq -S . docs/wip/search-v3/traces/S0-api-baseline.api.metrics.json) \
-     <(jq -S . docs/wip/search-v3/traces/S<N>-<slice-slug>-tip.api.metrics.json)
+diff <(jq -S . data/perf/traces/search/S0-api-baseline.api.metrics.json) \
+     <(jq -S . data/perf/traces/search/S<N>-<slice-slug>-tip.api.metrics.json)
 ```
 
 ## 4. Reading the outputs
@@ -246,7 +246,7 @@ allocated in the NOT_APPLICABLE_YET rows.
 
 Not something the harness or agent can produce — the deep-review is a
 per-surface latency-contributor analysis of the **operator's** real-corpus
-API baseline (`docs/wip/search-v3/traces/S0-api-baseline.api.metrics.json`,
+API baseline (`data/perf/traces/search/S0-api-baseline.api.metrics.json`,
 plus any subsequent labeled captures). That baseline can only be captured
 by Marko (needs `make serve` against his real corpus; the fixture-corpus
 numbers this repo can produce are too small to be representative of

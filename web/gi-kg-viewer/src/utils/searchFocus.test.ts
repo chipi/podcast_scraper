@@ -3,6 +3,7 @@ import type { Core } from 'cytoscape'
 import {
   episodeFallbackForSearchHit,
   graphNodeIdFromSearchHit,
+  primaryCompareSubjectFromHit,
   resolveCyNodeId,
 } from './searchFocus'
 import type { SearchHit } from '../api/searchApi'
@@ -70,6 +71,60 @@ describe('episodeFallbackForSearchHit', () => {
     const core = mockCore(['__unified_ep__:6162ba8a'])
     expect(primary && resolveCyNodeId(core, primary)).toBeNull()
     expect(fallback && resolveCyNodeId(core, fallback)).toBe('__unified_ep__:6162ba8a')
+  })
+})
+
+describe('primaryCompareSubjectFromHit (Search v3 §S8 pin-to-compare)', () => {
+  function md(metadata: Record<string, unknown>): SearchHit {
+    return { doc_id: 'd1', score: 0.9, text: 't', metadata } as SearchHit
+  }
+
+  it('maps a kg_topic hit to a Topic subject', () => {
+    expect(
+      primaryCompareSubjectFromHit(
+        md({ doc_type: 'kg_topic', source_id: 'topic:compute', topic_label: 'Compute' }),
+      ),
+    ).toEqual({ kind: 'topic', id: 'topic:compute', label: 'Compute' })
+  })
+
+  it('maps a kg_entity hit to a Person subject', () => {
+    expect(
+      primaryCompareSubjectFromHit(
+        md({ doc_type: 'kg_entity', source_id: 'person:alice', entity_label: 'Alice' }),
+      ),
+    ).toEqual({ kind: 'person', id: 'person:alice', label: 'Alice' })
+  })
+
+  it('maps an insight hit with a speaker to a Person subject', () => {
+    expect(
+      primaryCompareSubjectFromHit(md({ doc_type: 'insight', speaker_name: 'Bob' })),
+    ).toEqual({ kind: 'person', id: 'Bob', label: 'Bob' })
+  })
+
+  it('falls back to the Episode when no speaker is present', () => {
+    expect(
+      primaryCompareSubjectFromHit(
+        md({ doc_type: 'transcript', episode_id: 'ep-9', episode_title: 'Ep Nine' }),
+      ),
+    ).toEqual({ kind: 'episode', id: 'ep-9', label: 'Ep Nine' })
+  })
+
+  it('prefers the speaker over the episode for an insight hit that has both', () => {
+    expect(
+      primaryCompareSubjectFromHit(
+        md({ doc_type: 'insight', speaker: 'Carol', episode_id: 'ep-1' }),
+      ),
+    ).toEqual({ kind: 'person', id: 'Carol', label: 'Carol' })
+  })
+
+  it('returns null when nothing usable is present', () => {
+    expect(primaryCompareSubjectFromHit(md({ doc_type: 'insight' }))).toBeNull()
+  })
+
+  it('returns null for a kg_topic hit with a blank source_id', () => {
+    expect(
+      primaryCompareSubjectFromHit(md({ doc_type: 'kg_topic', source_id: '   ' })),
+    ).toBeNull()
   })
 })
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
 
 /**
  * Regression guard for the paragraph-transcript rewrite (this session). Segments are grouped into
@@ -13,10 +13,12 @@ import { signInIsolated } from './helpers'
 test('transcript renders as flowing paragraphs with per-paragraph capture', async ({
   page,
 }, testInfo) => {
+  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'paragraphs', testInfo)
   await page.goto('/')
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
+  await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   // The transcript renders from the real corpus (metadata → /segments path).
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
 

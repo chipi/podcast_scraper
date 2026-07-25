@@ -124,6 +124,33 @@ describe('useSearchStore.runCompare (Search v3 §S8)', () => {
     expect(s.compareLoading).toBe(false)
   })
 
+  it('pinCompareSubject appends, dedupes on kind+id, and keeps only the last 2', () => {
+    const s = useSearchStore()
+    expect(s.comparePins).toEqual([])
+    s.pinCompareSubject({ kind: 'person', id: 'Alice', label: 'Alice' })
+    s.pinCompareSubject({ kind: 'person', id: 'Bob', label: 'Bob' })
+    expect(s.comparePins.map((p) => p.id)).toEqual(['Alice', 'Bob'])
+    // Re-pinning an existing subject is a no-op (no reorder, no duplicate).
+    s.pinCompareSubject({ kind: 'person', id: 'Alice', label: 'Alice' })
+    expect(s.comparePins.map((p) => p.id)).toEqual(['Alice', 'Bob'])
+    // A third distinct pin evicts the oldest (ring buffer of 2).
+    s.pinCompareSubject({ kind: 'topic', id: 'topic:compute', label: 'Compute' })
+    expect(s.comparePins.map((p) => p.id)).toEqual(['Bob', 'topic:compute'])
+  })
+
+  it('pinCompareSubject ignores an empty / whitespace id', () => {
+    const s = useSearchStore()
+    s.pinCompareSubject({ kind: 'person', id: '   ' })
+    expect(s.comparePins).toEqual([])
+  })
+
+  it('clearComparePins empties the pin ring', () => {
+    const s = useSearchStore()
+    s.pinCompareSubject({ kind: 'person', id: 'Alice' })
+    s.clearComparePins()
+    expect(s.comparePins).toEqual([])
+  })
+
   it('clearCompare wipes result + error and does not touch results/clusters', async () => {
     const s = useSearchStore()
     s.compareResult = { pack_a: {}, pack_b: {}, judge_summary: null } as never

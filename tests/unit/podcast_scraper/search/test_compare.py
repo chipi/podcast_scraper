@@ -18,6 +18,7 @@ from typing import Any, Dict, List
 import pytest
 
 from podcast_scraper.search.compare import (
+    _filter_rows_by_insight_type,
     _judge_summary,
     _scope_for_subject,
     BriefingPack,
@@ -35,7 +36,16 @@ def _hit(
     show_id: str = "show1",
     publish_date: str = "2026-06-01",
     confidence: float = 0.8,
+    insight_type: str | None = None,
 ) -> Dict[str, Any]:
+    metadata: Dict[str, Any] = {
+        "episode_id": episode_id,
+        "show_id": show_id,
+        "publish_date": publish_date,
+        "confidence": confidence,
+    }
+    if insight_type is not None:
+        metadata["insight_type"] = insight_type
     return {
         "doc_id": doc_id,
         "score": 0.9,
@@ -43,12 +53,7 @@ def _hit(
         "source_tier": source_tier,
         "signal": "rrf",
         "text": text,
-        "metadata": {
-            "episode_id": episode_id,
-            "show_id": show_id,
-            "publish_date": publish_date,
-            "confidence": confidence,
-        },
+        "metadata": metadata,
     }
 
 
@@ -364,3 +369,147 @@ class TestCompareSubjects:
         )
         assert outcome.pack_a.result_count == 3
         assert outcome.pack_b.result_count == 1
+
+
+# --------------------------------------------------------------------------
+# _filter_rows_by_insight_type + compare_subjects insight_types propagation
+# --------------------------------------------------------------------------
+
+
+class TestFilterRowsByInsightType:
+    def test_none_is_noop(self) -> None:
+        rows = [_hit("insight:a", "A", insight_type="claim")]
+        assert _filter_rows_by_insight_type(rows, None) == rows
+
+    def test_empty_list_is_noop(self) -> None:
+        rows = [_hit("insight:a", "A", insight_type="claim")]
+        assert _filter_rows_by_insight_type(rows, []) == rows
+
+    def test_whitespace_only_list_is_noop(self) -> None:
+        rows = [_hit("insight:a", "A", insight_type="claim")]
+        # An allowed set that filters down to empty after strip is a no-op —
+        # a wire-shape guard against silently dropping all hits.
+        assert _filter_rows_by_insight_type(rows, ["   ", ""]) == rows
+
+    def test_drops_insights_outside_allowed_set(self) -> None:
+        rows = [
+            _hit("insight:a1", "A1", insight_type="claim"),
+            _hit("insight:a2", "A2", insight_type="observation"),
+            _hit("insight:a3", "A3", insight_type="recommendation"),
+        ]
+        kept = _filter_rows_by_insight_type(rows, ["claim", "recommendation"])
+        kept_ids = [r["doc_id"] for r in kept]
+        assert kept_ids == ["insight:a1", "insight:a3"]
+
+    def test_segment_rows_always_pass_through(self) -> None:
+        """Segments carry no ``insight_type`` — they are supporting evidence
+        and must survive the filter regardless of the allowed set."""
+        rows = [
+            _hit("insight:a1", "A", insight_type="claim"),
+            _hit("segment:s1", "seg text", source_tier="segment"),
+            _hit("insight:a2", "A2", insight_type="observation"),
+        ]
+        kept = _filter_rows_by_insight_type(rows, ["claim"])
+        kept_ids = [r["doc_id"] for r in kept]
+        assert kept_ids == ["insight:a1", "segment:s1"]
+
+    def test_case_insensitive_match(self) -> None:
+        rows = [
+            _hit("insight:a1", "A", insight_type="Claim"),
+            _hit("insight:a2", "B", insight_type="OBSERVATION"),
+        ]
+        kept = _filter_rows_by_insight_type(rows, ["claim"])
+        assert [r["doc_id"] for r in kept] == ["insight:a1"]
+
+    def test_missing_insight_type_treated_as_unknown_and_dropped(self) -> None:
+        """Insight-tier row with no ``insight_type`` doesn't match ``claim`` —
+        so the filter drops it. The migration in
+        ``migrations/gil_kg_identity_migrations.py`` stamps ``unknown`` on
+        legacy insights; the filter honours that by matching ``unknown`` too
+        when it's in the allowed set."""
+        rows = [
+            _hit("insight:a1", "A"),  # no insight_type → dropped
+            _hit("insight:a2", "B", insight_type="unknown"),
+        ]
+        kept_claim_only = _filter_rows_by_insight_type(rows, ["claim"])
+        assert kept_claim_only == []
+        kept_with_unknown = _filter_rows_by_insight_type(rows, ["claim", "unknown"])
+        assert [r["doc_id"] for r in kept_with_unknown] == ["insight:a2"]
+
+
+class TestCompareSubjectsInsightTypes:
+    def test_insight_types_narrows_both_sides_symmetrically(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each side sees the SAME allowed-types filter — a hard requirement
+        so the compare stays balanced (RFC-107 §S8 acceptance)."""
+        _stub_search(
+            monkeypatch,
+            [
+                [
+                    _hit("insight:a1", "A1", insight_type="claim", confidence=0.9),
+                    _hit("insight:a2", "A2", insight_type="observation", confidence=0.8),
+                ],
+                [
+                    _hit("insight:b1", "B1", insight_type="observation", confidence=0.7),
+                    _hit("insight:b2", "B2", insight_type="claim", confidence=0.6),
+                ],
+            ],
+        )
+        outcome = compare_subjects(
+            tmp_path,
+            SubjectRef(kind="person", id="A"),
+            SubjectRef(kind="person", id="B"),
+            q="x",
+            insight_types=["claim"],
+        )
+        # Each side keeps only the ``claim`` insight — the top_insight_id
+        # on each pack proves the filter was applied.
+        assert outcome.pack_a.top_insight_id == "insight:a1"
+        assert outcome.pack_a.result_count == 1
+        assert outcome.pack_b.top_insight_id == "insight:b2"
+        assert outcome.pack_b.result_count == 1
+
+    def test_insight_types_none_matches_baseline(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _stub_search(
+            monkeypatch,
+            [
+                [_hit("insight:a1", "A1", insight_type="observation")],
+                [_hit("insight:b1", "B1", insight_type="observation")],
+            ],
+        )
+        outcome = compare_subjects(
+            tmp_path,
+            SubjectRef(kind="person", id="A"),
+            SubjectRef(kind="person", id="B"),
+            q="x",
+            insight_types=None,
+        )
+        assert outcome.pack_a.top_insight_id == "insight:a1"
+        assert outcome.pack_b.top_insight_id == "insight:b1"
+
+    def test_insight_types_that_zero_out_a_side_marks_it_ungrounded(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A filter that leaves subject B with zero insight rows still
+        returns a pack — just marked ungrounded — and the judge summary
+        mutes (RFC-107 §S8 acceptance)."""
+        _stub_search(
+            monkeypatch,
+            [
+                [_hit("insight:a1", "A", insight_type="claim")],
+                [_hit("insight:b1", "B", insight_type="observation")],
+            ],
+        )
+        outcome = compare_subjects(
+            tmp_path,
+            SubjectRef(kind="person", id="A"),
+            SubjectRef(kind="person", id="B"),
+            q="x",
+            insight_types=["claim"],
+        )
+        assert outcome.pack_a.grounded is True
+        assert outcome.pack_b.grounded is False
+        assert outcome.judge_summary is None

@@ -17,7 +17,7 @@
 #   scripts/dev/capture-search-perf.sh \
 #       --corpus /abs/path/to/corpus \
 #       --label search-v3-s1-tip \
-#       [--output-dir docs/wip/search-v3/traces] \
+#       [--output-dir data/perf/traces/search] \
 #       [--api-port 8601] [--viewer-port 5601] \
 #       [--wait-ms 3000]
 #
@@ -28,10 +28,11 @@ set -euo pipefail
 
 CORPUS=""
 LABEL=""
-OUTPUT_DIR="docs/wip/search-v3/traces"
+OUTPUT_DIR="data/perf/traces/search"
 API_PORT="8601"
 VIEWER_PORT="5601"
 WAIT_MS="3000"
+RUNS="3"
 VIEWPORT_WIDTH="1440"
 VIEWPORT_HEIGHT="900"
 VIEWPORT_DPR="2"
@@ -44,6 +45,7 @@ while [ $# -gt 0 ]; do
     --api-port)       API_PORT="$2"; shift 2 ;;
     --viewer-port)    VIEWER_PORT="$2"; shift 2 ;;
     --wait-ms)        WAIT_MS="$2"; shift 2 ;;
+    --runs)           RUNS="$2"; shift 2 ;;
     --viewport-w)     VIEWPORT_WIDTH="$2"; shift 2 ;;
     --viewport-h)     VIEWPORT_HEIGHT="$2"; shift 2 ;;
     --viewport-dpr)   VIEWPORT_DPR="$2"; shift 2 ;;
@@ -116,8 +118,10 @@ if ! curl -fsS -o /dev/null "http://127.0.0.1:${API_PORT}/api/health"; then
 fi
 
 echo "[capture-search-perf] booting viewer on :${VIEWER_PORT}"
+# The viewer proxies /api via vite.config.ts using VITE_API_TARGET (default
+# :8000). Point it at our isolated api port so the viewer sees a healthy API.
 env -u NODE_OPTIONS bash -c "cd ${VIEWER_DIR} && \
-  VITE_API_BASE=http://127.0.0.1:${API_PORT} \
+  VITE_API_TARGET=http://127.0.0.1:${API_PORT} \
   node_modules/.bin/vite --host 127.0.0.1 --port ${VIEWER_PORT} --strictPort" \
   > "${VIEWER_LOG}" 2>&1 &
 VIEWER_PID=$!
@@ -140,6 +144,7 @@ env -u NODE_OPTIONS bash -c "cd ${VIEWER_DIR} && \
     --label '${LABEL}' \
     --output-dir '${OUTPUT_DIR}' \
     --wait-ms '${WAIT_MS}' \
+    --runs '${RUNS}' \
     --viewport-w '${VIEWPORT_WIDTH}' \
     --viewport-h '${VIEWPORT_HEIGHT}' \
     --viewport-dpr '${VIEWPORT_DPR}'"

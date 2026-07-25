@@ -13,6 +13,7 @@ from .migration import Migration
 from .migrations.m0001_faiss_to_lance import FaissToLanceMigration
 from .migrations.m0002_two_tier_native_reindex import TwoTierNativeReindexMigration
 from .migrations.m0003_gi_v3_typed_mentions import GiV3TypedMentionsMigration
+from .migrations.m0004_insight_type_reindex import InsightTypeReindexMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -20,10 +21,14 @@ from .migrations.m0003_gi_v3_typed_mentions import GiV3TypedMentionsMigration
 # is intentionally NOT a migration: it is computed live at graph-build, not persisted.
 # 0003 retrofits the RFC-097 v3 GI schema migration into the framework — previously
 # only runnable via the standalone scripts/migrate_gi_to_v3.py and easy to forget.
+# 0004 reindexes the two-tier LanceDB index when its schema predates the insight_type
+# column (LANCE_SCHEMA_VERSION 3) so the Search v3 §S8 compare insight_types filter
+# works — a fresh id because 0002 is already in every upgraded corpus's ledger.
 _MIGRATIONS: List[Migration] = [
     FaissToLanceMigration(),
     TwoTierNativeReindexMigration(),
     GiV3TypedMentionsMigration(),
+    InsightTypeReindexMigration(),
 ]
 
 

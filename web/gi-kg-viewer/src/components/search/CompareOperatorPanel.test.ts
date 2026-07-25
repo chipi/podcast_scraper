@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../lib/analytics', () => ({ track: vi.fn() }))
 
 import CompareOperatorPanel from './CompareOperatorPanel.vue'
+import { useSearchStore } from '../../stores/search'
 import type { SearchCompareResponse, SearchHit } from '../../api/searchApi'
 
 /**
@@ -117,9 +118,120 @@ describe('CompareOperatorPanel (Search v3 §S8)', () => {
     await w.get('[data-testid="operator-compare-run"]').trigger('click')
     const emitted = w.emitted('run-compare')
     expect(emitted).toBeTruthy()
-    const [payload] = emitted![0] as [{ subjectA: { id: string }; subjectB: { id: string } }]
+    const [payload] = emitted![0] as [{
+      subjectA: { id: string }
+      subjectB: { id: string }
+      insightTypes: string[]
+    }]
     expect(payload.subjectA.id).toBe('Alice')
     expect(payload.subjectB.id).toBe('Bob')
+    // No insight-type chip selected → payload carries an empty filter.
+    expect(payload.insightTypes).toEqual([])
+    w.unmount()
+  })
+
+  it('emits selected insight_types on the run-compare payload after chip toggles', async () => {
+    const w = mountPanel({
+      visibleHits: [
+        makeHit({ metadata: { speaker_name: 'Alice' } }),
+        makeHit({ metadata: { speaker_name: 'Bob' } }),
+      ],
+    })
+    // Toggle two insight-type chips; both must appear on the emitted payload.
+    await w.get('[data-testid="operator-compare-insight-type-claim"]').trigger('click')
+    await w.get('[data-testid="operator-compare-insight-type-recommendation"]').trigger('click')
+    await w.get('[data-testid="operator-compare-run"]').trigger('click')
+    const emitted = w.emitted('run-compare')
+    const [payload] = emitted![0] as [{ insightTypes: string[] }]
+    expect(payload.insightTypes.sort()).toEqual(['claim', 'recommendation'])
+    // Toggle claim off again → payload updates on the next run.
+    await w.get('[data-testid="operator-compare-insight-type-claim"]').trigger('click')
+    await w.get('[data-testid="operator-compare-run"]').trigger('click')
+    const [payload2] = emitted![1] as [{ insightTypes: string[] }]
+    expect(payload2.insightTypes).toEqual(['recommendation'])
+    w.unmount()
+  })
+
+  it('seeds slot A / slot B from search.comparePins in preference to hit discovery', async () => {
+    // Pin two subjects that are NOT in the visible hits — the picker must
+    // still seed both slots from the pins (S8 "pinning prefills the picker").
+    const s = useSearchStore()
+    s.pinCompareSubject({ kind: 'person', id: 'person:carol', label: 'Carol' })
+    s.pinCompareSubject({ kind: 'topic', id: 'topic:compute', label: 'Compute' })
+    const w = mountPanel({
+      visibleHits: [
+        makeHit({ metadata: { speaker_name: 'Alice' } }),
+        makeHit({ metadata: { speaker_name: 'Bob' } }),
+      ],
+    })
+    const slotA = w.get('[data-testid="operator-compare-slot-a"]').element as HTMLSelectElement
+    const slotB = w.get('[data-testid="operator-compare-slot-b"]').element as HTMLSelectElement
+    expect(slotA.value).toBe('person::person:carol')
+    expect(slotB.value).toBe('topic::topic:compute')
+    // The pinned subjects are selectable options even though they are not in
+    // the visible hits.
+    await w.get('[data-testid="operator-compare-run"]').trigger('click')
+    const [payload] = w.emitted('run-compare')![0] as [
+      { subjectA: { id: string }; subjectB: { id: string } },
+    ]
+    expect(payload.subjectA.id).toBe('person:carol')
+    expect(payload.subjectB.id).toBe('topic:compute')
+    w.unmount()
+  })
+
+  it('a single pin seeds slot A and leaves slot B to hit discovery', () => {
+    const s = useSearchStore()
+    s.pinCompareSubject({ kind: 'person', id: 'person:carol', label: 'Carol' })
+    const w = mountPanel({
+      visibleHits: [
+        makeHit({ metadata: { speaker_name: 'Alice' } }),
+        makeHit({ metadata: { speaker_name: 'Bob' } }),
+      ],
+    })
+    const slotA = w.get('[data-testid="operator-compare-slot-a"]').element as HTMLSelectElement
+    const slotB = w.get('[data-testid="operator-compare-slot-b"]').element as HTMLSelectElement
+    expect(slotA.value).toBe('person::person:carol')
+    // Slot B falls back to the top discovered subject (Alice or Bob).
+    expect(['person::Alice', 'person::Bob']).toContain(slotB.value)
+    w.unmount()
+  })
+
+  it('shows the RFC-072 KL2 alias hint when both slots resolve to Persons', () => {
+    const w = mountPanel({
+      visibleHits: [
+        makeHit({ metadata: { speaker_name: 'Alice' } }),
+        makeHit({ metadata: { speaker_name: 'Bob' } }),
+      ],
+    })
+    const hint = w.get('[data-testid="operator-compare-alias-hint"]')
+    expect(hint.text()).toContain('Persons')
+    expect(hint.text()).toContain('aliased')
+    w.unmount()
+  })
+
+  it('shows the RFC-072 KL3 alias hint when both slots resolve to Topics', () => {
+    const w = mountPanel({
+      visibleHits: [
+        makeHit({ metadata: { topic_label: 'Compute' } }),
+        makeHit({ metadata: { topic_label: 'Governance' } }),
+      ],
+    })
+    const hint = w.get('[data-testid="operator-compare-alias-hint"]')
+    expect(hint.text()).toContain('Topics')
+    expect(hint.text()).toContain('aliased')
+    w.unmount()
+  })
+
+  it('does not show the alias hint when the two picker slots are different kinds', () => {
+    // One person + one topic → cross-kind pair, KL2/KL3 not applicable.
+    const w = mountPanel({
+      visibleHits: [
+        makeHit({ metadata: { speaker_name: 'Alice', topic_label: 'Compute' } }),
+      ],
+    })
+    // Only 1 hit → 1 person + 1 topic discovered = 2 candidates of different kinds.
+    // Slots auto-seed with the top-2 (person first by count-then-alpha, then topic).
+    expect(w.find('[data-testid="operator-compare-alias-hint"]').exists()).toBe(false)
     w.unmount()
   })
 

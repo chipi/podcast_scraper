@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { openTranscript, routeLoadableAudio } from './helpers'
 
 /**
  * The test that would have caught the transcript_file_path bug — REAL API over the COMMITTED
@@ -13,6 +14,7 @@ import { expect, test } from '@playwright/test'
  * insights drawn from the diarized transcript.
  */
 test('home → player renders the transcript + insights (no mocks)', async ({ page }) => {
+  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await page.goto('/')
   await expect(page.getByText('Learning Player')).toBeVisible()
 
@@ -26,6 +28,9 @@ test('home → player renders the transcript + insights (no mocks)', async ({ pa
   await expect(
     page.getByRole('heading', { name: /Index Investing Without the Myths/ }),
   ).toBeVisible()
+
+  // Transcript is opt-in on mobile — reveal it (no-op on desktop) before asserting its content.
+  await openTranscript(page)
 
   // THE regression assertion: the transcript renders from the real corpus (transcript_file_path
   // → /segments). If the metadata key is wrong, this is empty ("Transcript pending"). This line

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1",
+  "generated_at": "2026-07-24",
+  "generated_by": "hand-authored (perf harness gap A — prod-v2 search-API latency baseline)",
+  "target_corpus": ".test_outputs/manual/prod-v2/corpus (99-episode finance/markets corpus; local, git-ignored)",
+  "notes": [
+    "25 queries, 5 per RFC-092 intent class, grounded in prod-v2's real topic clusters (inflation, financial-markets, china-economy, ai-technology, market-bubbles, global-trade, private-markets, ...).",
+    "expected_top_k_doc_ids is null on every query: this is a LATENCY baseline (p50/p95/p99 per intent + top_k grid + 4-way concurrency), NOT a correctness/ndcg baseline. capture_search_api.py reads only `q` and `intent_expected`.",
+    "label_status: 'unlabeled-seed' — no human has audited relevance; adopt-top-K as a regression anchor or hand-audit later if a correctness baseline is wanted (see search-queries.README.md lifecycle)."
+  ],
+  "queries": [
+    { "id": "el_001", "q": "Federal Reserve", "intent_expected": "entity_lookup", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "el_002", "q": "Jerome Powell", "intent_expected": "entity_lookup", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "el_003", "q": "Nvidia", "intent_expected": "entity_lookup", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "el_004", "q": "OpenAI", "intent_expected": "entity_lookup", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "el_005", "q": "China", "intent_expected": "entity_lookup", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "re_001", "q": "what did they say about inflation", "intent_expected": "raw_evidence", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "re_002", "q": "quotes on interest rates", "intent_expected": "raw_evidence", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "re_003", "q": "evidence of a market bubble", "intent_expected": "raw_evidence", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "re_004", "q": "claims about AI productivity gains", "intent_expected": "raw_evidence", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "re_005", "q": "arguments for and against a recession", "intent_expected": "raw_evidence", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "tt_001", "q": "what has changed in the economy", "intent_expected": "temporal_tracking", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "tt_002", "q": "recent shifts in financial markets", "intent_expected": "temporal_tracking", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "tt_003", "q": "how inflation expectations evolved", "intent_expected": "temporal_tracking", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "tt_004", "q": "latest developments in global trade", "intent_expected": "temporal_tracking", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "tt_005", "q": "new trends in technology adoption", "intent_expected": "temporal_tracking", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "cs_001", "q": "artificial intelligence discussed across shows", "intent_expected": "cross_show_synthesis", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "cs_002", "q": "recurring inflation themes", "intent_expected": "cross_show_synthesis", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "cs_003", "q": "market dynamics and volatility", "intent_expected": "cross_show_synthesis", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "cs_004", "q": "the role of private markets", "intent_expected": "cross_show_synthesis", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "cs_005", "q": "China's economy and global trade", "intent_expected": "cross_show_synthesis", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "se_001", "q": "economic stability", "intent_expected": "semantic", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "se_002", "q": "market bubbles", "intent_expected": "semantic", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "se_003", "q": "financial markets", "intent_expected": "semantic", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "se_004", "q": "product innovation", "intent_expected": "semantic", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" },
+    { "id": "se_005", "q": "AI technology and the economy", "intent_expected": "semantic", "expected_top_k_doc_ids": null, "label_status": "unlabeled-seed" }
+  ]
+}

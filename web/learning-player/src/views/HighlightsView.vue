@@ -8,7 +8,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { getEpisode, highlightsExportUrl } from '../services/api'
+import { fetchHighlightsExport, getEpisode, highlightsExportUrl } from '../services/api'
+import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
@@ -87,6 +88,20 @@ async function save(): Promise<void> {
   cancel()
 }
 
+// Native export: `<a download>` can't save in the iOS/Android WebView, so fetch the Markdown and
+// hand it to the OS share sheet instead (#1310). Web keeps the plain download link.
+const exporting = ref(false)
+async function exportHighlightsNative(): Promise<void> {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    const md = await fetchHighlightsExport()
+    await saveAndShareText('my-highlights.md', md)
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(async () => {
   await capture.ensureLoaded()
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
@@ -103,7 +118,16 @@ onMounted(async () => {
   <div>
     <div v-if="capture.count" class="mb-4 flex items-center justify-between gap-3">
       <p class="text-sm text-muted">{{ t('highlights.count', capture.count, { named: { count: capture.count } }) }}</p>
+      <!-- Native shell: write+share (WKWebView can't `<a download>`); web: plain download link (#1310). -->
+      <button
+        v-if="isNative()"
+        type="button"
+        :disabled="exporting"
+        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+        @click="exportHighlightsNative"
+      >{{ t('highlights.export') }}</button>
       <a
+        v-else
         :href="highlightsExportUrl()"
         download="my-highlights.md"
         class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent no-underline transition hover:bg-overlay"

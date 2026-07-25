@@ -42,7 +42,10 @@ DEFAULT_EMBED_DIM = 384
 #   1 — initial two-tier schema (#855)
 #   2 — added fields: ``publish_date`` (date/``since`` filter) on all tiers +
 #       ``source_id`` (canonical graph node id → "Show on graph") on insight/aux
-LANCE_SCHEMA_VERSION = 2
+#   3 — added ``insight_type`` (RFC-072 GIL v1.1) on the insight tier so the
+#       Search v3 §S8 compare ``insight_types`` filter can scope by type.
+#       Corpora indexed at v2 report stale → operator reindexes to populate it.
+LANCE_SCHEMA_VERSION = 3
 
 _SEGMENT_TABLE = "segments"
 _INSIGHT_TABLE = "insights"
@@ -97,6 +100,7 @@ def _insight_schema(dim: int) -> "pa.Schema":
             ("source_tier", pa.string()),
             ("publish_date", pa.string()),
             ("source_id", pa.string()),
+            ("insight_type", pa.string()),  # RFC-072 GIL v1.1 (Search v3 §S8 compare filter)
         ]
     )
 

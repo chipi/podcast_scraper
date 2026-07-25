@@ -126,6 +126,18 @@ All user-supplied corpus paths flow through one of:
 | `safe_relpath_under_corpus_root` | path_validation.py | `normpath` + `startswith` + no `..` -- returns `None` on escape |
 | `safe_resolve_directory` | path_validation.py | ``realpath`` + rejects ``..`` -- use before joins from a ``Path`` root |
 
+### 4. `py/cookie-injection` -- Cookie constructed from user input
+
+**Why it fires:** CodeQL flags `Response.set_cookie(...)` whose value is derived from request
+input (e.g. the OAuth `state`/`grant`/`platform` query params flow into the platform session's
+state cookie).
+
+**Why it is a false positive here:** the cookie value is never the raw input — it is
+`app_sessions.sign(payload)`, i.e. `base64url(json).base64url(hmac_sha256)`. The base64url alphabet
+is `[A-Za-z0-9_-]` plus a `.` separator: no CR/LF, `;`, or control characters can reach the
+`Set-Cookie` header, so header injection / response splitting is impossible. User-influenced fields
+live *inside* the JSON payload that gets base64-encoded, not in the header syntax.
+
 ---
 
 ## Dismissed alerts
@@ -304,6 +316,11 @@ number, file, line, date, and a short comment.
 | 1 | #432 | search/operators.py | 189 | 2026-07-23 | Type 1: same as #431 — ``path.read_text()`` on the validated corpus-root-anchored path. Dismissed via ``gh api`` (PR #1274) |
 | 1 | #364 | search/hybrid_search.py | 190 | 2026-07-23 | Type 1: ``index_dir_str`` passes through ``safe_relpath_under_corpus_root`` + ``normpath_if_under_root`` before ``os.path.isdir``. Pre-existing on main (never dismissed); dismissed here since inline ``# codeql[]`` pragma is docs-only per registry policy. Dismissed via ``gh api`` (PR #1274) |
 | 1 | #387 | search/topic_clusters.py | 104 | 2026-07-23 | Type 1: ``joined`` built with inline ``normpath + startswith(safe_prefix)`` guard in the same function before ``os.path.isfile``. Pre-existing on main; dismissed here since inline ``# codeql[]`` pragma is docs-only. Dismissed via ``gh api`` (PR #1274) |
+| 1 | #452 | server/routes/corpus_digest.py | 258 | 2026-07-25 | Type 1: ``root`` via ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor; raises on escape); ``perf_cache`` lambda sink, cross-fn taint gap. Same class as #306/#392. Dismissed via ``gh api`` (PR #1333) |
+| 1 | #453 | server/routes/corpus_digest.py | 311 | 2026-07-25 | Type 1: topic-band ``perf_cache`` key on the route-confined ``root`` (``resolve_corpus_path_param`` anchor guard). Same class as #452. Dismissed via ``gh api`` (PR #1333) |
+| 1 | #454 | server/routes/corpus_library.py | 261 | 2026-07-25 | Type 1: ``catalog_feeds`` ``perf_cache`` on ``root`` via ``_resolve_corpus_root``; re-fire of #306/#392, sink line drifted by the perf-cache change. Dismissed via ``gh api`` (PR #1333) |
+| 1 | #455 | search/lance_index_stats.py | 69 | 2026-07-25 | Type 1: ``lance_dir`` is server-derived (``index_dir/'lance_index'`` from the route-confined corpus root), not raw user input; ``perf_cache`` key/lambda sink. Same class as #342/#360. Dismissed via ``gh api`` (PR #1333) |
+| 4 | #456 | server/routes/app_auth.py | 151 | 2026-07-25 | Type 4 (``py/cookie-injection``) FP: the STATE_COOKIE value is ``app_sessions.sign(payload)`` = base64url(json).base64url(hmac) — base64url charset only, no CRLF/``;``/control chars → no header injection; user fields (grant/platform/state) are JSON-encoded inside the signed token (#1310). Dismissed via ``gh api`` (PR #1333) |
 
 ## Still open (not yet dismissed)
 

@@ -6,7 +6,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import anyio
 from fastapi import APIRouter, Query, Request
+from fastapi.concurrency import run_in_threadpool
 
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.compare import (
@@ -37,6 +39,16 @@ _VALID_OPERATORS = frozenset({"cluster", "consensus"})
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["search"])
+
+# Serialize native LanceDB access across requests. Search / compare / operators
+# run their ~100 ms native work in a threadpool (so the event loop stays free for
+# the page-load request burst — fixes the ~570 ms first-query-per-page
+# contention, #1276), but this semaphore keeps at most ONE native read in flight
+# at a time. That preserves the single-flight invariant the api has always had
+# (search used to block the single-worker event loop), so we do NOT reintroduce
+# the concurrent-native-access class of crash (#1205). Do not raise the bound
+# without a soak test that actually produces simultaneous native reads.
+_LANCE_GATE = anyio.Semaphore(1)
 
 
 def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None:
@@ -133,20 +145,24 @@ async def search_corpus(
                     flat.append(p)
         doc_types = flat or None
 
-    outcome = structured_corpus_search(
-        root,
-        q,
-        doc_types=doc_types,
-        feed=feed,
-        since=since,
-        speaker=speaker,
-        topic=topic,
-        episode_id=episode_id,
-        grounded_only=grounded_only,
-        top_k=top_k,
-        embedding_model=embedding_model,
-        dedupe_kg_surfaces=dedupe_kg_surfaces,
-    )
+    # Run the native hybrid search off the event loop (keeps the loop free for
+    # the page-load burst) but serialized via _LANCE_GATE (single-flight; #1205).
+    async with _LANCE_GATE:
+        outcome = await run_in_threadpool(
+            structured_corpus_search,
+            root,
+            q,
+            doc_types=doc_types,
+            feed=feed,
+            since=since,
+            speaker=speaker,
+            topic=topic,
+            episode_id=episode_id,
+            grounded_only=grounded_only,
+            top_k=top_k,
+            embedding_model=embedding_model,
+            dedupe_kg_surfaces=dedupe_kg_surfaces,
+        )
 
     if outcome["error"]:
         return CorpusSearchApiResponse(
@@ -199,11 +215,13 @@ async def search_corpus(
         operator_key = operator.strip().lower()
         hit_dicts = [{"doc_id": h.doc_id, "metadata": dict(h.metadata)} for h in hits]
         try:
+            # Off the event loop too (these read corpus files + cluster); no
+            # LanceDB native access, so no gate needed — just don't block.
             if operator_key == "cluster":
-                cluster_rows = cluster_hits(hit_dicts, root)
+                cluster_rows = await run_in_threadpool(cluster_hits, hit_dicts, root)
                 clusters = [SearchClusterGroupModel(**row) for row in cluster_rows]
             elif operator_key == "consensus":
-                pairs = consensus_pairs_for_hits(hit_dicts, root)
+                pairs = await run_in_threadpool(consensus_pairs_for_hits, hit_dicts, root)
                 consensus_pairs = [SearchConsensusPairModel(**p) for p in pairs]
         except Exception as exc:  # noqa: BLE001 — never break /api/search
             logger.warning("operator %r failed: %s", operator_key, exc)
@@ -279,18 +297,23 @@ async def search_compare(
             error="no_corpus_path",
         )
 
-    outcome = compare_subjects(
-        root,
-        CompareSubjectRef(
-            kind=body.subject_a.kind, id=body.subject_a.id, label=body.subject_a.label
-        ),
-        CompareSubjectRef(
-            kind=body.subject_b.kind, id=body.subject_b.id, label=body.subject_b.label
-        ),
-        q=body.q,
-        top_k=body.top_k,
-        max_tokens=body.max_tokens,
-    )
+    # compare runs TWO native subject-scoped searches; off the loop, serialized
+    # via the same single-flight gate as /api/search (#1276 perf, #1205 safety).
+    async with _LANCE_GATE:
+        outcome = await run_in_threadpool(
+            compare_subjects,
+            root,
+            CompareSubjectRef(
+                kind=body.subject_a.kind, id=body.subject_a.id, label=body.subject_a.label
+            ),
+            CompareSubjectRef(
+                kind=body.subject_b.kind, id=body.subject_b.id, label=body.subject_b.label
+            ),
+            q=body.q,
+            top_k=body.top_k,
+            max_tokens=body.max_tokens,
+            insight_types=body.insight_types,
+        )
     return SearchCompareResponse(
         pack_a=_pack_to_model(outcome.pack_a),
         pack_b=_pack_to_model(outcome.pack_b),

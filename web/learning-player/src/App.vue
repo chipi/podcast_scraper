@@ -5,9 +5,11 @@ import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
 import NavIconLink from './components/NavIconLink.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
+import TierSwitch from './components/TierSwitch.vue'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { useFavoritesStore } from './stores/favorites'
+import { initNativeAuth } from './services/native'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -15,13 +17,24 @@ const queue = useQueueStore()
 const favorites = useFavoritesStore()
 const router = useRouter()
 
-onMounted(async () => {
-  // Best-effort: resolve the session cookie to a user (null when signed out — reads still work).
-  await auth.refresh()
+async function hydrateUser(): Promise<void> {
   if (auth.isAuthenticated) {
     await queue.ensureLoaded()
     await favorites.ensureLoaded()
   }
+}
+
+onMounted(async () => {
+  // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE
+  // the first refresh so a saved session is picked up; the callback re-refreshes after a fresh login.
+  await initNativeAuth(async () => {
+    await auth.refresh()
+    await hydrateUser()
+  })
+  // Best-effort: resolve the session (cookie on web, bearer token on native) to a user — null when
+  // signed out, reads still work.
+  await auth.refresh()
+  await hydrateUser()
 })
 
 async function onSignOut(): Promise<void> {
@@ -32,14 +45,17 @@ async function onSignOut(): Promise<void> {
 
 <template>
   <SkipLink />
-  <div class="min-h-screen bg-canvas text-canvas-foreground font-sans">
-    <header class="border-b border-border px-5 py-4">
+  <div class="min-h-dvh bg-canvas text-canvas-foreground font-sans">
+    <!-- dvh (not vh) avoids the iOS 100vh over-report; safe-area top so the nav clears the
+         notch / Dynamic Island, and side insets for landscape rounded corners. -->
+    <header class="border-b border-border px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]">
       <div class="mx-auto flex max-w-6xl items-center justify-between">
       <RouterLink :to="{ name: 'home' }" class="no-underline">
         <span class="lp-kicker block">{{ t('app.tagline') }}</span>
         <span class="font-display text-2xl font-extrabold tracking-tight">{{ t('app.title') }}</span>
       </RouterLink>
       <nav class="text-sm flex items-center gap-1.5">
+        <TierSwitch />
         <NavIconLink :to="{ name: 'catalog' }" :label="t('nav.browse')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />

@@ -1,0 +1,53 @@
+{
+  "captured_at": "2026-07-24T15:49:34.949Z",
+  "label": "2.7.0.dev1-graph-lcp",
+  "target_url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "device_scale_factor": 2
+  },
+  "wait_after_nav_ms": 5000,
+  "nav_elapsed_ms": 15155,
+  "metrics": {
+    "lcp_ms": 932,
+    "lcp_element_tag": "P",
+    "lcp_element_id": "",
+    "fcp_ms": 932,
+    "ttfb_ms": 360.7000000476837,
+    "dom_content_loaded_ms": 878.7000000476837,
+    "load_event_end_ms": 952,
+    "long_tasks_count": 0,
+    "long_tasks_total_ms": 0,
+    "memory": {
+      "jsHeapUsedMB": 227.92816162109375,
+      "jsHeapLimitMB": 3585.8154296875
+    },
+    "graph_time_to_canvas_ms": 6313.400000095367,
+    "load_mode_seed": null,
+    "expand_on_tap": null,
+    "redraw_pipeline_marks": [],
+    "finish_layout_pass_measures": {
+      "flp:total": {
+        "count": 2,
+        "last_duration_ms": 207.19999992847443,
+        "total_duration_ms": 332.89999985694885
+      }
+    },
+    "sanity": {
+      "title": "Podcast Intelligence Platform",
+      "url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+      "hasCanvas": true,
+      "cytoscapeCanvasCount": 3,
+      "graphMountEl": true,
+      "loginVisible": false,
+      "bodyClasses": "",
+      "bodyText": "Podcast Intelligence Platform v2\nDigest\nLibrary\nSearch\nGraph\nDashboard\nOps\ndark\n/ search · Esc clear\nSAVED\n\nNo saved queries yet. Open the command palette (Cmd-K) and pick \"Save this query\" to keep on"
+    }
+  },
+  "trace_events_count": 209333,
+  "trace_files": {
+    "raw": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/perf/traces/graph/2.7.0.dev1-graph-lcp.trace.json",
+    "gz": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/perf/traces/graph/2.7.0.dev1-graph-lcp.trace.json.gz"
+  }
+}

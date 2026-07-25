@@ -101,3 +101,20 @@ def test_queries_by_intent_uses_real_search_queries_fixture() -> None:
     assert set(got.keys()) >= expected, f"missing intent buckets: {expected - set(got.keys())}"
     for intent in expected:
         assert len(got[intent]) >= 5, f"intent {intent} has fewer than 5 queries"
+
+
+def test_queries_by_intent_prod_v2_perf_fixture() -> None:
+    """The prod-v2 perf query set (harness gap A) must load into 5 intent buckets."""
+    mod = _load_module()
+    fixture = REPO_ROOT / "tests" / "fixtures" / "perf" / "prod-v2-search-queries.json"
+    got = mod._queries_by_intent(fixture)
+    expected = {
+        "entity_lookup",
+        "raw_evidence",
+        "temporal_tracking",
+        "cross_show_synthesis",
+        "semantic",
+    }
+    assert set(got.keys()) == expected, f"unexpected buckets: {set(got.keys()) ^ expected}"
+    for intent in expected:
+        assert len(got[intent]) == 5, f"intent {intent} should have exactly 5 queries"

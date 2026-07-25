@@ -20,8 +20,41 @@ sys.modules["pre_release_check_under_test"] = _prc
 _SPEC.loader.exec_module(_prc)
 
 run_checks = _prc.run_checks
+check_perf_report = _prc.check_perf_report
 
 pytestmark = [pytest.mark.unit]
+
+
+def _write_perf_report(base: Path, version: str) -> None:
+    d = base / "docs" / "guides" / "perf-traces" / "reports"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"2026-01-01-{version}.md").write_text(f"# perf {version}\n", encoding="utf-8")
+
+
+def test_check_perf_report_found_by_filename(tmp_path: Path) -> None:
+    _write_perf_report(tmp_path, "1.0.0")
+    assert check_perf_report(tmp_path, "1.0.0") is True
+
+
+def test_check_perf_report_missing_is_non_gating(tmp_path: Path, capsys) -> None:
+    # No reports dir at all — must warn (stderr) but NEVER raise / exit.
+    assert check_perf_report(tmp_path, "1.0.0") is False
+    assert "NO PERF REPORT" in capsys.readouterr().err
+
+
+def test_check_perf_report_content_mention_does_not_falsely_match(tmp_path: Path) -> None:
+    # A report FOR 1.0.1 that merely mentions 1.0.0 in prose must not satisfy 1.0.0.
+    d = tmp_path / "docs" / "guides" / "perf-traces" / "reports"
+    d.mkdir(parents=True)
+    (d / "2026-01-01-1.0.1.md").write_text("# perf 1.0.1 (prev was 1.0.0)\n", encoding="utf-8")
+    assert check_perf_report(tmp_path, "1.0.0") is False
+
+
+def test_run_checks_perf_report_absence_does_not_fail(tmp_path: Path) -> None:
+    # A final release with all release docs but NO perf report still passes
+    # run_checks (perf report is forced-but-non-gating).
+    _write_minimal_release_tree(tmp_path, version="1.0.0")
+    assert run_checks(tmp_path) == "1.0.0"
 
 
 def _write_minimal_release_tree(

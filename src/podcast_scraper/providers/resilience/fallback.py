@@ -259,6 +259,7 @@ class CoverageGatedTranscriptionProvider:
         return self._failover
 
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
+        """Transcribe ``audio_path`` to plain text (segments/timing discarded)."""
         result, _elapsed = self.transcribe_with_segments(audio_path, language)
         return str(result.get("text", ""))
 

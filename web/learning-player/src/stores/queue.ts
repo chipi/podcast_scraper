@@ -90,5 +90,9 @@ export const useQueueStore = defineStore('queue', {
       const i = this.items.indexOf(slug)
       return i >= 0 && i < this.items.length - 1 ? this.items[i + 1] : null
     },
+    prevBefore(slug: string): string | null {
+      const i = this.items.indexOf(slug)
+      return i > 0 ? this.items[i - 1] : null
+    },
   },
 })

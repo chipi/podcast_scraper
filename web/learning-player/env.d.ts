@@ -4,6 +4,10 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_TARGET?: string
+  // Absolute API base for native (Capacitor) builds, e.g. https://api.example.com/api/app.
+  // Web builds leave it unset → the app uses the origin-relative '/api/app' (same-origin).
+  // Native builds MUST set it: the WebView origin is capacitor://localhost, so relative fails.
+  readonly VITE_API_BASE_URL?: string
   // GlitchTip/Sentry DSN for the player's browser error reporting. Build-time
   // (baked into the bundle by Vite); Sentry only initialises when set, so
   // no-DSN builds (dev/CI) stay a true no-op. Passed via the docker build-arg.

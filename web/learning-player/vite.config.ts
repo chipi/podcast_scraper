@@ -41,6 +41,10 @@ export default defineConfig({
   define: {
     __BUILD_SHA__: JSON.stringify(BUILD_INFO.sha),
     __BUILD_TIME__: JSON.stringify(BUILD_INFO.time),
+    // Internal (non-release) build → the native dev↔prod tier switch is available (#1310). A release
+    // build sets MOBILE_RELEASE=1 → false → the switch is tree-shaken out (prod-locked). Web builds
+    // carry it too but it's inert (gated on Capacitor.isNativePlatform()).
+    __MOBILE_INTERNAL__: JSON.stringify(process.env.MOBILE_RELEASE !== '1'),
   },
   plugins: [
     vue(),
@@ -139,6 +143,9 @@ export default defineConfig({
   ],
   server: {
     port: 5174,
+    // Allow tailnet (Tailscale Serve) hostnames through the dev-server host check so the app can be
+    // opened on a phone over Tailscale (https://<node>.ts.net). Dev-only; harmless in prod builds.
+    allowedHosts: ['.ts.net'],
     proxy: {
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',

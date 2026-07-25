@@ -31,31 +31,30 @@ const withVelocity = (tv = VELOCITY) =>
 afterEach(() => vi.restoreAllMocks())
 
 describe('TrendingTopics container', () => {
-  it('defaults to the Pills view with rising topics sorted by velocity', async () => {
+  it('defaults to the Sparklines view with rising topics sorted by velocity', async () => {
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    const chips = w.findAll('[data-testid="trend-chip"]')
-    // policy (4x) before ai (2x); steady + noise excluded.
-    expect(chips).toHaveLength(2)
-    expect(chips[0].text()).toContain('foreign policy')
-    expect(chips[0].text()).toContain('4×')
+    const rows = w.findAll('[data-testid="trend-spark-row"]')
+    // policy (4x) before ai (2x); steady + noise excluded. No theme clusters here → velocity order.
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain('foreign policy')
+    expect(rows[0].text()).toContain('4×')
   })
 
-  it('emits open with the topic id from a pill', async () => {
+  it('emits open with the topic id from a sparkline row', async () => {
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    // The chip is a container; its first button opens the topic (the second, when present, follows).
-    await w.findAll('[data-testid="trend-chip"]')[0].get('button').trigger('click')
+    await w.findAll('[data-testid="trend-spark-row"]')[0].trigger('click')
     expect(w.emitted('open')![0]).toEqual(['topic:policy'])
   })
 
-  it('signed out: no follow buttons on the pills (#12)', async () => {
+  it('signed out: no follow buttons on the rows (#12)', async () => {
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    expect(w.findAll('[data-testid="trend-chip-follow"]')).toHaveLength(0)
+    expect(w.findAll('[data-testid="trend-spark-follow"]')).toHaveLength(0)
   })
 
   it('signed in: a follow button adds the trending topic to interests (#12)', async () => {
@@ -68,7 +67,7 @@ describe('TrendingTopics container', () => {
       vi.spyOn(interests, 'toggle').mockResolvedValue()
     })
     await flushPromises()
-    const followBtns = w.findAll('[data-testid="trend-chip-follow"]')
+    const followBtns = w.findAll('[data-testid="trend-spark-follow"]')
     expect(followBtns).toHaveLength(2) // one per rising topic
     await followBtns[0].trigger('click')
     expect(interests.toggle).toHaveBeenCalledWith('topic:policy')
@@ -83,17 +82,20 @@ describe('TrendingTopics container', () => {
       interests.loaded = true
     })
     await flushPromises()
-    const first = w.findAll('[data-testid="trend-chip-follow"]')[0]
+    const first = w.findAll('[data-testid="trend-spark-follow"]')[0]
     expect(first.attributes('aria-pressed')).toBe('true')
     expect(first.text()).toBe('✓')
   })
 
-  it('switches to the Sparklines view (rows with mini series)', async () => {
+  it('switches to the Pills view with a chip per rising topic', async () => {
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    await w.get('[data-testid="trend-view-sparks"]').trigger('click')
-    expect(w.findAll('[data-testid="trend-spark-row"]')).toHaveLength(2)
+    await w.get('[data-testid="trend-view-chips"]').trigger('click')
+    const chips = w.findAll('[data-testid="trend-chip"]')
+    expect(chips).toHaveLength(2)
+    expect(chips[0].text()).toContain('foreign policy')
+    expect(chips[0].text()).toContain('4×')
   })
 
   it('switches to the Over-time (stream) view with one band per rising topic', async () => {

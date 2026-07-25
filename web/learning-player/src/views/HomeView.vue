@@ -25,6 +25,7 @@ import { useUserPreferencesStore } from '../stores/userPreferences'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
+import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import QueueButton from '../components/QueueButton.vue'
 import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
@@ -297,12 +298,9 @@ onMounted(async () => {
       @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
     />
 
-    <!-- Trending shows (RFC-103 §show): publishing cadence + engagement → the show page. -->
-    <MomentumRail
-      kind="show"
-      :title="t('home.trendingShows')"
-      @open="router.push({ name: 'podcast', params: { feedId: $event.entity_id } })"
-    />
+    <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
+         cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
+    <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="shows" />
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length" class="mt-7">
