@@ -1,0 +1,114 @@
+# Public operator surface (RFC-108 / epic #1320 — operator.closelistening.app).
+#
+# A STANDALONE composition (do NOT merge with the privileged operator stack): the
+# gi-kg-viewer SPA + a LOW-PRIVILEGE operator-read backend. The backend runs with
+# PODCAST_SERVE_OPERATOR_PUBLIC=1 so it mounts ONLY health + /api/app/* + a CURATED
+# read-only subset of the operator routes, each ≥creator-gated — and therefore carries
+# **no docker.sock and no provider keys**. That is what makes it safe to expose on the
+# public edge (ADR-114) behind the operator domain, threading THREAT_MODEL T-01.
+#
+#   docker compose -f compose/docker-compose.operator-public.yml up -d --build
+#
+# The PRIVILEGED operator api (docker.sock + LLM keys, index_rebuild/ops/pipeline
+# triggers) stays on the tailnet-only operator stack, untouched. Corpus is shared
+# read-only from the operator stack's volume.
+
+services:
+  # Low-privilege operator-read API backend. Named `api` so the viewer image's baked nginx
+  # upstream (http://api:8000) resolves to it — NOT the privileged operator api (absent here).
+  api:
+    image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    restart: unless-stopped
+    environment:
+      # Curated operator-read surface, each route ≥creator-gated (require_viewer_access).
+      # Excludes index_rebuild/ops/resilience + the flag-gated privileged routers.
+      PODCAST_SERVE_OPERATOR_PUBLIC: "1"
+      # Real Google OIDC (reuse the player's OAuth client). Redirect URI to register:
+      #   https://<operator-domain>/api/app/auth/callback  (same Google client as the player).
+      APP_OAUTH_PROVIDER: google
+      APP_OAUTH_GOOGLE_CLIENT_ID: ${APP_OAUTH_GOOGLE_CLIENT_ID:-}
+      APP_OAUTH_GOOGLE_CLIENT_SECRET: ${APP_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET:-}
+      APP_SESSION_COOKIE_SECURE: "true"
+      # Reachable only via its own nginx proxy on the compose network → trust X-Forwarded-*
+      # so uvicorn derives the OAuth callback as https://<operator-domain>/...
+      FORWARDED_ALLOW_IPS: "*"
+      APP_DATA_DIR: /app/appdata
+      # THE operator differentiator: these emails become admin (creator via grant). A signed-in
+      # listener is 403'd from the operator routes (require_viewer_access = ≥creator).
+      APP_ADMIN_EMAILS: ${APP_ADMIN_EMAILS:-}
+      # Default-deny sign-in policy (server/app_access.py): allowlist + empty list = deny-all.
+      APP_SIGNUP_MODE: ${APP_SIGNUP_MODE:-allowlist}
+      APP_ALLOWED_EMAILS: ${APP_ALLOWED_EMAILS:-}
+      APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
+      PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      # OTEL tracing (ADR-119) — mirror the operator/player api. Exporter + endpoint + homelab
+      # tailnet IP staged host-side by the deploy script; default `none` = off (non-fatal).
+      OTEL_SERVICE_NAME: operator-public-api
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: "health"
+    extra_hosts:
+      # homelab (VictoriaTraces/GlitchTip) MagicDNS — IP resolved fresh at deploy, never
+      # hardcoded; loopback default so compose interpolation never fails when tracing is off.
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
+    volumes:
+      # Corpus READ-ONLY (the operator-read plane reads it); per-user data is separate.
+      - corpus_data:/app/output:ro
+      # Per-user operator data (prefs/library) — a HOST bind mount, backupable + durable,
+      # separate from the player's appdata.
+      - ${OPERATOR_APPDATA_HOST_PATH:-/srv/podcast-scraper/operator-appdata}:/app/appdata
+    # Hardening (T-01/T-04): NO docker.sock, NO provider keys, drop caps. NOT read_only
+    # (entrypoint chown + app-data writes). Mirrors the player-public api boot profile.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+
+  # Operator viewer SPA (gi-kg-viewer) — nginx serving the SPA + proxying /api/ to `api`.
+  # The backend only mounts the curated+app+health surface, so privileged /api/* 404 at the
+  # backend even though nginx proxies all of /api/ (defense in depth).
+  viewer:
+    image: ghcr.io/chipi/podcast-scraper-stack-viewer:${PODCAST_IMAGE_TAG:-main}
+    restart: unless-stopped
+    ports:
+      # Loopback only — the Caddy edge (operator.caddy) is the public front (ADR-114).
+      - "127.0.0.1:${OPERATOR_PORT:-8093}:80"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      # nginx runtime scratch + the image's envsubst-rendered server block.
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+      - /etc/nginx/conf.d
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  # Shared read-only with the operator stack. Set PODCAST_CORPUS_VOLUME to that stack's
+  # external volume name on the VPS (e.g. compose_corpus_data).
+  corpus_data:
+    external: true
+    name: ${PODCAST_CORPUS_VOLUME:-compose_corpus_data}

@@ -78,6 +78,20 @@ def get_admin_user(request: Request) -> User:
     return user
 
 
+def require_viewer_access(request: Request) -> User:
+    """Require a signed-in user with **at least ``creator``** (RFC-108 operator surfaces).
+
+    Mounted as a router-level dependency on the operator-read routers **only** in the
+    public operator serve mode (``PODCAST_SERVE_OPERATOR_PUBLIC``); the tailnet-only
+    operator serve leaves them ungated (tailnet privacy is the gate). A signed-in
+    ``listener`` gets 403 — the operator surface is creator/admin only.
+    """
+    user = get_current_user(request)
+    if not app_roles.can_use_viewer(user.role):
+        raise HTTPException(status_code=403, detail="Creator or admin role required.")
+    return user
+
+
 @router.get("/auth/login")
 async def app_auth_login(
     request: Request,
