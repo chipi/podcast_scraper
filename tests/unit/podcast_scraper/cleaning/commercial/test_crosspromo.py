@@ -128,6 +128,25 @@ def test_opening_crosspromo_is_excised() -> None:
     assert "Kevin Roose" in cleaned
 
 
+def test_hybrid_cleaner_excises_opening_crosspromo_on_the_default_path() -> None:
+    # C1 (#1294) cross-layer guard: the DEFAULT summarization strategy is `hybrid`. HybridCleaner
+    # must forward the diarization context to its pattern stage — otherwise the opening cross-promo
+    # that IS excised from the ad-free base survives into the SUMMARY. Same fixture as above, routed
+    # through HybridCleaner (no LLM provider, so only the pattern stage runs).
+    from podcast_scraper.cleaning import HybridCleaner
+
+    text, segments = _athletic_crosspromo_transcript()
+    cleaned = HybridCleaner().clean(
+        text,
+        provider=None,
+        diarization_segments=segments,
+        host_speaker_id="SPEAKER_00",
+    )
+    assert "the athletic" not in cleaned.lower()
+    assert "Paul Tenorio" not in cleaned
+    assert "AI agents" in cleaned
+
+
 def test_recurring_host_intro_is_not_excised() -> None:
     """Guard against over-firing: hosts who introduce themselves at the top but
     recur throughout must NOT be treated as a cross-promo."""

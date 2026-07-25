@@ -2585,6 +2585,7 @@ def _generate_episode_summary(  # noqa: C901
                             transcript_text,
                             provider=summary_provider,
                             pipeline_metrics=pipeline_metrics,
+                            **pattern_clean_kwargs,
                         )
                     elif isinstance(cleaning_processor, LLMBasedCleaner):
                         cleaned_text = cleaning_processor.clean(

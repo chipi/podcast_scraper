@@ -238,6 +238,28 @@ class TestHybridCleaner(unittest.TestCase):
         mock_provider.clean_transcript.assert_not_called()
 
     @patch("podcast_scraper.preprocessing.clean_for_summarization")
+    def test_hybrid_forwards_diarization_context_to_pattern_stage(self, mock_clean):
+        """C1 (#1294): the diarization context must reach the pattern stage on the default path."""
+        mock_clean.return_value = "cleaned"
+        cleaner = HybridCleaner()
+        segs = [{"start": 0.0, "end": 5.0, "text": "hi", "speaker": "SPEAKER_00"}]
+        cues = ["check out my other show"]
+        cleaner.clean(
+            "raw",
+            provider=None,
+            diarization_segments=segs,
+            host_speaker_id="SPEAKER_00",
+            crosspromo_cue_patterns=cues,
+        )
+        mock_clean.assert_called_once_with(
+            "raw",
+            diarization_segments=segs,
+            host_speaker_id="SPEAKER_00",
+            confidence_threshold=None,
+            crosspromo_cue_patterns=cues,
+        )
+
+    @patch("podcast_scraper.preprocessing.clean_for_summarization")
     def test_clean_uses_llm_when_needed(self, mock_clean):
         """Test that clean() uses LLM when pattern-based insufficient."""
         # Create text that will trigger LLM cleaning (low reduction + sponsor keywords)
