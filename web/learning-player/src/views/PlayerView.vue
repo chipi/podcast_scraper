@@ -546,6 +546,7 @@ onBeforeUnmount(() => {
              the rounded panel keeps breathing room, and it clears a device status bar instead of
              being clipped at y=0. Desktop: static in the left column (wrapper is inert). -->
         <div
+          data-testid="player-controls-sticky"
           class="sticky top-0 z-20 mt-4 bg-canvas pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
         >
           <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
