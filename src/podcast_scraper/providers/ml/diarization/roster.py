@@ -24,9 +24,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import AbstractSet, Any, Dict, List, Optional, Sequence, Set, Tuple
 
-from ....speaker_detectors.boilerplate import recorded_voices
 from ....speaker_detectors.hosts import (
     _clean_stated_name as _clean_intro_name,
     _GUEST_GREETED as _GUEST_GREETED_RE,
@@ -44,6 +43,11 @@ from ....speaker_detectors.hosts import (
     roles_from_conversation,
 )
 from .base import DiarizationResult
+from .labeling_strategy import (
+    _DEEPGRAM,
+    DiarizationLabelingStrategy,
+    labeling_strategy_for,
+)
 
 INTRO_WINDOW_SECONDS = 90.0
 # A non-primary voice is also treated as a host when it owns at least this share of the intro
@@ -533,11 +537,30 @@ def _surname_token(name: str) -> Optional[str]:
     return last if len(last) >= 2 else None
 
 
-def _is_honorific_form(name: str) -> bool:
-    """A name whose first token is an honorific ("Professor Pape", "Dr. Gupta") — i.e. a person
-    referred to by title + surname, which the metadata's full name (Robert Pape) completes."""
-    toks = (name or "").split()
-    return bool(toks) and toks[0].strip(".,'’").lower() in HONORIFIC_TITLES
+def _given_tokens(name: str) -> List[str]:
+    """Name tokens after stripping leading honorifics ("Dr. Adam Rodman" -> ["Adam", "Rodman"])."""
+    toks = [t.strip(".,'’") for t in (name or "").split()]
+    while toks and toks[0].lower() in HONORIFIC_TITLES:
+        toks = toks[1:]
+    return toks
+
+
+def _same_person(a: str, b: str) -> bool:
+    """Whether two names denote the SAME person, for de-duplicating a diarizer-split guest or a
+    title variant. Same surname AND (one side is title-only, OR matching given name, OR one given is
+    an initial of the other). "Dr. Adam Rodman" == "Adam Rodman"; "Professor Fenwick" ==
+    "Alan Fenwick"; but "Robert Pape" != "Karen Pape" — distinct people who merely share a surname.
+    """
+    sa, sb = _surname_token(a), _surname_token(b)
+    if not sa or sa != sb:
+        return False
+    ga, gb = _given_tokens(a), _given_tokens(b)
+    if len(ga) >= 2 and len(gb) >= 2:  # both carry a given name before the surname
+        fa, fb = ga[0].lower(), gb[0].lower()
+        return (
+            fa == fb or (len(fa) == 1 and fb.startswith(fa)) or (len(fb) == 1 and fa.startswith(fb))
+        )
+    return True  # one side is title + surname only ("Professor Pape")
 
 
 def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
@@ -712,23 +735,18 @@ def _name_guest_voices(
         and v not in voice_intro
         and (talk is None or talk.get(v, 0.0) >= CAMEO_MAX_TALK_S)
     ]
-    # A detected-guest name is only spare if the SAME PERSON is not already on the roster under a
-    # title. A guest the interviewer named "Professor Pape" is the metadata's "Robert Pape"; leaving
-    # that unclaimed forces it onto a leftover voice (a bumper) and fabricates a second Pape (#876).
-    # Only HONORIFIC-form roster names ("Professor Pape") claim their surname — a full
-    # name that merely shares a surname ("Robert Pape" vs a distinct "Karen Pape") is a different
-    # person and must not suppress the second guest.
-    claimed_surnames = {
-        s
-        for s in (
-            _surname_token(n) for n in (*used_lower, *voice_intro.values()) if _is_honorific_form(n)
-        )
-        if s
-    }
+    # A detected-guest name is only spare if the SAME PERSON is not already on the roster. Same
+    # person = same surname AND (one side title-only, or matching given name, or one given an
+    # initial of the other). A guest the interviewer named "Professor Pape" is the metadata's
+    # "Robert Pape" (title-only); a community-1-split guest named "Adam Rodman" on one cluster is
+    # the detected "Dr. Adam Rodman" (given-name match) — neither is spare, so the forced path
+    # abstains instead of fabricating a second Pape/Rodman (#876/#1330). But a distinct guest who
+    # merely shares a surname ("Robert Pape" vs "Karen Pape") IS spare — different givens.
+    roster_names = [*used_lower, *voice_intro.values()]
     spare = [
         g
         for g in guest_names
-        if g.lower() not in used_lower and _surname_token(g) not in claimed_surnames
+        if g.lower() not in used_lower and not any(_same_person(g, r) for r in roster_names)
     ]
     # One name, one voice: the assignment is forced, so it is not a guess.
     forced = spare[0] if (len(spare) == 1 and len(unassigned) == 1) else None
@@ -915,23 +933,22 @@ def _self_intro_voice_names(
     intro_sources: Sequence[str],
     known_hosts: Sequence[str],
     ad_voices: Set[str],
+    conv_guests: AbstractSet[str] = frozenset(),
+    strategy: Optional[DiarizationLabelingStrategy] = None,
 ) -> Dict[str, str]:
     """``{voice: name}`` from each voice's OWN self-introduction, ads excluded (#876).
 
-    Snapping an ASR-mangled self-intro onto a configured host is applied ONLY to the host-candidate
-    voices: the first ``len(known_hosts)`` voices to speak (ads excluded). The hosts open the show
-    (#1169) and the feed states HOW MANY there are, so that prefix is the host set. Applied to every
+    A garbled self-intro is snapped onto a configured host ONLY for the host-candidate voices; who
+    those are is a cluster-shape question, so the ``strategy`` (ADR-126) decides. Applied to every
     voice it swaps identities: a guest self-introducing with a name ASR-close to a host's ("I'm
-    Kevin Ross" vs host "Kevin Roose", edit distance 2) was snapped onto the host, so the guest was
-    published as the host and the real host demoted to guest (N1). Co-hosts still open the show, so
-    their mangled names still canonicalize; a guest speaking after the hosts keeps its own name.
+    Kevin Ross" vs host "Kevin Roose") was snapped onto the host (N1) — the candidate gate is what
+    prevents that, so it stays load-bearing under every strategy.
 
-    A SHORT cold-open montage that strings several hosts' garbled self-intros into one diarization
-    cluster ("I'm Kevin Russo… I'm Casey Noon…", 13s) is not a person and is suppressed (#1330). A
-    LONG voice with the same double self-intro is a real dominant speaker whose cluster absorbed a
-    merged cold-open clip (the real Kevin Roose, 1500s) — it keeps its name, resolved from its own
-    leading self-intro. Talk time is what tells the clip from the speaker.
+    A SHORT cold-open montage that strings several hosts' garbled self-intros into one cluster ("I'm
+    Kevin Russo… I'm Casey Noon…", 13s) is not a person and is suppressed (#1330); a LONG voice with
+    the same double self-intro is a real dominant speaker and keeps its name.
     """
+    strategy = strategy or _DEEPGRAM
     first_start: Dict[str, float] = {}
     talk: Dict[str, float] = {}
     for s in diarization.segments:
@@ -940,20 +957,33 @@ def _self_intro_voice_names(
         if s.speaker not in first_start or s.start < first_start[s.speaker]:
             first_start[s.speaker] = s.start
         talk[s.speaker] = talk.get(s.speaker, 0.0) + (s.end - s.start)
-    host_candidate_voices = set(
-        sorted(first_start, key=lambda v: first_start[v])[: len(known_hosts)]
-    )
     texts = voice_texts or {}
+    intros = _self_intros_by_voice(voice_texts, intro_sources)
+    montage_suppressed = {
+        v
+        for v in intros
+        if talk.get(v, 0.0) < MONTAGE_CLIP_MAX_TALK_S
+        and len(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
+    }
+    host_candidate_voices = strategy.host_candidate_voices(
+        first_start=first_start,
+        talk=talk,
+        known_hosts=known_hosts,
+        conv_guests=set(conv_guests),
+        montage_suppressed=montage_suppressed,
+        cameo_floor=CAMEO_MAX_TALK_S,
+    )
     out: Dict[str, str] = {}
-    for v, n in _self_intros_by_voice(voice_texts, intro_sources).items():
-        if v in ad_voices:
+    for v, n in intros.items():
+        if v in ad_voices or v in montage_suppressed:
             continue
-        if (
-            talk.get(v, 0.0) < MONTAGE_CLIP_MAX_TALK_S
-            and len(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
-        ):
+        if v not in host_candidate_voices:
+            out[v] = n
             continue
-        out[v] = _canonicalize_to_known_host(n, known_hosts) if v in host_candidate_voices else n
+        canon = _canonicalize_to_known_host(n, known_hosts)
+        # Inside the host gate: if the surname canonicalization did not fire, the strategy may still
+        # resolve a garbled host name (community-1's unique-first-name snap for "Casey Noonan").
+        out[v] = canon if canon != n else (strategy.snap_extra(n, known_hosts) or n)
     return out
 
 
@@ -991,6 +1021,7 @@ def resolve_speaker_roster(
     llm_voice_names: Optional[Dict[str, str]] = None,
     recurring_text: Optional[set] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
+    diarization_provider: Optional[str] = None,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
 
@@ -1027,9 +1058,13 @@ def resolve_speaker_roster(
     #     Robert Armstrong  3.4-3.6% of talk, 70-77% repeat — he reads the CREDITS, and he is a HOST
     #
     # Which is why BOTH tests must hold: repetition alone would strip a co-host reading the credits.
+    # Provider-specific labeling (ADR-126): the diarizer's clustering footprint decides how this
+    # feed's recurring script splits across clusters. community-1 merges a stray content turn into
+    # ad reader's cluster, so its strategy scores recurrence per TURN, not over the whole cluster.
+    _strategy = labeling_strategy_for(diarization_provider)
     if recurring_text:
-        ad_voices = ad_voices | recorded_voices(
-            voice_texts or {}, _talk_time(diarization), recurring_text
+        ad_voices = ad_voices | _strategy.recorded_voices(
+            ordered_turns, voice_texts, _talk_time(diarization), recurring_text
         )
 
     # The intro window is the SHOW's intro, not the advert's. Measured from 0 it was mostly ad, so a
@@ -1069,7 +1104,7 @@ def resolve_speaker_roster(
     # ...and the name it gives is the ASR's spelling, so it is snapped onto the configured host
     # when it is plainly the same person ("Kevin Russo" / "Kevin Roos" -> "Kevin Roose").
     voice_intro = _self_intro_voice_names(
-        diarization, voice_texts, intro_sources, known_hosts, ad_voices
+        diarization, voice_texts, intro_sources, known_hosts, ad_voices, conv_guests, _strategy
     )
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting

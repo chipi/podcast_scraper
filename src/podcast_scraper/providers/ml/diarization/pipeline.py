@@ -341,6 +341,7 @@ def apply_diarization_to_result(
         metadata_named=list(metadata_named or ()),
         llm_voice_names=llm_voice_names,
         recurring_text=_feed_recurring_text(cfg),
+        diarization_provider=getattr(cfg, "diarization_provider", None),
     )
 
     enriched_result = dict(result)
