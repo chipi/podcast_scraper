@@ -10,8 +10,10 @@
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { usePlayerStore } from '../stores/player'
 import { useQueueStore } from '../stores/queue'
 import { useAuthStore } from '../stores/auth'
 import { useCaptureStore } from '../stores/capture'
@@ -24,7 +26,7 @@ import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
-import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
+import { activeSegmentIndex } from '../player/transcriptSync'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
   getAudioSource,
@@ -133,12 +135,14 @@ function openInsight(insightId: string): void {
   })
 }
 
+// Playback state + transport live in the player store (single source of truth for the UI,
+// MediaSession, and native controls — #1307). The <audio> element is still rendered by this view
+// and registered into the store via bind(); view-specific glue (deep-link/resume, persistence,
+// queue-advance, transcript sync-offset) stays here and drives the store.
+const player = usePlayerStore()
+const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
 const audioEl = ref<HTMLAudioElement | null>(null)
-const playing = ref(false)
-const currentTime = ref(0)
-const duration = ref(0)
-const rate = ref(1)
-const audioError = ref(false)
+watch(audioEl, (el) => player.bind(el), { immediate: true })
 
 // Manual sync-nudge UI is HIDDEN for now (not deleted): a better synchronization fix is coming,
 // so the listener-facing nudge control is temporarily off. The offset machinery below still
@@ -208,7 +212,7 @@ const speakingNow = computed(() =>
 async function load(slug: string): Promise<void> {
   loading.value = true
   notFound.value = false
-  audioError.value = false
+  player.resetForLoad() // clear playback state for the new episode (playing/time/duration/error)
   transcriptOpen.value = false // new episode → transcript starts closed (opt-in per episode)
   segments.value = []
   audioUrl.value = null
@@ -265,7 +269,7 @@ async function load(slug: string): Promise<void> {
 function onLoadedMetadata(): void {
   const el = audioEl.value
   if (!el) return
-  duration.value = el.duration || 0
+  player.onDurationChange()
   // A ?t= deep-link (jump-to-moment from search) wins over the saved resume position.
   const deepLink = Number(route.query.t)
   if (Number.isFinite(deepLink) && deepLink > 0) {
@@ -282,7 +286,7 @@ function persist(): void {
 }
 
 function onTimeUpdate(): void {
-  currentTime.value = audioEl.value?.currentTime ?? 0
+  player.onTimeUpdate()
   const now = Date.now()
   if (now - lastSaved > 10_000) {
     lastSaved = now
@@ -305,32 +309,10 @@ function toggleTranscript(): void {
   }
 }
 
-function toggle(): void {
-  const el = audioEl.value
-  if (!el) return
-  if (el.paused) void el.play()
-  else el.pause()
-}
-
-function seek(to: number): void {
-  const el = audioEl.value
-  if (!el) return
-  el.currentTime = Math.max(0, Math.min(to, duration.value || to))
-}
-
 // Jump to a transcript/insight position (content-time) → audio-time via the sync offset.
+// (toggle / seek / skip / cycleRate now live in the player store.)
 function seekContent(contentSeconds: number): void {
-  seek(contentSeconds + syncOffset.value)
-}
-
-function skip(delta: number): void {
-  seek(currentTime.value + delta)
-}
-
-function cycleRate(): void {
-  const i = PLAYBACK_RATES.indexOf(rate.value as (typeof PLAYBACK_RATES)[number])
-  rate.value = PLAYBACK_RATES[(i + 1) % PLAYBACK_RATES.length]
-  if (audioEl.value) audioEl.value.playbackRate = rate.value
+  player.seek(contentSeconds + syncOffset.value)
 }
 
 // --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---
@@ -535,10 +517,10 @@ onBeforeUnmount(() => {
           class="hidden"
           @loadedmetadata="onLoadedMetadata"
           @timeupdate="onTimeUpdate"
-          @play="playing = true"
-          @pause="playing = false"
+          @play="player.onPlay"
+          @pause="player.onPause"
           @ended="onEnded"
-          @error="audioError = true"
+          @error="player.onError"
         />
 
         <!-- Mobile: the controls float (sticky) at the top so they stay reachable while the
@@ -559,10 +541,10 @@ onBeforeUnmount(() => {
             :duration="duration"
             :rate="rate"
             :markers="insightMarkers"
-            @toggle="toggle"
-            @seek="seek"
-            @skip="skip"
-            @cycle-rate="cycleRate"
+            @toggle="player.toggle"
+            @seek="player.seek"
+            @skip="player.skip"
+            @cycle-rate="player.cycleRate"
           >
             <!-- Transcript toggle: a compact icon pill pinned to the LEFT of the controls row,
                  mirroring the speed pill on the right. Adds zero height (absolute in the existing
