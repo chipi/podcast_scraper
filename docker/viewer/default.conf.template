@@ -18,6 +18,17 @@ upstream api_backend {
     keepalive 32;
 }
 
+# Preserve the edge's real scheme. Caddy terminates TLS and proxies to this
+# nginx over plain http on loopback, so nginx's own ``$scheme`` is always
+# ``http``. Forwarding that as X-Forwarded-Proto makes the api derive an
+# ``http://`` OAuth redirect_uri → Google ``redirect_uri_mismatch`` on the
+# operator-public sign-in. Prefer the X-Forwarded-Proto Caddy set (``https``),
+# fall back to $scheme for a direct hit. Mirrors the player nginx map.
+map $http_x_forwarded_proto $viewer_forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
 server {
     listen 80;
     server_name _;
@@ -39,7 +50,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $viewer_forwarded_proto;
         proxy_connect_timeout 10s;
         proxy_send_timeout 120s;
         proxy_read_timeout 120s;

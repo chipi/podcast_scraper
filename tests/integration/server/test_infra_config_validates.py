@@ -21,6 +21,7 @@ pytestmark = [pytest.mark.integration]
 
 REPO = Path(__file__).resolve().parents[3]
 NGINX_CONF = REPO / "web" / "learning-player" / "nginx.conf"
+VIEWER_NGINX_CONF = REPO / "docker" / "viewer" / "default.conf.template"
 CADDYFILE = REPO / "infra" / "cloud-init" / "Caddyfile"
 PLAYER_CADDY = REPO / "infra" / "caddy" / "player.caddy"
 OPERATOR_CADDY = REPO / "infra" / "caddy" / "operator.caddy"
@@ -50,6 +51,19 @@ def test_player_nginx_preserves_forwarded_proto() -> None:
     conf = NGINX_CONF.read_text()
     assert "map $http_x_forwarded_proto" in conf, "must preserve Caddy's X-Forwarded-Proto"
     assert "proxy_set_header X-Forwarded-Proto $lp_forwarded_proto" in conf
+
+
+def test_viewer_nginx_preserves_forwarded_proto() -> None:
+    # RFC-108: the operator-public viewer sits behind Caddy (TLS) on a plain-http
+    # loopback hop, so nginx's own $scheme is always "http". Forwarding that
+    # verbatim makes the api build an http:// OAuth redirect_uri → Google
+    # redirect_uri_mismatch. It must preserve Caddy's X-Forwarded-Proto instead.
+    conf = VIEWER_NGINX_CONF.read_text()
+    assert "map $http_x_forwarded_proto" in conf, "must preserve Caddy's X-Forwarded-Proto"
+    assert "proxy_set_header X-Forwarded-Proto $viewer_forwarded_proto" in conf
+    assert (
+        "proxy_set_header X-Forwarded-Proto $scheme" not in conf
+    ), "must NOT forward the loopback $scheme (http) as the edge proto"
 
 
 def test_player_nginx_rate_limits_api() -> None:
