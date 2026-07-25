@@ -469,3 +469,95 @@ def test_contaminated_greeting_reclaimed_off_guest_cluster() -> None:
     assert r.by_voice["HOST"].name == "Patrick O'Shaughnessy"
     # The guest voice is recovered by the reclaimed greeting.
     assert r.by_voice["GUEST"].name == "Kara Swisher"
+
+
+def test_guest_with_asr_close_name_does_not_steal_the_host_identity() -> None:
+    # N1: a guest self-introducing with a name ASR-close to a configured host's ("Kevin Ross" vs
+    # "Kevin Roose", edit distance 2) must NOT be snapped onto the host. Applied to every voice,
+    # canonicalization published the guest AS the host and demoted the real host to guest. The fix
+    # gates canonicalization to the host-candidate voices (the first len(known_hosts) to speak).
+    diar = _diar([("HOST", 0, 30), ("GUEST", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back to the show.",
+        known_hosts=["Kevin Roose"],
+        voice_texts={
+            "HOST": "Welcome back to the show. We have a fantastic guest lined up for you today.",
+            "GUEST": "So I'm Kevin Ross and I build developer tools for a living, a decade now.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back to the show. We have a fantastic guest lined up for you today."),
+            ("GUEST", "So I'm Kevin Ross and I build developer tools for a living, a decade now."),
+        ],
+    )
+    assert r.by_voice["GUEST"].name == "Kevin Ross"  # keeps its OWN name
+    assert r.by_voice["GUEST"].role == "guest"
+    assert r.by_voice["HOST"].role == "host"  # the real host is not stolen
+    assert r.by_voice["HOST"].name == "Kevin Roose"
+
+
+def test_asr_mangled_co_host_still_canonicalizes() -> None:
+    # The N1 fix must NOT cost a co-host its correct spelling: a second host that opens the show
+    # (within the first len(known_hosts) voices) still gets its ASR-mangled self-intro snapped.
+    diar = _diar([("HOST1", 0, 30), ("HOST2", 30, 60), ("HOST1", 60, 300), ("HOST2", 300, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome to the show.",
+        known_hosts=["Kevin Roose", "Casey Newton"],
+        voice_texts={
+            "HOST1": "Welcome to the show. I'm Kevin Russo.",
+            "HOST2": "And I'm Casey Noon. Big show for everyone today, lots to get through.",
+        },
+        ordered_turns=[
+            ("HOST1", "Welcome to the show. I'm Kevin Russo."),
+            ("HOST2", "And I'm Casey Noon. Big show for everyone today, lots to get through."),
+        ],
+    )
+    assert r.by_voice["HOST1"].name == "Kevin Roose"
+    assert r.by_voice["HOST2"].name == "Casey Newton"
+
+
+def test_a_quoted_greeting_by_a_non_host_never_force_names_a_voice() -> None:
+    # N2: guests_introduced_by_the_host must trust only the HOST's turns. A non-host voice that
+    # QUOTES a greeting ("...and then Sarah Chen, thanks so much for coming to my defense...") must
+    # not harvest that name into the guest pool, where the forced one-name-one-voice match would
+    # then paint "Sarah Chen" onto that unrelated voice.
+    diar = _diar([("HOST", 0, 30), ("SPK", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome to the show.",
+        known_hosts=["Alex Rivera"],
+        voice_texts={
+            "HOST": "Welcome to the show. I'm Alex Rivera and today we get into a wild legal saga.",
+            "SPK": (
+                "So the trial was chaos. And then Sarah Chen, thanks so much for coming to my "
+                "defense, she stood up and we ended up winning the whole thing that afternoon."
+            ),
+        },
+        ordered_turns=[
+            (
+                "HOST",
+                "Welcome to the show. I'm Alex Rivera and today we get into a wild legal saga.",
+            ),
+            ("SPK", "And then Sarah Chen, thanks so much for coming to my defense, we won it all."),
+        ],
+    )
+    assert r.by_voice["SPK"].name != "Sarah Chen"
+    assert r.by_voice["SPK"].named is False
+
+
+def test_a_cold_open_guest_opener_does_not_name_the_host_voice() -> None:
+    # N5: a cold-open GUEST clip that speaks first, performs the guest role ("thanks for having
+    # me"), and utters a name-first phrase ("Jane Doe is with us") must NOT be trusted as a host
+    # hint — otherwise the intro reader names the NEXT (real host) voice from that phrase. With no
+    # known_hosts there is no host_pool to rescue the misname, so this is where it bites.
+    guest = "Thanks for having me. Honestly Jane Doe is with us, thrilled to be here."
+    host = "Right, let us get straight into the biggest tech stories this week everybody."
+    diar = _diar([("GUEST", 0, 40), ("HOST", 40, 360), ("GUEST", 360, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "podcast",
+        voice_texts={"GUEST": guest, "HOST": host},
+        ordered_turns=[("GUEST", guest), ("HOST", host)],
+    )
+    assert "Jane Doe" not in (r.by_voice["HOST"].name or "")

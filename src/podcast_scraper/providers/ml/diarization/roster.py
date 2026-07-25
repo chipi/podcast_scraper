@@ -848,6 +848,40 @@ def _voice_named_by_the_introduction(
     return out
 
 
+def _self_intro_voice_names(
+    diarization: DiarizationResult,
+    voice_texts: Optional[Dict[str, str]],
+    intro_sources: Sequence[str],
+    known_hosts: Sequence[str],
+    ad_voices: Set[str],
+) -> Dict[str, str]:
+    """``{voice: name}`` from each voice's OWN self-introduction, ads excluded (#876).
+
+    Snapping an ASR-mangled self-intro onto a configured host is applied ONLY to the host-candidate
+    voices: the first ``len(known_hosts)`` voices to speak (ads excluded). The hosts open the show
+    (#1169) and the feed states HOW MANY there are, so that prefix is the host set. Applied to every
+    voice it swaps identities: a guest self-introducing with a name ASR-close to a host's ("I'm
+    Kevin Ross" vs host "Kevin Roose", edit distance 2) was snapped onto the host, so the guest was
+    published as the host and the real host demoted to guest (N1). Co-hosts still open the show, so
+    their mangled names still canonicalize; a guest speaking after the hosts keeps its own name.
+    """
+    first_start: Dict[str, float] = {}
+    for s in diarization.segments:
+        if s.speaker in ad_voices:
+            continue
+        if s.speaker not in first_start or s.start < first_start[s.speaker]:
+            first_start[s.speaker] = s.start
+    host_candidate_voices = set(
+        sorted(first_start, key=lambda v: first_start[v])[: len(known_hosts)]
+    )
+    out: Dict[str, str] = {}
+    for v, n in _self_intros_by_voice(voice_texts, intro_sources).items():
+        if v in ad_voices:
+            continue
+        out[v] = _canonicalize_to_known_host(n, known_hosts) if v in host_candidate_voices else n
+    return out
+
+
 def resolve_speaker_roster(
     diarization: DiarizationResult,
     transcript_text: Optional[str],
@@ -929,23 +963,29 @@ def resolve_speaker_roster(
     intro_sources = (
         list(metadata_named or ()) + list(known_hosts or ()) + list(detected_guests or ())
     )
-    voice_intro = {
-        v: _canonicalize_to_known_host(n, known_hosts)
-        for v, n in _self_intros_by_voice(voice_texts, intro_sources).items()
-        if v not in ad_voices
-    }
+    voice_intro = _self_intro_voice_names(
+        diarization, voice_texts, intro_sources, known_hosts, ad_voices
+    )
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting
     # reclamation (#1226 follow-up): a voice that self-introduced as a STATED host, plus the first
     # non-ad speaker (the opener does the intro). Kept deliberately small — it only decides who is
     # allowed to *introduce*, never who gets named.
+    # Conversation-performed roles, computed once and reused for host selection below. A voice that
+    # says "thanks for having me" is a guest even if it speaks first.
+    conv_roles = roles_from_conversation(voice_texts)
+    conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
     known_lower_hint = {h.lower() for h in known_hosts}
     host_hint_voices: Set[str] = {
         v for v, n in voice_intro.items() if n and n.lower() in known_lower_hint
     }
+    # The opener usually IS a host — but not if the conversation heard it perform the guest role
+    # (a cold-open guest clip before the host's welcome). Trusting such an opener as a host hint let
+    # the reclamation move a greeting onto the guest and the weaker intro forms name from it (N5).
     for spk, _t in ordered_turns or []:
         if spk not in ad_voices:
-            host_hint_voices.add(spk)
+            if spk not in conv_guests:
+                host_hint_voices.add(spk)
             break
 
     # A host's name-anchored greeting mis-merged into the guest's cluster is moved back to a host,
@@ -1014,9 +1054,7 @@ def resolve_speaker_roster(
     #
     # When the feed states no host at all, the conversation is the ONLY source, and it is a good
     # one: "hello and welcome to Planet Money. I'm Alexi Horowitz-Gazi" gives the role AND the name.
-    conv_roles = roles_from_conversation(voice_texts)
     conv_hosts = [v for v, r in conv_roles.items() if r == "host" and v not in ad_voices]
-    conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
 
     host_voices: List[str] = []
     known_lower = {h.lower() for h in known_hosts}
@@ -1099,7 +1137,13 @@ def resolve_speaker_roster(
     # (which the corroboration gate may have had to drop for want of an interview cue).
     intro_names_lower = {n.lower() for n in voice_intro.values()}
     declared = list(_clean_person_names(detected_guests))
-    for n in sorted(guests_introduced_by_the_host(voice_texts)):
+    # The HOST introduces the guest, so only the resolved HOST voices' turns are trusted here.
+    # Scanning EVERY voice let a guest who merely QUOTES a greeting ("...and then Sarah Chen, thanks
+    # so much for coming to my defense...") harvest that name into the guest pool, where the forced
+    # one-name-one-voice match then painted it onto an unrelated voice (N2). A wrong name is worse
+    # than no name (#876) — with no resolved host there is no trustworthy introducer, harvest none.
+    host_voice_texts = {v: (voice_texts or {}).get(v, "") for v in host_voices}
+    for n in sorted(guests_introduced_by_the_host(host_voice_texts)):
         if n.lower() not in {d.lower() for d in declared}:
             declared.append(n)
 
