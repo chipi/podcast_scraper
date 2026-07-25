@@ -141,7 +141,9 @@ curl -sG http://homelab:9428/select/logsql/query \
    Podcast" folder) predates the **file-provisioned** homelab Grafana with **Podcast
    Operator** / **Podcast Player** folders.
 9. Same guide says player backend errors "land under `api`" — **stale**: the player has its
-   **own GlitchTip project (5)** + backend DSN (`PROD_SENTRY_DSN_PLAYER`).
+   **own GlitchTip project (5)** + per-surface DSNs split into `PROD_SENTRY_DSN_PLAYER_API`
+   (backend) and `PROD_SENTRY_DSN_PLAYER_WEB` (browser); the bare `PROD_SENTRY_DSN_PLAYER`
+   secret was retired.
 
 ## Where things live (file map)
 

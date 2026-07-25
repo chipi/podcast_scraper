@@ -109,7 +109,7 @@ scanner noise, and a wider blast radius. Here, **the application is intended to 
 tailnet**: MagicDNS gives stable names; **`tailscale serve`** (or equivalent) terminates TLS for
 the viewer; ACLs express **who may SSH** and **which tags may reach which ports**.
 
-**CI deployers** are first-class tailnet members with **`TS_AUTHKEY`** scoped to **`tag:gha-deployer`**.
+**CI deployers** join via a **Tailscale OAuth client** (`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET`), minting an ephemeral node tagged **`tag:gha-deployer`** (migrated off `authkey`, #1289).
 ACL rules allow **SSH from that tag to `tag:prod:22` or `tag:dr-drill:22`**, not arbitrary WAN SSH.
 
 ```mermaid
@@ -128,7 +128,7 @@ flowchart LR
     DRILL["tag:dr-drill VPS"]
   end
 
-  JOB -->|"authkey join"| GHA
+  JOB -->|"OAuth join"| GHA
   ACL --> hosts
   GHA -->|"SSH 22 if ACL allows"| PROD
   GHA -->|"SSH 22 if ACL allows"| DRILL
@@ -360,7 +360,7 @@ Backups are **git-visible workflows**, not a hidden cron on the VPS only, so cha
 | --- | --- |
 | **Network exposure** | Tailscale ACLs; Hetzner firewall default deny inbound for app ports |
 | **CI to host** | Ed25519 deploy key in GitHub **Secrets**; only **`deploy@`** runs **`deploy.sh`** |
-| **Infra secrets** | `HCLOUD_TOKEN`, `TS_API_KEY`, `TFSTATE_AGE_KEY`, device **`TS_AUTHKEY`**, per-env SSH keys |
+| **Infra secrets** | `HCLOUD_TOKEN`, `TS_API_KEY`, `TFSTATE_AGE_KEY`, deployer **`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET`** (tailnet join), device **`TS_AUTHKEY`** (cloud-init/VPS `tailscale up`), per-env SSH keys |
 | **State at rest** | sops + age encrypted files; age private key not in repo |
 | **Drill isolation** | Separate Hetzner token and OpenTofu state; destroy path returns workspace to empty |
 
