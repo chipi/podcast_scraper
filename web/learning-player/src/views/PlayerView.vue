@@ -597,7 +597,7 @@ onBeforeUnmount(() => {
 
       <!-- Middle: synced transcript. The mobile show/hide toggle lives in the floating controls
            panel (PlayerControls #corner slot) so it's reachable at any scroll position. -->
-      <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70vh] lg:flex-col">
+      <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70dvh] lg:flex-col">
         <!-- Transcript body — opt-in on mobile (toggled), always shown on desktop. `lg:contents`
              dissolves this wrapper at lg so the transcript keeps flowing inside the flex column
              (lg:flex-1 scroll) exactly as before. -->
@@ -679,7 +679,7 @@ onBeforeUnmount(() => {
       <!-- Knowledge Panel: persistent rail on desktop, overlay sheet on mobile. -->
       <div
         v-if="panelOpen"
-        class="fixed inset-x-0 bottom-0 top-8 z-40 overflow-hidden rounded-t-2xl border-t border-border lg:static lg:top-auto lg:z-auto lg:mt-0 lg:max-h-[70vh] lg:rounded-2xl lg:border"
+        class="fixed inset-x-0 bottom-0 top-8 z-40 overflow-hidden rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] lg:static lg:top-auto lg:z-auto lg:mt-0 lg:max-h-[70dvh] lg:rounded-2xl lg:border lg:pb-0"
       >
         <KnowledgePanel
           :episode="episode"

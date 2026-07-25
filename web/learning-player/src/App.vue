@@ -32,8 +32,10 @@ async function onSignOut(): Promise<void> {
 
 <template>
   <SkipLink />
-  <div class="min-h-screen bg-canvas text-canvas-foreground font-sans">
-    <header class="border-b border-border px-5 py-4">
+  <div class="min-h-dvh bg-canvas text-canvas-foreground font-sans">
+    <!-- dvh (not vh) avoids the iOS 100vh over-report; safe-area top so the nav clears the
+         notch / Dynamic Island, and side insets for landscape rounded corners. -->
+    <header class="border-b border-border px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]">
       <div class="mx-auto flex max-w-6xl items-center justify-between">
       <RouterLink :to="{ name: 'home' }" class="no-underline">
         <span class="lp-kicker block">{{ t('app.tagline') }}</span>
