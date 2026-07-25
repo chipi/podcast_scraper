@@ -40,6 +40,7 @@ class InsightTypeReindexMigration(Migration):
         return Path(ctx.options.get("lance_path") or ctx.corpus_root / "search" / "lance_index")
 
     def plan(self, ctx: MigrationContext) -> str:
+        """Return a human summary of whether the LanceDB index needs an insight_type reindex."""
         from ...search.backends.lancedb_backend import lance_index_is_stale
 
         lance_path = self._lance_path(ctx)
@@ -53,6 +54,7 @@ class InsightTypeReindexMigration(Migration):
         return "LanceDB index already at the current schema (insight_type present) — no-op."
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Rebuild the LanceDB index when stale so the insight tier carries insight_type."""
         from ...search.backends.lancedb_backend import lance_index_is_stale
 
         lance_path = self._lance_path(ctx)
