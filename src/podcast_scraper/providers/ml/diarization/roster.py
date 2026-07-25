@@ -37,6 +37,7 @@ from ....speaker_detectors.hosts import (
     extract_self_introduced_host,
     guests_introduced_by_the_host,
     has_org_markers,
+    HONORIFIC_TITLES,
     is_network_or_org_author,
     is_plausible_mononym,
     looks_like_a_person_name,
@@ -51,11 +52,14 @@ CO_HOST_INTRO_SHARE = 0.30
 # An unnamed voice with less than this much total speaking time is a one-off "cameo" — a brief
 # interjection not worth naming (measured: ~60% of unresolved voices, ~4% of unknown talk time).
 CAMEO_MAX_TALK_S = 20.0
-# A SHORT voice that introduces itself as several people is a cold-open montage clip (the merged
-# "I'm Kevin Russo… I'm Casey Noon…" opener measured 13s). Above this, a voice with two self-intros
-# is a real dominant speaker whose cluster absorbed a merged intro (real hosts measured 400–1500s),
-# so it keeps its name — only the brief clip is suppressed.
-MONTAGE_CLIP_MAX_TALK_S = 90.0
+# A SHORT voice that introduces itself as several people is a cold-open montage clip whose entire
+# run fits inside the opening ("I'm Kevin Russo… I'm Casey Noon…" measured 13s) — set to the intro
+# window because that is where such a montage lives. Above it, a voice with two self-intros is a
+# real dominant speaker whose cluster merely ABSORBED a merged cold-open clip (real hosts measured
+# 400–1500s); it keeps its name, resolved from its own leading self-intro. Only the brief clip is
+# suppressed. Residual gap (accepted, unlikely for a cold open): a pure montage COMPILATION longer
+# than this window would keep its first-intro name rather than be suppressed.
+MONTAGE_CLIP_MAX_TALK_S = INTRO_WINDOW_SECONDS
 # An unnamed voice whose turns sit mostly inside ad regions is an ad read, not a person.
 COMMERCIAL_AD_FRACTION = 0.6
 
@@ -510,17 +514,30 @@ def _edit_distance(a: str, b: str) -> int:
     return prev[-1]
 
 
+# Generational suffixes that are not the surname ("Robert Pape Jr." -> surname "pape", not "jr").
+_NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv", "v"})
+
+
 def _surname_token(name: str) -> Optional[str]:
     """The lowercased last name-token, or ``None`` for a mononym/too-short token. Used to tell that
 
-    "Robert Pape", "Professor Pape" and "Dr. Pape" are the same person for de-duplication. A ≥3-char
-    floor keeps an initial ("R.") from matching everything.
+    "Robert Pape", "Professor Pape" and "Dr. Pape" are the same person for de-duplication. A ≥2-char
+    floor keeps an initial ("R.") from matching everything while still recognising short romanised
+    surnames (Xu, Li, Ng); trailing generational suffixes are dropped first.
     """
-    toks = (name or "").split()
+    toks = [t.strip(".,'’") for t in (name or "").split()]
+    toks = [t for t in toks if t and t.lower() not in _NAME_SUFFIXES]
     if len(toks) < 2:
         return None
-    last = toks[-1].strip(".,'’").lower()
-    return last if len(last) >= 3 else None
+    last = toks[-1].lower()
+    return last if len(last) >= 2 else None
+
+
+def _is_honorific_form(name: str) -> bool:
+    """A name whose first token is an honorific ("Professor Pape", "Dr. Gupta") — i.e. a person
+    referred to by title + surname, which the metadata's full name (Robert Pape) completes."""
+    toks = (name or "").split()
+    return bool(toks) and toks[0].strip(".,'’").lower() in HONORIFIC_TITLES
 
 
 def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
@@ -695,13 +712,18 @@ def _name_guest_voices(
         and v not in voice_intro
         and (talk is None or talk.get(v, 0.0) >= CAMEO_MAX_TALK_S)
     ]
-    # A detected-guest name is only spare if NOBODY on the roster already carries it — not just by
-    # exact string but by SURNAME. A guest introduced in the text under a title ("Professor Pape")
-    # is the same person as the metadata's "Robert Pape"; treating that as still-unclaimed forces
-    # it onto a leftover voice (a bumper, a cameo) and fabricates a second Pape (#876). The claimed
-    # surnames are those already assigned (used_lower) or resolved onto a voice (voice_intro).
+    # A detected-guest name is only spare if the SAME PERSON is not already on the roster under a
+    # title. A guest the interviewer named "Professor Pape" is the metadata's "Robert Pape"; leaving
+    # that unclaimed forces it onto a leftover voice (a bumper) and fabricates a second Pape (#876).
+    # Only HONORIFIC-form roster names ("Professor Pape") claim their surname — a full
+    # name that merely shares a surname ("Robert Pape" vs a distinct "Karen Pape") is a different
+    # person and must not suppress the second guest.
     claimed_surnames = {
-        s for s in (_surname_token(n) for n in (*used_lower, *voice_intro.values())) if s
+        s
+        for s in (
+            _surname_token(n) for n in (*used_lower, *voice_intro.values()) if _is_honorific_form(n)
+        )
+        if s
     }
     spare = [
         g

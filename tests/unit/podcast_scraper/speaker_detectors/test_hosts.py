@@ -171,6 +171,20 @@ def test_is_plausible_mononym(token, ok) -> None:
     assert is_plausible_mononym(token) is ok
 
 
+def test_bare_honorific_is_not_a_name_or_a_distinct_speaker() -> None:
+    # The self-intro regex `\bI'?m\s+([A-Z][\w'’\-]+…)` stops at the period in "I'm Dr. Jane Smith",
+    # capturing the bare title "Dr". It must not be a plausible mononym (a voice named "Dr"), and it
+    # must not count as a distinct self-introduction — else "I'm Dr. Jane … I'm Jane" would read
+    # as a two-person cold-open montage and suppress a real single speaker.
+    from podcast_scraper.speaker_detectors.hosts import distinct_self_introductions
+
+    assert is_plausible_mononym("Dr") is False
+    assert is_plausible_mononym("Professor") is False
+    assert is_plausible_mononym("Brandon") is True  # a real mononym still passes
+    text = "Hello, I'm Dr. Jane Smith. And again, I'm Jane Smith, thanks for tuning in."
+    assert distinct_self_introductions(text, intro_chars=2000) == ["Jane Smith"]
+
+
 def test_guest_greeting_name_then_welcome() -> None:
     """The host greets a just-introduced guest by name: 'Jody Rosen, welcome …'."""
     assert guests_introduced_by_the_host({"v": "Jody Rosen, welcome to the show."}) == {

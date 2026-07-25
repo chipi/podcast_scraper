@@ -584,6 +584,43 @@ def test_detected_guest_is_not_forced_when_its_surname_is_already_on_the_roster(
     assert r.by_voice["BUMPER"].name == "BUMPER"  # the bumper stays unnamed (safe direction)
 
 
+def test_two_distinct_guests_sharing_a_surname_are_both_nameable() -> None:
+    # 2a negative control: ONLY a honorific-form roster name ("Professor Pape") claims its surname.
+    # Two distinct guests who merely share a surname — "Robert Pape" (named by his own self-intro)
+    # and a genuinely different "Karen Pape" — must both be nameable; the shared surname must not
+    # suppress the second (the reviewer's HIGH finding on an over-broad surname claim).
+    diar = _diar([("HOST", 0, 40), ("G1", 40, 400), ("G2", 400, 760)], 3)
+    g1 = "Thank you. I'm Robert Pape and I study political violence for a living, a whole career."
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Dana Reyes.",
+        known_hosts=["Dana Reyes"],
+        detected_guests=["Robert Pape", "Karen Pape"],
+        metadata_named=["Robert Pape", "Karen Pape"],
+        voice_texts={
+            "HOST": "Welcome. I'm Dana Reyes.",
+            "G1": g1,
+            "G2": "Thanks for having me. I work on domestic policy and social movements at length.",
+        },
+        ordered_turns=[("HOST", "Welcome. I'm Dana Reyes."), ("G1", g1), ("G2", "Thanks. Policy.")],
+    )
+    names = {role.name for role in r.by_voice.values()}
+    assert "Robert Pape" in names  # named by his own self-intro
+    assert "Karen Pape" in names  # a distinct same-surname guest is NOT suppressed
+
+
+def test_surname_token_edge_cases() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _surname_token
+
+    assert _surname_token("Robert Pape") == "pape"
+    assert _surname_token("Professor Pape") == "pape"
+    assert _surname_token("Robert Pape Jr.") == "pape"  # generational suffix dropped
+    assert _surname_token("Li Xu") == "xu"  # short romanised surname kept (>=2 chars)
+    assert _surname_token("R. Pape") == "pape"  # a leading initial is not the surname
+    assert _surname_token("Cher") is None  # mononym has no surname
+    assert _surname_token("") is None
+
+
 def test_a_quoted_greeting_by_a_non_host_never_force_names_a_voice() -> None:
     # N2: guests_introduced_by_the_host must trust only the HOST's turns. A non-host voice that
     # QUOTES a greeting ("...and then Sarah Chen, thanks so much for coming to my defense...") must

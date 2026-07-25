@@ -196,7 +196,13 @@ def distinct_self_introductions(
         name = match.group(1).strip(" .,")
         if len(name) < 2 or is_known_network(name):
             continue
-        if len(name.split()) >= 2 and not looks_like_a_person_name(name):
+        toks = name.split()
+        # A multi-token run must look like a person; a single token must be a plausible mononym, not
+        # a bare honorific ("Dr", the truncated "I'm Dr. Jane Smith" capture) — else "I'm Dr. X …
+        # I'm X" would count as two distinct speakers and wrongly read as a montage.
+        if len(toks) >= 2 and not looks_like_a_person_name(name):
+            continue
+        if len(toks) == 1 and not is_plausible_mononym(name):
             continue
         if name.lower() not in lowered:
             lowered.add(name.lower())
@@ -561,19 +567,59 @@ _NOT_A_MONONYM = frozenset(
 )
 
 
+# Honorifics. The self-intro regex `\bI'?m\s+([A-Z][\w'’\-]+…)` stops at the period in "I'm Dr.
+# Jane Smith", capturing the bare title "Dr" — which must never become a speaker name, and must not
+# count as a distinct self-introduction (else "I'm Dr. X … I'm X" reads as a two-person montage).
+HONORIFIC_TITLES = frozenset(
+    {
+        "dr",
+        "doctor",
+        "mr",
+        "mrs",
+        "ms",
+        "miss",
+        "prof",
+        "professor",
+        "sir",
+        "dame",
+        "lord",
+        "lady",
+        "rev",
+        "reverend",
+        "fr",
+        "father",
+        "sen",
+        "senator",
+        "rep",
+        "gov",
+        "governor",
+        "pres",
+        "president",
+        "judge",
+        "justice",
+        "capt",
+        "captain",
+        "gen",
+        "sgt",
+        "col",
+    }
+)
+
+
 def is_plausible_mononym(token: Optional[str]) -> bool:
     """True if a one-token self-intro ("I'm Brandon") is a plausible name, not "I'm American".
 
     Accepts a capitalised alphabetic token (apostrophes/hyphens allowed) that is neither an
-    ordinary word (:data:`_NOT_A_NAME_TOKEN`) nor a demonym/religion/politics label
-    (:data:`_NOT_A_MONONYM`). Used to let a voice's own single-name self-introduction name it
-    on feeds with no host anchor — without re-admitting the false positives the guard exists for.
+    ordinary word (:data:`_NOT_A_NAME_TOKEN`), a demonym/religion/politics label
+    (:data:`_NOT_A_MONONYM`), nor a bare honorific (:data:`HONORIFIC_TITLES`, the "I'm Dr." case).
+    Used to let a voice's own single-name self-introduction name it on feeds with no host anchor —
+    without re-admitting the false positives the guard exists for.
     """
     t = (token or "").strip(" .,")
     if not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
         return False
     tl = t.lower()
-    return tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM
+    return tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
 
 
 def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
