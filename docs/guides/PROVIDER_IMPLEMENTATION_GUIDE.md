@@ -282,9 +282,49 @@ declaration in the mock server; follow the existing
 - [ ] **Guardrail E2E** (chat-shaped providers): inject empty / thinking-prose / finish-length response via the mock server, assert `GuardrailViolation` propagates out of the public method (not wrapped into `ProviderRuntimeError`). See `tests/e2e/test_cloud_guardrails_e2e.py` for the template.
 - [ ] **Resilience E2E** (chat-shaped providers): inject permanent 5xx + transient 5xx via `set_error_behavior` / `set_transient_error`, assert behavior matches the per-stage contract. See `tests/e2e/test_cloud_resilience_e2e.py`.
 - [ ] **Resource Management**: Verify `cleanup()` properly unloads models or closes connections.
+- [ ] **Diarization providers only**: add a `DiarizationLabelingStrategy` tuned to how the model clusters and wire it in `labeling_strategy_for()`; validate with a single-variable reprocess pilot (only `diarization_provider` changed) and keep the frozen base + N1/dedup tests green. See "Adding a diarization provider" above and ADR-126.
+
+## Adding a diarization provider — it needs a labeling strategy (ADR-126)
+
+Diarization is not just another provider: its output (`SPEAKER_NN` clusters) feeds **speaker
+labeling** (`providers/ml/diarization/roster.py`), and labeling is **coupled to how the model
+clusters**. There is no diarizer-agnostic labeling heuristic — the same audio clusters differently
+per model, and each shape breaks a different labeling assumption:
+
+- **Deepgram (coarse):** merges a show's cold-open montage into the host's own cluster. The
+  host-candidate rule "the first voices to speak are the hosts" works *because* of this merge.
+- **pyannote community-1 (fine):** splits each host into their own cluster (with an ASR-garbled
+  self-intro), leaves recurring promo readers as their own first-speaking clusters, and splits some
+  guests across two clusters. "First to speak" now crowns a cold-open ad clip, garbled host names go
+  un-canonicalized, and split guests double-name.
+
+So **a new diarization model MUST ship a labeling strategy fine-tuned to the way it clusters** —
+overfitting to *that* diarizer, but explicit and contained, never smuggled into a shared "generic"
+function. The mechanism is `providers/ml/diarization/labeling_strategy.py`:
+
+1. `DiarizationLabelingStrategy` is the **base = Deepgram/coarse** behavior, frozen — subclasses
+   override only the cluster-shape-sensitive hooks (`recorded_voices`, `host_candidate_voices`,
+   `snap_extra`). Everything else (the naming invariants — N1, "a wrong label is worse than an
+   unnamed voice" — the precedence self-intro > host-intro > LLM > forced, the name primitives, the
+   LLM path) stays in the shared resolver and must NOT be forked.
+2. Add a `<Model>LabelingStrategy` subclass tuned to your model's merge/split footprint, and wire it
+   in `labeling_strategy_for(diarization_provider)`.
+3. Because diarization providers are chained (DGX → local → Deepgram fallback, RFC-106), more than
+   one cluster shape can occur in the **same deployment** — the base strategy must keep working while
+   your new one is active.
+
+**How to derive the strategy (do NOT guess):** run the corpus reprocess as a **single-variable
+gate** — same everything, only `diarization_provider` changed (see
+`config/profiles/reprocess_v22_community1.yaml` for the template; it differs from `cloud_balanced` in
+*exactly* the diarization field). Diff the resulting speaker naming against the prior diarizer's,
+read the `source` field in the `.speakers.diagnostics.json` of each changed voice to find the
+mechanism, and design hooks against the **real** clusters — not an assumed shape. Do **not** try to
+tune the diarizer's `clustering_threshold` to imitate another model's shape: the DGX server accepts
+only speaker-count bounds, and coarsening trades split-fixes for merge-regressions (ADR-126 §Q2).
 
 ## Related Documentation
 
+- [ADR-126: Provider-specific speaker labeling](../adr/ADR-126-provider-specific-speaker-labeling.md) - Why diarization providers need a labeling strategy
 - [Protocol Extension Guide](./PROTOCOL_EXTENSION_GUIDE.md) - How to extend protocols
 - [ML Provider Reference](./ML_PROVIDER_REFERENCE.md) - Details on local ML models
 - [Development Guide](./DEVELOPMENT_GUIDE.md) - Development workflow
