@@ -15,7 +15,9 @@ export default defineConfig({
   // see ``e2e/validation/real-corpus.spec.ts`` header), so the default
   // viewer-e2e GHA job must not pick them up. They run under their own
   // ``playwright.validation.config.ts`` invoked by ``make ci-ui-validation``.
-  testIgnore: ['**/validation/**'],
+  // ``e2e/live/`` is the #43 post-deploy smoke vs the LIVE operator.closelistening.app — it
+  // runs under ``playwright.live.config.ts`` against the deployed origin, NOT this local stack.
+  testIgnore: ['**/validation/**', '**/live/**'],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   // Local runs get 1 retry too: the production-shaped handoff specs assert on

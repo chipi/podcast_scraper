@@ -1,0 +1,53 @@
+# Post-deploy live smoke for the public operator viewer (#43). Runs the Playwright live smoke
+# (web/gi-kg-viewer/e2e/live) against the DEPLOYED operator.closelistening.app after a successful
+# "Deploy operator (public)" run — and on demand via workflow_dispatch. Read-only vs prod
+# (passes the coming-soon gate with the preview basic-auth; never mutates data). Mirrors
+# smoke-player.yml.
+name: Smoke operator (live)
+
+on:
+  workflow_dispatch: {}
+  workflow_run:
+    workflows: ["Deploy operator (public)"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-operator
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    # Manual runs always fire; auto runs only when the deploy actually succeeded.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/gi-kg-viewer
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/gi-kg-viewer/package-lock.json
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Live smoke vs operator.closelistening.app
+        env:
+          LIVE_BASE_URL: https://${{ vars.OPERATOR_DOMAIN || 'operator.closelistening.app' }}
+          OPERATOR_PREVIEW_USER: ${{ vars.PLAYER_PREVIEW_USER || 'marko' }}
+          # The operator doorman reuses the player's basic-auth. Without it the gated specs skip;
+          # the public coming-soon assertion still runs.
+          OPERATOR_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
+        run: npm run test:e2e:live
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-live-report-operator
+          path: web/gi-kg-viewer/playwright-report/
+          retention-days: 7
