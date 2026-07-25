@@ -82,6 +82,16 @@ services:
   viewer:
     image: ghcr.io/chipi/podcast-scraper-stack-viewer:${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
+    environment:
+      # Bootstrap the SPA's default corpus on first login. The image's nginx sub_filter
+      # injects window.__PODCAST_DEFAULT_CORPUS_PATH__ + a localStorage seed for
+      # ``ps_corpus_path`` from this value; unset → a fresh sign-in lands with no corpus
+      # selected and no data. The api mounts the shared corpus at /app/output (:ro), so
+      # default the SPA there. (Same block as the canonical stack.yml viewer.)
+      PODCAST_DEFAULT_CORPUS_PATH: ${PODCAST_DEFAULT_CORPUS_PATH:-/app/output}
+      # Sentry env/release tagging for viewer events (PODCAST_ENV staged as prod by the deploy).
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
     ports:
       # Loopback only — the Caddy edge (operator.caddy) is the public front (ADR-114).
       - "127.0.0.1:${OPERATOR_PORT:-8093}:80"

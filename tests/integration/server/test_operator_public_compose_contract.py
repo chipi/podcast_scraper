@@ -119,3 +119,13 @@ def test_viewer_loopback_only_and_hardened(resolved: Dict[str, Any]) -> None:
     assert "127.0.0.1" in ports, "operator viewer must bind loopback only (edge is the front)"
     assert fe.get("read_only") is True
     assert "no-new-privileges:true" in " ".join(fe.get("security_opt") or [])
+
+
+def test_viewer_defaults_corpus_path(resolved: Dict[str, Any]) -> None:
+    # A fresh operator sign-in must land on the shared corpus (mounted /app/output:ro),
+    # not an empty selection. The viewer image's nginx seeds ``ps_corpus_path`` from
+    # PODCAST_DEFAULT_CORPUS_PATH; unset → no data on first login. Default it to the mount.
+    env = _svc(resolved, "viewer").get("environment") or {}
+    assert (
+        env.get("PODCAST_DEFAULT_CORPUS_PATH") == "/app/output"
+    ), "operator viewer must default the SPA corpus to the /app/output mount"
