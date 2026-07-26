@@ -615,6 +615,35 @@ def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
     return name
 
 
+def _canonicalize_to_stated_name(name: str, stated: Sequence[str]) -> str:
+    """ADR-128: snap an ASR-mangled published name to the correctly-spelled name the episode
+    metadata STATES — host OR guest — by the same fuzzy rule ``_canonicalize_to_known_host`` uses.
+
+    Every ASR mistranscribes proper nouns (OpenAI Whisper wrote "Kevin Russo"; turbo writes
+    "Kevin Roos" / "David Duvino"), and naming reads names out of the transcript. The correct
+    spelling is almost always in the episode's own metadata: the feed states the hosts, the title +
+    description name the guest. Host snapping already exists; this applies the same matcher to the
+    FULL stated set so guests recover symmetrically. Provider-agnostic. Reference-bounded — it can
+    only ever return a name in ``stated`` (never invents one); a mangling too far from every stated
+    name is left unchanged.
+    """
+    return _canonicalize_to_known_host(name, stated)
+
+
+def _recover_stated_names(by_voice: Dict[str, "SpeakerRole"], stated_refs: Sequence[str]) -> None:
+    """ADR-128 in-place pass: snap each published name that ASR-mangled a STATED person (host OR
+    guest) back to its metadata spelling. Never steals a name another voice already holds."""
+    claimed = {r.name.lower() for r in by_voice.values() if r.named}
+    for v, role in list(by_voice.items()):
+        if not role.named:
+            continue
+        canon = _canonicalize_to_stated_name(role.name, stated_refs)
+        if canon != role.name and canon.lower() not in claimed:
+            claimed.discard(role.name.lower())
+            claimed.add(canon.lower())
+            by_voice[v] = replace(role, name=canon)
+
+
 def _vouched_by_metadata(candidate: str, metadata_named: Sequence[str]) -> Optional[str]:
     """A weak self-introduction the METADATA can vouch for, resolved to the full stated name.
 
@@ -1382,6 +1411,15 @@ def resolve_speaker_roster(
     # They still belong in the roster — as "Advertisement", not as a missing id.
     for v in ad_voices:
         by_voice.setdefault(v, SpeakerRole(name=v, role="unknown", named=False, source="raw"))
+
+    # ADR-128 — provider-agnostic name recovery: snap any published name that ASR-mangled a STATED
+    # person (host OR guest) back to the metadata spelling. Runs for every provider (repairs
+    # OpenAI's manglings on the Deepgram/community-1 corpus too), reference-bounded (never invents).
+    stated_refs = list(
+        dict.fromkeys(list(known_hosts) + list(metadata_named or ()) + list(detected_guests or ()))
+    )
+    if stated_refs:
+        _recover_stated_names(by_voice, stated_refs)
 
     # FINAL PLAUSIBILITY GATE (ADR-126 shared core). Every naming path above — self-intro, host
     # pool, greeting reader, strategy snap, LLM, metadata — writes into `by_voice`, and each has its
