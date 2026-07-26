@@ -2586,5 +2586,85 @@ class TestDeepgramChunkLocalWarning(unittest.TestCase):
         )
 
 
+@pytest.mark.unit
+class TestSpeechCoverageFailover(unittest.TestCase):
+    """ADR-129: the speech-normalized quality gate decision (_maybe_speech_coverage_failover)."""
+
+    def _cfg(self, **kw):
+        from podcast_scraper.models.entities import TranscriptionJob  # noqa: F401
+
+        base = dict(
+            rss="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            diarize=True,
+            hf_token="hf-test",
+            dgx_whisper_model="turbo",
+            transcription_speech_coverage_min=0.85,
+            transcription_coverage_failover_model="large-v3",
+        )
+        base.update(kw)
+        return podcast_config.Config(**base)
+
+    def _job(self):
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        return TranscriptionJob(idx=1, ep_title="t", ep_title_safe="t", temp_media="", episode=None)
+
+    def _call(self, result, cfg):
+        return episode_processor._maybe_speech_coverage_failover(
+            result, "/tmp/a.wav", cfg, self._job(), "/out", None, 1000.0
+        )
+
+    def test_no_op_when_gate_off(self):
+        r = {"segments": [{"start": 0, "end": 600}], "diarization_speech_seconds": 1000}
+        out = self._call(r, self._cfg(transcription_speech_coverage_min=0.0))
+        self.assertNotIn("speech_coverage_failover", out)
+
+    def test_no_op_when_no_failover_model(self):
+        r = {"segments": [{"start": 0, "end": 600}], "diarization_speech_seconds": 1000}
+        out = self._call(r, self._cfg(transcription_coverage_failover_model=None))
+        self.assertNotIn("speech_coverage_failover", out)
+
+    def test_no_op_when_no_speech_denominator(self):
+        # diarization off / no speaker turns -> no denominator -> defer to the raw gate.
+        r = {"segments": [{"start": 0, "end": 600}]}  # no diarization_speech_seconds
+        out = self._call(r, self._cfg())
+        self.assertNotIn("speech_coverage_failover", out)
+
+    def test_no_op_when_speech_coverage_high(self):
+        # 950/1000 = 0.95 >= 0.85 -> turbo got the speech, no failover (the non-speech case).
+        r = {"segments": [{"start": 0, "end": 950}], "diarization_speech_seconds": 1000}
+        out = self._call(r, self._cfg())
+        self.assertNotIn("speech_coverage_failover", out)
+
+    @patch("podcast_scraper.providers.ml.diarization.pipeline.apply_diarization_to_result")
+    @patch("podcast_scraper.workflow.episode_processor._transcribe_with_segments_maybe_chunked")
+    @patch("podcast_scraper.transcription.factory.create_transcription_provider")
+    def test_failover_triggers_on_low_speech_coverage(self, mock_create, mock_tx, mock_diar):
+        # 600/1000 = 0.60 < 0.85 -> real speech drop -> re-transcribe on the failover model.
+        mock_create.return_value = MagicMock()
+        mock_tx.return_value = ({"segments": [{"start": 0, "end": 980}], "text": "better"}, 1.0)
+        mock_diar.return_value = {
+            "segments": [{"start": 0, "end": 980}],
+            "text": "better",
+            "diarization_speech_seconds": 1000,
+            "model_used": None,
+        }
+        r = {
+            "segments": [{"start": 0, "end": 600}],
+            "diarization_speech_seconds": 1000,
+            "text": "bad",
+        }
+        out = self._call(r, self._cfg())
+        self.assertIn("speech_coverage_failover", out)
+        bc = out["speech_coverage_failover"]
+        self.assertEqual(bc["primary_speech_coverage"], 0.6)
+        self.assertEqual(bc["failover_speech_coverage"], 0.98)
+        self.assertEqual(bc["speech_coverage_min"], 0.85)
+        self.assertIn("large-v3", out["model_used"])
+        mock_tx.assert_called_once()  # exactly one re-transcription
+        mock_diar.assert_called_once()  # re-aligned once (diarization cache-hit reused)
+
+
 if __name__ == "__main__":
     unittest.main()

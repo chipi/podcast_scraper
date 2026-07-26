@@ -114,6 +114,56 @@ def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
     assert "speaker_role" not in enriched["segments"][1], "named guest needs no role hint"
 
 
+def test_merged_speech_seconds() -> None:
+    """ADR-129: Σ of the union of diarization turns (overlaps merged, gaps excluded)."""
+    from podcast_scraper.providers.ml.diarization.base import DiarizationSegment as DS
+    from podcast_scraper.providers.ml.diarization.pipeline import merged_speech_seconds
+
+    assert merged_speech_seconds([]) == 0.0
+    assert merged_speech_seconds([DS(0.0, 10.0, "A")]) == 10.0
+    # overlapping co-hosts counted once, not doubled
+    assert merged_speech_seconds([DS(0.0, 10.0, "A"), DS(8.0, 15.0, "B")]) == 15.0
+    # a gap (silence/music) between turns is EXCLUDED — the whole point of the metric
+    assert merged_speech_seconds([DS(0.0, 10.0, "A"), DS(20.0, 25.0, "B")]) == 15.0
+    # provider-agnostic: dict segments + unsorted input handled identically
+    assert (
+        merged_speech_seconds([{"start": 20.0, "end": 25.0}, {"start": 0.0, "end": 10.0}]) == 15.0
+    )
+    # degenerate/malformed segments are ignored, not fatal
+    assert merged_speech_seconds([DS(5.0, 5.0, "A"), {"start": None, "end": 3.0}]) == 0.0
+
+
+@patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
+def test_apply_diarization_attaches_speech_seconds(mock_create_provider) -> None:
+    """ADR-129: apply_diarization_to_result exposes the diarizer's merged speech duration."""
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[
+            DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00"),
+            DiarizationSegment(start=60.0, end=400.0, speaker="SPEAKER_01"),
+        ],
+        num_speakers=2,
+        model_name="test",
+    )
+    mock_create_provider.return_value = mock_provider
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        screenplay=True,
+        hf_token="hf-test",
+    )
+    result = {
+        "text": "hello world",
+        "segments": [
+            {"start": 0.0, "end": 60.0, "text": "hello"},
+            {"start": 60.0, "end": 400.0, "text": "world"},
+        ],
+    }
+    enriched = apply_diarization_to_result(result, "/tmp/audio.wav", cfg, ["Guest"])
+    assert enriched["diarization_speech_seconds"] == 400.0  # 60 + 340, gaps merged
+
+
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
 def test_apply_diarization_names_host_from_transcript_self_intro(mock_create_provider) -> None:
     """End-to-end (#876): host self-intro in the transcript names the diarized host voice."""

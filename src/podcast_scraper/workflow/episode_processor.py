@@ -1826,6 +1826,104 @@ def _maybe_dispatch_reprocess_stage(
     return None
 
 
+def _maybe_speech_coverage_failover(
+    result: Dict[str, Any],
+    media_for_transcription: str,
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    pipeline_metrics: Any,
+    episode_duration_seconds: Optional[float],
+) -> Dict[str, Any]:
+    """ADR-129: re-transcribe on the failover model when the diarized transcript covers too little
+    of the diarizer's SPEECH.
+
+    ``speech_coverage = Σ(transcript segments) / Σ(diarization speech)`` (both merged). Unlike the
+    raw ADR-123 gate (÷ total audio), music/ads/silence — which produce no diarization turn — are
+    excluded, so a music-heavy episode turbo transcribed fully does not falsely failover, while the
+    long-episode cliff (turbo dropping real speech a speaker was talking through) still does.
+
+    Provider-agnostic (any ``DiarizationResult``). A **no-op** when there is no speech denominator
+    (diarization off, or no speaker turns): the raw ``transcription_coverage_min`` gate governs that
+    case instead, so nothing regresses. The failover result carries a ``speech_coverage_failover``
+    breadcrumb + ``model_used`` for per-episode provenance.
+    """
+    min_cov = float(getattr(cfg, "transcription_speech_coverage_min", 0.0) or 0.0)
+    fo_model = getattr(cfg, "transcription_coverage_failover_model", None)
+    if min_cov <= 0 or not fo_model:
+        return result
+    speech = float(result.get("diarization_speech_seconds") or 0.0)
+    if speech <= 0:
+        return result  # no speech denominator — defer to the raw-coverage gate
+
+    from ..providers.ml.diarization.pipeline import (
+        apply_diarization_to_result,
+        merged_speech_seconds,
+    )
+
+    covered = merged_speech_seconds(result.get("segments") or [])
+    speech_cov = min(1.0, covered / speech)
+    if speech_cov >= min_cov:
+        return result
+
+    primary_model = getattr(cfg, "dgx_whisper_model", None)
+    logger.info(
+        "[%s] speech coverage %.1f%% < %.1f%% — primary %r dropped real speech; "
+        "re-transcribing on failover model %s (ADR-129)",
+        job.idx,
+        speech_cov * 100,
+        min_cov * 100,
+        primary_model,
+        fo_model,
+    )
+    from ..transcription.factory import create_transcription_provider
+    from ..utils.provider_metrics import ProviderCallMetrics
+
+    # Disable both gates on the failover pass so it cannot recurse into another re-transcription.
+    fo_cfg = cfg.model_copy(
+        update={
+            "dgx_whisper_model": fo_model,
+            "transcription_coverage_min": 0.0,
+            "transcription_speech_coverage_min": 0.0,
+        }
+    )
+    fo_provider = create_transcription_provider(fo_cfg)
+    fo_result, _ = _transcribe_with_segments_maybe_chunked(
+        media_for_transcription,
+        cfg=fo_cfg,
+        job=job,
+        transcription_provider=fo_provider,
+        pipeline_metrics=pipeline_metrics,
+        episode_duration_seconds=episode_duration_seconds,
+        call_metrics=ProviderCallMetrics(),
+    )
+    # Diarization is audio-based (cache hit on the same audio) — only the transcript→speaker
+    # alignment re-runs, so the failover pays for re-transcription, not re-diarization.
+    fo_result = apply_diarization_to_result(
+        fo_result,
+        media_for_transcription,
+        fo_cfg,
+        job.detected_speaker_names,
+        metadata_named=job.metadata_named,
+        cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
+        feed_hosts=job.feed_hosts,
+    )
+    fo_speech = float(fo_result.get("diarization_speech_seconds") or speech)
+    fo_cov = (
+        min(1.0, merged_speech_seconds(fo_result.get("segments") or []) / fo_speech)
+        if fo_speech > 0
+        else None
+    )
+    fo_result["model_used"] = fo_result.get("model_used") or f"{fo_model}:speech_coverage_failover"
+    fo_result["speech_coverage_failover"] = {
+        "primary_model": primary_model,
+        "primary_speech_coverage": round(speech_cov, 3),
+        "failover_speech_coverage": round(fo_cov, 3) if fo_cov is not None else None,
+        "speech_coverage_min": min_cov,
+    }
+    return fo_result
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1996,6 +2094,18 @@ def transcribe_media_to_text(
                     job.idx,
                     format_exception_for_log(exc),
                 )
+            # ADR-129: speech-normalized quality gate — re-transcribe on the failover model if the
+            # diarized transcript covers too little of the diarizer's SPEECH (music/ads excluded).
+            # No-op unless configured + diarization produced a speech denominator.
+            result = _maybe_speech_coverage_failover(
+                result,
+                media_for_transcription,
+                cfg,
+                job,
+                effective_output_dir,
+                pipeline_metrics,
+                episode_duration_seconds,
+            )
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )

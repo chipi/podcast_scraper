@@ -1204,13 +1204,30 @@ class Config(BaseModel):
             "only with a failover model set."
         ),
     )
+    transcription_speech_coverage_min: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        alias="transcription_speech_coverage_min",
+        description=(
+            "ADR-129 speech-normalized quality gate. Like transcription_coverage_min, but the "
+            "denominator is the diarizer's SPEECH duration (Σ merged diarization segments), not "
+            "total audio — so music/ads/silence do not count as dropped speech. When a diarized "
+            "transcript's Σ(segments)/Σ(diarization speech) is below this, re-transcribe on "
+            "transcription_coverage_failover_model. Runs after diarization; when diarization is "
+            "off or empty it is a no-op (the raw transcription_coverage_min gate applies instead). "
+            "0.0 = off; a reprocess sets ~0.85. Preferred over transcription_coverage_min when "
+            "diarization runs (they should not both be active)."
+        ),
+    )
     transcription_coverage_failover_model: Optional[str] = Field(
         default=None,
         alias="transcription_coverage_failover_model",
         description=(
-            "ADR-123: the whisper model to re-transcribe with when coverage falls below "
-            "transcription_coverage_min (e.g. 'Systran/faster-whisper-large-v3' as the robust "
-            "fallback for turbo's long-episode drops). None = no quality-gate failover."
+            "ADR-123/ADR-129: the whisper model to re-transcribe with when coverage falls below "
+            "transcription_coverage_min OR transcription_speech_coverage_min (e.g. "
+            "'Systran/faster-whisper-large-v3' as the robust fallback for turbo's long-episode "
+            "drops). None = no quality-gate failover."
         ),
     )
     enforce_model_governance: bool = Field(

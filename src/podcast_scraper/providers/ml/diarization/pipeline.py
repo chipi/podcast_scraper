@@ -6,7 +6,7 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .... import config
 from .alignment import align_segments_to_speakers
@@ -31,6 +31,40 @@ def _voice_texts_from_aligned(aligned: List[Any]) -> Dict[str, str]:
         if txt:
             chunks.setdefault(speaker_id, []).append(txt)
     return {v: " ".join(c) for v, c in chunks.items()}
+
+
+def merged_speech_seconds(segments: Sequence[Any]) -> float:
+    """ADR-129: total speech duration as the union of diarization turns (overlaps merged once).
+
+    Works on any provider's ``DiarizationSegment`` list (start/end attrs) or on dict segments with
+    ``start``/``end`` keys, so it is diarizer-agnostic. Merging overlaps matters: co-hosts talking
+    over each other must not double-count. Returns 0.0 for an empty/degenerate diarization — the
+    caller reads that as "no speech denominator" and defers to the raw-coverage gate.
+    """
+
+    def _bounds(s: Any) -> Optional[Tuple[float, float]]:
+        try:
+            if isinstance(s, dict):
+                return float(s["start"]), float(s["end"])
+            return float(s.start), float(s.end)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return None
+
+    ivs = sorted(b for b in (_bounds(s) for s in segments) if b is not None and b[1] > b[0])
+    total = 0.0
+    cur_start: Optional[float] = None
+    cur_end = 0.0
+    for start, end in ivs:
+        if cur_start is None:
+            cur_start, cur_end = start, end
+        elif start <= cur_end:
+            cur_end = max(cur_end, end)
+        else:
+            total += cur_end - cur_start
+            cur_start, cur_end = start, end
+    if cur_start is not None:
+        total += cur_end - cur_start
+    return total
 
 
 def _ad_intervals(segments: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
@@ -359,4 +393,8 @@ def apply_diarization_to_result(
         show_centric=bool(getattr(cfg, "show_centric", False)),
     )
     enriched_result["diarization_num_speakers"] = roster.num_speakers
+    # ADR-129: the diarizer's total SPEECH duration (Σ merged speaker turns) — the denominator for
+    # the speech-normalized coverage gate. Provider-agnostic (any DiarizationResult). Non-speech
+    # (music/ads/silence) has no speaker turn, so it is excluded here, unlike raw audio duration.
+    enriched_result["diarization_speech_seconds"] = merged_speech_seconds(diarization.segments)
     return enriched_result
