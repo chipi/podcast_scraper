@@ -578,7 +578,13 @@ def _canonicalize_to_stated_person(name: str, stated: Sequence[str]) -> str:
     return next(iter(matches)) if len(matches) == 1 else name
 
 
-def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
+def _canonicalize_to_known_host(
+    name: str,
+    known_hosts: Sequence[str],
+    *,
+    first_name_max_edit: int = 0,
+    mononym_ok: bool = False,
+) -> str:
     """Snap an ASR-mangled self-introduction onto the configured host name.
 
     A self-introduction is transcribed, so it carries the ASR's spelling: Kevin Roose introduces
@@ -589,14 +595,37 @@ def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
     Snapping requires an EXACT first-name match plus a near surname (phonetic, or within a small
     edit distance), so a guest who merely shares a host's first name is left alone. Requiring both
     is what keeps this from quietly renaming real people.
+
+    ``first_name_max_edit`` (audit 2a) relaxes the first name to a small edit distance — but ONLY
+    when the surname matches strongly (soundex or edit ≤ 1), so "Arietta Laika" snaps to the stated
+    "Arijeta Lajka" (first edit 2, surname edit 1) without letting a relaxed first name rename a
+    genuinely different person. Host callers keep the default 0 (exact). ``mononym_ok`` (audit 3)
+    lets a bare first name ("Kevin") snap to a stated person iff EXACTLY ONE reference carries it.
     """
     toks = name.split()
+    if len(toks) == 1 and mononym_ok:
+        first = toks[0].lower()
+        matches = [r for r in known_hosts if r.split() and r.split()[0].lower() == first]
+        # Abstain on ambiguity: only snap when a single stated person owns that first name.
+        return matches[0] if len(matches) == 1 else name
     if len(toks) < 2:
         return name
     first, last = toks[0].lower(), toks[-1]
     for host in known_hosts:
         h = host.split()
-        if len(h) < 2 or h[0].lower() != first:
+        if len(h) < 2:
+            continue
+        first_exact = h[0].lower() == first
+        first_near = first_name_max_edit > 0 and _edit_distance(h[0].lower(), first) <= (
+            first_name_max_edit
+        )
+        if not (first_exact or first_near):
+            continue
+        if not first_exact:
+            # Relaxed first name → demand a STRONG surname match so we cannot rename a different
+            # person who merely has a near first name.
+            if _soundex(last) == _soundex(h[-1]) or _edit_distance(last, h[-1]) <= 1:
+                return host
             continue
         if _soundex(last) == _soundex(h[-1]) or _edit_distance(last, h[-1]) <= 3:
             return host
@@ -625,9 +654,10 @@ def _canonicalize_to_stated_name(name: str, stated: Sequence[str]) -> str:
     description name the guest. Host snapping already exists; this applies the same matcher to the
     FULL stated set so guests recover symmetrically. Provider-agnostic. Reference-bounded — it can
     only ever return a name in ``stated`` (never invents one); a mangling too far from every stated
-    name is left unchanged.
+    name is left unchanged. A slightly relaxed first name (audit 2a) and bare first names (audit 3)
+    are accepted — both gated (strong surname / unique first name) so no real person is renamed.
     """
-    return _canonicalize_to_known_host(name, stated)
+    return _canonicalize_to_known_host(name, stated, first_name_max_edit=2, mononym_ok=True)
 
 
 def _recover_stated_names(
@@ -640,7 +670,12 @@ def _recover_stated_names(
 
     * A name that ALREADY exactly matches a stated ref is correct and is never re-snapped — else
       two stated people sharing a first name could move an exact match onto the earlier near-ref.
-    * A name another voice already holds is never reused (one name, one voice).
+    * A name another voice already holds is never reused (one name, one voice) — EXCEPT when the
+      holder is the same person diarization over-split into two voice clusters (audit 2a): both a
+      404s "Arietta Laika" and a 32s "Arijeta Lajka" are the one stated guest, so both take the
+      canonical spelling rather than leaving the dominant cluster mangled. Two DIFFERENT people are
+      still never merged, because the exception only fires when the holder's own name also
+      canonicalizes to the same stated ref.
     * A NON-host voice is never snapped onto a KNOWN-HOST's spelling. This preserves the N1 gate
       (`test_guest_with_asr_close_name_does_not_steal_the_host_identity`): a guest self-introducing
       "Kevin Ross" must not be painted as the host "Kevin Roose" just because the host's voice was
@@ -655,10 +690,23 @@ def _recover_stated_names(
         if not role.named or role.name.lower() in stated_lower:
             continue
         canon = _canonicalize_to_stated_name(role.name, stated_refs)
-        if canon == role.name or canon.lower() in claimed:
+        if canon == role.name:
             continue
         if canon.lower() in known_hosts_lower and role.role != "host":
             continue
+        if canon.lower() in claimed:
+            # one-name-one-voice — unless the current holder is the SAME person (its own name also
+            # canonicalizes to this stated ref), i.e. a diarization over-split. Then both clusters
+            # get the canonical spelling; distinct people are never merged.
+            same_person = any(
+                r.named
+                and r.name.lower() != role.name.lower()
+                and r.role == role.role  # an over-split is ONE person -> one role
+                and _canonicalize_to_stated_name(r.name, [canon]) == canon
+                for r in by_voice.values()
+            )
+            if not same_person:
+                continue
         claimed.discard(role.name.lower())
         claimed.add(canon.lower())
         by_voice[v] = replace(role, name=canon)

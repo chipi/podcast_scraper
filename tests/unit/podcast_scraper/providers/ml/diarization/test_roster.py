@@ -772,6 +772,53 @@ def test_snap_guards_exact_match_and_known_host_role_gate() -> None:
     assert by_voice3["V0"].name == "Casey Newton"
 
 
+def test_mononym_snaps_to_a_uniquely_matching_stated_person() -> None:
+    # Audit fix 3: a bare first name ("Kevin", from a self-intro that only caught the first name)
+    # snaps to the stated person when EXACTLY one reference carries it, and abstains when ambiguous.
+    from podcast_scraper.providers.ml.diarization.roster import _canonicalize_to_stated_name
+
+    assert _canonicalize_to_stated_name("Kevin", ["Kevin Roose", "Kara Swisher"]) == "Kevin Roose"
+    # two Kevins -> ambiguous -> unchanged (never guess which)
+    assert _canonicalize_to_stated_name("Kevin", ["Kevin Roose", "Kevin Systrom"]) == "Kevin"
+    # a mononym matching nobody's first name -> unchanged
+    assert _canonicalize_to_stated_name("Z6", ["Kevin Roose"]) == "Z6"
+
+
+def test_relaxed_first_name_snaps_only_with_a_strong_surname() -> None:
+    # Audit fix 2a: "Arietta Laika" (first edit 2 vs "Arijeta", surname edit 1 vs "Lajka") snaps —
+    # but a near first name with a DIFFERENT surname does not, so a real person is never renamed.
+    from podcast_scraper.providers.ml.diarization.roster import _canonicalize_to_stated_name
+
+    assert _canonicalize_to_stated_name("Arietta Laika", ["Arijeta Lajka"]) == "Arijeta Lajka"
+    assert _canonicalize_to_stated_name("Sam Alton", ["Sam Bright"]) == "Sam Alton"
+
+
+def test_over_split_same_person_both_voices_get_canonical_name() -> None:
+    # Audit fix 2a: diarization split one guest into two clusters — the dominant one mangled
+    # ("Arietta Laika"), the small one correct ("Arijeta Lajka"). Both should carry the stated
+    # spelling; a genuinely different person (different role) is NOT merged (see snap-guard test).
+    from podcast_scraper.providers.ml.diarization.roster import (
+        _recover_stated_names,
+        SpeakerRole,
+    )
+
+    by_voice = {
+        "V0": SpeakerRole(name="Arietta Laika", role="guest", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="Arijeta Lajka", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice, ["Arijeta Lajka"])
+    assert by_voice["V0"].name == "Arijeta Lajka"
+    assert by_voice["V1"].name == "Arijeta Lajka"
+
+    # DIFFERENT role (host holds the name) -> the guest is NOT merged onto it (one name, one voice).
+    by_voice2 = {
+        "V0": SpeakerRole(name="Arijeta Lajka", role="host", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="Arietta Laika", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice2, ["Arijeta Lajka"])
+    assert by_voice2["V1"].name == "Arietta Laika"  # not merged across roles
+
+
 def test_a_cold_open_guest_opener_does_not_name_the_host_voice() -> None:
     # N5: a cold-open GUEST clip that speaks first, performs the guest role ("thanks for having
     # me"), and utters a name-first phrase ("Jane Doe is with us") must NOT be trusted as a host
