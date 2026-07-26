@@ -1863,10 +1863,19 @@ def _maybe_speech_coverage_failover(
 
     covered = merged_speech_seconds(result.get("segments") or [])
     speech_cov = min(1.0, covered / speech)
+    primary_model = getattr(cfg, "dgx_whisper_model", None)
     if speech_cov >= min_cov:
+        # Observable pass (ADR-129): log every evaluation so a run shows the gate ran + its
+        # coverage, not only the rare failover ("the gate works, it just didn't need to fire").
+        logger.info(
+            "[%s] speech coverage %.1f%% >= %.1f%% — keeping primary %r (ADR-129 gate passed)",
+            job.idx,
+            speech_cov * 100,
+            min_cov * 100,
+            primary_model,
+        )
         return result
 
-    primary_model = getattr(cfg, "dgx_whisper_model", None)
     logger.info(
         "[%s] speech coverage %.1f%% < %.1f%% — primary %r dropped real speech; "
         "re-transcribing on failover model %s (ADR-129)",
