@@ -176,12 +176,16 @@ def _on_disk_guid_index(output_dir: str) -> Dict[str, Tuple[int, Dict[str, Any]]
 
 
 def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element:
-    """A minimal RSS ``<item>`` reconstructed from on-disk metadata for an aged-out episode.
+    """An RSS ``<item>`` reconstructed from on-disk metadata for an aged-out episode.
 
-    Carries only what a reprocess needs to identify + place the episode: guid, title, pubDate. It
-    has NO enclosure, so ``media_url`` resolves to ``None`` — fine for ``relabel_only`` (reads the
-    on-disk transcript), while ``rediarize_only`` resolves audio from the cache by guid. (Storing
-    the enclosure URL at ingest is the forward-looking fix so re-download is possible too.)
+    Carries guid, title, pubDate to identify + place the episode, AND the ``description`` (+
+    ``link``) from the stored episode block. The description is load-bearing: speaker detection
+    reads the episode title+description to extract guest names (``_detect_speakers_for_episode`` ->
+    ``extract_episode_description``), so a synthesized item WITHOUT it silently guts metadata-driven
+    guest naming for every reconstructed episode on a reprocess — while live-served episodes in the
+    same run keep it. It has NO enclosure, so ``media_url`` resolves to ``None`` — fine for
+    ``relabel_only`` (reads the on-disk transcript), while ``rediarize_only`` resolves audio from
+    the cache by guid. (Storing the enclosure URL at ingest is the forward-looking re-download fix.)
     """
     item = ET.Element("item")
     ET.SubElement(item, "guid").text = str(guid)
@@ -189,6 +193,12 @@ def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element
     published = episode_meta.get("published_date")
     if published:
         ET.SubElement(item, "pubDate").text = str(published)
+    description = episode_meta.get("description")
+    if description:
+        ET.SubElement(item, "description").text = str(description)
+    link = episode_meta.get("link")
+    if link:
+        ET.SubElement(item, "link").text = str(link)
     return item
 
 

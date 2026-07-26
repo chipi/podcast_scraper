@@ -269,6 +269,45 @@ class TestPrepareEpisodesExistingOnly:
         assert len(episodes) == 3  # the aged-out episode is reached, not dropped
         assert "reconstructed from on-disk metadata" in caplog.text
 
+    def test_reconstructed_episode_carries_description_for_guest_naming(self, tmp_path):
+        # F1 (Fable-5 pipeline audit): a reconstructed (aged-out) episode must carry the on-disk
+        # DESCRIPTION, not just guid/title/pubDate. Speaker detection reads title+description to
+        # extract guest names; without the description the reconstructed half of a reprocess loses
+        # metadata-driven guest naming while live-served episodes in the same run keep it.
+        import json
+
+        from podcast_scraper.rss.parser import extract_episode_description
+
+        meta = tmp_path / "run_A" / "metadata" / "0002 - Aged.metadata.json"
+        meta.parent.mkdir(parents=True, exist_ok=True)
+        meta.write_text(
+            json.dumps(
+                {
+                    "episode": {
+                        "guid": "g_aged",
+                        "title": "Aged Out Episode",
+                        "description": "My guest today is Brian Chesky, the founder of Airbnb.",
+                        "link": "https://example.com/ep2",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        _write_meta(tmp_path / "run_A" / "metadata" / "0001 - Live.metadata.json", "g_live")
+        feed = RssFeed(
+            title="T",
+            items=[_rss_item("live", guid="g_live")],  # g_aged aged out -> reconstructed
+            base_url="https://example.com",
+            authors=[],
+        )
+        cfg = _scraping_cfg(reprocess_existing_only=True, output_dir=str(tmp_path))
+        episodes = prepare_episodes_from_feed(feed, cfg)
+        aged = next(e for e in episodes if e.idx == 2)
+        assert (
+            extract_episode_description(aged.item)
+            == "My guest today is Brian Chesky, the founder of Airbnb."
+        )
+
     def test_reprocess_assigns_on_disk_idx_so_transcript_glob_matches(self, tmp_path):
         # The reprocess must give each episode its ON-DISK idx (the "NNNN - " filename prefix the
         # transcripts carry), not a feed-enumerate position — or relabel_only/rediarize_only, which

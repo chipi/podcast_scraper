@@ -62,7 +62,11 @@ def extract_episode_description(item):
 from ...providers.resilience import ResilienceFuseOpenError
 from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
-from ...speaker_detectors.hosts import detect_hosts_from_feed, is_network_or_org_author
+from ...speaker_detectors.hosts import (
+    detect_hosts_from_feed,
+    hosts_from_feed_statement,
+    is_network_or_org_author,
+)
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
@@ -262,16 +266,18 @@ def _handle_dry_run_host_detection(
         HostDetectionResult with hosts from RSS author tags if available
     """
     logger.info("(dry-run) would initialize speaker detector")
-    cached_hosts: set[str] = set()
-    # Still detect hosts from RSS author tags if available (network/org tags filtered, #876)
-    if feed.authors:
+    # Statement-first, matching the real run (audit F4): the feed's "Hosted by ..." blurb is pure
+    # regex (no ML — safe in dry-run), so an org-authored feed whose description names its hosts
+    # previews the same hosts the real run would find, instead of reporting none. NER is skipped
+    # here (it needs the model dry-run deliberately avoids); author tags are the second source.
+    cached_hosts: set[str] = set(hosts_from_feed_statement(feed.title, feed.description))
+    if not cached_hosts and feed.authors:
         cached_hosts = {a for a in feed.authors if not is_network_or_org_author(a)}
-        if cached_hosts:
-            logger.info(
-                "DETECTED HOSTS (from %s): %s",
-                "RSS author tags",
-                ", ".join(sorted(cached_hosts)),
-            )
+    if cached_hosts:
+        logger.info(
+            "DETECTED HOSTS (dry-run, feed statement / author tags): %s",
+            ", ".join(sorted(cached_hosts)),
+        )
     return HostDetectionResult(cached_hosts, None, None)
 
 
@@ -337,6 +343,16 @@ def _detect_hosts_from_feed(
     Returns:
         Set of detected host names
     """
+    # Statement-first order of authority (ADR-128 / Fable-5 audit F2). The deterministic parser
+    # reads the feed's own "Hosted by ..." blurb out of the description, then org-filtered author
+    # tags, then NER. EVERY LLM provider's detect_hosts short-circuits on RSS author tags — it
+    # returns set(feed_authors) verbatim and never reads the description — so calling it first
+    # mis-anchors org-authored feeds (the org is returned, then stripped to nothing) AND overrides a
+    # feed whose description names hosts different from a personal author tag. Consult the provider
+    # only when the deterministic parse finds nothing (it may still add an LLM-NER hit).
+    stated = detect_hosts_from_feed(feed.title, feed.description, feed.authors or [])
+    if stated:
+        return stated
     feed_hosts = speaker_detector.detect_hosts(
         feed_title=feed.title,
         feed_description=feed.description,  # show blurb usually names the host (#1169)
@@ -364,7 +380,10 @@ def _validate_hosts_with_first_episode(
     Returns:
         Validated set of host names
     """
-    # Skip validation if hosts came from author tags (they're already reliable)
+    # Skip validation when the feed carries author tags: on such feeds the hosts came either from a
+    # trusted author tag OR (post audit-F2, statement-first) from the feed's own "Hosted by ..."
+    # statement — both authoritative, neither needing first-episode corroboration. Only NER-derived
+    # hosts on a tag-less feed fall through to validation below.
     if not feed_hosts or not episodes or feed.authors:
         return feed_hosts
 
@@ -436,15 +455,10 @@ def _fallback_to_episode_authors(
     for episode in episodes[:3]:
         episode_author_list = rss_parser.extract_episode_authors(episode.item)
         for author in episode_author_list:
-            # Filter out organization names (same logic as feed-level)
-            # Organization names are typically all caps, short, and have no spaces
-            author_stripped = author.strip()
-            is_likely_org = (
-                len(author_stripped) <= 10
-                and author_stripped.isupper()
-                and " " not in author_stripped
-            )
-            if not is_likely_org:
+            # Use the shared network/org predicate (audit F5) rather than a weaker inline
+            # all-caps/short heuristic — the caller re-filters with this same predicate, so this
+            # only removes a redundant, laxer duplicate.
+            if not is_network_or_org_author(author.strip()):
                 episode_authors.add(author)
 
     return episode_authors
@@ -523,27 +537,10 @@ def detect_feed_hosts_and_patterns(
     feed_hosts = _detect_hosts_from_feed(feed, speaker_detector)
     # Strip network/publisher author tags the detector surfaces as hosts (e.g. "Colossus",
     # "Colossus | Investing & Business Podcasts"). For such shows the real host comes from the
-    # transcript self-introduction at diarization time, not the feed metadata (#876).
+    # transcript self-introduction at diarization time, not the feed metadata (#876). The
+    # statement-first ordering inside _detect_hosts_from_feed means an org-authored feed whose
+    # description names its hosts is already recovered before this strip runs (ADR-128 / audit F2).
     feed_hosts = {h for h in feed_hosts if not is_network_or_org_author(h)}
-
-    # ADR-128: the LLM detector (gemini/openai `detect_hosts`) short-circuits on RSS author tags —
-    # it returns the publisher/org author verbatim and never reads the description. The strip above
-    # then removes that org, leaving NOTHING even though the feed's DESCRIPTION names the real hosts
-    # ("journalists Kevin Roose and Casey Newton explore..."). Observed on the v2.3 turbo reprocess:
-    # cached_hosts empty for 90/90 episodes, every feed org-authored. Fall back to the deterministic
-    # detect_hosts_from_feed, which reads the host STATEMENT from the description first — the exact
-    # function the relabel/rediarize paths already use via sibling metadata. Provider-agnostic.
-    if not feed_hosts:
-        feed_hosts = {
-            h
-            for h in detect_hosts_from_feed(feed.title, feed.description, feed.authors or [])
-            if not is_network_or_org_author(h)
-        }
-        if feed_hosts:
-            logger.info(
-                "DETECTED HOSTS (deterministic feed-statement fallback; detector empty): %s",
-                ", ".join(sorted(feed_hosts)),
-            )
 
     # Priority: Use known_hosts from config if provided (show-level override)
     if cfg.known_hosts:
