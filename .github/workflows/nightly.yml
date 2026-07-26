@@ -153,7 +153,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: "20"
 
@@ -360,7 +360,7 @@ jobs:
     needs: [nightly-lint, nightly-build]
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
@@ -556,7 +556,7 @@ jobs:
       needs.nightly-test-e2e.result == 'success'
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
@@ -606,7 +606,7 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Set up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -847,7 +847,7 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Set up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
