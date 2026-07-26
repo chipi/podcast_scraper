@@ -736,6 +736,42 @@ def test_stated_snap_helpers_are_reference_bounded() -> None:
     assert by_voice2["V1"].name == "Kevin Ross"
 
 
+def test_snap_guards_exact_match_and_known_host_role_gate() -> None:
+    # ADR-128 hardening (Fable-5 review SEV-4 + SEV-3b).
+    from podcast_scraper.providers.ml.diarization.roster import (
+        _recover_stated_names,
+        SpeakerRole,
+    )
+
+    # SEV-4: a name that EXACTLY matches a stated ref is never re-snapped onto an earlier near-ref.
+    # "Robert Pape" (exact) must stay put even though "Rob Pape" precedes it in the ref list.
+    by_voice = {
+        "V0": SpeakerRole(name="Robert Pape", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice, ["Rob Pape", "Robert Pape"])
+    assert by_voice["V0"].name == "Robert Pape"
+
+    # SEV-3b: a NON-host voice is never snapped onto a KNOWN-HOST's spelling, even when that host
+    # name is unclaimed (host on leave / cross-promo). The guest keeps its own name; the N1 gate
+    # restricting host-identity canonicalization to host-candidate voices is preserved by this pass.
+    by_voice2 = {
+        "V0": SpeakerRole(name="Patrick", role="host", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="Kevin Ross", role="guest", named=True, source="self_intro"),
+    }
+    # "Kevin Roose" is a known host, unclaimed (only Patrick is on the roster).
+    _recover_stated_names(
+        by_voice2, ["Patrick", "Kevin Roose"], known_hosts=["Patrick", "Kevin Roose"]
+    )
+    assert by_voice2["V1"].name == "Kevin Ross"  # NOT snapped onto the host's name
+
+    # ...but a genuinely mangled CO-HOST (role already "host") still snaps to the known-host name.
+    by_voice3 = {
+        "V0": SpeakerRole(name="Casey Noon", role="host", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice3, ["Casey Newton"], known_hosts=["Casey Newton"])
+    assert by_voice3["V0"].name == "Casey Newton"
+
+
 def test_a_cold_open_guest_opener_does_not_name_the_host_voice() -> None:
     # N5: a cold-open GUEST clip that speaks first, performs the guest role ("thanks for having
     # me"), and utters a name-first phrase ("Jane Doe is with us") must NOT be trusted as a host

@@ -630,18 +630,38 @@ def _canonicalize_to_stated_name(name: str, stated: Sequence[str]) -> str:
     return _canonicalize_to_known_host(name, stated)
 
 
-def _recover_stated_names(by_voice: Dict[str, "SpeakerRole"], stated_refs: Sequence[str]) -> None:
+def _recover_stated_names(
+    by_voice: Dict[str, "SpeakerRole"],
+    stated_refs: Sequence[str],
+    known_hosts: Sequence[str] = (),
+) -> None:
     """ADR-128 in-place pass: snap each published name that ASR-mangled a STATED person (host OR
-    guest) back to its metadata spelling. Never steals a name another voice already holds."""
+    guest) back to its metadata spelling. Guards that keep it from doing harm:
+
+    * A name that ALREADY exactly matches a stated ref is correct and is never re-snapped — else
+      two stated people sharing a first name could move an exact match onto the earlier near-ref.
+    * A name another voice already holds is never reused (one name, one voice).
+    * A NON-host voice is never snapped onto a KNOWN-HOST's spelling. This preserves the N1 gate
+      (`test_guest_with_asr_close_name_does_not_steal_the_host_identity`): a guest self-introducing
+      "Kevin Ross" must not be painted as the host "Kevin Roose" just because the host's voice was
+      left unnamed — the host-identity canonicalization is gated to host-candidate voices upstream,
+      and this final pass must not reopen that hole. A genuinely mangled co-host already carries
+      ``role == "host"`` by the time this runs, so it still snaps.
+    """
+    stated_lower = {r.lower() for r in stated_refs}
+    known_hosts_lower = {h.lower() for h in known_hosts}
     claimed = {r.name.lower() for r in by_voice.values() if r.named}
     for v, role in list(by_voice.items()):
-        if not role.named:
+        if not role.named or role.name.lower() in stated_lower:
             continue
         canon = _canonicalize_to_stated_name(role.name, stated_refs)
-        if canon != role.name and canon.lower() not in claimed:
-            claimed.discard(role.name.lower())
-            claimed.add(canon.lower())
-            by_voice[v] = replace(role, name=canon)
+        if canon == role.name or canon.lower() in claimed:
+            continue
+        if canon.lower() in known_hosts_lower and role.role != "host":
+            continue
+        claimed.discard(role.name.lower())
+        claimed.add(canon.lower())
+        by_voice[v] = replace(role, name=canon)
 
 
 def _vouched_by_metadata(candidate: str, metadata_named: Sequence[str]) -> Optional[str]:
@@ -1415,11 +1435,14 @@ def resolve_speaker_roster(
     # ADR-128 — provider-agnostic name recovery: snap any published name that ASR-mangled a STATED
     # person (host OR guest) back to the metadata spelling. Runs for every provider (repairs
     # OpenAI's manglings on the Deepgram/community-1 corpus too), reference-bounded (never invents).
+    # Corroborated refs (known_hosts, detected_guests) precede metadata_named so a mangle closer to
+    # a person we confirmed is in the room wins over one that merely matches someone the episode is
+    # ABOUT (metadata_named carries un-corroborated subjects — see _recover_stated_names guards).
     stated_refs = list(
-        dict.fromkeys(list(known_hosts) + list(metadata_named or ()) + list(detected_guests or ()))
+        dict.fromkeys(list(known_hosts) + list(detected_guests or ()) + list(metadata_named or ()))
     )
     if stated_refs:
-        _recover_stated_names(by_voice, stated_refs)
+        _recover_stated_names(by_voice, stated_refs, known_hosts)
 
     # FINAL PLAUSIBILITY GATE (ADR-126 shared core). Every naming path above — self-intro, host
     # pool, greeting reader, strategy snap, LLM, metadata — writes into `by_voice`, and each has its
