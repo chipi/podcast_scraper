@@ -36,7 +36,7 @@ Validated core (2026-07-24): the real resolver on prod-v2 Hard Fork ep 0001 name
       `apply_diarization_to_result(..., precomputed_diarization=...)`, re-render the
       screenplay, re-save transcript + segments + `.adfree`, then cascade GI/KG/edges.
       Skip download/transcribe/provider-diarize.
-- [ ] **Config template** — options are invokable from a **config file**, so
+- [ ] **Config template** — options are invocable from a **config file**, so
       `pipeline_stage: relabel_only` must appear/round-trip in the config template
       and any profile schema (check `config/profiles/*` + the profile template +
       `test_profile_yaml_registry_drift`). Realign the template.

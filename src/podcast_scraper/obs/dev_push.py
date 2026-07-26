@@ -56,6 +56,7 @@ def _instance() -> str:
 
 
 def obs_labels() -> dict[str, str]:
+    """Common OTLP resource labels (service / environment / instance) for dev pushes."""
     return {
         "service": (os.environ.get("OTEL_SERVICE_NAME", "").strip() or "pipeline"),
         "environment": (os.environ.get("PODCAST_ENV", "dev").strip() or "dev"),
@@ -80,6 +81,7 @@ _STOP = object()
 
 
 def logs_push_enabled() -> bool:
+    """True when the dev logs-push URL env var is set (otherwise the pusher is inert)."""
     return bool(os.environ.get(_LOGS_URL_ENV, "").strip())
 
 
@@ -165,6 +167,7 @@ _metrics_stop = threading.Event()
 
 
 def metrics_push_enabled() -> bool:
+    """True when the dev metrics-push URL env var is set (otherwise the pusher is inert)."""
     return bool(os.environ.get(_METRICS_URL_ENV, "").strip())
 
 

@@ -81,6 +81,7 @@ class DiarizationLabelingStrategy:
         talk: Dict[str, float],
         shingles: Set[str],
     ) -> Set[str]:
+        """Voices whose turns are recurring feed boilerplate (ads/promos), not people (ADR-126)."""
         # Coarse clustering keeps ad clusters textually pure, so the whole-cluster test is enough.
         return recorded_voices(voice_texts or {}, talk, shingles)
 
@@ -94,11 +95,14 @@ class DiarizationLabelingStrategy:
         montage_suppressed: Set[str],
         cameo_floor: float,
     ) -> Set[str]:
+        """Voices eligible to be named as hosts. Base/deepgram: the first ``len(known_hosts)``
+        speakers, since the hosts open the show (frozen v2.1.x behavior)."""
         # Deepgram/legacy: the hosts open the show, so the first ``len(known_hosts)`` speakers (ads
         # already excluded from ``first_start``) ARE the host candidates. Frozen v2.1.x behavior.
         return set(sorted(first_start, key=lambda v: first_start[v])[: len(known_hosts)])
 
     def snap_extra(self, name: str, known_hosts: Sequence[str]) -> Optional[str]:
+        """Provider-specific fallback to resolve a garbled host name; base has none (ADR-126)."""
         # Deepgram/legacy: no fallback beyond the shared surname canonicalization.
         return None
 
@@ -129,6 +133,7 @@ class Community1LabelingStrategy(DiarizationLabelingStrategy):
         talk: Dict[str, float],
         shingles: Set[str],
     ) -> Set[str]:
+        """Recorded (ad/promo) voices — community-1's robust per-turn variant (ADR-126)."""
         return _recorded_voices_robust(ordered_turns or [], talk, shingles)
 
     def host_candidate_voices(
@@ -141,6 +146,8 @@ class Community1LabelingStrategy(DiarizationLabelingStrategy):
         montage_suppressed: Set[str],
         cameo_floor: float,
     ) -> Set[str]:
+        """Host-eligible voices under fine clustering: the first real speakers, excluding
+        conversational guests, montage clips, and sub-cameo fragments (ADR-126)."""
         # community-1 splits hosts into their own clusters and leaves cold-open ad/promo/cameo
         # fragments as their own first-speaking clusters, so "first to speak" no longer means
         # "host". Restrict host slots to PLAUSIBLE PEOPLE — exclude conversational guests, montage
@@ -157,6 +164,7 @@ class Community1LabelingStrategy(DiarizationLabelingStrategy):
         return set(sorted(eligible, key=lambda v: first_start[v])[: len(known_hosts)])
 
     def snap_extra(self, name: str, known_hosts: Sequence[str]) -> Optional[str]:
+        """Resolve a garbled host surname by a unique first-name match, inside the host gate."""
         # Inside the host-eligibility gate, a garbled surname that fails the shared canonicalization
         # ("Casey Noonan" for "Casey Newton") still resolves by a unique first-name match.
         return _unique_first_name_host(name, known_hosts)
