@@ -80,6 +80,39 @@ jobs:
             exit 1
           fi
 
+      - name: Verify appdata backups are restorable (player + operator)
+        # The DR proof was corpus-only; user data (playback/notes/favorites + operator
+        # prefs/role grants) is NOT regenerable, so prove its backups restore too. Empty
+        # appdata (no users yet) is valid — we assert the latest tarball downloads + extracts
+        # to the expected dir, not that it has content. Tolerant of a not-yet-created backup
+        # (warn+skip); strict once a release exists.
+        run: |
+          set -euo pipefail
+          appdata_root="${RESTORE_ROOT}/appdata"
+          mkdir -p "$appdata_root"
+          verify_one() {
+            surface="$1"
+            tag="$(gh release list --repo "${BACKUP_REPO}" --limit 200 \
+              --json tagName -q '.[].tagName' | grep -E "^${surface}-appdata-prod-[0-9]{8}$" \
+              | sort -r | head -1 || true)"
+            if [ -z "$tag" ]; then
+              echo "::warning::no ${surface}-appdata-prod-* release yet — skipping ${surface} appdata verify"
+              return 0
+            fi
+            echo "Restoring ${surface} appdata from ${tag}"
+            gh release download "$tag" --repo "${BACKUP_REPO}" \
+              --pattern "${surface}-appdata.tgz" --dir "$appdata_root" --clobber
+            tar -tzf "${appdata_root}/${surface}-appdata.tgz" >/dev/null  # valid gzip tar?
+            tar -xzf "${appdata_root}/${surface}-appdata.tgz" -C "$appdata_root"
+            if [ ! -d "${appdata_root}/${surface}-appdata" ]; then
+              echo "::error::${surface} appdata tarball did not extract the expected dir — restore is broken"
+              exit 1
+            fi
+            echo "${surface} appdata OK ($(du -sh "${appdata_root}/${surface}-appdata" | cut -f1))"
+          }
+          verify_one player
+          verify_one operator
+
       - name: Write ephemeral compose env
         run: |
           set -euo pipefail

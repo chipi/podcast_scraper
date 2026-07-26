@@ -107,3 +107,39 @@ Item 1 needs the image-rebuild cycle → fold into the next operator deploy.
 5. **Track:** Phase 3.
 
 Nothing here is acted on yet — this is the plan to review.
+
+---
+
+## Addendum (2026-07-26) — backup alignment + DR appdata (in PR #1334)
+
+Operator direction on P1-4/P1-5 refined the backups and DR:
+
+**Backup alignment — all three backups now consistent.**
+- All of `backup-player-appdata-prod.yml`, `backup-operator-appdata-prod.yml`,
+  `backup-corpus-prod.yml` run on `environment: prod-backup` (a **new, UNGATED**
+  environment — `protection_rules: []`) and a **daily** schedule.
+- `prod-backup` is a **provenance label**, not a gate: the literal `prod` environment
+  has `required_reviewers: [chipi]` and is shared with the deploy workflows (which must
+  stay gated), so a scheduled job on `prod` would pend forever. An ungated environment
+  gives the "which env did this backup come from" label + future multi-env clarity
+  without blocking the schedule.
+- **Cascade check (operator asked): none.** The corpus backup references only repo-level
+  secrets (`BACKUP_REPO_TOKEN`, `PROD_SSH_PRIVATE_KEY`, `TS_OAUTH_*`) + repo-level vars —
+  the *identical* set the always-ungated player backup uses. **Zero overlap** with the
+  prod-env-scoped secrets (`PROD_OPENAI/HF/GEMINI_*`, `PROD_SENTRY_DSN_*`, `PROD_GRAFANA_*`,
+  `INFRA_STATE_COMMIT_TOKEN` — those belong to deploys/infra, still on `environment: prod`).
+  Moving the corpus backup off `prod` loses no secret/var access. No other workflow keys on
+  its prod deployment (only a comment in `reprocess-prod.yml`). Verified via `gh api
+  .../environments/prod/secrets` + `grep secrets\\.` on the workflows.
+
+**DR gap closed — appdata restore + validate (was corpus-only).**
+- Both DR paths restored + validated only the **corpus**; user data (playback/notes/
+  favorites + operator prefs/role grants — not regenerable) was never rehearsed.
+- `verify-backup-restore.yml` (Sun compose smoke): now also downloads the latest
+  `player-appdata-prod-*` + `operator-appdata-prod-*`, verifies each tarball, extracts, and
+  asserts the dir landed.
+- `drill-restore-corpus.yml` (real Hetzner, via `drill-exercise.yml` Wed): after the corpus
+  restore, ships both appdata tarballs to the drill VPS, extracts under
+  `/srv/podcast-scraper`, and asserts the dirs are present on the box.
+- Both are **tolerant** of a not-yet-created backup (warn+skip — the operator-appdata
+  backup is brand new) and **strict** once a release exists.

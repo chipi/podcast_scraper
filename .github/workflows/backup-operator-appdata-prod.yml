@@ -29,6 +29,9 @@ concurrency:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    # `prod-backup` = provenance label, NOT a gate (ungated env) so the daily schedule runs
+    # unattended. All secrets are repo-level. Aligned with the player + corpus backups.
+    environment: prod-backup
     timeout-minutes: 15
     steps:
       - name: Pre-flight — required secrets/variables present?
