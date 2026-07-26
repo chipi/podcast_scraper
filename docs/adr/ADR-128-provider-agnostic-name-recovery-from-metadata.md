@@ -38,11 +38,17 @@ Two defects, both provider-agnostic:
 
 1. **No guest-metadata canonicalization.** Host manglings recover; guest manglings do not, even when
    the correct spelling sits in `metadata_named` / `detected_guests`.
-2. **`known_hosts` is wiped by `full --reprocess-existing-only`.** That path takes audio from the
-   #947 cache without re-fetching the RSS, so the new run's metadata `feed` block is written empty at
-   roster time → `hosts_from_feed_statement` returns nothing → host canonicalization is silently
-   disabled corpus-wide. (Observed: v2.2 `relabel_only` had `known_hosts` on 60/90 episodes; v2.3
-   `full` had it on 0/90.) This has nothing to do with which ASR ran.
+2. **`known_hosts` is wiped on the `full`/transcription path.** The full path never threads the
+   detected feed hosts to the roster: `download_media_for_transcription` builds the
+   `TranscriptionJob` without setting `feed_hosts`, so `apply_diarization_to_result` runs with
+   `feed_hosts=None` and the roster's host anchor collapses to `cfg.known_hosts` alone. The
+   `relabel_only` / `rediarize_only` paths do NOT have this bug — they read the hosts from the
+   episode's sibling metadata (`_feed_hosts_from_sibling_metadata`) and pass them in. (Observed: v2.2
+   `relabel_only` had `known_hosts` on 60/90 episodes; the v2.3 `full` reprocess had it on 0/90 —
+   with the feed metadata block itself populated identically in both, disproving an "empty feed
+   block" theory. The gap is purely the un-wired `feed_hosts` argument.) Nothing to do with which ASR
+   ran; `TranscriptionJob.feed_hosts` even documents itself as "set on the transcription path from
+   `host_detection_result.cached_hosts`" — the wiring that sentence describes was never completed.
 
 ## Decision
 
@@ -62,11 +68,13 @@ scoped to turbo:
    converge (near the final plausibility gate, ADR-126), for **every provider** — so the v2.2
    Deepgram/community-1 corpus benefits from it too, not only turbo.
 
-3. **Fix the `known_hosts`-wipe at its cause.** A reprocess must preserve the feed hosts. `full
-   --reprocess-existing-only` reads the feed block (title/description/authors) from the **on-disk
-   episode metadata** it is reprocessing (the same file `relabel_only` already reads) instead of
-   writing an empty block, so host canonicalization is available at roster time regardless of RSS
-   re-fetch. Provider-agnostic — it fixes any `full` reprocess.
+3. **Fix the `known_hosts`-wipe at its cause: thread the detected feed hosts onto the transcription
+   path.** The per-feed host detection (`host_detection_result.cached_hosts`, already computed once
+   per feed) is carried through `_detect_speakers_for_episode` → the `download_args` tuple →
+   `download_media_for_transcription` → `TranscriptionJob.feed_hosts`, so the roster gets the same
+   host anchor the `relabel_only` path already gives it. This is the wiring the `feed_hosts` field
+   was documented to have but never received. Provider- and scenario-agnostic: it anchors the roster
+   for every `full` reprocess AND for first-pass ingest, independent of ASR or diarizer.
 
 ## Invariants (unchanged — this ADR must not weaken them)
 

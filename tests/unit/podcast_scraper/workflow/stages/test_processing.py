@@ -613,10 +613,12 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
     def test_download_args_tuple_arity_contract(self) -> None:
         """Producer/consumer contract for the download_args tuple.
 
-        prepare_episode_download_args emits a 9-tuple; summarization unpacks all 9 (index 7 =
-        detected guests, index 8 = stated hosts) and transcription reads args[7]. When #1169 grew
-        the producer to 9 elements the 8-element unpack in summarization crashed EVERY real
-        summarization run, and only e2e caught it. This pins the arity cheaply at unit level.
+        prepare_episode_download_args emits a 10-tuple: index 7 = detected guests, index 8 = stated
+        names, index 9 = feed hosts (ADR-128, threaded to TranscriptionJob.feed_hosts). Consumers
+        read by INDEX (summarization args[7], transcription args[7]), not a fixed-arity unpack, so a
+        grown producer does not crash them — but the arity is still pinned here cheaply. When #1169
+        grew the producer to 9 an 8-element unpack in summarization crashed every real run; the
+        consumers were then converted to index access, and ADR-128 added index 9.
         """
         ep = self._episode(1, "g1", "ep")
         m = workflow_metrics.Metrics()
@@ -624,12 +626,46 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
 
         self.assertEqual(len(args_list), 1)
         args = args_list[0]
-        self.assertEqual(len(args), 9, f"download_args arity drifted: {len(args)} != 9")
-        # the exact unpack summarization._collect_episodes_for_summarization performs
-        episode_obj, _, _, _, _, _, _, detected_names, stated = args
+        self.assertEqual(len(args), 10, f"download_args arity drifted: {len(args)} != 10")
+        episode_obj, _, _, _, _, _, _, detected_names, stated, feed_hosts = args
         self.assertIs(episode_obj, ep)
         # transcription reads args[7]; it must be addressable (guests, or None)
         self.assertEqual(args[7], detected_names)
+        # ADR-128: index 9 carries the feed hosts to the transcription job's feed_hosts anchor
+        self.assertEqual(args[9], feed_hosts)
+
+    def test_detected_speakers_carry_feed_hosts_to_tuple(self) -> None:
+        """ADR-128 source hop: _detect_speakers_for_episode returns the detected feed hosts, and
+        prepare_episode_download_args threads them to the tuple's index-9 feed_hosts slot. Without
+        this the transcription path has no host anchor and a full reprocess wipes known_hosts."""
+        ep = self._episode(1, "g1", "ep")
+        ET.SubElement(ep.item, "description").text = "A conversation with the team."
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            transcribe_missing=True,
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        tres = TranscriptionResources(
+            transcription_provider=None,
+            temp_dir=self.tmp,
+            transcription_jobs=queue.Queue(),
+            transcription_jobs_lock=None,
+            saved_counter_lock=None,
+        )
+        host = HostDetectionResult({"Kevin Roose", "Casey Newton"}, None, None)
+        detector = Mock()
+        detector.detect_speakers = Mock(
+            return_value=([], {"Kevin Roose", "Casey Newton"}, True, False)
+        )
+        with patch.object(processing, "_get_speaker_detector", return_value=detector):
+            args_list = processing.prepare_episode_download_args(
+                [ep], cfg, self.tmp, self.run_suffix, tres, host, workflow_metrics.Metrics()
+            )
+        self.assertEqual(len(args_list), 1)
+        self.assertEqual(args_list[0][9], ["Casey Newton", "Kevin Roose"])  # sorted feed hosts
 
     def test_append_skips_complete_episode_and_keeps_incomplete(self) -> None:
         """Complete on-disk episode is omitted from download args; incomplete is kept."""

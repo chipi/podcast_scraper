@@ -1632,6 +1632,33 @@ class TestDownloadMediaForTranscription(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
     @patch("os.path.exists")
+    @patch("podcast_scraper.workflow.episode_processor.downloader.http_download_to_file")
+    def test_download_media_threads_feed_hosts_onto_job(
+        self, mock_download, mock_exists, mock_build_path
+    ):
+        """ADR-128: the transcription job carries the feed-stated hosts so the diarization roster
+        anchors on them. The full/transcription path previously dropped feed_hosts (it stayed None),
+        wiping known_hosts on a full reprocess; relabel/rediarize read them from sibling metadata.
+        """
+        self.cfg = create_test_config(skip_existing=False, dry_run=False)
+        mock_exists.return_value = False
+        mock_build_path.return_value = "/output/transcript.txt"
+        mock_download.return_value = (True, 1000000)
+
+        result = episode_processor.download_media_for_transcription(
+            episode=self.episode,
+            cfg=self.cfg,
+            temp_dir=self.temp_dir,
+            effective_output_dir=self.effective_output_dir,
+            run_suffix=None,
+            feed_hosts=["Kevin Roose", "Casey Newton"],
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.feed_hosts, ["Kevin Roose", "Casey Newton"])
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
     def test_download_media_dry_run(self, mock_exists, mock_build_path):
         """Test media download in dry-run mode."""
         self.cfg = create_test_config(skip_existing=False, dry_run=True)

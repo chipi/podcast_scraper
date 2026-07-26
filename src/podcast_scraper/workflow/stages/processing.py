@@ -708,6 +708,11 @@ class DetectedSpeakers(NamedTuple):
 
     guests: List[str]
     stated: List[str]
+    # ADR-128: the feed-stated hosts (host_detection_result.cached_hosts) for this feed. Carried
+    # through to TranscriptionJob.feed_hosts so the full/transcription path anchors the diarization
+    # roster on the feed's hosts — the relabel/rediarize paths already read them from sibling
+    # metadata; the transcription path dropped them, wiping known_hosts on a full reprocess.
+    hosts: List[str] = []
 
 
 def _detect_speakers_for_episode(
@@ -774,7 +779,9 @@ def _detect_speakers_for_episode(
         and cfg.screenplay_speaker_names
         and len(cfg.screenplay_speaker_names) >= 2
     ):
-        return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
+        return DetectedSpeakers(
+            guests=cfg.screenplay_speaker_names[1:], stated=[], hosts=sorted(combined_hosts)
+        )
     if detection_succeeded:
         flat_speakers: List[str] = []
         for entry in detected_speakers or []:
@@ -797,6 +804,7 @@ def _detect_speakers_for_episode(
                 known_hosts=host_strings | combined_hosts,
             ),
             stated=proposed,
+            hosts=sorted(host_strings | combined_hosts),
         )
     return None
 
@@ -879,6 +887,7 @@ def prepare_episode_download_args(
                 transcription_resources.transcription_jobs_lock,
                 list(detected.guests) if detected else None,
                 list(detected.stated) if detected else None,
+                list(detected.hosts) if detected else None,
             )
         )
 

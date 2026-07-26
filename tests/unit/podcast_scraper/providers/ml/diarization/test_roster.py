@@ -650,6 +650,92 @@ def test_a_quoted_greeting_by_a_non_host_never_force_names_a_voice() -> None:
     assert r.by_voice["SPK"].named is False
 
 
+def test_asr_mangled_guest_snaps_to_metadata_stated_name() -> None:
+    # ADR-128 (IMPLEMENT 1): the guest snap, symmetric to the host snap. Turbo rendered the guest
+    # "David Duvenaud" as "David Duvino" in his self-introduction; the episode metadata states the
+    # correct spelling (title/description -> metadata_named). The provider-agnostic final pass snaps
+    # the mangled published name to the stated guest by the same fuzzy rule the host path uses.
+    diar = _diar([("HOST", 0, 30), ("GUEST", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Kevin Roose.",
+        known_hosts=["Kevin Roose"],
+        detected_guests=["David Duvenaud"],
+        metadata_named=["David Duvenaud"],
+        voice_texts={
+            "HOST": "Welcome. I'm Kevin Roose and today we talk AI safety for the whole hour.",
+            "GUEST": "Thanks for having me. So I'm David Duvino and I research AI alignment daily.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome. I'm Kevin Roose and today we talk AI safety for the whole hour."),
+            (
+                "GUEST",
+                "Thanks for having me. So I'm David Duvino and I research AI alignment daily.",
+            ),
+        ],
+    )
+    assert r.by_voice["GUEST"].name == "David Duvenaud"  # snapped to the stated spelling
+    assert r.by_voice["GUEST"].role == "guest"
+    assert r.by_voice["HOST"].name == "Kevin Roose"
+
+
+def test_guest_snap_never_steals_a_name_another_voice_already_holds() -> None:
+    # ADR-128 one-name-one-voice: a guest self-introducing "Kevin Ross" (ASR-close to the host
+    # "Kevin Roose") must NOT be snapped onto the host's name — the host already holds it. The snap
+    # is reference-bounded AND claim-aware, so the guest keeps its own (distinct) name.
+    diar = _diar([("HOST", 0, 30), ("GUEST", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back to the show.",
+        known_hosts=["Kevin Roose"],
+        voice_texts={
+            "HOST": "Welcome back to the show. We have a fantastic guest lined up for you today.",
+            "GUEST": "So I'm Kevin Ross and I build developer tools for a living, a decade now.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back to the show. We have a fantastic guest lined up for you today."),
+            ("GUEST", "So I'm Kevin Ross and I build developer tools for a living, a decade now."),
+        ],
+    )
+    assert r.by_voice["HOST"].name == "Kevin Roose"
+    assert r.by_voice["GUEST"].name == "Kevin Ross"  # its own name, not stolen onto the host
+
+
+def test_stated_snap_helpers_are_reference_bounded() -> None:
+    # ADR-128 unit: the snap can only ever return a name present in the stated set (never invents),
+    # and _recover_stated_names respects one-name-one-voice.
+    from dataclasses import replace
+
+    from podcast_scraper.providers.ml.diarization.roster import (
+        _canonicalize_to_stated_name,
+        _recover_stated_names,
+        SpeakerRole,
+    )
+
+    # snaps a mangled name to the stated spelling...
+    assert _canonicalize_to_stated_name("David Duvino", ["David Duvenaud"]) == "David Duvenaud"
+    # ...but a name too far from every stated name is left unchanged (never invented).
+    assert _canonicalize_to_stated_name("Zebediah Quux", ["David Duvenaud"]) == "Zebediah Quux"
+
+    by_voice = {
+        "V0": SpeakerRole(name="Kevin Roose", role="host", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="David Duvino", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice, ["Kevin Roose", "David Duvenaud"])
+    assert by_voice["V1"].name == "David Duvenaud"  # guest recovered
+    assert by_voice["V0"].name == "Kevin Roose"  # host untouched
+    # a name already held by another voice is not reused: snapping V1 onto "Kevin Roose" is refused.
+    by_voice2 = {
+        "V0": SpeakerRole(name="Kevin Roose", role="host", named=True, source="self_intro"),
+        "V1": replace(
+            SpeakerRole(name="Kevin Ross", role="guest", named=True, source="self_intro"),
+            name="Kevin Ross",
+        ),
+    }
+    _recover_stated_names(by_voice2, ["Kevin Roose"])
+    assert by_voice2["V1"].name == "Kevin Ross"
+
+
 def test_a_cold_open_guest_opener_does_not_name_the_host_voice() -> None:
     # N5: a cold-open GUEST clip that speaks first, performs the guest role ("thanks for having
     # me"), and utters a name-first phrase ("Jane Doe is with us") must NOT be trusted as a host
