@@ -6,7 +6,7 @@
 - **Related RFCs**: —
 - **Related PRDs**: — (#876 speaker quality, #1190 corpus reprocess, #1178/#1179 ASR lock)
 - **Related ADRs**: [ADR-126](ADR-126-provider-specific-speaker-labeling.md) (shared core vs
-  per-provider strategy), [ADR-123](ADR-123-transcription-coverage-failover.md) (coverage gate)
+  per-provider strategy), [ADR-123](ADR-123-quality-gate-transcription-failover.md) (coverage gate)
 
 ## Context & Problem Statement
 
@@ -100,25 +100,37 @@ scoped to turbo:
 
 ## Evidence
 
-Measured on the v2.3 turbo corpus (148 published names) against the episode metadata:
+**Pre-implementation estimate** (static snap-approximation over the 148 as-run turbo names): ~75%
+already exactly correct, ~20% mangled-but-snap-recoverable, ~5% unrecoverable → an *estimated* ~95%
+ceiling. That estimate was optimistic; the measured result below is the honest number.
 
-| bucket | count | share |
-| --- | ---: | ---: |
-| already exactly correct | 111 | 75% |
-| mangled, **recoverable** by metadata snap (hosts + guests) | 30 | 20% |
-| unrecoverable (mostly garbage: ad testimonials, opener leaks, botched possessives) | 7 | 5% |
+**Post-implementation measurement** — the shipped code re-resolved across all 90 episodes from the
+frozen turbo diarization (deterministic only, no LLM voice resolver — an honest lower bound; the
+pipeline's LLM step can only add correct names). "Correct" = an exact match to a metadata-stated name
+(strict) or to that ∪ the v2.2 community-1 published names (a truth proxy for self-introduced
+hosts/guests the feed blurb never states):
 
-→ **~95% correct achievable** downstream, no re-transcription. Host recovery is proven (re-resolving
-a Hard Fork turbo episode with `known_hosts` present snapped "Kevin Roos"→"Kevin Roose",
-"Casey Noon"→"Casey Newton" instantly); guest recovery is the symmetric half this ADR adds.
+| | correctly-anchored / named | vs metadata-strict | vs metadata + v2.2 proxy |
+| --- | ---: | ---: | ---: |
+| BEFORE (host anchor wiped) | 128 named | 61 (48%) | 89 (70%) |
+| AFTER (host anchor + guest snap) | **181 named** | 132 (**73%**) | 160 (**88%**) |
+
+The fix recovers the wiped hosts (128→181 names published) and lifts broad correctness 70%→88% (+71
+correct names absolute). It does **not** hit the estimated 95% deterministically: the ~12% residual
+is genuinely unrecoverable — a recurring ad-testimonial self-intro ("Jonathan Knight", present BEFORE
+too, so not introduced here), opener leaks ("I'm"), mononyms ("Kevin"), and a few guests named only
+mid-transcript with no metadata reference. Host recovery is directly proven (re-resolving a Hard Fork
+turbo episode with `known_hosts` present snapped "Kevin Roos"→"Kevin Roose", "Casey Noon"→"Casey
+Newton", and the guest "David Duvino"→"David Duvenaud" via the symmetric snap).
 
 ## Consequences
 
 - **The whole corpus improves, not just turbo.** Applied provider-agnostically, the guest snap also
   repairs any names OpenAI Whisper mangled on the v2.2 Deepgram/community-1 corpus.
 - **Roster parity stops being ASR-confounded.** The v2.3-vs-v2.2 speaker comparison (31% identical
-  raw) was dominated by the `known_hosts` wipe + missing guest snap; with these fixed it reflects the
-  true residual ASR gap, which is small.
+  raw) was dominated by the `known_hosts` wipe + missing guest snap; with these fixed the deterministic
+  broad-correctness reaches 88% and the residual (~12%) is the genuine ASR/ad-name gap, not a
+  pipeline defect — measurably smaller, though not the estimated ~95%.
 - **Cheap and reversible.** All three changes are shared-core naming logic + a reprocess metadata
   read; they run under `relabel_only` (no audio, no ASR), so the existing corpus is repaired without
   re-transcription.
