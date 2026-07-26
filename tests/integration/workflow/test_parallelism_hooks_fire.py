@@ -67,6 +67,7 @@ def _make_episode(idx: int) -> Any:
     ep = Mock(spec=models.Episode)
     ep.idx = idx
     ep.item = Mock()
+    ep.title = f"Episode {idx}"  # #1335 labeling/failure-path reads episode.title
     return ep
 
 
@@ -115,7 +116,7 @@ def test_transcription_stage_records_active_intervals() -> None:
             effective_output_dir="/tmp/fake",
             run_suffix=None,
             feed_metadata=Mock(),
-            host_detection_result=Mock(),
+            host_detection_result=Mock(cached_hosts=[]),
             processing_resources=proc_resources,
             pipeline_metrics=pm,
             summary_provider=None,
@@ -180,7 +181,7 @@ def test_processing_stage_records_active_interval_and_inline_count() -> None:
                 effective_output_dir="/tmp/fake",
                 run_suffix=None,
                 feed_metadata=Mock(),
-                host_detection_result=Mock(),
+                host_detection_result=Mock(cached_hosts=[]),
                 pipeline_metrics=pm,
                 summary_provider=None,
                 transcription_complete_event=transcription_done,

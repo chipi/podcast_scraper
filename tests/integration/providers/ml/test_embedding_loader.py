@@ -62,7 +62,8 @@ class TestResolveEvidenceDevice:
     def test_embedding_class_mps_supported(self):
         from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend
 
-        assert EmbeddingEvidenceBackend.mps_supported is True
+        # Embedding backend disables MPS and defers to resolve_evidence_device (#1335/#1188).
+        assert EmbeddingEvidenceBackend.mps_supported is False
 
 
 class TestCosineSimilarity:
