@@ -46,6 +46,46 @@ def _rss_item(title: str, pub_date: str | None = None, guid: str | None = None):
 
 
 @pytest.mark.unit
+class TestFetchAndParseFeedDescription:
+    """Smell-audit F6: fetch_and_parse_feed must populate the channel description.
+
+    parse_rss_items only returns title/authors/items, so the RssFeed was built with description=None
+    on the pipeline path — starving every description-driven step (host statement/NER) even though
+    the RSS carries the blurb. Without this, statement-first host detection (F2) is dead in the real
+    pipeline while passing every unit test that SET description on the RssFeed by hand.
+    """
+
+    def test_fetch_and_parse_feed_populates_channel_description(self, monkeypatch):
+        from podcast_scraper.workflow.stages import scraping
+
+        rss = (
+            b"<rss><channel>"
+            b"<title>Unhedged</title>"
+            b"<description>Katie Martin and Robert Armstrong explain markets.</description>"
+            b"<item><title>Ep 1</title><guid>g1</guid></item>"
+            b"</channel></rss>"
+        )
+
+        class _Resp:
+            content = rss
+            url = "https://example.com/feed.xml"
+
+            def close(self):
+                pass
+
+        import podcast_scraper.rss.downloader as dl
+        import podcast_scraper.rss.feed_cache as fc
+
+        monkeypatch.setattr(fc, "read_cached_rss", lambda *_: None)
+        monkeypatch.setattr(fc, "write_cached_rss", lambda *a, **k: None)
+        monkeypatch.setattr(dl, "fetch_rss_feed_url", lambda *a, **k: _Resp())
+        cfg = _scraping_cfg(rss_url="https://example.com/feed.xml", user_agent="t", timeout=5)
+
+        feed, _ = scraping.fetch_and_parse_feed(cfg)
+        assert feed.description == "Katie Martin and Robert Armstrong explain markets."
+
+
+@pytest.mark.unit
 class TestExtractFeedMetadataForGeneration:
     """Tests for extract_feed_metadata_for_generation."""
 

@@ -73,7 +73,19 @@ def fetch_and_parse_feed(cfg: config.Config) -> tuple[RssFeed, bytes]:  # type: 
     if cached_rss is None:
         feed_cache.write_cached_rss(cfg.rss_url, rss_bytes)
 
-    feed = RssFeed(title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url)
+    # Populate the channel-level description. parse_rss_items only returns title/authors/items, so
+    # without this feed.description is None on the pipeline path and every description-driven step —
+    # host statement/NER (detect_hosts_from_feed) above all — runs blind. The RssFeed.description
+    # field is documented and read downstream; it was simply never wired here (smell-audit F6).
+    from ...rss.parser import _channel_description
+
+    feed = RssFeed(
+        title=feed_title,
+        authors=feed_authors,
+        items=items,
+        base_url=feed_base_url,
+        description=_channel_description(rss_bytes),
+    )
     logger.debug("Fetched RSS feed title=%s (%s items)", feed.title, len(feed.items))
 
     return feed, rss_bytes
