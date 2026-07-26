@@ -66,6 +66,18 @@ def test_viewer_nginx_preserves_forwarded_proto() -> None:
     ), "must NOT forward the loopback $scheme (http) as the edge proto"
 
 
+def test_viewer_nginx_rate_limits_api() -> None:
+    # RFC-108 / T-06: the operator-public viewer must rate-limit like the player nginx,
+    # keyed on the REAL client IP (real_ip recovers it from XFF), with a tighter zone on
+    # the auth endpoints. Without this the operator API has no per-IP origin throttle.
+    conf = VIEWER_NGINX_CONF.read_text()
+    assert (
+        "limit_req_zone" in conf and "limit_req zone=" in conf
+    ), "operator viewer API must be rate limited"
+    assert "real_ip_header X-Forwarded-For" in conf, "must rate-limit by real client IP, not Caddy"
+    assert "zone=op_auth" in conf, "auth endpoints need a tighter rate zone"
+
+
 def test_player_nginx_rate_limits_api() -> None:
     conf = NGINX_CONF.read_text()
     # Rate limiting (T-06) keyed on the REAL client IP (real_ip recovers it from XFF).
@@ -78,6 +90,16 @@ def test_player_nginx_rate_limits_api() -> None:
 
 def test_caddy_admin_api_disabled() -> None:
     assert "admin off" in CADDYFILE.read_text(), "Caddy admin API must be off (T-02)"
+
+
+def test_caddy_hardened_security_headers() -> None:
+    # Fleet-wide baseline (ADR-114 §3 hardened snippet): clickjacking + MIME-sniff +
+    # referrer, and HSTS ramped to 1y (T-12). Reverting any of these must fail here.
+    conf = CADDYFILE.read_text()
+    assert 'X-Frame-Options "DENY"' in conf, "clickjacking protection (X-Frame-Options DENY)"
+    assert 'X-Content-Type-Options "nosniff"' in conf, "MIME-sniffing protection"
+    assert "Referrer-Policy" in conf, "referrer policy header"
+    assert "max-age=31536000" in conf, "HSTS must be ramped to 1y (T-12)"
 
 
 def test_caddy_access_log_format_pinned() -> None:

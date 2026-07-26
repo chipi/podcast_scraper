@@ -1,5 +1,10 @@
-name: DR drill — restore corpus (backup → host)
+name: DR drill — restore corpus + appdata (backup → host)
 
+# Restores the corpus AND the per-user appdata (player + operator) onto the drill VPS, so
+# the DR rehearsal proves user data — playback/notes/favorites + operator prefs/role grants,
+# none of it regenerable — is recoverable, not just the corpus. Appdata restore is tolerant
+# of a not-yet-created backup (warn+skip) and validates the extracted dir on the host.
+#
 # Downloads ``snapshot.tgz`` from ``chipi/podcast_scraper-backup`` (or
 # override repo), uploads to the drill VPS, extracts under
 # ``/srv/podcast-scraper/corpus``, recreates api+viewer. Tag default: newest
@@ -182,3 +187,40 @@ jobs:
           ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             'bash /tmp/restore_corpus_from_tarball_host.sh /tmp/snapshot-restore-drill.tgz'
+
+      - name: "DR drill — restore: appdata (player + operator) to host + validate"
+        # User data is NOT regenerable, so the DR rehearsal must prove it restores too.
+        # Tolerant of a not-yet-created backup (warn+skip); strict once a release exists —
+        # download, verify the tarball, ship it to the drill host, extract under
+        # /srv/podcast-scraper (deploy@ owns it, like the corpus restore), and assert the
+        # dir landed on the box.
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          BACKUP_REPO: ${{ steps.tag.outputs.repo }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then export GH_TOKEN="$BACKUP_REPO_TOKEN"; else export GH_TOKEN="${{ github.token }}"; fi
+          restore_one() {
+            surface="$1"
+            tag="$(gh release list --repo "${BACKUP_REPO}" --limit 200 --json tagName -q '.[].tagName' \
+              | grep -E "^${surface}-appdata-prod-[0-9]{8}$" | sort -r | head -1 || true)"
+            if [ -z "$tag" ]; then
+              echo "::warning::no ${surface}-appdata-prod-* release yet — skipping ${surface} appdata restore"
+              return 0
+            fi
+            echo "Restoring ${surface} appdata from ${tag}"
+            gh release download "$tag" --repo "${BACKUP_REPO}" --pattern "${surface}-appdata.tgz" --dir . --clobber
+            tar -tzf "${surface}-appdata.tgz" >/dev/null  # valid gzip tar?
+            scp -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "${surface}-appdata.tgz" "${SSH_TARGET}:/tmp/${surface}-appdata-drill.tgz"
+            ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "set -e; tar -xzf /tmp/${surface}-appdata-drill.tgz -C /srv/podcast-scraper; \
+               test -d /srv/podcast-scraper/${surface}-appdata; \
+               echo '${surface} appdata restored + validated on host'; \
+               rm -f /tmp/${surface}-appdata-drill.tgz"
+          }
+          restore_one player
+          restore_one operator

@@ -25,8 +25,13 @@ on:
         required: false
         type: boolean
         default: true
-  # `schedule:` intentionally absent — flipped on by the #723 cutover follow-up
-  # once the operator has confirmed parallel-run produces matching snapshots.
+  schedule:
+    # Daily at 05:37 UTC (off-peak; staggered ~1h20 after the player/operator appdata runs).
+    # Scheduled runs pass no `dry_run` input → treated as a REAL backup + upload. Aligned
+    # to the daily appdata backups so a same-day DR restore has a consistent corpus + user
+    # data set. (#723 parallel-run cutover is a separate verification, not a gate on the
+    # schedule.)
+    - cron: "37 5 * * *"
 
 permissions:
   contents: read
@@ -34,9 +39,14 @@ permissions:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    # Same required-reviewer gate as the sibling prod VPS workflows
-    # (deploy-prod / prod-restore-corpus) — reaches the live box (review low/backup-env).
-    environment: prod
+    # `environment: prod-backup` is a PROVENANCE label (shows the source env in the
+    # Actions UI; future-proofs multi-env), NOT a gate — it is an UNGATED environment (no
+    # required reviewers) so the daily schedule runs unattended. The literal `prod`
+    # environment is gated (shared with deploys) and would leave every run pending forever.
+    # Safe move: this backup's secrets (BACKUP_REPO_TOKEN/PROD_SSH_PRIVATE_KEY/TS_OAUTH_*)
+    # are all REPO-level — none are prod-env-scoped — so nothing is lost (verified
+    # 2026-07-26). Read-only tarball pull; matches backup-player-appdata-prod.yml.
+    environment: prod-backup
     timeout-minutes: 30
     steps:
       - name: Pre-flight — required secrets/variables present?

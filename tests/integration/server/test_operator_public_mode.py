@@ -42,6 +42,25 @@ def test_operator_public_mounts_curated_read_subset(tmp_path, monkeypatch) -> No
     assert not any(p.startswith("/api/jobs") for p in paths), "jobs must NOT mount"
 
 
+def test_operator_public_refuses_open_signup(tmp_path, monkeypatch) -> None:
+    """RFC-108 hardening: operator-public self-grants ``creator`` via the viewer's login
+    hint, so the email allowlist is the only authZ boundary. ``APP_SIGNUP_MODE=open`` would
+    drop it and expose the corpus to any Google account — create_app must REFUSE to boot."""
+    monkeypatch.delenv("PODCAST_SERVE_APP_ONLY", raising=False)
+    monkeypatch.setenv("PODCAST_SERVE_OPERATOR_PUBLIC", "1")
+    monkeypatch.setenv("APP_SIGNUP_MODE", "open")
+    with pytest.raises(RuntimeError, match="APP_SIGNUP_MODE=open"):
+        create_app(output_dir=Path(str(tmp_path)))
+
+
+def test_operator_public_allows_allowlist_signup(tmp_path, monkeypatch) -> None:
+    """The boot guard is specific to ``open`` — the default ``allowlist`` mode boots fine."""
+    monkeypatch.delenv("PODCAST_SERVE_APP_ONLY", raising=False)
+    monkeypatch.setenv("PODCAST_SERVE_OPERATOR_PUBLIC", "1")
+    monkeypatch.setenv("APP_SIGNUP_MODE", "allowlist")
+    create_app(output_dir=Path(str(tmp_path)))  # must not raise
+
+
 def test_operator_public_gates_read_routes_unauthed_401(tmp_path, monkeypatch) -> None:
     """The gate fires: curated operator routes are mounted (not 404) but require a
     signed-in ≥creator — an unauthenticated request gets **401**, never an open 200."""

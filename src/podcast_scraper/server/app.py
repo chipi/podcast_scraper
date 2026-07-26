@@ -292,6 +292,20 @@ def _start_dev_metrics_pusher() -> None:
         logger.debug("dev metrics pusher not started", exc_info=True)
 
 
+def _guard_operator_public_open_signup(operator_public: bool) -> None:
+    """RFC-108 hardening: the operator-public viewer self-grants ``creator`` via its
+    ``?grant=creator`` login hint, so the email allowlist is the ONLY authZ boundary on
+    the operator-read corpus. ``APP_SIGNUP_MODE=open`` drops that boundary and would expose
+    the corpus to any authenticated Google account — refuse to boot rather than silently
+    serve it wide open (one env flip should not open the whole surface)."""
+    if operator_public and policy_from_env().mode == "open":
+        raise RuntimeError(
+            "PODCAST_SERVE_OPERATOR_PUBLIC=1 with APP_SIGNUP_MODE=open would expose the "
+            "operator-read corpus to any authenticated Google account. Set "
+            "APP_SIGNUP_MODE=allowlist with APP_ALLOWED_EMAILS."
+        )
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -446,6 +460,9 @@ def create_app(
         enable_feeds_api = False
         enable_operator_config_api = False
         enable_jobs_api = False
+
+    # RFC-108 hardening — refuse operator-public boot under open signup (see helper).
+    _guard_operator_public_open_signup(operator_public)
 
     _mount_api_routers(app, app_only=app_only, operator_public=operator_public)
 

@@ -37,9 +37,16 @@
 # Shared hardened snippet — tenants `import hardened` instead of copy-pasting
 # (ADR-114 §3). One place to ramp HSTS / change compression / logging fleet-wide.
 (hardened) {
-	# T-12: start short; ramp to `max-age=31536000; includeSubDomains; preload`
-	# once HTTPS is proven on the first live vhost.
-	header Strict-Transport-Security "max-age=86400; includeSubDomains"
+	# T-12: ramped to 1y after HTTPS was proven across the live vhosts (player + operator).
+	# `preload` makes each host eligible for the browser preload list — the actual
+	# submission to hstspreload.org is a separate, deliberate operator step.
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	# Baseline security headers, fleet-wide (ADR-114 §3): DENY framing (clickjacking),
+	# no MIME sniffing, privacy-preserving referrer. No CSP here — that needs a
+	# per-SPA audit, tracked separately.
+	header X-Frame-Options "DENY"
+	header X-Content-Type-Options "nosniff"
+	header Referrer-Policy "strict-origin-when-cross-origin"
 	encode zstd gzip
 	log {
 		output file /var/log/caddy/access.log {

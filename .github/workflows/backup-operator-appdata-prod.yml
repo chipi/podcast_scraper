@@ -1,16 +1,15 @@
-# Backup the consumer player's per-user data (#1163 / #3) from the prod VPS.
+# Backup the operator surface's per-user data (RFC-108 / #1320) from the prod VPS.
 #
-# player_appdata (playback/notes/favorites) is a HOST bind mount at
-# /srv/podcast-scraper/player-appdata (see docker-compose.player-public.yml). Unlike the
-# corpus it is NOT regenerable — it's real user data — so it needs its own backup. Streams
-# the dir as a tarball over the tailnet and uploads to the backup repo.
+# operator_appdata (operator prefs/library + role grants) is a HOST bind mount at
+# /srv/podcast-scraper/operator-appdata (see docker-compose.operator-public.yml). Like the
+# player's, it is NOT regenerable — it's real user state, and the role grants are the only
+# record of who has creator/admin access — so it needs its own backup. Streams the dir as a
+# tarball over the tailnet and uploads to the backup repo.
 #
-# Now the player is LIVE with real user data, this runs on a daily schedule (releases are
-# date-tagged YYYYMMDD, clobbered within a day). The tag rotation lives in the backup repo.
-# (The corpus prod backup schedule is separately deferred to the #723 cutover — corpus is
-# regenerable, this is not, so the player's runs ahead.)
+# Mirrors backup-player-appdata-prod.yml (daily, unattended, read-only pull). Staggered 20
+# min after the player run. The operator surface went live 2026-07-25.
 
-name: Backup player app-data (prod VPS)
+name: Backup operator app-data (prod VPS)
 
 on:
   workflow_dispatch:
@@ -20,19 +19,18 @@ on:
         type: boolean
         default: false
   schedule:
-    # Daily at 04:17 UTC (off-peak). Date-tagged releases -> one snapshot/day.
-    - cron: "17 4 * * *"
+    # Daily at 04:37 UTC (off-peak; 20 min after the player-appdata run).
+    - cron: "37 4 * * *"
 
 concurrency:
-  group: backup-player-appdata
+  group: backup-operator-appdata
   cancel-in-progress: false
 
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    # `prod-backup` = provenance label, NOT a gate (ungated env, no required reviewers) so
-    # the daily schedule runs unattended. All this backup's secrets are repo-level; nothing
-    # is prod-env-scoped. Aligned with the corpus + operator-appdata backups (2026-07-26).
+    # `prod-backup` = provenance label, NOT a gate (ungated env) so the daily schedule runs
+    # unattended. All secrets are repo-level. Aligned with the player + corpus backups.
     environment: prod-backup
     timeout-minutes: 15
     steps:
@@ -90,7 +88,7 @@ jobs:
           R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
           echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
 
-      - name: Pull player app-data from VPS over Tailscale
+      - name: Pull operator app-data from VPS over Tailscale
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
@@ -98,14 +96,14 @@ jobs:
           set -euo pipefail
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'tar -czf - -C /srv/podcast-scraper player-appdata' > player-appdata.tgz
-          echo "Tarball: $(du -h player-appdata.tgz | cut -f1)"
-          size=$(stat -c%s player-appdata.tgz)
+            'tar -czf - -C /srv/podcast-scraper operator-appdata' > operator-appdata.tgz
+          echo "Tarball: $(du -h operator-appdata.tgz | cut -f1)"
+          size=$(stat -c%s operator-appdata.tgz)
           if [ "$size" -lt 32 ]; then
             echo "::error::Tarball is empty/corrupt ($size bytes); aborting." >&2
             exit 1
           fi
-          # An empty player-appdata (no users yet) is OK — no content sanity gate.
+          # An empty operator-appdata (no users yet) is OK — no content sanity gate.
 
       - name: Upload to backup repo
         if: steps.preflight.outputs.skip != 'true' && inputs.dry_run != true
@@ -114,15 +112,15 @@ jobs:
           BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
         run: |
           set -euo pipefail
-          TAG="player-appdata-prod-$(date -u +%Y%m%d)"
+          TAG="operator-appdata-prod-$(date -u +%Y%m%d)"
           if gh release view "$TAG" --repo "$BACKUP_REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" player-appdata.tgz --repo "$BACKUP_REPO" --clobber
+            gh release upload "$TAG" operator-appdata.tgz --repo "$BACKUP_REPO" --clobber
           else
-            gh release create "$TAG" player-appdata.tgz --repo "$BACKUP_REPO" \
-              --title "Player app-data snapshot $TAG (prod VPS)" \
-              --notes "Automated backup of /srv/podcast-scraper/player-appdata (consumer user data) over Tailscale."
+            gh release create "$TAG" operator-appdata.tgz --repo "$BACKUP_REPO" \
+              --title "Operator app-data snapshot $TAG (prod VPS)" \
+              --notes "Automated backup of /srv/podcast-scraper/operator-appdata (operator user data + role grants) over Tailscale."
           fi
-          echo "Uploaded player-appdata.tgz as release tag $TAG"
+          echo "Uploaded operator-appdata.tgz as release tag $TAG"
 
       - name: Emit backup event to VictoriaLogs (Tier-1 o11y, ADR-119)
         # Self-hosted sink over the tailnet (runner already joined above). Fires on
@@ -133,5 +131,5 @@ jobs:
           event-type: backup
           env: prod
           victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
-          msg: "player-appdata backup ${{ job.status }}"
-          fields: status=${{ job.status }} surface=player-appdata dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}
+          msg: "operator-appdata backup ${{ job.status }}"
+          fields: status=${{ job.status }} surface=operator-appdata dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}

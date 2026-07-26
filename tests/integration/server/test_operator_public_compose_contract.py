@@ -26,6 +26,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OPERATOR_YML = REPO_ROOT / "compose" / "docker-compose.operator-public.yml"
+OPERATOR_SECRETS_YML = REPO_ROOT / "compose" / "docker-compose.operator-secrets.yml"
 
 pytestmark.append(
     pytest.mark.skipif(
@@ -119,6 +120,53 @@ def test_viewer_loopback_only_and_hardened(resolved: Dict[str, Any]) -> None:
     assert "127.0.0.1" in ports, "operator viewer must bind loopback only (edge is the front)"
     assert fe.get("read_only") is True
     assert "no-new-privileges:true" in " ".join(fe.get("security_opt") or [])
+
+
+def test_operator_secrets_overlay_delivers_runtime_secrets_via_tmpfs() -> None:
+    # ADR-115 Option A: under OPERATOR_SECRETS_VIA_FILES=1, deploy-operator.sh joins this
+    # overlay so the 3 runtime secrets (OAuth client secret, session secret, backend Sentry
+    # DSN) are delivered as /run/secrets files sourced from /dev/shm (RAM) and exported by
+    # the image shim — none at rest on disk. This guards the overlay from going missing again
+    # (its absence makes an Option-A deploy fail on the `-f` join → keyless 503).
+    assert OPERATOR_SECRETS_YML.exists(), "operator secrets overlay must exist (deploy joins it)"
+    env = {**os.environ, "PODCAST_CORPUS_VOLUME": "compose_corpus_data"}
+    cmd = [
+        "docker",
+        "compose",
+        "-f",
+        str(OPERATOR_YML),
+        "-f",
+        str(OPERATOR_SECRETS_YML),
+        "config",
+        "--format",
+        "yaml",
+    ]
+    proc = subprocess.run(cmd, env=env, capture_output=True, text=True, check=False)  # noqa: S603
+    assert (
+        proc.returncode == 0
+    ), f"`docker compose config` (with secrets overlay) failed:\n{proc.stderr}"
+    resolved: Dict[str, Any] = yaml.safe_load(proc.stdout)
+
+    api = _svc(resolved, "api")
+    attached = {(s.get("source") if isinstance(s, dict) else s) for s in (api.get("secrets") or [])}
+    expected = {"app_oauth_google_client_secret", "app_session_secret", "podcast_sentry_dsn_api"}
+    assert (
+        expected <= attached
+    ), f"api must mount the runtime secrets under Option A; got {attached}"
+
+    top = resolved.get("secrets") or {}
+    for name in expected:
+        src = str((top.get(name) or {}).get("file", ""))
+        assert src.startswith(
+            "/dev/shm/operator-secrets/"
+        ), f"{name} must source from the operator tmpfs (RAM, per-tenant), got {src!r}"
+
+    # The plaintext must NOT also be pinned into the api environment (that would defeat
+    # the point — no secret at rest / in the compose env under Option A).
+    env_block = api.get("environment") or {}
+    for leaky in ("APP_OAUTH_GOOGLE_CLIENT_SECRET", "APP_SESSION_SECRET"):
+        val = str(env_block.get(leaky, ""))
+        assert not val, f"{leaky} must NOT be a hardcoded env value under Option A (got a value)"
 
 
 def test_viewer_defaults_corpus_path(resolved: Dict[str, Any]) -> None:
