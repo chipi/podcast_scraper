@@ -1,6 +1,7 @@
 # 1000-episode reprocess — readiness plan (v2 → v3 at scale)
 
-Branch: `feat/1000-episodes`. Status: **Active (plan)**. Created 2026-07-20.
+Status: **Active**. Created 2026-07-20. Updated 2026-07-26 (v2.2 merged; the
+incremental prod-v2.x validation arc below is the live sequencing).
 
 Umbrella sequencing plan for the next arc. Not authoritative — component specs
 (`CORPUS-V4-FIXTURE-LADDER.md`, `1191-ROUTE-AND-TAG-PLAN.md`, the issue bodies) are.
@@ -9,6 +10,49 @@ Umbrella sequencing plan for the next arc. Not authoritative — component specs
 
 Reprocess the corpus **v2 → v3** using other LLMs, and expand from the 10-episode
 v3 pilot to **500–1000 episodes across 20–30 podcasts**.
+
+## The incremental single-variable validation arc (prod-v2.x, ~90 eps)
+
+Before the frozen 1000-ep run (Phase 4), each producing-model / input change is
+**validated in isolation** on the existing ~90-episode corpus: change exactly ONE
+variable, let the whole cascade re-run, and compare that version against its
+predecessor. The stick is **parity with the prior version, not ultimate truth** —
+each step only has to be "not worse than what we had," because the previous corpus
+is the thing we already accepted. (This is the same discipline as the deepgram
+freeze arbiter used in v2.2.)
+
+| Version | Single variable changed | Status |
+| --- | --- | --- |
+| **v2.1** | speaker **naming** (on frozen deepgram diarization) | done |
+| **v2.2** | **diarization** → pyannote community-1 (DGX-local) | **MERGED — PR #1335** (Closes #1188, #1290, #1292–#1296, #1321, #1329–#1331) |
+| **v2.3** | **ASR** → faster-whisper turbo (DGX-local) + ADR-123 coverage failover | **NEXT** — model already locked (#1178/#1179, real GT) |
+| **v2.4** | **GI/KG optimizations** — remove `GI_MAX_INSIGHTS_CEILING` (#1191) + KG Voice-node (#1220) | after v2.3 |
+| **v2.5** | **LLM** → gemini replaced by the DGX-based LLM (the gateway to a **fully local** pipeline) | after v2.4 |
+
+**Why this ordering / why NOT bundle:** each variable's downstream deltas must be
+attributable to *that* variable. Folding a GI/KG **schema** change (#1191/#1220) into
+the ASR step (v2.3) would make a GI delta un-attributable (ASR? or schema?) — so the
+schema work is its own gate (v2.4). DGX-LLM (v2.5) lands **after** the GI/KG shape is
+settled, so we swap the LLM against the final artifact shape, and use v2.4 to bank the
+optimization gains before that swap. The 1000-ep run then reprocesses the **frozen
+combination** once (Phase 4).
+
+### Measurement per step — cost-aware, no needless re-transcription
+
+The expensive layer is **transcription** (OpenAI Whisper, ~$0.50/ep). Everything
+downstream — diarization, naming, GI, KG, summary — is free (DGX) or cents (gemini).
+So we never re-transcribe to "confirm" a baseline; the prior corpus on disk **is** the
+baseline. Per step:
+
+- **Deterministic layers = the primary verdict, no baseline needed.** Transcript WER
+  vs the prior version; **speaker-roster parity** (names + roles) — mostly deterministic,
+  the star signal, same metric as the v2.2 community-1↔deepgram comparison.
+- **Noisy layers (GI/KG/summary) get a cheap noise floor.** pyannote and gemini both
+  drift run-to-run, so a raw vX−1 vs vX diff at these layers conflates the change with
+  noise. Establish the floor by re-running only the **downstream cascade** on the prior
+  version's **existing transcript** (`rediarize_only`: reuse the paid transcript,
+  re-diarize + re-name + re-enrich) — free DGX + ~$1/100 eps of gemini, **no
+  re-transcription**. Then the real signal = (vX − vX−1) **above** (vX−1 − vX−1′).
 
 ## The organizing principle: reprocess-once economics
 
