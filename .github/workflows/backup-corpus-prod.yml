@@ -25,8 +25,13 @@ on:
         required: false
         type: boolean
         default: true
-  # `schedule:` intentionally absent — flipped on by the #723 cutover follow-up
-  # once the operator has confirmed parallel-run produces matching snapshots.
+  schedule:
+    # Weekly, Sunday 05:37 UTC (off-peak; staggered from the daily player-appdata run).
+    # Scheduled runs pass no `dry_run` input → treated as a REAL backup + upload. A
+    # weekly cadence (vs the player's daily) reflects the corpus being regenerable but
+    # expensive; ramp to daily if churn warrants. (#723 parallel-run cutover is a
+    # separate verification, not a gate on having *a* schedule.)
+    - cron: "37 5 * * 0"
 
 permissions:
   contents: read
@@ -34,9 +39,10 @@ permissions:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    # Same required-reviewer gate as the sibling prod VPS workflows
-    # (deploy-prod / prod-restore-corpus) — reaches the live box (review low/backup-env).
-    environment: prod
+    # NOTE: no `environment: prod` gate — a scheduled backup must run unattended, and a
+    # required-reviewer environment would leave every weekly run pending approval forever.
+    # This is a READ-ONLY tarball pull (no prod mutation), matching the ungated
+    # backup-player-appdata-prod.yml precedent. Deploy/restore workflows keep their gate.
     timeout-minutes: 30
     steps:
       - name: Pre-flight — required secrets/variables present?

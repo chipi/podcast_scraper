@@ -1,0 +1,132 @@
+# Backup the operator surface's per-user data (RFC-108 / #1320) from the prod VPS.
+#
+# operator_appdata (operator prefs/library + role grants) is a HOST bind mount at
+# /srv/podcast-scraper/operator-appdata (see docker-compose.operator-public.yml). Like the
+# player's, it is NOT regenerable — it's real user state, and the role grants are the only
+# record of who has creator/admin access — so it needs its own backup. Streams the dir as a
+# tarball over the tailnet and uploads to the backup repo.
+#
+# Mirrors backup-player-appdata-prod.yml (daily, unattended, read-only pull). Staggered 20
+# min after the player run. The operator surface went live 2026-07-25.
+
+name: Backup operator app-data (prod VPS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run without uploading (log the would-do tarball size)"
+        type: boolean
+        default: false
+  schedule:
+    # Daily at 04:37 UTC (off-peak; 20 min after the player-appdata run).
+    - cron: "37 4 * * *"
+
+concurrency:
+  group: backup-operator-appdata
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
+          [ -z "${BACKUP_REPO_TOKEN:-}" ] && MISSING="$MISSING BACKUP_REPO_TOKEN"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (resolver script)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        if: steps.preflight.outputs.skip != 'true'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Pull operator app-data from VPS over Tailscale
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'tar -czf - -C /srv/podcast-scraper operator-appdata' > operator-appdata.tgz
+          echo "Tarball: $(du -h operator-appdata.tgz | cut -f1)"
+          size=$(stat -c%s operator-appdata.tgz)
+          if [ "$size" -lt 32 ]; then
+            echo "::error::Tarball is empty/corrupt ($size bytes); aborting." >&2
+            exit 1
+          fi
+          # An empty operator-appdata (no users yet) is OK — no content sanity gate.
+
+      - name: Upload to backup repo
+        if: steps.preflight.outputs.skip != 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          TAG="operator-appdata-prod-$(date -u +%Y%m%d)"
+          if gh release view "$TAG" --repo "$BACKUP_REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" operator-appdata.tgz --repo "$BACKUP_REPO" --clobber
+          else
+            gh release create "$TAG" operator-appdata.tgz --repo "$BACKUP_REPO" \
+              --title "Operator app-data snapshot $TAG (prod VPS)" \
+              --notes "Automated backup of /srv/podcast-scraper/operator-appdata (operator user data + role grants) over Tailscale."
+          fi
+          echo "Uploaded operator-appdata.tgz as release tag $TAG"
+
+      - name: Emit backup event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        # Self-hosted sink over the tailnet (runner already joined above). Fires on
+        # success AND failure. Non-fatal — never turns the backup red.
+        if: always() && steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/emit-ops-event
+        with:
+          event-type: backup
+          env: prod
+          victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
+          msg: "operator-appdata backup ${{ job.status }}"
+          fields: status=${{ job.status }} surface=operator-appdata dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}
