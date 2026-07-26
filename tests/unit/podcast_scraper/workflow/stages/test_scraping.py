@@ -250,20 +250,41 @@ class TestPrepareEpisodesExistingOnly:
         episodes = prepare_episodes_from_feed(feed, cfg)
         assert len(episodes) == 2  # cap ignored in migration mode
 
-    def test_rolled_off_existing_is_logged(self, tmp_path, caplog):
+    def test_rolled_off_existing_is_reconstructed_not_dropped(self, tmp_path, caplog):
+        # DRIFT GUARD: an on-disk episode the live feed no longer serves (aged out of its window)
+        # must be RECONSTRUCTED from on-disk metadata and reprocessed, not silently dropped —
+        # otherwise a reprocess shrinks to the feed-window slice as feeds publish new episodes.
         import logging
 
         self._corpus(tmp_path, "g1", "g2", "g_rolled")
         feed = RssFeed(
             title="T",
-            items=[_rss_item("a", guid="g1"), _rss_item("b", guid="g2")],
+            items=[_rss_item("a", guid="g1"), _rss_item("b", guid="g2")],  # g_rolled aged out
             base_url="https://example.com",
             authors=[],
         )
         cfg = _scraping_cfg(reprocess_existing_only=True, output_dir=str(tmp_path))
         with caplog.at_level(logging.INFO):
-            prepare_episodes_from_feed(feed, cfg)
-        assert "1 on-disk GUID(s) not in the live feed" in caplog.text
+            episodes = prepare_episodes_from_feed(feed, cfg)
+        assert len(episodes) == 3  # the aged-out episode is reached, not dropped
+        assert "reconstructed from on-disk metadata" in caplog.text
+
+    def test_reprocess_assigns_on_disk_idx_so_transcript_glob_matches(self, tmp_path):
+        # The reprocess must give each episode its ON-DISK idx (the "NNNN - " filename prefix the
+        # transcripts carry), not a feed-enumerate position — or relabel_only/rediarize_only, which
+        # glob "{idx} - *.txt", cannot find the aged-out ones. Corpus idx 5,6,7; feed serves only 5.
+        _write_meta(tmp_path / "run_A" / "metadata" / "0005 - E.metadata.json", "g5")
+        _write_meta(tmp_path / "run_A" / "metadata" / "0006 - F.metadata.json", "g6")
+        _write_meta(tmp_path / "run_A" / "metadata" / "0007 - G.metadata.json", "g7")
+        feed = RssFeed(
+            title="T",
+            items=[_rss_item("e", guid="g5")],  # g6, g7 aged out
+            base_url="https://example.com",
+            authors=[],
+        )
+        cfg = _scraping_cfg(reprocess_existing_only=True, output_dir=str(tmp_path))
+        episodes = prepare_episodes_from_feed(feed, cfg)
+        assert sorted(e.idx for e in episodes) == [5, 6, 7]  # on-disk idx preserved for all
 
     def test_empty_corpus_aborts_loud(self, tmp_path):
         feed = RssFeed(

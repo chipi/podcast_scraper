@@ -97,9 +97,19 @@ class DeepgramDiarizationProvider(DiarizationProvider):
         min_speakers: int = 2,
         max_speakers: int = 20,
     ) -> DiarizationResult:
-        """POST the audio to Deepgram and return speaker turns."""
+        """POST the audio to Deepgram and return speaker turns.
+
+        NOTE (D5): Deepgram's diarization does not accept speaker-count hints, so
+        ``num_speakers`` / ``min_speakers`` / ``max_speakers`` are IGNORED here — they are part of
+        the shared provider Protocol but the API infers the count itself. Setting
+        ``diarization_num_speakers`` has no effect on this backend (documented, like moss_provider).
+        """
         if self._client is None:
             self.initialize()
+        if num_speakers is not None:
+            logger.debug(
+                "Deepgram diarization ignores num_speakers=%s (API infers it)", num_speakers
+            )
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 

@@ -127,6 +127,130 @@ def test_maybe_produce_adfree_gate(tmp_path: Path):
     assert not (tmp_path / "transcripts" / "02 - ep.adfree.txt").exists()
 
 
+def _crosspromo_segments():
+    """Opening host-read cross-promo (#1188): two readers who never recur, then the
+    real two-host conversation. Ad readers have NONE of the density-ad markers."""
+    segs = [
+        {
+            "start": 0.0,
+            "end": 5.0,
+            "speaker_label": "Paul",
+            "text": "I'm Paul Tenorio. I cover soccer for The Athletic.",
+        },
+        {
+            "start": 5.0,
+            "end": 10.0,
+            "speaker_label": "Amy",
+            "text": "And I'm Amy Lawrence. I cover football for The Athletic.",
+        },
+        {
+            "start": 10.0,
+            "end": 16.0,
+            "speaker_label": "Paul",
+            "text": "The Athletic's coverage has everything you need for the tournament.",
+        },
+        {
+            "start": 16.0,
+            "end": 21.0,
+            "speaker_label": "Amy",
+            "text": "We've got more than 70 obsessive reporters on the ground.",
+        },
+        {
+            "start": 21.0,
+            "end": 26.0,
+            "speaker_label": "Paul",
+            "text": "Download The Athletic app and get free access to all the coverage.",
+        },
+    ]
+    t = 26.0
+    body = (
+        "Hello and welcome everyone. Today we discuss the bioscience boom. "
+        "Our guest spent twenty years in healthcare. Let us dive in. "
+    ) * 12
+    for i, sentence in enumerate(s for s in body.split(". ") if s.strip()):
+        segs.append(
+            {
+                "start": t,
+                "end": t + 15.0,
+                "speaker_label": "Kevin" if i % 2 == 0 else "Casey",
+                "text": sentence.strip() + ".",
+            }
+        )
+        t += 15.0
+    return segs
+
+
+def test_opening_crosspromo_dropped_from_roster():
+    """The #1188 harm: ad readers pollute the GI speaker roster. The ad-free base
+    (what GI/enrich/search read) must drop their segments entirely."""
+    segs = _crosspromo_segments()
+    text, _ = format_diarized_screenplay_with_offsets(segs)
+    arts = build_adfree_artifacts(text, segs)
+    assert arts is not None
+
+    seg_speakers = {s["speaker_label"] for s in arts.segments}
+    seg_text = " ".join(s["text"] for s in arts.segments)
+    # Roster: the non-recurring ad readers are gone.
+    assert "Paul" not in seg_speakers
+    assert "Amy" not in seg_speakers
+    assert "The Athletic" not in arts.text
+    assert "The Athletic" not in seg_text
+    # The real hosts and content survive, offsets still exact.
+    assert {"Kevin", "Casey"} <= seg_speakers
+    assert "bioscience boom" in arts.text
+    for s in arts.segments:
+        assert arts.text[s["char_start"] : s["char_end"]] == s["text"]
+
+
+def test_opening_crosspromo_dropped_in_plain_branch():
+    """The plain / non-screenplay branch removes the opening cross-promo too, for
+    consistency with the diarized branch (#1188). Text is the segment concatenation
+    (not a ``Name:`` screenplay), but segments still carry speaker ids."""
+    ad = [
+        {
+            "start": 0.0,
+            "end": 5.0,
+            "speaker": "SPEAKER_90",
+            "text": "I'm Dana Lee and I cover the markets desk. ",
+        },
+        {
+            "start": 5.0,
+            "end": 10.0,
+            "speaker": "SPEAKER_91",
+            "text": "We report on every trading day. ",
+        },
+        {
+            "start": 10.0,
+            "end": 15.0,
+            "speaker": "SPEAKER_90",
+            "text": "Download our app to follow along. ",
+        },
+    ]
+    body = [
+        {
+            "start": 15.0 + i * 15.0,
+            "end": 28.0 + i * 15.0,
+            "speaker": "SPEAKER_00",
+            "text": f"Real host content number {i} today. ",
+        }
+        for i in range(12)
+    ]
+    segments = ad + body
+    text = "".join(str(s["text"]) for s in segments)
+
+    # Sanity: this is the plain branch (text is NOT the diarized screenplay).
+    rebuilt, _ = format_diarized_screenplay_with_offsets(segments)
+    assert rebuilt != text
+
+    arts = build_adfree_artifacts(text, segments)
+    assert arts is not None
+    assert "Download our app" not in arts.text
+    assert "Dana Lee" not in arts.text
+    assert "Real host content number 0" in arts.text
+    for s in arts.segments:
+        assert arts.text[s["char_start"] : s["char_end"]] == s["text"]
+
+
 def test_non_screenplay_text_falls_back_to_find(tmp_path: Path):
     # Plain whisper-style segments (no speaker labels); transcript is their concatenation.
     body = (

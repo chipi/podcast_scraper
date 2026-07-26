@@ -389,3 +389,279 @@ def test_voice_type_commercial_needs_ad_intervals() -> None:
     r = resolve_speaker_roster(diar, "I'm Noah Kravitz.")
     # 60s, no ad info, and nobody names them -> unidentified (tape), not a defect
     assert r.by_voice["SPEAKER_03"].voice_type == "unidentified"
+
+
+def test_self_intro_single_name_accepted_on_own_turns() -> None:
+    """A voice that says 'I'm Brandon' in its own turns IS Brandon (no anchor needed)."""
+    from podcast_scraper.providers.ml.diarization.roster import _self_intros_by_voice
+
+    vt = {"SPEAKER_00": "Welcome. I'm Brandon. I develop RNA therapeutics and love it."}
+    assert _self_intros_by_voice(vt) == {"SPEAKER_00": "Brandon"}
+
+
+def test_self_intro_rejects_nationality_mononym() -> None:
+    """'I'm American' must NOT name a voice (the guard the single-name path preserves)."""
+    from podcast_scraper.providers.ml.diarization.roster import _self_intros_by_voice
+
+    vt = {"SPEAKER_00": "I'm American and I think this is a great question, honestly."}
+    assert _self_intros_by_voice(vt) == {}
+
+
+# --- host GREETS the guest by name: "Kara Swisher, welcome back" (#1226 follow-up) -----------
+# The deterministic introduction reader only read the cue-FIRST form ("joined by X"); a host who
+# greets a just-arrived guest name-first ("Jody Rosen, welcome to the show") named nobody. Two
+# detected guests + one guest voice defeats the forced-single-name path, so the greeting is the
+# ONLY signal that can name the voice.
+
+
+def test_guest_named_by_host_greeting_name_first() -> None:
+    # Clean case: the greeting sits on the HOST's own turn. The host-gated intro reader names the
+    # voice that speaks NEXT (the greeted guest).
+    diar = _diar([("HOST", 0, 20), ("HOST", 20, 40), ("GUEST", 40, 340), ("HOST", 340, 360)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back. I'm Patrick O'Shaughnessy.",
+        known_hosts=["Patrick O'Shaughnessy"],
+        detected_guests=["Kara Swisher", "Andrew Yang"],  # 2 names -> no forced-single naming
+        voice_texts={
+            "HOST": "Welcome back. I'm Patrick O'Shaughnessy. Kara Swisher, welcome to the show.",
+            "GUEST": "Thanks, it is great to be here. My new project is about longevity.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back. I'm Patrick O'Shaughnessy."),
+            ("HOST", "Kara Swisher, welcome to the show."),
+            ("GUEST", "Thanks, it is great to be here. My new project is about longevity."),
+            ("HOST", "Tell us all about it."),
+        ],
+    )
+    assert r.by_voice["HOST"].name == "Patrick O'Shaughnessy"
+    assert r.by_voice["GUEST"].name == "Kara Swisher"
+    assert r.by_voice["GUEST"].role == "guest"
+
+
+def test_contaminated_greeting_reclaimed_off_guest_cluster() -> None:
+    # Contamination (the v2.2 / community-1 failure): the host's greeting "Kara Swisher, welcome
+    # back" was mis-merged into the GUEST's own voice cluster. Un-fixed, the greeting reader would
+    # see the GUEST introducing "Kara" and name whoever speaks next -> the HOST, painting the host
+    # with the guest's name. The reclamation moves the name-anchored greeting back to the host, and
+    # the host-gated reader then names the guest voice correctly. The HOST must never become Kara.
+    diar = _diar([("HOST", 0, 20), ("GUEST", 20, 40), ("GUEST", 40, 340), ("HOST", 340, 360)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back. I'm Patrick O'Shaughnessy.",
+        known_hosts=["Patrick O'Shaughnessy"],
+        detected_guests=["Kara Swisher", "Andrew Yang"],
+        voice_texts={
+            "HOST": "Welcome back. I'm Patrick O'Shaughnessy. Big news today.",
+            "GUEST": (
+                "Kara Swisher, welcome back, we are delighted to have you. "
+                "Thanks, it is great to be here. My new project is about longevity."
+            ),
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back. I'm Patrick O'Shaughnessy. Big news today."),
+            ("GUEST", "Kara Swisher, welcome back, we are delighted to have you."),
+            ("GUEST", "Thanks, it is great to be here. My new project is about longevity."),
+            ("HOST", "Tell us all about it."),
+        ],
+    )
+    # The host is NEVER painted with the guest's name (the safety invariant).
+    assert r.by_voice["HOST"].name == "Patrick O'Shaughnessy"
+    # The guest voice is recovered by the reclaimed greeting.
+    assert r.by_voice["GUEST"].name == "Kara Swisher"
+
+
+@pytest.mark.parametrize("opener", ["But", "Well", "Anyway", "So", "Now"])
+def test_greeted_names_reject_a_swept_up_discourse_opener(opener) -> None:
+    """R1/#876 fu on the intro-reader path: ``_greeted_names`` fed the introduction reader a
+
+    2-word "name" whenever the ASR capitalised a sentence-opener before a real name ("So Nick,
+    welcome"). It shares the greeting regexes with ``guests_introduced_by_the_host`` and now shares
+    its ordinary-word guard, so the opener class yields NO name here either. Parametrised over
+    openers beyond the incident strings to pin the class, with a positive control.
+    """
+    from podcast_scraper.providers.ml.diarization.roster import _greeted_names
+
+    assert _greeted_names(f"{opener} Nick, welcome to the show.") == []
+    # positive control: a real two-word greeted name still comes through.
+    assert _greeted_names("Jody Rosen, welcome to the show.") == ["Jody Rosen"]
+
+
+def test_guest_with_asr_close_name_does_not_steal_the_host_identity() -> None:
+    # N1: a guest self-introducing with a name ASR-close to a configured host's ("Kevin Ross" vs
+    # "Kevin Roose", edit distance 2) must NOT be snapped onto the host. Applied to every voice,
+    # canonicalization published the guest AS the host and demoted the real host to guest. The fix
+    # gates canonicalization to the host-candidate voices (the first len(known_hosts) to speak).
+    diar = _diar([("HOST", 0, 30), ("GUEST", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back to the show.",
+        known_hosts=["Kevin Roose"],
+        voice_texts={
+            "HOST": "Welcome back to the show. We have a fantastic guest lined up for you today.",
+            "GUEST": "So I'm Kevin Ross and I build developer tools for a living, a decade now.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back to the show. We have a fantastic guest lined up for you today."),
+            ("GUEST", "So I'm Kevin Ross and I build developer tools for a living, a decade now."),
+        ],
+    )
+    assert r.by_voice["GUEST"].name == "Kevin Ross"  # keeps its OWN name
+    assert r.by_voice["GUEST"].role == "guest"
+    assert r.by_voice["HOST"].role == "host"  # the real host is not stolen
+    assert r.by_voice["HOST"].name == "Kevin Roose"
+
+
+def test_asr_mangled_co_host_still_canonicalizes() -> None:
+    # The N1 fix must NOT cost a co-host its correct spelling: a second host that opens the show
+    # (within the first len(known_hosts) voices) still gets its ASR-mangled self-intro snapped.
+    diar = _diar([("HOST1", 0, 30), ("HOST2", 30, 60), ("HOST1", 60, 300), ("HOST2", 300, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome to the show.",
+        known_hosts=["Kevin Roose", "Casey Newton"],
+        voice_texts={
+            "HOST1": "Welcome to the show. I'm Kevin Russo.",
+            "HOST2": "And I'm Casey Noon. Big show for everyone today, lots to get through.",
+        },
+        ordered_turns=[
+            ("HOST1", "Welcome to the show. I'm Kevin Russo."),
+            ("HOST2", "And I'm Casey Noon. Big show for everyone today, lots to get through."),
+        ],
+    )
+    assert r.by_voice["HOST1"].name == "Kevin Roose"
+    assert r.by_voice["HOST2"].name == "Casey Newton"
+
+
+def test_short_montage_is_suppressed_but_a_long_dominant_voice_is_kept() -> None:
+    # 1a/#1330: a SHORT cold-open montage merges several hosts' garbled self-intros into one 13s
+    # cluster ("I'm Kevin Russo… I'm Casey Noon…" on Hard Fork) — not a person, suppress it. But a
+    # LONG dominant voice with the SAME double self-intro is the real host whose cluster absorbed a
+    # merged cold-open clip (the real Kevin Roose measured 1500s) — keep it, named from its own
+    # leading self-intro. Talk time is what tells the clip from the speaker. Synthetic names.
+    from podcast_scraper.providers.ml.diarization.roster import _self_intro_voice_names
+
+    montage = "I'm Ada Brightwell, tech columnist. I'm Ben Coalcrest from Platformer."
+    diar = _diar([("MONT", 0, 13), ("HOST", 13, 900), ("HOST", 950, 1500)], 2)
+    voice_texts = {
+        "MONT": montage,  # 13s clip: two self-intros -> montage, suppressed
+        "HOST": "I'm Ada Brightwell. " + montage,  # 1437s dominant voice absorbed the same clip
+    }
+    out = _self_intro_voice_names(diar, voice_texts, [], known_hosts=[], ad_voices=set())
+    assert "MONT" not in out  # the short montage clip is suppressed
+    assert out.get("HOST") == "Ada Brightwell"  # the long dominant voice is kept (first self-intro)
+
+
+def test_detected_guest_is_not_forced_when_its_surname_is_already_on_the_roster() -> None:
+    # 2a/#876: an interviewer names the guest under a title ("Professor Fenwick"); the metadata
+    # lists the SAME person as "Alan Fenwick". The forced one-name-one-voice path treated "Alan
+    # Fenwick" as still-unclaimed and painted it onto a leftover BUMPER voice ("We'll be right
+    # back"), fabricating a second Fenwick (The Daily ep 0002 did this with "Robert Pape"). A
+    # detected-guest name whose SURNAME already appears on the roster is not spare.
+    diar = _diar([("HOST", 0, 40), ("GUEST", 40, 600), ("BUMPER", 600, 631)], 3)
+    guest = (
+        "Thank you for having me. I'm Professor Fenwick and I study political violence at length."
+    )
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Dana Reyes.",
+        known_hosts=["Dana Reyes"],
+        detected_guests=["Alan Fenwick"],
+        metadata_named=["Alan Fenwick"],
+        voice_texts={
+            "HOST": "Welcome. I'm Dana Reyes. Professor Fenwick, thanks so much for coming on.",
+            "GUEST": guest,
+            "BUMPER": "We'll be right back.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome. I'm Dana Reyes. Professor Fenwick, thanks so much for coming on."),
+            ("GUEST", guest),
+            ("BUMPER", "We'll be right back."),
+        ],
+    )
+    names = [role.name for role in r.by_voice.values()]
+    assert "Alan Fenwick" not in names  # not force-fabricated onto the bumper
+    assert r.by_voice["BUMPER"].name == "BUMPER"  # the bumper stays unnamed (safe direction)
+
+
+def test_two_distinct_guests_sharing_a_surname_are_both_nameable() -> None:
+    # 2a negative control: ONLY a honorific-form roster name ("Professor Pape") claims its surname.
+    # Two distinct guests who merely share a surname — "Robert Pape" (named by his own self-intro)
+    # and a genuinely different "Karen Pape" — must both be nameable; the shared surname must not
+    # suppress the second (the reviewer's HIGH finding on an over-broad surname claim).
+    diar = _diar([("HOST", 0, 40), ("G1", 40, 400), ("G2", 400, 760)], 3)
+    g1 = "Thank you. I'm Robert Pape and I study political violence for a living, a whole career."
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Dana Reyes.",
+        known_hosts=["Dana Reyes"],
+        detected_guests=["Robert Pape", "Karen Pape"],
+        metadata_named=["Robert Pape", "Karen Pape"],
+        voice_texts={
+            "HOST": "Welcome. I'm Dana Reyes.",
+            "G1": g1,
+            "G2": "Thanks for having me. I work on domestic policy and social movements at length.",
+        },
+        ordered_turns=[("HOST", "Welcome. I'm Dana Reyes."), ("G1", g1), ("G2", "Thanks. Policy.")],
+    )
+    names = {role.name for role in r.by_voice.values()}
+    assert "Robert Pape" in names  # named by his own self-intro
+    assert "Karen Pape" in names  # a distinct same-surname guest is NOT suppressed
+
+
+def test_surname_token_edge_cases() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _surname_token
+
+    assert _surname_token("Robert Pape") == "pape"
+    assert _surname_token("Professor Pape") == "pape"
+    assert _surname_token("Robert Pape Jr.") == "pape"  # generational suffix dropped
+    assert _surname_token("Li Xu") == "xu"  # short romanised surname kept (>=2 chars)
+    assert _surname_token("R. Pape") == "pape"  # a leading initial is not the surname
+    assert _surname_token("Cher") is None  # mononym has no surname
+    assert _surname_token("") is None
+
+
+def test_a_quoted_greeting_by_a_non_host_never_force_names_a_voice() -> None:
+    # N2: guests_introduced_by_the_host must trust only the HOST's turns. A non-host voice that
+    # QUOTES a greeting ("...and then Sarah Chen, thanks so much for coming to my defense...") must
+    # not harvest that name into the guest pool, where the forced one-name-one-voice match would
+    # then paint "Sarah Chen" onto that unrelated voice.
+    diar = _diar([("HOST", 0, 30), ("SPK", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome to the show.",
+        known_hosts=["Alex Rivera"],
+        voice_texts={
+            "HOST": "Welcome to the show. I'm Alex Rivera and today we get into a wild legal saga.",
+            "SPK": (
+                "So the trial was chaos. And then Sarah Chen, thanks so much for coming to my "
+                "defense, she stood up and we ended up winning the whole thing that afternoon."
+            ),
+        },
+        ordered_turns=[
+            (
+                "HOST",
+                "Welcome to the show. I'm Alex Rivera and today we get into a wild legal saga.",
+            ),
+            ("SPK", "And then Sarah Chen, thanks so much for coming to my defense, we won it all."),
+        ],
+    )
+    assert r.by_voice["SPK"].name != "Sarah Chen"
+    assert r.by_voice["SPK"].named is False
+
+
+def test_a_cold_open_guest_opener_does_not_name_the_host_voice() -> None:
+    # N5: a cold-open GUEST clip that speaks first, performs the guest role ("thanks for having
+    # me"), and utters a name-first phrase ("Jane Doe is with us") must NOT be trusted as a host
+    # hint — otherwise the intro reader names the NEXT (real host) voice from that phrase. With no
+    # known_hosts there is no host_pool to rescue the misname, so this is where it bites.
+    guest = "Thanks for having me. Honestly Jane Doe is with us, thrilled to be here."
+    host = "Right, let us get straight into the biggest tech stories this week everybody."
+    diar = _diar([("GUEST", 0, 40), ("HOST", 40, 360), ("GUEST", 360, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "podcast",
+        voice_texts={"GUEST": guest, "HOST": host},
+        ordered_turns=[("GUEST", guest), ("HOST", host)],
+    )
+    assert "Jane Doe" not in (r.by_voice["HOST"].name or "")

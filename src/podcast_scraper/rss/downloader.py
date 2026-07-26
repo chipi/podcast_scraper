@@ -304,6 +304,11 @@ def _get_thread_feed_request_client() -> httpx.Client:
     if client is None:
         client = create_client(
             subsystem="rss_feed",
+            # Feeds relocate (e.g. flightcast 301 rss.->feeds.); httpx defaults to
+            # follow_redirects=False, which turned a moved-but-live feed into a hard
+            # "Failed to fetch RSS feed". Follow the redirect so a relocated feed still parses;
+            # resp.url (the final URL) becomes feed_base_url for relative-link resolution.
+            follow_redirects=True,
             transport_wrapper=_make_retry_transport_wrapper(
                 _effective_rss_retry_total(),
                 _effective_rss_backoff_factor(),

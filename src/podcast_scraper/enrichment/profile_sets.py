@@ -185,7 +185,13 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
-    if name in ("cloud_thin", "cloud_balanced", "cloud_quality"):
+    if name in (
+        "cloud_thin",
+        "cloud_balanced",
+        "cloud_quality",
+        # ADR-126: cloud_balanced routing with community-1 diarization — same enricher tier.
+        "reprocess_v22_community1",
+    ):
         return EnricherSet(
             enabled_enrichers=_admit(_cloud_ml_tier_set(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,

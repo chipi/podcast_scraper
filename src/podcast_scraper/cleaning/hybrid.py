@@ -38,6 +38,10 @@ class HybridCleaner:
         text: str,
         provider: Optional[Any] = None,
         pipeline_metrics: Optional[Any] = None,
+        *,
+        diarization_segments: Optional[list] = None,
+        host_speaker_id: Optional[str] = None,
+        crosspromo_cue_patterns: Optional[list] = None,
     ) -> str:
         """Clean transcript using hybrid approach.
 
@@ -46,12 +50,22 @@ class HybridCleaner:
             provider: Optional provider instance for LLM cleaning.
                 If None, only pattern-based cleaning is used.
             pipeline_metrics: Optional pipeline ``Metrics`` for LLM token accounting
+            diarization_segments / host_speaker_id / crosspromo_cue_patterns: forwarded to the
+                pattern stage so diarization-aware detectors (opening cross-promo excision, the
+                CommercialDetector guest-speaker disqualify + host-monologue boosts) run on the
+                DEFAULT summarization path. Omitting them silently disabled those detectors here —
+                a cross-promo excised from the ad-free base survived into the summary (C1 / #1294).
 
         Returns:
             Cleaned transcript text
         """
-        # Stage 1: Fast pattern-based removal of obvious sponsors
-        cleaned = self.pattern_cleaner.clean(text)
+        # Stage 1: Fast pattern-based removal of obvious sponsors (diarization-aware).
+        cleaned = self.pattern_cleaner.clean(
+            text,
+            diarization_segments=diarization_segments,
+            host_speaker_id=host_speaker_id,
+            crosspromo_cue_patterns=crosspromo_cue_patterns,
+        )
 
         # Stage 2: Conditional LLM semantic filtering
         if provider is not None and self._needs_llm_cleaning(text, cleaned, provider):

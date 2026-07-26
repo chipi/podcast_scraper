@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .... import config
 from .alignment import align_segments_to_speakers
+from .base import DiarizationResult
 from .cache import (
     diarization_cache_dir_for_output,
     diarization_cache_path,
@@ -105,7 +106,11 @@ def _resolve_diarization_cache_dir(cfg: config.Config, cache_dir: Optional[str])
     return diarization_cache_dir_for_output(cfg.output_dir)
 
 
-_recurring_cache: Dict[str, set] = {}
+# Cache maps output_dir -> (transcript_count_at_build, shingles). The count lets a batch's LATER
+# episodes rebuild the index once earlier episodes have written their transcripts (D3): keying on
+# out_dir alone froze the index at the first episode's state — on a fresh feed's first full pass
+# that is near-empty, so the mid-roll-ad rule ran blind for the whole batch.
+_recurring_cache: Dict[str, tuple[int, set]] = {}
 _recurring_lock = threading.Lock()
 
 
@@ -117,39 +122,41 @@ def _feed_recurring_text(cfg: config.Config) -> set:
     across episodes: it is read from the same script every week. `Jonathan Knight` (NYT Games) got
     into 7 of 10 Hard Fork episodes as a named person because no single episode could tell.
 
-    Built from the transcripts already on disk for this output dir, once per feed. Fewer than three
-    transcripts and there is nothing to compare, so the rule abstains.
+    Built from the transcripts already on disk for this output dir, and REBUILT when more
+    transcripts have since landed (so a batch's later episodes see the passages its earlier ones
+    just wrote). Fewer than three transcripts and there is nothing to compare, so the rule abstains.
     """
     out_dir = str(getattr(cfg, "output_dir", "") or "")
     if not out_dir:
         return set()
+    paths = [
+        p
+        for p in Path(out_dir).glob("**/transcripts/*.txt")
+        if ".adfree" not in p.name and ".cleaned" not in p.name
+    ]
+    count = len(paths)
     cached = _recurring_cache.get(out_dir)
-    if cached is not None:
-        return cached
+    if cached is not None and count <= cached[0]:
+        return cached[1]  # no new transcripts since the last build
     with _recurring_lock:
         cached = _recurring_cache.get(out_dir)
-        if cached is not None:
-            return cached
+        if cached is not None and count <= cached[0]:
+            return cached[1]
         try:
             from ....speaker_detectors.boilerplate import shingles_from_transcript_files
 
-            paths = [
-                p
-                for p in Path(out_dir).glob("**/transcripts/*.txt")
-                if ".adfree" not in p.name and ".cleaned" not in p.name
-            ]
-            shingles = shingles_from_transcript_files(paths)
+            shingles = shingles_from_transcript_files(paths) if count >= 3 else set()
             if shingles:
                 logger.info(
                     "#1188: indexed %d repeated passages across %d transcripts of this feed — "
                     "a voice that only reads them is a recording, not a person",
                     len(shingles),
-                    len(paths),
+                    count,
                 )
         except Exception as exc:  # noqa: BLE001
             logger.debug("recurring-text index unavailable (%s); mid-roll ad rule abstains", exc)
             shingles = set()
-        _recurring_cache[out_dir] = shingles
+        _recurring_cache[out_dir] = (count, shingles)
         return shingles
 
 
@@ -216,20 +223,34 @@ def apply_diarization_to_result(
     *,
     metadata_named: Optional[List[str]] = None,
     cache_dir: Optional[str] = None,
+    precomputed_diarization: Optional[DiarizationResult] = None,
+    feed_hosts: Optional[List[str]] = None,
+    bypass_cache_read: bool = False,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
 
     ``metadata_named`` is every name the episode metadata stated, *before* corroboration filtered
     it. It never names a voice — it only lets the roster tell our own failures apart from the
     voices nobody could have named.
+
+    ``precomputed_diarization`` supplies the diarized voices directly, skipping the
+    cache/provider (audio) path — used by ``pipeline_stage=relabel_only`` to re-resolve
+    names on an existing corpus's frozen ``SPEAKER_NN`` diarization, no audio / re-diarize.
+
+    ``feed_hosts`` are the host names the feed's own blurb states (via
+    ``detect_hosts_from_feed``); merged with ``cfg.known_hosts`` to anchor the roster and
+    canonicalize ASR-garbled host surnames.
     """
     segments = result.get("segments")
     if not isinstance(segments, list) or not segments:
         return result
 
     resolved_cache_dir = _resolve_diarization_cache_dir(cfg, cache_dir)
-    diarization = None
-    if resolved_cache_dir:
+    diarization = precomputed_diarization
+    # rediarize_only (v2.2) passes bypass_cache_read=True so a re-diarize is genuinely fresh even
+    # when the diarizer config is unchanged — otherwise the audio-hash cache would return the old
+    # diarization and the re-diarize would no-op. The fresh result is still cached below.
+    if diarization is None and resolved_cache_dir and not bypass_cache_read:
         cache_path = diarization_cache_path(audio_path, cfg, resolved_cache_dir)
         diarization = load_cached_diarization(cache_path)
         if diarization is not None:
@@ -274,7 +295,15 @@ def apply_diarization_to_result(
     aligned = align_segments_to_speakers(segments, diarization)
     voice_texts = _voice_texts_from_aligned(aligned)
     guests = detected_speaker_names or []
-    known_hosts = list(getattr(cfg, "known_hosts", None) or [])
+    # known_hosts anchors the roster: it names the opening voice and lets
+    # _canonicalize_to_known_host repair an ASR-garbled spoken surname ("Kevin Russo" -> "Kevin
+    # Roose"). cfg.known_hosts is the manual show-level override; feed_hosts is what the feed's own
+    # blurb states ("journalists Kevin Roose and Casey Newton explore..."), detected via
+    # detect_hosts_from_feed by the caller. Without this the roster ran with an empty anchor on
+    # every feed that did not hard-code cfg.known_hosts.
+    known_hosts = list(
+        dict.fromkeys(list(getattr(cfg, "known_hosts", None) or []) + list(feed_hosts or []))
+    )
     # Ordered turns let the roster use the host's introduction ("and now, Bobby Allen") to name the
     # voice that speaks NEXT — the only per-voice way to use an introduction.
     ordered_turns = [
@@ -312,6 +341,7 @@ def apply_diarization_to_result(
         metadata_named=list(metadata_named or ()),
         llm_voice_names=llm_voice_names,
         recurring_text=_feed_recurring_text(cfg),
+        diarization_provider=getattr(cfg, "diarization_provider", None),
     )
 
     enriched_result = dict(result)

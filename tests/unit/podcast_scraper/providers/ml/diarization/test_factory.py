@@ -46,3 +46,44 @@ def test_resolve_hf_token_none_when_absent(monkeypatch, tmp_path: Path) -> None:
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(factory.Path, "home", classmethod(lambda cls: tmp_path))
     assert factory.resolve_hf_token(_cfg()) is None
+
+
+def test_warns_when_pyannote_tuning_knobs_set_against_dgx(caplog) -> None:
+    # D1 (#1295): the DGX/cloud providers do not apply the pyannote clustering/squelch knobs, so a
+    # set-but-ignored knob must not be a silent no-op.
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarization_provider="tailnet_dgx",
+        diarization_min_segment_ms=500,
+    )
+    with caplog.at_level("WARNING"):
+        factory._warn_if_tuning_knobs_ignored(cfg, "tailnet_dgx")
+    assert "diarization_min_segment_ms" in caplog.text
+    assert "#1295" in caplog.text
+
+
+def test_no_tuning_knob_warning_for_local_backend(caplog) -> None:
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarization_provider="local",
+        diarization_min_segment_ms=500,
+    )
+    with caplog.at_level("WARNING"):
+        factory._warn_if_tuning_knobs_ignored(cfg, "local")
+    assert "1295" not in caplog.text
+
+
+def test_warns_when_hold_drops_retry_for_non_self_resilient_backend(caplog) -> None:
+    # D4: under HOLD the factory drops the fallback ladder; local/gemini/deepgram have no retry of
+    # their own, so a transient failure fails the episode. Surface it.
+    with caplog.at_level("WARNING"):
+        factory._warn_if_hold_drops_retry("local", ["deepgram"])
+    assert "no retry" in caplog.text
+
+
+def test_no_hold_retry_warning_for_self_resilient_backend(caplog) -> None:
+    with caplog.at_level("WARNING"):
+        factory._warn_if_hold_drops_retry("tailnet_dgx", ["local"])
+    assert "no retry" not in caplog.text

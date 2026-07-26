@@ -1832,12 +1832,21 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--pipeline-stage",
         type=str,
-        choices=("full", "audio_only", "enrich_only", "download_only"),
+        choices=(
+            "full",
+            "audio_only",
+            "enrich_only",
+            "download_only",
+            "relabel_only",
+            "rediarize_only",
+        ),
         default=None,
         help=(
             "Pipeline stage: full (default), audio_only (transcribe + media only), "
-            "enrich_only (skip transcription), or download_only (#947: download + cache "
-            "raw audio only, no transcription)"
+            "enrich_only (skip transcription), download_only (#947: download + cache "
+            "raw audio only, no transcription), relabel_only (re-resolve speaker names "
+            "on the existing diarization; no audio/ASR/re-diarize), or rediarize_only "
+            "(v2.2: re-diarize the audio + align to the existing transcript; no re-ASR)"
         ),
     )
     parser.add_argument(
@@ -4751,6 +4760,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
     from podcast_scraper.utils.sentry_init import init_sentry
 
     init_sentry("pipeline")
+    # OTLP tracing (ADR-119): no-op unless OTEL_TRACES_EXPORTER=otlp + an endpoint are set. In-app
+    # so a bare `python -m …cli` run traces without the opentelemetry-instrument launcher.
+    from podcast_scraper.utils.otel_init import init_otel
+
+    init_otel()
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi/kg subcommands

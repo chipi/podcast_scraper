@@ -37,13 +37,16 @@ def test_concurrent_get_encoder_constructs_the_model_once(monkeypatch) -> None:
     barrier = threading.Barrier(8)
 
     class _SlowEncoder:
-        def __init__(self, model_id: str) -> None:
+        # Accept the same kwargs production passes — `_get_encoder` calls
+        # `SentenceTransformer(model_id, device=resolve_embedding_device())` since the CPU/CUDA
+        # (never-MPS) fix; a stub taking only model_id raised TypeError in every thread (0 builds).
+        def __init__(self, model_id: str, **kwargs) -> None:
             constructions.append(model_id)
             # Widen the race window: torch's real init is slow, which is why this ever raced.
             threading.Event().wait(0.05)
 
-    def _fake_import(model_id: str) -> _SlowEncoder:
-        return _SlowEncoder(model_id)
+    def _fake_import(model_id: str, **kwargs) -> _SlowEncoder:
+        return _SlowEncoder(model_id, **kwargs)
 
     with patch.object(about_edges, "_get_encoder", wraps=about_edges._get_encoder):
         with patch.dict(

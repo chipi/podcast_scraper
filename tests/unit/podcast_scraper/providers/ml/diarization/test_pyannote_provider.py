@@ -179,6 +179,18 @@ def test_segment_squelch_drops_phantom_subsecond_speaker() -> None:
     assert all(s.speaker != "SPEAKER_02" for s in kept)
 
 
+def test_segment_squelch_warns_when_it_erases_every_speaker(caplog) -> None:
+    # D6: when the squelch drops ALL speakers the episode's diarization collapses to empty and the
+    # pipeline degrades silently — so the REASON must be logged at WARNING, not DEBUG.
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import _apply_segment_squelch
+
+    segments = [_seg(12.0, 12.4, "SPEAKER_00"), _seg(30.0, 30.3, "SPEAKER_01")]  # all sub-second
+    with caplog.at_level("WARNING"):
+        kept = _apply_segment_squelch(segments, 1000)
+    assert kept == []
+    assert "NO speakers remain" in caplog.text
+
+
 def test_segment_squelch_keeps_real_cameo_by_longest_segment() -> None:
     # A real ~3s cameo has one contiguous segment above the gate — kept — even though its TOTAL
     # talk-time is small. The discriminator is longest segment, not total (that's the whole point).

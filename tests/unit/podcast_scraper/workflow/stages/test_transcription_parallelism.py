@@ -23,7 +23,7 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
+            rss="https://example.com/feed.xml",
             transcription_provider="whisper",
             transcribe_missing=True,
         )
@@ -70,7 +70,7 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
     def test_whisper_sequential_processing_default(self):
         """Test Whisper uses sequential processing by default (parallelism=1)."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
+            rss="https://example.com/feed.xml",
             transcription_provider="whisper",
             transcribe_missing=True,
             transcription_parallelism=1,
@@ -107,7 +107,7 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
     def test_whisper_parallel_processing_warning(self):
         """Test Whisper logs warning when parallelism > 1 (experimental)."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
+            rss="https://example.com/feed.xml",
             transcription_provider="whisper",
             transcribe_missing=True,
             transcription_parallelism=2,
@@ -148,7 +148,7 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
     def test_openai_parallel_processing_info(self):
         """Test OpenAI provider logs info when using parallelism."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
+            rss="https://example.com/feed.xml",
             transcription_provider="openai",
             transcribe_missing=True,
             transcription_parallelism=3,
@@ -201,7 +201,7 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
     def test_whisper_parallel_processing_uses_threadpool(self):
         """Test Whisper with parallelism > 1 uses ThreadPoolExecutor."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
+            rss="https://example.com/feed.xml",
             transcription_provider="whisper",
             transcribe_missing=True,
             transcription_parallelism=2,
@@ -277,7 +277,7 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
     def test_whisper_sequential_processing_uses_loop(self):
         """Test Whisper with parallelism=1 uses sequential loop (not ThreadPoolExecutor)."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
+            rss="https://example.com/feed.xml",
             transcription_provider="whisper",
             transcribe_missing=True,
             transcription_parallelism=1,
@@ -329,3 +329,69 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
 
         # Should NOT create ThreadPoolExecutor for sequential processing
         mock_executor_class.assert_not_called()
+
+
+class TestFeedHostsThreadedToDiarization(unittest.TestCase):
+    """Normal path: the transcription loop anchors the roster with the feed-stated hosts."""
+
+    def test_job_feed_hosts_set_from_cached_hosts(self) -> None:
+        from podcast_scraper.models import TranscriptionJob
+        from podcast_scraper.workflow.types import HostDetectionResult
+
+        class MockMLProvider:
+            pass
+
+        MockMLProvider.__name__ = "MLProvider"
+
+        jobs: queue.Queue = queue.Queue()
+        job = TranscriptionJob(idx=1, ep_title="Ep", ep_title_safe="Ep", temp_media="/tmp/x.mp3")
+        jobs.put(job)
+        resources = TranscriptionResources(
+            transcription_provider=MockMLProvider(),
+            temp_dir=None,
+            transcription_jobs=jobs,
+            transcription_jobs_lock=None,
+            saved_counter_lock=None,
+        )
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            transcribe_missing=True,
+            transcription_parallelism=1,
+        )
+        host_detection_result = HostDetectionResult(
+            cached_hosts={"Kevin Roose", "Casey Newton"}, heuristics=None
+        )
+        done = Mock()
+        done.is_set.return_value = True
+        captured = {}
+
+        def _capture(job_arg, *a, **k):
+            captured["feed_hosts"] = job_arg.feed_hosts
+            return (True, "run/transcripts/0001 - Ep.txt", 0)
+
+        with patch(
+            "podcast_scraper.workflow.stages.transcription.transcribe_media_to_text",
+            side_effect=_capture,
+        ):
+            transcription.process_transcription_jobs_concurrent(
+                transcription_resources=resources,
+                download_args=[],
+                episodes=[],
+                feed=models.RssFeed(title="T", items=[], base_url="https://e.com", authors=[]),
+                cfg=cfg,
+                effective_output_dir="/tmp/test",
+                run_suffix=None,
+                feed_metadata=Mock(),
+                host_detection_result=host_detection_result,
+                processing_resources=ProcessingResources(
+                    processing_jobs=[], processing_jobs_lock=None, processing_complete_event=None
+                ),
+                pipeline_metrics=metrics.Metrics(),
+                summary_provider=None,
+                downloads_complete_event=done,
+                saved_counter=[0],
+            )
+
+        # cached_hosts (feed + config hosts) reaches the job as sorted feed_hosts (roster anchor).
+        self.assertEqual(captured.get("feed_hosts"), ["Casey Newton", "Kevin Roose"])

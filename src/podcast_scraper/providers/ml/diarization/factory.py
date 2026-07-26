@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 from .... import config
 from .base import DiarizationProvider
@@ -86,6 +86,54 @@ def _diarization_tier_builder(
     return lambda: _build_diarization_tier(cfg, backend)
 
 
+_DIARIZE_TUNING_KNOBS = (
+    "diarization_clustering_threshold",
+    "diarization_min_cluster_size",
+    "diarization_min_segment_ms",
+)
+
+
+def _warn_if_tuning_knobs_ignored(cfg: config.Config, backend: str) -> None:
+    """Only the ``local`` pyannote backend applies the clustering/squelch tuning knobs (D1 / #1295).
+
+    The DGX/cloud providers send only speaker-count bounds, so a set-but-ignored knob is a silent
+    no-op on the primary path — an operator who tunes ``diarization_min_segment_ms`` to fix
+    over-segmentation gets zero effect while DGX is healthy. Surface it rather than swallow it.
+    """
+    if backend == "local":
+        return
+    set_knobs = [k for k in _DIARIZE_TUNING_KNOBS if getattr(cfg, k, None) is not None]
+    if set_knobs:
+        logger.warning(
+            "diarization_provider=%s does NOT apply the pyannote tuning knobs %s — only the "
+            "'local' backend does. They have no effect on this diarization unless it fails over "
+            "to local. (#1295)",
+            backend,
+            ", ".join(set_knobs),
+        )
+
+
+# Providers that own a hold-and-probe resilience policy (backoff-retry the same model).
+_SELF_RESILIENT_DIARIZE_BACKENDS = ("tailnet_dgx", "moss")
+
+
+def _warn_if_hold_drops_retry(backend: str, tiers: Sequence[str]) -> None:
+    """Under HOLD the factory drops the fallback ladder, trusting the provider's own retry (D4).
+
+    That policy exists only for ``tailnet_dgx`` / ``moss``. ``local`` / ``gemini`` / ``deepgram``
+    have no retry of their own, so under HOLD a single transient blip fails the episode outright —
+    strictly worse than either failover or a real hold. Surface the mismatch.
+    """
+    if backend not in _SELF_RESILIENT_DIARIZE_BACKENDS:
+        logger.warning(
+            "diarization_provider=%s has no hold-and-probe policy, but HOLD dropped its fallback "
+            "ladder %s — a transient failure will fail the episode with no retry. Use FAILOVER, or "
+            "a self-resilient provider (tailnet_dgx/moss), for this backend.",
+            backend,
+            list(tiers),
+        )
+
+
 def create_diarization_provider(
     cfg: config.Config, *, _wrap_fallback: bool = True
 ) -> DiarizationProvider:
@@ -105,6 +153,7 @@ def create_diarization_provider(
     ``TailnetDgxDiarizationProvider`` is retired in favour of that chain.
     """
     backend = getattr(cfg, "diarization_provider", "local")
+    _warn_if_tuning_knobs_ignored(cfg, backend)
 
     if _wrap_fallback:
         tiers = _diarization_fallback_tiers(cfg)
@@ -122,6 +171,7 @@ def create_diarization_provider(
                 "cross-model fallover)",
                 tiers,
             )
+            _warn_if_hold_drops_retry(backend, tiers)
         elif tiers:
             from ...resilience.fallback import FallbackChainDiarizationProvider
 

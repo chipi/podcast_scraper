@@ -32,6 +32,7 @@ class PatternBasedCleaner:
         *,
         diarization_segments: Optional[list] = None,
         host_speaker_id: Optional[str] = None,
+        crosspromo_cue_patterns: Optional[list] = None,
     ) -> str:
         """Clean transcript using pattern-based rules.
 
@@ -63,6 +64,7 @@ class PatternBasedCleaner:
             diarization_segments=diarization_segments,
             host_speaker_id=host_speaker_id,
             confidence_threshold=self._confidence_threshold,
+            crosspromo_cue_patterns=crosspromo_cue_patterns,
         )
         cleaned, _, meta = excise_ad_regions(cleaned)
         if meta.chars_removed:

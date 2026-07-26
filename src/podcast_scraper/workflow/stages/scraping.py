@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import json
 import logging
+import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, List, Set, TYPE_CHECKING
+from typing import Any, Dict, List, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
 
@@ -139,51 +140,102 @@ def collect_existing_guids(output_dir: str) -> Set[str]:
     return guids
 
 
-def _filter_items_to_existing_guids(
-    items: List[Any], cfg: config.Config  # type: ignore[valid-type]
-) -> List[Any]:
-    """#876 migration mode: keep only feed items whose GUID is already on disk.
+def _on_disk_guid_index(output_dir: str) -> Dict[str, Tuple[int, Dict[str, Any]]]:
+    """``{guid: (on_disk_idx, episode_metadata)}`` for the corpus under ``output_dir``.
 
-    Hard invariant: the result is a strict subset of the on-disk GUID set, so no
-    new episode can ever enter the pipeline. ``max_episodes`` / offset / date caps
-    are intentionally not applied in this mode — every matched existing episode is
-    processed. Aborts loudly on an empty on-disk set to guard against a mis-pointed
-    ``--output-dir`` silently degrading into a full-feed ingest.
+    The ``idx`` is read from the ``NNNN - Title.metadata.json`` filename prefix — the same number
+    the transcript files carry — so a reprocess assigns each episode the idx its on-disk transcript
+    is stored under. Assigning idx by feed-enumerate position (as the normal ingest path does) only
+    aligned by luck when the newest feed items happened to be files 0001..N; aged-out episodes need
+    their true on-disk idx or ``relabel_only``/``rediarize_only`` (which glob ``{idx} - *.txt``)
+    cannot find them.
+    """
+    root = Path(output_dir)
+    out: Dict[str, Tuple[int, Dict[str, Any]]] = {}
+    for pattern in ("run_*/metadata/*.metadata.json", "metadata/*.metadata.json"):
+        for meta_path in root.glob(pattern):
+            try:
+                data = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            episode = data.get("episode", {}) if isinstance(data, dict) else {}
+            guid = episode.get("guid")
+            if not guid or guid in out:
+                continue
+            # Leading digits of the filename are the episode idx: "0003 - Title.metadata.json" -> 3.
+            digits = ""
+            for ch in meta_path.name:
+                if ch.isdigit():
+                    digits += ch
+                else:
+                    break
+            if not digits:
+                continue
+            out[str(guid)] = (int(digits), episode)
+    return out
+
+
+def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element:
+    """A minimal RSS ``<item>`` reconstructed from on-disk metadata for an aged-out episode.
+
+    Carries only what a reprocess needs to identify + place the episode: guid, title, pubDate. It
+    has NO enclosure, so ``media_url`` resolves to ``None`` — fine for ``relabel_only`` (reads the
+    on-disk transcript), while ``rediarize_only`` resolves audio from the cache by guid. (Storing
+    the enclosure URL at ingest is the forward-looking fix so re-download is possible too.)
+    """
+    item = ET.Element("item")
+    ET.SubElement(item, "guid").text = str(guid)
+    ET.SubElement(item, "title").text = str(episode_meta.get("title") or "")
+    published = episode_meta.get("published_date")
+    if published:
+        ET.SubElement(item, "pubDate").text = str(published)
+    return item
+
+
+def _reprocess_existing_episodes(
+    feed: RssFeed,  # type: ignore[valid-type]
+    feed_items: List[Any],
+    cfg: config.Config,  # type: ignore[valid-type]
+    total_items: int,
+) -> List[Episode]:  # type: ignore[valid-type]
+    """Build the reprocess episode set from the on-disk corpus, drift-immune (#876 follow-up).
+
+    Every on-disk episode is reached: the live feed supplies items it still serves (preferred — a
+    real enclosure for audio), and the rest are reconstructed from on-disk metadata. Each episode is
+    given its on-disk idx so the ``relabel_only`` / ``rediarize_only`` transcript glob matches.
     """
     if cfg.output_dir is None:
         raise ValueError("reprocess_existing_only requires output_dir to locate the on-disk corpus")
-    existing = collect_existing_guids(cfg.output_dir)
-    if not existing:
+    guid_index = _on_disk_guid_index(cfg.output_dir)
+    if not guid_index:
         raise ValueError(
-            "reprocess_existing_only is set but no on-disk episode GUIDs were found "
-            f"under {cfg.output_dir}/run_*/metadata/. Wrong --output-dir, or the corpus "
-            "is not present. Aborting to avoid ingesting the entire live feed."
+            "reprocess_existing_only is set but no on-disk episode GUIDs were found under "
+            f"{cfg.output_dir}/run_*/metadata/. Wrong --output-dir, or the corpus is not present."
         )
-    kept: List[Any] = []
-    seen_guids: Set[str] = set()
-    dropped_new = 0
-    dropped_no_guid = 0
-    for it in items:
-        guid = extract_item_guid(it)
-        if not guid:
-            dropped_no_guid += 1
-            continue
-        if guid in existing:
-            kept.append(it)
-            seen_guids.add(guid)
-        else:
-            dropped_new += 1
-    rolled_off = len(existing - seen_guids)
+    feed_by_guid: Dict[str, Any] = {}
+    for it in feed_items:
+        g = extract_item_guid(it)
+        if g in guid_index and g not in feed_by_guid:
+            feed_by_guid[g] = it
+
+    episodes: List[Episode] = []  # type: ignore[valid-type]
+    reconstructed = 0
+    for guid, (idx, episode_meta) in sorted(guid_index.items(), key=lambda kv: kv[1][0]):
+        item = feed_by_guid.get(guid)
+        if item is None:
+            item = _synthesize_feed_item(guid, episode_meta)
+            reconstructed += 1
+        episodes.append(create_episode_from_item(item, idx, feed.base_url))
+
     logger.info(
-        "Existing-only re-diarization (#876): kept %s, dropped %s new feed item(s), "
-        "dropped %s item(s) with no GUID, %s on-disk GUID(s) not in the live feed "
-        "(rolled off — cannot re-diarize without stored audio)",
-        len(kept),
-        dropped_new,
-        dropped_no_guid,
-        rolled_off,
+        "reprocess existing-only: %d on-disk episodes reached (%d served live by the %d-item feed, "
+        "%d reconstructed from on-disk metadata after ageing out of the feed window)",
+        len(episodes),
+        len(episodes) - reconstructed,
+        total_items,
+        reconstructed,
     )
-    return kept
+    return episodes
 
 
 def prepare_episodes_from_feed(
@@ -205,9 +257,12 @@ def prepare_episodes_from_feed(
         items = list(reversed(items))
 
     if cfg.reprocess_existing_only:
-        # #876 migration mode: episode set is defined entirely by on-disk GUIDs.
-        # Bypasses date/offset/max caps so every matched existing episode processes.
-        items = _filter_items_to_existing_guids(items, cfg)
+        # #876 migration mode: the episode set is the WHOLE on-disk corpus, driven by on-disk
+        # METADATA rather than the live-feed intersection. Feeds drift — episodes scroll out of the
+        # feed's fetch window — so intersecting the live feed silently shrinks the reachable corpus
+        # over time (only ~40 of 91 were reachable once). Reconstructing the aged-out episodes from
+        # their on-disk metadata keeps a reprocess reaching every episode we have.
+        return _reprocess_existing_episodes(feed, items, cfg, total_items)
     else:
         if cfg.episode_since is not None or cfg.episode_until is not None:
             kept: List[Any] = []

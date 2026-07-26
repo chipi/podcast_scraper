@@ -142,3 +142,24 @@ def test_apply_diarization_writes_cache_on_miss(
     assert cache_path.is_file()
     payload = json.loads(cache_path.read_text(encoding="utf-8"))
     assert payload["segments"][0]["speaker"] == "SPEAKER_00"
+
+
+def test_config_fingerprint_distinguishes_provider_backend() -> None:
+    # D2 (#1296): the same audio under different diarizers must not share a cache key. The provider
+    # backend produces a different segmentation, but the model/speaker-bound fields are shared, so
+    # without the provider in the key the second run silently served the first provider result.
+    from podcast_scraper.providers.ml.diarization.cache import diarization_config_fingerprint
+
+    local = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        diarization_provider="local",
+    )
+    dgx = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        diarization_provider="tailnet_dgx",
+    )
+    assert diarization_config_fingerprint(local) != diarization_config_fingerprint(dgx)

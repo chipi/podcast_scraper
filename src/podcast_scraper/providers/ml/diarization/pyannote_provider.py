@@ -148,11 +148,17 @@ def _apply_segment_squelch(
     if len(kept) == len(longest):
         return segments
     dropped = sorted(set(longest) - kept)
-    logger.debug(
-        "diarization squelch (min_segment_ms=%s) dropped %d phantom speaker(s): %s",
+    # When the squelch drops EVERY speaker the episode's diarization collapses to nothing and the
+    # pipeline degrades to gap-based formatting with a bare "no speaker turns" WARNING — so the
+    # REASON must be visible at WARNING too, or the operator cannot tell why diarization vanished
+    # (D6). The routine phantom-drop stays DEBUG.
+    log = logger.warning if not kept else logger.debug
+    log(
+        "diarization squelch (min_segment_ms=%s) dropped %d phantom speaker(s): %s%s",
         min_segment_ms,
         len(dropped),
         dropped,
+        " — NO speakers remain, diarization will be empty" if not kept else "",
     )
     return [seg for seg in segments if seg.speaker in kept]
 

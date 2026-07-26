@@ -1401,6 +1401,43 @@ class TestPipelineStage(unittest.TestCase):
         self.assertFalse(cfg.generate_gi)
         self.assertFalse(cfg.generate_kg)
 
+    def test_relabel_only_keeps_transcribe_missing_and_enrichment(self) -> None:
+        # relabel_only forces transcribe_missing back to True so a whisper episode reaches the
+        # transcription stage (where relabel intercepts and re-resolves names on the on-disk
+        # SPEAKER_NN); enrichment stays ON so GI/KG re-run on the corrected attribution.
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            pipeline_stage="relabel_only",
+            transcribe_missing=False,  # coercion should force this back to True
+            generate_metadata=True,
+            generate_gi=True,
+            generate_kg=True,
+        )
+        self.assertTrue(cfg.transcribe_missing)
+        self.assertTrue(cfg.generate_metadata)
+        self.assertTrue(cfg.generate_gi)
+        self.assertTrue(cfg.generate_kg)
+
+    def test_relabel_only_is_an_accepted_stage(self) -> None:
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(rss="https://example.com/feed.xml", pipeline_stage="relabel_only")
+        self.assertEqual(cfg.pipeline_stage, "relabel_only")
+
+    def test_rediarize_only_forces_audio_and_diarize(self) -> None:
+        # v2.2: needs the audio (transcribe_missing True so the episode reaches the transcribe
+        # stage where rediarize intercepts) and diarize on (re-diarization IS the point).
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            pipeline_stage="rediarize_only",
+            transcribe_missing=False,  # coercion forces back to True
+            diarize=False,  # coercion forces back to True
+        )
+        self.assertEqual(cfg.pipeline_stage, "rediarize_only")
+        self.assertTrue(cfg.transcribe_missing)
+        self.assertTrue(cfg.diarize)
+
 
 if __name__ == "__main__":
     unittest.main()

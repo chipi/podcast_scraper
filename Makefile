@@ -667,6 +667,8 @@ serve-api:
 		export APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} && \
 		export APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} && \
 		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
+		if [ -f .env.obs.dev ]; then set -a; . ./.env.obs.dev; set +a; echo "[obs] streaming to homelab as environment=dev instance=$(notdir $(CURDIR))-$${PODCAST_OBS_PORT:-8000}"; fi && \
+		export PODCAST_OBS_PORT=$${PODCAST_OBS_PORT:-8000} && \
 		$(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:

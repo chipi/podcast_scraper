@@ -55,7 +55,10 @@ def _encoder(model_id: str = "sentence-transformers/all-MiniLM-L6-v2") -> Any:
         if enc is None:
             from sentence_transformers import SentenceTransformer
 
-            enc = SentenceTransformer(model_id)
+            from ..providers.ml.embedding_device import resolve_embedding_device
+
+            # Explicit device (never mps) — auto-detect picks MPS on macOS, which SIGSEGVs.
+            enc = SentenceTransformer(model_id, device=resolve_embedding_device())
             _encoder_cache[model_id] = enc
     return enc
 

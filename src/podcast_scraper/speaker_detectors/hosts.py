@@ -175,8 +175,46 @@ def extract_self_introduced_host(
         # so the guard only fires on a multi-token run containing an ordinary English word.
         if len(name.split()) >= 2 and not looks_like_a_person_name(name):
             continue
+        # A single-token capture must be a plausible mononym, not a sentence-opener the ASR
+        # capitalised at a turn boundary. "I'm But it …" (a disfluency) captured a bare "But" and,
+        # because the loop returns on the FIRST hit, shadowed a real later "I'm <Name>". This is the
+        # guard `distinct_self_introductions` already applies; without it here the two sibling
+        # scanners disagreed. ``continue`` (not ``return None``) keeps scanning for the real intro.
+        if len(name.split()) == 1 and not is_plausible_mononym(name):
+            continue
         return name
     return None
+
+
+def distinct_self_introductions(
+    transcript_text: Optional[str], *, intro_chars: int = 2000
+) -> List[str]:
+    """Every DISTINCT person-name a voice introduces itself as ("I'm <Name>"), same filtering as
+    :func:`extract_self_introduced_host` (network bumpers + ordinary-word runs skipped).
+
+    One physical speaker introduces itself once. Two or more distinct self-introductions in a single
+    diarization cluster is the signature of a MERGED cluster — a cold-open montage that strings
+    several hosts' intros together ("I'm Kevin Russo… I'm Casey Noon…") collapses into one voice.
+    The caller uses ``len(...) >= 2`` to refuse naming such a cluster after any one of them.
+    """
+    seen: List[str] = []
+    lowered: Set[str] = set()
+    for match in _HOST_SELF_INTRO.finditer((transcript_text or "")[:intro_chars]):
+        name = match.group(1).strip(" .,")
+        if len(name) < 2 or is_known_network(name):
+            continue
+        toks = name.split()
+        # A multi-token run must look like a person; a single token must be a plausible mononym, not
+        # a bare honorific ("Dr", the truncated "I'm Dr. Jane Smith" capture) — else "I'm Dr. X …
+        # I'm X" would count as two distinct speakers and wrongly read as a montage.
+        if len(toks) >= 2 and not looks_like_a_person_name(name):
+            continue
+        if len(toks) == 1 and not is_plausible_mononym(name):
+            continue
+        if name.lower() not in lowered:
+            lowered.add(name.lower())
+            seen.append(name)
+    return seen
 
 
 def _extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:
@@ -213,10 +251,14 @@ def detect_hosts_from_transcript_intro(
     words = transcript_text.split()[:intro_word_count]
     intro_text = " ".join(words)
 
+    # The cue ("I'm" / "welcome to") is matched case-insensitively, but the NAME capture is scoped
+    # case-SENSITIVE with (?-i:...): under a blanket re.IGNORECASE the [A-Z][a-z]+ classes matched
+    # any letter, so "I'm going to explain how this works" captured "going to explain..." as a host
+    # name (N3). Same fix the module's _NAME pattern already uses elsewhere.
     intro_patterns = [
-        r"I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
-        r"This is\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
-        r"Welcome to\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
+        r"I'?m\s+((?-i:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*))",
+        r"This is\s+[^.]+\s+I'?m\s+((?-i:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*))",
+        r"Welcome to\s+[^.]+\s+I'?m\s+((?-i:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*))",
     ]
 
     detected_names = set()
@@ -246,7 +288,13 @@ def detect_hosts_from_transcript_intro(
 # Bare NER over the description is not good enough, and Latent Space is the proof: its description
 # lists PAST GUESTS (Bret Taylor, Chris Lattner, George Hotz...), and NER offered every one of them
 # as a host. The phrase is the signal, not the entity.
-_NAME = r"[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+"
+# A name is a run of Capitalised words, and that capitalisation is the whole signal. The
+# `(?-i:...)` keeps the character classes case-SENSITIVE even where the surrounding pattern is
+# compiled with re.IGNORECASE for its lowercase cue words ("joined by", "is with us"). Without it,
+# IGNORECASE makes `[A-Z]` match a-z too, so this pattern matches every multi-word lowercase phrase
+# in the transcript — which both crowned non-names as guests AND made the conversation scan
+# backtrack catastrophically (a 77k-char episode spun for minutes in guests_introduced_by_the_host).
+_NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+)"
 _NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME})*"
 # Presenting verbs — what a show's own description says its hosts DO.
 _PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
@@ -340,8 +388,11 @@ _HOST_SPEECH_ACTS = [
 _GUEST_SPEECH_ACTS = [
     re.compile(p, re.IGNORECASE)
     for p in (
-        r"\bthanks? (?:so much )?for having me\b",
-        r"\bthank you for having me\b",
+        # "thanks/thank you [so much | very much] for having me" — the intensifier is optional AND
+        # may be "very much", not only "so much". "Thank you very much for having me" (The Daily's
+        # guest Robert Pape) matched NEITHER old fixed pattern, so the dominant guest was never
+        # flagged and community-1's clustering then crowned him a host (#1169).
+        r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)? for having me\b",
         r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
     )
 ]
@@ -384,6 +435,17 @@ _GUEST_INTRODUCED_NAME_FIRST = re.compile(
     r"|(?:is|are)\s+joining\s+(?:me|us)"
     r"|joins?\s+(?:me|us)"
     r")",
+    re.IGNORECASE,
+)
+
+# The host greets a just-introduced guest BY NAME: "Jody Rosen, welcome to the show",
+# "Nic Harrigan, thanks so much for coming on". Name-then-greeting — the mirror of the cue-first
+# forms, and the ordering a narrated interview show (The Daily) actually uses to bring a guest in.
+_GUEST_GREETED = re.compile(
+    rf"(?P<names>{_NAMES})\s*,\s*"
+    r"(?:welcome\b"
+    r"|thanks?(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being)"
+    r"|thank\s+you(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being))",
     re.IGNORECASE,
 )
 
@@ -431,6 +493,21 @@ _NOT_A_NAME_TOKEN = frozenset(
         "the",
         "a",
         "an",
+        # Sentence-opening discourse markers the ASR capitalises at a turn boundary and the greeting
+        # regexes then sweep into a 2-word "name" ("So Nick, welcome" -> "So Nick", "But Sun, thanks
+        # for coming" -> "But Sun"). They are ordinary English words, so they belong to this set by
+        # its own contract. Any-position match means a real surname colliding with one ("Andrew
+        # Look") is also dropped — accepted per "a wrong label is worse than an unnamed voice".
+        "but",
+        "and",
+        "well",
+        "now",
+        "then",
+        "because",
+        "plus",
+        "anyway",
+        "look",
+        "yeah",
     }
 )
 
@@ -444,6 +521,140 @@ def looks_like_a_person_name(name: str) -> bool:
     if len(toks) < 2:
         return False
     return not any(t.lower().strip(".,'’") in _NOT_A_NAME_TOKEN for t in toks)
+
+
+# Capitalised single words that follow "I'm <Cap>" but are NOT names — the "I'm American" class.
+# The self-intro regex is case-SENSITIVE, so lowercase adjectives ("I'm ready") never reach here;
+# the residual risk is demonyms / religion / politics, which do get capitalised.
+_NOT_A_MONONYM = frozenset(
+    {
+        "american",
+        "british",
+        "canadian",
+        "australian",
+        "irish",
+        "scottish",
+        "english",
+        "welsh",
+        "german",
+        "french",
+        "italian",
+        "spanish",
+        "portuguese",
+        "chinese",
+        "japanese",
+        "korean",
+        "indian",
+        "russian",
+        "mexican",
+        "brazilian",
+        "dutch",
+        "swedish",
+        "norwegian",
+        "danish",
+        "european",
+        "african",
+        "asian",
+        "latino",
+        "latina",
+        "hispanic",
+        "jewish",
+        "christian",
+        "catholic",
+        "protestant",
+        "muslim",
+        "hindu",
+        "buddhist",
+        "atheist",
+        "republican",
+        "democrat",
+        "democratic",
+        "conservative",
+        "liberal",
+        "progressive",
+        "independent",
+    }
+)
+
+
+# Honorifics. The self-intro regex `\bI'?m\s+([A-Z][\w'’\-]+…)` stops at the period in "I'm Dr.
+# Jane Smith", capturing the bare title "Dr" — which must never become a speaker name, and must not
+# count as a distinct self-introduction (else "I'm Dr. X … I'm X" reads as a two-person montage).
+HONORIFIC_TITLES = frozenset(
+    {
+        "dr",
+        "doctor",
+        "mr",
+        "mrs",
+        "ms",
+        "miss",
+        "prof",
+        "professor",
+        "sir",
+        "dame",
+        "lord",
+        "lady",
+        "rev",
+        "reverend",
+        "fr",
+        "father",
+        "sen",
+        "senator",
+        "rep",
+        "gov",
+        "governor",
+        "pres",
+        "president",
+        "judge",
+        "justice",
+        "capt",
+        "captain",
+        "gen",
+        "sgt",
+        "col",
+    }
+)
+
+
+def is_plausible_mononym(token: Optional[str]) -> bool:
+    """True if a one-token self-intro ("I'm Brandon") is a plausible name, not "I'm American".
+
+    Accepts a capitalised alphabetic token (apostrophes/hyphens allowed) that is neither an
+    ordinary word (:data:`_NOT_A_NAME_TOKEN`), a demonym/religion/politics label
+    (:data:`_NOT_A_MONONYM`), nor a bare honorific (:data:`HONORIFIC_TITLES`, the "I'm Dr." case).
+    Used to let a voice's own single-name self-introduction name it on feeds with no host anchor —
+    without re-admitting the false positives the guard exists for.
+    """
+    t = (token or "").strip(" .,")
+    if not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
+        return False
+    tl = t.lower()
+    return tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
+
+
+def is_publishable_speaker_name(name: Optional[str]) -> bool:
+    """Final reject filter for a name about to be painted on a diarized voice (ADR-126 shared core).
+
+    Every extraction path (self-intro, host-pool, greeting reader, strategy snap, LLM, metadata)
+    converges on the roster; a name that carries a sentence-opener the ASR capitalised at a turn
+    boundary ("But Sun", "So Nick", bare "But") is not a person, and a wrong label is worse than an
+    unnamed voice. This is the last gate before publish, so no single path can bypass it.
+
+    Deliberately WEAKER than :func:`is_plausible_mononym` for a one-token name: it rejects only a
+    token that is a *known* non-name word, and does NOT require a capitalised first letter — else a
+    real lowercase handle already vouched by a trusted source ("swyx") would be thrown away. The
+    contract is "drop the garbage", not "re-validate every accepted name".
+    """
+    nm = name or ""
+    toks = nm.split()
+    if len(toks) >= 2:
+        return looks_like_a_person_name(nm)
+    if len(toks) == 1:
+        tl = toks[0].lower().strip(".,'’")
+        return (
+            tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
+        )
+    return False
 
 
 def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
@@ -481,10 +692,17 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
     for text in (voice_texts or {}).values():
         matches = list(_GUEST_INTRODUCED_BY_HOST.finditer(text or ""))
         matches += list(_GUEST_INTRODUCED_NAME_FIRST.finditer(text or ""))
+        matches += list(_GUEST_GREETED.finditer(text or ""))
         for m in matches:
             for raw in _NAME_RE.findall(m.group("names")):
                 name = _clean_stated_name(raw)
-                if len(name.split()) >= 2 and not has_org_markers(name):
+                # Same person-name guard the self-intro and intro-reader paths apply: a run with an
+                # ordinary English word in it ("So Nick") is ASR noise the greeting regex swept up.
+                if (
+                    len(name.split()) >= 2
+                    and not has_org_markers(name)
+                    and looks_like_a_person_name(name)
+                ):
                     out.add(name)
     return out
 
