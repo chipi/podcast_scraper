@@ -143,3 +143,20 @@ Operator direction on P1-4/P1-5 refined the backups and DR:
   `/srv/podcast-scraper`, and asserts the dirs are present on the box.
 - Both are **tolerant** of a not-yet-created backup (warn+skip — the operator-appdata
   backup is brand new) and **strict** once a release exists.
+
+## Addendum 2 (2026-07-26) — D-item progress
+
+- **P2-1 (operator secrets → tmpfs) — in-repo gap CLOSED in PR #1334.** The deploy was
+  already fully wired for ADR-115 Option A (drops the 3 runtime secrets from `.env.operator`,
+  stages them to `/dev/shm/operator-secrets/`, passes the flag to the script) — but the compose
+  overlay `docker-compose.operator-secrets.yml` that `deploy-operator.sh` joins was **missing**,
+  so flipping the var today would have failed the deploy on the `-f` join. Created the overlay
+  (mirrors the player's, operator-scoped tmpfs) + a contract guard. **Activation (post-merge):**
+  set `OPERATOR_SECRETS_VIA_FILES=1` **after** this merges (so the overlay is on the box), then
+  redeploy operator — do NOT flip before merge.
+- **P2-2 (`.com` admin email) — DONE.** Operator confirmed it was a typo for `.app`;
+  `APP_ADMIN_EMAILS` corrected to `marko.dragoljevic@gmail.com,info@closelistening.app` (GH var,
+  effective next deploy). No `closelistening.com` remains in any variable.
+- **P2-5 (external uptime) — DONE (operator-side).** Operator confirmed external uptime
+  monitoring is already covered. Dismissed.
+- **P1-2 (doorman password) — dismissed** by operator (not a concern).
