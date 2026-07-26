@@ -62,7 +62,7 @@ def extract_episode_description(item):
 from ...providers.resilience import ResilienceFuseOpenError
 from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
-from ...speaker_detectors.hosts import is_network_or_org_author
+from ...speaker_detectors.hosts import detect_hosts_from_feed, is_network_or_org_author
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
@@ -526,6 +526,25 @@ def detect_feed_hosts_and_patterns(
     # transcript self-introduction at diarization time, not the feed metadata (#876).
     feed_hosts = {h for h in feed_hosts if not is_network_or_org_author(h)}
 
+    # ADR-128: the LLM detector (gemini/openai `detect_hosts`) short-circuits on RSS author tags —
+    # it returns the publisher/org author verbatim and never reads the description. The strip above
+    # then removes that org, leaving NOTHING even though the feed's DESCRIPTION names the real hosts
+    # ("journalists Kevin Roose and Casey Newton explore..."). Observed on the v2.3 turbo reprocess:
+    # cached_hosts empty for 90/90 episodes, every feed org-authored. Fall back to the deterministic
+    # detect_hosts_from_feed, which reads the host STATEMENT from the description first — the exact
+    # function the relabel/rediarize paths already use via sibling metadata. Provider-agnostic.
+    if not feed_hosts:
+        feed_hosts = {
+            h
+            for h in detect_hosts_from_feed(feed.title, feed.description, feed.authors or [])
+            if not is_network_or_org_author(h)
+        }
+        if feed_hosts:
+            logger.info(
+                "DETECTED HOSTS (deterministic feed-statement fallback; detector empty): %s",
+                ", ".join(sorted(feed_hosts)),
+            )
+
     # Priority: Use known_hosts from config if provided (show-level override)
     if cfg.known_hosts:
         known_hosts_set = set(cfg.known_hosts)
@@ -708,11 +727,6 @@ class DetectedSpeakers(NamedTuple):
 
     guests: List[str]
     stated: List[str]
-    # ADR-128: the feed-stated hosts (host_detection_result.cached_hosts) for this feed. Carried
-    # through to TranscriptionJob.feed_hosts so the full/transcription path anchors the diarization
-    # roster on the feed's hosts — the relabel/rediarize paths already read them from sibling
-    # metadata; the transcription path dropped them, wiping known_hosts on a full reprocess.
-    hosts: List[str] = []
 
 
 def _detect_speakers_for_episode(
@@ -779,9 +793,7 @@ def _detect_speakers_for_episode(
         and cfg.screenplay_speaker_names
         and len(cfg.screenplay_speaker_names) >= 2
     ):
-        return DetectedSpeakers(
-            guests=cfg.screenplay_speaker_names[1:], stated=[], hosts=sorted(combined_hosts)
-        )
+        return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
     if detection_succeeded:
         flat_speakers: List[str] = []
         for entry in detected_speakers or []:
@@ -804,7 +816,6 @@ def _detect_speakers_for_episode(
                 known_hosts=host_strings | combined_hosts,
             ),
             stated=proposed,
-            hosts=sorted(host_strings | combined_hosts),
         )
     return None
 
@@ -887,7 +898,6 @@ def prepare_episode_download_args(
                 transcription_resources.transcription_jobs_lock,
                 list(detected.guests) if detected else None,
                 list(detected.stated) if detected else None,
-                list(detected.hosts) if detected else None,
             )
         )
 

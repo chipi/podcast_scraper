@@ -303,7 +303,6 @@ def download_media_for_transcription(
     run_suffix: Optional[str],
     detected_speaker_names: Optional[List[str]] = None,
     metadata_named: Optional[List[str]] = None,
-    feed_hosts: Optional[List[str]] = None,
     pipeline_metrics=None,
 ) -> Optional[TranscriptionJob]:  # type: ignore[valid-type]
     """Download media file for Whisper transcription.
@@ -377,7 +376,6 @@ def download_media_for_transcription(
                 ep_title_safe=episode.title_safe,
                 temp_media="",  # Empty since we're reusing existing transcript
                 detected_speaker_names=speaker_names_copy,
-                feed_hosts=list(feed_hosts) if feed_hosts else None,
                 episode=episode,
             )
         else:
@@ -440,7 +438,6 @@ def download_media_for_transcription(
         temp_media=temp_media,
         detected_speaker_names=speaker_names_copy,
         metadata_named=list(metadata_named) if metadata_named else None,
-        feed_hosts=list(feed_hosts) if feed_hosts else None,
         episode=episode,
         media_download_elapsed=dl_elapsed,
     )
@@ -2403,7 +2400,6 @@ def process_episode_download(
     transcription_jobs_lock: Optional[threading.Lock],
     detected_speaker_names: Optional[List[str]] = None,
     metadata_named: Optional[List[str]] = None,
-    feed_hosts: Optional[List[str]] = None,
     pipeline_metrics=None,
 ) -> tuple[bool, Optional[str], Optional[str], int]:
     """Process a single episode: download transcript or prepare for Whisper transcription.
@@ -2450,7 +2446,6 @@ def process_episode_download(
             run_suffix,
             detected_speaker_names=detected_speaker_names,
             metadata_named=metadata_named,
-            feed_hosts=feed_hosts,
             pipeline_metrics=pipeline_metrics,
         )
         if job:

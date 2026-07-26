@@ -317,6 +317,72 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
 
 
 @pytest.mark.unit
+class TestDeterministicHostFallback(unittest.TestCase):
+    """ADR-128: the real fix for the wiped host anchor.
+
+    The LLM detector (`gemini.detect_hosts`) short-circuits on an RSS author tag and returns the
+    publisher/org author verbatim; `is_network_or_org_author` then strips it, leaving NO hosts even
+    though the feed DESCRIPTION names them. `detect_feed_hosts_and_patterns` now falls back to the
+    deterministic `detect_hosts_from_feed` (reads the description) so an org-authored feed still
+    anchors the roster — the same function the relabel path already uses.
+    """
+
+    def _feed_and_episode(self, description, authors):
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = "Ep 1"
+        ET.SubElement(item, "description").text = "guest chat"
+        feed = models.RssFeed(
+            title="Hard Fork",
+            description=description,
+            authors=authors,
+            items=[item],
+            base_url="https://example.com",
+        )
+        ep = create_test_episode(idx=1, title="Ep 1")
+        ep.item = item
+        return feed, ep
+
+    def _detector_that_short_circuits_on_org(self, org_name):
+        detector = Mock()
+        # gemini/openai return the org author verbatim when authors exist (never read description)
+        detector.detect_hosts = Mock(return_value={org_name})
+        detector.detect_speakers = Mock(return_value=([], set(), True, False))
+        detector.analyze_patterns = Mock(return_value={})
+        return detector
+
+    def test_org_author_detector_falls_back_to_description(self):
+        feed, ep = self._feed_and_episode(
+            "Each week, journalists Kevin Roose and Casey Newton explore tech.",
+            ["The New York Times"],
+        )
+        cfg = create_test_config(auto_speakers=True)
+        detector = self._detector_that_short_circuits_on_org("The New York Times")
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
+
+    def test_no_host_in_description_stays_empty_no_invention(self):
+        # NVIDIA-style: org author + a blurb that names no host -> empty, never invented.
+        feed, ep = self._feed_and_episode("News about GPUs and AI.", ["NVIDIA"])
+        cfg = create_test_config(auto_speakers=True)
+        detector = self._detector_that_short_circuits_on_org("NVIDIA")
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        self.assertEqual(result.cached_hosts, set())
+
+    def test_detector_hosts_are_kept_and_fallback_not_triggered(self):
+        # When the detector DOES surface a real person host, keep it; the fallback must not fire.
+        feed, ep = self._feed_and_episode(
+            "Hosted by Kevin Roose and Casey Newton.", ["The New York Times"]
+        )
+        cfg = create_test_config(auto_speakers=True)
+        detector = Mock()
+        detector.detect_hosts = Mock(return_value={"Some Real Host"})
+        detector.detect_speakers = Mock(return_value=([], set(), True, False))
+        detector.analyze_patterns = Mock(return_value={})
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        self.assertEqual(result.cached_hosts, {"Some Real Host"})
+
+
+@pytest.mark.unit
 class TestFallbackToEpisodeAuthors(unittest.TestCase):
     """Tests for _fallback_to_episode_authors helper function."""
 
@@ -613,12 +679,10 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
     def test_download_args_tuple_arity_contract(self) -> None:
         """Producer/consumer contract for the download_args tuple.
 
-        prepare_episode_download_args emits a 10-tuple: index 7 = detected guests, index 8 = stated
-        names, index 9 = feed hosts (ADR-128, threaded to TranscriptionJob.feed_hosts). Consumers
-        read by INDEX (summarization args[7], transcription args[7]), not a fixed-arity unpack, so a
-        grown producer does not crash them — but the arity is still pinned here cheaply. When #1169
-        grew the producer to 9 an 8-element unpack in summarization crashed every real run; the
-        consumers were then converted to index access, and ADR-128 added index 9.
+        prepare_episode_download_args emits a 9-tuple; summarization unpacks all 9 (index 7 =
+        detected guests, index 8 = stated names) and transcription reads args[7]. When #1169 grew
+        the producer to 9 elements the 8-element unpack in summarization crashed EVERY real
+        summarization run, and only e2e caught it. This pins the arity cheaply at unit level.
         """
         ep = self._episode(1, "g1", "ep")
         m = workflow_metrics.Metrics()
@@ -626,46 +690,12 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
 
         self.assertEqual(len(args_list), 1)
         args = args_list[0]
-        self.assertEqual(len(args), 10, f"download_args arity drifted: {len(args)} != 10")
-        episode_obj, _, _, _, _, _, _, detected_names, stated, feed_hosts = args
+        self.assertEqual(len(args), 9, f"download_args arity drifted: {len(args)} != 9")
+        # the exact unpack summarization._collect_episodes_for_summarization performs
+        episode_obj, _, _, _, _, _, _, detected_names, stated = args
         self.assertIs(episode_obj, ep)
         # transcription reads args[7]; it must be addressable (guests, or None)
         self.assertEqual(args[7], detected_names)
-        # ADR-128: index 9 carries the feed hosts to the transcription job's feed_hosts anchor
-        self.assertEqual(args[9], feed_hosts)
-
-    def test_detected_speakers_carry_feed_hosts_to_tuple(self) -> None:
-        """ADR-128 source hop: _detect_speakers_for_episode returns the detected feed hosts, and
-        prepare_episode_download_args threads them to the tuple's index-9 feed_hosts slot. Without
-        this the transcription path has no host anchor and a full reprocess wipes known_hosts."""
-        ep = self._episode(1, "g1", "ep")
-        ET.SubElement(ep.item, "description").text = "A conversation with the team."
-        cfg = Config(
-            rss=self.feed_url,
-            output_dir=self.tmp,
-            generate_metadata=True,
-            transcribe_missing=True,
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        tres = TranscriptionResources(
-            transcription_provider=None,
-            temp_dir=self.tmp,
-            transcription_jobs=queue.Queue(),
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        host = HostDetectionResult({"Kevin Roose", "Casey Newton"}, None, None)
-        detector = Mock()
-        detector.detect_speakers = Mock(
-            return_value=([], {"Kevin Roose", "Casey Newton"}, True, False)
-        )
-        with patch.object(processing, "_get_speaker_detector", return_value=detector):
-            args_list = processing.prepare_episode_download_args(
-                [ep], cfg, self.tmp, self.run_suffix, tres, host, workflow_metrics.Metrics()
-            )
-        self.assertEqual(len(args_list), 1)
-        self.assertEqual(args_list[0][9], ["Casey Newton", "Kevin Roose"])  # sorted feed hosts
 
     def test_append_skips_complete_episode_and_keeps_incomplete(self) -> None:
         """Complete on-disk episode is omitted from download args; incomplete is kept."""
