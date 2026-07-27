@@ -95,6 +95,7 @@ class ObservabilityConfig:
     @classmethod
     def load(cls, path: Optional[str | os.PathLike[str]] = None) -> "ObservabilityConfig":
         """YAML if ``path``/``PODCAST_OBS_CONFIG`` is set, else a single target from env."""
+        _load_obs_dev_env()  # zero-config: pick up the worktree's .env.obs.dev if present
         path = path or os.environ.get(f"{ENV_PREFIX}CONFIG")
         if path:
             return cls.from_yaml(path)
@@ -110,6 +111,7 @@ class ObservabilityConfig:
         observability env (dev via ``.env.obs.dev``, prod via the injected env) can observe the same
         backends with zero extra ``PODCAST_OBS_*`` config — no separate URLs to keep in sync.
         """
+        _load_obs_dev_env()  # zero-config: pick up the worktree's .env.obs.dev if present
         name = os.environ.get(f"{ENV_PREFIX}TARGET", "default")
         projects = _split_csv(_env("SENTRY_PROJECTS"))
         _dsn = _bare("PODCAST_SENTRY_DSN_PIPELINE") or _bare("PODCAST_SENTRY_DSN_API")
@@ -202,6 +204,31 @@ def _origin(url: Optional[str]) -> Optional[str]:
         return None
     port = f":{parts.port}" if parts.port else ""
     return f"{parts.scheme}://{parts.hostname}{port}"
+
+
+def _load_obs_dev_env() -> None:
+    """Dev convenience: auto-load ``.env.obs.dev`` so ``podcast_obs serve`` in a worktree is
+    zero-config. An agent's MCP client spawns the server with a CLEAN env, so without this every
+    source reads unconfigured. Mirrors ``podcast_scraper.config`` (same gitignored file); the prod
+    image has no such file so it no-ops there. Skipped under pytest; ``override=False`` so an
+    explicit shell env still wins. Self-contained — podcast_obs stays light-dep (no app import).
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    try:
+        from dotenv import load_dotenv
+    except Exception:  # pragma: no cover — dotenv is optional for the light-dep core
+        return
+    # Repo root is two levels up from src/podcast_obs/config.py (editable/dev layout); also try cwd,
+    # which is the worktree root when an agent launches `podcast_obs serve` there.
+    repo_root = Path(__file__).resolve().parents[2]
+    for candidate in (Path.cwd() / ".env.obs.dev", repo_root / ".env.obs.dev"):
+        try:
+            if candidate.exists():
+                load_dotenv(candidate, override=False)
+                return
+        except Exception:  # pragma: no cover — dev convenience only, never fail config load
+            continue
 
 
 def _split_csv(value: Optional[str]) -> tuple[str, ...]:

@@ -6,6 +6,7 @@ import textwrap
 
 import pytest
 
+from podcast_obs import config as obs_config
 from podcast_obs.config import (
     DEFAULT_GITHUB_REPO,
     ObservabilityConfig,
@@ -121,6 +122,32 @@ def test_sentry_token_falls_back_to_auth_token(monkeypatch: pytest.MonkeyPatch) 
     assert ObservabilityConfig.from_env().target().sentry_token == "gh-secret-tok"
     monkeypatch.setenv("PODCAST_OBS_SENTRY_TOKEN", "explicit")
     assert ObservabilityConfig.from_env().target().sentry_token == "explicit"
+
+
+def test_obs_dev_env_skipped_under_pytest(monkeypatch: pytest.MonkeyPatch) -> None:
+    # PYTEST_CURRENT_TEST is set by pytest during a test → the auto-load is a hermetic no-op, so a
+    # dev's .env.obs.dev can never leak real backend URLs into the test env.
+    import dotenv
+
+    calls: list = []
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: calls.append(a))
+    assert "PYTEST_CURRENT_TEST" in __import__("os").environ
+    obs_config._load_obs_dev_env()
+    assert calls == []
+
+
+def test_obs_dev_env_loads_from_cwd_when_present(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    # Outside pytest, `podcast_obs serve` in a worktree auto-loads that dir's .env.obs.dev — this
+    # is what makes the spawned MCP server zero-config (an MCP client hands it a clean env).
+    import dotenv
+
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env.obs.dev").write_text("PODCAST_OBS_UMAMI_URL=http://x\n")
+    loaded: list = []
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda p, **k: loaded.append(str(p)))
+    obs_config._load_obs_dev_env()
+    assert any(".env.obs.dev" in p for p in loaded)
 
 
 def test_from_env_bad_timeout_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
