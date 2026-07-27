@@ -5,12 +5,10 @@
 # this target doesn't wire (Sentry/Grafana on a local stack) simply report "not configured".
 # Secrets never live in this file — use `<field>_env: ENV_VAR_NAME` indirection.
 #
-# NOTE (2026-07): the stack now ships to SELF-HOSTED VictoriaMetrics/VictoriaLogs +
-# Grafana on the DGX (tailnet-only), not Grafana Cloud — see ADR-119 +
-# docs/guides/OBSERVABILITY_ARCHITECTURE.md. The `grafana:` Cloud examples below
-# (grafana.net URLs, glc_/glsa_ tokens) are LEGACY: for self-hosted, set
-# `url: http://<dgx-tailnet-ip>:3000` with a Grafana service-account token, and read
-# logs from VictoriaLogs (:9428) rather than a Cloud Loki access-policy token.
+# NOTE (2026-07): the stack ships to SELF-HOSTED VictoriaMetrics/VictoriaLogs + Grafana on
+# the HOMELAB box (tailnet-only) — Grafana Cloud is RETIRED (no SaaS egress). See ADR-117
+# (amended) + ADR-119. Point `grafana.url` at the homelab Grafana with a service-account
+# token, and read logs from homelab VictoriaLogs (:9428); errors go to homelab GlitchTip.
 
 default_target: local
 
@@ -30,9 +28,8 @@ targets:
     #   projects: [api, pipeline, viewer]   # real slugs (Settings → Projects), not DSN names
     #   environment: prod
     #   token_env: PODCAST_OBS_SENTRY_TOKEN
-    # grafana:
-    #   url: https://your-stack.grafana.net
-    #   token_env: PODCAST_OBS_GRAFANA_TOKEN     # service-account token (glsa_) for alerting
-    #   loki_url: https://logs-prod-xxx.grafana.net
-    #   loki_user: "123456"
-    #   loki_token_env: PODCAST_OBS_LOKI_TOKEN   # access-policy token (glc_), logs:read
+    # grafana:   # self-hosted homelab Grafana over the tailnet (NOT Grafana Cloud)
+    #   url: http://homelab:3000
+    #   token_env: PODCAST_OBS_GRAFANA_TOKEN     # homelab Grafana service-account token
+    #   loki_url: http://homelab:9428            # homelab VictoriaLogs (Loki-compatible read)
+    #   # no loki_user/token — homelab VictoriaLogs is tailnet-gated, no auth

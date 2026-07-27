@@ -13,7 +13,8 @@
 #   - fail2ban: sshd jail + Caddy-access jail (T-11)
 #   - metadata-egress SSRF guard (T-07 / review H8 — folds in Phase 3.3)
 #   - Caddy shared edge engine + base Caddyfile (ADR-114) incl. ADR-118 CF real-IP
-#   - Grafana Alloy host metrics + security logs -> Grafana Cloud (ADR-117)
+#   (o11y collector is NOT managed here — the /opt/vps-observability Alloy container
+#    ships host metrics + security logs to the homelab backend; Grafana Cloud retired)
 #
 # EXPLICITLY OUT OF SCOPE (do NOT let this script do these):
 #   - Opening the firewall (80/443) — that is Phase 4, Terraform, the exposure
@@ -28,26 +29,22 @@
 # Caddyfile IS shared — this script copies it from the repo checkout).
 #
 # Usage:
-#   sudo ./apply-edge.sh [--dry-run] [--repo-dir DIR] [--with-alloy]
+#   sudo ./apply-edge.sh [--dry-run] [--repo-dir DIR]
 #   DRY_RUN=1 sudo -E ./apply-edge.sh
 #
 #   --dry-run       Print what would change; make no changes. (or DRY_RUN=1)
 #   --repo-dir DIR  Repo checkout to source the Caddyfile from (default /srv/podcast-scraper).
-#   --with-alloy    Force Alloy enable even without creds present (config still
-#                   needs /etc/alloy/grafana-cloud.env — normally set in Phase 2.1).
 #
 # Idempotent: safe to re-run. Each step converges only on drift.
 set -euo pipefail
 
 DRY_RUN="${DRY_RUN:-0}"
 REPO_DIR="${REPO_DIR:-/srv/podcast-scraper}"
-WITH_ALLOY=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
     --repo-dir) REPO_DIR="${2:?--repo-dir needs a path}"; shift ;;
-    --with-alloy) WITH_ALLOY=1 ;;
     -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -348,10 +345,13 @@ elif CADDY_BIND_ADDRS="$BIND_ADDRS" GLITCHTIP_UPSTREAM="$GT_UPSTREAM" caddy vali
   ok "  Caddyfile valid"
   if ! systemctl is-active --quiet caddy; then
     enable_now caddy
-  elif [ "$bind_changed" = 1 ] || [ "$glitchtip_changed" = 1 ]; then
-    change "  restart caddy (public-bind / glitchtip-upstream env changed)"; run systemctl restart caddy
-  elif [ "$caddy_changed" = 1 ]; then
-    change "  reload caddy"; run systemctl reload caddy
+  elif [ "$bind_changed" = 1 ] || [ "$glitchtip_changed" = 1 ] || [ "$caddy_changed" = 1 ]; then
+    # RESTART, not reload: the base Caddyfile sets ``admin off`` (T-02), so the admin-API
+    # based ``caddy reload`` fails ("admin endpoint disabled"). Any config/env change needs
+    # a restart (mirrors deploy-operator.sh / deploy-player.sh). A bind/glitchtip env change
+    # needs it anyway (systemd reads Environment at start, not reload).
+    change "  restart caddy (config/env changed; reload needs admin API which is off)"
+    run systemctl restart caddy
   else
     skip "  caddy running"
   fi
@@ -364,98 +364,15 @@ info "5) re-arm fail2ban (attach caddy jail)"
 run systemctl reload-or-restart fail2ban
 
 # =============================================================================
-# 6. Grafana Alloy — host metrics + security logs -> Grafana Cloud (ADR-117)
-#    Config is staged unconditionally; the service is only enabled when the
-#    Grafana Cloud creds are present (normally set in Phase 2.1).
+# 6. Observability collector — NOT managed here.
+#    Host metrics + security logs ship to the SELF-HOSTED homelab backend
+#    (VictoriaMetrics :8428 + VictoriaLogs :9428) via the Alloy CONTAINER at
+#    /opt/vps-observability/ (docker compose, REMOTE_WRITE_URL/LOGS_WRITE_URL →
+#    homelab over the tailnet). That is the canonical collector. This script used
+#    to install a SECOND, systemd Alloy that shipped to Grafana Cloud — removed:
+#    Grafana Cloud is retired, everything is homelab-local (no SaaS egress).
 # =============================================================================
-info "6) Grafana Alloy (o11y)"
-if command -v alloy >/dev/null 2>&1; then
-  skip "  alloy installed"
-else
-  change "  install alloy (apt.grafana.com)"
-  if [ "$DRY_RUN" != 1 ]; then
-    curl -fsSL https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
-    chmod a+r /etc/apt/keyrings/grafana.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
-    apt-get update
-  fi
-  run apt-get install -y alloy
-fi
-
-alloy_changed=0
-write_file /etc/alloy/config.alloy 0640 root:alloy <<'EOF' && alloy_changed=1 || true
-prometheus.exporter.unix "host" {}
-
-prometheus.scrape "host_metrics" {
-  targets    = prometheus.exporter.unix.host.targets
-  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.remote_write "grafana_cloud" {
-  endpoint {
-    url = sys.env("GRAFANA_CLOUD_REMOTE_WRITE_URL")
-    basic_auth {
-      username = sys.env("GRAFANA_CLOUD_PROM_USER")
-      password = sys.env("GRAFANA_CLOUD_API_KEY")
-    }
-  }
-}
-
-// Security logs -> Loki (T-11 / ADR-117, tenant=common): sshd + fail2ban from the
-// journal, the Caddy access log from file. Feeds the common security alert rules.
-loki.relabel "journal" {
-  forward_to = []
-  rule {
-    source_labels = ["__journal__systemd_unit"]
-    target_label  = "unit"
-  }
-}
-
-loki.source.journal "security" {
-  forward_to    = [loki.process.tenant_common.receiver]
-  relabel_rules = loki.relabel.journal.rules
-  labels        = { job = "systemd-journal" }
-}
-
-loki.source.file "caddy" {
-  targets    = [{ __path__ = "/var/log/caddy/access.log", job = "caddy" }]
-  forward_to = [loki.process.tenant_common.receiver]
-}
-
-loki.process "tenant_common" {
-  forward_to = [loki.write.grafana_cloud.receiver]
-  stage.static_labels {
-    values = { tenant = "common" }
-  }
-}
-
-loki.write "grafana_cloud" {
-  endpoint {
-    url = sys.env("GRAFANA_CLOUD_LOKI_URL")
-    basic_auth {
-      username = sys.env("GRAFANA_CLOUD_LOKI_USER")
-      password = sys.env("GRAFANA_CLOUD_API_KEY")
-    }
-  }
-}
-EOF
-
-write_file /etc/systemd/system/alloy.service.d/grafana-cloud-env.conf 0644 root:root <<'EOF' && alloy_changed=1 || true
-[Service]
-EnvironmentFile=/etc/alloy/grafana-cloud.env
-EOF
-
-# Let Alloy read the journal (sshd/fail2ban) + the Caddy access log.
-run usermod -aG systemd-journal alloy || true
-run usermod -aG caddy alloy 2>/dev/null || true
-[ "$alloy_changed" = 1 ] && run systemctl daemon-reload
-
-if [ -s /etc/alloy/grafana-cloud.env ] || [ "$WITH_ALLOY" = 1 ]; then
-  enable_now alloy
-else
-  warn "  /etc/alloy/grafana-cloud.env absent/empty — Alloy config staged but NOT started."
-  warn "  Set the 5 GRAFANA_CLOUD_* values there (Phase 2.1) then: systemctl enable --now alloy"
-fi
+info "6) o11y collector — managed by the /opt/vps-observability container (homelab), not here"
 
 # =============================================================================
 # 7. Verify + summary

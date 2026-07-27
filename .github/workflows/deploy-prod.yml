@@ -208,12 +208,8 @@ jobs:
           PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
           PROD_SENTRY_DSN_VIEWER:       ${{ secrets.PROD_SENTRY_DSN_VIEWER }}
-          # Grafana Cloud — separate Prom + Loki user IDs
-          PROD_GRAFANA_CLOUD_API_KEY:   ${{ secrets.PROD_GRAFANA_CLOUD_API_KEY }}
-          PROD_GRAFANA_CLOUD_LOKI_URL:  ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_URL }}
-          PROD_GRAFANA_CLOUD_LOKI_USER: ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_USER }}
-          PROD_GRAFANA_CLOUD_PROM_URL:  ${{ secrets.PROD_GRAFANA_CLOUD_PROM_URL }}
-          PROD_GRAFANA_CLOUD_PROM_USER: ${{ secrets.PROD_GRAFANA_CLOUD_PROM_USER }}
+          # (Grafana Cloud retired — o11y is self-hosted homelab VictoriaMetrics/VictoriaLogs
+          # via the /opt/vps-observability Alloy container; nothing staged into .env here.)
           # Optional outbound webhook
           PROD_JOB_WEBHOOK_URL:         ${{ secrets.PROD_JOB_WEBHOOK_URL }}
         run: |
@@ -254,12 +250,8 @@ jobs:
             # Viewer DSN is a build-time FRONTEND var (baked into the viewer image),
             # not a runtime container secret — always keep it in .env.
             printf '%s=%s\n' VITE_SENTRY_DSN_VIEWER      "$PROD_SENTRY_DSN_VIEWER"
-            # Grafana Cloud
-            printf '%s=%s\n' GRAFANA_CLOUD_API_KEY   "$PROD_GRAFANA_CLOUD_API_KEY"
-            printf '%s=%s\n' GRAFANA_CLOUD_LOKI_URL  "$PROD_GRAFANA_CLOUD_LOKI_URL"
-            printf '%s=%s\n' GRAFANA_CLOUD_LOKI_USER "$PROD_GRAFANA_CLOUD_LOKI_USER"
-            printf '%s=%s\n' GRAFANA_CLOUD_PROM_URL  "$PROD_GRAFANA_CLOUD_PROM_URL"
-            printf '%s=%s\n' GRAFANA_CLOUD_PROM_USER "$PROD_GRAFANA_CLOUD_PROM_USER"
+            # (No Grafana Cloud creds staged — o11y ships to self-hosted homelab; the
+            # /opt/vps-observability Alloy container owns REMOTE_WRITE_URL/LOGS_WRITE_URL.)
             # Webhook
             printf '%s=%s\n' PODCAST_JOB_WEBHOOK_URL "$PROD_JOB_WEBHOOK_URL"
           } > "$ENVTMP"

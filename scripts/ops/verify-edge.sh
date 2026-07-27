@@ -126,19 +126,25 @@ else
   skip "drift check (missing $SRC or /etc/caddy/Caddyfile)"
 fi
 
-# --- 6. Grafana Alloy --------------------------------------------------------
-section "6) Grafana Alloy (ADR-117)"
-if command -v alloy >/dev/null 2>&1; then
-  [ -f /etc/alloy/config.alloy ] && pass "config.alloy staged" || fail "config.alloy missing"
-  if systemctl is-active --quiet alloy; then
-    pass "alloy service active (shipping to Grafana Cloud)"
-  elif [ -s /etc/alloy/grafana-cloud.env ]; then
-    warn "grafana-cloud.env present but alloy not active — start it: systemctl enable --now alloy"
+# --- 6. o11y collector (homelab, container) ----------------------------------
+# Canonical collector is the Alloy CONTAINER at /opt/vps-observability/ shipping host
+# metrics + security logs to the self-hosted homelab backend (VictoriaMetrics :8428 +
+# VictoriaLogs :9428) over the tailnet. Grafana Cloud is retired — no SaaS egress.
+section "6) o11y collector (homelab container)"
+if docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null | grep -qiE 'alloy'; then
+  pass "alloy collector container running (ships to homelab VM :8428 / VL :9428)"
+  if grep -qE 'REMOTE_WRITE_URL=.*homelab' /opt/vps-observability/.env 2>/dev/null; then
+    pass "collector targets homelab (REMOTE_WRITE_URL → homelab)"
   else
-    skip "alloy staged, not started — expected until Phase 2.1 sets GRAFANA_CLOUD_* creds"
+    warn "collector .env REMOTE_WRITE_URL not pointed at homelab — check /opt/vps-observability/.env"
+  fi
+  if grep -qiE 'grafana\.net|glc_' /opt/vps-observability/.env 2>/dev/null; then
+    fail "collector .env still references Grafana Cloud (grafana.net / glc_) — must be homelab-only"
+  else
+    pass "no Grafana Cloud reference in the collector .env"
   fi
 else
-  warn "alloy not installed (run apply-edge.sh, or defer o11y to Phase 2)"
+  warn "no alloy collector container running (expected /opt/vps-observability compose up)"
 fi
 
 # --- summary -----------------------------------------------------------------

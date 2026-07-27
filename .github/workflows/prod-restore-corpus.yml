@@ -153,11 +153,7 @@ jobs:
           PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
           PROD_SENTRY_DSN_VIEWER:       ${{ secrets.PROD_SENTRY_DSN_VIEWER }}
-          PROD_GRAFANA_CLOUD_API_KEY:   ${{ secrets.PROD_GRAFANA_CLOUD_API_KEY }}
-          PROD_GRAFANA_CLOUD_LOKI_URL:  ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_URL }}
-          PROD_GRAFANA_CLOUD_LOKI_USER: ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_USER }}
-          PROD_GRAFANA_CLOUD_PROM_URL:  ${{ secrets.PROD_GRAFANA_CLOUD_PROM_URL }}
-          PROD_GRAFANA_CLOUD_PROM_USER: ${{ secrets.PROD_GRAFANA_CLOUD_PROM_USER }}
+          # (Grafana Cloud retired — o11y is self-hosted homelab; nothing staged here.)
           PROD_JOB_WEBHOOK_URL:         ${{ secrets.PROD_JOB_WEBHOOK_URL }}
         run: |
           set -euo pipefail
@@ -180,11 +176,7 @@ jobs:
             printf '%s=%s\n' PODCAST_SENTRY_DSN_API      "$PROD_SENTRY_DSN_API"
             printf '%s=%s\n' PODCAST_SENTRY_DSN_PIPELINE "$PROD_SENTRY_DSN_PIPELINE"
             printf '%s=%s\n' VITE_SENTRY_DSN_VIEWER      "$PROD_SENTRY_DSN_VIEWER"
-            printf '%s=%s\n' GRAFANA_CLOUD_API_KEY   "$PROD_GRAFANA_CLOUD_API_KEY"
-            printf '%s=%s\n' GRAFANA_CLOUD_LOKI_URL  "$PROD_GRAFANA_CLOUD_LOKI_URL"
-            printf '%s=%s\n' GRAFANA_CLOUD_LOKI_USER "$PROD_GRAFANA_CLOUD_LOKI_USER"
-            printf '%s=%s\n' GRAFANA_CLOUD_PROM_URL  "$PROD_GRAFANA_CLOUD_PROM_URL"
-            printf '%s=%s\n' GRAFANA_CLOUD_PROM_USER "$PROD_GRAFANA_CLOUD_PROM_USER"
+            # (No Grafana Cloud creds — o11y ships to self-hosted homelab.)
             printf '%s=%s\n' PODCAST_JOB_WEBHOOK_URL "$PROD_JOB_WEBHOOK_URL"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
