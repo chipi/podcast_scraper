@@ -180,13 +180,8 @@ jobs:
               additional_authorized_keys   = ["ssh-ed25519 AAAAORRERY gha-orrery-deploy"]
               tailscale_advertise_tags_cli = "tag:prod"
               alloy_enabled                = false
-              grafana_cloud_metrics_remote_write_url = ""
-              grafana_cloud_metrics_username         = ""
-              grafana_cloud_metrics_password         = ""
               podcast_tailscale_serve_body = indent(6, chomp(file("infra/cloud-init/podcast-tailscale-serve.sh")))
               orrery_tailscale_serve_body  = indent(6, chomp(file("infra/cloud-init/orrery-tailscale-serve.sh")))
-              grafana_cloud_logs_url       = ""
-              grafana_cloud_logs_username  = ""
               decrypt_secrets_body = indent(6, chomp(file("infra/cloud-init/decrypt-secrets.sh")))
               caddy_base_body      = indent(6, chomp(file("infra/cloud-init/Caddyfile")))
             })

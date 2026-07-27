@@ -290,14 +290,14 @@ Repo Settings → Secrets → Actions → New repository secret. Stage these
 | `PROD_DEEPSEEK_API_KEY` | LLM (DeepSeek) | platform.deepseek.com → API keys |
 | `PROD_GROK_API_KEY` | LLM (Grok) | console.x.ai → API keys |
 | `PROD_SENTRY_DSN_API` | Sentry (api project) | sentry.io → project settings → Client Keys (DSN) |
-| `PROD_SENTRY_DSN_PIPELINE` | Sentry (pipeline project) | sentry.io → project settings → Client Keys (DSN) |
-| `PROD_SENTRY_DSN_VIEWER` | Sentry (viewer SPA — baked into Vite bundle) | sentry.io → project settings → Client Keys (DSN) |
-| `PROD_GRAFANA_CLOUD_API_KEY` | Grafana Cloud auth | grafana.com → My Account → Access Policies / Tokens |
-| `PROD_GRAFANA_CLOUD_LOKI_URL` | Loki push URL | grafana.com → My Account → Details (per-stack) |
-| `PROD_GRAFANA_CLOUD_LOKI_USER` | Loki tenant ID | grafana.com → My Account → Details (per-stack) |
-| `PROD_GRAFANA_CLOUD_PROM_URL` | Prom remote_write URL | grafana.com → My Account → Details (per-stack) |
-| `PROD_GRAFANA_CLOUD_PROM_USER` | Prom tenant ID | grafana.com → My Account → Details (per-stack) |
+| `PROD_SENTRY_DSN_PIPELINE` | Error DSN (pipeline project) | homelab **GlitchTip** (`http://homelab:8090`) → project → Client Keys (DSN) |
+| `PROD_SENTRY_DSN_VIEWER` | Error DSN (viewer SPA — baked into Vite bundle) | homelab **GlitchTip** → project → Client Keys (DSN) |
 | `PROD_JOB_WEBHOOK_URL` | Outbound pipeline-completion webhook (optional) | your config |
+
+> **Grafana Cloud retired (2026-07-27).** The `PROD_GRAFANA_CLOUD_*` secrets are **removed** —
+> observability is fully self-hosted on homelab (VictoriaMetrics `:8428` + VictoriaLogs `:9428`
+> via the `/opt/vps-observability` Alloy container; traces → VictoriaTraces `:10428`; errors →
+> GlitchTip `:8090`). No SaaS egress. See [ADR-117](../adr/ADR-117-multi-tenant-observability-gitops.md) (amended).
 
 Missing secret → empty value in `.env` → compose `${VAR:-}` default → that
 feature is off (stack still starts). Stage incrementally as needed.

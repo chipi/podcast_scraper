@@ -1,6 +1,6 @@
 # ADR-117: Multi-tenant observability — common box/edge plane + per-tenant app telemetry, GitOps
 
-- **Status**: Accepted
+- **Status**: Accepted — **amended 2026-07-27: backend is self-hosted homelab, NOT Grafana Cloud**
 - **Date**: 2026-07-09
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related ADRs**: [ADR-114](ADR-114-shared-multi-tenant-public-edge-caddy.md) (edge
@@ -8,6 +8,22 @@
   (secret delivery), [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) / RFC-081 (o11y layer)
 - **Security SSOT**: [Threat model](../security/THREAT_MODEL.md) **T-11** (detection gap) — this ADR is its home
 - **Tracking**: #1160 (hardening); #1158 / orrery#381 (edge programme)
+
+> **Amendment (2026-07-27) — Grafana Cloud retired; observability is fully self-hosted on
+> homelab.** This ADR was written with **Grafana Cloud** (SaaS Prom/Loki) + Sentry SaaS as the
+> backends. Since then the whole stack moved **on-prem to the homelab box** over the tailnet,
+> and Grafana Cloud is removed entirely (no SaaS egress):
+>
+> - **Metrics** → homelab **VictoriaMetrics** `http://homelab:8428/api/v1/write`
+> - **Logs** (sshd/fail2ban/Caddy) → homelab **VictoriaLogs** `http://homelab:9428/insert/loki/api/v1/push`
+> - **Traces** → homelab **VictoriaTraces** `http://homelab:10428/...` (ADR-119)
+> - **Errors** → homelab **GlitchTip** `http://homelab:8090` (Sentry-compatible)
+>
+> The collector is the **Alloy container** at `/opt/vps-observability/` on the VPS (env-driven
+> `REMOTE_WRITE_URL`/`LOGS_WRITE_URL` → homelab). The old systemd-Alloy→Grafana-Cloud path and
+> the `GRAFANA_CLOUD_*` / `PROD_GRAFANA_CLOUD_*` credentials are deleted. Wherever the body
+> below says "Grafana Cloud", read "homelab VictoriaMetrics/VictoriaLogs". The tenant-label
+> routing (§Decision) still applies — it just routes within the self-hosted backend.
 
 ## Context
 
