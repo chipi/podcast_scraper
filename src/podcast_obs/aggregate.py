@@ -12,7 +12,7 @@ from typing import Callable, Optional
 
 from .config import TargetConfig
 from .result import err, ok
-from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry, victoria
+from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, victoria
 
 # A surface name → its metrics ``job`` label and its Jaeger trace ``service`` name. These differ
 # and are LIVE-VERIFIED against homelab (metrics carry job="api"; Jaeger service is "pipeline",
@@ -32,11 +32,14 @@ _PROBES: list[tuple[str, Callable[[TargetConfig], dict]]] = [
     ("version", prod_api.deployed_version),
     ("runs", prod_api.recent_pipeline_runs),
     ("deploys", github.recent_deploys),
-    ("cost", loki.cost_today),
-    ("logs", lambda target: loki.recent_logs(target, limit=5)),  # compact for the glance
-    ("errors", sentry.recent_errors),
+    # Observability probes come from the self-hosted Victoria stack (the box the app ships to), not
+    # the legacy Grafana-Cloud Loki / Langfuse — otherwise the glance is dead against this deploy.
+    ("cost", lambda target: victoria.events(target, "llm_cost", window="24h", limit=5)),
+    ("logs", lambda target: victoria.recent_logs(target, limit=5)),  # compact for the glance
+    ("errors", sentry.recent_errors),  # GlitchTip issues (optional; error LOGS come via `logs`)
     ("alerts", grafana.recent_alerts),
-    ("traces", lambda target: langfuse.recent_traces(target, limit=5)),  # compact for the glance
+    # compact for the glance — recent pipeline spans from VictoriaTraces
+    ("traces", lambda target: victoria.traces_recent(target, "pipeline", limit=5)),
     # RFC-088 enrichment-layer surface — the deploy's last status, health, and a compact
     # tail of events round out the control-plane glance.
     ("enrichment_status", enrichment.run_status),
@@ -189,18 +192,39 @@ def investigate(
 
 
 # (label, run-scoped probe) — every signal we can pull for ONE run_id (#1053).
+#
+# Current self-hosted stack: cost/errors/logs come from VictoriaLogs (the box the app ships to),
+# NOT the legacy Grafana-Cloud Loki / Sentry that aren't part of this deployment. This is what a run
+# investigation actually joins — the earlier re-alignment fixed surface() but left these on the dead
+# legacy sources, so `investigate --run-id` reported cost/logs/errors as "unconfigured" while the
+# data sat in VictoriaLogs (live-verified: llm_cost events queryable by run_id). Langfuse trace +
+# enrichment events stay as OPTIONAL supplements — they degrade cleanly when unconfigured.
 _CORRELATORS: list[tuple[str, Callable[[TargetConfig, str], dict]]] = [
-    ("trace", langfuse.trace_by_run),  # Langfuse: per-call model/cost/tokens for the run
-    ("cost", loki.cost_for_run),  # Loki: the run's llm_cost events + total
-    ("errors", lambda target, run_id: sentry.recent_errors(target, run_id=run_id)),  # Sentry
-    # Loki: the run's log lines (CorrelationFormatter stamps ``[run=<id>]`` onto each).
+    # VictoriaLogs: the run's llm_cost events (per-call provider/model/cost) — token-free.
+    (
+        "cost",
+        lambda target, run_id: victoria.events(
+            target, "llm_cost", run_id=run_id, window="24h", limit=200
+        ),
+    ),
+    # VictoriaLogs: error-level lines for the run — visible without a Sentry token. In prod Alloy
+    # tails container stderr; the CorrelationFormatter stamps ``[run=<id>]`` so `contains` scopes.
+    (
+        "errors",
+        lambda target, run_id: victoria.recent_logs(
+            target, level="error", contains=f"run={run_id}", window="24h", limit=100
+        ),
+    ),
+    # VictoriaLogs: every log line for the run.
     (
         "logs",
-        lambda target, run_id: loki.recent_logs(
+        lambda target, run_id: victoria.recent_logs(
             target, level="", contains=f"run={run_id}", window="24h", limit=100
         ),
     ),
-    # RFC-088: enrichment events filtered to this run (enrichment.*.run_id matches).
+    # Langfuse: per-call model/cost/tokens for the run (supplementary; degrades if keys unset).
+    ("trace", langfuse.trace_by_run),
+    # RFC-088: enrichment events filtered to this run (supplementary; degrades if API unreachable).
     (
         "enrichment_events",
         lambda target, run_id: enrichment.recent_events(target, run_id=run_id, limit=100),

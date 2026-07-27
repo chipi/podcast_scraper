@@ -99,9 +99,17 @@ class ObservabilityConfig:
 
     @classmethod
     def from_env(cls) -> "ObservabilityConfig":
-        """Build a single-target config from ``PODCAST_OBS_*`` (+ bare ``LANGFUSE_*``) env vars."""
+        """Build a single-target config from ``PODCAST_OBS_*`` (+ bare ``LANGFUSE_*``) env vars.
+
+        The read endpoints also fall back to the SAME env vars the platform SHIPS telemetry with
+        (``PODCAST_LOGS_PUSH_URL`` / ``PODCAST_METRICS_PUSH_URL`` / ``OTEL_EXPORTER_OTLP_TRACES_
+        ENDPOINT`` / ``PODCAST_SENTRY_DSN_*``): a control-plane process that inherits the app's
+        observability env (dev via ``.env.obs.dev``, prod via the injected env) can observe the same
+        backends with zero extra ``PODCAST_OBS_*`` config — no separate URLs to keep in sync.
+        """
         name = os.environ.get(f"{ENV_PREFIX}TARGET", "default")
         projects = _split_csv(_env("SENTRY_PROJECTS"))
+        _dsn = _bare("PODCAST_SENTRY_DSN_PIPELINE") or _bare("PODCAST_SENTRY_DSN_API")
         target = TargetConfig(
             name=name,
             api_base=_env("API_BASE"),
@@ -111,15 +119,16 @@ class ObservabilityConfig:
             sentry_projects=projects,
             sentry_token=_env("SENTRY_TOKEN"),
             sentry_environment=_env("SENTRY_ENV") or "prod",
-            sentry_url=_env("SENTRY_URL"),
+            sentry_url=_env("SENTRY_URL") or _origin(_dsn),
             grafana_url=_env("GRAFANA_URL"),
             grafana_token=_env("GRAFANA_TOKEN"),
-            loki_url=_env("LOKI_URL"),
-            loki_user=_env("LOKI_USER"),
-            loki_token=_env("LOKI_TOKEN"),
-            victorialogs_url=_env("VICTORIALOGS_URL"),
-            victoriametrics_url=_env("VICTORIAMETRICS_URL"),
-            victoriatraces_url=_env("VICTORIATRACES_URL"),
+            victorialogs_url=_env("VICTORIALOGS_URL") or _origin(_bare("PODCAST_LOGS_PUSH_URL")),
+            victoriametrics_url=(
+                _env("VICTORIAMETRICS_URL") or _origin(_bare("PODCAST_METRICS_PUSH_URL"))
+            ),
+            victoriatraces_url=(
+                _env("VICTORIATRACES_URL") or _origin(_bare("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"))
+            ),
             victoria_token=_env("VICTORIA_TOKEN"),
             # Langfuse uses its SDK-native bare names (not the PODCAST_OBS_ prefix) so the
             # same keys the pipeline traces with drive the probe — no duplicate config.
@@ -159,6 +168,28 @@ def _bare(name: str) -> Optional[str]:
     """Read an un-prefixed env var (for third-party SDK-native names like LANGFUSE_*)."""
     value = os.environ.get(name)
     return value if value else None
+
+
+def _origin(url: Optional[str]) -> Optional[str]:
+    """``scheme://host[:port]`` from a platform ship URL/DSN — drops path AND userinfo.
+
+    The app's push endpoint (``…:9428/insert/jsonline``) and a Sentry/GlitchTip DSN
+    (``http://<key>@host:8090/1``) both carry the host the read sources need but wrapped in a path
+    or credentials. Reducing to the origin lets ``from_env`` reuse the exact vars the platform ships
+    telemetry with, instead of a parallel ``PODCAST_OBS_*`` URL set that can drift out of sync.
+    """
+    if not url:
+        return None
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(url.strip())
+    except ValueError:
+        return None
+    if not parts.scheme or not parts.hostname:
+        return None
+    port = f":{parts.port}" if parts.port else ""
+    return f"{parts.scheme}://{parts.hostname}{port}"
 
 
 def _split_csv(value: Optional[str]) -> tuple[str, ...]:

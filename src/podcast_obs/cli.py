@@ -24,7 +24,7 @@ from .aggregate import (
     surface as _surface,
 )
 from .config import ObservabilityConfig, ObservabilityConfigError
-from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry, victoria
+from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, victoria
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -49,8 +49,8 @@ def _build_parser() -> argparse.ArgumentParser:
     runs.add_argument("--limit", type=int, default=10, help="Max runs to return (default 10).")
     deploys = sub.add_parser("deploys", help="Recent deploy-prod.yml runs (GitHub Actions).")
     deploys.add_argument("--limit", type=int, default=10, help="Max deploys (default 10).")
-    sub.add_parser("cost-today", help="LLM spend over the last 24h (Loki).")
-    logs = sub.add_parser("logs", help="Recent container logs — error-ish by default (Loki).")
+    sub.add_parser("cost-today", help="LLM cost events over the last 24h (VictoriaLogs).")
+    logs = sub.add_parser("logs", help="Recent logs — error-ish by default (VictoriaLogs).")
     logs.add_argument("--level", default="error", help="'error' filters error-ish lines; else all.")
     logs.add_argument(
         "--service", default=None, help="Filter to one compose service (api/pipeline/…)."
@@ -140,12 +140,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     elif args.command == "deploys":
         result = github.recent_deploys(target, limit=args.limit)
     elif args.command == "cost-today":
-        result = loki.cost_today(target)
+        result = victoria.events(target, "llm_cost", window="24h", limit=500)
     elif args.command == "logs":
-        result = loki.recent_logs(
+        result = victoria.recent_logs(
             target,
             level=args.level,
-            service=args.service,
+            surface=args.service,
             window=args.window,
             limit=args.limit,
             contains=args.contains,

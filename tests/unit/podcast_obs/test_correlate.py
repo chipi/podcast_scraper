@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import json
 
 import pytest
 
 from podcast_obs import aggregate
 from podcast_obs.config import TargetConfig
-from podcast_obs.sources import langfuse, loki, sentry
+from podcast_obs.sources import langfuse, sentry
 
 
 def _t(**kw) -> TargetConfig:
@@ -71,56 +70,6 @@ def test_trace_by_run_surfaces_episode_and_stage(monkeypatch: pytest.MonkeyPatch
     assert data["observations"][0]["episode_id"] == "ep:e01"
     assert data["observations"][0]["stage"] == "summarization"
     assert data["observations"][1]["episode_id"] == "ep:e02"
-
-
-# ── loki.cost_for_run ───────────────────────────────────────────────────────
-
-
-def test_cost_for_run_not_configured() -> None:
-    assert loki.cost_for_run(_t(), "run-1")["configured"] is False
-
-
-def _loki_target() -> TargetConfig:
-    return _t(loki_url="https://logs.example/loki/api/v1/push", loki_user="42", loki_token="glc_x")
-
-
-def test_cost_for_run_parses_events_and_total(monkeypatch: pytest.MonkeyPatch) -> None:
-    lines = [
-        json.dumps(
-            {
-                "event_type": "llm_cost",
-                "provider": "claude",
-                "stage": "summarization",
-                "model": "claude",
-                "estimated_cost_usd": 0.023,
-                "run_id": "run-1",
-            }
-        ),
-        json.dumps(
-            {
-                "event_type": "llm_cost",
-                "provider": "gpt",
-                "stage": "gi",
-                "model": "gpt",
-                "estimated_cost_usd": 0.001,
-                "run_id": "run-1",
-            }
-        ),
-    ]
-    streams = {"data": {"result": [{"stream": {}, "values": [["2", lines[1]], ["1", lines[0]]]}]}}
-    captured = {}
-
-    def fake(url, **kw):
-        captured["query"] = kw["params"]["query"]
-        return streams
-
-    monkeypatch.setattr(loki, "get_json", fake)
-    res = loki.cost_for_run(_loki_target(), "run-1")
-    assert res["ok"] is True
-    assert 'run_id="run-1"' in captured["query"]  # filtered by the join key
-    assert res["data"]["count"] == 2
-    assert res["data"]["total_cost_usd"] == pytest.approx(0.024)
-    assert {e["stage"] for e in res["data"]["events"]} == {"summarization", "gi"}
 
 
 # ── sentry.recent_errors(run_id=...) ────────────────────────────────────────

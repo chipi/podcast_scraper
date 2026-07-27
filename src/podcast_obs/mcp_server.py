@@ -26,7 +26,7 @@ from .aggregate import (
 )
 from .config import ObservabilityConfig, ObservabilityConfigError, TargetConfig
 from .result import err
-from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry, victoria
+from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, victoria
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8848
@@ -102,8 +102,10 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         return _run(config, target, github.recent_deploys, limit=limit)
 
     def prod_cost_today(target: Optional[str] = None) -> dict:
-        """Estimated LLM spend over the last 24h for a deploy (from Loki cost events)."""
-        return _run(config, target, loki.cost_today)
+        """LLM cost events over the last 24h for a deploy (VictoriaLogs llm_cost stream)."""
+        return _run(
+            config, target, lambda t: victoria.events(t, "llm_cost", window="24h", limit=500)
+        )
 
     def prod_usage(
         target: Optional[str] = None,
@@ -125,13 +127,13 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         limit: int = 50,
         contains: Optional[str] = None,
     ) -> dict:
-        """Recent container logs from Loki (error-ish by default) — what Sentry didn't capture."""
+        """Recent logs from VictoriaLogs (error-ish by default) — what GlitchTip didn't capture."""
         return _run(
             config,
             target,
-            loki.recent_logs,
+            victoria.recent_logs,
             level=level,
-            service=service,
+            surface=service,
             window=window,
             limit=limit,
             contains=contains,

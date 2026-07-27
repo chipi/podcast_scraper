@@ -102,12 +102,12 @@ def test_from_yaml_default_target_not_in_targets_raises(tmp_path) -> None:
 def test_from_env_external_source_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_obs_env(monkeypatch)
     monkeypatch.setenv("PODCAST_OBS_TIMEOUT", "2.5")
-    monkeypatch.setenv("PODCAST_OBS_LOKI_TOKEN", "lt")
+    monkeypatch.setenv("PODCAST_OBS_GRAFANA_TOKEN", "gt")
     monkeypatch.setenv("PODCAST_OBS_SENTRY_PROJECTS", "a, b ,c")
     monkeypatch.setenv("PODCAST_OBS_ENV_LABEL", "drill")
     target = ObservabilityConfig.from_env().target()
     assert target.timeout == 2.5
-    assert target.loki_token == "lt"
+    assert target.grafana_token == "gt"
     assert target.sentry_projects == ("a", "b", "c")  # CSV split + trimmed
     assert target.env_label == "drill"
 

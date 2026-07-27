@@ -36,7 +36,12 @@ def test_events_builds_logsql_with_surface_and_correlation(monkeypatch) -> None:
     )
     assert r["ok"] and r["data"]["count"] == 1
     q = seen["query"]
-    assert 'event_type:"pipeline_stage"' in q
+    # The event type is matched against `_msg`, NOT an `event_type` field: emit_event ships with
+    # `_msg_field: event_type` (dev_push.py), so VictoriaLogs stores the type as the built-in `_msg`
+    # message field and keeps no `event_type` field. Live-verified — an `event_type:` filter returns
+    # zero rows against real pushed data, which this assertion previously (wrongly) allowed.
+    assert '_msg:"pipeline_stage"' in q
+    assert "event_type:" not in q
     assert 'surface:"pipeline"' in q and 'component:"pipeline"' in q  # surface OR component
     assert 'run_id:"run-1"' in q and 'episode_id:"ep-1"' in q
     assert seen["url"].endswith("/select/logsql/query")

@@ -60,13 +60,13 @@ def test_investigate_by_trace_id(monkeypatch) -> None:
 
 
 def test_investigate_by_run_id_includes_pipeline_stage(monkeypatch) -> None:
-    # correlators + the new pipeline_stage probe
+    # run correlators now come from VictoriaLogs (cost=events, errors/logs=recent_logs) + the
+    # pipeline_stage events probe; langfuse trace + enrichment stay as optional supplements.
     monkeypatch.setattr(aggregate.victoria, "events", _ok("events"))
+    monkeypatch.setattr(aggregate.victoria, "recent_logs", _ok("logs"))
     monkeypatch.setattr(aggregate.langfuse, "trace_by_run", _ok("trace"))
-    monkeypatch.setattr(aggregate.loki, "cost_for_run", _ok("cost"))
-    monkeypatch.setattr(aggregate.loki, "recent_logs", _ok("logs"))
-    monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))
     monkeypatch.setattr(aggregate.enrichment, "recent_events", _ok("enr"))
     r = aggregate.investigate(_t(), run_id="run-9")
     assert "pipeline_stage" in r["data"]["signals"]
     assert "trace" in r["data"]["signals"] and "cost" in r["data"]["signals"]
+    assert "errors" in r["data"]["signals"] and "logs" in r["data"]["signals"]

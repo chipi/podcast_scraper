@@ -6,7 +6,7 @@ import pytest
 
 from podcast_obs import aggregate, cli, mcp_server
 from podcast_obs.config import TargetConfig
-from podcast_obs.sources import loki, prod_api
+from podcast_obs.sources import prod_api
 
 
 def _clear_obs_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -120,21 +120,6 @@ def test_cli_runs_passes_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     cli.main(["runs", "--limit", "3"])
     assert captured["limit"] == 3
-
-
-def test_cli_logs_passes_args(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_obs_env(monkeypatch)
-    monkeypatch.setenv("PODCAST_OBS_API_BASE", "http://x")
-    captured: dict = {}
-    monkeypatch.setattr(
-        loki,
-        "recent_logs",
-        lambda t, **kw: captured.update(kw) or {"ok": True, "source": "logs", "data": {}},
-    )
-    cli.main(["logs", "--service", "api", "--contains", "OOM", "--window", "6h"])
-    assert captured["service"] == "api"
-    assert captured["contains"] == "OOM"
-    assert captured["window"] == "6h"
 
 
 def test_cli_serve_maps_http_to_streamable(monkeypatch: pytest.MonkeyPatch) -> None:

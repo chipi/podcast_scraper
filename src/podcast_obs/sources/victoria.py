@@ -70,7 +70,12 @@ def events(
     base = target.victorialogs_url
     if not base:
         return err(_LOGS, "victorialogs_url not configured", configured=False)
-    filters = [f"event_type:{_q(event_type)}", f"_time:{window}"]
+    # emit_event ships with `_msg_field: event_type` (dev_push.py), so VictoriaLogs stores the
+    # event type as the built-in `_msg` message field and keeps NO `event_type` field to filter on.
+    # In prod (Alloy tails raw stdout) `_msg` is the whole JSON line, which still contains the type
+    # as a phrase — so `_msg:"pipeline_stage"` matches both shipping paths. Live-verified: an
+    # `event_type:` filter returns 0 against real pushed data.
+    filters = [f"_msg:{_q(event_type)}", f"_time:{window}"]
     if surface:
         filters.append(f"(surface:{_q(surface)} OR component:{_q(surface)})")
     if run_id:
