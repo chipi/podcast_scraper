@@ -25,6 +25,7 @@ from ..graph_id_utils import (
     gil_insight_node_id,
     gil_quote_node_id,
     person_node_id,
+    person_node_type_for_name,
     slugify_label,
     topic_node_id_from_slug,
 )
@@ -1201,7 +1202,12 @@ def _attach_person_for_quote(
     person_id_value: Optional[str],
     persons_added: Set[str],
 ) -> None:
-    """Add Person node and SPOKEN_BY (Quote -> Person) when diarization label exists."""
+    """Add a Person/Voice node and SPOKEN_BY (Quote -> node) when a diarization label exists.
+
+    ADR-133/#1220: an unresolved diarization voice (``SPEAKER_NN``) is typed ``Voice``, not
+    ``Person`` — the same shared decision the KG write-side uses, so GI and KG agree for the same
+    speaker. SPOKEN_BY still points at the node (id unchanged), keeping the edge intact.
+    """
     if (
         not speaker_label
         or not str(speaker_label).strip()
@@ -1215,7 +1221,7 @@ def _attach_person_for_quote(
         nodes.append(
             {
                 "id": pid,
-                "type": "Person",
+                "type": person_node_type_for_name(raw),
                 "properties": {"name": raw},
             }
         )

@@ -130,8 +130,20 @@ def gil_quote_node_id(
 
 
 def is_person_or_org_node(node_type: Any) -> bool:
-    """True for both legacy ``Entity`` and v2.0 ``Person`` / ``Organization`` (RFC-097)."""
+    """True for both legacy ``Entity`` and v2.0 ``Person`` / ``Organization`` (RFC-097).
+
+    ``Voice`` (ADR-133/#1220) is deliberately NOT here — an unresolved diarization voice is not a
+    resolvable identity, so it must not participate in person/org edge-building, entity rollup, or
+    cross-episode embedding. Person queries never see it by construction.
+    """
     return isinstance(node_type, str) and node_type in PERSON_ORG_NODE_TYPES
+
+
+def person_node_type_for_name(name: Optional[str]) -> str:
+    """The node type for a person-kind entity: ``Voice`` for an unresolved diarization label
+    (``SPEAKER_NN``), else ``Person`` (ADR-133/#1220). The single shared decision both the KG and GI
+    write-sides call, so the two schemas never disagree for the same speaker."""
+    return "Voice" if is_bare_speaker_label(name) else "Person"
 
 
 def normalized_entity_kind_from_node(node: Dict[str, Any]) -> str:

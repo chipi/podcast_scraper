@@ -12,6 +12,7 @@ from ..graph_id_utils import (
     episode_node_id,
     is_person_or_org_node,
     normalized_entity_kind_from_node,
+    person_node_type_for_name,
     slugify_label,
     topic_node_id_from_slug,
 )
@@ -464,13 +465,16 @@ def _typed_person_org_node(
     """
     name_s = (name or "").strip()[:500]
     ek = _normalize_entity_kind(entity_kind)
-    node_type = "Organization" if ek == "organization" else "Person"
+    # ADR-133/#1220: an unresolved diarization voice (SPEAKER_NN) is typed Voice, not Person, so it
+    # never merges into person queries/rollups. Same shared decision the GI write-side uses.
+    node_type = "Organization" if ek == "organization" else person_node_type_for_name(name_s)
     props: Dict[str, Any] = {
         "name": name_s,
         "label": name_s[:200],
         "role": role,
     }
-    if description and str(description).strip():
+    # A Voice carries no LLM description (voice_node allows name/label/role/voice_type only).
+    if node_type != "Voice" and description and str(description).strip():
         props["description"] = str(description).strip()[:2000]
     return {
         "id": entity_node_id(ek, name_s, episode_id),

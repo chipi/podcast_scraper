@@ -583,9 +583,10 @@ class TestGILPipeline:
         validate_artifact(out, strict=True)
 
     def test_artifact_episode_scopes_unresolved_speaker_id(self):
-        """An unnamed diarization voice (no speaker_label → raw ``SPEAKER_01``) is minted with an
-        EPISODE-SCOPED person id (``person:speaker-<ep>-01``) so the same anonymous label in a
-        different episode can't collapse into one phantom cross-episode person (#1b)."""
+        """An unnamed diarization voice (no speaker_label → raw ``SPEAKER_01``) is minted as a
+        ``Voice`` node (ADR-133/#1220) with an EPISODE-SCOPED id (``person:speaker-<ep>-01``) so the
+        same anonymous label in a different episode can't collapse into one phantom cross-episode
+        person (#1b), and so Person queries never see it."""
         transcript = "First segment. Second segment."
         segments = [
             {"text": "First segment. ", "speaker": "SPEAKER_00"},  # unresolved: no speaker_label
@@ -613,7 +614,9 @@ class TestGILPipeline:
         )
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert quote_nodes[0]["properties"]["speaker_id"] == "person:speaker-ep1-01"
-        spk_nodes = [n for n in out["nodes"] if n["type"] == "Person"]
+        # ADR-133/#1220: unresolved SPEAKER_NN is a Voice node, not Person (id unchanged for edges)
+        assert not [n for n in out["nodes"] if n["type"] == "Person"]
+        spk_nodes = [n for n in out["nodes"] if n["type"] == "Voice"]
         assert spk_nodes[0]["id"] == "person:speaker-ep1-01"
         assert spk_nodes[0]["properties"]["name"] == "SPEAKER_01"  # raw label kept as the name
         validate_artifact(out, strict=True)
