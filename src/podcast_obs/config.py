@@ -40,6 +40,9 @@ class TargetConfig:
     sentry_projects: tuple[str, ...] = ()
     sentry_token: Optional[str] = None
     sentry_environment: str = "prod"
+    # Errors backend base URL. Default = Sentry SaaS; set to a self-hosted GlitchTip
+    # (e.g. http://homelab:8090) — Sentry-API-compatible, so only the base URL changes.
+    sentry_url: Optional[str] = None
     grafana_url: Optional[str] = None
     grafana_token: Optional[str] = None  # Grafana service-account token (alerting API)
     loki_url: Optional[str] = None
@@ -47,6 +50,12 @@ class TargetConfig:
     loki_token: Optional[str] = (
         None  # Loki access-policy token (logs:read); falls back to grafana_token
     )
+    # Current self-hosted stack (homelab): VictoriaLogs (LogsQL), VictoriaMetrics (PromQL),
+    # VictoriaTraces (Jaeger API). Tailnet-reachable; auth via optional bearer token.
+    victorialogs_url: Optional[str] = None
+    victoriametrics_url: Optional[str] = None
+    victoriatraces_url: Optional[str] = None
+    victoria_token: Optional[str] = None  # optional bearer for all three (if fronted by auth)
     # Langfuse public API (#1052) — same key pair the pipeline traces with
     # (SDK-native LANGFUSE_*); the probe only *reads* recent traces (Basic auth).
     langfuse_public_key: Optional[str] = None
@@ -102,11 +111,16 @@ class ObservabilityConfig:
             sentry_projects=projects,
             sentry_token=_env("SENTRY_TOKEN"),
             sentry_environment=_env("SENTRY_ENV") or "prod",
+            sentry_url=_env("SENTRY_URL"),
             grafana_url=_env("GRAFANA_URL"),
             grafana_token=_env("GRAFANA_TOKEN"),
             loki_url=_env("LOKI_URL"),
             loki_user=_env("LOKI_USER"),
             loki_token=_env("LOKI_TOKEN"),
+            victorialogs_url=_env("VICTORIALOGS_URL"),
+            victoriametrics_url=_env("VICTORIAMETRICS_URL"),
+            victoriatraces_url=_env("VICTORIATRACES_URL"),
+            victoria_token=_env("VICTORIA_TOKEN"),
             # Langfuse uses its SDK-native bare names (not the PODCAST_OBS_ prefix) so the
             # same keys the pipeline traces with drive the probe — no duplicate config.
             langfuse_public_key=_bare("LANGFUSE_PUBLIC_KEY"),
@@ -175,6 +189,7 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
     sentry = spec.get("sentry") or {}
     grafana = spec.get("grafana") or {}
     langfuse = spec.get("langfuse") or {}
+    victoria = spec.get("victoria") or {}
     projects = sentry.get("projects") or []
     if isinstance(projects, str):
         projects = _split_csv(projects)
@@ -189,11 +204,16 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         sentry_projects=tuple(projects),
         sentry_token=_secret(sentry, "token"),
         sentry_environment=sentry.get("environment") or "prod",
+        sentry_url=sentry.get("url"),
         grafana_url=grafana.get("url"),
         grafana_token=_secret(grafana, "token"),
         loki_url=grafana.get("loki_url"),
         loki_user=grafana.get("loki_user"),
         loki_token=_secret(grafana, "loki_token"),
+        victorialogs_url=victoria.get("logs_url"),
+        victoriametrics_url=victoria.get("metrics_url"),
+        victoriatraces_url=victoria.get("traces_url"),
+        victoria_token=_secret(victoria, "token"),
         langfuse_public_key=_secret(langfuse, "public_key"),
         langfuse_secret_key=_secret(langfuse, "secret_key"),
         langfuse_base_url=langfuse.get("base_url"),
