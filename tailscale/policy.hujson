@@ -101,11 +101,15 @@
     //         only HTTPS entry point is the fix. NO public surface (serve, not funnel).
     //   :3000 Grafana  :3001 Umami  :4000 Langfuse  :8090 GlitchTip
     //   :8428 VictoriaMetrics  :9428 VictoriaLogs  :10428 VictoriaTraces
+    //   :8443 Langfuse over HTTPS via `tailscale serve` (dedicated TLS port —
+    //         Langfuse/Next.js can't serve under a stripped subpath, so it gets
+    //         its own TLS port: homelab.<tailnet>:8443). serve, not funnel.
+    //         Independent of tag:prod:8443 (orrery on the VPS) — different host.
     //   :8888 homelab start page (service links + creds; basic-auth, tailnet-only)
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,8090,8428,8888,9428,10428"]
+      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,8090,8428,8443,8888,9428,10428"]
     },
     {
       // prod (the box) also reaches Umami :3001 — it proxies public analytics
