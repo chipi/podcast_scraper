@@ -3453,6 +3453,108 @@ def _reconcile_entities_in_summary(
     return summary_text, corrected_entities
 
 
+def _write_downstream_manifest_blocks(
+    *,
+    output_dir: str,
+    transcript_file_path: Optional[str],
+    feed_id: Optional[str],
+    episode_id: Optional[str],
+    cfg: config.Config,
+    summary_metadata: Optional["SummaryMetadata"],
+    summary_elapsed: Optional[float],
+    summary_call_metrics: Any,
+    gi_meta: Optional["GroundedInsightsMetadata"],
+    gi_elapsed: Optional[float],
+    gi_cost: Optional[float],
+    kg_meta: Optional["KnowledgeGraphMetadata"],
+    kg_elapsed: Optional[float],
+    kg_cost: Optional[float],
+) -> None:
+    """RFC-109 / ADR-130: write the summary / GI / KG stage blocks into the per-episode manifest.
+
+    Each block is built from that stage's own result object (``SummaryMetadata`` /
+    ``GroundedInsightsMetadata`` / ``KnowledgeGraphMetadata``), never from ``cfg``. Runs after the
+    transcript-side stages (ASR / diarization / naming, written by ``episode_processor``) so the
+    read-modify-write appends these three to the same ``<base>.manifest.json``. Best-effort — a
+    manifest write must never fail metadata generation.
+    """
+    if not transcript_file_path:
+        return
+    from .processing_manifest import METHOD_VERSIONS, stage_block, update_stage
+
+    run_id = getattr(cfg, "run_id", None)
+
+    if summary_metadata is not None:
+        _sp = getattr(cfg, "summary_provider", None)
+        blk = stage_block(
+            ran=True,
+            method=_sp if isinstance(_sp, str) else None,
+            method_version=METHOD_VERSIONS["summary"],
+            duration_s=summary_elapsed,
+            cost_usd=getattr(summary_call_metrics, "estimated_cost", None),
+            metrics={
+                "word_count": getattr(summary_metadata, "word_count", None),
+                "schema_status": getattr(summary_metadata, "schema_status", None),
+            },
+        )
+        update_stage(
+            output_dir,
+            transcript_file_path,
+            "summary",
+            blk,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+    if gi_meta is not None:
+        insight_count = getattr(gi_meta, "insight_count", None)
+        # GI ran but every insight was gated out — a rework signal worth querying (ADR-130).
+        gi_flags = ["gi_all_gated"] if insight_count == 0 else []
+        blk = stage_block(
+            ran=True,
+            method_version=METHOD_VERSIONS["gi"],
+            duration_s=gi_elapsed,
+            cost_usd=gi_cost,
+            metrics={
+                "insight_count": insight_count,
+                "schema_version": getattr(gi_meta, "schema_version", None),
+            },
+        )
+        update_stage(
+            output_dir,
+            transcript_file_path,
+            "gi",
+            blk,
+            quality_flags=gi_flags,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+    if kg_meta is not None:
+        blk = stage_block(
+            ran=True,
+            method_version=METHOD_VERSIONS["kg"],
+            duration_s=kg_elapsed,
+            cost_usd=kg_cost,
+            metrics={
+                "node_count": getattr(kg_meta, "node_count", None),
+                "edge_count": getattr(kg_meta, "edge_count", None),
+                "schema_version": getattr(kg_meta, "schema_version", None),
+            },
+        )
+        update_stage(
+            output_dir,
+            transcript_file_path,
+            "kg",
+            blk,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -3696,6 +3798,8 @@ def generate_episode_metadata(  # noqa: C901
 
     # Run GIL when enabled; produce grounded_insights for metadata model (consistent meta model)
     gi_meta: Optional[GroundedInsightsMetadata] = None
+    gi_elapsed: Optional[float] = None  # captured for the processing manifest (RFC-109)
+    gi_cost: Optional[float] = None  # per-episode GI cost for the processing manifest (RFC-109)
     if getattr(cfg, "generate_gi", False):
         from .helpers import get_episode_id_from_episode
 
@@ -3813,6 +3917,13 @@ def generate_episode_metadata(  # noqa: C901
                         pe_insights = pe.get("insights")
                         if isinstance(pe_insights, list) and pe_insights:
                             prefilled_insights_arg = pe_insights
+                # RFC-109: wrap pipeline_metrics so THIS episode's GI cost is captured in isolation
+                # (the run-level accumulator is shared across parallel episodes).
+                from .processing_manifest import EpisodeCostProbe
+
+                _gi_probe = (
+                    EpisodeCostProbe(pipeline_metrics) if pipeline_metrics is not None else None
+                )
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
@@ -3831,13 +3942,15 @@ def generate_episode_metadata(  # noqa: C901
                     insight_texts=insight_texts_arg,
                     insight_provider=insight_provider_arg,
                     summary_provider=summary_provider,
-                    pipeline_metrics=pipeline_metrics,
+                    pipeline_metrics=(_gi_probe if _gi_probe is not None else pipeline_metrics),
                     gil_created_evidence_providers=gil_evidence_cleanup,
                     topic_labels=gi_topic_labels,
                     episode_duration_ms=gi_episode_duration_ms,
                     prefilled_insights=prefilled_insights_arg,
                     feed_id=feed_id,
                 )
+                if _gi_probe is not None:
+                    gi_cost = _gi_probe.gi_cost_usd
                 write_artifact(Path(gi_path), payload, validate=True)
                 bridge_gi_payload = payload
                 gi_artifact_path = gi_path
@@ -3931,6 +4044,8 @@ def generate_episode_metadata(  # noqa: C901
                 )
 
     kg_meta: Optional[KnowledgeGraphMetadata] = None
+    kg_elapsed: Optional[float] = None  # captured for the processing manifest (RFC-109)
+    kg_cost: Optional[float] = None  # per-episode KG cost for the processing manifest (RFC-109)
     if getattr(cfg, "generate_kg", False):
         from .helpers import get_episode_id_from_episode
 
@@ -4017,6 +4132,10 @@ def generate_episode_metadata(  # noqa: C901
                             "topics": pe_kg.get("topics") or [],
                             "entities": pe_kg.get("entities") or [],
                         }
+                # RFC-109: capture THIS episode's KG cost in isolation from the shared accumulator.
+                from .processing_manifest import EpisodeCostProbe as _KgCostProbe
+
+                _kg_probe = _KgCostProbe(pipeline_metrics) if pipeline_metrics is not None else None
                 kg_payload = kg_build_artifact(
                     episode_id,
                     transcript_text_kg,
@@ -4030,10 +4149,12 @@ def generate_episode_metadata(  # noqa: C901
                     detected_guests=detected_guests,
                     cfg=cfg,
                     kg_extraction_provider=kg_provider_arg,
-                    pipeline_metrics=pipeline_metrics,
+                    pipeline_metrics=(_kg_probe if _kg_probe is not None else pipeline_metrics),
                     prefilled_partial=kg_prefilled_partial,
                     feed_id=feed_id,
                 )
+                if _kg_probe is not None:
+                    kg_cost = _kg_probe.kg_cost_usd
                 kg_write_artifact(Path(kg_path), kg_payload, validate=True)
                 bridge_kg_payload = kg_payload
                 kg_elapsed = time.time() - kg_start
@@ -4251,6 +4372,25 @@ def generate_episode_metadata(  # noqa: C901
     try:
         _serialize_metadata(metadata_doc, metadata_path, cfg, pipeline_metrics=pipeline_metrics)
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
+
+        # RFC-109 / ADR-130: append the summary/GI/KG stage blocks to the per-episode manifest that
+        # the transcript-side stages (ASR/diarization/naming) started. Best-effort — never fatal.
+        _write_downstream_manifest_blocks(
+            output_dir=output_dir,
+            transcript_file_path=transcript_file_path,
+            feed_id=feed_id,
+            episode_id=episode_id,
+            cfg=cfg,
+            summary_metadata=summary_metadata,
+            summary_elapsed=summary_elapsed,
+            summary_call_metrics=summary_call_metrics,
+            gi_meta=gi_meta,
+            gi_elapsed=gi_elapsed,
+            gi_cost=gi_cost,
+            kg_meta=kg_meta,
+            kg_elapsed=kg_elapsed,
+            kg_cost=kg_cost,
+        )
 
         # Track metadata generation and summarization
         if pipeline_metrics is not None:

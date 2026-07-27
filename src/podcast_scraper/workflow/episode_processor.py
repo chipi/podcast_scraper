@@ -662,6 +662,136 @@ def _save_asr_provenance_file(
         logger.warning("Could not save ASR provenance %s: %s", asr_path, e)
 
 
+def _write_processing_manifest(
+    result: Optional[Dict[str, Any]],
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    asr_elapsed: Optional[float] = None,
+    asr_call_metrics: Any = None,
+) -> None:
+    """RFC-109 / ADR-130: write the per-episode processing manifest's ASR/diarization/naming blocks.
+
+    Each block is built from that stage's OWN result fields (never from ``cfg``) at the one site
+    where all three results are in hand. Complements ``metadata.json`` (ADR-131). Best-effort — a
+    manifest write never fails the episode. The downstream stages (summary / GI / KG) append their
+    own blocks to the same manifest from ``metadata_generation._write_downstream_manifest_blocks``.
+    ``.asr.json`` stays (ADR-131 write-both migration) until readers move to the manifest.
+    """
+    if not isinstance(result, dict) or not rel_transcript_path:
+        return
+    from . import processing_manifest as pm
+
+    episode_id, _ = _episode_id_and_idx_for_incident(job, cfg)
+    feed_id = getattr(cfg, "rss_url", None)
+    run_id = getattr(cfg, "run_id", None)
+
+    # --- ASR: actual model + speech coverage + failover (ADR-129 provenance) ---
+    cov = result.get("asr_speech_coverage")
+    failover = result.get("speech_coverage_failover")
+    if cov is not None or failover:
+        asr_flags: List[str] = []
+        if failover:
+            asr_flags.append("asr_failover")
+        thresh = getattr(cfg, "transcription_speech_coverage_min", None)
+        if cov is not None and thresh and cov < thresh:
+            asr_flags.append("asr_speech_coverage_low")
+        # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
+        # a cloud ASR that failed over billed twice — RFC-109).
+        _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
+        _failover_cost = result.get("asr_failover_cost_usd")
+        asr_cost = None
+        if _primary_cost is not None or _failover_cost is not None:
+            asr_cost = float(_primary_cost or 0.0) + float(_failover_cost or 0.0)
+        asr = pm.stage_block(
+            ran=True,
+            method=getattr(cfg, "transcription_provider", None),
+            model=(result.get("model_used") or getattr(cfg, "dgx_whisper_model", None)),
+            method_version=pm.METHOD_VERSIONS["asr"],
+            duration_s=asr_elapsed,
+            # 0.0/None for local ASR (DGX/whisper); real USD for cloud ASR (OpenAI/Deepgram),
+            # populated by apply_estimated_cost_if_missing before this write.
+            cost_usd=asr_cost,
+            metrics={"speech_coverage": cov},
+            failover=failover or None,
+        )
+        pm.update_stage(
+            effective_output_dir,
+            rel_transcript_path,
+            "asr",
+            asr,
+            quality_flags=asr_flags,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+    # --- Diarization: speaker count + speech seconds, from the diarizer's own result ---
+    num_spk = result.get("diarization_num_speakers")
+    speech_s = result.get("diarization_speech_seconds")
+    if num_spk is not None or speech_s is not None:
+        diar = pm.stage_block(
+            ran=True,
+            method=getattr(cfg, "diarization_provider", None),
+            method_version=pm.METHOD_VERSIONS["diarization"],
+            # None for local diarizers (pyannote/DGX); real USD for cloud (Deepgram/Gemini), which
+            # populate DiarizationResult.cost_usd -> result["diarization_cost_usd"].
+            cost_usd=result.get("diarization_cost_usd"),
+            metrics={"num_speakers": num_spk, "speech_seconds": speech_s},
+        )
+        pm.update_stage(
+            effective_output_dir,
+            rel_transcript_path,
+            "diarization",
+            diar,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+    # --- Naming: detected-vs-named + attribution health, from the roster's own diagnostics ---
+    diag = result.get("speaker_diagnostics")
+    if isinstance(diag, dict) and isinstance(diag.get("summary"), dict):
+        summary = diag["summary"]
+        voices_raw = diag.get("voices")
+        voices = voices_raw if isinstance(voices_raw, list) else []
+        host_named = any(
+            isinstance(v, dict) and v.get("role") == "host" and v.get("named") for v in voices
+        )
+        name_flags: List[str] = []
+        if summary.get("unattributed_alarm"):
+            name_flags.append("unnamed_dominant_voice")
+        if summary.get("unbound_names"):
+            name_flags.append("guest_in_title_not_placed")
+        if not host_named and not summary.get("show_centric"):
+            name_flags.append("empty_host_anchor")
+        naming = pm.stage_block(
+            ran=True,
+            method_version=pm.METHOD_VERSIONS["naming"],
+            metrics={
+                "num_speakers": summary.get("num_speakers"),
+                "named": summary.get("named"),
+                "unresolved": summary.get("unresolved"),
+                "truly_unknown": summary.get("truly_unknown"),
+                "unattributed_talk_share": summary.get("unattributed_talk_share"),
+                "by_voice_type": summary.get("by_voice_type"),
+                "unbound_names": summary.get("unbound_names"),
+                "host_named": host_named,
+            },
+        )
+        pm.update_stage(
+            effective_output_dir,
+            rel_transcript_path,
+            "naming",
+            naming,
+            quality_flags=name_flags,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+
 def _maybe_produce_adfree(
     cfg: config.Config,
     text: str,
@@ -1929,7 +2059,11 @@ def _maybe_speech_coverage_failover(
         fo_model,
     )
     from ..transcription.factory import create_transcription_provider
-    from ..utils.provider_metrics import ProviderCallMetrics
+    from ..utils.provider_metrics import (
+        apply_estimated_cost_if_missing,
+        ProviderCallMetrics,
+        transcription_model_for_cfg,
+    )
 
     # Disable both gates on the failover pass so it cannot recurse into another re-transcription.
     fo_cfg = cfg.model_copy(
@@ -1940,6 +2074,7 @@ def _maybe_speech_coverage_failover(
         }
     )
     fo_provider = create_transcription_provider(fo_cfg)
+    fo_call_metrics = ProviderCallMetrics()
     fo_result, _ = _transcribe_with_segments_maybe_chunked(
         media_for_transcription,
         cfg=fo_cfg,
@@ -1947,8 +2082,19 @@ def _maybe_speech_coverage_failover(
         transcription_provider=fo_provider,
         pipeline_metrics=pipeline_metrics,
         episode_duration_seconds=episode_duration_seconds,
-        call_metrics=ProviderCallMetrics(),
+        call_metrics=fo_call_metrics,
     )
+    # RFC-109: the failover re-transcription is a SECOND ASR call. Local models cost 0; a cloud
+    # failover model bills again, so its cost must be added to the ASR block (not just the primary).
+    apply_estimated_cost_if_missing(
+        fo_call_metrics,
+        cfg=fo_cfg,
+        provider_type=str(getattr(fo_cfg, "transcription_provider", None) or "whisper"),
+        capability="transcription",
+        model=transcription_model_for_cfg(fo_cfg),
+        audio_minutes=(episode_duration_seconds / 60.0) if episode_duration_seconds else None,
+    )
+    fo_result["asr_failover_cost_usd"] = fo_call_metrics.estimated_cost
     # Diarization is audio-based (cache hit on the same audio) — only the transcript→speaker
     # alignment re-runs, so the failover pays for re-transcription, not re-diarization.
     fo_result = apply_diarization_to_result(
@@ -2196,6 +2342,18 @@ def transcribe_media_to_text(
 
         # Record transcription time if metrics available
         _record_transcription_metrics(job, cfg, tc_elapsed, call_metrics, pipeline_metrics)
+
+        # RFC-109 / ADR-130: per-episode processing manifest (ASR/diarization/naming stage blocks).
+        # After metrics recording so the ASR ``estimated_cost`` (cloud providers) is populated.
+        _write_processing_manifest(
+            result,
+            cfg,
+            job,
+            rel_path,
+            effective_output_dir,
+            asr_elapsed=tc_elapsed,
+            asr_call_metrics=call_metrics,
+        )
 
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:

@@ -67,6 +67,58 @@ def merged_speech_seconds(segments: Sequence[Any]) -> float:
     return total
 
 
+def _segment_end(s: Any) -> Optional[float]:
+    try:
+        return float(s["end"]) if isinstance(s, dict) else float(s.end)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return None
+
+
+def _estimate_diarization_cost(
+    diarization: DiarizationResult, cfg: Any, audio_seconds: Optional[float] = None
+) -> Optional[float]:
+    """Per-episode diarization cost in USD for the processing manifest (RFC-109 / ADR-130).
+
+    Provider-agnostic: if the provider already set ``DiarizationResult.cost_usd`` it is trusted;
+    otherwise the shared pricing layer (``capability="diarization"``) estimates cost per audio-min,
+    as ASR does. Cloud diarizers (Deepgram/Gemini) have a pricing entry and get a real figure; local
+    diarizers (pyannote/DGX/MOSS) have none, so the estimate stays ``None`` — a truthful "no billed
+    cost", not a fabricated zero.
+
+    ``audio_seconds`` is the billed unit (cloud diarizers bill on total audio). The caller passes
+    the widest end across the ASR transcript + diarization turns — a closer proxy than diarization
+    turns alone (which stop at the last speaker turn, undercounting trailing non-speech).
+    """
+    provider_set = getattr(diarization, "cost_usd", None)
+    if provider_set is not None:
+        return float(provider_set)
+    provider_type = getattr(cfg, "diarization_provider", None)
+    if not provider_type:
+        return None
+
+    span = audio_seconds
+    if span is None:
+        ends = [e for e in (_segment_end(s) for s in (diarization.segments or [])) if e is not None]
+        span = max(ends) if ends else None
+    if not span or span <= 0:
+        return None
+    from podcast_scraper.utils.provider_metrics import (
+        apply_estimated_cost_if_missing,
+        ProviderCallMetrics,
+    )
+
+    cm = ProviderCallMetrics()
+    apply_estimated_cost_if_missing(
+        cm,
+        cfg=cfg,
+        provider_type=str(provider_type),
+        capability="diarization",
+        model=getattr(diarization, "model_name", "") or "",
+        audio_minutes=span / 60.0,
+    )
+    return cm.estimated_cost
+
+
 def _ad_intervals(segments: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
     """Ad regions of the episode as ``(start_s, end_s)`` time intervals.
 
@@ -397,4 +449,18 @@ def apply_diarization_to_result(
     # the speech-normalized coverage gate. Provider-agnostic (any DiarizationResult). Non-speech
     # (music/ads/silence) has no speaker turn, so it is excluded here, unlike raw audio duration.
     enriched_result["diarization_speech_seconds"] = merged_speech_seconds(diarization.segments)
+    # RFC-109 / ADR-130: per-episode diarization cost. Cloud diarizers (Deepgram/Gemini) bill per
+    # audio-minute; local diarizers (pyannote/DGX/MOSS) have no pricing entry -> None. Bill on the
+    # widest end across the ASR transcript + diarization turns (closest in-memory audio proxy).
+    _audio_ends = [
+        e
+        for e in (
+            _segment_end(s)
+            for s in list(result.get("segments") or []) + list(diarization.segments or [])
+        )
+        if e is not None
+    ]
+    enriched_result["diarization_cost_usd"] = _estimate_diarization_cost(
+        diarization, cfg, audio_seconds=(max(_audio_ends) if _audio_ends else None)
+    )
     return enriched_result

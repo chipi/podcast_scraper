@@ -339,3 +339,58 @@ def test_recurring_text_index_rebuilds_as_more_transcripts_land(tmp_path) -> Non
     write(3)
     write(4)
     assert _pipeline._feed_recurring_text(cfg)  # >=3 sharing a passage -> rebuilt, non-empty
+
+
+def test_estimate_diarization_cost_trusts_provider_value():
+    """RFC-109: a cloud diarizer that already reported a billed cost is trusted verbatim."""
+    from podcast_scraper.providers.ml.diarization.pipeline import _estimate_diarization_cost
+
+    r = DiarizationResult(
+        segments=[DiarizationSegment(0.0, 10.0, "A")],
+        num_speakers=1,
+        model_name="deepgram/nova",
+        cost_usd=0.021,
+    )
+    cfg = MagicMock(diarization_provider="deepgram")
+    assert _estimate_diarization_cost(r, cfg) == 0.021
+
+
+def test_estimate_diarization_cost_none_for_local_provider():
+    """Local diarizers have no pricing entry -> honest None (no fabricated zero)."""
+    from podcast_scraper.providers.ml.diarization.pipeline import _estimate_diarization_cost
+
+    r = DiarizationResult(
+        segments=[DiarizationSegment(0.0, 600.0, "A")],
+        num_speakers=1,
+        model_name="pyannote/community-1",
+    )
+    # No diarization_provider configured -> cannot price -> None.
+    assert _estimate_diarization_cost(r, MagicMock(diarization_provider=None)) is None
+
+
+def test_estimate_diarization_cost_bills_on_audio_seconds():
+    """The billed unit is audio-minutes derived from the caller's audio_seconds (total-audio proxy),
+    not the diarization turns alone."""
+    from podcast_scraper.providers.ml.diarization import pipeline as _pl
+
+    r = DiarizationResult(
+        segments=[DiarizationSegment(0.0, 100.0, "A")],  # turns end at 100s
+        num_speakers=1,
+        model_name="deepgram/nova",
+    )
+    captured = {}
+
+    def _fake_apply(cm, *, cfg, provider_type, capability, model, audio_minutes=None, **kw):
+        captured["audio_minutes"] = audio_minutes
+        captured["capability"] = capability
+        cm.estimated_cost = 0.05
+
+    with patch(
+        "podcast_scraper.utils.provider_metrics.apply_estimated_cost_if_missing", _fake_apply
+    ):
+        cost = _pl._estimate_diarization_cost(
+            r, MagicMock(diarization_provider="deepgram"), audio_seconds=600.0
+        )
+    assert cost == 0.05
+    assert captured["capability"] == "diarization"
+    assert captured["audio_minutes"] == 600.0 / 60.0  # bills on total audio, not the 100s of turns
