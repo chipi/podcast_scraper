@@ -1,0 +1,46 @@
+# TEMPORARY experiment (#1273): a parallel speaches container serving large-v3 at FLOAT16 on :8005,
+# so we can A/B it against the live int8 service on :8000 without touching production. This is NOT
+# part of the pyinfra converge (deploy.py) — run it by hand on the DGX and tear it down after:
+#
+#   ON THE DGX:
+#     docker compose -f docker-compose.1273-largev3-fp16.yml up -d
+#     docker compose -f docker-compose.1273-largev3-fp16.yml logs -f   # wait for /v1/models healthy
+#     # ... run the WER comparison (scripts/investigate/1273_largev3_compute_wer.py) ...
+#     docker compose -f docker-compose.1273-largev3-fp16.yml down       # REMOVE after the test
+#
+# Reachability: like the live service this binds host :8005. The harness reaches the DGX by LAN IP
+# (192.168.1.111) — on the LAN :8005 is open. From the tailnet, :8005 is NOT in the dgx-llm-host ACL
+# (only :8000 is), so either run the scorer on a LAN host or add :8005 to the ACL for the test.
+
+services:
+  podcast-speaches-fp16:
+    image: podcast-speaches:0.1.0        # already built on the DGX by the normal deploy
+    container_name: podcast-speaches-fp16
+    restart: "no"                        # experiment — do not auto-restart
+    network_mode: host
+    runtime: nvidia
+    env_file:
+      - /home/markodragoljevic/.env      # HF_TOKEN / HF_HOME / HF_HUB_CACHE (same as prod)
+    environment:
+      - WHISPER__MODEL=Systran/faster-whisper-large-v3
+      - WHISPER__DEVICE=cuda
+      - WHISPER__COMPUTE_TYPE=float16    # THE VARIABLE under test (prod :8000 is int8)
+      - LOG_LEVEL=INFO
+      - ENABLE_UI=false
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8005
+    volumes:
+      - /opt/llm-models/huggingface:/opt/llm-models/huggingface   # shared model cache, no re-download
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8005/v1/models"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 600s
