@@ -633,7 +633,7 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
 
 
 def is_publishable_speaker_name(name: Optional[str]) -> bool:
-    """Final reject filter for a name about to be painted on a diarized voice (ADR-126 shared core).
+    """Final reject filter for a name about to be painted on a diarized voice (ADR-132 shared core).
 
     Every extraction path (self-intro, host-pool, greeting reader, strategy snap, LLM, metadata)
     converges on the roster; a name that carries a sentence-opener the ASR capitalised at a turn

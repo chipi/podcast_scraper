@@ -1063,7 +1063,7 @@ def _self_intro_voice_names(
     """``{voice: name}`` from each voice's OWN self-introduction, ads excluded (#876).
 
     A garbled self-intro is snapped onto a configured host ONLY for the host-candidate voices; who
-    those are is a cluster-shape question, so the ``strategy`` (ADR-126) decides. Applied to every
+    those are is a cluster-shape question, so the ``strategy`` (ADR-132) decides. Applied to every
     voice it swaps identities: a guest self-introducing with a name ASR-close to a host's ("I'm
     Kevin Ross" vs host "Kevin Roose") was snapped onto the host (N1) — the candidate gate is what
     prevents that, so it stays load-bearing under every strategy.
@@ -1193,7 +1193,7 @@ def resolve_speaker_roster(
     #     Robert Armstrong  3.4-3.6% of talk, 70-77% repeat — he reads the CREDITS, and he is a HOST
     #
     # Which is why BOTH tests must hold: repetition alone would strip a co-host reading the credits.
-    # Provider-specific labeling (ADR-126): the diarizer's clustering footprint decides how this
+    # Provider-specific labeling (ADR-132): the diarizer's clustering footprint decides how this
     # feed's recurring script splits across clusters. community-1 merges a stray content turn into
     # ad reader's cluster, so its strategy scores recurrence per TURN, not over the whole cluster.
     _strategy = labeling_strategy_for(diarization_provider)
@@ -1492,7 +1492,7 @@ def resolve_speaker_roster(
     if stated_refs:
         _recover_stated_names(by_voice, stated_refs, known_hosts)
 
-    # FINAL PLAUSIBILITY GATE (ADR-126 shared core). Every naming path above — self-intro, host
+    # FINAL PLAUSIBILITY GATE (ADR-132 shared core). Every naming path above — self-intro, host
     # pool, greeting reader, strategy snap, LLM, metadata — writes into `by_voice`, and each has its
     # own filters; community-1's finer clustering surfaced turn-boundary openers the ASR capitalised
     # ("But Sun", "So Nick", a bare "But") slipping through one path or another. Rather than reaudit

@@ -189,7 +189,7 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
         "cloud_thin",
         "cloud_balanced",
         "cloud_quality",
-        # ADR-126: cloud_balanced routing with community-1 diarization — same enricher tier.
+        # ADR-132: cloud_balanced routing with community-1 diarization — same enricher tier.
         "reprocess_v22_community1",
     ):
         return EnricherSet(
