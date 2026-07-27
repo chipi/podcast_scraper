@@ -25,7 +25,7 @@ freeze arbiter used in v2.2.)
 | --- | --- | --- |
 | **v2.1** | speaker **naming** (on frozen deepgram diarization) | done |
 | **v2.2** | **diarization** → pyannote community-1 (DGX-local) | **MERGED — PR #1335** (Closes #1188, #1290, #1292–#1296, #1321, #1329–#1331) |
-| **v2.3** | **ASR** → faster-whisper turbo (DGX-local) + ADR-123 coverage failover | **NEXT** — model already locked (#1178/#1179, real GT) |
+| **v2.3** | **ASR** → faster-whisper turbo (DGX-local) + ADR-123 coverage failover | **CODE DONE** (unpushed; bundles with 2.4 per operator) — turbo primary, coverage failover retargeted large-v3→**MOSS** (#1273: large-v3 least-accurate in the human-GT bake-off). Open follow-up **#1273 TODO 1** (int8-vs-fp16 serving test) BLOCKED on DGX SSH — [doc](1273-largev3-int8-vs-fp16-BLOCKED.md); NOT on the critical path. |
 | **v2.4** | **GI/KG optimizations** — remove `GI_MAX_INSIGHTS_CEILING` (#1191) + KG Voice-node (#1220) | after v2.3 |
 | **v2.5** | **LLM** → gemini replaced by the DGX-based LLM (the gateway to a **fully local** pipeline) | after v2.4 |
 
