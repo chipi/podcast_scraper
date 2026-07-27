@@ -146,3 +146,57 @@ def test_cli_serve_maps_http_to_streamable(monkeypatch: pytest.MonkeyPatch) -> N
     assert rc == 0
     assert captured["transport"] == "streamable-http"  # http -> streamable-http mapping
     assert captured["port"] == 9000
+
+
+# --- current-stack CLI verbs (parity with the MCP tools) ---------------------------
+
+
+def _clean_env(monkeypatch):
+    import os
+
+    for k in list(os.environ):
+        if k.startswith("PODCAST_OBS_"):
+            monkeypatch.delenv(k, raising=False)
+
+
+def test_cli_events_dispatches_to_victoria(monkeypatch, capsys):
+    _clean_env(monkeypatch)
+    from podcast_obs.result import ok
+    from podcast_obs.sources import victoria
+
+    seen = {}
+
+    def _fake(target, event_type, **kw):
+        seen["event_type"] = event_type
+        seen["kw"] = kw
+        return ok("victorialogs.events", {"count": 0})
+
+    monkeypatch.setattr(victoria, "events", _fake)
+    rc = cli.main(["events", "pipeline_stage", "--episode-id", "ep-1"])
+    assert rc == 0
+    assert seen["event_type"] == "pipeline_stage"
+    assert seen["kw"]["episode_id"] == "ep-1"
+
+
+def test_cli_metrics_and_spans_dispatch(monkeypatch):
+    _clean_env(monkeypatch)
+    from podcast_obs.result import ok
+    from podcast_obs.sources import victoria
+
+    monkeypatch.setattr(victoria, "metrics_instant", lambda t, q: ok("m", {"query": q}))
+    monkeypatch.setattr(victoria, "traces_recent", lambda t, s, **k: ok("s", {"service": s}))
+    assert cli.main(["metrics", "up"]) == 0
+    assert cli.main(["spans", "podcast-api"]) == 0
+
+
+def test_cli_surface_and_investigate_dispatch(monkeypatch):
+    _clean_env(monkeypatch)
+    from podcast_obs import aggregate
+    from podcast_obs.result import ok
+
+    monkeypatch.setattr(cli, "_surface", lambda t, n, **k: ok("surface", {"surface": n}))
+    monkeypatch.setattr(cli, "_investigate", lambda t, **k: ok("investigate", {**k}))
+    assert cli.main(["surface", "pipeline"]) == 0
+    assert cli.main(["investigate", "--run-id", "run-9"]) == 0
+    # aggregate module import kept meaningful (guards against dead import in the test)
+    assert hasattr(aggregate, "surface")

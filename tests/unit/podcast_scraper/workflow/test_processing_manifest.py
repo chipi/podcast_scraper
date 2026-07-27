@@ -577,3 +577,35 @@ class TestAdvisorRegressions(unittest.TestCase):
         data = json.load(open(pm.manifest_path(d, rel)))
         self.assertEqual(set(data["stages"]), {"naming"})  # only naming, no asr/diarization
         self.assertEqual(data["stages"]["naming"]["method_version"], pm.METHOD_VERSIONS["naming"])
+
+    def test_feed_id_is_one_scheme_across_both_seams(self):
+        # advisor #4: the ASR seam uses cfg.rss_url (raw url); the metadata seam must use the SAME
+        # raw url (not the hashed generate_feed_id), so `sum by (feed_id)` never splits an episode's
+        # ASR-side and metadata-side writes into two feeds.
+        from podcast_scraper.workflow import metadata_generation as mg
+
+        d, rel = self._setup()
+        cfg = self._cfg(rss_url="https://example.com/feed.xml")
+        episode_processor._write_processing_manifest(
+            {"asr_speech_coverage": 0.95}, cfg, self._job(), rel, d
+        )
+        asr_feed = json.load(open(pm.manifest_path(d, rel)))["feed_id"]
+        mg._write_downstream_manifest_blocks(
+            output_dir=d,
+            transcript_file_path=rel,
+            feed_id=cfg.rss_url,  # the fixed call site passes the raw rss_url, not the hash
+            episode_id="e",
+            cfg=cfg,
+            summary_metadata=SimpleNamespace(word_count=1, schema_status="valid"),
+            summary_elapsed=1.0,
+            summary_call_metrics=None,
+            gi_meta=None,
+            gi_elapsed=None,
+            gi_cost=None,
+            kg_meta=None,
+            kg_elapsed=None,
+            kg_cost=None,
+        )
+        meta_feed = json.load(open(pm.manifest_path(d, rel)))["feed_id"]
+        self.assertEqual(asr_feed, "https://example.com/feed.xml")
+        self.assertEqual(meta_feed, asr_feed)  # one scheme, not url-vs-hash
