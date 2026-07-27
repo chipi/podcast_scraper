@@ -304,6 +304,7 @@ nav:
       - ADR-129 Speech-Normalized Coverage Gate: adr/ADR-129-speech-normalized-coverage-gate.md
       - ADR-130 Per-Episode Processing Manifest — Schema, Stage Ownership, Versioning: adr/ADR-130-per-episode-processing-manifest-schema.md
       - ADR-131 metadata.json vs Processing Manifest — Source of Truth: adr/ADR-131-metadata-vs-manifest-source-of-truth.md
+      - ADR-133 v2.4 — GI Route-and-Tag + KG Voice Node: adr/ADR-133-v2.4-gi-route-and-tag-and-kg-voice-node.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
