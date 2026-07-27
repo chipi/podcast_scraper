@@ -4,6 +4,9 @@ dist-ssr/
 .env.local
 *.local
 
+# Real mobile build-args (internal DSN/Umami/API URLs) — committed as .env.mobile.example
+.env.mobile
+
 # Playwright outputs
 test-results/
 playwright-report/

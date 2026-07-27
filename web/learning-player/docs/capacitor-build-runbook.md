@@ -273,10 +273,38 @@ Same Android app, plus:
   App Bundle → upload the `.aab` to Play Console → Internal Testing track.
 - **Versioning:** `package.json` version + iOS `MARKETING_VERSION` + Android
   `versionName` — keep in sync.
-- **Telemetry per build:** bake the tier's `VITE_SENTRY_DSN_PLAYER` + `VITE_UMAMI_*`
-  - `VITE_API_BASE_URL` before `npm run build && npx cap sync`. Release = prod; a
-  simulator/TestFlight "internal" build can carry the staging↔prod runtime switcher
-  (guide §5).
+- **Telemetry per build:** don't hand-export the build-args — copy
+  `.env.mobile.example` → `.env.mobile` (gitignored), fill it, and use
+  `make mobile-build-internal` / `make mobile-build-release`. Both source
+  `.env.mobile` so real internal URLs never touch git; `mobile-build-release`
+  additionally **fails if `VITE_SENTRY_DSN_PLAYER` is empty** (no silently-o11y-less
+  release). Release = prod-locked (`MOBILE_RELEASE=1`); an internal build carries the
+  dev↔prod runtime switcher (guide §5).
+- **Dev-tier o11y on a real device needs https.** The committed dev defaults
+  (`homelab:8090` GlitchTip, `homelab:3001` Umami) are plain http. That works in
+  desktop `vite dev` (http origin) but a native WebView is an https origin, so the
+  http calls are blocked (iOS App Transport Security + Android mixed-content). Expose
+  the tailnet services over https with `tailscale serve`, then inject the https URLs
+  via `VITE_SENTRY_DSN_PLAYER_DEV` / `VITE_UMAMI_SRC_DEV` in `.env.mobile`. Because the
+  ACL caps homelab ports and `:443` already serves Umami (`/umami`), mount GlitchTip on
+  a **path** on 443 (GlitchTip must know its base path), e.g. on the homelab host:
+
+  ```sh
+  tailscale serve --bg --https=443 --set-path=/glitchtip http://127.0.0.1:8090
+  tailscale serve status   # confirm the mapping + that the cert issued
+  ```
+
+  then in `.env.mobile`:
+
+  ```sh
+  VITE_SENTRY_DSN_PLAYER_DEV=https://<key>@homelab.<tailnet>.ts.net/glitchtip/8
+  VITE_UMAMI_SRC_DEV=https://homelab.<tailnet>.ts.net/umami/script.js
+  ```
+
+  This is the cause-fix (ADR-126 already does exactly this for prod Umami); no ATS
+  exception or Android cleartext hack is shipped. Verify the ingest actually lands
+  in GlitchTip after the first on-device dev-tier run — subpath routing depends on
+  your `tailscale serve` path-strip + GlitchTip base-URL config.
 
 ---
 
