@@ -37,7 +37,11 @@ def recent_errors(
     ``is:unresolved`` filter so a run's *full* error picture surfaces for correlation).
     """
     if not target.sentry_token:
-        return err(_SOURCE, "sentry token not set (PODCAST_OBS_SENTRY_TOKEN)", configured=False)
+        return err(
+            _SOURCE,
+            "sentry token not set (PODCAST_OBS_SENTRY_TOKEN or SENTRY_AUTH_TOKEN)",
+            configured=False,
+        )
     if not target.sentry_org or not target.sentry_projects:
         return err(_SOURCE, "sentry org/projects not set", configured=False)
     headers = {"Authorization": f"Bearer {target.sentry_token}"}

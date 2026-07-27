@@ -120,7 +120,9 @@ class ObservabilityConfig:
             github_token=_env("GITHUB_TOKEN"),
             sentry_org=_env("SENTRY_ORG"),
             sentry_projects=projects,
-            sentry_token=_env("SENTRY_TOKEN"),
+            # Falls back to the platform's own SENTRY_AUTH_TOKEN (the existing GH secret) so the
+            # GlitchTip issue-link (permalink) pivot works from the same env, no PODCAST_OBS_ dup.
+            sentry_token=_env("SENTRY_TOKEN") or _bare("SENTRY_AUTH_TOKEN"),
             sentry_environment=_env("SENTRY_ENV") or "prod",
             sentry_url=_env("SENTRY_URL") or _origin(_dsn),
             grafana_url=_env("GRAFANA_URL"),

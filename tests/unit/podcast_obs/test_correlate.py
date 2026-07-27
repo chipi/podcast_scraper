@@ -105,11 +105,12 @@ def test_correlate_joins_and_degrades_per_source(monkeypatch: pytest.MonkeyPatch
         "llm_trace",
         "cost",
         "errors",
+        "error_issues",
         "logs",
         "enrichment_events",
     }
     assert "llm_trace" in d["live"]  # langfuse answered
-    assert {"trace", "cost", "errors", "logs", "enrichment_events"} <= set(
+    assert {"trace", "cost", "errors", "error_issues", "logs", "enrichment_events"} <= set(
         d["unconfigured"]
     )  # all degraded independently
 

@@ -99,7 +99,10 @@ def test_errors_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     target = _t(sentry_token="x", sentry_org="acme", sentry_projects=("api",))
     data = sentry.recent_errors(target)["data"]
     assert data["total_issues"] == 1
-    assert data["projects"][0]["issues"][0]["title"] == "KeyError: x"
+    issue = data["projects"][0]["issues"][0]
+    assert issue["title"] == "KeyError: x"
+    # the pivot handle: each issue carries its GlitchTip UI permalink so an agent can click through.
+    assert issue["permalink"] == "https://sentry/x"
 
 
 def test_errors_all_projects_failing_is_not_ok(monkeypatch: pytest.MonkeyPatch) -> None:

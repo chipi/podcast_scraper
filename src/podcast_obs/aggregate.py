@@ -238,6 +238,10 @@ _CORRELATORS: list[tuple[str, Callable[[TargetConfig, str], dict]]] = [
             target, level="error", contains=f"run={run_id}", window="24h", limit=100
         ),
     ),
+    # GlitchTip issues tagged with this run (SDK-captured exceptions) — each carries a `permalink`
+    # to the issue in the GlitchTip UI, so an agent can PIVOT from a run into the error's page. The
+    # token-free `errors` above gives the text; this gives the clickable link (needs a read token).
+    ("error_issues", lambda target, run_id: sentry.recent_errors(target, run_id=run_id)),
     # VictoriaLogs: every log line for the run.
     (
         "logs",

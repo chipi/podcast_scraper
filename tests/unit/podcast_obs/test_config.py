@@ -112,6 +112,17 @@ def test_from_env_external_source_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     assert target.env_label == "drill"
 
 
+def test_sentry_token_falls_back_to_auth_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The GlitchTip issue-link pivot reuses the platform's existing SENTRY_AUTH_TOKEN when the
+    # PODCAST_OBS_ one isn't set; an explicit PODCAST_OBS_SENTRY_TOKEN still wins.
+    _clear_obs_env(monkeypatch)
+    monkeypatch.delenv("PODCAST_OBS_SENTRY_TOKEN", raising=False)
+    monkeypatch.setenv("SENTRY_AUTH_TOKEN", "gh-secret-tok")
+    assert ObservabilityConfig.from_env().target().sentry_token == "gh-secret-tok"
+    monkeypatch.setenv("PODCAST_OBS_SENTRY_TOKEN", "explicit")
+    assert ObservabilityConfig.from_env().target().sentry_token == "explicit"
+
+
 def test_from_env_bad_timeout_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_obs_env(monkeypatch)
     monkeypatch.setenv("PODCAST_OBS_TIMEOUT", "notanumber")
