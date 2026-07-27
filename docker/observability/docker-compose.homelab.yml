@@ -1,0 +1,50 @@
+# Homelab deployment of the podcast-obs MCP control plane — an always-on, tailnet-reachable
+# observability endpoint any agentic tool connects to. Pulls the CI-published image (obs-image.yml),
+# reads the homelab backends, and is READ-ONLY (PODCAST_OBS_ALLOW_WRITES unset → mutating tools
+# refuse). Full runbook: docs/guides/OBS_MCP_HOMELAB_DEPLOY.md
+#
+#   1. cp .env.homelab.example .env.homelab      # fill the read tokens (gitignored)
+#   2. docker compose -f docker-compose.homelab.yml --env-file .env.homelab up -d
+#   3. on the homelab HOST, front it over the tailnet as HTTPS (no public exposure):
+#        tailscale serve --bg --https=443 --set-path /obs http://127.0.0.1:8848
+#      → agents connect to  https://homelab.<tailnet>/obs
+
+services:
+  podcast-obs:
+    image: ${OBS_IMAGE:-ghcr.io/chipi/podcast-obs:latest}
+    pull_policy: always          # pin a :sha-<...> tag instead for a reproducible deploy
+    environment:
+      # env-sharing: podcast_obs derives its READ endpoints from the platform's own ship vars, so
+      # there's no parallel URL set to drift. Defaults target the homelab tailnet IP; if you put
+      # this container on the Victoria stack's docker network, swap to container names for one hop
+      # less (e.g. http://victorialogs:9428).
+      PODCAST_LOGS_PUSH_URL: ${PODCAST_LOGS_PUSH_URL:-http://100.87.33.61:9428/insert/jsonline}
+      PODCAST_METRICS_PUSH_URL: ${PODCAST_METRICS_PUSH_URL:-http://100.87.33.61:8428/api/v1/import/prometheus}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://100.87.33.61:10428/insert/opentelemetry/v1/traces}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://100.87.33.61:4000}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      # Errors: text is token-free (VictoriaLogs). SENTRY_AUTH_TOKEN adds the GlitchTip issue-link
+      # pivot (needs event:read/project:read scope). Optional.
+      PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
+      SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+      PODCAST_OBS_SENTRY_ORG: ${PODCAST_OBS_SENTRY_ORG:-homelab}
+      PODCAST_OBS_SENTRY_PROJECTS: ${PODCAST_OBS_SENTRY_PROJECTS:-podcast,player}
+      # Umami user-action analytics on the operator surface. Optional (per-env website id).
+      PODCAST_OBS_UMAMI_URL: ${PODCAST_OBS_UMAMI_URL:-http://100.87.33.61:3001}
+      PODCAST_OBS_UMAMI_WEBSITE_ID: ${PODCAST_OBS_UMAMI_WEBSITE_ID:-}
+      PODCAST_OBS_UMAMI_TOKEN: ${PODCAST_OBS_UMAMI_TOKEN:-}
+      # The deployed API (health/version/runs/enrichment tools) — the prod tailnet name.
+      PODCAST_OBS_API_BASE: ${PODCAST_OBS_API_BASE:-http://prod-podcast:8080}
+      # READ-ONLY on purpose: do NOT set PODCAST_OBS_ALLOW_WRITES here.
+    ports:
+      # Bind to localhost only — `tailscale serve` on the host fronts it as HTTPS on the tailnet.
+      # There is no public exposure and no container port on the LAN.
+      - "127.0.0.1:8848:8848"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8848), 3).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

@@ -227,6 +227,8 @@ data/query_router.joblib
 # Dev observability secrets (GlitchTip DSN + Langfuse keys pointing at the homelab).
 # Template committed as .env.obs.dev.example; the real keys stay local-only.
 .env.obs.dev
+# Homelab obs-MCP deploy read tokens (template committed as .env.homelab.example).
+.env.homelab
 
 # Local ML model cache - ignore all contents except README.md
 .cache/*

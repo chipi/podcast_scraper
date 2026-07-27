@@ -32,6 +32,7 @@ nav:
       - Observability runbook (operate/debug + current state): guides/OBSERVABILITY_RUNBOOK.md
       - Observability architecture (emit/ship, ADR-119): guides/OBSERVABILITY_ARCHITECTURE.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
+      - Obs MCP homelab deploy (agent-reachable): guides/OBS_MCP_HOMELAB_DEPLOY.md
       - Observability extensions (optional 3rd-party o11y): guides/OBSERVABILITY_EXTENSIONS.md
       - GHCR image retention (#802): operations/GHCR_RETENTION.md
       - DGX model catalog (RFC-089 / ADR-098): operations/DGX_MODEL_CATALOG.md
