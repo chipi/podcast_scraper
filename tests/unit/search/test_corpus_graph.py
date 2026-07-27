@@ -353,6 +353,41 @@ def test_reconcile_names_unnamed_host_from_sibling_episode():
     assert "episode:u3" in g.neighbors("person:katie-martin")
 
 
+def test_reconcile_collapses_host_spelling_variants():
+    # B1 (#1190): the same recurring host spelled two ways across episodes (Planet Money's
+    # "Erica Barris" / "Erika Barris") — no metadata anchor, so the per-episode roster can't unify
+    # them. The dominant spelling (more episodes) wins; the variant is collapsed into it.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:pm", "episode:p1", host_id="person:erica-barris", host_name="Erica Barris"
+        ),
+        _kg_episode(
+            "podcast:pm", "episode:p2", host_id="person:erica-barris", host_name="Erica Barris"
+        ),
+        _kg_episode(
+            "podcast:pm", "episode:p3", host_id="person:erika-barris", host_name="Erika Barris"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:erika-barris") is None  # minority variant collapsed
+    dom = g.get_node("person:erica-barris")
+    assert dom is not None and dom.payload["name"] == "Erica Barris"
+    assert "episode:p3" in g.neighbors("person:erica-barris")  # inherits the variant's episode
+
+
+def test_reconcile_does_not_merge_distinct_same_surname_hosts():
+    # Two DIFFERENT people who merely share a surname (first names far apart) must NOT be merged.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:x", "episode:x1", host_id="person:robert-pape", host_name="Robert Pape"
+        ),
+        _kg_episode("podcast:x", "episode:x2", host_id="person:karen-pape", host_name="Karen Pape"),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:robert-pape") is not None
+    assert g.get_node("person:karen-pape") is not None
+
+
 def test_reconcile_is_noop_without_flag(tmp_path):
     corpus = tmp_path
     (corpus / "u1.kg.json").write_text(

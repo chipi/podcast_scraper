@@ -280,6 +280,9 @@ class CorpusGraph:
                 for voice_id in voices:
                     self._nodes[voice_id].payload["recurring_host_note"] = note
 
+        # B1 (#1190): collapse cross-episode spelling variants of a NAMED host within each feed.
+        merge_map.update(self._collapse_host_name_variants(named))
+
         if merge_map:
             self._apply_identity_map(merge_map)
 
@@ -311,6 +314,61 @@ class CorpusGraph:
                 else:
                     named[pod][pid].add(ep)
         return named, unnamed_pods, unnamed_eps
+
+    @staticmethod
+    def _name_edit_distance(a: str, b: str) -> int:
+        """Levenshtein distance (small inline copy — avoids coupling search to the roster)."""
+        if a == b:
+            return 0
+        prev = list(range(len(b) + 1))
+        for i, ca in enumerate(a, 1):
+            cur = [i]
+            for j, cb in enumerate(b, 1):
+                cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+            prev = cur
+        return prev[-1]
+
+    @classmethod
+    def _same_person_variant(cls, a: str, b: str) -> bool:
+        """Two host names that are spelling variants of ONE person: shared surname (exact or edit≤1)
+        + a near first name (edit≤2), and not identical. Conservative — never merges two distinct
+        people (different surname or a first name more than a typo apart)."""
+        at, bt = a.split(), b.split()
+        if len(at) < 2 or len(bt) < 2 or a.lower() == b.lower():
+            return False
+        surname_ok = at[-1].lower() == bt[-1].lower() or (
+            cls._name_edit_distance(at[-1].lower(), bt[-1].lower()) <= 1
+        )
+        first_ok = cls._name_edit_distance(at[0].lower(), bt[0].lower()) <= 2
+        return surname_ok and first_ok
+
+    def _collapse_host_name_variants(
+        self, named: "Dict[str, Dict[str, Set[str]]]"
+    ) -> Dict[str, str]:
+        """B1 (#1190): within a feed, collapse spelling-variant NAMED hosts onto the dominant
+        spelling — the cross-episode consistency the per-episode roster cannot reach (each episode
+        is diarized/named in isolation, so a recurring host with no metadata reference can surface
+        as "Erica Barris" in one episode and "Erika Barris" in another). The spelling with the most
+        episodes wins (ties: the longer/lexicographically-first name). Distinct people are never
+        merged (see :meth:`_same_person_variant`)."""
+        merge: Dict[str, str] = {}
+        for hosts in named.values():
+            items = [
+                (pid, str(self._nodes[pid].payload.get("name") or ""), len(eps))
+                for pid, eps in hosts.items()
+            ]
+            items = [it for it in items if len(it[1].split()) >= 2]
+            # canonical-first: most episodes, then longer name, then lexicographic
+            items.sort(key=lambda x: (-x[2], -len(x[1]), x[1]))
+            for i, (pid_i, name_i, _n) in enumerate(items):
+                if pid_i in merge:
+                    continue
+                for pid_j, name_j, _m in items[i + 1 :]:
+                    if pid_j in merge:
+                        continue
+                    if self._same_person_variant(name_i, name_j):
+                        merge[pid_j] = pid_i
+        return merge
 
     def _host_person_episodes(self, pid: str, node: Any) -> Optional[List[str]]:
         """Episodes a ``role == "host"`` Person node owns, or None when it isn't a host voice."""
