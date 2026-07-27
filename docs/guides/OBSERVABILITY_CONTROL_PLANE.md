@@ -71,7 +71,7 @@ targets:
       loki_token_env: PODCAST_OBS_LOKI_TOKEN    # VictoriaLogs read token (if auth enabled)
 ```
 
-### Tokens and scopes (read-only — the control plane never mutates)
+### Tokens and scopes (read-only by default; the two write tools are gated, see MCP section)
 
 | Source | Credential | Scope / gotcha |
 | --- | --- | --- |
@@ -109,10 +109,31 @@ lines the Sentry SDK never wrapped.
 
 ## MCP server (agent-facing)
 
-Same probes, exposed as 11 tools (`prod_health`, `prod_version`, `prod_recent_runs`,
-`prod_recent_deploys`, `prod_cost_today`, `prod_recent_logs`, `prod_recent_errors`,
-`prod_recent_alerts`, `prod_recent_traces`, `prod_summary`, `prod_correlate`) — each takes an
-optional `target`.
+Exposed as **27 tools** (`_build_tools`), each taking an optional `target`. The two verb tools are
+the primary agentic surface:
+
+- **`obs_surface(surface=api|pipeline|player|operator)`** — observe one surface: RED metrics
+  (VictoriaMetrics), errors (GlitchTip), error logs + traces (VictoriaLogs / VictoriaTraces), and —
+  for the pipeline — the per-stage `pipeline_stage` rollup + LLM cost.
+- **`obs_investigate(trace_id|run_id|episode_id)`** — drill on one join key across every backend
+  (span tree, logs, cost, errors, `pipeline_stage`).
+
+Raw signals: `obs_events` (the `emit_event` stream — `pipeline_stage` / `llm_cost` / `search_query`
+in VictoriaLogs), `obs_metrics` (PromQL), `obs_traces` (VictoriaTraces spans). Plus the deploy
+probes (`prod_health` / `prod_version` / `prod_resilience` / `prod_recent_runs` / `prod_recent_deploys`
+/ `prod_usage` / `prod_cost_today` / `prod_recent_logs` / `prod_recent_errors` / `prod_recent_alerts`
+/ `prod_recent_traces` / `prod_run_summary` / `prod_summary` / `prod_correlate`) and the RFC-088
+`enrichment_*` tools.
+
+**Backends (current stack).** The Victoria* sources point at the self-hosted homelab box
+(VictoriaLogs / VictoriaMetrics / VictoriaTraces); the errors source points at GlitchTip via
+`sentry_url`. Configure with `victorialogs_url` / `victoriametrics_url` / `victoriatraces_url` /
+`victoria_token` / `sentry_url` (env `PODCAST_OBS_*` or a YAML `victoria:` / `sentry.url` block). The
+legacy Grafana-Cloud-Loki / Sentry-SaaS / Langfuse-Cloud sources remain available behind their own
+config for a legacy target.
+
+**Not read-only.** `enrichment_re_enable` / `enrichment_cancel` **mutate** deploy state and are gated
+behind `PODCAST_OBS_ALLOW_WRITES=1` (default off → they refuse). Everything else is read-only.
 
 ```bash
 python -m podcast_obs serve --transport stdio                       # local agent

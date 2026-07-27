@@ -14,8 +14,10 @@ import without the MCP SDK installed (it rides in the ``[observability]`` extra)
 
 from __future__ import annotations
 
+import os
 from typing import Any, Callable, Optional
 
+from . import __version__
 from .aggregate import (
     correlate as _correlate,
     investigate as _investigate,
@@ -24,19 +26,34 @@ from .aggregate import (
 )
 from .config import ObservabilityConfig, ObservabilityConfigError, TargetConfig
 from .result import err
-from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry
+from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry, victoria
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8848
 
+# Bump the tool-schema suffix when the tool surface changes shape (added the current-stack sources +
+# obs_surface/obs_investigate/obs_events verbs). Lets an agent negotiate compatibility.
+_VERSION_TAG = f"podcast_obs {__version__} (tools v2)"
+
+
+def _writes_allowed() -> bool:
+    """Mutating tools are OFF unless PODCAST_OBS_ALLOW_WRITES is explicitly set — the control plane
+    is observe-first, so a read-only agent can't accidentally re-enable/cancel a deploy job."""
+    return os.environ.get("PODCAST_OBS_ALLOW_WRITES", "").strip().lower() in {"1", "true", "yes"}
+
+
 _INSTRUCTIONS = (
-    "Read-only prod observability control plane. Tools answer 'what is a deploy doing right "
-    "now?' — health, version, recent pipeline runs and deploys, today's LLM cost, recent error "
-    "logs (Loki) and Sentry issues, current Grafana alerts, and recent Langfuse LLM traces. "
-    "Each tool takes an optional "
+    "Observability control plane for the podcast deploys. Mostly read-only; two enrichment tools "
+    "(enrichment_re_enable, enrichment_cancel) MUTATE deploy state and are gated behind "
+    "PODCAST_OBS_ALLOW_WRITES=1 (default off → they refuse). "
+    "Observe a whole surface with obs_surface(surface=api|pipeline|player|operator); drill on a "
+    "join key with obs_investigate(trace_id|run_id|episode_id). Reach raw signals with obs_events "
+    "(the emit_event stream: pipeline_stage / llm_cost / search_query in VictoriaLogs), "
+    "obs_metrics (PromQL / VictoriaMetrics), obs_traces (VictoriaTraces spans). Plus health/runs/"
+    "deploys, cost, error logs + errors, alerts, and Langfuse LLM traces. Each tool takes optional "
     "`target` (a configured deploy name; omit for the default). Results are uniform envelopes: "
-    "{ok, source, data|error, configured}; configured=false means that source isn't wired for "
-    "the target. Compose with other MCP servers (e.g. Grafana) for deeper drill-down."
+    "{ok, source, data|error, configured}; configured=false means that source isn't wired for the "
+    f"target. Schema/version: {_VERSION_TAG}. Compose with a Grafana MCP for deep dashboards."
 )
 
 
@@ -55,8 +72,12 @@ def _run(
     return probe(resolved, **kwargs)
 
 
-def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
-    """The MCP tool callables (closures over *config*). Returned for direct testing."""
+def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # noqa: C901
+    """The MCP tool callables (closures over *config*). Returned for direct testing.
+
+    Deliberately one function of many tiny closures (a registration table), not complex logic — the
+    C901 count just reflects the number of tools.
+    """
 
     def prod_health(target: Optional[str] = None) -> dict:
         """Full /api/health for a deploy (status, code/corpus versions, feature flags)."""
@@ -167,6 +188,48 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
             ),
         )
 
+    def obs_events(
+        event_type: str,
+        target: Optional[str] = None,
+        surface: Optional[str] = None,
+        run_id: Optional[str] = None,
+        episode_id: Optional[str] = None,
+        window: str = "1h",
+        limit: int = 50,
+    ) -> dict:
+        """Query the canonical emit_event stream in VictoriaLogs by `event_type`
+        (`pipeline_stage` per-stage cost/quality/versions, `llm_cost`, `search_query`). Optional
+        `surface` (api/pipeline), `run_id`, `episode_id` scope it. This is how an agent reaches the
+        per-episode processing signal (RFC-109) and correlates it."""
+        return _run(
+            config,
+            target,
+            victoria.events,
+            event_type=event_type,
+            surface=surface,
+            run_id=run_id,
+            episode_id=episode_id,
+            window=window,
+            limit=limit,
+        )
+
+    def obs_metrics(query: str, target: Optional[str] = None) -> dict:
+        """Run one PromQL instant query against VictoriaMetrics (raw RED/resource metrics)."""
+        return _run(config, target, victoria.metrics_instant, query=query)
+
+    def obs_traces(
+        service: str, target: Optional[str] = None, window: str = "1h", limit: int = 10
+    ) -> dict:
+        """Recent VictoriaTraces spans for a Jaeger service (podcast-api / podcast-pipeline) — the
+        general request/span traces Langfuse (LLM-only) doesn't cover."""
+        return _run(
+            config, target, victoria.traces_recent, service=service, window=window, limit=limit
+        )
+
+    def prod_run_summary(target: Optional[str] = None) -> dict:
+        """Last completed enrichment run summary (`/api/enrichment/run-summary`)."""
+        return _run(config, target, enrichment.run_summary)
+
     # --- RFC-088 enrichment-layer tools --------------------------------------------
 
     def enrichment_run_status(target: Optional[str] = None) -> dict:
@@ -222,8 +285,11 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         target: Optional[str] = None,
         reason: Optional[str] = None,
     ) -> dict:
-        """Clear `auto_disabled` for an enricher and zero `consecutive_failures` after a
-        transient outage. `reason` is appended to the health audit trail."""
+        """MUTATES deploy state. Clear `auto_disabled` for an enricher and zero
+        `consecutive_failures` after a transient outage. `reason` is appended to the health audit
+        trail. Gated behind PODCAST_OBS_ALLOW_WRITES=1."""
+        if not _writes_allowed():
+            return err("writes-disabled", "mutating tool off; set PODCAST_OBS_ALLOW_WRITES=1")
         return _run(
             config,
             target,
@@ -233,8 +299,11 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         )
 
     def enrichment_cancel(job_id: str, target: Optional[str] = None) -> dict:
-        """Cancel a running or queued enrichment job by id (command_type-agnostic
-        cancel — works because the jobs registry doesn't distinguish kinds)."""
+        """MUTATES deploy state. Cancel a running or queued enrichment job by id (command_type-
+        agnostic — works because the jobs registry doesn't distinguish kinds). Gated behind
+        PODCAST_OBS_ALLOW_WRITES=1."""
+        if not _writes_allowed():
+            return err("writes-disabled", "mutating tool off; set PODCAST_OBS_ALLOW_WRITES=1")
         return _run(config, target, enrichment.cancel, job_id=job_id)
 
     return [
@@ -253,6 +322,10 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         prod_correlate,
         obs_surface,
         obs_investigate,
+        obs_events,
+        obs_metrics,
+        obs_traces,
+        prod_run_summary,
         enrichment_run_status,
         enrichment_recent_runs,
         enrichment_health,

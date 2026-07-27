@@ -33,6 +33,10 @@ def test_tool_table_names_and_count() -> None:
         "prod_correlate",
         "obs_surface",
         "obs_investigate",
+        "obs_events",
+        "obs_metrics",
+        "obs_traces",
+        "prod_run_summary",
         "enrichment_run_status",
         "enrichment_recent_runs",
         "enrichment_health",
@@ -105,6 +109,7 @@ def test_enrichment_recent_runs_filters_to_corpus_enrichment(
 
 
 def test_enrichment_re_enable_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PODCAST_OBS_ALLOW_WRITES", "1")  # mutating tool now gated
     seen: dict = {}
 
     def fake_post(url, *, json=None, **_):
@@ -121,6 +126,7 @@ def test_enrichment_re_enable_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_enrichment_cancel_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PODCAST_OBS_ALLOW_WRITES", "1")  # mutating tool now gated
     monkeypatch.setattr(
         enrichment, "post_json", lambda url, **_: {"job_id": "j7", "status": "cancelled"}
     )
@@ -204,3 +210,21 @@ def test_enrichment_source_command_type_constant_matches_server_jobs() -> None:
     from podcast_scraper.server.jobs import COMMAND_ENRICHMENT as server_const
 
     assert obs_const == server_const
+
+
+def test_write_tools_gated_by_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase D: mutating tools refuse unless PODCAST_OBS_ALLOW_WRITES is set (the 'read-only'
+    framing was false — this makes it true by default)."""
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config())}
+    monkeypatch.delenv("PODCAST_OBS_ALLOW_WRITES", raising=False)
+    r = tools["enrichment_re_enable"]("some-enricher")
+    assert r["ok"] is False and "PODCAST_OBS_ALLOW_WRITES" in r["error"]
+    r2 = tools["enrichment_cancel"]("job-1")
+    assert r2["ok"] is False and "PODCAST_OBS_ALLOW_WRITES" in r2["error"]
+
+
+def test_instructions_are_honest_about_writes_and_version() -> None:
+    assert "MUTATE" in mcp_server._INSTRUCTIONS
+    assert "PODCAST_OBS_ALLOW_WRITES" in mcp_server._INSTRUCTIONS
+    assert "obs_surface" in mcp_server._INSTRUCTIONS
+    assert mcp_server._VERSION_TAG in mcp_server._INSTRUCTIONS
