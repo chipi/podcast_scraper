@@ -81,7 +81,7 @@ targets:
 | `sentry` | a Sentry **auth token** | **Issue & Event: Read** (`event:read`) — `project:read` alone is not enough. **NOT the DSN** (the staged `PROD_SENTRY_DSN_*` can't query the API). `prod_recent_errors`/D2 also want **Release: Admin**. Note: project **slugs** ≠ DSN names (check Settings → Projects; e.g. `podcast-scraper-api`). |
 | `grafana` (alerts) | a Grafana **service-account** token (`glsa_`) | alerting read. Grafana-API only. |
 | `loki` (cost/logs) | `loki_user` + a Cloud **access-policy** token (`glc_`) | **`logs:read`**. A *different token type* from the alerting one — Grafana Cloud splits the data plane (Loki, `glc_`) from the Grafana API (`glsa_`). The agent's `GRAFANA_CLOUD_API_KEY` is `logs:write` and 401s. (Falls back to the grafana token for self-hosted setups where one token serves both.) |
-| `langfuse` (traces) | a Langfuse **public + secret key** pair (Basic auth) | Read-only public API. **SDK-native bare env names** `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` (not `PODCAST_OBS_*`) — the *same* pair the pipeline traces with, so one set drives both emit + probe. `LANGFUSE_BASE_URL` optional (unset = Cloud). |
+| `langfuse` (traces) | a Langfuse **public + secret key** pair (Basic auth) | Read-only public API. **SDK-native bare env names** `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` (not `PODCAST_OBS_*`) — the *same* pair the pipeline traces with, so one set drives both emit + probe. **Always set `LANGFUSE_BASE_URL=http://homelab:4000`** (self-hosted); if unset the SDK silently defaults to **Langfuse Cloud** (billed per event, off-tailnet) — this estate is self-hosted (ADR-0005). |
 
 ## CLI (the basics)
 
@@ -196,8 +196,9 @@ It **coexists** with the own
 solution (Loki `llm_cost` + `corpus_manifest.cost_rollup` + Sentry stay the source of truth for
 cost/ops); Langfuse is additive, not a replacement.
 
-**Two surfaces, one key pair** (`LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`; `LANGFUSE_BASE_URL`
-optional, unset = Cloud — these are the Langfuse SDK's own env names):
+**Two surfaces, one key pair** (`LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`; **always set
+`LANGFUSE_BASE_URL`** — these are the Langfuse SDK's own env names; unset silently defaults to
+Langfuse Cloud):
 
 1. **Pipeline emits** — a hook at the provider cost choke point
    (`record_provider_call_cost`) emits one generation span per LLM call across all 8 providers.
@@ -209,9 +210,10 @@ optional, unset = Cloud — these are the Langfuse SDK's own env names):
 2. **Control plane reads** — the `traces` probe / `prod_recent_traces` MCP tool / Ops-view card
    query the same account back (Basic auth, `httpx` only — no SDK in the light control plane).
 
-Hosting is **decided at enable-time**: point `LANGFUSE_BASE_URL` at Langfuse Cloud or a self-hosted
-instance. Spans never block a run — every tracing entrypoint is wrapped, so a tracing failure is at
-most a missing span plus a debug log.
+Hosting: point `LANGFUSE_BASE_URL` at the **self-hosted homelab instance** (`http://homelab:4000`) —
+never Langfuse Cloud. Leaving it unset falls back to Cloud (billed, off-tailnet), which is the one
+footgun here. Spans never block a run — every tracing entrypoint is wrapped, so a tracing failure is
+at most a missing span plus a debug log.
 
 ## Correlation — one run, every signal (#1053)
 
