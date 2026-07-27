@@ -222,8 +222,11 @@ _CORRELATORS: list[tuple[str, Callable[[TargetConfig, str], dict]]] = [
             target, level="", contains=f"run={run_id}", window="24h", limit=100
         ),
     ),
+    # VictoriaTraces: the run's episode.process spans (the root span stamps run_id) — run→trace
+    # pivot on the current stack, no Langfuse needed.
+    ("trace", lambda target, run_id: victoria.traces_by_run(target, run_id)),
     # Langfuse: per-call model/cost/tokens for the run (supplementary; degrades if keys unset).
-    ("trace", langfuse.trace_by_run),
+    ("llm_trace", langfuse.trace_by_run),
     # RFC-088: enrichment events filtered to this run (supplementary; degrades if API unreachable).
     (
         "enrichment_events",

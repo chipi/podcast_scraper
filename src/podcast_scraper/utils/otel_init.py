@@ -20,6 +20,8 @@ import atexit
 import importlib
 import logging
 import os
+from contextlib import contextmanager
+from typing import Any, Iterator, Optional
 
 _LOGGER = logging.getLogger(__name__)
 _initialized = False
@@ -85,6 +87,46 @@ def init_otel() -> bool:
         os.environ.get("OTEL_RESOURCE_ATTRIBUTES", "?"),
     )
     return True
+
+
+@contextmanager
+def episode_span(
+    *,
+    run_id: Optional[str] = None,
+    episode_id: Optional[str] = None,
+    feed_id: Optional[str] = None,
+    name: str = "episode.process",
+) -> Iterator[Any]:
+    """Root span for ONE episode — the missing link that makes traces pivotable.
+
+    Without a per-episode root span the provider HTTP spans (transcription / diarization / gemini,
+    auto-instrumented by :func:`init_otel`) are parentless and carry no correlation, and
+    ``emit_event`` fires outside any span so its events get no ``trace_id``. Wrapping the episode in
+    this span (a) gives same-thread HTTP spans a parent, (b) stamps ``run_id`` / ``episode_id`` /
+    ``feed_id`` as span attributes so an agent can query VictoriaTraces by run and pivot run→trace,
+    and (c) lets ``emit_event``'s ``_trace_context`` join same-thread events to that trace. (Stages
+    that run in their own executor threads don't inherit the span's context — see the module note.)
+
+    A TRUE no-op unless OTEL tracing is active (env signal + the ``[otel]`` extra); never raises.
+    """
+    if not otel_tracing_enabled():
+        yield None
+        return
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        yield None
+        return
+    attributes = {
+        k: v for k, v in (("run_id", run_id), ("episode_id", episode_id), ("feed_id", feed_id)) if v
+    }
+    try:
+        tracer = trace.get_tracer("podcast_scraper.pipeline")
+        with tracer.start_as_current_span(name, attributes=attributes) as span:
+            yield span
+    except Exception:  # noqa: BLE001 — telemetry must never break episode processing
+        _LOGGER.debug("episode_span failed", exc_info=True)
+        yield None
 
 
 def _reset_for_tests() -> None:

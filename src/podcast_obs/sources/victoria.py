@@ -15,6 +15,7 @@ All functions return the shared ``ok``/``err`` envelope and degrade gracefully w
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Optional
 
@@ -217,6 +218,44 @@ def traces_recent(
     return ok(
         _TRACES,
         {"service": service, "window": window, "count": len(traces or []), "traces": traces or []},
+    )
+
+
+def traces_by_run(
+    target: TargetConfig,
+    run_id: str,
+    *,
+    service: str = "pipeline",
+    window: str = "24h",
+    limit: int = 20,
+) -> dict:
+    """Traces for a ``run_id`` — filters the Jaeger API by the ``run_id`` span tag.
+
+    The pipeline's per-episode ``episode.process`` root span stamps ``run_id`` / ``episode_id`` /
+    ``feed_id`` as attributes (``otel_init.episode_span``), so this is the run→trace pivot on the
+    current stack: an agent investigating a run gets its episode spans without needing Langfuse.
+    """
+    base = target.victoriatraces_url
+    if not base:
+        return err(_TRACES, "victoriatraces_url not configured", configured=False)
+    end_us = int(time.time() * 1_000_000)
+    start_us = end_us - _window_seconds(window) * 1_000_000
+    url = f"{base.rstrip('/')}/select/jaeger/api/traces"
+    params = {
+        "service": service,
+        "limit": max(limit, 1),
+        "start": start_us,
+        "end": end_us,
+        "tags": json.dumps({"run_id": run_id}),
+    }
+    try:
+        data = get_json(url, params=params, headers=_headers(target), timeout=target.timeout)
+    except Exception as exc:  # noqa: BLE001
+        return err(_TRACES, f"victoriatraces query failed: {exc}")
+    traces = data.get("data") if isinstance(data, dict) else None
+    return ok(
+        _TRACES,
+        {"run_id": run_id, "service": service, "count": len(traces or []), "traces": traces or []},
     )
 
 

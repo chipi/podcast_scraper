@@ -188,7 +188,7 @@ def _process_episode_with_retry(
     """
     # #1053 / o11y: bind the episode id for THIS worker so the download stage's logs + incidents
     # carry it (the inline path previously never set it — only the safety-net summarizer did).
-    from ...utils import correlation
+    from ...utils import correlation, otel_init
     from ..helpers import get_episode_id_from_episode
 
     episode = args[0]
@@ -197,7 +197,16 @@ def _process_episode_with_retry(
     except Exception:  # never block processing on correlation
         _corr_ep_id = None
 
-    with correlation.episode_scope(_corr_ep_id):
+    # episode_scope binds the id ContextVar; episode_span opens the root OTEL span that parents the
+    # provider HTTP spans and carries run/episode ids so traces are pivotable (both no-op when off).
+    with (
+        correlation.episode_scope(_corr_ep_id),
+        otel_init.episode_span(
+            run_id=correlation.get_run_id(),
+            episode_id=_corr_ep_id,
+            feed_id=getattr(cfg, "rss_url", None),
+        ),
+    ):
         return _process_episode_with_retry_inner(process_fn, args, cfg, pipeline_metrics, episode)
 
 

@@ -97,6 +97,28 @@ def test_trace_by_id_hits_jaeger_endpoint(monkeypatch) -> None:
     assert seen["url"].endswith("/select/jaeger/api/traces/abc123")
 
 
+def test_traces_by_run_not_configured() -> None:
+    assert victoria.traces_by_run(_t(), "run-1")["configured"] is False
+
+
+def test_traces_by_run_filters_by_run_id_tag(monkeypatch) -> None:
+    # The run→trace pivot: filter the Jaeger API by the run_id span tag (stamped by the
+    # episode.process root span), scoped to the pipeline service.
+    seen = {}
+
+    def _fake(url, **kw):
+        seen["url"] = url
+        seen["params"] = kw["params"]
+        return {"data": [{"traceID": "t1"}]}
+
+    monkeypatch.setattr(victoria, "get_json", _fake)
+    r = victoria.traces_by_run(_t(victoriatraces_url="http://h:10428"), "run-9")
+    assert r["ok"] and r["data"]["count"] == 1 and r["data"]["run_id"] == "run-9"
+    assert seen["url"].endswith("/select/jaeger/api/traces")
+    assert seen["params"]["service"] == "pipeline"
+    assert seen["params"]["tags"] == '{"run_id": "run-9"}'
+
+
 # --- GlitchTip base-url (errors source) --------------------------------------------
 
 
