@@ -10,8 +10,29 @@ land the v1.2 / v2.0 transitions and remain stable.
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
+
+# ADR-133/#1220: an unresolved diarization voice, by id or name (mirrors
+# enrichment._loaders._SPEAKER_PLACEHOLDER_PATTERN; kept local so migrations stay self-contained).
+_SPEAKER_PLACEHOLDER_RE = re.compile(
+    r"^(?:person:)?speaker[_\-]?\d+$" r"|^person:speaker-.+-\d+$",
+    re.IGNORECASE,
+)
+
+
+def _is_unresolved_voice(node: Dict[str, Any]) -> bool:
+    """True when a Person node is really an unresolved diarization voice (by id or name)."""
+    if not isinstance(node, dict) or node.get("type") != "Person":
+        return False
+    nid = node.get("id")
+    if isinstance(nid, str) and _SPEAKER_PLACEHOLDER_RE.match(nid):
+        return True
+    props = node.get("properties")
+    name = props.get("name") if isinstance(props, dict) else None
+    return bool(isinstance(name, str) and _SPEAKER_PLACEHOLDER_RE.match(name))
+
 
 #: RFC-097 v3.0 vocab — must stay in sync with gi.schema.json + gi/pipeline.py.
 _V3_INSIGHT_TYPES = frozenset({"claim", "recommendation", "observation", "question", "unknown"})
@@ -327,4 +348,44 @@ def compute_position_hints_for_document(
         if ph_value is not None:
             props["position_hint"] = ph_value
         # Otherwise leave whatever was there alone (step 4: skip).
+    return out
+
+
+def migrate_kg_document_v2_1(data: Dict[str, Any]) -> Dict[str, Any]:
+    """ADR-133/#1220: retype unresolved-voice ``Person`` nodes (``person:speaker-NN``) to ``Voice``
+    and bump ``schema_version`` to ``2.1``.
+
+    Applies ``migrate_kg_document_v2`` first (1.x/2.0 → 2.0 typed), then retypes. Edges are
+    untouched (ids unchanged), so SPOKEN_BY stays intact. Idempotent: a 2.1 artifact whose voices
+    are already ``Voice`` passes through unchanged.
+    """
+    out = migrate_kg_document_v2(data)
+    nodes = out.get("nodes")
+    if isinstance(nodes, list):
+        for n in nodes:
+            if _is_unresolved_voice(n):
+                n["type"] = "Voice"
+                props = n.get("properties")
+                if isinstance(props, dict):
+                    props.pop("description", None)  # voice_node carries no description
+    if out.get("schema_version") == "2.0":
+        out["schema_version"] = "2.1"
+    return out
+
+
+def migrate_gi_document_v3_1(data: Dict[str, Any]) -> Dict[str, Any]:
+    """ADR-133/#1220: retype unresolved-voice ``Person`` nodes to ``Voice`` in a GI artifact and
+    bump ``schema_version`` to ``3.1``.
+
+    Applies ``migrate_gi_document_v3`` first. SPOKEN_BY edges keep pointing at the same id.
+    Idempotent.
+    """
+    out = migrate_gi_document_v3(data)
+    nodes = out.get("nodes")
+    if isinstance(nodes, list):
+        for n in nodes:
+            if _is_unresolved_voice(n):
+                n["type"] = "Voice"
+    if out.get("schema_version") == "3.0":
+        out["schema_version"] = "3.1"
     return out
