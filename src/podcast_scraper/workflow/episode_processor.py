@@ -620,6 +620,48 @@ def _save_speaker_diagnostics_file(
         logger.warning("Could not save speaker diagnostics %s: %s", diag_path, e)
 
 
+def _save_asr_provenance_file(
+    result: Optional[Dict[str, Any]],
+    cfg: config.Config,
+    rel_transcript_path: str,
+    effective_output_dir: str,
+) -> None:
+    """ADR-129: record the ACTUAL per-episode ASR model + speech coverage next to the transcript.
+
+    ``<base>.asr.json``. The pipeline otherwise records only the CONFIGURED transcription model, so
+    a speech-coverage failover (turbo -> large-v3) left no per-episode trace of which model actually
+    produced the transcript. This closes that provenance gap: the few episodes turbo dropped speech
+    on are recorded as the failover model, the rest as the primary. No-op when the gate did not run
+    (off, or no diarization speech denominator) so there is nothing meaningful to record.
+    """
+    if not isinstance(result, dict) or not rel_transcript_path:
+        return
+    cov = result.get("asr_speech_coverage")
+    failover = result.get("speech_coverage_failover")
+    if cov is None and not failover:
+        return
+    provenance: Dict[str, Any] = {
+        "model": (
+            result.get("model_used")
+            or getattr(cfg, "dgx_whisper_model", None)
+            or getattr(cfg, "transcription_provider", None)
+        ),
+        "speech_coverage": cov,
+        "failed_over": bool(failover),
+    }
+    if failover:
+        provenance["speech_coverage_failover"] = failover
+    full_path = os.path.join(effective_output_dir, rel_transcript_path)
+    base, _ = os.path.splitext(full_path)
+    asr_path = base + ".asr.json"
+    try:
+        with open(asr_path, "w", encoding="utf-8") as f:
+            json.dump(provenance, f, indent=2, allow_nan=False)
+        logger.debug("Saved ASR provenance: %s", asr_path)
+    except OSError as e:
+        logger.warning("Could not save ASR provenance %s: %s", asr_path, e)
+
+
 def _maybe_produce_adfree(
     cfg: config.Config,
     text: str,
@@ -1863,6 +1905,7 @@ def _maybe_speech_coverage_failover(
 
     covered = merged_speech_seconds(result.get("segments") or [])
     speech_cov = min(1.0, covered / speech)
+    result["asr_speech_coverage"] = round(speech_cov, 3)
     primary_model = getattr(cfg, "dgx_whisper_model", None)
     if speech_cov >= min_cov:
         # Observable pass (ADR-129): log every evaluation so a run shows the gate ran + its
@@ -1924,6 +1967,8 @@ def _maybe_speech_coverage_failover(
         else None
     )
     fo_result["model_used"] = fo_result.get("model_used") or f"{fo_model}:speech_coverage_failover"
+    if fo_cov is not None:
+        fo_result["asr_speech_coverage"] = round(fo_cov, 3)
     fo_result["speech_coverage_failover"] = {
         "primary_model": primary_model,
         "primary_speech_coverage": round(speech_cov, 3),
@@ -2122,6 +2167,8 @@ def transcribe_media_to_text(
             text, job, run_suffix, effective_output_dir, pipeline_metrics=pipeline_metrics
         )
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
+        # ADR-129: per-episode ASR provenance (actual model + speech coverage), incl. any failover.
+        _save_asr_provenance_file(result, cfg, rel_path, effective_output_dir)
         segments = result.get("segments") if isinstance(result, dict) else None
         if isinstance(segments, list) and len(segments) > 0:
             _save_transcript_segments_file(segments, rel_path, effective_output_dir)

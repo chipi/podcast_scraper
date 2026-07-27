@@ -2637,6 +2637,45 @@ class TestSpeechCoverageFailover(unittest.TestCase):
         out = self._call(r, self._cfg())
         self.assertNotIn("speech_coverage_failover", out)
 
+    def test_asr_provenance_sidecar_records_actual_model(self):
+        # ADR-129 provenance: <base>.asr.json records the ACTUAL per-episode ASR model + speech
+        # coverage — so a failover episode is on record as the failover model, not the configured.
+        import os
+        import tempfile
+        from types import SimpleNamespace
+
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        open(os.path.join(d, "transcripts", "0006 - X.txt"), "w").close()
+        cfg = SimpleNamespace(
+            dgx_whisper_model="turbo", transcription_provider="tailnet_dgx_whisper"
+        )
+        rel = "transcripts/0006 - X.txt"
+        asr = os.path.join(d, "transcripts", "0006 - X.asr.json")
+
+        # failover episode -> records the failover model + breadcrumb
+        fo = {
+            "asr_speech_coverage": 0.98,
+            "model_used": "Systran/faster-whisper-large-v3:speech_coverage_failover",
+            "speech_coverage_failover": {"primary_speech_coverage": 0.658},
+        }
+        episode_processor._save_asr_provenance_file(fo, cfg, rel, d)
+        rec = json.load(open(asr))
+        self.assertIn("large-v3", rec["model"])
+        self.assertTrue(rec["failed_over"])
+        self.assertEqual(rec["speech_coverage_failover"]["primary_speech_coverage"], 0.658)
+
+        # passing episode -> records the primary model, failed_over False
+        episode_processor._save_asr_provenance_file({"asr_speech_coverage": 0.935}, cfg, rel, d)
+        rec = json.load(open(asr))
+        self.assertEqual(rec["model"], "turbo")
+        self.assertFalse(rec["failed_over"])
+
+        # gate did not run (no coverage) -> no sidecar written
+        os.remove(asr)
+        episode_processor._save_asr_provenance_file({"segments": []}, cfg, rel, d)
+        self.assertFalse(os.path.exists(asr))
+
     @patch("podcast_scraper.providers.ml.diarization.pipeline.apply_diarization_to_result")
     @patch("podcast_scraper.workflow.episode_processor._transcribe_with_segments_maybe_chunked")
     @patch("podcast_scraper.transcription.factory.create_transcription_provider")
