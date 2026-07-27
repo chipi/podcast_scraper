@@ -187,6 +187,19 @@ if not _is_pytest_run():
             # If loading fails, continue without .env file
             pass
 
+    # Dev observability: also load `.env.obs.dev` if present (gitignored; homelab push URLs +
+    # GlitchTip/Langfuse/OTEL). Makes a bare `python -m ...cli` dev run ship the five signals to
+    # VictoriaLogs/Metrics/Traces without a make target or a manual `source` — the prod Docker image
+    # has no such file, so this no-ops there. override=False so an explicit shell env still wins.
+    try:
+        from .cache import get_project_root as _gpr
+
+        _obs_env_path = _gpr() / ".env.obs.dev"
+        if _obs_env_path.exists():
+            load_dotenv(_obs_env_path, override=False)
+    except Exception:  # pragma: no cover - dev convenience only, never fail config import
+        pass
+
 # Import constants from config_constants.py to avoid duplication
 # These are re-exported here for backward compatibility
 DEFAULT_LOG_LEVEL = config_constants.DEFAULT_LOG_LEVEL
