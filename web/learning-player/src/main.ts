@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import * as Sentry from '@sentry/vue'
+import * as Sentry from '@sentry/capacitor'
+import * as SentryVue from '@sentry/vue'
 import './style.css'
 import App from './App.vue'
 import { router } from './router'
@@ -56,22 +57,38 @@ const SENTRY_DSN_PLAYER = nativeDevTier
   ? DEV_SENTRY_DSN_PLAYER
   : import.meta.env.VITE_SENTRY_DSN_PLAYER || (devDefault ? DEV_SENTRY_DSN_PLAYER : '')
 if (SENTRY_DSN_PLAYER) {
-  Sentry.init({
-    app,
-    dsn: SENTRY_DSN_PLAYER,
-    environment: nativeDevTier ? 'dev' : import.meta.env.PROD ? 'prod' : 'dev',
-    release: __BUILD_SHA__ || undefined,
-    // Keep PII off by default.
-    sendDefaultPii: false,
-    // Conservative tracing rate — parity with the viewer.
-    tracesSampleRate: 0.1,
-    // Tag every event so the player stream stays separable from api / pipeline
-    // / viewer in the GlitchTip UI. `platform` (web|ios|android) separates the
-    // native-shell builds from the web player in the same stream (#1310).
-    initialScope: {
-      tags: { component: 'player', platform: platform() },
+  // @sentry/capacitor wraps @sentry/vue: one init drives the JS SDK AND the native
+  // sentry-cocoa / sentry-android SDKs, so a crash in the Swift/Kotlin shell (outside
+  // the WebView) is captured too — not just WebView JS errors. On web the native layer
+  // is a no-op. Vue-specific options live under siblingOptions.vueOptions; SentryVue.init
+  // is forwarded as the 2nd arg. Core options (dsn/environment/release/…) stay top-level.
+  Sentry.init(
+    {
+      dsn: SENTRY_DSN_PLAYER,
+      environment: nativeDevTier ? 'dev' : import.meta.env.PROD ? 'prod' : 'dev',
+      release: __BUILD_SHA__ || undefined,
+      // Keep PII off by default.
+      sendDefaultPii: false,
+      // Conservative tracing rate — parity with the viewer.
+      tracesSampleRate: 0.1,
+      // Tag every event so the player stream stays separable from api / pipeline
+      // / viewer in the GlitchTip UI. `platform` (web|ios|android) separates the
+      // native-shell builds from the web player in the same stream (#1310).
+      initialScope: {
+        tags: { component: 'player', platform: platform() },
+      },
+      siblingOptions: {
+        vueOptions: {
+          app,
+          attachProps: true,
+          // Hook Vue's errorHandler so component render/lifecycle errors are captured.
+          attachErrorHandler: true,
+        },
+      },
     },
-  })
+    // Forward the init method from @sentry/vue.
+    SentryVue.init,
+  )
 }
 
 // Umami analytics for the consumer player — cookieless, privacy-friendly page +
