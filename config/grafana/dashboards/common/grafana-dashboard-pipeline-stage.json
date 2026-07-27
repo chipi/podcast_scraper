@@ -1,0 +1,97 @@
+{
+  "title": "Podcast Scraper — Pipeline stages (RFC-109)",
+  "uid": "podcast-scraper-pipeline-stage",
+  "tags": ["podcast-scraper", "pipeline", "quality", "cost"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "description": "Per-episode processing manifest signal. Requires JSON log lines with event_type=pipeline_stage (RFC-109 / ADR-130), emitted per stage from processing_manifest.update_stage. Correlate by run_id / episode_id.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Per-stage cost mix (30d)",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (stage) (sum_over_time({env=\"prod\"} | json | event_type=\"pipeline_stage\" | unwrap cost_usd [30d]))",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Per-run cost (last 30d)",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (run_id) (sum_over_time({env=\"prod\"} | json | event_type=\"pipeline_stage\" | unwrap cost_usd [30d]))",
+          "legendFormat": "{{run_id}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Per-stage time spent (7d)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (stage) (sum_over_time({env=\"prod\"} | json | event_type=\"pipeline_stage\" | unwrap duration_s [7d]))",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Method-version inventory (reprocess key) — episodes per stage×version",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "description": "Which stage logic produced how many episodes. After shipping an improvement, the rows below the new method_version are exactly the set to reprocess (ADR-130 §Convention 2).",
+      "targets": [
+        {
+          "expr": "count by (stage, method_version) (count_over_time({env=\"prod\"} | json | event_type=\"pipeline_stage\" [30d]))",
+          "legendFormat": "{{stage}} {{method_version}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Flagged stage-writes (24h)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "description": "Stage writes carrying a rework quality_flag (asr_failover / unnamed_dominant_voice / empty_host_anchor / guest_in_title_not_placed / gi_all_gated / asr_speech_coverage_low).",
+      "targets": [
+        {
+          "expr": "count_over_time({env=\"prod\"} | json | event_type=\"pipeline_stage\" | quality_flags:* [24h])",
+          "legendFormat": "flagged"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "ASR failovers (7d)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "targets": [
+        {
+          "expr": "count_over_time({env=\"prod\"} | json | event_type=\"pipeline_stage\" | stage=\"asr\" | quality_flags:*asr_failover* [7d])",
+          "legendFormat": "failovers"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Recent flagged episodes",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "description": "Drill-down: the actual flagged stage writes (episode_id / stage / flags) for triage. Pivot to logs/traces/Sentry by run_id / episode_id.",
+      "targets": [
+        {
+          "expr": "{env=\"prod\"} | json | event_type=\"pipeline_stage\" | quality_flags:*"
+        }
+      ]
+    }
+  ]
+}

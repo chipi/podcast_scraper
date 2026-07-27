@@ -269,6 +269,35 @@ def set_correlation_tags(tags: dict) -> None:
         _LOGGER.debug("sentry set_correlation_tags skipped", exc_info=True)
 
 
+def capture_stage_exception(exc: BaseException, *, stage: str) -> None:
+    """Send a CAUGHT pipeline exception to Sentry, tagged with the stage + run/episode ids (o11y).
+
+    The pipeline swallows most stage failures (``except Exception: logger...``), so they never reach
+    the SDK's automatic capture — a large error-observability blind spot. Call this at a
+    stage-boundary catch to make a swallowed failure an issue in GlitchTip (tagged ``stage`` +
+    ``run_id``/``episode_id`` for triage) while the pipeline still recovers. True no-op when
+    ``sentry-sdk`` isn't installed or Sentry wasn't initialised (no DSN).
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        from .correlation import get_episode_id, get_run_id
+
+        with sentry_sdk.push_scope() as scope:
+            scope.set_tag("stage", stage)
+            run_id = get_run_id()
+            if run_id:
+                scope.set_tag("run_id", run_id)
+            episode_id = get_episode_id()
+            if episode_id:
+                scope.set_tag("episode_id", episode_id)
+            sentry_sdk.capture_exception(exc)
+    except Exception:  # pragma: no cover - never break the pipeline to report an error
+        _LOGGER.debug("sentry capture_stage_exception skipped", exc_info=True)
+
+
 def emit_enrichment_breadcrumb(
     category: str,
     message: str,

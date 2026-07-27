@@ -116,6 +116,12 @@ class Metrics:
     metadata_files_generated: int = 0  # Metadata files created
     gi_artifacts_generated: int = 0  # GIL artifacts (gi.json) written
     gi_failures: int = 0  # GIL artifact generation failures (non-fatal)
+    # Diarization run-level rollups (o11y P1: previously only in the per-episode manifest, invisible
+    # in metrics.json / run.jsonl). Cost is 0 for local diarizers, real USD for cloud (Deepgram).
+    diarization_episodes: int = 0  # episodes that produced a diarization result
+    diarization_speakers_total: int = 0  # Σ detected speakers across episodes
+    diarization_speech_seconds_total: float = 0.0  # Σ diarized speech seconds
+    diarization_cost_usd: float = 0.0  # Σ diarization cost (cloud diarizers)
     kg_artifacts_generated: int = 0  # KG artifacts (kg.json) written
     kg_failures: int = 0  # KG artifact generation failures (non-fatal)
     kg_provider_extractions: int = 0  # KG artifacts that used LLM extraction successfully
@@ -382,6 +388,9 @@ class Metrics:
     _episode_metrics_lock: threading.Lock = field(
         default_factory=threading.Lock, init=False, repr=False
     )  # Thread-safe access to episode_metrics
+    _diarization_lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False
+    )  # Thread-safe diarization rollups (parallel transcription consumers)
 
     # Device usage tracking per stage (Issue #387)
     transcription_device: Optional[str] = None  # Device used for transcription stage
@@ -718,6 +727,27 @@ class Metrics:
             duration: Duration in seconds
         """
         self.gi_times.append(duration)
+
+    def record_diarization(
+        self,
+        *,
+        num_speakers: Optional[int] = None,
+        speech_seconds: Optional[float] = None,
+        cost_usd: Optional[float] = None,
+    ) -> None:
+        """Accumulate one episode's diarization stats into the run rollups (o11y P1, thread-safe).
+
+        Makes diarization visible in ``metrics.json`` / ``run.jsonl`` like every other stage; the
+        per-episode detail still lives in ``<base>.manifest.json``.
+        """
+        with self._diarization_lock:
+            self.diarization_episodes += 1
+            if num_speakers is not None:
+                self.diarization_speakers_total += int(num_speakers)
+            if speech_seconds is not None:
+                self.diarization_speech_seconds_total += float(speech_seconds)
+            if cost_usd is not None:
+                self.diarization_cost_usd += float(cost_usd)
 
     def record_kg_time(self, duration: float) -> None:
         """Record time spent generating KG artifact for an episode.
@@ -1483,6 +1513,10 @@ class Metrics:
             "metadata_files_generated": self.metadata_files_generated,
             "gi_artifacts_generated": self.gi_artifacts_generated,
             "gi_failures": self.gi_failures,
+            "diarization_episodes": self.diarization_episodes,
+            "diarization_speakers_total": self.diarization_speakers_total,
+            "diarization_speech_seconds_total": round(self.diarization_speech_seconds_total, 2),
+            "diarization_cost_usd": round(self.diarization_cost_usd, 6),
             "kg_artifacts_generated": self.kg_artifacts_generated,
             "kg_failures": self.kg_failures,
             "kg_provider_extractions": self.kg_provider_extractions,
@@ -1956,3 +1990,23 @@ class Metrics:
             summary_lines.append(f"  - {readable_key}: {value}")
         summary = "\n".join(summary_lines)
         logger.debug(summary)  # Changed from logger.info() for quieter summaries
+        # o11y P2: one compact INFO line so a default (non-DEBUG) prod run's log stream carries
+        # per-stage signal, not just the 3 scattered INFO lines. Detail stays at DEBUG above.
+        logger.info(self._stage_summary_line(metrics_dict))
+
+    @staticmethod
+    def _stage_summary_line(m: Dict[str, Any]) -> str:
+        """One compact per-stage INFO summary: volume, failures, and cost (o11y P2)."""
+
+        def g(key: str, default: Any = 0) -> Any:
+            return m.get(key, default)
+
+        return (
+            "Stage summary — "
+            f"ASR:{g('transcripts_transcribed')} "
+            f"diar:{g('diarization_episodes')}ep/{g('diarization_speakers_total')}spk "
+            f"summary:{g('episodes_summarized')} "
+            f"GI:{g('gi_artifacts_generated')}(+{g('gi_failures')}f) "
+            f"KG:{g('kg_artifacts_generated')}(+{g('kg_failures')}f) "
+            f"cost:${g('total_stage_cost_usd', 0.0)}"
+        )

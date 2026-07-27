@@ -2124,6 +2124,56 @@ def _maybe_speech_coverage_failover(
     return fo_result
 
 
+def _capture_stage_exception(exc: BaseException, *, stage: str) -> None:
+    """Best-effort Sentry capture for a swallowed stage failure (o11y P1). Never raises."""
+    try:
+        from ..utils.sentry_init import capture_stage_exception
+
+        capture_stage_exception(exc, stage=stage)
+    except Exception:  # pragma: no cover - telemetry must never break the pipeline
+        pass
+
+
+def _bind_episode_correlation(
+    job: TranscriptionJob, cfg: config.Config  # type: ignore[valid-type]
+) -> None:
+    """#1053 / o11y: bind the correlation episode id for this consumer thread.
+
+    The transcription consumer processes one job then the next, each re-binding at entry, so a bare
+    set (no reset) is safe — no id leaks into another episode's emissions. Never blocks on failure.
+    """
+    if job.episode is None:
+        return
+    try:
+        from ..utils import correlation
+        from .helpers import get_episode_id_from_episode
+
+        _corr_ep_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+        correlation.set_episode_id(_corr_ep_id)
+    except Exception:  # never block transcription on correlation
+        pass
+
+
+def _record_episode_diarization(pipeline_metrics: Any, result: Any) -> None:
+    """o11y P1: roll one episode's diarization stats into run-level metrics (metrics.json /
+    run.jsonl), where diarization was previously invisible. Detail stays in the manifest. No-op
+    when diarization did not run or metrics are absent."""
+    if pipeline_metrics is None or not isinstance(result, dict):
+        return
+    num_spk = result.get("diarization_num_speakers")
+    speech_s = result.get("diarization_speech_seconds")
+    if num_spk is None and speech_s is None:
+        return
+    try:
+        pipeline_metrics.record_diarization(
+            num_speakers=num_spk,
+            speech_seconds=speech_s,
+            cost_usd=result.get("diarization_cost_usd"),
+        )
+    except Exception:  # never block transcription on a metrics update
+        logger.debug("record_diarization failed", exc_info=True)
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -2149,6 +2199,10 @@ def transcribe_media_to_text(
         transcript_file_path is relative to effective_output_dir
         bytes_downloaded is the size of the media file downloaded (if any)
     """
+    # #1053 / o11y: bind the episode id for this consumer thread so ASR / diarization / naming logs,
+    # incidents, cost events, and Langfuse spans carry it (see helper).
+    _bind_episode_correlation(job, cfg)
+
     if cfg.dry_run:
         final_path = filesystem.build_whisper_output_path(
             job.idx, job.ep_title_safe, run_suffix, effective_output_dir
@@ -2294,6 +2348,7 @@ def transcribe_media_to_text(
                     job.idx,
                     format_exception_for_log(exc),
                 )
+                _capture_stage_exception(exc, stage="diarization")
             # ADR-129: speech-normalized quality gate — re-transcribe on the failover model if the
             # diarized transcript covers too little of the diarizer's SPEECH (music/ads excluded).
             # No-op unless configured + diarization produced a speech denominator.
@@ -2342,6 +2397,9 @@ def transcribe_media_to_text(
 
         # Record transcription time if metrics available
         _record_transcription_metrics(job, cfg, tc_elapsed, call_metrics, pipeline_metrics)
+
+        # o11y P1: roll this episode's diarization stats into run-level metrics (see helper).
+        _record_episode_diarization(pipeline_metrics, result)
 
         # RFC-109 / ADR-130: per-episode processing manifest (ASR/diarization/naming stage blocks).
         # After metrics recording so the ASR ``estimated_cost`` (cloud providers) is populated.
@@ -2396,6 +2454,7 @@ def transcribe_media_to_text(
             "    Whisper transcription failed: %s",
             format_exception_for_log(exc),
         )
+        _capture_stage_exception(exc, stage="transcription")
         return False, None, bytes_downloaded
     finally:
         _cleanup_temp_media(temp_media, cfg)

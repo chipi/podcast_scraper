@@ -397,5 +397,43 @@ class TestBeforeSendRedaction(unittest.TestCase):
         _before_send({"extra": None, "exception": "nope"}, None)  # must not raise
 
 
+class TestCaptureStageException(unittest.TestCase):
+    """o11y P1: swallowed stage failures reach GlitchTip, tagged stage + run/episode ids."""
+
+    def setUp(self) -> None:
+        self._mock_sdk = MagicMock()
+        self._scope = MagicMock()
+        self._mock_sdk.push_scope.return_value.__enter__.return_value = self._scope
+        self._patch = patch.dict(sys.modules, {"sentry_sdk": self._mock_sdk})
+        self._patch.start()
+        from podcast_scraper.utils import correlation
+
+        correlation.set_run_id("run-x")
+        correlation.set_episode_id("ep-x")
+
+    def tearDown(self) -> None:
+        self._patch.stop()
+        from podcast_scraper.utils import correlation
+
+        correlation.set_run_id(None)
+        correlation.set_episode_id(None)
+
+    def test_captures_with_stage_and_correlation_tags(self) -> None:
+        from podcast_scraper.utils.sentry_init import capture_stage_exception
+
+        exc = ValueError("boom")
+        capture_stage_exception(exc, stage="transcription")
+        self._mock_sdk.capture_exception.assert_called_once_with(exc)
+        self._scope.set_tag.assert_any_call("stage", "transcription")
+        self._scope.set_tag.assert_any_call("run_id", "run-x")
+        self._scope.set_tag.assert_any_call("episode_id", "ep-x")
+
+    def test_no_sentry_sdk_is_noop(self) -> None:
+        with patch.dict(sys.modules, {"sentry_sdk": None}):
+            from podcast_scraper.utils.sentry_init import capture_stage_exception
+
+            capture_stage_exception(ValueError("x"), stage="gi")  # importable → no raise
+
+
 if __name__ == "__main__":
     unittest.main()

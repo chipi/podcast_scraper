@@ -259,7 +259,43 @@ def update_stage(
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, allow_nan=False, sort_keys=False)
         logger.debug("processing_manifest: wrote %s (stage=%s)", path, stage)
-        return path
     except OSError as exc:
         logger.warning("processing_manifest: could not write %s: %s", path, exc)
         return None
+    _emit_stage_event(stage, dict(block), data, list(quality_flags or ()))
+    return path
+
+
+def _emit_stage_event(
+    stage: str, block: Dict[str, Any], data: Mapping[str, Any], flags: Sequence[str]
+) -> None:
+    """Emit one canonical ``pipeline_stage`` observability event per stage write (RFC-109 §4).
+
+    The manifest is a per-episode FILE; this is its backend sink. Each stage write emits a
+    ``pipeline_stage`` event through the vendor-neutral ``emit_event`` (``sink="log"`` → stdout →
+    Alloy → VictoriaLogs), correlated by ``episode_id``/``run_id`` so the per-episode quality + cost
+    signal is queryable in Grafana alongside logs/traces/cost — not a dead sidecar. Best-effort:
+    ``emit_event`` never raises, and this whole call is additionally guarded.
+    """
+    try:
+        from ..obs.events import emit_event
+
+        emit_event(
+            "pipeline_stage",
+            stage=stage,
+            episode_id=data.get("episode_id"),
+            feed_id=data.get("feed_id"),
+            run_id=data.get("run_id"),
+            git_sha=data.get("git_sha"),
+            pipeline_composition_version=data.get("pipeline_composition_version"),
+            ran=block.get("ran"),
+            method=block.get("method"),
+            model=block.get("model"),
+            method_version=block.get("method_version"),
+            duration_s=block.get("duration_s"),
+            cost_usd=block.get("cost_usd"),
+            metrics=block.get("metrics") or None,
+            quality_flags=list(flags) or None,
+        )
+    except Exception:  # noqa: BLE001 — telemetry must never break the manifest write
+        logger.debug("processing_manifest: pipeline_stage emit failed", exc_info=True)

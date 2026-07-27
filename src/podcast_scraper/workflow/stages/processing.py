@@ -186,13 +186,35 @@ def _process_episode_with_retry(
 
     Returns the same 4-tuple as ``process_episode_download``.
     """
+    # #1053 / o11y: bind the episode id for THIS worker so the download stage's logs + incidents
+    # carry it (the inline path previously never set it — only the safety-net summarizer did).
+    from ...utils import correlation
+    from ..helpers import get_episode_id_from_episode
+
+    episode = args[0]
+    try:
+        _corr_ep_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    except Exception:  # never block processing on correlation
+        _corr_ep_id = None
+
+    with correlation.episode_scope(_corr_ep_id):
+        return _process_episode_with_retry_inner(process_fn, args, cfg, pipeline_metrics, episode)
+
+
+def _process_episode_with_retry_inner(
+    process_fn: Any,
+    args: Tuple,
+    cfg: "config.Config",
+    pipeline_metrics: "metrics.Metrics",
+    episode: Any,
+) -> _EpisodeResult:
+    """Retry body for :func:`_process_episode_with_retry` (episode id already bound by caller)."""
     max_retries = getattr(cfg, "episode_retry_max", 0)
     if max_retries <= 0:
         result: _EpisodeResult = process_fn(*args, pipeline_metrics=pipeline_metrics)
         return result
 
     delay = getattr(cfg, "episode_retry_delay_sec", 5.0)
-    episode = args[0]
     last_exc: Optional[Exception] = None
 
     for attempt in range(max_retries + 1):

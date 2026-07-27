@@ -436,3 +436,46 @@ class TestEpisodeCostProbe(unittest.TestCase):
         self.assertAlmostEqual(p1.gi_cost_usd, 0.005, places=6)
         self.assertAlmostEqual(p2.gi_cost_usd, 0.009, places=6)
         self.assertAlmostEqual(inner.llm_gi_cost_usd, 0.014, places=6)
+
+
+@pytest.mark.unit
+class TestManifestEmitsPipelineStageEvent(unittest.TestCase):
+    """P1/o11y: every manifest stage write also emits a canonical `pipeline_stage` event so the
+    per-episode quality+cost signal reaches VictoriaLogs/Grafana, not just the sidecar file."""
+
+    def test_update_stage_emits_pipeline_stage_event(self):
+        from unittest.mock import patch
+
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        rel = "transcripts/0006 - X.txt"
+        with patch("podcast_scraper.obs.events.emit_event") as m:
+            pm.update_stage(
+                d,
+                rel,
+                "asr",
+                pm.stage_block(ran=True, model="turbo", cost_usd=0.01, method_version="asr-gate-1"),
+                episode_id="ep1",
+                feed_id="feed1",
+                run_id="run1",
+                quality_flags=["asr_failover"],
+            )
+        self.assertEqual(m.call_count, 1)
+        args, kwargs = m.call_args
+        self.assertEqual(args[0], "pipeline_stage")
+        self.assertEqual(kwargs["stage"], "asr")
+        self.assertEqual(kwargs["episode_id"], "ep1")
+        self.assertEqual(kwargs["run_id"], "run1")
+        self.assertEqual(kwargs["cost_usd"], 0.01)
+        self.assertEqual(kwargs["quality_flags"], ["asr_failover"])
+
+    def test_emit_failure_never_breaks_write(self):
+        from unittest.mock import patch
+
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        rel = "transcripts/0006 - X.txt"
+        with patch("podcast_scraper.obs.events.emit_event", side_effect=RuntimeError("boom")):
+            path = pm.update_stage(d, rel, "asr", pm.stage_block(ran=True), episode_id="e")
+        self.assertIsNotNone(path)  # write still succeeded despite emit blowing up
+        self.assertTrue(os.path.exists(path))

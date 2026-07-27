@@ -16,6 +16,7 @@ All getters are cheap and side-effect free; nothing here imports a 3rd-party SDK
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import logging
 from datetime import datetime, timezone
@@ -61,6 +62,23 @@ def set_episode_id(episode_id: Optional[str]) -> None:
 def get_episode_id() -> Optional[str]:
     """The current episode id for this context, or ``None``."""
     return _EPISODE_ID.get()
+
+
+@contextlib.contextmanager
+def episode_scope(episode_id: Optional[str]):
+    """Bind ``episode_id`` for the duration of one episode's processing, then restore.
+
+    Uses the ``ContextVar`` token so the previous value is restored on exit — this matters on a
+    reused worker thread, where a bare :func:`set_episode_id` would otherwise leak one episode's id
+    onto the next. Wrap each per-episode unit of work (download / transcription / metadata-gen) in
+    this so every log line, cost event, Sentry tag, and Langfuse span for that episode carries its
+    id (#1053). Never raises on a falsy id — it simply binds ``None``.
+    """
+    token = _EPISODE_ID.set((episode_id or "").strip() or None)
+    try:
+        yield
+    finally:
+        _EPISODE_ID.reset(token)
 
 
 def correlation_fields() -> Dict[str, str]:

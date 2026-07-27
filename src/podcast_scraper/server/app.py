@@ -306,6 +306,21 @@ def _guard_operator_public_open_signup(operator_public: bool) -> None:
         )
 
 
+def _init_api_otel() -> None:
+    """o11y P2: give the API surface a TracerProvider (the pipeline CLI already does this).
+
+    Without it, API-originated errors/events carry no ``trace_id``, so Sentry↔trace and event↔trace
+    correlation were permanently ``"-"`` for the server. True no-op unless ``OTEL_TRACES_EXPORTER``
+    asks for it; never blocks API startup.
+    """
+    try:
+        from podcast_scraper.utils.otel_init import init_otel
+
+        init_otel()
+    except Exception:  # pragma: no cover - never block API startup on tracing
+        pass
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -342,6 +357,7 @@ def create_app(
     from podcast_scraper.utils.sentry_init import init_sentry
 
     init_sentry("api")
+    _init_api_otel()
 
     @contextlib.asynccontextmanager
     async def _lifespan(app: FastAPI) -> AsyncIterator[None]:

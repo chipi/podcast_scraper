@@ -3453,6 +3453,16 @@ def _reconcile_entities_in_summary(
     return summary_text, corrected_entities
 
 
+def _capture_stage_exception(exc: BaseException, *, stage: str) -> None:
+    """Best-effort Sentry capture for a swallowed GI/KG failure (o11y P1). Never raises."""
+    try:
+        from ..utils.sentry_init import capture_stage_exception
+
+        capture_stage_exception(exc, stage=stage)
+    except Exception:  # pragma: no cover - telemetry must never break metadata generation
+        pass
+
+
 def _write_downstream_manifest_blocks(
     *,
     output_dir: str,
@@ -3636,6 +3646,15 @@ def generate_episode_metadata(  # noqa: C901
     # during the storm, in whatever worker runs this episode. Re-installed per episode (overwrite),
     # mirroring the eval harness; the process-global run fuse still bounds the whole run.
     llm_call_fuse.install_episode(getattr(cfg, "llm_max_calls_per_episode", 0), episode_id)
+    # #1053 / o11y: bind the correlation episode id too, so summary / GI / KG LOG lines (not just
+    # the cost-fuse fallback) carry it. Covers inline ProcessingProcessor + transcription-consumer +
+    # safety-net callers uniformly, whichever ran this episode.
+    try:
+        from ..utils import correlation
+
+        correlation.set_episode_id(episode_id)
+    except Exception:  # never block metadata generation on correlation
+        pass
 
     feed_metadata, episode_metadata, speakers, diarization_num_speakers = (
         _prepare_base_metadata_objects(
@@ -4042,6 +4061,7 @@ def generate_episode_metadata(  # noqa: C901
                     gi_exc,
                     exc_info=True,
                 )
+                _capture_stage_exception(gi_exc, stage="gi")
 
     kg_meta: Optional[KnowledgeGraphMetadata] = None
     kg_elapsed: Optional[float] = None  # captured for the processing manifest (RFC-109)
@@ -4204,6 +4224,7 @@ def generate_episode_metadata(  # noqa: C901
                 kg_exc,
                 exc_info=True,
             )
+            _capture_stage_exception(kg_exc, stage="kg")
 
     # RFC-097 v3.0 chunk-4 — typed-MENTIONS post-pass. The live GI emit
     # path doesn't materialize MENTIONS_PERSON / MENTIONS_ORG cross-layer
@@ -4391,6 +4412,19 @@ def generate_episode_metadata(  # noqa: C901
             kg_elapsed=kg_elapsed,
             kg_cost=kg_cost,
         )
+
+        # o11y P1: fold GI/KG per-episode cost back into EpisodeMetrics so the `episode_finished`
+        # JSONL / per-episode cost total stops undercounting (it otherwise carries only
+        # transcribe+summary). The manifest already has it; this reconciles the run-metrics SoT.
+        if pipeline_metrics is not None:
+            _gi_kg_cost = float(gi_cost or 0.0) + float(kg_cost or 0.0)
+            if _gi_kg_cost > 0.0:
+                try:
+                    pipeline_metrics.update_episode_metrics(
+                        episode_id=episode_id, estimated_cost=_gi_kg_cost
+                    )
+                except Exception:  # never block metadata-gen on a metrics update
+                    logger.debug("episode GI/KG cost reconciliation failed", exc_info=True)
 
         # Track metadata generation and summarization
         if pipeline_metrics is not None:
