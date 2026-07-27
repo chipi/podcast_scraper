@@ -2737,9 +2737,15 @@ def _summarize_chunks_parallel(
     import time
     from concurrent.futures import as_completed, ThreadPoolExecutor
 
+    from ...utils import correlation
+
     total_chunks = len(chunks)
+    # advisor #6: ContextVars do NOT propagate into ThreadPoolExecutor workers, so chunk-worker log
+    # lines would show episode_id=-. Capture it in the calling thread and re-bind per worker.
+    _caller_episode_id = correlation.get_episode_id()
 
     def _summarize_chunk(chunk_idx_and_text):
+        correlation.set_episode_id(_caller_episode_id)
         chunk_idx, chunk_text = chunk_idx_and_text
         try:
             # Dynamic max_length/min_length adjustment: cap by input length to prevent warnings

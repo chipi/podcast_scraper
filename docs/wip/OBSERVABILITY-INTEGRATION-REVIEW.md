@@ -147,7 +147,7 @@ addressable by `run_id`/`episode_id`. No new backend, no new dependency — the 
 | P1 #2 manifest → backend sink | **Done** — `update_stage` emits a `pipeline_stage` event via `emit_event` → VictoriaLogs. |
 | P1 #3 per-episode cost SoT | **Done** — GI/KG cost folded into `EpisodeMetrics` at the metadata-gen seam; `episode_finished` no longer undercounts. |
 | P1 #4 diarization run metrics | **Done** — `Metrics.record_diarization` + `diarization_*` in `finish()` / `metrics.json`. |
-| P1 #5 capture_exception | **Done** — `sentry_init.capture_stage_exception` wired at transcription / diarization / GI / KG catches. |
+| P1 #5 capture_exception | **Done (scoped)** — `sentry_init.capture_stage_exception` wired at the swallowed-exception catches: transcription, diarization, GI, KG, **summary**. Download/preprocess failures have no exception object (graceful bool-return) and are high-volume (network) — kept as metrics (`update_episode_status error_type=DownloadError`) + incident JSONL **by design**, not per-episode Sentry issues. Naming is pure heuristic (does not throw). |
 | P2 #6 API OTEL | **Done** — `_init_api_otel()` in `server/app.py`. |
 | P2 #7 json_logs dead path | **Done** — shipped `utils/json_logging.py` (`JSONFormatter`, stdlib, correlation-stamped). |
 | P2 #8 `pipeline_stage` event type | **Done** — now emitted (folded into P1 #2). |

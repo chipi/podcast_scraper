@@ -479,3 +479,101 @@ class TestManifestEmitsPipelineStageEvent(unittest.TestCase):
             path = pm.update_stage(d, rel, "asr", pm.stage_block(ran=True), episode_id="e")
         self.assertIsNotNone(path)  # write still succeeded despite emit blowing up
         self.assertTrue(os.path.exists(path))
+
+
+@pytest.mark.unit
+class TestAdvisorRegressions(unittest.TestCase):
+    """Regression tests for the advisor findings — each exercises the REAL behavior that shipped
+    broken (the original tests passed synthetic run_id/ids and never hit these paths)."""
+
+    def _setup(self):
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        open(os.path.join(d, "transcripts", "0006 - X.txt"), "w").close()
+        return d, "transcripts/0006 - X.txt"
+
+    def _job(self):
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        return TranscriptionJob(idx=6, ep_title="X", ep_title_safe="X", temp_media="", episode=None)
+
+    def _cfg(self, **kw):
+        base = dict(rss_url="https://example.com/feed.xml", run_id=None)
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def test_run_id_sourced_from_correlation_not_cfg(self):
+        # advisor #1: cfg.run_id is None (real default); the resolved id lives in correlation.
+        # Before the fix, manifest + every pipeline_stage event shipped run_id=null.
+        from unittest.mock import patch
+
+        from podcast_scraper.utils import correlation
+
+        d, rel = self._setup()
+        correlation.set_run_id("run-REAL-123")
+        try:
+            with patch("podcast_scraper.obs.events.emit_event") as m:
+                episode_processor._write_processing_manifest(
+                    {"asr_speech_coverage": 0.95}, self._cfg(), self._job(), rel, d
+                )
+        finally:
+            correlation.set_run_id(None)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        self.assertEqual(data["run_id"], "run-REAL-123")  # NOT null, NOT from cfg
+        _, kwargs = m.call_args
+        self.assertEqual(kwargs["run_id"], "run-REAL-123")  # the event carries it too
+
+    def test_update_stage_overwrites_run_id_on_rerun(self):
+        # advisor #3: a re-run over an existing manifest must not inherit the previous run's id.
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        rel = "transcripts/0006 - X.txt"
+        pm.update_stage(d, rel, "asr", pm.stage_block(ran=True), run_id="run-1", episode_id="ep")
+        pm.update_stage(d, rel, "asr", pm.stage_block(ran=True), run_id="run-2", episode_id="ep")
+        data = json.load(open(pm.manifest_path(d, rel)))
+        self.assertEqual(data["run_id"], "run-2")  # overwritten, not backfilled to run-1
+
+    def test_pipeline_stage_event_omits_unstable_composition_version(self):
+        # advisor #7: composition_version is recomputed per-RMW → must NOT be in per-stage event.
+        from unittest.mock import patch
+
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        rel = "transcripts/0006 - X.txt"
+        with patch("podcast_scraper.obs.events.emit_event") as m:
+            pm.update_stage(d, rel, "asr", pm.stage_block(ran=True), run_id="r", episode_id="e")
+        _, kwargs = m.call_args
+        self.assertNotIn("pipeline_composition_version", kwargs)
+        # but it IS still in the file (final value)
+        self.assertIn("pipeline_composition_version", json.load(open(pm.manifest_path(d, rel))))
+
+    def test_bind_correlation_clears_id_when_job_has_no_episode(self):
+        # advisor #9: a no-episode job must CLEAR the id, not leak the previous episode's id.
+        from podcast_scraper.utils import correlation
+
+        correlation.set_episode_id("prev-episode")
+        try:
+            episode_processor._bind_episode_correlation(self._job(), self._cfg())
+            self.assertIsNone(correlation.get_episode_id())  # cleared, not "prev-episode"
+        finally:
+            correlation.set_episode_id(None)
+
+    def test_relabel_shaped_result_writes_only_naming_block(self):
+        # advisor #2: relabel produces a result with naming diagnostics but no ASR/diarization
+        # fields — the manifest must still gain a (bumped) naming block so the reprocess query moves
+        d, rel = self._setup()
+        result = {
+            "speaker_diagnostics": {
+                "summary": {
+                    "named": 2,
+                    "unattributed_alarm": False,
+                    "unbound_names": [],
+                    "show_centric": False,
+                },
+                "voices": [{"voice": "SPEAKER_00", "role": "host", "named": True}],
+            }
+        }
+        episode_processor._write_processing_manifest(result, self._cfg(), self._job(), rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        self.assertEqual(set(data["stages"]), {"naming"})  # only naming, no asr/diarization
+        self.assertEqual(data["stages"]["naming"]["method_version"], pm.METHOD_VERSIONS["naming"])

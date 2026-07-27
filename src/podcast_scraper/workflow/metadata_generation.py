@@ -3247,6 +3247,7 @@ def _generate_and_validate_summary(
             episode.idx,
             format_exception_for_log(e),
         )
+        _capture_stage_exception(e, stage="summary")  # advisor #5: summary was Sentry-dark
         summary_metadata = None
         recoverable_error_occurred = True
     summary_elapsed = time.time() - summary_start
@@ -3490,9 +3491,11 @@ def _write_downstream_manifest_blocks(
     """
     if not transcript_file_path:
         return
+    from ..utils import correlation
     from .processing_manifest import METHOD_VERSIONS, stage_block, update_stage
 
-    run_id = getattr(cfg, "run_id", None)
+    # Resolved run id from the correlation global (cfg.run_id is None/frozen) — advisor #1.
+    run_id = correlation.get_run_id() or getattr(cfg, "run_id", None)
 
     if summary_metadata is not None:
         _sp = getattr(cfg, "summary_provider", None)
@@ -4399,7 +4402,9 @@ def generate_episode_metadata(  # noqa: C901
         _write_downstream_manifest_blocks(
             output_dir=output_dir,
             transcript_file_path=transcript_file_path,
-            feed_id=feed_id,
+            # Raw rss url, matching the ASR seam's cfg.rss_url — NOT the hashed generate_feed_id, so
+            # the manifest's feed_id is one scheme across all stages (advisor #4).
+            feed_id=(getattr(cfg, "rss_url", None) or feed_url),
             episode_id=episode_id,
             cfg=cfg,
             summary_metadata=summary_metadata,

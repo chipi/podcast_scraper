@@ -239,9 +239,10 @@ def update_stage(
         return None
     path = manifest_path(effective_output_dir, rel_transcript_path)
     data = _load(path) or _init_manifest(episode_id, feed_id, run_id)
-    # Backfill identity if a later stage learns it and an earlier init left it blank.
+    # OVERWRITE identity when the caller supplies it (not backfill): a re-run over an existing
+    # corpus must not inherit the PREVIOUS run's run_id from the stale manifest file (advisor #3).
     for key, val in (("episode_id", episode_id), ("feed_id", feed_id), ("run_id", run_id)):
-        if val and not data.get(key):
+        if val:
             data[key] = val
     stages = data.setdefault("stages", {})
     stages[stage] = dict(block)
@@ -287,7 +288,9 @@ def _emit_stage_event(
             feed_id=data.get("feed_id"),
             run_id=data.get("run_id"),
             git_sha=data.get("git_sha"),
-            pipeline_composition_version=data.get("pipeline_composition_version"),
+            # NB: pipeline_composition_version is deliberately NOT emitted per-stage — it is
+            # recomputed on every RMW, so it would ship a different (partial) value on each of an
+            # episode's stage events and poison any GROUP BY (advisor #7). File-only.
             ran=block.get("ran"),
             method=block.get("method"),
             model=block.get("model"),

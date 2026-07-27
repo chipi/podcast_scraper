@@ -681,11 +681,14 @@ def _write_processing_manifest(
     """
     if not isinstance(result, dict) or not rel_transcript_path:
         return
+    from ..utils import correlation
     from . import processing_manifest as pm
 
     episode_id, _ = _episode_id_and_idx_for_incident(job, cfg)
     feed_id = getattr(cfg, "rss_url", None)
-    run_id = getattr(cfg, "run_id", None)
+    # cfg.run_id defaults to None and is frozen; the RESOLVED run id lives in the correlation global
+    # (like llm_cost events). Sourcing from cfg gave every manifest/event run_id=null (advisor #1).
+    run_id = correlation.get_run_id() or getattr(cfg, "run_id", None)
 
     # --- ASR: actual model + speech coverage + failover (ADR-129 provenance) ---
     cov = result.get("asr_speech_coverage")
@@ -1867,6 +1870,10 @@ def _relabel_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+    # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
+    # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
+    # diarization fields (frozen), so only the naming block is written + a pipeline_stage emitted.
+    _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
     logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
 
@@ -1969,6 +1976,11 @@ def _rediarize_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+    # advisor #2: rediarize regenerates diarization + naming on disk — record both into run metrics
+    # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is
+    # invisible in diarization_* metrics and the manifest keeps the old versions.
+    _record_episode_diarization(pipeline_metrics, result)
+    _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
     logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
 
@@ -2142,12 +2154,14 @@ def _bind_episode_correlation(
     The transcription consumer processes one job then the next, each re-binding at entry, so a bare
     set (no reset) is safe — no id leaks into another episode's emissions. Never blocks on failure.
     """
-    if job.episode is None:
-        return
     try:
         from ..utils import correlation
         from .helpers import get_episode_id_from_episode
 
+        if job.episode is None:
+            # No episode → clear, don't inherit the PREVIOUS job's id on this reused thread (#9).
+            correlation.set_episode_id(None)
+            return
         _corr_ep_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
         correlation.set_episode_id(_corr_ep_id)
     except Exception:  # never block transcription on correlation
