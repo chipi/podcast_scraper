@@ -39,6 +39,27 @@ def test_surface_api_has_metrics_no_pipeline_extras(monkeypatch) -> None:
     assert r["data"]["job"] == "api"
 
 
+def test_surface_operator_adds_umami_user_actions(monkeypatch) -> None:
+    # The operator (and player) surface carries the Umami user-action lens (ADR-126).
+    for fn in ("red_metrics", "recent_logs", "traces_recent"):
+        monkeypatch.setattr(aggregate.victoria, fn, _ok(fn))
+    monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))
+    for fn in ("events", "stats", "active"):
+        monkeypatch.setattr(aggregate.umami, fn, _ok(f"umami_{fn}"))
+    r = aggregate.surface(_t(), "operator")
+    sig = set(r["data"]["signals"])
+    assert {"user_actions", "page_analytics", "active_users"} <= sig
+
+
+def test_analytics_verb_joins_umami_signals(monkeypatch) -> None:
+    for fn in ("events", "stats", "active"):
+        monkeypatch.setattr(aggregate.umami, fn, _ok(f"umami_{fn}"))
+    r = aggregate.analytics(_t(), window="7d")
+    assert r["ok"] and r["data"]["window"] == "7d"
+    assert set(r["data"]["signals"]) == {"user_actions", "page_analytics", "active_users"}
+    assert set(r["data"]["live"]) == {"user_actions", "page_analytics", "active_users"}
+
+
 def test_investigate_requires_a_key() -> None:
     r = aggregate.investigate(_t())
     assert r["ok"] is False and "one of" in r["error"]

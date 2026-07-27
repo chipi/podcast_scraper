@@ -56,7 +56,15 @@ class TargetConfig:
     langfuse_public_key: Optional[str] = None
     langfuse_secret_key: Optional[str] = None
     langfuse_base_url: Optional[str] = None  # unset → Langfuse Cloud
-    env_label: str = "prod"  # the deploy's Loki/metrics ``env`` label (PODCAST_ENV)
+    # Umami (ADR-126) — the user-action lens for the operator surface. Cookieless, self-hosted. The
+    # website_id is per-environment (operator-dev vs operator-prod) exactly like the player's
+    # VITE_UMAMI_WEBSITE_ID; reading needs admin auth (token, or username+password → login token).
+    umami_url: Optional[str] = None
+    umami_website_id: Optional[str] = None
+    umami_token: Optional[str] = None
+    umami_username: Optional[str] = None
+    umami_password: Optional[str] = None
+    env_label: str = "prod"  # the deploy's metrics ``env`` label (PODCAST_ENV)
     timeout: float = DEFAULT_TIMEOUT
 
     def require(self, attr: str, hint: str) -> Any:
@@ -130,6 +138,13 @@ class ObservabilityConfig:
             langfuse_public_key=_bare("LANGFUSE_PUBLIC_KEY"),
             langfuse_secret_key=_bare("LANGFUSE_SECRET_KEY"),
             langfuse_base_url=_bare("LANGFUSE_BASE_URL") or _bare("LANGFUSE_HOST"),
+            # Umami — env-driven per environment (dev→operator-dev site, prod→operator-prod), the
+            # same shape as the player's VITE_UMAMI_*; url falls back to the ingest script's origin.
+            umami_url=_env("UMAMI_URL") or _origin(_bare("VITE_UMAMI_SRC")),
+            umami_website_id=_env("UMAMI_WEBSITE_ID"),
+            umami_token=_env("UMAMI_TOKEN"),
+            umami_username=_env("UMAMI_USERNAME"),
+            umami_password=_env("UMAMI_PASSWORD"),
             env_label=_env("ENV_LABEL") or "prod",
             timeout=_as_float(_env("TIMEOUT"), DEFAULT_TIMEOUT),
         )
@@ -216,6 +231,7 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
     grafana = spec.get("grafana") or {}
     langfuse = spec.get("langfuse") or {}
     victoria = spec.get("victoria") or {}
+    umami = spec.get("umami") or {}
     projects = sentry.get("projects") or []
     if isinstance(projects, str):
         projects = _split_csv(projects)
@@ -240,6 +256,11 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         langfuse_public_key=_secret(langfuse, "public_key"),
         langfuse_secret_key=_secret(langfuse, "secret_key"),
         langfuse_base_url=langfuse.get("base_url"),
+        umami_url=umami.get("url"),
+        umami_website_id=umami.get("website_id"),
+        umami_token=_secret(umami, "token"),
+        umami_username=umami.get("username"),
+        umami_password=_secret(umami, "password"),
         env_label=spec.get("env_label") or "prod",
         timeout=timeout,
     )

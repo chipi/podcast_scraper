@@ -12,7 +12,7 @@ from typing import Callable, Optional
 
 from .config import TargetConfig
 from .result import err, ok
-from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, victoria
+from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, umami, victoria
 
 # A surface name → its metrics ``job`` label and its Jaeger trace ``service`` name. These differ
 # and are LIVE-VERIFIED against homelab (metrics carry job="api"; Jaeger service is "pipeline",
@@ -124,6 +124,13 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
         probes["cost"] = lambda: victoria.events(
             target, "llm_cost", surface="pipeline", window=window, limit=200
         )
+    if name in ("operator", "player"):
+        # The user-action lens (ADR-126 Umami): what people actually DID on this frontend — the
+        # typed custom events, page/visitor totals, and who's live now. The website_id is per-env
+        # (operator-dev/-prod), so this reads whichever site this target's env is pointed at.
+        probes["user_actions"] = lambda: umami.events(target, window=window)
+        probes["page_analytics"] = lambda: umami.stats(target, window=window)
+        probes["active_users"] = lambda: umami.active(target)
     collected = _collect(probes)
     return ok(
         "surface",
@@ -136,6 +143,22 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
             **collected,
         },
     )
+
+
+def analytics(target: TargetConfig, *, window: str = "24h") -> dict:
+    """Umami user-action analytics — what people DID on a frontend (ADR-126), joined in one call.
+
+    The direct verb behind ``surface operator``'s Umami signals: the typed custom events (user
+    actions), page/visitor totals, and who's live now. The website_id is per-environment
+    (operator-dev/-prod), so this reads whichever site this target's env is pointed at. Degrades
+    to ``configured=False`` when Umami read creds aren't wired.
+    """
+    probes: dict[str, Callable[[], dict]] = {
+        "user_actions": lambda: umami.events(target, window=window),
+        "page_analytics": lambda: umami.stats(target, window=window),
+        "active_users": lambda: umami.active(target),
+    }
+    return ok("analytics", {"target": target.name, "window": window, **_collect(probes)})
 
 
 def investigate(

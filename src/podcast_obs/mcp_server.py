@@ -19,6 +19,7 @@ from typing import Any, Callable, Optional
 
 from . import __version__
 from .aggregate import (
+    analytics as _analytics,
     correlate as _correlate,
     investigate as _investigate,
     summary as _summary,
@@ -170,6 +171,13 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         (VictoriaTraces), and — for the pipeline — the per-stage pipeline_stage rollup + LLM cost.
         Each signal degrades independently (configured=false when its backend isn't wired)."""
         return _run(config, target, lambda t: _surface(t, surface, window=window))
+
+    def obs_analytics(target: Optional[str] = None, window: str = "24h") -> dict:
+        """User-action analytics from Umami (ADR-126) — what people actually DID on the operator
+        viewer / player: the typed custom events (user_actions), page/visitor totals
+        (page_analytics), and who's live now (active_users). The website_id is per-environment
+        (operator-dev/-prod). Degrades to configured=false when Umami read creds aren't wired."""
+        return _run(config, target, lambda t: _analytics(t, window=window))
 
     def obs_investigate(
         target: Optional[str] = None,
@@ -323,6 +331,7 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         prod_summary,
         prod_correlate,
         obs_surface,
+        obs_analytics,
         obs_investigate,
         obs_events,
         obs_metrics,

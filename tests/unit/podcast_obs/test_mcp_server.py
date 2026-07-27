@@ -32,6 +32,7 @@ def test_tool_table_names_and_count() -> None:
         "prod_summary",
         "prod_correlate",
         "obs_surface",
+        "obs_analytics",
         "obs_investigate",
         "obs_events",
         "obs_metrics",

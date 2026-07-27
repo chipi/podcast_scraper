@@ -18,6 +18,7 @@ import sys
 from typing import Optional, Sequence
 
 from .aggregate import (
+    analytics as _analytics,
     correlate as _correlate,
     investigate as _investigate,
     summary as _summary,
@@ -107,6 +108,10 @@ def _build_parser() -> argparse.ArgumentParser:
     spans.add_argument("service", help="e.g. podcast-api | podcast-pipeline")
     spans.add_argument("--window", default="1h")
     spans.add_argument("--limit", type=int, default=10)
+    analytics = sub.add_parser(
+        "analytics", help="Umami user-action analytics for a frontend (operator/player)."
+    )
+    analytics.add_argument("--window", default="24h", help="Lookback window (default 24h).")
     serve = sub.add_parser("serve", help="Run the MCP server (agent-facing) over the core.")
     serve.add_argument(
         "--transport",
@@ -186,6 +191,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             window=args.window,
             limit=args.limit,
         )
+    elif args.command == "analytics":
+        result = _analytics(target, window=args.window)
     elif args.command == "metrics":
         result = victoria.metrics_instant(target, args.query)
     elif args.command == "spans":
