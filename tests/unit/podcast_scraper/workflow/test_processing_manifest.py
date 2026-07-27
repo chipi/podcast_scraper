@@ -386,9 +386,14 @@ class TestEpisodeCostProbe(unittest.TestCase):
         """Minimal stand-in mirroring the real metrics recorder surface the probe wraps."""
 
         def __init__(self):
+            self.llm_summarization_cost_usd = 0.0
             self.llm_gi_cost_usd = 0.0
             self.llm_kg_cost_usd = 0.0
             self.gi_evidence_extract_quotes_calls = 0
+
+        def record_llm_summarization_call(self, i, o, cost_usd=None):
+            if cost_usd:
+                self.llm_summarization_cost_usd += cost_usd
 
         def record_llm_gi_call(self, i, o, cost_usd=None):
             if cost_usd:
@@ -418,6 +423,18 @@ class TestEpisodeCostProbe(unittest.TestCase):
         # to inner, so inner sees the evidence cost once via that path (0.001 + 0.002).
         self.assertAlmostEqual(inner.llm_gi_cost_usd, 0.003, places=6)
         self.assertAlmostEqual(inner.llm_kg_cost_usd, 0.004, places=6)
+
+    def test_captures_summary_cost_per_episode_and_forwards_to_inner(self):
+        # Regression: the manifest summary block shipped cost_usd=None because ProviderCallMetrics
+        # only carries token counts, never the priced cost. The probe hooks the summarization
+        # recorder (chunked summaries → several calls) so the block gets a real per-episode cost.
+        inner = self._FakeMetrics()
+        probe = pm.EpisodeCostProbe(inner)
+        probe.record_llm_summarization_call(100, 40, cost_usd=0.0007)
+        probe.record_llm_summarization_call(80, 30, cost_usd=0.0005)
+        self.assertAlmostEqual(probe.summary_cost_usd, 0.0012, places=6)
+        # inner (shared run-total) still accumulates every call exactly once.
+        self.assertAlmostEqual(inner.llm_summarization_cost_usd, 0.0012, places=6)
 
     def test_attribute_writes_forward_to_inner(self):
         inner = self._FakeMetrics()

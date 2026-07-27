@@ -3230,6 +3230,16 @@ def _generate_and_validate_summary(
 
         summary_call_metrics = ProviderCallMetrics()
 
+        # RFC-109: capture THIS episode's summary LLM cost in isolation (run-level accumulator on
+        # pipeline_metrics is racy under parallel episodes) so the manifest summary block carries a
+        # real cost_usd. The ProviderCallMetrics object only holds token counts, never the priced
+        # cost — so without this the block was None despite gemini charging for every summary call.
+        from .processing_manifest import EpisodeCostProbe as _SummaryCostProbe
+
+        _summary_probe = (
+            _SummaryCostProbe(pipeline_metrics) if pipeline_metrics is not None else None
+        )
+
         summary_metadata, summary_call_metrics = _generate_episode_summary(
             transcript_file_path=transcript_file_path,
             output_dir=output_dir,
@@ -3237,9 +3247,18 @@ def _generate_and_validate_summary(
             episode_idx=episode.idx,
             summary_provider=summary_provider,
             whisper_model=whisper_model,
-            pipeline_metrics=pipeline_metrics,
+            pipeline_metrics=_summary_probe if _summary_probe is not None else pipeline_metrics,
             call_metrics=summary_call_metrics,
         )
+        # Fold the probe-captured per-episode summary cost onto the call metrics — it then flows to
+        # BOTH the episode-metrics log (estimated_cost) and the manifest summary block (cost_usd).
+        if (
+            _summary_probe is not None
+            and summary_call_metrics is not None
+            and getattr(summary_call_metrics, "estimated_cost", None) is None
+            and _summary_probe.summary_cost_usd > 0.0
+        ):
+            summary_call_metrics.estimated_cost = _summary_probe.summary_cost_usd
     except RecoverableSummarizationError as e:
         # Allow metadata generation to continue without summary for recoverable errors
         logger.warning(

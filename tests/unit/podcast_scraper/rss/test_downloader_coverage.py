@@ -23,6 +23,29 @@ from podcast_scraper.rss import downloader, http_policy
 pytestmark = [pytest.mark.unit]
 
 
+class TestThreadClientsFollowRedirects(unittest.TestCase):
+    """Both the media/generic client and the feed client MUST follow redirects.
+
+    Regression: podcast media is served via a 302 to a signed CDN (acast sphinx.->stitcher2.,
+    megaphone traffic.->CDN). The media client omitted follow_redirects (httpx defaults False), so
+    EVERY such episode failed with "failed to download media" — a full-corpus download outage that
+    only surfaced against live feeds, not the mocked unit tests.
+    """
+
+    def tearDown(self) -> None:
+        for attr in ("client", "feed_client"):
+            c = getattr(downloader._THREAD_LOCAL, attr, None)
+            if c is not None:
+                c.close()
+                delattr(downloader._THREAD_LOCAL, attr)
+
+    def test_media_client_follows_redirects(self) -> None:
+        self.assertTrue(downloader._get_thread_request_client().follow_redirects)
+
+    def test_feed_client_follows_redirects(self) -> None:
+        self.assertTrue(downloader._get_thread_feed_request_client().follow_redirects)
+
+
 class TestConfigureDownloader(unittest.TestCase):
     def tearDown(self) -> None:
         downloader.configure_downloader()

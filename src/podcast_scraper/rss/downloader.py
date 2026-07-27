@@ -282,6 +282,11 @@ def _get_thread_request_client() -> httpx.Client:
     if client is None:
         client = create_client(
             subsystem="rss_generic",
+            # Podcast media is served via a 302 to a short-lived signed CDN URL (acast
+            # sphinx.->stitcher2., megaphone traffic.->CDN). httpx defaults to
+            # follow_redirects=False, which turns every such episode into a hard "failed to download
+            # media" — the feed client (below) already follows redirects for the same reason.
+            follow_redirects=True,
             transport_wrapper=_make_retry_transport_wrapper(
                 _effective_http_retry_total(),
                 _effective_http_backoff_factor(),

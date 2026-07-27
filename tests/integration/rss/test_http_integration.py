@@ -114,6 +114,17 @@ class MockHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Return the User-Agent header in response
             user_agent = self.headers.get("User-Agent", "Not provided")
             self._send_response(200, user_agent.encode("utf-8"), "text/plain")
+        elif path == "/media-302":
+            # Podcast media delivery: the enclosure URL 302s to a short-lived signed CDN URL
+            # (acast sphinx.->stitcher2., megaphone traffic.->CDN). The client MUST follow it —
+            # not following turns every real episode into "failed to download media".
+            self.send_response(302)
+            self.send_header("Location", "/media-cdn?sig=deadbeef&exp=9999999999")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        elif path == "/media-cdn":
+            # The signed CDN endpoint the 302 points at — serves the actual audio bytes.
+            self._send_response(200, b"ID3\x04mock-mp3-audio-payload", "audio/mpeg")
         else:
             self._send_response(404, b"Not Found", "text/plain")
 
@@ -336,6 +347,33 @@ class TestHTTPClientIntegration:
         assert full_content[:10] == b"X" * 10
 
         # Clean up
+        resp.close()  # type: ignore[attr-defined]
+
+    @pytest.mark.critical_path
+    def test_media_302_redirect_to_signed_cdn_is_followed(self, test_http_server):
+        """Media enclosure 302 -> signed CDN must be followed (regression: full-corpus outage).
+
+        acast/megaphone serve every episode's audio via a 302 to a short-lived signed CDN URL. The
+        media client defaulted to follow_redirects=False, so fetch_url got the 302 and failed with
+        "failed to download media" for EVERY redirect-CDN feed — invisible to the mocked unit tests,
+        caught only against live feeds. This exercises the real client through the redirect.
+        """
+        url = test_http_server.url("/media-302")
+
+        # non-streaming path
+        resp = downloader.fetch_url(url, self.cfg.user_agent, self.cfg.timeout, stream=False)
+        assert resp is not None, "fetch_url returned None — the 302 was not followed"
+        assert resp.status_code == 200  # type: ignore[attr-defined]
+        assert resp.content == b"ID3\x04mock-mp3-audio-payload"  # type: ignore[attr-defined]
+        # final URL is the CDN target, not the original enclosure
+        assert "/media-cdn" in str(resp.url)  # type: ignore[attr-defined]
+        resp.close()  # type: ignore[attr-defined]
+
+        # streaming path (how large media is actually pulled)
+        resp = downloader.fetch_url(url, self.cfg.user_agent, self.cfg.timeout, stream=True)
+        assert resp is not None and resp.status_code == 200  # type: ignore[attr-defined]
+        body = b"".join(c for c in resp.iter_bytes(chunk_size=8) if c)  # type: ignore[attr-defined]
+        assert body == b"ID3\x04mock-mp3-audio-payload"
         resp.close()  # type: ignore[attr-defined]
 
     @pytest.mark.critical_path

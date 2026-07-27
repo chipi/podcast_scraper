@@ -69,24 +69,37 @@ def _utcnow() -> str:
 
 
 class EpisodeCostProbe:
-    """Per-episode cost capture for the GI/KG stages, for the processing manifest (RFC-109).
+    """Per-episode cost capture for the summary/GI/KG stages, for the processing manifest (RFC-109).
 
-    GI/KG cost is recorded by the LLM providers (gemini/deepseek/grok/anthropic/mistral, all via the
-    same ``record_llm_gi_call`` / ``record_llm_kg_call`` / ``record_llm_gi_evidence_stage_call``
-    hooks) onto **run-level** accumulators on ``pipeline_metrics`` — which is shared across parallel
-    episodes, so a before/after delta on it is racy. This probe wraps ``pipeline_metrics`` for the
-    duration of ONE episode's GI/KG build: it forwards every attribute and method to the real object
-    (so run totals and all other counters stay correct) while capturing that episode's GI/KG cost in
-    isolation. Provider-agnostic — it hooks the recorder methods every provider funnels cost
-    through, not any one provider.
+    Summary/GI/KG cost is recorded by the LLM providers (gemini/deepseek/grok/anthropic/mistral, all
+    via the same ``record_llm_summarization_call`` / ``record_llm_gi_call`` / ``record_llm_kg_call``
+    / ``record_llm_gi_evidence_stage_call`` hooks) onto **run-level** accumulators on
+    ``pipeline_metrics`` — which is shared across parallel episodes, so a before/after delta on it
+    is racy. This probe wraps ``pipeline_metrics`` for the duration of ONE episode's LLM stages: it
+    forwards every attribute and method to the real object (so run totals and all other counters
+    stay correct) while capturing that episode's summary/GI/KG cost in isolation. Provider-agnostic:
+    hooks the recorder methods every provider funnels cost through, not any one provider.
     """
 
-    __slots__ = ("_inner", "gi_cost_usd", "kg_cost_usd")
+    __slots__ = ("_inner", "summary_cost_usd", "gi_cost_usd", "kg_cost_usd")
 
     def __init__(self, inner: Any) -> None:
         object.__setattr__(self, "_inner", inner)
+        object.__setattr__(self, "summary_cost_usd", 0.0)
         object.__setattr__(self, "gi_cost_usd", 0.0)
         object.__setattr__(self, "kg_cost_usd", 0.0)
+
+    def record_llm_summarization_call(
+        self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
+    ) -> Any:
+        # Chunked summarization makes several calls per episode; each provider funnels through here,
+        # so accumulating captures the full per-episode summary cost (the ProviderCallMetrics object
+        # only carries token counts, never the priced cost — the block was None without it).
+        if cost_usd:
+            object.__setattr__(self, "summary_cost_usd", self.summary_cost_usd + float(cost_usd))
+        return self._inner.record_llm_summarization_call(
+            input_tokens, output_tokens, cost_usd=cost_usd
+        )
 
     def record_llm_gi_call(
         self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
