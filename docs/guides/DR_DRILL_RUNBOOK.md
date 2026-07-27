@@ -168,9 +168,9 @@ On **`/srv/podcast-scraper/.env`** (modes **`600`**), typical values include:
   the same bind mount as the api). See compose **`PODCAST_DEFAULT_CORPUS_PATH`** and nginx templates
   under **`docker/viewer/`**.
 
-Grafana Cloud: if **`GRAFANA_CLOUD_*`** URLs are placeholders (for example **`invalid.invalid`**), the
-Grafana Agent will not ship metrics; that is expected for isolated drills unless you point drill at
-real Grafana Cloud endpoints.
+Alloy remote-write: if **`REMOTE_WRITE_URL`** or **`LOGS_WRITE_URL`** are unset or placeholder values,
+Alloy will not ship metrics or logs; that is expected for isolated drills unless the drill VPS is on the
+tailnet and can reach homelab (`http://homelab:8428`, `http://homelab:9428`).
 
 ---
 

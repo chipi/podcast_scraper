@@ -509,7 +509,7 @@ line should be ingested as **one JSON log line**. The optional flag
 `jsonl_metrics_echo_stdout` duplicates every JSONL line to **stdout** so the
 existing **Grafana Agent** docker log pipeline (`compose/grafana-agent.yaml`)
 ships them with stable labels (**env**, **release**, **app**=`podcast_scraper`,
-compose **service** surfaced as **service_name** in Grafana Cloud). Use LogQL
+compose **service** surfaced as **service_name** in VictoriaLogs). Use LogQL
 `| json | event_type="run_finished"` in Explore or the imported dashboard
 `config/grafana/dashboards/common/grafana-dashboard-pipeline-execution.json` (also linked from
 `config/manual/`). Prometheus **`/metrics`** on the API container remains

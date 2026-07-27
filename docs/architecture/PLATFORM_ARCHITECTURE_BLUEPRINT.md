@@ -1475,9 +1475,10 @@ application already emits (logs, metrics) and **visualizes** it.
 - **Composable** — add only what you need: Grafana-only is the simplest start; Prometheus
   adds metrics; Loki adds log aggregation.
 
-**Alternative (simpler):** Skip Prometheus/Loki entirely and use **Grafana Cloud Free Tier**
-(10k metrics, 50 GB logs, 50 GB traces — free). Push metrics/logs to Grafana Cloud via
-Alloy agent. Zero local infrastructure for observability.
+**Adopted approach (pre-2026-07):** Grafana Cloud Free Tier (10k metrics, 50 GB logs/traces — free)
+was used as an alternative to self-hosting. As of 2026-07 this estate moved to **fully self-hosted
+observability** on homelab (VictoriaMetrics + VictoriaLogs + GlitchTip on the Mac mini); Alloy agents
+on the VPS/DGX ship via remote-write. Grafana Cloud is no longer in use.
 
 ### E.3 Metrics to expose (application → Prometheus)
 

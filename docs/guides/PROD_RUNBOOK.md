@@ -289,7 +289,7 @@ Repo Settings → Secrets → Actions → New repository secret. Stage these
 | `PROD_MISTRAL_API_KEY` | LLM (Mistral) | console.mistral.ai → API keys |
 | `PROD_DEEPSEEK_API_KEY` | LLM (DeepSeek) | platform.deepseek.com → API keys |
 | `PROD_GROK_API_KEY` | LLM (Grok) | console.x.ai → API keys |
-| `PROD_SENTRY_DSN_API` | Sentry (api project) | sentry.io → project settings → Client Keys (DSN) |
+| `PROD_SENTRY_DSN_API` | Error DSN (api project) | homelab **GlitchTip** (`http://homelab:8090`) → project → Client Keys (DSN) |
 | `PROD_SENTRY_DSN_PIPELINE` | Error DSN (pipeline project) | homelab **GlitchTip** (`http://homelab:8090`) → project → Client Keys (DSN) |
 | `PROD_SENTRY_DSN_VIEWER` | Error DSN (viewer SPA — baked into Vite bundle) | homelab **GlitchTip** → project → Client Keys (DSN) |
 | `PROD_JOB_WEBHOOK_URL` | Outbound pipeline-completion webhook (optional) | your config |
@@ -358,10 +358,10 @@ from podcast_scraper.utils.sentry_init import init_sentry
 import sentry_sdk; init_sentry(\"api\")
 sentry_sdk.capture_message(\"prod bootstrap validation ping\", level=\"info\")
 "'
-# Check sentry.io within ~1 min for the event under environment=prod.
+# Check GlitchTip (http://homelab:8090) within ~1 min for the event under environment=prod.
 
-# 5. Grafana Cloud query (~30 s after agent's first scrape)
-#    https://<org>.grafana.net → Explore → Prometheus
+# 5. VictoriaMetrics query via Grafana (~30 s after agent's first scrape)
+#    http://homelab:3000 → Explore → VictoriaMetrics datasource
 #    Query:  up{component="api",env="prod"}
 #    Expected: 1 series, value=1
 ```
@@ -503,7 +503,7 @@ sibling `vllm-autoresearch` stack (`agentic-ai-homelab/infra/vllm/autoresearch/`
 | Pipeline run failing | Sentry → environment=prod, component=pipeline; viewer Library → Job logs |
 | Deploy went red | GHA UI → Deploy to prod VPS → most recent run; api logs are dumped on health-check failure |
 | Gemini 503s in pipeline logs | Expected up to ~15-20% at the prod operating point; absorbed by #697 circuit breaker. Escalate only if the run fails to complete or the rate sustains above the band (see § Provider model selection) |
-| "Did the alert fire because of X?" | Grafana Cloud → podcast-scraper folder → filter `env=prod` |
+| "Did the alert fire because of X?" | Grafana (<http://homelab:3000>) → "VPS — Podcast" folder → filter `env=prod` |
 
 ### Manual deploy
 
@@ -1311,18 +1311,20 @@ time, then the pipeline crashes on first provider call with
 `OpenAI API key required for OpenAI providers`. Use `grep -E
 '^(OPENAI|GEMINI)_API_KEY=' /srv/podcast-scraper/.env` to confirm.
 
-### Observability vars (Grafana Cloud + Sentry)
+### Observability vars (self-hosted VictoriaMetrics/Logs + GlitchTip)
 
 | Var | Where to get it | Notes |
 | --- | --- | --- |
-| `GRAFANA_CLOUD_PROM_URL` | Grafana stack page → Prometheus → Send Metrics → "Remote Write Endpoint" | URL ends in `/api/prom/push` |
-| `GRAFANA_CLOUD_LOKI_URL` | Grafana stack page → Loki → Send Logs → "Endpoint" | URL ends in `/loki/api/v1/push` |
-| `GRAFANA_CLOUD_PROM_USER` | Same Prometheus page → "Username / Instance ID" (numeric) | Distinct from Loki user — Grafana issues a separate instance ID per service |
-| `GRAFANA_CLOUD_LOKI_USER` | Same Loki page → "User" (numeric) | Same pattern as Prom user |
-| `GRAFANA_CLOUD_API_KEY` | Grafana Cloud → Access Policies → New policy with `metrics:write` + `logs:write` → Add token | Single token authenticates both services; format `glc_eyJ...` |
-| `PODCAST_SENTRY_DSN_API` | Sentry → api project → Settings → Client Keys (DSN) | URL like `https://<key>@o<org>.ingest.de.sentry.io/<project>` |
-| `PODCAST_SENTRY_DSN_PIPELINE` | Sentry → pipeline project → Settings → Client Keys (DSN) | Different project from api so issues stay separable |
+| `REMOTE_WRITE_URL` | Fixed: `http://homelab:8428/api/v1/write` | Alloy ships metrics to homelab VictoriaMetrics `:8428` |
+| `LOGS_WRITE_URL` | Fixed: `http://homelab:9428/insert/loki/api/v1/push` | Alloy ships logs to homelab VictoriaLogs `:9428` (Loki-compatible push endpoint) |
+| `PODCAST_SENTRY_DSN_API` | homelab **GlitchTip** (`http://homelab:8090`) → api project → Settings → Client Keys (DSN) | Sentry-SDK-compatible DSN; error ingest via `telemetry.closelistening.app` edge |
+| `PODCAST_SENTRY_DSN_PIPELINE` | homelab **GlitchTip** → pipeline project → Client Keys (DSN) | Different project from api so issues stay separable |
 
+> **Grafana Cloud vars removed (retired 2026-07-27):** `GRAFANA_CLOUD_PROM_URL`, `GRAFANA_CLOUD_LOKI_URL`,
+> `GRAFANA_CLOUD_PROM_USER`, `GRAFANA_CLOUD_LOKI_USER`, `GRAFANA_CLOUD_API_KEY` are no longer used.
+> Observability is fully self-hosted on homelab (Mac mini, tailnet `homelab`, 100.87.33.61).
+> Remove these vars from any existing `.env` or GHA secrets to avoid confusion.
+>
 > **Operator note:** if your existing prod VPS is already running and Grafana
 > shipping is healthy, harmonizing Grafana env var names in repo templates is a
 > no-op for that live host. It only takes effect on bootstrap/re-provision paths
@@ -1361,38 +1363,36 @@ ssh deploy@prod-podcast.<tailnet> \
 
 Pipeline runs with cloud profiles emit structured JSON log lines (`event_type: llm_cost`; Loki
 `| json` when Grafana Agent or docker log shipping is enabled). Import
-`config/grafana/dashboards/common/grafana-dashboard-llm-cost.json` into the Grafana Cloud **podcast-scraper**
-folder. Per-run soft caps and per-run Sentry cost alerts are configured via profile fields
+`config/grafana/dashboards/common/grafana-dashboard-llm-cost.json` into Grafana at **<http://homelab:3000>**
+(Dashboards → New → Import → upload JSON; place in the "VPS — Podcast" folder). Per-run soft caps and per-run Sentry cost alerts are configured via profile fields
 `cost_soft_cap_usd_per_run`, `cost_soft_cap_action`, and `cost_daily_alert_usd` (override with
 `COST_SOFT_CAP_USD_PER_RUN`, `COST_SOFT_CAP_ACTION`, `COST_DAILY_ALERT_USD` env vars when needed).
 
-### Grafana Cloud (one-time, per-stack)
+### Grafana (self-hosted homelab, one-time)
 
-1. Create a free Grafana Cloud account at <https://grafana.com/auth/sign-up>.
-2. Default stack is created on signup. Note the region (`us`, `eu-west-2`,
-   etc.) — it's baked into every endpoint URL.
-3. **Get Prometheus credentials:** stack page → click **Prometheus** →
-   **Send Metrics**:
-   - Copy "Remote Write Endpoint" → `GRAFANA_CLOUD_PROM_URL`
-   - Copy "Username / Instance ID" (numeric, ~7 digits) → `GRAFANA_CLOUD_PROM_USER`
-4. **Get Loki credentials:** stack page → **Loki** → **Send Logs**:
-   - Copy "Endpoint" → `GRAFANA_CLOUD_LOKI_URL`
-   - Copy "User" (numeric) → `GRAFANA_CLOUD_LOKI_USER`
-5. **Generate the write token:** grafana.com top nav → **Access Policies**
-   → **Create access policy**:
-   - Name: `podcast-scraper-agent-prod-write` (or similar — easy to revoke later)
-   - Realm: your stack
-   - Scopes: check `metrics:write` AND `logs:write`
-   - Save → click into the policy → **Add token** → name it →
-     **Generate** → copy the `glc_eyJ...` value → `GRAFANA_CLOUD_API_KEY`
-   - **The token is shown ONCE.** Save to your password manager
-     immediately.
-6. After staging vars + recreating `grafana-agent` (see [Operator hot-fix
-   workflow](#operator-hot-fix-workflow)), verify within 2 min:
-   - Grafana Cloud → **Explore** → **Prometheus** → query
-     `up{component="api",env="prod"}` → expect a single series, value `1`
-   - Grafana Cloud → **Explore** → **Loki** → query `{env="prod"}` →
-     expect log lines from `api`, `viewer`, `grafana-agent`
+Grafana runs at **<http://homelab:3000>** (Mac mini, tailnet-only). No signup or
+cloud account required. Datasources are pre-configured:
+
+- **VictoriaMetrics** → `:8428` (Prometheus-compatible; used for all metrics queries)
+- **VictoriaLogs** → `:9428` (LogsQL; used for log queries in Explore)
+- **VictoriaTraces** → `:10428` (Tempo-compatible)
+
+Alloy on the VPS ships to homelab over the tailnet using:
+
+- `REMOTE_WRITE_URL=http://homelab:8428/api/v1/write` (metrics)
+- `LOGS_WRITE_URL=http://homelab:9428/insert/loki/api/v1/push` (logs)
+
+After recreating the `alloy` container (see [Operator hot-fix
+workflow](#operator-hot-fix-workflow)), verify within 2 min:
+
+- <http://homelab:3000> → **Explore** → select **VictoriaMetrics** datasource →
+  query `up{component="api",env="prod"}` → expect a single series, value `1`
+- <http://homelab:3000> → **Explore** → select **VictoriaLogs** datasource →
+  query `{env="prod"}` → expect log lines from `api`, `viewer`, `alloy`
+
+> **Historical note:** Grafana Cloud was used before 2026-07-27. The setup
+> instructions for that path are no longer applicable; the `GRAFANA_CLOUD_*`
+> env vars have been removed.
 
 #### Grafana dashboards and alert rules (env filter) {#grafana-env-filter-gh-726}
 
@@ -1409,68 +1409,60 @@ includes a template variable **`env`** (default **`prod`**; choose
 "pre-prod"). Prometheus panels use **`env="$env"`** in selectors; Loki
 panels already used the same pattern.
 
-**Grafana Cloud alert rules (not stored in this repo):** Edit every
+**Grafana alert rules (self-hosted, <http://homelab:3000>):** Edit every
 rule whose query touches podcast-scraper metrics and add **`env="prod"`**
 to the PromQL selector so pre-prod traffic cannot fire prod alerts.
 Log-based alerts should filter on **`{env="prod", ...}`** the same way.
 
-### Sentry (one-time, per project)
+### GlitchTip self-hosted (one-time, per project) {#glitchtip-setup}
 
-1. Create free Sentry account at <https://sentry.io/signup/>.
-2. Create **two** projects:
-   - `podcast-scraper-api` — platform Python (FastAPI auto-detected)
+GlitchTip runs at **<http://homelab:8090>** (Sentry-SDK-compatible; public error
+ingest proxied via `telemetry.closelistening.app` Caddy edge on the VPS).
+
+1. Open **<http://homelab:8090>** (tailnet-only admin UI).
+2. Create **two** projects (or three if wiring the viewer):
+   - `podcast-scraper-api` — platform Python
    - `podcast-scraper-pipeline` — platform Python
-3. For each project: **Settings** → **Client Keys (DSN)** → copy the
-   **DSN** value (full `https://<key>@o<org>.ingest.<region>.sentry.io/<project>`).
-4. Stage as `PODCAST_SENTRY_DSN_API` and `PODCAST_SENTRY_DSN_PIPELINE`
-   in `.env`.
+3. For each project: **Settings** → **Client Keys (DSN)** → copy the DSN.
+4. Stage as `PODCAST_SENTRY_DSN_API` and `PODCAST_SENTRY_DSN_PIPELINE` in `.env`.
 5. After api recreate, verify with the **Sentry validation ping** in
-   the Smoke validation block above. Expect the event in the api
-   project under `environment=prod` within ~1 min.
+   the Smoke validation block above. Expect the event in the api project under
+   `environment=prod` within ~1 min.
 
-### Sentry Slack routing (prod vs pre-prod, GH-725) {#sentry-slack-routing-prod-vs-pre-prod-gh-725}
+The SDK in use is `sentry-sdk` (standard); `init_sentry()` works unchanged —
+GlitchTip accepts the same DSN format and Sentry wire protocol.
 
-**Decision (RFC-082 Open Question 3):** [Option
-B](https://github.com/chipi/podcast_scraper/issues/725) — keep a **single
-DSN per component** and split noise in **Sentry** using the
-**`environment`** tag already set by `init_sentry()` from `PODCAST_ENV`
-(`prod` on the VPS `.env`; `preprod` in the default Codespace — see
-`.devcontainer/devcontainer.json`). Option A (separate prod DSNs) is
-documented in the issue for teams that prefer separate Sentry projects.
+### GlitchTip alert routing (prod vs pre-prod, GH-725) {#glitchtip-alert-routing}
 
-**Prod-only Slack path (Sentry UI, per project: api and pipeline):**
+**Decision (RFC-082 Open Question 3):** keep a **single DSN per component** and
+split noise in **GlitchTip** using the **`environment`** tag already set by
+`init_sentry()` from `PODCAST_ENV` (`prod` on the VPS `.env`; `preprod` in the
+default Codespace — see `.devcontainer/devcontainer.json`).
 
-1. Ensure Slack is installed under **Settings → Integrations → Slack**
-   for the Sentry org (or use the project-level Slack integration).
+**Prod-only Slack path (GlitchTip UI, per project: api and pipeline):**
+
+1. Ensure the Slack integration is configured under **Settings → Integrations**.
 2. Open **Alerts → Create Alert** (Issue alert) for `podcast-scraper-api`.
 3. Set **When** to the issue volume you want (e.g. new issue, or regressed).
-4. Under **If**, add a filter on **event environment** (wording varies by
-   Sentry version: e.g. **The event's environment attribute** or **An
-   event's tags** with key `environment`) **equals** `prod` (must match
+4. Under **If**, add an environment filter **equals** `prod` (must match
    `PODCAST_ENV` on the VPS exactly).
-5. Under **Then**, choose **Send a notification via an integration** →
-   Slack → channel `#podcast-prod-alerts` (or your prod channel).
-6. Repeat for `podcast-scraper-pipeline` if pipeline issues should also
-   notify Slack.
+5. Under **Then**, choose Slack → channel `#podcast-prod-alerts`.
+6. Repeat for `podcast-scraper-pipeline` if pipeline issues should notify Slack.
 
-**Pre-prod path:** create a second alert (or use the same rule with a
-different **Then** branch if your Sentry plan supports it) with
-**If** `environment` **equals** `preprod` targeting `#podcast-preprod-alerts`,
-or **do not** attach Slack (pre-prod stays Sentry-email / UI only).
+**Pre-prod path:** create a second alert with **If** `environment` **equals**
+`preprod` targeting `#podcast-preprod-alerts`, or leave unrouted.
 
 **Acceptance checks (operator):**
 
 1. From prod: run the **Sentry validation ping** in [Smoke
-   validation](#smoke-validation) and confirm only the **prod** Slack
-   route fires.
+   validation](#smoke-validation) and confirm only the **prod** Slack route fires.
 2. From a Codespace (default `PODCAST_ENV=preprod`): send a test event
    (same Python snippet with `init_sentry("api")`) and confirm it does
-   **not** hit the prod-only rule (it should match the pre-prod rule or
-   stay unrouted).
+   **not** hit the prod-only rule.
 
-Sentry product reference: [Issue
-alerts](https://docs.sentry.io/product/alerts/) and filter conditions on
-event attributes.
+> **Historical note:** Sentry SaaS (sentry.io) was used before 2026-07-27.
+> GlitchTip replaces it; the SDK usage (`sentry-sdk`, `init_sentry()`, DSN env vars)
+> is unchanged — only the backend endpoint changed.
 
 ### Viewer Sentry (build-time DSN, runtime env)
 
@@ -1842,25 +1834,22 @@ The healthcheck probe (`wget` against `/`) accepts any `HTTP/` status
 line as alive (`compose/docker-compose.stack.yml`). If you still see
 `unhealthy`, you're on an old viewer image — pull the latest.
 
-### "Grafana agent restarting / no data in Grafana Cloud"
+### "Alloy restarting / no data in VictoriaMetrics"
 
 In order of likelihood:
 
-1. Wrong username for one of Prom / Loki — they have **separate**
-   instance IDs in Grafana Cloud. Check both
-   `GRAFANA_CLOUD_PROM_USER` and `GRAFANA_CLOUD_LOKI_USER` are set
-   distinctly.
-2. API key missing the right scope — must include both `metrics:write`
-   AND `logs:write` to feed both endpoints with one token
-3. URL has the wrong region — `prometheus-prod-65-prod-eu-west-2`
-   vs `prometheus-prod-13-prod-us-central-0` etc. Re-copy from
-   the stack page
+1. `REMOTE_WRITE_URL` or `LOGS_WRITE_URL` not set or wrong in `.env` —
+   must be `http://homelab:8428/api/v1/write` and
+   `http://homelab:9428/insert/loki/api/v1/push` respectively.
+2. Homelab not reachable — confirm the VPS is on the tailnet and can
+   reach the Mac mini: `tailscale ping homelab` from the VPS.
+3. Alloy container exited — check `docker ps` and `docker logs compose-alloy-1`.
 
 Diagnose with:
 
 ```bash
 ssh deploy@prod-podcast.<tailnet> \
-  'docker logs --tail 50 compose-grafana-agent-1 | grep -iE "error|401|403|forbidden"'
+  'docker logs --tail 50 compose-alloy-1 | grep -iE "error|401|403|forbidden|refused"'
 ```
 
 ### "Cursor or automation cannot `ssh deploy@prod`"
@@ -2007,8 +1996,9 @@ glance. Knowing about them saves debugging time.
 - **Direct shell `docker compose` MUST use `--env-file`** because the
   project dir resolves to `compose/`, not `/srv/podcast-scraper/`.
   Systemd-spawned compose is unaffected (different env-loading path).
-- **Grafana Cloud has separate Prom + Loki user IDs.** Single
-  `GRAFANA_CLOUD_USER` doesn't work — split into PROM_USER / LOKI_USER.
+- **Alloy remote-write uses two separate env vars.** `REMOTE_WRITE_URL` for metrics (`:8428`),
+  `LOGS_WRITE_URL` for logs (`:9428`). A single var does not cover both.
+  (Historical: Grafana Cloud previously required separate PROM_USER / LOKI_USER — retired 2026-07-27.)
 - **Viewer image is published once per main push** and used by BOTH
   codespace preprod AND the prod VPS. `PODCAST_ENV` is injected at
   runtime by nginx `sub_filter` — DON'T add `--build-arg

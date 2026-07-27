@@ -65,11 +65,10 @@ targets:
       projects: [api, pipeline, viewer]   # real slugs (Settings → Projects), not DSN names
       token_env: PODCAST_OBS_SENTRY_TOKEN
     grafana:
-      url: https://your-stack.grafana.net
+      url: http://homelab:3000
       token_env: PODCAST_OBS_GRAFANA_TOKEN      # service-account token (glsa_) for alerting
-      loki_url: https://logs-prod-xxx.grafana.net
-      loki_user: "123456"
-      loki_token_env: PODCAST_OBS_LOKI_TOKEN    # access-policy token (glc_), logs:read
+      loki_url: http://homelab:9428
+      loki_token_env: PODCAST_OBS_LOKI_TOKEN    # VictoriaLogs read token (if auth enabled)
 ```
 
 ### Tokens and scopes (read-only — the control plane never mutates)
@@ -79,8 +78,8 @@ targets:
 | `prod_api` | none | Reachability only (tailnet-gated in prod). |
 | `github` | fine-grained PAT, or the `gh` CLI | **Actions: read**. |
 | `sentry` | a Sentry **auth token** | **Issue & Event: Read** (`event:read`) — `project:read` alone is not enough. **NOT the DSN** (the staged `PROD_SENTRY_DSN_*` can't query the API). `prod_recent_errors`/D2 also want **Release: Admin**. Note: project **slugs** ≠ DSN names (check Settings → Projects; e.g. `podcast-scraper-api`). |
-| `grafana` (alerts) | a Grafana **service-account** token (`glsa_`) | alerting read. Grafana-API only. |
-| `loki` (cost/logs) | `loki_user` + a Cloud **access-policy** token (`glc_`) | **`logs:read`**. A *different token type* from the alerting one — Grafana Cloud splits the data plane (Loki, `glc_`) from the Grafana API (`glsa_`). The agent's `GRAFANA_CLOUD_API_KEY` is `logs:write` and 401s. (Falls back to the grafana token for self-hosted setups where one token serves both.) |
+| `grafana` (alerts) | a Grafana **service-account** token (`glsa_`) | alerting read. Grafana-API only (homelab:3000). |
+| `loki` (cost/logs) | VictoriaLogs read token (if auth configured) | **`logs:read`** against homelab:9428. If VictoriaLogs runs without auth (default self-hosted), this can be omitted — the grafana token suffices for the Grafana API surface. Historical note: Grafana Cloud split the data plane (Loki `glc_`) from the Grafana API (`glsa_`) — self-hosted does not require this split. |
 | `langfuse` (traces) | a Langfuse **public + secret key** pair (Basic auth) | Read-only public API. **SDK-native bare env names** `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` (not `PODCAST_OBS_*`) — the *same* pair the pipeline traces with, so one set drives both emit + probe. **Always set `LANGFUSE_BASE_URL=http://homelab:4000`** (self-hosted); if unset the SDK silently defaults to **Langfuse Cloud** (billed per event, off-tailnet) — this estate is self-hosted (ADR-0005). |
 
 ## CLI (the basics)

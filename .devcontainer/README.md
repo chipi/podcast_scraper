@@ -30,14 +30,11 @@ variables → Codespaces**.
 | `OPENAI_API_KEY` | cloud_thin Whisper transcription. |
 | `GEMINI_API_KEY` | cloud_thin summarisation (Flash Lite). |
 | `ANTHROPIC_API_KEY` | optional, cloud_quality / cloud_balanced profiles. |
-| `PODCAST_SENTRY_DSN_API` | Sentry DSN for the api process; unset = skip. |
-| `PODCAST_SENTRY_DSN_PIPELINE` | Sentry DSN for pipeline subprocesses; unset = skip. |
+| `PODCAST_SENTRY_DSN_API` | GlitchTip DSN for the api process (homelab:8090); unset = skip. |
+| `PODCAST_SENTRY_DSN_PIPELINE` | GlitchTip DSN for pipeline subprocesses; unset = skip. |
 | `PODCAST_JOB_WEBHOOK_URL` | Slack incoming-webhook URL (or HA / Shortcuts relay). |
-| `GRAFANA_CLOUD_API_KEY` | Grafana Agent's API key. |
-| `GRAFANA_CLOUD_PROM_USER` | Grafana Cloud Prometheus user / instance ID. |
-| `GRAFANA_CLOUD_LOKI_USER` | Grafana Cloud Loki user / instance ID. |
-| `GRAFANA_CLOUD_PROM_URL` | Grafana Cloud Prometheus remote_write URL. |
-| `GRAFANA_CLOUD_LOKI_URL` | Grafana Cloud Loki push URL. |
+| `REMOTE_WRITE_URL` | Alloy metrics remote-write URL (`http://homelab:8428/api/v1/write`). Dev observability ships to homelab over tailnet, or is a no-op when homelab is unreachable. |
+| `LOGS_WRITE_URL` | Alloy logs push URL (`http://homelab:9428/insert/loki/api/v1/push`). Same tailnet caveat. |
 
 ## Bringing up the compose stack
 

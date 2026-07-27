@@ -67,7 +67,7 @@ without the env var.
 ### 3. Full init path with a DSN
 
 ```bash
-ssh dgx-llm-1 'docker exec -e SENTRY_DSN="https://public@dummy.ingest.sentry.io/1" pyannote python -c "
+ssh dgx-llm-1 'docker exec -e SENTRY_DSN="https://public@telemetry.closelistening.app/1" pyannote python -c "
 import os, importlib, app
 importlib.reload(app)
 import sentry_sdk
@@ -80,7 +80,7 @@ with sentry_sdk.configure_scope() as scope:
 # 2026-06-22 result:
 # Sentry SDK initialized for pyannote-server
 # client_initialized: True
-# dsn: https://public@dummy.ingest.sentry.io/1
+# dsn: https://public@telemetry.closelistening.app/1
 # tags: {'service': 'pyannote-server', 'dgx_host': 'spark-2c14', 'gpu': 'GB10'}
 ```
 
@@ -93,17 +93,18 @@ emitted events, not on the scope tag dict.
 
 The deployment is live but Sentry won't emit until the operator:
 
-1. **Creates a Sentry project** for DGX-side errors (recommendation:
-   call it `podcast-scraper-dgx`, separate from the pipeline
-   project because the SLA shape is different — pipeline errors
-   block users; DGX errors mostly trigger fallback paths per
-   ADR-096).
+1. **Creates a GlitchTip project** at **http://homelab:8090** for DGX-side errors
+   (recommendation: call it `podcast-scraper-dgx`, separate from the pipeline
+   project because the SLA shape is different — pipeline errors block users;
+   DGX errors mostly trigger fallback paths per ADR-096). GlitchTip is
+   Sentry-SDK-compatible; public ingest proxied via `telemetry.closelistening.app`.
 
 2. **Adds `SENTRY_DSN` to `/home/markodragoljevic/.env`** on DGX,
    alongside `HF_TOKEN`:
 
    ```bash
-   SENTRY_DSN=https://<dsn>@<org>.ingest.sentry.io/<project-id>
+   SENTRY_DSN=https://<dsn>@telemetry.closelistening.app/<project-id>
+   # GlitchTip self-hosted at homelab:8090; public ingest via telemetry.closelistening.app
    # Optional overrides — defaults are fine for prod:
    # SENTRY_ENVIRONMENT=dgx-prod
    # SENTRY_TRACES_SAMPLE_RATE=0.01
@@ -127,7 +128,7 @@ The deployment is live but Sentry won't emit until the operator:
    "'
    ```
 
-   Within ~30 seconds, the Sentry dashboard for the new project
+   Within ~30 seconds, the GlitchTip dashboard (http://homelab:8090) for the new project
    shows the event tagged `service=pyannote-server`,
    `dgx_host=spark-2c14`, `gpu=GB10`, `environment=dgx-prod`,
    `server_name=dgx-llm-1.tail6d0ed4.ts.net`,

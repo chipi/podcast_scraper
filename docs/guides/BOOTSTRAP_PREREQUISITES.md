@@ -68,9 +68,11 @@ Stage incrementally — a missing one just disables that feature (the stack stil
 
 - [ ] **LLM providers** (whichever your prod profile uses; `cloud_balanced` default uses OpenAI +
       Gemini): OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Grok API keys.
-- [ ] **Sentry**: an org + **three** projects (`api`, `pipeline`, `viewer`) → one DSN each.
-- [ ] **Grafana Cloud**: a stack with Prometheus + Loki endpoints, their tenant IDs, and an access
-      token with `metrics:write` + `logs:write`.
+- [ ] **GlitchTip (self-hosted)**: homelab `http://homelab:8090` → create **three** projects
+      (`api`, `pipeline`, `viewer`) → one DSN each. Public error ingest via `telemetry.closelistening.app`.
+- [ ] **Alloy remote-write endpoints** (no signup required): `REMOTE_WRITE_URL=http://homelab:8428/api/v1/write`
+      and `LOGS_WRITE_URL=http://homelab:9428/insert/loki/api/v1/push` — homelab VictoriaMetrics/Logs,
+      tailnet-reachable from the VPS.
 - [ ] **Backup repo PAT** (`BACKUP_REPO_TOKEN`, optional) and outbound **job webhook URL** (optional).
 
 ## F. Stage the infrastructure GHA secrets

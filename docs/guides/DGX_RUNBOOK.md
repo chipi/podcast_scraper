@@ -478,24 +478,23 @@ Uses `DGX_TAILNET_FQDN` and `resolve_dgx_tailnet_host.sh`; exits 0 with a warnin
 
 ## DGX observability (#943 / #942)
 
-Three exporters on DGX feed the existing Grafana Cloud Prometheus +
-the existing pipeline-side `compose/grafana-agent.yaml` scrape config.
-**No new Grafana Cloud subscription**: this rides on the free tier the
-pipeline already uses.
+Three exporters on DGX ship metrics and logs to homelab VictoriaMetrics (`:8428`)
+and VictoriaLogs (`:9428`) via the existing Alloy pipeline. The DGX is the
+**source** of telemetry; the **backend** is the Mac mini (homelab, 100.87.33.61).
 
-### Free-tier sizing (do not exceed)
+> **Historical note:** DGX exporters previously fed Grafana Cloud Prometheus/Loki.
+> The backend was migrated to self-hosted homelab in 2026-07. The free-tier caps
+> and Grafana Cloud scrape config table below are no longer applicable.
 
-| Cap (Grafana Cloud free) | Headroom we use | Discipline |
-| --- | --- | --- |
-| 10k active series | ~175 (1.7%) | Strip `id` / `pod` / `namespace` / `container_label_*` from cAdvisor at scrape; keep ~10 metric names per container. |
-| 50 GB Prometheus ingest/mo | ~420 MB/mo (<1%) | 60s scrape for node/cAdvisor/pyannote-app; 30s for DCGM only. |
-| 14-day retention | n/a | inherited |
-| 5k Sentry errors/mo | ~0 expected | `before_send` drops the 503-still-loading boot noise; per-fingerprint rate limit upstream in Sentry project settings. |
-| 10k Sentry transactions/mo | ~1.5k @ 0.01 sample × ~150k req/mo | `SENTRY_TRACES_SAMPLE_RATE` env override available; do not raise without re-budgeting. |
+### Exporter sizing (homelab self-hosted, no tier cap)
+
+The DGX exporters' series volume sits comfortably within the homelab
+VictoriaMetrics single-node capacity — there is no free-tier cap to budget
+against. Retention is configured on homelab.
 
 If a future panel needs higher-cardinality metrics (per-handler labels,
-per-feed labels, etc.), price the additional series first: each new
-series × 2880 scrapes/day × 30 bytes ≈ ~85 KB/day of ingest.
+per-feed labels, etc.), the constraint is Grafana dashboard readability, not
+ingest budget (homelab VictoriaMetrics has no hard series cap at this scale).
 
 ### Endpoints (added in #943; vLLM autoresearch added 2026-06-14)
 
@@ -520,13 +519,14 @@ Importable: `config/grafana/dashboards/common/grafana-dashboard-dgx.json`. 11 pa
 4 rows (GPU / System / Containers / App). The DGX panels reference the
 existing Prometheus datasource — no new datasource setup needed.
 
-### Sentry integration (#942)
+### GlitchTip integration (#942)
 
 `infra/dgx/pyannote-server/app.py` initializes `sentry_sdk` when
 `SENTRY_DSN` is set in the operator's `/home/markodragoljevic/.env`.
-No-op when unset. Tags applied to every event: `service=pyannote-server`,
-`dgx_host=spark-2c14`, `gpu=GB10`, `environment=dgx-prod`. The
-`before_send` hook drops the boot-time `pyannote pipeline not yet loaded`
+No-op when unset. The DSN points at GlitchTip via `telemetry.closelistening.app`
+(homelab:8090 Sentry-compatible backend). Tags applied to every event:
+`service=pyannote-server`, `dgx_host=spark-2c14`, `gpu=GB10`, `environment=dgx-prod`.
+The `before_send` hook drops the boot-time `pyannote pipeline not yet loaded`
 503s — they're health-check noise, not actionable errors.
 
 Future DGX FastAPI services (vLLM-prod, etc.) should mirror this pattern
@@ -534,8 +534,8 @@ verbatim — same DSN, same tags, same `before_send` filter.
 
 ### First-time operator steps
 
-1. Set `SENTRY_DSN` in `/home/markodragoljevic/.env` on DGX (or leave
-   unset to skip Sentry).
+1. Set `SENTRY_DSN` in `/home/markodragoljevic/.env` on DGX (pointing at
+   `telemetry.closelistening.app/<project-id>` from the GlitchTip project, or leave unset to skip).
 2. Push the Tailscale ACL change (Tailscale admin console — pull-request
    the JSON, merge, propagation is ~10s).
 3. `make dgx-deploy` from the laptop — this lays down the new
@@ -546,26 +546,25 @@ verbatim — same DSN, same tags, same `before_send` filter.
    `curl http://dgx-llm-1.tail6d0ed4.ts.net:9400/metrics | head` (DCGM),
    same for `:9100`, `:8080`, `:8001/metrics`.
 5. Import `config/grafana/dashboards/common/grafana-dashboard-dgx.json` into Grafana
-   Cloud (Dashboards → New → Import → upload JSON).
+   at **<http://homelab:3000>** (Dashboards → New → Import → upload JSON).
 
-### When to break the free-tier budget
+### Higher-fidelity metrics (investigation mode)
 
-If the operator wants higher-fidelity metrics for a one-off
-investigation (e.g. characterizing #996 catastrophic-tail in real
-time):
+If higher-fidelity metrics are needed for a one-off investigation
+(e.g. characterizing #996 catastrophic-tail in real time):
 
-- Drop scrape interval to 15s in `compose/grafana-agent.yaml` per-job
-  (≈ 4× current ingest, still under 2 GB/mo).
+- Drop scrape interval to 15s in `compose/grafana-agent.yaml` per-job.
 - Add per-handler latency labels to pyannote-server temporarily.
-- Revert after the investigation — sustained traffic at higher
-  fidelity will eventually exceed the free tier.
+- Revert after the investigation — no billing impact (self-hosted), but
+  reduced interval increases homelab storage consumption.
 
-### In-process Sentry on DGX services (#942)
+### In-process error tracking on DGX services (#942, via GlitchTip)
 
 The metrics exporters above tell us the SHAPE of DGX behaviour
 (CPU/GPU/memory). They don't catch Python exceptions inside
 FastAPI services. For that we wire `sentry-sdk[fastapi]` into each
-DGX service's lifespan.
+DGX service's lifespan — reporting to GlitchTip at homelab:8090
+(Sentry-SDK-compatible; public ingest via `telemetry.closelistening.app`).
 
 **Service inventory** (in-process Sentry status):
 
@@ -580,7 +579,8 @@ DGX service's lifespan.
 **Required env on DGX** (`~/.env` alongside `HF_TOKEN`):
 
 ```bash
-SENTRY_DSN=https://<dsn>@<org>.ingest.sentry.io/<project-id>
+SENTRY_DSN=https://<dsn>@telemetry.closelistening.app/<project-id>
+# GlitchTip self-hosted at homelab:8090; public ingest via telemetry.closelistening.app
 # Optional:
 # SENTRY_ENVIRONMENT=dgx-prod
 # SENTRY_TRACES_SAMPLE_RATE=0.1
@@ -588,10 +588,10 @@ SENTRY_DSN=https://<dsn>@<org>.ingest.sentry.io/<project-id>
 # SERVICE_VERSION=pyannote-0.1.0
 ```
 
-**Sentry project recommendation**: use a SEPARATE project for
-DGX-side events (`podcast-scraper-dgx`) — different SLAs than the
-pipeline project. Pipeline errors block users; DGX errors mostly
-trigger fallback paths (per ADR-096). Different alert cadence.
+**GlitchTip project recommendation**: use a SEPARATE project at homelab:8090 for
+DGX-side events (`podcast-scraper-dgx`) — different SLAs than the pipeline
+project. Pipeline errors block users; DGX errors mostly trigger fallback paths
+(per ADR-096). Different alert cadence.
 
 **Per-service tags** (every DGX service emits all six):
 
@@ -607,14 +607,14 @@ trigger fallback paths (per ADR-096). Different alert cadence.
 ```bash
 # Trigger a synthetic error:
 docker exec <service> python -c "import nonexistent_module_test"
-# Within 30s, the Sentry dashboard for podcast-scraper-dgx shows:
+# Within 30s, the GlitchTip dashboard (http://homelab:8090) for podcast-scraper-dgx shows:
 #   - the event tagged service=<service> + dgx_host + gpu + environment
 #   - server_name = tailnet FQDN
 #   - the ImportError stacktrace
 ```
 
 **Search recipe** — finding a DGX service 5xx in the log stack
-(via alloy → Grafana Cloud Loki):
+(via alloy → VictoriaLogs homelab:9428; query in Grafana <http://homelab:3000> → VictoriaLogs datasource):
 
 ```logql
 {job="dgx-services", service="pyannote-server"} |~ "5\\d{2}"

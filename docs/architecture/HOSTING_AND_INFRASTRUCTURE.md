@@ -150,8 +150,8 @@ OpenTofu runs the same HCL as Terraform would, with providers for **Hetzner** an
 
 - A **CX-class** server, firewall rules, and SSH key wiring suitable for bootstrap.
 - **Tailscale auth key** material for cloud-init so the VPS joins the tailnet on first boot.
-- Optional **Grafana Alloy** bootstrap when Grafana Cloud remote-write variables are all set
-  (host metrics path; see `infra/README.md`).
+- Optional **Grafana Alloy** bootstrap when `REMOTE_WRITE_URL` / `LOGS_WRITE_URL` are set
+  pointing at homelab VictoriaMetrics/VictoriaLogs (host metrics path; see `infra/README.md`).
 
 ### 4.2 State: encrypted blobs in git
 
@@ -345,9 +345,10 @@ Backups are **git-visible workflows**, not a hidden cron on the VPS only, so cha
 
 ## 9. Observability
 
-- **Grafana Agent** (or Alloy on the host when enabled) ships metrics to Grafana Cloud using the same
-  env contract as pre-prod, with **`env` labels** distinguishing prod vs drill vs other
-  **`PODCAST_ENV`** values ([PROD_RUNBOOK.md — Grafana env filter](../guides/PROD_RUNBOOK.md)).
+- **Alloy** ships metrics and logs to homelab VictoriaMetrics (`:8428`) and VictoriaLogs (`:9428`)
+  using the same env contract as pre-prod, with **`env` labels** distinguishing prod vs drill vs
+  other **`PODCAST_ENV`** values ([PROD_RUNBOOK.md — Grafana env filter](../guides/PROD_RUNBOOK.md)).
+  Backend is fully self-hosted on the Mac mini (homelab, tailnet `homelab`).
 - **Sentry** in api and viewer builds groups releases using **`PODCAST_RELEASE`**.
 - **Logs** for pipeline jobs surface in Docker logs and workflow logs; there is no separate ELK stack
   in the hobby baseline.
@@ -369,8 +370,9 @@ Backups are **git-visible workflows**, not a hidden cron on the VPS only, so cha
 ## 11. Cost and scale assumptions
 
 The RFC targets a **hobby** cost envelope: single small VPS, one tailnet, GHCR within free tier for
-public repos, Grafana Cloud free tier, and optional small Hetzner extras. Growth triggers (volume
-snapshots, larger CX, remote state locking) are documented as **when to revisit** decisions in
+public repos, self-hosted observability on homelab (no SaaS observability spend), and optional small
+Hetzner extras. Growth triggers (volume snapshots, larger CX, remote state locking) are documented as
+**when to revisit** decisions in
 [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) and [ADR-080](../adr/ADR-080-opentofu-state-sops-age-in-git.md).
 
 ---
