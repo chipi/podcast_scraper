@@ -15,8 +15,7 @@ def _ok(source):
     return lambda *a, **k: ok(source, {"hit": source})
 
 
-def test_surface_pipeline_fans_all_signals(monkeypatch) -> None:
-    monkeypatch.setattr(aggregate.victoria, "red_metrics", _ok("metrics"))
+def test_surface_pipeline_fans_signals_no_http_metrics(monkeypatch) -> None:
     monkeypatch.setattr(aggregate.victoria, "recent_logs", _ok("logs"))
     monkeypatch.setattr(aggregate.victoria, "traces_recent", _ok("traces"))
     monkeypatch.setattr(aggregate.victoria, "events", _ok("events"))
@@ -24,18 +23,20 @@ def test_surface_pipeline_fans_all_signals(monkeypatch) -> None:
     r = aggregate.surface(_t(), "pipeline")
     assert r["ok"]
     sig = r["data"]["signals"]
-    # api's four + pipeline's two extras
-    assert set(sig) == {"metrics", "errors", "logs", "traces", "pipeline_stage", "cost"}
-    assert r["data"]["service"] == "podcast-pipeline"
+    # pipeline is a subprocess → NO http RED metrics (job=None); has pipeline_stage + cost extras
+    assert set(sig) == {"errors", "logs", "traces", "pipeline_stage", "cost"}
+    assert r["data"]["trace_service"] == "pipeline"  # live-verified Jaeger service
+    assert r["data"]["job"] is None
 
 
-def test_surface_api_has_no_pipeline_extras(monkeypatch) -> None:
+def test_surface_api_has_metrics_no_pipeline_extras(monkeypatch) -> None:
     for fn in ("red_metrics", "recent_logs", "traces_recent", "events"):
         monkeypatch.setattr(aggregate.victoria, fn, _ok(fn))
     monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))
     r = aggregate.surface(_t(), "api")
     assert set(r["data"]["signals"]) == {"metrics", "errors", "logs", "traces"}
-    assert r["data"]["service"] == "podcast-api"
+    assert r["data"]["trace_service"] == "podcast-api"
+    assert r["data"]["job"] == "api"
 
 
 def test_investigate_requires_a_key() -> None:

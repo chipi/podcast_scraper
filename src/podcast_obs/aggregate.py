@@ -14,13 +14,14 @@ from .config import TargetConfig
 from .result import err, ok
 from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry, victoria
 
-# A surface name → its Jaeger/metrics service label. An agent asks by surface (api / pipeline);
-# the control plane maps it to the service the metrics/traces backends key on.
-_SURFACE_SERVICE = {
-    "api": "podcast-api",
-    "pipeline": "podcast-pipeline",
-    "player": "player-api",
-    "operator": "operator-public-api",
+# A surface name → its metrics ``job`` label and its Jaeger trace ``service`` name. These differ
+# and are LIVE-VERIFIED against homelab (metrics carry job="api"; Jaeger service is "pipeline",
+# not "podcast-pipeline"). A surface with no HTTP metrics (the pipeline subprocess) has job=None.
+_SURFACE: dict[str, dict[str, str | None]] = {
+    "api": {"job": "api", "trace": "podcast-api"},
+    "pipeline": {"job": None, "trace": "pipeline"},
+    "player": {"job": "player", "trace": "player-api"},
+    "operator": {"job": "operator", "trace": "operator-public-api"},
 }
 
 # (label, probe) — each probe takes a TargetConfig and returns a result envelope.
@@ -102,15 +103,17 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
     recent errors (GlitchTip), error-ish logs (VictoriaLogs), recent traces (VictoriaTraces), and
     for the pipeline the per-stage `pipeline_stage` rollup + LLM cost. Each degrades independently.
     """
-    service = _SURFACE_SERVICE.get(name, name)
+    mapping = _SURFACE.get(name, {"job": name, "trace": name})
+    job, trace_service = mapping["job"], (mapping["trace"] or name)
     probes: dict[str, Callable[[], dict]] = {
-        "metrics": lambda: victoria.red_metrics(target, service, window="5m"),
         "errors": lambda: sentry.recent_errors(target, window=window, limit=10),
         "logs": lambda: victoria.recent_logs(
             target, surface=name, level="error", window=window, limit=20
         ),
-        "traces": lambda: victoria.traces_recent(target, service, window=window, limit=10),
+        "traces": lambda: victoria.traces_recent(target, trace_service, window=window, limit=10),
     }
+    if job:  # a surface with no HTTP metrics (the pipeline subprocess) skips RED
+        probes["metrics"] = lambda: victoria.red_metrics(target, job, window="5m")
     if name == "pipeline":
         probes["pipeline_stage"] = lambda: victoria.events(
             target, "pipeline_stage", surface="pipeline", window=window, limit=50
@@ -121,7 +124,14 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
     collected = _collect(probes)
     return ok(
         "surface",
-        {"target": target.name, "surface": name, "service": service, "window": window, **collected},
+        {
+            "target": target.name,
+            "surface": name,
+            "job": job,
+            "trace_service": trace_service,
+            "window": window,
+            **collected,
+        },
     )
 
 

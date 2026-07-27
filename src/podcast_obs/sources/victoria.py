@@ -161,26 +161,27 @@ def metrics_instant(target: TargetConfig, query: str) -> dict:
     return ok(_METRICS, {"query": query, "series": series})
 
 
-def red_metrics(target: TargetConfig, surface: str, *, window: str = "5m") -> dict:
+def red_metrics(target: TargetConfig, job: str, *, window: str = "5m") -> dict:
     """RED-ish snapshot for a surface: request rate, 5xx error rate, p95 latency.
 
-    Uses the Prometheus-instrumentator series (``http_requests_total`` /
-    ``http_request_duration_seconds_bucket``) filtered by ``service`` label. Label vocabulary may
-    need tuning per deploy — each sub-query degrades independently.
+    Filtered by the Prometheus ``job`` label (live-verified: the instrumentator series
+    ``http_requests_total`` / ``http_request_duration_seconds_bucket`` carry ``job="api"`` etc.,
+    not a ``service`` label). A surface with no HTTP metrics (the pipeline subprocess) returns empty
+    series — honest, not an error. Each sub-query degrades independently.
     """
     if not target.victoriametrics_url:
         return err(_METRICS, "victoriametrics_url not configured", configured=False)
-    svc = surface.replace(chr(92), "").replace('"', "")
-    q_rate = f'sum(rate(http_requests_total{{service="{svc}"}}[{window}]))'
-    q_err = f'sum(rate(http_requests_total{{service="{svc}",status=~"5.."}}[{window}]))'
+    j = job.replace(chr(92), "").replace('"', "")
+    q_rate = f'sum(rate(http_requests_total{{job="{j}"}}[{window}]))'
+    q_err = f'sum(rate(http_requests_total{{job="{j}",status=~"5.."}}[{window}]))'
     q_p95 = (
         "histogram_quantile(0.95, sum(rate("
-        f'http_request_duration_seconds_bucket{{service="{svc}"}}[{window}])) by (le)))'
+        f'http_request_duration_seconds_bucket{{job="{j}"}}[{window}])) by (le))'
     )
     return ok(
         _METRICS,
         {
-            "surface": surface,
+            "job": j,
             "window": window,
             "request_rate": metrics_instant(target, q_rate).get("data"),
             "error_rate_5xx": metrics_instant(target, q_err).get("data"),
