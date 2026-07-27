@@ -76,7 +76,7 @@ jobs:
       - name: '[Setup] Set up Python 3.11'
         id: setup_python
         timeout-minutes: 3
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11.8"
           cache: pip
@@ -356,7 +356,7 @@ jobs:
       - name: '[Setup] Set up Python 3.11'
         id: setup_python
         timeout-minutes: 2
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11.8"
 

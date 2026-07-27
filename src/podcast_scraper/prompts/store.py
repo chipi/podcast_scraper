@@ -127,7 +127,10 @@ def _load_template(name: str) -> Template:
     rel_path = _rel_path_for_name(name)
     path = _template_path_or_raise(prompt_dir, rel_path, name)
     text = path.read_text(encoding="utf-8")
-    return Template(text)
+    # Explicit annotation: mypy 2.3.0's jinja2 stubs infer Template(...) as Any, which
+    # trips no-any-return on the declared -> Template signature.
+    template: Template = Template(text)
+    return template
 
 
 def render_prompt(name: str, **params: Any) -> str:

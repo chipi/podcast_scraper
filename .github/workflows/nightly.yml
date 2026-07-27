@@ -92,7 +92,7 @@ jobs:
           ml-models-nightly-${{ runner.os }}-
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -146,14 +146,14 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: "20"
 
@@ -182,7 +182,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -224,7 +224,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -257,7 +257,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -290,7 +290,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -360,7 +360,7 @@ jobs:
     needs: [nightly-lint, nightly-build]
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
@@ -397,7 +397,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -486,7 +486,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -556,7 +556,7 @@ jobs:
       needs.nightly-test-e2e.result == 'success'
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
@@ -599,14 +599,14 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11.8"
           cache: "pip"
           cache-dependency-path: pyproject.toml
 
       - name: Set up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -840,14 +840,14 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up Python 3.11 (for the real API server)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11.8"
           cache: "pip"
           cache-dependency-path: pyproject.toml
 
       - name: Set up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -1018,7 +1018,7 @@ jobs:
         df -h
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
@@ -1109,7 +1109,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11.8"
         cache: "pip"
