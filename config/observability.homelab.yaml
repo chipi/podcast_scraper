@@ -1,0 +1,43 @@
+# podcast_obs — ready-to-use config for the CURRENT self-hosted stack (homelab box, tailnet).
+#
+#   export SENTRY_AUTH_TOKEN=<the existing GlitchTip Internal-Integration token>   # already a GH secret
+#   PODCAST_OBS_CONFIG=config/observability.homelab.yaml python -m podcast_obs surface pipeline
+#
+# All backends live on `homelab` (Mac mini, tailnet 100.87.33.61). The Victoria* endpoints have
+# NO auth — tailnet reachability IS the auth (live-verified). Only the errors source (GlitchTip)
+# needs a token, and it already exists: the `SENTRY_AUTH_TOKEN` GH secret (org=homelab, targets
+# homelab:8090). Wire it via `token_env` below — secrets never live in this file.
+#
+# Scope note: SENTRY_AUTH_TOKEN was created with `Release: Admin`. If reading issues 401s, add
+# `event:read` / `project:read` to the SAME GlitchTip Internal Integration (no new token):
+#   curl -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" http://homelab:8090/api/0/organizations/homelab/projects/
+
+default_target: homelab
+
+targets:
+  homelab:
+    # The deployed API (for health/version/runs/resilience/usage). Adjust to the prod tailnet name.
+    api_base: http://prod-podcast:8080
+
+    # Errors — self-hosted GlitchTip (Sentry-API compatible). org/projects/url match the repo vars
+    # SENTRY_ORG / SENTRY_PROJECTS / SENTRY_URL; token reuses the existing SENTRY_AUTH_TOKEN secret.
+    sentry:
+      url: http://homelab:8090
+      org: homelab
+      projects: [podcast, player]
+      environment: prod
+      token_env: SENTRY_AUTH_TOKEN
+
+    # Current stack — VictoriaLogs / VictoriaMetrics / VictoriaTraces. No token (tailnet-open).
+    victoria:
+      logs_url: http://homelab:9428
+      metrics_url: http://homelab:8428
+      traces_url: http://homelab:10428
+      # token_env: PODCAST_OBS_VICTORIA_TOKEN   # only if you front the endpoints with auth
+
+    # LLM traces — Langfuse (self-hosted). Uses the SDK-native LANGFUSE_* env, same keys the
+    # pipeline traces with; no config here beyond the base URL.
+    langfuse:
+      base_url: http://homelab:4000
+
+    env_label: prod

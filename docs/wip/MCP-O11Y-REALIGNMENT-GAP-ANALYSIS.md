@@ -182,10 +182,19 @@ The join keys our recent work made real — `run_id`, `episode_id` (P0), `trace_
 - Not making the control plane a write/ops tool — the two existing write probes get gated, not
   expanded.
 
-## 7. Open questions for the operator
-1. **GlitchTip API token** — is there a read token for `:8090`, or do we mint one? (blocks the errors
-   re-point).
-2. **VictoriaLogs/Metrics/Traces read auth** — tailnet-open, or is there a token/basic-auth in front?
-3. **Deploy shape** — run the re-pointed `podcast_obs` as a homelab-side compose service (tailnet), so
-   a cron/headless agent reaches it over http — confirm that's the intended host.
-4. **Scope for now** — do Phase A+B (deliver the goal) first and land C/D after, or all four in one arc?
+## 7. Open questions — RESOLVED (live-verified against homelab, read-only)
+1. **GlitchTip API token** — **exists, don't mint.** The `SENTRY_AUTH_TOKEN` GH secret is a GlitchTip
+   Internal-Integration token (org=`homelab`, targets `homelab:8090`, per repo vars `SENTRY_URL` /
+   `SENTRY_ORG` / `SENTRY_PROJECTS`). Ingest (DSN) is token-free, but the read API (`/api/0/…`) is
+   not — verified `401` without a token, incl. every DSN-key form. `config/observability.homelab.yaml`
+   wires it via `token_env: SENTRY_AUTH_TOKEN`. **Caveat:** the token is `Release: Admin` scope; if
+   reading issues 401s, add `event:read`/`project:read` to the same integration (no new token).
+2. **VictoriaLogs/Metrics/Traces read auth** — **none.** `--httpListenAddr` with no `-httpAuth`;
+   protected by tailnet binding. Live: `:8428`/`:9428`/`:10428` return `200` + working queries with
+   no token. `victoria_token` stays optional/unset.
+3. **Deploy shape** — **any tailnet box.** The backends are reachable from any Tailscale peer
+   (verified from a laptop). Run the control plane wherever is convenient (local, VPS, or homelab).
+4. **Scope** — **done:** all four phases landed + live-validated (which caught 3 real label/query
+   bugs, now fixed).
+
+Ready-to-use config: `config/observability.homelab.yaml`.
