@@ -3,8 +3,8 @@
 Three backends the legacy sources don't speak:
 
 - **VictoriaLogs** (LogsQL, ``/select/logsql/query``) — the ``emit_event`` stream (``llm_cost`` /
-  ``pipeline_stage`` / ``search_query``) + container logs. Structurally different from Grafana-Cloud
-  Loki (``loki.py``): a different endpoint AND query language, streaming newline-delimited JSON.
+  ``pipeline_stage`` / ``search_query``) + container logs; a streaming newline-delimited-JSON query
+  API. The self-hosted logs backend for this deployment (there is no Grafana-Cloud Loki).
 - **VictoriaMetrics** (PromQL, ``/api/v1/query``) — RED / resource metrics. No source existed.
 - **VictoriaTraces** (Jaeger API, ``/select/jaeger/api/*``) — general request/span traces for the
   API + pipeline services (vs Langfuse, which only sees LLM calls).

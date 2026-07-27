@@ -158,9 +158,9 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         return _run(config, target, _summary)
 
     def prod_correlate(run_id: str, target: Optional[str] = None) -> dict:
-        """Every signal for ONE run_id, joined: Langfuse trace (per-call model/cost/tokens) +
-        Loki llm_cost events + Sentry errors + enrichment health snapshot. The cross-layer
-        view for a single run (#1053 + RFC-088)."""
+        """Every signal for ONE run_id, joined: VictoriaTraces spans + VictoriaLogs llm_cost
+        events + errors + logs + enrichment (Langfuse llm_trace as an optional supplement). The
+        cross-layer view for a single run (#1053 + RFC-088)."""
         return _run(config, target, lambda t: _correlate(t, run_id))
 
     def obs_surface(surface: str, target: Optional[str] = None, window: str = "1h") -> dict:

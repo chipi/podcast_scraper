@@ -45,11 +45,6 @@ class TargetConfig:
     sentry_url: Optional[str] = None
     grafana_url: Optional[str] = None
     grafana_token: Optional[str] = None  # Grafana service-account token (alerting API)
-    loki_url: Optional[str] = None
-    loki_user: Optional[str] = None
-    loki_token: Optional[str] = (
-        None  # Loki access-policy token (logs:read); falls back to grafana_token
-    )
     # Current self-hosted stack (homelab): VictoriaLogs (LogsQL), VictoriaMetrics (PromQL),
     # VictoriaTraces (Jaeger API). Tailnet-reachable; auth via optional bearer token.
     victorialogs_url: Optional[str] = None
@@ -238,9 +233,6 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         sentry_url=sentry.get("url"),
         grafana_url=grafana.get("url"),
         grafana_token=_secret(grafana, "token"),
-        loki_url=grafana.get("loki_url"),
-        loki_user=grafana.get("loki_user"),
-        loki_token=_secret(grafana, "loki_token"),
         victorialogs_url=victoria.get("logs_url"),
         victoriametrics_url=victoria.get("metrics_url"),
         victoriatraces_url=victoria.get("traces_url"),

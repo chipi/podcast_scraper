@@ -238,10 +238,11 @@ _CORRELATORS: list[tuple[str, Callable[[TargetConfig, str], dict]]] = [
 def correlate(target: TargetConfig, run_id: str) -> dict:
     """Every signal for one ``run_id``, joined — the agent's cross-layer view (#1053).
 
-    Fans out the run-scoped probes (Langfuse trace, Loki cost events, Sentry errors) and
-    returns them under one envelope, each degrading independently (``configured=False``
-    when its backend isn't wired). This is what lets an agent take a run and see what it
-    did, what it cost, and whether it errored — in one call.
+    Fans out the run-scoped probes (VictoriaTraces spans, VictoriaLogs cost events + logs +
+    errors, enrichment; Langfuse llm_trace as an optional supplement) and returns them under one
+    envelope, each degrading independently (``configured=False`` when its backend isn't wired).
+    This is what lets an agent take a run and see what it did, what it cost, and whether it
+    errored — in one call.
     """
     signals: dict[str, dict] = {}
     for label, probe in _CORRELATORS:

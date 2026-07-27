@@ -1,6 +1,6 @@
 """Recent unresolved error issues for the deploy's environment (Sentry-compatible API, bearer auth).
 
-Complements :func:`podcast_obs.sources.loki.recent_logs`: this source holds SDK-captured
+Complements :func:`podcast_obs.sources.victoria.recent_logs`: this source holds SDK-captured
 exceptions; logs hold everything the containers logged. Use both for a full error picture.
 
 Backend is Sentry-API-compatible: point ``sentry_url`` at self-hosted **GlitchTip**
