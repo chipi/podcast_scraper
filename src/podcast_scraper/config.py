@@ -1237,10 +1237,21 @@ class Config(BaseModel):
         default=None,
         alias="transcription_coverage_failover_model",
         description=(
-            "ADR-123/ADR-129: the whisper model to re-transcribe with when coverage falls below "
-            "transcription_coverage_min OR transcription_speech_coverage_min (e.g. "
-            "'Systran/faster-whisper-large-v3' as the robust fallback for turbo's long-episode "
-            "drops). None = no quality-gate failover."
+            "ADR-123/ADR-129: the model to re-transcribe with when coverage falls below "
+            "transcription_coverage_min OR transcription_speech_coverage_min. Interpreted by "
+            "transcription_coverage_failover_provider (a whisper model id for the DGX whisper "
+            "service, or a MOSS model id when the provider is 'moss'). None = no failover."
+        ),
+    )
+    transcription_coverage_failover_provider: Optional[str] = Field(
+        default=None,
+        alias="transcription_coverage_failover_provider",
+        description=(
+            "ADR-123 (#1273): which PROVIDER re-transcribes on the coverage gate. None = the same "
+            "provider as the primary (historical behaviour: a whisper model on the DGX whisper "
+            "service). Set to 'moss' to fail over to the DGX MOSS model instead of large-v3, which "
+            "the 2026-07-23 human-GT bake-off found least accurate (turbo beat it — suspected int8 "
+            "serving regression). MOSS is 2nd-best accuracy and stays DGX-local."
         ),
     )
     enforce_model_governance: bool = Field(

@@ -1,7 +1,7 @@
 # v2.3 corpus reprocess (#1190): reprocess_v22_community1 with EXACTLY ONE change — the ASR is moved
 # off cloud OpenAI Whisper onto the self-hosted DGX faster-whisper TURBO server (#1178/#1179 lock,
-# decided on real human ground truth), with the ADR-123 coverage-gate failover to large-v3 for the
-# turbo long-episode cliff. EVERYTHING else (community-1 diarization, trf NER, gemini naming/summary/
+# decided on real human ground truth), with the ADR-123 coverage-gate failover to MOSS (#1273) for
+# the turbo long-episode cliff. EVERYTHING else (community-1 diarization, trf NER, gemini naming/summary/
 # GI/KG, resilience=failover, governance=false) is byte-identical to v2.2, so the corpus reprocess is
 # a clean single-variable gate (v2.2 diarization -> v2.3 ASR). The only non-model additions are the
 # run mechanics that force fresh transcription (transcript_cache_enabled: false) — they change no
@@ -225,9 +225,13 @@ resilience_failure_strategy: hold
 # SPEECH coverage — Σ(transcript segments) / Σ(diarization speech) — not raw audio coverage, so
 # music/ads/silence do not falsely trip the failover (measured: 11/90 v2.3 episodes were below the
 # raw 0.85 purely on non-speech, e.g. "Move Over Humans" 67% raw but ~97% speech). Re-transcribe on
-# large-v3 only when the REAL speech drop exceeds the floor. The raw gate is disabled (0.0) since
+# MOSS only when the REAL speech drop exceeds the floor. The raw gate is disabled (0.0) since
 # diarization always runs here and supplies the speech denominator.
 transcription_coverage_min: 0.0
 transcription_speech_coverage_min: 0.85
 enforce_model_governance: false
-transcription_coverage_failover_model: Systran/faster-whisper-large-v3
+# #1273: the 2026-07-23 human-GT bake-off found large-v3 LEAST accurate (turbo beat it — suspected
+# int8 serving regression), so the coverage failover re-transcribes on MOSS (2nd-best accuracy,
+# still DGX-local) instead. Uses dgx_tailnet_host + moss_port(8004). int8 investigation tracked.
+transcription_coverage_failover_model: OpenMOSS-Team/MOSS-Transcribe-Diarize
+transcription_coverage_failover_provider: moss
