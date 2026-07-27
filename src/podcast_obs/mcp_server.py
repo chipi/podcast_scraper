@@ -16,7 +16,12 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
-from .aggregate import correlate as _correlate, summary as _summary
+from .aggregate import (
+    correlate as _correlate,
+    investigate as _investigate,
+    summary as _summary,
+    surface as _surface,
+)
 from .config import ObservabilityConfig, ObservabilityConfigError, TargetConfig
 from .result import err
 from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry
@@ -135,6 +140,33 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         view for a single run (#1053 + RFC-088)."""
         return _run(config, target, lambda t: _correlate(t, run_id))
 
+    def obs_surface(surface: str, target: Optional[str] = None, window: str = "1h") -> dict:
+        """Observe ONE surface — the "observe the API / the pipeline" verb. `surface` is
+        api / pipeline / player / operator. Returns its five-signal snapshot: RED metrics
+        (VictoriaMetrics), recent errors (GlitchTip), error logs (VictoriaLogs), traces
+        (VictoriaTraces), and — for the pipeline — the per-stage pipeline_stage rollup + LLM cost.
+        Each signal degrades independently (configured=false when its backend isn't wired)."""
+        return _run(config, target, lambda t: _surface(t, surface, window=window))
+
+    def obs_investigate(
+        target: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        episode_id: Optional[str] = None,
+        window: str = "24h",
+    ) -> dict:
+        """Drill on ONE join key — give exactly one of `trace_id` (a request → span tree + logs),
+        `run_id` (a pipeline run → trace/cost/errors/logs/pipeline_stage), or `episode_id` (one
+        episode → its pipeline_stage + cost + logs). Fans every backend and returns the correlated
+        bundle. The cross-backend investigate verb (built on run_id/episode_id/trace_id)."""
+        return _run(
+            config,
+            target,
+            lambda t: _investigate(
+                t, trace_id=trace_id, run_id=run_id, episode_id=episode_id, window=window
+            ),
+        )
+
     # --- RFC-088 enrichment-layer tools --------------------------------------------
 
     def enrichment_run_status(target: Optional[str] = None) -> dict:
@@ -219,6 +251,8 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         prod_recent_traces,
         prod_summary,
         prod_correlate,
+        obs_surface,
+        obs_investigate,
         enrichment_run_status,
         enrichment_recent_runs,
         enrichment_health,

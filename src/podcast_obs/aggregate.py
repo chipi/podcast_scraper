@@ -7,11 +7,21 @@ automatically join the summary and the CLI.
 
 from __future__ import annotations
 
-from typing import Callable
+from functools import partial
+from typing import Callable, Optional
 
 from .config import TargetConfig
 from .result import err, ok
-from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry
+from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry, victoria
+
+# A surface name → its Jaeger/metrics service label. An agent asks by surface (api / pipeline);
+# the control plane maps it to the service the metrics/traces backends key on.
+_SURFACE_SERVICE = {
+    "api": "podcast-api",
+    "pipeline": "podcast-pipeline",
+    "player": "player-api",
+    "operator": "operator-public-api",
+}
 
 # (label, probe) — each probe takes a TargetConfig and returns a result envelope.
 # Sources whose credentials aren't set for a target return ``configured=False`` and land in the
@@ -61,6 +71,109 @@ def summary(target: TargetConfig) -> dict:
             "unconfigured": unconfigured,
             "failed": failed,
             "sources": sources,
+        },
+    )
+
+
+def _collect(probes: dict) -> dict:
+    """Run ``{label: thunk}`` probes, tolerating failure; bucket live/unconfigured/failed."""
+    signals: dict[str, dict] = {}
+    for label, thunk in probes.items():
+        try:
+            signals[label] = thunk()
+        except Exception as exc:  # noqa: BLE001 — one signal must never break the join
+            signals[label] = err(label, f"probe raised: {exc}")
+    return {
+        "live": sorted(k for k, r in signals.items() if r.get("ok")),
+        "unconfigured": sorted(
+            k for k, r in signals.items() if not r.get("ok") and r.get("configured") is False
+        ),
+        "failed": sorted(
+            k for k, r in signals.items() if not r.get("ok") and r.get("configured") is not False
+        ),
+        "signals": signals,
+    }
+
+
+def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
+    """Observe ONE surface (api / pipeline / player / operator): its five-signal snapshot.
+
+    The literal "observe the API" / "observe the pipeline" verb — RED metrics (VictoriaMetrics),
+    recent errors (GlitchTip), error-ish logs (VictoriaLogs), recent traces (VictoriaTraces), and
+    for the pipeline the per-stage `pipeline_stage` rollup + LLM cost. Each degrades independently.
+    """
+    service = _SURFACE_SERVICE.get(name, name)
+    probes: dict[str, Callable[[], dict]] = {
+        "metrics": lambda: victoria.red_metrics(target, service, window="5m"),
+        "errors": lambda: sentry.recent_errors(target, window=window, limit=10),
+        "logs": lambda: victoria.recent_logs(
+            target, surface=name, level="error", window=window, limit=20
+        ),
+        "traces": lambda: victoria.traces_recent(target, service, window=window, limit=10),
+    }
+    if name == "pipeline":
+        probes["pipeline_stage"] = lambda: victoria.events(
+            target, "pipeline_stage", surface="pipeline", window=window, limit=50
+        )
+        probes["cost"] = lambda: victoria.events(
+            target, "llm_cost", surface="pipeline", window=window, limit=200
+        )
+    collected = _collect(probes)
+    return ok(
+        "surface",
+        {"target": target.name, "surface": name, "service": service, "window": window, **collected},
+    )
+
+
+def investigate(
+    target: TargetConfig,
+    *,
+    trace_id: Optional[str] = None,
+    run_id: Optional[str] = None,
+    episode_id: Optional[str] = None,
+    window: str = "24h",
+) -> dict:
+    """Drill on ONE join key — fan every backend and return the correlated bundle.
+
+    Give exactly one of ``trace_id`` (a request → its span tree + logs), ``run_id`` (a pipeline run
+    → trace/cost/errors/logs/pipeline_stage), or ``episode_id`` (one episode → its pipeline_stage +
+    cost + logs). The keys our recent work made real (run_id / episode_id / trace_id) are what make
+    this cross-backend.
+    """
+    if not (trace_id or run_id or episode_id):
+        return err("investigate", "provide one of trace_id / run_id / episode_id")
+    probes: dict[str, Callable[[], dict]] = {}
+    if trace_id:
+        probes["trace"] = lambda: victoria.trace_by_id(target, trace_id)
+        probes["trace_logs"] = lambda: victoria.recent_logs(
+            target, level="", contains=trace_id, window=window, limit=100
+        )
+    if run_id:
+        for _label, _probe in _CORRELATORS:
+            probes[_label] = partial(_probe, target, run_id)
+        probes["pipeline_stage"] = lambda: victoria.events(
+            target, "pipeline_stage", run_id=run_id, window=window, limit=200
+        )
+    if episode_id:
+        probes["ep_pipeline_stage"] = lambda: victoria.events(
+            target, "pipeline_stage", episode_id=episode_id, window=window, limit=200
+        )
+        probes["ep_cost"] = lambda: victoria.events(
+            target, "llm_cost", episode_id=episode_id, window=window, limit=200
+        )
+        probes["ep_logs"] = lambda: victoria.recent_logs(
+            target, level="", contains=episode_id, window=window, limit=100
+        )
+    collected = _collect(probes)
+    return ok(
+        "investigate",
+        {
+            "target": target.name,
+            "trace_id": trace_id,
+            "run_id": run_id,
+            "episode_id": episode_id,
+            "window": window,
+            **collected,
         },
     )
 

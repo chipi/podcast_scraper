@@ -31,6 +31,8 @@ def test_tool_table_names_and_count() -> None:
         "prod_recent_traces",
         "prod_summary",
         "prod_correlate",
+        "obs_surface",
+        "obs_investigate",
         "enrichment_run_status",
         "enrichment_recent_runs",
         "enrichment_health",
