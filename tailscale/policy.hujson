@@ -92,6 +92,16 @@
       "src":    ["tag:prod"],
       "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
+    {
+      // homelab Mac mini (tag:homelab-host) scrapes DGX telemetry over the TAILNET
+      // (infra/dgx-scrape) — GPU (dcgm :9400), containers (cadvisor :8080), app
+      // /metrics (moss :8004, pyannote :8001), and TCP health of the inference
+      // services (:11434/:8000/:8002/:8004). Replaces the fragile LAN path
+      // (192.168.1.111 changed when the DGX dropped off the home LAN).
+      "action": "accept",
+      "src":    ["tag:homelab-host"],
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+    },
 
     // homelab Mac mini (tag:homelab-host) — self-hosted observability stack
     // (ADR-0005). Operator reaches the dashboards + SSH; DGX + prod push
