@@ -255,7 +255,7 @@
       "properties": {
         "name": "Rina"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:6e303c97ef6d6d7b",
@@ -276,7 +276,7 @@
       "properties": {
         "name": "Marco Silva"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:aded400ed5c94ea3",
@@ -350,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.1"
+  "schema_version": "3.0"
 }

@@ -62,28 +62,6 @@ class TestKgSchema(unittest.TestCase):
         data = json.loads(_FIXTURE_MINIMAL.read_text(encoding="utf-8"))
         validate_artifact(data, strict=True)
 
-    def test_v2_1_voice_node_validates_strict(self) -> None:
-        """ADR-133/#1220: a 2.1 artifact with a Voice node (unresolved SPEAKER_NN) passes strict
-        schema validation; the id keeps the person:speaker- shape for SPOKEN_BY edge integrity."""
-        art = {
-            "schema_version": "2.1",
-            "episode_id": "e:1",
-            "extraction": {
-                "model_version": "stub",
-                "extracted_at": "2024-01-01T00:00:00Z",
-                "transcript_ref": "t.txt",
-            },
-            "nodes": [
-                {
-                    "id": "person:speaker-e1-01",
-                    "type": "Voice",
-                    "properties": {"name": "SPEAKER_01", "role": "guest"},
-                }
-            ],
-            "edges": [],
-        }
-        validate_artifact(art, strict=True)
-
     def test_strict_rejects_noncanonical_model_version(self) -> None:
         """extraction.model_version must be stub or provider:*."""
         base = {

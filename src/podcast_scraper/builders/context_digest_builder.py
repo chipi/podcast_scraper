@@ -58,8 +58,8 @@ def _iter_nodes(*artifacts: Optional[Mapping[str, Any]]) -> List[Mapping[str, An
 
 
 def _is_bare_voice(node: Mapping[str, Any]) -> bool:
-    """True when a Person/Voice node is an unresolved diarization speaker (SPEAKER_NN)."""
-    if node.get("type") not in ("Person", "Voice"):
+    """True when a Person node is an unresolved diarization speaker (SPEAKER_NN)."""
+    if node.get("type") != "Person":
         return False
     return bool(is_bare_speaker_label(_node_name(node)) or is_bare_speaker_label(node.get("id")))
 
@@ -144,7 +144,7 @@ def build_context_digest(
         if name is None:
             continue
         ntype = node.get("type")
-        if ntype in ("Person", "Voice"):
+        if ntype == "Person":
             if _is_bare_voice(node):
                 bare_labels.append(name)
             elif ntype == "Person":

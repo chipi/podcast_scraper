@@ -260,7 +260,7 @@
       "properties": {
         "name": "Rina"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:d56473f01385ab0b",
@@ -281,7 +281,7 @@
       "properties": {
         "name": "Hanna Crebo Rediker"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:f07cb1f67f92b18d",
@@ -355,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.1"
+  "schema_version": "3.0"
 }

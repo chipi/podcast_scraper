@@ -250,7 +250,7 @@
       "properties": {
         "name": "Nora"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:f45983df1b1cd622",
@@ -271,7 +271,7 @@
       "properties": {
         "name": "Rich Clarida"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:c6ab035ba298f4fa",
@@ -345,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.1"
+  "schema_version": "3.0"
 }

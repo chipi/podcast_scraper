@@ -255,7 +255,7 @@
       "properties": {
         "name": "Maya"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:6c9d9f4e18265591",
@@ -276,7 +276,7 @@
       "properties": {
         "name": "Sophie Laurent"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:e2817293d2bb29a6",
@@ -350,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.1"
+  "schema_version": "3.0"
 }

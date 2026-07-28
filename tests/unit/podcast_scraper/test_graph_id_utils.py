@@ -94,22 +94,8 @@ def test_is_person_or_org_node_recognizes_v2_typed_nodes() -> None:
     assert is_person_or_org_node("Entity") is True  # legacy v1.x still recognized
     assert is_person_or_org_node("Topic") is False
     assert is_person_or_org_node("Episode") is False
-    # ADR-133/#1220: Voice is NOT person-like — excluded from person/org rollups by construction.
-    assert is_person_or_org_node("Voice") is False
     assert is_person_or_org_node(None) is False
     assert is_person_or_org_node(123) is False
-
-
-def test_person_node_type_for_name_voice_vs_person() -> None:
-    from podcast_scraper.graph_id_utils import person_node_type_for_name
-
-    # unresolved diarization labels → Voice (ADR-133/#1220)
-    assert person_node_type_for_name("SPEAKER_00") == "Voice"
-    assert person_node_type_for_name("SPEAKER_12") == "Voice"
-    # real names → Person
-    assert person_node_type_for_name("Jane Doe") == "Person"
-    assert person_node_type_for_name("Patrick O'Shaughnessy") == "Person"
-    assert person_node_type_for_name(None) == "Person"
 
 
 def test_normalized_entity_kind_v2_typed_node_takes_precedence() -> None:

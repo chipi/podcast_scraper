@@ -260,7 +260,7 @@
       "properties": {
         "name": "Alex Morgan"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:d9d4ee2ea353c7e5",
@@ -281,7 +281,7 @@
       "properties": {
         "name": "Skanda Eminas"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:dac59e7c4b33fd6d",
@@ -355,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.1"
+  "schema_version": "3.0"
 }

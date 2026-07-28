@@ -54,9 +54,9 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
     # Migration scripts read input as raw JSON (json.load), not via
     # validate_artifact, so this strict version gate does not block migration
     # of legacy corpora.
-    # ADR-133/#1191+#1220: 3.1 adds Insight rank/tier/routing_tag/salience + the Voice node. 3.0
-    # stays accepted during the migration window; the reprocess writes 3.1, the migration brings
-    # 3.0 forward. Legacy 1.0/2.0 remains rejected.
+    # ADR-133/#1191: 3.1 adds Insight rank/tier/routing_tag/salience (additive, optional). 3.0 stays
+    # accepted during the migration window; the reprocess writes 3.1, older 3.0 stays valid-as-3.1
+    # (the new fields are optional). Legacy 1.0/2.0 remains rejected.
     if sv not in ("3.0", "3.1"):
         raise ValueError(
             "GIL artifact 'schema_version' must be '3.0' or '3.1' (RFC-097 v3 / ADR-133). Legacy "

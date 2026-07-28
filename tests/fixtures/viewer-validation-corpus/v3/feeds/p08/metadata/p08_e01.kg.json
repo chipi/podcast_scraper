@@ -2,6 +2,16 @@
   "edges": [
     {
       "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "entity:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
       "to": "topic:environment",
       "type": "RELATES_TO"
     },
@@ -18,9 +28,8 @@
   ],
   "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
   "extraction": {
-    "extracted_at": "2026-07-05T12:00:00",
-    "model_version": "synthetic-validation-corpus-v1",
-    "transcript_ref": "transcripts/p08_e01.txt"
+    "model": "n/a",
+    "provider": "synthetic"
   },
   "nodes": [
     {
@@ -31,6 +40,22 @@
         "title": "The Long View \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "entity:environment",
+      "properties": {
+        "category": "Concept",
+        "label": "Environment"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
     },
     {
       "id": "topic:environment",
@@ -54,5 +79,5 @@
       "type": "Topic"
     }
   ],
-  "schema_version": "2.1"
+  "schema_version": "2"
 }

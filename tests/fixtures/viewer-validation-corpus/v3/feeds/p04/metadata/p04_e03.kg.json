@@ -2,6 +2,16 @@
   "edges": [
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "entity:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
       "to": "topic:technology",
       "type": "RELATES_TO"
     },
@@ -18,9 +28,8 @@
   ],
   "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
   "extraction": {
-    "extracted_at": "2026-07-05T12:00:00",
-    "model_version": "synthetic-validation-corpus-v1",
-    "transcript_ref": "transcripts/p04_e03.txt"
+    "model": "n/a",
+    "provider": "synthetic"
   },
   "nodes": [
     {
@@ -31,6 +40,22 @@
         "title": "Frame & Light \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:gear",
+      "properties": {
+        "category": "Concept",
+        "label": "Gear"
+      },
+      "type": "Entity"
     },
     {
       "id": "topic:technology",
@@ -54,5 +79,5 @@
       "type": "Topic"
     }
   ],
-  "schema_version": "2.1"
+  "schema_version": "2"
 }

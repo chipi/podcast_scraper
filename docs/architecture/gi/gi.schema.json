@@ -59,7 +59,7 @@
           "$ref": "#/$defs/episode_node"
         },
         {
-          "$ref": "#/$defs/voice_node"
+          "$ref": "#/$defs/speaker_node"
         },
         {
           "$ref": "#/$defs/person_node"
@@ -208,10 +208,9 @@
         }
       }
     },
-    "voice_node": {
+    "speaker_node": {
       "type": "object",
       "additionalProperties": false,
-      "description": "v3.1 (ADR-133/#1220): an unresolved diarization voice (SPEAKER_NN), typed distinctly from Person so SURFACE/person consumers never see it by construction. Mirrors KG's voice_node. Id keeps the legacy person:speaker-{ep}-{n} shape for SPOKEN_BY edge integrity.",
       "required": [
         "id",
         "type",
@@ -223,7 +222,7 @@
           "minLength": 1
         },
         "type": {
-          "const": "Voice"
+          "const": "Speaker"
         },
         "properties": {
           "type": "object",

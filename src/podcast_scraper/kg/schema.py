@@ -57,12 +57,9 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
     # Migration scripts read input as raw JSON (json.load), not via
     # validate_artifact, so this strict version gate does not block migration
     # of legacy corpora.
-    # ADR-133/#1220: 2.1 adds the Voice node type. 2.0 stays accepted during the migration window
-    # (existing corpora + un-regenerated fixtures) — the reprocess writes 2.1, the migration brings
-    # 2.0 forward. Legacy 1.x remains rejected.
-    if sv not in ("2.0", "2.1"):
+    if sv != "2.0":
         raise ValueError(
-            "KG artifact 'schema_version' must be '2.0' or '2.1' (RFC-097 v2 / ADR-133). Legacy "
+            "KG artifact 'schema_version' must be '2.0' (RFC-097 v2). Legacy "
             "1.0/1.1/1.2 shape is no longer accepted; migrate via "
             "scripts/migrate_kg_entity_to_person_org.py."
         )

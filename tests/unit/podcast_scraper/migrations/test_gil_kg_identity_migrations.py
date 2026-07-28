@@ -2,7 +2,6 @@
 
 import pytest
 
-from podcast_scraper.kg.schema import validate_artifact as validate_kg_artifact
 from podcast_scraper.migrations.gil_kg_identity_migrations import (
     compute_position_hints_for_document,
     migrate_gi_document_v3,
@@ -10,69 +9,15 @@ from podcast_scraper.migrations.gil_kg_identity_migrations import (
     migrate_gil_document,
     migrate_kg_document,
     migrate_kg_document_v2,
-    migrate_kg_document_v2_1,
 )
 
 pytestmark = pytest.mark.unit
 
 
-def test_migrate_kg_v2_1_retypes_speaker_person_to_voice() -> None:
-    """ADR-133/#1220: person:speaker-NN Person → Voice; real Person + Org untouched; edges intact;
-    description dropped from Voice; schema bumped to 2.1; and the result validates strict."""
-    data = {
-        "schema_version": "2.0",
-        "episode_id": "e1",
-        "extraction": {
-            "model_version": "stub",
-            "extracted_at": "2024-01-01T00:00:00Z",
-            "transcript_ref": "t.txt",
-        },
-        "nodes": [
-            {
-                "id": "person:speaker-e1-01",
-                "type": "Person",
-                "properties": {"name": "SPEAKER_01", "role": "guest", "description": "x"},
-            },
-            {
-                "id": "person:jane",
-                "type": "Person",
-                "properties": {"name": "Jane", "role": "host"},
-            },
-            {"id": "org:acme", "type": "Organization", "properties": {"name": "Acme"}},
-        ],
-        # edges untouched by the retype; keep a valid KG edge to confirm it survives unchanged.
-        "edges": [{"type": "RELATED_TO", "from": "person:speaker-e1-01", "to": "org:acme"}],
-    }
-    out = migrate_kg_document_v2_1(data)
-    assert out["schema_version"] == "2.1"
-    by_id = {n["id"]: n for n in out["nodes"]}
-    assert by_id["person:speaker-e1-01"]["type"] == "Voice"
-    assert "description" not in by_id["person:speaker-e1-01"]["properties"]
-    assert by_id["person:jane"]["type"] == "Person"  # real person untouched
-    assert by_id["org:acme"]["type"] == "Organization"
-    assert out["edges"][0]["from"] == "person:speaker-e1-01"  # edge id unchanged
-    validate_kg_artifact(out, strict=True)
-
-
-def test_migrate_kg_v2_1_idempotent() -> None:
-    data = {
-        "schema_version": "2.1",
-        "episode_id": "e1",
-        "extraction": {
-            "model_version": "stub",
-            "extracted_at": "2024-01-01T00:00:00Z",
-            "transcript_ref": "t.txt",
-        },
-        "nodes": [
-            {"id": "person:speaker-e1-01", "type": "Voice", "properties": {"name": "SPEAKER_01"}}
-        ],
-        "edges": [],
-    }
-    once = migrate_kg_document_v2_1(data)
-    assert once == migrate_kg_document_v2_1(once)
-
-
-def test_migrate_gi_v3_1_retypes_speaker_person_to_voice() -> None:
+def test_migrate_gi_v3_1_stamps_version_without_retyping() -> None:
+    """ADR-133/#1191: 3.1 only stamps the version — the additive Insight fields are optional, so a
+    3.0 artifact is valid-as-3.1. Speaker Persons are NOT retyped (Voice node reverted); real Person
+    stays Person; idempotent."""
     data = {
         "schema_version": "3.0",
         "model_version": "m",
@@ -87,7 +32,7 @@ def test_migrate_gi_v3_1_retypes_speaker_person_to_voice() -> None:
     out = migrate_gi_document_v3_1(data)
     assert out["schema_version"] == "3.1"
     by_id = {n["id"]: n for n in out["nodes"]}
-    assert by_id["person:speaker-e1-00"]["type"] == "Voice"
+    assert by_id["person:speaker-e1-00"]["type"] == "Person"  # no Voice retype
     assert by_id["person:kate"]["type"] == "Person"
     assert migrate_gi_document_v3_1(out) == out  # idempotent
 

@@ -250,7 +250,7 @@
       "properties": {
         "name": "Ethan"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:4e74d383ee0139f5",
@@ -271,7 +271,7 @@
       "properties": {
         "name": "Priya Nair"
       },
-      "type": "Voice"
+      "type": "Person"
     },
     {
       "id": "quote:c4a97578abf51afe",
@@ -345,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.1"
+  "schema_version": "3.0"
 }
