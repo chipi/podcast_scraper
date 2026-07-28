@@ -2,6 +2,9 @@
 //
 // Synced to the live Tailscale ACL by infra/terraform/tailscale.tf's
 // tailscale_acl resource on every `tofu apply`.
+// MIGRATING (ADR-128): applier moving from OpenTofu to Tailscale's GitOps ACL action
+// (`.github/workflows/tailscale-acl.yml`) so an ACL edit stops forcing a full-estate
+// apply. Phase 1 (test-only) is live; the apply cutover + tofu `state rm` are Phase 2.
 //
 // Owner: single operator. Add a collaborator by appending their tailnet
 // identity to acls below and opening a PR. RFC-082 Decision 2 + Decisions-made #4.
