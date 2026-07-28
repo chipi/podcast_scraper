@@ -198,6 +198,20 @@ def init_sentry(component: Component) -> bool:
         # Tag every event with the component so the api / pipeline streams can
         # be filtered cleanly in Sentry's UI.
         sentry_sdk.set_tag("component", component)
+        # The OTLP span exporter logs a transient "Failed to export span batch due to timeout" when
+        # the endpoint is briefly unreachable at process shutdown (now bounded in otel_init). That
+        # is best-effort tracing losing a batch, NOT an application error — keep it out of GlitchTip
+        # so a deploy window doesn't spam the pipeline issue stream (73 events on 2026-07-28).
+        try:
+            from sentry_sdk.integrations.logging import ignore_logger
+
+            for _otel_logger in (
+                "opentelemetry.sdk.trace.export",
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+            ):
+                ignore_logger(_otel_logger)
+        except Exception:  # noqa: BLE001 — never break sentry init over a log filter
+            pass
     except Exception:  # noqa: BLE001 — telemetry must NEVER break the app
         # A malformed DSN raises sentry_sdk.utils.BadDsn ("Unsupported scheme");
         # any other init failure is equally fatal if unguarded. A telemetry

@@ -26,6 +26,28 @@ from typing import Any, Iterator, Optional
 _LOGGER = logging.getLogger(__name__)
 _initialized = False
 
+# Hard cap on the span flush at process exit. A batch / containerised process is SIGTERM'd on
+# deploy; the default ``BatchSpanProcessor.shutdown`` keeps retrying the OTLP export and, when the
+# endpoint is briefly unreachable during the stop, logs "Failed to export span batch due to timeout"
+# — which the Sentry logging integration then ships to GlitchTip as an application error (73 of them
+# on 2026-07-28's prod deploy). Bounding the flush makes it fail fast and quietly: tracing is
+# best-effort, and a span dropped at shutdown must never surface as an error. Overridable via env.
+_SHUTDOWN_FLUSH_MS = int(os.environ.get("OTEL_BSP_SHUTDOWN_FLUSH_MS", "2000") or "2000")
+
+
+def _bounded_shutdown(provider: Any) -> None:
+    """Flush pending spans within ``_SHUTDOWN_FLUSH_MS``, then shut the provider down — swallowing
+    any failure. Registered in place of the bare ``provider.shutdown`` so a slow/unreachable OTLP
+    endpoint at process exit cannot hang the stop or raise a GlitchTip-visible error."""
+    try:
+        provider.force_flush(timeout_millis=_SHUTDOWN_FLUSH_MS)
+    except Exception:  # noqa: BLE001 — telemetry must never break shutdown
+        pass
+    try:
+        provider.shutdown()
+    except Exception:  # noqa: BLE001
+        pass
+
 
 def otel_tracing_enabled() -> bool:
     """True when OTLP trace export is requested via env (the enable signal)."""
@@ -75,7 +97,7 @@ def init_otel() -> bool:
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
         trace.set_tracer_provider(provider)
         _instrument_http()
-        atexit.register(provider.shutdown)
+        atexit.register(_bounded_shutdown, provider)
     except Exception:  # noqa: BLE001 — telemetry must never break the app
         _LOGGER.debug("otel init failed", exc_info=True)
         return False
