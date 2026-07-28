@@ -469,7 +469,11 @@ def _format_transcript_if_needed(
             has_diarized_labels = any(
                 isinstance(seg, dict) and seg.get("speaker_label") for seg in segments
             )
-            if cfg.diarize and has_diarized_labels:
+            # ``speaker_label`` on segments means a roster pass ran (local diarizer OR the native
+            # roster pass) — render via the shared diarized formatter, not the provider's positional
+            # one, so roster-resolved names win. (No ``diarize=false`` path emits speaker_label
+            # except a roster pass, so this stays inert for plain provider screenplays.)
+            if has_diarized_labels:
                 from ..providers.ml.diarization.formatting import (
                     format_diarized_screenplay_from_segments,
                 )
@@ -1823,14 +1827,21 @@ def _relabel_existing_transcript(
             _cluster_ids[label] = f"SPEAKER_{len(_cluster_ids):02d}"
         return _cluster_ids[label]
 
+    def _identity(s: dict) -> Optional[str]:
+        # ``is not None`` so a native diarizer's int-0 speaker id is not dropped by a falsy ``or``.
+        v = s.get("speaker")
+        if v is None:
+            v = s.get("speaker_label")
+        return str(v) if v is not None else None
+
     dsegs = [
         DiarizationSegment(
             start=float(s["start"]),
             end=float(s["end"]),
-            speaker=_anon(str(s.get("speaker") or s.get("speaker_label"))),
+            speaker=_anon(_identity(s)),  # type: ignore[arg-type]
         )
         for s in segs
-        if isinstance(s, dict) and (s.get("speaker") or s.get("speaker_label"))
+        if isinstance(s, dict) and _identity(s) is not None
     ]
     if not dsegs:
         logger.warning(
@@ -1880,6 +1891,86 @@ def _relabel_existing_transcript(
     _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
     logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
+
+
+def _segments_carry_native_speakers(result: Any) -> bool:
+    """True when a transcription provider self-diarized (each segment tagged with a ``speaker`` id)
+    but the local roster pass did NOT run — the native-screenplay case (deepgram / moss with
+    ``diarize`` off). Gated on the DATA, not a provider name, so it is provider-agnostic and inert
+    for non-diarizing providers (whisper/openai segments never carry ``speaker``)."""
+    if not isinstance(result, dict):
+        return False
+    segs = result.get("segments")
+    if not isinstance(segs, list):
+        return False
+    return any(isinstance(s, dict) and s.get("speaker") is not None for s in segs)
+
+
+def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> dict:
+    """Route a natively-diarized transcript through the SINGLE role authority (the roster).
+
+    A provider that diarizes server-side (deepgram/moss) tags each segment with a ``speaker`` id
+    but assigns names positionally and never computes host/guest roles — the same guess-from-
+    ordering class of bug the roster exists to replace. Feed the provider's OWN clustering to the
+    roster (``precomputed_diarization`` — no re-diarization, no extra API call) so names AND roles
+    come from evidence and land as ``speaker_label`` + ``speaker_role`` on the durable segments,
+    exactly like the local-diarizer path.
+
+    No-op unless the segments carry a native ``speaker`` id (provider-agnostic, gated on data). A
+    roster failure is swallowed so the successfully-transcribed text is never lost. ``cost_usd=0.0``
+    so the reused diarization does not fabricate a cloud-diarizer charge in the manifest."""
+    if not _segments_carry_native_speakers(result):
+        return result
+
+    from ..exceptions import ProviderDependencyError
+    from ..providers.ml.diarization.base import DiarizationResult, DiarizationSegment
+    from ..providers.ml.diarization.pipeline import apply_diarization_to_result
+
+    segs = result.get("segments") or []
+    cluster_ids: Dict[str, str] = {}
+
+    def _anon(key: str) -> str:
+        if key not in cluster_ids:
+            cluster_ids[key] = f"SPEAKER_{len(cluster_ids):02d}"
+        return cluster_ids[key]
+
+    dsegs = [
+        DiarizationSegment(
+            start=float(s.get("start") or 0.0),
+            end=float(s.get("end") or 0.0),
+            speaker=_anon(str(s.get("speaker"))),
+        )
+        for s in segs
+        if isinstance(s, dict) and s.get("speaker") is not None
+    ]
+    if not dsegs:
+        return result
+    diar = DiarizationResult(segments=dsegs, num_speakers=len(cluster_ids), cost_usd=0.0)
+    # Preserve ASR-provenance top-level fields; only the segments are re-clustered by the roster.
+    clean = dict(result)
+    clean["segments"] = [
+        {"start": s.get("start"), "end": s.get("end"), "text": s.get("text", "")}
+        for s in segs
+        if isinstance(s, dict)
+    ]
+    try:
+        return apply_diarization_to_result(
+            clean,
+            "",
+            cfg,
+            job.detected_speaker_names,
+            metadata_named=job.metadata_named,
+            precomputed_diarization=diar,
+            feed_hosts=job.feed_hosts,
+        )
+    except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
+        logger.warning(
+            "[%s] Native-speaker roster pass failed; keeping the provider screenplay: %s",
+            job.idx,
+            format_exception_for_log(exc),
+        )
+        _capture_stage_exception(exc, stage="diarization")
+        return result
 
 
 def _rediarize_existing_transcript(
@@ -2379,6 +2470,11 @@ def transcribe_media_to_text(
                 pipeline_metrics,
                 episode_duration_seconds,
             )
+        else:
+            # Native-screenplay provider (deepgram/moss) may have self-diarized without a roster
+            # pass — route it through the single role authority (no-op otherwise). Guard + failure
+            # handling live in the helper so this stays one branch.
+            result = _apply_native_speaker_roster(result, cfg, job)
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )
