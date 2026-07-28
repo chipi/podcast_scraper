@@ -294,6 +294,7 @@ nav:
       - ADR-125 No Per-Corpus UI State — USERPREFS-1 for User-Scoped Features: adr/ADR-125-no-per-corpus-ui-state.md
       - ADR-126 Operator Analytics on Umami + Podcast Telemetry Ladder: adr/ADR-126-operator-analytics-umami-and-podcast-telemetry-ladder.md
       - ADR-127 Search-Index insight_type Column + Reindex-on-Upgrade: adr/ADR-127-search-index-insight-type-column.md
+      - ADR-128 Decouple Tailnet ACL from Hetzner OpenTofu: adr/ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
