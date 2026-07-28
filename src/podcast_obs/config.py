@@ -282,9 +282,14 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         victoriametrics_url=victoria.get("metrics_url"),
         victoriatraces_url=victoria.get("traces_url"),
         victoria_token=_secret(victoria, "token"),
-        langfuse_public_key=_secret(langfuse, "public_key"),
-        langfuse_secret_key=_secret(langfuse, "secret_key"),
-        langfuse_base_url=langfuse.get("base_url"),
+        # Fall back to the langfuse SDK-native env vars (the keys the pipeline traces with) when the
+        # YAML omits them — secrets never live in the config file, so a config-target probe still
+        # picks up LANGFUSE_PUBLIC_KEY / SECRET_KEY, matching the default (env) target.
+        langfuse_public_key=_secret(langfuse, "public_key") or _bare("LANGFUSE_PUBLIC_KEY"),
+        langfuse_secret_key=_secret(langfuse, "secret_key") or _bare("LANGFUSE_SECRET_KEY"),
+        langfuse_base_url=(
+            langfuse.get("base_url") or _bare("LANGFUSE_BASE_URL") or _bare("LANGFUSE_HOST")
+        ),
         umami_url=umami.get("url"),
         umami_website_id=umami.get("website_id"),
         umami_token=_secret(umami, "token"),

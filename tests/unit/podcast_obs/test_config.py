@@ -78,6 +78,30 @@ def test_from_yaml_multitarget_and_secret_env(tmp_path, monkeypatch: pytest.Monk
     assert local_base is not None and local_base.endswith(":8080")
 
 
+def test_from_yaml_langfuse_keys_fall_back_to_env(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A config-target probe must pick up the langfuse SDK-native env keys when the YAML omits them
+    (secrets never live in the file) — else `podcast_obs traces` is blind while traces flow."""
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-env")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-env")
+    config_path = tmp_path / "obs.yaml"
+    config_path.write_text(
+        textwrap.dedent("""
+            default_target: homelab
+            targets:
+              homelab:
+                langfuse:
+                  base_url: http://homelab:4000
+            """),
+        encoding="utf-8",
+    )
+    t = ObservabilityConfig.from_yaml(config_path).target("homelab")
+    assert t.langfuse_public_key == "pk-env"
+    assert t.langfuse_secret_key == "sk-env"
+    assert t.langfuse_base_url == "http://homelab:4000"  # explicit YAML base_url still wins
+
+
 def test_from_yaml_without_targets_raises(tmp_path) -> None:
     config_path = tmp_path / "bad.yaml"
     config_path.write_text("unrelated: true\n", encoding="utf-8")
