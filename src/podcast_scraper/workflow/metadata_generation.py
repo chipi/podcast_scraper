@@ -771,10 +771,18 @@ def _build_speakers_from_diarized_segments(
     raw_ids: set[str] = set()
     # Preserve first-appearance order of named voices for stable host/guest ids.
     named_order: List[str] = []
+    # The roster's authoritative per-voice role, persisted on each named segment (first wins). The
+    # roster decides host vs guest; the pre-diarization detected_guests hint is only a fallback.
+    role_by_label: dict[str, str] = {}
     for s in segs:
         if not isinstance(s, dict):
             continue
-        raw = str(s.get("speaker") or s.get("speaker_id") or "").strip()
+        # ``is not None`` (not truthiness): a native diarizer's speaker id can be int 0, which a
+        # falsy ``or`` chain would drop — undercounting num_speakers by one.
+        _spk = s.get("speaker")
+        if _spk is None:
+            _spk = s.get("speaker_id")
+        raw = str(_spk).strip() if _spk is not None else ""
         if raw:
             raw_ids.add(raw)
         label = str(s.get("speaker_label") or "").strip()
@@ -782,9 +790,12 @@ def _build_speakers_from_diarized_segments(
             label
             and not label.lower().startswith("speaker")
             and not looks_like_publisher(label)  # a publisher/network is not a host/guest person
-            and label not in named_order
         ):
-            named_order.append(label)
+            if label not in named_order:
+                named_order.append(label)
+            seg_role = s.get("speaker_role")
+            if label not in role_by_label and seg_role in ("host", "guest"):
+                role_by_label[label] = seg_role
 
     num_speakers = len(raw_ids) or (len(named_order) or None)
     if not named_order:
@@ -795,7 +806,10 @@ def _build_speakers_from_diarized_segments(
     hosts: List[str] = []
     guests: List[str] = []
     for name in named_order:
-        (guests if name.lower() in guest_set else hosts).append(name)
+        # Roster role is authoritative; fall back to the detected_guests hint only when the segment
+        # carries no role (legacy sidecars written before the role was persisted).
+        role = role_by_label.get(name) or ("guest" if name.lower() in guest_set else "host")
+        (guests if role == "guest" else hosts).append(name)
     for idx, name in enumerate(hosts):
         sid = "host" if len(hosts) == 1 else f"host_{idx + 1}"
         speakers.append(SpeakerInfo(id=sid, name=name, role="host"))

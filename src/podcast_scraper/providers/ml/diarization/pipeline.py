@@ -177,11 +177,22 @@ def _enriched_segments(aligned: List[Any], roster: Any) -> List[Dict[str, Any]]:
         enriched["speaker"] = speaker_id
         enriched["speaker_label"] = roster.label_for(speaker_id)
         role = roster.by_voice.get(speaker_id)
-        if role is not None and not role.named:
-            if role.voice_type != "person":
-                enriched["voice_type"] = role.voice_type
-            if role.role == "host":
-                enriched["speaker_role"] = "host"  # an unnamed host renders as "Host", not SPEAKER
+        if role is not None:
+            if not role.named:
+                if role.voice_type != "person":
+                    enriched["voice_type"] = role.voice_type
+                if role.role == "host":
+                    enriched["speaker_role"] = "host"  # an unnamed host renders as "Host"
+            elif role.role in ("host", "guest"):
+                # Invariant: a NAMED voice is always host or guest today (roster.py only builds
+                # named SpeakerRoles with those roles; "unknown" is always unnamed). If that ever
+                # changes, the metadata reader silently falls back to the detected_guests heuristic.
+                # Persist the roster's host/guest role for NAMED voices too, so the durable segments
+                # sidecar carries the role truth that metadata / context-digest read downstream.
+                # Without this the reader had to guess host-vs-guest from the pre-diarization
+                # detected_guests hint, and defaulted every named voice to "host" — turning guests
+                # (Brundage, Karpathy, ...) into hosts across ~half the corpus.
+                enriched["speaker_role"] = role.role
         out.append(enriched)
     return out
 

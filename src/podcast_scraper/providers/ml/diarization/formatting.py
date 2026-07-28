@@ -67,16 +67,22 @@ def format_diarized_screenplay_with_offsets(
             _emit(" ")  # space between coalesced segments in the same turn
 
         char_start = _emit(text)
-        out_segments.append(
-            {
-                "start": float(segment.get("start") or 0.0),
-                "end": float(segment.get("end") or 0.0),
-                "speaker_label": label,
-                "text": text,
-                "char_start": char_start,
-                "char_end": cursor,
-            }
-        )
+        emitted = {
+            "start": float(segment.get("start") or 0.0),
+            "end": float(segment.get("end") or 0.0),
+            "speaker_label": label,
+            "text": text,
+            "char_start": char_start,
+            "char_end": cursor,
+        }
+        # Carry the per-segment role/type truth through to the ad-free sidecar too — the metadata
+        # reader prefers the ad-free segments, so dropping these here would resurrect the
+        # guest-as-host bug (roster role lost). Passthrough only when present (unnamed voices).
+        for key in ("speaker", "speaker_role", "voice_type"):
+            val = segment.get(key)
+            if val is not None:
+                emitted[key] = val
+        out_segments.append(emitted)
         first_seg_on_line = False
 
     if previous_label is not None:
