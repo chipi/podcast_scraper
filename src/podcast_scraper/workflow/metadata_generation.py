@@ -4437,6 +4437,32 @@ def generate_episode_metadata(  # noqa: C901
             kg_cost=kg_cost,
         )
 
+        # ADR-134: write the per-episode context digest (.context.json) — the reprocess-free
+        # consolidated content surface, rolled up from GI/KG + metadata after KG. Best-effort; a
+        # digest failure never blocks the episode (the graph remains the source of truth).
+        try:
+            from ..builders.bridge_artifact_paths import context_json_path_adjacent_to_metadata
+            from ..builders.context_digest_builder import build_context_digest
+
+            context_path = context_json_path_adjacent_to_metadata(metadata_path)
+            context_doc = build_context_digest(
+                str(episode_id),
+                gi_artifact=bridge_gi_payload,
+                kg_artifact=bridge_kg_payload,
+                metadata=metadata_doc.model_dump(mode="json"),
+            )
+            os.makedirs(os.path.dirname(context_path) or ".", exist_ok=True)
+            with open(context_path, "w", encoding="utf-8") as cf:
+                json.dump(context_doc, cf, indent=2, ensure_ascii=False, allow_nan=False)
+            logger.debug("[%s] Generated context digest: %s", episode.idx, context_path)
+        except Exception as ctx_exc:
+            logger.warning(
+                "[%s] Context digest generation failed (non-fatal): %s",
+                episode.idx,
+                ctx_exc,
+                exc_info=True,
+            )
+
         # o11y P1: fold GI/KG per-episode cost back into EpisodeMetrics so the `episode_finished`
         # JSONL / per-episode cost total stops undercounting (it otherwise carries only
         # transcribe+summary). The manifest already has it; this reconciles the run-metrics SoT.
