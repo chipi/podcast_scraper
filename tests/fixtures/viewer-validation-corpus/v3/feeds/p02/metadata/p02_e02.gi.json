@@ -236,7 +236,7 @@
       "properties": {
         "name": "Ethan"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:a01d27055501ed09",
@@ -257,7 +257,7 @@
       "properties": {
         "name": "Joll Wisenthal"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:e9540cb5dd447f6c",
@@ -331,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

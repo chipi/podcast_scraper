@@ -250,7 +250,7 @@
       "properties": {
         "name": "Rina"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:a6913a351c8e3d9f",
@@ -271,7 +271,7 @@
       "properties": {
         "name": "Marco Sylva"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:585882210026efa4",
@@ -345,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

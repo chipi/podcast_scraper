@@ -236,7 +236,7 @@
       "properties": {
         "name": "Sam"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:38c1d2b97ff69131",
@@ -257,7 +257,7 @@
       "properties": {
         "name": "Skanda Amarnauth"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:2680b8419c616328",
@@ -331,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

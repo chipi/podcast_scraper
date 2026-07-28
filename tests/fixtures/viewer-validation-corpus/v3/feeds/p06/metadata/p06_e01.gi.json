@@ -250,7 +250,7 @@
       "properties": {
         "name": "Cam"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:1361955c324ef88d",
@@ -271,7 +271,7 @@
       "properties": {
         "name": "Jordan Park"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:e6d6eacf3a2a8d12",
@@ -345,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

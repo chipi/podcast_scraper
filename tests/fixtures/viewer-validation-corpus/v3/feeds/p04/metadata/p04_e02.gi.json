@@ -226,7 +226,7 @@
       "properties": {
         "name": "Leo"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:b1fc5b82f86faa5f",
@@ -247,7 +247,7 @@
       "properties": {
         "name": "Tarek Hassan"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:357f5ac2ad8e3ada",
@@ -321,5 +321,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

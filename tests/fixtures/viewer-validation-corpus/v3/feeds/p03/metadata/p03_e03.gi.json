@@ -260,7 +260,7 @@
       "properties": {
         "name": "Rina"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:4b8a43949ed72903",
@@ -281,7 +281,7 @@
       "properties": {
         "name": "Hanna Krebohticker"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:8dc6cd407918b91c",
@@ -355,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

@@ -260,7 +260,7 @@
       "properties": {
         "name": "Alex Morgan"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:66da6d012bb305a9",
@@ -281,7 +281,7 @@
       "properties": {
         "name": "Skanda Amarnath"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:3612d89c17b0c2ec",
@@ -355,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

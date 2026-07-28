@@ -250,7 +250,7 @@
       "properties": {
         "name": "Nora"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:8728b1a6cf6337c9",
@@ -271,7 +271,7 @@
       "properties": {
         "name": "Daniel Cho"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:cab4fef8c70ce51a",
@@ -292,7 +292,7 @@
       "properties": {
         "name": "Scott Bessent"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:37b18715b7236c72",
@@ -352,5 +352,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

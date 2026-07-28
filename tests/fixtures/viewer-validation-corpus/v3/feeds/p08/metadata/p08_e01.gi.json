@@ -245,7 +245,7 @@
       "properties": {
         "name": "A. correspondent"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:2c04af9010267734",
@@ -266,7 +266,7 @@
       "properties": {
         "name": "Renee Montagne-Park"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:d2da2497eeb3919b",
@@ -340,5 +340,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

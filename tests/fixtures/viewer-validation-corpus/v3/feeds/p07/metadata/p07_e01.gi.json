@@ -245,7 +245,7 @@
       "properties": {
         "name": "Alex Morgan"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:6aa8cd6f5b789ff9",
@@ -266,7 +266,7 @@
       "properties": {
         "name": "Dr. Elena Fischer"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:f20ec1121f1cbb8d",
@@ -340,5 +340,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

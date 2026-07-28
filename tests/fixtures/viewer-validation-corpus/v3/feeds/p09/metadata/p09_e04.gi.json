@@ -250,7 +250,7 @@
       "properties": {
         "name": "Sam"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:f8c3d2fc26fd969b",
@@ -271,7 +271,7 @@
       "properties": {
         "name": "Dr. Elena Fischer"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:a043012e9439e055",
@@ -345,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

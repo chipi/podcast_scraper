@@ -250,7 +250,7 @@
       "properties": {
         "name": "Sam"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:693ea20604743776",
@@ -271,7 +271,7 @@
       "properties": {
         "name": "Skanda Amarnath"
       },
-      "type": "Person"
+      "type": "Voice"
     },
     {
       "id": "quote:b02e55484d058feb",
@@ -345,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }
