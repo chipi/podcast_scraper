@@ -41,6 +41,25 @@ def process_episode_download(*args, **kwargs):
     return factory_process_episode_download(*args, **kwargs)
 
 
+def _mark_processed(processed_job_indices: Set[int], idx: int) -> None:
+    """Record an episode as finished — ONCE — and emit a ``pipeline_progress`` event (ADR-119).
+
+    The pipeline is an EVENTS source, not a scraped metrics target (an ephemeral ``run --rm``
+    container has nothing to scrape). So per-run progress is an ``emit_event`` fact, not a
+    gauge: it reaches VictoriaLogs the same way in both envs (dev pushes it; prod's Alloy tails the
+    runner stdout) and Grafana charts it by ``run_id``. Idempotent (no double-emit); never raises.
+    """
+    if idx in processed_job_indices:
+        return
+    processed_job_indices.add(idx)
+    try:
+        from ...obs.events import emit_event
+
+        emit_event("pipeline_progress", episodes_done=len(processed_job_indices))
+    except Exception:  # noqa: BLE001 — telemetry must never break the run
+        pass
+
+
 from ...rss import extract_episode_description as rss_extract_episode_description
 
 
@@ -1431,7 +1450,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
     # Track successful vs failed jobs separately
     jobs_processed_ok = 0
     jobs_processed_failed = 0
-    processed_job_indices = set()  # Track which jobs we've processed
+    processed_job_indices: Set[int] = set()  # Track which jobs we've processed
     processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
 
     def _find_next_unprocessed_job() -> Optional[ProcessingJob]:
@@ -1445,13 +1464,13 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 with processed_job_indices_lock:
                     for job in processing_resources.processing_jobs:
                         if job.episode.idx not in processed_job_indices:
-                            processed_job_indices.add(job.episode.idx)
+                            _mark_processed(processed_job_indices, job.episode.idx)
                             return job
         else:
             with processed_job_indices_lock:
                 for job in processing_resources.processing_jobs:
                     if job.episode.idx not in processed_job_indices:
-                        processed_job_indices.add(job.episode.idx)
+                        _mark_processed(processed_job_indices, job.episode.idx)
                         return job
         return None
 
@@ -1501,7 +1520,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                     job.episode.idx not in processed_job_indices
                                     and job.episode.idx not in futures
                                 ):
-                                    processed_job_indices.add(job.episode.idx)
+                                    _mark_processed(processed_job_indices, job.episode.idx)
                                     future = executor.submit(process_job_func, job)
                                     futures[future] = job.episode.idx
                 else:
@@ -1511,7 +1530,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                 job.episode.idx not in processed_job_indices
                                 and job.episode.idx not in futures
                             ):
-                                processed_job_indices.add(job.episode.idx)
+                                _mark_processed(processed_job_indices, job.episode.idx)
                                 future = executor.submit(process_job_func, job)
                                 futures[future] = job.episode.idx
 

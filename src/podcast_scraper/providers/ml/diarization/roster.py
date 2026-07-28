@@ -375,6 +375,7 @@ def _classify_voice_types(
     ad_intervals: Optional[Sequence[Tuple[float, float]]],
     ad_voices: Optional[set] = None,
     nameable: Optional[set] = None,
+    cleaning: Optional["VoiceCleaning"] = None,
 ) -> Dict[str, "SpeakerRole"]:
     """Tag every *unnamed* voice; named voices are ``person``.
 
@@ -403,10 +404,16 @@ def _classify_voice_types(
             out[v] = replace(role, voice_type=VOICE_PERSON)
             continue
         total = talk.get(v, 0.0)
-        ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
-        if ad_intervals and ad_frac >= COMMERCIAL_AD_FRACTION:
+        if cleaning is not None:
+            # Single source of truth (ADR-135): the shared classifier already decided noise.
+            is_commercial, is_cameo = v in cleaning.commercial, v in cleaning.cameo
+        else:
+            ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
+            is_commercial = bool(ad_intervals) and ad_frac >= COMMERCIAL_AD_FRACTION
+            is_cameo = total < CAMEO_MAX_TALK_S
+        if is_commercial:
             vt = VOICE_COMMERCIAL
-        elif total < CAMEO_MAX_TALK_S:
+        elif is_cameo:
             vt = VOICE_CAMEO
         elif nameable is not None and v not in nameable:
             # Substantive, and NO source names them: the tape / vox-pop of a narrated documentary.
@@ -416,6 +423,84 @@ def _classify_voice_types(
             vt = VOICE_UNKNOWN
         out[v] = replace(role, voice_type=vt)
     return out
+
+
+@dataclass(frozen=True)
+class VoiceCleaning:
+    """Which diarized voices are NOISE (ad / cameo / commercial) vs REAL speakers.
+
+    The deterministic cleaning classification, computed ONCE right after diarization and consumed by
+    BOTH the LLM resolution call (which needs a clean intro + real-voice candidates) and the roster
+    — so "which voices are noise" is defined in one place and never replicated (ADR-135). It answers
+    only real-vs-noise; the finer person/unknown/unidentified split is a naming question the roster
+    still draws later.
+    """
+
+    ad: frozenset
+    cameo: frozenset
+    commercial: frozenset
+    real: frozenset
+
+
+def _ad_voices_for(
+    diarization: DiarizationResult,
+    ordered_turns: Optional[Sequence[Tuple[str, str]]],
+    voice_texts: Optional[Dict[str, str]],
+    recurring_text: Optional[set],
+    diarization_provider: Optional[str],
+) -> set:
+    """The full ad-voice set: edge ads (``_edge_ad_voices``) plus the cross-episode recurring-ad
+    voices the edge rule cannot see (#1188 — a mid-roll house ad read from the same script weekly).
+
+    Factored out so :func:`classify_voices` and the roster's standalone path compute it identically.
+    """
+    ad = _edge_ad_voices(diarization)
+    if recurring_text:
+        strategy = labeling_strategy_for(diarization_provider)
+        ad = ad | strategy.recorded_voices(
+            ordered_turns or [], voice_texts or {}, _talk_time(diarization), recurring_text
+        )
+    return ad
+
+
+def classify_voices(
+    diarization: DiarizationResult,
+    ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
+    *,
+    voice_texts: Optional[Dict[str, str]] = None,
+    ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
+    recurring_text: Optional[set] = None,
+    diarization_provider: Optional[str] = None,
+) -> VoiceCleaning:
+    """Classify every diarized voice as ad / cameo / commercial / real (see :class:`VoiceCleaning`).
+
+    Uses only signals available the moment diarization finishes — the SAME primitives the roster's
+    typing uses (``_edge_ad_voices`` + the cross-episode recurring-ad strategy, talk-time, ad
+    overlap). Naming is neither required nor used: this is the real-vs-noise cut both the LLM call
+    and the roster share.
+    """
+    ad = _ad_voices_for(
+        diarization, ordered_turns, voice_texts, recurring_text, diarization_provider
+    )
+    talk = _talk_time(diarization)
+    ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
+    cameo: Set[str] = set()
+    commercial: Set[str] = set()
+    for v, total in talk.items():
+        if v in ad:
+            continue
+        ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
+        if ad_intervals and ad_frac >= COMMERCIAL_AD_FRACTION:
+            commercial.add(v)
+        elif total < CAMEO_MAX_TALK_S:
+            cameo.add(v)
+    real = {v for v in talk if v not in ad and v not in cameo and v not in commercial}
+    return VoiceCleaning(
+        ad=frozenset(ad),
+        cameo=frozenset(cameo),
+        commercial=frozenset(commercial),
+        real=frozenset(real),
+    )
 
 
 def _dedupe(names: Sequence[str], *, reject) -> List[str]:
@@ -1145,6 +1230,119 @@ def _intro_reader_voice_names(
     return out
 
 
+def _select_host_voices(
+    *,
+    diarization: DiarizationResult,
+    voice_intro: Dict[str, str],
+    host_pool: Sequence[Tuple[str, str]],
+    known_hosts: Sequence[str],
+    conv_hosts: Sequence[str],
+    conv_guests: AbstractSet[str],
+    voices_by_intro: Sequence[str],
+    llm_named: AbstractSet[str],
+    llm_voice_roles: Optional[Dict[str, str]],
+    content_start: float,
+    intro_window_s: float,
+    ad_intervals: Optional[Sequence[Tuple[float, float]]],
+    ad_voices: AbstractSet[str],
+) -> List[str]:
+    """WHICH diarized voices are the hosts — the cross-reference of metadata (who / how many) and
+    the conversation (which voice performs the role). Five ordered signals, strongest first."""
+    # A voice that SAYS a name NOT in the feed's host pool is positive evidence it is NOT a stated
+    # host, so it must never fill a vacant host seat (No Priors → Andy Fang over absent Sarah Guo;
+    # Unhedged → Joshua Franklin over absent Rob Armstrong). Only when the feed STATED hosts;
+    # `llm_named` voices are excluded because their name was INFERRED, not said aloud.
+    host_pool_lower = {n.lower() for n, _ in host_pool}
+    stated_non_host_voices = {
+        v
+        for v, n in voice_intro.items()
+        if host_pool and n and n.lower() not in host_pool_lower and v not in llm_named
+    }
+    # ADR-135 — the LLM's host/guest verdict as BOUNDED advice: it may DEMOTE a positional host
+    # guess (a voice it calls "guest" is blocked from the opener/intro-fill steps) and ANCHOR a
+    # no-host show (a voice it calls "host" may seat when the pool is empty). It never unseats a
+    # self-intro'd known host (step 1) nor overrides a performed host (step 2).
+    llm_roles = llm_voice_roles or {}
+    llm_guest_voices = {v for v, r in llm_roles.items() if r == "guest"}
+    llm_host_voices = {v for v, r in llm_roles.items() if r == "host"}
+    positional_non_host = stated_non_host_voices | llm_guest_voices
+
+    host_voices: List[str] = []
+    known_lower = {h.lower() for h in known_hosts}
+
+    # 1. A voice that introduces itself as one of the feed's STATED hosts IS that host (the
+    #    strongest cross-reference). A stated name is claimed once — a merged cluster carrying the
+    #    host's intro verbatim must not claim it twice as a third host on a two-host show (#1226).
+    claimed_host_names: set = set()
+    for v, n in voice_intro.items():
+        nl = n.lower()
+        if (
+            nl in known_lower
+            and nl not in claimed_host_names
+            and v not in host_voices
+            and v not in conv_guests
+        ):
+            host_voices.append(v)
+            claimed_host_names.add(nl)
+
+    # 2. A voice that PERFORMS the host's role is a host — but the feed says how MANY, so a stated
+    #    count is binding (a third voice cannot host a two-host show). Uncapped when the feed names
+    #    no host. The deterministic-only guard here; the LLM never overrides a performed host.
+    cap = len(host_pool) if host_pool else None
+    for v in conv_hosts:
+        if cap is not None and len(host_voices) >= cap:
+            break
+        if v not in host_voices and v not in stated_non_host_voices:
+            host_voices.append(v)
+
+    # 3. The opener does the intro (the pre-roll ad is excluded). Skipped when the conversation
+    #    already named a host, and never a voice the conversation heard say "thanks for having me".
+    opener = _opening_voice(
+        diarization,
+        window_end=content_start + intro_window_s,
+        ad_intervals=ad_intervals,
+        ad_voices=set(ad_voices),
+    )
+    if opener is None and voices_by_intro:
+        opener = voices_by_intro[0]
+    if (
+        opener is not None
+        and not conv_hosts
+        and opener not in host_voices
+        and opener not in conv_guests
+        and opener not in positional_non_host
+        and len(host_voices) < max(1, len(host_pool))
+    ):
+        host_voices.append(opener)
+
+    # 4. Fill any host slot the feed COUNTED but we have not matched, from the SHOW's intro voices
+    #    (ads excluded). NOT by talk time — that hands a slot to a long-answering guest (#1169).
+    for v in voices_by_intro:
+        if len(host_voices) >= len(host_pool):
+            break
+        if v not in host_voices and v not in conv_guests and v not in positional_non_host:
+            host_voices.append(v)
+
+    # 5. ANCHOR a show that STATES NO HOSTS (ADR-135). With an empty pool the cues have no anchor,
+    #    so a rotating/narrator host (Planet Money) is labeled a guest. A voice the LLM judged host
+    #    may seat here — but ONLY if it is NAMED (in `voice_intro`): a no-stated-host show is a
+    #    narrated documentary as often as a rotating-host desk show, and the LLM will call the field
+    #    tape "host" too. Seating a host we can NAME (the narrator who self-introduced) is safe;
+    #    anchoring an anonymous voice is exactly the vox-pop-as-host over-assignment. Not a heard
+    #    guest, not an ad.
+    if not host_pool:
+        for v in llm_host_voices:
+            if (
+                v not in host_voices
+                and v not in conv_guests
+                and v not in ad_voices
+                and v in voice_intro
+            ):
+                host_voices.append(v)
+
+    return host_voices
+
+
 def resolve_speaker_roster(
     diarization: DiarizationResult,
     transcript_text: Optional[str],
@@ -1157,6 +1355,8 @@ def resolve_speaker_roster(
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
     metadata_named: Sequence[str] = (),
     llm_voice_names: Optional[Dict[str, str]] = None,
+    llm_voice_roles: Optional[Dict[str, str]] = None,
+    cleaning: Optional[VoiceCleaning] = None,
     recurring_text: Optional[set] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
     diarization_provider: Optional[str] = None,
@@ -1185,25 +1385,18 @@ def resolve_speaker_roster(
     # Ad voices are established BEFORE anything can be named from them: the pre-roll opens the
     # episode and reads its own name, so it wins both the "opening voice = host" rule and the
     # most-trusted self-introduction rule unless it is removed from contention up front.
-    ad_voices = _edge_ad_voices(diarization)
-
-    # ...and the ad the edge rule CANNOT see (#1188). A mid-roll house ad sits in the middle of the
-    # episode, so "short and at the edges" misses it, and it carries no sponsor language, so the
-    # keyword patterns score zero. It gives itself away across EPISODES: it is read from the same
-    # script every week, and the show is not.
-    #
-    #     Jonathan Knight   1.3-1.7% of talk, 77-100% of his words repeat across the feed
-    #     Robert Armstrong  3.4-3.6% of talk, 70-77% repeat — he reads the CREDITS, and he is a HOST
-    #
-    # Which is why BOTH tests must hold: repetition alone would strip a co-host reading the credits.
-    # Provider-specific labeling (ADR-132): the diarizer's clustering footprint decides how this
-    # feed's recurring script splits across clusters. community-1 merges a stray content turn into
-    # ad reader's cluster, so its strategy scores recurrence per TURN, not over the whole cluster.
-    _strategy = labeling_strategy_for(diarization_provider)
-    if recurring_text:
-        ad_voices = ad_voices | _strategy.recorded_voices(
-            ordered_turns, voice_texts, _talk_time(diarization), recurring_text
+    # Ad voices come from the shared cleaning classifier (ADR-135) when the caller computed it, so
+    # "which voices are ads" is defined in ONE place so the LLM call and roster cannot disagree.
+    # Standalone callers (tests, relabel-only) pass no cleaning and get the identical set from the
+    # same helper — the classifier is a factoring of exactly this logic, not a behaviour change
+    # (edge ads + the cross-episode recurring house-ad the edge rule misses, #1188/ADR-132).
+    ad_voices = (
+        set(cleaning.ad)
+        if cleaning is not None
+        else _ad_voices_for(
+            diarization, ordered_turns, voice_texts, recurring_text, diarization_provider
         )
+    )
 
     # The intro window is the SHOW's intro, not the advert's. Measured from 0 it was mostly ad, so a
     # co-host who speaks a minute in barely registered and never cleared CO_HOST_INTRO_SHARE — which
@@ -1254,6 +1447,7 @@ def resolve_speaker_roster(
     # what makes the most-trusted signal the easiest one to poison.
     # ...and the name it gives is the ASR's spelling, so it is snapped onto the configured host
     # when it is plainly the same person ("Kevin Russo" / "Kevin Roos" -> "Kevin Roose").
+    _strategy = labeling_strategy_for(diarization_provider)
     voice_intro = _self_intro_voice_names(
         diarization, voice_texts, intro_sources, known_hosts, ad_voices, conv_guests, _strategy
     )
@@ -1349,76 +1543,21 @@ def resolve_speaker_roster(
     # one: "hello and welcome to Planet Money. I'm Alexi Horowitz-Gazi" gives the role AND the name.
     conv_hosts = [v for v, r in conv_roles.items() if r == "host" and v not in ad_voices]
 
-    host_voices: List[str] = []
-    known_lower = {h.lower() for h in known_hosts}
-
-    # 1. A voice that introduces itself as one of the feed's STATED hosts IS that host. Both sources
-    #    agree — this is the cross-reference, and it is the strongest evidence available.
-    #
-    #    A stated host name identifies ONE person, so it may be claimed once. Diarization merges a
-    #    host's turn into a guest's cluster often enough that the guest's cluster carries the host's
-    #    self-introduction verbatim; without this guard that merged cluster claims the host's name a
-    #    second time and enters `host_voices` as an uncapped third host on a two-host show (#1226).
-    #    Step 2 already caps conversation-performed hosts at the feed's count; this closes the same
-    #    hole at the stronger self-intro step.
-    claimed_host_names: set = set()
-    for v, n in voice_intro.items():
-        nl = n.lower()
-        if (
-            nl in known_lower
-            and nl not in claimed_host_names
-            and v not in host_voices
-            and v not in conv_guests
-        ):
-            host_voices.append(v)
-            claimed_host_names.add(nl)
-
-    # 2. A voice that PERFORMS the host's role is a host, even if the feed never named them.
-    #
-    #    But the feed says how MANY. When it named its hosts, that count is binding: a third voice
-    #    cannot host a two-host show, however host-like it sounds. Diarization merges a host's turn
-    #    into a guest's cluster often enough that the guest's cluster "performs" a host act, and on
-    #    Hard Fork that produced a third host. Where the feed named nobody, there is no count to
-    #    respect and the conversation is the only source — so it is uncapped there.
-    cap = len(host_pool) if host_pool else None
-    for v in conv_hosts:
-        if cap is not None and len(host_voices) >= cap:
-            break
-        if v not in host_voices:
-            host_voices.append(v)
-
-    # 3. The opener — the host does the intro (the pre-roll ad is excluded, or it wins this).
-    #    Skipped when the conversation already identified a host, and never applied to a voice the
-    #    conversation identified as a GUEST ("thanks for having me").
-    opener = _opening_voice(
-        diarization,
-        window_end=content_start + intro_window_s,
+    host_voices = _select_host_voices(
+        diarization=diarization,
+        voice_intro=voice_intro,
+        host_pool=host_pool,
+        known_hosts=known_hosts,
+        conv_hosts=conv_hosts,
+        conv_guests=conv_guests,
+        voices_by_intro=voices_by_intro,
+        llm_named=llm_named,
+        llm_voice_roles=llm_voice_roles,
+        content_start=content_start,
+        intro_window_s=intro_window_s,
         ad_intervals=ad_intervals,
         ad_voices=ad_voices,
     )
-    if opener is None and voices_by_intro:
-        opener = voices_by_intro[0]
-    if (
-        opener is not None
-        and not conv_hosts
-        and opener not in host_voices
-        and opener not in conv_guests
-        and len(host_voices) < max(1, len(host_pool))
-    ):
-        host_voices.append(opener)
-
-    # 4. Fill any host slots the feed COUNTED but we have not matched yet, from the voices present
-    #    in the SHOW'S INTRO (ads excluded). The hosts open the show; that is what an intro is.
-    #
-    #    NOT by talk time. Filling by "who talks most" hands a host slot straight to the guest —
-    #    on Invest Like the Best the guest talks 82% and the host 17%, and even on a co-hosted show
-    #    a long first answer outweighs both hosts. Talk share does not identify a host, in any
-    #    format. And a voice the conversation heard say "thanks for having me" is never a host.
-    for v in voices_by_intro:
-        if len(host_voices) >= len(host_pool):
-            break
-        if v not in host_voices and v not in conv_guests:
-            host_voices.append(v)
 
     host_names_lower = {n.lower() for n, _ in host_pool}
     used_lower: set[str] = set()
@@ -1549,7 +1688,7 @@ def resolve_speaker_roster(
         nameable |= {v for v, r in by_voice.items() if not r.named}
 
     by_voice = _classify_voice_types(
-        by_voice, diarization, ad_intervals, ad_voices, nameable=nameable
+        by_voice, diarization, ad_intervals, ad_voices, nameable=nameable, cleaning=cleaning
     )
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))
 

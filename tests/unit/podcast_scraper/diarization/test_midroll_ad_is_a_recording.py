@@ -149,6 +149,10 @@ def test_the_diarization_pipeline_actually_BUILDS_the_index() -> None:
     from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
 
     src = inspect.getsource(diar_pipeline.apply_diarization_to_result)
+    # The feed's repeated script must reach the roster (and, since ADR-135, the shared cleaning
+    # classifier) — otherwise the cross-episode mid-roll ad rule is inert. It is read once from
+    # `_feed_recurring_text(cfg)` and threaded by name to both.
+    assert "_feed_recurring_text(cfg)" in src, "the feed's repeated script is never computed"
     assert (
-        "recurring_text=_feed_recurring_text(cfg)" in src
+        "recurring_text=recurring_text" in src
     ), "the roster is never given the feed's repeated script, so the mid-roll ad rule is inert"

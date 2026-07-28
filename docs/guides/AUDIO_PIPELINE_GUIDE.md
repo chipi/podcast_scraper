@@ -91,6 +91,74 @@ to gap-based screenplay.
 
 ---
 
+## Host/guest resolution flow (end-to-end)
+
+The single most important thing to hold onto: **WHO comes from metadata; WHICH-VOICE comes from the
+conversation; the roster is the one place the two fuse** (ADR-110). Transcription runs *before*
+diarization runs *before* the roster. Metadata detection (feed + title/description) happens first
+and is carried in as constraints — it never reads the audio.
+
+```text
+ RSS FETCH  →  per episode: audio URL + METADATA { title, description, feed author }
+     │
+ ── LEVEL 1: METADATA DETECTION — "WHO" (pre-transcription) ─────────────────────
+     ├─ detect_hosts_from_feed (speaker_detectors/hosts.py)
+     │     feed states the hosts → known_hosts   (host COUNT here = the roster cap)
+     └─ detect_speaker_names   (speaker_detectors/detection.py, NER over TITLE+DESC)
+           → detected_guests (corroborated)  +  metadata_named (everyone stated)
+     │
+ ── LEVEL 2: TRANSCRIPTION  (audio → words) ─────────────────────────────────────
+     └─ transcribe_media_to_text (workflow/episode_processor.py)
+           → transcript TEXT + time-coded SEGMENTS   (no speaker labels yet)
+     │
+ ── LEVEL 3: DIARIZATION  (words → WHICH cluster) ───────────────────────────────
+     └─ apply_diarization_to_result (providers/ml/diarization/pipeline.py)
+           → SPEAKER_00, SPEAKER_01 … + per-voice segments   (anonymous: no name/role)
+     │
+ ── LEVEL 4: ROSTER RESOLUTION  ★ THE FUSION: metadata × conversation ★ ──────────
+     └─ resolve_speaker_roster (providers/ml/diarization/roster.py)
+        (a) SELF-INTRO extraction   _self_intro_voice_names()  → voice_intro
+              └─ CANONICAL-NAME FUSION: snap ASR spelling to the stated name
+                 ("Kevin Russo"→"Kevin Roose"; "Professor Pape"→"Robert Pape")
+        (b) ON-AIR INTRO reader     _intro_reader_voice_names() ("my guest is X" → next voice)
+        (c) CONVERSATIONAL ROLES    roles_from_conversation()   → conv_hosts / conv_guests
+              ("welcome to the show" = host act; "thanks for having me" = guest act)
+        (d) HOST-VOICE SELECTION  (cap = len(host_pool) — metadata says how MANY)
+              1. self-intro name ∈ known_hosts        ← strongest (cross-reference)
+              2. performs a host act, capped at the count
+              3. the opener (does the intro)
+              4. fill any COUNTED-but-empty seat from intro voices
+              GUARD stated_non_host_voices: a voice that SAYS a name NOT in the host
+                pool is blocked from steps 2/3/4 — a guest may not fill an absent
+                co-host's seat (No Priors/Andy Fang, Unhedged/Joshua Franklin)
+        (e) LLM VOICE RESOLUTION    _resolve_voices_via_llm()  (naming only, CLOSED list)
+        (f) GUEST NAMING            _name_guest_voices()  (forced 1-name-1-voice; never positional)
+     │
+     ▼  SpeakerRole per voice = { name, role(host|guest|unknown), named, source }
+        → .speakers.diagnostics.json   (per-voice + summary/exposed metric)
+     │
+ ── LEVEL 5: DURABLE OUTPUT ─────────────────────────────────────────────────────
+     └─ _build_speakers_from_diarized_segments (workflow/metadata_generation.py)
+           → content.speakers = [{name, role}]  →  .metadata.json / .manifest.json
+```
+
+**The name/role sources, and where each lands:**
+
+| Source | Level | Function | Produces |
+| ------ | ----- | -------- | -------- |
+| Title + description | 1 | `detect_speaker_names` (NER) | `detected_guests`, `metadata_named` |
+| Feed metadata | 1 | `detect_hosts_from_feed` | `known_hosts` (host count → cap) |
+| Intro text (spoken) | 4a/4b | `_self_intro_voice_names`, `_intro_reader_voice_names` | `voice_intro` (per-voice) |
+| Conversational roles | 4c | `roles_from_conversation` | `conv_hosts` / `conv_guests` |
+| Canonical-name fusion | 4a | inside `_self_intro_voice_names` | ASR spelling → stated name |
+| LLM (naming only) | 4e | `_resolve_voices_via_llm` | fills unresolved voices, closed list |
+
+Every voice — **named or unnamed** — carries a `role` of `host`, `guest`, or `unknown` in the
+diagnostics sidecar; `role=unknown` is the explicit "cannot tell host vs guest" bucket, and the
+summary rolls these up as `exposed.voices_unknown` / `voices_unidentified`.
+
+---
+
 ## API audio chunking (#286)
 
 Cloud transcription providers enforce upload size limits. **`AudioChunker`**

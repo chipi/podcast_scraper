@@ -2443,6 +2443,9 @@ def transcribe_media_to_text(
                     metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                     feed_hosts=job.feed_hosts,
+                    # ADR-135 — title + description feed the LLM's host/guest role determination.
+                    episode_title=job.ep_title,
+                    episode_description=getattr(job.episode, "description", None),
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).

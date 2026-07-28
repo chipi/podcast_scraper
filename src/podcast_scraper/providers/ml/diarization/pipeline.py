@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import AbstractSet, Any, Dict, List, Optional, Sequence, Tuple
 
 from .... import config
 from .alignment import align_segments_to_speakers
@@ -18,7 +19,12 @@ from .cache import (
     save_diarization_cache,
 )
 from .factory import create_diarization_provider
-from .roster import build_speaker_diagnostics, resolve_speaker_roster
+from .roster import (
+    build_speaker_diagnostics,
+    classify_voices,
+    resolve_speaker_roster,
+    SpeakerRoster,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -257,6 +263,68 @@ def _feed_recurring_text(cfg: config.Config) -> set:
         return shingles
 
 
+def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
+    """How much of the final naming/role came from the deterministic cues vs the LLM (ADR-135).
+
+    ``baseline`` is the roster with the LLM inputs emptied (pure cues); ``final`` is the shipped
+    roster. Counts on each side answer "before/after the LLM"; the per-voice diff is the LLM's
+    marginal contribution — names it added to voices the cues left raw, and roles it changed.
+    """
+
+    def _counts(r: Any) -> Dict[str, int]:
+        vs = list(r.by_voice.values())
+        return {
+            "named": sum(1 for v in vs if v.named),
+            "hosts": sum(1 for v in vs if v.role == "host"),
+            "guests": sum(1 for v in vs if v.role == "guest"),
+        }
+
+    names_added: List[Dict[str, str]] = []
+    roles_changed: List[Dict[str, Optional[str]]] = []
+    for vid, fin in final.by_voice.items():
+        base = baseline.by_voice.get(vid)
+        if base is None:
+            continue
+        if fin.named and not base.named:
+            names_added.append({"voice": vid, "name": fin.name})
+        if fin.role != base.role:
+            roles_changed.append({"voice": vid, "from": base.role, "to": fin.role})
+    return {
+        "deterministic": _counts(baseline),
+        "final": _counts(final),
+        "llm_delta": {"names_added": names_added, "roles_changed": roles_changed},
+    }
+
+
+def _labeled_intro_block(
+    aligned: List[Tuple[dict, Any]],
+    real_voices: AbstractSet[str],
+    *,
+    max_words: int = 500,
+) -> str:
+    """The first ~``max_words`` of the diarized transcript, speaker-labeled, restricted to REAL
+    voices for the LLM role call (ADR-135).
+
+    Ad / cameo / commercial voices are excluded via ``real_voices`` — the shared cleaning
+    classification (:func:`roster.classify_voices`), the SAME source the roster uses, so the intro
+    is cleaned once and never replicated. This is the role-bearing input: the intro is where a show
+    says who hosts and who is visiting.
+    """
+    lines: List[str] = []
+    words = 0
+    for seg, spk in aligned:
+        if str(spk) not in real_voices:
+            continue
+        text = re.sub(r"\s+", " ", str(seg.get("text", ""))).strip()
+        if not text:
+            continue
+        lines.append(f"{spk}: {text}")
+        words += len(text.split())
+        if words >= max_words:
+            break
+    return "\n".join(lines)
+
+
 def _resolve_voices_via_llm(
     cfg: config.Config,
     *,
@@ -264,25 +332,32 @@ def _resolve_voices_via_llm(
     voice_texts: Dict[str, str],
     known_hosts: List[str],
     ordered_turns: List[Tuple[str, str]],
-) -> Dict[str, str]:
-    """ADR-110 — match the stated names to the voices, using each voice's own words.
+    episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    intro_block: Optional[str] = None,
+) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """ADR-110/ADR-135 — match stated names to voices AND decide host/guest, from the conversation.
 
-    Returns ``{}`` for every profile without an LLM. `airgapped`, `local`, `dev` and
-    `reprocess_dgx_no_llm` run `speaker_detector_provider: spacy`, keep the deterministic cue
-    matcher, and nothing about them changes.
+    Returns ``({voice: name}, {voice: role})``. Empty for every profile without an LLM: `airgapped`,
+    `local`, `dev` and `reprocess_dgx_no_llm` run `speaker_detector_provider: spacy`, keep the
+    deterministic cue matcher, and nothing about them changes.
 
     This never fails the episode. A speaker we cannot name costs an unnamed voice; a speaker we name
     WRONGLY puts words in a real person's mouth, and those are not symmetric (#876).
     """
-    if not stated_names or not voice_texts:
-        return {}
+    # Role-only mode (ADR-135): run even with no candidate names, as long as there are voices and
+    # some role context (title/description/intro) — a no-stated-host show still needs host/guest.
+    if not voice_texts:
+        return {}, {}
+    if not stated_names and not (episode_title or episode_description or intro_block):
+        return {}, {}
     if not bool(getattr(cfg, "speaker_resolution_llm", True)):
-        return {}
+        return {}, {}
 
     try:
         from ....speaker_detectors.resolution import (
             completion_fn_for,
-            resolve_voices_from_conversation,
+            resolve_voices_and_roles,
         )
         from ....summarization.factory import create_summarization_provider
 
@@ -295,21 +370,27 @@ def _resolve_voices_via_llm(
                 "matcher stays in charge",
                 type(provider).__name__,
             )
-            return {}
-        return resolve_voices_from_conversation(
+            return {}, {}
+        resolved = resolve_voices_and_roles(
             stated_names,
             voice_texts,
             complete,
             known_hosts=known_hosts,
             ordered_turns=ordered_turns,
+            episode_title=episode_title,
+            episode_description=episode_description,
+            intro_block=intro_block,
         )
+        names = {v: lv.name for v, lv in resolved.items() if lv.name}
+        roles = {v: lv.role for v, lv in resolved.items() if lv.role}
+        return names, roles
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "speaker resolution unavailable (%s: %s); falling back to the deterministic cues",
             type(exc).__name__,
             exc,
         )
-        return {}
+        return {}, {}
 
 
 def apply_diarization_to_result(
@@ -323,6 +404,8 @@ def apply_diarization_to_result(
     precomputed_diarization: Optional[DiarizationResult] = None,
     feed_hosts: Optional[List[str]] = None,
     bypass_cache_read: bool = False,
+    episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
 
@@ -419,27 +502,72 @@ def apply_diarization_to_result(
     # naive candidate list is guests-only — and then the voice holding 75% of a interview show has
     # no name it is allowed to be matched to.
     candidates = list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
-    llm_voice_names = _resolve_voices_via_llm(
+    ad_intervals = _ad_intervals(segments)
+    recurring_text = _feed_recurring_text(cfg)
+    dz_provider = getattr(cfg, "diarization_provider", None)
+    # ADR-135 — ONE deterministic cleaning pass, right after diarization, shared by the LLM call and
+    # the roster so "which voices are ad / cameo / commercial vs real" is defined in a single place.
+    cleaning = classify_voices(
+        diarization,
+        ad_intervals,
+        voice_texts=voice_texts,
+        ordered_turns=ordered_turns,
+        recurring_text=recurring_text,
+        diarization_provider=dz_provider,
+    )
+    # The intro (title + description + the cleaned, labeled first minutes) is where a show states
+    # who hosts and who is visiting; it lets the same call decide host/guest, not just name. The LLM
+    # is asked only about REAL voices — never a cameo/commercial/ad, on which it abstains anyway.
+    intro_block = _labeled_intro_block(aligned, cleaning.real)
+    real_voice_texts = {v: t for v, t in voice_texts.items() if v in cleaning.real}
+    llm_voice_names, llm_voice_roles = _resolve_voices_via_llm(
         cfg,
         stated_names=candidates,
-        voice_texts=voice_texts,
+        voice_texts=real_voice_texts,
         known_hosts=known_hosts,
         ordered_turns=ordered_turns,
+        episode_title=episode_title,
+        episode_description=episode_description,
+        intro_block=intro_block,
     )
 
-    roster = resolve_speaker_roster(
-        diarization,
-        transcript_text,
-        detected_guests=guests,
-        known_hosts=known_hosts,
-        voice_texts=voice_texts,
-        ordered_turns=ordered_turns,
-        ad_intervals=_ad_intervals(segments),
-        metadata_named=list(metadata_named or ()),
-        llm_voice_names=llm_voice_names,
-        recurring_text=_feed_recurring_text(cfg),
-        diarization_provider=getattr(cfg, "diarization_provider", None),
-    )
+    _md_named = list(metadata_named or ())
+
+    def _run_roster(
+        names: Optional[Dict[str, str]], roles: Optional[Dict[str, str]]
+    ) -> SpeakerRoster:
+        return resolve_speaker_roster(
+            diarization,
+            transcript_text,
+            detected_guests=guests,
+            known_hosts=known_hosts,
+            voice_texts=voice_texts,
+            ordered_turns=ordered_turns,
+            ad_intervals=ad_intervals,
+            metadata_named=_md_named,
+            llm_voice_names=names,
+            llm_voice_roles=roles,
+            cleaning=cleaning,
+            recurring_text=recurring_text,
+            diarization_provider=dz_provider,
+        )
+
+    roster = _run_roster(llm_voice_names, llm_voice_roles)
+    # ADR-135 attribution — how much the LLM did vs the deterministic cues. A second roster pass
+    # with the LLM inputs emptied is the pure-cue BASELINE; the diff against the shipped roster is
+    # the LLM's marginal contribution. The baseline pass is deterministic (no network), so it is
+    # cheap, and it only runs when the LLM actually produced something.
+    resolution_attribution: Optional[Dict[str, Any]] = None
+    if llm_voice_names or llm_voice_roles:
+        baseline_roster = _run_roster({}, {})
+        resolution_attribution = _resolution_attribution(baseline_roster, roster)
+        _d = resolution_attribution["llm_delta"]
+        logger.info(
+            "resolution attribution: LLM added %d name(s), changed %d role(s) vs the "
+            "deterministic baseline",
+            len(_d["names_added"]),
+            len(_d["roles_changed"]),
+        )
 
     enriched_result = dict(result)
     enriched_result["segments"] = _enriched_segments(aligned, roster)
@@ -455,6 +583,8 @@ def apply_diarization_to_result(
         metadata_named=list(metadata_named or ()),
         show_centric=bool(getattr(cfg, "show_centric", False)),
     )
+    if resolution_attribution is not None:
+        enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["diarization_num_speakers"] = roster.num_speakers
     # ADR-129: the diarizer's total SPEECH duration (Σ merged speaker turns) — the denominator for
     # the speech-normalized coverage gate. Provider-agnostic (any DiarizationResult). Non-speech
