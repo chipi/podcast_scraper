@@ -18,6 +18,7 @@ nav:
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
       - Tailnet & networking runbook (ACL GitOps, cross-project): guides/TAILNET_AND_NETWORKING.md
+      - Edge convergence runbook (apply-edge / verify-edge): guides/EDGE_CONVERGENCE_RUNBOOK.md
       - DGX Spark runbook (RFC-089): guides/DGX_RUNBOOK.md
       - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
@@ -27,6 +28,7 @@ nav:
       - Corpus airgap runbook (#1175): guides/CORPUS_AIRGAP_RUNBOOK.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
       - Player public launch (#1163): guides/PLAYER_PUBLIC_LAUNCH.md
+      - Operator surface deploy (RFC-108): guides/OPERATOR_SURFACE_DEPLOY.md
       - Observability runbook (operate/debug + current state): guides/OBSERVABILITY_RUNBOOK.md
       - Observability architecture (emit/ship, ADR-119): guides/OBSERVABILITY_ARCHITECTURE.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
