@@ -2587,6 +2587,20 @@ class Config(BaseModel):
             "points, 0 disables filtering."
         ),
     )
+    gi_surface_default_limit: int = Field(
+        default=8,
+        ge=1,
+        le=100,
+        alias="gi_surface_default_limit",
+        description=(
+            "ADR-133/#1191 §6: the shared read-time default for how many insights a surface shows "
+            "before 'show more'. Consumers sort by `salience` desc, exclude `routing_tag=drop`, "
+            "and cap at this N (per topic for player/viewer lists; per episode on the detail "
+            "view). Per-surface overrides: player 6 (surface-tagged only), operator viewer 12 (all "
+            "tiers + routing_tag filter chip), graph API 8. Search ignores this (rerank boost, no "
+            "hard cap). This is the SSOT the surfaces read once wired — until then it is inert."
+        ),
+    )
     gi_typed_mentions_use_ner: bool = Field(
         default=False,
         alias="gi_typed_mentions_use_ner",
