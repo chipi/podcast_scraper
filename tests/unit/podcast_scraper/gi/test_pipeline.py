@@ -282,24 +282,25 @@ class TestGILPipeline:
         assert len(quote_nodes) == 1
         assert quote_nodes[0]["properties"]["text"] == "the proof"
 
-    def test_resolve_insight_specs_non_empty_stripped_and_capped(self):
-        """When insight_texts is non-empty, return stripped and capped by gi_max_insights.
-
-        Insight types are assigned by the rule-based classifier (RFC-097 v3.0
-        chunk-5). Single-letter inputs have no classification signal, so
-        each falls into the conservative ``observation`` default. The
-        stripping (``" B "`` → ``"B"``) and cap behavior are what this
-        test guards; the classifier coverage lives in
-        ``test_insight_type_classifier.py``.
+    def test_resolve_insight_specs_non_empty_stripped_not_truncated_1191(self):
+        """ADR-133/#1191: bullet-derived insights are stripped but NEVER truncated — even with a low
+        gi_max_insights, every insight is stored (the ceiling is not a corpus cutoff; "first N" is a
+        view-time decision). Single-letter inputs default to ``observation``.
         """
         cfg = MagicMock()
-        cfg.gi_max_insights = 3
+        cfg.gi_max_insights = 3  # deliberately low — must NOT cap the 5 inputs
         out = _resolve_insight_specs(
             "transcript",
             cfg=cfg,
             insight_texts=["A", " B ", "C", "D", "E"],
         )
-        assert out == [("A", "observation"), ("B", "observation"), ("C", "observation")]
+        assert out == [
+            ("A", "observation"),
+            ("B", "observation"),
+            ("C", "observation"),
+            ("D", "observation"),
+            ("E", "observation"),
+        ]
 
     def test_resolve_insight_specs_empty_insight_texts_ignored(self):
         """When insight_texts is empty or all blank, fall back to stub."""

@@ -1444,9 +1444,10 @@ def _resolve_insight_specs(
     )
 
     if insight_texts:
-        resolved = [(s.strip(), "unknown") for s in insight_texts if (s and s.strip())][
-            :max_insights
-        ]
+        # #1191 (ADR-133): rank + tag, never truncate. Store every bullet-derived insight (bounded
+        # upstream by the summary bullet count) — the ceiling is not a corpus cutoff; "first N" is a
+        # view-time decision made against the stored rank.
+        resolved = [(s.strip(), "unknown") for s in insight_texts if (s and s.strip())]
         if resolved:
             # RFC-097 v3.0 chunk-5: classify the bullet-derived strings — they
             # arrive as ``"unknown"`` (the input layer has no type signal) so
@@ -1610,11 +1611,8 @@ def build_artifact(
     # produced insights, short-circuit provider dispatch entirely.
     insight_specs: List[Tuple[str, str]] = []
     if prefilled_insights:
-        max_insights_pref = (
-            getattr(cfg, "gi_max_insights", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
-            if cfg is not None
-            else config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
-        )
+        # #1191 (ADR-133): store EVERY prefilled insight — the pipeline ranks + tags, it never
+        # truncates a bundled extraction into the corpus. "First N" is a view-time decision.
         for item in prefilled_insights:
             if not isinstance(item, dict):
                 continue
@@ -1628,8 +1626,6 @@ def build_artifact(
             raw_itype = item.get("insight_type")
             itype = _normalize_insight_type(raw_itype) if raw_itype else "claim"
             insight_specs.append((text, itype))
-            if len(insight_specs) >= max_insights_pref:
-                break
     if not insight_specs:
         insight_specs = _resolve_insight_specs(
             transcript_text=transcript_text or "",
