@@ -1,0 +1,58 @@
+name: Tailscale ACL (test)
+
+# ADR-128 Phase 1 (TEST-ONLY). Validates tailscale/policy.hujson against the live tailnet
+# via Tailscale's native GitOps ACL action — on PRs that touch the policy + on demand.
+#
+# READ-ONLY: `action: test` runs the ACL tests + a dry-run diff; it NEVER pushes. The
+# apply/merge trigger and the OpenTofu `state rm` (so this action, not tofu, owns the live
+# ACL) are ADR-128 Phase 2 — gated separately behind a state backup + explicit approval.
+#
+# Until cutover this runs ADDITIVELY alongside the tofu-owned ACL (infra-ci.yml still plans
+# it); both are read-only, no conflict. See docs/adr/ADR-128 + the migration plan in docs/wip.
+
+on:
+  pull_request:
+    paths:
+      - tailscale/policy.hujson
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tailscale-acl-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Pre-flight — required creds present?
+        id: preflight
+        env:
+          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TAILNET_NAME: ${{ vars.TAILNET_NAME }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_API_KEY:-}" ]    && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TAILNET_NAME:-}" ]  && MISSING="$MISSING TAILNET_NAME"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING (e.g. a fork PR has no secrets) — skipping ACL test."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tailscale ACL test (dry-run — no apply)
+        if: steps.preflight.outputs.skip != 'true'
+        # Pinned to v1.5.2 by commit SHA (supply-chain: this action can WRITE ACLs; we only
+        # use `test` here, but pin the code regardless). Bump the SHA + comment together.
+        uses: tailscale/gitops-acl-action@5a4a17f5708e9bf96f4ee915a95e9f83c2eebe1a # v1.5.2
+        with:
+          tailnet: ${{ vars.TAILNET_NAME }}
+          api-key: ${{ secrets.TS_API_KEY }}
+          policy-file: ./tailscale/policy.hujson
+          action: test
