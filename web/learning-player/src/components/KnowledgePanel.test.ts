@@ -270,3 +270,43 @@ describe('KnowledgePanel', () => {
     )
   })
 })
+
+describe('KnowledgePanel — #1191 route-and-tag surfacing', () => {
+  it('shows surface-tagged and untagged (pre-3.1) insights, hides connect/drop', () => {
+    const w = mountPanel({
+      insights: [
+        insight({ id: 'a', text: 'AAA surface one', routing_tag: 'surface' }),
+        insight({ id: 'b', text: 'BBB connect plumbing', routing_tag: 'connect' }),
+        insight({ id: 'c', text: 'CCC dropped filler', routing_tag: 'drop' }),
+        insight({ id: 'd', text: 'DDD untagged legacy', routing_tag: null }),
+      ],
+    })
+    expect(w.text()).toContain('AAA surface one')
+    expect(w.text()).toContain('DDD untagged legacy') // back-compat: null tag kept
+    expect(w.text()).not.toContain('BBB connect plumbing')
+    expect(w.text()).not.toContain('CCC dropped filler')
+  })
+
+  it('caps at 6 surface insights behind a show-more fold, then reveals the rest', async () => {
+    const many = Array.from({ length: 8 }, (_, i) =>
+      insight({ id: 'i' + i, text: 'INSIGHT_' + i, routing_tag: 'surface' as const }),
+    )
+    const w = mountPanel({ insights: many })
+    // first 6 visible, #6 and #7 folded
+    expect(w.text()).toContain('INSIGHT_5')
+    expect(w.text()).not.toContain('INSIGHT_6')
+    expect(w.text()).not.toContain('INSIGHT_7')
+    const showMore = w.find('[data-testid="kp-insights-show-all"]')
+    expect(showMore.exists()).toBe(true)
+    await showMore.trigger('click')
+    expect(w.text()).toContain('INSIGHT_6')
+    expect(w.text()).toContain('INSIGHT_7')
+  })
+
+  it('hides the insights section entirely when none are surface-tagged', () => {
+    const w = mountPanel({
+      insights: [insight({ id: 'x', text: 'only connect', routing_tag: 'connect' })],
+    })
+    expect(w.text()).not.toContain('only connect')
+  })
+})
