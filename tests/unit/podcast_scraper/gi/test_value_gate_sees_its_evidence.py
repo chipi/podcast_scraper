@@ -117,7 +117,7 @@ class TestTheQuotesStayWithTheirInsights:
             [GroundedQuote(char_start=5, char_end=9, text="Q2", qa_score=0.9, nli_score=0.9)],
             [GroundedQuote(char_start=10, char_end=14, text="Q3", qa_score=0.9, nli_score=0.9)],
         ]
-        out_specs, out_quotes = _gate_on_evidence(
+        out_specs, out_quotes, _tiers = _gate_on_evidence(
             specs,
             quotes,
             cfg=_cfg(),
@@ -142,7 +142,7 @@ class TestTheQuotesStayWithTheirInsights:
             [GroundedQuote(char_start=0, char_end=2, text="FIRST", qa_score=0.9, nli_score=0.9)],
             [GroundedQuote(char_start=3, char_end=5, text="SECOND", qa_score=0.9, nli_score=0.9)],
         ]
-        _, out_quotes = _gate_on_evidence(
+        _, out_quotes, _tiers = _gate_on_evidence(
             specs,
             quotes,
             cfg=_cfg(),

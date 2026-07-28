@@ -1089,14 +1089,14 @@ def _gate_on_evidence(
     transcript_text: Optional[str],
     transcript_segments: Optional[List[Dict[str, Any]]],
     pipeline_metrics: Optional[Any],
-) -> Tuple[List[Tuple[str, str]], List[List[Any]]]:
+) -> Tuple[List[Tuple[str, str]], List[List[Any]], List[int]]:
     """Run the value gate on the insight AND the evidence that grounds it.
 
     The specs and their quote lists are filtered TOGETHER — they are index-aligned everywhere
     downstream, and dropping one without the other would silently attach the wrong quote to the
     wrong insight.
     """
-    from .value_gate import InsightEvidence, value_gate_keep_mask
+    from .value_gate import InsightEvidence, value_gate_evaluate
 
     evidence: List[Optional[InsightEvidence]] = []
     for quotes in insight_quotes:
@@ -1120,19 +1120,22 @@ def _gate_on_evidence(
     # would mis-align an episode that says the same thing twice — CPython hands out one object for
     # two equal constant tuples — and a quote attached to the wrong insight is a fabricated
     # attribution, which is worse than the filler the gate exists to remove.
-    keep = value_gate_keep_mask(
+    keep, tiers = value_gate_evaluate(
         insight_specs,
         provider=provider,
         cfg=cfg,
         pipeline_metrics=pipeline_metrics,
         evidence=evidence,
     )
+    # #1191: carry the per-insight tier out alongside the specs/quotes so the node builder can store
+    # it (route-and-tag, never truncate). tiers is index-aligned with the specs, filtered TOGETHER.
     if all(keep):
-        return insight_specs, insight_quotes
+        return insight_specs, insight_quotes, tiers
 
     specs_out = [spec for spec, k in zip(insight_specs, keep) if k]
     quotes_out = [quotes for quotes, k in zip(insight_quotes, keep) if k]
-    return specs_out, quotes_out
+    tiers_out = [t for t, k in zip(tiers, keep) if k]
+    return specs_out, quotes_out, tiers_out
 
 
 def _voice_flags_for_insight(
@@ -1328,6 +1331,11 @@ def _build_stub_artifact(
                 "insight_type": "unknown",
                 # RFC-097 chunk 9 (ADR-101): required in v3.0 strict.
                 "position_hint": 0.5,
+                # ADR-133/#1191: the single stub insight — CORE tier, ranked first.
+                "tier": 3,
+                "routing_tag": "surface",
+                "salience": 1.0,
+                "rank": 0,
             },
         },
         {
@@ -1350,7 +1358,7 @@ def _build_stub_artifact(
         {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id},
     ]
     return {
-        "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
+        "schema_version": "3.1",  # ADR-133/#1191: Insight rank/tier/routing_tag/salience
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
@@ -1733,7 +1741,7 @@ def build_artifact(
             # Here it reads the insight together with the verbatim quote that supports it, who said
             # it, and what kind of voice that is — and, decisively, it can now see when NOTHING
             # supports it, which is the strongest FILLER signal there is.
-            insight_specs, insight_quotes = _gate_on_evidence(
+            insight_specs, insight_quotes, insight_tiers = _gate_on_evidence(
                 insight_specs,
                 insight_quotes,
                 cfg=cfg,
@@ -1770,6 +1778,7 @@ def build_artifact(
                 topic_labels=topic_labels,
                 episode_duration_ms=episode_duration_ms,
                 feed_id=feed_id,
+                insight_tiers=insight_tiers,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -1859,6 +1868,32 @@ def _speaker_for_insight(
     return None
 
 
+def _apply_route_and_tag(insight_props: Dict[str, Any], tier: int) -> None:
+    """#1191 route-and-tag: store the value-gate ``tier`` on the insight and derive its
+    ``routing_tag`` + ``salience`` from the signals available at node-build time.
+
+    SURFACE requires a named speaker — an unattributed stance is not a stance (``surfaceable`` is
+    False), so it routes to CONNECT (a fact is still a fact). FILLER (tier 0) routes to DROP.
+    Salience is a 0-1 composite (tier × grounding × surfaceability); the speaker-role / corpus-
+    novelty weighting + the SURFACE/CONNECT/DROP classifier rubric are the deferred refinement.
+    """
+    from .value_gate import TIER_FILLER, TIER_USEFUL
+
+    surfaceable = bool(insight_props.get("surfaceable", True))
+    grounded = bool(insight_props.get("grounded"))
+    insight_props["tier"] = tier
+    if tier <= TIER_FILLER:
+        insight_props["routing_tag"] = "drop"
+    elif surfaceable and tier >= TIER_USEFUL:
+        insight_props["routing_tag"] = "surface"
+    else:
+        insight_props["routing_tag"] = "connect"
+    base = (tier / 3.0) * 0.7
+    insight_props["salience"] = round(
+        min(1.0, base + (0.2 if grounded else 0.0) + (0.1 if surfaceable else 0.0)), 4
+    )
+
+
 def _artifact_from_multi_insight(
     episode_id: str,
     insight_specs: List[Tuple[str, str]],
@@ -1878,6 +1913,7 @@ def _artifact_from_multi_insight(
     about_edge_floor: Optional[float] = None,
     about_edge_encoder: Optional[Any] = None,
     feed_id: Optional[str] = None,
+    insight_tiers: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -1978,6 +2014,11 @@ def _artifact_from_multi_insight(
     while len(insight_quotes_list) < len(insight_specs):
         insight_quotes_list.append([])
 
+    # #1191: the pipeline ranks and tags, it never truncates. Collect the Insight nodes so a rank
+    # (ordinal by salience) can be stamped after the loop; "first N" is a view-time decision.
+    from .value_gate import TIER_CORE
+
+    insight_nodes_built: List[Dict[str, Any]] = []
     for idx, ((it_text, it_type), quotes) in enumerate(zip(insight_specs, insight_quotes_list)):
         insight_id = gil_insight_node_id(episode_id, idx, it_text)
         insight_confidence = _insight_confidence_from_quotes(quotes)
@@ -2039,6 +2080,11 @@ def _artifact_from_multi_insight(
             insight_props, quotes, transcript_text, transcript_segments if use_segments else None
         )
 
+        # #1191 route-and-tag (never truncate): store the value gate's tier + derive routing_tag +
+        # salience from the signals available here. See _apply_route_and_tag.
+        tier = int(insight_tiers[idx]) if insight_tiers and idx < len(insight_tiers) else TIER_CORE
+        _apply_route_and_tag(insight_props, tier)
+
         insight_node: Dict[str, Any] = {
             "id": insight_id,
             "type": "Insight",
@@ -2047,6 +2093,7 @@ def _artifact_from_multi_insight(
         if insight_confidence is not None:
             insight_node["confidence"] = float(insight_confidence)
         nodes.append(insight_node)
+        insight_nodes_built.append(insight_node)
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": insight_id})
         for tid, confidence in about_edges_per_insight[idx]:
             # Clamp to schema range [0, 1]; cosine is theoretically [-1, 1] but
@@ -2137,8 +2184,19 @@ def _artifact_from_multi_insight(
                 persons_added,
             )
 
+    # #1191: stamp a within-episode rank (0 = most salient) by descending salience. The pipeline
+    # ranks + tags; it never truncates — "first N" is the viewer's decision, not the corpus's.
+    for rank, node in enumerate(
+        sorted(
+            insight_nodes_built,
+            key=lambda n: n["properties"].get("salience", 0.0),
+            reverse=True,
+        )
+    ):
+        node["properties"]["rank"] = rank
+
     artifact = {
-        "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
+        "schema_version": "3.1",  # ADR-133/#1191: Insight rank/tier/routing_tag/salience
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
