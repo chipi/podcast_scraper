@@ -86,7 +86,8 @@ which adds a constraint: a `http://homelab:3001` Umami script is
   surface.
 - **Negative / cost:** operator PROD Umami depends on a `tailscale serve` config
   on homelab (runtime state, pinned in the ACL but not otherwise IaC) and a
-  tailnet ACL grant that ships via `tofu apply`. The live operator image must be
+  tailnet ACL grant that ships via the GitOps ACL action (ADR-128; was `tofu apply`).
+  The live operator image must be
   rebuilt to bake the new `VITE_UMAMI_*` build-args.
 - **Neutral:** the browser DSN keys + Umami website ids committed in code are
   PUBLIC ids (they ship in the bundle) — safe to commit by design.

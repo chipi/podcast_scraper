@@ -837,9 +837,11 @@ direction:
    design is API-level (apscheduler in the api process, config in
    `viewer_operator.yaml` or a sibling `schedules.yaml`) so it works
    on both pre-prod and prod with no host-side cron.
-4. **Tailscale ACL via Terraform** (`tailscale_acl` resource).
-   ACL changes ship as PRs. Aligns with the broader "maximize Tofu
-   coverage" principle.
+4. **Tailscale ACL via GitOps** (`tailscale/policy.hujson`).
+   ACL changes ship as PRs. **Amended by [ADR-128](../adr/ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md)
+   (2026-07-28):** originally the `tailscale_acl` Terraform resource; now applied by
+   Tailscale's GitOps ACL action (PR → test, merge → apply) so an ACL edit doesn't force a
+   full-estate `tofu apply`. OpenTofu still owns the VPS `tailscale_tailnet_key`.
 5. **Codespace pre-prod stays indefinitely.** $0 while stopped; acts
    as a free fallback / smoke surface for risky changes.
 6. **State storage: sops + age in-repo, encrypted.** Free; no new

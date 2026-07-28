@@ -1540,16 +1540,21 @@ sudo tailscale serve status   # confirm: https://prod-podcast.<tailnet> → 127.
 After this, `https://prod-podcast.<tailnet>/` works from any tailnet
 device, with a real cert (no browser warnings).
 
-### Editing the ACL
+### Editing the ACL (GitOps — ADR-128)
 
-ACL lives in `tailscale/policy.hujson` in the repo. `infra-apply.yml`
-syncs it to the live tailnet via the terraform provider. Edit, open
-PR, merge → next infra-apply run pushes the change.
+The tailnet ACL lives in `tailscale/policy.hujson` and is applied by the **Tailscale
+GitOps ACL action** (`.github/workflows/tailscale-acl.yml`), **not** OpenTofu. Flow:
 
-For ad-hoc / urgent ACL changes (e.g. adding a new device), the admin
-console at <https://login.tailscale.com/admin/acls> allows direct edits
-— but those will be overwritten by the next `infra-apply` run unless
-you also commit them to the file.
+1. Edit `tailscale/policy.hujson`, open a PR.
+2. The workflow runs `action: test` on the PR — a dry-run + the policy's own ACL tests.
+   Review the diff.
+3. Merge to `main` → the workflow runs `action: apply` and syncs it to the live tailnet.
+4. Apply on demand / re-assert: `gh workflow run "Tailscale ACL" -f mode=apply`.
+
+`policy.hujson` is the single source of truth; `tofu apply` no longer touches the ACL
+(it only manages Hetzner + the VPS `tailscale_tailnet_key`). Admin-console edits
+(<https://login.tailscale.com/admin/acls>) drift from the file and get overwritten by
+the next GitOps `apply` — always land the change in `policy.hujson`.
 
 ### Tailscale auth key vs API key
 

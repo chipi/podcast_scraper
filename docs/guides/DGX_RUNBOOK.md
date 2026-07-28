@@ -21,7 +21,9 @@ Related: [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md),
    - `gemma2:27b-instruct`
    - `whisper-large-v3` (or the exact tag used in prod profile `dgx_whisper_model`)
 7. Deploy embedding shim: see `infra/dgx/embedding-shim/README.md` on port **8001**.
-8. Apply ACL from `tailscale/policy.hujson` via OpenTofu (`make infra-apply` from operator machine).
+8. Grant tailnet access by editing `tailscale/policy.hujson` and opening a PR — the
+   **Tailscale GitOps ACL action** applies it on merge to `main` (ADR-128). (No longer
+   `tofu apply` — the ACL left OpenTofu.)
 
 ### Post-hardware smokes
 

@@ -1,6 +1,11 @@
 # ADR-081: Drill OpenTofu Workspace and Tailscale ACL Ownership
 
-- **Status**: Accepted
+- **Status**: **Partially superseded (2026-07-28)** by
+  [ADR-128](ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md) — the tailnet ACL left
+  OpenTofu for Tailscale's GitOps action, so the whole "single OpenTofu workspace owns
+  `tailscale_acl` / `manage_tailscale_acl=false` on drill" contention problem is moot
+  (no tofu state manages the ACL anymore). The **drill Hetzner-workspace** half of this
+  ADR still stands.
 - **Date**: 2026-05-08
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)

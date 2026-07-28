@@ -134,10 +134,12 @@ flowchart LR
   GHA -->|"SSH 22 if ACL allows"| DRILL
 ```
 
-**Single writer for ACL JSON:** only the **default OpenTofu workspace** manages **`tailscale_acl`**
-resources. The **`drill`** workspace sets **`manage_tailscale_acl = false`** so two states never
-fight the same API object ([ADR-081](../adr/ADR-081-drill-opentofu-workspace-tailscale-acl-ownership.md)).
-Operators land ACL edits through **prod `infra-apply`**, then drill CI consumes the updated policy.
+**Tailnet ACL — GitOps, not OpenTofu ([ADR-128](../adr/ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md)).**
+The tailnet-wide ACL (`tailscale/policy.hujson`) is applied by **Tailscale's GitOps ACL action**
+(`.github/workflows/tailscale-acl.yml`): PR → `test` (dry-run), merge to `main` → `apply`. It is
+**no longer** an OpenTofu resource, so a one-line ACL grant no longer forces a full-estate apply,
+and the old single-writer contention (ADR-081's `manage_tailscale_acl=false` on drill) is moot.
+OpenTofu still owns the VPS's own `tailscale_tailnet_key` (the join key) — not the ACL.
 
 ---
 
