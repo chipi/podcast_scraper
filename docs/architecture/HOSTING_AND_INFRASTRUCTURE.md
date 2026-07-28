@@ -141,6 +141,10 @@ The tailnet-wide ACL (`tailscale/policy.hujson`) is applied by **Tailscale's Git
 and the old single-writer contention (ADR-081's `manage_tailscale_acl=false` on drill) is moot.
 OpenTofu still owns the VPS's own `tailscale_tailnet_key` (the join key) — not the ACL.
 
+For the **procedures** (grant host→host access, expose a service over HTTPS on the tailnet,
+add a device), see the [Tailnet & networking runbook](../guides/TAILNET_AND_NETWORKING.md) —
+the cross-project reference for any agent (this repo, homelab, orrery) touching the tailnet.
+
 ---
 
 ## 4. Infrastructure as code (OpenTofu)
@@ -170,24 +174,30 @@ secret for the same dance.
 
 ### 4.3 Two workspaces: prod default vs `drill`
 
+Each workspace owns only its own Hetzner estate + VPS tailnet join key. The tailnet **ACL**
+is **not** in either workspace — it moved to the GitOps action (ADR-128), so the old
+cross-workspace ACL-contention concern (ADR-081) no longer exists.
+
 ```mermaid
 flowchart TB
   subgraph prodws["Default workspace prod"]
     ENC1["terraform.tfstate.enc"]
     HC1["HCLOUD_TOKEN prod scoped"]
-    ACL1["tailscale_acl managed"]
+    KEY1["tailscale_tailnet_key prod"]
   end
 
   subgraph drillws["Workspace drill"]
     ENC2["terraform.tfstate.enc.drill"]
     HC2["HCLOUD_TOKEN_DRILL scoped"]
-    ACL2["manage_tailscale_acl false"]
+    KEY2["tailscale_tailnet_key drill"]
   end
 
   ENC1 --> VPS1["Prod VPS resources"]
   ENC2 --> VPS2["Drill VPS resources"]
   HC1 -.->|"cannot see"| VPS2
   HC2 -.->|"cannot see"| VPS1
+  ACL["tailnet ACL (GitOps, not tofu)<br/>tailscale/policy.hujson"] -.->|"governs both"| VPS1
+  ACL -.-> VPS2
 ```
 
 **Why two files:** blast-radius isolation. A mistaken **`tofu destroy`** in **`drill`** cannot
@@ -263,7 +273,8 @@ valid **`.env`**. Exact flags and probes live in the script and [PROD_RUNBOOK.md
 | Path | Trigger philosophy | Risk profile |
 | --- | --- | --- |
 | **App images + deploy** | Frequent; must track **`main`** after gates | Mistaken image tag mainly affects one stack; rollback is another deploy |
-| **OpenTofu apply** | **Manual** `workflow_dispatch` after PR shows plan | Typo could destroy cloud resources or rewrite ACLs |
+| **OpenTofu apply** | **Manual** `workflow_dispatch` after PR shows plan | Typo could destroy cloud resources (Hetzner) |
+| **Tailnet ACL apply** | **GitOps** — PR runs `test`, merge to `main` runs `apply` (ADR-128) | A bad `src/dst` grant over-exposes a tailnet port |
 
 ```mermaid
 sequenceDiagram
