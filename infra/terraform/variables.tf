@@ -115,11 +115,8 @@ variable "tailnet_hostname" {
   default     = "prod-podcast"
 }
 
-variable "manage_tailscale_acl" {
-  type        = bool
-  description = "When true (default), apply tailscale/policy.hujson via tailscale_acl. Set false for a secondary OpenTofu workspace (e.g. drill) so only one state owns the tailnet-wide ACL — see infra/README.md \"DR drill workspace\"."
-  default     = true
-}
+# (ADR-128: `manage_tailscale_acl` removed — the tailnet ACL left OpenTofu for the GitOps
+# action, so there is no longer a tofu-owned ACL for a second workspace to fight over.)
 
 variable "enable_delete_protection" {
   type        = bool

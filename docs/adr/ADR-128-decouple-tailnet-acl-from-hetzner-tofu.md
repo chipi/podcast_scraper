@@ -1,6 +1,7 @@
 # ADR-128: Decouple the tailnet ACL from the Hetzner prod OpenTofu state
 
-- **Status**: Proposed
+- **Status**: Accepted — executed 2026-07-28 (ACL removed from tofu state via `state rm` +
+  from config; the GitOps action owns the apply)
 - **Date**: 2026-07-28
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related**: [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) Decision 2

@@ -4,7 +4,6 @@
 # Secrets (`hcloud_token`, `tailscale_api_key`, SSH key material) must come
 # from TF_VAR_* or a private -var-file — never commit them.
 
-manage_tailscale_acl     = false
 tailscale_advertise_tags = ["tag:dr-drill"]
 tailnet_hostname         = "dr-podcast"
 hcloud_environment_label = "drill"

@@ -50,7 +50,7 @@ delete_by_name() {
     return 0
   }
   local ids
-  ids=$(echo "$resp" | jq -r ".$kind[].id" 2>/dev/null || true)
+  ids=$(echo "$resp" | jq -r ".${kind}[].id" 2>/dev/null || true)
   if [[ -z "$ids" ]]; then
     echo "  $kind '$name': not found"
     return 0
@@ -99,17 +99,9 @@ if run_tofu_apply 2>&1 | tee "$APPLY_LOG"; then
   exit 0
 fi
 
-# Auto-handle the known ACL-conflict mode: import the live ACL, retry.
-if grep -q "overwrite a non-default policy file" "$APPLY_LOG"; then
-  echo ""
-  echo "==> [recover] ACL conflict detected — importing existing ACL..."
-  ( cd infra && ./tofu import 'tailscale_acl.main[0]' acl )
-  echo ""
-  echo "==> [recover] Re-running apply after ACL import..."
-  run_tofu_apply
-  exit $?
-fi
+# (ADR-128: the ACL-conflict import special-case was removed — the tailnet ACL is no longer
+# a tofu resource, so `tofu apply` can no longer conflict on it. The GitOps action owns it.)
 
 echo ""
-echo "==> [recover] Apply failed for a non-ACL reason; review log above." >&2
+echo "==> [recover] Apply failed; review log above." >&2
 exit 1
