@@ -596,7 +596,12 @@ def finalize_multi_feed_batch(
     if template_cfg.vector_search is not True:
         return summary_doc
 
-    from podcast_scraper.search.indexer import index_corpus
+    # Indexing runs in an ISOLATED subprocess, not in-process. The Arrow/LanceDB layer can crash
+    # natively (pyarrow's mimalloc segfaults in mi_thread_init under pthread-TLS pressure from the
+    # full run's torch/gRPC/sentry/langfuse threads); a native signal is uncatchable and would take
+    # the whole run down, defeating this step's "non-fatal" contract. The subprocess turns any such
+    # crash into a non-zero exit we log and survive — the corpus stays rebuildable via `reindex`.
+    from podcast_scraper.search.reindex import run_index_in_subprocess
 
     first_url = feed_results[0].feed_url or template_cfg.rss_url
     idx_cfg = template_cfg.model_copy(
@@ -607,8 +612,6 @@ def finalize_multi_feed_batch(
             "skip_auto_vector_index": False,
         }
     )
-    try:
-        index_corpus(corpus_parent, idx_cfg)
-    except Exception as exc:
-        logger.warning("Parent corpus vector index failed (non-fatal): %s", exc)
+    if not run_index_in_subprocess(corpus_parent, idx_cfg):
+        logger.warning("Parent corpus vector index did not complete (non-fatal)")
     return summary_doc
