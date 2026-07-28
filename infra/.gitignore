@@ -1,6 +1,12 @@
 # Never commit plaintext OpenTofu state — only the .enc version belongs in git.
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
+# tofu writes TIMESTAMPED plaintext backups on state ops (e.g. terraform.tfstate.<unix>.backup) —
+# also sensitive, must never be committed (ADR-128 state-rm surfaced this gap).
+terraform/terraform.tfstate.*.backup
+# Manual pre-migration ENCRYPTED rollback copies (kept local until a change is proven stable).
+# Does not match the tracked terraform.tfstate.enc / terraform.tfstate.enc.drill.
+terraform/terraform.tfstate.enc.pre-*
 terraform/terraform.tfstate.d/
 terraform/.terraform/
 terraform/*.tfplan

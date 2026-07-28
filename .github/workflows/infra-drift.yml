@@ -114,18 +114,13 @@ jobs:
             echo "plan_exit=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Extract non-no-op resource changes from the plan JSON.
-          # The ``tailscale_acl`` provider always reports the ACL resource
-          # as ``will be updated in-place`` even when before == after
-          # (provider re-marshals the ACL text on every plan refresh). This
-          # would otherwise hold the drift issue permanently open. Filter
-          # it out by address — any other resource with non-no-op actions
-          # counts as real drift.
+          # Extract non-no-op resource changes from the plan JSON. (ADR-128: the
+          # ``tailscale_acl`` quirk-filter was removed — the ACL left tofu for the GitOps
+          # action, so the plan no longer contains it and there is nothing to filter.)
           tofu show -json tfplan > tfplan.json
           REAL_CHANGES=$(jq -r '
             .resource_changes[]
             | select(.change.actions != ["no-op"])
-            | select(.address != "tailscale_acl.main[0]")
             | .address
           ' tfplan.json)
           if [ -z "$REAL_CHANGES" ]; then

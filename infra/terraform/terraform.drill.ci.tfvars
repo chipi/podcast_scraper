@@ -7,7 +7,6 @@
 # ``drill-infra-apply.yml`` still retries **nbg1** then **fsn1** with the same
 # type on ``resource_unavailable``.
 
-manage_tailscale_acl     = false
 tailscale_advertise_tags = ["tag:dr-drill"]
 tailnet_hostname         = "dr-podcast"
 # Drill servers are ephemeral — disable Hetzner delete/rebuild protection so the

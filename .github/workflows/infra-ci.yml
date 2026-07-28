@@ -108,6 +108,11 @@ jobs:
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          # Must match infra-apply.yml, or the plan preview lies: without it the default
+          # (false) makes the :443 firewall rule world-open, so the plan shows the live
+          # Cloudflare-locked :443 (ADR-118) "reverting" to 0.0.0.0/0 on every infra PR —
+          # a scary, false diff. Passing it makes the plan reflect what the apply does.
+          TF_VAR_cloudflare_origin_lock: ${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}
         run: |
           set +e
           tofu plan -no-color -input=false 2>&1 | tee plan.txt

@@ -1,58 +1,78 @@
-name: Tailscale ACL (test)
+name: Tailscale ACL
 
-# ADR-128 Phase 1 (TEST-ONLY). Validates tailscale/policy.hujson against the live tailnet
-# via Tailscale's native GitOps ACL action — on PRs that touch the policy + on demand.
+# ADR-128: the tailnet ACL is applied by Tailscale's native GitOps action, NOT OpenTofu
+# (the `tailscale_acl` resource was removed from tofu state + config; policy.hujson stays
+# the source of truth). Modes:
+#   - pull_request touching tailscale/policy.hujson → `test` (ACL tests + dry-run diff; no push)
+#   - push to main touching tailscale/policy.hujson → `apply` (sync to the live tailnet)
+#   - workflow_dispatch → choose test/apply (default test)
 #
-# READ-ONLY: `action: test` runs the ACL tests + a dry-run diff; it NEVER pushes. The
-# apply/merge trigger and the OpenTofu `state rm` (so this action, not tofu, owns the live
-# ACL) are ADR-128 Phase 2 — gated separately behind a state backup + explicit approval.
-#
-# Until cutover this runs ADDITIVELY alongside the tofu-owned ACL (infra-ci.yml still plans
-# it); both are read-only, no conflict. See docs/adr/ADR-128 + the migration plan in docs/wip.
+# Gate: a policy change reaches `main` only via a reviewed + merged PR (branch protection),
+# so apply-on-push is review-gated — equivalent to the old "ACL PR → tofu apply" flow.
 
 on:
   pull_request:
     paths:
       - tailscale/policy.hujson
-  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - tailscale/policy.hujson
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "test (dry-run) or apply (sync to tailnet)"
+        type: choice
+        options: [test, apply]
+        default: test
 
 permissions:
   contents: read
 
 concurrency:
-  group: tailscale-acl-test-${{ github.ref }}
-  cancel-in-progress: true
+  group: tailscale-acl
+  cancel-in-progress: false # never cancel an in-flight apply
 
 jobs:
-  test:
+  acl:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      - name: Pre-flight — required creds present?
+      - name: Pre-flight — creds present + resolve mode
         id: preflight
         env:
           TS_API_KEY: ${{ secrets.TS_API_KEY }}
           TAILNET_NAME: ${{ vars.TAILNET_NAME }}
+          EVENT: ${{ github.event_name }}
+          DISPATCH_MODE: ${{ github.event.inputs.mode }}
         run: |
           set -euo pipefail
           MISSING=""
           [ -z "${TS_API_KEY:-}" ]    && MISSING="$MISSING TS_API_KEY"
           [ -z "${TAILNET_NAME:-}" ]  && MISSING="$MISSING TAILNET_NAME"
           if [ -n "$MISSING" ]; then
-            echo "::warning::Missing prereqs:$MISSING (e.g. a fork PR has no secrets) — skipping ACL test."
+            echo "::warning::Missing prereqs:$MISSING (e.g. a fork PR has no secrets) — skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          # PR → test; push to main → apply; dispatch → chosen input.
+          case "$EVENT" in
+            pull_request) MODE="test" ;;
+            push)         MODE="apply" ;;
+            *)            MODE="${DISPATCH_MODE:-test}" ;;
+          esac
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "::notice::Tailscale ACL action=$MODE (event=$EVENT)"
 
-      - name: Tailscale ACL test (dry-run — no apply)
+      - name: Tailscale ACL ${{ steps.preflight.outputs.mode }}
         if: steps.preflight.outputs.skip != 'true'
-        # Pinned to v1.5.2 by commit SHA (supply-chain: this action can WRITE ACLs; we only
-        # use `test` here, but pin the code regardless). Bump the SHA + comment together.
+        # Pinned to v1.5.2 by commit SHA (supply-chain: this action WRITES ACLs on apply).
+        # Bump the SHA + comment together.
         uses: tailscale/gitops-acl-action@5a4a17f5708e9bf96f4ee915a95e9f83c2eebe1a # v1.5.2
         with:
           tailnet: ${{ vars.TAILNET_NAME }}
           api-key: ${{ secrets.TS_API_KEY }}
           policy-file: ./tailscale/policy.hujson
-          action: test
+          action: ${{ steps.preflight.outputs.mode }}

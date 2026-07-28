@@ -23,20 +23,10 @@ resource "tailscale_tailnet_key" "prod" {
   )
 }
 
-# Sync the repo's ACL file to the tailnet. Source of truth = tailscale/policy.hujson;
-# every `tofu apply` overwrites the live policy. ACL changes ship as PRs per
-# RFC-082 Decision 2 + Decisions-made #4.
-#
-# When manage_tailscale_acl is false (e.g. OpenTofu workspace "drill"), omit this
-# resource so a second state cannot fight prod for the same tailnet ACL (#752).
-resource "tailscale_acl" "main" {
-  count = var.manage_tailscale_acl ? 1 : 0
-  acl   = file("${path.module}/../../tailscale/policy.hujson")
-}
-
-# State upgrade: ACL resource gained `count`; prod workspace rewrites address
-# tailscale_acl.main -> tailscale_acl.main[0] on first plan after this change.
-moved {
-  from = tailscale_acl.main
-  to   = tailscale_acl.main[0]
-}
+# NOTE (ADR-128, 2026-07-28): the tailnet ACL is no longer managed here. It moved out of
+# OpenTofu to Tailscale's native GitOps action (.github/workflows/tailscale-acl.yml) so a
+# one-line ACL grant stops forcing a full-estate apply. `tailscale/policy.hujson` remains
+# the source of truth; it is now applied by the GitOps action, not `tofu apply`. The
+# `tailscale_acl` resource was removed from state via `tofu state rm` before this deletion
+# so tofu neither destroys nor recreates the live policy. Only `tailscale_tailnet_key.prod`
+# (the VPS join key — genuinely prod-specific) stays in tofu.
