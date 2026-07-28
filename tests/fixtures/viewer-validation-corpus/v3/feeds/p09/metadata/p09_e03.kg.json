@@ -2,16 +2,6 @@
   "edges": [
     {
       "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-      "to": "entity:health",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
       "to": "topic:technology",
       "type": "RELATES_TO"
     },
@@ -28,8 +18,9 @@
   ],
   "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-06T12:00:00",
+    "model_version": "synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p09_e03.txt"
   },
   "nodes": [
     {
@@ -40,22 +31,6 @@
         "title": "The Long View: Biohacking \u2014 Episode 3"
       },
       "type": "Episode"
-    },
-    {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:health",
-      "properties": {
-        "category": "Concept",
-        "label": "Health"
-      },
-      "type": "Entity"
     },
     {
       "id": "topic:technology",
@@ -79,5 +54,5 @@
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.1"
 }

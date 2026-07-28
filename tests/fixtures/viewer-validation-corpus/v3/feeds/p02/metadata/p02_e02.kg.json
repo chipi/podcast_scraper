@@ -2,16 +2,6 @@
   "edges": [
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "to": "topic:technology",
       "type": "RELATES_TO"
     },
@@ -23,8 +13,9 @@
   ],
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-03T12:00:00",
+    "model_version": "synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e02.txt"
   },
   "nodes": [
     {
@@ -35,22 +26,6 @@
         "title": "Practical Systems \u2014 Episode 2"
       },
       "type": "Episode"
-    },
-    {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
     },
     {
       "id": "topic:technology",
@@ -67,5 +42,5 @@
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.1"
 }

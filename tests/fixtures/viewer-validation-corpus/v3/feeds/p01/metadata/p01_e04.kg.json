@@ -2,16 +2,6 @@
   "edges": [
     {
       "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
-      "to": "entity:outdoor-activities",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
-      "to": "entity:gear",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "to": "topic:outdoor-activities",
       "type": "RELATES_TO"
     },
@@ -28,8 +18,9 @@
   ],
   "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-06T12:00:00",
+    "model_version": "synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p01_e04.txt"
   },
   "nodes": [
     {
@@ -40,22 +31,6 @@
         "title": "Singletrack Sessions \u2014 Episode 4"
       },
       "type": "Episode"
-    },
-    {
-      "id": "entity:outdoor-activities",
-      "properties": {
-        "category": "Concept",
-        "label": "Outdoor Activities"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:gear",
-      "properties": {
-        "category": "Concept",
-        "label": "Gear"
-      },
-      "type": "Entity"
     },
     {
       "id": "topic:outdoor-activities",
@@ -79,5 +54,5 @@
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.1"
 }

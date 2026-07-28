@@ -2,16 +2,6 @@
   "edges": [
     {
       "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
-      "to": "entity:environment",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
-      "to": "entity:health",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
       "to": "topic:environment",
       "type": "RELATES_TO"
     },
@@ -28,8 +18,9 @@
   ],
   "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-04T12:00:00",
+    "model_version": "synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p07_e02.txt"
   },
   "nodes": [
     {
@@ -40,22 +31,6 @@
         "title": "The Long View \u2014 Episode 2"
       },
       "type": "Episode"
-    },
-    {
-      "id": "entity:environment",
-      "properties": {
-        "category": "Concept",
-        "label": "Environment"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:health",
-      "properties": {
-        "category": "Concept",
-        "label": "Health"
-      },
-      "type": "Entity"
     },
     {
       "id": "topic:environment",
@@ -79,5 +54,5 @@
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.1"
 }

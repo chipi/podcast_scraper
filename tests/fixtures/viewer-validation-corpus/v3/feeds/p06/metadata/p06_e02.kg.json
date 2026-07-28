@@ -2,16 +2,6 @@
   "edges": [
     {
       "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-      "to": "entity:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
       "to": "topic:technology",
       "type": "RELATES_TO"
     },
@@ -28,8 +18,9 @@
   ],
   "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-05T12:00:00",
+    "model_version": "synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e02.txt"
   },
   "nodes": [
     {
@@ -40,22 +31,6 @@
         "title": "Edge Cases Podcast \u2014 Episode 2"
       },
       "type": "Episode"
-    },
-    {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:welcome-back-to",
-      "properties": {
-        "category": "Concept",
-        "label": "Welcome Back To"
-      },
-      "type": "Entity"
     },
     {
       "id": "topic:technology",
@@ -79,5 +54,5 @@
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.1"
 }
