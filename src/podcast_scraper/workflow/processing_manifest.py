@@ -92,6 +92,7 @@ class EpisodeCostProbe:
     def record_llm_summarization_call(
         self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
     ) -> Any:
+        """Accumulate this episode's summary cost, then forward to the real recorder."""
         # Chunked summarization makes several calls per episode; each provider funnels through here,
         # so accumulating captures the full per-episode summary cost (the ProviderCallMetrics object
         # only carries token counts, never the priced cost — the block was None without it).
@@ -104,6 +105,7 @@ class EpisodeCostProbe:
     def record_llm_gi_call(
         self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
     ) -> Any:
+        """Accumulate this episode's GI cost, then forward to the real recorder."""
         if cost_usd:
             object.__setattr__(self, "gi_cost_usd", self.gi_cost_usd + float(cost_usd))
         return self._inner.record_llm_gi_call(input_tokens, output_tokens, cost_usd=cost_usd)
@@ -111,6 +113,7 @@ class EpisodeCostProbe:
     def record_llm_gi_evidence_stage_call(
         self, stage: str, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
     ) -> Any:
+        """Accumulate this episode's GI evidence-stage cost, then forward to the real recorder."""
         # Captured here because the inner impl routes its own record_llm_gi_call to ``inner`` (not
         # this probe), so a single provider call hits exactly one probe method — no double count.
         if cost_usd:
@@ -122,6 +125,7 @@ class EpisodeCostProbe:
     def record_llm_kg_call(
         self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
     ) -> Any:
+        """Accumulate this episode's KG cost, then forward to the real recorder."""
         if cost_usd:
             object.__setattr__(self, "kg_cost_usd", self.kg_cost_usd + float(cost_usd))
         return self._inner.record_llm_kg_call(input_tokens, output_tokens, cost_usd=cost_usd)
@@ -157,7 +161,8 @@ def pipeline_composition_version(stage_names: Iterable[str]) -> str:
     captures. Independent of ``git_sha`` (which moves on every commit, including docs).
     """
     present = [s for s in CANONICAL_STAGE_ORDER if s in set(stage_names)]
-    digest = hashlib.sha1(",".join(present).encode("utf-8")).hexdigest()[:8]
+    # Not a security hash — a short stable fingerprint of the stage-graph shape.
+    digest = hashlib.sha1(",".join(present).encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
     return f"pc-{digest}"
 
 

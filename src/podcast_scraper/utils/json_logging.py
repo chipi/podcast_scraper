@@ -50,6 +50,7 @@ class JSONFormatter(logging.Formatter):
     """Render a ``LogRecord`` as a single-line JSON object with correlation ids."""
 
     def format(self, record: logging.LogRecord) -> str:
+        """Serialise *record* to a single-line JSON string with correlation keys."""
         payload: Dict[str, Any] = {
             "ts": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
             "level": record.levelname,
