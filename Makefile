@@ -384,6 +384,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "tests/stack-test/test-results/**" \
 	--ignore "$(APP_DIR)/playwright-report/**" \
 	--ignore "$(APP_DIR)/test-results/**" \
+	--ignore "$(APP_DIR)/ios/App/Pods/**" \
 	--config .markdownlint.json
 
 lint-markdown:
