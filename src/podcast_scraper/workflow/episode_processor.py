@@ -779,6 +779,10 @@ def _write_processing_manifest(
                 "truly_unknown": summary.get("truly_unknown"),
                 "unattributed_talk_share": summary.get("unattributed_talk_share"),
                 "by_voice_type": summary.get("by_voice_type"),
+                # ADR-133/#1220: the labeling OUTPUT — real speakers exposed to GI/KG after
+                # cameo/commercial cleanup, split named vs Voice (unresolved). Lets the sidecar
+                # answer the clean named-vs-Voice rate without opening the graph.
+                "exposed": summary.get("exposed"),
                 "unbound_names": summary.get("unbound_names"),
                 "host_named": host_named,
             },

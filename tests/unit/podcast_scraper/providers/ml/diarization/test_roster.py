@@ -265,6 +265,15 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         "named": 1,
         "unresolved": 1,
         "by_voice_type": {"person": 1, "unidentified": 1},
+        # Labeling OUTPUT (ADR-133/#1220): both voices are real (no cameo/commercial), so both are
+        # exposed to GI/KG — HOST named, SPEAKER_01 an unidentified Voice.
+        "exposed": {
+            "speakers": 2,
+            "named": 1,
+            "voices": 1,
+            "voices_unknown": 0,
+            "voices_unidentified": 1,
+        },
         "show_centric": False,
         "expected_unresolved": 1,
         # SPEAKER_01 is substantive, and NOBODY NAMES THEM — that is tape, not a failure.
@@ -336,6 +345,46 @@ def test_voice_type_cameo_commercial_and_unknown() -> None:
     assert r.display_label_for("SPEAKER_01") == "Unidentified speaker"
     assert r.label_for("SPEAKER_01") == "SPEAKER_01"  # id-bearing label never swapped
     assert r.label_for("SPEAKER_02") == "SPEAKER_02"
+
+
+def test_exposed_output_excludes_cameo_and_commercial_noise_1220() -> None:
+    """ADR-133/#1220: the labeling OUTPUT surface is what reaches GI/KG after cleanup.
+
+    Raw diarization here has FOUR voices, but two are noise (cameo + commercial) that never
+    become graph nodes. ``summary.exposed`` reports only the two real speakers — HOST (named
+    Person) and SPEAKER_01 (an unidentified Voice) — so the sidecar states the clean
+    named-vs-Voice rate on its own, without opening the graph.
+    """
+    diar = _diar(
+        [
+            ("HOST", 0, 60),
+            ("SPEAKER_01", 60, 400),  # unidentified — real, unnamed -> Voice
+            ("SPEAKER_02", 400, 408),  # cameo -> dropped
+            ("SPEAKER_03", 500, 560),  # commercial -> dropped
+        ],
+        4,
+    )
+    r = resolve_speaker_roster(diar, "Welcome. I'm Noah Kravitz.", ad_intervals=[(495.0, 570.0)])
+    diag = build_speaker_diagnostics(
+        diar, r, transcript_text="Welcome. I'm Noah Kravitz.", detected_guests=[], known_hosts=[]
+    )
+    s = diag["summary"]
+    # INPUT still counts all four raw voices...
+    assert s["num_speakers"] == 4
+    assert s["by_voice_type"] == {
+        "person": 1,
+        "unidentified": 1,
+        "cameo": 1,
+        "commercial": 1,
+    }
+    # ...but the OUTPUT exposed to GI/KG is only the two real speakers.
+    assert s["exposed"] == {
+        "speakers": 2,
+        "named": 1,
+        "voices": 1,
+        "voices_unknown": 0,
+        "voices_unidentified": 1,
+    }
 
 
 def test_a_voice_we_FAILED_to_name_keeps_the_raw_id_as_a_defect_marker() -> None:

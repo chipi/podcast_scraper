@@ -159,6 +159,9 @@ VOICE_UNKNOWN = "unknown"  # unnamed, substantive — a real person we FAILED to
 # named this and did not". Showing it on a voice nobody could have named turns a defect signal into
 # noise, and a defect signal nobody trusts stops being a signal.
 VOICE_UNIDENTIFIED = "unidentified"  # unnamed, substantive — and NO source names them
+# Voice types that are NOT real conversational speakers — dropped before GI/KG (the labeling
+# OUTPUT surface excludes them). ADR-133/#1220.
+_NOISE_VOICE_TYPES = frozenset({VOICE_CAMEO, VOICE_COMMERCIAL})
 # Friendly display labels for the non-person types (surfaces render these instead of SPEAKER_xx).
 # ``unknown`` (a person we FAILED to name) keeps its raw id — that raw id IS the defect marker.
 VOICE_TYPE_LABELS = {
@@ -1642,6 +1645,27 @@ def build_speaker_diagnostics(
         n for n in _clean_person_names(metadata_named or ()) if n.lower() not in used_lower
     ]
 
+    # ---- Labeling OUTPUT: the clean speaker surface handed to GI/KG (ADR-133/#1220) ----------
+    # Everything above is the raw diarization INPUT — it counts every voice pyannote heard,
+    # including ad/cameo noise. This is what SURVIVES cleanup: cameo/commercial are dropped,
+    # leaving the real conversational speakers that become Person (named) / Voice (unresolved)
+    # nodes. Recorded here so the per-episode sidecar answers "what did labeling actually expose
+    # downstream?" on its own — without opening the graph (grounding attrition may still drop a
+    # speaker with no grounded quote, so the graph is a cross-check, not the same number).
+    exposed = [r for r in roster.by_voice.values() if r.voice_type not in _NOISE_VOICE_TYPES]
+    exposed_named = sum(1 for r in exposed if r.named)
+    exposed_out = {
+        "speakers": len(exposed),
+        "named": exposed_named,
+        # Unnamed exposed voices — these become ``Voice`` nodes downstream.
+        "voices": len(exposed) - exposed_named,
+        # Of those Voices: a real person we failed to name (defect) vs one nobody ever names.
+        "voices_unknown": sum(1 for r in exposed if not r.named and r.voice_type == VOICE_UNKNOWN),
+        "voices_unidentified": sum(
+            1 for r in exposed if not r.named and r.voice_type == VOICE_UNIDENTIFIED
+        ),
+    }
+
     return {
         "summary": {
             "num_speakers": roster.num_speakers,
@@ -1650,6 +1674,8 @@ def build_speaker_diagnostics(
             # Of the unresolved voices, how many are noise (cameo/commercial) vs a real person
             # we failed to name (unknown) — so an operator can tell "worth chasing" from "junk".
             "by_voice_type": type_counts,
+            # The labeling OUTPUT surface (post cameo/commercial cleanup) exposed to GI/KG.
+            "exposed": exposed_out,
             "show_centric": show_centric,
             # Unresolved voices that are the EXPECTED outcome (show-centric host, cameo, ad) vs a
             # genuine miss — ``truly_unknown`` is the real "we failed to name a person" residual.
