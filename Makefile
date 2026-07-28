@@ -384,6 +384,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "tests/stack-test/test-results/**" \
 	--ignore "$(APP_DIR)/playwright-report/**" \
 	--ignore "$(APP_DIR)/test-results/**" \
+	--ignore "$(APP_DIR)/ios/App/Pods/**" \
 	--config .markdownlint.json
 
 lint-markdown:
@@ -1358,6 +1359,30 @@ test-app-e2e:
 build-app:
 	@echo "Production Learning Player bundle (vue-tsc -b && vite build)..."
 	@cd $(APP_DIR) && npm install && npm run build
+
+# Mobile shell builds (Capacitor iOS + Android). Both source the gitignored
+# $(APP_DIR)/.env.mobile (copy from .env.mobile.example) so real internal DSN/Umami/
+# API URLs are exported as build-args without ever landing in git. `set -a` exports
+# every var in the file; Vite picks up the VITE_* ones + MOBILE_RELEASE (read as raw
+# process.env in vite.config.ts). Run `npx cap sync` copies the fresh dist into ios/+android/.
+LP_ENV := $(APP_DIR)/.env.mobile
+
+# Internal / dev-switchable build (TestFlight / Play internal track). The dev↔prod
+# tier toggle stays available (MOBILE_RELEASE unset => __MOBILE_INTERNAL__ true).
+mobile-build-internal:
+	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
+	@echo "Learning Player mobile build (internal, tier switch enabled)..."
+	@cd $(APP_DIR) && set -a && . ./.env.mobile && set +a && npm install && npm run build && npx cap sync
+
+# Prod-locked release build. Tier toggle is tree-shaken out (MOBILE_RELEASE=1), and
+# the build FAILS if VITE_SENTRY_DSN_PLAYER is empty so a shipped app can never lose
+# crash reporting silently.
+mobile-build-release:
+	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
+	@echo "Learning Player mobile build (RELEASE, prod-locked)..."
+	@cd $(APP_DIR) && set -a && . ./.env.mobile && set +a && \
+		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
+		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
 
 # Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.
 app-docker-build:

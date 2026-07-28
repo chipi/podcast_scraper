@@ -1,6 +1,6 @@
 # Open threads — evals, tests, and GH issues left behind (2026-07-16)
 
-Full-context companion to [`HANDOVER-2026-07-16-fuse-gi-cap-nextpr.md`](HANDOVER-2026-07-16-fuse-gi-cap-nextpr.md).
+Full-context companion to `HANDOVER-2026-07-16-fuse-gi-cap-nextpr.md` (since deleted as a consumed handover — in git history).
 That handover covers the 8 unpushed commits; **this** captures everything else still open around the
 prod-v3 bake-off / fuse / GI work so nothing is silently dropped across the session reset.
 
