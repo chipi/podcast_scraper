@@ -257,6 +257,23 @@ def test_insights_endpoint_returns_grounded(tmp_path: Path) -> None:
     assert ins["quotes"][0]["start_ms"] == 1000
 
 
+def test_insights_endpoint_carries_ranking_fields(tmp_path: Path) -> None:
+    # ADR-133/#1191: the response schema exposes salience/rank/routing_tag/tier (None when the
+    # artifact predates 3.1, but the keys must serialize so clients can sort/filter).
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    ins = _client(tmp_path).get(f"/api/app/episodes/{slug}/insights").json()["insights"][0]
+    assert {"salience", "rank", "routing_tag", "tier"} <= set(ins)
+
+
+def test_insights_endpoint_limit_zero_returns_empty(tmp_path: Path) -> None:
+    # ADR-133/#1191: the `limit` query param is wired end-to-end through insights_from_gi.
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/insights?limit=0").json()
+    assert body["insights"] == []
+
+
 def test_entities_endpoint_returns_persons_and_topics(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)

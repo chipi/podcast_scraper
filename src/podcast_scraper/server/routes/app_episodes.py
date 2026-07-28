@@ -252,8 +252,18 @@ async def episode_related(
 
 
 @router.get("/episodes/{slug}/insights", response_model=AppInsightsResponse)
-async def episode_insights(request: Request, slug: str) -> AppInsightsResponse:
-    """Grounded GIL insights (with supporting quotes) for one episode.
+async def episode_insights(
+    request: Request,
+    slug: str,
+    limit: int | None = Query(
+        default=None,
+        ge=0,
+        description="ADR-133/#1191: cap to the top-N insights by salience (drop-tagged excluded). "
+        "Omit for all — the client caps visibly at gi_surface_default_limit and 'show more' "
+        "reveals the rest of the already-sorted list.",
+    ),
+) -> AppInsightsResponse:
+    """Grounded GIL insights (with supporting quotes) for one episode, ranked by salience.
 
     Returns an empty list (200) when the episode has no GI artifact — graceful
     degradation, not an error.
@@ -262,7 +272,7 @@ async def episode_insights(request: Request, slug: str) -> AppInsightsResponse:
     if not row.has_gi:
         return AppInsightsResponse(episode_slug=slug, insights=[])
     artifact = load_json_artifact(root, row.gi_relative_path)
-    return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact))
+    return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact, limit=limit))
 
 
 # Public reach is an O(users × events) scan of every listen log; memoize per (data_dir, slug) for a

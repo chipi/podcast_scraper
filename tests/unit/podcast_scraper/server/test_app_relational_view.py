@@ -362,3 +362,56 @@ def test_card_builders_accept_precomputed_rows(tmp_path: Path) -> None:
     tcard = build_topic_card(tmp_path, "topic:ai", rows=rows)
     assert tcard is not None and tcard.episode_count == 2
     assert resolve_entity(tmp_path, "Bob", rows=rows) is not None
+
+
+class TestRankingProjection:
+    """ADR-133/#1191: _node_to_app_insight carries ranking fields; _rank_for_display orders them."""
+
+    def test_node_to_app_insight_carries_ranking_fields(self) -> None:
+        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+
+        node = {
+            "id": "insight:1",
+            "properties": {
+                "text": "a specific claim",
+                "salience": 0.82,
+                "rank": 1,
+                "routing_tag": "surface",
+                "tier": 3,
+            },
+        }
+        ins = _node_to_app_insight(node)
+        assert (ins.salience, ins.rank, ins.routing_tag, ins.tier) == (0.82, 1, "surface", 3)
+
+    def test_node_to_app_insight_missing_fields_default_none(self) -> None:
+        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+
+        ins = _node_to_app_insight({"id": "insight:1", "properties": {"text": "x"}})
+        assert (ins.salience, ins.rank, ins.routing_tag, ins.tier) == (None, None, None, None)
+
+    def test_rank_for_display_sorts_desc_and_drops_drop_tagged(self) -> None:
+        from podcast_scraper.server.app_relational_view import (
+            _node_to_app_insight,
+            _rank_for_display,
+        )
+
+        nodes = [
+            {"id": "a", "properties": {"text": "a", "salience": 0.5, "routing_tag": "connect"}},
+            {"id": "b", "properties": {"text": "b", "salience": 0.9, "routing_tag": "surface"}},
+            {"id": "c", "properties": {"text": "c", "salience": 0.99, "routing_tag": "drop"}},
+        ]
+        out = _rank_for_display([_node_to_app_insight(n) for n in nodes])
+        assert [i.id for i in out] == ["b", "a"]  # c dropped despite highest salience
+
+    def test_rank_for_display_stable_for_missing_salience(self) -> None:
+        from podcast_scraper.server.app_relational_view import (
+            _node_to_app_insight,
+            _rank_for_display,
+        )
+
+        nodes = [
+            {"id": "x", "properties": {"text": "x"}},
+            {"id": "y", "properties": {"text": "y"}},
+        ]
+        out = _rank_for_display([_node_to_app_insight(n) for n in nodes])
+        assert [i.id for i in out] == ["x", "y"]
