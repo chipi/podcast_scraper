@@ -36,25 +36,27 @@ Labeling is `(diarization, transcript, metadata, LLM) → roster` — a stateful
 in the loop, **not** a pure function, so ADR-017's swap-the-whole-function registry does not
 transfer. What *is* extractable is the **configuration of** that pipeline.
 
-- A `LabelingProfile` frozen dataclass bundles the labeling tunables. **Materialised in naming-4:**
-  the boolean feature flags for the ADR-137 fixes (narrator-binding, case-blind self-intro,
-  nickname fuzzy binding, first-name-only intro, merged-cluster suppression, Pattern-B bounded
-  promotion, defect-share alarm) **and** the defect-alarm threshold — `roster.py` reads these from
-  the profile. **Declared but not yet consumed (tier-2 extraction, tracked in
-  `docs/wip/LABELING-TIER3-COMPLEXITY.md`):** the scalar floors/windows. `cameo_max_talk_s` is on
-  the dataclass but the four cameo sites in `roster.py` still read the module constant
-  `CAMEO_MAX_TALK_S`; the tape floor, the intro/co-host windows and the Pattern-B spare-name bound
-  are likewise still module constants. Their defaults equal the constants, so a profile that leaves
-  them at the default is a validated no-op today; wiring them is the next tier, not a behaviour
-  change.
+- A `LabelingProfile` frozen dataclass bundles the labeling tunables. **Consumed in naming-4:** the
+  seven boolean feature flags for the ADR-137 fixes (narrator-binding, case-blind self-intro,
+  **nickname-fuzzy binding**, first-name-only intro, merged-cluster suppression, Pattern-B bounded
+  promotion, defect-share alarm), the `unattributed_alarm_threshold`, and **`cameo_max_talk_s`** —
+  `roster.py`/`pipeline.py` read all of these from the profile. `nickname_fuzzy_binding` gates the
+  ADR-128 `_recover_stated_names` recovery pass; `cameo_max_talk_s` threads to all five cameo sites
+  (`classify_voices`, `_classify_voice_types`, `_name_guest_voices`, `_self_intro_voice_names` →
+  host-candidate). Each has an A/B test proving the flag flips behaviour, and the defaults equal the
+  prior module constants so naming-4 is unchanged. **Still module constants (tier-2 extraction,
+  tracked in `docs/wip/LABELING-TIER3-COMPLEXITY.md`):** the tape floor and the intro/co-host
+  windows. The Pattern-B spare-name bound is NOT a constant — it is computed per episode
+  (`len(leftover ∪ stated_unbound)`), gated on/off by the `pattern_b_bounded_promotion` flag.
 - Profiles are **registered by ID** and **selected via config** (one field, e.g.
   `labeling_profile: "naming-4"`), mirroring `ml_preprocessing_profile`.
 - The **active profile ID is recorded in the per-episode sidecar** (next to the `voice_census` from
   the v2.4 sidecar directive) and aligned with `METHOD_VERSIONS["naming"]`, so every episode says
   which labeling behaviour produced it — the "keep an eye on these things" goal.
-- `roster.py` reads the **feature flags + alarm threshold** from the profile today; the remaining
-  scalar knobs are the tier-2 target. The algorithm stays where it is; only its knobs move behind a
-  versioned, declarative boundary, tier by tier.
+- `roster.py`/`pipeline.py` read the **seven feature flags + `unattributed_alarm_threshold` +
+  `cameo_max_talk_s`** from the profile today; the tape floor and intro/co-host windows are the
+  remaining tier-2 target. The algorithm stays where it is; only its knobs move behind a versioned,
+  declarative boundary, tier by tier.
 
 ## Three tiers (what we do, and what we defer)
 

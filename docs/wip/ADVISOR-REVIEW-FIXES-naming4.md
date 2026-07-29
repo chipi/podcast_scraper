@@ -1,15 +1,18 @@
-# naming-4 advisor review — findings and resolutions
+# naming-4 review — findings and resolutions (4 adversarial rounds + a self-review)
 
-- **Status**: All actionable findings resolved; two accepted-as-is with rationale. Second advisor
-  review pending.
+- **Status**: **GO.** Four adversarial advisor rounds each probed harder and found real
+  corpus-wide wrong-name vectors; all closed with probe-tests. A subsequent three-reviewer
+  self-review over the whole arc found more (nickname false-friends, a dead-code
+  `episode_description`, two dead profile knobs); all fixed. Every gate green.
 - **Date**: 2026-07-29
-- **Context**: Before a full-corpus relabel (to measure the relabel-prompt-parity fix), an advisor
-  pass reviewed the naming-4 labeling + cleanup arc (commits 915ea668^..HEAD). Verdict:
-  **GO-WITH-FIXES**. It caught a confident-wrong-name bug (F1) that would have fired for **every
-  voice of every episode** on the lowercase turbo corpus — i.e. corrupted the relabel we were about
-  to run. This records each finding and what was done.
+- **Context**: Before a full-corpus relabel (to measure the relabel-prompt-parity fix), the
+  naming-4 labeling + cleanup arc was reviewed. **12 confident-wrong-name vectors** were caught and
+  fixed across rounds 1-4 — every one reachable corpus-wide on the lowercase-turbo corpus, i.e. each
+  would have baked wrong names into the relabel. This records each finding and what was done.
 
-## Fixed (with repro-before-fix tests)
+## Round 1 — GO-WITH-FIXES (F1 = the corpus-wide bug)
+
+Fixed (with repro-before-fix tests)
 
 | ID | Finding | Resolution |
 | --- | --- | --- |
@@ -41,3 +44,64 @@
 - `resolution_attribution` (pure-cue baseline + `llm_delta`) is written per episode — bucket every
   before/after change into **deterministic vs LLM** and report the deterministic diff as the
   headline, so Gemini noise is not mistaken for the fix's effect.
+
+## Round 2 — two residual wrong-name vectors (commit 66e3a001)
+
+- **Possessive self-bind:** `"i'm sam altman's biggest fan"` self-bound **Sam Altman** (the
+  possessive `altman's` folds to an edit-1 surname through the retained `i'm|i am|my name is` cues,
+  which round-1 only closed for `this is`). Drop trailing-`'s` tokens from surname candidacy.
+- **2-letter surname hole:** `"here with andrew ng"` + stated `Andrew Chen` bound the wrong Andrew
+  (`ng` len-2 escaped the `>=3` contradiction check). `_span_has_contradicting_surname` now uses
+  `>=2` plus 2-letter function words in `_INTRO_AFFILIATION_TOKENS`.
+
+## Round 3 — four vectors (commit 2d6d4c81)
+
+- **s-apostrophe possessive:** `"i'm reed hastings' successor"` (bare-apostrophe on an s-ending
+  surname escaped the `'s` drop). Also drop trailing `'`.
+- **Mid-show recap misattribution:** a past-tense cue `"earlier we spoke with andrew ng"` bound the
+  named person to the next voice anywhere in the episode. Split `CUE_FIRST_PAST_BODY` out and gate it
+  to head-of-episode + a host introducer.
+- **Report-verb topical subject:** `"sam altman explains it best"` bound a bare metadata **subject**.
+  Split `NAME_FIRST_REPORT_TAIL` out; on the match-form path it resolves only against **corroborated
+  refs** (detected guests + known hosts) threaded from the caller — no fallback to raw metadata.
+- **Fuzzy-surname order dependence:** stated `[Chris Smith, Chris Schmidt]` + `"chris schmidt"` bound
+  Smith (shared soundex, first-match-wins). `_match_stated_in_span` is now two-pass: exact surname
+  across ALL stated first, then fuzzy.
+
+## Round 4 — two more, one self-inflicted (commit 658962e6)
+
+- **Monologue-merge recap:** the round-3 head bound was on merged-turn INDEX, but a host monologue
+  merges into turn 0, so a late recap inside it was still "head". Now also text-head-bound
+  (first 1500 chars) + reject a temporal-recap-preceded match.
+- **Absent-host report-verb (introduced by the round-3 fix-3 threading):** adding `known_hosts` to
+  the corroborated set let `"kevin roose explains in his book"` (a topical mention of an ABSENT
+  co-host) paint onto a guest. On the report-verb path a HOST name now binds ONLY a host voice.
+
+Round 4 verdict: **GO** once these two land with probe-tests — which they did. No fifth full review
+needed.
+
+## Self-review (three read-only reviewers over the whole arc, before the relabel)
+
+The advisor rounds were laser-focused on wrong-name binding in `roster.py`; a breadth review then
+covered the rest and found more (all fixed):
+
+- **Nickname false-friends** (correctness): the table merged DISTINCT people —
+  `first_names_match("Alexander","Alexandra")` and `("Jonathan","John")` returned True. Split each
+  into two groups sharing only the ambiguous short form. Pat/Ted verified surname-safe (the formal
+  names never cross-match). *(97fbb2db)*
+- **Dead `episode_description`** (correctness): `Episode` had no `description` field, so the ADR-135
+  role prompt only ever saw the title — in BOTH the relabel fix and the pre-existing full path. Added
+  the field + populated it from the per-item `<description>`. *(97fbb2db)*
+- **Two dead profile knobs** (ADR-138 integrity): `nickname_fuzzy_binding` + `cameo_max_talk_s` were
+  declared but unread, so a naming-3-legacy A/B would not have isolated them. Both now wired from the
+  profile with A/B tests proving the flip; naming-4 unchanged (defaults == prior constants).
+  *(2302718f)*
+- **Small fixes:** recap-marker lookback widened 25→40 chars; the dead `UNATTRIBUTED_TALK_ALARM`
+  constant removed; F3 host-snap role-gate + Q3 divergence-log test gaps closed. *(e383943d)*
+- **Doc drift** (this doc + ADR-137/138): ADR-137's match recipe corrected (NFKD, not NFKC), adopter
+  scope narrowed to roster (resolution.py is a follow-up), provider-surface declaration marked
+  deferred; ADR-138 updated to reflect the two now-consumed knobs.
+
+Accepted / not fixed here: a pre-existing quadratic-regex risk in `guests_introduced_by_the_host`
+(this arc added ~1.2×, not a new asymptotic class) is a tracked follow-up; the tape
+`unknown`→`unidentified` reclassify is already implemented by Pattern-B bounded promotion (no change).

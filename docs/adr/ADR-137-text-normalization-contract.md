@@ -42,7 +42,7 @@ component, including the ones that already work.** The contract has three parts.
 | --- | --- | --- |
 | **raw** | verbatim producer output + provenance; never mutated | storage of record; the source others derive from |
 | **display** | human-readable: original/restored case + punctuation | player transcript, screenplay labels, any human surface |
-| **match** | `NFKC` → casefold → collapse whitespace → normalize quotes/hyphens/punctuation | **every recognition / matching / dedup / indexing path** |
+| **match** | `NFKD` → strip combining marks (diacritic-fold "Gómez"→"gomez") → casefold → normalize quotes/hyphens → collapse whitespace | **every recognition / matching / dedup / indexing path** |
 
 ### 2. Force-at-your-own-boundary rule
 
@@ -76,7 +76,9 @@ provider emits does not matter to correctness. Therefore the provider-boundary r
 
 1. Providers emit **raw/verbatim** text (+ provenance) — they do **not** normalize casing.
 2. Providers **declare their surface form** (`lowercase-unpunctuated` | `truecased-punctuated`) so
-   display logic can decide whether to truecase-restore.
+   display logic can decide whether to truecase-restore. *(Deferred — not yet implemented; no
+   provider declares a surface form today. Consumers fold to match-form at their own entry
+   regardless, so this is a display-restore optimization, not a correctness dependency.)*
 3. **No consumer relies on a provider's casing.** Matching folds to match-form at its own entry;
    this is what makes the pipeline robust to a heterogeneous provider fleet (turbo lowercase,
    openai truecased) without any provider change.
@@ -104,9 +106,10 @@ metadata does (a no-metadata network show), behind the existing ordinary-word gu
 
 End state: **every matching boundary uses the contract; zero ad-hoc casefold in matching paths.**
 
-- **Speaker recognition** — `speaker_detectors/hosts.py`, `providers/ml/diarization/roster.py`,
-  `speaker_detectors/resolution.py` (self-intro, host-introduces-guest cues, mention retrieval,
-  refutation, canonicalizer). *First adopter (this change).*
+- **Speaker recognition** — *first adopter (this change):* `providers/ml/diarization/roster.py`
+  (self-intro, host-introduces-guest cues, canonicalizer), building its case-blind match-forms from
+  the `speaker_detectors/hosts.py` cue vocabulary. *Not yet adopted (follow-up):*
+  `speaker_detectors/resolution.py` (mention retrieval / refutation) still uses its own `.lower()`.
 - **GI** — `gi/speakers.py`, `gi/grounding.py` (quote → speaker binding), `gi/filters.py`.
 - **KG** — `kg/entity_clusters.py`, `kg/ner_prepass.py`/`ner_postpass.py`, `kg/filters.py`.
 - **Identity** — `identity/resolver.py`, `identity/slugify.py`.
@@ -115,9 +118,10 @@ End state: **every matching boundary uses the contract; zero ad-hoc casefold in 
 
 ## Rollout (scope discipline — not a big-bang rewrite)
 
-1. **Recognition first (this change):** introduce `normalize_for_match`, adopt it in
-   hosts/roster/resolution, make name discovery metadata-anchored + case-blind, add the nickname
-   table, extend narrated-desk cue vocabulary. Fixes The Daily / WSJ / the 13 lowercase episodes.
+1. **Recognition first (this change):** introduce `normalize_for_match`, adopt it in `roster.py`
+   (with the `hosts.py` cue vocabulary), make name discovery metadata-anchored + case-blind, add the
+   nickname table, extend narrated-desk cue vocabulary. Fixes The Daily / WSJ / the 13 lowercase
+   episodes. `resolution.py` adoption is a follow-up step, not part of this change.
 2. **Then GI/KG/identity:** swap each layer's ad-hoc normalization for the SSOT, one layer per
    change, each behind a regression check that named/entity output is unchanged on already-good
    episodes.
@@ -136,7 +140,9 @@ the casing dependency. Seams under test:
 - `extract_self_introduced_host`, `_self_intros_by_voice`
 - `_voice_named_by_the_introduction` (cue-first + name-first)
 - `_canonicalize_to_stated_name` / the canonicalizer
-- `resolution.py` — `retrieve_mentions`, `_introduces_itself_as`, `_refuted_by_third_person`
+
+Seams **to be tested at adoption** (not covered yet — resolution.py has not adopted the SSOT):
+`resolution.py` — `retrieve_mentions`, `_introduces_itself_as`, `_refuted_by_third_person`.
 
 **The one documented exception:** the invariant holds **when metadata is present** (a stated
 candidate list anchors the match). The **no-metadata discovery** fallback *cannot* be case-invariant

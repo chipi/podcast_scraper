@@ -47,10 +47,9 @@ class LabelingProfile:
 
     # --- numeric knobs ---------------------------------------------------------------------------
     unattributed_alarm_threshold: float = 0.25  # CONSUMED by build_speaker_diagnostics
-    # NOT YET CONSUMED (tier-2, see ADR-138 / LABELING-TIER3-COMPLEXITY.md): roster.py's four cameo
-    # sites still read the module constant CAMEO_MAX_TALK_S. Declared here so the tier-2 wiring has
-    # a home; the default equals the constant, so it is a no-op until wired. Do not assume changing
-    # it re-tiers cameos yet.
+    # CONSUMED: threaded to all five cameo sites (classify_voices, _classify_voice_types,
+    # _name_guest_voices, _self_intro_voice_names -> host-candidate). Default equals the module
+    # constant CAMEO_MAX_TALK_S, so naming-4 is unchanged; a profile that raises it re-tiers cameos.
     cameo_max_talk_s: float = 20.0
 
 
