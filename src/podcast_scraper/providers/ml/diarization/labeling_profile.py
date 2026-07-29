@@ -37,6 +37,13 @@ class LabelingProfile:
     alarm_on_defect_share: bool = (
         True  # alarm on the `unknown` defect share, not total unattributed
     )
+    # host-intro by a bare FIRST name ("here with akshat") binds when exactly one stated name has
+    # it (flightcast group intros). Cue path only — a bare "i'm rich" self-intro must not bind.
+    first_name_only_intro: bool = True
+    # a cluster whose self-intros map to 2+ different stated people is a diarization MERGE ("I'm
+    # Lucas and I'm Axel" in the host's cluster) — suppress its name rather than paint the first one
+    # onto it. Removes a wrong name; does not recover the merged guests (that needs re-diarization).
+    suppress_merged_speaker_clusters: bool = True
 
     # --- numeric knobs ---------------------------------------------------------------------------
     unattributed_alarm_threshold: float = 0.25
@@ -77,6 +84,8 @@ NAMING_3_LEGACY = replace(
     nickname_fuzzy_binding=False,
     pattern_b_bounded_promotion=False,
     alarm_on_defect_share=False,
+    first_name_only_intro=False,
+    suppress_merged_speaker_clusters=False,
 )
 
 register_profile(NAMING_4)

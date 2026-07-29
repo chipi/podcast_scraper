@@ -869,11 +869,21 @@ def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]
 
 
 def _match_stated_in_span(
-    span: Sequence[str], stated: Sequence[Tuple[str, List[str]]]
+    span: Sequence[str],
+    stated: Sequence[Tuple[str, List[str]]],
+    *,
+    allow_first_name_only: bool = False,
 ) -> Optional[str]:
     """The stated name whose first name (nickname/initial-aware) matches ``span[0]`` AND whose
     surname (soundex or edit ≤ 1) matches a later span token; else ``None``. Reference-bounded and
-    case-blind — the shared core of every metadata-anchored intro matcher (ADR-137)."""
+    case-blind — the shared core of every metadata-anchored intro matcher (ADR-137).
+
+    ``allow_first_name_only`` (cue path only) relaxes the surname requirement when the span's first
+    token uniquely matches ONE stated name's first name — the flightcast group-intro case ("here
+    with akshat" → "Akshat Bubna"). Gated on uniqueness (the same safety ``_vouched_by_metadata``
+    uses) and NEVER enabled on the self-intro path, where a colloquial "i'm rich" would false-bind
+    "Richard".
+    """
     if not span:
         return None
     for name, toks in stated:
@@ -882,6 +892,10 @@ def _match_stated_in_span(
         slast = toks[-1]
         if any(_soundex(t) == _soundex(slast) or _edit_distance(t, slast) <= 1 for t in span[1:]):
             return name
+    if allow_first_name_only:
+        first_hits = [name for name, toks in stated if first_names_match(toks[0], span[0])]
+        if len(first_hits) == 1:
+            return first_hits[0]
     return None
 
 
@@ -1151,6 +1165,7 @@ def _voice_named_by_the_introduction(
     conv_hosts: Optional[Set[str]] = None,
     known_hosts_lower: AbstractSet[str] = frozenset(),
     metadata_named: Sequence[str] = (),
+    first_name_only: bool = True,
 ) -> Dict[str, str]:
     """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
 
@@ -1219,7 +1234,11 @@ def _voice_named_by_the_introduction(
         # lowercase turbo ASR, so match the SAME cue on the folded form and resolve the window to a
         # stated name. Reference-bounded — only ever assigns a name the metadata stated.
         for m in rx.finditer(mf_text):
-            name = _match_stated_in_span(normalize_name_for_match(m.group(1)).split(), stated)
+            name = _match_stated_in_span(
+                normalize_name_for_match(m.group(1)).split(),
+                stated,
+                allow_first_name_only=first_name_only,
+            )
             if name:
                 _assign(i, [name])
 
@@ -1243,6 +1262,33 @@ def _voice_named_by_the_introduction(
     return out
 
 
+def _distinct_intros_map_to_multiple_stated(text: str, stated: Sequence[str]) -> bool:
+    """True when a cluster's DISTINCT self-intros map (fuzzily) to 2+ different STATED people.
+
+    That is a diarization MERGE of multiple named speakers — "…take turns introducing yourselves.
+    I'm Lucas and I'm Axel." landing in the host's cluster (flightcast). Naming the cluster from the
+    first self-intro paints a guest's name onto the wrong voice; this flags it so the name is
+    suppressed instead. First-name match tolerates the ASR spelling ("Lucas" vs stated "Lukas").
+    """
+    distinct = distinct_self_introductions(text, intro_chars=5000)
+    if len(distinct) < 2:
+        return False
+    stated_firsts = [(s, _given_tokens(s)[0].lower()) for s in stated if _given_tokens(s)]
+    matched: Set[str] = set()
+    for nm in distinct:
+        toks = _given_tokens(nm)
+        if not toks:
+            continue
+        nf = toks[0].lower()
+        for s, sf in stated_firsts:
+            if first_names_match(sf, nf) or _edit_distance(sf, nf) <= 1:
+                matched.add(s.lower())
+                break
+        if len(matched) >= 2:
+            return True
+    return False
+
+
 def _self_intro_voice_names(
     diarization: DiarizationResult,
     voice_texts: Optional[Dict[str, str]],
@@ -1252,6 +1298,7 @@ def _self_intro_voice_names(
     conv_guests: AbstractSet[str] = frozenset(),
     strategy: Optional[DiarizationLabelingStrategy] = None,
     case_blind: bool = True,
+    suppress_merged: bool = True,
 ) -> Dict[str, str]:
     """``{voice: name}`` from each voice's OWN self-introduction, ads excluded (#876).
 
@@ -1276,11 +1323,21 @@ def _self_intro_voice_names(
         talk[s.speaker] = talk.get(s.speaker, 0.0) + (s.end - s.start)
     texts = voice_texts or {}
     intros = _self_intros_by_voice(voice_texts, intro_sources, case_blind=case_blind)
+    # A SHORT cluster with 2+ self-intros is a cold-open montage clip (#1330). A LONG one with 2+
+    # self-intros that map to DIFFERENT stated people is a diarization MERGE of multiple named
+    # speakers (flightcast "I'm Lucas and I'm Axel" in the host cluster) — also suppressed, so the
+    # first name is not painted onto the wrong voice. The merge case is gated (ADR-138).
     montage_suppressed = {
         v
         for v in intros
-        if talk.get(v, 0.0) < MONTAGE_CLIP_MAX_TALK_S
-        and len(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
+        if (
+            talk.get(v, 0.0) < MONTAGE_CLIP_MAX_TALK_S
+            and len(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
+        )
+        or (
+            suppress_merged
+            and _distinct_intros_map_to_multiple_stated(texts.get(v, ""), intro_sources)
+        )
     }
     host_candidate_voices = strategy.host_candidate_voices(
         first_start=first_start,
@@ -1313,6 +1370,7 @@ def _intro_reader_voice_names(
     conv_hosts: Optional[Set[str]] = None,
     stated_persons: Sequence[str] = (),
     narrator_cue: bool = True,
+    first_name_only: bool = True,
 ) -> Dict[str, str]:
     """``{voice: canonical name}`` for voices a host introduced by name — "and now, Bobby Allen" —
     since the person a host introduces is the one who speaks next. Complements the self-intro:
@@ -1332,6 +1390,7 @@ def _intro_reader_voice_names(
         conv_hosts,
         known_lower,
         metadata_named=stated_persons if narrator_cue else (),
+        first_name_only=first_name_only,
     ).items():
         if v in ad_voices or v in voice_intro:
             continue
@@ -1568,6 +1627,7 @@ def resolve_speaker_roster(
         conv_guests,
         _strategy,
         case_blind=profile.case_blind_self_intro,
+        suppress_merged=profile.suppress_merged_speaker_clusters,
     )
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting
@@ -1603,6 +1663,7 @@ def resolve_speaker_roster(
             conv_host_voices,
             list(detected_guests or ()) + list(metadata_named or ()),
             narrator_cue=profile.narrator_cue_binding,
+            first_name_only=profile.first_name_only_intro,
         )
     )
 

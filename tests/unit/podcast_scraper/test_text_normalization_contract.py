@@ -21,6 +21,7 @@ from podcast_scraper.providers.ml.diarization.labeling_profile import (
 )
 from podcast_scraper.providers.ml.diarization.roster import (
     _canonicalize_to_stated_name,
+    _distinct_intros_map_to_multiple_stated,
     _metadata_anchored_self_intro,
     _voice_named_by_the_introduction,
     build_speaker_diagnostics,
@@ -135,6 +136,48 @@ def test_fix1_cue_path_no_metadata_stays_capitalization_only():
     # No metadata -> the case-blind path is inert; lowercase yields nothing (documented exception).
     turns = [("host", "today, my colleague claire cain miller on this"), ("guest", "yes")]
     assert _voice_named_by_the_introduction(turns) == {}
+
+
+def test_first_name_only_intro_binds_when_unique():
+    # flightcast group intro: a bare first name that UNIQUELY matches a stated name binds the guest.
+    turns = [("host", "we're here with akshat of moto together"), ("g", "thanks for having me")]
+    got = _voice_named_by_the_introduction(
+        turns, host_hint_voices={"host"}, metadata_named=["Akshat Bubna"]
+    )
+    assert got.get("g") == "Akshat Bubna"
+
+
+def test_first_name_only_intro_declines_when_ambiguous():
+    # Two stated people share the first name -> no bind (the uniqueness guard).
+    turns = [("host", "we're here with john from the team today"), ("g", "hi there")]
+    got = _voice_named_by_the_introduction(
+        turns, host_hint_voices={"host"}, metadata_named=["John Smith", "John Doe"]
+    )
+    assert got == {}
+
+
+def test_first_name_only_never_applies_to_self_intro():
+    # First-name-only is cue-path ONLY: a colloquial "i am rich" self-intro must not bind "Richard".
+    assert (
+        _metadata_anchored_self_intro("well i am rich and successful today", ["Richard Gelfond"])
+        is None
+    )
+
+
+def test_merged_cluster_of_multiple_stated_speakers_is_detected():
+    # flightcast: two guests' self-intros merged into one cluster ("I'm Lucas and I'm Axel") -> the
+    # cluster maps to 2 stated people, so it's a merge (its name gets suppressed, not painted).
+    md = ["Lukas Petersson", "Axel Backlund"]  # ASR heard "Lucas" for "Lukas"
+    assert (
+        _distinct_intros_map_to_multiple_stated("take turns. I'm Lucas and I'm Axel.", md) is True
+    )
+    # a single self-intro is not a merge
+    assert _distinct_intros_map_to_multiple_stated("I'm Lucas here today.", md) is False
+    # two self-intros but only ONE maps to a stated person -> not a named-speaker merge
+    assert (
+        _distinct_intros_map_to_multiple_stated("I'm Lucas and I'm Bob.", ["Lukas Petersson"])
+        is False
+    )
 
 
 # --- The seam consistency invariant (ADR-137) ----------------------------------------------------
