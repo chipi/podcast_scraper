@@ -135,7 +135,7 @@ test.describe("Stack smoke test", () => {
     // capability block in ``config/profiles/airgapped_thin.yaml``.
     //
     // What airgapped_thin DOES produce (asserted strictly here):
-    //   - schema_version: "3.0" on every GI artifact
+    //   - schema_version: "3.1" on every GI artifact
     //   - Insight nodes with text from BART summary bullets
     //   - Insight.insight_type ≠ "unknown" via the rule-based classifier
     //   - Insight.position_hint numeric via waterfall step 1 (RSS duration)
@@ -182,7 +182,7 @@ test.describe("Stack smoke test", () => {
     expect(giArtifacts.length, "expected at least one gi.json").toBeGreaterThan(0)
     expect(kgArtifacts.length, "expected at least one kg.json").toBeGreaterThan(0)
 
-    // -- Schema versions across all GI artifacts must be 3.0 (post-chunk-9) --
+    // -- Schema versions across all GI artifacts must be 3.1 (v2.4: ADR-135/#1191 route-and-tag) --
     const giContents: GiArtifact[] = []
     for (const a of giArtifacts) {
       const r = await request.get(
@@ -193,7 +193,7 @@ test.describe("Stack smoke test", () => {
       expect(r.status()).toBe(200)
       const body = (await r.json()) as GiArtifact
       giContents.push(body)
-      expect(body.schema_version, `${a.relative_path} schema_version`).toBe("3.0")
+      expect(body.schema_version, `${a.relative_path} schema_version`).toBe("3.1")
     }
     const kgContents: KgArtifact[] = []
     for (const a of kgArtifacts) {
