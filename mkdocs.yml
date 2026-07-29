@@ -298,6 +298,7 @@ nav:
       - ADR-126 Operator Analytics on Umami + Podcast Telemetry Ladder: adr/ADR-126-operator-analytics-umami-and-podcast-telemetry-ladder.md
       - ADR-127 Search-Index insight_type Column + Reindex-on-Upgrade: adr/ADR-127-search-index-insight-type-column.md
       - ADR-128 Decouple Tailnet ACL from Hetzner OpenTofu: adr/ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md
+      - ADR-129 Config-layer deploy by surface: adr/ADR-129-config-layer-deploy-by-surface.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
