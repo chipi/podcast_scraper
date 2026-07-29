@@ -54,7 +54,10 @@ diarization_fallback_providers: []
 # Pinned to match cloud_balanced's registry preset exactly (dropped `profile:` key would otherwise
 # revert these to Field defaults, changing more than the diarization backend):
 ner_model: en_core_web_trf
-summary_mode_id: ml_bart_led_autoresearch_v1
+# summary_mode_id is ONLY read by the ML/transformers summariser; this profile summarises with
+# gemini (summary_provider: gemini), so it is never consulted — pinned null to drop the misleading
+# `ml_bart_led` reference (no local BART runs here).
+summary_mode_id: null
 whisper_model: base.en
 deepgram_diarization_model: nova-3-general  # from registry: deepgram_diarization_nova3 (unused here)
 screenplay: true
