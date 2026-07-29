@@ -259,6 +259,12 @@ def update_stage(
         return None
     path = manifest_path(effective_output_dir, rel_transcript_path)
     data = _load(path) or _init_manifest(episode_id, feed_id, run_id)
+    # git_sha is the exact-code backstop for the code that PRODUCED the manifest's current state
+    # (ADR-130). On a reprocess/relabel the manifest file already exists, so _init_manifest is
+    # skipped and the loaded git_sha is the ORIGINAL build's — which then rides into every
+    # pipeline_stage event (o11y showed the ancestor sha, not the re-running commit). Refresh it to
+    # the code writing NOW; per-stage code provenance is carried by each stage's method_version.
+    data.update(git_ground_truth())
     # OVERWRITE identity when the caller supplies it (not backfill): a re-run over an existing
     # corpus must not inherit the PREVIOUS run's run_id from the stale manifest file (advisor #3).
     for key, val in (("episode_id", episode_id), ("feed_id", feed_id), ("run_id", run_id)):

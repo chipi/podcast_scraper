@@ -12,6 +12,7 @@ import os
 import tempfile
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
@@ -93,6 +94,24 @@ class TestProcessingManifestModule(unittest.TestCase):
         self.assertAlmostEqual(data["cost_usd_total"], 0.0011, places=6)
         # flags merged from both writes
         self.assertEqual(set(data["quality_flags"]), {"asr_failover", "empty_host_anchor"})
+
+    def test_update_stage_refreshes_git_sha_on_an_existing_manifest(self):
+        # o11y follow-up: a relabel/reprocess writes over an EXISTING frozen manifest, so
+        # _init_manifest is skipped and the loaded git_sha is the ORIGINAL build's — which then rode
+        # into every pipeline_stage event (events showed the ancestor sha, not the re-running code).
+        # update_stage must refresh git_sha to the code writing NOW.
+        import json as _json
+
+        d, rel = self._tmp()
+        mp = pm.manifest_path(d, rel)
+        _json.dump(
+            {"schema_version": pm.MANIFEST_SCHEMA_VERSION, "git_sha": "0ldbuild", "stages": {}},
+            open(mp, "w"),
+        )
+        with mock.patch.object(pm, "_get_git_info", return_value=("cafe1234beef", "main", False)):
+            pm.update_stage(d, rel, "naming", pm.stage_block(ran=True, method_version="naming-4"))
+        data = _json.load(open(mp))
+        self.assertEqual(data["git_sha"], "cafe123")  # current run, not the frozen "0ldbuild"
 
     def test_quality_flag_dedup_across_rewrites(self):
         d, rel = self._tmp()
