@@ -98,6 +98,13 @@ conversation; the roster is the one place the two fuse** (ADR-110). Transcriptio
 diarization runs *before* the roster. Metadata detection (feed + title/description) happens first
 and is carried in as constraints — it never reads the audio.
 
+**Ad-cleaning timing (important, and easy to get wrong):** ad *regions* are **detected inside
+LEVEL 4** (`_ad_intervals` → `excise_ad_regions`) and used only to *type* which voices are ads. The
+ad-free *transcript file* (`.adfree.*`) is written **after** labeling, and the LLM-*cleaned*
+transcript is later still (summary). So at the moment the speaker-resolution LLM runs, **no ad-free
+file exists yet — only the ad `intervals`** — which is why ad text can leak into the LLM's input
+(the ⚠ bug marked below).
+
 ```text
  RSS FETCH  →  per episode: audio URL + METADATA { title, description, feed author }
      │
@@ -109,13 +116,17 @@ and is carried in as constraints — it never reads the audio.
      │
  ── LEVEL 2: TRANSCRIPTION  (audio → words) ─────────────────────────────────────
      └─ transcribe_media_to_text (workflow/episode_processor.py)
-           → transcript TEXT + time-coded SEGMENTS   (no speaker labels yet)
+           → transcript TEXT + time-coded SEGMENTS   (RAW — ADS STILL IN, no labels)
      │
  ── LEVEL 3: DIARIZATION  (words → WHICH cluster) ───────────────────────────────
      └─ apply_diarization_to_result (providers/ml/diarization/pipeline.py)
            → SPEAKER_00, SPEAKER_01 … + per-voice segments   (anonymous: no name/role)
      │
  ── LEVEL 4: ROSTER RESOLUTION  ★ THE FUSION: metadata × conversation ★ ──────────
+     │  🧹 AD DETECTION runs FIRST here (inside apply_diarization_to_result, on RAW text):
+     │       _ad_intervals() → gi/ad_regions.excise_ad_regions() = ad TIME regions;
+     │       classify_voices() types each VOICE ad|cameo|commercial|real.
+     │       ⚠ filters ad VOICES only — does NOT strip ad TEXT out of a real voice.
      └─ resolve_speaker_roster (providers/ml/diarization/roster.py)
         (a) SELF-INTRO extraction   _self_intro_voice_names()  → voice_intro
               └─ CANONICAL-NAME FUSION: snap ASR spelling to the stated name
@@ -131,13 +142,22 @@ and is carried in as constraints — it never reads the audio.
               GUARD stated_non_host_voices: a voice that SAYS a name NOT in the host
                 pool is blocked from steps 2/3/4 — a guest may not fill an absent
                 co-host's seat (No Priors/Andy Fang, Unhedged/Joshua Franklin)
-        (e) LLM VOICE RESOLUTION    _resolve_voices_via_llm()  (naming only, CLOSED list)
+        (e) LLM VOICE RESOLUTION    _resolve_voices_via_llm()   ◀━━ WHAT WE'RE FIXING
+              input = intro_block + PER-VOICE text samples — BOTH still contain ad
+              SEGMENTS (prompt claims "ads/cameos removed" but only ad VOICES were)
+              → an ad-read voice mis-maps (John Kim: SPEAKER_00 shown reading a Ramp ad)
         (f) GUEST NAMING            _name_guest_voices()  (forced 1-name-1-voice; never positional)
      │
      ▼  SpeakerRole per voice = { name, role(host|guest|unknown), named, source }
         → .speakers.diagnostics.json   (per-voice + summary/exposed metric)
      │
- ── LEVEL 5: DURABLE OUTPUT ─────────────────────────────────────────────────────
+ ── 🧹 AD-FREE TRANSCRIPT WRITTEN HERE — *AFTER* labeling, not before ────────────
+     └─ _maybe_produce_adfree (workflow/episode_processor.py)
+           → .adfree.{txt,segments.json}   (so the ad-free FILE did NOT exist yet
+             during LEVEL 4's LLM call above — only the ad `intervals` did)
+     │
+ ── LEVEL 5: SUMMARY / DURABLE OUTPUT ────────────────────────────────────────────
+     ├─ 🧹 LLM cleaner → .cleaned transcript   (the clean text SUMMARIZATION uses)
      └─ _build_speakers_from_diarized_segments (workflow/metadata_generation.py)
            → content.speakers = [{name, role}]  →  .metadata.json / .manifest.json
 ```
