@@ -395,3 +395,31 @@ def test_estimate_diarization_cost_bills_on_audio_seconds():
     assert cost == 0.05
     assert captured["capability"] == "diarization"
     assert captured["audio_minutes"] == 600.0 / 60.0  # bills on total audio, not the 100s of turns
+
+
+def test_strip_ad_segments_removes_ad_reads_from_the_llm_input() -> None:
+    # A voice whose diarized cluster contains the pre-roll sponsor read must NOT be shown that ad
+    # to the resolver — it mis-maps the voice (John Kim: SPEAKER_00 shown a Ramp ad). The ad regions
+    # are already known (ad_intervals); _strip_ad_segments reuses them to leave only real speech.
+    from podcast_scraper.providers.ml.diarization.pipeline import (
+        _strip_ad_segments,
+        _voice_texts_from_aligned,
+    )
+
+    aligned = [
+        ({"start": 1.0, "end": 60.0, "text": "Ramp is the only platform"}, "S0"),  # opening ad
+        ({"start": 70.0, "end": 200.0, "text": "the real interview content"}, "S0"),
+        ({"start": 1.0, "end": 60.0, "text": "welcome I am Patrick"}, "S1"),  # ad-window host intro
+    ]
+    stripped = _strip_ad_segments(aligned, [(0.8, 67.5)])
+    texts = _voice_texts_from_aligned(stripped)
+    assert texts["S0"] == "the real interview content"  # ad read gone
+    assert "Ramp" not in texts["S0"]
+    assert len(stripped) == 1  # both 1–60s segments (in the ad window) dropped
+
+
+def test_strip_ad_segments_is_a_noop_without_ad_intervals() -> None:
+    from podcast_scraper.providers.ml.diarization.pipeline import _strip_ad_segments
+
+    aligned = [({"start": 1.0, "end": 60.0, "text": "x"}, "S0")]
+    assert _strip_ad_segments(aligned, []) is aligned  # unchanged object, ad-blind fallback

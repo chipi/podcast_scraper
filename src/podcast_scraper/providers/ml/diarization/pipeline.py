@@ -40,6 +40,33 @@ def _voice_texts_from_aligned(aligned: List[Any]) -> Dict[str, str]:
     return {v: " ".join(c) for v, c in chunks.items()}
 
 
+def _strip_ad_segments(
+    aligned: List[Any], ad_intervals: Sequence[Tuple[float, float]]
+) -> List[Any]:
+    """Drop ``(segment, voice)`` pairs whose time falls inside a known ad interval.
+
+    The ad regions are already computed (``_ad_intervals``); this reuses them so the text handed to
+    the LLM speaker-resolver is a voice's REAL speech, not a sponsor read. Without it a voice whose
+    diarized cluster contains the pre-roll ad is shown to the model reading "Ramp is the only
+    platform…", which mismaps it (John Kim, prod-v2.4-100ep). A segment is an ad when its MIDPOINT
+    lies in an ad interval. Empty ``ad_intervals`` → unchanged (ad-blind, previous behaviour).
+    """
+    if not ad_intervals:
+        return aligned
+
+    def _in_ad(segment: Any) -> bool:
+        if not isinstance(segment, dict):
+            return False
+        start = segment.get("start")
+        end = segment.get("end")
+        if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+            return False
+        mid = (float(start) + float(end)) / 2.0
+        return any(a <= mid <= b for a, b in ad_intervals)
+
+    return [(seg, spk) for seg, spk in aligned if not _in_ad(seg)]
+
+
 def merged_speech_seconds(segments: Sequence[Any]) -> float:
     """ADR-129: total speech duration as the union of diarization turns (overlaps merged once).
 
@@ -550,8 +577,15 @@ def apply_diarization_to_result(
     # The intro (title + description + the cleaned, labeled first minutes) is where a show states
     # who hosts and who is visiting; it lets the same call decide host/guest, not just name. The LLM
     # is asked only about REAL voices — never a cameo/commercial/ad, on which it abstains anyway.
-    intro_block = _labeled_intro_block(aligned, cleaning.real)
-    real_voice_texts = {v: t for v, t in voice_texts.items() if v in cleaning.real}
+    # Feed the LLM a voice's REAL speech, not sponsor reads: the ad regions are already known
+    # (ad_intervals), so strip those segments from the intro + per-voice samples the resolver sees.
+    # The FULL voice_texts above still feed classify_voices (it needs the ad text to type ad
+    # voices); only the LLM's input is ad-stripped. Fixes the John Kim mismap (ad-read SPEAKER_00).
+    adfree_aligned = _strip_ad_segments(aligned, ad_intervals)
+    intro_block = _labeled_intro_block(adfree_aligned, cleaning.real)
+    real_voice_texts = {
+        v: t for v, t in _voice_texts_from_aligned(adfree_aligned).items() if v in cleaning.real
+    }
     llm_voice_names, llm_voice_roles = _resolve_voices_via_llm(
         cfg,
         stated_names=candidates,
