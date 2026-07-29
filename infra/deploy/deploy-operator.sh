@@ -115,7 +115,7 @@ if [ "${OPERATOR_SECRETS_VIA_FILES:-}" = "1" ]; then
     exit 5
   fi
   COMPOSE+=(-f compose/docker-compose.operator-secrets.yml)
-  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/operator-secrets ($(ls -1 /dev/shm/operator-secrets | wc -l | tr -d ' ') files)"
+  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/operator-secrets ($(find /dev/shm/operator-secrets -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ') files)"
 fi
 
 # Ensure the host bind-mount source for per-user data exists and is writable by the

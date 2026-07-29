@@ -36,7 +36,7 @@ if [ "${PODCAST_SECRETS_VIA_FILES:-}" = "1" ]; then
     exit 5
   fi
   STACK_FILES+=(-f compose/docker-compose.secrets.yml)
-  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/podcast-secrets ($(ls -1 /dev/shm/podcast-secrets | wc -l | tr -d ' ') files)"
+  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/podcast-secrets ($(find /dev/shm/podcast-secrets -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ') files)"
 fi
 
 cd "$REPO_DIR"
@@ -200,7 +200,7 @@ for i in $(seq 1 12); do
         docker logs --tail 30 compose-api-1 >&2 || true
         exit 6
       fi
-      echo "[$(date -u +%FT%TZ)] secrets: /run/secrets present + non-empty in api ($(echo $_need_secrets | wc -w | tr -d ' ') checked)"
+      echo "[$(date -u +%FT%TZ)] secrets: /run/secrets present + non-empty in api ($(echo "$_need_secrets" | wc -w | tr -d ' ') checked)"
     fi
     if command -v sudo >/dev/null 2>&1 && [ -x /usr/local/sbin/podcast-tailscale-serve.sh ]; then
       # MagicDNS HTTPS (:443) for tailnet peers (GHA stack-test, laptops). Do not
