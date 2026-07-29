@@ -291,10 +291,13 @@ def test_relabel_feed_hosts_falls_back_to_live_when_sibling_missing(
 
 
 def test_relabel_feed_hosts_freeze_wins_over_live_when_sibling_present(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, caplog
 ) -> None:
     """Q3: when the sibling metadata NAMES hosts, they win — a relabel of a stored corpus stays
-    reproducible and does not track live feed drift, even if live job.feed_hosts differs."""
+    reproducible and does not track live feed drift, even if live job.feed_hosts differs — AND the
+    sibling-vs-live divergence is LOGGED (the visibility half of the Q3 fix)."""
+    import logging
+
     from podcast_scraper.providers.ml.diarization import pipeline as _pipe
 
     captured: dict = {}
@@ -327,10 +330,13 @@ def test_relabel_feed_hosts_freeze_wins_over_live_when_sibling_present(
     )
     job.feed_hosts = ["Someone Else"]  # live detection drifted; the frozen sibling must win
 
-    ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+    with caplog.at_level(logging.INFO):
+        ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
 
     assert ok is True
     assert captured.get("feed_hosts") == ["Casey Newton", "Kevin Roose"]  # sibling, not live
+    # the divergence is surfaced so live-vs-freeze can later be decided from data
+    assert any("feed_hosts divergence" in r.message for r in caplog.records)
 
 
 def test_relabel_skips_when_no_segments_identity(tmp_path: Path) -> None:

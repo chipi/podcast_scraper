@@ -22,6 +22,7 @@ from podcast_scraper.providers.ml.diarization.labeling_profile import (
 from podcast_scraper.providers.ml.diarization.roster import (
     _canonicalize_to_stated_name,
     _distinct_intros_map_to_multiple_stated,
+    _intro_reader_voice_names,
     _metadata_anchored_self_intro,
     _recover_stated_names,
     _voice_named_by_the_introduction,
@@ -590,6 +591,24 @@ def test_nickname_fuzzy_binding_flag_gates_the_recovery():
 
     assert _recover(NAMING_4.nickname_fuzzy_binding) == "Richard Gelfond"  # True
     assert _recover(NAMING_3_LEGACY.nickname_fuzzy_binding) == "Rich Gelfond"  # False
+
+
+def test_f3_intro_reader_does_not_paint_a_guest_with_a_host_spelling():
+    # F3 (advisor): the host-ward canonicalization in the intro reader is gated to HOST voices. A
+    # guest introduced with a name that nickname/surname-collides with a known host ("rich perkins"
+    # vs host "Richard Perkins") must keep its OWN (guest) spelling, not be snapped onto the host.
+    turns = [("host", "joined by rich perkins"), ("g", "thanks for having me")]
+    got = _intro_reader_voice_names(
+        turns,
+        host_hint_voices={"host"},
+        voice_intro={},
+        ad_voices=set(),
+        known_hosts=["Richard Perkins"],
+        conv_hosts=set(),  # the guest voice "g" is NOT a host voice
+        stated_persons=["Rich Perkins"],
+    )
+    assert got.get("g") == "Rich Perkins"
+    assert got.get("g") != "Richard Perkins"  # never painted with the host's spelling
 
 
 def test_cameo_max_talk_s_knob_gates_classification():

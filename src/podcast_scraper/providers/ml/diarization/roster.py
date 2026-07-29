@@ -184,11 +184,9 @@ VOICE_TYPE_LABELS = {
 # name the host, and "Host" is the correct outcome there, not a bare SPEAKER_NN failure.
 UNNAMED_HOST_LABEL = "Host"
 
-# When this much of an episode's TALK cannot be attributed to anybody, we did not lose a bit of
-# noise — we lost a PRINCIPAL. A vox-pop cutaway costs a few percent; a guest we failed to bind
-# costs a quarter of the episode or more. Measured on the real corpus, the misses cluster at 26-50%
-# while the genuinely-nameless tape of a narrated show sits well below it.
-UNATTRIBUTED_TALK_ALARM = 0.25
+# The unattributed-talk alarm threshold now lives on the profile as ``unattributed_alarm_threshold``
+# (ADR-138, default 0.25) — read directly by build_speaker_diagnostics. The old module constant was
+# left behind unread after that move (review A7), so it is removed to avoid two sources of truth.
 
 
 def friendly_voice_label(voice_type: Optional[str]) -> Optional[str]:
@@ -1278,7 +1276,7 @@ def _past_cue_head_name(
     """
     head_mf = normalize_for_match((text or "")[:_HEAD_INTRO_CHARS])
     for m in _CUE_FIRST_PAST_MATCHFORM.finditer(head_mf):
-        if _RECAP_MARKER_RE.search(head_mf[max(0, m.start() - 25) : m.start()]):
+        if _RECAP_MARKER_RE.search(head_mf[max(0, m.start() - 40) : m.start()]):
             continue
         nm = _match_stated_in_span(
             normalize_name_for_match(m.group(1)).split(),
