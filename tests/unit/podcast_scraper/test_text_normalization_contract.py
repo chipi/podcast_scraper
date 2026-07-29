@@ -120,6 +120,24 @@ def test_f1_self_intro_scan_is_head_bounded():
     )
 
 
+def test_f1_first_person_possessive_never_self_binds():
+    # F1 residual (second advisor review): "i'm <stated>'s <role/thing>" is a THIRD-PERSON reference
+    # ("i'm sam altman's biggest fan") — the speaker is NOT that person. The possessive "altman's"
+    # folds to an edit-1 surname, so it would wrong-bind through the retained i'm/i am/my name is
+    # cues. A trailing "'s" token is dropped from surname candidacy.
+    assert (
+        _metadata_anchored_self_intro("i'm sam altman's biggest fan today", ["Sam Altman"]) is None
+    )
+    assert (
+        _metadata_anchored_self_intro("i am sam altman's former colleague", ["Sam Altman"]) is None
+    )
+    # a real self-intro (no possessive) still binds; a real apostrophe surname is untouched.
+    assert (
+        _metadata_anchored_self_intro("i'm rich gelfond here", ["Richard Gelfond"])
+        == "Richard Gelfond"
+    )
+
+
 # --- Fix 1: narrated-desk cue vocabulary ---------------------------------------------------------
 
 
@@ -193,6 +211,17 @@ def test_f2_first_name_only_declines_on_contradicting_surname():
     turns = [("host", "we're here with akshat kanaparthy today"), ("g", "great to be here")]
     got = _voice_named_by_the_introduction(
         turns, host_hint_voices={"host"}, metadata_named=["Akshat Bubna"]
+    )
+    assert got == {}
+
+
+def test_f2_first_name_only_declines_on_two_letter_surname():
+    # F2 residual (second advisor review): "here with andrew NG" names Andrew Ng — NOT stated
+    # "Andrew Chen". A genuine 2-letter surname (Ng/Wu/Li/Xu) must still count as a contradicting
+    # surname so it abstains, rather than falling through to a bare-first-name bind.
+    turns = [("host", "we're here with andrew ng today"), ("g", "great to be here")]
+    got = _voice_named_by_the_introduction(
+        turns, host_hint_voices={"host"}, metadata_named=["Andrew Chen"]
     )
     assert got == {}
 

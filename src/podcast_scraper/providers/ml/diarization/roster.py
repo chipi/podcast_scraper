@@ -875,9 +875,43 @@ def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]
 
 # Words that can sit between a first name and its affiliation without being a surname
 # ("akshat OF moto", "here WITH akshat AND vibhu") — a token from this set after the first name is
-# not a contradicting surname, so the bare-first-name relaxation may still apply.
+# not a contradicting surname, so the bare-first-name relaxation may still apply. Includes 2-letter
+# function words so a genuine SHORT surname (Ng, Wu, Li, Xu — common on an AI-podcast corpus) is not
+# mistaken for one (second advisor review): mis-classification then errs toward abstain, not a
+# wrong name.
 _INTRO_AFFILIATION_TOKENS = frozenset(
-    {"of", "from", "at", "with", "and", "the", "our", "a", "an", "in", "on", "for", "to", "here"}
+    {
+        "of",
+        "from",
+        "at",
+        "with",
+        "and",
+        "the",
+        "our",
+        "a",
+        "an",
+        "in",
+        "on",
+        "for",
+        "to",
+        "here",
+        "as",
+        "is",
+        "by",
+        "or",
+        "so",
+        "if",
+        "up",
+        "it",
+        "my",
+        "me",
+        "us",
+        "do",
+        "go",
+        "no",
+        "he",
+        "we",
+    }
 )
 
 
@@ -885,10 +919,12 @@ def _span_has_contradicting_surname(span: Sequence[str]) -> bool:
     """True when the token right after the first name is a purported SURNAME (name-like, not an
     affiliation word). The surname-matching path already ran and matched nothing, so a real surname
     here means the span names a DIFFERENT person who merely shares the first name — "akshat
-    kanaparthy" vs stated "Akshat Bubna", "rich investors" vs "Richard …". Only then is the
-    bare-first-name relaxation refused; a bare first name ("akshat") or first-name-plus-affiliation
-    ("akshat of moto") carries no contradicting surname and still binds. (F2, advisor review)"""
-    return len(span) >= 2 and len(span[1]) >= 3 and span[1] not in _INTRO_AFFILIATION_TOKENS
+    kanaparthy" vs stated "Akshat Bubna", "andrew ng" vs stated "Andrew Chen", "rich investors" vs
+    "Richard …". Only then is the bare-first-name relaxation refused; a bare first name ("akshat")
+    or an affiliation form ("akshat of moto") carries no contradicting surname and still binds.
+    A 2-letter token is checked too (Ng/Wu/Li), unless it is a function word. (F2, advisor review)
+    """
+    return len(span) >= 2 and len(span[1]) >= 2 and span[1] not in _INTRO_AFFILIATION_TOKENS
 
 
 def _match_stated_in_span(
@@ -941,7 +977,13 @@ def _metadata_anchored_self_intro(
     # not masquerade as one.
     text = normalize_for_match((voice_text or "")[:5000])
     for m in _SELF_INTRO_MATCHFORM.finditer(text):
-        name = _match_stated_in_span(normalize_name_for_match(m.group(1)).split(), stated)
+        # Drop possessive tokens ("altman's"): a trailing-possessive word is a THIRD-PERSON
+        # reference — "i'm sam altman's biggest fan" — never the speaker's OWN surname, so it must
+        # not become a surname candidate (the possessive folds to an edit-1 surname otherwise). Done
+        # before normalize_name_for_match strips the apostrophe. Real apostrophe names ("o'brien")
+        # do not end in "'s", so they are untouched. (F1 residual, second advisor review.)
+        window = " ".join(t for t in m.group(1).split() if not t.endswith("'s"))
+        name = _match_stated_in_span(normalize_name_for_match(window).split(), stated)
         if name:
             return name
     return None

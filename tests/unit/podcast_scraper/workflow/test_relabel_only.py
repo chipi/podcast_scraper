@@ -278,6 +278,49 @@ def test_relabel_feed_hosts_falls_back_to_live_when_sibling_missing(
     assert captured.get("feed_hosts") == ["Kevin Roose", "Casey Newton"]
 
 
+def test_relabel_feed_hosts_freeze_wins_over_live_when_sibling_present(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Q3: when the sibling metadata NAMES hosts, they win — a relabel of a stored corpus stays
+    reproducible and does not track live feed drift, even if live job.feed_hosts differs."""
+    from podcast_scraper.providers.ml.diarization import pipeline as _pipe
+
+    captured: dict = {}
+
+    def _spy(result, media, cfg, detected, **kwargs):
+        captured.update(kwargs)
+        return result
+
+    monkeypatch.setattr(_pipe, "apply_diarization_to_result", _spy)
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    _write_corpus(  # default with_metadata=True -> sibling names Casey Newton + Kevin Roose
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00"],
+        texts=["welcome to the show " * 30],
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    job = TranscriptionJob(
+        idx=1,
+        ep_title="Ep",
+        ep_title_safe="Ep",
+        temp_media="",
+        detected_speaker_names=None,
+        metadata_named=None,
+        episode=None,
+    )
+    job.feed_hosts = ["Someone Else"]  # live detection drifted; the frozen sibling must win
+
+    ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+
+    assert ok is True
+    assert captured.get("feed_hosts") == ["Casey Newton", "Kevin Roose"]  # sibling, not live
+
+
 def test_relabel_skips_when_no_segments_identity(tmp_path: Path) -> None:
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"
