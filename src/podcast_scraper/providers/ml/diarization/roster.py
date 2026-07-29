@@ -871,6 +871,14 @@ _GREETED_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,\s*(?:{GREETED_TAIL})")
 # A self-introduction / hand-off is an opening act; the past-tense recap cue and the report-verb
 # tails only name the next voice within the first few merged turns of an episode (3rd advisor).
 _HEAD_INTRO_TURNS = 10
+# A host monologue merges into ONE turn, so the past-tense cue also scans only the first chars of
+# that turn (a cold-open hand-off lives in the opening sentences), and rejects a match preceded by a
+# temporal recap marker ("last month we spoke with X" is a recap, not an intro). (4th advisor, 2c)
+_HEAD_INTRO_CHARS = 1500
+_RECAP_MARKER_RE = re.compile(
+    r"last\s+(?:week|month|year|night|time)|earlier|previously|recently|yesterday"
+    r"|back\s+then|a\s+while\s+ago|the\s+other\s+(?:day|week)"
+)
 
 
 def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]:
@@ -1249,6 +1257,28 @@ def _reclaim_greeting_turns(
     return out
 
 
+def _past_cue_head_name(
+    text: str, stated: Sequence[Tuple[str, List[str]]], first_name_only: bool
+) -> Optional[str]:
+    """The stated name a past-tense hand-off cue ("we spoke with X") introduces in the OPENING of a
+    turn, else None. Text-head-bounded (a cold-open lives in the first sentences) and recap-marker
+    rejecting, so a mid-monologue recap in a long merged turn does not misattribute. (4th advisor,
+    2c) — the turn-index head bound alone is trivially met when a host monologue merges to turn 0.
+    """
+    head_mf = normalize_for_match((text or "")[:_HEAD_INTRO_CHARS])
+    for m in _CUE_FIRST_PAST_MATCHFORM.finditer(head_mf):
+        if _RECAP_MARKER_RE.search(head_mf[max(0, m.start() - 25) : m.start()]):
+            continue
+        nm = _match_stated_in_span(
+            normalize_name_for_match(m.group(1)).split(),
+            stated,
+            allow_first_name_only=first_name_only,
+        )
+        if nm:
+            return nm
+    return None
+
+
 def _voice_named_by_the_introduction(
     ordered_turns: Optional[Sequence[Tuple[str, str]]],
     host_hint_voices: Optional[Set[str]] = None,
@@ -1295,7 +1325,7 @@ def _voice_named_by_the_introduction(
     taken: set = set()
     host_voices = (host_hint_voices or set()) | (conv_hosts or set())
 
-    def _assign(i: int, names: List[str]) -> None:
+    def _assign(i: int, names: List[str], *, host_name_requires_host_target: bool = False) -> None:
         # whoever speaks next, that is who was just introduced
         introducer = ordered_turns[i][0]
         name = names[0]
@@ -1311,6 +1341,12 @@ def _voice_named_by_the_introduction(
             if nxt == introducer or nxt in out:
                 continue
             if nxt in host_voices and not name_is_host:
+                continue
+            # v1 (4th advisor): on the report-verb path a HOST name is usually a TOPICAL mention
+            # ("kevin roose explains in his book") — bind it only to a host VOICE, never paint an
+            # absent co-host's name onto a guest. The legit co-host desk hand-off still binds when
+            # the next voice is a host.
+            if host_name_requires_host_target and name_is_host and nxt not in host_voices:
                 continue
             if name.lower() in taken:
                 return
@@ -1332,6 +1368,7 @@ def _voice_named_by_the_introduction(
         *,
         allow_first_name_only: bool = False,
         stated_set: Optional[Sequence[Tuple[str, List[str]]]] = None,
+        report_path: bool = False,
     ) -> None:
         # Case-blind, metadata-anchored (ADR-137): the capitalized regexes above find nothing on
         # lowercase turbo ASR, so match the SAME cue on the folded form and resolve the window to a
@@ -1344,7 +1381,7 @@ def _voice_named_by_the_introduction(
                 allow_first_name_only=allow_first_name_only,
             )
             if name:
-                _assign(i, [name])
+                _assign(i, [name], host_name_requires_host_target=report_path)
 
     for i, (speaker, text) in enumerate(ordered_turns):
         is_host_hint = host_hint_voices is not None and speaker in host_hint_voices
@@ -1361,12 +1398,12 @@ def _voice_named_by_the_introduction(
             _assign_matchform(
                 i, mf, _CUE_FIRST_MATCHFORM, allow_first_name_only=first_name_only and is_host_hint
             )
-            # Past-tense recap cue ("we spoke with X") names the next voice ONLY as a head-of-
-            # episode cold-open from a host; mid-show it is a recap and would misattribute (fix 2).
+            # Past-tense recap cue ("we spoke with X"): only a head-of-episode cold-open from a host
+            # (fix 2 + 2c); the helper handles the text-head bound + recap-marker rejection.
             if is_host_hint and at_head:
-                _assign_matchform(
-                    i, mf, _CUE_FIRST_PAST_MATCHFORM, allow_first_name_only=first_name_only
-                )
+                past_nm = _past_cue_head_name(text, stated, first_name_only)
+                if past_nm:
+                    _assign(i, [past_nm])
         if is_host_hint:
             for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
                 for m in rx.finditer(text or ""):
@@ -1376,9 +1413,14 @@ def _voice_named_by_the_introduction(
             if stated:
                 _assign_matchform(i, mf, _GREETED_MATCHFORM)
                 _assign_matchform(i, mf, _NAME_FIRST_MATCHFORM)
-                # Report-verb tails ("X explains/reports") resolve ONLY against corroborated refs.
+                # Report-verb tails ("X explains/reports") resolve ONLY against corroborated refs,
+                # and a HOST name among them binds only a host voice (v1, 4th advisor).
                 _assign_matchform(
-                    i, mf, _NAME_FIRST_REPORT_MATCHFORM, stated_set=corroborated_stated
+                    i,
+                    mf,
+                    _NAME_FIRST_REPORT_MATCHFORM,
+                    stated_set=corroborated_stated,
+                    report_path=True,
                 )
     return out
 

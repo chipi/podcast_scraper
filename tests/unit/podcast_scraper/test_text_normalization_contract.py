@@ -191,6 +191,58 @@ def test_f3_report_verb_binds_corroborated_not_a_topical_subject():
     assert got.get("g") == "Farnaz Fassihi"
 
 
+def test_f2c_recap_inside_a_merged_host_monologue_does_not_bind():
+    # 4th advisor, 2c: a host monologue merges into ONE turn, so the turn-index head bound is met
+    # trivially (i=0). A late recap inside that long turn — or an early one preceded by a temporal
+    # marker — must not misattribute; only a true opening cold-open binds.
+    mono = (
+        "welcome, we have a great episode planned today. " * 30
+        + "last month we spoke with sam altman about agi."
+    )
+    assert (
+        _voice_named_by_the_introduction(
+            [("h", mono), ("g", "hi")], host_hint_voices={"h"}, metadata_named=["Sam Altman"]
+        )
+        == {}
+    )
+    cold = [("h", "today i sat down with sam altman"), ("g", "thanks")]
+    got = _voice_named_by_the_introduction(
+        cold,
+        host_hint_voices={"h"},
+        metadata_named=["Sam Altman"],
+        corroborated_named=["Sam Altman"],
+    )
+    assert got.get("g") == "Sam Altman"
+
+
+def test_v1_report_verb_host_name_binds_only_a_host_voice():
+    # 4th advisor, v1: adding known hosts to the corroborated set let "kevin roose explains in his
+    # book" (a topical mention of an ABSENT co-host) paint onto a guest. A host name on the
+    # report-verb path binds ONLY a host voice; the legit co-host desk hand-off still works.
+    kh = {"kevin roose"}
+    absent = [("h", "kevin roose reports from davos this week"), ("g", "yes")]
+    assert (
+        _voice_named_by_the_introduction(
+            absent,
+            host_hint_voices={"h"},
+            known_hosts_lower=kh,
+            metadata_named=["Kevin Roose"],
+            corroborated_named=["Kevin Roose"],
+        )
+        == {}
+    )
+    handoff = [("h", "kevin roose walks us through it"), ("kev", "so the way this works")]
+    got = _voice_named_by_the_introduction(
+        handoff,
+        host_hint_voices={"h", "kev"},
+        conv_hosts={"kev"},
+        known_hosts_lower=kh,
+        metadata_named=["Kevin Roose"],
+        corroborated_named=["Kevin Roose"],
+    )
+    assert got.get("kev") == "Kevin Roose"
+
+
 # --- Fix 1: narrated-desk cue vocabulary ---------------------------------------------------------
 
 
