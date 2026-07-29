@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import os
 import re
@@ -280,6 +281,7 @@ def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
         }
 
     names_added: List[Dict[str, str]] = []
+    names_removed: List[Dict[str, str]] = []
     roles_changed: List[Dict[str, Optional[str]]] = []
     for vid, fin in final.by_voice.items():
         base = baseline.by_voice.get(vid)
@@ -287,13 +289,43 @@ def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
             continue
         if fin.named and not base.named:
             names_added.append({"voice": vid, "name": fin.name})
+        # A name the cues established but the LLM path dropped — a regression, never intended
+        # (ADR-135: the LLM is additive). Post-reconciliation this must be empty; tracked so a leak
+        # is visible in the sidecar instead of silent (it used to be — only additions were counted).
+        if base.named and not fin.named:
+            names_removed.append({"voice": vid, "name": base.name})
         if fin.role != base.role:
             roles_changed.append({"voice": vid, "from": base.role, "to": fin.role})
     return {
         "deterministic": _counts(baseline),
         "final": _counts(final),
-        "llm_delta": {"names_added": names_added, "roles_changed": roles_changed},
+        "llm_delta": {
+            "names_added": names_added,
+            "names_removed": names_removed,
+            "roles_changed": roles_changed,
+        },
     }
+
+
+def _reconcile_non_regression(baseline: Any, final: Any) -> Tuple[Any, List[str]]:
+    """ADR-135 non-regression guard: the LLM path is contracted to be ADDITIVE — it may add names
+    to voices the cues left raw and correct roles, but it must NEVER erase a name the deterministic
+    cues already established. When applying the LLM inputs un-names such a voice (measured at
+    18/104 episodes on prod-v2.4-100ep), restore that voice's full baseline resolution.
+
+    Returns the (rebuilt when needed) roster and the list of restored voice ids. ``final`` is
+    frozen, so a rebuilt roster is returned rather than mutated in place.
+    """
+    restored: List[str] = []
+    merged = dict(final.by_voice)
+    for vid, base_role in baseline.by_voice.items():
+        fin_role = merged.get(vid)
+        if base_role.named and (fin_role is None or not fin_role.named):
+            merged[vid] = base_role
+            restored.append(vid)
+    if not restored:
+        return final, []
+    return dataclasses.replace(final, by_voice=merged), restored
 
 
 def _labeled_intro_block(
@@ -560,7 +592,10 @@ def apply_diarization_to_result(
     resolution_attribution: Optional[Dict[str, Any]] = None
     if llm_voice_names or llm_voice_roles:
         baseline_roster = _run_roster({}, {})
+        # Enforce the ADDITIVE contract: the LLM path must never un-name a voice the cues resolved.
+        roster, restored_names = _reconcile_non_regression(baseline_roster, roster)
         resolution_attribution = _resolution_attribution(baseline_roster, roster)
+        resolution_attribution["llm_delta"]["names_restored"] = restored_names
         _d = resolution_attribution["llm_delta"]
         logger.info(
             "resolution attribution: LLM added %d name(s), changed %d role(s) vs the "
@@ -568,6 +603,13 @@ def apply_diarization_to_result(
             len(_d["names_added"]),
             len(_d["roles_changed"]),
         )
+        if restored_names:
+            logger.warning(
+                "resolution non-regression: restored %d deterministic name(s) the LLM path "
+                "dropped (voices: %s)",
+                len(restored_names),
+                ", ".join(restored_names),
+            )
 
     enriched_result = dict(result)
     enriched_result["segments"] = _enriched_segments(aligned, roster)

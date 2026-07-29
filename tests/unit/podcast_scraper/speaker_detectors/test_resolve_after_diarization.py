@@ -284,7 +284,10 @@ class TestTheRosterActuallyHonoursIt:
 
         src = inspect.getsource(diar_pipeline.apply_diarization_to_result)
         assert "_resolve_voices_via_llm(" in src
-        assert "llm_voice_names=llm_voice_names" in src, (
+        # The resolver's answer must reach the roster. It is forwarded through the ``_run_roster``
+        # closure — ``_run_roster(llm_voice_names, llm_voice_roles)`` — which passes them on as
+        # ``llm_voice_names=names`` / ``llm_voice_roles=roles``. Assert the wiring, not one literal.
+        assert "_run_roster(llm_voice_names, llm_voice_roles)" in src, (
             "the resolver runs and its answer is thrown away — the voices stay unnamed and the "
             "LLM call is billed for nothing"
         )
