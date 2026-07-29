@@ -102,6 +102,17 @@
       "src":    ["tag:homelab-host"],
       "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
+    {
+      // Operator (laptop/phone via autogroup:admin) + homelab mini reach the DGX
+      // over SSH (:22). Tailscale SSH needs BOTH halves: the `ssh` block governs
+      // auth + user-mapping, and THIS grant is the packet-filter half. RunSSH +
+      // the ssh-rule alone still get dropped without a :22 grant — that missing
+      // grant was the SSH brick (2026-07; every device timed out on :22 while
+      // :9400 etc. worked, because only those ports were granted).
+      "action": "accept",
+      "src":    ["autogroup:admin", "tag:homelab-host"],
+      "dst":    ["tag:dgx-llm-host:22"]
+    },
 
     // homelab Mac mini (tag:homelab-host) — self-hosted observability stack
     // (ADR-0005). Operator reaches the dashboards + SSH; DGX + prod push
@@ -171,9 +182,9 @@
   "ssh": [
     {
       "action": "accept",
-      "src":    ["autogroup:admin"],
+      "src":    ["autogroup:admin", "tag:homelab-host"],
       "dst":    ["tag:dgx-llm-host"],
-      "users":  ["markodragoljevic", "root"]
+      "users":  ["markodragoljevic", "ops", "root"]
     }
   ]
 }
