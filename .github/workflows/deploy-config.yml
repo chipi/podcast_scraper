@@ -1,0 +1,212 @@
+name: Deploy config (by surface)
+
+# ADR-129: deploy the CONFIG LAYER (Caddy vhosts + Alloy drop-ins) by SURFACE, independently
+# of app images. A config change ships in seconds — no image, no compose recreate, no full
+# app redeploy. Operator picks the surface; nothing else moves.
+#
+# Surfaces (consistent naming: <surface>.caddy app · <surface>-telemetry.caddy GlitchTip
+# ingest · <surface>-analytics.caddy Umami ingest · <surface>.alloy logs):
+#   player   → player.caddy + player-telemetry.caddy + player-analytics.caddy + player.alloy
+#   operator → operator.caddy + operator.alloy   (operator sends telemetry/analytics to
+#              homelab directly over the tailnet — no public ingest vhost)
+#   orrery   → orrery.caddy + orrery-telemetry.caddy + orrery-analytics.caddy
+#              (orrerylearn.com; hardcoded, no templating). Owned HERE for now — own surface.
+#   all      → player + operator + orrery
+#
+# Deferred (tracked separately — ADR-129): moving the orrery vhosts to the orrery repo. The
+# base Caddyfile stays in apply-edge.sh (root-owned, host-level).
+#
+# Caddy: templated in the runner (domain + __*_PREVIEW_COOKIE__, same sed as the deploy
+# scripts) → scp → /etc/caddy/sites/ → `caddy validate` → `systemctl restart caddy` ONLY if
+# valid (rollback the vhost files otherwise; caddy never restarts on a broken config).
+# Alloy: scp → /opt/vps-observability/config.d/ → `docker kill -s HUP alloy`.
+# dry_run stages + validates without restarting/reloading.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY_CONFIG to confirm'
+        required: true
+        default: ''
+      surface:
+        description: "Which surface's config to deploy"
+        type: choice
+        options: [player, operator, orrery, all]
+        required: true
+      dry_run:
+        description: "Stage + caddy validate only; no restart / no HUP"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-config
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: prod
+    steps:
+      - name: Confirm DEPLOY_CONFIG
+        run: |
+          if [ "${{ inputs.confirm }}" != "DEPLOY_CONFIG" ]; then
+            echo "::error::Must type DEPLOY_CONFIG to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables for the selected surface
+        id: preflight
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          PLAYER_DOMAIN: ${{ vars.PLAYER_DOMAIN }}
+          PLAYER_PREVIEW_COOKIE: ${{ secrets.PLAYER_PREVIEW_COOKIE }}
+          OPERATOR_DOMAIN: ${{ vars.OPERATOR_DOMAIN }}
+          OPERATOR_PREVIEW_COOKIE: ${{ secrets.OPERATOR_PREVIEW_COOKIE }}
+          SURFACE: ${{ inputs.surface }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          # Always needed (tailnet + SSH).
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
+          # Per-surface templating inputs (player = app vhost + its telemetry/analytics ingest).
+          case "$SURFACE" in
+            player|all)
+              [ -z "${PLAYER_DOMAIN:-}" ] && MISSING="$MISSING PLAYER_DOMAIN"
+              [ -z "${PLAYER_PREVIEW_COOKIE:-}" ] && MISSING="$MISSING PLAYER_PREVIEW_COOKIE" ;;
+          esac
+          case "$SURFACE" in
+            operator|all)
+              [ -z "${OPERATOR_DOMAIN:-}" ] && MISSING="$MISSING OPERATOR_DOMAIN"
+              [ -z "${OPERATOR_PREVIEW_COOKIE:-}" ] && MISSING="$MISSING OPERATOR_PREVIEW_COOKIE" ;;
+          esac
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs for surface=$SURFACE:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (config files at this ref)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Stage + deploy config for the surface
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          SURFACE: ${{ inputs.surface }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          PLAYER_DOMAIN: ${{ vars.PLAYER_DOMAIN }}
+          PLAYER_PREVIEW_COOKIE: ${{ secrets.PLAYER_PREVIEW_COOKIE }}
+          OPERATOR_DOMAIN: ${{ vars.OPERATOR_DOMAIN }}
+          OPERATOR_PREVIEW_COOKIE: ${{ secrets.OPERATOR_PREVIEW_COOKIE }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          SCP=(scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          ALLOY_DIR=/opt/vps-observability/config.d
+
+          # --- resolve the file sets for the surface -----------------------------------
+          CADDY_VHOSTS=""   # space-separated basenames (no .caddy)
+          ALLOY_FILES=""    # space-separated basenames (with .alloy)
+          want() { case "$SURFACE" in "$1"|all) return 0 ;; *) return 1 ;; esac; }
+          # Each surface = its own vhosts + its Alloy log drop-in. Consistent naming:
+          #   <surface>.caddy (app) · <surface>-telemetry.caddy (GlitchTip) ·
+          #   <surface>-analytics.caddy (Umami) · <surface>.alloy (logs).
+          # player's telemetry/analytics ingest is player's (operator uses homelab-direct over
+          # the tailnet). orrery is owned here for now; the move to the orrery repo is deferred.
+          if want player;   then CADDY_VHOSTS="$CADDY_VHOSTS player player-telemetry player-analytics"; ALLOY_FILES="$ALLOY_FILES player.alloy"; fi
+          if want operator; then CADDY_VHOSTS="$CADDY_VHOSTS operator"; ALLOY_FILES="$ALLOY_FILES operator.alloy"; fi
+          if want orrery;   then CADDY_VHOSTS="$CADDY_VHOSTS orrery orrery-telemetry orrery-analytics"; fi
+
+          echo "surface=$SURFACE dry_run=$DRY_RUN"
+          echo "caddy vhosts: ${CADDY_VHOSTS:-(none)}"
+          echo "alloy files : ${ALLOY_FILES:-(none)}"
+
+          # --- CADDY: template in the runner, ship, validate, restart-if-valid ----------
+          if [ -n "${CADDY_VHOSTS// }" ]; then
+            STAGE="$(mktemp -d)"
+            for v in $CADDY_VHOSTS; do
+              src="infra/caddy/${v}.caddy"
+              [ -f "$src" ] || { echo "::error::$src not in repo at this ref"; exit 1; }
+              # Same templating the deploy scripts apply: domain rewrite + cookie secret.
+              # No-op sed lines are harmless where a placeholder is absent.
+              sed -e "s/player\.example\.com/${PLAYER_DOMAIN:-player.example.com}/g" \
+                  -e "s/operator\.example\.com/${OPERATOR_DOMAIN:-operator.example.com}/g" \
+                  -e "s|__PREVIEW_COOKIE__|${PLAYER_PREVIEW_COOKIE:-}|g" \
+                  -e "s|__OPERATOR_PREVIEW_COOKIE__|${OPERATOR_PREVIEW_COOKIE:-}|g" \
+                  "$src" > "$STAGE/${v}.caddy"
+            done
+            # Ship to a root-cleaned staging dir on the box (files hold the gate cookie).
+            "${SSH[@]}" "$SSH_TARGET" "rm -rf /tmp/deploy-config-staging && mkdir -p /tmp/deploy-config-staging && chmod 700 /tmp/deploy-config-staging"
+            "${SCP[@]}" "$STAGE"/*.caddy "${SSH_TARGET}:/tmp/deploy-config-staging/"
+            rm -rf "$STAGE"
+
+            # Ship the install/validate/restart-with-rollback logic as a committed script
+            # (shellcheck-able, no heredoc-in-YAML fragility) + run it on the box.
+            "${SCP[@]}" scripts/ops/deploy_config_caddy.sh "${SSH_TARGET}:/tmp/deploy-config-staging/deploy_config_caddy.sh"
+            "${SSH[@]}" "$SSH_TARGET" \
+              "DRY_RUN='${DRY_RUN}' bash /tmp/deploy-config-staging/deploy_config_caddy.sh ${CADDY_VHOSTS}"
+          fi
+
+          # --- ALLOY: scp drop-ins + HUP -----------------------------------------------
+          if [ -n "${ALLOY_FILES// }" ]; then
+            "${SSH[@]}" "$SSH_TARGET" "test -d $ALLOY_DIR" \
+              || { echo "::error::$ALLOY_DIR absent — is the /opt/vps-observability Alloy container deployed?"; exit 1; }
+            for f in $ALLOY_FILES; do
+              src="infra/observability/$f"
+              [ -f "$src" ] || { echo "::error::$src not in repo at this ref"; exit 1; }
+              echo "  shipping $f -> $ALLOY_DIR/$f"
+              "${SCP[@]}" "$src" "${SSH_TARGET}:$ALLOY_DIR/$f"
+              "${SSH[@]}" "$SSH_TARGET" "chmod 0644 $ALLOY_DIR/$f"
+            done
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "  DRY-RUN: Alloy drop-ins shipped, NOT hot-reloaded"
+            elif "${SSH[@]}" "$SSH_TARGET" "docker kill -s HUP alloy"; then
+              echo "  alloy hot-reloaded"
+            else
+              echo "::error::could not HUP alloy — drop-in landed but not live"; exit 1
+            fi
+          fi
+          echo "config deploy (surface=$SURFACE, dry_run=$DRY_RUN) complete."
+
+      - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        if: always()
+        uses: ./.github/actions/emit-ops-event
+        with:
+          event-type: deploy
+          env: prod
+          victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
+          msg: "config deploy (${{ inputs.surface }}, dry_run=${{ inputs.dry_run }}) ${{ job.status }}"
+          fields: status=${{ job.status }} surface=config:${{ inputs.surface }} dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}

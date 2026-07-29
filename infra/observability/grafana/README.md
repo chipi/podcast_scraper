@@ -25,7 +25,7 @@ matching "Production" column).
 
 - `VictoriaMetrics` (uid `victoriametrics`) — metrics (host + cAdvisor + `job=api`)
 - `VictoriaLogs` (uid `victorialogs`) — logs (`app=podcast` / `app=player`, set by the
-  `podcast.alloy` / `player.alloy` drop-ins)
+  `operator.alloy` / `player.alloy` drop-ins)
 
 ## Import / update
 

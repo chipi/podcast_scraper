@@ -274,7 +274,7 @@ EOF
 then bind_changed=1; run systemctl daemon-reload; fi
 
 # GlitchTip ingest upstream (ADR-114): the public glitchtip.<domain> vhost
-# (infra/caddy/glitchtip.caddy) reverse-proxies browser error ingest to GlitchTip,
+# (infra/caddy/orrery-telemetry.caddy) reverse-proxies browser error ingest to GlitchTip,
 # which runs on homelab over the tailnet (on THIS box 127.0.0.1:8090 is orrery).
 # Resolve homelab's tailnet IP here — never hardcode it in the repo — and hand it
 # to that vhost via ``reverse_proxy {$GLITCHTIP_UPSTREAM}``. Set proactively even
@@ -387,11 +387,17 @@ fail=0
 for unit in fail2ban block-metadata-egress.service caddy; do
   if systemctl is-active --quiet "$unit"; then ok "  active: $unit"; else warn "  NOT active: $unit"; fail=1; fi
 done
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
-  && ok "  caddy config valid" || { warn "  caddy config INVALID"; fail=1; }
-fail2ban-client status >/dev/null 2>&1 && ok "  fail2ban responding" || warn "  fail2ban-client not responding"
-iptables -C DOCKER-USER -d 169.254.169.254 -j DROP 2>/dev/null \
-  && ok "  metadata-egress DROP active" || warn "  metadata-egress DROP NOT active (docker up?)"
+if caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+  ok "  caddy config valid"
+else
+  warn "  caddy config INVALID"; fail=1
+fi
+if fail2ban-client status >/dev/null 2>&1; then ok "  fail2ban responding"; else warn "  fail2ban-client not responding"; fi
+if iptables -C DOCKER-USER -d 169.254.169.254 -j DROP 2>/dev/null; then
+  ok "  metadata-egress DROP active"
+else
+  warn "  metadata-egress DROP NOT active (docker up?)"
+fi
 
 echo
 if [ "$fail" = 0 ]; then

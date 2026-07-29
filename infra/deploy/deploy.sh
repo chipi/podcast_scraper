@@ -36,7 +36,7 @@ if [ "${PODCAST_SECRETS_VIA_FILES:-}" = "1" ]; then
     exit 5
   fi
   STACK_FILES+=(-f compose/docker-compose.secrets.yml)
-  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/podcast-secrets ($(ls -1 /dev/shm/podcast-secrets | wc -l | tr -d ' ') files)"
+  echo "[$(date -u +%FT%TZ)] secrets: file-mounted from /dev/shm/podcast-secrets ($(find /dev/shm/podcast-secrets -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ') files)"
 fi
 
 cd "$REPO_DIR"
@@ -162,19 +162,9 @@ if ! "${COMPOSE[@]}" "${STACK_FILES[@]}" up -d --remove-orphans; then
   exit 2
 fi
 
-# Ship the operator stack's container logs to Grafana/Loki via the shared node Alloy
-# (ADR-121): drop podcast.alloy into the deploy-writable config.d + hot-reload Alloy.
-# Without this the operator api/viewer logs were never collected (base.alloy only defines
-# shared components; each app owns its drop-in) and the "Podcast Operator" board was empty.
-# NON-fatal — a logging hiccup must not fail the deploy. Mirrors deploy-player.sh.
-ALLOY_DIR=/opt/vps-observability/config.d
-if [ -d "$ALLOY_DIR" ] && [ -f infra/observability/podcast.alloy ]; then
-  echo "[$(date -u +%FT%TZ)] installing podcast.alloy log rules + reloading Alloy..."
-  cp infra/observability/podcast.alloy "$ALLOY_DIR/podcast.alloy"
-  chmod 0644 "$ALLOY_DIR/podcast.alloy"
-  docker kill -s HUP alloy >/dev/null 2>&1 \
-    || echo "WARN: could not HUP alloy — operator logs may lag until its next reload" >&2
-fi
+# (ADR-129 naming alignment: the operator's Alloy log drop-in was renamed podcast.alloy ->
+# operator.alloy and now deploys via deploy-operator.sh — the operator surface owns it — not
+# here. Config-layer changes ride deploy-config.yml.)
 
 # Container-local smoke check (authoritative on the VPS). The workflow also
 # probes externally over Tailscale; a failure here aborts SSH early.
@@ -210,7 +200,7 @@ for i in $(seq 1 12); do
         docker logs --tail 30 compose-api-1 >&2 || true
         exit 6
       fi
-      echo "[$(date -u +%FT%TZ)] secrets: /run/secrets present + non-empty in api ($(echo $_need_secrets | wc -w | tr -d ' ') checked)"
+      echo "[$(date -u +%FT%TZ)] secrets: /run/secrets present + non-empty in api ($(echo "$_need_secrets" | wc -w | tr -d ' ') checked)"
     fi
     if command -v sudo >/dev/null 2>&1 && [ -x /usr/local/sbin/podcast-tailscale-serve.sh ]; then
       # MagicDNS HTTPS (:443) for tailnet peers (GHA stack-test, laptops). Do not
