@@ -393,7 +393,7 @@ def _detect_hosts_from_feed(
     Returns:
         Set of detected host names
     """
-    # Statement-first order of authority (ADR-128 / Fable-5 audit F2). The deterministic parser
+    # Statement-first order of authority (ADR-130 / Fable-5 audit F2). The deterministic parser
     # reads the feed's own "Hosted by ..." blurb out of the description, then org-filtered author
     # tags, then NER. EVERY LLM provider's detect_hosts short-circuits on RSS author tags — it
     # returns set(feed_authors) verbatim and never reads the description — so calling it first
@@ -589,7 +589,7 @@ def detect_feed_hosts_and_patterns(
     # "Colossus | Investing & Business Podcasts"). For such shows the real host comes from the
     # transcript self-introduction at diarization time, not the feed metadata (#876). The
     # statement-first ordering inside _detect_hosts_from_feed means an org-authored feed whose
-    # description names its hosts is already recovered before this strip runs (ADR-128 / audit F2).
+    # description names its hosts is already recovered before this strip runs (ADR-130 / audit F2).
     feed_hosts = {h for h in feed_hosts if not is_network_or_org_author(h)}
 
     # Priority: Use known_hosts from config if provided (show-level override)

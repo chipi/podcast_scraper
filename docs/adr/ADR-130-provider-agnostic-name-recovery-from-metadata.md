@@ -1,11 +1,11 @@
-# ADR-128: Provider-agnostic speaker-name recovery from episode metadata
+# ADR-130: Provider-agnostic speaker-name recovery from episode metadata
 
 - **Status**: Accepted
 - **Date**: 2026-07-26
 - **Authors**: Marko Dragoljevic
 - **Related RFCs**: —
 - **Related PRDs**: — (#876 speaker quality, #1190 corpus reprocess, #1178/#1179 ASR lock)
-- **Related ADRs**: [ADR-132](ADR-132-provider-specific-speaker-labeling.md) (shared core vs
+- **Related ADRs**: [ADR-134](ADR-134-provider-specific-speaker-labeling.md) (shared core vs
   per-provider strategy), [ADR-123](ADR-123-quality-gate-transcription-failover.md) (coverage gate)
 
 ## Context & Problem Statement
@@ -73,7 +73,7 @@ scoped to turbo:
    snap: a mangled published name that does not match a `known_host` is snapped to a **stated guest**
    (`metadata_named` ∪ `detected_guests`) by the same fuzzy rule (exact-or-near first name + surname
    within soundex OR a small edit distance). It runs in the shared core after all naming paths
-   converge (near the final plausibility gate, ADR-132), for **every provider** — so the v2.2
+   converge (near the final plausibility gate, ADR-134), for **every provider** — so the v2.2
    Deepgram/community-1 corpus benefits from it too, not only turbo. Guards (added after the Fable-5
    review, see Invariants): an exact match to a stated ref is never re-snapped; a non-host voice is
    never snapped onto a known-host's spelling (preserves the host-candidate gate); corroborated refs
@@ -169,7 +169,7 @@ Duvenaud".
 - **Cheap and reversible.** Both levers are shared-core naming logic + a feed-detection fallback; the
   guest snap runs under `relabel_only` (no audio, no ASR), so the existing corpus is repaired without
   re-transcription. The host fallback takes effect on the next `full` reprocess.
-- **The deepgram frozen base stays stable.** Per ADR-132, the guest snap is a shared-core tightening;
+- **The deepgram frozen base stays stable.** Per ADR-134, the guest snap is a shared-core tightening;
   the full 154-test diarization suite (incl. the golden-fixture arbiter) is green, and the snap is
   reference-bounded (it may only re-spell to a stated name, never invent or demote).
 - **Not yet validated end-to-end on a live `full` run.** Both levers are proven by unit tests +

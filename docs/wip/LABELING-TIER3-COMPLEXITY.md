@@ -1,6 +1,6 @@
 # Tier-3 complexity: swappable labeling strategies (A/B by profile, minimum code per experiment)
 
-- **Status**: Analysis (ADR-138 tier 3). Not scheduled.
+- **Status**: Analysis (ADR-140 tier 3). Not scheduled.
 - **Date**: 2026-07-29
 - **Goal being priced**: an agent proposes a *new labeling algorithm* (not just a knob), registers a
   new profile, and A/Bs it by switching `labeling_profile` — with **minimum code change per
@@ -11,7 +11,7 @@
 - **A new knob** (a threshold): add one field to `LabelingProfile`, read it at the site. ~5 lines.
 - **A new additive step / feature flag** (a new intro form, a new name source, an on/off toggle):
   add the function, gate it on a profile flag, thread the flag. ~1 function. This is exactly how
-  today's ADR-137 fixes + Pattern-B are already switchable.
+  today's ADR-139 fixes + Pattern-B are already switchable.
 
 So for the *common* agent experiment — "try this threshold", "turn this heuristic on/off", "add
 this cue" — **tier 2 is already the A/B mechanism**. No tier-3 needed.

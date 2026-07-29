@@ -365,7 +365,7 @@ def test_card_builders_accept_precomputed_rows(tmp_path: Path) -> None:
 
 
 class TestRankingProjection:
-    """ADR-133/#1191: _node_to_app_insight carries ranking fields; _rank_for_display orders them."""
+    """ADR-135/#1191: _node_to_app_insight carries ranking fields; _rank_for_display orders them."""
 
     def test_node_to_app_insight_carries_ranking_fields(self) -> None:
         from podcast_scraper.server.app_relational_view import _node_to_app_insight

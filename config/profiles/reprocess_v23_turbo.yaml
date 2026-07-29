@@ -223,7 +223,7 @@ gil_evidence_match_summary_provider: true
 # change no model; v2.2's serve/failover suited cloud OpenAI, DGX turbo needs this.
 resilience_run_context: reprocess
 resilience_failure_strategy: hold
-# ADR-129 turbo quality gate (revises ADR-123's metric): turbo silently drops ~a quarter of the
+# ADR-131 turbo quality gate (revises ADR-123's metric): turbo silently drops ~a quarter of the
 # words on very long episodes (the ~100-min cliff, e.g. Ezra Klein ep6 → 29.9% WER). Gate on
 # SPEECH coverage — Σ(transcript segments) / Σ(diarization speech) — not raw audio coverage, so
 # music/ads/silence do not falsely trip the failover (measured: 11/90 v2.3 episodes were below the

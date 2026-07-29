@@ -39,7 +39,7 @@ def _person_label(person_id: Any) -> str | None:
 def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsight]:
     """Return surfaceable insights from a GI artifact dict, ranked for display.
 
-    ADR-133/#1191: insights are sorted by ``salience`` descending (the route-and-tag ranking) so a
+    ADR-135/#1191: insights are sorted by ``salience`` descending (the route-and-tag ranking) so a
     surface can take the first N; ``routing_tag == "drop"`` insights are excluded (belt-and-
     suspenders with the value gate). ``limit`` caps the result to the top-N after sorting (e.g.
     ``gi_surface_default_limit``); ``None`` returns all. Ties and pre-3.1 artifacts (no
@@ -91,7 +91,7 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
         # as somebody's insight, not about what we keep.
         if props.get("surfaceable") is False:
             continue
-        # ADR-133/#1191: a `drop`-tagged insight (FILLER) is not published on any surface.
+        # ADR-135/#1191: a `drop`-tagged insight (FILLER) is not published on any surface.
         if _opt_str(props.get("routing_tag")) == "drop":
             continue
         insight_id = node.get("id")
@@ -138,7 +138,7 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
             )
         )
 
-    # ADR-133/#1191: rank for display. Stable sort by salience desc keeps extraction order for ties
+    # ADR-135/#1191: rank for display. Stable sort by salience desc keeps extraction order for ties
     # and for pre-3.1 artifacts (salience None -> 0.0), so old corpora project identically.
     out.sort(key=lambda ins: ins.salience if ins.salience is not None else 0.0, reverse=True)
     if limit is not None and limit >= 0:

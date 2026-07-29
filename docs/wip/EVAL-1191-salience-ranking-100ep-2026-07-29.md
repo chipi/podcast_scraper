@@ -34,7 +34,7 @@ insights the old top-5 cap cut (ranks 6–8) are as good as the top-5; the tail 
 `salience = f(tier, grounded, surfaceable)`. Its dominant input, the value-gate **tier**, does not
 discriminate (2.95 vs 3.06), so ordering by salience is close to reshuffling. This is not a bug in
 the plumbing — it is that the value gate's tier is a coarse keep/route signal, not a fine quality
-score. Making ranking matter requires a better tier — i.e. **ADR-133's deferred rubric research is
+score. Making ranking matter requires a better tier — i.e. **ADR-135's deferred rubric research is
 now required, not optional.** This eval is the evidence.
 
 ## routing_tag is NOT a quality signal (audit sub-finding)

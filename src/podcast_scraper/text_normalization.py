@@ -1,4 +1,4 @@
-"""ADR-137 — the text-normalization contract's single source of truth.
+"""ADR-139 — the text-normalization contract's single source of truth.
 
 Three canonical forms exist in the pipeline: **raw** (verbatim producer output),
 **display** (human-readable case + punctuation), and **match** (the comparable form every
@@ -8,7 +8,7 @@ module owns the **match** form and the name-matching primitives built on it, so 
 producer — turbo ASR (lowercase), openai-whisper (truecased), a feed (Title Case) — emitted the
 text.
 
-The rule (ADR-137): a matching stage casts to match-form **at entry, unconditionally**; it never
+The rule (ADR-139): a matching stage casts to match-form **at entry, unconditionally**; it never
 trusts the surface the previous stage emitted. Recognition is the first adopter; GI/KG/identity/
 search migrate onto the same SSOT incrementally.
 """
@@ -54,7 +54,7 @@ def normalize_name_for_match(name: str) -> str:
     return re.sub(r"[.']", "", t)
 
 
-# --- Nickname equivalence (ADR-137 / ADR-128) -----------------------------------------------------
+# --- Nickname equivalence (ADR-139 / ADR-130) -----------------------------------------------------
 # Given-name variants an ASR renders as spoken ("I'm Rich Gelfond") that a feed states formally
 # ("Richard Gelfond"). Edit distance alone misses these — "rich"→"richard" is 3 edits — so a table
 # is required. Bidirectional: every member of a group matches every other. Kept deliberately small

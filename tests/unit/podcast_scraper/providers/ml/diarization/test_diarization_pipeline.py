@@ -116,7 +116,7 @@ def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
 
 
 def test_merged_speech_seconds() -> None:
-    """ADR-129: Σ of the union of diarization turns (overlaps merged, gaps excluded)."""
+    """ADR-131: Σ of the union of diarization turns (overlaps merged, gaps excluded)."""
     from podcast_scraper.providers.ml.diarization.base import DiarizationSegment as DS
     from podcast_scraper.providers.ml.diarization.pipeline import merged_speech_seconds
 
@@ -136,7 +136,7 @@ def test_merged_speech_seconds() -> None:
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
 def test_apply_diarization_attaches_speech_seconds(mock_create_provider) -> None:
-    """ADR-129: apply_diarization_to_result exposes the diarizer's merged speech duration."""
+    """ADR-131: apply_diarization_to_result exposes the diarizer's merged speech duration."""
     mock_provider = MagicMock()
     mock_provider.diarize.return_value = DiarizationResult(
         segments=[

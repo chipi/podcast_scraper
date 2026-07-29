@@ -1,14 +1,14 @@
-"""Per-episode processing manifest (RFC-109 / ADR-130).
+"""Per-episode processing manifest (RFC-109 / ADR-132).
 
 A ``<transcript-base>.manifest.json`` sidecar: the source of truth for **how** an episode was
 processed — per-stage provenance, quality metrics, method versions, cost, and rework flags. It
-complements ``metadata.json`` (the **product** record, ADR-131), which says what the episode *is*.
+complements ``metadata.json`` (the **product** record, ADR-133), which says what the episode *is*.
 
-The honesty rule (ADR-130 §Convention 1): **each stage writes its own block from its own result,
+The honesty rule (ADR-132 §Convention 1): **each stage writes its own block from its own result,
 never from ``cfg``.** A field no stage owns is not added — that is the ``whisper_model``-from-config
 rot this artifact exists to prevent.
 
-Versioning is layered (ADR-130 §Convention 2): ``git_sha`` (+ ``git_dirty``) is the exact-code
+Versioning is layered (ADR-132 §Convention 2): ``git_sha`` (+ ``git_dirty``) is the exact-code
 ground-truth backstop; ``pipeline_composition_version`` is a hash of *which stages ran* (the
 stage-graph shape — a re-wire like moving the ASR gate downstream of diarization changes it); and
 each stage's ``method_version`` (inside its block) is the reprocess **query key** — bumped when that
@@ -39,9 +39,9 @@ MANIFEST_SCHEMA_VERSION = 1
 # The reprocess query key, one per stage. Bump when a STAGE'S LOGIC changes (not its config). One
 # edit here is greppable and is what makes "reprocess episodes below naming-3" expressible.
 METHOD_VERSIONS: Dict[str, str] = {
-    "asr": "asr-gate-1",  # ADR-129 speech-normalized coverage gate + failover
+    "asr": "asr-gate-1",  # ADR-131 speech-normalized coverage gate + failover
     "diarization": "diar-1",
-    "naming": "naming-4",  # ADR-137 text-normalization contract: narrated-desk cue vocab +
+    "naming": "naming-4",  # ADR-139 text-normalization contract: narrated-desk cue vocab +
     # case-blind metadata-anchored self-intro + nickname/ASR-fuzzy binding + org-form reject + "my
     # name is" discovery + Pattern-B (bounded unknown-vs-tape classification, defect-share alarm)
     "summary": "summary-1",
@@ -53,7 +53,7 @@ METHOD_VERSIONS: Dict[str, str] = {
 # composition version is derived from the SUBSET that actually ran, in this order.
 CANONICAL_STAGE_ORDER = ("asr", "diarization", "naming", "summary", "gi", "kg")
 
-# Closed vocabulary of rework signals so the corpus ledger can GROUP BY them (ADR-130).
+# Closed vocabulary of rework signals so the corpus ledger can GROUP BY them (ADR-132).
 QUALITY_FLAGS = frozenset(
     {
         "asr_failover",
@@ -151,7 +151,7 @@ def manifest_path(effective_output_dir: str, rel_transcript_path: str) -> str:
 
 
 def git_ground_truth() -> Dict[str, Any]:
-    """The exact-code backstop: short git SHA + dirty flag (ADR-130), via the run-manifest probe."""
+    """The exact-code backstop: short git SHA + dirty flag (ADR-132), via the run-manifest probe."""
     commit_sha, _branch, dirty = _get_git_info()
     return {"git_sha": (commit_sha[:7] if commit_sha else None), "git_dirty": bool(dirty)}
 
@@ -260,7 +260,7 @@ def update_stage(
     path = manifest_path(effective_output_dir, rel_transcript_path)
     data = _load(path) or _init_manifest(episode_id, feed_id, run_id)
     # git_sha is the exact-code backstop for the code that PRODUCED the manifest's current state
-    # (ADR-130). On a reprocess/relabel the manifest file already exists, so _init_manifest is
+    # (ADR-132). On a reprocess/relabel the manifest file already exists, so _init_manifest is
     # skipped and the loaded git_sha is the ORIGINAL build's — which then rides into every
     # pipeline_stage event (o11y showed the ancestor sha, not the re-running commit). Refresh it to
     # the code writing NOW; per-stage code provenance is carried by each stage's method_version.

@@ -440,23 +440,23 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 3,
-              "description": "v3.1 (ADR-133/#1191): value-gate tier (0 FILLER, 1 MINOR, 2 USEFUL, 3 CORE), preserved instead of collapsed to keep/drop. The pipeline ranks and tags; it never truncates."
+              "description": "v3.1 (ADR-135/#1191): value-gate tier (0 FILLER, 1 MINOR, 2 USEFUL, 3 CORE), preserved instead of collapsed to keep/drop. The pipeline ranks and tags; it never truncates."
             },
             "routing_tag": {
               "type": "string",
               "enum": ["surface", "connect", "drop"],
-              "description": "v3.1 (ADR-133/#1191): route rather than truncate \u2014 SURFACE (UI-eligible), CONNECT (corpus connective tissue, KG/threads), DROP. Stored now; the classifier that fills it well is a deferred follow-up."
+              "description": "v3.1 (ADR-135/#1191): route rather than truncate \u2014 SURFACE (UI-eligible), CONNECT (corpus connective tissue, KG/threads), DROP. Stored now; the classifier that fills it well is a deferred follow-up."
             },
             "rank": {
               "type": "number",
               "minimum": 0,
-              "description": "v3.1 (ADR-133/#1191): within-episode rank of this insight (lower = higher). 'First N' is a view-time decision, never a pipeline cutoff."
+              "description": "v3.1 (ADR-135/#1191): within-episode rank of this insight (lower = higher). 'First N' is a view-time decision, never a pipeline cutoff."
             },
             "salience": {
               "type": "number",
               "minimum": 0,
               "maximum": 1,
-              "description": "v3.1 (ADR-133/#1191): composite score behind the rank \u2014 tier \u00d7 speaker-role \u00d7 grounding-strength \u00d7 corpus-novelty."
+              "description": "v3.1 (ADR-135/#1191): composite score behind the rank \u2014 tier \u00d7 speaker-role \u00d7 grounding-strength \u00d7 corpus-novelty."
             }
           }
         },

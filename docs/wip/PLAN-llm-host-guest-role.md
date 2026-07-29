@@ -1,4 +1,4 @@
-# Plan — LLM host/guest role on the voice-resolution call (ADR-135)
+# Plan — LLM host/guest role on the voice-resolution call (ADR-137)
 
 POC on Gemini, run on the v2.3.x pilot subset, iterate to stabilize. Backward-compatible: the
 existing name-only contract and its tests stay green.

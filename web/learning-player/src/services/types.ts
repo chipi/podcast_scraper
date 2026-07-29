@@ -161,7 +161,7 @@ export interface Insight {
   insight_type: string | null
   confidence: number | null
   position_hint: string | null
-  /** ADR-133/#1191 route-and-tag. Server returns insights already salience-sorted; the player
+  /** ADR-135/#1191 route-and-tag. Server returns insights already salience-sorted; the player
    *  shows `surface`-tagged only (null = pre-3.1 corpus, kept for back-compat). */
   salience?: number | null
   rank?: number | null

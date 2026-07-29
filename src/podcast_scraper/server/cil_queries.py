@@ -408,7 +408,7 @@ def _position_hint(node: dict[str, Any]) -> float:
 
 
 def _salience(node: dict[str, Any]) -> float:
-    """ADR-133/#1191 salience (0.0 when absent, i.e. a pre-3.1 artifact)."""
+    """ADR-135/#1191 salience (0.0 when absent, i.e. a pre-3.1 artifact)."""
     props = node.get("properties")
     if isinstance(props, dict):
         raw = props.get("salience")
@@ -1081,7 +1081,7 @@ def topic_perspectives(
         # Unresolved diarization voices are not real perspectives (#1167).
         if is_unresolved_speaker_placeholder(pid, person_name.get(pid)):
             continue
-        # ADR-133/#1191: rank a speaker's takes by salience desc; position_hint breaks ties and
+        # ADR-135/#1191: rank a speaker's takes by salience desc; position_hint breaks ties and
         # is the sole key for pre-3.1 artifacts (salience 0.0), so their order is unchanged.
         insights = sorted(data["insights"], key=lambda n: (-_salience(n), _position_hint(n)))
         out.append(

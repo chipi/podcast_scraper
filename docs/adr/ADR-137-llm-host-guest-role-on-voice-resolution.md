@@ -1,4 +1,4 @@
-# ADR-135: LLM host/guest role determination on the existing voice-resolution call
+# ADR-137: LLM host/guest role determination on the existing voice-resolution call
 
 - **Status**: Accepted
 - **Date**: 2026-07-28

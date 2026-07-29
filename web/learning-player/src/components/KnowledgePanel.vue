@@ -181,7 +181,7 @@ function isGrounded(ins: Insight): boolean {
   return insightStartSeconds(ins) != null
 }
 
-// ADR-133/#1191: the player shows `surface`-tagged insights — attributed to a named speaker. The
+// ADR-135/#1191: the player shows `surface`-tagged insights — attributed to a named speaker. The
 // server's `surfaceable` gate already excludes `connect` (UNATTRIBUTED insights, no named speaker),
 // so this client filter is defensive, NOT a quality call: the 2026-07-29 eval found `connect`
 // insights score HIGHER than `surface` (3.12 vs 2.99), so routing_tag is not a quality signal — it's

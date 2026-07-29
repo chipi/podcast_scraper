@@ -258,7 +258,7 @@ async def episode_insights(
     limit: int | None = Query(
         default=None,
         ge=0,
-        description="ADR-133/#1191: cap to the top-N insights by salience (drop-tagged excluded). "
+        description="ADR-135/#1191: cap to the top-N insights by salience (drop-tagged excluded). "
         "Omit for all — the client caps visibly at gi_surface_default_limit and 'show more' "
         "reveals the rest of the already-sorted list.",
     ),

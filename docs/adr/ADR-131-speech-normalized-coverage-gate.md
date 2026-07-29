@@ -1,4 +1,4 @@
-# ADR-129: Speech-normalized coverage for the transcription quality gate (revises ADR-123)
+# ADR-131: Speech-normalized coverage for the transcription quality gate (revises ADR-123)
 
 - **Status**: Accepted (approach **C** — reuse the diarizer's speech regions)
 - **Date**: 2026-07-26

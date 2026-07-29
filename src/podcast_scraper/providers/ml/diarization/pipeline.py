@@ -69,7 +69,7 @@ def _strip_ad_segments(
 
 
 def merged_speech_seconds(segments: Sequence[Any]) -> float:
-    """ADR-129: total speech duration as the union of diarization turns (overlaps merged once).
+    """ADR-131: total speech duration as the union of diarization turns (overlaps merged once).
 
     Works on any provider's ``DiarizationSegment`` list (start/end attrs) or on dict segments with
     ``start``/``end`` keys, so it is diarizer-agnostic. Merging overlaps matters: co-hosts talking
@@ -112,7 +112,7 @@ def _segment_end(s: Any) -> Optional[float]:
 def _estimate_diarization_cost(
     diarization: DiarizationResult, cfg: Any, audio_seconds: Optional[float] = None
 ) -> Optional[float]:
-    """Per-episode diarization cost in USD for the processing manifest (RFC-109 / ADR-130).
+    """Per-episode diarization cost in USD for the processing manifest (RFC-109 / ADR-132).
 
     Provider-agnostic: if the provider already set ``DiarizationResult.cost_usd`` it is trusted;
     otherwise the shared pricing layer (``capability="diarization"``) estimates cost per audio-min,
@@ -293,7 +293,7 @@ def _feed_recurring_text(cfg: config.Config) -> set:
 
 
 def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
-    """How much of the final naming/role came from the deterministic cues vs the LLM (ADR-135).
+    """How much of the final naming/role came from the deterministic cues vs the LLM (ADR-137).
 
     ``baseline`` is the roster with the LLM inputs emptied (pure cues); ``final`` is the shipped
     roster. Counts on each side answer "before/after the LLM"; the per-voice diff is the LLM's
@@ -318,7 +318,7 @@ def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
         if fin.named and not base.named:
             names_added.append({"voice": vid, "name": fin.name})
         # A name the cues established but the LLM path dropped — a regression, never intended
-        # (ADR-135: the LLM is additive). Post-reconciliation this must be empty; tracked so a leak
+        # (ADR-137: the LLM is additive). Post-reconciliation this must be empty; tracked so a leak
         # is visible in the sidecar instead of silent (it used to be — only additions were counted).
         if base.named and not fin.named:
             names_removed.append({"voice": vid, "name": base.name})
@@ -336,7 +336,7 @@ def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
 
 
 def _reconcile_non_regression(baseline: Any, final: Any) -> Tuple[Any, List[str]]:
-    """ADR-135 non-regression guard: the LLM path is contracted to be ADDITIVE — it may add names
+    """ADR-137 non-regression guard: the LLM path is contracted to be ADDITIVE — it may add names
     to voices the cues left raw and correct roles, but it must NEVER erase a name the deterministic
     cues already established. When applying the LLM inputs un-names such a voice (measured at
     18/104 episodes on prod-v2.4-100ep), restore that voice's full baseline resolution.
@@ -363,7 +363,7 @@ def _labeled_intro_block(
     max_words: int = 500,
 ) -> str:
     """The first ~``max_words`` of the diarized transcript, speaker-labeled, restricted to REAL
-    voices for the LLM role call (ADR-135).
+    voices for the LLM role call (ADR-137).
 
     Ad / cameo / commercial voices are excluded via ``real_voices`` — the shared cleaning
     classification (:func:`roster.classify_voices`), the SAME source the roster uses, so the intro
@@ -396,7 +396,7 @@ def _resolve_voices_via_llm(
     episode_description: Optional[str] = None,
     intro_block: Optional[str] = None,
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
-    """ADR-110/ADR-135 — match stated names to voices AND decide host/guest, from the conversation.
+    """ADR-110/ADR-137 — match stated names to voices AND decide host/guest, from the conversation.
 
     Returns ``({voice: name}, {voice: role})``. Empty for every profile without an LLM: `airgapped`,
     `local`, `dev` and `reprocess_dgx_no_llm` run `speaker_detector_provider: spacy`, keep the
@@ -405,7 +405,7 @@ def _resolve_voices_via_llm(
     This never fails the episode. A speaker we cannot name costs an unnamed voice; a speaker we name
     WRONGLY puts words in a real person's mouth, and those are not symmetric (#876).
     """
-    # Role-only mode (ADR-135): run even with no candidate names, as long as there are voices and
+    # Role-only mode (ADR-137): run even with no candidate names, as long as there are voices and
     # some role context (title/description/intro) — a no-stated-host show still needs host/guest.
     if not voice_texts:
         return {}, {}
@@ -565,7 +565,7 @@ def apply_diarization_to_result(
     ad_intervals = _ad_intervals(segments)
     recurring_text = _feed_recurring_text(cfg)
     dz_provider = getattr(cfg, "diarization_provider", None)
-    # Versioned labeling profile (ADR-138) — one knob-bundle drives cleaning + naming and is stamped
+    # Versioned labeling profile (ADR-140) — one knob-bundle drives cleaning + naming and is stamped
     # on the sidecar. Resolved HERE (before the cleaning pass) so both the cleaning and the roster
     # read the same knobs. A typo'd id is rejected fail-fast by the Config validator (F6), so this
     # fallback is defense-in-depth for a caller that bypassed Config construction.
@@ -577,7 +577,7 @@ def apply_diarization_to_result(
             getattr(cfg, "labeling_profile", None),
         )
         _labeling_profile = DEFAULT_LABELING_PROFILE
-    # ADR-135 — ONE deterministic cleaning pass, right after diarization, shared by the LLM call and
+    # ADR-137 — ONE deterministic cleaning pass, right after diarization, shared by the LLM call and
     # the roster so "which voices are ad / cameo / commercial vs real" is defined in a single place.
     cleaning = classify_voices(
         diarization,
@@ -634,7 +634,7 @@ def apply_diarization_to_result(
         )
 
     roster = _run_roster(llm_voice_names, llm_voice_roles)
-    # ADR-135 attribution — how much the LLM did vs the deterministic cues. A second roster pass
+    # ADR-137 attribution — how much the LLM did vs the deterministic cues. A second roster pass
     # with the LLM inputs emptied is the pure-cue BASELINE; the diff against the shipped roster is
     # the LLM's marginal contribution. The baseline pass is deterministic (no network), so it is
     # cheap, and it only runs when the LLM actually produced something.
@@ -678,11 +678,11 @@ def apply_diarization_to_result(
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["diarization_num_speakers"] = roster.num_speakers
-    # ADR-129: the diarizer's total SPEECH duration (Σ merged speaker turns) — the denominator for
+    # ADR-131: the diarizer's total SPEECH duration (Σ merged speaker turns) — the denominator for
     # the speech-normalized coverage gate. Provider-agnostic (any DiarizationResult). Non-speech
     # (music/ads/silence) has no speaker turn, so it is excluded here, unlike raw audio duration.
     enriched_result["diarization_speech_seconds"] = merged_speech_seconds(diarization.segments)
-    # RFC-109 / ADR-130: per-episode diarization cost. Cloud diarizers (Deepgram/Gemini) bill per
+    # RFC-109 / ADR-132: per-episode diarization cost. Cloud diarizers (Deepgram/Gemini) bill per
     # audio-minute; local diarizers (pyannote/DGX/MOSS) have no pricing entry -> None. Bill on the
     # widest end across the ASR transcript + diarization turns (closest in-memory audio proxy).
     _audio_ends = [

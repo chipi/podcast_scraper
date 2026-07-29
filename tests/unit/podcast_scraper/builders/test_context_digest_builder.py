@@ -1,4 +1,4 @@
-"""ADR-134: the per-episode context digest builder.
+"""ADR-136: the per-episode context digest builder.
 
 The digest is a pure, deterministic denormalization of gi/kg/metadata — the reprocess-free
 "what is this episode about?" surface. These tests pin the contract that matters:

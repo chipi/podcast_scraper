@@ -1,6 +1,6 @@
 """Per-episode ``context.json`` — a flat, denormalized, reprocess-free content digest.
 
-ADR-134. Answers "what is this episode ABOUT?" for downstream consumers (search, future
+ADR-136. Answers "what is this episode ABOUT?" for downstream consumers (search, future
 translation, batch processes) without re-parsing the graph or reprocessing the episode. It is a
 **cache/view**: the graph artifacts remain the source of truth; this is a convenience surface.
 
@@ -15,7 +15,7 @@ Phase 1 is a pure, deterministic denormalization of outputs we already produce (
                   the ``unknown``/``unidentified`` split is added when a per-voice classification is
                   supplied (persisted nowhere today — a follow-up; backfill omits it)
 
-Deferred to Phase 2+ (new LLM, ADR-134 non-goals): glossary/terminology, distinct concepts, jokes.
+Deferred to Phase 2+ (new LLM, ADR-136 non-goals): glossary/terminology, distinct concepts, jokes.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def build_context_digest(
     metadata: Mapping[str, Any],
     voice_classification: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, Any]:
-    """Build the ``context.json`` payload (ADR-134, Phase 1).
+    """Build the ``context.json`` payload (ADR-136, Phase 1).
 
     Args:
         episode_id: Episode identifier.

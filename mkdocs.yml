@@ -301,11 +301,17 @@ nav:
       - ADR-127 Search-Index insight_type Column + Reindex-on-Upgrade: adr/ADR-127-search-index-insight-type-column.md
       - ADR-128 Decouple Tailnet ACL from Hetzner OpenTofu: adr/ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md
       - ADR-129 Config-layer deploy by surface: adr/ADR-129-config-layer-deploy-by-surface.md
-      - ADR-128 Provider-Agnostic Speaker-Name Recovery from Metadata: adr/ADR-128-provider-agnostic-name-recovery-from-metadata.md
-      - ADR-129 Speech-Normalized Coverage Gate: adr/ADR-129-speech-normalized-coverage-gate.md
-      - ADR-130 Per-Episode Processing Manifest — Schema, Stage Ownership, Versioning: adr/ADR-130-per-episode-processing-manifest-schema.md
-      - ADR-131 metadata.json vs Processing Manifest — Source of Truth: adr/ADR-131-metadata-vs-manifest-source-of-truth.md
-      - ADR-133 v2.4 — GI Route-and-Tag + KG Voice Node: adr/ADR-133-v2.4-gi-route-and-tag-and-kg-voice-node.md
+      - ADR-130 Provider-Agnostic Speaker-Name Recovery from Metadata: adr/ADR-130-provider-agnostic-name-recovery-from-metadata.md
+      - ADR-131 Speech-Normalized Coverage Gate: adr/ADR-131-speech-normalized-coverage-gate.md
+      - ADR-132 Per-Episode Processing Manifest — Schema, Stage Ownership, Versioning: adr/ADR-132-per-episode-processing-manifest-schema.md
+      - ADR-133 metadata.json vs Processing Manifest — Source of Truth: adr/ADR-133-metadata-vs-manifest-source-of-truth.md
+      - ADR-134 Provider-Specific Speaker-Labeling Strategies: adr/ADR-134-provider-specific-speaker-labeling.md
+      - ADR-135 v2.4 — GI Route-and-Tag + KG Voice Node: adr/ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md
+      - ADR-136 Per-Episode Context Digest: adr/ADR-136-per-episode-context-digest.md
+      - ADR-137 LLM Host/Guest Role on Voice Resolution: adr/ADR-137-llm-host-guest-role-on-voice-resolution.md
+      - ADR-138 Ad-Cleaning as a Standalone Stage: adr/ADR-138-ad-cleaning-as-a-standalone-stage.md
+      - ADR-139 Text Normalization Contract: adr/ADR-139-text-normalization-contract.md
+      - ADR-140 Versioned Labeling Profiles: adr/ADR-140-versioned-labeling-profiles.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

@@ -35,7 +35,7 @@ _VALID_ROLES = {"host", "guest"}
 @dataclass(frozen=True)
 class LLMVoice:
     """One voice's LLM verdict: a matched ``name`` (from the closed stated list) and/or a host/guest
-    ``role``. Either may be ``None`` — the model is allowed, and expected, to decline (ADR-135)."""
+    ``role``. Either may be ``None`` — the model is allowed, and expected, to decline (ADR-137)."""
 
     name: Optional[str] = None
     role: Optional[str] = None  # "host" | "guest" | None
@@ -121,7 +121,7 @@ def build_resolution_prompt(
 
     The candidate list is closed. The model picks a name from it or says ``null`` — never asked to
     produce a name, so it cannot produce one that was never stated. Alongside the closed list it is
-    given the RETRIEVED EVIDENCE for each name, and — for the host/guest role (ADR-135) — the
+    given the RETRIEVED EVIDENCE for each name, and — for the host/guest role (ADR-137) — the
     episode title, description, and the cleaned, speaker-labeled intro, which is where a show states
     who is hosting and who is visiting.
     """
@@ -206,7 +206,7 @@ def _parse(raw: str) -> Dict[str, LLMVoice]:
     """Pull the ``{voice: LLMVoice(name, role)}`` mapping out of the model's answer.
 
     Tolerates fences and reasoning preambles, and BOTH output shapes so a legacy prompt/response and
-    the ADR-135 role-bearing one both parse:
+    the ADR-137 role-bearing one both parse:
       legacy  ``{"voices": {"SPEAKER_00": "Name"}}``            → name only, role None
       current ``{"voices": {"SPEAKER_00": {"name": "Name", "role": "host"}}}``
     """
@@ -286,7 +286,7 @@ def resolve_voices_and_roles(
     episode_description: Optional[str] = None,
     intro_block: Optional[str] = None,
 ) -> Dict[str, LLMVoice]:
-    """``{voice: LLMVoice(name, role)}`` — the name AND host/guest role, in one call (ADR-135).
+    """``{voice: LLMVoice(name, role)}`` — the name AND host/guest role, in one call (ADR-137).
 
     ``complete`` is any "prompt in, text out" callable, so this stays provider-agnostic and is
     trivially testable without a network.

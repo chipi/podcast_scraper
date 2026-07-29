@@ -2588,7 +2588,7 @@ class TestDeepgramChunkLocalWarning(unittest.TestCase):
 
 @pytest.mark.unit
 class TestSpeechCoverageFailover(unittest.TestCase):
-    """ADR-129: the speech-normalized quality gate decision (_maybe_speech_coverage_failover)."""
+    """ADR-131: the speech-normalized quality gate decision (_maybe_speech_coverage_failover)."""
 
     def _cfg(self, **kw):
         from podcast_scraper.models.entities import TranscriptionJob  # noqa: F401
@@ -2638,7 +2638,7 @@ class TestSpeechCoverageFailover(unittest.TestCase):
         self.assertNotIn("speech_coverage_failover", out)
 
     def test_asr_provenance_sidecar_records_actual_model(self):
-        # ADR-129 provenance: <base>.asr.json records the ACTUAL per-episode ASR model + speech
+        # ADR-131 provenance: <base>.asr.json records the ACTUAL per-episode ASR model + speech
         # coverage — so a failover episode is on record as the failover model, not the configured.
         import os
         import tempfile

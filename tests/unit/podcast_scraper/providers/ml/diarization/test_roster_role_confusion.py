@@ -316,12 +316,12 @@ def test_both_stated_hosts_present_are_still_both_seated() -> None:
     assert roster.by_voice["ANDY"].name == "Andy Fang"
 
 
-# --- ADR-135: the LLM host/guest verdict as BOUNDED advice (veto positional / anchor no-host) ----
+# --- ADR-137: the LLM host/guest verdict as BOUNDED advice (veto positional / anchor no-host) ----
 
 
 def test_llm_guest_verdict_blocks_a_positional_host_seat_fill() -> None:
     """Two stated hosts, one present; a voice that neither self-introduces nor gives a guest cue
-    fills the vacant seat positionally (step 4). The LLM's "guest" verdict blocks that (ADR-135)."""
+    fills the vacant seat positionally (step 4). The LLM's "guest" verdict blocks that (ADR-137)."""
     diar, vtext, ordered = _scripted(
         [
             ("ELAD", "Welcome to No Priors, I'm Elad Gil, here as always this week."),
@@ -351,7 +351,7 @@ def test_llm_guest_verdict_blocks_a_positional_host_seat_fill() -> None:
 
 def test_llm_host_verdict_anchors_a_no_stated_host_show() -> None:
     """Planet Money-style: the feed states no hosts, so a second narrator the cues cannot anchor is
-    labeled a guest. The LLM's "host" verdict (from title/description/intro) seats it (ADR-135)."""
+    labeled a guest. The LLM's "host" verdict (from title/description/intro) seats it (ADR-137)."""
     diar, vtext, ordered = _scripted(
         [
             ("S0", "Hello and welcome to Planet Money. Today, a town with a very strange problem."),
@@ -431,7 +431,7 @@ def test_llm_host_anchor_ignores_an_unnamed_voice() -> None:
 
 def test_llm_guest_verdict_never_unseats_a_self_intro_known_host() -> None:
     """The hard guardrail: a voice that self-introduces as a STATED host is seated at step 1, before
-    the LLM verdict is consulted. A wrong "guest" from the model cannot unseat it (ADR-135)."""
+    the LLM verdict is consulted. A wrong "guest" from the model cannot unseat it (ADR-137)."""
     diar, vtext, ordered = _scripted(
         [
             ("H1", "Welcome to the show. I'm Casey Newton, in New York this week."),

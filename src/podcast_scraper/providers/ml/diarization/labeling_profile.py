@@ -1,4 +1,4 @@
-"""ADR-138 — versioned labeling profiles (a knob-bundle, not a code fork).
+"""ADR-140 — versioned labeling profiles (a knob-bundle, not a code fork).
 
 Cleaning is versioned as a registry of pure ``text -> text`` functions (ADR-017). Labeling is a
 stateful, LLM-coupled pipeline, so we version its *configuration* instead: a frozen
@@ -8,7 +8,7 @@ constants in ``roster.py``, behind one greppable, comparable unit selected by ID
 This is what makes A/B automatable — an agent proposes a new profile (different flags/knobs), and
 the corpus is re-run with ``labeling_profile: <id>`` and compared to the baseline, no code edit. A
 future *algorithm* (not expressible as a knob) is added as a strategy on the same profile — an
-extension, not a rebuild (ADR-138 tier 3).
+extension, not a rebuild (ADR-140 tier 3).
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class LabelingProfile:
     name: str
     version: str
 
-    # --- per-fix feature flags (ADR-137) ---------------------------------------------------------
+    # --- per-fix feature flags (ADR-139) ---------------------------------------------------------
     narrator_cue_binding: bool = True  # case-blind metadata-anchored cue path in the intro reader
     case_blind_self_intro: bool = True  # lowercase "i'm X" -> stated name (metadata-anchored)
     nickname_fuzzy_binding: bool = True  # Rich<->Richard + ASR-fuzzy surname in the canonicalizer
@@ -76,7 +76,7 @@ def list_profiles() -> List[str]:
 # The production profile — every fix on, current thresholds. Its version is the reprocess key.
 NAMING_4 = LabelingProfile(name="production", version="naming-4")
 
-# A legacy baseline: every ADR-137 fix + Pattern-B OFF, alarm on TOTAL unattributed — i.e. the
+# A legacy baseline: every ADR-139 fix + Pattern-B OFF, alarm on TOTAL unattributed — i.e. the
 # pre-today behaviour. Exists so "naming-4 vs naming-3-legacy" is a one-line A/B on the same corpus.
 NAMING_3_LEGACY = replace(
     NAMING_4,

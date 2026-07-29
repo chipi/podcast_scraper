@@ -1,4 +1,4 @@
-"""The single cleaning classifier (ADR-135): ad / cameo / commercial / real, computed once and
+"""The single cleaning classifier (ADR-137): ad / cameo / commercial / real, computed once and
 shared by the LLM resolution call and the roster so cleaning is never replicated."""
 
 from __future__ import annotations

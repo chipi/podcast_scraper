@@ -5,7 +5,7 @@
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
-  "description": "Per-episode processing manifest signal. Requires JSON log lines with event_type=pipeline_stage (RFC-109 / ADR-130), emitted per stage from processing_manifest.update_stage. Correlate by run_id / episode_id.",
+  "description": "Per-episode processing manifest signal. Requires JSON log lines with event_type=pipeline_stage (RFC-109 / ADR-132), emitted per stage from processing_manifest.update_stage. Correlate by run_id / episode_id.",
   "panels": [
     {
       "id": 1,
@@ -48,7 +48,7 @@
       "title": "Method-version inventory (reprocess key) — stage writes per stage×version",
       "type": "table",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "description": "Which stage logic is in play. Counts stage WRITES (≈ episodes on a fresh run; a re-run re-emits, so treat as an inventory of which method_versions exist, not a distinct-episode count). After shipping an improvement, rows on the OLD method_version are the reprocess target (ADR-130 §Convention 2).",
+      "description": "Which stage logic is in play. Counts stage WRITES (≈ episodes on a fresh run; a re-run re-emits, so treat as an inventory of which method_versions exist, not a distinct-episode count). After shipping an improvement, rows on the OLD method_version are the reprocess target (ADR-132 §Convention 2).",
       "targets": [
         {
           "expr": "sum by (stage, method_version) (count_over_time({env=\"prod\"} | json | event_type=\"pipeline_stage\" [30d]))",

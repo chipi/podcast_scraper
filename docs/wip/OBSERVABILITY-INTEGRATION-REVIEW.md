@@ -4,7 +4,7 @@
 **Author:** Marko Dragoljevic
 **Scope:** How the podcast_scraper pipeline emits logs / traces / errors / metrics / cost, where those
 land (Grafana / GlitchTip / Langfuse / VictoriaMetrics-Logs-Traces), how the new per-episode
-processing manifest (RFC-109 / ADR-130) plugs in, and the full-pipeline gaps to reach "measure
+processing manifest (RFC-109 / ADR-132) plugs in, and the full-pipeline gaps to reach "measure
 everything, correlate, evolve while running."
 **Method:** two read-only mapping passes (emission surface + backend integration), findings
 re-verified by hand. Related: [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md),

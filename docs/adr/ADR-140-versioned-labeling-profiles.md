@@ -1,10 +1,10 @@
-# ADR-138: Versioned labeling profiles (a knob-bundle, not a code fork)
+# ADR-140: Versioned labeling profiles (a knob-bundle, not a code fork)
 
 - **Status**: Proposed
 - **Date**: 2026-07-29
 - **Authors**: Marko Dragoljevic
-- **Related**: ADR-017 (Registered Preprocessing Profiles — the cleaning precedent), ADR-128
-  (ASR-mangled name recovery), ADR-135 (additive LLM role resolution), ADR-137 (text-normalization
+- **Related**: ADR-017 (Registered Preprocessing Profiles — the cleaning precedent), ADR-130
+  (ASR-mangled name recovery), ADR-137 (additive LLM role resolution), ADR-139 (text-normalization
   contract). `METHOD_VERSIONS["naming"]` in `workflow/processing_manifest.py`.
 
 ## Context & Problem Statement
@@ -37,11 +37,11 @@ in the loop, **not** a pure function, so ADR-017's swap-the-whole-function regis
 transfer. What *is* extractable is the **configuration of** that pipeline.
 
 - A `LabelingProfile` frozen dataclass bundles the labeling tunables. **Consumed in naming-4:** the
-  seven boolean feature flags for the ADR-137 fixes (narrator-binding, case-blind self-intro,
+  seven boolean feature flags for the ADR-139 fixes (narrator-binding, case-blind self-intro,
   **nickname-fuzzy binding**, first-name-only intro, merged-cluster suppression, Pattern-B bounded
   promotion, defect-share alarm), the `unattributed_alarm_threshold`, and **`cameo_max_talk_s`** —
   `roster.py`/`pipeline.py` read all of these from the profile. `nickname_fuzzy_binding` gates the
-  ADR-128 `_recover_stated_names` recovery pass; `cameo_max_talk_s` threads to all five cameo sites
+  ADR-130 `_recover_stated_names` recovery pass; `cameo_max_talk_s` threads to all five cameo sites
   (`classify_voices`, `_classify_voice_types`, `_name_guest_voices`, `_self_intro_voice_names` →
   host-candidate). Each has an A/B test proving the flag flips behaviour, and the defaults equal the
   prior module constants so naming-4 is unchanged. **Still module constants (tier-2 extraction,

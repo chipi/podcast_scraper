@@ -1,4 +1,4 @@
-# ADR-132: Provider-specific speaker-labeling strategies
+# ADR-134: Provider-specific speaker-labeling strategies
 
 - **Status**: Accepted
 - **Date**: 2026-07-25

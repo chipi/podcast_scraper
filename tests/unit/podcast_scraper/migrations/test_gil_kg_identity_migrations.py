@@ -15,7 +15,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_migrate_gi_v3_1_stamps_version_without_retyping() -> None:
-    """ADR-133/#1191: 3.1 only stamps the version — the additive Insight fields are optional, so a
+    """ADR-135/#1191: 3.1 only stamps the version — the additive Insight fields are optional, so a
     3.0 artifact is valid-as-3.1. Speaker Persons are NOT retyped (Voice node reverted); real Person
     stays Person; idempotent."""
     data = {

@@ -1083,7 +1083,7 @@ def test_topic_perspectives_groups_insights_by_speaker(tmp_path: Path) -> None:
 
 
 def test_topic_perspectives_orders_a_speakers_insights_by_salience(tmp_path: Path) -> None:
-    """ADR-133/#1191: a speaker's takes on a topic are ranked by salience desc (viewer default)."""
+    """ADR-135/#1191: a speaker's takes on a topic are ranked by salience desc (viewer default)."""
     meta = tmp_path / "metadata"
     _write_bundle(
         meta,

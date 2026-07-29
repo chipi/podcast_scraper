@@ -1,4 +1,4 @@
-# ADR-136: Ad-cleaning as a standalone pipeline stage (one clean transcript for labeling + summary)
+# ADR-138: Ad-cleaning as a standalone pipeline stage (one clean transcript for labeling + summary)
 
 - **Status**: Proposed
 - **Date**: 2026-07-29

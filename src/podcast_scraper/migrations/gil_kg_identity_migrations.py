@@ -331,7 +331,7 @@ def compute_position_hints_for_document(
 
 
 def migrate_gi_document_v3_1(data: Dict[str, Any]) -> Dict[str, Any]:
-    """ADR-133/#1191: bring a GI artifact to ``schema_version`` ``3.1``.
+    """ADR-135/#1191: bring a GI artifact to ``schema_version`` ``3.1``.
 
     Applies ``migrate_gi_document_v3`` first, then stamps 3.1. The 3.1 Insight fields
     (rank/tier/routing_tag/salience) are additive and optional, so a 3.0 artifact is already

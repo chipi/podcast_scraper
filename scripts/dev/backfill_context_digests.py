@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR-134 backfill — build ``.context.json`` for an already-processed corpus, no reprocess.
+"""ADR-136 backfill — build ``.context.json`` for an already-processed corpus, no reprocess.
 
 The context digest is a pure, deterministic denormalization of artifacts we already have
 (`.gi.json` / `.kg.json` / `.metadata.json`), so it can be produced for every episode of a

@@ -185,7 +185,7 @@ def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
     """relabel_only must hand the roster the SAME episode title/description a FULL run does.
 
     The structural half of the relabel!=full confound (root-cause #2): FULL passes
-    ``episode_title`` / ``episode_description`` into ``apply_diarization_to_result`` (ADR-135 — both
+    ``episode_title`` / ``episode_description`` into ``apply_diarization_to_result`` (ADR-137 — both
     feed the LLM's host/guest role determination and gate role-only resolution), but relabel_only
     passed neither, so every reprocess resolved on a strictly weaker prompt showing
     "(not provided)". That is a deterministic divergence, independent of LLM sampling. Pin that

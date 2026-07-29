@@ -1,4 +1,4 @@
-"""Integration: ADR-129 speech-coverage gate over the REAL diarization denominator.
+"""Integration: ADR-131 speech-coverage gate over the REAL diarization denominator.
 
 Couples ``apply_diarization_to_result`` (which computes ``diarization_speech_seconds`` from a real
 diarization) with ``_maybe_speech_coverage_failover`` (the gate decision). Only the diarization

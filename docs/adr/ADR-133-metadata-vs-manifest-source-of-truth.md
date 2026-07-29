@@ -1,10 +1,10 @@
-# ADR-131: `metadata.json` vs the processing manifest — purpose split and source of truth
+# ADR-133: `metadata.json` vs the processing manifest — purpose split and source of truth
 
 - **Status**: Proposed
 - **Date**: 2026-07-27
 - **Authors**: Marko Dragoljevic
 - **Related RFCs**: [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
-- **Related ADRs**: [ADR-130](ADR-130-per-episode-processing-manifest-schema.md) (manifest schema)
+- **Related ADRs**: [ADR-132](ADR-132-per-episode-processing-manifest-schema.md) (manifest schema)
 
 ## Context & Problem Statement
 
@@ -25,7 +25,7 @@ breaking readers.**
   episode."
 - **`<base>.manifest.json` = the PROCESS record.** How the episode was *produced*, for an
   **operator/analyst**: per-stage provenance, quality metrics, method versions, cost, rework flags
-  (ADR-130). It answers "how well did we do, with what, and should we redo it."
+  (ADR-132). It answers "how well did we do, with what, and should we redo it."
 
 A consumer never needs the manifest; an operator introspecting quality never needs to parse the
 transcript payload. The split is by **audience and question**, not by convenience.

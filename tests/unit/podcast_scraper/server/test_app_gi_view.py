@@ -90,7 +90,7 @@ class TestInsightsFromGi:
 
 
 def _ranked_gi() -> dict:
-    """Four insights in EXTRACTION order with varying salience/tier/routing_tag (ADR-133/#1191)."""
+    """Four insights in EXTRACTION order with varying salience/tier/routing_tag (ADR-135/#1191)."""
 
     def _ins(iid: str, text: str, **props: object) -> dict:
         return {"id": iid, "type": "Insight", "properties": {"text": text, **props}}
@@ -107,7 +107,7 @@ def _ranked_gi() -> dict:
 
 
 class TestInsightRankingAndTagging:
-    """ADR-133/#1191 route-and-tag: sort by salience, carry fields, drop `drop`, cap by limit."""
+    """ADR-135/#1191 route-and-tag: sort by salience, carry fields, drop `drop`, cap by limit."""
 
     def test_sorts_by_salience_descending(self) -> None:
         out = insights_from_gi(_ranked_gi())

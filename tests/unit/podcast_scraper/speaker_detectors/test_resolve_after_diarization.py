@@ -294,7 +294,7 @@ class TestTheRosterActuallyHonoursIt:
 
 
 class TestHostGuestRoleDetermination:
-    """ADR-135 — the SAME call also decides host vs guest. Name and role are independent, both are
+    """ADR-137 — the SAME call also decides host vs guest. Name and role are independent, both are
     verified in code (never the prompt), and either may be null (the model may decline)."""
 
     def test_it_returns_name_and_role_from_the_object_form(self) -> None:
@@ -377,7 +377,7 @@ class TestHostGuestRoleDetermination:
 
     def test_role_only_mode_runs_with_no_candidates_when_intro_context_exists(self) -> None:
         """Planet Money: metadata names nobody, but the hosts self-introduce on air. With no
-        candidate names the model can still assign host/guest from the intro (ADR-135 role-only)."""
+        candidate names the model can still assign host/guest from the intro (ADR-137 role-only)."""
         from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
 
         calls: List[str] = []

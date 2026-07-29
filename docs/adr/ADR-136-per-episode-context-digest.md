@@ -1,9 +1,9 @@
-# ADR-134: Per-episode context digest (`.context.json`) — a reprocess-free consolidated content surface
+# ADR-136: Per-episode context digest (`.context.json`) — a reprocess-free consolidated content surface
 
 - **Status**: Accepted
 - **Date**: 2026-07-28
 - **Authors**: Marko Dragoljevic
-- **Related issues**: v2.4 arc (GI/KG optimizations), #1220 (KG Voice node), ADR-133 (route-and-tag + Voice)
+- **Related issues**: v2.4 arc (GI/KG optimizations), #1220 (KG Voice node), ADR-135 (route-and-tag + Voice)
 - **Related work**: labeling-output `exposed` metric (36af801e); sidecar-completeness directive
 - **Design source**: this ADR (operator proposal, 2026-07-28)
 
@@ -16,8 +16,8 @@ charter, and none is a flat, denormalized digest:
 
 | Artifact | Charter | Holds |
 | --- | --- | --- |
-| `.manifest.json` | **How it was processed** (provenance, RFC-109/ADR-130) | per-stage what-ran, quality metrics, cost, versions (incl. `naming.exposed`) |
-| `.metadata.json` | **What the episode IS** (product record, ADR-131) | feed/episode facts, `speakers`, `detected_hosts/guests`, `normalized_entities` |
+| `.manifest.json` | **How it was processed** (provenance, RFC-109/ADR-132) | per-stage what-ran, quality metrics, cost, versions (incl. `naming.exposed`) |
+| `.metadata.json` | **What the episode IS** (product record, ADR-133) | feed/episode facts, `speakers`, `detected_hosts/guests`, `normalized_entities` |
 | `.gi.json` / `.kg.json` | The **normalized graph** | Person / Organization / Topic / Insight / Quote nodes + edges |
 
 The gap was proven concretely: extracting the clean named-vs-Voice speaker rate required opening

@@ -1,4 +1,4 @@
-"""ADR-137 — text-normalization contract: per-fix isolation + the seam consistency invariant.
+"""ADR-139 — text-normalization contract: per-fix isolation + the seam consistency invariant.
 
 Three fixes for narrated-desk / lowercase-turbo speaker naming, each tested in isolation at the
 function level, plus the case-invariance invariant: the same content, truecased and lowercased,
@@ -76,7 +76,7 @@ def test_first_names_match_distinct_names_sharing_a_short_form_do_not_match():
     assert not first_names_match("Edward", "Theodore")
 
 
-# --- Fix 2: nickname feeds the ADR-128 canonicalizer ---------------------------------------------
+# --- Fix 2: nickname feeds the ADR-130 canonicalizer ---------------------------------------------
 
 
 def test_fix2_canonicalizer_snaps_nickname_to_stated_name():
@@ -287,7 +287,7 @@ def test_fix1_name_first_desk_verbs_bind_next_voice():
 
 
 def test_fix1_cue_path_is_case_invariant_with_metadata():
-    # ADR-137: lowercase turbo desk hand-off + metadata anchor binds identically to truecased.
+    # ADR-139: lowercase turbo desk hand-off + metadata anchor binds identically to truecased.
     md = ["Claire Cain Miller"]
     lower = [
         ("host", "today, my colleague claire cain miller on how these accounts work"),
@@ -395,7 +395,7 @@ def test_merged_cluster_of_multiple_stated_speakers_is_detected():
     )
 
 
-# --- The seam consistency invariant (ADR-137) ----------------------------------------------------
+# --- The seam consistency invariant (ADR-139) ----------------------------------------------------
 
 
 def test_seam_invariance_self_intro_metadata_anchored():
@@ -476,7 +476,7 @@ def test_my_name_is_self_intro_discovered_without_metadata():
 def test_labeling_integration_full_flow_and_census():
     # One episode exercising: "my name is" host discovery, lowercase nickname guest self-intro
     # (Rich -> Richard, metadata-anchored), and a random tape voice that stays `unidentified` (not a
-    # defect). The census + defect alarm must reflect exactly that (ADR-137 / Pattern B).
+    # defect). The census + defect alarm must reflect exactly that (ADR-139 / Pattern B).
     diar = _diar([("HOST", 0, 200), ("GUEST", 200, 700), ("TAPE", 700, 760)])
     voice_texts = {
         "HOST": "Hello and welcome to the show. My name is Ana Rodriguez.",
@@ -515,7 +515,7 @@ def test_labeling_integration_full_flow_and_census():
     assert s["voice_census"]["unidentified"]["count"] == 1
 
 
-# --- ADR-138: versioned labeling profile (registry + A/B switch) ---------------------------------
+# --- ADR-140: versioned labeling profile (registry + A/B switch) ---------------------------------
 
 
 def test_labeling_profile_registry():
@@ -531,7 +531,7 @@ def test_labeling_profile_registry():
 def test_labeling_profile_ab_switch_changes_classification_and_alarm():
     # 2 spare names + several unnamed voices, dominated by short tape. naming-4 bounds the defect to
     # the top-2 and alarms on the defect share; the legacy profile promotes ALL of them and alarms
-    # on total unattributed. The switch — and the sidecar provenance — must differ (ADR-138).
+    # on total unattributed. The switch — and the sidecar provenance — must differ (ADR-140).
     segs = [("HOST", 0, 60), ("A", 60, 360), ("B", 360, 560), ("C", 560, 620), ("D", 620, 680)]
     diar = _diar(segs)
     voice_texts = {
@@ -578,7 +578,7 @@ def test_labeling_profile_ab_switch_changes_classification_and_alarm():
 
 
 def test_nickname_fuzzy_binding_flag_gates_the_recovery():
-    # review: nickname_fuzzy_binding was a DEAD flag. Now wired to the ADR-128 recovery pass: ON
+    # review: nickname_fuzzy_binding was a DEAD flag. Now wired to the ADR-130 recovery pass: ON
     # snaps "Rich Gelfond" -> stated "Richard Gelfond"; OFF (legacy) keeps the spoken form.
     def _recover(fuzzy: bool) -> str:
         by_voice = {

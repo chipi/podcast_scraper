@@ -263,7 +263,7 @@ def test_the_diarization_pipeline_actually_FORWARDS_the_stated_names() -> None:
         "metadata_named" in inspect.signature(diar_pipeline.apply_diarization_to_result).parameters
     )
     # BOTH destinations must receive the stated names: the roster resolver and the diagnostics
-    # builder — otherwise the defect accounting silently reverts to laundering our failures. ADR-135
+    # builder — otherwise the defect accounting silently reverts to laundering our failures. ADR-137
     # hoisted the roster's copy into a local (``_md_named = list(metadata_named or ())``), so the
     # literal ``metadata_named=list(...)`` now appears once (diagnostics) while the roster gets the
     # same names via ``metadata_named=_md_named``. Count the two keyword forwardings, robust to the

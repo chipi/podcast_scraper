@@ -1325,7 +1325,7 @@ def _build_stub_artifact(
                 "insight_type": "unknown",
                 # RFC-097 chunk 9 (ADR-101): required in v3.0 strict.
                 "position_hint": 0.5,
-                # ADR-133/#1191: the single stub insight — CORE tier, ranked first.
+                # ADR-135/#1191: the single stub insight — CORE tier, ranked first.
                 "tier": 3,
                 "routing_tag": "surface",
                 "salience": 1.0,
@@ -1352,7 +1352,7 @@ def _build_stub_artifact(
         {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id},
     ]
     return {
-        "schema_version": "3.1",  # ADR-133/#1191: Insight rank/tier/routing_tag/salience
+        "schema_version": "3.1",  # ADR-135/#1191: Insight rank/tier/routing_tag/salience
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
@@ -1438,7 +1438,7 @@ def _resolve_insight_specs(
     )
 
     if insight_texts:
-        # #1191 (ADR-133): rank + tag, never truncate. Store every bullet-derived insight (bounded
+        # #1191 (ADR-135): rank + tag, never truncate. Store every bullet-derived insight (bounded
         # upstream by the summary bullet count) — the ceiling is not a corpus cutoff; "first N" is a
         # view-time decision made against the stored rank.
         resolved = [(s.strip(), "unknown") for s in insight_texts if (s and s.strip())]
@@ -1605,7 +1605,7 @@ def build_artifact(
     # produced insights, short-circuit provider dispatch entirely.
     insight_specs: List[Tuple[str, str]] = []
     if prefilled_insights:
-        # #1191 (ADR-133): store EVERY prefilled insight — the pipeline ranks + tags, it never
+        # #1191 (ADR-135): store EVERY prefilled insight — the pipeline ranks + tags, it never
         # truncates a bundled extraction into the corpus. "First N" is a view-time decision.
         for item in prefilled_insights:
             if not isinstance(item, dict):
@@ -2186,7 +2186,7 @@ def _artifact_from_multi_insight(
         node["properties"]["rank"] = rank
 
     artifact = {
-        "schema_version": "3.1",  # ADR-133/#1191: Insight rank/tier/routing_tag/salience
+        "schema_version": "3.1",  # ADR-135/#1191: Insight rank/tier/routing_tag/salience
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,

@@ -1,11 +1,11 @@
-# ADR-137: Text normalization contract (match / display / raw) — a pipeline-wide core primitive
+# ADR-139: Text normalization contract (match / display / raw) — a pipeline-wide core primitive
 
 - **Status**: Proposed
 - **Date**: 2026-07-29
 - **Authors**: Marko Dragoljevic
 - **Related**: labeling failures on The Daily / WSJ / lowercase-turbo episodes (prod-v2.4-100ep);
-  ADR-110 (name resolution against a closed metadata list), ADR-128 (ASR-mangled-name canonicalizer),
-  ADR-135 (additive LLM role resolution).
+  ADR-110 (name resolution against a closed metadata list), ADR-130 (ASR-mangled-name canonicalizer),
+  ADR-137 (additive LLM role resolution).
 - **Supersedes/absorbs**: the ad-hoc per-site casing handling scattered across ~40 modules.
 
 ## Context & Problem Statement
@@ -96,7 +96,7 @@ Capitalization is doing **two** jobs today; only one survives:
 
 Under match-form there are no capitals, so **discovery anchors on the metadata candidate list**: a
 voice is named by matching its spoken tokens against the names the episode metadata already stated
-(ADR-110's closed list), **case-blind and fuzzy** (nickname table + ADR-128 phonetic/edit-distance).
+(ADR-110's closed list), **case-blind and fuzzy** (nickname table + ADR-130 phonetic/edit-distance).
 This is already how the labeling business is supposed to work — you may only assign a *stated* name.
 Capitalization-based discovery survives **only** as a fallback where truecased text exists and no
 metadata does (a no-metadata network show), behind the existing ordinary-word guards

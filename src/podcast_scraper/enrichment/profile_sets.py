@@ -189,7 +189,7 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
         "cloud_thin",
         "cloud_balanced",
         "cloud_quality",
-        # ADR-132: cloud_balanced routing with community-1 diarization — same enricher tier.
+        # ADR-134: cloud_balanced routing with community-1 diarization — same enricher tier.
         "reprocess_v22_community1",
         # #1273: v2.2 (community-1 diarization) + DGX turbo ASR; still cloud_balanced routing with a
         # real gemini LLM (summary/NER/GI/KG) — same enricher tier as its v2.2 sibling.

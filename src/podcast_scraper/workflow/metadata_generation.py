@@ -3514,7 +3514,7 @@ def _write_downstream_manifest_blocks(
     kg_elapsed: Optional[float],
     kg_cost: Optional[float],
 ) -> None:
-    """RFC-109 / ADR-130: write the summary / GI / KG stage blocks into the per-episode manifest.
+    """RFC-109 / ADR-132: write the summary / GI / KG stage blocks into the per-episode manifest.
 
     Each block is built from that stage's own result object (``SummaryMetadata`` /
     ``GroundedInsightsMetadata`` / ``KnowledgeGraphMetadata``), never from ``cfg``. Runs after the
@@ -3555,7 +3555,7 @@ def _write_downstream_manifest_blocks(
 
     if gi_meta is not None:
         insight_count = getattr(gi_meta, "insight_count", None)
-        # GI ran but every insight was gated out — a rework signal worth querying (ADR-130).
+        # GI ran but every insight was gated out — a rework signal worth querying (ADR-132).
         gi_flags = ["gi_all_gated"] if insight_count == 0 else []
         blk = stage_block(
             ran=True,
@@ -4430,7 +4430,7 @@ def generate_episode_metadata(  # noqa: C901
         _serialize_metadata(metadata_doc, metadata_path, cfg, pipeline_metrics=pipeline_metrics)
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
 
-        # RFC-109 / ADR-130: append the summary/GI/KG stage blocks to the per-episode manifest that
+        # RFC-109 / ADR-132: append the summary/GI/KG stage blocks to the per-episode manifest that
         # the transcript-side stages (ASR/diarization/naming) started. Best-effort — never fatal.
         _write_downstream_manifest_blocks(
             output_dir=output_dir,
@@ -4451,7 +4451,7 @@ def generate_episode_metadata(  # noqa: C901
             kg_cost=kg_cost,
         )
 
-        # ADR-134: write the per-episode context digest (.context.json) — the reprocess-free
+        # ADR-136: write the per-episode context digest (.context.json) — the reprocess-free
         # consolidated content surface, rolled up from GI/KG + metadata after KG. Best-effort; a
         # digest failure never blocks the episode (the graph remains the source of truth).
         try:

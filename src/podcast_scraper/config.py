@@ -936,9 +936,9 @@ class Config(BaseModel):
         default="naming-4",
         alias="labeling_profile",
         description=(
-            "Versioned labeling profile ID (ADR-138) — the knob-bundle + per-fix feature flags "
+            "Versioned labeling profile ID (ADR-140) — the knob-bundle + per-fix feature flags "
             "that drive speaker naming/classification. 'naming-4' is production; 'naming-3-legacy' "
-            "turns the ADR-137 fixes + Pattern-B off for A/B. Recorded in the per-episode sidecar."
+            "turns the ADR-139 fixes + Pattern-B off for A/B. Recorded in the per-episode sidecar."
         ),
     )
     diarization_num_speakers: Optional[int] = Field(
@@ -1232,7 +1232,7 @@ class Config(BaseModel):
         le=1.0,
         alias="transcription_speech_coverage_min",
         description=(
-            "ADR-129 speech-normalized quality gate. Like transcription_coverage_min, but the "
+            "ADR-131 speech-normalized quality gate. Like transcription_coverage_min, but the "
             "denominator is the diarizer's SPEECH duration (Σ merged diarization segments), not "
             "total audio — so music/ads/silence do not count as dropped speech. When a diarized "
             "transcript's Σ(segments)/Σ(diarization speech) is below this, re-transcribe on "
@@ -1246,7 +1246,7 @@ class Config(BaseModel):
         default=None,
         alias="transcription_coverage_failover_model",
         description=(
-            "ADR-123/ADR-129: the model to re-transcribe with when coverage falls below "
+            "ADR-123/ADR-131: the model to re-transcribe with when coverage falls below "
             "transcription_coverage_min OR transcription_speech_coverage_min. Interpreted by "
             "transcription_coverage_failover_provider (a whisper model id for the DGX whisper "
             "service, or a MOSS model id when the provider is 'moss'). None = no failover."
@@ -2602,7 +2602,7 @@ class Config(BaseModel):
         le=100,
         alias="gi_surface_default_limit",
         description=(
-            "ADR-133/#1191 §6: the shared read-time default for how many insights a surface shows "
+            "ADR-135/#1191 §6: the shared read-time default for how many insights a surface shows "
             "before 'show more'. Consumers sort by `salience` desc, exclude `routing_tag=drop`, "
             "and cap at this N (per topic for player/viewer lists; per episode on the detail "
             "view). Per-surface overrides: player 6 (surface-tagged only), operator viewer 12 (all "
@@ -4095,7 +4095,7 @@ class Config(BaseModel):
     @field_validator("labeling_profile", mode="after")
     @classmethod
     def _validate_labeling_profile(cls, value: str) -> str:
-        """ADR-138: a labeling profile ID must be registered. A typo ("naming-3-legac") must fail
+        """ADR-140: a labeling profile ID must be registered. A typo ("naming-3-legac") must fail
         HERE, not silently fall back to naming-4 and mislabel a whole run (F6, advisor review). Lazy
         import — config is imported by the diarization package, so a top-level import would cycle.
         """

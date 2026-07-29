@@ -630,7 +630,7 @@ def _save_asr_provenance_file(
     rel_transcript_path: str,
     effective_output_dir: str,
 ) -> None:
-    """ADR-129: record the ACTUAL per-episode ASR model + speech coverage next to the transcript.
+    """ADR-131: record the ACTUAL per-episode ASR model + speech coverage next to the transcript.
 
     ``<base>.asr.json``. The pipeline otherwise records only the CONFIGURED transcription model, so
     a speech-coverage failover (turbo -> large-v3) left no per-episode trace of which model actually
@@ -675,13 +675,13 @@ def _write_processing_manifest(
     asr_elapsed: Optional[float] = None,
     asr_call_metrics: Any = None,
 ) -> None:
-    """RFC-109 / ADR-130: write the per-episode processing manifest's ASR/diarization/naming blocks.
+    """RFC-109 / ADR-132: write the per-episode processing manifest's ASR/diarization/naming blocks.
 
     Each block is built from that stage's OWN result fields (never from ``cfg``) at the one site
-    where all three results are in hand. Complements ``metadata.json`` (ADR-131). Best-effort — a
+    where all three results are in hand. Complements ``metadata.json`` (ADR-133). Best-effort — a
     manifest write never fails the episode. The downstream stages (summary / GI / KG) append their
     own blocks to the same manifest from ``metadata_generation._write_downstream_manifest_blocks``.
-    ``.asr.json`` stays (ADR-131 write-both migration) until readers move to the manifest.
+    ``.asr.json`` stays (ADR-133 write-both migration) until readers move to the manifest.
     """
     if not isinstance(result, dict) or not rel_transcript_path:
         return
@@ -694,7 +694,7 @@ def _write_processing_manifest(
     # (like llm_cost events). Sourcing from cfg gave every manifest/event run_id=null (advisor #1).
     run_id = correlation.get_run_id() or getattr(cfg, "run_id", None)
 
-    # --- ASR: actual model + speech coverage + failover (ADR-129 provenance) ---
+    # --- ASR: actual model + speech coverage + failover (ADR-131 provenance) ---
     cov = result.get("asr_speech_coverage")
     failover = result.get("speech_coverage_failover")
     if cov is not None or failover:
@@ -783,7 +783,7 @@ def _write_processing_manifest(
                 "truly_unknown": summary.get("truly_unknown"),
                 "unattributed_talk_share": summary.get("unattributed_talk_share"),
                 "by_voice_type": summary.get("by_voice_type"),
-                # ADR-133/#1220: the labeling OUTPUT — real speakers exposed to GI/KG after
+                # ADR-135/#1220: the labeling OUTPUT — real speakers exposed to GI/KG after
                 # cameo/commercial cleanup, split named vs Voice (unresolved). Lets the sidecar
                 # answer the clean named-vs-Voice rate without opening the graph.
                 "exposed": summary.get("exposed"),
@@ -1887,7 +1887,7 @@ def _relabel_existing_transcript(
         metadata_named=job.metadata_named,
         precomputed_diarization=diar,
         feed_hosts=feed_hosts,
-        # ADR-135 — title + description feed the LLM's host/guest role determination and gate
+        # ADR-137 — title + description feed the LLM's host/guest role determination and gate
         # role-only resolution. FULL passes both; relabel_only omitting them resolved on a strictly
         # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
         episode_title=job.ep_title,
@@ -2136,7 +2136,7 @@ def _maybe_speech_coverage_failover(
     pipeline_metrics: Any,
     episode_duration_seconds: Optional[float],
 ) -> Dict[str, Any]:
-    """ADR-129: re-transcribe on the failover model when the diarized transcript covers too little
+    """ADR-131: re-transcribe on the failover model when the diarized transcript covers too little
     of the diarizer's SPEECH.
 
     ``speech_coverage = Σ(transcript segments) / Σ(diarization speech)`` (both merged). Unlike the
@@ -2167,10 +2167,10 @@ def _maybe_speech_coverage_failover(
     result["asr_speech_coverage"] = round(speech_cov, 3)
     primary_model = getattr(cfg, "dgx_whisper_model", None)
     if speech_cov >= min_cov:
-        # Observable pass (ADR-129): log every evaluation so a run shows the gate ran + its
+        # Observable pass (ADR-131): log every evaluation so a run shows the gate ran + its
         # coverage, not only the rare failover ("the gate works, it just didn't need to fire").
         logger.info(
-            "[%s] speech coverage %.1f%% >= %.1f%% — keeping primary %r (ADR-129 gate passed)",
+            "[%s] speech coverage %.1f%% >= %.1f%% — keeping primary %r (ADR-131 gate passed)",
             job.idx,
             speech_cov * 100,
             min_cov * 100,
@@ -2180,7 +2180,7 @@ def _maybe_speech_coverage_failover(
 
     logger.info(
         "[%s] speech coverage %.1f%% < %.1f%% — primary %r dropped real speech; "
-        "re-transcribing on failover model %s (ADR-129)",
+        "re-transcribing on failover model %s (ADR-131)",
         job.idx,
         speech_cov * 100,
         min_cov * 100,
@@ -2465,7 +2465,7 @@ def transcribe_media_to_text(
                     metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                     feed_hosts=job.feed_hosts,
-                    # ADR-135 — title + description feed the LLM's host/guest role determination.
+                    # ADR-137 — title + description feed the LLM's host/guest role determination.
                     episode_title=job.ep_title,
                     episode_description=getattr(job.episode, "description", None),
                 )
@@ -2483,7 +2483,7 @@ def transcribe_media_to_text(
                     format_exception_for_log(exc),
                 )
                 _capture_stage_exception(exc, stage="diarization")
-            # ADR-129: speech-normalized quality gate — re-transcribe on the failover model if the
+            # ADR-131: speech-normalized quality gate — re-transcribe on the failover model if the
             # diarized transcript covers too little of the diarizer's SPEECH (music/ads excluded).
             # No-op unless configured + diarization produced a speech denominator.
             result = _maybe_speech_coverage_failover(
@@ -2507,7 +2507,7 @@ def transcribe_media_to_text(
             text, job, run_suffix, effective_output_dir, pipeline_metrics=pipeline_metrics
         )
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
-        # ADR-129: per-episode ASR provenance (actual model + speech coverage), incl. any failover.
+        # ADR-131: per-episode ASR provenance (actual model + speech coverage), incl. any failover.
         _save_asr_provenance_file(result, cfg, rel_path, effective_output_dir)
         segments = result.get("segments") if isinstance(result, dict) else None
         if isinstance(segments, list) and len(segments) > 0:
@@ -2540,7 +2540,7 @@ def transcribe_media_to_text(
         # o11y P1: roll this episode's diarization stats into run-level metrics (see helper).
         _record_episode_diarization(pipeline_metrics, result)
 
-        # RFC-109 / ADR-130: per-episode processing manifest (ASR/diarization/naming stage blocks).
+        # RFC-109 / ADR-132: per-episode processing manifest (ASR/diarization/naming stage blocks).
         # After metrics recording so the ASR ``estimated_cost`` (cloud providers) is populated.
         _write_processing_manifest(
             result,

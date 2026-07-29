@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR-133/#1220 — upgrade ``tests/fixtures/viewer-validation-corpus`` GI artifacts to v3.1.
+"""ADR-135/#1220 — upgrade ``tests/fixtures/viewer-validation-corpus`` GI artifacts to v3.1.
 
 Every ``.gi.json`` in the validation corpus carries its unresolved diarization
 speakers as ``Person`` nodes with ``person:speaker-NN`` ids (see

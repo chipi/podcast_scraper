@@ -317,7 +317,7 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
 
 
 def _rank_for_display(insights: list[AppInsight]) -> list[AppInsight]:
-    """ADR-133/#1191: drop `drop`-tagged, sort by salience desc (stable for ties / pre-3.1)."""
+    """ADR-135/#1191: drop `drop`-tagged, sort by salience desc (stable for ties / pre-3.1)."""
     kept = [i for i in insights if i.routing_tag != "drop"]
     kept.sort(key=lambda i: i.salience if i.salience is not None else 0.0, reverse=True)
     return kept

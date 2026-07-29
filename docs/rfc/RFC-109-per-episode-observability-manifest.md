@@ -3,10 +3,10 @@
 **Status:** Draft
 **Date:** 2026-07-27
 **Tracking issue:** [#1337](https://github.com/chipi/podcast_scraper/issues/1337)
-**Depends on / relates to:** [ADR-130](../adr/ADR-130-per-episode-processing-manifest-schema.md)
-(manifest schema + versioning), [ADR-131](../adr/ADR-131-metadata-vs-manifest-source-of-truth.md)
+**Depends on / relates to:** [ADR-132](../adr/ADR-132-per-episode-processing-manifest-schema.md)
+(manifest schema + versioning), [ADR-133](../adr/ADR-133-metadata-vs-manifest-source-of-truth.md)
 (metadata.json vs manifest source of truth), [ADR-123](../adr/ADR-123-quality-gate-transcription-failover.md)
-/ [ADR-129](../adr/ADR-129-speech-normalized-coverage-gate.md) (the ASR gate whose provenance seeded
+/ [ADR-131](../adr/ADR-131-speech-normalized-coverage-gate.md) (the ASR gate whose provenance seeded
 this), the prod-v2.x reprocess arc (#1190).
 
 ## Context — the operating model this enables
@@ -32,7 +32,7 @@ time:
   title but fail to place it on a voice?
 - What did each episode cost, by stage and provider? Which feeds are expensive?
 - Which episodes were produced by an **older version** of a stage's logic (e.g. naming before
-  ADR-128), so we can reprocess exactly those after we ship an improvement?
+  ADR-130), so we can reprocess exactly those after we ship an improvement?
 
 ## What exists today (and why it is not enough)
 
@@ -42,7 +42,7 @@ is a queryable, complete, versioned record:
 - `metadata.json` `content` block: `detected_hosts` / `detected_guests` / `speakers` / `qa_flags`.
 - `metadata.json` `processing` block: `config_snapshot`, `stage_timings`, `run_id`.
 - `.speakers.diagnostics.json`: the roster's per-voice reasoning + `unattributed_talk_share` + alarms.
-- `.asr.json` (ADR-129): the actual ASR model + speech coverage + failover breadcrumb.
+- `.asr.json` (ADR-131): the actual ASR model + speech coverage + failover breadcrumb.
 - a per-run `cost` JSONL: one `llm_cost` event per LLM call.
 
 The gaps that make this un-runnable as an operating model:
@@ -63,7 +63,7 @@ The gaps that make this un-runnable as an operating model:
 ### 1. A per-episode **processing manifest** — the observability contract
 
 One canonical, versioned, queryable record per episode describing **how it was produced**, written
-by the stages themselves. Schema + versioning are specified in **ADR-130**. Three parts:
+by the stages themselves. Schema + versioning are specified in **ADR-132**. Three parts:
 
 - **Provenance** — pipeline version, and per stage `{ran, skipped, method, method_version, model,
   duration_s, cost_usd, warnings}`, with the **actual** model/config, not the configured one.
@@ -83,16 +83,16 @@ ever written from `cfg`. A field nobody owns does not exist. This is the discipl
 
 ### 3. Versioning is non-negotiable, from day one
 
-Versioning is **layered** (ADR-130 §Convention 2), because "which code ran?" and "which episodes
+Versioning is **layered** (ADR-132 §Convention 2), because "which code ran?" and "which episodes
 need re-running after I changed one stage?" are different questions:
 
 - **`git_sha` (+ dirty)** — captured at runtime, the exact code. The precise ground-truth backstop,
   but opaque and noisy, so not the query key.
 - **`pipeline_version`** — a semantic version of the **stage composition** (which stages, in what
-  order); bumped on a re-wire like moving the ASR gate downstream of diarization (ADR-129), which no
+  order); bumped on a re-wire like moving the ASR gate downstream of diarization (ADR-131), which no
   single stage's version captures.
 - per-stage **`method_version`** — bumped when a stage's **logic** changes (naming → a new version
-  after ADR-128 + 2a/3; the ASR gate → a version per metric change). This is the **query key**: it is
+  after ADR-130 + 2a/3; the ASR gate → a version per metric change). This is the **query key**: it is
   what makes "ship an improvement, then reprocess *exactly* the episodes produced by the old logic" a
   targeted query rather than an over-selecting sweep or a guess.
 
@@ -106,7 +106,7 @@ model actually lives.
 
 ### 5. Relationship to `metadata.json` — no duplication, clear source of truth
 
-Specified in **ADR-131**. In short: `metadata.json` is the **product** record (what the episode *is*
+Specified in **ADR-133**. In short: `metadata.json` is the **product** record (what the episode *is*
 — transcript, summary, entities, the resolved hosts/guests a consumer reads); the **manifest** is
 the **process/observability** record (how it was produced — provenance, quality, versions, cost, an
 operator/analyst reads). Provenance that lives in `metadata.processing` today
@@ -115,11 +115,11 @@ back-reference; product fields stay in `metadata`. The migration is staged so no
 
 ## Phased rollout
 
-1. **Manifest sidecar.** Generalize the ADR-129 `.asr.json` into a per-episode `.manifest.json`,
+1. **Manifest sidecar.** Generalize the ADR-131 `.asr.json` into a per-episode `.manifest.json`,
    stage-owned, versioned. (Seed already exists.)
 2. **Ledger.** Append a flattened row per episode into a corpus `manifest.jsonl`; a tiny query helper
    (DuckDB) for the morning-after workflow.
-3. **Metadata SoT migration.** Move provenance out of `metadata.processing` per ADR-131; deprecate
+3. **Metadata SoT migration.** Move provenance out of `metadata.processing` per ADR-133; deprecate
    the duplicated fields on a version boundary.
 4. **Dashboard / query surface.** Expose the ledger to the operator viewer / an observability tool
    for correlation. (Separate RFC when we get there.)
@@ -128,9 +128,9 @@ back-reference; product fields stay in `metadata`. The migration is staged so no
 
 - Not a real-time metrics/tracing system (Prometheus/OTel) — this is a **per-episode, post-hoc**
   record for introspection and targeted reprocessing, not live SRE telemetry.
-- Not a replacement for `metadata.json` — the two are complementary (ADR-131).
+- Not a replacement for `metadata.json` — the two are complementary (ADR-133).
 - Not chasing per-episode correctness — the manifest measures quality; it does not gate on it (the
-  ASR failover is the one place a metric drives an action, and that stays owned by ADR-129).
+  ASR failover is the one place a metric drives an action, and that stays owned by ADR-131).
 
 ## Why now (v2.4 / v2.5)
 

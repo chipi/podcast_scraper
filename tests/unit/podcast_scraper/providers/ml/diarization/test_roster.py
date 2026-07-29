@@ -269,7 +269,7 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
             "person": {"count": 1, "talk_s": 60.0, "talk_share": 0.15},
             "unidentified": {"count": 1, "talk_s": 340.0, "talk_share": 0.85},
         },
-        # Labeling OUTPUT (ADR-133/#1220): both voices are real (no cameo/commercial), so both are
+        # Labeling OUTPUT (ADR-135/#1220): both voices are real (no cameo/commercial), so both are
         # exposed to GI/KG — HOST named, SPEAKER_01 an unidentified Voice.
         "exposed": {
             "speakers": 2,
@@ -285,7 +285,7 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         # 85% of the episode is attributed to nobody — recorded as a trace
         # (`unattributed_talk_share`) so the sidecar carries the full picture — but it is all
         # `unidentified` TAPE, nobody we could have named, so the DEFECT share is 0 and the alarm
-        # does NOT fire (ADR-137 / Pattern B). A
+        # does NOT fire (ADR-139 / Pattern B). A
         # vox-pop nobody introduces is not our failure. `unbound_names` is empty: nobody to go find.
         "unattributed_talk_share": 0.85,
         "unattributed_defect_share": 0.0,
@@ -308,7 +308,7 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
 
 
 def test_pattern_b_bounds_defect_to_spare_name_count() -> None:
-    # ADR-137 / Pattern B: 2 unbound metadata names can explain at most 2 missed voices. The 2
+    # ADR-139 / Pattern B: 2 unbound metadata names can explain at most 2 missed voices. The 2
     # most-substantive unnamed voices are `unknown` (defect); the rest are `unidentified` TAPE, so a
     # narrated desk's random inserts stop reading as "we should have named this".
     diar = _diar(
@@ -384,7 +384,7 @@ def test_voice_type_cameo_commercial_and_unknown() -> None:
 
 
 def test_exposed_output_excludes_cameo_and_commercial_noise_1220() -> None:
-    """ADR-133/#1220: the labeling OUTPUT surface is what reaches GI/KG after cleanup.
+    """ADR-135/#1220: the labeling OUTPUT surface is what reaches GI/KG after cleanup.
 
     Raw diarization here has FOUR voices, but two are noise (cameo + commercial) that never
     become graph nodes. ``summary.exposed`` reports only the two real speakers — HOST (named
@@ -736,7 +736,7 @@ def test_a_quoted_greeting_by_a_non_host_never_force_names_a_voice() -> None:
 
 
 def test_asr_mangled_guest_snaps_to_metadata_stated_name() -> None:
-    # ADR-128 (IMPLEMENT 1): the guest snap, symmetric to the host snap. Turbo rendered the guest
+    # ADR-130 (IMPLEMENT 1): the guest snap, symmetric to the host snap. Turbo rendered the guest
     # "David Duvenaud" as "David Duvino" in his self-introduction; the episode metadata states the
     # correct spelling (title/description -> metadata_named). The provider-agnostic final pass snaps
     # the mangled published name to the stated guest by the same fuzzy rule the host path uses.
@@ -765,7 +765,7 @@ def test_asr_mangled_guest_snaps_to_metadata_stated_name() -> None:
 
 
 def test_guest_snap_never_steals_a_name_another_voice_already_holds() -> None:
-    # ADR-128 one-name-one-voice: a guest self-introducing "Kevin Ross" (ASR-close to the host
+    # ADR-130 one-name-one-voice: a guest self-introducing "Kevin Ross" (ASR-close to the host
     # "Kevin Roose") must NOT be snapped onto the host's name — the host already holds it. The snap
     # is reference-bounded AND claim-aware, so the guest keeps its own (distinct) name.
     diar = _diar([("HOST", 0, 30), ("GUEST", 30, 380), ("HOST", 380, 400)], 2)
@@ -787,7 +787,7 @@ def test_guest_snap_never_steals_a_name_another_voice_already_holds() -> None:
 
 
 def test_stated_snap_helpers_are_reference_bounded() -> None:
-    # ADR-128 unit: the snap can only ever return a name present in the stated set (never invents),
+    # ADR-130 unit: the snap can only ever return a name present in the stated set (never invents),
     # and _recover_stated_names respects one-name-one-voice.
     from dataclasses import replace
 
@@ -822,7 +822,7 @@ def test_stated_snap_helpers_are_reference_bounded() -> None:
 
 
 def test_snap_guards_exact_match_and_known_host_role_gate() -> None:
-    # ADR-128 hardening (Fable-5 review SEV-4 + SEV-3b).
+    # ADR-130 hardening (Fable-5 review SEV-4 + SEV-3b).
     from podcast_scraper.providers.ml.diarization.roster import (
         _recover_stated_names,
         SpeakerRole,

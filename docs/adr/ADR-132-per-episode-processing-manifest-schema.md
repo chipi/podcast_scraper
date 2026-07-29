@@ -1,12 +1,12 @@
-# ADR-130: Per-episode processing manifest — schema, stage ownership, and versioning
+# ADR-132: Per-episode processing manifest — schema, stage ownership, and versioning
 
 - **Status**: Proposed
 - **Date**: 2026-07-27
 - **Authors**: Marko Dragoljevic
 - **Related RFCs**: [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md) (the operating
   model this schema serves)
-- **Related ADRs**: [ADR-131](ADR-131-metadata-vs-manifest-source-of-truth.md) (metadata vs manifest
-  SoT), [ADR-129](ADR-129-speech-normalized-coverage-gate.md) (the `.asr.json` seed)
+- **Related ADRs**: [ADR-133](ADR-133-metadata-vs-manifest-source-of-truth.md) (metadata vs manifest
+  SoT), [ADR-131](ADR-131-speech-normalized-coverage-gate.md) (the `.asr.json` seed)
 
 ## Context & Problem Statement
 
@@ -20,9 +20,9 @@ re-migrating 100k episodes is expensive.
 
 ### The artifact
 
-A per-episode `<transcript-base>.manifest.json` sidecar (generalizing the ADR-129 `.asr.json`),
+A per-episode `<transcript-base>.manifest.json` sidecar (generalizing the ADR-131 `.asr.json`),
 plus a flattened row appended to a corpus-level `manifest.jsonl` ledger (RFC-109 §4). The manifest
-is the **source of truth for how the episode was processed** (ADR-131).
+is the **source of truth for how the episode was processed** (ADR-133).
 
 ### Schema (v1)
 
@@ -39,7 +39,7 @@ is the **source of truth for how the episode was processed** (ADR-131).
       "method_version": "asr-gate-1",
       "duration_s": 3.1, "cost_usd": 0.0,
       "metrics": { "speech_coverage": 0.935 },
-      "failover": null,                         // or the ADR-129 speech_coverage_failover breadcrumb
+      "failover": null,                         // or the ADR-131 speech_coverage_failover breadcrumb
       "warnings": []
     },
     "diarization": {
@@ -49,7 +49,7 @@ is the **source of truth for how the episode was processed** (ADR-131).
       "warnings": []
     },
     "naming": {
-      "ran": true, "method_version": "naming-3",   // bumped at ADR-128 + audit 2a/3
+      "ran": true, "method_version": "naming-3",   // bumped at ADR-130 + audit 2a/3
       "metrics": {
         "hosts_detected": 2, "hosts_named": 2,
         "guests_detected": 3, "guests_named": 2,
@@ -96,11 +96,11 @@ ran?"* and *"which episodes need re-running after I change this one stage?"*. So
    not the query key.
 2. **`pipeline_version` — the composition.** A short semantic version of the **stage graph**: which
    stages run and in what order. It is bumped when the pipeline is **re-wired**, not when a stage's
-   internals change — moving the ASR gate downstream of diarization (ADR-129) is exactly this, and no
+   internals change — moving the ASR gate downstream of diarization (ADR-131) is exactly this, and no
    single stage's `method_version` captures it. Derivable as a hash of the ordered stage list so it
    changes automatically on a re-wire, with a human alias.
 3. **per-stage `method_version` — the logic, and the query key.** A short string each stage bumps
-   **when its own logic changes**, not when config changes (naming: `naming-3` after ADR-128 + 2a/3;
+   **when its own logic changes**, not when config changes (naming: `naming-3` after ADR-130 + 2a/3;
    ASR gate: a version per metric change).
 
 **Why all three, and why the per-stage one is the query key.** Reprocessing is *targeted*: after
@@ -151,7 +151,7 @@ A flat, corpus-queryable list of the weak-signal conditions each stage emits: `a
 
 ## Consequences
 
-- The `.asr.json` sidecar becomes `stages.asr` of the manifest; ADR-129's provenance is subsumed.
+- The `.asr.json` sidecar becomes `stages.asr` of the manifest; ADR-131's provenance is subsumed.
 - Cost moves from a per-run JSONL join to a per-episode `cost_usd` roll-up (the JSONL stays as the
   fine-grained event log).
 - The ledger enables the RFC-109 morning-after workflow without bespoke scripts.
@@ -159,4 +159,4 @@ A flat, corpus-queryable list of the weak-signal conditions each stage emits: `a
 ## Non-Goals
 
 - Not a metrics/tracing backend — a per-episode post-hoc record, not live telemetry.
-- Not a gate — the manifest measures; only ADR-129's ASR failover acts on a metric.
+- Not a gate — the manifest measures; only ADR-131's ASR failover acts on a metric.

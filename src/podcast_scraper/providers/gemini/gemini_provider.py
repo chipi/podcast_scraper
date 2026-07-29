@@ -1990,7 +1990,7 @@ class GeminiProvider:
             contents=prompt,
             config=cast(Any, generation_config),
         )
-        # Observability (ADR-135): this is a real per-episode gemini call — the speaker naming +
+        # Observability (ADR-137): this is a real per-episode gemini call — the speaker naming +
         # host/guest role determination. Emit its usage so the stage is not invisible and unbilled:
         # tokens (ground truth) land in VictoriaLogs and a `speaker_resolution:<model>` Langfuse
         # span is created, exactly like summarization/gi. Telemetry must never break the call.

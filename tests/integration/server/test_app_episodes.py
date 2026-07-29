@@ -258,7 +258,7 @@ def test_insights_endpoint_returns_grounded(tmp_path: Path) -> None:
 
 
 def test_insights_endpoint_carries_ranking_fields(tmp_path: Path) -> None:
-    # ADR-133/#1191: the response schema exposes salience/rank/routing_tag/tier (None when the
+    # ADR-135/#1191: the response schema exposes salience/rank/routing_tag/tier (None when the
     # artifact predates 3.1, but the keys must serialize so clients can sort/filter).
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)
@@ -267,7 +267,7 @@ def test_insights_endpoint_carries_ranking_fields(tmp_path: Path) -> None:
 
 
 def test_insights_endpoint_limit_zero_returns_empty(tmp_path: Path) -> None:
-    # ADR-133/#1191: the `limit` query param is wired end-to-end through insights_from_gi.
+    # ADR-135/#1191: the `limit` query param is wired end-to-end through insights_from_gi.
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/insights?limit=0").json()
@@ -275,7 +275,7 @@ def test_insights_endpoint_limit_zero_returns_empty(tmp_path: Path) -> None:
 
 
 def test_insights_endpoint_positive_limit_returns_top_n_by_salience(tmp_path: Path) -> None:
-    # ADR-133/#1191: a POSITIVE ?limit caps to the top-N AFTER the salience-desc sort, through the
+    # ADR-135/#1191: a POSITIVE ?limit caps to the top-N AFTER the salience-desc sort, through the
     # real HTTP path. Only limit=0 and the uncapped default (single insight) were covered — neither
     # could distinguish "sort then cap" from "cap in extraction order". Extraction order here is
     # lo, hi, mid; a correct endpoint returns hi, mid, lo (and ?limit=2 -> hi, mid).

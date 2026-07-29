@@ -19,7 +19,7 @@ Fixed (with repro-before-fix tests)
 | **F1** (blocking) | `_metadata_anchored_self_intro` scanned the WHOLE voice text (siblings bound to 5000 chars) and its match-form `this is <Name>` cue accepted a fuzzy surname — "this is sam altman's company" bound **Sam Altman** to the speaker; fires corpus-wide on lowercase turbo. | Head-bound the scan to `[:5000]`; **dropped `this is`** from `_SELF_INTRO_MATCHFORM` (its capitalized sibling `extract_self_introduced_host` is "I'm"-only for this exact reason). Tests: `test_f1_third_person_this_is_never_self_binds`, `test_f1_self_intro_scan_is_head_bounded`. |
 | **F2** | First-name-only cue binding ran ungated on every turn and fell through to a bare-first-name bind even when the span carried a contradicting surname — "here with akshat kanaparthy" bound stated "Akshat Bubna". | Gated the first-name-only relaxation to **host-hint introducer turns**; added `_span_has_contradicting_surname` so a real surname after the first name refuses the relaxation. "here with akshat of moto" (affiliation) still binds. Tests: `test_f2_first_name_only_declines_on_contradicting_surname`, `test_f2_first_name_only_declines_from_non_host_turn`. |
 | **F3** | `_intro_reader_voice_names` applied the host-ward canonicalization (nickname-as-exact + surname edit ≤ 3) with no role gate — a guest introduced as "Rich Perkins" could be renamed to host "Richard Parker". | Snap toward a known host only when the target voice is itself a host voice (`conv_hosts`) — mirrors the guard `_recover_stated_names` already applies. Guests still canonicalize to the stated **person**. |
-| **F5** | `cameo_max_talk_s` is declared on `LabelingProfile` but read nowhere (roster uses the module constant `CAMEO_MAX_TALK_S` at four sites); ADR-138 claimed roster reads all tunables from the profile — doc-vs-code divergence. | Amended ADR-138 to state accurately what is profile-driven now (the ADR-137 feature flags + alarm threshold) vs the tier-2 scalar-extraction follow-up (cameo/tape floors, intro/co-host windows); marked the knob NOT-YET-CONSUMED in-code. Default equals the constant → no behaviour change. Full wiring is the tier-2 target. |
+| **F5** | `cameo_max_talk_s` is declared on `LabelingProfile` but read nowhere (roster uses the module constant `CAMEO_MAX_TALK_S` at four sites); ADR-140 claimed roster reads all tunables from the profile — doc-vs-code divergence. | Amended ADR-140 to state accurately what is profile-driven now (the ADR-139 feature flags + alarm threshold) vs the tier-2 scalar-extraction follow-up (cameo/tape floors, intro/co-host windows); marked the knob NOT-YET-CONSUMED in-code. Default equals the constant → no behaviour change. Full wiring is the tier-2 target. |
 | **F6** | Unknown `labeling_profile` id warned and fell back to naming-4 — a typo'd A/B run would silently produce naming-4 data. | Added a fail-fast Config `field_validator` (`_validate_labeling_profile`) that rejects an unregistered id at construction. The pipeline fallback stays as defense-in-depth. Test: `test_labeling_profile_validator_rejects_unregistered_id`. |
 | **Q3** | In `relabel_only`, `feed_hosts` came only from the stored sibling metadata (deterministic parse); when the sibling is missing it returned `[]` — the worst anchor state — while the live `job.feed_hosts` was computed and discarded. | Keep the **freeze** (reproducible relabel), but fall back to live `job.feed_hosts` **only when the sibling is missing/empty**; log any sibling-vs-live divergence to inform a future freeze-vs-live decision. Test: `test_relabel_feed_hosts_falls_back_to_live_when_sibling_missing`. Also fixed the prompt-parity half separately (BUG#1: title/description). |
 
@@ -89,18 +89,18 @@ covered the rest and found more (all fixed):
   `first_names_match("Alexander","Alexandra")` and `("Jonathan","John")` returned True. Split each
   into two groups sharing only the ambiguous short form. Pat/Ted verified surname-safe (the formal
   names never cross-match). *(97fbb2db)*
-- **Dead `episode_description`** (correctness): `Episode` had no `description` field, so the ADR-135
+- **Dead `episode_description`** (correctness): `Episode` had no `description` field, so the ADR-137
   role prompt only ever saw the title — in BOTH the relabel fix and the pre-existing full path. Added
   the field + populated it from the per-item `<description>`. *(97fbb2db)*
-- **Two dead profile knobs** (ADR-138 integrity): `nickname_fuzzy_binding` + `cameo_max_talk_s` were
+- **Two dead profile knobs** (ADR-140 integrity): `nickname_fuzzy_binding` + `cameo_max_talk_s` were
   declared but unread, so a naming-3-legacy A/B would not have isolated them. Both now wired from the
   profile with A/B tests proving the flip; naming-4 unchanged (defaults == prior constants).
   *(2302718f)*
 - **Small fixes:** recap-marker lookback widened 25→40 chars; the dead `UNATTRIBUTED_TALK_ALARM`
   constant removed; F3 host-snap role-gate + Q3 divergence-log test gaps closed. *(e383943d)*
-- **Doc drift** (this doc + ADR-137/138): ADR-137's match recipe corrected (NFKD, not NFKC), adopter
+- **Doc drift** (this doc + ADR-139/138): ADR-139's match recipe corrected (NFKD, not NFKC), adopter
   scope narrowed to roster (resolution.py is a follow-up), provider-surface declaration marked
-  deferred; ADR-138 updated to reflect the two now-consumed knobs.
+  deferred; ADR-140 updated to reflect the two now-consumed knobs.
 
 Post-review follow-ups landed before push:
 

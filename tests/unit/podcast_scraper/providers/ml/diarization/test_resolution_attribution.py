@@ -1,4 +1,4 @@
-"""Attribution metric (ADR-135): how much of the final naming/role came from the LLM vs the
+"""Attribution metric (ADR-137): how much of the final naming/role came from the LLM vs the
 deterministic cues, measured by diffing a pure-cue baseline roster against the shipped roster."""
 
 from __future__ import annotations

@@ -415,7 +415,7 @@ _GUEST_SPEECH_ACTS = [
 # The host also often names TWO, each behind their employer's possessive: "My guests today are Red
 # Hat's Chris Wright and NVIDIA's Justin Boitano" — which a single greedy capture turned into one
 # person with that entire string as their name.
-# The cue vocabularies are factored into shared bodies (ADR-137) so the case-blind, metadata-
+# The cue vocabularies are factored into shared bodies (ADR-139) so the case-blind, metadata-
 # anchored variants (roster.py `_voice_named_by_the_introduction`) are built from the SAME words and
 # cannot drift from these capitalized forms.
 #
@@ -450,7 +450,7 @@ _GUEST_INTRODUCED_BY_HOST = re.compile(
 #
 # The cue still has to be there — the name alone proves nothing, or every person an episode
 # discusses becomes a speaker. It is the cue that makes it an introduction.
-# Name-first tail (ADR-137). The last two lines are narrated-desk report verbs — "…Farnaz Fassihi
+# Name-first tail (ADR-139). The last two lines are narrated-desk report verbs — "…Farnaz Fassihi
 # explain…", "Eric Schmitt talks us through…", "Sydney Baloue reports…". Host-gated (only read on a
 # host-hint voice), so a topical "X explains that…" in a guest's own answer does not reclaim a name.
 # Intro tails ("Jia Li is with us", "…joins me"): a first-person address, safe to resolve against
@@ -672,7 +672,7 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
 
 
 def is_publishable_speaker_name(name: Optional[str]) -> bool:
-    """Final reject filter for a name about to be painted on a diarized voice (ADR-132 shared core).
+    """Final reject filter for a name about to be painted on a diarized voice (ADR-134 shared core).
 
     Every extraction path (self-intro, host-pool, greeting reader, strategy snap, LLM, metadata)
     converges on the roster; a name that carries a sentence-opener the ASR capitalised at a turn

@@ -25,7 +25,7 @@ def bridge_json_path_adjacent_to_metadata(metadata_path: str) -> str:
 
 
 def context_json_path_adjacent_to_metadata(metadata_path: str) -> str:
-    """Sibling ``*.context.json`` for a metadata document path (ADR-134); bridge stem rule."""
+    """Sibling ``*.context.json`` for a metadata document path (ADR-136); bridge stem rule."""
     mp = metadata_path
     for suffix in (".metadata.json", ".metadata.yaml", ".metadata.yml"):
         if mp.endswith(suffix):
@@ -37,7 +37,7 @@ def context_json_path_adjacent_to_metadata(metadata_path: str) -> str:
 
 
 def context_path_next_to_gi_json(gi_path: Path) -> Path:
-    """Sibling ``*.context.json`` for ``*.gi.json`` (ADR-134)."""
+    """Sibling ``*.context.json`` for ``*.gi.json`` (ADR-136)."""
     name = gi_path.name
     if name.endswith(".gi.json"):
         return gi_path.with_name(name[: -len(".gi.json")] + ".context.json")

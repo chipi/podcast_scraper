@@ -1,4 +1,4 @@
-"""Unit tests for the per-episode processing manifest (RFC-109 / ADR-130).
+"""Unit tests for the per-episode processing manifest (RFC-109 / ADR-132).
 
 Covers the module contract (stage-block shape, layered versioning, read-modify-write accumulation,
 quality-flag dedup, cost roll-up) and the ``episode_processor`` wiring that writes the ASR /

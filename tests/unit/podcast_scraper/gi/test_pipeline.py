@@ -42,7 +42,7 @@ class TestGILPipeline:
         validate_artifact(out, strict=False)
 
     def test_insights_carry_tier_routing_tag_rank_salience_1191(self):
-        """ADR-133/#1191: every Insight node carries tier/routing_tag/salience/rank (route-and-tag,
+        """ADR-135/#1191: every Insight node carries tier/routing_tag/salience/rank (route-and-tag,
         never truncate); the emitted artifact is 3.1 and still validates."""
         out = build_artifact("ep:1", "Some transcript here.")
         assert out["schema_version"] == "3.1"
@@ -283,7 +283,7 @@ class TestGILPipeline:
         assert quote_nodes[0]["properties"]["text"] == "the proof"
 
     def test_resolve_insight_specs_non_empty_stripped_not_truncated_1191(self):
-        """ADR-133/#1191: bullet-derived insights are stripped but NEVER truncated — even with a low
+        """ADR-135/#1191: bullet-derived insights are stripped but NEVER truncated — even with a low
         gi_max_insights, every insight is stored (the ceiling is not a corpus cutoff; "first N" is a
         view-time decision). Single-letter inputs default to ``observation``.
         """

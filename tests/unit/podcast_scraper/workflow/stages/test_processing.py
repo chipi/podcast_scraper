@@ -318,7 +318,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
 
 @pytest.mark.unit
 class TestStatementFirstHostDetection(unittest.TestCase):
-    """ADR-128 / Fable-5 audit F2: statement-first host detection.
+    """ADR-130 / Fable-5 audit F2: statement-first host detection.
 
     EVERY LLM provider's `detect_hosts` short-circuits on an RSS author tag — it returns
     `set(feed_authors)` verbatim and never reads the description. For an org-authored feed that org

@@ -24,7 +24,7 @@ class DiarizationResult:
     model_name: str = ""
     # Per-episode diarization cost in USD. None/0.0 for local diarizers (pyannote/DGX/MOSS); cloud
     # diarizers (Deepgram/Gemini) set the billed cost so the processing manifest can record it
-    # (RFC-109 / ADR-130). Provider-agnostic: consumers read this field, not a provider specific.
+    # (RFC-109 / ADR-132). Provider-agnostic: consumers read this field, not a provider specific.
     cost_usd: Optional[float] = None
 
 
