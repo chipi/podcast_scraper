@@ -64,4 +64,16 @@ loki.process "podcast_denoise" {
 		expression          = "\"(GET|HEAD) /(api/(app/)?)?(health|metrics) HTTP/1[^\"]*\" 2"
 		drop_counter_reason = "healthcheck_noise"
 	}
+
+	// homelab log standard (agentic-ai-homelab/infra/observability/LOG-STANDARD.md):
+	// extract the 32-hex trace id from a traceparent/sentry-trace pattern into
+	// structured_metadata (a queryable field, NOT a high-cardinality stream label).
+	// Inlined here (rather than referencing base's homelab_std) so this drop-in
+	// deploys independently of a base.alloy rollout.
+	stage.regex {
+		expression = "(?:00-)?(?P<trace_id>[a-f0-9]{32})-[a-f0-9]{16}"
+	}
+	stage.structured_metadata {
+		values = {trace_id = ""}
+	}
 }
