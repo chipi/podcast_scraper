@@ -13,7 +13,7 @@ insights the old top-5 cap cut (ranks 6–8) are as good as the top-5; the tail 
   `salience/rank/routing_tag/tier`. Gemini generated them.
 - Judge: **claude-sonnet-5** (cross-vendor — Gemini generated, so the judge is disjoint), scalar
   rubric 1–5 on SUBSTANCE (specific / informative / non-obvious). Text-only. Cost **$1.06**, 0 errors.
-- Harness: `scratchpad_insight_eval.py`. Reconstructs both arms (salience-topN vs extraction-topN)
+- Harness: `scripts/eval/insight_salience_eval.py`. Reconstructs both arms (salience-topN vs extraction-topN)
   from the one run — no baseline re-run needed, since de-truncation stores every insight + its rank.
 
 ## Results

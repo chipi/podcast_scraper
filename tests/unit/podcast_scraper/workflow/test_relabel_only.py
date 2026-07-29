@@ -179,6 +179,60 @@ def test_relabel_reads_speaker_label_anonymizes_and_canonicalizes(tmp_path: Path
     assert "Kevin Russo:" not in out
 
 
+def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """relabel_only must hand the roster the SAME episode title/description a FULL run does.
+
+    The structural half of the relabel!=full confound (root-cause #2): FULL passes
+    ``episode_title`` / ``episode_description`` into ``apply_diarization_to_result`` (ADR-135 — both
+    feed the LLM's host/guest role determination and gate role-only resolution), but relabel_only
+    passed neither, so every reprocess resolved on a strictly weaker prompt showing
+    "(not provided)". That is a deterministic divergence, independent of LLM sampling. Pin that
+    relabel forwards both, mirroring the FULL call site.
+    """
+    from podcast_scraper.providers.ml.diarization import pipeline as _pipe
+
+    captured: dict = {}
+
+    def _spy(result, media, cfg, detected, **kwargs):
+        captured.update(kwargs)
+        return result  # a valid result dict (text + segments) for the downstream render
+
+    monkeypatch.setattr(_pipe, "apply_diarization_to_result", _spy)
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    _write_corpus(
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00", "SPEAKER_01"],
+        texts=["Welcome to the show. " * 40, "Glad to be here. " * 40],
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    job = TranscriptionJob(
+        idx=1,
+        ep_title="The Real Episode Title",
+        ep_title_safe="Ep",
+        temp_media="",
+        detected_speaker_names=None,
+        metadata_named=None,
+        episode=None,  # like FULL, description is getattr(episode, "description", None)
+    )
+
+    ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+
+    assert ok is True
+    # THE FIX: the episode title now reaches the roster (it was absent, so the LLM saw
+    # "(not provided)" where FULL showed the real title).
+    assert captured.get("episode_title") == "The Real Episode Title"
+    # And the description kwarg is forwarded (mirrors FULL's getattr; None when no episode), so the
+    # two call sites carry the identical resolution context — not a subset.
+    assert "episode_description" in captured
+
+
 def test_relabel_skips_when_no_segments_identity(tmp_path: Path) -> None:
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"

@@ -1870,6 +1870,11 @@ def _relabel_existing_transcript(
         metadata_named=job.metadata_named,
         precomputed_diarization=diar,
         feed_hosts=feed_hosts,
+        # ADR-135 — title + description feed the LLM's host/guest role determination and gate
+        # role-only resolution. FULL passes both; relabel_only omitting them resolved on a strictly
+        # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
+        episode_title=job.ep_title,
+        episode_description=getattr(job.episode, "description", None),
     )
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
