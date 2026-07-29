@@ -9,12 +9,11 @@ name: Deploy config (by surface)
 #   player   → player.caddy + player-telemetry.caddy + player-analytics.caddy + player.alloy
 #   operator → operator.caddy + operator.alloy   (operator sends telemetry/analytics to
 #              homelab directly over the tailnet — no public ingest vhost)
-#   orrery   → orrery.caddy + orrery-telemetry.caddy + orrery-analytics.caddy
-#              (orrerylearn.com; hardcoded, no templating). Owned HERE for now — own surface.
-#   all      → player + operator + orrery
+#   all      → player + operator
 #
-# Deferred (tracked separately — ADR-129): moving the orrery vhosts to the orrery repo. The
-# base Caddyfile stays in apply-edge.sh (root-owned, host-level).
+# orrery now owns + deploys its own vhosts from the orrery repo (ADR-114 tenant ownership;
+# ops/caddy + ops/deploy_caddy_vhosts.sh there) — it is no longer a surface here. The base
+# Caddyfile stays in apply-edge.sh (root-owned, host-level).
 #
 # Caddy: templated in the runner (domain + __*_PREVIEW_COOKIE__, same sed as the deploy
 # scripts) → scp → /etc/caddy/sites/ → `caddy validate` → `systemctl restart caddy` ONLY if
@@ -32,7 +31,7 @@ on:
       surface:
         description: "Which surface's config to deploy"
         type: choice
-        options: [player, operator, orrery, all]
+        options: [player, operator, all]
         required: true
       dry_run:
         description: "Stage + caddy validate only; no restart / no HUP"
@@ -145,10 +144,9 @@ jobs:
           #   <surface>.caddy (app) · <surface>-telemetry.caddy (GlitchTip) ·
           #   <surface>-analytics.caddy (Umami) · <surface>.alloy (logs).
           # player's telemetry/analytics ingest is player's (operator uses homelab-direct over
-          # the tailnet). orrery is owned here for now; the move to the orrery repo is deferred.
+          # the tailnet). orrery owns + deploys its own vhosts from the orrery repo now.
           if want player;   then CADDY_VHOSTS="$CADDY_VHOSTS player player-telemetry player-analytics"; ALLOY_FILES="$ALLOY_FILES player.alloy"; fi
           if want operator; then CADDY_VHOSTS="$CADDY_VHOSTS operator"; ALLOY_FILES="$ALLOY_FILES operator.alloy"; fi
-          if want orrery;   then CADDY_VHOSTS="$CADDY_VHOSTS orrery orrery-telemetry orrery-analytics"; fi
 
           echo "surface=$SURFACE dry_run=$DRY_RUN"
           echo "caddy vhosts: ${CADDY_VHOSTS:-(none)}"

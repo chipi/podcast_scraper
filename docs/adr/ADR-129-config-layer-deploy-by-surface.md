@@ -36,24 +36,21 @@ images.** Operator picks the surface; nothing else moves.
 | --- | --- | --- | --- |
 | **player** — the app + its own ingest | `player.caddy`, `player-telemetry.caddy` (→ GlitchTip), `player-analytics.caddy` (→ Umami) | `player.alloy` | `PLAYER_DOMAIN` + `PLAYER_PREVIEW_COOKIE`; `GLITCHTIP_UPSTREAM` (Caddy env, box-side) |
 | **operator** — the app | `operator.caddy` | `operator.alloy` | `OPERATOR_DOMAIN` + `OPERATOR_PREVIEW_COOKIE` |
-| **orrery** — orrery's vhosts, owned here for now | `orrery.caddy`, `orrery-telemetry.caddy` (→ GlitchTip), `orrery-analytics.caddy` (→ Umami) | — | none (hardcoded `orrerylearn.com`; `GLITCHTIP_UPSTREAM` env) |
 
 **Ownership principle (operator's rule):** each **app owns its own serving vhost, its own
 observability/analytics ingest vhosts, and its own log drop-in** — one aligned naming scheme
-per surface (`player-*`, `operator*`, `orrery-*`). There is no shared "infra" surface: the
-GlitchTip/Umami *engines* are homelab-owned, but each app's ingest *vhost* rides that app's
-surface. The operator surface consumes analytics/telemetry over the homelab tailnet directly,
-so it has no ingest vhost of its own.
+per surface (`player-*`, `operator*`). There is no shared "infra" surface: the GlitchTip/Umami
+*engines* are homelab-owned, but each app's ingest *vhost* rides that app's surface. The
+operator surface consumes analytics/telemetry over the homelab tailnet directly, so it has no
+ingest vhost of its own.
 
-**orrery is a temporary surface here.** orrery's Caddy routing currently lives + deploys from
-podcast_scraper (the shared-edge owner). Orrery's own repo (`agentic-ai-homelab`/orrery)
-deploys its *app* + its Alloy drop-in, but has **no** Caddy-vhost deploy today. So for now
-`deploy-config` owns and deploys the orrery vhosts as their **own surface** (full isolation —
-deploying orrery config never touches player/operator).
-
-**Deferred to a separate task** (do NOT conflate with this ADR): moving the orrery vhosts to
-the orrery repo (its routing per orrery's own edge-ownership ADR — requires building a vhost
-deploy there).
+**orrery owns its own routing (was a temporary surface here — now migrated).** orrery's Caddy
+vhosts (`orrery.caddy`, `orrery-telemetry.caddy`, `orrery-analytics.caddy`) briefly deployed
+from this repo as their own surface while orrery had no Caddy-vhost deploy. They now live in
+the orrery repo (`ops/caddy` + `ops/deploy_caddy_vhosts.sh`, shipped by orrery's
+`deploy-prod.yml`), consistent with ADR-114 tenant ownership — podcast_scraper owns the edge
+*engine*, each tenant owns its *routing*. The `orrery` surface has been removed from
+`deploy-config.yml`.
 
 **Mechanics:** the workflow templates each vhost in the runner (the domain rewrite + the
 `__*_PREVIEW_COOKIE__` secret, exactly as the deploy scripts' `sed`), scp's to the box, cp's
@@ -80,15 +77,16 @@ with the host-hardening path.
 
 **Positive:** a config change ships in seconds via one gated, surface-scoped workflow — no
 image, no compose recreate, no full-stack redeploy, minimal blast radius. Operator has full
-control (pick `player` / `operator` / `orrery` / `all`). One place for config-layer deploys.
+control (pick `player` / `operator` / `all`). One place for config-layer deploys.
 
 **Negative:** the vhost `sed` templating is now in two places until Phase 2 (the workflow +
 the app scripts) — a divergence risk, mitigated by Phase 2 removing it from the scripts.
 The base Caddyfile remains a separate path (`apply-edge`) — "Caddy config" isn't 100% in one
 place, but the permission boundary makes that the correct split.
 
-**Neutral:** orrery is a surface here **for now** — a temporary home until its routing moves
-to the orrery repo (the deferred task); deploying it is fully isolated from the podcast surfaces.
+**Neutral:** orrery was briefly a surface here while it had no Caddy-vhost deploy; its routing
+has since moved to the orrery repo (ADR-114 tenant ownership), so `deploy-config` now covers
+only podcast_scraper's own surfaces (player, operator).
 
 ## Alternatives considered
 

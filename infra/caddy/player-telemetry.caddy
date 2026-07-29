@@ -1,7 +1,7 @@
 # Player GlitchTip **ingest-only** vhost (ADR-114). Deploy (deploy-player.sh) seds the
 # real player domain in and drops this into /etc/caddy/sites/player-telemetry.caddy, then
-# restarts caddy. Mirrors orrery-telemetry.caddy (orrery's telemetry ingest) — same homelab
-# GlitchTip upstream, a separate GlitchTip PROJECT for the player.
+# restarts caddy. Mirrors orrery's telemetry ingest vhost (owned by the orrery repo) — same
+# homelab GlitchTip upstream, a separate GlitchTip PROJECT for the player.
 #
 # WHY: the player bundle's @sentry SDK POSTs errors from the *end user's* browser, which
 # can only reach public endpoints — never the tailnet-only GlitchTip on homelab:8090. This
@@ -12,7 +12,7 @@
 #
 # UPSTREAM: GlitchTip runs on **homelab** (tailnet), addressed via the caddy service env
 # var GLITCHTIP_UPSTREAM (injected by apply-edge, same as CADDY_BIND_ADDRS) — keeps the
-# tailnet IP out of the repo. Same upstream as orrery-telemetry.caddy.
+# tailnet IP out of the repo. Same upstream as orrery's telemetry ingest (in the orrery repo).
 #
 # Rollback: `rm /etc/caddy/sites/player-telemetry.caddy && sudo systemctl restart caddy`.
 telemetry.player.example.com {
