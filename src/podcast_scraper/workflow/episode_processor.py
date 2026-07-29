@@ -1861,7 +1861,24 @@ def _relabel_existing_transcript(
     # ("journalists Kevin Roose and Casey Newton explore..."). Feed it to the roster so an
     # ASR-garbled spoken surname ("Kevin Russo") canonicalizes to the feed's spelling. Read from
     # the sibling <run>/metadata/<name>.metadata.json; absence is non-fatal (relabel still runs).
-    feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    #
+    # Q3 (advisor review): keep the FROZEN sibling metadata as the host anchor — a relabel of a
+    # stored corpus must be reproducible, not track live feed drift. But when the sibling is
+    # missing/unreadable it silently returns [], the WORST anchor state, while the live detection
+    # (job.feed_hosts, statement + NER fallback + corroboration) was already computed — so fall back
+    # to it only then. Log any sibling-vs-live divergence so the freeze-vs-live choice can later be
+    # decided from data rather than assumption.
+    sibling_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    live_hosts = list(getattr(job, "feed_hosts", None) or [])
+    feed_hosts = sibling_hosts or live_hosts
+    if sibling_hosts and live_hosts and sorted(sibling_hosts) != sorted(live_hosts):
+        logger.info(
+            "[%s] relabel_only: feed_hosts divergence — sibling-metadata %s vs live %s (using "
+            "sibling for a reproducible relabel)",
+            job.idx,
+            sibling_hosts,
+            live_hosts,
+        )
     result = apply_diarization_to_result(
         result,
         "",

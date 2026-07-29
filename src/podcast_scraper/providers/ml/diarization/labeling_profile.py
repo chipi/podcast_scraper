@@ -46,7 +46,11 @@ class LabelingProfile:
     suppress_merged_speaker_clusters: bool = True
 
     # --- numeric knobs ---------------------------------------------------------------------------
-    unattributed_alarm_threshold: float = 0.25
+    unattributed_alarm_threshold: float = 0.25  # CONSUMED by build_speaker_diagnostics
+    # NOT YET CONSUMED (tier-2, see ADR-138 / LABELING-TIER3-COMPLEXITY.md): roster.py's four cameo
+    # sites still read the module constant CAMEO_MAX_TALK_S. Declared here so the tier-2 wiring has
+    # a home; the default equals the constant, so it is a no-op until wired. Do not assume changing
+    # it re-tiers cameos yet.
     cameo_max_talk_s: float = 20.0
 
 

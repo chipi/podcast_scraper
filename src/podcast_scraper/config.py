@@ -4092,6 +4092,20 @@ class Config(BaseModel):
             raise ValueError(f"RSS URL must include a valid hostname: {value}")
         return value
 
+    @field_validator("labeling_profile", mode="after")
+    @classmethod
+    def _validate_labeling_profile(cls, value: str) -> str:
+        """ADR-138: a labeling profile ID must be registered. A typo ("naming-3-legac") must fail
+        HERE, not silently fall back to naming-4 and mislabel a whole run (F6, advisor review). Lazy
+        import — config is imported by the diarization package, so a top-level import would cycle.
+        """
+        if not value:
+            return value
+        from podcast_scraper.providers.ml.diarization.labeling_profile import get_profile
+
+        get_profile(value)  # raises ValueError on an unregistered id -> pydantic ValidationError
+        return value
+
     @field_validator("rss_urls", mode="before")
     @classmethod
     def _coerce_rss_urls_list(cls, value: Any) -> Optional[List[Any]]:

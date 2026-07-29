@@ -90,6 +90,36 @@ def test_fix3_guards_against_false_binds():
     assert _metadata_anchored_self_intro("i'm rich barton here", ["Richard Gelfond"]) is None
 
 
+def test_f1_third_person_this_is_never_self_binds():
+    # F1 (advisor): "this is <stated>'s <thing>" is a THIRD-PERSON reference, not a self-intro. The
+    # possessive folds to an edit-1 surname ("altmans" vs "altman"), so the fuzzy surname would bind
+    # the WRONG name onto whoever said it. And "this is <full name>" is how a host INTRODUCES a
+    # guest (or a show names itself) — never a self-introduction. #876: no name beats a wrong name.
+    # Fix: "this is" is dropped from the match-form self-intro cue (its capitalized sibling
+    # extract_self_introduced_host is "I'm"-only; legit capitalized "This is <mononym>" stays on the
+    # metadata-vouched _THIS_IS_INTRO path).
+    assert (
+        _metadata_anchored_self_intro("so this is sam altman's company we use", ["Sam Altman"])
+        is None
+    )
+    assert (
+        _metadata_anchored_self_intro("okay everyone this is eric schmidt", ["Eric Schmidt"])
+        is None
+    )
+
+
+def test_f1_self_intro_scan_is_head_bounded():
+    # F1: every sibling intro scanner bounds to the first 5000 chars; this fallback must too, so a
+    # late third-person mention deep in a turn cannot masquerade as an opening self-introduction.
+    filler = "and then we talked for quite a while about it. " * 200  # > 5000 chars
+    assert _metadata_anchored_self_intro(filler + " i'm rich gelfond", ["Richard Gelfond"]) is None
+    # within the head it still recovers the legitimate self-intro (regression guard).
+    assert (
+        _metadata_anchored_self_intro("i'm rich gelfond, ceo of imax", ["Richard Gelfond"])
+        == "Richard Gelfond"
+    )
+
+
 # --- Fix 1: narrated-desk cue vocabulary ---------------------------------------------------------
 
 
@@ -152,6 +182,28 @@ def test_first_name_only_intro_declines_when_ambiguous():
     turns = [("host", "we're here with john from the team today"), ("g", "hi there")]
     got = _voice_named_by_the_introduction(
         turns, host_hint_voices={"host"}, metadata_named=["John Smith", "John Doe"]
+    )
+    assert got == {}
+
+
+def test_f2_first_name_only_declines_on_contradicting_surname():
+    # F2 (advisor): "here with akshat KANAPARTHY" names a DIFFERENT Akshat than stated "Akshat
+    # Bubna" — the surname is present and does not match, so it must NOT fall through to a bare
+    # first-name bind. (An affiliation like "akshat of moto" carries no surname and still binds.)
+    turns = [("host", "we're here with akshat kanaparthy today"), ("g", "great to be here")]
+    got = _voice_named_by_the_introduction(
+        turns, host_hint_voices={"host"}, metadata_named=["Akshat Bubna"]
+    )
+    assert got == {}
+
+
+def test_f2_first_name_only_declines_from_non_host_turn():
+    # F2: the bare-first-name relaxation is trusted only from a HOST introducer's turn. The same cue
+    # from a non-host voice ("…with rich investors") must not paint a stated Richard onto the next
+    # speaker. Here the introducing voice is not in host_hint_voices, so no bind.
+    turns = [("guest", "we're here with akshat of moto"), ("x", "hello")]
+    got = _voice_named_by_the_introduction(
+        turns, host_hint_voices={"host"}, metadata_named=["Akshat Bubna"]
     )
     assert got == {}
 

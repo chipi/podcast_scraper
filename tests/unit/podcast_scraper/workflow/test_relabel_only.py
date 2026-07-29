@@ -233,6 +233,51 @@ def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
     assert "episode_description" in captured
 
 
+def test_relabel_feed_hosts_falls_back_to_live_when_sibling_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Q3 (advisor): a frozen sibling-metadata host anchor is preferred for a reproducible relabel,
+    but when it is MISSING (returns []), fall back to the live job.feed_hosts already computed — an
+    empty anchor is the worst state (no ASR-garble canonicalization, no host pool)."""
+    from podcast_scraper.providers.ml.diarization import pipeline as _pipe
+
+    captured: dict = {}
+
+    def _spy(result, media, cfg, detected, **kwargs):
+        captured.update(kwargs)
+        return result
+
+    monkeypatch.setattr(_pipe, "apply_diarization_to_result", _spy)
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    _write_corpus(  # no sibling metadata.json -> _feed_hosts_from_sibling_metadata returns []
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00"],
+        texts=["welcome to the show " * 30],
+        with_metadata=False,
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    job = TranscriptionJob(
+        idx=1,
+        ep_title="Ep",
+        ep_title_safe="Ep",
+        temp_media="",
+        detected_speaker_names=None,
+        metadata_named=None,
+        episode=None,
+    )
+    job.feed_hosts = ["Kevin Roose", "Casey Newton"]  # live detection, already computed
+
+    ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+
+    assert ok is True
+    assert captured.get("feed_hosts") == ["Kevin Roose", "Casey Newton"]
+
+
 def test_relabel_skips_when_no_segments_identity(tmp_path: Path) -> None:
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"

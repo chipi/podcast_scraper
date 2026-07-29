@@ -601,8 +601,8 @@ def apply_diarization_to_result(
     _md_named = list(metadata_named or ())
 
     # Versioned labeling profile (ADR-138) — one knob-bundle drives naming + classification and is
-    # stamped on the sidecar. Unknown ids fall back to the production default rather than crashing a
-    # run on a config typo.
+    # stamped on the sidecar. A typo'd id is rejected fail-fast by the Config validator (F6), so
+    # this fallback is defense-in-depth for a caller that bypassed Config construction.
     try:
         _labeling_profile = get_profile(getattr(cfg, "labeling_profile", None) or "naming-4")
     except ValueError:

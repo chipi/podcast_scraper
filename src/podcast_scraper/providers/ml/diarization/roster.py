@@ -851,7 +851,12 @@ _THIS_IS_INTRO = re.compile(r"\b[Tt]his is\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’
 # they cannot drift) on the folded form and are anchored to the stated names — never used to
 # discover a name from raw text.
 _NAME_WINDOW_MF = r"([a-z][a-z'\-]+(?:\s+[a-z][a-z'\-]+){0,3})"
-_SELF_INTRO_MATCHFORM = re.compile(rf"\b(?:i'm|i am|my name is|this is)\s+{_NAME_WINDOW_MF}")
+# "this is" is deliberately EXCLUDED here (unlike the vouched capitalized _THIS_IS_INTRO): on the
+# folded form it is a third-person / show-naming hazard — "this is sam altman's company" folds the
+# possessive to an edit-1 surname and would bind the WRONG person to the speaker, and "this is <full
+# name>" is how a host introduces a guest, not a self-intro. The capitalized self-intro sibling
+# (extract_self_introduced_host) is "I'm"-only for exactly this reason; the match form matches it.
+_SELF_INTRO_MATCHFORM = re.compile(rf"\b(?:i'm|i am|my name is)\s+{_NAME_WINDOW_MF}")
 _CUE_FIRST_MATCHFORM = re.compile(rf"\b(?:{CUE_FIRST_BODY})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}")
 _NAME_FIRST_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{NAME_FIRST_TAIL})")
 _GREETED_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,\s*(?:{GREETED_TAIL})")
@@ -866,6 +871,24 @@ def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]
         if len(toks) >= 2:
             out.append((n, toks))
     return out
+
+
+# Words that can sit between a first name and its affiliation without being a surname
+# ("akshat OF moto", "here WITH akshat AND vibhu") — a token from this set after the first name is
+# not a contradicting surname, so the bare-first-name relaxation may still apply.
+_INTRO_AFFILIATION_TOKENS = frozenset(
+    {"of", "from", "at", "with", "and", "the", "our", "a", "an", "in", "on", "for", "to", "here"}
+)
+
+
+def _span_has_contradicting_surname(span: Sequence[str]) -> bool:
+    """True when the token right after the first name is a purported SURNAME (name-like, not an
+    affiliation word). The surname-matching path already ran and matched nothing, so a real surname
+    here means the span names a DIFFERENT person who merely shares the first name — "akshat
+    kanaparthy" vs stated "Akshat Bubna", "rich investors" vs "Richard …". Only then is the
+    bare-first-name relaxation refused; a bare first name ("akshat") or first-name-plus-affiliation
+    ("akshat of moto") carries no contradicting surname and still binds. (F2, advisor review)"""
+    return len(span) >= 2 and len(span[1]) >= 3 and span[1] not in _INTRO_AFFILIATION_TOKENS
 
 
 def _match_stated_in_span(
@@ -892,7 +915,7 @@ def _match_stated_in_span(
         slast = toks[-1]
         if any(_soundex(t) == _soundex(slast) or _edit_distance(t, slast) <= 1 for t in span[1:]):
             return name
-    if allow_first_name_only:
+    if allow_first_name_only and not _span_has_contradicting_surname(span):
         first_hits = [name for name, toks in stated if first_names_match(toks[0], span[0])]
         if len(first_hits) == 1:
             return first_hits[0]
@@ -913,7 +936,10 @@ def _metadata_anchored_self_intro(
     stated = _stated_tokens(metadata_named)
     if not stated:
         return None
-    text = normalize_for_match(voice_text or "")
+    # Head-bounded like every sibling intro scanner (extract_self_introduced_host, _THIS_IS_INTRO):
+    # a self-introduction is an opening act, so a late third-person mention deep in a long turn must
+    # not masquerade as one.
+    text = normalize_for_match((voice_text or "")[:5000])
     for m in _SELF_INTRO_MATCHFORM.finditer(text):
         name = _match_stated_in_span(normalize_name_for_match(m.group(1)).split(), stated)
         if name:
@@ -1229,7 +1255,9 @@ def _voice_named_by_the_introduction(
 
     stated = _stated_tokens(metadata_named)
 
-    def _assign_matchform(i: int, mf_text: str, rx: "re.Pattern[str]") -> None:
+    def _assign_matchform(
+        i: int, mf_text: str, rx: "re.Pattern[str]", *, allow_first_name_only: bool = False
+    ) -> None:
         # Case-blind, metadata-anchored (ADR-137): the capitalized regexes above find nothing on
         # lowercase turbo ASR, so match the SAME cue on the folded form and resolve the window to a
         # stated name. Reference-bounded — only ever assigns a name the metadata stated.
@@ -1237,20 +1265,26 @@ def _voice_named_by_the_introduction(
             name = _match_stated_in_span(
                 normalize_name_for_match(m.group(1)).split(),
                 stated,
-                allow_first_name_only=first_name_only,
+                allow_first_name_only=allow_first_name_only,
             )
             if name:
                 _assign(i, [name])
 
     for i, (speaker, text) in enumerate(ordered_turns):
+        is_host_hint = host_hint_voices is not None and speaker in host_hint_voices
         mf = normalize_for_match(text or "") if stated else ""
         for m in _GUEST_INTRODUCED_BY_HOST_RE.finditer(text or ""):
             names = _intro_names(m)
             if names:
                 _assign(i, names)
         if stated:
-            _assign_matchform(i, mf, _CUE_FIRST_MATCHFORM)
-        if host_hint_voices is not None and speaker in host_hint_voices:
+            # The bare-first-name relaxation is trusted ONLY from a host introducer's turn — a
+            # random voice saying "…with rich investors" must not paint a stated Richard onto the
+            # next speaker (F2, advisor review). Surname-anchored cue matches still run on any turn.
+            _assign_matchform(
+                i, mf, _CUE_FIRST_MATCHFORM, allow_first_name_only=first_name_only and is_host_hint
+            )
+        if is_host_hint:
             for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
                 for m in rx.finditer(text or ""):
                     names = _intro_names(m)
@@ -1384,6 +1418,7 @@ def _intro_reader_voice_names(
     """
     out: Dict[str, str] = {}
     known_lower = {h.lower() for h in known_hosts}
+    conv_host_set = conv_hosts or set()
     for v, n in _voice_named_by_the_introduction(
         reclaimed_turns,
         host_hint_voices,
@@ -1394,7 +1429,12 @@ def _intro_reader_voice_names(
     ).items():
         if v in ad_voices or v in voice_intro:
             continue
-        canon = _canonicalize_to_known_host(n, known_hosts)
+        # F3 (advisor): the host-ward snap (nickname-as-exact + surname edit ≤ 3) can rename a GUEST
+        # whose introduced name merely shares a nickname with a known host ("Rich Perkins" → host
+        # "Richard Parker"). Only snap toward a known host when the target voice is itself a host
+        # voice — the same guard _recover_stated_names applies (a non-host voice is never given a
+        # known host's spelling). A guest still canonicalizes to the stated PERSON (its own name).
+        canon = _canonicalize_to_known_host(n, known_hosts) if v in conv_host_set else n
         out[v] = canon if canon != n else _canonicalize_to_stated_person(n, stated_persons)
     return out
 

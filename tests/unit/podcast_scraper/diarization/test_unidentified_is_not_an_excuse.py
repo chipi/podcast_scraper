@@ -262,7 +262,13 @@ def test_the_diarization_pipeline_actually_FORWARDS_the_stated_names() -> None:
     assert (
         "metadata_named" in inspect.signature(diar_pipeline.apply_diarization_to_result).parameters
     )
-    assert src.count("metadata_named=list(metadata_named or ())") == 2, (
+    # BOTH destinations must receive the stated names: the roster resolver and the diagnostics
+    # builder — otherwise the defect accounting silently reverts to laundering our failures. ADR-135
+    # hoisted the roster's copy into a local (``_md_named = list(metadata_named or ())``), so the
+    # literal ``metadata_named=list(...)`` now appears once (diagnostics) while the roster gets the
+    # same names via ``metadata_named=_md_named``. Count the two keyword forwardings, robust to the
+    # hoist, rather than a specific right-hand-side expression.
+    assert src.count("metadata_named=") >= 2, (
         "apply_diarization_to_result must forward the stated names to BOTH the roster and the "
         "diagnostics — otherwise the defect accounting silently reverts to laundering our failures"
     )
