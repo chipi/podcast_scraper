@@ -79,7 +79,12 @@ _NICKNAME_GROUPS: List[FrozenSet[str]] = [
         {"andrew", "andy", "drew"},
         {"anthony", "tony"},
         {"nicholas", "nick", "nicky"},
-        {"alexander", "alex", "alexandra", "sasha"},
+        # Alexander and Alexandra are DIFFERENT people — split into two groups sharing only the
+        # ambiguous short form "alex" (the Patrick/Patricia pattern), so alexander↔alexandra is
+        # False while each still matches "alex". "sasha" is cross-gender ambiguous → excluded
+        # (speculative, per this table's own rule). (review: nickname false-friend)
+        {"alexander", "alex"},
+        {"alexandra", "alex"},
         {"matthew", "matt", "matty"},
         {"samuel", "sam", "sammy"},
         {"gregory", "greg"},
@@ -92,7 +97,10 @@ _NICKNAME_GROUPS: List[FrozenSet[str]] = [
         {"peter", "pete"},
         {"raymond", "ray"},
         {"timothy", "tim", "timmy"},
-        {"jonathan", "jon", "jonny", "john", "johnny"},
+        # Jonathan and John are DIFFERENT people (distinct formal names) — split, sharing only the
+        # ambiguous short form "jon", so jonathan↔john is False while each keeps its own nicknames.
+        {"jonathan", "jon", "jonny"},
+        {"john", "jon", "johnny"},
         {"katherine", "kathryn", "catherine", "kate", "katie", "kathy", "cathy", "kat"},
         {"elizabeth", "liz", "lizzie", "beth", "betsy", "eliza"},
         {"margaret", "maggie", "meg", "peggy", "greta"},

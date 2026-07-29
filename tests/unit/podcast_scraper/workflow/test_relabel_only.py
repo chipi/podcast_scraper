@@ -212,6 +212,18 @@ def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
     new_run = base / "run_20260102-000000_t"
     new_run.mkdir(parents=True)
 
+    import xml.etree.ElementTree as ET
+
+    from podcast_scraper.models import Episode
+
+    episode = Episode(
+        idx=1,
+        title="The Real Episode Title",
+        title_safe="Ep",
+        item=ET.Element("item"),
+        transcript_urls=[],
+        description="Kevin and Casey dig into AI agents.",
+    )
     job = TranscriptionJob(
         idx=1,
         ep_title="The Real Episode Title",
@@ -219,7 +231,7 @@ def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
         temp_media="",
         detected_speaker_names=None,
         metadata_named=None,
-        episode=None,  # like FULL, description is getattr(episode, "description", None)
+        episode=episode,
     )
 
     ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
@@ -228,9 +240,9 @@ def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
     # THE FIX: the episode title now reaches the roster (it was absent, so the LLM saw
     # "(not provided)" where FULL showed the real title).
     assert captured.get("episode_title") == "The Real Episode Title"
-    # And the description kwarg is forwarded (mirrors FULL's getattr; None when no episode), so the
-    # two call sites carry the identical resolution context — not a subset.
-    assert "episode_description" in captured
+    # And the REAL description is forwarded (Episode now carries it; review found it was dead code
+    # returning None everywhere), so the two call sites carry identical resolution context.
+    assert captured.get("episode_description") == "Kevin and Casey dig into AI agents."
 
 
 def test_relabel_feed_hosts_falls_back_to_live_when_sibling_missing(

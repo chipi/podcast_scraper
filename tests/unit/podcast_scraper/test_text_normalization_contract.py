@@ -52,6 +52,26 @@ def test_first_names_match_nickname_initial_and_rejects():
     assert not first_names_match("rich", "Michael")
 
 
+def test_first_names_match_distinct_names_sharing_a_short_form_do_not_match():
+    # review: the nickname table must NOT merge two DIFFERENT formal names that merely share an
+    # ambiguous short form. Alexander (m) / Alexandra (f) and Jonathan / John are distinct people;
+    # each keeps its own short form but they never match EACH OTHER. (Eric/Erica above is a trivial
+    # true-negative because neither is in the table — these exercise a real in-table collision.)
+    assert not first_names_match("Alexander", "Alexandra")
+    assert not first_names_match("Jonathan", "John")
+    # each still matches its own shared short form (ambiguity is acceptable there)
+    assert first_names_match("Alexander", "Alex")
+    assert first_names_match("Alexandra", "Alex")
+    assert first_names_match("Jonathan", "Jon")
+    assert first_names_match("John", "Jon")
+    # spelling variants of the SAME name are correctly kept matching
+    assert first_names_match("Stephen", "Steven")
+    assert first_names_match("Katherine", "Catherine")
+    # the surname path is safe for the ambiguous shared tokens: the FORMAL names never cross-match
+    assert not first_names_match("Patrick", "Patricia")
+    assert not first_names_match("Edward", "Theodore")
+
+
 # --- Fix 2: nickname feeds the ADR-128 canonicalizer ---------------------------------------------
 
 
