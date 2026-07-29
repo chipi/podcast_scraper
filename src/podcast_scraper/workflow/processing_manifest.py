@@ -44,7 +44,6 @@ METHOD_VERSIONS: Dict[str, str] = {
     "naming": "naming-4",  # ADR-137 text-normalization contract: narrated-desk cue vocab +
     # case-blind metadata-anchored self-intro + nickname/ASR-fuzzy binding + org-form reject + "my
     # name is" discovery + Pattern-B (bounded unknown-vs-tape classification, defect-share alarm)
-
     "summary": "summary-1",
     "gi": "gi-1",
     "kg": "kg-1",
