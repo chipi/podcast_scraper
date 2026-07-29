@@ -37,6 +37,17 @@ the plumbing — it is that the value gate's tier is a coarse keep/route signal,
 score. Making ranking matter requires a better tier — i.e. **ADR-133's deferred rubric research is
 now required, not optional.** This eval is the evidence.
 
+## routing_tag is NOT a quality signal (audit sub-finding)
+
+Judge score by `routing_tag`: **`connect` 3.12 (41% ≥4-good) > `surface` 2.99 (33%)**. So the
+`surface`/`connect` split does **not** track quality — it tracks **attribution** (`surface` =
+spoken by a named person; `connect` = unattributed, `surfaceable=False`, kept for KG/threading).
+Consequences: (1) the deferred operator `routing_tag` filter chip is **doubly unjustified** —
+filtering by it would hide *better* insights; (2) high-quality **unattributed** insights (the 178
+`connect`) are surfaced on **no** attributed surface today (the server's `surfaceable` gate excludes
+them from insight lists + perspectives) — a real product gap, but surfacing them as "someone's
+insight" breaks the attribution model, so it's a roadmap question, not a quick fix.
+
 ## Actions taken / recommended
 
 1. **Keep salience-sort as the default order** (harmless, small top gain) — done in surfaces 1/3/4.

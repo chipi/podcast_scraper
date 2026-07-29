@@ -181,11 +181,13 @@ function isGrounded(ins: Insight): boolean {
   return insightStartSeconds(ins) != null
 }
 
-// ADR-133/#1191: the player shows `surface`-tagged insights only — `connect` is corpus plumbing
-// (threading/KG), not something a listener reads; `drop` is already excluded server-side. A null
-// tag means a pre-3.1 corpus, kept for back-compat. Server returns them already salience-sorted,
-// so we preserve order and cap at gi_surface_default_limit (8) with a "show more" fold. The 100-ep
-// eval (2026-07-29) showed insights ranked 6-8 are as good as the top-5, so 8 (not 6) is the fold.
+// ADR-133/#1191: the player shows `surface`-tagged insights — attributed to a named speaker. The
+// server's `surfaceable` gate already excludes `connect` (UNATTRIBUTED insights, no named speaker),
+// so this client filter is defensive, NOT a quality call: the 2026-07-29 eval found `connect`
+// insights score HIGHER than `surface` (3.12 vs 2.99), so routing_tag is not a quality signal — it's
+// about attribution. `drop` is excluded server-side; a null tag = pre-3.1 corpus, kept for back-
+// compat. Server returns them salience-sorted; we preserve order and cap at gi_surface_default_limit
+// (8) — the eval showed ranks 6-8 are as good as the top-5, so 8 (not 6) is the fold.
 const INSIGHT_COLLAPSED = 8
 const surfaceInsights = computed(() =>
   props.insights.filter((i) => i.routing_tag == null || i.routing_tag === 'surface'),
