@@ -102,6 +102,20 @@ covered the rest and found more (all fixed):
   scope narrowed to roster (resolution.py is a follow-up), provider-surface declaration marked
   deferred; ADR-138 updated to reflect the two now-consumed knobs.
 
-Accepted / not fixed here: a pre-existing quadratic-regex risk in `guests_introduced_by_the_host`
-(this arc added ~1.2×, not a new asymptotic class) is a tracked follow-up; the tape
-`unknown`→`unidentified` reclassify is already implemented by Pattern-B bounded promotion (no change).
+Post-review follow-ups landed before push:
+
+- **o11y git_sha provenance** (correctness): `update_stage` loaded the frozen manifest but never
+  refreshed `git_sha`, so on a reprocess/relabel every `pipeline_stage` event carried the ORIGINAL
+  build's sha, not the re-running HEAD. Now `data.update(git_ground_truth())` on every write;
+  per-stage code provenance stays carried by each stage's `method_version`. Test:
+  `test_update_stage_refreshes_git_sha_on_an_existing_manifest`.
+- **Quadratic guest-intro regex** (efficiency): the pre-existing O(n²) in `_NAME`/`_NAMES` (two
+  nested unbounded quantifiers over a capitalised run — 60k chars 3.3s, 120k 13s) is fixed by
+  bounding the token-run to `{1,5}` and the name-list to `{0,9}` (a real person-name is ≤6 tokens,
+  an on-air intro ≤10 people; longer is org/ASR noise the downstream guards reject). Linear now
+  (<0.05s at 120k), identical matches on real intros. The existing regression test used lowercase
+  text that never hit the case-bound name path — rewritten to a capitalised worst case at a 2s
+  budget the old pattern fails.
+
+Accepted / not fixed here: the tape `unknown`→`unidentified` reclassify is already implemented by
+Pattern-B bounded promotion (no change).

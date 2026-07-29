@@ -298,8 +298,14 @@ def detect_hosts_from_transcript_intro(
 # IGNORECASE makes `[A-Z]` match a-z too, so this pattern matches every multi-word lowercase phrase
 # in the transcript — which both crowned non-names as guests AND made the conversation scan
 # backtrack catastrophically (a 77k-char episode spun for minutes in guests_introduced_by_the_host).
-_NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+)"
-_NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME})*"
+# The token-run and the name-list are BOUNDED ({1,5} / {0,9}) rather than unbounded (+/*): two
+# nested unbounded quantifiers over a long capitalized run are O(n²) on the finditer scan (a
+# 60k-char voice measured 3.3s, 120k → 13s), and a real person-name is <=6 tokens / an intro <=10
+# people — anything longer is org/ASR noise the has_org_markers + looks_like_a_person_name guards
+# reject downstream. Atomic groups would be exact but are 3.11-only (floor is 3.10). Bounding makes
+# every consumer (_NAMES sites, _NAME_RE) linear with identical matches on real intros.
+_NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,5})"
+_NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME}){{0,9}}"
 # Presenting verbs — what a show's own description says its hosts DO.
 _PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
 _HOST_PHRASES = [
