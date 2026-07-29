@@ -932,6 +932,15 @@ class Config(BaseModel):
         alias="hf_token",
         description="HuggingFace token for pyannote models (prefer HF_TOKEN env var)",
     )
+    labeling_profile: str = Field(
+        default="naming-4",
+        alias="labeling_profile",
+        description=(
+            "Versioned labeling profile ID (ADR-138) — the knob-bundle + per-fix feature flags "
+            "that drive speaker naming/classification. 'naming-4' is production; 'naming-3-legacy' "
+            "turns the ADR-137 fixes + Pattern-B off for A/B. Recorded in the per-episode sidecar."
+        ),
+    )
     diarization_num_speakers: Optional[int] = Field(
         default=None,
         alias="diarization_num_speakers",

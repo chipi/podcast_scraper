@@ -32,8 +32,10 @@ from ....speaker_detectors.hosts import (
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _NAME_RE as _INTRO_NAME_RE,
+    CUE_FIRST_BODY,
     distinct_self_introductions,
     extract_self_introduced_host,
+    GREETED_TAIL,
     guests_introduced_by_the_host,
     has_org_markers,
     HONORIFIC_TITLES,
@@ -41,9 +43,16 @@ from ....speaker_detectors.hosts import (
     is_plausible_mononym,
     is_publishable_speaker_name,
     looks_like_a_person_name,
+    NAME_FIRST_TAIL,
     roles_from_conversation,
 )
+from ....text_normalization import (
+    first_names_match,
+    normalize_for_match,
+    normalize_name_for_match,
+)
 from .base import DiarizationResult
+from .labeling_profile import DEFAULT_LABELING_PROFILE, LabelingProfile
 from .labeling_strategy import (
     _DEEPGRAM,
     DiarizationLabelingStrategy,
@@ -703,7 +712,11 @@ def _canonicalize_to_known_host(
         h = host.split()
         if len(h) < 2:
             continue
-        first_exact = h[0].lower() == first
+        # A known nickname or initial ("Rich"↔"Richard", "R."↔"Robert") is a confident given-name
+        # equivalence, not a fuzzy guess, so it counts as an EXACT first-name match (ADR-137) — the
+        # surname branch below still demands a strong surname match, so this cannot rename a
+        # different person who merely shares a nickname.
+        first_exact = h[0].lower() == first or first_names_match(h[0], first)
         first_near = first_name_max_edit > 0 and _edit_distance(h[0].lower(), first) <= (
             first_name_max_edit
         )
@@ -833,8 +846,72 @@ def _vouched_by_metadata(candidate: str, metadata_named: Sequence[str]) -> Optio
 _THIS_IS_INTRO = re.compile(r"\b[Tt]his is\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})")
 
 
+# Case-blind intro detectors on match-form text (ADR-137). The capitalization-based regexes in
+# hosts.py find nothing on lowercase turbo ASR; these match the SAME cue vocabulary (imported, so
+# they cannot drift) on the folded form and are anchored to the stated names — never used to
+# discover a name from raw text.
+_NAME_WINDOW_MF = r"([a-z][a-z'\-]+(?:\s+[a-z][a-z'\-]+){0,3})"
+_SELF_INTRO_MATCHFORM = re.compile(rf"\b(?:i'm|i am|my name is|this is)\s+{_NAME_WINDOW_MF}")
+_CUE_FIRST_MATCHFORM = re.compile(rf"\b(?:{CUE_FIRST_BODY})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}")
+_NAME_FIRST_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{NAME_FIRST_TAIL})")
+_GREETED_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,\s*(?:{GREETED_TAIL})")
+
+
+def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]:
+    """``[(stated_name, match-form tokens)]`` for metadata names of ≥2 tokens (a mononym cannot be
+    matched by first+surname, so it is excluded from the anchored matchers)."""
+    out: List[Tuple[str, List[str]]] = []
+    for n in metadata_named or ():
+        toks = normalize_name_for_match(n).split()
+        if len(toks) >= 2:
+            out.append((n, toks))
+    return out
+
+
+def _match_stated_in_span(
+    span: Sequence[str], stated: Sequence[Tuple[str, List[str]]]
+) -> Optional[str]:
+    """The stated name whose first name (nickname/initial-aware) matches ``span[0]`` AND whose
+    surname (soundex or edit ≤ 1) matches a later span token; else ``None``. Reference-bounded and
+    case-blind — the shared core of every metadata-anchored intro matcher (ADR-137)."""
+    if not span:
+        return None
+    for name, toks in stated:
+        if not first_names_match(toks[0], span[0]):
+            continue
+        slast = toks[-1]
+        if any(_soundex(t) == _soundex(slast) or _edit_distance(t, slast) <= 1 for t in span[1:]):
+            return name
+    return None
+
+
+def _metadata_anchored_self_intro(
+    voice_text: Optional[str], metadata_named: Sequence[str]
+) -> Optional[str]:
+    """A case-blind self-introduction bound to a STATED name (ADR-137).
+
+    Recovers "i'm rich gelfond" -> metadata "Richard Gelfond" on lowercase turbo ASR, where the
+    capitalization-dependent :func:`extract_self_introduced_host` finds nothing. Reference-bounded:
+    only ever returns a name in ``metadata_named`` (never invents one), and requires BOTH a
+    first-name match (exact / nickname / initial) AND a fuzzy surname match, so it cannot bind
+    "i'm american" or paint a shared first name onto the wrong person.
+    """
+    stated = _stated_tokens(metadata_named)
+    if not stated:
+        return None
+    text = normalize_for_match(voice_text or "")
+    for m in _SELF_INTRO_MATCHFORM.finditer(text):
+        name = _match_stated_in_span(normalize_name_for_match(m.group(1)).split(), stated)
+        if name:
+            return name
+    return None
+
+
 def _self_intros_by_voice(
-    voice_texts: Optional[Dict[str, str]], metadata_named: Sequence[str] = ()
+    voice_texts: Optional[Dict[str, str]],
+    metadata_named: Sequence[str] = (),
+    *,
+    case_blind: bool = True,
 ) -> Dict[str, str]:
     """Per-voice self-introductions ``{voice: name}`` — a voice that says "I'm <First Last>"
     in its *own* turns IS that person. The most reliable per-voice signal, so it names the
@@ -867,6 +944,12 @@ def _self_intros_by_voice(
             if stated:
                 out[voice] = stated
                 break
+        # Case-blind fallback (ADR-137): the capitalization-based paths above find nothing on
+        # lowercase turbo ASR. Match the self-intro on the folded form, anchored to a stated name.
+        if case_blind and voice not in out:
+            stated = _metadata_anchored_self_intro(text, metadata_named)
+            if stated:
+                out[voice] = stated
     return out
 
 
@@ -993,7 +1076,10 @@ def _intro_names(m: "re.Match[str]") -> List[str]:
     return [
         n
         for n in (_clean_intro_name(x) for x in _INTRO_NAME_RE.findall(m.group("names")))
-        if n and looks_like_a_person_name(n)
+        # `looks_like_a_person_name` passes a capitalised org ("New York Times"), which the greedy
+        # capture picks up from "from the New York Times, I'm…". An org is never the introduced
+        # PERSON, and binding it to the guest voice buries the real name — reject it (ADR-137).
+        if n and looks_like_a_person_name(n) and not is_network_or_org_author(n)
     ]
 
 
@@ -1064,6 +1150,7 @@ def _voice_named_by_the_introduction(
     host_hint_voices: Optional[Set[str]] = None,
     conv_hosts: Optional[Set[str]] = None,
     known_hosts_lower: AbstractSet[str] = frozenset(),
+    metadata_named: Sequence[str] = (),
 ) -> Dict[str, str]:
     """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
 
@@ -1125,17 +1212,34 @@ def _voice_named_by_the_introduction(
             taken.add(name.lower())
             return
 
+    stated = _stated_tokens(metadata_named)
+
+    def _assign_matchform(i: int, mf_text: str, rx: "re.Pattern[str]") -> None:
+        # Case-blind, metadata-anchored (ADR-137): the capitalized regexes above find nothing on
+        # lowercase turbo ASR, so match the SAME cue on the folded form and resolve the window to a
+        # stated name. Reference-bounded — only ever assigns a name the metadata stated.
+        for m in rx.finditer(mf_text):
+            name = _match_stated_in_span(normalize_name_for_match(m.group(1)).split(), stated)
+            if name:
+                _assign(i, [name])
+
     for i, (speaker, text) in enumerate(ordered_turns):
+        mf = normalize_for_match(text or "") if stated else ""
         for m in _GUEST_INTRODUCED_BY_HOST_RE.finditer(text or ""):
             names = _intro_names(m)
             if names:
                 _assign(i, names)
+        if stated:
+            _assign_matchform(i, mf, _CUE_FIRST_MATCHFORM)
         if host_hint_voices is not None and speaker in host_hint_voices:
             for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
                 for m in rx.finditer(text or ""):
                     names = _intro_names(m)
                     if names:
                         _assign(i, names)
+            if stated:
+                _assign_matchform(i, mf, _GREETED_MATCHFORM)
+                _assign_matchform(i, mf, _NAME_FIRST_MATCHFORM)
     return out
 
 
@@ -1147,6 +1251,7 @@ def _self_intro_voice_names(
     ad_voices: Set[str],
     conv_guests: AbstractSet[str] = frozenset(),
     strategy: Optional[DiarizationLabelingStrategy] = None,
+    case_blind: bool = True,
 ) -> Dict[str, str]:
     """``{voice: name}`` from each voice's OWN self-introduction, ads excluded (#876).
 
@@ -1170,7 +1275,7 @@ def _self_intro_voice_names(
             first_start[s.speaker] = s.start
         talk[s.speaker] = talk.get(s.speaker, 0.0) + (s.end - s.start)
     texts = voice_texts or {}
-    intros = _self_intros_by_voice(voice_texts, intro_sources)
+    intros = _self_intros_by_voice(voice_texts, intro_sources, case_blind=case_blind)
     montage_suppressed = {
         v
         for v in intros
@@ -1207,6 +1312,7 @@ def _intro_reader_voice_names(
     known_hosts: Sequence[str],
     conv_hosts: Optional[Set[str]] = None,
     stated_persons: Sequence[str] = (),
+    narrator_cue: bool = True,
 ) -> Dict[str, str]:
     """``{voice: canonical name}`` for voices a host introduced by name — "and now, Bobby Allen" —
     since the person a host introduces is the one who speaks next. Complements the self-intro:
@@ -1221,7 +1327,11 @@ def _intro_reader_voice_names(
     out: Dict[str, str] = {}
     known_lower = {h.lower() for h in known_hosts}
     for v, n in _voice_named_by_the_introduction(
-        reclaimed_turns, host_hint_voices, conv_hosts, known_lower
+        reclaimed_turns,
+        host_hint_voices,
+        conv_hosts,
+        known_lower,
+        metadata_named=stated_persons if narrator_cue else (),
     ).items():
         if v in ad_voices or v in voice_intro:
             continue
@@ -1360,6 +1470,7 @@ def resolve_speaker_roster(
     recurring_text: Optional[set] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
     diarization_provider: Optional[str] = None,
+    profile: LabelingProfile = DEFAULT_LABELING_PROFILE,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
 
@@ -1449,7 +1560,14 @@ def resolve_speaker_roster(
     # when it is plainly the same person ("Kevin Russo" / "Kevin Roos" -> "Kevin Roose").
     _strategy = labeling_strategy_for(diarization_provider)
     voice_intro = _self_intro_voice_names(
-        diarization, voice_texts, intro_sources, known_hosts, ad_voices, conv_guests, _strategy
+        diarization,
+        voice_texts,
+        intro_sources,
+        known_hosts,
+        ad_voices,
+        conv_guests,
+        _strategy,
+        case_blind=profile.case_blind_self_intro,
     )
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting
@@ -1484,6 +1602,7 @@ def resolve_speaker_roster(
             known_hosts,
             conv_host_voices,
             list(detected_guests or ()) + list(metadata_named or ()),
+            narrator_cue=profile.narrator_cue_binding,
         )
     )
 
@@ -1682,10 +1801,28 @@ def resolve_speaker_roster(
     ]
 
     nameable = set(voice_intro)
-    if leftover_names or stated_unbound:
-        # A name is still going spare, so ANY unnamed voice could have taken it — we cannot claim
-        # nobody could be named.
-        nameable |= {v for v, r in by_voice.items() if not r.named}
+    # M unbound names can explain at most M missed voices (ADR-137 / Pattern B). Promote only the M
+    # most-substantive unnamed voices that no name already points to; the rest are genuine TAPE
+    # (`unidentified`), not our failure. Without this bound, a single unbound producer credit turned
+    # every 30-second vox-pop on a narrated desk (Planet Money: 4 credits → all 16 voices flagged)
+    # into a "we should have named this" defect. The dominant miss the pessimistic rule protects — a
+    # 35%-of-episode guest the description named ([Physical AI]) — still lands, because talk-time
+    # sorts it to the top of the promotion list.
+    spare_name_count = len(
+        {n.lower() for n in leftover_names} | {n.lower() for n in stated_unbound}
+    )
+    if spare_name_count:
+        promotable = sorted(
+            (v for v, r in by_voice.items() if not r.named and v not in voice_intro),
+            key=lambda v: total.get(v, 0.0),
+            reverse=True,
+        )
+        # naming-4 bounds the promotion to the M most-substantive voices (Pattern B); the legacy
+        # profile promotes EVERY unnamed voice (the old pessimistic rule), for a clean A/B.
+        promoted = (
+            promotable if not profile.pattern_b_bounded_promotion else promotable[:spare_name_count]
+        )
+        nameable |= set(promoted)
 
     by_voice = _classify_voice_types(
         by_voice, diarization, ad_intervals, ad_voices, nameable=nameable, cleaning=cleaning
@@ -1712,6 +1849,7 @@ def build_speaker_diagnostics(
     known_hosts: Sequence[str] = (),
     metadata_named: Sequence[str] = (),
     show_centric: bool = False,
+    profile: LabelingProfile = DEFAULT_LABELING_PROFILE,
 ) -> Dict[str, Any]:
     """Per-episode speaker-resolution diagnostics — *what we tried, what we resolved, and why
     each voice that stayed raw failed*. Written as a sidecar so an operator can see why a
@@ -1773,11 +1911,23 @@ def build_speaker_diagnostics(
     # one is never a rounding error — it says a specific voice went missing, and ``unbound_names``
     # usually says whose.
     total_talk = sum(talk.values()) or 1.0
+    # TOTAL unattributed — every voice attributed to nobody, for ANY reason. A trace for the sidecar
+    # and operator, NOT the alarm signal.
     unattributed_s = sum(
         talk.get(v, 0.0)
         for v, role in roster.by_voice.items()
         if not role.named and role.voice_type in (VOICE_UNKNOWN, VOICE_UNIDENTIFIED)
     )
+    # The DEFECT share — talk we FAILED to attribute (`unknown`: a nameable voice we missed). It is
+    # the alarm signal; `unidentified` tape (a vox-pop nobody names) is NOT our failure and never
+    # trips it. Counting it fired the alarm on narrated desks (Planet Money) for doing nothing wrong
+    # (ADR-137 / Pattern B).
+    defect_s = sum(
+        talk.get(v, 0.0)
+        for v, role in roster.by_voice.items()
+        if not role.named and role.voice_type == VOICE_UNKNOWN
+    )
+    defect_share = defect_s / total_talk
     unattributed_share = unattributed_s / total_talk
     used_lower = {str(r.name).lower() for r in roster.by_voice.values() if r.named}
     unbound_names = [
@@ -1805,6 +1955,19 @@ def build_speaker_diagnostics(
         ),
     }
 
+    # Full labeling census (v2.4 sidecar directive): count AND talk-seconds AND talk-share per voice
+    # type, so an operator reads "how many named / unknown / unidentified / cameo / commercial, and
+    # how much of the episode each holds" straight from the sidecar — no deeper dig. `named` folds
+    # into `person`. `unknown` is the defect worth chasing; `unidentified` is tape we accept.
+    census: Dict[str, Dict[str, float]] = {}
+    for v, r in roster.by_voice.items():
+        c = census.setdefault(r.voice_type, {"count": 0, "talk_s": 0.0})
+        c["count"] += 1
+        c["talk_s"] += talk.get(v, 0.0)
+    for c in census.values():
+        c["talk_share"] = round(c["talk_s"] / total_talk, 4)
+        c["talk_s"] = round(c["talk_s"], 1)
+
     return {
         "summary": {
             "num_speakers": roster.num_speakers,
@@ -1813,6 +1976,8 @@ def build_speaker_diagnostics(
             # Of the unresolved voices, how many are noise (cameo/commercial) vs a real person
             # we failed to name (unknown) — so an operator can tell "worth chasing" from "junk".
             "by_voice_type": type_counts,
+            # Full census with talk-time per type (the number to report from, not deep-dive).
+            "voice_census": census,
             # The labeling OUTPUT surface (post cameo/commercial cleanup) exposed to GI/KG.
             "exposed": exposed_out,
             "show_centric": show_centric,
@@ -1820,9 +1985,20 @@ def build_speaker_diagnostics(
             # genuine miss — ``truly_unknown`` is the real "we failed to name a person" residual.
             "expected_unresolved": expected_unnamed,
             "truly_unknown": unresolved - expected_unnamed,
-            # How much of the EPISODE nobody can be held to — the headline defect number.
+            # How much of the EPISODE is attributed to nobody, for ANY reason (defect + tape). A
+            # trace, not the alarm — kept so the sidecar carries the full picture.
             "unattributed_talk_share": round(unattributed_share, 4),
-            "unattributed_alarm": unattributed_share >= UNATTRIBUTED_TALK_ALARM,
+            # The share that is OUR failure — a nameable voice (`unknown`) we missed. This is the
+            # alarm basis; `unidentified` tape does not count (ADR-137 / Pattern B).
+            "unattributed_defect_share": round(defect_share, 4),
+            # naming-4 alarms on the DEFECT share; the legacy profile alarms on TOTAL unattributed
+            # (the pre-Pattern-B behaviour). Threshold + basis both come from the profile (ADR-138).
+            "unattributed_alarm": (
+                defect_share if profile.alarm_on_defect_share else unattributed_share
+            )
+            >= profile.unattributed_alarm_threshold,
+            # Which labeling profile produced this episode (reprocess key + A/B provenance).
+            "labeling_profile": profile.version,
             # Names the metadata stated and we could not place. When the alarm fires, this is
             # usually the answer to "who did we lose".
             "unbound_names": unbound_names,

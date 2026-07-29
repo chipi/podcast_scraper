@@ -1,11 +1,11 @@
 """Registered preprocessing profiles for transcript cleaning.
 
-This module implements versioned preprocessing profiles (ADR-029) that
+This module implements versioned preprocessing profiles (ADR-017) that
 encapsulate cleaning logic into reproducible, versioned configurations.
 Each profile specifies exactly which cleaning steps are active, enabling
 researchers to isolate variables when comparing models.
 
-See ADR-029 for design rationale.
+See ADR-017 for design rationale.
 """
 
 from __future__ import annotations

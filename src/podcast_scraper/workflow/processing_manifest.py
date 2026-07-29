@@ -41,7 +41,10 @@ MANIFEST_SCHEMA_VERSION = 1
 METHOD_VERSIONS: Dict[str, str] = {
     "asr": "asr-gate-1",  # ADR-129 speech-normalized coverage gate + failover
     "diarization": "diar-1",
-    "naming": "naming-3",  # ADR-128 metadata name recovery + audit 2a/3
+    "naming": "naming-4",  # ADR-137 text-normalization contract: narrated-desk cue vocab +
+    # case-blind metadata-anchored self-intro + nickname/ASR-fuzzy binding + org-form reject + "my
+    # name is" discovery + Pattern-B (bounded unknown-vs-tape classification, defect-share alarm)
+
     "summary": "summary-1",
     "gi": "gi-1",
     "kg": "kg-1",

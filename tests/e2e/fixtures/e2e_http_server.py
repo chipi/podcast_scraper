@@ -93,8 +93,73 @@ def _bundled_gil_json(text: str) -> Optional[str]:
     return None
 
 
+# The ADR-110/135 speaker-resolution prompt (build_resolution_prompt) is distinct from the older
+# detect_speakers call: it asks the model to match diarized SPEAKER_NN voices to the episode's
+# metadata names and return {"voices": {"SPEAKER_00": {"name": ..., "role": ...}}}. Both mock chat
+# paths (Gemini + OpenAI) must answer it in that shape, or the LLM naming layer is silently inert.
+_RESOLUTION_MARKERS = ("matching diarized voices", "one object per voice")
+_RES_STATED_RE = re.compile(r"^\s+-\s+([A-Z][\w'’.\-]+(?:\s+[A-Z][\w'’.\-]+){0,3})\s*$", re.M)
+_RES_VOICE_RE = re.compile(r'^\s+(SPEAKER_\d+):\s+"(.*)"\s*$', re.M)
+_RES_SELF_INTRO_RE = re.compile(
+    r"\b(?:i'?m|i am|my name is|this is)\s+([a-z][a-z'\-]+(?:\s+[a-z][a-z'\-]+){0,2})"
+)
+
+
+def _resolution_response_json(prompt: str) -> Optional[str]:
+    """Mock the speaker-resolution call, telling the FIXTURE'S OWN STORY (deterministic, content
+    driven — no hard-coded names). For each diarized voice shown in the prompt:
+
+    * a self-introduction ("I'm <X>" / "my name is <X>") that matches a metadata-stated name binds
+      that name — the HAPPY path (a guest/host named from their own words);
+    * a voice that says "welcome"/"your host" is a host, "thanks for having me" is a guest;
+    * a voice with no name evidence declines (``null``) — the UNHAPPY path the pipeline must handle
+      (it stays an unnamed Voice, not a wrong name).
+
+    Returns the JSON string, or ``None`` when the prompt is not a resolution call.
+    """
+    if not any(m in prompt for m in _RESOLUTION_MARKERS):
+        return None
+    stated = _RES_STATED_RE.findall(prompt)
+    voices: Dict[str, Dict[str, Optional[str]]] = {}
+    used: set = set()
+    for label, sample in _RES_VOICE_RE.findall(prompt):
+        low = sample.lower()
+        name: Optional[str] = None
+        m = _RES_SELF_INTRO_RE.search(low)
+        if m:
+            spoken_first = m.group(1).split()[0]
+            for cand in stated:
+                cl = cand.lower()
+                if cl not in used and cl.split()[0] == spoken_first:
+                    name = cand
+                    used.add(cl)
+                    break
+        role: Optional[str] = None
+        if "welcome" in low or "your host" in low or "i'm your host" in low:
+            role = "host"
+        elif "thanks for having me" in low or "thank you for having me" in low:
+            role = "guest"
+        voices[label] = {"name": name, "role": role}
+    return json.dumps({"voices": voices})
+
+
 def _gemini_text_response_data(request_data: Dict[str, Any], text_prompt: str) -> Dict[str, Any]:
     """Build Gemini generateContent response body for non-audio text requests."""
+    resolution = _resolution_response_json(text_prompt)
+    if resolution is not None:
+        return {
+            "candidates": [
+                {
+                    "content": {"parts": [{"text": resolution}], "role": "model"},
+                    "finishReason": "STOP",
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 120,
+                "candidatesTokenCount": 30,
+                "totalTokenCount": 150,
+            },
+        }
     generation_config = request_data.get("generationConfig", {})
     response_mime_type = generation_config.get("response_mime_type", "")
 
@@ -902,9 +967,25 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 system_content = raw_sys if isinstance(raw_sys, str) else ""
             response_format = request_data.get("response_format", {})
 
-            # Determine response type: bundled GIL, speaker, GIL evidence, or summarization
+            # Determine response type: resolution, bundled GIL, speaker, GIL evidence, or summary
+            resolution_json = _resolution_response_json(user_content)
             bundled_json = _bundled_gil_json(user_content)
-            if bundled_json is not None:
+            if resolution_json is not None:
+                response_data = {
+                    "id": "chatcmpl-test-resolution",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request_data.get("model", config.DEFAULT_OPENAI_SPEAKER_MODEL),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": resolution_json},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 120, "completion_tokens": 30, "total_tokens": 150},
+                }
+            elif bundled_json is not None:
                 response_data = {
                     "id": "chatcmpl-test-bundled",
                     "object": "chat.completion",

@@ -20,6 +20,7 @@ from .cache import (
     save_diarization_cache,
 )
 from .factory import create_diarization_provider
+from .labeling_profile import DEFAULT_LABELING_PROFILE, get_profile
 from .roster import (
     build_speaker_diagnostics,
     classify_voices,
@@ -599,6 +600,18 @@ def apply_diarization_to_result(
 
     _md_named = list(metadata_named or ())
 
+    # Versioned labeling profile (ADR-138) — one knob-bundle drives naming + classification and is
+    # stamped on the sidecar. Unknown ids fall back to the production default rather than crashing a
+    # run on a config typo.
+    try:
+        _labeling_profile = get_profile(getattr(cfg, "labeling_profile", None) or "naming-4")
+    except ValueError:
+        logger.warning(
+            "unknown labeling_profile %r; using the production default",
+            getattr(cfg, "labeling_profile", None),
+        )
+        _labeling_profile = DEFAULT_LABELING_PROFILE
+
     def _run_roster(
         names: Optional[Dict[str, str]], roles: Optional[Dict[str, str]]
     ) -> SpeakerRoster:
@@ -616,6 +629,7 @@ def apply_diarization_to_result(
             cleaning=cleaning,
             recurring_text=recurring_text,
             diarization_provider=dz_provider,
+            profile=_labeling_profile,
         )
 
     roster = _run_roster(llm_voice_names, llm_voice_roles)
@@ -658,6 +672,7 @@ def apply_diarization_to_result(
         known_hosts=known_hosts,
         metadata_named=list(metadata_named or ()),
         show_centric=bool(getattr(cfg, "show_centric", False)),
+        profile=_labeling_profile,
     )
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution

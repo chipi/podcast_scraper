@@ -265,6 +265,10 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         "named": 1,
         "unresolved": 1,
         "by_voice_type": {"person": 1, "unidentified": 1},
+        "voice_census": {
+            "person": {"count": 1, "talk_s": 60.0, "talk_share": 0.15},
+            "unidentified": {"count": 1, "talk_s": 340.0, "talk_share": 0.85},
+        },
         # Labeling OUTPUT (ADR-133/#1220): both voices are real (no cameo/commercial), so both are
         # exposed to GI/KG — HOST named, SPEAKER_01 an unidentified Voice.
         "exposed": {
@@ -278,11 +282,15 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         "expected_unresolved": 1,
         # SPEAKER_01 is substantive, and NOBODY NAMES THEM — that is tape, not a failure.
         "truly_unknown": 0,
-        # ...but 85% of the episode is still attributable to nobody, and THAT is worth an alarm
-        # even when it is not our fault. `unbound_names` is empty: no metadata name went unplaced,
-        # so there is nobody to go and find.
+        # 85% of the episode is attributed to nobody — recorded as a trace
+        # (`unattributed_talk_share`) so the sidecar carries the full picture — but it is all
+        # `unidentified` TAPE, nobody we could have named, so the DEFECT share is 0 and the alarm
+        # does NOT fire (ADR-137 / Pattern B). A
+        # vox-pop nobody introduces is not our failure. `unbound_names` is empty: nobody to go find.
         "unattributed_talk_share": 0.85,
-        "unattributed_alarm": True,
+        "unattributed_defect_share": 0.0,
+        "unattributed_alarm": False,
+        "labeling_profile": "naming-4",
         "unbound_names": [],
     }
     assert diag["tried"]["host_self_intro"] == "Noah Kravitz"
@@ -297,6 +305,34 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
     # distinction is what keeps `truly_unknown` meaningful as a defect count.
     assert by_voice["SPEAKER_01"]["expected"] is True
     assert by_voice["SPEAKER_01"]["reason"]  # a non-empty "why it failed" explanation
+
+
+def test_pattern_b_bounds_defect_to_spare_name_count() -> None:
+    # ADR-137 / Pattern B: 2 unbound metadata names can explain at most 2 missed voices. The 2
+    # most-substantive unnamed voices are `unknown` (defect); the rest are `unidentified` TAPE, so a
+    # narrated desk's random inserts stop reading as "we should have named this".
+    diar = _diar(
+        [("HOST", 0, 60), ("A", 60, 360), ("B", 360, 560), ("C", 560, 600), ("D", 600, 630)], 5
+    )
+    voice_texts = {
+        "HOST": "Welcome. I'm Noah Kravitz.",
+        "A": "a long substantive stretch of discussion about the topic at length here",
+        "B": "more substantive discussion continuing on for a good while as well",
+        "C": "a brief interjection from the field",
+        "D": "another short clip of tape",
+    }
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Noah Kravitz.",
+        detected_guests=[],
+        voice_texts=voice_texts,
+        metadata_named=["Alice Anderson", "Bob Brown"],  # 2 spare, unbindable to these voices
+    )
+    vt = {v: role.voice_type for v, role in r.by_voice.items()}
+    # top-2 by talk are the defects worth chasing...
+    assert vt["A"] == "unknown" and vt["B"] == "unknown"
+    # ...the excess beyond the 2 spare names is tape, not our failure.
+    assert vt["C"] == "unidentified" and vt["D"] == "unidentified"
 
 
 def test_speaker_diagnostics_show_centric_host_is_expected() -> None:
