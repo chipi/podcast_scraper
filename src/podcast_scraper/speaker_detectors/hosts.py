@@ -422,11 +422,15 @@ CUE_FIRST_BODY = (
     r"|joined\s+(?:today\s+)?by"
     r"|joining\s+(?:me|us)(?:\s+(?:today|now|this\s+week))?\s+(?:is|are)"
     r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:joined\s+)?with"
-    r"|(?:i|we)\s+(?:spoke|talked|sat\s+down)\s+with"
     r"|(?:please\s+)?welcome\s+(?:back\s+)?"
     r"|here\s+with\s+me\s+(?:is|are)"
     r"|(?:my|our)\s+colleague"
 )
+# Past-tense hand-off ("i sat down with X", "we spoke with X"). A real introduction ONLY as a
+# head-of-episode cold-open; mid-show it describes a PAST conversation and would misattribute the
+# named person to whatever voice happens to speak next (a recap is not an intro). Kept separate so
+# the roster can gate it to the first turns AND a host introducer (3rd advisor review).
+CUE_FIRST_PAST_BODY = r"(?:i|we)\s+(?:spoke|talked|sat\s+down)\s+with"
 _GUEST_INTRODUCED_BY_HOST = re.compile(
     rf"\b(?:{CUE_FIRST_BODY})\s+(?:the\s+|our\s+)?(?P<names>{_NAMES})",
     re.IGNORECASE,
@@ -443,17 +447,25 @@ _GUEST_INTRODUCED_BY_HOST = re.compile(
 # Name-first tail (ADR-137). The last two lines are narrated-desk report verbs — "…Farnaz Fassihi
 # explain…", "Eric Schmitt talks us through…", "Sydney Baloue reports…". Host-gated (only read on a
 # host-hint voice), so a topical "X explains that…" in a guest's own answer does not reclaim a name.
+# Intro tails ("Jia Li is with us", "…joins me"): a first-person address, safe to resolve against
+# the full stated set.
 NAME_FIRST_TAIL = (
     r"(?:is|are)\s+(?:here\s+)?with\s+(?:me|us)"
     r"|(?:is|are)\s+(?:my|our)\s+guests?"
     r"|(?:is|are)\s+joining\s+(?:me|us)"
     r"|joins?\s+(?:me|us)"
-    r"|explains?|reports?|tells\s+us|walks\s+us\s+through|talks\s+us\s+through"
+)
+# Narrated-desk REPORT verbs ("Farnaz Fassihi explains…", "Sydney Baloue reports…"). These ALSO
+# match a purely TOPICAL mention on a host's own sentence ("Sam Altman explains it best in his
+# blog"), so on the case-blind match-form path they are resolved only against CORROBORATED refs
+# (detected guests + known hosts) — never a bare metadata SUBJECT (3rd advisor review).
+NAME_FIRST_REPORT_TAIL = (
+    r"explains?|reports?|tells\s+us|walks\s+us\s+through|talks\s+us\s+through"
     r"|takes\s+us\s+(?:through|inside)|breaks\s+(?:it\s+|this\s+)?down"
 )
 _GUEST_INTRODUCED_NAME_FIRST = re.compile(
     # Tolerate an ASR comma between the name and the verb ("Eric Schmitt, talks us through…").
-    rf"(?P<names>{_NAMES})\s*,?\s+(?:{NAME_FIRST_TAIL})",
+    rf"(?P<names>{_NAMES})\s*,?\s+(?:{NAME_FIRST_TAIL}|{NAME_FIRST_REPORT_TAIL})",
     re.IGNORECASE,
 )
 

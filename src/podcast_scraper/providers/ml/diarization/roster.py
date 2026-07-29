@@ -33,6 +33,7 @@ from ....speaker_detectors.hosts import (
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _NAME_RE as _INTRO_NAME_RE,
     CUE_FIRST_BODY,
+    CUE_FIRST_PAST_BODY,
     distinct_self_introductions,
     extract_self_introduced_host,
     GREETED_TAIL,
@@ -43,6 +44,7 @@ from ....speaker_detectors.hosts import (
     is_plausible_mononym,
     is_publishable_speaker_name,
     looks_like_a_person_name,
+    NAME_FIRST_REPORT_TAIL,
     NAME_FIRST_TAIL,
     roles_from_conversation,
 )
@@ -858,8 +860,17 @@ _NAME_WINDOW_MF = r"([a-z][a-z'\-]+(?:\s+[a-z][a-z'\-]+){0,3})"
 # (extract_self_introduced_host) is "I'm"-only for exactly this reason; the match form matches it.
 _SELF_INTRO_MATCHFORM = re.compile(rf"\b(?:i'm|i am|my name is)\s+{_NAME_WINDOW_MF}")
 _CUE_FIRST_MATCHFORM = re.compile(rf"\b(?:{CUE_FIRST_BODY})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}")
+# Past-tense cue — gated to head-of-episode + host turns in the loop (recap misattribution, F fix).
+_CUE_FIRST_PAST_MATCHFORM = re.compile(
+    rf"\b(?:{CUE_FIRST_PAST_BODY})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}"
+)
 _NAME_FIRST_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{NAME_FIRST_TAIL})")
+# Report-verb tail — resolved against CORROBORATED refs only (see _voice_named_by_the_introduction).
+_NAME_FIRST_REPORT_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{NAME_FIRST_REPORT_TAIL})")
 _GREETED_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,\s*(?:{GREETED_TAIL})")
+# A self-introduction / hand-off is an opening act; the past-tense recap cue and the report-verb
+# tails only name the next voice within the first few merged turns of an episode (3rd advisor).
+_HEAD_INTRO_TURNS = 10
 
 
 def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]:
@@ -945,6 +956,14 @@ def _match_stated_in_span(
     """
     if not span:
         return None
+    # Pass 1 — EXACT surname across ALL stated first, so a fuzzy soundex/edit-1 collision can never
+    # win over a stated person whose surname the span matches exactly: stated [Chris Smith, Chris
+    # Schmidt] + span "chris schmidt" must resolve to Schmidt, not whichever Chris is listed first
+    # (Smith/Schmidt share a soundex). Order-independent. (advisor review, finding 4)
+    for name, toks in stated:
+        if first_names_match(toks[0], span[0]) and toks[-1] in span[1:]:
+            return name
+    # Pass 2 — fuzzy surname (soundex / edit ≤ 1) only if no stated name matched exactly.
     for name, toks in stated:
         if not first_names_match(toks[0], span[0]):
             continue
@@ -977,12 +996,15 @@ def _metadata_anchored_self_intro(
     # not masquerade as one.
     text = normalize_for_match((voice_text or "")[:5000])
     for m in _SELF_INTRO_MATCHFORM.finditer(text):
-        # Drop possessive tokens ("altman's"): a trailing-possessive word is a THIRD-PERSON
-        # reference — "i'm sam altman's biggest fan" — never the speaker's OWN surname, so it must
-        # not become a surname candidate (the possessive folds to an edit-1 surname otherwise). Done
-        # before normalize_name_for_match strips the apostrophe. Real apostrophe names ("o'brien")
-        # do not end in "'s", so they are untouched. (F1 residual, second advisor review.)
-        window = " ".join(t for t in m.group(1).split() if not t.endswith("'s"))
+        # Drop possessive tokens ("altman's", and the s-ending "hastings'"): a trailing-possessive
+        # word is a THIRD-PERSON reference — "i'm sam altman's biggest fan", "i'm reed hastings'
+        # successor" — never the speaker's OWN surname, so it must not become a surname candidate
+        # (the possessive folds to an edit-1/exact surname otherwise). Done before
+        # normalize_name_for_match strips the apostrophe. Real apostrophe names ("o'brien") end in a
+        # letter, not "'s" or a bare "'", so they are untouched. (F1 residual, 2nd + 3rd advisor.)
+        window = " ".join(
+            t for t in m.group(1).split() if not (t.endswith("'s") or t.endswith("'"))
+        )
         name = _match_stated_in_span(normalize_name_for_match(window).split(), stated)
         if name:
             return name
@@ -1234,6 +1256,7 @@ def _voice_named_by_the_introduction(
     known_hosts_lower: AbstractSet[str] = frozenset(),
     metadata_named: Sequence[str] = (),
     first_name_only: bool = True,
+    corroborated_named: Sequence[str] = (),
 ) -> Dict[str, str]:
     """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
 
@@ -1296,17 +1319,28 @@ def _voice_named_by_the_introduction(
             return
 
     stated = _stated_tokens(metadata_named)
+    # Corroborated refs (detected guests + known hosts) for the report-verb tails — those tails also
+    # match a bare TOPICAL mention ("sam altman explains it best"), so binding them to a metadata
+    # SUBJECT is the #876 error. NO fallback to the full stated set: when nothing is corroborated,
+    # a report-verb tail names nobody (abstain beats a wrong bind). (3rd advisor review, fix 3)
+    corroborated_stated = _stated_tokens(corroborated_named)
 
     def _assign_matchform(
-        i: int, mf_text: str, rx: "re.Pattern[str]", *, allow_first_name_only: bool = False
+        i: int,
+        mf_text: str,
+        rx: "re.Pattern[str]",
+        *,
+        allow_first_name_only: bool = False,
+        stated_set: Optional[Sequence[Tuple[str, List[str]]]] = None,
     ) -> None:
         # Case-blind, metadata-anchored (ADR-137): the capitalized regexes above find nothing on
         # lowercase turbo ASR, so match the SAME cue on the folded form and resolve the window to a
         # stated name. Reference-bounded — only ever assigns a name the metadata stated.
+        refs = stated if stated_set is None else stated_set
         for m in rx.finditer(mf_text):
             name = _match_stated_in_span(
                 normalize_name_for_match(m.group(1)).split(),
-                stated,
+                refs,
                 allow_first_name_only=allow_first_name_only,
             )
             if name:
@@ -1314,6 +1348,7 @@ def _voice_named_by_the_introduction(
 
     for i, (speaker, text) in enumerate(ordered_turns):
         is_host_hint = host_hint_voices is not None and speaker in host_hint_voices
+        at_head = i < _HEAD_INTRO_TURNS
         mf = normalize_for_match(text or "") if stated else ""
         for m in _GUEST_INTRODUCED_BY_HOST_RE.finditer(text or ""):
             names = _intro_names(m)
@@ -1326,6 +1361,12 @@ def _voice_named_by_the_introduction(
             _assign_matchform(
                 i, mf, _CUE_FIRST_MATCHFORM, allow_first_name_only=first_name_only and is_host_hint
             )
+            # Past-tense recap cue ("we spoke with X") names the next voice ONLY as a head-of-
+            # episode cold-open from a host; mid-show it is a recap and would misattribute (fix 2).
+            if is_host_hint and at_head:
+                _assign_matchform(
+                    i, mf, _CUE_FIRST_PAST_MATCHFORM, allow_first_name_only=first_name_only
+                )
         if is_host_hint:
             for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
                 for m in rx.finditer(text or ""):
@@ -1335,6 +1376,10 @@ def _voice_named_by_the_introduction(
             if stated:
                 _assign_matchform(i, mf, _GREETED_MATCHFORM)
                 _assign_matchform(i, mf, _NAME_FIRST_MATCHFORM)
+                # Report-verb tails ("X explains/reports") resolve ONLY against corroborated refs.
+                _assign_matchform(
+                    i, mf, _NAME_FIRST_REPORT_MATCHFORM, stated_set=corroborated_stated
+                )
     return out
 
 
@@ -1447,6 +1492,7 @@ def _intro_reader_voice_names(
     stated_persons: Sequence[str] = (),
     narrator_cue: bool = True,
     first_name_only: bool = True,
+    corroborated_persons: Sequence[str] = (),
 ) -> Dict[str, str]:
     """``{voice: canonical name}`` for voices a host introduced by name — "and now, Bobby Allen" —
     since the person a host introduces is the one who speaks next. Complements the self-intro:
@@ -1468,6 +1514,7 @@ def _intro_reader_voice_names(
         known_lower,
         metadata_named=stated_persons if narrator_cue else (),
         first_name_only=first_name_only,
+        corroborated_named=corroborated_persons if narrator_cue else (),
     ).items():
         if v in ad_voices or v in voice_intro:
             continue
@@ -1746,6 +1793,9 @@ def resolve_speaker_roster(
             list(detected_guests or ()) + list(metadata_named or ()),
             narrator_cue=profile.narrator_cue_binding,
             first_name_only=profile.first_name_only_intro,
+            # Report-verb tails resolve only against CORROBORATED names (detected guests + known
+            # hosts), never a bare metadata subject like an episode's topic-person (fix 3).
+            corroborated_persons=list(detected_guests or ()) + list(known_hosts or ()),
         )
     )
 

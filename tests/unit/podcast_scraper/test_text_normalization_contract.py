@@ -136,6 +136,59 @@ def test_f1_first_person_possessive_never_self_binds():
         _metadata_anchored_self_intro("i'm rich gelfond here", ["Richard Gelfond"])
         == "Richard Gelfond"
     )
+    # s-ending surname possessive is bare-apostrophe ("hastings'") — must also be dropped (3rd
+    # advisor); Conan O'Brien (a real apostrophe name) is not a possessive and still binds.
+    assert (
+        _metadata_anchored_self_intro("i'm reed hastings' successor at netflix", ["Reed Hastings"])
+        is None
+    )
+    assert _metadata_anchored_self_intro("i'm conan o'brien", ["Conan O'Brien"]) == "Conan O'Brien"
+
+
+def test_f4_exact_surname_wins_over_a_fuzzy_collision():
+    # 3rd advisor, finding 4: stated [Chris Smith, Chris Schmidt] + "chris schmidt" must resolve to
+    # Schmidt (exact), never Smith (Smith/Schmidt share a soundex) — order-independent two-pass.
+    for order in (["Chris Smith", "Chris Schmidt"], ["Chris Schmidt", "Chris Smith"]):
+        assert _metadata_anchored_self_intro("i'm chris schmidt", order) == "Chris Schmidt"
+        assert _metadata_anchored_self_intro("i'm chris smith", order) == "Chris Smith"
+
+
+def test_f2_past_tense_recap_binds_only_at_head_from_a_host():
+    # 3rd advisor, finding 2: a MID-SHOW recap "we spoke with X" must not misattribute X to the next
+    # voice; a head-of-episode cold-open still binds. (alternating turns push the recap past head.)
+    recap = [("h", "so what do you think"), ("g", "interesting")] * 12
+    recap += [("h", "earlier we spoke with andrew ng about that"), ("c", "agreed")]
+    assert (
+        _voice_named_by_the_introduction(
+            recap, host_hint_voices={"h"}, metadata_named=["Andrew Ng"]
+        )
+        == {}
+    )
+    cold = [("h", "today i sat down with andrew ng"), ("g", "thanks")]
+    got = _voice_named_by_the_introduction(
+        cold, host_hint_voices={"h"}, metadata_named=["Andrew Ng"], corroborated_named=["Andrew Ng"]
+    )
+    assert got.get("g") == "Andrew Ng"
+
+
+def test_f3_report_verb_binds_corroborated_not_a_topical_subject():
+    # 3rd advisor, finding 3: "sam altman explains it best" is a TOPICAL mention of an episode
+    # subject — must not bind. A report verb on a CORROBORATED reporter (detected guest) does bind.
+    topical = [("h", "on scaling laws, sam altman explains it best in his blog"), ("g", "right")]
+    assert (
+        _voice_named_by_the_introduction(
+            topical, host_hint_voices={"h"}, metadata_named=["Sam Altman"], corroborated_named=[]
+        )
+        == {}
+    )
+    desk = [("h", "farnaz fassihi reports on the fallout"), ("g", "the situation")]
+    got = _voice_named_by_the_introduction(
+        desk,
+        host_hint_voices={"h"},
+        metadata_named=["Farnaz Fassihi"],
+        corroborated_named=["Farnaz Fassihi"],
+    )
+    assert got.get("g") == "Farnaz Fassihi"
 
 
 # --- Fix 1: narrated-desk cue vocabulary ---------------------------------------------------------
@@ -173,9 +226,14 @@ def test_fix1_cue_path_is_case_invariant_with_metadata():
 
 def test_fix1_cue_path_bridges_asr_mangled_surname():
     # metadata "Fassihi", ASR heard "fasihi" (edit 1) -> bridged by the metadata anchor, lowercase.
+    # A report-verb tail ("explains") resolves only against CORROBORATED refs (fix 3), so a real
+    # desk reporter is passed as corroborated — a bare topical subject would not bind here.
     turns = [("host", "farnaz fasihi explains the situation"), ("guest", "on the ground")]
     got = _voice_named_by_the_introduction(
-        turns, host_hint_voices={"host"}, metadata_named=["Farnaz Fassihi"]
+        turns,
+        host_hint_voices={"host"},
+        metadata_named=["Farnaz Fassihi"],
+        corroborated_named=["Farnaz Fassihi"],
     )
     assert got.get("guest") == "Farnaz Fassihi"
 
