@@ -274,6 +274,44 @@ def test_insights_endpoint_limit_zero_returns_empty(tmp_path: Path) -> None:
     assert body["insights"] == []
 
 
+def test_insights_endpoint_positive_limit_returns_top_n_by_salience(tmp_path: Path) -> None:
+    # ADR-133/#1191: a POSITIVE ?limit caps to the top-N AFTER the salience-desc sort, through the
+    # real HTTP path. Only limit=0 and the uncapped default (single insight) were covered — neither
+    # could distinguish "sort then cap" from "cap in extraction order". Extraction order here is
+    # lo, hi, mid; a correct endpoint returns hi, mid, lo (and ?limit=2 -> hi, mid).
+    _write_corpus(tmp_path)
+    gi = {
+        "episode_id": "ep1",
+        "nodes": [
+            {
+                "id": "insight:lo",
+                "type": "Insight",
+                "properties": {"text": "low", "salience": 0.1, "insight_type": "claim"},
+            },
+            {
+                "id": "insight:hi",
+                "type": "Insight",
+                "properties": {"text": "high", "salience": 0.9, "insight_type": "claim"},
+            },
+            {
+                "id": "insight:mid",
+                "type": "Insight",
+                "properties": {"text": "mid", "salience": 0.5, "insight_type": "claim"},
+            },
+        ],
+        "edges": [],
+    }
+    (tmp_path / "metadata" / "0001-hello.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    slug = _only_slug(tmp_path)
+    client = _client(tmp_path)
+
+    full = client.get(f"/api/app/episodes/{slug}/insights").json()["insights"]
+    assert [i["text"] for i in full] == ["high", "mid", "low"]
+
+    capped = client.get(f"/api/app/episodes/{slug}/insights?limit=2").json()["insights"]
+    assert [i["text"] for i in capped] == ["high", "mid"]
+
+
 def test_entities_endpoint_returns_persons_and_topics(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)

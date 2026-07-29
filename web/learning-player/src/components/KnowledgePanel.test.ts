@@ -303,6 +303,22 @@ describe('KnowledgePanel — #1191 route-and-tag surfacing', () => {
     expect(w.text()).toContain('INSIGHT_9')
   })
 
+  it('preserves the server-provided (salience) order and does not re-sort', () => {
+    // The server returns insights salience-desc; the panel must render them in THAT order, not
+    // re-sort by id/text. Input order (z, a, m) is deliberately not id- or text-sorted, so a panel
+    // that re-sorted would reorder them — the DOM order must match the server order.
+    const w = mountPanel({
+      insights: [
+        insight({ id: 'z', text: 'ZZZ highest salience', routing_tag: 'surface' }),
+        insight({ id: 'a', text: 'AAA middle salience', routing_tag: 'surface' }),
+        insight({ id: 'm', text: 'MMM lowest salience', routing_tag: 'surface' }),
+      ],
+    })
+    const t = w.text()
+    expect(t.indexOf('ZZZ highest salience')).toBeLessThan(t.indexOf('AAA middle salience'))
+    expect(t.indexOf('AAA middle salience')).toBeLessThan(t.indexOf('MMM lowest salience'))
+  })
+
   it('hides the insights section entirely when none are surface-tagged', () => {
     const w = mountPanel({
       insights: [insight({ id: 'x', text: 'only connect', routing_tag: 'connect' })],
