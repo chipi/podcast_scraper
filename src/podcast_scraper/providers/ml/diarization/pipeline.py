@@ -565,6 +565,18 @@ def apply_diarization_to_result(
     ad_intervals = _ad_intervals(segments)
     recurring_text = _feed_recurring_text(cfg)
     dz_provider = getattr(cfg, "diarization_provider", None)
+    # Versioned labeling profile (ADR-138) — one knob-bundle drives cleaning + naming and is stamped
+    # on the sidecar. Resolved HERE (before the cleaning pass) so both the cleaning and the roster
+    # read the same knobs. A typo'd id is rejected fail-fast by the Config validator (F6), so this
+    # fallback is defense-in-depth for a caller that bypassed Config construction.
+    try:
+        _labeling_profile = get_profile(getattr(cfg, "labeling_profile", None) or "naming-4")
+    except ValueError:
+        logger.warning(
+            "unknown labeling_profile %r; using the production default",
+            getattr(cfg, "labeling_profile", None),
+        )
+        _labeling_profile = DEFAULT_LABELING_PROFILE
     # ADR-135 — ONE deterministic cleaning pass, right after diarization, shared by the LLM call and
     # the roster so "which voices are ad / cameo / commercial vs real" is defined in a single place.
     cleaning = classify_voices(
@@ -574,6 +586,7 @@ def apply_diarization_to_result(
         ordered_turns=ordered_turns,
         recurring_text=recurring_text,
         diarization_provider=dz_provider,
+        cameo_max_talk_s=_labeling_profile.cameo_max_talk_s,
     )
     # The intro (title + description + the cleaned, labeled first minutes) is where a show states
     # who hosts and who is visiting; it lets the same call decide host/guest, not just name. The LLM
@@ -599,18 +612,6 @@ def apply_diarization_to_result(
     )
 
     _md_named = list(metadata_named or ())
-
-    # Versioned labeling profile (ADR-138) — one knob-bundle drives naming + classification and is
-    # stamped on the sidecar. A typo'd id is rejected fail-fast by the Config validator (F6), so
-    # this fallback is defense-in-depth for a caller that bypassed Config construction.
-    try:
-        _labeling_profile = get_profile(getattr(cfg, "labeling_profile", None) or "naming-4")
-    except ValueError:
-        logger.warning(
-            "unknown labeling_profile %r; using the production default",
-            getattr(cfg, "labeling_profile", None),
-        )
-        _labeling_profile = DEFAULT_LABELING_PROFILE
 
     def _run_roster(
         names: Optional[Dict[str, str]], roles: Optional[Dict[str, str]]

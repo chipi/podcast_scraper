@@ -387,6 +387,7 @@ def _classify_voice_types(
     ad_voices: Optional[set] = None,
     nameable: Optional[set] = None,
     cleaning: Optional["VoiceCleaning"] = None,
+    cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
 ) -> Dict[str, "SpeakerRole"]:
     """Tag every *unnamed* voice; named voices are ``person``.
 
@@ -421,7 +422,7 @@ def _classify_voice_types(
         else:
             ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
             is_commercial = bool(ad_intervals) and ad_frac >= COMMERCIAL_AD_FRACTION
-            is_cameo = total < CAMEO_MAX_TALK_S
+            is_cameo = total < cameo_max_talk_s
         if is_commercial:
             vt = VOICE_COMMERCIAL
         elif is_cameo:
@@ -482,6 +483,7 @@ def classify_voices(
     ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
     recurring_text: Optional[set] = None,
     diarization_provider: Optional[str] = None,
+    cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
 ) -> VoiceCleaning:
     """Classify every diarized voice as ad / cameo / commercial / real (see :class:`VoiceCleaning`).
 
@@ -503,7 +505,7 @@ def classify_voices(
         ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
         if ad_intervals and ad_frac >= COMMERCIAL_AD_FRACTION:
             commercial.add(v)
-        elif total < CAMEO_MAX_TALK_S:
+        elif total < cameo_max_talk_s:
             cameo.add(v)
     real = {v for v in talk if v not in ad and v not in cameo and v not in commercial}
     return VoiceCleaning(
@@ -767,9 +769,15 @@ def _recover_stated_names(
     by_voice: Dict[str, "SpeakerRole"],
     stated_refs: Sequence[str],
     known_hosts: Sequence[str] = (),
+    *,
+    fuzzy: bool = True,
 ) -> None:
     """ADR-128 in-place pass: snap each published name that ASR-mangled a STATED person (host OR
     guest) back to its metadata spelling. Guards that keep it from doing harm:
+
+    ``fuzzy`` is the ADR-138 ``nickname_fuzzy_binding`` knob: this whole pass IS the nickname +
+    ASR-fuzzy-surname canonicalizer, so when it is off (naming-3-legacy) the pass is skipped and
+    mangled names keep their spoken spelling — the A/B lever for the recovery.
 
     * A name that ALREADY exactly matches a stated ref is correct and is never re-snapped — else
       two stated people sharing a first name could move an exact match onto the earlier near-ref.
@@ -786,6 +794,8 @@ def _recover_stated_names(
       and this final pass must not reopen that hole. A genuinely mangled co-host already carries
       ``role == "host"`` by the time this runs, so it still snaps.
     """
+    if not fuzzy:
+        return
     stated_lower = {r.lower() for r in stated_refs}
     known_hosts_lower = {h.lower() for h in known_hosts}
     claimed = {r.name.lower() for r in by_voice.values() if r.named}
@@ -1103,6 +1113,7 @@ def _name_guest_voices(
     used_lower: set,
     talk: Optional[Dict[str, float]] = None,
     llm_named: Optional[set] = None,
+    cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -1128,7 +1139,7 @@ def _name_guest_voices(
         for v in voices_by_total
         if v not in assigned
         and v not in voice_intro
-        and (talk is None or talk.get(v, 0.0) >= CAMEO_MAX_TALK_S)
+        and (talk is None or talk.get(v, 0.0) >= cameo_max_talk_s)
     ]
     # A detected-guest name is only spare if the SAME PERSON is not already on the roster. Same
     # person = same surname AND (one side title-only, or matching given name, or one given an
@@ -1462,6 +1473,7 @@ def _self_intro_voice_names(
     strategy: Optional[DiarizationLabelingStrategy] = None,
     case_blind: bool = True,
     suppress_merged: bool = True,
+    cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
 ) -> Dict[str, str]:
     """``{voice: name}`` from each voice's OWN self-introduction, ads excluded (#876).
 
@@ -1508,7 +1520,7 @@ def _self_intro_voice_names(
         known_hosts=known_hosts,
         conv_guests=set(conv_guests),
         montage_suppressed=montage_suppressed,
-        cameo_floor=CAMEO_MAX_TALK_S,
+        cameo_floor=cameo_max_talk_s,
     )
     out: Dict[str, str] = {}
     for v, n in intros.items():
@@ -1799,6 +1811,7 @@ def resolve_speaker_roster(
         _strategy,
         case_blind=profile.case_blind_self_intro,
         suppress_merged=profile.suppress_merged_speaker_clusters,
+        cameo_max_talk_s=profile.cameo_max_talk_s,
     )
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting
@@ -1970,6 +1983,7 @@ def resolve_speaker_roster(
             used_lower,
             talk=total,
             llm_named=llm_named,
+            cameo_max_talk_s=profile.cameo_max_talk_s,
         )
     )
     # They still belong in the roster — as "Advertisement", not as a missing id.
@@ -1986,7 +2000,9 @@ def resolve_speaker_roster(
         dict.fromkeys(list(known_hosts) + list(detected_guests or ()) + list(metadata_named or ()))
     )
     if stated_refs:
-        _recover_stated_names(by_voice, stated_refs, known_hosts)
+        _recover_stated_names(
+            by_voice, stated_refs, known_hosts, fuzzy=profile.nickname_fuzzy_binding
+        )
 
     # FINAL PLAUSIBILITY GATE (ADR-132 shared core). Every naming path above — self-intro, host
     # pool, greeting reader, strategy snap, LLM, metadata — writes into `by_voice`, and each has its
@@ -2060,7 +2076,13 @@ def resolve_speaker_roster(
         nameable |= set(promoted)
 
     by_voice = _classify_voice_types(
-        by_voice, diarization, ad_intervals, ad_voices, nameable=nameable, cleaning=cleaning
+        by_voice,
+        diarization,
+        ad_intervals,
+        ad_voices,
+        nameable=nameable,
+        cleaning=cleaning,
+        cameo_max_talk_s=profile.cameo_max_talk_s,
     )
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))
 

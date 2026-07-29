@@ -23,9 +23,12 @@ from podcast_scraper.providers.ml.diarization.roster import (
     _canonicalize_to_stated_name,
     _distinct_intros_map_to_multiple_stated,
     _metadata_anchored_self_intro,
+    _recover_stated_names,
     _voice_named_by_the_introduction,
     build_speaker_diagnostics,
+    classify_voices,
     resolve_speaker_roster,
+    SpeakerRole,
 )
 from podcast_scraper.text_normalization import (
     first_names_match,
@@ -571,3 +574,31 @@ def test_labeling_profile_ab_switch_changes_classification_and_alarm():
     # provenance recorded per profile
     assert v4["labeling_profile"] == "naming-4"
     assert legacy["labeling_profile"] == "naming-3-legacy"
+
+
+def test_nickname_fuzzy_binding_flag_gates_the_recovery():
+    # review: nickname_fuzzy_binding was a DEAD flag. Now wired to the ADR-128 recovery pass: ON
+    # snaps "Rich Gelfond" -> stated "Richard Gelfond"; OFF (legacy) keeps the spoken form.
+    def _recover(fuzzy: bool) -> str:
+        by_voice = {
+            "SPEAKER_00": SpeakerRole(
+                name="Rich Gelfond", role="host", named=True, source="self_intro"
+            )
+        }
+        _recover_stated_names(by_voice, ["Richard Gelfond"], [], fuzzy=fuzzy)
+        return by_voice["SPEAKER_00"].name
+
+    assert _recover(NAMING_4.nickname_fuzzy_binding) == "Richard Gelfond"  # True
+    assert _recover(NAMING_3_LEGACY.nickname_fuzzy_binding) == "Rich Gelfond"  # False
+
+
+def test_cameo_max_talk_s_knob_gates_classification():
+    # review: cameo_max_talk_s was a DEAD knob. Now wired: a 50s voice is a real speaker under the
+    # default 20s floor but a cameo under a 100s floor — the knob actually moves the cut.
+    segs = [
+        DiarizationSegment(start=0.0, end=50.0, speaker="SPEAKER_00"),
+        DiarizationSegment(start=50.0, end=600.0, speaker="SPEAKER_01"),
+    ]
+    diar = DiarizationResult(segments=segs, num_speakers=2)
+    assert "SPEAKER_00" not in classify_voices(diar, cameo_max_talk_s=20.0).cameo
+    assert "SPEAKER_00" in classify_voices(diar, cameo_max_talk_s=100.0).cameo
