@@ -4,18 +4,16 @@ name: Deploy config (by surface)
 # of app images. A config change ships in seconds — no image, no compose recreate, no full
 # app redeploy. Operator picks the surface; nothing else moves.
 #
-# Surfaces:
-#   infra    → podcast-owned SHARED observability/analytics INGEST the apps consume:
-#              player-telemetry.caddy (telemetry.<domain> → GlitchTip),
-#              player-analytics.caddy (analytics.<domain> → Umami)
-#   player   → player.caddy   + player.alloy
-#   operator → operator.caddy + podcast.alloy
-#   orrery   → orrery.caddy, glitchtip.caddy, analytics.caddy (orrerylearn.com; hardcoded, no
-#              templating). Owned HERE for now — deploys as its own surface.
-#   all      → infra + player + operator + orrery
+# Surfaces (consistent naming: <surface>.caddy app · <surface>-telemetry.caddy GlitchTip
+# ingest · <surface>-analytics.caddy Umami ingest · <surface>.alloy logs):
+#   player   → player.caddy + player-telemetry.caddy + player-analytics.caddy + player.alloy
+#   operator → operator.caddy + operator.alloy   (operator sends telemetry/analytics to
+#              homelab directly over the tailnet — no public ingest vhost)
+#   orrery   → orrery.caddy + orrery-telemetry.caddy + orrery-analytics.caddy
+#              (orrerylearn.com; hardcoded, no templating). Owned HERE for now — own surface.
+#   all      → player + operator + orrery
 #
-# Deferred (tracked separately — ADR-078 / ADR-129): moving the orrery vhosts to the orrery
-# repo, and the vhost renames (player-telemetry→telemetry, player-analytics→analytics). The
+# Deferred (tracked separately — ADR-129): moving the orrery vhosts to the orrery repo. The
 # base Caddyfile stays in apply-edge.sh (root-owned, host-level).
 #
 # Caddy: templated in the runner (domain + __*_PREVIEW_COOKIE__, same sed as the deploy
@@ -34,7 +32,7 @@ on:
       surface:
         description: "Which surface's config to deploy"
         type: choice
-        options: [infra, player, operator, orrery, all]
+        options: [player, operator, orrery, all]
         required: true
       dry_run:
         description: "Stage + caddy validate only; no restart / no HUP"
@@ -81,10 +79,7 @@ jobs:
           [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
           [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
           [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
-          # Per-surface templating inputs.
-          case "$SURFACE" in
-            infra|all)  [ -z "${PLAYER_DOMAIN:-}" ] && MISSING="$MISSING PLAYER_DOMAIN" ;;
-          esac
+          # Per-surface templating inputs (player = app vhost + its telemetry/analytics ingest).
           case "$SURFACE" in
             player|all)
               [ -z "${PLAYER_DOMAIN:-}" ] && MISSING="$MISSING PLAYER_DOMAIN"
@@ -146,14 +141,14 @@ jobs:
           CADDY_VHOSTS=""   # space-separated basenames (no .caddy)
           ALLOY_FILES=""    # space-separated basenames (with .alloy)
           want() { case "$SURFACE" in "$1"|all) return 0 ;; *) return 1 ;; esac; }
-          # infra   = podcast-owned SHARED ingest (telemetry/analytics on closelistening).
-          # player/operator = the app vhost + its Alloy log drop-in.
-          # orrery  = orrery's vhosts, owned HERE for now (deploy as their own surface); the
-          #           move to the orrery repo per ADR-078 (+ the vhost renames) is deferred.
-          if want infra;    then CADDY_VHOSTS="$CADDY_VHOSTS player-telemetry player-analytics"; fi
-          if want player;   then CADDY_VHOSTS="$CADDY_VHOSTS player";   ALLOY_FILES="$ALLOY_FILES player.alloy"; fi
-          if want operator; then CADDY_VHOSTS="$CADDY_VHOSTS operator"; ALLOY_FILES="$ALLOY_FILES podcast.alloy"; fi
-          if want orrery;   then CADDY_VHOSTS="$CADDY_VHOSTS orrery glitchtip analytics"; fi
+          # Each surface = its own vhosts + its Alloy log drop-in. Consistent naming:
+          #   <surface>.caddy (app) · <surface>-telemetry.caddy (GlitchTip) ·
+          #   <surface>-analytics.caddy (Umami) · <surface>.alloy (logs).
+          # player's telemetry/analytics ingest is player's (operator uses homelab-direct over
+          # the tailnet). orrery is owned here for now; the move to the orrery repo is deferred.
+          if want player;   then CADDY_VHOSTS="$CADDY_VHOSTS player player-telemetry player-analytics"; ALLOY_FILES="$ALLOY_FILES player.alloy"; fi
+          if want operator; then CADDY_VHOSTS="$CADDY_VHOSTS operator"; ALLOY_FILES="$ALLOY_FILES operator.alloy"; fi
+          if want orrery;   then CADDY_VHOSTS="$CADDY_VHOSTS orrery orrery-telemetry orrery-analytics"; fi
 
           echo "surface=$SURFACE dry_run=$DRY_RUN"
           echo "caddy vhosts: ${CADDY_VHOSTS:-(none)}"

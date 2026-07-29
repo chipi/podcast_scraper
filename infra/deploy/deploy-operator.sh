@@ -171,8 +171,8 @@ fi
 # Ship the operator stack's container logs to Grafana/Loki via the shared node Alloy
 # (ADR-121): drop operator.alloy into the deploy-writable config.d + hot-reload Alloy
 # (`docker kill -s HUP alloy`, no sudo — deploy is in the docker group). NON-fatal: a
-# logging hiccup must not fail the operator deploy. operator.alloy does not exist yet —
-# guard against its absence so this step is forward-compatible.
+# logging hiccup must not fail the operator deploy. (operator.alloy exists as of ADR-129 —
+# renamed from podcast.alloy; the operator surface owns its log drop-in. Guard kept anyway.)
 ALLOY_DIR=/opt/vps-observability/config.d
 if [ -d "$ALLOY_DIR" ]; then
   if [ -f infra/observability/operator.alloy ]; then

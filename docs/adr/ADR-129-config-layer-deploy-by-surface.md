@@ -28,29 +28,32 @@ surface's config moves.
 **A dedicated `deploy-config.yml` deploys the config layer by SURFACE, independently of app
 images.** Operator picks the surface; nothing else moves.
 
-**Surface map** (podcast_scraper-owned config only):
+**Surface map** (podcast_scraper-owned config only). Names align across surfaces:
+`<surface>.caddy` = the app vhost, `<surface>-telemetry.caddy` = GlitchTip ingest,
+`<surface>-analytics.caddy` = Umami ingest, `<surface>.alloy` = the log drop-in.
 
 | Surface | Caddy (deploy-writable `/etc/caddy/sites/`) | Alloy | Templating |
 | --- | --- | --- | --- |
-| **infra** — the podcast **shared** observability/analytics **ingest** the apps *consume* | `player-telemetry.caddy` (→ GlitchTip), `player-analytics.caddy` (→ Umami) | — | `PLAYER_DOMAIN`; `GLITCHTIP_UPSTREAM` (Caddy env, box-side) |
-| **player** — the app | `player.caddy` | `player.alloy` | `PLAYER_DOMAIN` + `PLAYER_PREVIEW_COOKIE` |
-| **operator** — the app | `operator.caddy` | `podcast.alloy` | `OPERATOR_DOMAIN` + `OPERATOR_PREVIEW_COOKIE` |
-| **orrery** — orrery's vhosts, owned here for now | `orrery.caddy`, `glitchtip.caddy`, `analytics.caddy` | — | none (hardcoded `orrerylearn.com`; `GLITCHTIP_UPSTREAM` env) |
+| **player** — the app + its own ingest | `player.caddy`, `player-telemetry.caddy` (→ GlitchTip), `player-analytics.caddy` (→ Umami) | `player.alloy` | `PLAYER_DOMAIN` + `PLAYER_PREVIEW_COOKIE`; `GLITCHTIP_UPSTREAM` (Caddy env, box-side) |
+| **operator** — the app | `operator.caddy` | `operator.alloy` | `OPERATOR_DOMAIN` + `OPERATOR_PREVIEW_COOKIE` |
+| **orrery** — orrery's vhosts, owned here for now | `orrery.caddy`, `orrery-telemetry.caddy` (→ GlitchTip), `orrery-analytics.caddy` (→ Umami) | — | none (hardcoded `orrerylearn.com`; `GLITCHTIP_UPSTREAM` env) |
 
-**Ownership principle (operator's rule):** anything **apps consume** — the public
-observability/analytics ingest (GlitchTip / telemetry, Umami / analytics) — is **infra**. The
-**apps (player, operator)** are only their own serving vhost + log drop-in.
+**Ownership principle (operator's rule):** each **app owns its own serving vhost, its own
+observability/analytics ingest vhosts, and its own log drop-in** — one aligned naming scheme
+per surface (`player-*`, `operator*`, `orrery-*`). There is no shared "infra" surface: the
+GlitchTip/Umami *engines* are homelab-owned, but each app's ingest *vhost* rides that app's
+surface. The operator surface consumes analytics/telemetry over the homelab tailnet directly,
+so it has no ingest vhost of its own.
 
 **orrery is a temporary surface here.** orrery's Caddy routing currently lives + deploys from
 podcast_scraper (the shared-edge owner). Orrery's own repo (`agentic-ai-homelab`/orrery)
 deploys its *app* + its Alloy drop-in, but has **no** Caddy-vhost deploy today. So for now
 `deploy-config` owns and deploys the orrery vhosts as their **own surface** (full isolation —
-deploying orrery config never touches player/operator/infra).
+deploying orrery config never touches player/operator).
 
 **Deferred to a separate task** (do NOT conflate with this ADR): moving the orrery vhosts to
 the orrery repo (its routing per orrery's own edge-ownership ADR — requires building a vhost
-deploy there), and the vhost renames (`player-telemetry`→`telemetry`, `player-analytics`→
-`analytics` — the `analytics.caddy` name is currently taken by orrery's).
+deploy there).
 
 **Mechanics:** the workflow templates each vhost in the runner (the domain rewrite + the
 `__*_PREVIEW_COOKIE__` secret, exactly as the deploy scripts' `sed`), scp's to the box, cp's
@@ -77,7 +80,7 @@ with the host-hardening path.
 
 **Positive:** a config change ships in seconds via one gated, surface-scoped workflow — no
 image, no compose recreate, no full-stack redeploy, minimal blast radius. Operator has full
-control (pick `infra` / `player` / `operator` / `orrery` / `all`). One place for config-layer deploys.
+control (pick `player` / `operator` / `orrery` / `all`). One place for config-layer deploys.
 
 **Negative:** the vhost `sed` templating is now in two places until Phase 2 (the workflow +
 the app scripts) — a divergence risk, mitigated by Phase 2 removing it from the scripts.

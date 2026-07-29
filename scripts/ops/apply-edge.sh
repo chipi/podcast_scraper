@@ -274,7 +274,7 @@ EOF
 then bind_changed=1; run systemctl daemon-reload; fi
 
 # GlitchTip ingest upstream (ADR-114): the public glitchtip.<domain> vhost
-# (infra/caddy/glitchtip.caddy) reverse-proxies browser error ingest to GlitchTip,
+# (infra/caddy/orrery-telemetry.caddy) reverse-proxies browser error ingest to GlitchTip,
 # which runs on homelab over the tailnet (on THIS box 127.0.0.1:8090 is orrery).
 # Resolve homelab's tailnet IP here — never hardcode it in the repo — and hand it
 # to that vhost via ``reverse_proxy {$GLITCHTIP_UPSTREAM}``. Set proactively even
