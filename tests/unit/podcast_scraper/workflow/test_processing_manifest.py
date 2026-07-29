@@ -16,7 +16,26 @@ from unittest import mock
 
 import pytest
 
+from podcast_scraper.utils import correlation
 from podcast_scraper.workflow import episode_processor, processing_manifest as pm
+
+
+@pytest.fixture(autouse=True)
+def _isolate_correlation_run_id():
+    """Pin the process-global correlation run id to None around each test in this module.
+
+    ``episode_processor._write_processing_manifest`` sources run_id from
+    ``correlation.get_run_id()`` first (the resolved-run global that also stamps llm_cost events)
+    and only falls back to ``cfg.run_id``. That global is set by any test or code path that starts
+    a run and never auto-resets, so under xdist a prior test's run id leaks into these manifest
+    assertions. Reset it so the manifest deterministically uses ``cfg.run_id``.
+    """
+    saved = correlation.get_run_id()
+    correlation.set_run_id(None)
+    try:
+        yield
+    finally:
+        correlation.set_run_id(saved)
 
 
 @pytest.mark.unit
