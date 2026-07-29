@@ -287,20 +287,20 @@ describe('KnowledgePanel — #1191 route-and-tag surfacing', () => {
     expect(w.text()).not.toContain('CCC dropped filler')
   })
 
-  it('caps at 6 surface insights behind a show-more fold, then reveals the rest', async () => {
-    const many = Array.from({ length: 8 }, (_, i) =>
+  it('caps at 8 surface insights behind a show-more fold, then reveals the rest', async () => {
+    const many = Array.from({ length: 10 }, (_, i) =>
       insight({ id: 'i' + i, text: 'INSIGHT_' + i, routing_tag: 'surface' as const }),
     )
     const w = mountPanel({ insights: many })
-    // first 6 visible, #6 and #7 folded
-    expect(w.text()).toContain('INSIGHT_5')
-    expect(w.text()).not.toContain('INSIGHT_6')
-    expect(w.text()).not.toContain('INSIGHT_7')
+    // first 8 visible (INSIGHT_0..7), #8 and #9 folded
+    expect(w.text()).toContain('INSIGHT_7')
+    expect(w.text()).not.toContain('INSIGHT_8')
+    expect(w.text()).not.toContain('INSIGHT_9')
     const showMore = w.find('[data-testid="kp-insights-show-all"]')
     expect(showMore.exists()).toBe(true)
     await showMore.trigger('click')
-    expect(w.text()).toContain('INSIGHT_6')
-    expect(w.text()).toContain('INSIGHT_7')
+    expect(w.text()).toContain('INSIGHT_8')
+    expect(w.text()).toContain('INSIGHT_9')
   })
 
   it('hides the insights section entirely when none are surface-tagged', () => {
