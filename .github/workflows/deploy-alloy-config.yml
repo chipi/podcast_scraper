@@ -1,0 +1,141 @@
+name: Deploy Alloy config (o11y drop-ins)
+
+# Config-ONLY deploy of the per-app Alloy log drop-ins (ADR-121) — WITHOUT redeploying the
+# app stack. The app deploys (deploy-prod.yml / deploy-player.yml) also cp these files, but
+# a full privileged-stack redeploy just to ship one config file is overkill. This ships only
+# the drop-in: scp the `.alloy` from the repo → the box's /opt/vps-observability/config.d/ +
+# hot-reload Alloy (`docker kill -s HUP alloy`). No image, no compose recreate, no repo reset.
+#
+# Targets (dispatch-time isolation — player vs operator are independent):
+#   player   → infra/observability/player.alloy   (player api/viewer logs)
+#   operator → infra/observability/podcast.alloy  (operator api/viewer logs — historical filename)
+#   both     → both files
+#
+# base.alloy (env=prod label, Caddy-edge trace_id) is infra-owned + deployed on the separate
+# manual VPS path — NOT this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY_ALLOY to confirm'
+        required: true
+        default: ''
+      target:
+        description: "Which drop-in to deploy"
+        type: choice
+        options: [player, operator, both]
+        default: both
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-alloy-config
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: prod
+    steps:
+      - name: Confirm DEPLOY_ALLOY
+        run: |
+          if [ "${{ inputs.confirm }}" != "DEPLOY_ALLOY" ]; then
+            echo "::error::Must type DEPLOY_ALLOY to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (the .alloy files at this ref)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the Alloy drop-in(s) + hot-reload
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          ALLOY_DIR=/opt/vps-observability/config.d
+          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          SCP=(scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+
+          # Map the target to the drop-in file(s). player→player.alloy, operator→podcast.alloy.
+          FILES=""
+          case "$TARGET" in
+            player)   FILES="player.alloy" ;;
+            operator) FILES="podcast.alloy" ;;
+            both)     FILES="player.alloy podcast.alloy" ;;
+            *) echo "::error::unknown target '$TARGET'"; exit 1 ;;
+          esac
+
+          # Guard: the collector dir must exist (the o11y container must be deployed here).
+          "${SSH[@]}" "$SSH_TARGET" "test -d $ALLOY_DIR" \
+            || { echo "::error::$ALLOY_DIR absent on the box — is the /opt/vps-observability Alloy container deployed?"; exit 1; }
+
+          for f in $FILES; do
+            src="infra/observability/$f"
+            [ -f "$src" ] || { echo "::error::$src not in the repo at this ref"; exit 1; }
+            echo "[$(date -u +%FT%TZ)] shipping $f -> $ALLOY_DIR/$f"
+            "${SCP[@]}" "$src" "${SSH_TARGET}:$ALLOY_DIR/$f"
+            "${SSH[@]}" "$SSH_TARGET" "chmod 0644 $ALLOY_DIR/$f"
+          done
+
+          # Single hot-reload after all files land (HUP re-reads the whole config.d).
+          echo "[$(date -u +%FT%TZ)] hot-reloading Alloy (docker kill -s HUP alloy)..."
+          "${SSH[@]}" "$SSH_TARGET" "docker kill -s HUP alloy" \
+            || { echo "::error::could not HUP alloy — the drop-in landed but is not live yet"; exit 1; }
+          echo "Deployed: $FILES ; Alloy hot-reloaded."
+
+      - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        if: always()
+        uses: ./.github/actions/emit-ops-event
+        with:
+          event-type: deploy
+          env: prod
+          victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
+          msg: "alloy-config deploy (${{ inputs.target }}) ${{ job.status }}"
+          fields: status=${{ job.status }} surface=alloy-config target=${{ inputs.target }} triggered_by=${{ github.actor }}
