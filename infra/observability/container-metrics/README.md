@@ -48,10 +48,14 @@ sudo journalctl -u container-metrics -f   # verify it's pushing
 If the install path differs from `/opt/vps-observability/container-metrics`, edit
 `ExecStart` in the unit accordingly.
 
-Alternatively, wire it into the existing prod deploy (matches the alloy drop-ins
-in `infra/deploy/deploy.sh`, which `cp` + reload on each deploy): copy both
-`push.sh` and `ctr.py` into place and `systemctl restart container-metrics` from
-the deploy script, so a redeploy ships updates.
+**Rebuild durability (wired):** the same install runs at first boot from the
+`/srv/podcast-scraper` checkout in `infra/cloud-init/prod.user-data` (right after the
+`apply-edge`/`verify-edge` installs), so a box rebuild reinstalls + enables the service
+automatically. It is **not** in `infra/deploy/deploy.sh`: that runs as `deploy@`, which
+can't write the root-owned `/opt/vps-observability` or `systemctl enable` a non-caddy
+unit — so cloud-init (root) is the correct home, mirroring how the edge scripts install.
+Updating the collector on a *running* box is a re-run of the systemd steps above (or an
+operator re-run of the cloud-init lines).
 
 ## Verify (from any tailnet host)
 

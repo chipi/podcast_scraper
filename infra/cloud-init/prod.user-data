@@ -359,6 +359,20 @@ runcmd:
   - install -m 0755 -o root -g root /srv/podcast-scraper/scripts/ops/apply-edge.sh /usr/local/sbin/apply-edge.sh
   - install -m 0755 -o root -g root /srv/podcast-scraper/scripts/ops/verify-edge.sh /usr/local/sbin/verify-edge.sh
 
+  # Install the prod container-metrics collector from the checkout (feeds the homelab
+  # landing page's per-box Containers table + apps colouring for the prod box). Root-run
+  # at boot so it survives a rebuild; deploy@ can't do this itself (root-owned /opt +
+  # enabling a non-caddy unit are outside its narrow sudo). Standalone systemd service:
+  # reads local docker, pushes to homelab:8428 over the tailnet — independent of the
+  # homelab-managed /opt/vps-observability Alloy container (shares only the parent dir).
+  # On a live box that predates this, one operator re-run of these lines installs it
+  # identically. See infra/observability/container-metrics/README.md.
+  - install -Dm755 /srv/podcast-scraper/infra/observability/container-metrics/push.sh /opt/vps-observability/container-metrics/push.sh
+  - install -Dm644 /srv/podcast-scraper/infra/observability/container-metrics/ctr.py /opt/vps-observability/container-metrics/ctr.py
+  - install -Dm644 /srv/podcast-scraper/infra/observability/container-metrics/container-metrics.service /etc/systemd/system/container-metrics.service
+  - systemctl daemon-reload
+  - systemctl enable --now container-metrics.service
+
   # === Repo checkout to /srv/orrery (mirror of /srv/podcast-scraper above) ===
   # Co-tenant deploy on the same VPS (chipi/orrery#260 / #261). Phase 1 has no
   # secret env or systemd unit gating, so the clone-to-tmp + cp -a dance from
