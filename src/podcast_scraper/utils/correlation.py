@@ -128,10 +128,18 @@ class CorrelationFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        """Stamp ``run_id`` / ``episode_id`` / ``trace_id`` onto the record, then format."""
-        record.run_id = _RUN_ID or "-"
-        record.episode_id = _EPISODE_ID.get() or "-"
-        record.trace_id = _current_trace_id()
+        """Stamp ``run_id`` / ``episode_id`` / ``trace_id`` onto the record, then format.
+
+        The stamped values are coerced to ``str``: these are join-key fields consumed as
+        ``%(run_id)s`` and captured by log handlers, so they must be plain strings. Coercion is
+        idempotent for real ids and is a hard requirement for xdist report serialization — a
+        heavily-mocked unit test can leave a ``Mock`` in the episode/run context, and a raw ``Mock``
+        on a captured record makes ``pytest-json-report`` fail to serialize the report over execnet
+        (worker crash under ``-n``; harmless in prod where ids are always strings). #1355.
+        """
+        record.run_id = str(_RUN_ID) if _RUN_ID else "-"
+        record.episode_id = str(_EPISODE_ID.get() or "-")
+        record.trace_id = str(_current_trace_id())
         return super().format(record)
 
 
