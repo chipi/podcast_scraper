@@ -592,6 +592,67 @@ SIGKILL (exit 137). Easy to misread as user-canceled or OOM.
   concurrently — process pileup on macOS causes unkillable zombies.
 - After any hung/killed `make`, run `make cleanup-processes`.
 
+### Clean up after yourself — run the cleanup tool when you're done
+
+When you finish a work block on a worktree — deployed, tested, compared, fixed,
+whatever — **leave the machine quiet**. Don't strand a `uvicorn` dev server, a
+wedged `pytest`/`playwright` run, an `ffmpeg` that hung, or an orphaned headless
+Chrome for the next session (or the human) to hunt down. A pegged runaway process
+eating CPU for days is the failure mode this prevents. Complements `make
+stack-test-reap` / `make cleanup-processes` (which target the compose stack + this
+repo's `make` orphans); `cleanup-worktree.sh` targets host dev/test processes by cwd.
+
+```bash
+bash scripts/cleanup-worktree.sh               # canonical — bash-only, works even when the toolchain is wedged
+bash scripts/cleanup-worktree.sh --dry-run     # preview: list targets, kill nothing
+bash scripts/cleanup-worktree.sh --orphans     # also reap unattributable orphaned headless browsers
+bash scripts/cleanup-worktree.sh --stale-loops # also sweep runaway gh-run poll loops (>2h) — see below
+```
+
+**`--stale-loops` (opt-in) — runaway CI-watch loops.** Agents sometimes background a
+`while true; do gh run …; sleep; done` watcher and leak it when the session dies before
+its SessionEnd reaper fires; these orphans poll the GitHub API forever (observed: loops
+surviving 8–14 days). `--stale-loops` sweeps them by FAMILY + SHAPE + AGE: a `gh run` call
+in an unbounded `while/until` loop, older than 2h (`CLEANUP_MAX_LOOP_AGE`), whose cwd is in
+**this project's family** (project-name prefix of the worktree — run from
+`~/Projects/podcast_scraper-infra` it reaps `~/Projects/podcast_scraper*` loops, so
+`podcast_scraper-FUTURE` is swept but `orrery` is never touched). It reaches sibling
+worktrees but never another project. The automatic counterpart is the SessionEnd hook
+`~/.claude/hooks/session-reap.sh` (global, not in this repo), which family-scopes to the
+ending session's own project. Full reference for the global reaper — safety gates, env
+knobs, family rule: **`~/.claude/hooks/README.md`**.
+
+Prefer the direct `bash` form: cleanup is exactly when the toolchain may be broken (a stale
+`NODE_OPTIONS` preload, a wedged node/venv), so the tool deliberately depends on nothing but
+`bash` + `ps`/`lsof`/`pgrep`.
+
+**Isolation boundary = the worktree path** (`git rev-parse --show-toplevel`). Attribution is
+by process **cwd**, never by name, so parallel worktrees / agents / shells are never touched
+— not even another podcast checkout like `podcast_scraper-FUTURE` (the trailing-slash match
+means a shared name prefix can't collide), and never `orrery`. The default run:
+
+- Kills every dev/test/pipeline process whose **cwd is inside this worktree**, plus all their
+  descendants (browsers, renderers, workers). The podcast surface: `python` (the catch-all —
+  `serve-api` = `python -m podcast_scraper.cli serve`, the e2e mock + `:8777` metrics servers,
+  `pytest`, `mkdocs`, and the ML/pipeline jobs), `uvicorn`/`gunicorn`, bare `pytest`,
+  `playwright` (viewer / learning-player / stack-test E2E), `vitest`, `vite`/`esbuild`,
+  `ffmpeg` (audio), `caffeinate` (the backgrounded keep-awake for long sweeps — it leaks past
+  the session otherwise), and `npm run dev/serve/preview`.
+- **Docker is not this tool's job:** the compose stack + stack-test's own Playwright/buildx
+  orphans belong to `make stack-test-reap` (`$(CURDIR)`-scoped); this tool never kills a
+  running docker build. Any Playwright overlap between the two is harmless.
+- **Reports but does NOT kill** orphaned automation browsers (`chrome-headless-shell` on a
+  temp `playwright_*profile`, reparented to launchd). An orphan's cwd is `/` — unattributable
+  to any worktree — so killing it by default could reap another agent's leftover. Pass
+  `--orphans` only when you know it's yours and no other agent is mid-playwright-run.
+- **Never** touches: a parallel worktree/project (cwd-attributed — `podcast_scraper-FUTURE`,
+  `orrery`, etc.), your real Chrome/Chromium profile, Claude Desktop, lean-ctx / MCP /
+  language servers, or a live playwright run anywhere.
+
+This is a standing rule, not a suggestion: **the last thing you do before ending a work block
+is run the cleanup tool** — unless the human is actively using a server you started (e.g. a
+dev server they asked to keep up), in which case say so and leave it.
+
 ### Update venv after dependency changes
 
 After ANY edit to `[project.dependencies]` or `[project.optional-dependencies]`
