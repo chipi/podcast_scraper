@@ -39,7 +39,13 @@ real_ip_recursive on;
 
 # Rate limiting (T-06 / RFC-108) — per real client IP. A normal API rate for the operator
 # read plane, and a tighter one on the auth endpoints (login/callback) to blunt abuse.
-limit_req_zone $binary_remote_addr zone=op_api:10m rate=20r/s;
+# op_api sized for the viewer's COLD-LOAD burst: opening the SPA fans out ~20 read calls
+# (auth/health/enrichment×5/digest/feeds/index-stats/artifacts/clusters) in one tick, and the
+# graph auto-load's /api/artifacts sits at the tail — at 20r/s the tail 429'd and the graph never
+# mounted (stack-test). The read plane is behind Google auth + the operator allowlist, so abuse
+# protection lives in op_auth (login), not here; a trusted authenticated operator loading their
+# own dashboard is not an abuse vector.
+limit_req_zone $binary_remote_addr zone=op_api:10m rate=50r/s;
 limit_req_zone $binary_remote_addr zone=op_auth:10m rate=2r/s;
 limit_req_status 429;
 
@@ -73,7 +79,7 @@ server {
     }
 
     location /api/ {
-        limit_req zone=op_api burst=40 nodelay;
+        limit_req zone=op_api burst=100 nodelay;
         proxy_pass http://api_backend/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
