@@ -1,0 +1,2 @@
+# Never commit the real gateway secrets — sops-delivered on prod, this file documents slots.
+.env

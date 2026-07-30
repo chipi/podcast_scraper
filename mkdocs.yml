@@ -313,6 +313,7 @@ nav:
       - ADR-139 Text Normalization Contract: adr/ADR-139-text-normalization-contract.md
       - ADR-140 Versioned Labeling Profiles: adr/ADR-140-versioned-labeling-profiles.md
       - ADR-141 Operator two-plane clarification (control + public): adr/ADR-141-operator-two-plane-clarification.md
+      - ADR-142 LiteLLM prod gateway: adr/ADR-142-litellm-prod-gateway.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

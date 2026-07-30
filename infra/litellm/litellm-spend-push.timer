@@ -1,0 +1,14 @@
+[Unit]
+# Cadence for the LiteLLM spend push (#1357, ADR-142). Every 30 min gives the homelab
+# Grafana dashboard a live-enough spend curve while staying trivially cheap (one psql
+# read + a small VM push). The metric is a cumulative gauge, so a missed tick self-heals
+# on the next one. Persistent=true fires a catch-up run if the box was down at the mark.
+Description=Run litellm-spend-push every 30 min
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

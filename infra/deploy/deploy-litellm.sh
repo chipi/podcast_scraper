@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# infra/deploy/deploy-litellm.sh — bring up the PROD LiteLLM gateway (#1357, ADR-142).
+#
+# Runs ON the VPS as the deploy user (invoked by deploy-litellm.yml after the runner joins
+# the tailnet, or by hand). Standalone `-p litellm` compose project — isolated from the app /
+# operator / player stacks. The gateway is a LOCAL inference proxy (loopback-bound, never
+# public); ALL telemetry ships to the homelab pane over the tailnet.
+#
+# Required env (staged by the workflow from sops/GH secrets, or set for a manual run):
+#   LITELLM_PG_PASSWORD    postgres password (compose-internal + loopback :5433)
+#   LITELLM_MASTER_KEY     proxy admin master key (mints virtual keys; never a consumer's)
+#   OPENROUTER_API_KEY     the prod gateway's OWN upstream OpenRouter key
+#   LANGFUSE_PUBLIC_KEY    } litellm-vps Langfuse project (telemetry → homelab:4000)
+#   LANGFUSE_SECRET_KEY    }
+#   SENTRY_DSN             litellm-vps GlitchTip project (errors → homelab:8090)
+#
+# Exit: 0 ok / 1 compose up failed / 3 health failed / 5 secrets missing
+set -euo pipefail
+
+REPO_DIR=/srv/podcast-scraper
+cd "$REPO_DIR/infra/litellm"
+
+LITELLM_ENV="$REPO_DIR/infra/litellm/.env"
+umask 077
+
+# Build .env from the environment when not already staged (the workflow scp's a pre-staged
+# .env; a manual run assembles it here). Provider/telemetry keys are REQUIRED — refuse to
+# boot a gateway that can't authenticate upstream or would silently drop all telemetry.
+if [ ! -f "$LITELLM_ENV" ]; then
+  : "${LITELLM_PG_PASSWORD:?set LITELLM_PG_PASSWORD}"
+  : "${LITELLM_MASTER_KEY:?set LITELLM_MASTER_KEY}"
+  : "${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY - the prod gateway upstream key}"
+  {
+    echo "LITELLM_PG_PASSWORD=${LITELLM_PG_PASSWORD}"
+    echo "LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}"
+    echo "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}"
+    echo "LANGFUSE_HOST=http://homelab:4000"
+    echo "LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}"
+    echo "LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}"
+    echo "SENTRY_DSN=${SENTRY_DSN:-}"
+    echo "HOMELAB_TAILNET_IP="
+  } >"$LITELLM_ENV"
+fi
+chmod 600 "$LITELLM_ENV"
+
+# Resolve the homelab tailnet IP FRESH for extra_hosts so the container can reach the
+# remote Langfuse/GlitchTip (Docker's bridge can't resolve MagicDNS `homelab`). Mirrors
+# deploy.sh / deploy-operator.sh. NON-fatal: on failure the compose loopback fallback keeps
+# the gateway serving; only telemetry drops until it re-resolves.
+HL_IP="$(tailscale ip -4 homelab 2>/dev/null | head -1 || true)"
+if [ -n "$HL_IP" ]; then
+  if grep -qE '^HOMELAB_TAILNET_IP=' "$LITELLM_ENV"; then
+    sed -i "s#^HOMELAB_TAILNET_IP=.*#HOMELAB_TAILNET_IP=$HL_IP#" "$LITELLM_ENV"
+  else
+    echo "HOMELAB_TAILNET_IP=$HL_IP" >>"$LITELLM_ENV"
+  fi
+  echo "[$(date -u +%FT%TZ)] resolved homelab tailnet IP for telemetry extra_hosts: $HL_IP"
+else
+  echo "WARN: could not resolve 'homelab' tailnet IP; gateway telemetry (Langfuse/GlitchTip) will not ship until it re-resolves" >&2
+fi
+
+# Pin the image tag when the workflow supplies one (repo convention: pin after first boot);
+# otherwise the compose default (main-stable) applies. Never fail the deploy on an unset tag.
+if [ -n "${LITELLM_IMAGE_TAG:-}" ]; then
+  export LITELLM_IMAGE_TAG
+  echo "[$(date -u +%FT%TZ)] LITELLM_IMAGE_TAG=${LITELLM_IMAGE_TAG} (pinned)"
+fi
+
+COMPOSE=(docker compose -p litellm --env-file "$LITELLM_ENV" -f docker-compose.litellm.yml)
+
+echo "[$(date -u +%FT%TZ)] pulling + starting litellm gateway..."
+if ! "${COMPOSE[@]}" up -d --remove-orphans; then
+  echo "ERROR: docker compose up failed" >&2
+  exit 1
+fi
+
+# Health-gate: LiteLLM's liveliness endpoint, from inside the container (loopback-only bind,
+# so the host can also curl 127.0.0.1:4001 — but exec keeps it independent of host routing).
+echo "[$(date -u +%FT%TZ)] waiting for gateway health..."
+ok=0
+for _ in $(seq 1 30); do
+  if docker exec litellm sh -c 'curl -fsS http://127.0.0.1:4000/health/liveliness' >/dev/null 2>&1; then
+    ok=1; break
+  fi
+  sleep 2
+done
+if [ "$ok" != 1 ]; then
+  echo "ERROR: litellm gateway did not report healthy within 60s" >&2
+  "${COMPOSE[@]}" logs --tail=50 litellm >&2 || true
+  exit 3
+fi
+
+echo "[$(date -u +%FT%TZ)] litellm gateway healthy on 127.0.0.1:4001 (project=litellm)."
+echo "  next: mint the app virtual key with the master key —"
+echo "  curl -s http://127.0.0.1:4001/key/generate -H \"Authorization: Bearer \$LITELLM_MASTER_KEY\" \\"
+echo "    -H 'Content-Type: application/json' -d '{\"key_alias\":\"proj-podcast-prod\",\"max_budget\":25.0}'"
