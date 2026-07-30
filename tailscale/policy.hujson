@@ -130,18 +130,24 @@
     //         its own TLS port: homelab.<tailnet>:8443). serve, not funnel.
     //         Independent of tag:prod:8443 (orrery on the VPS) — different host.
     //   :8888 homelab start page (service links + creds; basic-auth, tailnet-only)
+    //   :4001 LiteLLM gateway API (the homelab's LLM proxy — fleets today, any
+    //         project/box tomorrow; auth = per-consumer virtual keys w/ budgets)
+    //   :10000 LiteLLM admin UI over HTTPS via `tailscale serve` (macOS serve
+    //         allows only 443/8443/10000; 8443 taken by Langfuse). serve, not funnel.
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,8090,8428,8443,8888,9428,10428"]
+      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,4001,8090,8428,8443,8888,9428,10000,10428"]
     },
     {
       // prod (the box) also reaches Umami :3001 — it proxies public analytics
       // ingest to homelab through the shared edge, same pattern as GlitchTip:8090.
       // Not :3000/:8888 (operator-UI only) unless the homepage is fronted publicly.
+      // :4001 LiteLLM gateway API — every box may proxy LLM calls through the
+      // homelab gateway (per-key budgets gate the spend, not the network).
       "action": "accept",
       "src":    ["tag:dgx-llm-host", "tag:prod"],
-      "dst":    ["tag:homelab-host:3001,4000,8090,8428,9428,10428"]
+      "dst":    ["tag:homelab-host:3001,4000,4001,8090,8428,9428,10428"]
     },
     {
       // gha-deployer (ephemeral GHA runner) pushes Tier-1 CI/ops events —
