@@ -774,6 +774,9 @@ def create_episode_from_item(
         transcript_urls=transcript_urls,
         media_url=media_url,
         media_type=media_type,
+        # ADR-137: the LLM host/guest role prompt reads title + description; wire the per-item
+        # blurb so it is no longer silently None everywhere (review: dead episode_description).
+        description=extract_episode_description(item),
     )
 
 

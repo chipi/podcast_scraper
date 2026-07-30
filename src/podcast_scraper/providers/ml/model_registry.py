@@ -1702,6 +1702,7 @@ class ProfilePreset:
     # Non-turbo presets leave it OFF (0.0 / None).
     transcription_coverage_min: float = 0.0
     transcription_coverage_failover_model: Optional[str] = None
+    transcription_coverage_failover_provider: Optional[str] = None  # #1273: 'moss' | None(=whisper)
     # ADR-124 (#1258) model governance: opt-in enforcement that every active model is
     # registry-sanctioned. Off for serving/experiment presets; the reprocess profiles turn it on.
     enforce_model_governance: bool = False
@@ -1808,6 +1809,7 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # ADR-123 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
     "transcription_coverage_failover_model",
+    "transcription_coverage_failover_provider",
     # ADR-124 (#1258): model-governance enforcement toggle.
     "enforce_model_governance",
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
@@ -1859,7 +1861,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # turbo silently drops on long episodes -> ADR-123 coverage gate re-routes to large-v3.
         transcription_coverage_min=0.85,
-        transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
+        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
         summary="gemini_flash_lite",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
@@ -1935,7 +1938,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         name="prod_dgx_full_with_fallback",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
-        transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
+        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -1985,7 +1989,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         name="prod_dgx_balanced",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
-        transcription_coverage_failover_model="Systran/faster-whisper-large-v3",
+        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
         # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
@@ -2433,6 +2438,9 @@ def resolve_profile_to_settings(
     # ADR-123 (#1258): quality-gate transcription-failover knobs, governed like the resilience ones.
     settings["transcription_coverage_min"] = preset.transcription_coverage_min
     settings["transcription_coverage_failover_model"] = preset.transcription_coverage_failover_model
+    settings["transcription_coverage_failover_provider"] = (
+        preset.transcription_coverage_failover_provider
+    )
     settings["enforce_model_governance"] = preset.enforce_model_governance  # ADR-124 (#1258)
 
     # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.

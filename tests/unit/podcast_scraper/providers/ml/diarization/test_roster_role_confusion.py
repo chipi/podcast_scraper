@@ -213,3 +213,243 @@ def test_a_co_host_self_naming_survives_a_merged_ad_testimonial() -> None:
         roster.by_voice["H2"].name == "Kevin Roose"
     )  # canonicalized, not the mangled "Kevin Russo"
     assert roster.by_voice["H2"].role == "host"
+
+
+# --- Mechanism 4: a guest must not fill an ABSENT co-host's seat -----------------------------
+#
+# The feed states N hosts; fewer than N are actually present this episode; the roster filled the
+# empty host slot with the GUEST via its self-introduction. Surfaced on the v2.3.1 pilot: No Priors
+# ("with Andy Fang") seated the DoorDash founder as a host over the absent Sarah Guo, and Unhedged
+# seated Joshua Franklin over the absent Rob Armstrong. A voice that SAYS a name the feed did not
+# state as a host is positive evidence it is NOT a stated host, so it may never fill a counted seat.
+
+
+def test_a_self_introduced_guest_does_not_fill_an_absent_co_hosts_seat() -> None:
+    """No Priors / Andy Fang. Two stated hosts, one present; the guest self-introduces a name that
+    is NOT in the host pool and — with no thank-you cue — was seated into the vacant second seat."""
+    diar, vtext, ordered = _scripted(
+        [
+            ("ELAD", "Welcome to No Priors, I'm Elad Gil, here as always this week."),
+            ("ANDY", "I'm Andy Fang, co-founder of DoorDash, and I lead our engineering org."),
+            ("ELAD", "Let us start with autonomous delivery. Where does that stand today?"),
+            ("ANDY", "We have built it for years; robots now handle a real share of deliveries."),
+            ("ELAD", "And what changed to make that work at the scale you run it at now?"),
+            ("ANDY", "Cheaper sensors, better models, and a great deal of operational iteration."),
+        ]
+    )
+    roster = resolve_speaker_roster(
+        diar,
+        vtext["ELAD"],
+        detected_guests=[],  # Andy is caught by the pool contradiction alone, not a guest list
+        known_hosts=["Elad Gil", "Sarah Guo"],  # Sarah is absent this episode
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=[],
+        diarization_provider="tailnet_dgx",
+    )
+    assert roster.by_voice["ANDY"].name == "Andy Fang"
+    assert roster.by_voice["ANDY"].role == "guest"  # NOT host
+    assert roster.by_voice["ELAD"].name == "Elad Gil"
+    assert roster.by_voice["ELAD"].role == "host"
+    # only the present host is a host; the absent Sarah Guo is not painted onto the guest
+    host_names = {r.name for r in roster.by_voice.values() if r.role == "host"}
+    assert host_names == {"Elad Gil"}
+
+
+def test_a_named_guest_does_not_fill_an_absent_co_hosts_seat() -> None:
+    """Unhedged / Joshua Franklin. A co-hosted show with one host present; the guest is also on the
+    episode's detected-guest list, yet was seated as the second host over the absent Rob Armstrong.
+    """
+    diar, vtext, ordered = _scripted(
+        [
+            ("KATIE", "Hello and welcome to Unhedged, I'm Katie Martin of the FT."),
+            ("JOSH", "I'm Joshua Franklin, I cover the big banks here at the Financial Times."),
+            ("KATIE", "So how exactly did JPMorgan end up winning the decade the way it did?"),
+            ("JOSH", "Scale and discipline — they spent on technology while rivals pulled back."),
+            ("KATIE", "And is Jamie Dimon the whole story, or is it deeper than one chief exec?"),
+            ("JOSH", "Deeper. The bench he built is what actually compounds the advantage."),
+        ]
+    )
+    roster = resolve_speaker_roster(
+        diar,
+        vtext["KATIE"],
+        detected_guests=["Joshua Franklin"],  # even when the guest list DOES name him
+        known_hosts=["Katie Martin", "Rob Armstrong"],  # Rob is absent this episode
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=["Joshua Franklin"],
+        diarization_provider="tailnet_dgx",
+    )
+    assert roster.by_voice["JOSH"].name == "Joshua Franklin"
+    assert roster.by_voice["JOSH"].role == "guest"  # NOT host
+    assert roster.by_voice["KATIE"].role == "host"
+    host_names = {r.name for r in roster.by_voice.values() if r.role == "host"}
+    assert host_names == {"Katie Martin"}
+
+
+def test_both_stated_hosts_present_are_still_both_seated() -> None:
+    """The guard must not over-block: when both stated hosts ARE present (each self-naming into the
+    pool) they are both seated, and only the true guest is a guest."""
+    diar, vtext, ordered = _scripted(
+        [
+            ("ELAD", "Welcome to No Priors, I'm Elad Gil."),
+            ("SARAH", "And I'm Sarah Guo, great to be co-hosting today's episode."),
+            ("ANDY", "Thanks for having me. I'm Andy Fang, co-founder of DoorDash."),
+            ("ELAD", "Let us get into autonomous delivery and where it stands right now."),
+            ("SARAH", "Yes, walk us through how the robots handle real deliveries today."),
+            ("ANDY", "Cheaper sensors and better models did most of the heavy lifting there."),
+        ]
+    )
+    roster = resolve_speaker_roster(
+        diar,
+        vtext["ELAD"],
+        detected_guests=["Andy Fang"],
+        known_hosts=["Elad Gil", "Sarah Guo"],
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=["Andy Fang"],
+        diarization_provider="tailnet_dgx",
+    )
+    host_names = {r.name for r in roster.by_voice.values() if r.role == "host"}
+    assert host_names == {"Elad Gil", "Sarah Guo"}  # guard did not drop the present co-host
+    assert roster.by_voice["ANDY"].role == "guest"
+    assert roster.by_voice["ANDY"].name == "Andy Fang"
+
+
+# --- ADR-137: the LLM host/guest verdict as BOUNDED advice (veto positional / anchor no-host) ----
+
+
+def test_llm_guest_verdict_blocks_a_positional_host_seat_fill() -> None:
+    """Two stated hosts, one present; a voice that neither self-introduces nor gives a guest cue
+    fills the vacant seat positionally (step 4). The LLM's "guest" verdict blocks that (ADR-137)."""
+    diar, vtext, ordered = _scripted(
+        [
+            ("ELAD", "Welcome to No Priors, I'm Elad Gil, here as always this week."),
+            ("X", "The delivery robots now handle a real share of orders across several cities."),
+            ("ELAD", "And what changed to make that work at the scale you run it at now?"),
+            ("X", "Cheaper sensors and better models did most of the heavy lifting there lately."),
+        ]
+    )
+    common = dict(
+        detected_guests=[],
+        known_hosts=["Elad Gil", "Sarah Guo"],  # Sarah absent → one seat is vacant
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=[],
+        diarization_provider="tailnet_dgx",
+    )
+    # control: without the verdict, X fills the vacant second host seat positionally
+    control = resolve_speaker_roster(diar, vtext["ELAD"], **common)
+    assert (
+        control.by_voice["X"].role == "host"
+    ), "the positional seat-fill must be real to be vetoed"
+    # with the LLM "guest" verdict, the seat-fill is blocked
+    roster = resolve_speaker_roster(diar, vtext["ELAD"], llm_voice_roles={"X": "guest"}, **common)
+    assert roster.by_voice["X"].role != "host"
+    assert {r.name for r in roster.by_voice.values() if r.role == "host"} == {"Elad Gil"}
+
+
+def test_llm_host_verdict_anchors_a_no_stated_host_show() -> None:
+    """Planet Money-style: the feed states no hosts, so a second narrator the cues cannot anchor is
+    labeled a guest. The LLM's "host" verdict (from title/description/intro) seats it (ADR-137)."""
+    diar, vtext, ordered = _scripted(
+        [
+            ("S0", "Hello and welcome to Planet Money. Today, a town with a very strange problem."),
+            (
+                "S1",
+                "That is right. It started when the money simply would not stop arriving there.",
+            ),
+            ("S0", "We went to find out what a town does with more cash than it can ever spend."),
+            (
+                "S1",
+                "And what we found says something about how all of us really think about money.",
+            ),
+        ]
+    )
+    common = dict(
+        detected_guests=[],
+        known_hosts=[],  # no stated hosts — the empty-pool case
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=["Robert Smith", "Brittany Luce"],
+        diarization_provider="tailnet_dgx",
+    )
+    # control: the second narrator is not a host without the anchor
+    control = resolve_speaker_roster(diar, vtext["S0"], **common)
+    assert (
+        control.by_voice["S1"].role != "host"
+    ), "S1 must start as a non-host for the anchor to bite"
+    # the LLM anchors S1 as a host (and names it from the closed metadata list)
+    roster = resolve_speaker_roster(
+        diar,
+        vtext["S0"],
+        llm_voice_names={"S0": "Robert Smith", "S1": "Brittany Luce"},
+        llm_voice_roles={"S0": "host", "S1": "host"},
+        **common,
+    )
+    assert roster.by_voice["S1"].role == "host"
+    assert roster.by_voice["S1"].name == "Brittany Luce"
+
+
+def test_llm_host_anchor_ignores_an_unnamed_voice() -> None:
+    """The over-assignment guard (found on the Planet Money pilot). A no-stated-host show is a
+    narrated documentary as often as a rotating-host desk show, and the LLM will call field tape
+    "host" too. An anonymous voice — no name from any source — is NOT anchored; only a NAMED host
+    is, else the vox-pop of a documentary gets crowned (SPEAKER_04/11/19 were)."""
+    diar, vtext, ordered = _scripted(
+        [
+            ("S0", "Hello and welcome to Planet Money. Today, a town with a very strange problem."),
+            (
+                "VOX",
+                "I have lived here thirty years and I have never once seen anything like this.",
+            ),
+            (
+                "S0",
+                "We went to find out what a town does with more cash than it can ever spend now.",
+            ),
+            (
+                "VOX",
+                "The money just kept coming and coming, and nobody quite knew what to do at all.",
+            ),
+        ]
+    )
+    roster = resolve_speaker_roster(
+        diar,
+        vtext["S0"],
+        detected_guests=[],
+        known_hosts=[],
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=[],
+        # the LLM over-eagerly calls the anonymous field voice a host; only S0 (named below) is real
+        llm_voice_names={"S0": "Robert Smith"},
+        llm_voice_roles={"S0": "host", "VOX": "host"},
+        diarization_provider="tailnet_dgx",
+    )
+    assert roster.by_voice["VOX"].role != "host", "an unnamed voice must not be anchored as a host"
+
+
+def test_llm_guest_verdict_never_unseats_a_self_intro_known_host() -> None:
+    """The hard guardrail: a voice that self-introduces as a STATED host is seated at step 1, before
+    the LLM verdict is consulted. A wrong "guest" from the model cannot unseat it (ADR-137)."""
+    diar, vtext, ordered = _scripted(
+        [
+            ("H1", "Welcome to the show. I'm Casey Newton, in New York this week."),
+            ("H1", "Today we dig into the week in AI, and there is a great deal to get through."),
+            ("GUEST", "Thanks for having me. The models are moving genuinely fast this year."),
+            ("H1", "Where has it moved the most, would you say, in the last few months or so?"),
+        ]
+    )
+    roster = resolve_speaker_roster(
+        diar,
+        vtext["H1"],
+        detected_guests=[],
+        known_hosts=["Casey Newton"],
+        voice_texts=vtext,
+        ordered_turns=ordered,
+        metadata_named=[],
+        llm_voice_roles={"H1": "guest"},  # the model is WRONG about the host
+        diarization_provider="tailnet_dgx",
+    )
+    assert roster.by_voice["H1"].role == "host"
+    assert roster.by_voice["H1"].name == "Casey Newton"

@@ -107,11 +107,62 @@ def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
     assert enriched["segments"][0]["speaker"] == "SPEAKER_00"
     assert enriched["segments"][0]["speaker_label"] == "SPEAKER_00", "host kept raw"
     assert enriched["segments"][1]["speaker_label"] == "Guest", "guest named"
-    # enrichment sidecar + role hint (harden #1170): the diagnostics dict is attached,
-    # and an unnamed host segment carries speaker_role="host" (renders as "Host", not SPEAKER).
+    # enrichment sidecar + role: the diagnostics dict is attached, an unnamed host segment carries
+    # speaker_role="host" (renders as "Host"), and a NAMED voice now persists its roster role too so
+    # the durable segments sidecar carries host-vs-guest truth (guest-as-host fix).
     assert "speaker_diagnostics" in enriched, "speaker_diagnostics sidecar attached"
     assert enriched["segments"][0]["speaker_role"] == "host", "unnamed host tagged for display"
-    assert "speaker_role" not in enriched["segments"][1], "named guest needs no role hint"
+    assert enriched["segments"][1]["speaker_role"] == "guest", "named guest persists role"
+
+
+def test_merged_speech_seconds() -> None:
+    """ADR-131: Σ of the union of diarization turns (overlaps merged, gaps excluded)."""
+    from podcast_scraper.providers.ml.diarization.base import DiarizationSegment as DS
+    from podcast_scraper.providers.ml.diarization.pipeline import merged_speech_seconds
+
+    assert merged_speech_seconds([]) == 0.0
+    assert merged_speech_seconds([DS(0.0, 10.0, "A")]) == 10.0
+    # overlapping co-hosts counted once, not doubled
+    assert merged_speech_seconds([DS(0.0, 10.0, "A"), DS(8.0, 15.0, "B")]) == 15.0
+    # a gap (silence/music) between turns is EXCLUDED — the whole point of the metric
+    assert merged_speech_seconds([DS(0.0, 10.0, "A"), DS(20.0, 25.0, "B")]) == 15.0
+    # provider-agnostic: dict segments + unsorted input handled identically
+    assert (
+        merged_speech_seconds([{"start": 20.0, "end": 25.0}, {"start": 0.0, "end": 10.0}]) == 15.0
+    )
+    # degenerate/malformed segments are ignored, not fatal
+    assert merged_speech_seconds([DS(5.0, 5.0, "A"), {"start": None, "end": 3.0}]) == 0.0
+
+
+@patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
+def test_apply_diarization_attaches_speech_seconds(mock_create_provider) -> None:
+    """ADR-131: apply_diarization_to_result exposes the diarizer's merged speech duration."""
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[
+            DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00"),
+            DiarizationSegment(start=60.0, end=400.0, speaker="SPEAKER_01"),
+        ],
+        num_speakers=2,
+        model_name="test",
+    )
+    mock_create_provider.return_value = mock_provider
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        screenplay=True,
+        hf_token="hf-test",
+    )
+    result = {
+        "text": "hello world",
+        "segments": [
+            {"start": 0.0, "end": 60.0, "text": "hello"},
+            {"start": 60.0, "end": 400.0, "text": "world"},
+        ],
+    }
+    enriched = apply_diarization_to_result(result, "/tmp/audio.wav", cfg, ["Guest"])
+    assert enriched["diarization_speech_seconds"] == 400.0  # 60 + 340, gaps merged
 
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
@@ -289,3 +340,86 @@ def test_recurring_text_index_rebuilds_as_more_transcripts_land(tmp_path) -> Non
     write(3)
     write(4)
     assert _pipeline._feed_recurring_text(cfg)  # >=3 sharing a passage -> rebuilt, non-empty
+
+
+def test_estimate_diarization_cost_trusts_provider_value():
+    """RFC-109: a cloud diarizer that already reported a billed cost is trusted verbatim."""
+    from podcast_scraper.providers.ml.diarization.pipeline import _estimate_diarization_cost
+
+    r = DiarizationResult(
+        segments=[DiarizationSegment(0.0, 10.0, "A")],
+        num_speakers=1,
+        model_name="deepgram/nova",
+        cost_usd=0.021,
+    )
+    cfg = MagicMock(diarization_provider="deepgram")
+    assert _estimate_diarization_cost(r, cfg) == 0.021
+
+
+def test_estimate_diarization_cost_none_for_local_provider():
+    """Local diarizers have no pricing entry -> honest None (no fabricated zero)."""
+    from podcast_scraper.providers.ml.diarization.pipeline import _estimate_diarization_cost
+
+    r = DiarizationResult(
+        segments=[DiarizationSegment(0.0, 600.0, "A")],
+        num_speakers=1,
+        model_name="pyannote/community-1",
+    )
+    # No diarization_provider configured -> cannot price -> None.
+    assert _estimate_diarization_cost(r, MagicMock(diarization_provider=None)) is None
+
+
+def test_estimate_diarization_cost_bills_on_audio_seconds():
+    """The billed unit is audio-minutes derived from the caller's audio_seconds (total-audio proxy),
+    not the diarization turns alone."""
+    from podcast_scraper.providers.ml.diarization import pipeline as _pl
+
+    r = DiarizationResult(
+        segments=[DiarizationSegment(0.0, 100.0, "A")],  # turns end at 100s
+        num_speakers=1,
+        model_name="deepgram/nova",
+    )
+    captured = {}
+
+    def _fake_apply(cm, *, cfg, provider_type, capability, model, audio_minutes=None, **kw):
+        captured["audio_minutes"] = audio_minutes
+        captured["capability"] = capability
+        cm.estimated_cost = 0.05
+
+    with patch(
+        "podcast_scraper.utils.provider_metrics.apply_estimated_cost_if_missing", _fake_apply
+    ):
+        cost = _pl._estimate_diarization_cost(
+            r, MagicMock(diarization_provider="deepgram"), audio_seconds=600.0
+        )
+    assert cost == 0.05
+    assert captured["capability"] == "diarization"
+    assert captured["audio_minutes"] == 600.0 / 60.0  # bills on total audio, not the 100s of turns
+
+
+def test_strip_ad_segments_removes_ad_reads_from_the_llm_input() -> None:
+    # A voice whose diarized cluster contains the pre-roll sponsor read must NOT be shown that ad
+    # to the resolver — it mis-maps the voice (John Kim: SPEAKER_00 shown a Ramp ad). The ad regions
+    # are already known (ad_intervals); _strip_ad_segments reuses them to leave only real speech.
+    from podcast_scraper.providers.ml.diarization.pipeline import (
+        _strip_ad_segments,
+        _voice_texts_from_aligned,
+    )
+
+    aligned = [
+        ({"start": 1.0, "end": 60.0, "text": "Ramp is the only platform"}, "S0"),  # opening ad
+        ({"start": 70.0, "end": 200.0, "text": "the real interview content"}, "S0"),
+        ({"start": 1.0, "end": 60.0, "text": "welcome I am Patrick"}, "S1"),  # ad-window host intro
+    ]
+    stripped = _strip_ad_segments(aligned, [(0.8, 67.5)])
+    texts = _voice_texts_from_aligned(stripped)
+    assert texts["S0"] == "the real interview content"  # ad read gone
+    assert "Ramp" not in texts["S0"]
+    assert len(stripped) == 1  # both 1–60s segments (in the ad window) dropped
+
+
+def test_strip_ad_segments_is_a_noop_without_ad_intervals() -> None:
+    from podcast_scraper.providers.ml.diarization.pipeline import _strip_ad_segments
+
+    aligned = [({"start": 1.0, "end": 60.0, "text": "x"}, "S0")]
+    assert _strip_ad_segments(aligned, []) is aligned  # unchanged object, ad-blind fallback

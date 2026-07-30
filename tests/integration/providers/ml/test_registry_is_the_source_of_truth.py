@@ -84,6 +84,14 @@ NOT_REGISTRY_GOVERNED: Dict[str, str] = {
     # A KG-stage feature switch (typed MENTIONS_PERSON / MENTIONS_ORG edges), not part of the GI
     # researched configuration. It belongs to the KG option set, which this suite does not govern.
     "gi_typed_mentions_use_ner": "KG-stage feature switch; not a GI tuned value",
+    # READ-TIME, not pipeline: the shared cap a SURFACE shows before 'show more' (ADR-135/#1191 §6).
+    # Consumed by the server GI-view + player/viewer, each of which OVERRIDES it (player 6, viewer
+    # 12, graph 8, search none). The GI extraction pipeline never reads it and no profile emits it,
+    # so there is no per-profile pipeline value to materialize — #1191's eval tuned the surface cut,
+    # not a StageOption. Same shape as gi_typed_mentions_use_ner: a gi_-prefixed field of another
+    # layer.
+    "gi_surface_default_limit": "read-time surface display cap (each surface overrides it); not a GI "
+    "extraction-pipeline value the profiles materialize",
 }
 
 

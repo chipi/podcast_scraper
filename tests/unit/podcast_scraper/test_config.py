@@ -864,6 +864,16 @@ class TestValidationEdgeCases(unittest.TestCase):
 class TestConfigFieldValidators(unittest.TestCase):
     """Tests for Config field validators."""
 
+    def test_labeling_profile_validator_rejects_unregistered_id(self):
+        """ADR-140 / F6: an unknown labeling_profile must FAIL at config time, not silently fall
+        back to naming-4 and mislabel a whole run."""
+        for good in ("naming-4", "naming-3-legacy"):
+            self.assertEqual(Config(labeling_profile=good).labeling_profile, good)
+        with self.assertRaises(ValidationError):
+            Config(labeling_profile="naming-3-legac")  # a plausible typo
+        # default is registered
+        self.assertEqual(Config().labeling_profile, "naming-4")
+
     def test_rss_url_validator_handles_none(self):
         """Test that rss_url validator handles None and whitespace."""
         # Validator strips whitespace

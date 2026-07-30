@@ -64,12 +64,12 @@ artifact whose `schema_version` is not exactly `"3.0"`. Legacy 1.0 /
 sites) sets `"schema_version": "3.0"`. KG pipeline (chunk 3) already
 emits `"2.0"`.
 
-### 4. Migration scripts stay legacy-readable
+### 4. Migrations stay legacy-readable
 
-The migration scripts (`scripts/migrate_kg_entity_to_person_org.py`,
-`scripts/migrate_gi_to_v3.py`, `scripts/compute_gi_position_hints.py`)
-read input as raw `json.load`, not via `validate_artifact`. The strict
-validator therefore does not block legacy-corpus migration. Verified
+The corpus-upgrade migrations (`m0006` KG v2, `m0003` GI v3 — and the
+`scripts/compute_gi_position_hints.py` helper) read input as raw `json.load`, not
+via `validate_artifact`. The strict validator therefore does not block
+legacy-corpus migration. Verified
 by `test_migrate_kg_v2_output_passes_strict_schema` +
 `test_migrate_gi_v3_output_passes_strict_schema` in
 `tests/unit/podcast_scraper/migrations/test_gil_kg_identity_migrations.py`
@@ -118,14 +118,14 @@ never call `validate_artifact` on legacy input.
   break. **Acceptable**: no such consumer exists, and this ADR
   records the project-specific waiver of RFC-097's bake gate.
 - Anyone with a cached corpus on disk that wasn't migrated needs to
-  run the migration scripts before the next pipeline pass:
+  run the corpus-upgrade framework before the next pipeline pass (all
+  GI/KG schema migrations live there now — `m0003` GI v3, `m0005` GI 3.1,
+  `m0006` KG v2.0):
 
   ```bash
-  for f in <corpus_dir>/feeds/*/run_*/metadata/*.kg.json; do
-    .venv/bin/python scripts/migrate_kg_entity_to_person_org.py --in "$f" --out "$f"
-  done
+  make upgrade-corpus CORPUS_DIR=<corpus_dir>
+  # optional: position hints for GI artifacts
   for f in <corpus_dir>/feeds/*/run_*/metadata/*.gi.json; do
-    .venv/bin/python scripts/migrate_gi_to_v3.py --in "$f" --out "$f"
     .venv/bin/python scripts/compute_gi_position_hints.py --in "$f" --out "$f"
   done
   ```

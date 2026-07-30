@@ -40,19 +40,31 @@ class TargetConfig:
     sentry_projects: tuple[str, ...] = ()
     sentry_token: Optional[str] = None
     sentry_environment: str = "prod"
+    # Errors backend base URL. Default = Sentry SaaS; set to a self-hosted GlitchTip
+    # (e.g. http://homelab:8090) — Sentry-API-compatible, so only the base URL changes.
+    sentry_url: Optional[str] = None
     grafana_url: Optional[str] = None
     grafana_token: Optional[str] = None  # Grafana service-account token (alerting API)
-    loki_url: Optional[str] = None
-    loki_user: Optional[str] = None
-    loki_token: Optional[str] = (
-        None  # Loki access-policy token (logs:read); falls back to grafana_token
-    )
+    # Current self-hosted stack (homelab): VictoriaLogs (LogsQL), VictoriaMetrics (PromQL),
+    # VictoriaTraces (Jaeger API). Tailnet-reachable; auth via optional bearer token.
+    victorialogs_url: Optional[str] = None
+    victoriametrics_url: Optional[str] = None
+    victoriatraces_url: Optional[str] = None
+    victoria_token: Optional[str] = None  # optional bearer for all three (if fronted by auth)
     # Langfuse public API (#1052) — same key pair the pipeline traces with
     # (SDK-native LANGFUSE_*); the probe only *reads* recent traces (Basic auth).
     langfuse_public_key: Optional[str] = None
     langfuse_secret_key: Optional[str] = None
     langfuse_base_url: Optional[str] = None  # unset → Langfuse Cloud
-    env_label: str = "prod"  # the deploy's Loki/metrics ``env`` label (PODCAST_ENV)
+    # Umami (ADR-126) — the user-action lens for the operator surface. Cookieless, self-hosted. The
+    # website_id is per-environment (operator-dev vs operator-prod) exactly like the player's
+    # VITE_UMAMI_WEBSITE_ID; reading needs admin auth (token, or username+password → login token).
+    umami_url: Optional[str] = None
+    umami_website_id: Optional[str] = None
+    umami_token: Optional[str] = None
+    umami_username: Optional[str] = None
+    umami_password: Optional[str] = None
+    env_label: str = "prod"  # the deploy's metrics ``env`` label (PODCAST_ENV)
     timeout: float = DEFAULT_TIMEOUT
 
     def require(self, attr: str, hint: str) -> Any:
@@ -83,6 +95,7 @@ class ObservabilityConfig:
     @classmethod
     def load(cls, path: Optional[str | os.PathLike[str]] = None) -> "ObservabilityConfig":
         """YAML if ``path``/``PODCAST_OBS_CONFIG`` is set, else a single target from env."""
+        _load_obs_dev_env()  # zero-config: pick up the worktree's .env.obs.dev if present
         path = path or os.environ.get(f"{ENV_PREFIX}CONFIG")
         if path:
             return cls.from_yaml(path)
@@ -90,9 +103,18 @@ class ObservabilityConfig:
 
     @classmethod
     def from_env(cls) -> "ObservabilityConfig":
-        """Build a single-target config from ``PODCAST_OBS_*`` (+ bare ``LANGFUSE_*``) env vars."""
+        """Build a single-target config from ``PODCAST_OBS_*`` (+ bare ``LANGFUSE_*``) env vars.
+
+        The read endpoints also fall back to the SAME env vars the platform SHIPS telemetry with
+        (``PODCAST_LOGS_PUSH_URL`` / ``PODCAST_METRICS_PUSH_URL`` / ``OTEL_EXPORTER_OTLP_TRACES_
+        ENDPOINT`` / ``PODCAST_SENTRY_DSN_*``): a control-plane process that inherits the app's
+        observability env (dev via ``.env.obs.dev``, prod via the injected env) can observe the same
+        backends with zero extra ``PODCAST_OBS_*`` config — no separate URLs to keep in sync.
+        """
+        _load_obs_dev_env()  # zero-config: pick up the worktree's .env.obs.dev if present
         name = os.environ.get(f"{ENV_PREFIX}TARGET", "default")
         projects = _split_csv(_env("SENTRY_PROJECTS"))
+        _dsn = _bare("PODCAST_SENTRY_DSN_PIPELINE") or _bare("PODCAST_SENTRY_DSN_API")
         target = TargetConfig(
             name=name,
             api_base=_env("API_BASE"),
@@ -100,18 +122,33 @@ class ObservabilityConfig:
             github_token=_env("GITHUB_TOKEN"),
             sentry_org=_env("SENTRY_ORG"),
             sentry_projects=projects,
-            sentry_token=_env("SENTRY_TOKEN"),
+            # Falls back to the platform's own SENTRY_AUTH_TOKEN (the existing GH secret) so the
+            # GlitchTip issue-link (permalink) pivot works from the same env, no PODCAST_OBS_ dup.
+            sentry_token=_env("SENTRY_TOKEN") or _bare("SENTRY_AUTH_TOKEN"),
             sentry_environment=_env("SENTRY_ENV") or "prod",
+            sentry_url=_env("SENTRY_URL") or _origin(_dsn),
             grafana_url=_env("GRAFANA_URL"),
             grafana_token=_env("GRAFANA_TOKEN"),
-            loki_url=_env("LOKI_URL"),
-            loki_user=_env("LOKI_USER"),
-            loki_token=_env("LOKI_TOKEN"),
+            victorialogs_url=_env("VICTORIALOGS_URL") or _origin(_bare("PODCAST_LOGS_PUSH_URL")),
+            victoriametrics_url=(
+                _env("VICTORIAMETRICS_URL") or _origin(_bare("PODCAST_METRICS_PUSH_URL"))
+            ),
+            victoriatraces_url=(
+                _env("VICTORIATRACES_URL") or _origin(_bare("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"))
+            ),
+            victoria_token=_env("VICTORIA_TOKEN"),
             # Langfuse uses its SDK-native bare names (not the PODCAST_OBS_ prefix) so the
             # same keys the pipeline traces with drive the probe — no duplicate config.
             langfuse_public_key=_bare("LANGFUSE_PUBLIC_KEY"),
             langfuse_secret_key=_bare("LANGFUSE_SECRET_KEY"),
             langfuse_base_url=_bare("LANGFUSE_BASE_URL") or _bare("LANGFUSE_HOST"),
+            # Umami — env-driven per environment (dev→operator-dev site, prod→operator-prod), the
+            # same shape as the player's VITE_UMAMI_*; url falls back to the ingest script's origin.
+            umami_url=_env("UMAMI_URL") or _origin(_bare("VITE_UMAMI_SRC")),
+            umami_website_id=_env("UMAMI_WEBSITE_ID"),
+            umami_token=_env("UMAMI_TOKEN"),
+            umami_username=_env("UMAMI_USERNAME"),
+            umami_password=_env("UMAMI_PASSWORD"),
             env_label=_env("ENV_LABEL") or "prod",
             timeout=_as_float(_env("TIMEOUT"), DEFAULT_TIMEOUT),
         )
@@ -147,6 +184,53 @@ def _bare(name: str) -> Optional[str]:
     return value if value else None
 
 
+def _origin(url: Optional[str]) -> Optional[str]:
+    """``scheme://host[:port]`` from a platform ship URL/DSN — drops path AND userinfo.
+
+    The app's push endpoint (``…:9428/insert/jsonline``) and a Sentry/GlitchTip DSN
+    (``http://<key>@host:8090/1``) both carry the host the read sources need but wrapped in a path
+    or credentials. Reducing to the origin lets ``from_env`` reuse the exact vars the platform ships
+    telemetry with, instead of a parallel ``PODCAST_OBS_*`` URL set that can drift out of sync.
+    """
+    if not url:
+        return None
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(url.strip())
+    except ValueError:
+        return None
+    if not parts.scheme or not parts.hostname:
+        return None
+    port = f":{parts.port}" if parts.port else ""
+    return f"{parts.scheme}://{parts.hostname}{port}"
+
+
+def _load_obs_dev_env() -> None:
+    """Dev convenience: auto-load ``.env.obs.dev`` so ``podcast_obs serve`` in a worktree is
+    zero-config. An agent's MCP client spawns the server with a CLEAN env, so without this every
+    source reads unconfigured. Mirrors ``podcast_scraper.config`` (same gitignored file); the prod
+    image has no such file so it no-ops there. Skipped under pytest; ``override=False`` so an
+    explicit shell env still wins. Self-contained — podcast_obs stays light-dep (no app import).
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    try:
+        from dotenv import load_dotenv
+    except Exception:  # pragma: no cover — dotenv is optional for the light-dep core
+        return
+    # Repo root is two levels up from src/podcast_obs/config.py (editable/dev layout); also try cwd,
+    # which is the worktree root when an agent launches `podcast_obs serve` there.
+    repo_root = Path(__file__).resolve().parents[2]
+    for candidate in (Path.cwd() / ".env.obs.dev", repo_root / ".env.obs.dev"):
+        try:
+            if candidate.exists():
+                load_dotenv(candidate, override=False)
+                return
+        except Exception:  # pragma: no cover — dev convenience only, never fail config load
+            continue
+
+
 def _split_csv(value: Optional[str]) -> tuple[str, ...]:
     if not value:
         return ()
@@ -175,6 +259,8 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
     sentry = spec.get("sentry") or {}
     grafana = spec.get("grafana") or {}
     langfuse = spec.get("langfuse") or {}
+    victoria = spec.get("victoria") or {}
+    umami = spec.get("umami") or {}
     projects = sentry.get("projects") or []
     if isinstance(projects, str):
         projects = _split_csv(projects)
@@ -189,14 +275,26 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         sentry_projects=tuple(projects),
         sentry_token=_secret(sentry, "token"),
         sentry_environment=sentry.get("environment") or "prod",
+        sentry_url=sentry.get("url"),
         grafana_url=grafana.get("url"),
         grafana_token=_secret(grafana, "token"),
-        loki_url=grafana.get("loki_url"),
-        loki_user=grafana.get("loki_user"),
-        loki_token=_secret(grafana, "loki_token"),
-        langfuse_public_key=_secret(langfuse, "public_key"),
-        langfuse_secret_key=_secret(langfuse, "secret_key"),
-        langfuse_base_url=langfuse.get("base_url"),
+        victorialogs_url=victoria.get("logs_url"),
+        victoriametrics_url=victoria.get("metrics_url"),
+        victoriatraces_url=victoria.get("traces_url"),
+        victoria_token=_secret(victoria, "token"),
+        # Fall back to the langfuse SDK-native env vars (the keys the pipeline traces with) when the
+        # YAML omits them — secrets never live in the config file, so a config-target probe still
+        # picks up LANGFUSE_PUBLIC_KEY / SECRET_KEY, matching the default (env) target.
+        langfuse_public_key=_secret(langfuse, "public_key") or _bare("LANGFUSE_PUBLIC_KEY"),
+        langfuse_secret_key=_secret(langfuse, "secret_key") or _bare("LANGFUSE_SECRET_KEY"),
+        langfuse_base_url=(
+            langfuse.get("base_url") or _bare("LANGFUSE_BASE_URL") or _bare("LANGFUSE_HOST")
+        ),
+        umami_url=umami.get("url"),
+        umami_website_id=umami.get("website_id"),
+        umami_token=_secret(umami, "token"),
+        umami_username=umami.get("username"),
+        umami_password=_secret(umami, "password"),
         env_label=spec.get("env_label") or "prod",
         timeout=timeout,
     )

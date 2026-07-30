@@ -181,9 +181,20 @@ function isGrounded(ins: Insight): boolean {
   return insightStartSeconds(ins) != null
 }
 
+// ADR-135/#1191: the player shows `surface`-tagged insights — attributed to a named speaker. The
+// server's `surfaceable` gate already excludes `connect` (UNATTRIBUTED insights, no named speaker),
+// so this client filter is defensive, NOT a quality call: the 2026-07-29 eval found `connect`
+// insights score HIGHER than `surface` (3.12 vs 2.99), so routing_tag is not a quality signal — it's
+// about attribution. `drop` is excluded server-side; a null tag = pre-3.1 corpus, kept for back-
+// compat. Server returns them salience-sorted; we preserve order and cap at gi_surface_default_limit
+// (8) — the eval showed ranks 6-8 are as good as the top-5, so 8 (not 6) is the fold.
+const INSIGHT_COLLAPSED = 8
+const surfaceInsights = computed(() =>
+  props.insights.filter((i) => i.routing_tag == null || i.routing_tag === 'surface'),
+)
 const showAll = ref(false)
 const visibleInsights = computed(() =>
-  showAll.value ? props.insights : props.insights.slice(0, 5),
+  showAll.value ? surfaceInsights.value : surfaceInsights.value.slice(0, INSIGHT_COLLAPSED),
 )
 
 // Scroll a transcript-tapped insight into view (and reveal it past the 5-item fold).
@@ -378,9 +389,9 @@ watch(
       </section>
 
       <!-- Insights -->
-      <section v-if="insights.length">
+      <section v-if="surfaceInsights.length">
         <div class="mb-2 flex items-center justify-between">
-          <h3 class="lp-section">{{ t('kp.insights') }} · {{ insights.length }}</h3>
+          <h3 class="lp-section">{{ t('kp.insights') }} · {{ surfaceInsights.length }}</h3>
         </div>
         <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
         <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
@@ -443,8 +454,9 @@ watch(
           </li>
         </ul>
         <button
-          v-if="!showAll && insights.length > 5"
+          v-if="!showAll && surfaceInsights.length > INSIGHT_COLLAPSED"
           type="button"
+          data-testid="kp-insights-show-all"
           class="mt-3 text-sm font-bold text-accent"
           @click="showAll = true"
         >

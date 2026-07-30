@@ -80,6 +80,10 @@ class Episode:
     transcript_urls: List[Tuple[str, Optional[str]]]
     media_url: Optional[str] = None
     media_type: Optional[str] = None
+    # The per-item <description> blurb. ADR-137 feeds it (with the title) to the LLM's host/guest
+    # role determination; without it, that prompt only ever saw the title. Populated by
+    # create_episode_from_item; None when the feed item carries no description.
+    description: Optional[str] = None
 
 
 @dataclass

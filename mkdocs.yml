@@ -23,6 +23,7 @@ nav:
       - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
       - Corpus reprocessing runbook: guides/CORPUS_REPROCESSING.md
+      - Fresh pilot run + observe (agent runbook): guides/PILOT_RUN_AND_OBSERVE.md
       - Stack contract (cross-surface audit): guides/STACK_CONTRACT.md
       - Corpus snapshot manifest and restore: guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
       - Corpus airgap runbook (#1175): guides/CORPUS_AIRGAP_RUNBOOK.md
@@ -32,6 +33,7 @@ nav:
       - Observability runbook (operate/debug + current state): guides/OBSERVABILITY_RUNBOOK.md
       - Observability architecture (emit/ship, ADR-119): guides/OBSERVABILITY_ARCHITECTURE.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
+      - Obs MCP homelab deploy (agent-reachable): guides/OBS_MCP_HOMELAB_DEPLOY.md
       - Observability extensions (optional 3rd-party o11y): guides/OBSERVABILITY_EXTENSIONS.md
       - GHCR image retention (#802): operations/GHCR_RETENTION.md
       - DGX model catalog (RFC-089 / ADR-098): operations/DGX_MODEL_CATALOG.md
@@ -299,6 +301,17 @@ nav:
       - ADR-127 Search-Index insight_type Column + Reindex-on-Upgrade: adr/ADR-127-search-index-insight-type-column.md
       - ADR-128 Decouple Tailnet ACL from Hetzner OpenTofu: adr/ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md
       - ADR-129 Config-layer deploy by surface: adr/ADR-129-config-layer-deploy-by-surface.md
+      - ADR-130 Provider-Agnostic Speaker-Name Recovery from Metadata: adr/ADR-130-provider-agnostic-name-recovery-from-metadata.md
+      - ADR-131 Speech-Normalized Coverage Gate: adr/ADR-131-speech-normalized-coverage-gate.md
+      - ADR-132 Per-Episode Processing Manifest — Schema, Stage Ownership, Versioning: adr/ADR-132-per-episode-processing-manifest-schema.md
+      - ADR-133 metadata.json vs Processing Manifest — Source of Truth: adr/ADR-133-metadata-vs-manifest-source-of-truth.md
+      - ADR-134 Provider-Specific Speaker-Labeling Strategies: adr/ADR-134-provider-specific-speaker-labeling.md
+      - ADR-135 v2.4 — GI Route-and-Tag + KG Voice Node: adr/ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md
+      - ADR-136 Per-Episode Context Digest: adr/ADR-136-per-episode-context-digest.md
+      - ADR-137 LLM Host/Guest Role on Voice Resolution: adr/ADR-137-llm-host-guest-role-on-voice-resolution.md
+      - ADR-138 Ad-Cleaning as a Standalone Stage: adr/ADR-138-ad-cleaning-as-a-standalone-stage.md
+      - ADR-139 Text Normalization Contract: adr/ADR-139-text-normalization-contract.md
+      - ADR-140 Versioned Labeling Profiles: adr/ADR-140-versioned-labeling-profiles.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -409,6 +422,7 @@ nav:
       - RFC-106 Tiered DGX Service Fallback: rfc/RFC-106-tiered-dgx-service-fallback.md
       - RFC-107 Search v3 — Query Workspace: rfc/RFC-107-search-v3-query-workspace.md
       - RFC-108 Operator public gated surface: rfc/RFC-108-operator-public-gated-surface.md
+      - RFC-109 Per-Episode Observability Manifest: rfc/RFC-109-per-episode-observability-manifest.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

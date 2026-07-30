@@ -41,6 +41,25 @@ def process_episode_download(*args, **kwargs):
     return factory_process_episode_download(*args, **kwargs)
 
 
+def _mark_processed(processed_job_indices: Set[int], idx: int) -> None:
+    """Record an episode as finished — ONCE — and emit a ``pipeline_progress`` event (ADR-119).
+
+    The pipeline is an EVENTS source, not a scraped metrics target (an ephemeral ``run --rm``
+    container has nothing to scrape). So per-run progress is an ``emit_event`` fact, not a
+    gauge: it reaches VictoriaLogs the same way in both envs (dev pushes it; prod's Alloy tails the
+    runner stdout) and Grafana charts it by ``run_id``. Idempotent (no double-emit); never raises.
+    """
+    if idx in processed_job_indices:
+        return
+    processed_job_indices.add(idx)
+    try:
+        from ...obs.events import emit_event
+
+        emit_event("pipeline_progress", episodes_done=len(processed_job_indices))
+    except Exception:  # noqa: BLE001 — telemetry must never break the run
+        pass
+
+
 from ...rss import extract_episode_description as rss_extract_episode_description
 
 
@@ -62,7 +81,11 @@ def extract_episode_description(item):
 from ...providers.resilience import ResilienceFuseOpenError
 from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
-from ...speaker_detectors.hosts import is_network_or_org_author
+from ...speaker_detectors.hosts import (
+    detect_hosts_from_feed,
+    hosts_from_feed_statement,
+    is_network_or_org_author,
+)
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
@@ -182,13 +205,44 @@ def _process_episode_with_retry(
 
     Returns the same 4-tuple as ``process_episode_download``.
     """
+    # #1053 / o11y: bind the episode id for THIS worker so the download stage's logs + incidents
+    # carry it (the inline path previously never set it — only the safety-net summarizer did).
+    from ...utils import correlation, otel_init
+    from ..helpers import get_episode_id_from_episode
+
+    episode = args[0]
+    try:
+        _corr_ep_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    except Exception:  # never block processing on correlation
+        _corr_ep_id = None
+
+    # episode_scope binds the id ContextVar; episode_span opens the root OTEL span that parents the
+    # provider HTTP spans and carries run/episode ids so traces are pivotable (both no-op when off).
+    with (
+        correlation.episode_scope(_corr_ep_id),
+        otel_init.episode_span(
+            run_id=correlation.get_run_id(),
+            episode_id=_corr_ep_id,
+            feed_id=getattr(cfg, "rss_url", None),
+        ),
+    ):
+        return _process_episode_with_retry_inner(process_fn, args, cfg, pipeline_metrics, episode)
+
+
+def _process_episode_with_retry_inner(
+    process_fn: Any,
+    args: Tuple,
+    cfg: "config.Config",
+    pipeline_metrics: "metrics.Metrics",
+    episode: Any,
+) -> _EpisodeResult:
+    """Retry body for :func:`_process_episode_with_retry` (episode id already bound by caller)."""
     max_retries = getattr(cfg, "episode_retry_max", 0)
     if max_retries <= 0:
         result: _EpisodeResult = process_fn(*args, pipeline_metrics=pipeline_metrics)
         return result
 
     delay = getattr(cfg, "episode_retry_delay_sec", 5.0)
-    episode = args[0]
     last_exc: Optional[Exception] = None
 
     for attempt in range(max_retries + 1):
@@ -262,16 +316,18 @@ def _handle_dry_run_host_detection(
         HostDetectionResult with hosts from RSS author tags if available
     """
     logger.info("(dry-run) would initialize speaker detector")
-    cached_hosts: set[str] = set()
-    # Still detect hosts from RSS author tags if available (network/org tags filtered, #876)
-    if feed.authors:
+    # Statement-first, matching the real run (audit F4): the feed's "Hosted by ..." blurb is pure
+    # regex (no ML — safe in dry-run), so an org-authored feed whose description names its hosts
+    # previews the same hosts the real run would find, instead of reporting none. NER is skipped
+    # here (it needs the model dry-run deliberately avoids); author tags are the second source.
+    cached_hosts: set[str] = set(hosts_from_feed_statement(feed.title, feed.description))
+    if not cached_hosts and feed.authors:
         cached_hosts = {a for a in feed.authors if not is_network_or_org_author(a)}
-        if cached_hosts:
-            logger.info(
-                "DETECTED HOSTS (from %s): %s",
-                "RSS author tags",
-                ", ".join(sorted(cached_hosts)),
-            )
+    if cached_hosts:
+        logger.info(
+            "DETECTED HOSTS (dry-run, feed statement / author tags): %s",
+            ", ".join(sorted(cached_hosts)),
+        )
     return HostDetectionResult(cached_hosts, None, None)
 
 
@@ -337,6 +393,16 @@ def _detect_hosts_from_feed(
     Returns:
         Set of detected host names
     """
+    # Statement-first order of authority (ADR-130 / Fable-5 audit F2). The deterministic parser
+    # reads the feed's own "Hosted by ..." blurb out of the description, then org-filtered author
+    # tags, then NER. EVERY LLM provider's detect_hosts short-circuits on RSS author tags — it
+    # returns set(feed_authors) verbatim and never reads the description — so calling it first
+    # mis-anchors org-authored feeds (the org is returned, then stripped to nothing) AND overrides a
+    # feed whose description names hosts different from a personal author tag. Consult the provider
+    # only when the deterministic parse finds nothing (it may still add an LLM-NER hit).
+    stated = detect_hosts_from_feed(feed.title, feed.description, feed.authors or [])
+    if stated:
+        return stated
     feed_hosts = speaker_detector.detect_hosts(
         feed_title=feed.title,
         feed_description=feed.description,  # show blurb usually names the host (#1169)
@@ -364,7 +430,10 @@ def _validate_hosts_with_first_episode(
     Returns:
         Validated set of host names
     """
-    # Skip validation if hosts came from author tags (they're already reliable)
+    # Skip validation when the feed carries author tags: on such feeds the hosts came either from a
+    # trusted author tag OR (post audit-F2, statement-first) from the feed's own "Hosted by ..."
+    # statement — both authoritative, neither needing first-episode corroboration. Only NER-derived
+    # hosts on a tag-less feed fall through to validation below.
     if not feed_hosts or not episodes or feed.authors:
         return feed_hosts
 
@@ -436,15 +505,10 @@ def _fallback_to_episode_authors(
     for episode in episodes[:3]:
         episode_author_list = rss_parser.extract_episode_authors(episode.item)
         for author in episode_author_list:
-            # Filter out organization names (same logic as feed-level)
-            # Organization names are typically all caps, short, and have no spaces
-            author_stripped = author.strip()
-            is_likely_org = (
-                len(author_stripped) <= 10
-                and author_stripped.isupper()
-                and " " not in author_stripped
-            )
-            if not is_likely_org:
+            # Use the shared network/org predicate (audit F5) rather than a weaker inline
+            # all-caps/short heuristic — the caller re-filters with this same predicate, so this
+            # only removes a redundant, laxer duplicate.
+            if not is_network_or_org_author(author.strip()):
                 episode_authors.add(author)
 
     return episode_authors
@@ -523,7 +587,9 @@ def detect_feed_hosts_and_patterns(
     feed_hosts = _detect_hosts_from_feed(feed, speaker_detector)
     # Strip network/publisher author tags the detector surfaces as hosts (e.g. "Colossus",
     # "Colossus | Investing & Business Podcasts"). For such shows the real host comes from the
-    # transcript self-introduction at diarization time, not the feed metadata (#876).
+    # transcript self-introduction at diarization time, not the feed metadata (#876). The
+    # statement-first ordering inside _detect_hosts_from_feed means an org-authored feed whose
+    # description names its hosts is already recovered before this strip runs (ADR-130 / audit F2).
     feed_hosts = {h for h in feed_hosts if not is_network_or_org_author(h)}
 
     # Priority: Use known_hosts from config if provided (show-level override)
@@ -1384,7 +1450,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
     # Track successful vs failed jobs separately
     jobs_processed_ok = 0
     jobs_processed_failed = 0
-    processed_job_indices = set()  # Track which jobs we've processed
+    processed_job_indices: Set[int] = set()  # Track which jobs we've processed
     processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
 
     def _find_next_unprocessed_job() -> Optional[ProcessingJob]:
@@ -1398,13 +1464,13 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 with processed_job_indices_lock:
                     for job in processing_resources.processing_jobs:
                         if job.episode.idx not in processed_job_indices:
-                            processed_job_indices.add(job.episode.idx)
+                            _mark_processed(processed_job_indices, job.episode.idx)
                             return job
         else:
             with processed_job_indices_lock:
                 for job in processing_resources.processing_jobs:
                     if job.episode.idx not in processed_job_indices:
-                        processed_job_indices.add(job.episode.idx)
+                        _mark_processed(processed_job_indices, job.episode.idx)
                         return job
         return None
 
@@ -1454,7 +1520,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                     job.episode.idx not in processed_job_indices
                                     and job.episode.idx not in futures
                                 ):
-                                    processed_job_indices.add(job.episode.idx)
+                                    _mark_processed(processed_job_indices, job.episode.idx)
                                     future = executor.submit(process_job_func, job)
                                     futures[future] = job.episode.idx
                 else:
@@ -1464,7 +1530,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                 job.episode.idx not in processed_job_indices
                                 and job.episode.idx not in futures
                             ):
-                                processed_job_indices.add(job.episode.idx)
+                                _mark_processed(processed_job_indices, job.episode.idx)
                                 future = executor.submit(process_job_func, job)
                                 futures[future] = job.episode.idx
 

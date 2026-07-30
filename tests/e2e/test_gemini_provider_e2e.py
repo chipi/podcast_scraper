@@ -599,7 +599,7 @@ class TestGeminiProviderE2E:
             metadata_dir = run_dir / "metadata"
             assert metadata_dir.exists(), f"Metadata directory should exist at {metadata_dir}"
 
-            metadata_files = list(metadata_dir.glob("*.json"))
+            metadata_files = list(metadata_dir.glob("*.metadata.json"))
             assert len(metadata_files) > 0, "Should have created at least one metadata file"
 
             # Verify Gemini was used (check metadata)
@@ -687,7 +687,7 @@ class TestGeminiProviderE2E:
             metadata_dir = run_dir / "metadata"
             assert metadata_dir.exists(), f"Metadata directory should exist at {metadata_dir}"
 
-            metadata_files = list(metadata_dir.glob("*.json"))
+            metadata_files = list(metadata_dir.glob("*.metadata.json"))
             assert len(metadata_files) > 0, "Should have created at least one metadata file"
 
             # Verify Gemini was used (check metadata)
@@ -766,7 +766,7 @@ class TestGeminiProviderE2E:
             metadata_dir = run_dir / "metadata"
             assert metadata_dir.exists(), f"Metadata directory should exist at {metadata_dir}"
 
-            metadata_files = list(metadata_dir.glob("*.json"))
+            metadata_files = list(metadata_dir.glob("*.metadata.json"))
             assert len(metadata_files) > 0, "Should have created at least one metadata file"
 
             # Verify Gemini was used (check metadata)

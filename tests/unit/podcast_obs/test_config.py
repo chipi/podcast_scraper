@@ -6,6 +6,7 @@ import textwrap
 
 import pytest
 
+from podcast_obs import config as obs_config
 from podcast_obs.config import (
     DEFAULT_GITHUB_REPO,
     ObservabilityConfig,
@@ -77,6 +78,30 @@ def test_from_yaml_multitarget_and_secret_env(tmp_path, monkeypatch: pytest.Monk
     assert local_base is not None and local_base.endswith(":8080")
 
 
+def test_from_yaml_langfuse_keys_fall_back_to_env(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A config-target probe must pick up the langfuse SDK-native env keys when the YAML omits them
+    (secrets never live in the file) — else `podcast_obs traces` is blind while traces flow."""
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-env")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-env")
+    config_path = tmp_path / "obs.yaml"
+    config_path.write_text(
+        textwrap.dedent("""
+            default_target: homelab
+            targets:
+              homelab:
+                langfuse:
+                  base_url: http://homelab:4000
+            """),
+        encoding="utf-8",
+    )
+    t = ObservabilityConfig.from_yaml(config_path).target("homelab")
+    assert t.langfuse_public_key == "pk-env"
+    assert t.langfuse_secret_key == "sk-env"
+    assert t.langfuse_base_url == "http://homelab:4000"  # explicit YAML base_url still wins
+
+
 def test_from_yaml_without_targets_raises(tmp_path) -> None:
     config_path = tmp_path / "bad.yaml"
     config_path.write_text("unrelated: true\n", encoding="utf-8")
@@ -102,14 +127,51 @@ def test_from_yaml_default_target_not_in_targets_raises(tmp_path) -> None:
 def test_from_env_external_source_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_obs_env(monkeypatch)
     monkeypatch.setenv("PODCAST_OBS_TIMEOUT", "2.5")
-    monkeypatch.setenv("PODCAST_OBS_LOKI_TOKEN", "lt")
+    monkeypatch.setenv("PODCAST_OBS_GRAFANA_TOKEN", "gt")
     monkeypatch.setenv("PODCAST_OBS_SENTRY_PROJECTS", "a, b ,c")
     monkeypatch.setenv("PODCAST_OBS_ENV_LABEL", "drill")
     target = ObservabilityConfig.from_env().target()
     assert target.timeout == 2.5
-    assert target.loki_token == "lt"
+    assert target.grafana_token == "gt"
     assert target.sentry_projects == ("a", "b", "c")  # CSV split + trimmed
     assert target.env_label == "drill"
+
+
+def test_sentry_token_falls_back_to_auth_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The GlitchTip issue-link pivot reuses the platform's existing SENTRY_AUTH_TOKEN when the
+    # PODCAST_OBS_ one isn't set; an explicit PODCAST_OBS_SENTRY_TOKEN still wins.
+    _clear_obs_env(monkeypatch)
+    monkeypatch.delenv("PODCAST_OBS_SENTRY_TOKEN", raising=False)
+    monkeypatch.setenv("SENTRY_AUTH_TOKEN", "gh-secret-tok")
+    assert ObservabilityConfig.from_env().target().sentry_token == "gh-secret-tok"
+    monkeypatch.setenv("PODCAST_OBS_SENTRY_TOKEN", "explicit")
+    assert ObservabilityConfig.from_env().target().sentry_token == "explicit"
+
+
+def test_obs_dev_env_skipped_under_pytest(monkeypatch: pytest.MonkeyPatch) -> None:
+    # PYTEST_CURRENT_TEST is set by pytest during a test → the auto-load is a hermetic no-op, so a
+    # dev's .env.obs.dev can never leak real backend URLs into the test env.
+    import dotenv
+
+    calls: list = []
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: calls.append(a))
+    assert "PYTEST_CURRENT_TEST" in __import__("os").environ
+    obs_config._load_obs_dev_env()
+    assert calls == []
+
+
+def test_obs_dev_env_loads_from_cwd_when_present(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    # Outside pytest, `podcast_obs serve` in a worktree auto-loads that dir's .env.obs.dev — this
+    # is what makes the spawned MCP server zero-config (an MCP client hands it a clean env).
+    import dotenv
+
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env.obs.dev").write_text("PODCAST_OBS_UMAMI_URL=http://x\n")
+    loaded: list = []
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda p, **k: loaded.append(str(p)))
+    obs_config._load_obs_dev_env()
+    assert any(".env.obs.dev" in p for p in loaded)
 
 
 def test_from_env_bad_timeout_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -419,9 +419,18 @@ def build_kg(
     episode_id: str,
     title: str,
     excerpts: dict[str, list[str]],
+    transcript_ref: str,
+    extracted_at: str,
     metadata_relative_path: str | None = None,
 ) -> dict[str, Any]:
-    """Build a minimal KG artifact."""
+    """Build a minimal KG artifact matching the RFC-097 v2.1 write-side shape.
+
+    Node types are restricted to what the real KG pipeline emits (Episode +
+    Topic here — the synthetic corpus has no NER source, so no Person /
+    Organization / Voice nodes are fabricated). ``extraction`` carries the three
+    strict-required fields (``model_version`` / ``extracted_at`` /
+    ``transcript_ref``).
+    """
     ep_node_id = f"episode:{episode_id}"
     ep_props: dict[str, Any] = {"title": title, "episode_id": episode_id}
     if metadata_relative_path:
@@ -434,17 +443,6 @@ def build_kg(
         }
     ]
     edges: list[dict[str, Any]] = []
-    # Synthesize a couple of Entity nodes from topic phrases.
-    for i, label in enumerate(excerpts["topics"][:2]):
-        eid = f"entity:{slug(label)}"
-        nodes.append(
-            {
-                "id": eid,
-                "type": "Entity",
-                "properties": {"label": label.title(), "category": "Concept"},
-            }
-        )
-        edges.append({"type": "MENTIONS", "from": ep_node_id, "to": eid})
     # Carry every topic over as a KG Topic node for cross-link parity with
     # GI. Single-topic-only KGs were insufficient: V2 (digest pill click)
     # requires the kg_topic node matching ``topic:<digest-headline-slug>``
@@ -460,9 +458,13 @@ def build_kg(
         nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
         edges.append({"type": "RELATES_TO", "from": ep_node_id, "to": tid})
     return {
-        "schema_version": "2",
+        "schema_version": "2.1",
         "episode_id": episode_id,
-        "extraction": {"provider": "synthetic", "model": "n/a"},
+        "extraction": {
+            "model_version": "synthetic-validation-corpus-v1",
+            "extracted_at": extracted_at,
+            "transcript_ref": transcript_ref,
+        },
         "nodes": nodes,
         "edges": edges,
     }
@@ -604,7 +606,14 @@ def main() -> int:
                 transcript_ref=transcript_rel_eproot,
                 metadata_relative_path=metadata_rel,
             )
-            kg = build_kg(ep_uuid, title, excerpts, metadata_relative_path=metadata_rel)
+            kg = build_kg(
+                ep_uuid,
+                title,
+                excerpts,
+                transcript_ref=transcript_rel_eproot,
+                extracted_at=publish + "T12:00:00",
+                metadata_relative_path=metadata_rel,
+            )
 
             # Lay artifacts out at the paths referenced by ``episodes.json``
             # so the real backend's ``/api/artifacts/<path>`` handler can

@@ -1,7 +1,10 @@
-"""Recent unresolved Sentry issues for the deploy's environment (Sentry API, bearer auth).
+"""Recent unresolved error issues for the deploy's environment (Sentry-compatible API, bearer auth).
 
-Complements :func:`podcast_obs.sources.loki.recent_logs`: Sentry holds SDK-captured exceptions;
-Loki holds everything the containers logged. Use both for a full error picture.
+Complements :func:`podcast_obs.sources.victoria.recent_logs`: this source holds SDK-captured
+exceptions; logs hold everything the containers logged. Use both for a full error picture.
+
+Backend is Sentry-API-compatible: point ``sentry_url`` at self-hosted **GlitchTip**
+(e.g. ``http://homelab:8090``) for the current stack, or leave it unset for Sentry SaaS.
 """
 
 from __future__ import annotations
@@ -13,7 +16,12 @@ from ..config import TargetConfig
 from ..result import err, ok
 
 _SOURCE = "sentry.errors"
-_API = "https://sentry.io/api/0"
+
+
+def _api_base(target: TargetConfig) -> str:
+    """``<sentry_url>/api/0`` — self-hosted GlitchTip when set, else Sentry SaaS (gap #3)."""
+    base = (target.sentry_url or "https://sentry.io").rstrip("/")
+    return f"{base}/api/0"
 
 
 def recent_errors(
@@ -29,7 +37,11 @@ def recent_errors(
     ``is:unresolved`` filter so a run's *full* error picture surfaces for correlation).
     """
     if not target.sentry_token:
-        return err(_SOURCE, "sentry token not set (PODCAST_OBS_SENTRY_TOKEN)", configured=False)
+        return err(
+            _SOURCE,
+            "sentry token not set (PODCAST_OBS_SENTRY_TOKEN or SENTRY_AUTH_TOKEN)",
+            configured=False,
+        )
     if not target.sentry_org or not target.sentry_projects:
         return err(_SOURCE, "sentry org/projects not set", configured=False)
     headers = {"Authorization": f"Bearer {target.sentry_token}"}
@@ -38,10 +50,11 @@ def recent_errors(
         query = f'environment:{target.sentry_environment} run_id:"{run_id}"'
     else:
         query = f"is:unresolved environment:{target.sentry_environment}"
+    api = _api_base(target)
     projects: list[dict] = []
     total = 0
     for project in target.sentry_projects:
-        url = f"{_API}/projects/{target.sentry_org}/{project}/issues/"
+        url = f"{api}/projects/{target.sentry_org}/{project}/issues/"
         params = {
             "query": query,
             "statsPeriod": window,

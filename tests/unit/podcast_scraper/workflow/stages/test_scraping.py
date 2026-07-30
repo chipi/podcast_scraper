@@ -46,6 +46,46 @@ def _rss_item(title: str, pub_date: str | None = None, guid: str | None = None):
 
 
 @pytest.mark.unit
+class TestFetchAndParseFeedDescription:
+    """Smell-audit F6: fetch_and_parse_feed must populate the channel description.
+
+    parse_rss_items only returns title/authors/items, so the RssFeed was built with description=None
+    on the pipeline path — starving every description-driven step (host statement/NER) even though
+    the RSS carries the blurb. Without this, statement-first host detection (F2) is dead in the real
+    pipeline while passing every unit test that SET description on the RssFeed by hand.
+    """
+
+    def test_fetch_and_parse_feed_populates_channel_description(self, monkeypatch):
+        from podcast_scraper.workflow.stages import scraping
+
+        rss = (
+            b"<rss><channel>"
+            b"<title>Unhedged</title>"
+            b"<description>Katie Martin and Robert Armstrong explain markets.</description>"
+            b"<item><title>Ep 1</title><guid>g1</guid></item>"
+            b"</channel></rss>"
+        )
+
+        class _Resp:
+            content = rss
+            url = "https://example.com/feed.xml"
+
+            def close(self):
+                pass
+
+        import podcast_scraper.rss.downloader as dl
+        import podcast_scraper.rss.feed_cache as fc
+
+        monkeypatch.setattr(fc, "read_cached_rss", lambda *_: None)
+        monkeypatch.setattr(fc, "write_cached_rss", lambda *a, **k: None)
+        monkeypatch.setattr(dl, "fetch_rss_feed_url", lambda *a, **k: _Resp())
+        cfg = _scraping_cfg(rss_url="https://example.com/feed.xml", user_agent="t", timeout=5)
+
+        feed, _ = scraping.fetch_and_parse_feed(cfg)
+        assert feed.description == "Katie Martin and Robert Armstrong explain markets."
+
+
+@pytest.mark.unit
 class TestExtractFeedMetadataForGeneration:
     """Tests for extract_feed_metadata_for_generation."""
 
@@ -268,6 +308,45 @@ class TestPrepareEpisodesExistingOnly:
             episodes = prepare_episodes_from_feed(feed, cfg)
         assert len(episodes) == 3  # the aged-out episode is reached, not dropped
         assert "reconstructed from on-disk metadata" in caplog.text
+
+    def test_reconstructed_episode_carries_description_for_guest_naming(self, tmp_path):
+        # F1 (Fable-5 pipeline audit): a reconstructed (aged-out) episode must carry the on-disk
+        # DESCRIPTION, not just guid/title/pubDate. Speaker detection reads title+description to
+        # extract guest names; without the description the reconstructed half of a reprocess loses
+        # metadata-driven guest naming while live-served episodes in the same run keep it.
+        import json
+
+        from podcast_scraper.rss.parser import extract_episode_description
+
+        meta = tmp_path / "run_A" / "metadata" / "0002 - Aged.metadata.json"
+        meta.parent.mkdir(parents=True, exist_ok=True)
+        meta.write_text(
+            json.dumps(
+                {
+                    "episode": {
+                        "guid": "g_aged",
+                        "title": "Aged Out Episode",
+                        "description": "My guest today is Brian Chesky, the founder of Airbnb.",
+                        "link": "https://example.com/ep2",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        _write_meta(tmp_path / "run_A" / "metadata" / "0001 - Live.metadata.json", "g_live")
+        feed = RssFeed(
+            title="T",
+            items=[_rss_item("live", guid="g_live")],  # g_aged aged out -> reconstructed
+            base_url="https://example.com",
+            authors=[],
+        )
+        cfg = _scraping_cfg(reprocess_existing_only=True, output_dir=str(tmp_path))
+        episodes = prepare_episodes_from_feed(feed, cfg)
+        aged = next(e for e in episodes if e.idx == 2)
+        assert (
+            extract_episode_description(aged.item)
+            == "My guest today is Brian Chesky, the founder of Airbnb."
+        )
 
     def test_reprocess_assigns_on_disk_idx_so_transcript_glob_matches(self, tmp_path):
         # The reprocess must give each episode its ON-DISK idx (the "NNNN - " filename prefix the

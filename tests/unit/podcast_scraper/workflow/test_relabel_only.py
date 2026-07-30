@@ -179,6 +179,166 @@ def test_relabel_reads_speaker_label_anonymizes_and_canonicalizes(tmp_path: Path
     assert "Kevin Russo:" not in out
 
 
+def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """relabel_only must hand the roster the SAME episode title/description a FULL run does.
+
+    The structural half of the relabel!=full confound (root-cause #2): FULL passes
+    ``episode_title`` / ``episode_description`` into ``apply_diarization_to_result`` (ADR-137 — both
+    feed the LLM's host/guest role determination and gate role-only resolution), but relabel_only
+    passed neither, so every reprocess resolved on a strictly weaker prompt showing
+    "(not provided)". That is a deterministic divergence, independent of LLM sampling. Pin that
+    relabel forwards both, mirroring the FULL call site.
+    """
+    from podcast_scraper.providers.ml.diarization import pipeline as _pipe
+
+    captured: dict = {}
+
+    def _spy(result, media, cfg, detected, **kwargs):
+        captured.update(kwargs)
+        return result  # a valid result dict (text + segments) for the downstream render
+
+    monkeypatch.setattr(_pipe, "apply_diarization_to_result", _spy)
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    _write_corpus(
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00", "SPEAKER_01"],
+        texts=["Welcome to the show. " * 40, "Glad to be here. " * 40],
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    import xml.etree.ElementTree as ET
+
+    from podcast_scraper.models import Episode
+
+    episode = Episode(
+        idx=1,
+        title="The Real Episode Title",
+        title_safe="Ep",
+        item=ET.Element("item"),
+        transcript_urls=[],
+        description="Kevin and Casey dig into AI agents.",
+    )
+    job = TranscriptionJob(
+        idx=1,
+        ep_title="The Real Episode Title",
+        ep_title_safe="Ep",
+        temp_media="",
+        detected_speaker_names=None,
+        metadata_named=None,
+        episode=episode,
+    )
+
+    ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+
+    assert ok is True
+    # THE FIX: the episode title now reaches the roster (it was absent, so the LLM saw
+    # "(not provided)" where FULL showed the real title).
+    assert captured.get("episode_title") == "The Real Episode Title"
+    # And the REAL description is forwarded (Episode now carries it; review found it was dead code
+    # returning None everywhere), so the two call sites carry identical resolution context.
+    assert captured.get("episode_description") == "Kevin and Casey dig into AI agents."
+
+
+def test_relabel_feed_hosts_falls_back_to_live_when_sibling_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Q3 (advisor): a frozen sibling-metadata host anchor is preferred for a reproducible relabel,
+    but when it is MISSING (returns []), fall back to the live job.feed_hosts already computed — an
+    empty anchor is the worst state (no ASR-garble canonicalization, no host pool)."""
+    from podcast_scraper.providers.ml.diarization import pipeline as _pipe
+
+    captured: dict = {}
+
+    def _spy(result, media, cfg, detected, **kwargs):
+        captured.update(kwargs)
+        return result
+
+    monkeypatch.setattr(_pipe, "apply_diarization_to_result", _spy)
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    _write_corpus(  # no sibling metadata.json -> _feed_hosts_from_sibling_metadata returns []
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00"],
+        texts=["welcome to the show " * 30],
+        with_metadata=False,
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    job = TranscriptionJob(
+        idx=1,
+        ep_title="Ep",
+        ep_title_safe="Ep",
+        temp_media="",
+        detected_speaker_names=None,
+        metadata_named=None,
+        episode=None,
+    )
+    job.feed_hosts = ["Kevin Roose", "Casey Newton"]  # live detection, already computed
+
+    ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+
+    assert ok is True
+    assert captured.get("feed_hosts") == ["Kevin Roose", "Casey Newton"]
+
+
+def test_relabel_feed_hosts_freeze_wins_over_live_when_sibling_present(
+    tmp_path: Path, monkeypatch, caplog
+) -> None:
+    """Q3: when the sibling metadata NAMES hosts, they win — a relabel of a stored corpus stays
+    reproducible and does not track live feed drift, even if live job.feed_hosts differs — AND the
+    sibling-vs-live divergence is LOGGED (the visibility half of the Q3 fix)."""
+    import logging
+
+    from podcast_scraper.providers.ml.diarization import pipeline as _pipe
+
+    captured: dict = {}
+
+    def _spy(result, media, cfg, detected, **kwargs):
+        captured.update(kwargs)
+        return result
+
+    monkeypatch.setattr(_pipe, "apply_diarization_to_result", _spy)
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    _write_corpus(  # default with_metadata=True -> sibling names Casey Newton + Kevin Roose
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00"],
+        texts=["welcome to the show " * 30],
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    job = TranscriptionJob(
+        idx=1,
+        ep_title="Ep",
+        ep_title_safe="Ep",
+        temp_media="",
+        detected_speaker_names=None,
+        metadata_named=None,
+        episode=None,
+    )
+    job.feed_hosts = ["Someone Else"]  # live detection drifted; the frozen sibling must win
+
+    with caplog.at_level(logging.INFO):
+        ok, _, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+
+    assert ok is True
+    assert captured.get("feed_hosts") == ["Casey Newton", "Kevin Roose"]  # sibling, not live
+    # the divergence is surfaced so live-vs-freeze can later be decided from data
+    assert any("feed_hosts divergence" in r.message for r in caplog.records)
+
+
 def test_relabel_skips_when_no_segments_identity(tmp_path: Path) -> None:
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"

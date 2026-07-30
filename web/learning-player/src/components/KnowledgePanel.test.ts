@@ -270,3 +270,59 @@ describe('KnowledgePanel', () => {
     )
   })
 })
+
+describe('KnowledgePanel — #1191 route-and-tag surfacing', () => {
+  it('shows surface-tagged and untagged (pre-3.1) insights, hides connect/drop', () => {
+    const w = mountPanel({
+      insights: [
+        insight({ id: 'a', text: 'AAA surface one', routing_tag: 'surface' }),
+        insight({ id: 'b', text: 'BBB connect plumbing', routing_tag: 'connect' }),
+        insight({ id: 'c', text: 'CCC dropped filler', routing_tag: 'drop' }),
+        insight({ id: 'd', text: 'DDD untagged legacy', routing_tag: null }),
+      ],
+    })
+    expect(w.text()).toContain('AAA surface one')
+    expect(w.text()).toContain('DDD untagged legacy') // back-compat: null tag kept
+    expect(w.text()).not.toContain('BBB connect plumbing')
+    expect(w.text()).not.toContain('CCC dropped filler')
+  })
+
+  it('caps at 8 surface insights behind a show-more fold, then reveals the rest', async () => {
+    const many = Array.from({ length: 10 }, (_, i) =>
+      insight({ id: 'i' + i, text: 'INSIGHT_' + i, routing_tag: 'surface' as const }),
+    )
+    const w = mountPanel({ insights: many })
+    // first 8 visible (INSIGHT_0..7), #8 and #9 folded
+    expect(w.text()).toContain('INSIGHT_7')
+    expect(w.text()).not.toContain('INSIGHT_8')
+    expect(w.text()).not.toContain('INSIGHT_9')
+    const showMore = w.find('[data-testid="kp-insights-show-all"]')
+    expect(showMore.exists()).toBe(true)
+    await showMore.trigger('click')
+    expect(w.text()).toContain('INSIGHT_8')
+    expect(w.text()).toContain('INSIGHT_9')
+  })
+
+  it('preserves the server-provided (salience) order and does not re-sort', () => {
+    // The server returns insights salience-desc; the panel must render them in THAT order, not
+    // re-sort by id/text. Input order (z, a, m) is deliberately not id- or text-sorted, so a panel
+    // that re-sorted would reorder them — the DOM order must match the server order.
+    const w = mountPanel({
+      insights: [
+        insight({ id: 'z', text: 'ZZZ highest salience', routing_tag: 'surface' }),
+        insight({ id: 'a', text: 'AAA middle salience', routing_tag: 'surface' }),
+        insight({ id: 'm', text: 'MMM lowest salience', routing_tag: 'surface' }),
+      ],
+    })
+    const t = w.text()
+    expect(t.indexOf('ZZZ highest salience')).toBeLessThan(t.indexOf('AAA middle salience'))
+    expect(t.indexOf('AAA middle salience')).toBeLessThan(t.indexOf('MMM lowest salience'))
+  })
+
+  it('hides the insights section entirely when none are surface-tagged', () => {
+    const w = mountPanel({
+      insights: [insight({ id: 'x', text: 'only connect', routing_tag: 'connect' })],
+    })
+    expect(w.text()).not.toContain('only connect')
+  })
+})

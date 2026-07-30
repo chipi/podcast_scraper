@@ -198,6 +198,20 @@ def init_sentry(component: Component) -> bool:
         # Tag every event with the component so the api / pipeline streams can
         # be filtered cleanly in Sentry's UI.
         sentry_sdk.set_tag("component", component)
+        # The OTLP span exporter logs a transient "Failed to export span batch due to timeout" when
+        # the endpoint is briefly unreachable at process shutdown (now bounded in otel_init). That
+        # is best-effort tracing losing a batch, NOT an application error — keep it out of GlitchTip
+        # so a deploy window doesn't spam the pipeline issue stream (73 events on 2026-07-28).
+        try:
+            from sentry_sdk.integrations.logging import ignore_logger
+
+            for _otel_logger in (
+                "opentelemetry.sdk.trace.export",
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+            ):
+                ignore_logger(_otel_logger)
+        except Exception:  # noqa: BLE001 — never break sentry init over a log filter
+            pass
     except Exception:  # noqa: BLE001 — telemetry must NEVER break the app
         # A malformed DSN raises sentry_sdk.utils.BadDsn ("Unsupported scheme");
         # any other init failure is equally fatal if unguarded. A telemetry
@@ -267,6 +281,35 @@ def set_correlation_tags(tags: dict) -> None:
                 sentry_sdk.set_tag(key, value)
     except Exception:  # pragma: no cover - never break the run for a tag
         _LOGGER.debug("sentry set_correlation_tags skipped", exc_info=True)
+
+
+def capture_stage_exception(exc: BaseException, *, stage: str) -> None:
+    """Send a CAUGHT pipeline exception to Sentry, tagged with the stage + run/episode ids (o11y).
+
+    The pipeline swallows most stage failures (``except Exception: logger...``), so they never reach
+    the SDK's automatic capture — a large error-observability blind spot. Call this at a
+    stage-boundary catch to make a swallowed failure an issue in GlitchTip (tagged ``stage`` +
+    ``run_id``/``episode_id`` for triage) while the pipeline still recovers. True no-op when
+    ``sentry-sdk`` isn't installed or Sentry wasn't initialised (no DSN).
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        from .correlation import get_episode_id, get_run_id
+
+        with sentry_sdk.push_scope() as scope:
+            scope.set_tag("stage", stage)
+            run_id = get_run_id()
+            if run_id:
+                scope.set_tag("run_id", run_id)
+            episode_id = get_episode_id()
+            if episode_id:
+                scope.set_tag("episode_id", episode_id)
+            sentry_sdk.capture_exception(exc)
+    except Exception:  # pragma: no cover - never break the pipeline to report an error
+        _LOGGER.debug("sentry capture_stage_exception skipped", exc_info=True)
 
 
 def emit_enrichment_breadcrumb(

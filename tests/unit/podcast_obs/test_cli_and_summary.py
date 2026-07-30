@@ -6,7 +6,7 @@ import pytest
 
 from podcast_obs import aggregate, cli, mcp_server
 from podcast_obs.config import TargetConfig
-from podcast_obs.sources import loki, prod_api
+from podcast_obs.sources import prod_api
 
 
 def _clear_obs_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -122,21 +122,6 @@ def test_cli_runs_passes_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured["limit"] == 3
 
 
-def test_cli_logs_passes_args(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_obs_env(monkeypatch)
-    monkeypatch.setenv("PODCAST_OBS_API_BASE", "http://x")
-    captured: dict = {}
-    monkeypatch.setattr(
-        loki,
-        "recent_logs",
-        lambda t, **kw: captured.update(kw) or {"ok": True, "source": "logs", "data": {}},
-    )
-    cli.main(["logs", "--service", "api", "--contains", "OOM", "--window", "6h"])
-    assert captured["service"] == "api"
-    assert captured["contains"] == "OOM"
-    assert captured["window"] == "6h"
-
-
 def test_cli_serve_maps_http_to_streamable(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_obs_env(monkeypatch)
     monkeypatch.setenv("PODCAST_OBS_API_BASE", "http://x")
@@ -146,3 +131,57 @@ def test_cli_serve_maps_http_to_streamable(monkeypatch: pytest.MonkeyPatch) -> N
     assert rc == 0
     assert captured["transport"] == "streamable-http"  # http -> streamable-http mapping
     assert captured["port"] == 9000
+
+
+# --- current-stack CLI verbs (parity with the MCP tools) ---------------------------
+
+
+def _clean_env(monkeypatch):
+    import os
+
+    for k in list(os.environ):
+        if k.startswith("PODCAST_OBS_"):
+            monkeypatch.delenv(k, raising=False)
+
+
+def test_cli_events_dispatches_to_victoria(monkeypatch, capsys):
+    _clean_env(monkeypatch)
+    from podcast_obs.result import ok
+    from podcast_obs.sources import victoria
+
+    seen = {}
+
+    def _fake(target, event_type, **kw):
+        seen["event_type"] = event_type
+        seen["kw"] = kw
+        return ok("victorialogs.events", {"count": 0})
+
+    monkeypatch.setattr(victoria, "events", _fake)
+    rc = cli.main(["events", "pipeline_stage", "--episode-id", "ep-1"])
+    assert rc == 0
+    assert seen["event_type"] == "pipeline_stage"
+    assert seen["kw"]["episode_id"] == "ep-1"
+
+
+def test_cli_metrics_and_spans_dispatch(monkeypatch):
+    _clean_env(monkeypatch)
+    from podcast_obs.result import ok
+    from podcast_obs.sources import victoria
+
+    monkeypatch.setattr(victoria, "metrics_instant", lambda t, q: ok("m", {"query": q}))
+    monkeypatch.setattr(victoria, "traces_recent", lambda t, s, **k: ok("s", {"service": s}))
+    assert cli.main(["metrics", "up"]) == 0
+    assert cli.main(["spans", "podcast-api"]) == 0
+
+
+def test_cli_surface_and_investigate_dispatch(monkeypatch):
+    _clean_env(monkeypatch)
+    from podcast_obs import aggregate
+    from podcast_obs.result import ok
+
+    monkeypatch.setattr(cli, "_surface", lambda t, n, **k: ok("surface", {"surface": n}))
+    monkeypatch.setattr(cli, "_investigate", lambda t, **k: ok("investigate", {**k}))
+    assert cli.main(["surface", "pipeline"]) == 0
+    assert cli.main(["investigate", "--run-id", "run-9"]) == 0
+    # aggregate module import kept meaningful (guards against dead import in the test)
+    assert hasattr(aggregate, "surface")

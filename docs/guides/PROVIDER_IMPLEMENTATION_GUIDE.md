@@ -282,9 +282,9 @@ declaration in the mock server; follow the existing
 - [ ] **Guardrail E2E** (chat-shaped providers): inject empty / thinking-prose / finish-length response via the mock server, assert `GuardrailViolation` propagates out of the public method (not wrapped into `ProviderRuntimeError`). See `tests/e2e/test_cloud_guardrails_e2e.py` for the template.
 - [ ] **Resilience E2E** (chat-shaped providers): inject permanent 5xx + transient 5xx via `set_error_behavior` / `set_transient_error`, assert behavior matches the per-stage contract. See `tests/e2e/test_cloud_resilience_e2e.py`.
 - [ ] **Resource Management**: Verify `cleanup()` properly unloads models or closes connections.
-- [ ] **Diarization providers only**: add a `DiarizationLabelingStrategy` tuned to how the model clusters and wire it in `labeling_strategy_for()`; validate with a single-variable reprocess pilot (only `diarization_provider` changed) and keep the frozen base + N1/dedup tests green. See "Adding a diarization provider" above and ADR-126.
+- [ ] **Diarization providers only**: add a `DiarizationLabelingStrategy` tuned to how the model clusters and wire it in `labeling_strategy_for()`; validate with a single-variable reprocess pilot (only `diarization_provider` changed) and keep the frozen base + N1/dedup tests green. See "Adding a diarization provider" above and ADR-134.
 
-## Adding a diarization provider — it needs a labeling strategy (ADR-126)
+## Adding a diarization provider — it needs a labeling strategy (ADR-134)
 
 Diarization is not just another provider: its output (`SPEAKER_NN` clusters) feeds **speaker
 labeling** (`providers/ml/diarization/roster.py`), and labeling is **coupled to how the model
@@ -320,11 +320,11 @@ gate** — same everything, only `diarization_provider` changed (see
 read the `source` field in the `.speakers.diagnostics.json` of each changed voice to find the
 mechanism, and design hooks against the **real** clusters — not an assumed shape. Do **not** try to
 tune the diarizer's `clustering_threshold` to imitate another model's shape: the DGX server accepts
-only speaker-count bounds, and coarsening trades split-fixes for merge-regressions (ADR-126 §Q2).
+only speaker-count bounds, and coarsening trades split-fixes for merge-regressions (ADR-134 §Q2).
 
 ## Related Documentation
 
-- [ADR-126: Provider-specific speaker labeling](../adr/ADR-126-provider-specific-speaker-labeling.md) - Why diarization providers need a labeling strategy
+- [ADR-134: Provider-specific speaker labeling](../adr/ADR-134-provider-specific-speaker-labeling.md) - Why diarization providers need a labeling strategy
 - [Protocol Extension Guide](./PROTOCOL_EXTENSION_GUIDE.md) - How to extend protocols
 - [ML Provider Reference](./ML_PROVIDER_REFERENCE.md) - Details on local ML models
 - [Development Guide](./DEVELOPMENT_GUIDE.md) - Development workflow

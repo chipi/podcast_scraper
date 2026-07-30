@@ -97,6 +97,29 @@ class TestToContractSegments:
         out = to_contract_segments(raw)
         assert out[0].speaker == "Host"
 
+    def test_named_voice_with_role_shows_name_not_host(self) -> None:
+        # Named voices now carry their host/guest speaker_role in the sidecar (guest-as-host fix).
+        # Display must still show the real name, never collapse a named host to "Host".
+        raw = [
+            {
+                "start": 0.0,
+                "end": 1.0,
+                "text": "a",
+                "speaker_label": "Jessica Mendoza",
+                "speaker_role": "host",
+            },
+            {
+                "start": 1.0,
+                "end": 2.0,
+                "text": "b",
+                "speaker_label": "Benjamin Brundage",
+                "speaker_role": "guest",
+            },
+        ]
+        out = to_contract_segments(raw)
+        assert out[0].speaker == "Jessica Mendoza"
+        assert out[1].speaker == "Benjamin Brundage"
+
     def test_skips_malformed_entries(self) -> None:
         raw = [
             {"start": 0.0, "end": 1.0, "text": "ok"},

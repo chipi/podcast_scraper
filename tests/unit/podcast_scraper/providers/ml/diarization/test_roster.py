@@ -265,15 +265,32 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         "named": 1,
         "unresolved": 1,
         "by_voice_type": {"person": 1, "unidentified": 1},
+        "voice_census": {
+            "person": {"count": 1, "talk_s": 60.0, "talk_share": 0.15},
+            "unidentified": {"count": 1, "talk_s": 340.0, "talk_share": 0.85},
+        },
+        # Labeling OUTPUT (ADR-135/#1220): both voices are real (no cameo/commercial), so both are
+        # exposed to GI/KG — HOST named, SPEAKER_01 an unidentified Voice.
+        "exposed": {
+            "speakers": 2,
+            "named": 1,
+            "voices": 1,
+            "voices_unknown": 0,
+            "voices_unidentified": 1,
+        },
         "show_centric": False,
         "expected_unresolved": 1,
         # SPEAKER_01 is substantive, and NOBODY NAMES THEM — that is tape, not a failure.
         "truly_unknown": 0,
-        # ...but 85% of the episode is still attributable to nobody, and THAT is worth an alarm
-        # even when it is not our fault. `unbound_names` is empty: no metadata name went unplaced,
-        # so there is nobody to go and find.
+        # 85% of the episode is attributed to nobody — recorded as a trace
+        # (`unattributed_talk_share`) so the sidecar carries the full picture — but it is all
+        # `unidentified` TAPE, nobody we could have named, so the DEFECT share is 0 and the alarm
+        # does NOT fire (ADR-139 / Pattern B). A
+        # vox-pop nobody introduces is not our failure. `unbound_names` is empty: nobody to go find.
         "unattributed_talk_share": 0.85,
-        "unattributed_alarm": True,
+        "unattributed_defect_share": 0.0,
+        "unattributed_alarm": False,
+        "labeling_profile": "naming-4",
         "unbound_names": [],
     }
     assert diag["tried"]["host_self_intro"] == "Noah Kravitz"
@@ -288,6 +305,34 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
     # distinction is what keeps `truly_unknown` meaningful as a defect count.
     assert by_voice["SPEAKER_01"]["expected"] is True
     assert by_voice["SPEAKER_01"]["reason"]  # a non-empty "why it failed" explanation
+
+
+def test_pattern_b_bounds_defect_to_spare_name_count() -> None:
+    # ADR-139 / Pattern B: 2 unbound metadata names can explain at most 2 missed voices. The 2
+    # most-substantive unnamed voices are `unknown` (defect); the rest are `unidentified` TAPE, so a
+    # narrated desk's random inserts stop reading as "we should have named this".
+    diar = _diar(
+        [("HOST", 0, 60), ("A", 60, 360), ("B", 360, 560), ("C", 560, 600), ("D", 600, 630)], 5
+    )
+    voice_texts = {
+        "HOST": "Welcome. I'm Noah Kravitz.",
+        "A": "a long substantive stretch of discussion about the topic at length here",
+        "B": "more substantive discussion continuing on for a good while as well",
+        "C": "a brief interjection from the field",
+        "D": "another short clip of tape",
+    }
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Noah Kravitz.",
+        detected_guests=[],
+        voice_texts=voice_texts,
+        metadata_named=["Alice Anderson", "Bob Brown"],  # 2 spare, unbindable to these voices
+    )
+    vt = {v: role.voice_type for v, role in r.by_voice.items()}
+    # top-2 by talk are the defects worth chasing...
+    assert vt["A"] == "unknown" and vt["B"] == "unknown"
+    # ...the excess beyond the 2 spare names is tape, not our failure.
+    assert vt["C"] == "unidentified" and vt["D"] == "unidentified"
 
 
 def test_speaker_diagnostics_show_centric_host_is_expected() -> None:
@@ -336,6 +381,46 @@ def test_voice_type_cameo_commercial_and_unknown() -> None:
     assert r.display_label_for("SPEAKER_01") == "Unidentified speaker"
     assert r.label_for("SPEAKER_01") == "SPEAKER_01"  # id-bearing label never swapped
     assert r.label_for("SPEAKER_02") == "SPEAKER_02"
+
+
+def test_exposed_output_excludes_cameo_and_commercial_noise_1220() -> None:
+    """ADR-135/#1220: the labeling OUTPUT surface is what reaches GI/KG after cleanup.
+
+    Raw diarization here has FOUR voices, but two are noise (cameo + commercial) that never
+    become graph nodes. ``summary.exposed`` reports only the two real speakers — HOST (named
+    Person) and SPEAKER_01 (an unidentified Voice) — so the sidecar states the clean
+    named-vs-Voice rate on its own, without opening the graph.
+    """
+    diar = _diar(
+        [
+            ("HOST", 0, 60),
+            ("SPEAKER_01", 60, 400),  # unidentified — real, unnamed -> Voice
+            ("SPEAKER_02", 400, 408),  # cameo -> dropped
+            ("SPEAKER_03", 500, 560),  # commercial -> dropped
+        ],
+        4,
+    )
+    r = resolve_speaker_roster(diar, "Welcome. I'm Noah Kravitz.", ad_intervals=[(495.0, 570.0)])
+    diag = build_speaker_diagnostics(
+        diar, r, transcript_text="Welcome. I'm Noah Kravitz.", detected_guests=[], known_hosts=[]
+    )
+    s = diag["summary"]
+    # INPUT still counts all four raw voices...
+    assert s["num_speakers"] == 4
+    assert s["by_voice_type"] == {
+        "person": 1,
+        "unidentified": 1,
+        "cameo": 1,
+        "commercial": 1,
+    }
+    # ...but the OUTPUT exposed to GI/KG is only the two real speakers.
+    assert s["exposed"] == {
+        "speakers": 2,
+        "named": 1,
+        "voices": 1,
+        "voices_unknown": 0,
+        "voices_unidentified": 1,
+    }
 
 
 def test_a_voice_we_FAILED_to_name_keeps_the_raw_id_as_a_defect_marker() -> None:
@@ -648,6 +733,175 @@ def test_a_quoted_greeting_by_a_non_host_never_force_names_a_voice() -> None:
     )
     assert r.by_voice["SPK"].name != "Sarah Chen"
     assert r.by_voice["SPK"].named is False
+
+
+def test_asr_mangled_guest_snaps_to_metadata_stated_name() -> None:
+    # ADR-130 (IMPLEMENT 1): the guest snap, symmetric to the host snap. Turbo rendered the guest
+    # "David Duvenaud" as "David Duvino" in his self-introduction; the episode metadata states the
+    # correct spelling (title/description -> metadata_named). The provider-agnostic final pass snaps
+    # the mangled published name to the stated guest by the same fuzzy rule the host path uses.
+    diar = _diar([("HOST", 0, 30), ("GUEST", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Kevin Roose.",
+        known_hosts=["Kevin Roose"],
+        detected_guests=["David Duvenaud"],
+        metadata_named=["David Duvenaud"],
+        voice_texts={
+            "HOST": "Welcome. I'm Kevin Roose and today we talk AI safety for the whole hour.",
+            "GUEST": "Thanks for having me. So I'm David Duvino and I research AI alignment daily.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome. I'm Kevin Roose and today we talk AI safety for the whole hour."),
+            (
+                "GUEST",
+                "Thanks for having me. So I'm David Duvino and I research AI alignment daily.",
+            ),
+        ],
+    )
+    assert r.by_voice["GUEST"].name == "David Duvenaud"  # snapped to the stated spelling
+    assert r.by_voice["GUEST"].role == "guest"
+    assert r.by_voice["HOST"].name == "Kevin Roose"
+
+
+def test_guest_snap_never_steals_a_name_another_voice_already_holds() -> None:
+    # ADR-130 one-name-one-voice: a guest self-introducing "Kevin Ross" (ASR-close to the host
+    # "Kevin Roose") must NOT be snapped onto the host's name — the host already holds it. The snap
+    # is reference-bounded AND claim-aware, so the guest keeps its own (distinct) name.
+    diar = _diar([("HOST", 0, 30), ("GUEST", 30, 380), ("HOST", 380, 400)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back to the show.",
+        known_hosts=["Kevin Roose"],
+        voice_texts={
+            "HOST": "Welcome back to the show. We have a fantastic guest lined up for you today.",
+            "GUEST": "So I'm Kevin Ross and I build developer tools for a living, a decade now.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back to the show. We have a fantastic guest lined up for you today."),
+            ("GUEST", "So I'm Kevin Ross and I build developer tools for a living, a decade now."),
+        ],
+    )
+    assert r.by_voice["HOST"].name == "Kevin Roose"
+    assert r.by_voice["GUEST"].name == "Kevin Ross"  # its own name, not stolen onto the host
+
+
+def test_stated_snap_helpers_are_reference_bounded() -> None:
+    # ADR-130 unit: the snap can only ever return a name present in the stated set (never invents),
+    # and _recover_stated_names respects one-name-one-voice.
+    from dataclasses import replace
+
+    from podcast_scraper.providers.ml.diarization.roster import (
+        _canonicalize_to_stated_name,
+        _recover_stated_names,
+        SpeakerRole,
+    )
+
+    # snaps a mangled name to the stated spelling...
+    assert _canonicalize_to_stated_name("David Duvino", ["David Duvenaud"]) == "David Duvenaud"
+    # ...but a name too far from every stated name is left unchanged (never invented).
+    assert _canonicalize_to_stated_name("Zebediah Quux", ["David Duvenaud"]) == "Zebediah Quux"
+
+    by_voice = {
+        "V0": SpeakerRole(name="Kevin Roose", role="host", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="David Duvino", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice, ["Kevin Roose", "David Duvenaud"])
+    assert by_voice["V1"].name == "David Duvenaud"  # guest recovered
+    assert by_voice["V0"].name == "Kevin Roose"  # host untouched
+    # a name already held by another voice is not reused: snapping V1 onto "Kevin Roose" is refused.
+    by_voice2 = {
+        "V0": SpeakerRole(name="Kevin Roose", role="host", named=True, source="self_intro"),
+        "V1": replace(
+            SpeakerRole(name="Kevin Ross", role="guest", named=True, source="self_intro"),
+            name="Kevin Ross",
+        ),
+    }
+    _recover_stated_names(by_voice2, ["Kevin Roose"])
+    assert by_voice2["V1"].name == "Kevin Ross"
+
+
+def test_snap_guards_exact_match_and_known_host_role_gate() -> None:
+    # ADR-130 hardening (Fable-5 review SEV-4 + SEV-3b).
+    from podcast_scraper.providers.ml.diarization.roster import (
+        _recover_stated_names,
+        SpeakerRole,
+    )
+
+    # SEV-4: a name that EXACTLY matches a stated ref is never re-snapped onto an earlier near-ref.
+    # "Robert Pape" (exact) must stay put even though "Rob Pape" precedes it in the ref list.
+    by_voice = {
+        "V0": SpeakerRole(name="Robert Pape", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice, ["Rob Pape", "Robert Pape"])
+    assert by_voice["V0"].name == "Robert Pape"
+
+    # SEV-3b: a NON-host voice is never snapped onto a KNOWN-HOST's spelling, even when that host
+    # name is unclaimed (host on leave / cross-promo). The guest keeps its own name; the N1 gate
+    # restricting host-identity canonicalization to host-candidate voices is preserved by this pass.
+    by_voice2 = {
+        "V0": SpeakerRole(name="Patrick", role="host", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="Kevin Ross", role="guest", named=True, source="self_intro"),
+    }
+    # "Kevin Roose" is a known host, unclaimed (only Patrick is on the roster).
+    _recover_stated_names(
+        by_voice2, ["Patrick", "Kevin Roose"], known_hosts=["Patrick", "Kevin Roose"]
+    )
+    assert by_voice2["V1"].name == "Kevin Ross"  # NOT snapped onto the host's name
+
+    # ...but a genuinely mangled CO-HOST (role already "host") still snaps to the known-host name.
+    by_voice3 = {
+        "V0": SpeakerRole(name="Casey Noon", role="host", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice3, ["Casey Newton"], known_hosts=["Casey Newton"])
+    assert by_voice3["V0"].name == "Casey Newton"
+
+
+def test_mononym_snaps_to_a_uniquely_matching_stated_person() -> None:
+    # Audit fix 3: a bare first name ("Kevin", from a self-intro that only caught the first name)
+    # snaps to the stated person when EXACTLY one reference carries it, and abstains when ambiguous.
+    from podcast_scraper.providers.ml.diarization.roster import _canonicalize_to_stated_name
+
+    assert _canonicalize_to_stated_name("Kevin", ["Kevin Roose", "Kara Swisher"]) == "Kevin Roose"
+    # two Kevins -> ambiguous -> unchanged (never guess which)
+    assert _canonicalize_to_stated_name("Kevin", ["Kevin Roose", "Kevin Systrom"]) == "Kevin"
+    # a mononym matching nobody's first name -> unchanged
+    assert _canonicalize_to_stated_name("Z6", ["Kevin Roose"]) == "Z6"
+
+
+def test_relaxed_first_name_snaps_only_with_a_strong_surname() -> None:
+    # Audit fix 2a: "Arietta Laika" (first edit 2 vs "Arijeta", surname edit 1 vs "Lajka") snaps —
+    # but a near first name with a DIFFERENT surname does not, so a real person is never renamed.
+    from podcast_scraper.providers.ml.diarization.roster import _canonicalize_to_stated_name
+
+    assert _canonicalize_to_stated_name("Arietta Laika", ["Arijeta Lajka"]) == "Arijeta Lajka"
+    assert _canonicalize_to_stated_name("Sam Alton", ["Sam Bright"]) == "Sam Alton"
+
+
+def test_over_split_same_person_both_voices_get_canonical_name() -> None:
+    # Audit fix 2a: diarization split one guest into two clusters — the dominant one mangled
+    # ("Arietta Laika"), the small one correct ("Arijeta Lajka"). Both should carry the stated
+    # spelling; a genuinely different person (different role) is NOT merged (see snap-guard test).
+    from podcast_scraper.providers.ml.diarization.roster import (
+        _recover_stated_names,
+        SpeakerRole,
+    )
+
+    by_voice = {
+        "V0": SpeakerRole(name="Arietta Laika", role="guest", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="Arijeta Lajka", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice, ["Arijeta Lajka"])
+    assert by_voice["V0"].name == "Arijeta Lajka"
+    assert by_voice["V1"].name == "Arijeta Lajka"
+
+    # DIFFERENT role (host holds the name) -> the guest is NOT merged onto it (one name, one voice).
+    by_voice2 = {
+        "V0": SpeakerRole(name="Arijeta Lajka", role="host", named=True, source="self_intro"),
+        "V1": SpeakerRole(name="Arietta Laika", role="guest", named=True, source="self_intro"),
+    }
+    _recover_stated_names(by_voice2, ["Arijeta Lajka"])
+    assert by_voice2["V1"].name == "Arietta Laika"  # not merged across roles
 
 
 def test_a_cold_open_guest_opener_does_not_name_the_host_voice() -> None:

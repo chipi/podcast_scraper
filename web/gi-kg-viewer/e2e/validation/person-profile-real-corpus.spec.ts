@@ -14,18 +14,15 @@
  *
  * The shipped reference corpus (post-2026-06-23) lives at
  * `.test_outputs/manual/prod-v2/corpus`. If your local copy is at
- * schema_version "2.0" (pre-RFC-097 chunk 9), migrate it first:
+ * schema_version "2.0" (pre-RFC-097 chunk 9), migrate it first with the
+ * corpus-upgrade framework (all GI/KG migrations live there now):
  *
- *   for f in $CORPUS/feeds/*\/run_*\/metadata/*.gi.json; do
- *     .venv/bin/python scripts/migrate_gi_to_v3.py --in "$f" --out "$f"
- *     .venv/bin/python scripts/compute_gi_position_hints.py --in "$f" --out "$f"
- *   done
- *   for f in $CORPUS/feeds/*\/run_*\/metadata/*.kg.json; do
- *     .venv/bin/python scripts/migrate_kg_entity_to_person_org.py --in "$f" --out "$f"
- *   done
+ *   .venv/bin/python -m podcast_scraper.cli upgrade run --corpus-dir "$CORPUS" --yes
+ *
+ * (m0003 → GI v3, m0005 → GI 3.1, m0006 → KG v2.0 typed entities.)
  *
  * The spec asserts on the v3 shape; a v2 corpus will surface a clean
- * failure pointing back at the migration steps above.
+ * failure pointing back at the migration step above.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'

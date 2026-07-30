@@ -177,6 +177,13 @@ class JSONLEmitter:
             "transcripts_transcribed": metrics_dict.get("transcripts_transcribed"),
             "episodes_summarized": metrics_dict.get("episodes_summarized"),
             "metadata_files_generated": metrics_dict.get("metadata_files_generated"),
+            # advisor #8: diarization run rollups were only in metrics.json; add to run.jsonl too.
+            "diarization_episodes": metrics_dict.get("diarization_episodes"),
+            "diarization_speakers_total": metrics_dict.get("diarization_speakers_total"),
+            "diarization_speech_seconds_total": metrics_dict.get(
+                "diarization_speech_seconds_total"
+            ),
+            "diarization_cost_usd": metrics_dict.get("diarization_cost_usd"),
             "gi_artifacts_generated": metrics_dict.get("gi_artifacts_generated"),
             "gi_failures": metrics_dict.get("gi_failures"),
             "gi_evidence_stack_completed": metrics_dict.get("gi_evidence_stack_completed"),

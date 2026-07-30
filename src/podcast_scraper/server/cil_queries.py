@@ -407,6 +407,16 @@ def _position_hint(node: dict[str, Any]) -> float:
     return 0.0
 
 
+def _salience(node: dict[str, Any]) -> float:
+    """ADR-135/#1191 salience (0.0 when absent, i.e. a pre-3.1 artifact)."""
+    props = node.get("properties")
+    if isinstance(props, dict):
+        raw = props.get("salience")
+        if isinstance(raw, (int, float)):
+            return float(raw)
+    return 0.0
+
+
 def _quote_ids_spoken_by_person(gi: dict[str, Any], person_ids: set[str]) -> set[str]:
     # person_ids is the #852 equivalence set for the queried person (canonical +
     # cross-episode variants); match a quote spoken by ANY of them.
@@ -1071,7 +1081,9 @@ def topic_perspectives(
         # Unresolved diarization voices are not real perspectives (#1167).
         if is_unresolved_speaker_placeholder(pid, person_name.get(pid)):
             continue
-        insights = sorted(data["insights"], key=_position_hint)
+        # ADR-135/#1191: rank a speaker's takes by salience desc; position_hint breaks ties and
+        # is the sole key for pre-3.1 artifacts (salience 0.0), so their order is unchanged.
+        insights = sorted(data["insights"], key=lambda n: (-_salience(n), _position_hint(n)))
         out.append(
             {
                 "person_id": pid,

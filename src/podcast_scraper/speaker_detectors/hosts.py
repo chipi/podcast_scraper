@@ -137,11 +137,15 @@ def looks_like_publisher(name: str) -> bool:
     return is_known_network(name) or has_org_markers(name)
 
 
-# Host self-introduction in the transcript intro, e.g. "I'm Patrick O'Shaughnessy".
-# The name sub-pattern allows apostrophes/hyphens so it captures full surnames
-# ("O'Shaughnessy", "Jean-Luc") but NOT periods — a period ends the self-intro sentence, so
+# Host self-introduction in the transcript intro, e.g. "I'm Patrick O'Shaughnessy" or
+# "My name is Ana Rodriguez". The name sub-pattern allows apostrophes/hyphens so it captures full
+# surnames ("O'Shaughnessy", "Jean-Luc") but NOT periods — a period ends the self-intro sentence, so
 # excluding it stops the match from absorbing the next sentence ("…O'Shaughnessy. My guest").
-_HOST_SELF_INTRO = re.compile(r"\bI'?m\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})")
+# "my name is" is a safe discovery cue (no network bumper says it, unlike "this is X" =
+# "This is Planet Money", which stays metadata-gated in `_THIS_IS_INTRO`).
+_HOST_SELF_INTRO = re.compile(
+    r"\b(?:I'?m|[Mm]y name is)\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})"
+)
 
 
 def extract_self_introduced_host(
@@ -294,8 +298,14 @@ def detect_hosts_from_transcript_intro(
 # IGNORECASE makes `[A-Z]` match a-z too, so this pattern matches every multi-word lowercase phrase
 # in the transcript — which both crowned non-names as guests AND made the conversation scan
 # backtrack catastrophically (a 77k-char episode spun for minutes in guests_introduced_by_the_host).
-_NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+)"
-_NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME})*"
+# The token-run and the name-list are BOUNDED ({1,5} / {0,9}) rather than unbounded (+/*): two
+# nested unbounded quantifiers over a long capitalized run are O(n²) on the finditer scan (a
+# 60k-char voice measured 3.3s, 120k → 13s), and a real person-name is <=6 tokens / an intro <=10
+# people — anything longer is org/ASR noise the has_org_markers + looks_like_a_person_name guards
+# reject downstream. Atomic groups would be exact but are 3.11-only (floor is 3.10). Bounding makes
+# every consumer (_NAMES sites, _NAME_RE) linear with identical matches on real intros.
+_NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,5})"
+_NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME}){{0,9}}"
 # Presenting verbs — what a show's own description says its hosts DO.
 _PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
 _HOST_PHRASES = [
@@ -405,17 +415,30 @@ _GUEST_SPEECH_ACTS = [
 # The host also often names TWO, each behind their employer's possessive: "My guests today are Red
 # Hat's Chris Wright and NVIDIA's Justin Boitano" — which a single greedy capture turned into one
 # person with that entire string as their name.
-_GUEST_INTRODUCED_BY_HOST = re.compile(
-    r"\b(?:"
+# The cue vocabularies are factored into shared bodies (ADR-139) so the case-blind, metadata-
+# anchored variants (roster.py `_voice_named_by_the_introduction`) are built from the SAME words and
+# cannot drift from these capitalized forms.
+#
+# Narrated-desk hand-off: The Daily / Planet Money / The Journal introduce a colleague in the third
+# person — "today, my colleague Claire Cain Miller…". The possessive + "colleague" anchor keeps it
+# from a bare topical mention. Role-title hand-offs ("Pentagon reporter Eric Schmitt talks us
+# through…") are caught by the name-first verb tail, which is host-gated and safe to keep looser.
+CUE_FIRST_BODY = (
     r"(?:my|our)\s+guests?\s+(?:today\s+)?(?:is|are)"
     r"|joined\s+(?:today\s+)?by"
     r"|joining\s+(?:me|us)(?:\s+(?:today|now|this\s+week))?\s+(?:is|are)"
     r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:joined\s+)?with"
-    r"|(?:i|we)\s+(?:spoke|talked|sat\s+down)\s+with"
     r"|(?:please\s+)?welcome\s+(?:back\s+)?"
     r"|here\s+with\s+me\s+(?:is|are)"
-    r")"
-    rf"\s+(?:the\s+|our\s+)?(?P<names>{_NAMES})",
+    r"|(?:my|our)\s+colleague"
+)
+# Past-tense hand-off ("i sat down with X", "we spoke with X"). A real introduction ONLY as a
+# head-of-episode cold-open; mid-show it describes a PAST conversation and would misattribute the
+# named person to whatever voice happens to speak next (a recap is not an intro). Kept separate so
+# the roster can gate it to the first turns AND a host introducer (3rd advisor review).
+CUE_FIRST_PAST_BODY = r"(?:i|we)\s+(?:spoke|talked|sat\s+down)\s+with"
+_GUEST_INTRODUCED_BY_HOST = re.compile(
+    rf"\b(?:{CUE_FIRST_BODY})\s+(?:the\s+|our\s+)?(?P<names>{_NAMES})",
     re.IGNORECASE,
 )
 
@@ -427,25 +450,41 @@ _GUEST_INTRODUCED_BY_HOST = re.compile(
 #
 # The cue still has to be there — the name alone proves nothing, or every person an episode
 # discusses becomes a speaker. It is the cue that makes it an introduction.
-_GUEST_INTRODUCED_NAME_FIRST = re.compile(
-    rf"(?P<names>{_NAMES})\s+"
-    r"(?:"
+# Name-first tail (ADR-139). The last two lines are narrated-desk report verbs — "…Farnaz Fassihi
+# explain…", "Eric Schmitt talks us through…", "Sydney Baloue reports…". Host-gated (only read on a
+# host-hint voice), so a topical "X explains that…" in a guest's own answer does not reclaim a name.
+# Intro tails ("Jia Li is with us", "…joins me"): a first-person address, safe to resolve against
+# the full stated set.
+NAME_FIRST_TAIL = (
     r"(?:is|are)\s+(?:here\s+)?with\s+(?:me|us)"
     r"|(?:is|are)\s+(?:my|our)\s+guests?"
     r"|(?:is|are)\s+joining\s+(?:me|us)"
     r"|joins?\s+(?:me|us)"
-    r")",
+)
+# Narrated-desk REPORT verbs ("Farnaz Fassihi explains…", "Sydney Baloue reports…"). These ALSO
+# match a purely TOPICAL mention on a host's own sentence ("Sam Altman explains it best in his
+# blog"), so on the case-blind match-form path they are resolved only against CORROBORATED refs
+# (detected guests + known hosts) — never a bare metadata SUBJECT (3rd advisor review).
+NAME_FIRST_REPORT_TAIL = (
+    r"explains?|reports?|tells\s+us|walks\s+us\s+through|talks\s+us\s+through"
+    r"|takes\s+us\s+(?:through|inside)|breaks\s+(?:it\s+|this\s+)?down"
+)
+_GUEST_INTRODUCED_NAME_FIRST = re.compile(
+    # Tolerate an ASR comma between the name and the verb ("Eric Schmitt, talks us through…").
+    rf"(?P<names>{_NAMES})\s*,?\s+(?:{NAME_FIRST_TAIL}|{NAME_FIRST_REPORT_TAIL})",
     re.IGNORECASE,
 )
 
 # The host greets a just-introduced guest BY NAME: "Jody Rosen, welcome to the show",
 # "Nic Harrigan, thanks so much for coming on". Name-then-greeting — the mirror of the cue-first
 # forms, and the ordering a narrated interview show (The Daily) actually uses to bring a guest in.
-_GUEST_GREETED = re.compile(
-    rf"(?P<names>{_NAMES})\s*,\s*"
-    r"(?:welcome\b"
+GREETED_TAIL = (
+    r"welcome\b"
     r"|thanks?(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being)"
-    r"|thank\s+you(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being))",
+    r"|thank\s+you(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being)"
+)
+_GUEST_GREETED = re.compile(
+    rf"(?P<names>{_NAMES})\s*,\s*(?:{GREETED_TAIL})",
     re.IGNORECASE,
 )
 
@@ -633,7 +672,7 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
 
 
 def is_publishable_speaker_name(name: Optional[str]) -> bool:
-    """Final reject filter for a name about to be painted on a diarized voice (ADR-126 shared core).
+    """Final reject filter for a name about to be painted on a diarized voice (ADR-134 shared core).
 
     Every extraction path (self-intro, host-pool, greeting reader, strategy snap, LLM, metadata)
     converges on the roster; a name that carries a sentence-opener the ASR capitalised at a turn

@@ -1990,6 +1990,23 @@ class GeminiProvider:
             contents=prompt,
             config=cast(Any, generation_config),
         )
+        # Observability (ADR-137): this is a real per-episode gemini call — the speaker naming +
+        # host/guest role determination. Emit its usage so the stage is not invisible and unbilled:
+        # tokens (ground truth) land in VictoriaLogs and a `speaker_resolution:<model>` Langfuse
+        # span is created, exactly like summarization/gi. Telemetry must never break the call.
+        try:
+            from ...workflow.cost_monitoring import emit_llm_cost_event
+
+            emit_llm_cost_event(
+                self.cfg,
+                provider="gemini",
+                stage="speaker_resolution",
+                model=self.summary_model,
+                served_model=getattr(response, "model", None),
+                response=response,
+            )
+        except Exception:  # noqa: BLE001 - telemetry must never break the resolution call
+            pass
         content = (getattr(response, "text", "") or "").strip()
         return _insight_salvage.strip_json_fence(content)
 

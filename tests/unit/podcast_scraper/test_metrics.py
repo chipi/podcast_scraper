@@ -453,6 +453,10 @@ class TestFinish(unittest.TestCase):
             "cleaning_count",
             "gi_artifacts_generated",
             "gi_failures",
+            "diarization_episodes",
+            "diarization_speakers_total",
+            "diarization_speech_seconds_total",
+            "diarization_cost_usd",
             "kg_artifacts_generated",
             "kg_failures",
             "kg_provider_extractions",
@@ -1576,6 +1580,68 @@ class TestProviderRetryAttribution(unittest.TestCase):
             t.join()
         # 4 threads × 100 retries each
         self.assertEqual(m.llm_retry_reasons, {"summarization": {"503": 400}})
+
+
+class TestDiarizationRollups(unittest.TestCase):
+    """o11y P1: diarization is now visible in run-level metrics (was manifest-only)."""
+
+    def test_record_diarization_accumulates_and_exports(self):
+        m = metrics.Metrics()
+        m.record_diarization(num_speakers=4, speech_seconds=1553.0, cost_usd=0.004)
+        m.record_diarization(num_speakers=2, speech_seconds=600.0)  # local diarizer, no cost
+        out = m.finish()
+        self.assertEqual(out["diarization_episodes"], 2)
+        self.assertEqual(out["diarization_speakers_total"], 6)
+        self.assertEqual(out["diarization_speech_seconds_total"], 2153.0)
+        self.assertAlmostEqual(out["diarization_cost_usd"], 0.004, places=6)
+
+    def test_record_diarization_thread_safe(self):
+        import threading
+
+        m = metrics.Metrics()
+
+        def worker():
+            for _ in range(100):
+                m.record_diarization(num_speakers=2, speech_seconds=1.0, cost_usd=0.001)
+
+        threads = [threading.Thread(target=worker) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        out = m.finish()
+        self.assertEqual(out["diarization_episodes"], 400)
+        self.assertEqual(out["diarization_speakers_total"], 800)
+        self.assertAlmostEqual(out["diarization_cost_usd"], 0.4, places=6)
+
+
+class TestStageSummaryInfoLine(unittest.TestCase):
+    """o11y P2: log_metrics emits a compact per-stage summary at INFO (detail stays DEBUG)."""
+
+    def test_log_metrics_emits_info_stage_summary(self):
+        m = metrics.Metrics()
+        m.transcripts_transcribed = 3
+        m.record_diarization(num_speakers=4, speech_seconds=100.0)
+        m.gi_artifacts_generated = 2
+        with self.assertLogs("podcast_scraper.workflow.metrics", level="INFO") as cm:
+            m.log_metrics()
+        info_lines = [r for r in cm.output if r.startswith("INFO")]
+        self.assertTrue(any("Stage summary" in line for line in info_lines))
+        self.assertTrue(any("ASR:3" in line for line in info_lines))
+        self.assertTrue(any("diar:1ep/4spk" in line for line in info_lines))
+
+
+class TestEpisodeCostReconciliation(unittest.TestCase):
+    """o11y P1: GI/KG per-episode cost is folded back into EpisodeMetrics so the per-episode total
+    stops undercounting (metadata-gen calls update_episode_metrics again with GI+KG cost)."""
+
+    def test_second_update_accumulates_gi_kg_cost(self):
+        m = metrics.Metrics()
+        m.update_episode_metrics("ep1", estimated_cost=0.010)  # transcribe + summary
+        m.update_episode_metrics("ep1", estimated_cost=0.005)  # GI/KG reconciliation (new)
+        result = m.finish()
+        # same episode, accumulated — not two separate rows, not overwritten
+        self.assertEqual(result["total_episode_estimated_cost_usd"], 0.015)
 
 
 if __name__ == "__main__":

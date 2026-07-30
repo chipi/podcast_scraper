@@ -257,6 +257,11 @@ dev = [
   # (AudioMetaData removed), which is exactly why [ml] moved to 4.x (#901).
   "pyannote.audio>=4.0.7,<5.0",
   "torchaudio",
+  # Must ALSO mirror the [ml] torchcodec cap: it is transitive via torchaudio/pyannote, and
+  # 0.15.0 is the native-teardown-SIGSEGV build (see [ml] note). CI installs `.[dev]` (not
+  # `.[ml]`), so without this line the resolver pulls torchcodec 0.15.0 and a worker segfaults
+  # mid-run once 0.15.0 is available on the index (test-unit xdist INTERNALERROR, #1355).
+  "torchcodec<0.15",
 ]
 # Documentation - see docs/requirements.txt
 

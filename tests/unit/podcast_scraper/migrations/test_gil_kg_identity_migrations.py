@@ -5,12 +5,36 @@ import pytest
 from podcast_scraper.migrations.gil_kg_identity_migrations import (
     compute_position_hints_for_document,
     migrate_gi_document_v3,
+    migrate_gi_document_v3_1,
     migrate_gil_document,
     migrate_kg_document,
     migrate_kg_document_v2,
 )
 
 pytestmark = pytest.mark.unit
+
+
+def test_migrate_gi_v3_1_stamps_version_without_retyping() -> None:
+    """ADR-135/#1191: 3.1 only stamps the version — the additive Insight fields are optional, so a
+    3.0 artifact is valid-as-3.1. Speaker Persons are NOT retyped (Voice node reverted); real Person
+    stays Person; idempotent."""
+    data = {
+        "schema_version": "3.0",
+        "model_version": "m",
+        "prompt_version": "p",
+        "episode_id": "e1",
+        "nodes": [
+            {"id": "person:speaker-e1-00", "type": "Person", "properties": {"name": "SPEAKER_00"}},
+            {"id": "person:kate", "type": "Person", "properties": {"name": "Kate"}},
+        ],
+        "edges": [],
+    }
+    out = migrate_gi_document_v3_1(data)
+    assert out["schema_version"] == "3.1"
+    by_id = {n["id"]: n for n in out["nodes"]}
+    assert by_id["person:speaker-e1-00"]["type"] == "Person"  # no Voice retype
+    assert by_id["person:kate"]["type"] == "Person"
+    assert migrate_gi_document_v3_1(out) == out  # idempotent
 
 
 def test_migrate_gil_speaker_to_person_and_ids() -> None:

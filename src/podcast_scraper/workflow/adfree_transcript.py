@@ -74,16 +74,21 @@ def _derive_offsets_by_find(text: str, segments: List[Dict[str, Any]]) -> List[D
             idx = text.find(t)  # fall back to a global search
         if idx < 0:
             continue  # cannot locate (e.g. provider reflowed text) — skip this segment
-        out.append(
-            {
-                "start": float(seg.get("start") or 0.0),
-                "end": float(seg.get("end") or 0.0),
-                "speaker_label": seg.get("speaker_label") or seg.get("speaker"),
-                "text": t,
-                "char_start": idx,
-                "char_end": idx + len(t),
-            }
-        )
+        emitted = {
+            "start": float(seg.get("start") or 0.0),
+            "end": float(seg.get("end") or 0.0),
+            "speaker_label": seg.get("speaker_label") or seg.get("speaker"),
+            "text": t,
+            "char_start": idx,
+            "char_end": idx + len(t),
+        }
+        # Preserve the per-segment role/type truth (the metadata reader prefers the ad-free
+        # sidecar; dropping speaker_role here resurrects the guest-as-host bug).
+        for key in ("speaker", "speaker_role", "voice_type"):
+            val = seg.get(key)
+            if val is not None:
+                emitted[key] = val
+        out.append(emitted)
         cursor = idx + len(t)
     return out
 

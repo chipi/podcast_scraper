@@ -177,17 +177,21 @@ def test_guest_intro_name_pattern_is_case_sensitive() -> None:
 
 
 def test_guest_intro_no_catastrophic_backtracking_on_long_prose() -> None:
-    """A long capitalisation-heavy lowercase transcript resolves fast, not in minutes.
+    """A long CAPITALISED run — the actual O(n^2) worst case — resolves fast, not in seconds.
 
-    Budget is deliberately generous (the fix runs in ~ms; the bug took minutes) so the test guards
-    the O(n^2)/backtracking regression without being flaky under CI load.
+    The name regex is case-bound (``(?-i:[A-Z])``), so the quadratic only bites on capitalised
+    text: a run of "Cap Cap and Cap Cap ..." that almost forms a name list but never reaches a
+    greeting tail forces the (formerly unbounded) nested quantifiers to backtrack over every
+    partition at every offset. Measured on the unbounded pattern: ~60k chars → 3.3s, ~120k → 13s;
+    the bounded pattern runs both in <0.05s. The 2s budget FAILS the old code and stays clear of
+    the fixed cost with wide CI headroom. A lowercase input would not exercise this path at all.
     """
     import time
 
-    text = "the market is with us today and the future is with us now " * 2000  # ~58k chars
+    text = " and ".join(["Word Alpha"] * 8000) + " zzz"  # ~120k chars, all capitalised
     start = time.perf_counter()
     guests_introduced_by_the_host({"v": text})
-    assert time.perf_counter() - start < 5.0, "guest-intro scan backtracked catastrophically"
+    assert time.perf_counter() - start < 2.0, "guest-intro scan backtracked catastrophically"
 
 
 def test_detect_hosts_from_feed_extracts_journalists_phrase() -> None:

@@ -51,3 +51,14 @@ def test_non_otlp_exporter_disabled(monkeypatch):
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://backend:10428",
     )
     assert m.otel_tracing_enabled() is False
+
+
+def test_episode_span_noop_when_disabled(monkeypatch):
+    # The root-span helper is a TRUE no-op when tracing is off: it yields None and never raises, so
+    # wrapping every episode in it costs nothing on the packaged image (no OTEL env). The enabled
+    # path — the span carrying run_id/episode_id/feed_id — is proven live against VictoriaTraces
+    # (kept out of unit since it needs the optional [otel] extra; see the integration trace test).
+    m = _fresh(monkeypatch)
+    assert m.otel_tracing_enabled() is False
+    with m.episode_span(run_id="r", episode_id="e", feed_id="https://f") as span:
+        assert span is None

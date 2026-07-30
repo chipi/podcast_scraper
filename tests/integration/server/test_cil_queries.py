@@ -28,6 +28,7 @@ def _write_bundle(
     insight_text: str,
     insight_type: str = "claim",
     position_hint: float = 0.5,
+    salience: float | None = None,
     metadata_episode_title: str | None = None,
     metadata_feed_title: str | None = None,
     metadata_episode_number: int | None = None,
@@ -67,16 +68,15 @@ def _write_bundle(
             },
         ],
     }
+    insight_props: dict = {
+        "text": insight_text,
+        "insight_type": insight_type,
+        "position_hint": position_hint,
+    }
+    if salience is not None:
+        insight_props["salience"] = salience
     gi_nodes: list = [
-        {
-            "id": insight_id,
-            "type": "Insight",
-            "properties": {
-                "text": insight_text,
-                "insight_type": insight_type,
-                "position_hint": position_hint,
-            },
-        },
+        {"id": insight_id, "type": "Insight", "properties": insight_props},
         {"id": quote_id, "type": "Quote", "properties": {"text": "quote body"}},
     ]
     gi_edges: list = [
@@ -1080,6 +1080,40 @@ def test_topic_perspectives_groups_insights_by_speaker(tmp_path: Path) -> None:
     assert by_person["person:alice"]["insight_count"] == 1
     assert by_person["person:alice"]["episode_count"] == 1
     assert by_person["person:alice"]["insights"][0]["properties"]["text"] == "Alice on AI"
+
+
+def test_topic_perspectives_orders_a_speakers_insights_by_salience(tmp_path: Path) -> None:
+    """ADR-135/#1191: a speaker's takes on a topic are ranked by salience desc (viewer default)."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "lo",
+        episode_id="episode:lo",
+        publish_date="2024-01-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ins-lo",
+        quote_id="q-lo",
+        insight_text="lower salience take",
+        salience=0.40,
+    )
+    _write_bundle(
+        meta,
+        "hi",
+        episode_id="episode:hi",
+        publish_date="2024-02-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ins-hi",
+        quote_id="q-hi",
+        insight_text="higher salience take",
+        salience=0.90,
+    )
+    root = str(tmp_path)
+    persp = cil_queries.topic_perspectives(root, root, "topic:ai")
+    alice = next(p for p in persp if p["person_id"] == "person:alice")
+    texts = [ins["properties"]["text"] for ins in alice["insights"]]
+    assert texts == ["higher salience take", "lower salience take"]
 
 
 def test_topic_perspectives_excludes_unresolved_speaker(tmp_path: Path) -> None:

@@ -113,8 +113,8 @@ from the semantic-match post-pass that emits them.
 | --- | --- | --- |
 | `Podcast` | `podcast:{slug}` | Global (slug of feed title/rss host) |
 | `Episode` | `episode:{episode_id}` | Per-feed (RSS GUID family); shared between KG and GI |
-| `Person` | `person:{slug(name)}` | Global; merged across episodes in combined graphs. **Legacy**: `entity:person:{slug}` and `speaker:{slug}` — migrate with `scripts/migrate_kg_entity_to_person_org.py` and `scripts/migrate_gi_speaker_to_person.py`. |
-| `Organization` | `org:{slug(name)}` | Global. **Legacy**: `entity:organization:{slug}` — migrate with `scripts/migrate_kg_entity_to_person_org.py`. |
+| `Person` | `person:{slug(name)}` | Global; merged across episodes in combined graphs. **Legacy**: `entity:person:{slug}` and `speaker:{slug}` — migrate with `cli upgrade run` (m0006) and `cli upgrade run` (m0003). |
+| `Organization` | `org:{slug(name)}` | Global. **Legacy**: `entity:organization:{slug}` — migrate with `cli upgrade run` (m0006). |
 | `Topic` | `topic:{slug(label)}` | Global; identical key in KG and GI artifacts |
 | `Insight` | `insight:{16-hex}` | Per-episode; SHA-256 over `(episode_id, index, insight_text prefix)` |
 | `Quote` | `quote:{16-hex}` | Per-episode; SHA-256 over `(episode_id, quote_index, text prefix, char_start, char_end)` |

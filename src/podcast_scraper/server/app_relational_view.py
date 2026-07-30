@@ -297,6 +297,10 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
     conf = props.get("confidence")
     itype = props.get("insight_type") or props.get("type")
     phint = props.get("position_hint")
+    sal = props.get("salience")
+    rnk = props.get("rank")
+    rtag = props.get("routing_tag")
+    tier = props.get("tier")
     return AppInsight(
         id=str(node.get("id") or ""),
         text=str(text),
@@ -304,8 +308,19 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
         insight_type=str(itype) if isinstance(itype, str) and itype.strip() else None,
         confidence=float(conf) if isinstance(conf, (int, float)) else None,
         position_hint=str(phint) if phint is not None else None,
+        salience=float(sal) if isinstance(sal, (int, float)) else None,
+        rank=int(rnk) if isinstance(rnk, int) else None,
+        routing_tag=str(rtag) if isinstance(rtag, str) and rtag.strip() else None,
+        tier=int(tier) if isinstance(tier, int) else None,
         quotes=[],
     )
+
+
+def _rank_for_display(insights: list[AppInsight]) -> list[AppInsight]:
+    """ADR-135/#1191: drop `drop`-tagged, sort by salience desc (stable for ties / pre-3.1)."""
+    kept = [i for i in insights if i.routing_tag != "drop"]
+    kept.sort(key=lambda i: i.salience if i.salience is not None else 0.0, reverse=True)
+    return kept
 
 
 def build_topic_perspectives(
@@ -334,7 +349,7 @@ def build_topic_perspectives(
             person_name=str(g["person_name"]),
             insight_count=int(g["insight_count"]),
             episode_count=int(g["episode_count"]),
-            insights=[_node_to_app_insight(n) for n in g["insights"]],
+            insights=_rank_for_display([_node_to_app_insight(n) for n in g["insights"]]),
         )
         for g in groups
     ]

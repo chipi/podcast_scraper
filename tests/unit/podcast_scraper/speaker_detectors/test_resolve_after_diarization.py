@@ -284,7 +284,127 @@ class TestTheRosterActuallyHonoursIt:
 
         src = inspect.getsource(diar_pipeline.apply_diarization_to_result)
         assert "_resolve_voices_via_llm(" in src
-        assert "llm_voice_names=llm_voice_names" in src, (
+        # The resolver's answer must reach the roster. It is forwarded through the ``_run_roster``
+        # closure — ``_run_roster(llm_voice_names, llm_voice_roles)`` — which passes them on as
+        # ``llm_voice_names=names`` / ``llm_voice_roles=roles``. Assert the wiring, not one literal.
+        assert "_run_roster(llm_voice_names, llm_voice_roles)" in src, (
             "the resolver runs and its answer is thrown away — the voices stay unnamed and the "
             "LLM call is billed for nothing"
         )
+
+
+class TestHostGuestRoleDetermination:
+    """ADR-137 — the SAME call also decides host vs guest. Name and role are independent, both are
+    verified in code (never the prompt), and either may be null (the model may decline)."""
+
+    def test_it_returns_name_and_role_from_the_object_form(self) -> None:
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        got = resolve_voices_and_roles(
+            ["Noah Kravitz", "Jia Li"],
+            VOICES,
+            _canned(
+                {
+                    "SPEAKER_00": {"name": "Noah Kravitz", "role": "host"},
+                    "SPEAKER_01": {"name": "Jia Li", "role": "guest"},
+                }
+            ),
+            ordered_turns=TURNS,
+        )
+        assert got["SPEAKER_00"].name == "Noah Kravitz" and got["SPEAKER_00"].role == "host"
+        assert got["SPEAKER_01"].name == "Jia Li" and got["SPEAKER_01"].role == "guest"
+
+    def test_the_legacy_string_form_still_parses_name_only(self) -> None:
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        got = resolve_voices_and_roles(
+            ["Noah Kravitz"],
+            VOICES,
+            _canned({"SPEAKER_00": "Noah Kravitz"}),  # old shape: bare name string
+            ordered_turns=TURNS,
+        )
+        assert got["SPEAKER_00"].name == "Noah Kravitz" and got["SPEAKER_00"].role is None
+
+    def test_a_role_outside_host_guest_is_discarded(self) -> None:
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        got = resolve_voices_and_roles(
+            ["Noah Kravitz"],
+            VOICES,
+            _canned({"SPEAKER_00": {"name": "Noah Kravitz", "role": "moderator"}}),
+            ordered_turns=TURNS,
+        )
+        assert got["SPEAKER_00"].name == "Noah Kravitz"
+        assert (
+            got["SPEAKER_00"].role is None
+        ), "an invented role must be dropped like an invented name"
+
+    def test_abstain_is_a_no_op(self) -> None:
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        got = resolve_voices_and_roles(
+            ["Noah Kravitz"],
+            VOICES,
+            _canned({"SPEAKER_00": {"name": None, "role": None}}),
+            ordered_turns=TURNS,
+        )
+        assert "SPEAKER_00" not in got, "null name AND null role is a decline — nothing is recorded"
+
+    def test_role_survives_when_the_name_is_refuted(self) -> None:
+        """Name and role are independent. A voice that only speaks a name in the third person cannot
+        BE that person (the name is refuted) — but its host/guest role still stands."""
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        # SPEAKER_00 talks ABOUT Jia Li and never introduces itself as her → name refuted.
+        got = resolve_voices_and_roles(
+            ["Jia Li"],
+            {"SPEAKER_00": HOST_TEXT},
+            _canned({"SPEAKER_00": {"name": "Jia Li", "role": "host"}}),
+            ordered_turns=TURNS,
+        )
+        assert got["SPEAKER_00"].name is None, "a third-person mention cannot name the speaker"
+        assert got["SPEAKER_00"].role == "host", "the role is a separate claim and survives"
+
+    def test_name_only_wrapper_ignores_role(self) -> None:
+        # resolve_voices_from_conversation is the name-only view — role is projected away.
+        got = resolve_voices_from_conversation(
+            ["Noah Kravitz"],
+            VOICES,
+            _canned({"SPEAKER_00": {"name": "Noah Kravitz", "role": "host"}}),
+            ordered_turns=TURNS,
+        )
+        assert got == {"SPEAKER_00": "Noah Kravitz"}
+
+    def test_role_only_mode_runs_with_no_candidates_when_intro_context_exists(self) -> None:
+        """Planet Money: metadata names nobody, but the hosts self-introduce on air. With no
+        candidate names the model can still assign host/guest from the intro (ADR-137 role-only)."""
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        calls: List[str] = []
+
+        def spy(p: str) -> str:
+            calls.append(p)
+            return json.dumps({"voices": {"SPEAKER_00": {"name": None, "role": "host"}}})
+
+        got = resolve_voices_and_roles(
+            [],  # no candidate names at all
+            {"SPEAKER_00": HOST_TEXT},
+            spy,
+            ordered_turns=TURNS,
+            intro_block="SPEAKER_00: Hello and welcome to Planet Money.",
+        )
+        assert calls, "role-only mode must still call the model when intro context exists"
+        assert got["SPEAKER_00"].role == "host"
+        assert got["SPEAKER_00"].name is None  # the closed list is empty → no name is possible
+
+    def test_no_candidates_and_no_context_is_still_a_no_op(self) -> None:
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        calls: List[str] = []
+
+        def spy(p: str) -> str:
+            calls.append(p)
+            return "{}"
+
+        got = resolve_voices_and_roles([], {"SPEAKER_00": HOST_TEXT}, spy)
+        assert got == {} and not calls, "no candidates AND no role context → do not call the model"

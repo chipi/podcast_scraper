@@ -154,3 +154,27 @@ class TestJSONLEmitter(unittest.TestCase):
         # Try to write without opening context manager - should raise RuntimeError
         with self.assertRaises(RuntimeError):
             emitter.emit_run_started(self.cfg, self.run_id)
+
+
+@pytest.mark.unit
+class TestRunFinishedDiarization(unittest.TestCase):
+    """advisor #8: run.jsonl run_finished must carry the diarization rollups (metrics.json had them,
+    run.jsonl did not — the docstring/commit overclaimed)."""
+
+    def test_run_finished_includes_diarization_rollups(self):
+        d = tempfile.mkdtemp()
+        try:
+            m = metrics.Metrics()
+            m.record_diarization(num_speakers=4, speech_seconds=1553.0, cost_usd=0.004)
+            path = os.path.join(d, "run.jsonl")
+            with jsonl_emitter.JSONLEmitter(m, path) as em:
+                em.emit_run_finished()
+            lines = [json.loads(x) for x in Path(path).read_text().splitlines() if x.strip()]
+            rf = [e for e in lines if e.get("event_type") == "run_finished"][0]
+            self.assertEqual(rf["diarization_episodes"], 1)
+            self.assertEqual(rf["diarization_speakers_total"], 4)
+            self.assertAlmostEqual(rf["diarization_cost_usd"], 0.004, places=6)
+        finally:
+            import shutil
+
+            shutil.rmtree(d, ignore_errors=True)

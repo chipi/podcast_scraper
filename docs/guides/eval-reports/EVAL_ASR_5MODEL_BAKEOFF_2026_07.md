@@ -35,7 +35,10 @@
 >   MOSS (accuracy)**.
 > - **turbo-primary is a SPEED decision**, not an accuracy one (mid-pack accuracy).
 > - **large-v3 last** — surprising (its own turbo variant beats it); likely a speaches/int8 serving
->   issue, and a weak coverage-failover target. Tracked in **#1273** (kept as failover for now).
+>   issue, and a weak coverage-failover target. Tracked in **#1273**. **Update (2026-07-28):** the
+>   coverage failover was retargeted large-v3 → **MOSS** (2nd-best accuracy, DGX-local) — commit
+>   `1fd5b7a0`. The int8-vs-float16 serving test (#1273 TODO 1) is BLOCKED on DGX SSH; harness ready
+>   (`docs/wip/1273-largev3-int8-vs-fp16-BLOCKED.md`), not on the v2.3 critical path.
 > - **Deepgram = diarization only** (cheap, cloud-native speaker labels), confirmed not a
 >   transcription contender.
 >

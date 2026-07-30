@@ -61,7 +61,7 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
         raise ValueError(
             "KG artifact 'schema_version' must be '2.0' (RFC-097 v2). Legacy "
             "1.0/1.1/1.2 shape is no longer accepted; migrate via "
-            "scripts/migrate_kg_entity_to_person_org.py."
+            "`cli upgrade run` (m0006 → v2.0 typed Person/Organization)."
         )
     ext = data.get("extraction")
     if not isinstance(ext, dict):

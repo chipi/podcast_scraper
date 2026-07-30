@@ -87,3 +87,84 @@ class TestInsightsFromGi:
         assert insights_from_gi(None) == []
         assert insights_from_gi({"nodes": "nope"}) == []
         assert insights_from_gi({}) == []
+
+
+def _ranked_gi() -> dict:
+    """Four insights in EXTRACTION order with varying salience/tier/routing_tag (ADR-135/#1191)."""
+
+    def _ins(iid: str, text: str, **props: object) -> dict:
+        return {"id": iid, "type": "Insight", "properties": {"text": text, **props}}
+
+    return {
+        "nodes": [
+            _ins("insight:a", "mid", salience=0.60, rank=2, routing_tag="connect", tier=2),
+            _ins("insight:b", "top", salience=0.90, rank=0, routing_tag="surface", tier=3),
+            _ins("insight:c", "filler", salience=0.10, rank=3, routing_tag="drop", tier=0),
+            _ins("insight:d", "high", salience=0.77, rank=1, routing_tag="surface", tier=2),
+        ],
+        "edges": [],
+    }
+
+
+class TestInsightRankingAndTagging:
+    """ADR-135/#1191 route-and-tag: sort by salience, carry fields, drop `drop`, cap by limit."""
+
+    def test_sorts_by_salience_descending(self) -> None:
+        out = insights_from_gi(_ranked_gi())
+        # `drop`-tagged filler removed; the rest ordered b(0.90) > d(0.77) > a(0.60).
+        assert [i.id for i in out] == ["insight:b", "insight:d", "insight:a"]
+
+    def test_carries_ranking_fields(self) -> None:
+        top = insights_from_gi(_ranked_gi())[0]
+        assert top.id == "insight:b"
+        assert top.salience == 0.90
+        assert top.rank == 0
+        assert top.routing_tag == "surface"
+        assert top.tier == 3
+
+    def test_excludes_drop_tagged(self) -> None:
+        out = insights_from_gi(_ranked_gi())
+        assert "insight:c" not in {i.id for i in out}
+        assert all(i.routing_tag != "drop" for i in out)
+
+    def test_limit_caps_to_top_n_after_sorting(self) -> None:
+        out = insights_from_gi(_ranked_gi(), limit=2)
+        # top-2 by salience, NOT extraction order
+        assert [i.id for i in out] == ["insight:b", "insight:d"]
+
+    def test_limit_none_returns_all_surfaceable(self) -> None:
+        assert len(insights_from_gi(_ranked_gi(), limit=None)) == 3
+
+    def test_limit_zero_returns_empty(self) -> None:
+        assert insights_from_gi(_ranked_gi(), limit=0) == []
+
+    def test_missing_salience_falls_back_to_extraction_order(self) -> None:
+        # Pre-3.1 artifact: no ranking fields → stable extraction order, fields default None.
+        out = insights_from_gi(_gi())
+        assert [i.id for i in out] == ["insight:1", "insight:2"]
+        assert out[0].salience is None and out[0].routing_tag is None and out[0].tier is None
+
+    def test_tie_on_salience_preserves_extraction_order(self) -> None:
+        gi = {
+            "nodes": [
+                {
+                    "id": "insight:x",
+                    "type": "Insight",
+                    "properties": {"text": "x", "salience": 0.5},
+                },
+                {
+                    "id": "insight:y",
+                    "type": "Insight",
+                    "properties": {"text": "y", "salience": 0.5},
+                },
+            ],
+            "edges": [],
+        }
+        assert [i.id for i in insights_from_gi(gi)] == ["insight:x", "insight:y"]
+
+    def test_surfaceable_false_still_excluded_alongside_ranking(self) -> None:
+        gi = _ranked_gi()
+        gi["nodes"][1]["properties"]["surfaceable"] = False  # the top (b) is unsurfaceable
+        out = insights_from_gi(gi)
+        assert "insight:b" not in {i.id for i in out}
+        assert [i.id for i in out] == ["insight:d", "insight:a"]

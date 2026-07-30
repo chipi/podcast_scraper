@@ -204,6 +204,58 @@ def test_factory_wraps_turbo_in_coverage_gate_adr120() -> None:
     assert isinstance(provider, CoverageGatedTranscriptionProvider)
 
 
+def test_factory_coverage_failover_to_moss_1273() -> None:
+    """#1273: failover_provider='moss' re-routes the coverage gate to MOSS, not large-v3 (which the
+    2026-07-23 human-GT bake-off found least accurate). The gate stays lazy; the failover is named
+    for the MOSS provider+model and its builder constructs the MOSS provider (no whisper)."""
+    from podcast_scraper.providers.moss.moss_provider import MossTranscriptionProvider
+    from podcast_scraper.providers.resilience.fallback import (
+        CoverageGatedTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "tailnet_dgx_whisper",
+            "dgx_whisper_model": "deepdml/faster-whisper-large-v3-turbo-ct2",
+            "transcription_fallback_provider": "whisper",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "transcription_coverage_min": 0.85,
+            "transcription_coverage_failover_model": "OpenMOSS-Team/MOSS-Transcribe-Diarize",
+            "transcription_coverage_failover_provider": "moss",
+        }
+    )
+    provider = create_transcription_provider(cfg)
+    assert isinstance(provider, CoverageGatedTranscriptionProvider)
+    # the failover is the MOSS provider+model, not the primary's whisper
+    assert provider._failover_name == "moss:OpenMOSS-Team/MOSS-Transcribe-Diarize"
+    # and its lazy builder actually constructs a MOSS transcription provider
+    assert isinstance(provider._failover_builder(), MossTranscriptionProvider)
+
+
+def test_factory_coverage_failover_defaults_to_primary_provider_adr123() -> None:
+    """Backward-compat: with no failover_provider, the gate fails over on the SAME provider as the
+    primary (historical whisper-on-whisper), using the failover model."""
+    from podcast_scraper.providers.resilience.fallback import (
+        CoverageGatedTranscriptionProvider,
+    )
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "transcription_provider": "tailnet_dgx_whisper",
+            "dgx_whisper_model": "deepdml/faster-whisper-large-v3-turbo-ct2",
+            "transcription_fallback_provider": "whisper",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            "transcription_coverage_min": 0.85,
+            "transcription_coverage_failover_model": "Systran/faster-whisper-large-v3",
+        }
+    )
+    provider = create_transcription_provider(cfg)
+    assert isinstance(provider, CoverageGatedTranscriptionProvider)
+    assert provider._failover_name == "tailnet_dgx_whisper:Systran/faster-whisper-large-v3"
+
+
 def test_factory_no_coverage_gate_when_disabled_adr120() -> None:
     """coverage_min=0 (default) -> no coverage gate; the plain provider is returned."""
     from podcast_scraper.providers.resilience.fallback import (

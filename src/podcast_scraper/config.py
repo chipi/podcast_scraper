@@ -187,6 +187,19 @@ if not _is_pytest_run():
             # If loading fails, continue without .env file
             pass
 
+    # Dev observability: also load `.env.obs.dev` if present (gitignored; homelab push URLs +
+    # GlitchTip/Langfuse/OTEL). Makes a bare `python -m ...cli` dev run ship the five signals to
+    # VictoriaLogs/Metrics/Traces without a make target or a manual `source` — the prod Docker image
+    # has no such file, so this no-ops there. override=False so an explicit shell env still wins.
+    try:
+        from .cache import get_project_root as _gpr
+
+        _obs_env_path = _gpr() / ".env.obs.dev"
+        if _obs_env_path.exists():
+            load_dotenv(_obs_env_path, override=False)
+    except Exception:  # pragma: no cover - dev convenience only, never fail config import
+        pass
+
 # Import constants from config_constants.py to avoid duplication
 # These are re-exported here for backward compatibility
 DEFAULT_LOG_LEVEL = config_constants.DEFAULT_LOG_LEVEL
@@ -919,6 +932,15 @@ class Config(BaseModel):
         alias="hf_token",
         description="HuggingFace token for pyannote models (prefer HF_TOKEN env var)",
     )
+    labeling_profile: str = Field(
+        default="naming-4",
+        alias="labeling_profile",
+        description=(
+            "Versioned labeling profile ID (ADR-140) — the knob-bundle + per-fix feature flags "
+            "that drive speaker naming/classification. 'naming-4' is production; 'naming-3-legacy' "
+            "turns the ADR-139 fixes + Pattern-B off for A/B. Recorded in the per-episode sidecar."
+        ),
+    )
     diarization_num_speakers: Optional[int] = Field(
         default=None,
         alias="diarization_num_speakers",
@@ -1204,13 +1226,41 @@ class Config(BaseModel):
             "only with a failover model set."
         ),
     )
+    transcription_speech_coverage_min: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        alias="transcription_speech_coverage_min",
+        description=(
+            "ADR-131 speech-normalized quality gate. Like transcription_coverage_min, but the "
+            "denominator is the diarizer's SPEECH duration (Σ merged diarization segments), not "
+            "total audio — so music/ads/silence do not count as dropped speech. When a diarized "
+            "transcript's Σ(segments)/Σ(diarization speech) is below this, re-transcribe on "
+            "transcription_coverage_failover_model. Runs after diarization; when diarization is "
+            "off or empty it is a no-op (the raw transcription_coverage_min gate applies instead). "
+            "0.0 = off; a reprocess sets ~0.85. Preferred over transcription_coverage_min when "
+            "diarization runs (they should not both be active)."
+        ),
+    )
     transcription_coverage_failover_model: Optional[str] = Field(
         default=None,
         alias="transcription_coverage_failover_model",
         description=(
-            "ADR-123: the whisper model to re-transcribe with when coverage falls below "
-            "transcription_coverage_min (e.g. 'Systran/faster-whisper-large-v3' as the robust "
-            "fallback for turbo's long-episode drops). None = no quality-gate failover."
+            "ADR-123/ADR-131: the model to re-transcribe with when coverage falls below "
+            "transcription_coverage_min OR transcription_speech_coverage_min. Interpreted by "
+            "transcription_coverage_failover_provider (a whisper model id for the DGX whisper "
+            "service, or a MOSS model id when the provider is 'moss'). None = no failover."
+        ),
+    )
+    transcription_coverage_failover_provider: Optional[str] = Field(
+        default=None,
+        alias="transcription_coverage_failover_provider",
+        description=(
+            "ADR-123 (#1273): which PROVIDER re-transcribes on the coverage gate. None = the same "
+            "provider as the primary (historical behaviour: a whisper model on the DGX whisper "
+            "service). Set to 'moss' to fail over to the DGX MOSS model instead of large-v3, which "
+            "the 2026-07-23 human-GT bake-off found least accurate (turbo beat it — suspected int8 "
+            "serving regression). MOSS is 2nd-best accuracy and stays DGX-local."
         ),
     )
     enforce_model_governance: bool = Field(
@@ -2544,6 +2594,20 @@ class Config(BaseModel):
             "Lowest insight tier the value gate keeps. 3=CORE only (a briefing), 2=CORE+USEFUL "
             "(the knowledge graph — supporting detail is what retrieval lands on), 1 keeps minor "
             "points, 0 disables filtering."
+        ),
+    )
+    gi_surface_default_limit: int = Field(
+        default=8,
+        ge=1,
+        le=100,
+        alias="gi_surface_default_limit",
+        description=(
+            "ADR-135/#1191 §6: the shared read-time default for how many insights a surface shows "
+            "before 'show more'. Consumers sort by `salience` desc, exclude `routing_tag=drop`, "
+            "and cap at this N (per topic for player/viewer lists; per episode on the detail "
+            "view). Per-surface overrides: player 6 (surface-tagged only), operator viewer 12 (all "
+            "tiers + routing_tag filter chip), graph API 8. Search ignores this (rerank boost, no "
+            "hard cap). This is the SSOT the surfaces read once wired — until then it is inert."
         ),
     )
     gi_typed_mentions_use_ner: bool = Field(
@@ -4026,6 +4090,20 @@ class Config(BaseModel):
             raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {value}")
         if not parsed.netloc:
             raise ValueError(f"RSS URL must include a valid hostname: {value}")
+        return value
+
+    @field_validator("labeling_profile", mode="after")
+    @classmethod
+    def _validate_labeling_profile(cls, value: str) -> str:
+        """ADR-140: a labeling profile ID must be registered. A typo ("naming-3-legac") must fail
+        HERE, not silently fall back to naming-4 and mislabel a whole run (F6, advisor review). Lazy
+        import — config is imported by the diarization package, so a top-level import would cycle.
+        """
+        if not value:
+            return value
+        from podcast_scraper.providers.ml.diarization.labeling_profile import get_profile
+
+        get_profile(value)  # raises ValueError on an unregistered id -> pydantic ValidationError
         return value
 
     @field_validator("rss_urls", mode="before")

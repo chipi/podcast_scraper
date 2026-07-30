@@ -1,4 +1,4 @@
-"""Provider-specific speaker-labeling strategies (ADR-126).
+"""Provider-specific speaker-labeling strategies (ADR-134).
 
 Speaker labeling is coupled to the diarizer's clustering footprint. Deepgram (cloud) clusters
 coarsely — it tends to merge a show's cold-open montage into the host's own cluster; pyannote
@@ -10,7 +10,7 @@ There is no single diarizer-agnostic heuristic for the cluster-shape-sensitive d
 (host-candidate eligibility, ad/recorded detection, canonicalization gating). This module holds them
 as strategies selected by ``diarization_provider``, over the shared primitives in ``roster.py`` /
 ``boilerplate.py``. Overfitting to a diarizer is fine HERE, where it is explicit and contained — the
-sin ADR-126 fixes is provider-coupling disguised as generic logic. Deepgram is the legacy/frozen
+sin ADR-134 fixes is provider-coupling disguised as generic logic. Deepgram is the legacy/frozen
 strategy; community-1 is the product strategy and gets the real investment.
 """
 
@@ -81,7 +81,7 @@ class DiarizationLabelingStrategy:
         talk: Dict[str, float],
         shingles: Set[str],
     ) -> Set[str]:
-        """Voices whose turns are recurring feed boilerplate (ads/promos), not people (ADR-126)."""
+        """Voices whose turns are recurring feed boilerplate (ads/promos), not people (ADR-134)."""
         # Coarse clustering keeps ad clusters textually pure, so the whole-cluster test is enough.
         return recorded_voices(voice_texts or {}, talk, shingles)
 
@@ -102,7 +102,7 @@ class DiarizationLabelingStrategy:
         return set(sorted(first_start, key=lambda v: first_start[v])[: len(known_hosts)])
 
     def snap_extra(self, name: str, known_hosts: Sequence[str]) -> Optional[str]:
-        """Provider-specific fallback to resolve a garbled host name; base has none (ADR-126)."""
+        """Provider-specific fallback to resolve a garbled host name; base has none (ADR-134)."""
         # Deepgram/legacy: no fallback beyond the shared surname canonicalization.
         return None
 
@@ -122,7 +122,7 @@ def _unique_first_name_host(name: str, known_hosts: Sequence[str]) -> Optional[s
 
 
 class Community1LabelingStrategy(DiarizationLabelingStrategy):
-    """pyannote community-1 (fine clustering) — the product strategy (ADR-126)."""
+    """pyannote community-1 (fine clustering) — the product strategy (ADR-134)."""
 
     name = "pyannote_community1"
 
@@ -133,7 +133,7 @@ class Community1LabelingStrategy(DiarizationLabelingStrategy):
         talk: Dict[str, float],
         shingles: Set[str],
     ) -> Set[str]:
-        """Recorded (ad/promo) voices — community-1's robust per-turn variant (ADR-126)."""
+        """Recorded (ad/promo) voices — community-1's robust per-turn variant (ADR-134)."""
         return _recorded_voices_robust(ordered_turns or [], talk, shingles)
 
     def host_candidate_voices(
@@ -147,7 +147,7 @@ class Community1LabelingStrategy(DiarizationLabelingStrategy):
         cameo_floor: float,
     ) -> Set[str]:
         """Host-eligible voices under fine clustering: the first real speakers, excluding
-        conversational guests, montage clips, and sub-cameo fragments (ADR-126)."""
+        conversational guests, montage clips, and sub-cameo fragments (ADR-134)."""
         # community-1 splits hosts into their own clusters and leaves cold-open ad/promo/cameo
         # fragments as their own first-speaking clusters, so "first to speak" no longer means
         # "host". Restrict host slots to PLAUSIBLE PEOPLE — exclude conversational guests, montage

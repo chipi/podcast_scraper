@@ -328,3 +328,16 @@ def compute_position_hints_for_document(
             props["position_hint"] = ph_value
         # Otherwise leave whatever was there alone (step 4: skip).
     return out
+
+
+def migrate_gi_document_v3_1(data: Dict[str, Any]) -> Dict[str, Any]:
+    """ADR-135/#1191: bring a GI artifact to ``schema_version`` ``3.1``.
+
+    Applies ``migrate_gi_document_v3`` first, then stamps 3.1. The 3.1 Insight fields
+    (rank/tier/routing_tag/salience) are additive and optional, so a 3.0 artifact is already
+    valid-as-3.1 — this only marks the version so consumers know the schema. Idempotent.
+    """
+    out = migrate_gi_document_v3(data)
+    if out.get("schema_version") == "3.0":
+        out["schema_version"] = "3.1"
+    return out

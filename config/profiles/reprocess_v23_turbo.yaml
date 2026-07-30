@@ -1,0 +1,240 @@
+# v2.3 corpus reprocess (#1190): reprocess_v22_community1 with EXACTLY ONE change — the ASR is moved
+# off cloud OpenAI Whisper onto the self-hosted DGX faster-whisper TURBO server (#1178/#1179 lock,
+# decided on real human ground truth), with the ADR-123 coverage-gate failover to MOSS (#1273) for
+# the turbo long-episode cliff. EVERYTHING else (community-1 diarization, trf NER, gemini naming/summary/
+# GI/KG, resilience=failover, governance=false) is byte-identical to v2.2, so the corpus reprocess is
+# a clean single-variable gate (v2.2 diarization -> v2.3 ASR). The only non-model additions are the
+# run mechanics that force fresh transcription (transcript_cache_enabled: false) — they change no
+# model, only make the turbo pass actually run instead of replaying the cached Whisper transcript.
+# Registry status: yaml-only (like v2.2) — `profile:` dropped so the pins below hold.
+
+# Profile: v2.3 = v2.2 (community-1 diarization) + DGX turbo ASR
+#
+# Best compound score (quality × cost × latency) from v2 eval + autoresearch.
+# Use this for production deployments, corpus building, and general use.
+#
+# Research references:
+#   Summary:   EVAL_HELDOUT_V2_2026_04.md (gemini 0.564 bullets, 1.5s, $0.00047/ep)
+#              Refreshed 2026-04-23 post-#652/#653 (no judge re-run, ROUGE-only):
+#              bullets ROUGE-L 0.368 / cosine 0.843 / 3.0s/ep
+#              paragraph ROUGE-L 0.264 / cosine 0.792 / 3.6s/ep
+#              eval: data/eval/runs/autoresearch_prompt_gemini25_flash_lite_bundled_benchmark_*_v2/
+#              Historic compound "Final" = 0.4×ROUGE-L + 0.6×judge. Solving for
+#              judge on historic paragraph Final 0.462 → judge ~0.60; with fresh
+#              ROUGE-L 0.264, implied Final ≈ 0.466 (vs historic 0.462). Same
+#              for bullets: historic Final 0.549 → judge ~0.67; fresh Final
+#              implied ≈ 0.547. No regression within eval noise.
+#   GI:        GI_AUTORESEARCH_PLAN.md (provider mode +10pp, n=12 sweet spot)
+#   KG:        KG_AUTORESEARCH_PLAN.md (provider mode +37pp, n=10 sweet spot)
+#   Clustering: 0.75 threshold (code default, insight_clusters.py)
+#   NER:       spaCy trf = 1.000 F1 with show-title fix
+#
+# Usage:
+#   python -m podcast_scraper.cli --config config/profiles/cloud_balanced.yaml \
+#     --rss <feed_url> --output-dir <output>
+
+# Transcription — v2.3 THE SINGLE VARIABLE: DGX-local faster-whisper large-v3 TURBO (30.5x RTF,
+# ~4.3x faster than large-v3, WER parity on normal episodes; #1178/#1179 bake-off on real GT). It
+# replaces v2.2's cloud OpenAI whisper-1 ($0.50/ep) with a free local pass — the gateway toward a
+# fully local pipeline. transcript_cache_enabled: false forces a fresh turbo transcription under
+# --pipeline-stage full (else the cached Whisper transcript would just be replayed).
+transcription_provider: tailnet_dgx_whisper
+dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
+dgx_whisper_port: 8000
+transcript_cache_enabled: false
+# ADR-096 requires a declared fallback for the DGX whisper provider. Under the reprocess/hold
+# posture below it is NEVER used — a DGX outage HALTS the batch (visible) rather than silently
+# degrading to local whisper and yielding a MIXED-BACKEND corpus, which would break the single
+# variable. So this is a config requirement, not an active failover path.
+transcription_fallback_provider: whisper
+# v2.2 reprocess (#1190): this profile is cloud_balanced with EXACTLY ONE change — the diarize pass
+# is routed to the self-hosted DGX pyannote community-1 server instead of Deepgram, so the corpus
+# reprocess is a clean single-variable gate (v2.1 naming -> v2.2 diarization). Everything else
+# (Gemini naming/summary/GI/KG, the frozen ASR under --pipeline-stage rediarize_only) is identical
+# to cloud_balanced. The deepgram diarize model stays pinned to satisfy the registry-drift check but
+# is unused while diarization_provider=tailnet_dgx.
+diarize: true
+diarization_provider: tailnet_dgx
+dgx_tailnet_host: dgx-llm-1
+dgx_diarize_model: pyannote/speaker-diarization-community-1  # pinned per #1170; DGX serves this
+# PURE community-1: no silent degrade to local/deepgram — a DGX outage halts the batch (visible)
+# rather than injecting a different diarization backend and contaminating the single-variable gate.
+diarization_fallback_providers: []
+# Pinned to match cloud_balanced's registry preset exactly (dropped `profile:` key would otherwise
+# revert these to Field defaults, changing more than the diarization backend):
+ner_model: en_core_web_trf
+# summary_mode_id is ONLY read by the ML/transformers summariser (ml_provider.py). This profile
+# summarises with gemini (summary_provider: gemini below), so the mode is never consulted — pinned
+# null to avoid the misleading `ml_bart_led` reference that implies local BART runs (it does not).
+summary_mode_id: null
+whisper_model: base.en
+deepgram_diarization_model: nova-3-general  # from registry: deepgram_diarization_nova3 (unused here)
+screenplay: true
+
+# Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).
+# One edit to speech_optimal_v1.yaml updates every profile that references it.
+audio_preprocessing_profile: speech_optimal_v1
+
+# Speaker detection — Gemini cloud NER. Same provider already drives summary +
+# GI + KG, so adding NER costs one extra small LLM call per episode and lets
+# this profile run on the pipeline-llm image (which ships [llm] + minimum [search]
+# but no spaCy / transformer NER models). Switch to ``spacy`` + ``en_core_web_trf``
+# if running on the full ``pipeline`` (ml) image and you want offline NER.
+speaker_detector_provider: gemini
+auto_speakers: true
+
+# Summarization
+# Re-validated 2026-06-08 (#816) with reliability axis added to autoresearch
+# methodology. Composite ranking (reliability floor → cost → latency) over
+# {gemini-2.5-flash-lite, gemini-2.5-flash, gpt-4o-mini, claude-haiku-4-5}
+# at concurrency=5/30 calls: flash-lite wins by 4-10× on $/successful-call
+# and 3× on p50. See docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md.
+# 2026-05-24 prod operating point: ~15-20% Gemini 503 burst absorbed by
+# #697 circuit breaker. Do not swap without re-running the harness at the
+# target operating point.
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+preprocessing_enabled: true
+
+# Pipeline mode — mega_bundled (#646 real-episode validation):
+# 1 LLM call returns summary + bullets + insights + topics + entities.
+# Gemini flash-lite mega_bundled measured on real investor-podcast traffic
+# (scripts/validate/validate_phase3c.py, 2026-04-21):
+#   $0.00127/ep medium (~45min audio), 17.8 s, 12 insights / 10 topics / 15 entities.
+# vs extraction_bundled ($0.00265/ep, 2 calls) same artifact counts → 52 % cheaper.
+# vs staged ($0.00445/ep, 3 calls) → 72 % cheaper.
+# Gemini may occasionally return transient 503 UNAVAILABLE — retry_with_metrics
+# handles this with backoff but it can add a few seconds on a bad minute.
+llm_pipeline_mode: mega_bundled
+
+# Output token floor for cloud LLM structured JSON (#645). Prevents truncated
+# JSON (Gemini returned empty strings on long transcripts below ~650 tokens).
+cloud_llm_structured_min_output_tokens: 4096
+
+# Grounded Insights
+generate_gi: true
+gi_insight_source: provider
+# Generate broadly and let the GATE trim: the cap is not a quality control, it is a truncation.
+# Prod ran 12 while every eval ran 50, so the comparison measured a pipeline production never runs.
+gi_max_insights: 50
+gi_require_grounding: true
+
+# #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
+# bundled. Cuts ~76 sequential Gemini calls/ep → ~6 (-92%) and ~95s GIL
+# latency → ~36s (-62%) on this profile's gemini-2.5-flash-lite. Coverage vs
+# Sonnet-4.6 silver: 75% (staged) → 82% (+7pp). Champion call recorded in
+# ADR-078; matrix in autoresearch/gil_evidence_bundling/results.tsv.
+# Bundled methods fall back to staged transparently on parser failures, so
+# this is safe to default to bundled.
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+# Knowledge Graph
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_embedding_provider: sentence_transformers
+
+# #697: per-provider wait-and-resume circuit breaker for Gemini 503 bursts.
+# Same rationale as cloud_thin — but with #698 bundling above the GIL stack
+# now issues ~6 calls/ep instead of 76, so the breaker rarely trips on this
+# stage. Kept enabled for the summary + GI insight calls.
+llm_circuit_breaker_enabled: true
+
+# General
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+
+# Per-run cost guardrails (#804)
+cost_soft_cap_usd_per_run: 5.0
+cost_soft_cap_action: abort
+cost_daily_alert_usd: 10.0
+
+# -----------------------------------------------------------------------------
+# RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)
+# -----------------------------------------------------------------------------
+# The Python matrix at src/podcast_scraper/enrichment/profile_sets.py is
+# the source of truth; this block reflects the 'cloud_balanced' row so
+# operators can discover the active set without reading code.
+# Per-enricher knobs (cost caps, thresholds) live under enrichers.<id>.
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
+
+# --- GI quality gates (wired 2026-07-14) -----------------------------------------------------------
+# Every knob below defaulted OFF or to a stale value, and NO profile set any of them. The value
+# gate — the judge that removes filler — therefore never ran in production at all; it ran only in
+# evals, which is how the eval and the product came to measure different pipelines.
+gi_value_gate_enabled: true
+# PIN the judge. A model grading its own output is lenient (#939), and if each arm is filtered by a
+# different strictness the surviving counts are not comparable. Vendor-disjoint from the extractor.
+gi_value_gate_provider: anthropic
+gi_value_gate_model: claude-haiku-4-5-20251001
+gi_value_gate_min_tier: 2
+# The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
+# redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
+gi_insight_dedupe_threshold: 0.75
+# PINNED, not defaulted. v3 (the speech-act variant) LOST its A/B — route kappa 0.57 against
+# v2's 0.67 — and stays on disk only as the record of that measurement. Naming the winner
+# here means a future change of default cannot silently move this profile off it.
+# Pinned so a reprocess is REPRODUCIBLE and so the eval measures the model, not the sampler.
+# Left unset, extraction samples at the provider default (0.3) and the same episode yields
+# different insights on every run — noise a model comparison reports as model quality.
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+# An LLM grounds with an LLM. `gil_evidence_*_mode: bundled` above is an LLM-only path, and with
+# the provider left at its "transformers" default it did nothing — these profiles asked for bundled
+# LLM grounding and got local DeBERTa.
+quote_extraction_provider: gemini
+entailment_provider: gemini
+
+# --- registry-materialized (make profiles-materialize) — do not hand-edit ---
+summary_model: gemini-2.5-flash-lite
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+gil_evidence_match_summary_provider: true
+# DGX batch reprocess posture (canonical reprocess_dgx_turbo values): `reprocess` context tunes the
+# circuit breaker for a batch (not a live serve), and `hold` halts on a DGX outage instead of
+# failing over to a different backend — both PROTECT the single-variable purity of the corpus. They
+# change no model; v2.2's serve/failover suited cloud OpenAI, DGX turbo needs this.
+resilience_run_context: reprocess
+resilience_failure_strategy: hold
+# ADR-131 turbo quality gate (revises ADR-123's metric): turbo silently drops ~a quarter of the
+# words on very long episodes (the ~100-min cliff, e.g. Ezra Klein ep6 → 29.9% WER). Gate on
+# SPEECH coverage — Σ(transcript segments) / Σ(diarization speech) — not raw audio coverage, so
+# music/ads/silence do not falsely trip the failover (measured: 11/90 v2.3 episodes were below the
+# raw 0.85 purely on non-speech, e.g. "Move Over Humans" 67% raw but ~97% speech). Re-transcribe on
+# MOSS only when the REAL speech drop exceeds the floor. The raw gate is disabled (0.0) since
+# diarization always runs here and supplies the speech denominator.
+transcription_coverage_min: 0.0
+transcription_speech_coverage_min: 0.85
+enforce_model_governance: false
+# #1273: the 2026-07-23 human-GT bake-off found large-v3 LEAST accurate (turbo beat it — suspected
+# int8 serving regression), so the coverage failover re-transcribes on MOSS (2nd-best accuracy,
+# still DGX-local) instead. Uses dgx_tailnet_host + moss_port(8004). int8 investigation tracked.
+transcription_coverage_failover_model: OpenMOSS-Team/MOSS-Transcribe-Diarize
+transcription_coverage_failover_provider: moss

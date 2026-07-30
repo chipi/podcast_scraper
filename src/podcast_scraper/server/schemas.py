@@ -209,6 +209,22 @@ class AppInsight(BaseModel):
     )
     confidence: float | None = Field(default=None, description="Extractor confidence when set.")
     position_hint: str | None = Field(default=None, description="Temporal position hint when set.")
+    # ADR-135/#1191 route-and-tag: surfaces sort by salience desc and may cap at
+    # gi_surface_default_limit. Optional so pre-3.1 artifacts (no fields) still project.
+    salience: float | None = Field(
+        default=None,
+        description="ADR-135/#1191 ranking score (tier x grounded x surfaceable); higher = first.",
+    )
+    rank: int | None = Field(
+        default=None, description="Within-episode salience rank (0 = highest) when set."
+    )
+    routing_tag: str | None = Field(
+        default=None,
+        description="surface | connect | drop (ADR-135/#1191); 'drop' is filtered server-side.",
+    )
+    tier: int | None = Field(
+        default=None, description="Value-gate tier: 3 CORE, 2 USEFUL, 1 MINOR, 0 FILLER."
+    )
     quotes: list[AppQuote] = Field(default_factory=list)
 
 

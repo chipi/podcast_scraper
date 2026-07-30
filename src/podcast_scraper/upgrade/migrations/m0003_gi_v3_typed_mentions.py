@@ -1,7 +1,7 @@
 """0003 — GI v3 typed-mentions schema migration (RFC-097, retrofitted into #862).
 
-Wraps the standalone ``scripts/migrate_gi_to_v3.py`` script (and its underlying
-``migrate_gi_document_v3`` function) into the corpus-upgrade framework so a
+Wraps the ``migrate_gi_document_v3`` transform (from ``gil_kg_identity_migrations``) into the
+corpus-upgrade framework — the canonical home for every migration — so a
 fresh agent or operator can run ``make upgrade-corpus`` once and have ALL pending
 work apply in registered order — no separate "did I remember to run the v3
 script" step.
@@ -127,8 +127,7 @@ class GiV3TypedMentionsMigration(Migration):
                 continue
             # Atomic write (tmp + os.replace): a kill mid-write otherwise leaves a
             # truncated, unparsable .gi.json that is silently abandoned on replay
-            # (review 2026-07-17 M19). Pretty-print + trailing newline, matching
-            # the standalone ``migrate_gi_to_v3.py``.
+            # (review 2026-07-17 M19). Pretty-print + trailing newline.
             tmp = f.with_suffix(f.suffix + ".tmp")
             tmp.write_text(json.dumps(after, indent=2) + "\n", encoding="utf-8")
             os.replace(tmp, f)

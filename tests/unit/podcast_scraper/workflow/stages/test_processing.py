@@ -317,6 +317,95 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
 
 
 @pytest.mark.unit
+class TestStatementFirstHostDetection(unittest.TestCase):
+    """ADR-130 / Fable-5 audit F2: statement-first host detection.
+
+    EVERY LLM provider's `detect_hosts` short-circuits on an RSS author tag — it returns
+    `set(feed_authors)` verbatim and never reads the description. For an org-authored feed that org
+    is then stripped, leaving NO hosts even though the description names them. Now
+    `_detect_hosts_from_feed` runs the deterministic `detect_hosts_from_feed` (host STATEMENT out of
+    the description) FIRST, and consults the provider only when that finds nothing — the order the
+    relabel/rediarize paths use via sibling metadata.
+    """
+
+    def _feed_and_episode(self, description, authors):
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = "Ep 1"
+        ET.SubElement(item, "description").text = "guest chat"
+        feed = models.RssFeed(
+            title="Hard Fork",
+            description=description,
+            authors=authors,
+            items=[item],
+            base_url="https://example.com",
+        )
+        ep = create_test_episode(idx=1, title="Ep 1")
+        ep.item = item
+        return feed, ep
+
+    def _detector(self, detect_hosts_return):
+        detector = Mock()
+        detector.detect_hosts = Mock(return_value=detect_hosts_return)
+        detector.detect_speakers = Mock(return_value=([], set(), True, False))
+        detector.analyze_patterns = Mock(return_value={})
+        return detector
+
+    def test_org_authored_feed_recovers_hosts_from_description(self):
+        # The provider short-circuits on the org author; statement-first reads the description
+        # first, so the org detector result is never even consulted.
+        feed, ep = self._feed_and_episode(
+            "Each week, journalists Kevin Roose and Casey Newton explore tech.",
+            ["The New York Times"],
+        )
+        cfg = create_test_config(auto_speakers=True)
+        detector = self._detector({"The New York Times"})
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
+        detector.detect_hosts.assert_not_called()  # statement won; provider not consulted
+
+    def test_statement_beats_a_personal_author_tag(self):
+        # F2's specific divergence: the RSS author tag is a PERSONAL name (a producer) that differs
+        # from the hosts the description states. The provider would short-circuit to the producer;
+        # statement-first keeps the actual hosts. Same episode down full vs relabel now agree.
+        feed, ep = self._feed_and_episode(
+            "Hosted by Kevin Roose and Casey Newton.", ["Priya Producer"]
+        )
+        cfg = create_test_config(auto_speakers=True)
+        detector = self._detector({"Priya Producer"})
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
+
+    def test_no_host_in_description_stays_empty_no_invention(self):
+        # NVIDIA-style: org author + a blurb that names no host. Statement empty -> provider is
+        # consulted -> returns the org -> stripped -> empty. Never invented.
+        feed, ep = self._feed_and_episode("News about GPUs and AI.", ["NVIDIA"])
+        cfg = create_test_config(auto_speakers=True)
+        detector = self._detector({"NVIDIA"})
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        self.assertEqual(result.cached_hosts, set())
+
+    def test_provider_used_when_no_statement_and_it_finds_a_person(self):
+        # No host statement in the description and no author tag -> the provider's LLM-NER result is
+        # the only signal, and a real person is kept.
+        feed, ep = self._feed_and_episode("A wide-ranging conversation about AI.", [])
+        cfg = create_test_config(auto_speakers=True)
+        detector = self._detector({"Real Person"})
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        self.assertEqual(result.cached_hosts, {"Real Person"})
+        detector.detect_hosts.assert_called_once()
+
+    def test_dry_run_previews_statement_hosts_for_org_authored_feed(self):
+        # F4: dry-run must preview the same hosts the real run finds. An org-authored feed whose
+        # description states its hosts previews those hosts (statement parse is ML-free), not none.
+        feed, ep = self._feed_and_episode(
+            "Hosted by Kevin Roose and Casey Newton.", ["The New York Times"]
+        )
+        cfg = create_test_config(auto_speakers=True, dry_run=True)
+        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, None)
+        self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
+
+
+@pytest.mark.unit
 class TestFallbackToEpisodeAuthors(unittest.TestCase):
     """Tests for _fallback_to_episode_authors helper function."""
 
@@ -358,14 +447,14 @@ class TestFallbackToEpisodeAuthors(unittest.TestCase):
 
     @patch("podcast_scraper.rss.parser.extract_episode_authors")
     def test_fallback_to_episode_authors_success(self, mock_extract_authors):
-        """Test successful extraction of episode authors."""
-        mock_extract_authors.side_effect = [["Author 1"], ["Author 2"]]
+        """Test successful extraction of episode authors (real person names, audit F5)."""
+        mock_extract_authors.side_effect = [["Jane Smith"], ["John Roberts"]]
 
         cfg = create_test_config(auto_speakers=True)
 
         result = processing._fallback_to_episode_authors(cfg, [self.episode1, self.episode2])
 
-        self.assertEqual(result, {"Author 1", "Author 2"})
+        self.assertEqual(result, {"Jane Smith", "John Roberts"})
         self.assertEqual(mock_extract_authors.call_count, 2)
 
     @patch("podcast_scraper.rss.parser.extract_episode_authors")
@@ -614,7 +703,7 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
         """Producer/consumer contract for the download_args tuple.
 
         prepare_episode_download_args emits a 9-tuple; summarization unpacks all 9 (index 7 =
-        detected guests, index 8 = stated hosts) and transcription reads args[7]. When #1169 grew
+        detected guests, index 8 = stated names) and transcription reads args[7]. When #1169 grew
         the producer to 9 elements the 8-element unpack in summarization crashed EVERY real
         summarization run, and only e2e caught it. This pins the arity cheaply at unit level.
         """

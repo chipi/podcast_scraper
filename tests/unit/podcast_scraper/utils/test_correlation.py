@@ -100,3 +100,46 @@ def test_formatter_defaults_to_dash_outside_a_run() -> None:
     # never KeyErrors on %(run_id)s even when no run is active.
     fmt = corr.CorrelationFormatter("[run=%(run_id)s ep=%(episode_id)s] %(message)s")
     assert fmt.format(_record("x")) == "[run=- ep=-] x"
+
+
+# ── episode_scope (o11y correlation spine) ──────────────────────────────────
+
+
+def test_episode_scope_binds_and_restores() -> None:
+    corr.set_episode_id("outer")
+    with corr.episode_scope("ep-A"):
+        assert corr.get_episode_id() == "ep-A"
+    assert corr.get_episode_id() == "outer"  # token-restored, not clobbered
+
+
+def test_episode_scope_restores_on_exception() -> None:
+    corr.set_episode_id("outer")
+    with pytest.raises(ValueError):
+        with corr.episode_scope("ep-B"):
+            raise ValueError("boom")
+    assert corr.get_episode_id() == "outer"  # finally-reset even on error
+
+
+def test_episode_scope_none_binds_none() -> None:
+    corr.set_episode_id("outer")
+    with corr.episode_scope(None):
+        assert corr.get_episode_id() is None
+    assert corr.get_episode_id() == "outer"
+
+
+def test_episode_scope_is_thread_isolated() -> None:
+    # ContextVar → a scope in one thread does not leak into another.
+    seen = {}
+
+    def worker():
+        seen["before"] = corr.get_episode_id()
+        with corr.episode_scope("ep-worker"):
+            seen["inside"] = corr.get_episode_id()
+
+    with corr.episode_scope("ep-main"):
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join()
+        assert corr.get_episode_id() == "ep-main"  # main thread's scope intact
+    assert seen["before"] is None  # fresh thread did not inherit main's id
+    assert seen["inside"] == "ep-worker"

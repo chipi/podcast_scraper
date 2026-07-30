@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from podcast_scraper.graph_id_utils import is_bare_speaker_label
 from podcast_scraper.providers.ml.diarization.roster import friendly_speaker_label
 from podcast_scraper.server.schemas import TranscriptSegment
 
@@ -38,9 +39,21 @@ def _segment_speaker(raw: dict[str, Any]) -> str | None:
     friendly type label for a cameo/commercial voice ("Brief speaker" / "Advertisement"), else the
     raw diarization tag.
 
-    ``speaker_role`` / ``voice_type`` are set by the roster only for an *unnamed* voice; a named
-    voice has a real ``speaker_label`` and neither, so it is returned as-is. This maps display only
-    — the id-bearing ``speaker_label`` in the artifact is untouched (the GI still owns the ids)."""
+    A NAMED voice (real ``speaker_label``, not a raw ``SPEAKER_NN``) shows its name — even though
+    the segment now also carries its host/guest ``speaker_role``. Only an UNNAMED voice uses the
+    friendly label ("Host" / "Brief speaker" / "Advertisement"). This maps display only — the
+    id-bearing ``speaker_label`` in the artifact is untouched (the GI still owns the ids)."""
+    # An UNNAMED voice carries a ``voice_type`` (cameo/commercial) or a raw ``SPEAKER_NN`` label and
+    # renders a friendly label. A NAMED voice has a real label, no ``voice_type``, and (now) a
+    # host/guest ``speaker_role`` — show the name, not "Host".
+    label = raw.get("speaker_label")
+    if (
+        isinstance(label, str)
+        and label.strip()
+        and not is_bare_speaker_label(label)
+        and not raw.get("voice_type")
+    ):
+        return label.strip()
     friendly = friendly_speaker_label(raw.get("speaker_role"), raw.get("voice_type"))
     if friendly:
         return friendly

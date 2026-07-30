@@ -469,7 +469,11 @@ def _format_transcript_if_needed(
             has_diarized_labels = any(
                 isinstance(seg, dict) and seg.get("speaker_label") for seg in segments
             )
-            if cfg.diarize and has_diarized_labels:
+            # ``speaker_label`` on segments means a roster pass ran (local diarizer OR the native
+            # roster pass) — render via the shared diarized formatter, not the provider's positional
+            # one, so roster-resolved names win. (No ``diarize=false`` path emits speaker_label
+            # except a roster pass, so this stays inert for plain provider screenplays.)
+            if has_diarized_labels:
                 from ..providers.ml.diarization.formatting import (
                     format_diarized_screenplay_from_segments,
                 )
@@ -618,6 +622,185 @@ def _save_speaker_diagnostics_file(
         logger.debug("Saved speaker diagnostics: %s", diag_path)
     except OSError as e:
         logger.warning("Could not save speaker diagnostics %s: %s", diag_path, e)
+
+
+def _save_asr_provenance_file(
+    result: Optional[Dict[str, Any]],
+    cfg: config.Config,
+    rel_transcript_path: str,
+    effective_output_dir: str,
+) -> None:
+    """ADR-131: record the ACTUAL per-episode ASR model + speech coverage next to the transcript.
+
+    ``<base>.asr.json``. The pipeline otherwise records only the CONFIGURED transcription model, so
+    a speech-coverage failover (turbo -> large-v3) left no per-episode trace of which model actually
+    produced the transcript. This closes that provenance gap: the few episodes turbo dropped speech
+    on are recorded as the failover model, the rest as the primary. No-op when the gate did not run
+    (off, or no diarization speech denominator) so there is nothing meaningful to record.
+    """
+    if not isinstance(result, dict) or not rel_transcript_path:
+        return
+    cov = result.get("asr_speech_coverage")
+    failover = result.get("speech_coverage_failover")
+    if cov is None and not failover:
+        return
+    provenance: Dict[str, Any] = {
+        "model": (
+            result.get("model_used")
+            or getattr(cfg, "dgx_whisper_model", None)
+            or getattr(cfg, "transcription_provider", None)
+        ),
+        "speech_coverage": cov,
+        "failed_over": bool(failover),
+    }
+    if failover:
+        provenance["speech_coverage_failover"] = failover
+    full_path = os.path.join(effective_output_dir, rel_transcript_path)
+    base, _ = os.path.splitext(full_path)
+    asr_path = base + ".asr.json"
+    try:
+        with open(asr_path, "w", encoding="utf-8") as f:
+            json.dump(provenance, f, indent=2, allow_nan=False)
+        logger.debug("Saved ASR provenance: %s", asr_path)
+    except OSError as e:
+        logger.warning("Could not save ASR provenance %s: %s", asr_path, e)
+
+
+def _write_processing_manifest(
+    result: Optional[Dict[str, Any]],
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    asr_elapsed: Optional[float] = None,
+    asr_call_metrics: Any = None,
+) -> None:
+    """RFC-109 / ADR-132: write the per-episode processing manifest's ASR/diarization/naming blocks.
+
+    Each block is built from that stage's OWN result fields (never from ``cfg``) at the one site
+    where all three results are in hand. Complements ``metadata.json`` (ADR-133). Best-effort — a
+    manifest write never fails the episode. The downstream stages (summary / GI / KG) append their
+    own blocks to the same manifest from ``metadata_generation._write_downstream_manifest_blocks``.
+    ``.asr.json`` stays (ADR-133 write-both migration) until readers move to the manifest.
+    """
+    if not isinstance(result, dict) or not rel_transcript_path:
+        return
+    from ..utils import correlation
+    from . import processing_manifest as pm
+
+    episode_id, _ = _episode_id_and_idx_for_incident(job, cfg)
+    feed_id = getattr(cfg, "rss_url", None)
+    # cfg.run_id defaults to None and is frozen; the RESOLVED run id lives in the correlation global
+    # (like llm_cost events). Sourcing from cfg gave every manifest/event run_id=null (advisor #1).
+    run_id = correlation.get_run_id() or getattr(cfg, "run_id", None)
+
+    # --- ASR: actual model + speech coverage + failover (ADR-131 provenance) ---
+    cov = result.get("asr_speech_coverage")
+    failover = result.get("speech_coverage_failover")
+    if cov is not None or failover:
+        asr_flags: List[str] = []
+        if failover:
+            asr_flags.append("asr_failover")
+        thresh = getattr(cfg, "transcription_speech_coverage_min", None)
+        if cov is not None and thresh and cov < thresh:
+            asr_flags.append("asr_speech_coverage_low")
+        # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
+        # a cloud ASR that failed over billed twice — RFC-109).
+        _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
+        _failover_cost = result.get("asr_failover_cost_usd")
+        asr_cost = None
+        if _primary_cost is not None or _failover_cost is not None:
+            asr_cost = float(_primary_cost or 0.0) + float(_failover_cost or 0.0)
+        asr = pm.stage_block(
+            ran=True,
+            method=getattr(cfg, "transcription_provider", None),
+            model=(result.get("model_used") or getattr(cfg, "dgx_whisper_model", None)),
+            method_version=pm.METHOD_VERSIONS["asr"],
+            duration_s=asr_elapsed,
+            # 0.0/None for local ASR (DGX/whisper); real USD for cloud ASR (OpenAI/Deepgram),
+            # populated by apply_estimated_cost_if_missing before this write.
+            cost_usd=asr_cost,
+            metrics={"speech_coverage": cov},
+            failover=failover or None,
+        )
+        pm.update_stage(
+            effective_output_dir,
+            rel_transcript_path,
+            "asr",
+            asr,
+            quality_flags=asr_flags,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+    # --- Diarization: speaker count + speech seconds, from the diarizer's own result ---
+    num_spk = result.get("diarization_num_speakers")
+    speech_s = result.get("diarization_speech_seconds")
+    if num_spk is not None or speech_s is not None:
+        diar = pm.stage_block(
+            ran=True,
+            method=getattr(cfg, "diarization_provider", None),
+            method_version=pm.METHOD_VERSIONS["diarization"],
+            # None for local diarizers (pyannote/DGX); real USD for cloud (Deepgram/Gemini), which
+            # populate DiarizationResult.cost_usd -> result["diarization_cost_usd"].
+            cost_usd=result.get("diarization_cost_usd"),
+            metrics={"num_speakers": num_spk, "speech_seconds": speech_s},
+        )
+        pm.update_stage(
+            effective_output_dir,
+            rel_transcript_path,
+            "diarization",
+            diar,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+
+    # --- Naming: detected-vs-named + attribution health, from the roster's own diagnostics ---
+    diag = result.get("speaker_diagnostics")
+    if isinstance(diag, dict) and isinstance(diag.get("summary"), dict):
+        summary = diag["summary"]
+        voices_raw = diag.get("voices")
+        voices = voices_raw if isinstance(voices_raw, list) else []
+        host_named = any(
+            isinstance(v, dict) and v.get("role") == "host" and v.get("named") for v in voices
+        )
+        name_flags: List[str] = []
+        if summary.get("unattributed_alarm"):
+            name_flags.append("unnamed_dominant_voice")
+        if summary.get("unbound_names"):
+            name_flags.append("guest_in_title_not_placed")
+        if not host_named and not summary.get("show_centric"):
+            name_flags.append("empty_host_anchor")
+        naming = pm.stage_block(
+            ran=True,
+            method_version=pm.METHOD_VERSIONS["naming"],
+            metrics={
+                "num_speakers": summary.get("num_speakers"),
+                "named": summary.get("named"),
+                "unresolved": summary.get("unresolved"),
+                "truly_unknown": summary.get("truly_unknown"),
+                "unattributed_talk_share": summary.get("unattributed_talk_share"),
+                "by_voice_type": summary.get("by_voice_type"),
+                # ADR-135/#1220: the labeling OUTPUT — real speakers exposed to GI/KG after
+                # cameo/commercial cleanup, split named vs Voice (unresolved). Lets the sidecar
+                # answer the clean named-vs-Voice rate without opening the graph.
+                "exposed": summary.get("exposed"),
+                "unbound_names": summary.get("unbound_names"),
+                "host_named": host_named,
+            },
+        )
+        pm.update_stage(
+            effective_output_dir,
+            rel_transcript_path,
+            "naming",
+            naming,
+            quality_flags=name_flags,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
 
 
 def _maybe_produce_adfree(
@@ -1644,14 +1827,21 @@ def _relabel_existing_transcript(
             _cluster_ids[label] = f"SPEAKER_{len(_cluster_ids):02d}"
         return _cluster_ids[label]
 
+    def _identity(s: dict) -> Optional[str]:
+        # ``is not None`` so a native diarizer's int-0 speaker id is not dropped by a falsy ``or``.
+        v = s.get("speaker")
+        if v is None:
+            v = s.get("speaker_label")
+        return str(v) if v is not None else None
+
     dsegs = [
         DiarizationSegment(
             start=float(s["start"]),
             end=float(s["end"]),
-            speaker=_anon(str(s.get("speaker") or s.get("speaker_label"))),
+            speaker=_anon(_identity(s)),  # type: ignore[arg-type]
         )
         for s in segs
-        if isinstance(s, dict) and (s.get("speaker") or s.get("speaker_label"))
+        if isinstance(s, dict) and _identity(s) is not None
     ]
     if not dsegs:
         logger.warning(
@@ -1671,7 +1861,24 @@ def _relabel_existing_transcript(
     # ("journalists Kevin Roose and Casey Newton explore..."). Feed it to the roster so an
     # ASR-garbled spoken surname ("Kevin Russo") canonicalizes to the feed's spelling. Read from
     # the sibling <run>/metadata/<name>.metadata.json; absence is non-fatal (relabel still runs).
-    feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    #
+    # Q3 (advisor review): keep the FROZEN sibling metadata as the host anchor — a relabel of a
+    # stored corpus must be reproducible, not track live feed drift. But when the sibling is
+    # missing/unreadable it silently returns [], the WORST anchor state, while the live detection
+    # (job.feed_hosts, statement + NER fallback + corroboration) was already computed — so fall back
+    # to it only then. Log any sibling-vs-live divergence so the freeze-vs-live choice can later be
+    # decided from data rather than assumption.
+    sibling_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    live_hosts = list(getattr(job, "feed_hosts", None) or [])
+    feed_hosts = sibling_hosts or live_hosts
+    if sibling_hosts and live_hosts and sorted(sibling_hosts) != sorted(live_hosts):
+        logger.info(
+            "[%s] relabel_only: feed_hosts divergence — sibling-metadata %s vs live %s (using "
+            "sibling for a reproducible relabel)",
+            job.idx,
+            sibling_hosts,
+            live_hosts,
+        )
     result = apply_diarization_to_result(
         result,
         "",
@@ -1680,6 +1887,11 @@ def _relabel_existing_transcript(
         metadata_named=job.metadata_named,
         precomputed_diarization=diar,
         feed_hosts=feed_hosts,
+        # ADR-137 — title + description feed the LLM's host/guest role determination and gate
+        # role-only resolution. FULL passes both; relabel_only omitting them resolved on a strictly
+        # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
+        episode_title=job.ep_title,
+        episode_description=getattr(job.episode, "description", None),
     )
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
@@ -1695,8 +1907,92 @@ def _relabel_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+    # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
+    # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
+    # diarization fields (frozen), so only the naming block is written + a pipeline_stage emitted.
+    _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
     logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
+
+
+def _segments_carry_native_speakers(result: Any) -> bool:
+    """True when a transcription provider self-diarized (each segment tagged with a ``speaker`` id)
+    but the local roster pass did NOT run — the native-screenplay case (deepgram / moss with
+    ``diarize`` off). Gated on the DATA, not a provider name, so it is provider-agnostic and inert
+    for non-diarizing providers (whisper/openai segments never carry ``speaker``)."""
+    if not isinstance(result, dict):
+        return False
+    segs = result.get("segments")
+    if not isinstance(segs, list):
+        return False
+    return any(isinstance(s, dict) and s.get("speaker") is not None for s in segs)
+
+
+def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> dict:
+    """Route a natively-diarized transcript through the SINGLE role authority (the roster).
+
+    A provider that diarizes server-side (deepgram/moss) tags each segment with a ``speaker`` id
+    but assigns names positionally and never computes host/guest roles — the same guess-from-
+    ordering class of bug the roster exists to replace. Feed the provider's OWN clustering to the
+    roster (``precomputed_diarization`` — no re-diarization, no extra API call) so names AND roles
+    come from evidence and land as ``speaker_label`` + ``speaker_role`` on the durable segments,
+    exactly like the local-diarizer path.
+
+    No-op unless the segments carry a native ``speaker`` id (provider-agnostic, gated on data). A
+    roster failure is swallowed so the successfully-transcribed text is never lost. ``cost_usd=0.0``
+    so the reused diarization does not fabricate a cloud-diarizer charge in the manifest."""
+    if not _segments_carry_native_speakers(result):
+        return result
+
+    from ..exceptions import ProviderDependencyError
+    from ..providers.ml.diarization.base import DiarizationResult, DiarizationSegment
+    from ..providers.ml.diarization.pipeline import apply_diarization_to_result
+
+    segs = result.get("segments") or []
+    cluster_ids: Dict[str, str] = {}
+
+    def _anon(key: str) -> str:
+        if key not in cluster_ids:
+            cluster_ids[key] = f"SPEAKER_{len(cluster_ids):02d}"
+        return cluster_ids[key]
+
+    dsegs = [
+        DiarizationSegment(
+            start=float(s.get("start") or 0.0),
+            end=float(s.get("end") or 0.0),
+            speaker=_anon(str(s.get("speaker"))),
+        )
+        for s in segs
+        if isinstance(s, dict) and s.get("speaker") is not None
+    ]
+    if not dsegs:
+        return result
+    diar = DiarizationResult(segments=dsegs, num_speakers=len(cluster_ids), cost_usd=0.0)
+    # Preserve ASR-provenance top-level fields; only the segments are re-clustered by the roster.
+    clean = dict(result)
+    clean["segments"] = [
+        {"start": s.get("start"), "end": s.get("end"), "text": s.get("text", "")}
+        for s in segs
+        if isinstance(s, dict)
+    ]
+    try:
+        return apply_diarization_to_result(
+            clean,
+            "",
+            cfg,
+            job.detected_speaker_names,
+            metadata_named=job.metadata_named,
+            precomputed_diarization=diar,
+            feed_hosts=job.feed_hosts,
+        )
+    except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
+        logger.warning(
+            "[%s] Native-speaker roster pass failed; keeping the provider screenplay: %s",
+            job.idx,
+            format_exception_for_log(exc),
+        )
+        _capture_stage_exception(exc, stage="diarization")
+        return result
 
 
 def _rediarize_existing_transcript(
@@ -1797,6 +2093,11 @@ def _rediarize_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+    # advisor #2: rediarize regenerates diarization + naming on disk — record both into run metrics
+    # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is
+    # invisible in diarization_* metrics and the manifest keeps the old versions.
+    _record_episode_diarization(pipeline_metrics, result)
+    _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
     logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
 
@@ -1826,6 +2127,184 @@ def _maybe_dispatch_reprocess_stage(
     return None
 
 
+def _maybe_speech_coverage_failover(
+    result: Dict[str, Any],
+    media_for_transcription: str,
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    pipeline_metrics: Any,
+    episode_duration_seconds: Optional[float],
+) -> Dict[str, Any]:
+    """ADR-131: re-transcribe on the failover model when the diarized transcript covers too little
+    of the diarizer's SPEECH.
+
+    ``speech_coverage = Σ(transcript segments) / Σ(diarization speech)`` (both merged). Unlike the
+    raw ADR-123 gate (÷ total audio), music/ads/silence — which produce no diarization turn — are
+    excluded, so a music-heavy episode turbo transcribed fully does not falsely failover, while the
+    long-episode cliff (turbo dropping real speech a speaker was talking through) still does.
+
+    Provider-agnostic (any ``DiarizationResult``). A **no-op** when there is no speech denominator
+    (diarization off, or no speaker turns): the raw ``transcription_coverage_min`` gate governs that
+    case instead, so nothing regresses. The failover result carries a ``speech_coverage_failover``
+    breadcrumb + ``model_used`` for per-episode provenance.
+    """
+    min_cov = float(getattr(cfg, "transcription_speech_coverage_min", 0.0) or 0.0)
+    fo_model = getattr(cfg, "transcription_coverage_failover_model", None)
+    if min_cov <= 0 or not fo_model:
+        return result
+    speech = float(result.get("diarization_speech_seconds") or 0.0)
+    if speech <= 0:
+        return result  # no speech denominator — defer to the raw-coverage gate
+
+    from ..providers.ml.diarization.pipeline import (
+        apply_diarization_to_result,
+        merged_speech_seconds,
+    )
+
+    covered = merged_speech_seconds(result.get("segments") or [])
+    speech_cov = min(1.0, covered / speech)
+    result["asr_speech_coverage"] = round(speech_cov, 3)
+    primary_model = getattr(cfg, "dgx_whisper_model", None)
+    if speech_cov >= min_cov:
+        # Observable pass (ADR-131): log every evaluation so a run shows the gate ran + its
+        # coverage, not only the rare failover ("the gate works, it just didn't need to fire").
+        logger.info(
+            "[%s] speech coverage %.1f%% >= %.1f%% — keeping primary %r (ADR-131 gate passed)",
+            job.idx,
+            speech_cov * 100,
+            min_cov * 100,
+            primary_model,
+        )
+        return result
+
+    logger.info(
+        "[%s] speech coverage %.1f%% < %.1f%% — primary %r dropped real speech; "
+        "re-transcribing on failover model %s (ADR-131)",
+        job.idx,
+        speech_cov * 100,
+        min_cov * 100,
+        primary_model,
+        fo_model,
+    )
+    from ..transcription.factory import create_transcription_provider
+    from ..utils.provider_metrics import (
+        apply_estimated_cost_if_missing,
+        ProviderCallMetrics,
+        transcription_model_for_cfg,
+    )
+
+    # Disable both gates on the failover pass so it cannot recurse into another re-transcription.
+    fo_cfg = cfg.model_copy(
+        update={
+            "dgx_whisper_model": fo_model,
+            "transcription_coverage_min": 0.0,
+            "transcription_speech_coverage_min": 0.0,
+        }
+    )
+    fo_provider = create_transcription_provider(fo_cfg)
+    fo_call_metrics = ProviderCallMetrics()
+    fo_result, _ = _transcribe_with_segments_maybe_chunked(
+        media_for_transcription,
+        cfg=fo_cfg,
+        job=job,
+        transcription_provider=fo_provider,
+        pipeline_metrics=pipeline_metrics,
+        episode_duration_seconds=episode_duration_seconds,
+        call_metrics=fo_call_metrics,
+    )
+    # RFC-109: the failover re-transcription is a SECOND ASR call. Local models cost 0; a cloud
+    # failover model bills again, so its cost must be added to the ASR block (not just the primary).
+    apply_estimated_cost_if_missing(
+        fo_call_metrics,
+        cfg=fo_cfg,
+        provider_type=str(getattr(fo_cfg, "transcription_provider", None) or "whisper"),
+        capability="transcription",
+        model=transcription_model_for_cfg(fo_cfg),
+        audio_minutes=(episode_duration_seconds / 60.0) if episode_duration_seconds else None,
+    )
+    fo_result["asr_failover_cost_usd"] = fo_call_metrics.estimated_cost
+    # Diarization is audio-based (cache hit on the same audio) — only the transcript→speaker
+    # alignment re-runs, so the failover pays for re-transcription, not re-diarization.
+    fo_result = apply_diarization_to_result(
+        fo_result,
+        media_for_transcription,
+        fo_cfg,
+        job.detected_speaker_names,
+        metadata_named=job.metadata_named,
+        cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
+        feed_hosts=job.feed_hosts,
+    )
+    fo_speech = float(fo_result.get("diarization_speech_seconds") or speech)
+    fo_cov = (
+        min(1.0, merged_speech_seconds(fo_result.get("segments") or []) / fo_speech)
+        if fo_speech > 0
+        else None
+    )
+    fo_result["model_used"] = fo_result.get("model_used") or f"{fo_model}:speech_coverage_failover"
+    if fo_cov is not None:
+        fo_result["asr_speech_coverage"] = round(fo_cov, 3)
+    fo_result["speech_coverage_failover"] = {
+        "primary_model": primary_model,
+        "primary_speech_coverage": round(speech_cov, 3),
+        "failover_speech_coverage": round(fo_cov, 3) if fo_cov is not None else None,
+        "speech_coverage_min": min_cov,
+    }
+    return fo_result
+
+
+def _capture_stage_exception(exc: BaseException, *, stage: str) -> None:
+    """Best-effort Sentry capture for a swallowed stage failure (o11y P1). Never raises."""
+    try:
+        from ..utils.sentry_init import capture_stage_exception
+
+        capture_stage_exception(exc, stage=stage)
+    except Exception:  # pragma: no cover - telemetry must never break the pipeline
+        pass
+
+
+def _bind_episode_correlation(
+    job: TranscriptionJob, cfg: config.Config  # type: ignore[valid-type]
+) -> None:
+    """#1053 / o11y: bind the correlation episode id for this consumer thread.
+
+    The transcription consumer processes one job then the next, each re-binding at entry, so a bare
+    set (no reset) is safe — no id leaks into another episode's emissions. Never blocks on failure.
+    """
+    try:
+        from ..utils import correlation
+        from .helpers import get_episode_id_from_episode
+
+        if job.episode is None:
+            # No episode → clear, don't inherit the PREVIOUS job's id on this reused thread (#9).
+            correlation.set_episode_id(None)
+            return
+        _corr_ep_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+        correlation.set_episode_id(_corr_ep_id)
+    except Exception:  # never block transcription on correlation
+        pass
+
+
+def _record_episode_diarization(pipeline_metrics: Any, result: Any) -> None:
+    """o11y P1: roll one episode's diarization stats into run-level metrics (metrics.json /
+    run.jsonl), where diarization was previously invisible. Detail stays in the manifest. No-op
+    when diarization did not run or metrics are absent."""
+    if pipeline_metrics is None or not isinstance(result, dict):
+        return
+    num_spk = result.get("diarization_num_speakers")
+    speech_s = result.get("diarization_speech_seconds")
+    if num_spk is None and speech_s is None:
+        return
+    try:
+        pipeline_metrics.record_diarization(
+            num_speakers=num_spk,
+            speech_seconds=speech_s,
+            cost_usd=result.get("diarization_cost_usd"),
+        )
+    except Exception:  # never block transcription on a metrics update
+        logger.debug("record_diarization failed", exc_info=True)
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1851,6 +2330,10 @@ def transcribe_media_to_text(
         transcript_file_path is relative to effective_output_dir
         bytes_downloaded is the size of the media file downloaded (if any)
     """
+    # #1053 / o11y: bind the episode id for this consumer thread so ASR / diarization / naming logs,
+    # incidents, cost events, and Langfuse spans carry it (see helper).
+    _bind_episode_correlation(job, cfg)
+
     if cfg.dry_run:
         final_path = filesystem.build_whisper_output_path(
             job.idx, job.ep_title_safe, run_suffix, effective_output_dir
@@ -1982,6 +2465,9 @@ def transcribe_media_to_text(
                     metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                     feed_hosts=job.feed_hosts,
+                    # ADR-137 — title + description feed the LLM's host/guest role determination.
+                    episode_title=job.ep_title,
+                    episode_description=getattr(job.episode, "description", None),
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
@@ -1996,6 +2482,24 @@ def transcribe_media_to_text(
                     job.idx,
                     format_exception_for_log(exc),
                 )
+                _capture_stage_exception(exc, stage="diarization")
+            # ADR-131: speech-normalized quality gate — re-transcribe on the failover model if the
+            # diarized transcript covers too little of the diarizer's SPEECH (music/ads excluded).
+            # No-op unless configured + diarization produced a speech denominator.
+            result = _maybe_speech_coverage_failover(
+                result,
+                media_for_transcription,
+                cfg,
+                job,
+                effective_output_dir,
+                pipeline_metrics,
+                episode_duration_seconds,
+            )
+        else:
+            # Native-screenplay provider (deepgram/moss) may have self-diarized without a roster
+            # pass — route it through the single role authority (no-op otherwise). Guard + failure
+            # handling live in the helper so this stays one branch.
+            result = _apply_native_speaker_roster(result, cfg, job)
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )
@@ -2003,6 +2507,8 @@ def transcribe_media_to_text(
             text, job, run_suffix, effective_output_dir, pipeline_metrics=pipeline_metrics
         )
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
+        # ADR-131: per-episode ASR provenance (actual model + speech coverage), incl. any failover.
+        _save_asr_provenance_file(result, cfg, rel_path, effective_output_dir)
         segments = result.get("segments") if isinstance(result, dict) else None
         if isinstance(segments, list) and len(segments) > 0:
             _save_transcript_segments_file(segments, rel_path, effective_output_dir)
@@ -2030,6 +2536,21 @@ def transcribe_media_to_text(
 
         # Record transcription time if metrics available
         _record_transcription_metrics(job, cfg, tc_elapsed, call_metrics, pipeline_metrics)
+
+        # o11y P1: roll this episode's diarization stats into run-level metrics (see helper).
+        _record_episode_diarization(pipeline_metrics, result)
+
+        # RFC-109 / ADR-132: per-episode processing manifest (ASR/diarization/naming stage blocks).
+        # After metrics recording so the ASR ``estimated_cost`` (cloud providers) is populated.
+        _write_processing_manifest(
+            result,
+            cfg,
+            job,
+            rel_path,
+            effective_output_dir,
+            asr_elapsed=tc_elapsed,
+            asr_call_metrics=call_metrics,
+        )
 
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:
@@ -2072,6 +2593,7 @@ def transcribe_media_to_text(
             "    Whisper transcription failed: %s",
             format_exception_for_log(exc),
         )
+        _capture_stage_exception(exc, stage="transcription")
         return False, None, bytes_downloaded
     finally:
         _cleanup_temp_media(temp_media, cfg)

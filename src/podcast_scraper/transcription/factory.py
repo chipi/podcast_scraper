@@ -125,19 +125,26 @@ def create_transcription_provider(  # noqa: C901
             if cov_min > 0.0 and cov_model:
                 from ..providers.resilience.fallback import CoverageGatedTranscriptionProvider
 
-                failover_cfg = cfg.model_copy(update={"dgx_whisper_model": cov_model})
+                # #1273: the failover may be a DIFFERENT provider than the primary. Default = the
+                # primary's provider (historical whisper-on-whisper); 'moss' fails over to the DGX
+                # MOSS model instead of large-v3. Update the model field that provider reads.
+                cov_provider = getattr(cfg, "transcription_coverage_failover_provider", None) or (
+                    provider_type
+                )
+                model_field = "moss_model" if cov_provider == "moss" else "dgx_whisper_model"
+                failover_cfg = cfg.model_copy(update={model_field: cov_model})
                 # Named typed builders (not inline default-arg lambdas) so mypy can infer the
                 # Callable[[], TranscriptionProvider] the wrapper expects. No loop here → the
-                # captured cfg / failover_cfg / provider_type are stable, no per-closure binding.
+                # captured cfg / failover_cfg / cov_provider are stable, no per-closure binding.
                 primary_builder: Callable[[], TranscriptionProvider] = lambda: _build_chain_tier(
                     cfg, provider_type
                 )
                 failover_builder: Callable[[], TranscriptionProvider] = lambda: _build_chain_tier(
-                    failover_cfg, provider_type
+                    failover_cfg, cov_provider
                 )
                 gated = CoverageGatedTranscriptionProvider(
                     primary=(provider_type, primary_builder),
-                    failover=(f"{provider_type}:{cov_model}", failover_builder),
+                    failover=(f"{cov_provider}:{cov_model}", failover_builder),
                     coverage_min=cov_min,
                 )
                 verify_protocol_compliance(gated, TranscriptionProvider, "TranscriptionProvider")

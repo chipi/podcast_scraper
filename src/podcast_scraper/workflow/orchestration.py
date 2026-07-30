@@ -2323,6 +2323,7 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
     root_logger = logging.getLogger()
 
     # Choose formatter based on json_logs flag (Issue #379)
+    formatter: logging.Formatter
     if json_logs:
         from ..utils.json_logging import JSONFormatter
 

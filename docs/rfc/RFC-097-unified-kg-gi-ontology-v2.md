@@ -359,7 +359,7 @@ but stay readable for archaeology.
 
 Three migration scripts (chunk 6, RFC-072 migration pattern):
 
-- `scripts/migrate_kg_entity_to_person_org.py` — legacy
+- `cli upgrade run` (m0006) — legacy
   `Entity(kind=person)` → `Person` node, `Entity(kind=organization)`
   → `Organization` node; rewrite edges
 - `scripts/backfill_gi_insight_type.py` — optional LLM-classify
@@ -688,7 +688,7 @@ Together they provide:
 2. **Chunk 2** — schemas permissive; legacy artifacts still validate.
 3. **Chunks 3–5** — pipelines emit new shape; older artifacts still
    readable.
-4. **Chunk 6** — `scripts/migrate_kg_entity_to_person_org.py`,
+4. **Chunk 6** — `cli upgrade run` (m0006),
    `scripts/backfill_gi_insight_type.py`,
    `scripts/compute_gi_position_hints.py` rewrite existing corpora.
    Dry-run first against prod-v2 corpus (99 eps) in copy mode.
@@ -780,7 +780,7 @@ to find them.
   `MENTIONS` edge semantics — KG co-occurrence stays as `discovery`
   edge_class, retrieval-relevance settled by RFC-091.
 - **Companion-doc annotation**: ontology migration note pointing
-  to RFC-097 §2 + `scripts/migrate_kg_entity_to_person_org.py`.
+  to RFC-097 §2 + `cli upgrade run` (m0006).
 
 ### `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` — Completed
 

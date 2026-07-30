@@ -152,36 +152,31 @@ class InsightEvidence(NamedTuple):
     voice_type: Optional[str]
 
 
-def value_gate_keep_mask(
+def _coerce_tier(tier: Any) -> int:
+    """A tier as int; an unparsable one is treated as CORE (keep, never silently discard)."""
+    try:
+        return int(tier)
+    except (TypeError, ValueError):
+        return TIER_CORE
+
+
+def _classify_tiers(
     insight_specs: List[Tuple[str, str]],
     *,
     provider: Optional[Any],
-    cfg: Optional[Any] = None,
-    pipeline_metrics: Optional[Any] = None,
-    evidence: Optional[List[Optional[InsightEvidence]]] = None,
-) -> List[bool]:
-    """Which insights clear ``gi_value_gate_min_tier`` — one boolean per insight, in order.
-
-    Args:
-        insight_specs: ``[(text, insight_type), ...]`` as resolved upstream.
-        provider: the summarization provider. Must expose ``classify_insights(texts)`` returning
-            one integer tier per insight, in order. Providers without it skip the gate.
-        cfg: config. Reads ``gi_value_gate_enabled`` and ``gi_value_gate_min_tier``.
-        pipeline_metrics: optional counters.
-        evidence: per-insight grounding — the quote, its speaker, and the voice type. When supplied
-            the judge grades the CLAIM AND ITS SUPPORT; without it, the bare sentence as before.
-
-    Returns:
-        A keep-mask, order preserved. All-True on any failure — the gate fails OPEN.
-    """
+    cfg: Optional[Any],
+    pipeline_metrics: Optional[Any],
+    evidence: Optional[List[Optional[InsightEvidence]]],
+) -> Optional[List[int]]:
+    """One judge classification → the raw per-insight tier list, or ``None`` when the gate can't or
+    shouldn't classify (disabled, unsupported provider, or a failed/malformed judge call). Never
+    raises. Callers treat ``None`` as "ungated: keep everything at CORE"."""
     if not insight_specs:
         return []
 
     enabled = bool(getattr(cfg, "gi_value_gate_enabled", False)) if cfg else False
     if not enabled:
-        return [True] * len(insight_specs)
-
-    min_tier = int(getattr(cfg, "gi_value_gate_min_tier", DEFAULT_MIN_TIER) or DEFAULT_MIN_TIER)
+        return None
 
     judge = _resolve_judge(provider, cfg)
     classify = getattr(judge, "classify_insights", None)
@@ -192,7 +187,7 @@ def value_gate_keep_mask(
             len(insight_specs),
         )
         _bump(pipeline_metrics, "gi_value_gate_unsupported")
-        return [True] * len(insight_specs)
+        return None
 
     if evidence is not None and len(evidence) == len(insight_specs):
         texts = [format_insight_for_judging(t, ev) for (t, _), ev in zip(insight_specs, evidence)]
@@ -215,7 +210,7 @@ def value_gate_keep_mask(
             exc,
         )
         _bump(pipeline_metrics, "gi_value_gate_failures")
-        return [True] * len(insight_specs)
+        return None
 
     if not isinstance(tiers, list) or len(tiers) != len(insight_specs):
         logger.warning(
@@ -224,45 +219,86 @@ def value_gate_keep_mask(
             len(insight_specs),
         )
         _bump(pipeline_metrics, "gi_value_gate_failures")
-        return [True] * len(insight_specs)
+        return None
 
-    # A KEEP MASK, not a filtered list. The caller must drop each insight's QUOTES along with it,
-    # and they are index-aligned — identity cannot be used to re-pair them, because CPython shares
-    # one object for two equal constant tuples and an episode that says the same thing twice would
-    # then keep the wrong evidence. A quote attached to the wrong insight is a fabricated
-    # attribution, which is worse than the filler the gate exists to remove.
-    keep: List[bool] = []
-    dropped = 0
-    for tier in tiers:
-        try:
-            t = int(tier)
-        except (TypeError, ValueError):
-            t = TIER_CORE  # unparsable tier: keep, do not silently discard real content
-        keep.append(t >= min_tier)
-        if t < min_tier:
-            dropped += 1
+    return [_coerce_tier(t) for t in tiers]
 
-    # Never let the gate empty an episode. If nothing clears the bar, the gate is more likely
-    # broken (or the rubric mismatched) than the episode genuinely worthless.
+
+def value_gate_evaluate(
+    insight_specs: List[Tuple[str, str]],
+    *,
+    provider: Optional[Any],
+    cfg: Optional[Any] = None,
+    pipeline_metrics: Optional[Any] = None,
+    evidence: Optional[List[Optional[InsightEvidence]]] = None,
+) -> Tuple[List[bool], List[int]]:
+    """(keep-mask, per-insight tier) from ONE judge call — #1191 preserves the tier the gate already
+    computes (FILLER/MINOR/USEFUL/CORE) instead of collapsing it to keep/drop. The tier is stored on
+    the Insight so the corpus ranks and tags rather than truncating. Fails OPEN.
+
+    Both lists are order-preserved and index-aligned with ``insight_specs``. When the gate is
+    ungated/unsupported/failed the tier is CORE (we kept it, we did not judge it low); when the gate
+    rejects everything (fail-open-empty) the REAL tiers are still returned (honest ranking data).
+    """
+    n = len(insight_specs)
+    tiers_raw = _classify_tiers(
+        insight_specs,
+        provider=provider,
+        cfg=cfg,
+        pipeline_metrics=pipeline_metrics,
+        evidence=evidence,
+    )
+    if tiers_raw is None:
+        return [True] * n, [TIER_CORE] * n
+    if not tiers_raw:
+        return [], []
+
+    min_tier = int(getattr(cfg, "gi_value_gate_min_tier", DEFAULT_MIN_TIER) or DEFAULT_MIN_TIER)
+    keep = [t >= min_tier for t in tiers_raw]
+    dropped = sum(1 for k in keep if not k)
+
+    # Never let the gate empty an episode. If nothing clears the bar, the gate is more likely broken
+    # (or the rubric mismatched) than the episode genuinely worthless — keep all, real tiers intact.
     if not any(keep):
         logger.warning(
             "value gate rejected ALL %d insights (min_tier=%d); keeping them ungated rather "
             "than emitting an empty episode",
-            len(insight_specs),
+            n,
             min_tier,
         )
         _bump(pipeline_metrics, "gi_value_gate_rejected_all")
-        return [True] * len(insight_specs)
+        return [True] * n, tiers_raw
 
     _bump(pipeline_metrics, "gi_value_gate_calls")
     _bump(pipeline_metrics, "gi_insights_dropped_by_value_gate", dropped)
     if dropped:
-        logger.info(
-            "value gate: dropped %d/%d insights below tier %d",
-            dropped,
-            len(insight_specs),
-            min_tier,
-        )
+        logger.info("value gate: dropped %d/%d insights below tier %d", dropped, n, min_tier)
+    return keep, tiers_raw
+
+
+def value_gate_keep_mask(
+    insight_specs: List[Tuple[str, str]],
+    *,
+    provider: Optional[Any],
+    cfg: Optional[Any] = None,
+    pipeline_metrics: Optional[Any] = None,
+    evidence: Optional[List[Optional[InsightEvidence]]] = None,
+) -> List[bool]:
+    """Which insights clear ``gi_value_gate_min_tier`` — one boolean per insight, in order. Thin
+    wrapper over :func:`value_gate_evaluate` (which also returns the tiers). Fails OPEN.
+
+    The caller MUST drop each insight's QUOTES along with it — they are index-aligned and identity
+    cannot re-pair them (CPython shares one object for two equal constant tuples, so an episode that
+    says the same thing twice would keep the wrong evidence; a quote on the wrong insight is a
+    fabricated attribution, worse than the filler the gate removes).
+    """
+    keep, _ = value_gate_evaluate(
+        insight_specs,
+        provider=provider,
+        cfg=cfg,
+        pipeline_metrics=pipeline_metrics,
+        evidence=evidence,
+    )
     return keep
 
 

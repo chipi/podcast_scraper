@@ -29,7 +29,7 @@ class TestGILPipeline:
     def test_build_artifact_has_required_keys(self):
         """Output has schema_version, model_version, prompt_version, episode_id, nodes, edges."""
         out = build_artifact("episode:1", "Some transcript.")
-        assert out["schema_version"] == "3.0"
+        assert out["schema_version"] == "3.1"
         assert out["model_version"] == "stub"
         assert out["prompt_version"] == "v1"
         assert out["episode_id"] == "episode:1"
@@ -40,6 +40,37 @@ class TestGILPipeline:
         """Output passes minimal validation."""
         out = build_artifact("episode:1", "Hello.")
         validate_artifact(out, strict=False)
+
+    def test_insights_carry_tier_routing_tag_rank_salience_1191(self):
+        """ADR-135/#1191: every Insight node carries tier/routing_tag/salience/rank (route-and-tag,
+        never truncate); the emitted artifact is 3.1 and still validates."""
+        out = build_artifact("ep:1", "Some transcript here.")
+        assert out["schema_version"] == "3.1"
+        insights = [n for n in out["nodes"] if n["type"] == "Insight"]
+        assert insights
+        for n in insights:
+            p = n["properties"]
+            assert p["routing_tag"] in ("surface", "connect", "drop")
+            assert 0 <= p["salience"] <= 1
+            assert isinstance(p["tier"], int) and isinstance(p["rank"], int)
+        validate_artifact(out, strict=True)
+
+    def test_route_and_tag_logic_1191(self):
+        """The routing rubric: FILLER→drop; named(surfaceable)+USEFUL→surface; else connect."""
+        from podcast_scraper.gi.pipeline import _apply_route_and_tag
+
+        drop: dict = {"grounded": True, "surfaceable": True}
+        _apply_route_and_tag(drop, 0)  # FILLER
+        assert drop["routing_tag"] == "drop"
+
+        surface: dict = {"grounded": True, "surfaceable": True}
+        _apply_route_and_tag(surface, 3)  # CORE + named
+        assert surface["routing_tag"] == "surface" and surface["salience"] == 1.0
+
+        # unattributed stance (not surfaceable) → CONNECT even at a high tier
+        connect: dict = {"grounded": True, "surfaceable": False}
+        _apply_route_and_tag(connect, 3)
+        assert connect["routing_tag"] == "connect"
 
     def test_build_artifact_contains_episode_insight_quote(self):
         """Contains at least one Episode, one Insight, one Quote node."""
@@ -251,24 +282,25 @@ class TestGILPipeline:
         assert len(quote_nodes) == 1
         assert quote_nodes[0]["properties"]["text"] == "the proof"
 
-    def test_resolve_insight_specs_non_empty_stripped_and_capped(self):
-        """When insight_texts is non-empty, return stripped and capped by gi_max_insights.
-
-        Insight types are assigned by the rule-based classifier (RFC-097 v3.0
-        chunk-5). Single-letter inputs have no classification signal, so
-        each falls into the conservative ``observation`` default. The
-        stripping (``" B "`` → ``"B"``) and cap behavior are what this
-        test guards; the classifier coverage lives in
-        ``test_insight_type_classifier.py``.
+    def test_resolve_insight_specs_non_empty_stripped_not_truncated_1191(self):
+        """ADR-135/#1191: bullet-derived insights are stripped but NEVER truncated — even with a low
+        gi_max_insights, every insight is stored (the ceiling is not a corpus cutoff; "first N" is a
+        view-time decision). Single-letter inputs default to ``observation``.
         """
         cfg = MagicMock()
-        cfg.gi_max_insights = 3
+        cfg.gi_max_insights = 3  # deliberately low — must NOT cap the 5 inputs
         out = _resolve_insight_specs(
             "transcript",
             cfg=cfg,
             insight_texts=["A", " B ", "C", "D", "E"],
         )
-        assert out == [("A", "observation"), ("B", "observation"), ("C", "observation")]
+        assert out == [
+            ("A", "observation"),
+            ("B", "observation"),
+            ("C", "observation"),
+            ("D", "observation"),
+            ("E", "observation"),
+        ]
 
     def test_resolve_insight_specs_empty_insight_texts_ignored(self):
         """When insight_texts is empty or all blank, fall back to stub."""
@@ -363,7 +395,7 @@ class TestGILPipeline:
             transcript_ref="transcript.txt",
         )
         assert out["episode_id"] == "ep:1"
-        assert out["schema_version"] == "3.0"
+        assert out["schema_version"] == "3.1"
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(insight_nodes) == 2

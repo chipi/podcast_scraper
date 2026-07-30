@@ -17,9 +17,15 @@ import json
 import sys
 from typing import Optional, Sequence
 
-from .aggregate import correlate as _correlate, summary as _summary
+from .aggregate import (
+    analytics as _analytics,
+    correlate as _correlate,
+    investigate as _investigate,
+    summary as _summary,
+    surface as _surface,
+)
 from .config import ObservabilityConfig, ObservabilityConfigError
-from .sources import github, grafana, langfuse, loki, prod_api, sentry
+from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, victoria
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -44,8 +50,8 @@ def _build_parser() -> argparse.ArgumentParser:
     runs.add_argument("--limit", type=int, default=10, help="Max runs to return (default 10).")
     deploys = sub.add_parser("deploys", help="Recent deploy-prod.yml runs (GitHub Actions).")
     deploys.add_argument("--limit", type=int, default=10, help="Max deploys (default 10).")
-    sub.add_parser("cost-today", help="LLM spend over the last 24h (Loki).")
-    logs = sub.add_parser("logs", help="Recent container logs — error-ish by default (Loki).")
+    sub.add_parser("cost-today", help="LLM cost events over the last 24h (VictoriaLogs).")
+    logs = sub.add_parser("logs", help="Recent logs — error-ish by default (VictoriaLogs).")
     logs.add_argument("--level", default="error", help="'error' filters error-ish lines; else all.")
     logs.add_argument(
         "--service", default=None, help="Filter to one compose service (api/pipeline/…)."
@@ -69,6 +75,43 @@ def _build_parser() -> argparse.ArgumentParser:
         "correlate", help="Every signal (trace + cost + errors) for one run_id, joined."
     )
     correlate.add_argument("run_id", help="The run's correlation id (join key).")
+    sub.add_parser("resilience", help="Open circuit breakers + LLM call-fuse budgets.")
+    usage = sub.add_parser("usage", help="LLM token/cost rollup, sliced by a dimension.")
+    usage.add_argument(
+        "--group-by", default="provider,model", help="Comma dims (default provider,model)."
+    )
+    usage.add_argument("--run-id", default=None, help="Scope the rollup to one run.")
+    sub.add_parser("run-summary", help="Last completed enrichment run summary.")
+    # --- current-stack (homelab) verbs ---
+    surface = sub.add_parser(
+        "surface", help="Observe ONE surface: metrics/errors/logs/traces (+cost)."
+    )
+    surface.add_argument("surface", help="api | pipeline | player | operator")
+    surface.add_argument("--window", default="1h", help="Lookback window (default 1h).")
+    investigate = sub.add_parser("investigate", help="Drill on one join key across every backend.")
+    investigate.add_argument("--trace-id", default=None)
+    investigate.add_argument("--run-id", default=None)
+    investigate.add_argument("--episode-id", default=None)
+    investigate.add_argument("--window", default="24h", help="Lookback window (default 24h).")
+    events = sub.add_parser(
+        "events", help="emit_event stream (pipeline_stage/llm_cost/…) VictoriaLogs."
+    )
+    events.add_argument("event_type", help="e.g. pipeline_stage | llm_cost | search_query")
+    events.add_argument("--surface", default=None, help="api | pipeline | …")
+    events.add_argument("--run-id", default=None)
+    events.add_argument("--episode-id", default=None)
+    events.add_argument("--window", default="1h")
+    events.add_argument("--limit", type=int, default=50)
+    metrics = sub.add_parser("metrics", help="One PromQL instant query (VictoriaMetrics).")
+    metrics.add_argument("query", help="PromQL, e.g. up or sum(rate(http_requests_total[5m])).")
+    spans = sub.add_parser("spans", help="Recent VictoriaTraces spans for a Jaeger service.")
+    spans.add_argument("service", help="e.g. podcast-api | podcast-pipeline")
+    spans.add_argument("--window", default="1h")
+    spans.add_argument("--limit", type=int, default=10)
+    analytics = sub.add_parser(
+        "analytics", help="Umami user-action analytics for a frontend (operator/player)."
+    )
+    analytics.add_argument("--window", default="24h", help="Lookback window (default 24h).")
     serve = sub.add_parser("serve", help="Run the MCP server (agent-facing) over the core.")
     serve.add_argument(
         "--transport",
@@ -102,12 +145,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     elif args.command == "deploys":
         result = github.recent_deploys(target, limit=args.limit)
     elif args.command == "cost-today":
-        result = loki.cost_today(target)
+        result = victoria.events(target, "llm_cost", window="24h", limit=500)
     elif args.command == "logs":
-        result = loki.recent_logs(
+        result = victoria.recent_logs(
             target,
             level=args.level,
-            service=args.service,
+            surface=args.service,
             window=args.window,
             limit=args.limit,
             contains=args.contains,
@@ -122,6 +165,38 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         result = _summary(target)
     elif args.command == "correlate":
         result = _correlate(target, args.run_id)
+    elif args.command == "resilience":
+        result = prod_api.resilience(target)
+    elif args.command == "usage":
+        result = prod_api.usage(target, group_by=args.group_by, run_id=args.run_id or "")
+    elif args.command == "run-summary":
+        result = enrichment.run_summary(target)
+    elif args.command == "surface":
+        result = _surface(target, args.surface, window=args.window)
+    elif args.command == "investigate":
+        result = _investigate(
+            target,
+            trace_id=args.trace_id,
+            run_id=args.run_id,
+            episode_id=args.episode_id,
+            window=args.window,
+        )
+    elif args.command == "events":
+        result = victoria.events(
+            target,
+            args.event_type,
+            surface=args.surface,
+            run_id=args.run_id,
+            episode_id=args.episode_id,
+            window=args.window,
+            limit=args.limit,
+        )
+    elif args.command == "analytics":
+        result = _analytics(target, window=args.window)
+    elif args.command == "metrics":
+        result = victoria.metrics_instant(target, args.query)
+    elif args.command == "spans":
+        result = victoria.traces_recent(target, args.service, window=args.window, limit=args.limit)
     elif args.command == "serve":
         from .mcp_server import run_server
 

@@ -22,9 +22,33 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
+
+# The host/guest roles the model is allowed to assert. Anything else is discarded like an invented
+# name — a prompt is not an enforcement mechanism (#876), so the vocabulary is closed in code.
+_VALID_ROLES = {"host", "guest"}
+
+
+@dataclass(frozen=True)
+class LLMVoice:
+    """One voice's LLM verdict: a matched ``name`` (from the closed stated list) and/or a host/guest
+    ``role``. Either may be ``None`` — the model is allowed, and expected, to decline (ADR-137)."""
+
+    name: Optional[str] = None
+    role: Optional[str] = None  # "host" | "guest" | None
+
+
+def _coerce_name(value: Any) -> Optional[str]:
+    return str(value) if value not in (None, "", "null") else None
+
+
+def _coerce_role(value: Any) -> Optional[str]:
+    role = str(value).strip().lower() if value not in (None, "", "null") else None
+    return role if role in _VALID_ROLES else None
+
 
 # How much of each voice we show the model. The opening turns are where people are introduced and
 # introduce themselves; further in, everyone is just talking about the topic and the signal is gone.
@@ -89,12 +113,17 @@ def build_resolution_prompt(
     voice_texts: Dict[str, str],
     known_hosts: Sequence[str] = (),
     ordered_turns: Optional[Sequence[tuple]] = None,
+    episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    intro_block: Optional[str] = None,
 ) -> str:
-    """The question that HAS an answer: which of these named people is each of these voices?
+    """Two questions with answers: which named person is each voice, and is it a host or a guest?
 
-    The candidate list is closed. The model picks from it or says ``null`` — it is never asked to
+    The candidate list is closed. The model picks a name from it or says ``null`` — never asked to
     produce a name, so it cannot produce one that was never stated. Alongside the closed list it is
-    given the RETRIEVED EVIDENCE for each name: every passage in which that name is actually spoken.
+    given the RETRIEVED EVIDENCE for each name, and — for the host/guest role (ADR-137) — the
+    episode title, description, and the cleaned, speaker-labeled intro, which is where a show states
+    who is hosting and who is visiting.
     """
     hosts = ", ".join(known_hosts) if known_hosts else "(not stated)"
 
@@ -120,7 +149,20 @@ def build_resolution_prompt(
         voices.append(f'  {voice}: "{sample}"')
     voice_block = "\n".join(voices)
 
-    return f"""You are matching diarized voices to the people an episode's metadata names.
+    title = (episode_title or "").strip() or "(not provided)"
+    description = (episode_description or "").strip() or "(not provided)"
+    intro = (intro_block or "").strip() or "(not provided)"
+
+    return f"""You are matching diarized voices to the people an episode's metadata names, and \
+deciding which are HOSTS and which are GUESTS.
+
+EPISODE TITLE: {title}
+
+EPISODE DESCRIPTION: {description}
+
+THE INTRO (first minutes, speaker-labeled, ads/cameos removed) — where a show usually says who hosts
+and who is visiting:
+{intro}
 
 PEOPLE THE EPISODE METADATA NAMES (the ONLY names you may use), each followed by every passage in
 the transcript where that name is actually SPOKEN:
@@ -131,16 +173,16 @@ Known hosts of the show: {hosts}
 VOICES, each shown with the opening of its OWN speech:
 {voice_block}
 
-For each voice, decide which of the named people it is.
+For each voice, decide (a) which of the named people it is, and (b) whether it is a host or a guest.
 
 RULES — these matter more than covering every voice:
-1. You may ONLY use a name from the list above. Never invent a name, and never use a name that is
-   not on the list, even if a voice mentions one.
+1. NAME: you may ONLY use a name from the list above. Never invent a name, and never use a name that
+   is not on the list, even if a voice mentions one.
 2. Many of the named people DO NOT SPEAK. Show notes name the people an episode is ABOUT as well as
    the people in the room — a lawsuit defendant, a politician, a founder who died in 1956. Read the
    retrieved passage: "Elon Musk is suing OpenAI" names a SUBJECT, "Jia Li is with us today" names
-   a SPEAKER. If a voice is not clearly one of the named people, answer null. Null is CORRECT and
-   expected, and is always better than a plausible guess.
+   a SPEAKER. If a voice is not clearly one of the named people, answer null for name. Null is
+   CORRECT and expected, and is always better than a plausible guess.
 3. Evidence is the voice's own words or an introduction of it. A voice that says "I'm Peter Ludwig"
    IS Peter Ludwig. The person a host introduces is usually the NEXT voice to speak — the passages
    above tell you who that is. Topic overlap is NOT evidence: a voice discussing a person is not
@@ -148,13 +190,26 @@ RULES — these matter more than covering every voice:
 4. A name marked NEVER SPOKEN ALOUD is almost certainly not in the room. Assign it only if a voice
    unmistakably speaks as that person.
 5. Never assign the same name to two voices.
+6. ROLE: use the title, description and intro. The host welcomes listeners to the show and
+   introduces the guest ("welcome to X, I'm your host…", "my guest today is…"); the guest is being
+   interviewed ("thanks for having me"). A person the description presents as the interviewee is a
+   GUEST even if a co-host is absent and a host seat looks empty. Answer "host", "guest", or null.
+   null is correct when you cannot tell.
+7. ABSTAIN on brief, anonymous voices — a member of the public in a field clip, a one-line cameo.
+   Give them null name AND null role. Never invent a name or force a role onto them.
 
-Return JSON only:
-{{"voices": {{"SPEAKER_00": "Full Name or null", "SPEAKER_01": null}}}}"""
+Return JSON only, one object per voice:
+{{"voices": {{"SPEAKER_00": {{"name": "Full Name or null", "role": "host|guest|null"}}}}}}"""
 
 
-def _parse(raw: str) -> Dict[str, Optional[str]]:
-    """Pull the mapping out of the model's answer, tolerating fences and reasoning preambles."""
+def _parse(raw: str) -> Dict[str, LLMVoice]:
+    """Pull the ``{voice: LLMVoice(name, role)}`` mapping out of the model's answer.
+
+    Tolerates fences and reasoning preambles, and BOTH output shapes so a legacy prompt/response and
+    the ADR-137 role-bearing one both parse:
+      legacy  ``{"voices": {"SPEAKER_00": "Name"}}``            → name only, role None
+      current ``{"voices": {"SPEAKER_00": {"name": "Name", "role": "host"}}}``
+    """
     text = (raw or "").strip()
     if not text:
         return {}
@@ -172,7 +227,15 @@ def _parse(raw: str) -> Dict[str, Optional[str]]:
     voices = obj.get("voices") if isinstance(obj, dict) else None
     if not isinstance(voices, dict):
         return {}
-    return {str(k): (str(v) if v not in (None, "", "null") else None) for k, v in voices.items()}
+    out: Dict[str, LLMVoice] = {}
+    for k, v in voices.items():
+        if isinstance(v, dict):
+            out[str(k)] = LLMVoice(
+                name=_coerce_name(v.get("name")), role=_coerce_role(v.get("role"))
+            )
+        else:
+            out[str(k)] = LLMVoice(name=_coerce_name(v), role=None)
+    return out
 
 
 def _introduces_itself_as(text: str, name: str) -> bool:
@@ -213,53 +276,74 @@ def _refuted_by_third_person(voice_text: str, name: str) -> bool:
     return _talks_about(voice_text, name) and not _introduces_itself_as(voice_text, name)
 
 
-def resolve_voices_from_conversation(
+def resolve_voices_and_roles(
     stated_names: Sequence[str],
     voice_texts: Dict[str, str],
     complete: Callable[[str], str],
     known_hosts: Sequence[str] = (),
     ordered_turns: Optional[Sequence[tuple]] = None,
-) -> Dict[str, str]:
-    """``{voice: name}`` for the voices the model could identify, from the CLOSED stated list.
+    episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    intro_block: Optional[str] = None,
+) -> Dict[str, LLMVoice]:
+    """``{voice: LLMVoice(name, role)}`` — the name AND host/guest role, in one call (ADR-137).
 
     ``complete`` is any "prompt in, text out" callable, so this stays provider-agnostic and is
     trivially testable without a network.
 
-    Everything the model returns is verified against the stated list before it is believed. The
-    model is an *identifier*, never an author: if it answers with a name nobody stated, the answer
-    is discarded, because that is precisely the failure this exists to prevent.
+    Everything the model returns is verified before it is believed. The model is an *identifier and
+    a classifier*, never an author: a name nobody stated is discarded (that is the #876 failure this
+    exists to prevent), a name a voice only speaks in the third person is discarded, and a role
+    outside {host, guest} is dropped. Name and role are independent: a voice may keep its role even
+    if its name is refuted, and vice-versa.
     """
     stated = [n for n in (stated_names or ()) if str(n).strip()]
-    if not stated or not voice_texts:
+    # Naming needs a closed candidate list, but ROLE does not — it reads title/description/intro.
+    # A no-stated-host show (Planet Money) names nobody in metadata, yet its hosts self-introduce
+    # on air; run in ROLE-ONLY mode so the model can still say host/guest with no candidates (names
+    # stay closed and come back null). Requires real voices AND some role context.
+    has_role_context = bool(episode_title or episode_description or intro_block)
+    if not voice_texts or (not stated and not has_role_context):
         return {}
 
-    prompt = build_resolution_prompt(stated, voice_texts, known_hosts, ordered_turns)
+    prompt = build_resolution_prompt(
+        stated,
+        voice_texts,
+        known_hosts,
+        ordered_turns,
+        episode_title,
+        episode_description,
+        intro_block,
+    )
     try:
         raw = complete(prompt)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("speaker resolution failed (%s); no voice is named from it", exc)
+        logger.warning("speaker resolution failed (%s); no voice is named/roled from it", exc)
         return {}
 
     by_stated = {n.lower(): n for n in stated}
-    out: Dict[str, str] = {}
+    out: Dict[str, LLMVoice] = {}
     used: set = set()
     invented: List[str] = []
     refuted: List[str] = []
 
-    for voice, name in _parse(raw).items():
-        if not name or voice not in voice_texts:
+    for voice, verdict in _parse(raw).items():
+        if voice not in voice_texts:
             continue
-        canonical = by_stated.get(name.strip().lower())
-        if canonical is None:
-            invented.append(name)
-            continue
-        if _refuted_by_third_person(voice_texts[voice], canonical):
-            refuted.append(f"{voice}={canonical}")
-            continue
-        if canonical.lower() in used:  # rule 4 — one person, one voice
-            continue
-        used.add(canonical.lower())
-        out[voice] = canonical
+        canonical: Optional[str] = None
+        if verdict.name:
+            match = by_stated.get(verdict.name.strip().lower())
+            if match is None:
+                invented.append(verdict.name)
+            elif _refuted_by_third_person(voice_texts[voice], match):
+                refuted.append(f"{voice}={match}")
+            elif match.lower() in used:  # rule 5 — one person, one voice
+                pass
+            else:
+                used.add(match.lower())
+                canonical = match
+        if canonical or verdict.role:
+            out[voice] = LLMVoice(name=canonical, role=verdict.role)
 
     if invented:
         logger.warning(
@@ -278,12 +362,27 @@ def resolve_voices_from_conversation(
         )
     if out:
         logger.info(
-            "speaker resolution named %d/%d voice(s) from the conversation: %s",
+            "speaker resolution: %d/%d voice(s) resolved from the conversation: %s",
             len(out),
             len(voice_texts),
-            ", ".join(f"{v}={n}" for v, n in sorted(out.items())),
+            ", ".join(f"{v}={lv.name or '?'}/{lv.role or '?'}" for v, lv in sorted(out.items())),
         )
     return out
+
+
+def resolve_voices_from_conversation(
+    stated_names: Sequence[str],
+    voice_texts: Dict[str, str],
+    complete: Callable[[str], str],
+    known_hosts: Sequence[str] = (),
+    ordered_turns: Optional[Sequence[tuple]] = None,
+) -> Dict[str, str]:
+    """``{voice: name}`` — the name-only view (unchanged contract). Delegates to
+    :func:`resolve_voices_and_roles` and projects away the role."""
+    resolved = resolve_voices_and_roles(
+        stated_names, voice_texts, complete, known_hosts=known_hosts, ordered_turns=ordered_turns
+    )
+    return {voice: lv.name for voice, lv in resolved.items() if lv.name}
 
 
 def completion_fn_for(provider: Any) -> Optional[Callable[[str], str]]:

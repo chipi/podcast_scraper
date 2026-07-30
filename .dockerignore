@@ -46,6 +46,13 @@ scripts/dashboard/
 .coverage
 htmlcov/
 .tox/
+# Test-run corpora and the host HF/model cache — NOT part of any image. The pipeline
+# Dockerfile does `COPY . .`, so without these the ~82GB .test_outputs corpora and ~18GB host
+# .cache would stream into the build context (100GB+ transfer that all but stalls stack-test).
+# Models are baked from the BUILDER stage (Dockerfile downloads into /root/.cache/huggingface at
+# build time, then COPYs from builder), so the host caches are never read from the context.
+.test_outputs/
+.cache/
 
 # CI/CD and build artifacts
 .build/
