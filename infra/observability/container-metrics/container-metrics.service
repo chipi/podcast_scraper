@@ -1,0 +1,20 @@
+[Unit]
+# prod container-metrics collector (homelab landing page — Containers table + apps).
+# Long-running push loop; pairs with the box's node Alloy but is a separate, simple
+# service (Alloy has no compose-project/uptime exporter). See README.md.
+Description=Homelab container-metrics collector (prod -> mini VictoriaMetrics)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust the path if you install elsewhere than /opt/vps-observability.
+ExecStart=/opt/vps-observability/container-metrics/push.sh
+Restart=always
+RestartSec=10
+# Needs docker socket access + python3 + curl on PATH.
+# Environment=VM_URL=http://homelab:8428/api/v1/import/prometheus
+# Environment=INTERVAL=20
+
+[Install]
+WantedBy=multi-user.target
