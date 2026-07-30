@@ -1,0 +1,11 @@
+# Additive override (#1357, ADR-142): ALSO publish the gateway on the box's own tailnet IP so
+# the admin UI (http://<prod-tailnet-ip>:4001/ui) is reachable from any tailnet device —
+# laptop or phone with Tailscale. deploy-litellm.sh includes this file ONLY when it resolves
+# the box's tailnet IP (LITELLM_TAILNET_IP); the base file's 127.0.0.1 bind always stays, so
+# the app reaches the gateway on loopback and the gateway does not depend on tailscale being
+# up. Still never public — only loopback + the tailnet interface, gated by the tailnet ACL
+# (autogroup:admin -> tag:prod:4001).
+services:
+  litellm:
+    ports:
+      - "${LITELLM_TAILNET_IP}:4001:4000"

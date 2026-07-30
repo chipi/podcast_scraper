@@ -1,0 +1,79 @@
+// litellm.alloy — the PROD LiteLLM gateway's container-log rules for the shared node Alloy
+// (ADR-121 / ADR-142). Dropped into /opt/vps-observability/config.d/litellm.alloy on the
+// litellm deploy and hot-reloaded (`docker kill -s HUP alloy`). Mirrors operator.alloy /
+// player.alloy.
+//
+// WHY: Langfuse captures the LLM *calls* (prompts/completions/tokens/cost), and GlitchTip
+// captures gateway *errors* — but neither carries the gateway's container stdout (startup,
+// config reloads, provider connection failures, rate-limit backoffs, budget refusals, the
+// Postgres logs). base.alloy collects no per-container docker logs, so without this drop-in
+// the gateway's logs are absent from VictoriaLogs and Grafana. This ships them.
+//
+// References shared components in base.alloy:
+//   - discovery.docker "app"   — the Docker-socket container discovery
+//   - loki.write "logs_sink"   — the VictoriaLogs sink
+// Do NOT touch base.alloy or the operator/player/orrery sources.
+
+// ---------- LiteLLM gateway containers (compose project `litellm`) ----------
+// Keep the gateway + its Postgres. surface=gateway|postgres mirrors the api|web split.
+discovery.relabel "litellm" {
+	targets = discovery.docker.app.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(litellm|litellm-postgres)"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/litellm"
+		target_label  = "surface"
+		replacement   = "gateway"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/litellm-postgres"
+		target_label  = "surface"
+		replacement   = "postgres"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		target_label  = "container"
+		regex         = "/(.*)"
+		replacement   = "$1"
+	}
+}
+
+loki.source.docker "litellm" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.litellm.output
+	forward_to = [loki.process.litellm_denoise.receiver]
+	labels     = {app = "litellm"}
+}
+
+// Drop the successful health-poll NOISE (LiteLLM's /health/liveliness + /health/readiness are
+// hit by the deploy health-gate + any monitor). Matches only 2xx (`" 2`), so a FAILING health
+// check (4xx/5xx) is still kept as a signal.
+loki.process "litellm_denoise" {
+	forward_to = [loki.write.logs_sink.receiver]
+
+	stage.drop {
+		expression          = "\"(GET|HEAD) /health/(liveliness|readiness)[^\"]*\" 2"
+		drop_counter_reason = "healthcheck_noise"
+	}
+
+	// homelab log standard (agentic-ai-homelab/infra/observability/LOG-STANDARD.md):
+	// extract the 32-hex trace id from a traceparent/sentry-trace pattern into
+	// structured_metadata (a queryable field, NOT a high-cardinality stream label).
+	// Inlined here (rather than referencing base's homelab_std) so this drop-in
+	// deploys independently of a base.alloy rollout.
+	stage.regex {
+		expression = "(?:00-)?(?P<trace_id>[a-f0-9]{32})-[a-f0-9]{16}"
+	}
+	stage.structured_metadata {
+		values = {trace_id = ""}
+	}
+}

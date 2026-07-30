@@ -30,19 +30,23 @@ Concrete choices:
   own `-p litellm` compose project (isolated, like operator/player). **Config-as-code, shared
   lineage** so the two gateways don't drift — per-instance difference is env only. Image tag
   pinned after first boot.
-- **Not a public surface.** API bound to `127.0.0.1:4001`, Postgres to `127.0.0.1:5433`. No
-  Caddy vhost. The app reaches it over host loopback / the compose network.
+- **Loopback + tailnet, never public.** API bound to `127.0.0.1:4001` (the app, always) and
+  the box's tailnet IP `:4001` (admin UI from a laptop/phone, ACL `autogroup:admin →
+  tag:prod:4001`); Postgres to `127.0.0.1:5433`. No Caddy vhost, no public bind. Loopback stays
+  regardless, so the gateway never depends on tailscale being up.
 - **Provider keys move INTO the gateway** (via the sops secrets flow) and only there — the
   app never holds a provider key again (#1357 §2, delivered with #1356). The VPS gets its
   **own** upstream OpenRouter key so provider-side billing separates prod from homelab spend.
 - **One budgeted virtual key** for the app (`proj-podcast-prod`, hard `max_budget`); the hard
   budget wall is tested before go-live.
 - **Inference local, telemetry home.** Losing telemetry in a homelab outage is acceptable;
-  losing inference is not. Langfuse traces + GlitchTip errors ship to the homelab pane (own
-  `litellm-vps` projects), and per-key spend is pushed daily-ish to homelab VictoriaMetrics
-  by a host systemd timer reading the gateway Postgres — the gateway's own Prometheus
-  endpoint is enterprise-gated, so we push the metered truth (option **a**; mirrors the
-  container-metrics collector). A homelab Grafana "Prod LLM Gateway" dashboard summarizes it.
+  losing inference is not. Four planes ship to the homelab pane (own `litellm-vps` projects):
+  **traces** (Langfuse) + **errors** (GlitchTip) via the gateway callbacks; **logs** (container
+  stdout) via a `litellm.alloy` node-Alloy drop-in → VictoriaLogs; **metrics** (per-key spend)
+  pushed daily-ish to VictoriaMetrics by a host systemd timer reading the gateway Postgres (the
+  gateway's own Prometheus endpoint is enterprise-gated, so we push the metered truth — option
+  **a**, mirrors the container-metrics collector). A homelab Grafana "Prod LLM Gateway"
+  dashboard + a homepage card summarize spend.
 
 **The container reaches the remote homelab pane by the `homelab` name over the tailnet.**
 Docker's bridge can't resolve MagicDNS, so `deploy-litellm.sh` resolves homelab's tailnet IP

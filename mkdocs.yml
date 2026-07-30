@@ -19,6 +19,7 @@ nav:
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
       - Tailnet & networking runbook (ACL GitOps, cross-project): guides/TAILNET_AND_NETWORKING.md
       - Edge convergence runbook (apply-edge / verify-edge): guides/EDGE_CONVERGENCE_RUNBOOK.md
+      - LiteLLM gateway (consume + integrate): guides/LITELLM_GATEWAY.md
       - DGX Spark runbook (RFC-089): guides/DGX_RUNBOOK.md
       - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md

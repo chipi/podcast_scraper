@@ -68,6 +68,23 @@ fi
 
 COMPOSE=(docker compose -p litellm --env-file "$LITELLM_ENV" -f docker-compose.litellm.yml)
 
+# Also publish the admin UI on the box's OWN tailnet IP so it's reachable from a laptop/phone
+# (http://<tailnet-ip>:4001/ui) — gated by the ACL (autogroup:admin -> tag:prod:4001). Loopback
+# (base compose) always stays, so the app reaches the gateway on 127.0.0.1 and the gateway never
+# depends on tailscale being up. If the self IP can't resolve, deploy loopback-only + warn.
+SELF_TS_IP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+if [ -n "$SELF_TS_IP" ]; then
+  if grep -qE '^LITELLM_TAILNET_IP=' "$LITELLM_ENV"; then
+    sed -i "s#^LITELLM_TAILNET_IP=.*#LITELLM_TAILNET_IP=$SELF_TS_IP#" "$LITELLM_ENV"
+  else
+    echo "LITELLM_TAILNET_IP=$SELF_TS_IP" >>"$LITELLM_ENV"
+  fi
+  COMPOSE+=(-f docker-compose.litellm-tailnet.yml)
+  echo "[$(date -u +%FT%TZ)] admin UI also on the tailnet: http://$SELF_TS_IP:4001/ui"
+else
+  echo "WARN: could not resolve the box's tailnet IP — gateway on 127.0.0.1 only (UI via ssh tunnel)" >&2
+fi
+
 echo "[$(date -u +%FT%TZ)] pulling + starting litellm gateway..."
 if ! "${COMPOSE[@]}" up -d --remove-orphans; then
   echo "ERROR: docker compose up failed" >&2
@@ -88,6 +105,19 @@ if [ "$ok" != 1 ]; then
   echo "ERROR: litellm gateway did not report healthy within 60s" >&2
   "${COMPOSE[@]}" logs --tail=50 litellm >&2 || true
   exit 3
+fi
+
+# Ship the gateway's container logs to VictoriaLogs via the shared node Alloy (ADR-121/130):
+# drop litellm.alloy into the deploy-writable config.d + hot-reload. NON-fatal — a logging
+# hiccup must not fail the gateway deploy. Langfuse carries the LLM *calls*; this carries the
+# gateway's container stdout (startup, config reloads, provider failures, budget refusals).
+ALLOY_DIR=/opt/vps-observability/config.d
+if [ -d "$ALLOY_DIR" ] && [ -f "$REPO_DIR/infra/observability/litellm.alloy" ]; then
+  echo "[$(date -u +%FT%TZ)] installing litellm.alloy log rules + reloading Alloy..."
+  cp "$REPO_DIR/infra/observability/litellm.alloy" "$ALLOY_DIR/litellm.alloy"
+  chmod 0644 "$ALLOY_DIR/litellm.alloy"
+  docker kill -s HUP alloy >/dev/null 2>&1 \
+    || echo "WARN: could not HUP alloy — gateway logs may lag until its next reload" >&2
 fi
 
 echo "[$(date -u +%FT%TZ)] litellm gateway healthy on 127.0.0.1:4001 (project=litellm)."

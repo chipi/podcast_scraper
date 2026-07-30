@@ -27,9 +27,12 @@ homelab so the gateway boots + is testable; the real prod alias set is decided i
 
 ## Two prod-specific differences from the homelab reference
 
-1. **Loopback-bound, never public.** API on `127.0.0.1:4001`, Postgres on `127.0.0.1:5433`
-   (for the spend pusher). No Caddy vhost. Admin UI via an SSH/tailscale tunnel; a
-   tailnet-only admin bind is a follow-up, not day one.
+1. **Loopback + tailnet, never public.** API on `127.0.0.1:4001` (the app, always) **and** on
+   the box's tailnet IP `:4001` (admin UI from a laptop/phone — added by
+   `docker-compose.litellm-tailnet.yml` when `deploy-litellm.sh` resolves the self IP; loopback
+   stays so the gateway never depends on tailscale being up). Postgres on `127.0.0.1:5433`
+   (spend pusher). No Caddy vhost, no public bind; the tailnet side is gated by the ACL
+   (`autogroup:admin → tag:prod:4001`).
 2. **Telemetry is remote.** Homelab runs Langfuse/GlitchTip; on prod the container reaches
    them by the `homelab` name over the tailnet. Docker's bridge can't resolve MagicDNS, so
    `deploy-litellm.sh` resolves homelab's tailnet IP fresh and pins it in compose
@@ -66,16 +69,21 @@ top-up.
 2. Make a call with it → expect a refusal once the cap is hit.
 3. Delete the scratch key; mint the real `proj-podcast-prod` with the real budget.
 
-## Spend → homelab observability
+## Observability — four planes, each to the right tool
 
-- **VictoriaMetrics:** `litellm-spend-push.timer` runs `spend-to-vm.sh` every ~30 min,
-  reading per-key spend from the gateway Postgres and pushing `litellm_key_spend_usd`,
-  `litellm_key_max_budget_usd`, `litellm_key_budget_burn_ratio` (`box="prod"`) to
-  `homelab:8428`. Installed on the box by cloud-init (durable across rebuilds).
-- **Grafana:** a "Prod LLM Gateway" dashboard (spend/tokens/requests/budget-burn) lives on
-  the homelab Grafana — see `grafana/` for the dashboard JSON + the homelab-side handover.
-- **Langfuse / GlitchTip:** per-request traces + gateway errors ship to the `litellm-vps`
-  projects on homelab (own projects, kept separate from homelab's `litellm-gateway`).
+- **Traces** (per-request: prompt/completion/tokens/cost/latency) → **Langfuse**, project
+  `litellm-vps` (`success/failure_callback: langfuse`). This is the LLM-call detail.
+- **Errors** (gateway exceptions) → **GlitchTip**, project `litellm-vps` (`failure_callback:
+  sentry`). Both `litellm-vps` projects are kept separate from homelab's `litellm-gateway`.
+- **Metrics** (per-key spend/budget/burn) → **VictoriaMetrics**: `litellm-spend-push.timer`
+  runs `spend-to-vm.sh` every ~30 min, reading the gateway Postgres and pushing
+  `litellm_key_spend_usd` / `_max_budget_usd` / `_budget_burn_ratio` (`box="prod"`) to
+  `homelab:8428`. Viewed in **Grafana** ("Prod LLM Gateway", see `grafana/`) + the homepage.
+- **Logs** (gateway container stdout — startup, config reloads, provider failures, budget
+  refusals, Postgres) → **VictoriaLogs**: `litellm.alloy` (a node-Alloy drop-in, installed by
+  `deploy-litellm.sh` into `config.d/`) scrapes the `litellm` + `litellm-postgres` containers
+  (`app=litellm`), drops health-poll noise, extracts `trace_id`. Langfuse carries the *calls*;
+  this carries everything else.
 
 ## Rotating a key
 
