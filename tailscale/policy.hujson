@@ -43,12 +43,16 @@
     },
 
     // Deploy workflow (ephemeral GHA runner under tag:gha-deployer) SSHes into
-    // the VPS to run `docker compose pull && up`. SSH + the orrery external
-    // healthcheck on :8443 — no other ports.
+    // the VPS to run `docker compose pull && up`, then probes health over the
+    // tailnet. :22 SSH · :443 the PODCAST api /api/health probe (deploy-prod.yml
+    // #720 — tailscale-serve fronts the api on :443) · :8443 the orrery external
+    // healthcheck. :443 was dropped when this grant was authored around the orrery
+    // co-tenant (#838) — its absence hung deploy-prod.yml's post-deploy probe
+    // (the api was healthy; the runner just couldn't reach :443).
     {
       "action": "accept",
       "src":    ["tag:gha-deployer"],
-      "dst":    ["tag:prod:22,8443"]
+      "dst":    ["tag:prod:22,443,8443"]
     },
 
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.

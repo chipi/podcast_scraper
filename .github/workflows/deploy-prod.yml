@@ -379,14 +379,17 @@ jobs:
           PROBE_URL: https://${{ steps.ts_host.outputs.resolved_fqdn }}/api/health
         run: |
           set -euo pipefail
+          # --max-time caps each attempt so an unreachable :443 (e.g. a missing ACL
+          # grant) FAILS FAST instead of hanging the whole run for minutes on curl's
+          # default connect timeout — the incident this step was written to expose.
           for i in $(seq 1 12); do
-            if curl -fsS "$PROBE_URL" | jq -e '.status == "ok"' >/dev/null 2>&1; then
+            if curl -fsS --max-time 8 "$PROBE_URL" | jq -e '.status == "ok"' >/dev/null 2>&1; then
               echo "::notice::/api/health OK over tailnet after $((i * 5))s"
               exit 0
             fi
             sleep 5
           done
-          echo "::error::/api/health did not return ok within 60s over tailnet"
+          echo "::error::/api/health did not return ok within ~100s over tailnet"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
             "deploy@${{ steps.ts_host.outputs.resolved_fqdn }}" \
