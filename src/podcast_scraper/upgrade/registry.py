@@ -14,6 +14,7 @@ from .migrations.m0001_faiss_to_lance import FaissToLanceMigration
 from .migrations.m0002_two_tier_native_reindex import TwoTierNativeReindexMigration
 from .migrations.m0003_gi_v3_typed_mentions import GiV3TypedMentionsMigration
 from .migrations.m0004_insight_type_reindex import InsightTypeReindexMigration
+from .migrations.m0005_gi_v3_1_route_and_tag import GiV31RouteAndTagMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -29,6 +30,7 @@ _MIGRATIONS: List[Migration] = [
     TwoTierNativeReindexMigration(),
     GiV3TypedMentionsMigration(),
     InsightTypeReindexMigration(),
+    GiV31RouteAndTagMigration(),
 ]
 
 
