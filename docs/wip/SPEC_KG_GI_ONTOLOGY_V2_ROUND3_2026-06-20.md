@@ -45,8 +45,8 @@ Round-2 treated these as gaps; the RFC audit says they're done or near-done:
 | Bridge between artifacts | **Shipped** as per-episode `bridge.json` declaring all canonical IDs and their GIL/KG references | RFC-072 §2 |
 | Cross-layer corpus graph | **Shipped** in-memory as `CorpusGraph` | `src/podcast_scraper/search/corpus_graph.py` (Slice B of #849) |
 | Entity resolver | **Shipped** | `src/podcast_scraper/identity/resolver.py` (Slice A of #849) |
-| `speaker:` → `person:` migration | **Shipped** in RFC-072; legacy artifacts still readable | `scripts/migrate_gi_speaker_to_person.py` |
-| KG `entity:person:` → `person:` migration | **Shipped** | `scripts/migrate_kg_entity_ids.py` |
+| `speaker:` → `person:` migration | **Shipped** in RFC-072; legacy artifacts still readable | `cli upgrade run` (m0003) |
+| KG `entity:person:` → `person:` migration | **Shipped** | `cli upgrade run` (m0006) |
 
 **What this means for round-2's "Direction A — minimal bridge"**:
 Direction A is essentially already done. I framed it as a low-risk
@@ -324,7 +324,7 @@ Many of round-2's chunks shrink because the CIL / bridge work shipped.
 
 ### Chunk 6 — Migration scripts for existing corpora
 
-- `scripts/migrate_kg_entity_to_person_org.py`: legacy
+- `cli upgrade run` (m0006): legacy
   `Entity(kind=person)` → `Person`, `Entity(kind=org)` →
   `Organization`. Pattern from RFC-072 migration scripts.
 - `scripts/backfill_gi_insight_type.py`: optional — runs LLM

@@ -138,7 +138,7 @@ The root `gi.json` file MUST include:
 - **Episode** node: `episode:{episode_id}` — same `episode_id` string as the artifact root field and as KG (RSS GUID family).
 - **Insight** node: `insight:{16-hex}` — SHA-256 over `(episode_id, index, insight_text prefix)`; `properties.episode_id` anchors the episode.
 - **Quote** node: `quote:{16-hex}` — SHA-256 over `(episode_id, quote_index, text prefix, char_start, char_end)`; `properties.episode_id` anchors the episode.
-- **Person** node: `person:{slug(name)}` — global by normalized name slug (merged across episodes in combined graphs). **Legacy (pre-migration):** **`Speaker`** / **`speaker:{slug}`** — same role; see `scripts/migrate_gi_speaker_to_person.py`.
+- **Person** node: `person:{slug(name)}` — global by normalized name slug (merged across episodes in combined graphs). **Legacy (pre-migration):** **`Speaker`** / **`speaker:{slug}`** — same role; see `cli upgrade run` (m0003).
 
 **Topic** / **ABOUT** (when enriched): `topic:{slug(label)}` — global, same family as KG topics.
 
@@ -472,7 +472,7 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
 }
 ```
 
-**Shape note:** Current corpora use **Person** / **`person:`** ids and **SPOKEN_BY** targets as above. Legacy **`Speaker`** / **`speaker:`** nodes and ids may still appear until migration (`scripts/migrate_gi_speaker_to_person.py`).
+**Shape note:** Current corpora use **Person** / **`person:`** ids and **SPOKEN_BY** targets as above. Legacy **`Speaker`** / **`speaker:`** nodes and ids may still appear until migration (`cli upgrade run` (m0003)).
 
 ---
 
@@ -514,7 +514,7 @@ Note: No `SUPPORTED_BY` edges exist for this Insight, and `grounded=false` is ex
 - **Person nodes:** **`Person`** replaces **`Speaker`**; ids use **`person:{slug}`** (see `graph_id_utils.person_node_id`). **`Quote.speaker_id`** values use the same **`person:`** prefix when diarization is present.
 - **Edges:** **`SPOKEN_BY`** remains **Quote → Person**.
 - **Insight (optional v1.1 fields):** **`insight_type`** (`claim` \| `recommendation` \| `observation` \| `question` \| `unknown`) and **`position_hint`** (0–1, mean quote start ms / episode duration when duration is known). **`Episode.properties.duration_ms`** may be set when RSS/audio duration is available.
-- **Migration:** `scripts/migrate_gi_speaker_to_person.py` rewrites legacy **`Speaker`** / **`speaker:`** artifacts.
+- **Migration:** `cli upgrade run` (m0003) rewrites legacy **`Speaker`** / **`speaker:`** artifacts.
 
 ## Version History
 

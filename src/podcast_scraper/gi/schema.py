@@ -61,7 +61,7 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
         raise ValueError(
             "GIL artifact 'schema_version' must be '3.0' or '3.1' (RFC-097 v3 / ADR-135). Legacy "
             "1.0/2.0 shape is no longer accepted; migrate via "
-            "scripts/migrate_gi_to_v3.py + scripts/compute_gi_position_hints.py."
+            "`cli upgrade run` (m0003 → v3, m0005 → 3.1)."
         )
     if not isinstance(data.get("nodes"), list):
         raise ValueError("GIL artifact 'nodes' must be an array")

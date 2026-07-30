@@ -87,6 +87,7 @@ def test_status_then_run_then_verify(tmp_path):
         "0003_gi_v3_typed_mentions",
         "0004_insight_type_reindex",
         "0005_gi_v3_1_route_and_tag",
+        "0006_kg_v2_typed_entities",
     }
     assert store.current_version() == "2.7.1"
     assert (corpus / "search" / "lance_index").exists()
@@ -99,7 +100,7 @@ def test_status_then_run_then_verify(tmp_path):
 
     # idempotent: a second run is a no-op (still exit 0, ledger unchanged).
     assert _run(corpus, "run", "--yes") == 0
-    assert len(store.applied_records()) == 5
+    assert len(store.applied_records()) == 6
 
 
 def test_run_dry_run_writes_nothing(tmp_path):

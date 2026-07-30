@@ -518,7 +518,7 @@ contract, Quote properties, SPOKEN_BY edges, and all other GIL structures are un
 entity resolution when names appear with variations across episodes.
 
 **Migration of existing `gi.json` artifacts:** A one-time migration script
-(`scripts/migrate_gi_speaker_to_person.py`) rewrites `speaker:` prefixes to `person:`
+(`cli upgrade run` (m0003)) rewrites `speaker:` prefixes to `person:`
 in all existing artifacts. Idempotent (safe to re-run). Back up the corpus before
 running.
 
@@ -674,7 +674,7 @@ The `kind` property is retained on Entity nodes for consumers who need it. The `
 prefix is removed from the ID — it was a KG implementation detail, not a semantic truth.
 
 **Migration of existing `kg.json` artifacts:** Script
-`scripts/migrate_kg_entity_ids.py` rewrites `entity:person:` to `person:` and
+`cli upgrade run` (m0006) rewrites `entity:person:` to `person:` and
 `entity:organization:` to `org:` in all existing artifacts. Idempotent. Back up the
 corpus before running.
 
@@ -1317,9 +1317,9 @@ patterns defined here are where the product value lives.
 - **Integration tests**: Run pipeline on eval episodes, assert `bridge.json` is
   emitted, assert all `person:` and `org:` IDs in `bridge.json` match IDs in `gi.json`
   and `kg.json`. Located in `tests/integration/test_bridge_integration.py`.
-- **Migration script tests**: Assert idempotency and correctness of
-  `migrate_gi_speaker_to_person.py` and `migrate_kg_entity_ids.py` against fixture
-  artifacts.
+- **Migration tests**: Assert idempotency and correctness of the
+  `migrate_gil_document` / `migrate_kg_document` transforms (now run via
+  `cli upgrade run` — m0003/m0006) against fixture artifacts.
 - **Cross-layer query tests**: Assert that Position Tracker and Person Profile query
   patterns return correct results against a synthetic multi-episode corpus with known
   identities.

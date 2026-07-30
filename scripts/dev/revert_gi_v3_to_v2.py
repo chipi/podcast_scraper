@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """One-shot reverse migration: GI v3.0 → v2.0 for a contaminated corpus.
 
-Reverses the forward migration done by
-``scripts/migrate_gi_to_v3.py`` for cases where a v2 corpus was
-migrated and then operator-rolled-back. Lossy by design — see below.
+Reverses the forward GI v3 migration (``m0003_gi_v3_typed_mentions`` /
+``migrate_gi_document_v3``) for cases where a v2 corpus was migrated and then
+operator-rolled-back. Lossy by design — see below.
 
 What this reverts:
   * ``schema_version: "3.0"`` -> ``"2.0"``

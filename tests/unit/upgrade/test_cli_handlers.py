@@ -81,6 +81,7 @@ def test_run_yes_json_on_empty_corpus(tmp_path, capsys):
         "0003_gi_v3_typed_mentions",
         "0004_insight_type_reindex",
         "0005_gi_v3_1_route_and_tag",
+        "0006_kg_v2_typed_entities",
     }
 
 

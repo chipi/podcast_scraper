@@ -249,9 +249,9 @@ is already at 100% thanks to #1035 NER pre-pass.
 
 ### Chunk 5 — migration script for existing corpora
 
-- `scripts/migrate_kg_entity_to_person_org.py`: walks corpus, rewrites
+- `cli upgrade run` (m0006): walks corpus, rewrites
   legacy `Entity(kind=person)` → `Person`, `Entity(kind=org)` →
-  `Organization`. Same as `migrate_kg_entity_ids.py` (RFC-072) pattern.
+  `Organization`. Same as the RFC-072 entity-id normalization pattern.
 - Optional: a forward-walk that adds ABOUT / MENTIONS_* edges to
   existing GI files where we can recover them via NER + LLM re-pass
   (this is its own cost decision; defer)

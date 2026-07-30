@@ -198,8 +198,8 @@ deploys. See the fixture's own `README.md` for the detailed contract.
   `MENTIONS` edges (Insight → Person/Org) as typed `MENTIONS_PERSON` /
   `MENTIONS_ORG`, and normalise the legacy `insight_type` vocab
   (`fact` / `opinion`) to v3 (`claim` / `observation`). Idempotent — a file already
-  at 3.0 with typed edges passes through unchanged. Wraps the standalone
-  `scripts/migrate_gi_to_v3.py` so a fresh operator can rely on
+  at 3.0 with typed edges passes through unchanged. Wraps the
+  `migrate_gi_document_v3` transform so a fresh operator can rely on
   `make upgrade-corpus` catching it. KG-side `MENTIONS` edges (Topic → Episode
   discovery) stay untouched by design (see
   `src/podcast_scraper/migrations/gil_kg_identity_migrations.py`).
