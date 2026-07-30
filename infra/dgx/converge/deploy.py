@@ -307,9 +307,12 @@ PYANNOTE_COMPOSE_FILE = f"{PYANNOTE_INSTALL_ROOT}/docker-compose.yml"
 PYANNOTE_BUILD_CTX = f"{PYANNOTE_INSTALL_ROOT}/build"
 # community-1 (v4) promoted to default (#1170) — beats 3.1 on the v3 fixtures and is
 # NON-GATED (loads offline from the shared HF cache, no HF_TOKEN). The pyannote-4
-# image is built FROM the 3.x image (Dockerfile.community1). Rollback: the 0.1.0
-# image + the pre-cutover container are kept on the DGX (see the runbook), so
-# reverting is `docker stop pyannote && docker start pyannote-31-rollback`.
+# image is built FROM the 3.x image (Dockerfile.community1), so the 0.1.0 image is
+# always kept on the DGX (build dependency + rollback base). Rollback: point the
+# compose at `image: podcast-pyannote:0.1.0` and `up` (or `docker run` that image).
+# NOTE: the old pre-staged `pyannote-31-rollback` container was retired (it just
+# sat parked in `created` state, showing a false "partial" on the homelab board);
+# the 0.1.0 *image* is the rollback artifact now, not a standing container.
 PYANNOTE_IMAGE = "podcast-pyannote:0.2.0-community1"
 PYANNOTE_DOCKERFILE = "Dockerfile.community1"
 PYANNOTE_PORT = 8001
