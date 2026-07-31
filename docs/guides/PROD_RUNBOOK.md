@@ -16,10 +16,58 @@ adds Ollama qwen3.5:35b on DGX for summary/GI/KG with Gemini as the cloud fallba
 
 **How hosting fits together (diagrams + planes):** [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md). **Immutable decisions:** [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (OpenTofu, state, drill workspace, app GitOps contract, tailnet ingress), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) (stack-test gate and deploy nuance), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md)–[ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (Compose + CI stack-test), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) (stack contract vs adapters). **Surface audit table:** [STACK_CONTRACT.md](STACK_CONTRACT.md). **CI workflow names:** [WORKFLOWS.md](../ci/WORKFLOWS.md).
 
+## The two operator planes + deploy map (read this first)
+
+The operator runs as **two planes** — not a duplicate, a **privilege split** (ADR-116, and
+recorded in [ADR-141](../adr/ADR-141-operator-two-plane-clarification.md)). Think of it like a
+CMS: a private **authoring/control** env and a public **read-only consumption** env. The same
+`api`/`viewer` image runs in two modes, linked **only by the corpus volume**, not the network:
+
+```text
+   HIDDEN (tailnet only)                        PUBLIC (open internet, via Cloudflare)
+   ┌───────────────────────────────┐            ┌───────────────────────────────┐
+   │ OPERATOR — CONTROL plane       │            │ OPERATOR — PUBLIC surface      │
+   │ project: -p compose            │            │ project: -p operator           │
+   │ workflow: deploy-prod.yml (!)  │            │ workflow: deploy-operator.yml  │
+   │  [viewer] [api: sock + KEYS]   │            │  [viewer] [api: NO sock/keys]  │
+   │  [pipeline] -- writes --+      │            │       reads (ro) --+           │
+   └─────────────────────────┼──────┘            └────────────────────┼──────────┘
+                             v                                        │
+                    +-------------------------------------------------+ 
+                    |  corpus_data volume  (pipeline WRITES; publics READ ro)
+                    +-------------------------------------------------+
+   ┌───────────────────────────────┐            reads (ro) ----------+
+   │ PLAYER — PUBLIC surface        │  operator -> operator.closelistening.app
+   │ project: -p player             │  player   -> closelistening.app
+   │ workflow: deploy-player.yml    │
+   └───────────────────────────────┘
+```
+
+**Which workflow deploys what** (the Actions UI display names now say this; the *file* names
+are legacy — see ADR-141):
+
+| Workflow file | Actions UI name | Project | Deploys | Exposure |
+| --- | --- | --- | --- | --- |
+| `deploy-prod.yml` (!) | Deploy operator — CONTROL plane | `-p compose` | full api (**sock + keys**) + viewer + **pipeline** (owns corpus) | tailnet |
+| `deploy-operator.yml` | Deploy operator — PUBLIC surface | `-p operator` | app-only api + viewer (read-only) | public |
+| `deploy-player.yml` | Deploy player — PUBLIC surface | `-p player` | app-only api + learning-app | public |
+
+**Coupling rules:**
+
+- **One image, roll the three serving planes to the same `sha`** ("one engine" — they drifted
+  once). After a code merge to main, deploy control + operator + player.
+- **`corpus_data` is shared state.** The control plane owns/writes it; the public planes mount
+  it `external`, read-only. **Never `docker compose -p compose down -v`** (destroys the live
+  corpus), and the project name `-p compose` is baked into the volume name
+  (`compose_corpus_data`) — renaming the project orphans the corpus.
+- **Independent:** the pipeline runs on the control plane **on-demand** via
+  `reprocess-prod.yml`; the config layer (caddy/alloy) deploys via `deploy-config.yml`.
+
 ## Steady-state playbook (routine prod)
 
 For day-to-day prod (not DR drill, not manual corpus restore): **preflight** (secrets and
-`PROD_TAILNET_FQDN`) → **deploy** (`deploy-prod.yml` → `infra/deploy/deploy.sh`) → **health**
+`PROD_TAILNET_FQDN`) → **deploy** (`deploy-prod.yml` → `infra/deploy/deploy.sh`; UI name
+"Deploy operator — CONTROL plane") → **health**
 (in-container `/api/health` on the api service — [API health checks by context](#api-health-checks-by-context))
 → **behavioral gate on main** (`stack-test.yml` before GHCR publish). Restoring corpus from
 `snapshot.tgz` is **not** part of this path; see [Disaster recovery](#disaster-recovery) and

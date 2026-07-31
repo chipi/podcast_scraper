@@ -1,5 +1,13 @@
-name: Deploy to prod VPS
+name: Deploy operator — CONTROL plane (tailnet, privileged)
 
+# ⚠ NAMING: the FILE is still `deploy-prod.yml` (load-bearing in scripts, cloud-init,
+# terraform, and history — see docs/adr/ADR-141). But what it deploys is the operator's
+# PRIVILEGED CONTROL plane: the `-p compose` project — the full api (docker.sock + provider
+# keys), viewer, and the on-demand pipeline that OWNS/writes the corpus. Tailnet-only. It is
+# NOT "prod generically" and NOT the public surface. The PUBLIC operator surface is
+# deploy-operator.yml; the public player is deploy-player.yml. See PROD_RUNBOOK
+# "The two operator planes + deploy map".
+#
 # RFC-082 Decision 3: deploy to the always-on Hetzner VPS over Tailscale.
 #
 # Manual-trigger only at first land. After the operator's first `tofu apply`

@@ -12,7 +12,7 @@
 # The Caddy edge + firewall 80/443 must already be live on the box, and DNS for
 # PLAYER_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md).
 
-name: Deploy player (public)
+name: Deploy player — PUBLIC surface
 
 on:
   workflow_dispatch:

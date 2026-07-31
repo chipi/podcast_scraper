@@ -15,7 +15,7 @@
 # The Caddy edge + firewall 80/443 must already be live on the box, and DNS for
 # OPERATOR_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md).
 
-name: Deploy operator (public)
+name: Deploy operator — PUBLIC surface
 
 on:
   workflow_dispatch:
