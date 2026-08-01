@@ -1,0 +1,58 @@
+name: LiteLLM smoke — OpenRouter key check
+
+# One-off / re-runnable smoke: proves the prod gateway's OpenRouter key (GH secret
+# LITELLM_OPENROUTER_API_KEY) is valid, funded, and routes through LiteLLM — WITHOUT
+# deploying the gateway. Ephemeral runner; the key stays in GH secrets. Manual only.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: 1) Validate the OpenRouter key + credit (no completion cost)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.LITELLM_OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+            echo "::error::LITELLM_OPENROUTER_API_KEY secret is empty/unset"; exit 1
+          fi
+          code=$(curl -s -o /tmp/key.json -w '%{http_code}' \
+            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+            https://openrouter.ai/api/v1/key)
+          echo "  /api/v1/key -> HTTP $code"
+          # redact everything except the funding/limit fields
+          python3 -c "import json;d=json.load(open('/tmp/key.json')).get('data',{});print('  label:',d.get('label'));print('  usage:',d.get('usage'));print('  limit:',d.get('limit'));print('  limit_remaining:',d.get('limit_remaining'));print('  is_free_tier:',d.get('is_free_tier'))" 2>/dev/null || cat /tmp/key.json
+          [ "$code" = "200" ] || { echo "::error::key auth failed (HTTP $code) — bad/rotated key"; exit 1; }
+          echo "  KEY: valid ✓"
+
+      - name: 2) One cheap completion THROUGH LiteLLM (proves routing)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.LITELLM_OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          pip install --quiet 'litellm>=1.60'
+          python - <<'PY'
+          import os, sys, litellm
+          model = "openrouter/openai/gpt-4o-mini"   # cheap, universally available on OpenRouter
+          try:
+              r = litellm.completion(
+                  model=model,
+                  messages=[{"role": "user", "content": "Reply with exactly: OK"}],
+                  api_key=os.environ["OPENROUTER_API_KEY"],
+                  max_tokens=5,
+              )
+              msg = r.choices[0].message.content
+              print(f"  litellm({model}) -> {msg!r}")
+              print(f"  usage: {r.usage}")
+              print("  LITELLM ROUTING: PASS ✓")
+          except Exception as e:
+              print(f"::error::litellm completion failed: {type(e).__name__}: {str(e)[:300]}")
+              sys.exit(1)
+          PY
+          echo "SMOKE: PASS — the OpenRouter key works through LiteLLM"
