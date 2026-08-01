@@ -395,6 +395,15 @@ _HOST_SPEECH_ACTS = [
         r"\bthis week on (?:the )?\w+",
     )
 ]
+# NOTE (#1228) — a "floor-managing" host act (a co-host who only self-introduces on a no-host feed
+# but directs the show, "Let's get into this week's news") was TRIED as a recall lever and REVERTED.
+# On the prod-v2 corpus (90 eps, `relabel_corpus.py --llm none`) the tightened, nameability-gated
+# pattern promoted ZERO voices, while the untightened form regressed real episodes (crowned an
+# anonymous voice a host on Latent Space; painted host "Natalie Kitroeff" onto guest Robert Pape on
+# The Daily — show-directing boilerplate like "we'll be right back" smears across diarization
+# clusters). Inert on real data + precision-dangerous ⇒ not worth the code path (#876). The
+# co-host-on-a-no-host-feed case stays the documented precision boundary (roster leaves the role
+# unknown rather than risk a wrong name); revisit only with the #1189 human-GT fixtures.
 _GUEST_SPEECH_ACTS = [
     re.compile(p, re.IGNORECASE)
     for p in (
