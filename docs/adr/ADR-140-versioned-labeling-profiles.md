@@ -44,9 +44,9 @@ transfer. What *is* extractable is the **configuration of** that pipeline.
   ADR-130 `_recover_stated_names` recovery pass; `cameo_max_talk_s` threads to all five cameo sites
   (`classify_voices`, `_classify_voice_types`, `_name_guest_voices`, `_self_intro_voice_names` →
   host-candidate). Each has an A/B test proving the flag flips behaviour, and the defaults equal the
-  prior module constants so naming-4 is unchanged. **Still module constants (tier-2 extraction,
-  tracked in `docs/wip/LABELING-TIER3-COMPLEXITY.md`):** the tape floor and the intro/co-host
-  windows. The Pattern-B spare-name bound is NOT a constant — it is computed per episode
+  prior module constants so naming-4 is unchanged. **Still module constants (tier-2 extraction):**
+  the tape floor and the intro/co-host windows — deferred until a labeling-algorithm experiment
+  demands they become swappable. The Pattern-B spare-name bound is NOT a constant — it is computed per episode
   (`len(leftover ∪ stated_unbound)`), gated on/off by the `pattern_b_bounded_promotion` flag.
 - Profiles are **registered by ID** and **selected via config** (one field, e.g.
   `labeling_profile: "naming-4"`), mirroring `ml_preprocessing_profile`.

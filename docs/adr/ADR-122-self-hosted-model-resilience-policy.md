@@ -12,7 +12,7 @@
 ## Context & Problem Statement
 
 Validating the transcription bake-off for the 1000-episode reprocess
-(`docs/wip/1000-EPISODES-REPROCESS-PLAN.md`, #1178/#1179), a **transient GPU contention** (a
+(see [ADR-143](ADR-143-corpus-reprocess-methodology.md), #1178/#1179), a **transient GPU contention** (a
 lingering MOSS inference sharing the one DGX GPU) made the DGX whisper provider **time out on the
 first call, immediately trip the circuit breaker, and give up** — after which every remaining
 episode failed fast. The fuse worked *as designed*, but the design is tuned for a **live-serving**
@@ -193,5 +193,5 @@ transcription actually executed (not a cache hit) before trusting a corpus.
 ## References
 
 - Issue [#1253](https://github.com/chipi/podcast_scraper/issues/1253) — full scope + acceptance.
-- `docs/wip/1000-EPISODES-REPROCESS-PLAN.md` — the arc this serves.
+- [ADR-143](ADR-143-corpus-reprocess-methodology.md) — the reprocess methodology this serves.
 - [ADR-088](ADR-088-macos-local-ci-process-safety-for-ml-workloads.md), RFC-106/#1198, #954, #876.
