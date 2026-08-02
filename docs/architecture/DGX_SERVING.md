@@ -24,14 +24,26 @@ update only this thin bridge here.
 
 ## Services this pipeline consumes
 
+A full run is a **cascade**: ASR → diarization → (naming + summarization) LLM. **Two roles:**
+
+**Fixed supporting services** — already in the pipeline, unchanged; must be up for every full run,
+but NOT what v2.5 researches:
+
 | Pipeline stage | DGX service | Port | Notes |
 | --- | --- | --- | --- |
-| Diarization (v2.2, community-1) | pyannote | 8001 | exposes Prometheus `/metrics` |
 | ASR (v2.3, faster-whisper turbo) | faster-whisper | 8000 | `openai-whisper` on 8002 is the failover peer |
-| Coverage-failover LLM (ADR-123, #1273) | MOSS | 8004 | saturates under load |
-| Text LLM (local) | ollama | 11434 | e.g. `llama3.1:8b` |
-| Autoresearch bake-off vLLM (v2.5 Phase D) | vLLM (autoresearch) | 8003 | **GPU-mode-gated** — see below |
-| Chat UI (not a pipeline dep) | librechat | 3080 | added ~2026-07-30 |
+| ASR coverage-failover (ADR-123, #1273) | MOSS | 8004 | transcription fallback; saturates under load |
+| Diarization (v2.2, community-1) | pyannote | 8001 | exposes Prometheus `/metrics` |
+| Text LLM (local, misc) | ollama | 11434 | e.g. `llama3.1:8b` |
+
+**The v2.5 research target** — the ONE thing being swapped (Gemini → DGX-local):
+
+| Pipeline stage | DGX service | Port | Notes |
+| --- | --- | --- | --- |
+| Speaker naming + summarization LLM | vLLM (autoresearch) | 8003 | **GPU-mode-gated** — see below. Phase D bakes off local LLM candidates here to match the Gemini baseline. |
+
+Only the naming/summarization **LLM** changes in v2.5. ASR, diarization, and the ASR failover stay
+exactly as they are — they support the run, they are not under evaluation.
 
 ## The one gotcha: the autoresearch vLLM is GPU-mode-gated
 

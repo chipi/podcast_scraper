@@ -41,8 +41,9 @@ that was a false alarm; corrected here.)
 - **GPU mode was `free`/idle**, which is why `:8003` served nothing. Bring the autoresearch
   vLLM up before the bake-off: `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research`.
   So Phase D's original plan (autoresearch vLLM on `:8003`) works as written.
-- **Running:** `moss` (:8004), `pyannote` (:8001), `faster-whisper` (:8000), ollama (:11434),
-  obs stack, plus **`librechat-*` (:3080)** added ~3 d ago (the only new service).
+- **Running (supporting services, unchanged):** `faster-whisper` (:8000, ASR), `pyannote` (:8001,
+  diarization), `moss` (:8004, ASR failover), ollama (:11434), obs stack. v2.5 swaps ONLY the
+  naming/summarization LLM (on the autoresearch vLLM :8003); these support every run, unchanged.
 - **Serving bridge (short → full):** `docs/architecture/DGX_SERVING.md` in this repo points to the
   homelab SSOT. Never touch `code`/coder-next (`feedback_never_use_coder_next`).
 

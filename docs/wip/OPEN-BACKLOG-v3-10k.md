@@ -14,11 +14,10 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
    user wrongly concluded the box was re-provisioned; it was not. `gpu-mode-swap.sh` is present
    (`/usr/local/bin/gpu-mode-swap.sh` → the `ops` deploy checkout `/home/ops/agentic-ai-homelab`).
    GPU mode is currently **`free`/idle** — that is why `:8003` served nothing; bring the autoresearch
-   vLLM up with `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research`. Running: `moss` (:8004),
-   `pyannote` (:8001), `faster-whisper` (:8000), ollama (:11434), obs stack, plus **`librechat-*`
-   (:3080, added ~3 d ago — the only genuinely new service)**. So the original Phase-D plan
-   (stand up the autoresearch vLLM via `gpu-mode-swap research`) is viable as written; the operator's
-   "re-scope to live services" decision was taken on a **false blocker** and can be revisited.
+   vLLM up with `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research`. **Decided: the original
+   Phase-D plan stands** — v2.5 swaps ONLY the naming/summarization LLM onto that vLLM; the supporting
+   services (faster-whisper ASR :8000, pyannote diarization :8001, MOSS ASR-failover :8004, ollama
+   :11434) are fixed and run every reprocess unchanged. See `docs/architecture/DGX_SERVING.md`.
    Local side present & verified: `autoresearch/` harness (JUDGING.md, PER_MODEL_OPTIMAL_PARAMS.md,
    bundled_prompt_tuning), `scripts/backfill/relabel_corpus.py`, DGX profiles (`prod_dgx_balanced`,
    `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`), parity baseline corpus
