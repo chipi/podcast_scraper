@@ -44,8 +44,7 @@ Source of truth, both on `main`:
 > shared-question gate genuinely needs an LLM (operator ruled that out). The enricher is
 > wired + gate-guarded and stays dark (measured `gate_metrics.json`, precision 0.0);
 > `perspectives` (#1146) is the live no-LLM surface. `gold_v1.jsonl` is the durable
-> regression bar (auto-promotes any future non-LLM scorer that clears precision ≥ 0.5). See
-> `player/1144-DISAGREEMENT-DETECTOR-FEASIBILITY.md`.
+> regression bar (auto-promotes any future non-LLM scorer that clears precision ≥ 0.5).
 > #1106 is CLOSED. **#1105**
 > (topic_similarity) is now also resolved (2026-07-06): **validated** — recall@10 99%, precision retuned via default top_k 10->7. CLOSED.
 
@@ -104,7 +103,7 @@ sweep land.
 
 ## Corrections to sibling docs
 
-- `docs/wip/player/LEARNING-PLATFORM-GAP-ANALYSIS-2026-07.md` **Pivot 1** went through two
+- The learning-platform gap analysis's **Pivot 1** went through two
   wrong framings (out-of-band; then fully-validated tracking-debt). This audit is
   authoritative: RFC-088 shipped on-plan + promoted, most chunks are done (closed), but the
   two smart enrichers' **accuracy eval + sweep are deferred** (#1105/#1106 kept open). The

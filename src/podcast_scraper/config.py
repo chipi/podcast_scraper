@@ -148,8 +148,7 @@ else:
 # Check for .env in project root
 # Pytest-run detection lives in ``utils/runtime_env`` (single source of truth;
 # duplicated previously in ``evaluation/autoresearch_track_a.py``). It's used
-# ONLY to gate .env loading — NOT for any kind of default-flipping. See
-# ``docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md`` for the chapter.
+# ONLY to gate .env loading — NOT for any kind of default-flipping.
 from .utils.runtime_env import is_pytest_run as _is_pytest_run  # noqa: E402
 
 # Skip .env loading under pytest — tests must be hermetic to shell secrets.
@@ -271,8 +270,7 @@ def _get_default_summary_mode_id() -> Optional[str]:
     - Other profiles inherit this PROD default
 
     Closes the loop on operator's directive ("profiles are source of
-    truth; no separate set of controls"). See
-    ``docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md``.
+    truth; no separate set of controls").
     """
     return getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
 

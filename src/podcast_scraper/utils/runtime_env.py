@@ -7,8 +7,7 @@ during pytest runs for hermeticity). Each duplicate had its OWN buggy
 ``"unittest" in sys.modules`` check that false-positived in production
 (numpy lazy-imports ``numpy.testing`` → unittest gets pulled in for
 every prod code path that imports numpy). See commit ``ce029849`` for
-the narrowing fix and ``docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md`` for
-the full chapter.
+the narrowing fix.
 
 This module is the consolidated home. Both call sites import from here.
 

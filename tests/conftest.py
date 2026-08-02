@@ -34,7 +34,7 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 # Tests default to the `test_default` profile so model defaults stay cheap/fast.
 # Replaces the old `_is_pytest_run()` + 24 `_get_default_*` env-detect
-# machinery removed 2026-06-23 (see commit history + docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md).
+# machinery removed 2026-06-23 (see commit history).
 #
 # Profiles are now the source of truth: `config/profiles/test_default.yaml`
 # pins all the test-tier cheap models that the old TEST_DEFAULT_* constants
@@ -93,7 +93,7 @@ def _restore_podcast_scraper_profile_env():
 
     Conftest sets this to ``test_default`` at module import so tests pick
     up the test_default profile by default (replaces the old env-detect
-    machinery — see ``docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md``). Some
+    machinery). Some
     tests (e.g. ``test_config.py::TestSummaryModeProfileDefaults``)
     intentionally mutate or pop this var to exercise other profile
     branches; without this fixture their teardown leaks state into the

@@ -261,7 +261,6 @@ extra scalar phases.
 + Reconstructed partial sweep data: `docs/wip/MEGA_SWEEP_V3_PARTIAL.json`
 + Targeted rejudge (post-parser-fix): `docs/wip/TARGETED_REJUDGE_NEMOTRON_GPT_OSS.json`
 + Cloud ground truth (unchanged): `docs/wip/CLOUD_COHORT_LEADERBOARD_2026-07-03.json`
-+ Iteration roadmap: `docs/wip/AUTORESEARCH_JUDGE_ITERATION_ROADMAP.md`
 
 ## Recipes
 

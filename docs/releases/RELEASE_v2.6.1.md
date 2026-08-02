@@ -106,9 +106,6 @@ runtime test/prod auto-flipping mechanism is **removed entirely**:
   passed — enabling per-deployment profile selection without
   changing call sites.
 
-Full reconciliation doc:
-[`docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md`](../wip/POST_RFC097_DEV_PROD_REMOVAL.md).
-
 ## Tests
 
 Full unit test sweep: **4331 passed, 0 failed, 1 skipped**.

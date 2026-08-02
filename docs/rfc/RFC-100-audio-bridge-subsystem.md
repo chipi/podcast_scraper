@@ -10,8 +10,6 @@
   - `docs/rfc/RFC-096-audio-pipeline-separation-and-viewer-media.md` (today's local-byte serving)
   - `docs/rfc/RFC-098-learning-platform-foundation.md` (consumer API that references the source)
   - `docs/rfc/RFC-099-learning-platform-consumer-client.md` (player that plays it)
-- **Related Documents**:
-  - `docs/wip/player/SERVER-SIDE-GAP-ANALYSIS.md` (gap G5)
 
 ## Abstract
 
@@ -169,4 +167,3 @@ zero-byte persistence in proxy mode.
 - **Related PRDs**: `docs/prd/PRD-039-player.md`, `docs/prd/PRD-035-learning-platform.md`
 - **Related RFCs**: `docs/rfc/RFC-096-audio-pipeline-separation-and-viewer-media.md`, `docs/rfc/RFC-098-learning-platform-foundation.md`
 - **Source Code**: pipeline enclosure capture; new `server/app_api/` audio module
-- **Analysis**: `docs/wip/player/SERVER-SIDE-GAP-ANALYSIS.md` (G5)

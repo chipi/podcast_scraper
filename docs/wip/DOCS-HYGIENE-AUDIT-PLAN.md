@@ -1,67 +1,55 @@
-# Docs-hygiene audit — WIP tree (2026-08-01)
+# Docs-hygiene audit — WIP tree (executed 2026-08-02)
 
-Classification of `docs/wip/` docs, each verified against closed issues / commits / code /
-file existence. **This is the audit; execution (deletion) is gated on operator approval** —
-`classify → approve → execute`, UNCERTAIN stays. Scope here is the WIP tree (~63 docs); the
-ADR/RFC/guides sweep (rest of the ~439) is still pending.
+Executed the WIP-tree hygiene pass. Principle enforced: **permanent docs (ADR/RFC/PRD/release/
+guide/api) and code/tests/README must never reference `docs/wip/` docs** — WIP is ephemeral and
+gets deleted, so a permanent artifact that points at it rots. WIP↔WIP references are fine (a WIP
+set travels together). Scope: the WIP tree (~160 docs); the ADR/RFC/PRD/guides trees themselves
+were only touched to remove their WIP references.
 
-## DONE — superseded/shipped, safe to delete (verified)
+## Outcome
 
-| file | why DONE (verification) |
-|---|---|
-| player/1069-SCRAPE-ON-DEMAND-SCOPE-ANALYSIS.md | #1069 CLOSED; doc says superseded |
-| 1129-1130-OUTBOUND-HTTP-FACTORY.md | table "AS-SHIPPED on main", rows ✅ |
-| player/1144-DISAGREEMENT-DETECTOR-FEASIBILITY.md | build+measurement record; enricher shipped gated-dark |
-| 968-SPEACHES-RESEARCH.md | recommendation landed in `902c3be6` |
-| ADVISOR-REVIEW-FIXES-naming4.md | shipped in `b24608fa` (naming-4) |
-| AUTORESEARCH_JUDGE_ITERATION_ROADMAP.md | round-1 actions landed; superseded by promoted eval-report |
-| DOC-FRESHNESS-AUDIT-2026-07.md | self-describes ephemeral; superseded by this hygiene effort |
-| player/EPIC-2-CONSUMER-APP-PLAN.md | Epic 2 (#1077) CLOSED/shipped |
-| player/EPIC2-playtest-backlog.md | folded into Epic 3 (#1093 CLOSED) |
-| player/EPIC3-parked-decisions.md | all items DECIDED; Epic 3 shipped |
-| player/EPIC3-proposal.md | became Epic 3 (#1093 CLOSED, PRD-043) |
-| EVAL-1191-salience-ranking-100ep-2026-07-29.md | #1191 CLOSED 2026-07-30 |
-| FIXTURE-CORPUS-FULL-PRODUCT-SUBSTRATE-2026-07.md | superseded by V3 promotion |
-| GB10_GPU_ISOLATION_RESEARCH_2026-06-19.md | recommends close #1000; #1000 CLOSED |
-| ISSUE-382-PR-BODY-DRAFT.md | #382 CLOSED |
-| JSON-RELIABILITY-DEEP-RESEARCH-2026-06-18.md | #912 CLOSED |
-| player/LEARNING-PLATFORM-GAP-ANALYSIS-2026-07.md | 2026-07-05 snapshot; superseded |
-| MOSS-PRODUCTION-READY-PLAN.md | #1177 + #1174 CLOSED |
-| ORRERY-ALLOY-MIGRATION-NOTE.md | matching commit in orrery repo |
-| PLAN-llm-host-guest-role.md | implemented in `resolution.py`/`pipeline.py` |
-| POST-LAUNCH-FIXLIST.md | items verified done / #1263 CLOSED |
-| POST_RFC097_DEV_PROD_REMOVAL.md | committed `ce029849` + follow-up |
-| RELABEL-ONLY-OPTION-PROPER-JOB.md | `relabel_only` present in `config.py` |
-| player/RFC-LANDSCAPE-FOR-PLATFORM.md | surveyed RFCs shipped |
-| player/SERVER-SIDE-GAP-ANALYSIS.md | Foundation/Epic 2/3 shipped |
-| SLICE-1-1173-1191-PLAN.md | #1173 + #1191 CLOSED |
-| SPEC_KG_GI_ONTOLOGY_REVIEW_2026-06-20.md | superseded by round-3; #1036 CLOSED |
-| SPEC_KG_GI_ONTOLOGY_V2_2026-06-20.md | superseded by round-3; #1036 CLOSED |
-| SPEC_KG_GI_ONTOLOGY_V2_ROUND3_2026-06-20.md | adopted spec, now shipped (#1036 CLOSED) |
-| search-v3/TEST-PYRAMID-AUDIT-2026-07-21.md | follow-ups resolved (doc's own note) |
-| V2.4-STATUS-overnight.md | superseded by `b24608fa` |
-| V3-ENRICHER-CONTENT-DESIGN-2026-07.md | v3 fixtures built with real enrichment |
-| V3-PROMOTION-MIGRATION-2026-07.md | `FIXTURES_VERSION`=v3, no orphaned v2 |
+- **29 WIP docs deleted** (work shipped/closed, verified vs closed issues/commits):
+  - 18 with zero references anywhere (first pass).
+  - 11 freed by removing their references from permanent docs + code (see below), then deleted.
+- **Permanent-doc + code references to WIP removed** (this is what "released" the 11):
+  - `docs/api/PLATFORM_API.md`, `docs/prd/PRD-037-discovery.md`, `docs/prd/PRD-035-learning-platform.md`,
+    `docs/releases/RELEASE_v2.6.1.md`, `docs/adr/ADR-135-*.md`,
+    `docs/guides/eval-reports/EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07.md`,
+    `docs/rfc/RFC-098/100/101-*.md`.
+  - Code/tests/README: `src/podcast_scraper/net/__init__.py`, `config.py`, `utils/runtime_env.py`,
+    `tests/conftest.py`, `tests/integration/eval/test_v3_fixtures.py`, `web/learning-player/README.md`.
+  - Dead WIP↔WIP links the deletions left were cleaned in `WIP_README.md`, `RFC-088-…AUDIT`,
+    `INFRA-HARDENING-PLAN.md`, `SPEAKER-PIPELINE-SUBSYSTEM-AUDIT.md`.
+- Strict docs build green throughout (`make docs` → `MAKE_DOCS_EXIT=0`); zero dangling refs remain.
 
-## KEEP — live reference / unbuilt-but-planned (do not touch)
-knowledge-retention/* (unbuilt package — 00-HANDOFF, 00-VISION, PLAN, PRD-034/035/036/037,
-RFC-081/086/087/088, UXS), 1273-largev3-int8 (#1273 OPEN), 2026-07-26-cloudflare-waf-ratelimit,
-CODEBASE-REVIEW-2026-07-17 (#1162 OPEN), CORPUS-UPGRADE-2.7-RUNBOOK (v2.7.0.dev0), 
-DGX-WHISPER-STALL-INVESTIGATION (paused), EVAL-DATA-PRIVATE-REPO-SCAFFOLD, FLIGHTCAST-PANEL-LIMITATIONS,
-graph-v3/HARDEN-FOLLOWUPS + REPRODUCIBILITY, LABELING-RESIDUAL-UNKNOWNS-CENSUS, LABELING-TIER3-COMPLEXITY,
-MCP-O11Y-REALIGNMENT-GAP-ANALYSIS, OBSERVABILITY-INTEGRATION-REVIEW (P0 still true),
-SPEAKER-PIPELINE-SUBSYSTEM-AUDIT, SPEC_KG_GI_ONTOLOGY_V3_WISHLIST, VISION-search-and-intelligence,
-AUTORESEARCH_EVAL_PLAYBOOK, observability-correlation-id-enhancement, and this session's
-naming-arc + guest-recall findings docs.
+## HELD — 4 docs NOT deleted (need a decision), and why
 
-## Notable finding (needs reconcile, not deletion)
-All four `knowledge-retention/PRD-03x` and `RFC-08x` **placeholder numbers collide with real,
-shipped docs** (e.g. `RFC-088` is the shipped enrichment-layer-architecture RFC, not corpus-scout).
-The package's own docs flag "confirm and renumber before merge" — real and unreconciled.
+These are the ones a permanent artifact still depends on — i.e. real gaps, not hygiene:
+
+1. **The 3 ontology specs** — `SPEC_KG_GI_ONTOLOGY_REVIEW_2026-06-20.md`, `…_V2_…`, `…_V2_ROUND3_…` —
+   are referenced by **`docs/rfc/RFC-097-unified-kg-gi-ontology-v2.md`**, which literally labels
+   ROUND3 *"round-3 spec, the live design."* **The live ontology design lives in a WIP doc that a
+   permanent RFC points to.** This is the gap: promote the ROUND3 spec's live content **into**
+   RFC-097 (or a permanent `docs/spec/`), then the 3 WIP archaeology docs are free to delete.
+   (`project_ontology_v2_handoff` memory agrees ROUND3 was the live spec.)
+2. **`POST_RFC097_DEV_PROD_REMOVAL.md`** — freed from all code refs, BUT still referenced by
+   **`data/eval/runs/_PRE_FIX_NOTE.md`**, a **frozen eval-run artifact** (`feedback_never_mutate_
+   historical_artifacts` — never edit `data/eval/runs/`). Options: (a) leave POST_RFC097 as a
+   permanent-ish design record (move it to `docs/adr/` or `docs/guides/`), or (b) operator OK to
+   touch the frozen note. Recommend (a) — promote it out of WIP, since a frozen artifact will
+   forever cite it.
+
+## Gaps this surfaced (next-priority signal)
+
+The two held clusters are the actionable gaps: **the KG/GI ontology "live design" was never promoted
+out of WIP into RFC-097**, and **the dev/prod-removal reconciliation** is a design record a frozen
+eval note depends on but which lives in WIP. Both should be *promoted* (WIP→permanent), not deleted.
 
 ## NOT covered (equal weight)
-- ADR/RFC/PRD/guides trees (the other ~376 docs) — not classified this pass.
-- Dangling cross-refs / unindexed enumeration — the strict `make docs` build (green, `MAKE_DOCS_EXIT=0`)
-  only surfaces INFO-level anchor warnings (CORPUS_REPROCESSING, OBSERVABILITY_RUNBOOK, PROD_RUNBOOK,
-  RFC-082); a full dangling-ref sweep is not done.
-- **Execution (deletion of the DONE list) is NOT done** — gated on operator approval per the documented process.
+
+- The **ADR/RFC/PRD/guides trees themselves** were not audited for their own staleness — only their
+  WIP references were removed. A separate pass is needed to classify those ~376 docs.
+- **WIP↔permanent references FROM wip docs** (a wip doc citing an ADR/RFC as its target) were not
+  enumerated here; that reverse map is the next hygiene sub-task if we want to find which WIP notes
+  are ready to promote.
+- The remaining ~130 WIP docs were not re-classified beyond the original DONE/KEEP audit.
