@@ -1,2 +1,5 @@
 # Never commit the real gateway secrets — sops-delivered on prod, this file documents slots.
 .env
+# Minted virtual keys written on the box by deploy-litellm.sh / manual mint (e.g.
+# .proj-podcast-prod.key). Plaintext consumer keys — never in git.
+*.key
