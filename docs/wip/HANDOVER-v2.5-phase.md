@@ -109,5 +109,5 @@ From `docs/wip/OPEN-BACKLOG-v3-10k.md`. The scale arc (Phase 3 → 4) and qualit
 
 1. Read `docs/wip/1000-EPISODES-REPROCESS-PLAN.md` (canonical) + this handover.
 2. Confirm branch state; rebase on `origin/main` if stale.
-3. **Step 1 — DGX serving inventory** (the gap-#1 unblocker). Report the reachable candidates; gate.
+3. **Step 1 — bring up the autoresearch vLLM** (`gpu-mode-swap research`) + confirm the candidates load; gate.
 4. Proceed through Part 1 Steps 2→5. Do NOT open Part 2 until 2.5 is frozen.
