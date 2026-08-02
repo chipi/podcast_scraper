@@ -60,11 +60,25 @@ from .tools.trending import corpus_trending as _corpus_trending
 
 
 def build_server(corpus_dir: Path | str) -> Any:
-    """Build a FastMCP server bound to *corpus_dir* with the read tools registered."""
+    """Build a FastMCP server bound to *corpus_dir* with the read tools registered.
+
+    Tool registration is split into per-family ``_register_*`` helpers (search / relational /
+    CIL / connectivity / catalog) so this stays flat as the tool count grows.
+    """
     from mcp.server.fastmcp import FastMCP
 
     ctx = CorpusContext.from_path(corpus_dir)
     server = FastMCP("podcast-scraper")
+    _register_core(server, ctx)
+    _register_relational(server, ctx)
+    _register_cil(server, ctx)
+    _register_connectivity(server, ctx)
+    _register_catalog(server, ctx)
+    return server
+
+
+def _register_core(server: Any, ctx: CorpusContext) -> None:
+    """Entry tools: resolve, hybrid search, briefing pack, trending."""
 
     @server.tool()
     @_enveloped
@@ -165,7 +179,9 @@ def build_server(corpus_dir: Path | str) -> Any:
         """
         return _corpus_trending(ctx, kind=kind, limit=limit)
 
-    # --- relational tools (RFC-095 slice 2): all take canonical ids (resolve first) ---
+
+def _register_relational(server: Any, ctx: CorpusContext) -> None:
+    """Relational traversals (RFC-095 slice 2): all take canonical ids (resolve first)."""
 
     @server.tool()
     @_enveloped
@@ -246,7 +262,9 @@ def build_server(corpus_dir: Path | str) -> Any:
         """A show's episodes (``podcast:`` id; the HAS_EPISODE relationship)."""
         return _relational.show_episodes(ctx, podcast_id, k=k)
 
-    # --- CIL intelligence tools (RFC-095 slice 3): canonical ids (resolve first) ---
+
+def _register_cil(server: Any, ctx: CorpusContext) -> None:
+    """CIL intelligence tools (RFC-095 slice 3): canonical ids (resolve first)."""
 
     @server.tool()
     @_enveloped
@@ -266,7 +284,33 @@ def build_server(corpus_dir: Path | str) -> Any:
         """How a person's position on a topic evolves over time (``person:`` + ``topic:`` ids)."""
         return _cil.position_arc(ctx, person_id, topic_id)
 
-    # --- connectivity / neighborhood tools (#1054): one-call multi-faceted exploration ---
+    @server.tool()
+    @_enveloped
+    def topic_conversation_arc(topic_id: str, insight_types: Optional[list] = None) -> dict:
+        """A topic's conversation arc — weekly insight volume + sentiment mix over time.
+
+        The aggregated arc (vs ``topic_timeline``'s per-week blocks): each week's count and
+        neg/neu/pos split + mean compound sentiment, so an agent can read how the
+        conversation evolved / heated up / soured. ``insight_types`` (e.g. ``["claim"]``)
+        narrows it. ``topic_id`` is a ``topic:`` id.
+        """
+        return _cil.topic_conversation_arc(ctx, topic_id, insight_types=insight_types)
+
+    @server.tool()
+    @_enveloped
+    def topic_perspective_leaders(limit: int = 12) -> dict:
+        """Topics with the widest cross-speaker engagement — the corpus's most-debated nodes.
+
+        Ranks topics by distinct-speaker count (≥2), most-contested first — the corpus's
+        centrality proxy and a strong "what is everyone weighing in on" entrypoint. Each
+        leader carries a ``topic:`` id to pivot into ``who_said_about_topic`` /
+        ``topic_conversation_arc``.
+        """
+        return _cil.topic_perspective_leaders(ctx, limit=limit)
+
+
+def _register_connectivity(server: Any, ctx: CorpusContext) -> None:
+    """Connectivity / neighborhood tools (#1054): one-call multi-faceted exploration."""
 
     @server.tool()
     @_enveloped
@@ -322,7 +366,32 @@ def build_server(corpus_dir: Path | str) -> Any:
         """
         return _connectivity.related_topics(ctx, topic_id, k=k)
 
-    # --- catalog / navigation tools (RFC-095 slice 3) ---
+    @server.tool()
+    @_enveloped
+    def ego_network(entity_id: str, max_hops: int = 2, k: int = 20) -> dict:
+        """The multi-hop insight/segment neighborhood around an entity (KG proximity).
+
+        A variable-depth BFS (``max_hops`` 1-3) from an entity, returning reachable
+        insight/segment nodes scored by hop-distance — unlike ``entity_neighborhood`` (a
+        curated 1-hop entity projection). Use to gather everything "near" a person/topic/org.
+        Each node ``id`` pivots into ``insight_detail`` / ``episode_detail``.
+        """
+        return _connectivity.ego_network(ctx, entity_id, max_hops=max_hops, k=k)
+
+    @server.tool()
+    @_enveloped
+    def topic_clusters(topic_id: str) -> dict:
+        """A topic's cluster siblings — semantic + theme cluster neighbours.
+
+        ``topic_id`` is a canonical ``topic:`` id. Cluster *membership* (vs ``related_topics``
+        co-occurrence): the ``semantic`` (embedding) and ``theme`` siblings sharing its group,
+        each ``{id, label}`` a pivot back into the topic tools.
+        """
+        return _connectivity.topic_clusters(ctx, topic_id)
+
+
+def _register_catalog(server: Any, ctx: CorpusContext) -> None:
+    """Catalog / navigation tools (RFC-095 slice 3)."""
 
     @server.tool()
     @_enveloped
@@ -353,8 +422,6 @@ def build_server(corpus_dir: Path | str) -> Any:
     def top_people(limit: int = 10) -> dict:
         """The corpus's top voices — people ranked by grounded (quote-backed) insight count."""
         return _catalog.top_people(ctx, limit=limit)
-
-    return server
 
 
 def run_stdio(corpus_dir: Path | str) -> None:

@@ -185,3 +185,60 @@ def co_occurring_entities(ctx: CorpusContext, entity_id: str, k: int = 20) -> Di
         {"co_occurring": [_rel(n) for n in people]},
         note,
     )
+
+
+def topic_clusters(ctx: CorpusContext, topic_id: str) -> Dict[str, Any]:
+    """A topic's cluster siblings — semantic + theme neighbours (PRD-043).
+
+    Where ``related_topics`` gives co-occurrence neighbours, this gives *cluster membership*:
+    the ``semantic`` siblings (embedding cluster) and ``theme`` siblings (theme cluster) that
+    share this topic's group. Each sibling ``{id, label}`` pivots on into any topic tool.
+    Empty lists when the topic is a singleton or the cluster artifact is absent.
+    """
+    from pathlib import Path
+
+    from ...search.theme_clusters import consumer_theme_cluster_siblings
+    from ...search.topic_clusters import consumer_cluster_siblings
+
+    root = Path(ctx.corpus_dir)
+    semantic = consumer_cluster_siblings(root, topic_id)
+    theme = consumer_theme_cluster_siblings(root, topic_id)
+    note = "" if (semantic or theme) else "topic is a singleton or cluster artifacts are absent"
+    return _ok("topic", {"id": topic_id}, {"semantic": semantic, "theme": theme}, note)
+
+
+def ego_network(
+    ctx: CorpusContext, entity_id: str, max_hops: int = 2, k: int = 20
+) -> Dict[str, Any]:
+    """The multi-hop insight/segment neighborhood around an entity (RFC-091 KG proximity).
+
+    Unlike ``entity_neighborhood`` (a curated 1-hop entity projection), this does a
+    variable-depth BFS from *entity_id* and returns the reachable insight/segment nodes
+    scored by hop-distance (``1/(hop+1)`` — 1.0 at the seed, 0.5 one hop out). ``max_hops``
+    1-3. Use it to gather everything "near" a person/topic/org for context. Each node's
+    ``id`` pivots on into ``insight_detail`` / ``episode_detail``.
+    """
+    from ...search import relational_queries as rq
+    from ...search.kg_proximity import KGProximitySearch
+
+    graph = _graph(ctx)
+    if graph.get_node(entity_id) is None:
+        return _err("ego_network", entity_id, "entity not in corpus")
+    hops = max(1, min(3, int(max_hops)))
+    hits = KGProximitySearch(graph, max_hops=hops).search(entity_id, k=max(1, min(100, int(k))))
+    nodes = [
+        {
+            "id": h.doc_id,
+            "score": round(float(h.score), 4),
+            "source_tier": h.source_tier,
+            "text": str((h.payload or {}).get("text") or "")[:500],
+        }
+        for h in hits
+    ]
+    note = "" if nodes else f"no insight/segment nodes within {hops} hop(s) of this entity"
+    return _ok(
+        _kind_of(entity_id),
+        {"id": entity_id, "label": rq.node_label(graph, entity_id)},
+        {"max_hops": hops, "nodes": nodes},
+        note,
+    )
