@@ -1,21 +1,41 @@
-# MCP core server — e2e test guide (prod-v2 corpus)
+# MCP core server — e2e test guide
 
-Two ways to exercise the RFC-095 cross-surface MCP server against the real **prod-v2**
-corpus (`.test_outputs/manual/prod-v2/corpus` — 209 episodes, live search index, GI,
-enrichers). Both drive the same "golden case" that forces cross-surface pivoting.
+The **standard corpus** for the pivot-chain e2e is the committed UI tier-3 fixture
+`tests/fixtures/app-validation-corpus/v3` (deterministic, version-pinned, CI-available).
+Its two-tier search index is **built at test setup** (offline, cached MiniLM) — never
+committed, to avoid a binary lance blob + lance-format-version coupling. The larger
+`.test_outputs/manual/prod-v2/corpus` (209 episodes) is an optional local alternative.
 
-## 1. Automated harness (tool / id-flow layer)
+Three ways to exercise the RFC-095 cross-surface server, all driving the same "golden case"
+that forces cross-surface pivoting.
+
+## 1. CI e2e test (standard — the synthetic corpus)
 
 ```sh
+.venv/bin/python -m pytest tests/integration/test_mcp_pivot_chain_e2e.py -v
+```
+
+Builds the index at setup if absent, then asserts ids flow search→graph across surfaces.
+Skips cleanly where the embedding model isn't available (model-less unit CI); runs fully in
+the ML tier / locally. This is the CI-able, standardized regression guard.
+
+## 2. Automated harness (ad-hoc, any corpus)
+
+```sh
+# standard synthetic corpus (build the index once, offline):
+HF_HUB_OFFLINE=1 .venv/bin/python -m podcast_scraper.cli index-two-tier \
+  --output-dir tests/fixtures/app-validation-corpus/v3
+.venv/bin/python scripts/mcp_e2e_pivot_chain.py --corpus tests/fixtures/app-validation-corpus/v3
+
+# or the larger local prod-v2 snapshot (already indexed):
 .venv/bin/python scripts/mcp_e2e_pivot_chain.py --corpus .test_outputs/manual/prod-v2/corpus
 ```
 
-Drives the golden pivot chain through the registered tools and asserts ids flow
-surface→surface (centrality → momentum → relational → temporal → search → **pivot bridge**
-→ graph → composite). Exit 0 = the chain connected. Read-only. Not in CI (prod-v2 is a
-local gitignored snapshot); run it locally after touching the tools.
+Drives the golden pivot chain through the registered tools and prints a readable trace,
+asserting ids flow surface→surface (centrality → momentum → relational → temporal → search →
+**pivot bridge** → graph → composite). Exit 0 = the chain connected. Read-only.
 
-## 2. Real Claude MCP client (wire layer — the true dogfood)
+## 3. Real Claude MCP client (wire layer — the true dogfood)
 
 Point a Claude MCP client at the stdio server, then give it the golden prompt and watch it
 pick + chain the tools itself.
