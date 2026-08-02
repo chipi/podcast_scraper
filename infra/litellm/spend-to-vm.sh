@@ -4,10 +4,17 @@
 # enterprise-gated, so we read the metered truth straight from its Postgres and push it,
 # exactly like infra/observability/container-metrics does for container inventory.
 #
-# Runs ON the box (systemd timer litellm-spend-push.timer). deploy@ is in the docker group,
-# so it reads the DB via `docker exec litellm-postgres psql` (no psql needed on the host) and
-# pushes to homelab:8428 over the tailnet (host resolves MagicDNS `homelab`; ACL tag:prod →
-# homelab-host:8428 already granted). Emits (box="prod"):
+# Runs as the `litellm-spend-push` SIDECAR in the -p litellm compose project (ADR-142). Two
+# Postgres connection modes so the same script also works for a manual run on the box:
+#   - Sidecar / network (PGHOST set): psql over the compose network with PGPASSWORD. The
+#     sidecar image is a postgres client with NO docker socket — reaching PG by service name
+#     (litellm-postgres:5432) keeps it socket-free (mounting docker.sock would be a privilege
+#     regression, the whole reason we did NOT keep this as a host process).
+#   - Host (default, PGHOST unset): `docker exec litellm-postgres psql` — deploy@ is in the
+#     docker group; no psql or creds needed on the host. For a manual `./spend-to-vm.sh` run.
+# Pushes to homelab:8428 over the tailnet (container resolves `homelab` via the compose
+# extra_hosts entry deploy-litellm.sh injects; ACL tag:prod → homelab-host:8428 granted).
+# Emits (box="prod"):
 #   litellm_key_spend_usd{box,key_alias}       — lifetime spend metered on the virtual key
 #   litellm_key_max_budget_usd{box,key_alias}  — the hard budget wall (0 = unset)
 #   litellm_key_budget_burn_ratio{box,key_alias} — spend/budget (0 when no budget)
@@ -20,7 +27,13 @@ PG_CONTAINER="${PG_CONTAINER:-litellm-postgres}"
 sql='SELECT coalesce(key_alias,'"'"'(unaliased)'"'"'), coalesce(spend,0), coalesce(max_budget,0)
      FROM "LiteLLM_VerificationToken" WHERE key_alias IS NOT NULL;'
 
-rows="$(docker exec "$PG_CONTAINER" psql -U litellm -d litellm -At -F $'\t' -c "$sql" 2>/dev/null || true)"
+if [ -n "${PGHOST:-}" ]; then
+  rows="$(PGPASSWORD="${PGPASSWORD:-${LITELLM_PG_PASSWORD:-}}" psql \
+    -h "$PGHOST" -p "${PGPORT:-5432}" -U "${PGUSER:-litellm}" -d "${PGDATABASE:-litellm}" \
+    -At -F $'\t' -c "$sql" 2>/dev/null || true)"
+else
+  rows="$(docker exec "$PG_CONTAINER" psql -U litellm -d litellm -At -F $'\t' -c "$sql" 2>/dev/null || true)"
+fi
 if [ -z "$rows" ]; then
   echo "spend-to-vm: no key rows (gateway not up, no keys minted yet, or DB unreachable) — nothing to push" >&2
   exit 0

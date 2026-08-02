@@ -21,7 +21,7 @@ discovery.relabel "litellm" {
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(litellm|litellm-postgres)"
+		regex         = "/(litellm|litellm-postgres|litellm-spend-push)"
 		action        = "keep"
 	}
 
@@ -37,6 +37,13 @@ discovery.relabel "litellm" {
 		regex         = "/litellm-postgres"
 		target_label  = "surface"
 		replacement   = "postgres"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/litellm-spend-push"
+		target_label  = "surface"
+		replacement   = "spend-push"
 	}
 
 	rule {

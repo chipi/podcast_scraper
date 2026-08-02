@@ -6,9 +6,10 @@ Grafana directly.
 
 ## The metric contract (already flowing once prod deploys)
 
-The prod box pushes these to VictoriaMetrics every ~30 min (host systemd timer
-`litellm-spend-push`, reading the gateway Postgres — the gateway's Prometheus endpoint is
-enterprise-gated, so we push metered truth). All carry `box="prod"`:
+The prod box pushes these to VictoriaMetrics every 30 min (the `litellm-spend-push` compose
+sidecar — a postgres-client container in the `-p litellm` project reading the gateway Postgres
+over the compose network; the gateway's Prometheus endpoint is enterprise-gated, so we push
+metered truth). All carry `box="prod"`:
 
 - `litellm_key_spend_usd{box,key_alias}` — lifetime spend on each virtual key
 - `litellm_key_max_budget_usd{box,key_alias}` — the hard budget wall (0 = unset)

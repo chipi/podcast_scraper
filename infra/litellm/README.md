@@ -22,7 +22,7 @@ homelab so the gateway boots + is testable; the real prod alias set is decided i
 | `docker-compose.litellm.yml` | `litellm` (litellm-database) + `postgres:16`; own `-p litellm` project |
 | `config.yaml` | model aliases (placeholder) + Langfuse/GlitchTip callbacks + master-key |
 | `.env.example` | the secret slots (sops-delivered on prod; never commit `.env`) |
-| `spend-to-vm.sh` + `litellm-spend-push.{service,timer}` | daily-ish per-key spend → homelab VictoriaMetrics |
+| `spend-to-vm.sh` | per-key spend → homelab VictoriaMetrics; run by the `litellm-spend-push` compose sidecar (rootless, no host systemd) |
 | `../deploy/deploy-litellm.sh` | deploy: stage env, resolve homelab IP, compose up, health-gate |
 
 ## Two prod-specific differences from the homelab reference
@@ -75,8 +75,8 @@ top-up.
   `litellm-vps` (`success/failure_callback: langfuse`). This is the LLM-call detail.
 - **Errors** (gateway exceptions) → **GlitchTip**, project `litellm-vps` (`failure_callback:
   sentry`). Both `litellm-vps` projects are kept separate from homelab's `litellm-gateway`.
-- **Metrics** (per-key spend/budget/burn) → **VictoriaMetrics**: `litellm-spend-push.timer`
-  runs `spend-to-vm.sh` every ~30 min, reading the gateway Postgres and pushing
+- **Metrics** (per-key spend/budget/burn) → **VictoriaMetrics**: the `litellm-spend-push`
+  compose sidecar runs `spend-to-vm.sh` every 30 min, reading the gateway Postgres and pushing
   `litellm_key_spend_usd` / `_max_budget_usd` / `_budget_burn_ratio` (`box="prod"`) to
   `homelab:8428`. Viewed in **Grafana** ("Prod LLM Gateway", see `grafana/`) + the homepage.
 - **Logs** (gateway container stdout — startup, config reloads, provider failures, budget
