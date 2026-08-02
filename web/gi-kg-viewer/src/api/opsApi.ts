@@ -75,6 +75,37 @@ export async function resetResilience(scope: 'all' | 'llm' | 'rss' = 'all'): Pro
   }
 }
 
+/** One virtual key's spend / budget / burn on the prod LiteLLM gateway (#53 / ADR-142). */
+export interface LlmGatewayKey {
+  key_alias: string
+  spend_usd?: number
+  max_budget_usd?: number
+  burn_ratio?: number
+}
+
+/**
+ * GET /api/ops/llm-gateway — prod LiteLLM gateway per-key spend, read from homelab
+ * VictoriaMetrics. `configured=false` when the VM URL isn't wired for this deploy;
+ * `reachable=false` on a partial/failed read.
+ */
+export interface LlmGatewaySnapshot {
+  configured: boolean
+  reachable: boolean
+  keys: LlmGatewayKey[]
+}
+
+export async function fetchLlmGateway(): Promise<LlmGatewaySnapshot> {
+  const res = await fetchWithTimeout('/api/ops/llm-gateway', undefined, {
+    timeoutMs: 10_000,
+    timeoutDetail: 'llm-gateway',
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as LlmGatewaySnapshot
+}
+
 /** One slice of the token/cost rollup (a group + its totals). */
 export interface UsageGroup {
   [dimension: string]: string | number

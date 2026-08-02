@@ -36,10 +36,14 @@
     // :8443 = orrery co-tenant tailnet publish (chipi/podcast_scraper#838,
     // chipi/orrery#260). orrery's web app at :8090 fronted via tailscale
     // serve on :8443, leaving :443 for podcast_scraper.
+    // :4001 = the prod LiteLLM gateway admin UI (ADR-130 / #1357), published on
+    // the box's tailnet IP by deploy-litellm.sh so admins reach it from a
+    // laptop/phone; auth = the gateway master key. Never public (loopback + tailnet
+    // only). Distinct from homelab's own :4001 gateway — different host.
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:prod:22,80,443,8443"]
+      "dst":    ["tag:prod:22,80,443,4001,8443"]
     },
 
     // Deploy workflow (ephemeral GHA runner under tag:gha-deployer) SSHes into

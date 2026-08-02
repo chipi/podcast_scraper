@@ -1,0 +1,80 @@
+{
+  "__comment": "Prod LLM Gateway — starter dashboard for the homelab Grafana (#1357 §5, ADR-142). Reads the litellm_key_* series the prod spend pusher writes to VictoriaMetrics (box=prod). Import against the VictoriaMetrics/Prometheus datasource, or fold these panels into the existing 'LLM Gateway — LiteLLM' board. Tokens/requests panels are intentionally absent until the pusher (or a Langfuse datasource) supplies them.",
+  "title": "Prod LLM Gateway",
+  "uid": "prod-llm-gateway",
+  "tags": ["llm", "litellm", "prod", "spend"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "5m",
+  "time": { "from": "now-30d", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_VM",
+        "label": "Metrics source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Prod LLM spend — total (lifetime, all keys)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum(litellm_key_spend_usd{box=\"prod\"})", "legendFormat": "total" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Budget burn per key (spend / max_budget)",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": { "h": 6, "w": 16, "x": 8, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 0.7 },
+            { "color": "red", "value": 0.9 }
+          ] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "refId": "A", "expr": "litellm_key_budget_burn_ratio{box=\"prod\"}", "legendFormat": "{{key_alias}}" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Spend per key over time",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "litellm_key_spend_usd{box=\"prod\"}", "legendFormat": "{{key_alias}}" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Per-key spend / budget / burn",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 15 },
+      "targets": [
+        { "refId": "spend", "expr": "litellm_key_spend_usd{box=\"prod\"}", "format": "table", "instant": true },
+        { "refId": "budget", "expr": "litellm_key_max_budget_usd{box=\"prod\"}", "format": "table", "instant": true },
+        { "refId": "burn", "expr": "litellm_key_budget_burn_ratio{box=\"prod\"}", "format": "table", "instant": true }
+      ]
+    }
+  ]
+}

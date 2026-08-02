@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { fetchOpsSummary } from './opsApi'
+import { fetchLlmGateway, fetchOpsSummary } from './opsApi'
 
 function mockFetch(ok: boolean, body: unknown, text = ''): void {
   vi.stubGlobal(
@@ -40,5 +40,24 @@ describe('opsApi', () => {
   it('throws the response text on a non-2xx', async () => {
     mockFetch(false, {}, 'boom')
     await expect(fetchOpsSummary()).rejects.toThrow('boom')
+  })
+
+  it('GETs /api/ops/llm-gateway and returns the per-key spend snapshot', async () => {
+    const payload = {
+      configured: true,
+      reachable: true,
+      keys: [
+        { key_alias: 'proj-podcast-prod', spend_usd: 0.42, max_budget_usd: 25, burn_ratio: 0.0168 },
+      ],
+    }
+    mockFetch(true, payload)
+    const result = await fetchLlmGateway()
+    expect(result.configured).toBe(true)
+    expect(result.reachable).toBe(true)
+    expect(result.keys[0].key_alias).toBe('proj-podcast-prod')
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/ops/llm-gateway',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
   })
 })

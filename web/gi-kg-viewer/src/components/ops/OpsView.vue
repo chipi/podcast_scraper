@@ -2,10 +2,12 @@
 import { onMounted, ref } from 'vue'
 
 import {
+  fetchLlmGateway,
   fetchOpsSummary,
   fetchResilience,
   fetchUsage,
   resetResilience,
+  type LlmGatewaySnapshot,
   type OpsSourceEnvelope,
   type OpsSummary,
   type ResilienceSnapshot,
@@ -132,6 +134,24 @@ async function onUsageGroupByChange(dim: typeof usageGroupBy.value): Promise<voi
   await refreshUsage()
 }
 
+// --- Prod LiteLLM gateway (#53 / ADR-142): per-key spend/budget/burn from VictoriaMetrics ---
+const llmGateway = ref<LlmGatewaySnapshot | null>(null)
+const llmGatewayError = ref<string | null>(null)
+
+// Spend runs from sub-cent (a few test calls) to dollars — show precision on tiny values.
+const spendFmt = (n: number | undefined): string =>
+  n == null ? '—' : `$${n > 0 && n < 0.01 ? n.toPrecision(2) : n.toFixed(2)}`
+const burnFmt = (n: number | undefined): string => (n == null ? '—' : `${(n * 100).toFixed(1)}%`)
+
+async function refreshLlmGateway(): Promise<void> {
+  try {
+    llmGateway.value = await fetchLlmGateway()
+    llmGatewayError.value = null
+  } catch (e) {
+    llmGatewayError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
 async function refresh(): Promise<void> {
   loading.value = true
   error.value = null
@@ -144,6 +164,7 @@ async function refresh(): Promise<void> {
   }
   void refreshResilience()
   void refreshUsage()
+  void refreshLlmGateway()
 }
 
 onMounted(() => {
@@ -192,6 +213,79 @@ onMounted(() => {
         </div>
         <p class="mt-1 text-xs text-muted">{{ summaryLine(name, data.sources[name]) }}</p>
       </div>
+    </div>
+
+    <!-- Prod LiteLLM gateway (#53 / ADR-142): per-key spend + the budget wall, from the
+         gateway's metered spend pushed to homelab VictoriaMetrics. -->
+    <div class="rounded-sm border border-border bg-elevated p-3" data-testid="llm-gateway-panel">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-surface-foreground">Prod LLM gateway</span>
+        <span
+          class="text-xs font-semibold"
+          :class="{
+            'text-success': llmGateway?.configured && llmGateway?.reachable,
+            'text-muted': !llmGateway || !llmGateway.configured,
+            'text-danger': llmGateway?.configured && !llmGateway?.reachable,
+          }"
+          data-testid="llm-gateway-status"
+        >
+          {{
+            !llmGateway
+              ? '—'
+              : !llmGateway.configured
+                ? 'not configured'
+                : llmGateway.reachable
+                  ? 'live'
+                  : 'unreachable'
+          }}
+        </span>
+      </div>
+      <p v-if="llmGatewayError" class="mt-1 text-xs text-danger" data-testid="llm-gateway-error">
+        {{ llmGatewayError }}
+      </p>
+      <p
+        v-else-if="llmGateway && !llmGateway.configured"
+        class="mt-1 text-xs text-muted"
+      >
+        VictoriaMetrics not wired for this deploy.
+      </p>
+      <p
+        v-else-if="llmGateway && llmGateway.keys.length === 0"
+        class="mt-1 text-xs text-muted"
+      >
+        No per-key spend recorded yet.
+      </p>
+      <table
+        v-else-if="llmGateway"
+        class="mt-2 w-full text-xs"
+        data-testid="llm-gateway-keys"
+      >
+        <thead>
+          <tr class="text-left text-muted">
+            <th class="font-medium">key</th>
+            <th class="font-medium text-right">spend</th>
+            <th class="font-medium text-right">budget</th>
+            <th class="font-medium text-right">burn</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="k in llmGateway.keys"
+            :key="k.key_alias"
+            :data-testid="`llm-key-${k.key_alias}`"
+          >
+            <td class="py-0.5 text-surface-foreground">{{ k.key_alias }}</td>
+            <td class="py-0.5 text-right tabular-nums">{{ spendFmt(k.spend_usd) }}</td>
+            <td class="py-0.5 text-right tabular-nums text-muted">{{ spendFmt(k.max_budget_usd) }}</td>
+            <td
+              class="py-0.5 text-right tabular-nums"
+              :class="{ 'text-danger': (k.burn_ratio ?? 0) >= 0.9 }"
+            >
+              {{ burnFmt(k.burn_ratio) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Resilience (ADR-113): circuit breakers + call-fuse budgets, with an operator reset. -->

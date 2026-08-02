@@ -6,11 +6,13 @@ const fetchOpsSummary = vi.fn()
 const fetchResilience = vi.fn()
 const resetResilience = vi.fn()
 const fetchUsage = vi.fn()
+const fetchLlmGateway = vi.fn()
 vi.mock('../../api/opsApi', () => ({
   fetchOpsSummary: (...a: unknown[]) => fetchOpsSummary(...a),
   fetchResilience: (...a: unknown[]) => fetchResilience(...a),
   resetResilience: (...a: unknown[]) => resetResilience(...a),
   fetchUsage: (...a: unknown[]) => fetchUsage(...a),
+  fetchLlmGateway: (...a: unknown[]) => fetchLlmGateway(...a),
 }))
 
 import OpsView from './OpsView.vue'
@@ -58,6 +60,7 @@ afterEach(() => {
   fetchResilience.mockReset()
   resetResilience.mockReset()
   fetchUsage.mockReset()
+  fetchLlmGateway.mockReset()
 })
 
 describe('OpsView', () => {
@@ -173,6 +176,40 @@ describe('OpsView resilience panel (ADR-113)', () => {
     await flushPromises()
     expect(resetResilience).toHaveBeenCalledWith('all')
     expect(w.get('[data-testid="resilience-status"]').text()).toBe('all clear')
+  })
+})
+
+describe('OpsView prod LLM gateway panel (#53)', () => {
+  const baseMocks = () => {
+    fetchOpsSummary.mockResolvedValue({ target: 't', live: [], unconfigured: [], failed: [], sources: {} })
+    fetchResilience.mockResolvedValue(CLEAR_RESILIENCE)
+    fetchUsage.mockResolvedValue(USAGE)
+  }
+
+  it('renders per-key spend / budget / burn when live', async () => {
+    baseMocks()
+    fetchLlmGateway.mockResolvedValue({
+      configured: true,
+      reachable: true,
+      keys: [{ key_alias: 'proj-podcast-prod', spend_usd: 3.5, max_budget_usd: 25, burn_ratio: 0.14 }],
+    })
+    const w = mount(OpsView)
+    await flushPromises()
+    expect(w.get('[data-testid="llm-gateway-status"]').text()).toBe('live')
+    const row = w.get('[data-testid="llm-key-proj-podcast-prod"]')
+    expect(row.text()).toContain('proj-podcast-prod')
+    expect(row.text()).toContain('$3.50')
+    expect(row.text()).toContain('$25.00')
+    expect(row.text()).toContain('14.0%')
+  })
+
+  it("shows 'not configured' when VictoriaMetrics is unwired", async () => {
+    baseMocks()
+    fetchLlmGateway.mockResolvedValue({ configured: false, reachable: false, keys: [] })
+    const w = mount(OpsView)
+    await flushPromises()
+    expect(w.get('[data-testid="llm-gateway-status"]').text()).toBe('not configured')
+    expect(w.find('[data-testid="llm-gateway-keys"]').exists()).toBe(false)
   })
 })
 

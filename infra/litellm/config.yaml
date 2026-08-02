@@ -1,0 +1,45 @@
+# LiteLLM gateway config — PROD VPS instance (#1357, ADR-142).
+#
+# Model ALIASES are the contract: consumers call an alias (never a provider name),
+# so the route behind it is swappable per-alias with no app change. Shared lineage
+# with the homelab gateway (agentic-ai-homelab/infra/litellm/config.yaml) — keep the
+# two from drifting; per-instance difference is env only (keys, callbacks).
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PLACEHOLDER ALIASES — TEMPORARY. Seeded from homelab so the gateway boots and is
+# testable. The REAL prod alias set is decided in #1356 (provider integration) once
+# we know exactly which stages call what; expect this whole model_list to be
+# replaced then. Do not wire the pipeline to these names as if they were final.
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_list:
+  - model_name: homelab-pro
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-pro
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: homelab-flash
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-flash
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: homelab-glm
+    litellm_params:
+      model: openrouter/z-ai/glm-5.2
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: homelab-kimi
+    litellm_params:
+      model: openrouter/moonshotai/kimi-k2.6
+      api_key: os.environ/OPENROUTER_API_KEY
+
+litellm_settings:
+  # Full-package observability from day one (operator requirement). On PROD these
+  # callbacks reach the homelab pane over the tailnet — see .env.example: LANGFUSE_HOST
+  # and SENTRY_DSN use the `homelab` name, resolved by the compose extra_hosts entry
+  # deploy-litellm.sh injects (Docker's bridge can't resolve MagicDNS on its own).
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse", "sentry"]
+  num_retries: 2
+  request_timeout: 120
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Virtual keys + per-key budgets live in postgres (DATABASE_URL from compose).

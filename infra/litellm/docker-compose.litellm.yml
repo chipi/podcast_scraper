@@ -1,0 +1,114 @@
+# LiteLLM — the PROD VPS LLM gateway (#1357, ADR-142). One OpenAI-compatible endpoint;
+# providers are config. Deployed as its OWN compose project (`-p litellm`) by
+# infra/deploy/deploy-litellm.sh, isolated from the app / operator / player stacks.
+#
+# Mirrors agentic-ai-homelab/infra/litellm/docker-compose.yml (shared lineage), with two
+# PROD-specific differences:
+#   1. Bound to loopback only (127.0.0.1) — NEVER a public surface. The app reaches it at
+#      127.0.0.1:4001; admin UI via an SSH/tailscale tunnel (tailnet-only exposure is a
+#      follow-up, not day one).
+#   2. Langfuse/GlitchTip are REMOTE (homelab, over the tailnet), not same-host. The
+#      container reaches them via the `homelab` name, which Docker's bridge cannot resolve
+#      — so deploy-litellm.sh injects HOMELAB_TAILNET_IP and we pin it in extra_hosts.
+#
+# Port 4001 published on 127.0.0.1 (homelab uses 4001 too; different box, no clash). v1:
+# image tags pinned after first successful boot (repo convention).
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-stable
+    container_name: litellm
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4001:4000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://litellm:${LITELLM_PG_PASSWORD}@postgres:5432/litellm"
+    # Reach the homelab observability pane (Langfuse :4000 / GlitchTip :8090) over the
+    # tailnet — the bridge network can't resolve MagicDNS `homelab`, so pin its tailnet IP.
+    # HOMELAB_TAILNET_IP is written into .env fresh each deploy; loopback fallback keeps the
+    # gateway serving even if resolution fails (telemetry just drops until it re-resolves).
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "3" }
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: litellm-postgres
+    # Loopback-published (127.0.0.1:5433) for a manual host-side psql / docker-exec read.
+    # The routine spend push runs as the litellm-spend-push SIDECAR below, reaching PG by
+    # service name over the compose network (no socket). NOT tailnet-exposed — spend leaves
+    # the box only as the push to homelab VictoriaMetrics (ADR-142 §metrics, option a).
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${LITELLM_PG_PASSWORD}
+      POSTGRES_DB: litellm
+    volumes:
+      - litellm-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    restart: unless-stopped
+
+  # Spend → homelab VictoriaMetrics, the ROYAL ROUTE (ADR-142 §metrics): rootless, no host
+  # state, travels with `-p litellm`. Replaces the host systemd timer, which `deploy@` could
+  # not install (no sudo). A postgres-client container reads per-key spend over the compose
+  # network (PGHOST=postgres — NO docker socket) and pushes every SPEND_PUSH_INTERVAL sec.
+  # Only the PG password is injected (interpolated from --env-file at parse time) — NOT the
+  # provider/master keys, so this low-value sidecar never holds gateway credentials.
+  litellm-spend-push:
+    image: postgres:16-alpine
+    container_name: litellm-spend-push
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: litellm
+      PGDATABASE: litellm
+      PGPASSWORD: ${LITELLM_PG_PASSWORD}
+      VM_URL: "http://homelab:8428/api/v1/import/prometheus"
+      SPEND_PUSH_INTERVAL: "1800"
+    # Same tailnet reach to homelab as the gateway (VictoriaMetrics :8428). Pinned IP because
+    # the bridge network can't resolve MagicDNS; deploy-litellm.sh writes HOMELAB_TAILNET_IP.
+    extra_hosts:
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
+    volumes:
+      - ./spend-to-vm.sh:/usr/local/bin/spend-to-vm.sh:ro
+    # psql ships in the postgres image; add bash + curl (the script needs both) once at start.
+    # $$ escapes runtime shell vars so Compose does NOT interpolate them at parse time —
+    # they come from the `environment:` block inside the container.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache bash curl >/dev/null 2>&1 || true
+        echo "litellm-spend-push: interval=$${SPEND_PUSH_INTERVAL}s -> $${VM_URL}"
+        while true; do
+          bash /usr/local/bin/spend-to-vm.sh || true
+          sleep "$${SPEND_PUSH_INTERVAL:-1800}"
+        done
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    restart: unless-stopped
+
+volumes:
+  litellm-pg:

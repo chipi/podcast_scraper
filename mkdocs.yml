@@ -19,6 +19,7 @@ nav:
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
       - Tailnet & networking runbook (ACL GitOps, cross-project): guides/TAILNET_AND_NETWORKING.md
       - Edge convergence runbook (apply-edge / verify-edge): guides/EDGE_CONVERGENCE_RUNBOOK.md
+      - LiteLLM gateway (consume + integrate): guides/LITELLM_GATEWAY.md
       - DGX Spark runbook (RFC-089): guides/DGX_RUNBOOK.md
       - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
@@ -313,6 +314,7 @@ nav:
       - ADR-139 Text Normalization Contract: adr/ADR-139-text-normalization-contract.md
       - ADR-140 Versioned Labeling Profiles: adr/ADR-140-versioned-labeling-profiles.md
       - ADR-141 Operator two-plane clarification (control + public): adr/ADR-141-operator-two-plane-clarification.md
+      - ADR-142 LiteLLM prod gateway: adr/ADR-142-litellm-prod-gateway.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
