@@ -5,27 +5,30 @@ reference. This is the intent-vs-reality map: what we *planned and haven't built
 shipped but hasn't*, and how each relates to the north star — **the v3 corpus and scaling to 10,000
 episodes**. It seeds the next-session plans; it is not itself a plan.
 
-## The 6 critical-path gaps (the real next work)
+## The 4 live critical-path gaps (2 of 6 closed — see foot of section)
 
-1. **DGX-local model decision is not made.** `BAKEOFF-18EP-RESULTS.md`'s own ordering says the
-   Ollama/DGX-local wave runs *after* the cost-instrumentation fix — and that arm, the one that
-   actually decides the v2.5 Gemini→DGX swap, **has not run**. This is Phase D of the v2.5 handover.
-   → run the DGX-local bake-off arm; it gates the whole v2.5 corpus.
-2. ~~**Two unreconciled "north star" plans.**~~ **RESOLVED 2026-08-02** — the v2.5 handover was
-   folded into `1000-EPISODES-REPROCESS-PLAN.md` (now the single canonical arc doc; the 2.5 corpus
-   is its current stage, not a separate plan) and deleted.
-3. **Corpus-growth strategy is undecided** — `ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` has no target
+1. **DGX-local model decision is not made** — the current front (v2.5 stage D). The bake-off arm
+   that decides the v2.5 Gemini→DGX swap **has not run**. → run it; it gates the whole v2.5 corpus.
+   **Entry-state verified 2026-08-02 (read-only):** DGX `dgx-llm-1` reachable (ping 0% loss ~307 ms);
+   **research vLLM :8003 is DOWN** — must `gpu-mode-swap.sh research` first (script at
+   `~/Projects/agentic-ai-homelab/infra/dgx/bin/`, NOT the `~/agentic-ai-homelab` path in memory);
+   ollama :11434 up (llama3.1:8b). Harness present: `autoresearch/` (JUDGING.md,
+   PER_MODEL_OPTIMAL_PARAMS.md, bundled_prompt_tuning), `scripts/backfill/relabel_corpus.py`, DGX
+   profiles (`prod_dgx_balanced`, `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`). Parity
+   baseline corpus on disk: `.test_outputs/manual/prod-v2/corpus` (4.5G, 90 audio, 10 feeds).
+2. **Corpus-growth strategy is undecided** — `ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` has no target
    size, no curated-overlap-vs-broad-ingest call, no onboarding mechanics. This is the actual lever
-   from ~100/209 episodes to 10,000. → decide size + show-selection strategy (feeds Corpus Scout).
-4. **Host identity is unbuilt, not just imperfect.** `EPIC-HOST-IDENTIFICATION.md` is fully specced,
+   from ~90 episodes to 10,000. → decide size + show-selection strategy (feeds Corpus Scout `PRD-037`/`RFC-088`).
+3. **Host identity is unbuilt, not just imperfect.** `EPIC-HOST-IDENTIFICATION.md` is fully specced,
    **zero code** (`person→HOSTS→podcast`, `/api/relational/shows`, host scorecard). At 10k eps the
    per-episode coverage heuristic it replaces won't scale. → build Slice-0 gold set + scorecard.
-5. **The reprocess acceptance gate isn't finished.** `CORPUS-V4-FIXTURE-LADDER.md` / #1189 (OPEN):
+4. **The reprocess acceptance gate isn't finished.** `CORPUS-V4-FIXTURE-LADDER.md` / #1189 (OPEN):
    the eval↔production transcript-variant parity gap is unresolved. This is the gate meant to catch
    regressions during the 1000-episode reprocess. → freeze the v4 fixture ladder + close the parity gap.
-6. ~~**Full-corpus diarization run status is UNVERIFIED.**~~ **RESOLVED 2026-08-02** — operator
-   confirmed the full-corpus community-1 diarization was done at the ~90-episode scale in v2.2
-   (PR #1335); the corpus carries uniform RTTM / speaker counts. `diarize-full-corpus-run.md` deleted.
+
+**Closed since first draft (2026-08-02):** ~~north-star reconcile~~ (v2.5 handover folded into the
+canonical `1000-EPISODES-REPROCESS-PLAN.md`, handover deleted) · ~~full-corpus diarization run~~
+(done at ~90 eps in v2.2 / #1335; `diarize-full-corpus-run.md` deleted).
 
 ## QUALITY tier — corpus quality levers (not blocking, high leverage)
 
@@ -60,7 +63,7 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
 - `EXPLORE_EXPANSION_IDEAS.md` — **DELETED 2026-08-02** (all 5 ideas in `cli.py`, #601/#597 closed).
 - `SEARCH-V3-IMPLEMENTATION-PLAN.md` — **DELETED 2026-08-02** (S0–S8 shipped `e590887f`/#1274; RFC-107 is the permanent home; 3 referrers repointed to it).
 - `LORA_HYBRID_PIPELINE_PLAN.md` — parent epic #907 CLOSED, LoRA out of scope per memory. **(Kept open per operator ask.)**
-- `SPEC_KG_GI_ONTOLOGY_V3_WISHLIST` — its gating (#1036 closed) passed; a *different* v3 (KG/GI schema, not corpus). → re-triage.
+- `SPEC_KG_GI_ONTOLOGY_V3_WISHLIST` — **PROMOTED 2026-08-02** to `docs/architecture/corpus/ontology-v3-forward-look.md` (RFC-097 depends on it as v3 spec input; RFC-097 repointed to the permanent home).
 
 ## Kept OPEN for your review (not deleted)
 

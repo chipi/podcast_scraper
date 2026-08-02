@@ -951,6 +951,6 @@ Pinned so the chunked execution doesn't accidentally do them:
 9. KG proximity-based retrieval (RFC-091 stays REJECTED)
 
 v3 wishlist with rationale lives at
-`docs/wip/SPEC_KG_GI_ONTOLOGY_V3_WISHLIST_2026-06-20.md` (preserved
+`docs/architecture/corpus/ontology-v3-forward-look.md` (preserved
 through v2 implementation — when v2 ships in production, this
-wishlist + 2–4 weeks of observations become the v3 spec input).
+forward-look + 2–4 weeks of observations become the v3 spec input).

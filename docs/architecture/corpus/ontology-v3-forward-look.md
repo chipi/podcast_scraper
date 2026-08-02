@@ -1,9 +1,11 @@
 # KG + GI ontology — v3 wishlist (post-v2 forward look, 2026-06-20)
 
-**Status**: WIP wishlist, not a spec. Companion to rounds 1-3 of the
-v2 spec. Records what v2 explicitly leaves on the table so we can
-spot v2 choices that would lock v3 out, and so we have a destination
-to point at when contributors ask "where does this fit?"
+**Status**: Forward-look reference (promoted from `docs/wip/` 2026-08-02 — RFC-097
+depends on it as v3 spec input, so it lives in the permanent layer). Companion to
+the v2 ontology spec (`ontology.md` + RFC-097). Records what v2 explicitly leaves on
+the table so we can spot v2 choices that would lock v3 out, and so we have a
+destination to point at when contributors ask "where does this fit?" Not itself a
+spec — the v3 spec emerges from real data once v2 ships.
 
 **Trigger**: Operator asked "should we do v3 after #1037 lands, and
 what else might we be missing across other PRDs/RFCs?" Two
@@ -48,7 +50,7 @@ flagship use cases — all of these ship on v2 with no additional
 ontology work:
 
 | Surface | PRD/RFC | v2 sufficient? |
-|---|---|---|
+| --- | --- | --- |
 | Position Tracker | PRD-028 | ✓ (round-3 added `insight_type` + `position_hint` for this) |
 | Person Profile | PRD-029 | ✓ |
 | Topic Entity View (base) | PRD-026 | ✓ (enricher layer is orthogonal — needed for temporal velocity, cooccurrence, grounding-rate badges, but the base view works on v2 alone) |
@@ -72,7 +74,7 @@ do in v2.
 ### Category 1 — Ontology evolution (the things v2 leaves on the table)
 
 | # | Item | Why deferred from v2 | What it unlocks |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | **Topic semantic deduplication** | RFC-049 v1.1 deferral; corpus-level work | Cleaner browse / search — "AI Regulation" and "AI Policy" merge |
 | 2 | **Cross-episode Person merging** (alias registry) | RFC-072 KL2 — corpus-level work | "Sam Altman" + "Samuel Altman" + "@sama" resolve to same Person |
 | 3 | **CONTRADICTS edges between Insights** | RFC-049 Resolved Q1; needs NLI pipeline addition | Contradiction badges in Search (PRD-031 OQ-3), LITM packs (RFC-093 top_contradiction) |
@@ -85,7 +87,7 @@ parts of LITM packs (RFC-093) useful. It's not ontology work — it's
 a separate infrastructure decision:
 
 | # | Item | Where it surfaces |
-|---|---|---|
+| --- | --- | --- |
 | 5 | **`temporal_velocity` enricher** — monthly mention histograms + trend direction per topic/person | PRD-026 temporal view, PRD-028 timeline |
 | 6 | **`topic_cooccurrence` enricher** — pairs/triples of topics that co-occur in episodes | PRD-026 related-topics surface |
 | 7 | **`grounding_rate` enricher** — % of Insights for a topic/person that are grounded | PRD-026 grounding badge, PRD-031 quality filter |
@@ -97,7 +99,7 @@ defines the architecture; implementation has not begun.
 ### Category 3 — Query-time infrastructure
 
 | # | Item | Status | What it unlocks |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 9 | **Entity resolver** (#849) — maps free-text "Maya" / "Sam Altman" to `person:` canonical IDs | Not built; #849 is a recon ticket | PRD-031 entity_lookup intent, RFC-094 string-keyed queries |
 | 10 | **ML query intent router** (RFC-092) — ONNX classifier upgrading rules-based v1 routing | RFC-092 drafted, not built; gated on eval data | PRD-031 v2 intent routing |
 | 11 | **Natural-language query layer** | RFC-050/056 deferred; PRD-031 v3 listed | Q&A surface ("what does Maya say about braking?") |
@@ -106,7 +108,7 @@ defines the architecture; implementation has not begun.
 ### Category 4 — Agent / tool layer
 
 | # | Item | Status | What it unlocks |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 13 | **MCP tool layer** (RFC-095) | Not started; generic MCP infrastructure | RFC-093 LITM packs as MCP tool, RFC-094 relational queries as MCP endpoints |
 | 14 | **Agent-facing query endpoints** | Depends on #13 | Programmatic corpus access for downstream agents |
 
@@ -115,7 +117,7 @@ defines the architecture; implementation has not begun.
 These aren't ontology work but worth tracking:
 
 | # | Item | Source |
-|---|---|---|
+| --- | --- | --- |
 | 15 | Saved searches | PRD-031 V3 |
 | 16 | Search result export ("research bundle") | PRD-031 V3 |
 | 17 | Search as MCP tool endpoint | PRD-031 V3 (depends on #13) |
@@ -129,7 +131,7 @@ If we get any of these wrong in v2, we close v3 doors. Pre-flight
 checklist for v2 chunks:
 
 | Invariant | Why it matters | v3 capabilities at risk if violated |
-|---|---|---|
+| --- | --- | --- |
 | **Grounding contract** — `Insight.grounded ⇔ ≥1 SUPPORTED_BY edge` to verbatim Quote | Viewer UX, enriched search (PRD-027 FR3.3 — "never synthesise from ungrounded Insights") | Every downstream surface |
 | **Quote `char_start`/`char_end`/`timestamp_*_ms`** required, not optional | FAISS chunk-to-Quote matching (PRD-027), viewer jump-to-moment, Position Tracker quote display | Enriched Search, Position Tracker, viewer timeline |
 | **Canonical IDs** — `person:{slug}`, `topic:{slug}`, `org:{slug}` consistent across kg.json + gi.json + bridge.json | Relational queries (RFC-094), CIL queries (RFC-072), graph traversals | All cross-layer features |
@@ -223,7 +225,7 @@ caught + round-3 corrected). v3 should get the same treatment.
 
 ## Cross-references
 
-- v2 spec lineage: rounds 1-3 in `docs/wip/SPEC_KG_GI_ONTOLOGY_*`
+- v2 spec lineage: rounds 1-3 consolidated into `docs/architecture/corpus/ontology.md` + RFC-097 (the wip round docs were pruned once the spec landed)
 - v2 anchor issue: #1036 (now reflects round-3 framing in body)
 - Autoresearch programme epic: #907 (umbrella, contains #1036)
 - Current branch / PR: #1037 (feat/autoresearch-followups-2026-06-18)
