@@ -9,13 +9,21 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
 
 1. **DGX-local model decision is not made** — the current front (v2.5 stage D). The bake-off arm
    that decides the v2.5 Gemini→DGX swap **has not run**. → run it; it gates the whole v2.5 corpus.
-   **Entry-state verified 2026-08-02 (read-only):** DGX `dgx-llm-1` reachable (ping 0% loss ~307 ms);
-   **research vLLM :8003 is DOWN** — must `gpu-mode-swap.sh research` first (script at
-   `~/Projects/agentic-ai-homelab/infra/dgx/bin/`, NOT the `~/agentic-ai-homelab` path in memory);
-   ollama :11434 up (llama3.1:8b). Harness present: `autoresearch/` (JUDGING.md,
-   PER_MODEL_OPTIMAL_PARAMS.md, bundled_prompt_tuning), `scripts/backfill/relabel_corpus.py`, DGX
-   profiles (`prod_dgx_balanced`, `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`). Parity
-   baseline corpus on disk: `.test_outputs/manual/prod-v2/corpus` (4.5G, 90 audio, 10 feeds).
+   **Entry-state verified 2026-08-02 (read-only SSH):** DGX `dgx-llm-1` reachable (key auth OK, ping
+   0% loss). **The DGX was re-provisioned since the plan was written** — the autoresearch-vLLM
+   bring-up path Phase D assumes is GONE: no `~/agentic-ai-homelab` repo, no `gpu-mode-swap.sh`
+   anywhere under `~`//opt//srv, and NO autoresearch/coder-next vLLM container; `:8003` serves nothing.
+   What IS running (persistent containers): `moss`, `pyannote`, `faster-whisper` (all ~10 d),
+   `librechat-*` (3 d), obs stack; `/opt` holds native `moss-server`/`pyannote-server`/`faster-whisper`/
+   `speaches-gb10`/`llm-models`/`actions-runner`; ollama `:11434` up (llama3.1:8b).
+   **BLOCKER for the fresh session: how the bake-off LLM is served on the re-provisioned box is an
+   open operator call** (moss? librechat? a new vLLM?) — Phase D's serving assumptions + the stale
+   `reference_gpu_mode_swap_script` / `project_dgx_vllm_distinction` / `project_dgx_tailscale_acl`
+   memories need re-confirmation before the bake-off runs.
+   Local side present & verified: `autoresearch/` harness (JUDGING.md, PER_MODEL_OPTIMAL_PARAMS.md,
+   bundled_prompt_tuning), `scripts/backfill/relabel_corpus.py`, DGX profiles (`prod_dgx_balanced`,
+   `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`), parity baseline corpus
+   `.test_outputs/manual/prod-v2/corpus` (4.5G, 90 audio, 10 feeds).
 2. **Corpus-growth strategy is undecided** — `ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` has no target
    size, no curated-overlap-vs-broad-ingest call, no onboarding mechanics. This is the actual lever
    from ~90 episodes to 10,000. → decide size + show-selection strategy (feeds Corpus Scout `PRD-037`/`RFC-088`).
