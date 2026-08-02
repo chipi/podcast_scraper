@@ -10,38 +10,38 @@
         "name": "Rina",
         "named": true,
         "role": "host",
-        "talk_share": 0.5116,
+        "talk_share": 0.5532,
         "voice_type": "named"
       },
       {
         "name": "Hanna Crebo Rediker",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4651,
+        "talk_share": 0.4255,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0233,
+        "talk_share": 0.0213,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0233,
+    "unattributed_talk_share": 0.0213,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
         "talk_s": 6.0,
-        "talk_share": 0.0233
+        "talk_share": 0.0213
       },
       "named": {
         "count": 2,
-        "talk_s": 252.0,
-        "talk_share": 0.9767
+        "talk_s": 276.0,
+        "talk_share": 0.9787
       }
     }
   }

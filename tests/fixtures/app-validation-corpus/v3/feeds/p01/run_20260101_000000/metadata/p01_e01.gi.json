@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:6d6fb38e35223abc",
+      "to": "topic:endurance-sport",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:6d6fb38e35223abc",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:6d6fb38e35223abc",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:6d6fb38e35223abc",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-db8f44d2e07a22bd",
       "to": "insight:26f018c921d9ba0d",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "topic:endurance-sport",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-db8f44d2e07a22bd",
       "to": "insight:62e96736fe305ae9",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "topic:endurance-sport",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:e1291bfadaf6e9f4",
@@ -103,8 +163,7 @@
       "id": "episode:ep-db8f44d2e07a22bd",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-db8f44d2e07a22bd",
-        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e01.metadata.json",
+        "feed_id": "p01",
         "podcast_id": "p01",
         "publish_date": "2024-01-02T12:00:00",
         "title": "Building Trails That Last"
@@ -114,40 +173,38 @@
     {
       "id": "topic:endurance-sport",
       "properties": {
-        "label": "endurance sport",
-        "score": 0.8
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:6d6fb38e35223abc",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-db8f44d2e07a22bd",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:26f018c921d9ba0d",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-db8f44d2e07a22bd",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:62e96736fe305ae9",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-db8f44d2e07a22bd",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Take me through the decision. How does RockShox fit into this picture?"
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:1c057c4c80fc3cb8",
+      "to": "topic:endurance-sport",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1c057c4c80fc3cb8",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1c057c4c80fc3cb8",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1c057c4c80fc3cb8",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-0d9100843ee555f8",
       "to": "insight:0f09b8a5a1d5f64c",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "topic:endurance-sport",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-0d9100843ee555f8",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:endurance-sport",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:2347bd84ba7d0751",
@@ -103,8 +163,7 @@
       "id": "episode:ep-0d9100843ee555f8",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-0d9100843ee555f8",
-        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e03.metadata.json",
+        "feed_id": "p01",
         "podcast_id": "p01",
         "publish_date": "2024-07-30T12:00:00",
         "title": "The Mechanics of a Quiet, Fast Bike"
@@ -114,40 +173,38 @@
     {
       "id": "topic:endurance-sport",
       "properties": {
-        "label": "endurance sport",
-        "score": 0.8
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:1c057c4c80fc3cb8",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-0d9100843ee555f8",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:0f09b8a5a1d5f64c",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-0d9100843ee555f8",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:3aabb6d8787f9373",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-0d9100843ee555f8",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Yeah, exactly. And it ties into what we're covering today."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

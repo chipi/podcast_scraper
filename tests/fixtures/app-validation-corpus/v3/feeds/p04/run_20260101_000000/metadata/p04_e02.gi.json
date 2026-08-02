@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:25d37c9e4c351594",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:25d37c9e4c351594",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:25d37c9e4c351594",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:25d37c9e4c351594",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "insight:28764c321ca4022e",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:28764c321ca4022e",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:28764c321ca4022e",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:28764c321ca4022e",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:28764c321ca4022e",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:029339886a2dc5e0",
@@ -103,8 +163,7 @@
       "id": "episode:ep-fb2bb5f0f4044f1d",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-fb2bb5f0f4044f1d",
-        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e02.metadata.json",
+        "feed_id": "p04",
         "podcast_id": "p04",
         "publish_date": "2024-10-04T12:00:00",
         "title": "Documentary Workflow in the Field"
@@ -114,40 +173,38 @@
     {
       "id": "topic:visual-craft",
       "properties": {
-        "label": "visual craft",
-        "score": 0.8
+        "label": "visual craft"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:25d37c9e4c351594",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Frame & Light. Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer. Tarek Hassan, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:28764c321ca4022e",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Before we get into it \u2014 Ava Lemoyne was on last week talking about strobe positioning underwater."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:3aabb6d8787f9373",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Yeah, exactly. And it ties into what we're covering today."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

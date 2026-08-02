@@ -320,20 +320,18 @@ def build_gi(
     quotes via SUPPORTED_BY (matching real GI).
     """
     ep_node_id = f"episode:{episode_id}"
+    # RFC-097 v3 episode_node: schema is additionalProperties:false and allows only
+    # {podcast_id, title, publish_date, audio_url, duration_ms, feed_id} — matching a real
+    # corpus. (episode_id / metadata_relative_path are NOT v3 fields; resolution is via the
+    # catalog metadata_path, not a gi Episode-node prop.)
     ep_props: dict[str, Any] = {
         "podcast_id": podcast_id,
+        "feed_id": podcast_id,
         "title": title,
         "publish_date": publish_date,
         "duration_ms": 1800000,
-        # Critical for episode resolution: the viewer's
-        # ``findEpisodeGraphNodeIdForMetadataPath`` matches Episode
-        # nodes by these fields. Without them, no Library row click
-        # can resolve to a cy node (handoffFailed fires + "Could not
-        # open episode" error strip).
-        "episode_id": episode_id,
     }
-    if metadata_relative_path:
-        ep_props["metadata_relative_path"] = metadata_relative_path
+    _ = metadata_relative_path  # accepted for signature compat; not a v3 Episode-node field
     nodes: list[dict[str, Any]] = [
         {
             "id": ep_node_id,
@@ -342,28 +340,42 @@ def build_gi(
         }
     ]
     edges: list[dict[str, Any]] = []
+    topic_ids: list[str] = []
     for label in excerpts["topics"]:
         tid = f"topic:{slug(label)}"
+        topic_ids.append(tid)
         nodes.append(
             {
                 "id": tid,
                 "type": "Topic",
-                "properties": {"label": label, "score": 0.8},
+                "properties": {"label": label},
             }
         )
         edges.append({"type": "MENTIONS", "from": ep_node_id, "to": tid})
+    # RFC-097 v3 insight types (deterministic spread so the §S8 compare insight_type
+    # filter has claim/observation/recommendation to select over).
+    _INSIGHT_TYPES = ("claim", "observation", "recommendation")
     insight_ids: list[str] = []
-    for txt in excerpts["insights"]:
+    for ii, txt in enumerate(excerpts["insights"]):
         iid = f"insight:{short_hash(txt)}"
         insight_ids.append(iid)
         nodes.append(
             {
                 "id": iid,
                 "type": "Insight",
-                "properties": {"text": txt, "confidence": 0.7, "grounded": True},
+                "properties": {
+                    "text": txt,
+                    "episode_id": episode_id,
+                    "grounded": True,
+                    "insight_type": _INSIGHT_TYPES[ii % len(_INSIGHT_TYPES)],
+                    "position_hint": round(0.2 + 0.15 * (ii % 5), 3),
+                },
             }
         )
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": iid})
+        # RFC-097 v3: insight ABOUT topic (the typed topic link the v3 relational layer reads).
+        for tid in topic_ids:
+            edges.append({"type": "ABOUT", "from": iid, "to": tid})
 
     # Person nodes for every speaker that actually appears in a quote.
     persons_emitted: set[str] = set()
@@ -406,7 +418,7 @@ def build_gi(
                 }
             )
     return {
-        "schema_version": "2",
+        "schema_version": "3.1",
         "model_version": "synthetic-validation-corpus-v1",
         "prompt_version": "n/a",
         "episode_id": episode_id,
@@ -421,20 +433,25 @@ def build_kg(
     excerpts: dict[str, list[str]],
     transcript_ref: str,
     extracted_at: str,
+    podcast_id: str,
+    publish_date: str,
     metadata_relative_path: str | None = None,
 ) -> dict[str, Any]:
-    """Build a minimal KG artifact matching the RFC-097 v2.1 write-side shape.
+    """Build a KG artifact matching the RFC-097 v2.0 write-side shape.
 
-    Node types are restricted to what the real KG pipeline emits (Episode +
-    Topic here — the synthetic corpus has no NER source, so no Person /
-    Organization / Voice nodes are fabricated). ``extraction`` carries the three
-    strict-required fields (``model_version`` / ``extracted_at`` /
+    Node types are Episode + Topic (the synthetic corpus has no NER source, so no
+    Person / Organization nodes are fabricated). RFC-097 v2.0 episode_node is
+    additionalProperties:false, required {podcast_id, title, publish_date}. ``extraction``
+    carries the strict-required fields (``model_version`` / ``extracted_at`` /
     ``transcript_ref``).
     """
     ep_node_id = f"episode:{episode_id}"
-    ep_props: dict[str, Any] = {"title": title, "episode_id": episode_id}
-    if metadata_relative_path:
-        ep_props["metadata_relative_path"] = metadata_relative_path
+    ep_props: dict[str, Any] = {
+        "podcast_id": podcast_id,
+        "title": title,
+        "publish_date": publish_date,
+    }
+    _ = metadata_relative_path  # accepted for signature compat; not a v2.0 Episode-node field
     nodes: list[dict[str, Any]] = [
         {
             "id": ep_node_id,
@@ -455,13 +472,15 @@ def build_kg(
         if tid in seen_tids:
             continue
         seen_tids.add(tid)
-        nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
-        edges.append({"type": "RELATES_TO", "from": ep_node_id, "to": tid})
+        nodes.append(
+            {"id": tid, "type": "Topic", "properties": {"label": label, "slug": slug(label)}}
+        )
+        edges.append({"type": "MENTIONS", "from": ep_node_id, "to": tid})
     return {
-        "schema_version": "2.1",
+        "schema_version": "2.0",
         "episode_id": episode_id,
         "extraction": {
-            "model_version": "synthetic-validation-corpus-v1",
+            "model_version": "provider:synthetic-validation-corpus-v1",
             "extracted_at": extracted_at,
             "transcript_ref": transcript_ref,
         },

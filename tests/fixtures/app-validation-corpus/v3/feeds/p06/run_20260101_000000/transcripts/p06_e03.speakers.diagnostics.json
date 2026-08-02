@@ -10,38 +10,38 @@
         "name": "Cam",
         "named": true,
         "role": "host",
-        "talk_share": 0.5122,
+        "talk_share": 0.5455,
         "voice_type": "named"
       },
       {
         "name": "Jordan Park",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4634,
+        "talk_share": 0.4318,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0244,
+        "talk_share": 0.0227,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0244,
+    "unattributed_talk_share": 0.0227,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
         "talk_s": 6.0,
-        "talk_share": 0.0244
+        "talk_share": 0.0227
       },
       "named": {
         "count": 2,
-        "talk_s": 240.0,
-        "talk_share": 0.9756
+        "talk_s": 258.0,
+        "talk_share": 0.9773
       }
     }
   }

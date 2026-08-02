@@ -10,38 +10,38 @@
         "name": "A. correspondent",
         "named": true,
         "role": "host",
-        "talk_share": 0.52,
+        "talk_share": 0.5714,
         "voice_type": "named"
       },
       {
         "name": "Renee Montague-Park",
         "named": true,
         "role": "guest",
-        "talk_share": 0.44,
+        "talk_share": 0.3929,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.04,
+        "talk_share": 0.0357,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.04,
+    "unattributed_talk_share": 0.0357,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
         "talk_s": 6.0,
-        "talk_share": 0.04
+        "talk_share": 0.0357
       },
       "named": {
         "count": 2,
-        "talk_s": 144.0,
-        "talk_share": 0.96
+        "talk_s": 162.0,
+        "talk_share": 0.9643
       }
     }
   }

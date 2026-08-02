@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:f4be722c05ac0adc",
+      "to": "topic:personal-finance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f4be722c05ac0adc",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f4be722c05ac0adc",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f4be722c05ac0adc",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-16ff698c1bd21087",
       "to": "insight:ec9ec1e4f4e5a960",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:ec9ec1e4f4e5a960",
+      "to": "topic:personal-finance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ec9ec1e4f4e5a960",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ec9ec1e4f4e5a960",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ec9ec1e4f4e5a960",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-16ff698c1bd21087",
       "to": "insight:473ab86045cd6865",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:473ab86045cd6865",
+      "to": "topic:personal-finance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:473ab86045cd6865",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:473ab86045cd6865",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:473ab86045cd6865",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:544305e422db25a3",
@@ -183,8 +243,7 @@
       "id": "episode:ep-16ff698c1bd21087",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-16ff698c1bd21087",
-        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e04.metadata.json",
+        "feed_id": "p05",
         "podcast_id": "p05",
         "publish_date": "2025-07-03T12:00:00",
         "title": "The Risk Panel: Diversify or Concentrate?"
@@ -194,40 +253,38 @@
     {
       "id": "topic:personal-finance",
       "properties": {
-        "label": "personal finance",
-        "score": 0.8
+        "label": "personal finance"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:f4be722c05ac0adc",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun\u2026"
       },
       "type": "Insight"
@@ -235,8 +292,10 @@
     {
       "id": "insight:ec9ec1e4f4e5a960",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, Nora. Happy to be the boring one today."
       },
       "type": "Insight"
@@ -244,8 +303,10 @@
     {
       "id": "insight:473ab86045cd6865",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "And I'll be the reckless one, apparently."
       },
       "type": "Insight"
@@ -358,6 +419,7 @@
     {
       "id": "insight:authored-p05_e04-0",
       "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -368,20 +430,28 @@
     {
       "id": "quote:authored-p05_e04-0",
       "properties": {
-        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists."
+        "char_end": 93,
+        "char_start": 0,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:daniel-cho",
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "name": "systems thinking"
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "insight:authored-p05_e04-1",
       "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -392,13 +462,21 @@
     {
       "id": "quote:authored-p05_e04-1",
       "properties": {
-        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't."
+        "char_end": 116,
+        "char_start": 0,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:scott-bessent",
+        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
     },
     {
       "id": "insight:authored-p05_e04-2",
       "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -409,13 +487,21 @@
     {
       "id": "quote:authored-p05_e04-2",
       "properties": {
-        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up."
+        "char_end": 105,
+        "char_start": 0,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:daniel-cho",
+        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
     },
     {
       "id": "insight:authored-p05_e04-3",
       "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -426,11 +512,18 @@
     {
       "id": "quote:authored-p05_e04-3",
       "properties": {
-        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge."
+        "char_end": 155,
+        "char_start": 0,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:scott-bessent",
+        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

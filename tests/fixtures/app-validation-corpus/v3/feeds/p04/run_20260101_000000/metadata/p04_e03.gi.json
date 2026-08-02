@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:0b24940158f8521b",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0b24940158f8521b",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0b24940158f8521b",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0b24940158f8521b",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-9f97daef33906cf6",
       "to": "insight:cb626e0a5fe29a63",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-9f97daef33906cf6",
       "to": "insight:72fd97ce71dea026",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:4d5eb3b1e48280b9",
@@ -103,8 +163,7 @@
       "id": "episode:ep-9f97daef33906cf6",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-9f97daef33906cf6",
-        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e03.metadata.json",
+        "feed_id": "p04",
         "podcast_id": "p04",
         "publish_date": "2025-02-01T12:00:00",
         "title": "Lighting Decisions That Save a Shoot"
@@ -114,40 +173,38 @@
     {
       "id": "topic:visual-craft",
       "properties": {
-        "label": "visual craft",
-        "score": 0.8
+        "label": "visual craft"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:0b24940158f8521b",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-9f97daef33906cf6",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:cb626e0a5fe29a63",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-9f97daef33906cf6",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Walk me through a concrete example. What's something you used to believe about this that you've revised?"
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:72fd97ce71dea026",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-9f97daef33906cf6",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Here's how I think about it. On location, the first decision is always: am I shaping the existing light? We've seen this play out at teams using Adobe. Once you internalize that, the rest of the de\u2026"
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:695aed544e7fbef4",
+      "to": "topic:personal-finance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:695aed544e7fbef4",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:695aed544e7fbef4",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:695aed544e7fbef4",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-8aa4d883afa10fa4",
       "to": "insight:859a389940dcde54",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:859a389940dcde54",
+      "to": "topic:personal-finance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-8aa4d883afa10fa4",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:personal-finance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:4e369690b5c9d57f",
@@ -103,8 +163,7 @@
       "id": "episode:ep-8aa4d883afa10fa4",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e03.metadata.json",
+        "feed_id": "p05",
         "podcast_id": "p05",
         "publish_date": "2025-02-28T12:00:00",
         "title": "The Bessent Tape"
@@ -114,40 +173,38 @@
     {
       "id": "topic:personal-finance",
       "properties": {
-        "label": "personal finance",
-        "score": 0.8
+        "label": "personal finance"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:695aed544e7fbef4",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-8aa4d883afa10fa4",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:859a389940dcde54",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-8aa4d883afa10fa4",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:3aabb6d8787f9373",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-8aa4d883afa10fa4",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Yeah, exactly. And it ties into what we're covering today."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

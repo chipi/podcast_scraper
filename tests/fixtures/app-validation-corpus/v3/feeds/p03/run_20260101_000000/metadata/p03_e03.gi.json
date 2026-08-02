@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:1a4e5aea5c8867a2",
+      "to": "topic:safety-practices",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1a4e5aea5c8867a2",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1a4e5aea5c8867a2",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1a4e5aea5c8867a2",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-a884b153355070f0",
       "to": "insight:dc5e6437623bc58f",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "topic:safety-practices",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-a884b153355070f0",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:safety-practices",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:6d732fe3bf83fe82",
@@ -103,8 +163,7 @@
       "id": "episode:ep-a884b153355070f0",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-a884b153355070f0",
-        "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e03.metadata.json",
+        "feed_id": "p03",
         "podcast_id": "p03",
         "publish_date": "2024-12-31T12:00:00",
         "title": "Severe Surname Garbles: A Marine Biologist's Return"
@@ -114,40 +173,38 @@
     {
       "id": "topic:safety-practices",
       "properties": {
-        "label": "safety practices",
-        "score": 0.8
+        "label": "safety practices"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:1a4e5aea5c8867a2",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-a884b153355070f0",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:dc5e6437623bc58f",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-a884b153355070f0",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:3aabb6d8787f9373",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-a884b153355070f0",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Yeah, exactly. And it ties into what we're covering today."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

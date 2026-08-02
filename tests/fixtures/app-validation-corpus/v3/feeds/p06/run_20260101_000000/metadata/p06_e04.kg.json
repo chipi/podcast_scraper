@@ -2,33 +2,23 @@
   "edges": [
     {
       "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "entity:long-form",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "entity:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-3158b8ff3e943b1e",
       "to": "topic:long-form",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "topic:systems-thinking",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "topic:lifelong-learning",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "topic:expert-interviews",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-3158b8ff3e943b1e",
@@ -43,61 +33,49 @@
   ],
   "episode_id": "ep-3158b8ff3e943b1e",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-01-11T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e04.txt"
   },
   "nodes": [
     {
       "id": "episode:ep-3158b8ff3e943b1e",
       "properties": {
-        "episode_id": "ep-3158b8ff3e943b1e",
-        "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e04.metadata.json",
+        "podcast_id": "p06",
         "publish_date": "2026-01-11T12:00:00",
         "title": "Signal, Noise, and the Space Between"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:long-form",
-      "properties": {
-        "category": "Concept",
-        "label": "Long-Form"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:systems-thinking",
-      "properties": {
-        "category": "Concept",
-        "label": "Systems Thinking"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:long-form",
       "properties": {
-        "label": "long-form"
+        "label": "long-form",
+        "slug": "long-form"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking"
+        "label": "systems thinking",
+        "slug": "systems-thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning"
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews"
+        "label": "expert interviews",
+        "slug": "expert-interviews"
       },
       "type": "Topic"
     },
@@ -118,5 +96,5 @@
       "type": "Person"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

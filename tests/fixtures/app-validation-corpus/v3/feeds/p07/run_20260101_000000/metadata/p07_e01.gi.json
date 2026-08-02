@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:7d3ed2ba74a32604",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:7d3ed2ba74a32604",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:7d3ed2ba74a32604",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:7d3ed2ba74a32604",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-1979e93514355ea6",
       "to": "insight:d04df2587b2471ad",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:d04df2587b2471ad",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-1979e93514355ea6",
       "to": "insight:82d03ec8a8543c44",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:b5ce8e3d1e014a75",
@@ -103,8 +163,7 @@
       "id": "episode:ep-1979e93514355ea6",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-1979e93514355ea6",
-        "metadata_relative_path": "feeds/p07/run_20260101_000000/metadata/p07_e01.metadata.json",
+        "feed_id": "p07",
         "podcast_id": "p07",
         "publish_date": "2025-01-08T12:00:00",
         "title": "What Sustainability Really Means"
@@ -114,40 +173,38 @@
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:7d3ed2ba74a32604",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-1979e93514355ea6",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, than\u2026"
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:d04df2587b2471ad",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-1979e93514355ea6",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:82d03ec8a8543c44",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-1979e93514355ea6",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "That's a useful framing. Where do systems thinking and sustainability intersect?"
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

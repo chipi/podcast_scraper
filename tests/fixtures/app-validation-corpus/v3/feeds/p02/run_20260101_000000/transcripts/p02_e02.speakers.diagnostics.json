@@ -10,38 +10,38 @@
         "name": "Ethan",
         "named": true,
         "role": "host",
-        "talk_share": 0.5102,
+        "talk_share": 0.5472,
         "voice_type": "named"
       },
       {
         "name": "Joll Wisenthal",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4694,
+        "talk_share": 0.434,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0204,
+        "talk_share": 0.0189,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0204,
+    "unattributed_talk_share": 0.0189,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
         "talk_s": 6.0,
-        "talk_share": 0.0204
+        "talk_share": 0.0189
       },
       "named": {
         "count": 2,
-        "talk_s": 288.0,
-        "talk_share": 0.9796
+        "talk_s": 312.0,
+        "talk_share": 0.9811
       }
     }
   }

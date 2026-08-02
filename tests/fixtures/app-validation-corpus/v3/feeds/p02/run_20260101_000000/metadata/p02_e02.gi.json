@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:5076c0252673802d",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:5076c0252673802d",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:5076c0252673802d",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:5076c0252673802d",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-35f04bce441bf827",
       "to": "insight:f6015b46ac8d9512",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:f6015b46ac8d9512",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f6015b46ac8d9512",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f6015b46ac8d9512",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f6015b46ac8d9512",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-35f04bce441bf827",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:a670b0d208063717",
@@ -103,8 +163,7 @@
       "id": "episode:ep-35f04bce441bf827",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-35f04bce441bf827",
-        "metadata_relative_path": "feeds/p02/run_20260101_000000/metadata/p02_e02.metadata.json",
+        "feed_id": "p02",
         "podcast_id": "p02",
         "publish_date": "2024-04-18T12:00:00",
         "title": "Staff-Engineer Communication Patterns"
@@ -114,40 +173,38 @@
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:5076c0252673802d",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-35f04bce441bf827",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being\u2026"
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:f6015b46ac8d9512",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-35f04bce441bf827",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:3aabb6d8787f9373",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-35f04bce441bf827",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Yeah, exactly. And it ties into what we're covering today."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

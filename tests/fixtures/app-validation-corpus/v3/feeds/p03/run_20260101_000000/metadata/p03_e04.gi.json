@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:0331a00a9535e6e6",
+      "to": "topic:safety-practices",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0331a00a9535e6e6",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0331a00a9535e6e6",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0331a00a9535e6e6",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-916dab1698f88aec",
       "to": "insight:a7c9178cc26caaf1",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:a7c9178cc26caaf1",
+      "to": "topic:safety-practices",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:a7c9178cc26caaf1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:a7c9178cc26caaf1",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:a7c9178cc26caaf1",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-916dab1698f88aec",
       "to": "insight:c1a333a563abe849",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "topic:safety-practices",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:f3408cbb725af94b",
@@ -143,8 +203,7 @@
       "id": "episode:ep-916dab1698f88aec",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-916dab1698f88aec",
-        "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e04.metadata.json",
+        "feed_id": "p03",
         "podcast_id": "p03",
         "publish_date": "2025-07-09T12:00:00",
         "title": "Plan the Dive, Manage the Risk"
@@ -154,40 +213,38 @@
     {
       "id": "topic:safety-practices",
       "properties": {
-        "label": "safety practices",
-        "score": 0.8
+        "label": "safety practices"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:0331a00a9535e6e6",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-916dab1698f88aec",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us."
       },
       "type": "Insight"
@@ -195,8 +252,10 @@
     {
       "id": "insight:a7c9178cc26caaf1",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-916dab1698f88aec",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "New divers think planning is paperwork. You call it survival."
       },
       "type": "Insight"
@@ -204,8 +263,10 @@
     {
       "id": "insight:c1a333a563abe849",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-916dab1698f88aec",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all f\u2026"
       },
       "type": "Insight"
@@ -311,6 +372,7 @@
     {
       "id": "insight:authored-p03_e04-0",
       "properties": {
+        "episode_id": "ep-916dab1698f88aec",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -321,20 +383,28 @@
     {
       "id": "quote:authored-p03_e04-0",
       "properties": {
-        "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush."
+        "char_end": 84,
+        "char_start": 0,
+        "episode_id": "ep-916dab1698f88aec",
+        "speaker_id": "person:marco-silva",
+        "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "name": "systems thinking"
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "insight:authored-p03_e04-1",
       "properties": {
+        "episode_id": "ep-916dab1698f88aec",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -345,11 +415,18 @@
     {
       "id": "quote:authored-p03_e04-1",
       "properties": {
-        "text": "You plan the whole dive as one system; accidents live in the interactions."
+        "char_end": 74,
+        "char_start": 0,
+        "episode_id": "ep-916dab1698f88aec",
+        "speaker_id": "person:marco-silva",
+        "text": "You plan the whole dive as one system; accidents live in the interactions.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

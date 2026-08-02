@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-a89e6a42509c9af0",
       "to": "insight:cc2e4424701733c3",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:cc2e4424701733c3",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-a89e6a42509c9af0",
       "to": "insight:781d2f5960d956a0",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:d38cfe1fb28e0345",
@@ -103,8 +163,7 @@
       "id": "episode:ep-a89e6a42509c9af0",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-a89e6a42509c9af0",
-        "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e01.metadata.json",
+        "feed_id": "p06",
         "podcast_id": "p06",
         "publish_date": "2024-11-07T12:00:00",
         "title": "On Drifting (a meandering conversation)"
@@ -114,40 +173,38 @@
     {
       "id": "topic:long-form",
       "properties": {
-        "label": "long-form",
-        "score": 0.8
+        "label": "long-form"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:c2ea54ba4b0825a6",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-a89e6a42509c9af0",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:cc2e4424701733c3",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-a89e6a42509c9af0",
         "grounded": false,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:781d2f5960d956a0",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-a89e6a42509c9af0",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "I want to dig into that. What's the most underrated piece of cultural drift?"
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

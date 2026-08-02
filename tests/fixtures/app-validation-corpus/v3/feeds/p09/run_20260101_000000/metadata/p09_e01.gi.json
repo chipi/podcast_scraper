@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:3db573b5d4da9a1f",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3db573b5d4da9a1f",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3db573b5d4da9a1f",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3db573b5d4da9a1f",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-1abf911df5bea2c3",
       "to": "insight:1805640e7650c366",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:1805640e7650c366",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-1abf911df5bea2c3",
       "to": "insight:56ffd3b93643f310",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:dfa81ea82fbebe59",
@@ -103,8 +163,7 @@
       "id": "episode:ep-1abf911df5bea2c3",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-1abf911df5bea2c3",
-        "metadata_relative_path": "feeds/p09/run_20260101_000000/metadata/p09_e01.metadata.json",
+        "feed_id": "p09",
         "podcast_id": "p09",
         "publish_date": "2025-05-12T12:00:00",
         "title": "Systems Thinking, Two Years Later"
@@ -114,40 +173,38 @@
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:3db573b5d4da9a1f",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-1abf911df5bea2c3",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:1805640e7650c366",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-1abf911df5bea2c3",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:56ffd3b93643f310",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-1abf911df5bea2c3",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

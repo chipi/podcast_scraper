@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "insight:3e28facea19a8b67",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:3e28facea19a8b67",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3e28facea19a8b67",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3e28facea19a8b67",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3e28facea19a8b67",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "insight:838e5efad224f1fa",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:838e5efad224f1fa",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:838e5efad224f1fa",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:838e5efad224f1fa",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:838e5efad224f1fa",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:3b38271f9aad647c",
@@ -103,8 +163,7 @@
       "id": "episode:ep-3158b8ff3e943b1e",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-3158b8ff3e943b1e",
-        "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e04.metadata.json",
+        "feed_id": "p06",
         "podcast_id": "p06",
         "publish_date": "2026-01-11T12:00:00",
         "title": "Signal, Noise, and the Space Between"
@@ -114,40 +173,38 @@
     {
       "id": "topic:long-form",
       "properties": {
-        "label": "long-form",
-        "score": 0.8
+        "label": "long-form"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:c2ea54ba4b0825a6",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-3158b8ff3e943b1e",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:3e28facea19a8b67",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-3158b8ff3e943b1e",
         "grounded": false,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Take me through the decision. Where do dialogue and cultural drift intersect?"
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:838e5efad224f1fa",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-3158b8ff3e943b1e",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Honestly, Culture is a system that never sits still. We've seen this play out at teams using Substack. The framing matters because it tells you which trade-offs you're making."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

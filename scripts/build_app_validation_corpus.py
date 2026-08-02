@@ -260,6 +260,8 @@ def _inject_authored_claims(
     nodes = gi.setdefault("nodes", [])
     edges = gi.setdefault("edges", [])
     ids = {str(n.get("id")) for n in nodes}
+    episode_id = str(gi.get("episode_id") or "")
+    transcript_ref = f"transcripts/{ep_label}.txt"
     for i, (key, tid, text, grounded) in enumerate(claims):
         name = name_by_key.get(key)
         if not (name and tid and text):
@@ -270,7 +272,8 @@ def _inject_authored_claims(
             ids.add(pid)
         if tid not in ids:
             label = tid.replace("topic:", "").replace("-", " ")
-            nodes.append({"id": tid, "type": "Topic", "properties": {"name": label}})
+            # GI topic_node allows {label, aliases} — NOT slug (that is a KG-only field).
+            nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
             ids.add(tid)
         iid, qid = f"insight:authored-{ep_label}-{i}", f"quote:authored-{ep_label}-{i}"
         nodes.append(
@@ -279,13 +282,30 @@ def _inject_authored_claims(
                 "type": "Insight",
                 "properties": {
                     "text": text,
+                    "episode_id": episode_id,
                     "grounded": grounded,
                     "insight_type": "claim",
                     "position_hint": 0.5,
                 },
             }
         )
-        nodes.append({"id": qid, "type": "Quote", "properties": {"text": text}})
+        # RFC-097 v3 quote_node: required episode_id + char offsets + timestamps + transcript_ref.
+        nodes.append(
+            {
+                "id": qid,
+                "type": "Quote",
+                "properties": {
+                    "text": text,
+                    "episode_id": episode_id,
+                    "speaker_id": pid,
+                    "char_start": 0,
+                    "char_end": len(text),
+                    "timestamp_start_ms": 0,
+                    "timestamp_end_ms": 0,
+                    "transcript_ref": transcript_ref,
+                },
+            }
+        )
         edges.append({"from": iid, "to": qid, "type": "SUPPORTED_BY"})
         edges.append({"from": qid, "to": pid, "type": "SPOKEN_BY"})
         edges.append({"from": iid, "to": tid, "type": "ABOUT"})
@@ -478,12 +498,14 @@ def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> 
 _ENRICH_COMPUTED_AT = "2026-01-01T00:00:00Z"
 
 
-def _enrichment_envelope(enricher_id: str, data: dict[str, Any]) -> dict[str, Any]:
+def _enrichment_envelope(
+    enricher_id: str, data: dict[str, Any], version: str = "1.0"
+) -> dict[str, Any]:
     """An RFC-088 enricher output envelope (the shape the consumer read surface parses)."""
     return {
         "computed_at": _ENRICH_COMPUTED_AT,
         "enricher_id": enricher_id,
-        "enricher_version": "1.0",
+        "enricher_version": version,
         "schema_version": "1.0",
         "status": "ok",
         "data": data,
@@ -694,16 +716,22 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
     ]
     clusters: list[dict[str, Any]] = []
     if len(members) >= 2:
+        canonical = "Managing risk across domains"
         clusters.append(
             {
                 "cluster_type": "theme",
-                "canonical_label": "Managing risk across domains",
+                "canonical_label": canonical,
                 "graph_compound_parent_id": "thc:managing-risk",
                 "member_count": len(members),
                 "members": members,
+                # v1.1.0 super-theme rollup (tier 7-1a): with cluster_count ≤ _SUPER_THEME_MIN
+                # each cluster is its own super-theme (super_theme label = canonical_label).
+                "super_theme_id": f"sth:{slug(canonical)}",
+                "super_theme_label": canonical,
             }
         )
     n_members = sum(c["member_count"] for c in clusters)
+    super_theme_count = len({c["super_theme_id"] for c in clusters if c.get("super_theme_id")})
     return {
         "schema_version": "1",
         "method": "cooccurrence_lift",
@@ -714,6 +742,9 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
         "cluster_count": len(clusters),
         "singletons": max(0, len(topic_episodes) - n_members),
         "clusters": clusters,
+        # tier 7-1a super-theme summary (enricher v1.1.0+).
+        "super_theme_method": "cross_cluster_lift_avg_linkage" if clusters else None,
+        "super_theme_count": super_theme_count,
     }
 
 
@@ -1037,6 +1068,8 @@ def main() -> int:
                 excerpts,
                 transcript_run_rel,
                 publish + "T12:00:00",
+                feed_id,
+                publish + "T12:00:00",
                 metadata_relative_path=metadata_rel,
             )
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
@@ -1258,7 +1291,11 @@ def main() -> int:
     # label, lift_to_cluster, episode_ids}]).
     theme = _theme_clusters_data(corpus_topic_episodes)
     (corpus_enrich_dir / "topic_theme_clusters.json").write_text(
-        json.dumps(_enrichment_envelope("topic_theme_clusters", theme), indent=2, sort_keys=True)
+        json.dumps(
+            _enrichment_envelope("topic_theme_clusters", theme, version="1.1.0"),
+            indent=2,
+            sort_keys=True,
+        )
         + "\n",
         encoding="utf-8",
     )

@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:727c5970a839b815",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:727c5970a839b815",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:727c5970a839b815",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:727c5970a839b815",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-18ede6ffbd63f18f",
       "to": "insight:bf453ec4d5e6f873",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:bf453ec4d5e6f873",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:bf453ec4d5e6f873",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:bf453ec4d5e6f873",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:bf453ec4d5e6f873",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-18ede6ffbd63f18f",
       "to": "insight:87d008bfa722a799",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:87d008bfa722a799",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:87d008bfa722a799",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:87d008bfa722a799",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:87d008bfa722a799",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:24afa8684d0c8d07",
@@ -143,8 +203,7 @@
       "id": "episode:ep-18ede6ffbd63f18f",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "metadata_relative_path": "feeds/p02/run_20260101_000000/metadata/p02_e04.metadata.json",
+        "feed_id": "p02",
         "podcast_id": "p02",
         "publish_date": "2024-12-29T12:00:00",
         "title": "Reliability Is a Systems Property"
@@ -154,40 +213,38 @@
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:727c5970a839b815",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on."
       },
       "type": "Insight"
@@ -195,8 +252,10 @@
     {
       "id": "insight:bf453ec4d5e6f873",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "You keep saying reliability isn't a feature. What do you mean?"
       },
       "type": "Insight"
@@ -204,8 +263,10 @@
     {
       "id": "insight:87d008bfa722a799",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in\u2026"
       },
       "type": "Insight"
@@ -311,6 +372,7 @@
     {
       "id": "insight:authored-p02_e04-0",
       "properties": {
+        "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -321,13 +383,21 @@
     {
       "id": "quote:authored-p02_e04-0",
       "properties": {
-        "text": "Reliability is a property of the whole system, not of any one component."
+        "char_end": 72,
+        "char_start": 0,
+        "episode_id": "ep-18ede6ffbd63f18f",
+        "speaker_id": "person:priya-nair",
+        "text": "Reliability is a property of the whole system, not of any one component.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
     },
     {
       "id": "insight:authored-p02_e04-1",
       "properties": {
+        "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
@@ -338,11 +408,18 @@
     {
       "id": "quote:authored-p02_e04-1",
       "properties": {
-        "text": "Risk management in production is naming the risk before it names you."
+        "char_end": 69,
+        "char_start": 0,
+        "episode_id": "ep-18ede6ffbd63f18f",
+        "speaker_id": "person:priya-nair",
+        "text": "Risk management in production is naming the risk before it names you.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }
