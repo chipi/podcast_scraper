@@ -1,6 +1,6 @@
 # search-queries.json — Search v3 labelled query set
 
-**Owner:** Search v3 arc (epic #1229 · plan `docs/wip/SEARCH-V3-IMPLEMENTATION-PLAN.md` §S0)
+**Owner:** Search v3 arc (epic #1229 · RFC-107-search-v3-query-workspace §S0)
 **Consumed by:** `scripts/eval/search_quality.py` (driven by `make eval-search`)
 **Target corpus:** this directory (`tests/fixtures/viewer-validation-corpus/v3/`)
 

@@ -40,7 +40,7 @@ See PRD-045 §Background. Concretely:
 
 ## Design
 
-Ten sub-designs; each mapped to a slice in [`docs/wip/SEARCH-V3-IMPLEMENTATION-PLAN.md`](../wip/SEARCH-V3-IMPLEMENTATION-PLAN.md).
+Ten sub-designs, shipped as slices S1–S8 under epic #1229 (landed by commit `e590887f` / #1274).
 
 ### §1 Shell IA changes
 
@@ -314,7 +314,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 
 ## Migration / rollout
 
-- **Slice order** — see [`docs/wip/SEARCH-V3-IMPLEMENTATION-PLAN.md`](../wip/SEARCH-V3-IMPLEMENTATION-PLAN.md).
+- **Slice order** — S0 baseline → S1–S8 (epic #1229; shipped via #1274).
 - **Feature flag** — none. Search v3 is an operator-viewer refactor; no toggle behind users. LeftPanel Search remains functional until slice 1 lands the tab; the mode-switch is retired only when the tab is in.
 - **E2E surface map** — updated in each slice; the old Explore test IDs get a "retired in RFC-107 slice 2" note.
 - **Docs** — VIEWER_IA.md gains a Search-tab paragraph; UXS-005 grows a "compact launcher" section (retiring its main-column role); UXS-008 grows a "hero placement" section; UXS-016 is the primary UX doc for the Workspace.

@@ -11,9 +11,9 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
    Ollama/DGX-local wave runs *after* the cost-instrumentation fix — and that arm, the one that
    actually decides the v2.5 Gemini→DGX swap, **has not run**. This is Phase D of the v2.5 handover.
    → run the DGX-local bake-off arm; it gates the whole v2.5 corpus.
-2. **Two unreconciled "north star" plans.** `1000-EPISODES-REPROCESS-PLAN.md` (stale) and
-   `PLAN-v2.5-corpus-and-naming-arc-handover.md` (the live cold-start doc) both claim the arc and
-   don't reference each other. → collapse to ONE canonical corpus-arc plan before more drift.
+2. ~~**Two unreconciled "north star" plans.**~~ **RESOLVED 2026-08-02** — the v2.5 handover was
+   folded into `1000-EPISODES-REPROCESS-PLAN.md` (now the single canonical arc doc; the 2.5 corpus
+   is its current stage, not a separate plan) and deleted.
 3. **Corpus-growth strategy is undecided** — `ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` has no target
    size, no curated-overlap-vs-broad-ingest call, no onboarding mechanics. This is the actual lever
    from ~100/209 episodes to 10,000. → decide size + show-selection strategy (feeds Corpus Scout).
@@ -23,9 +23,9 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
 5. **The reprocess acceptance gate isn't finished.** `CORPUS-V4-FIXTURE-LADDER.md` / #1189 (OPEN):
    the eval↔production transcript-variant parity gap is unresolved. This is the gate meant to catch
    regressions during the 1000-episode reprocess. → freeze the v4 fixture ladder + close the parity gap.
-6. **Full-corpus diarization run status is UNVERIFIED.** `diarize-full-corpus-run.md` says "queued";
-   the `reprocess_v22_community1` profiles exist; nobody confirmed whether the run executed. → verify
-   (and run if not) — we can't scale without knowing what the current corpus actually contains.
+6. ~~**Full-corpus diarization run status is UNVERIFIED.**~~ **RESOLVED 2026-08-02** — operator
+   confirmed the full-corpus community-1 diarization was done at the ~90-episode scale in v2.2
+   (PR #1335); the corpus carries uniform RTTM / speaker counts. `diarize-full-corpus-run.md` deleted.
 
 ## QUALITY tier — corpus quality levers (not blocking, high leverage)
 
@@ -54,14 +54,12 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
 - **One sleeper** — `wip-concurrent-pipeline-http-retry-metrics.md`: the metrics bug that forces
   one-run-per-process; relevant if the 10k throughput plan wants concurrent same-process runs.
 
-## Additional prune / re-triage candidates the deep read surfaced (need your OK)
+## Additional prune / re-triage candidates the deep read surfaced
 
-These read as live backlog but verify as ~done — candidates to delete or archive next:
-
-- `1175-LOCAL-CORPUS-PORT.md` — #1175 CLOSED, `export-corpus`/`import-corpus` scripts + Make targets exist. (DONE)
-- `EXPLORE_EXPANSION_IDEAS.md` — all 5 ideas already in `cli.py` (#601); the diarization blocker gone (#597). (DONE)
-- `SEARCH-V3-IMPLEMENTATION-PLAN.md` — S0–S8 nearly all shipped (`e590887f`, #1274). → archive/rewrite, not execute.
-- `LORA_HYBRID_PIPELINE_PLAN.md` — parent epic #907 CLOSED, LoRA out of scope per memory. **(You asked to keep this open — flagged, not deleted.)**
+- `1175-LOCAL-CORPUS-PORT.md` — **DELETED 2026-08-02** (#1175 closed, scripts + Make targets exist).
+- `EXPLORE_EXPANSION_IDEAS.md` — **DELETED 2026-08-02** (all 5 ideas in `cli.py`, #601/#597 closed).
+- `SEARCH-V3-IMPLEMENTATION-PLAN.md` — **DELETED 2026-08-02** (S0–S8 shipped `e590887f`/#1274; RFC-107 is the permanent home; 3 referrers repointed to it).
+- `LORA_HYBRID_PIPELINE_PLAN.md` — parent epic #907 CLOSED, LoRA out of scope per memory. **(Kept open per operator ask.)**
 - `SPEC_KG_GI_ONTOLOGY_V3_WISHLIST` — its gating (#1036 closed) passed; a *different* v3 (KG/GI schema, not corpus). → re-triage.
 
 ## Kept OPEN for your review (not deleted)

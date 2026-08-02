@@ -1,41 +1,45 @@
-# 1000-episode reprocess — readiness plan (v2 → v3 at scale)
+# Corpus reprocess — the canonical arc plan (v2 → v3, toward 1000+ episodes)
 
-Status: **Active**. Created 2026-07-20. Updated 2026-07-26 (v2.2 merged; the
-incremental prod-v2.x validation arc below is the live sequencing).
+Status: **Active**. Created 2026-07-20. Updated **2026-08-02** — reconciled: the
+former `PLAN-v2.5-corpus-and-naming-arc-handover.md` is folded in here (the 2.5
+corpus is the current stage of *this* plan, not a separate north star). This is
+the single canonical arc doc.
 
-Umbrella sequencing plan for the next arc. Not authoritative — component specs
-(`CORPUS-V4-FIXTURE-LADDER.md`, `1191-ROUTE-AND-TAG-PLAN.md`, the issue bodies) are.
+Umbrella sequencing plan. Not authoritative for component detail — the component
+specs (`CORPUS-V4-FIXTURE-LADDER.md`, the issue bodies, `autoresearch/JUDGING.md`)
+are. This doc carries the ordering and the gates.
 
 ## North star
 
-Reprocess the corpus **v2 → v3** using other LLMs, and expand from the 10-episode
-v3 pilot to **500–1000 episodes across 20–30 podcasts**.
+Reprocess the corpus **v2 → v3** using a **fully-local (DGX) pipeline**, and expand
+from the current ~90–100-episode corpus to **500–1000 episodes across 20–30 podcasts**
+(with 10k as the eventual horizon). The 2.5 corpus — v2.4 pipeline/quality with the
+**Gemini** naming/summarization LLM replaced by a **DGX-local model at judge-panel
+parity** — is the final single-variable step before the frozen scale run.
 
 ## The incremental single-variable validation arc (prod-v2.x, ~90 eps)
 
-Before the frozen 1000-ep run (Phase 4), each producing-model / input change is
+Before the frozen scale run (Phase 4), each producing-model / input change is
 **validated in isolation** on the existing ~90-episode corpus: change exactly ONE
 variable, let the whole cascade re-run, and compare that version against its
 predecessor. The stick is **parity with the prior version, not ultimate truth** —
 each step only has to be "not worse than what we had," because the previous corpus
-is the thing we already accepted. (This is the same discipline as the deepgram
-freeze arbiter used in v2.2.)
+is the thing we already accepted. (Same discipline as the deepgram freeze arbiter in v2.2.)
 
 | Version | Single variable changed | Status |
 | --- | --- | --- |
 | **v2.1** | speaker **naming** (on frozen deepgram diarization) | done |
-| **v2.2** | **diarization** → pyannote community-1 (DGX-local) | **MERGED — PR #1335** (Closes #1188, #1290, #1292–#1296, #1321, #1329–#1331) |
-| **v2.3** | **ASR** → faster-whisper turbo (DGX-local) + ADR-123 coverage failover | **CODE DONE** (unpushed; bundles with 2.4 per operator) — turbo primary, coverage failover retargeted large-v3→**MOSS** (#1273: large-v3 least-accurate in the human-GT bake-off). Open follow-up **#1273 TODO 1** (int8-vs-fp16 serving test) BLOCKED on DGX SSH — [doc](1273-largev3-int8-vs-fp16-BLOCKED.md); NOT on the critical path. |
-| **v2.4** | **GI/KG optimizations** — remove `GI_MAX_INSIGHTS_CEILING` (#1191) + KG Voice-node (#1220) | after v2.3 |
-| **v2.5** | **LLM** → gemini replaced by the DGX-based LLM (the gateway to a **fully local** pipeline) | after v2.4 |
+| **v2.2** | **diarization** → pyannote community-1 (DGX-local), full ~90-ep corpus | **MERGED — PR #1335** (Closes #1188, #1290, #1292–#1296, #1321, #1329–#1331) |
+| **v2.3** | **ASR** → faster-whisper turbo (DGX-local) + ADR-123 coverage failover | **MERGED** (bundled into #1355) — turbo primary, coverage failover retargeted large-v3→**MOSS** (#1273). Open follow-up **#1273 TODO 1** (int8-vs-fp16 serving test) BLOCKED on DGX SSH — [doc](1273-largev3-int8-vs-fp16-BLOCKED.md); NOT on the critical path. |
+| **v2.4** | **GI/KG optimizations** — remove `GI_MAX_INSIGHTS_CEILING` (#1191) + KG Voice-node (#1220) + naming-4 speaker labeling + per-episode observability manifest | **MERGED — PR #1355** (squash `b24608fa`; Closes #1191, #1220, #1337, #1358–#1364) |
+| **v2.5** | **LLM** → Gemini replaced by a DGX-hosted local model (the gateway to a **fully-local** pipeline) | **CURRENT FRONT** — see the v2.5 stage detail below |
 
 **Why this ordering / why NOT bundle:** each variable's downstream deltas must be
 attributable to *that* variable. Folding a GI/KG **schema** change (#1191/#1220) into
-the ASR step (v2.3) would make a GI delta un-attributable (ASR? or schema?) — so the
-schema work is its own gate (v2.4). DGX-LLM (v2.5) lands **after** the GI/KG shape is
-settled, so we swap the LLM against the final artifact shape, and use v2.4 to bank the
-optimization gains before that swap. The 1000-ep run then reprocesses the **frozen
-combination** once (Phase 4).
+the ASR step (v2.3) would make a GI delta un-attributable — so the schema work was its
+own gate (v2.4). DGX-LLM (v2.5) lands **after** the GI/KG shape is settled, so we swap
+the LLM against the final artifact shape, and v2.4 banks the optimization gains before
+that swap. The scale run then reprocesses the **frozen combination** once (Phase 4).
 
 ### Measurement per step — cost-aware, no needless re-transcription
 
@@ -48,11 +52,55 @@ baseline. Per step:
   vs the prior version; **speaker-roster parity** (names + roles) — mostly deterministic,
   the star signal, same metric as the v2.2 community-1↔deepgram comparison.
 - **Noisy layers (GI/KG/summary) get a cheap noise floor.** pyannote and gemini both
-  drift run-to-run, so a raw vX−1 vs vX diff at these layers conflates the change with
-  noise. Establish the floor by re-running only the **downstream cascade** on the prior
-  version's **existing transcript** (`rediarize_only`: reuse the paid transcript,
-  re-diarize + re-name + re-enrich) — free DGX + ~$1/100 eps of gemini, **no
+  drift run-to-run, so establish the floor by re-running only the **downstream cascade**
+  on the prior version's **existing transcript** (`rediarize_only`: reuse the paid
+  transcript, re-diarize + re-name + re-enrich) — free DGX + ~$1/100 eps of gemini, **no
   re-transcription**. Then the real signal = (vX − vX−1) **above** (vX−1 − vX−1′).
+
+## v2.5 stage detail — the current front (Gemini → DGX-local LLM swap)
+
+The full-corpus diarization run is **done** (v2.2 community-1 across the ~90-ep corpus,
+PR #1335) — the corpus already carries uniform RTTM / speaker counts, so that is off the
+plate. The remaining single-variable step is the **naming/summarization LLM swap**.
+
+### Decisions locked (operator, 2026-07-30)
+
+1. **2.5 model = decided by the loop.** Do NOT pre-commit the DGX model. The
+   autoresearch prompt-tuning loop (stage D below) bakes off candidates (Cohere Command /
+   Qwen3-30B-A3B / DeepSeek — all in the roster) and picks the winner. "column-based
+   command-free" ≈ Cohere Command, but it's a candidate, not a given.
+2. **2.5 ship gate = judge-panel parity.** A cross-vendor judge panel scores the DGX
+   output vs the Gemini baseline; 2.5 ships only at statistical parity. Panel must be
+   **disjoint-vendor** (silver + judge from a vendor NOT in the cohort —
+   `feedback_silver_judge_vendor_bias`), **scalar mode** (not pairwise —
+   `feedback_scalar_over_pairwise_for_judge_trust`), and the score parser must strip
+   `</think>` (`feedback_judge_reasoning_block_parsing`).
+3. **Prompt-tuning precedes the swap.** Tune the naming/resolver LLM query per-provider
+   (incl. DGX) BEFORE swapping, because the swap itself forces more prompt fine-tuning.
+
+### The v2.5 sub-sequence
+
+- **D — Autoresearch prompt-tuning + bake-off (the pivot, BEFORE the swap).** Stand up
+  the bake-off in the autoresearch harness (`autoresearch/`, `JUDGING.md`,
+  `bundled_prompt_tuning/`). Candidates on DGX vLLM (:8003): Cohere Command,
+  Qwen3-30B-A3B-Instruct-2507, DeepSeek — per `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`
+  (consult BEFORE + update AFTER each sweep; deep-research each model's serving knobs
+  first — `feedback_deep_research_per_model`). Metric = judge-panel parity vs the
+  2.4-Gemini baseline (the naming-4 relabel defect/named metrics from #1355 + the panel).
+  Output: (a) winning DGX model, (b) tuned per-provider prompts, (c) recorded parity
+  result. **This is critical-path gap #1.**
+- **E — Provider swap (Gemini → DGX-local).** Wire the winning model via the existing DGX
+  profiles: `prod_dgx_balanced`, `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`
+  (`config/profiles/`). Expect iterative prompt fine-tuning as real output diverges from
+  the bake-off. Re-validate with the naming-4 harness + judge panel each iteration.
+- **F — Freeze the 2.5 corpus.** Full reprocess under the DGX-local profile on the ~90-ep
+  corpus. Confirm judge-panel parity with 2.4 holds (ship gate). Commit all; write the
+  2.5 ADR (decision + alternatives + parity evidence).
+
+DGX access reminders: `gpu-mode-swap.sh research` (NEVER `code`/coder-next —
+`feedback_never_use_coder_next`); ACL permits only :8003 / :11434
+(`project_dgx_tailscale_acl`); model size class = TOTAL params, A3B active ≠ substitute
+(`feedback_model_size_class`).
 
 ## The organizing principle: reprocess-once economics
 
@@ -61,44 +109,41 @@ A 500–1000-episode run is expensive and slow (at large-v3's measured 7.8× rea
 
 - the **stored artifact shape** (KG/GI schema),
 - the **input text** (cleaning), or
-- the **model that produces it** (ASR/diarization)
+- the **model that produces it** (ASR/diarization/LLM)
 
 must be locked **before** the run, or the whole corpus is reprocessed twice. So the
 "next cut" is not "the most issues" — it is **everything that would otherwise force a
-second full rebuild**.
+second full rebuild**. The 2.5 LLM swap is the last such variable.
 
 ## v4 fixtures as a growing harness (the key sequencing decision)
 
-`#1189` (golden fixtures v4) is the acceptance gate for the reprocess. But its own
-thesis is that every real trap case came from a human reading real output, not from a
-test — so freezing the full ladder early encodes an incomplete understanding and then
-churns on every new case.
+`#1189` (golden fixtures v4) is the acceptance gate for the reprocess. Its own thesis:
+every real trap case came from a human reading real output, not from a test — so freezing
+the full ladder early encodes an incomplete understanding and then churns on every new case.
 
 Resolution — split v4 into **container vs contents**:
 
 - **Now (cheap):** build only the v4 *harness* — the fixture format, the §G
-  metadata-vs-conversation contract, and 2–3 seed cases from bugs already known. This
-  is the *sink* that captures feedback, not "building v4 early".
-- **During B and A:** every bug found drops in as a new fixture row (repro-first /
-  matrix-row rule). B and A *author* v4 as a side effect.
+  metadata-vs-conversation contract, and 2–3 seed cases from bugs already known.
+- **During the arc:** every bug found drops in as a new fixture row (repro-first /
+  matrix-row rule). The arc *authors* v4 as a side effect.
 - **Late:** freeze the full 12-case ladder once feedback saturates → the frozen set is
   the reprocess gate.
 
 **Decided 2026-07-20 — scaffold thickness:** build the harness **as big as needed**, not
 artificially lean. Phase 0 delivers the fixture schema (§G contract) + a loader + a runner
-that drives the *shipped* roster path (never re-implemented — §A/§D/§F0 lesson) + the
-perturbation mechanism + at least one real seed case (Hard Fork ep1) proving the harness
-end-to-end.
+that drives the *shipped* roster path (never re-implemented) + the perturbation mechanism +
+at least one real seed case (Hard Fork ep1) proving the harness end-to-end.
 
 ## Phased sequence
 
 | Phase | Work | Purpose |
 | --- | --- | --- |
 | **0** | branch (done) + v4 **harness** scaffold (`#1189` container only) | the feedback sink |
-| **1 · B** | `#1178` turbo → `#1179` ASR/diar table on the real 10 eps; `#630` source 20–30 feeds | pick the ASR/diar model + generate real cases to read |
-| **2 · A** | `#1188` cleaning → `#1191` GI route-and-tag → `#1220` Voice node | each new bug → a fixture row; lock the artifact shape in ONE rebuild |
+| **v2.1–v2.4** | naming → diarization → ASR → GI/KG schema, each validated in isolation | **DONE** (#1335, #1355) |
+| **v2.5** | LLM swap Gemini → DGX-local, stages D→E→F above | **CURRENT** — gated by judge-panel parity |
 | **3** | freeze v4 (`#1189` full 12-case ladder) | the acceptance gate |
-| **4** | reprocess v2 → v3 @ 500–1000 eps, 20–30 podcasts, other LLMs | gated by frozen v4 |
+| **4** | reprocess v2 → v3 @ 500–1000 eps, 20–30 podcasts, fully-local | gated by frozen v4 |
 
 ## Bucket A — lock before the reprocess
 
@@ -107,26 +152,26 @@ Ordered by the sequence above. Each, if done *after* v3 ships, means re-running 
 | Issue | What | Why before | Impact |
 | --- | --- | --- | --- |
 | `#1189` | Golden fixtures v4 — one per show, real pyannote turns + feed metadata + hand-labelled truth (12 trap cases). | The ruler. Build it (as a growing harness) before you cut. | cheap, no GPU |
-| `#1178` → `#1179` | ASR/diar deathmatch. `#1178` turbo = 1-line config, ~5× faster (1000 eps ~0.8d vs 4d). `#1179` = full 5-stack table → default-profile decision. | Cannot pick the transcription model after transcribing 1000 eps. Highest leverage on the board. | `#1178` cheap; `#1179` ~DGX-days. Absorbs the transcription half of `#972`. |
-| `#1191` | GI route-and-tag — remove the `GI_MAX_INSIGHTS_CEILING = 50` truncation. | A cap baked into the pipeline is baked into the corpus; reprocess with it on → v3 born truncated. | GI + KG schema change + migration |
-| `#1220` | KG Voice-node (write-side) — retype unnamed diarization voices. | Requires a KG schema bump (2.0→2.1) + corpus rebuild anyway; batch into the same v3 run. | KG schema change + migration |
-| `#1188` | Cleaning misses host-read cross-promos (The Athletic ad survives 10/10). | Cleaning runs at reprocess time and feeds speaker attribution; else the ad + speaker-set pollution carry into every v3 episode. | input-text quality, no schema change |
+| **v2.5 LLM swap** | DGX-local naming/summarization model at Gemini parity (stages D→E→F). | The LLM is the last producing-variable; swapping it after v3 ships = full rebuild. | DGX GPU (bake-off) + parity gate |
+| `#630` | The expansion *vehicle* — source 20–30 podcasts / 500–1000 eps. Sourcing runs in parallel with the LLM swap. | Cannot pick the corpus shape after transcribing. | sourcing effort |
+
+The former Bucket-A schema items (`#1191`, `#1220`, `#1188`) and the ASR/diar deathmatch
+(`#1178`/`#1179`) all **landed** in v2.2–v2.4; they are no longer open locks.
 
 ## Bucket B — decide before, lower artifact risk
 
 | Issue | Call |
 | --- | --- |
-| `#630` | The expansion *vehicle*. Scale its target to 20–30 podcasts / 500–1000 eps. Sourcing runs in parallel with A. |
+| `#630` | The expansion vehicle (also in Bucket A). Scale target to 20–30 podcasts / 500–1000 eps. |
 | `#102` | Golden data set for transcripts — overlaps `#1189` truth-labelling; fold in, don't run separately. |
-| `#1192` | Speaker recall for the ~113 unknown panel tail. Trades precision ("a wrong name is worse than no name"); defer to v3.1 unless measured precision-safe. |
-| `#972` | Real-podcast full sweep — transcription half superseded by `#1179`; keep only the summary-backend comparison if still wanted. |
+| `#1192` | Speaker recall for the ~113 unknown panel tail. Trades precision ("a wrong name is worse than no name"); **validated NEGATIVE this session** — defer to v3.1 unless measured precision-safe. |
 
 ## Bucket C — explicitly NOT this cut
 
 Stated with equal weight so the exclusion is a decision, not silence.
 
 - **LoRA / fine-tuning:** `#629`, `#631`. Autoresearch programme is closed; LoRA out of scope. Do not reopen inside this cut.
-- **Go-live / public-edge / security:** `#911`, `#1062`, `#1063`, `#1158`–`#1166`, `#801`, `#806`, `#840`, `#1162`. Separate arc on `production` (Goal-1). Own track.
+- **Go-live / public-edge / security:** `#911`, `#1062`, `#1063`, `#1158`–`#1166`, `#801`, `#806`, `#840`, `#1162`. Separate arc on `production` (Goal-1). Own track. (Now largely live — player + operator on `main`.)
 - **Viewer / UX / frontend:** `#627`, `#1168`, `#1208`, `#1209`, `#1210`, `#1211`, `#1214`, `#1219`. Consume the corpus; do not gate producing it.
 - **Housekeeping / tech-debt:** `#18`, `#216`, `#255`, `#333`, `#372`, `#426`, `#436`, `#447`, `#538`, `#860`, `#976`, `#1028`, `#1142`, `#1143`, `#1222`.
 
@@ -136,23 +181,23 @@ Not reprocess blockers, but the 1000-episode corpus makes them bite. Do this pas
 v3 is built:
 
 1. **`#1219` — graph-v3 KG-second-wave forces a full cytoscape rebuild (~2500–3000 ms).**
-   The GI→KG merger re-prefixes node ids (`g:`/`k:`, `__unified_ep__`) on wave 2, so cy
-   is destroyed + rebuilt instead of taking the fast path. Pure frontend
-   (`web/gi-kg-viewer/`); before-vs-after the reprocess costs the same, so it is
-   correctly out of the prep cut. **But:** the full-rebuild cost scales with node count
-   (measured ~3.1 s on prod-v2's ~1,157 nodes) — at 1000 episodes the graph is far
-   larger, so this graduates from nice-to-have toward "the graph view is unusable on the
-   full corpus." **First item of the viewer-perf pass.** Ordering note: its cleaner fix
-   (Design 1 — canonicalise ids on wave 1) needs a consumer audit of every raw-id reader
-   (enricher artifacts, search index, deep-links); do that audit *after* the v3 artifact
-   shape settles under `#1191`/`#1220`.
+   The full-rebuild cost scales with node count (measured ~3.1 s on prod-v2's ~1,157
+   nodes) — at 1000 episodes the graph is far larger, so this graduates from
+   nice-to-have toward "the graph view is unusable on the full corpus." **First item of
+   the viewer-perf pass.** Its cleaner fix (canonicalise ids on wave 1) needs a consumer
+   audit of every raw-id reader; do that audit *after* the v3 artifact shape settles.
 2. Remaining viewer/UX items (`#1211`, `#1208`, `#1209`, `#1210`, `#1214`, `#1168`).
 
 ## Decisions
 
-- **Scaffold thickness** — DECIDED (2026-07-20): as big as needed. See the v4-harness
-  section above.
-- **Scope of the cut** — DECIDED (2026-07-20): **full Bucket A** (one rebuild, born
-  correct). Lean A rejected — reprocessing 1000 eps twice is not worth deferring the
-  schema epics.
+- **Scaffold thickness** — DECIDED (2026-07-20): as big as needed. See the v4-harness section.
+- **Scope of the cut** — DECIDED (2026-07-20): **full Bucket A** (one rebuild, born correct).
+- **2.5 model** — decided by the bake-off loop (locked decision 1 above), not pre-committed.
+- **2.5 ship gate** — disjoint-vendor scalar judge-panel parity vs Gemini (locked decision 2).
 - **Expansion sourcing** — OPEN: which 20–30 podcasts (feeds `#630` must source).
+
+## Open decisions (for the fresh session to resolve)
+
+- Does go-live have to precede 2.5, or run in parallel? (Go-live is largely done; likely parallel.)
+- Does the parity gate use judge-panel ONLY, or judge-panel + human-GT (`#1189`) as a second signal?
+- Corpus-growth strategy: target size (500 / 1000 / path to 10k?) and curated-overlap-vs-broad-ingest — undecided (`ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md`, feeds Corpus Scout `PRD-037`/`RFC-088`).
