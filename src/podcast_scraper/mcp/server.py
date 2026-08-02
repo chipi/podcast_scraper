@@ -51,6 +51,7 @@ from .tools import (
     catalog as _catalog,
     cil as _cil,
     connectivity as _connectivity,
+    enrichment as _enrichment,
     gi as _gi,
     relational as _relational,
 )
@@ -74,6 +75,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     _register_relational(server, ctx)
     _register_cil(server, ctx)
     _register_gi(server, ctx)
+    _register_enrichment(server, ctx)
     _register_connectivity(server, ctx)
     _register_catalog(server, ctx)
     return server
@@ -377,6 +379,44 @@ def _register_gi(server: Any, ctx: CorpusContext) -> None:
             max_tokens=max_tokens,
             insight_types=insight_types,
         )
+
+
+def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
+    """Enrichment envelopes (RFC-088) + diarized speaker roster / talk-share."""
+
+    @server.tool()
+    @_enveloped
+    def corpus_enrichment_signals() -> dict:
+        """Corpus-scope enrichment signals (RFC-088) — the ``enrichments/`` aggregates.
+
+        One call for topic_similarity / topic_consensus / temporal_velocity / grounding_rate
+        / guest_coappearance / topic_cooccurrence etc. Same data as ``/api/corpus/enrichment``
+        — a capability probe + corpus aggregates.
+        """
+        return _enrichment.corpus_enrichment_signals(ctx)
+
+    @server.tool()
+    @_enveloped
+    def episode_enrichment_signals(metadata_path: str) -> dict:
+        """Per-episode enrichment signals (RFC-088) — sentiment, density, co-occurrence.
+
+        ``metadata_path`` from a ``list_episodes`` / ``search_corpus`` hit. Supplements
+        ``episode_detail`` with pacing/sentiment context (same data as the app episode
+        enrichment route).
+        """
+        return _enrichment.episode_enrichment_signals(ctx, metadata_path)
+
+    @server.tool()
+    @_enveloped
+    def episode_speaker_roster(metadata_path: str) -> dict:
+        """Diarized speaker roster + talk-share for one episode — who spoke, %, host/guest.
+
+        Reads the pipeline's ``.speakers.diagnostics.json`` (talk_share, unattributed share,
+        per-voice_type counts). This has no HTTP route — net-new capability. Distinct from the
+        knowledge-graph person tools: this is the diarized-voice layer. ``diagnostics: None``
+        when the episode has no persisted diarization diagnostics.
+        """
+        return _enrichment.episode_speaker_roster(ctx, metadata_path)
 
 
 def _register_connectivity(server: Any, ctx: CorpusContext) -> None:
