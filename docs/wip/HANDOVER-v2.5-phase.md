@@ -19,14 +19,17 @@ the frozen scale run.
 ## Decisions locked (operator)
 
 1. **Model = decided by the bake-off loop** — do NOT pre-commit (candidates: Cohere Command /
-   Qwen3-30B-A3B / DeepSeek, subject to what the re-provisioned DGX can serve — see Step 1).
+   Qwen3-30B-A3B / DeepSeek — local Llama-class replacements for Gemini, served on the autoresearch
+   vLLM `:8003`).
 2. **Ship gate = judge-panel parity ONLY** (2026-08-02). Disjoint-vendor, scalar mode, strip
    `</think>`. **Human-GT / #1189 is NOT part of the parity gate** (it stays only the Phase-3
    reprocess acceptance gate).
 3. **Prompt-tuning precedes the swap.**
 4. **Sequencing = 2.5 FIRST, then go-live** (2026-08-02). Go-live is largely done and has no
    corpus dependency; it waits, does not block.
-5. **DGX serving re-scoped to the live stack** (2026-08-02) — see the verified state below.
+5. **DGX serving = the original plan** (2026-08-02) — v2.5 swaps ONLY the naming/summarization LLM
+   onto the autoresearch vLLM `:8003`; the supporting services (ASR/diarization/failover) are fixed
+   and unchanged. See the entry-state below + `docs/architecture/DGX_SERVING.md`.
 
 ## Verified DGX entry-state (read-only SSH as `ops@`, 2026-08-02) — READ BEFORE Phase D
 
@@ -51,12 +54,12 @@ that was a false alarm; corrected here.)
 
 Each step: what to do · goal optimized · metric evaluated against · operator gate.
 
-- **Step 1 — DGX serving inventory** (gap-#1 unblocker). Enumerate what the re-provisioned box
-  serves as an LLM (moss = which model? ollama models? librechat backend? GPU headroom for a new
-  vLLM?). Map the candidate set onto what's hostable.
-  *Goal:* a concrete list of reachable candidate LLMs + endpoints. *Metric:* each answers a
-  chat/completion call (binary reachability + model identity). **GATE:** operator confirms
-  which candidates are in/out.
+- **Step 1 — Bring up the autoresearch vLLM + confirm the candidates load.**
+  `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research`, then load each local LLM candidate
+  (Cohere Command / Qwen3-30B-A3B / DeepSeek) on `:8003` per `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`.
+  *Goal:* the candidate set is servable on the autoresearch vLLM. *Metric:* each answers a
+  chat/completion call (reachability + model identity). **GATE:** operator confirms which candidates
+  are in/out. (Supporting services — ASR/diarization/failover — are already up; not part of this step.)
 - **Step 2 — Bake-off harness + baseline.** Wire the autoresearch naming/resolver bake-off
   (`autoresearch/`, `JUDGING.md`, `bundled_prompt_tuning/`); pin the 2.4-Gemini baseline (relabel
   defect/named metrics from #1355 + judge panel); dry-run a few eps.
