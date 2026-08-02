@@ -14,6 +14,9 @@
 - **Related Documents**:
   - `docs/architecture/ARCHITECTURE.md` (if architecture changes)
   - `docs/architecture/TESTING_STRATEGY.md` (if testing changes)
+  - NEVER link a `docs/wip/…` note here (or anywhere in this RFC). WIP docs are ephemeral and
+    get deleted; a permanent RFC must not point at them. Promote the substance inline, or cite the
+    shipped code / commit / issue instead. (AGENTS.md → "Committed WIP docs".)
 
 ## Abstract
 

@@ -10,7 +10,18 @@ WIP file is removed.
 - Long-term feature ideas → **PRD** in `docs/prd/` and the relevant **RFC** in `docs/rfc/`
 - Architectural decisions → **ADR** in `docs/adr/`
 - Operator-facing procedures → **guide** in `docs/guides/`
-- Post-release retrospective → reference from the corresponding release note in `docs/releases/`
+- Post-release retrospective → **fold the substance into** the corresponding release note in
+  `docs/releases/` (do NOT leave it in WIP and link to it — see the rule below)
+
+## References are ONE-WAY: permanent docs must never point back into `docs/wip/`
+
+A WIP doc is deleted the moment its work lands, so anything permanent that links to it becomes a
+dead reference. **No ADR / RFC / PRD / release note / guide / `docs/api/` doc, and no code / test /
+README / comment / docstring, may reference a `docs/wip/…` path.** (WIP↔WIP is fine — a WIP set
+travels together; and a WIP doc pointing *at* a permanent artifact is just naming its promotion
+target.) When a permanent doc needs WIP content, **promote it** — copy the substance inline or cite
+the durable source (shipped code, commit hash, issue/PR, or the ADR/RFC/PRD that superseded it).
+This is the rule the 2026-08-02 hygiene pass had to retrofit; the templates and AGENTS.md carry it.
 
 ## Current contents
 
