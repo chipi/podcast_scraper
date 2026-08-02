@@ -50,8 +50,9 @@ resp = client.chat.completions.create(model="podcast-pro", messages=[...])
 - **Base URL** = the local gateway, `http://127.0.0.1:4001/v1` (loopback — the app and the
   gateway are on the same box). NOT `homelab:4001` (that's the homelab gateway; prod uses its
   own for failure isolation).
-- **Key** = the single `proj-podcast-prod` virtual key, delivered as a prod secret (sops / GH
-  secret → gateway-minted with the master key). The app holds THIS, never a provider key.
+- **Key** = the single `proj-podcast-prod` virtual key (gateway-minted with the master key),
+  delivered as GH Actions secret `LITELLM_PROJ_PODCAST_PROD_KEY`. The app holds THIS, never a
+  provider key.
 - **Model** = an alias. The day-one aliases are placeholders copied from homelab; **the real
   prod alias set is yours to define in #1356** once you know which stage calls what. Add an
   alias = one block in `infra/litellm/config.yaml` + restart the gateway.
@@ -72,7 +73,8 @@ Tags aggregate into the gateway DB (`LiteLLM_DailyTagSpend`) and are queryable p
 The pipeline currently calls providers directly (OpenRouter, Gemini, DeepSeek, …). The move:
 
 1. **Keys move INTO the gateway, out of the app.** Every provider key leaves app
-   config/secrets and lands in the gateway's env (sops). Verify with a secrets-scan in CI
+   config/secrets and lands in the gateway's env (GH secret → staged `.env`). Verify with a
+   secrets-scan in CI
    that no provider key remains in app config — that's a success criterion (#1357 §6.1).
 2. **Point each call site at the gateway** — base URL + `proj-podcast-prod` key + an alias.
    Decide the alias set first (map each pipeline stage → an alias).
@@ -111,7 +113,8 @@ homepage's prod section.
   '{"key_alias":"proj-podcast-prod","max_budget":25.0}'`. The master key never leaves the box.
 - **Budget wall test** (do once): mint a scratch key with `max_budget: 0.01`, make a call,
   watch it refuse, delete the scratch key.
-- **Rotate a provider key:** one sops edit + one gateway restart. The app is untouched.
+- **Rotate a provider key:** update the `LITELLM_OPENROUTER_API_KEY` GH secret + re-run
+  `deploy-litellm.yml`. The app is untouched.
 - **Rotate the virtual key:** regenerate via `/key/generate`, update the app's secret, delete
   the old key.
 - **Reconcile monthly:** gateway-metered spend for the VPS's own OpenRouter key vs OpenRouter's

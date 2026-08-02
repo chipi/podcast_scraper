@@ -40,5 +40,6 @@ Push target `homelab:8428` — ACL `tag:prod → homelab-host:8428` already open
 ## What prod needs FROM homelab to finish the loop
 
 - A **Langfuse project** `litellm-vps` (public + secret keys) and a **GlitchTip project** for
-  `litellm-vps` (DSN) — these go into the prod gateway's sops secrets. Kept separate from
+  `litellm-vps` (DSN) — set as the prod gateway's GH Actions secrets (`LITELLM_LANGFUSE_*` /
+  `LITELLM_SENTRY_DSN`). Kept separate from
   homelab's own `litellm-gateway` project so the two gateways' telemetry doesn't merge.

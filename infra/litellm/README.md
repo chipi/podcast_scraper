@@ -9,11 +9,13 @@ follows #1356, with the base URL = this local instance.
 Shared lineage with `agentic-ai-homelab/infra/litellm/` — keep the two configs from
 drifting; the per-instance difference is **env only** (keys, callbacks, bind).
 
-## Status: scaffolding (#1357 §1)
+## Status: live (#1357 §1)
 
-Built, not yet deployed. The aliases in `config.yaml` are a **placeholder** copied from
-homelab so the gateway boots + is testable; the real prod alias set is decided in #1356
-(provider integration) and will replace them.
+Deployed + operational on the prod box (`deploy-litellm.yml`): gateway healthy, the
+`proj-podcast-prod` virtual key minted (budget-walled), and all telemetry flowing
+(Langfuse / GlitchTip / VictoriaLogs / VictoriaMetrics spend). The aliases in `config.yaml`
+are still a **placeholder** copied from homelab so the gateway boots + is testable; the real
+prod alias set is decided in #1356 (provider integration) and will replace them.
 
 ## Layout
 
@@ -21,7 +23,7 @@ homelab so the gateway boots + is testable; the real prod alias set is decided i
 | --- | --- |
 | `docker-compose.litellm.yml` | `litellm` (litellm-database) + `postgres:16`; own `-p litellm` project |
 | `config.yaml` | model aliases (placeholder) + Langfuse/GlitchTip callbacks + master-key |
-| `.env.example` | the secret slots (sops-delivered on prod; never commit `.env`) |
+| `.env.example` | the secret slots (delivered from GH Actions secrets → staged `.env` at deploy, ADR-115 Option A; never commit `.env`) |
 | `spend-to-vm.sh` | per-key spend → homelab VictoriaMetrics; run by the `litellm-spend-push` compose sidecar (rootless, no host systemd) |
 | `../deploy/deploy-litellm.sh` | deploy: stage env, resolve homelab IP, compose up, health-gate |
 
@@ -42,7 +44,7 @@ homelab so the gateway boots + is testable; the real prod alias set is decided i
 The tailnet ACL already permits `tag:prod → homelab-host:4000,8090,8428` (Langfuse /
 GlitchTip / VictoriaMetrics) — no ACL change needed.
 
-## Deploy (once secrets are in via sops)
+## Deploy (once the LITELLM_* GH secrets are set)
 
 ```sh
 # on the box, from the checkout — or via deploy-litellm.yml
@@ -87,6 +89,7 @@ top-up.
 
 ## Rotating a key
 
-- **Provider key** (e.g. OpenRouter): one sops edit + `deploy-litellm.sh` (or
-  `docker compose -p litellm up -d litellm`). The app never holds a provider key.
+- **Provider key** (e.g. OpenRouter): update the `LITELLM_OPENROUTER_API_KEY` GH secret +
+  re-run `deploy-litellm.yml` (or `deploy-litellm.sh` on the box). The app never holds a
+  provider key.
 - **Virtual key**: regenerate via `/key/generate`, update the app's secret, delete the old.

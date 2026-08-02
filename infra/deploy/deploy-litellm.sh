@@ -6,7 +6,7 @@
 # operator / player stacks. The gateway is a LOCAL inference proxy (loopback-bound, never
 # public); ALL telemetry ships to the homelab pane over the tailnet.
 #
-# Required env (staged by the workflow from sops/GH secrets, or set for a manual run):
+# Required env (staged by the workflow from GH Actions secrets, or set for a manual run):
 #   LITELLM_PG_PASSWORD    postgres password (compose-internal + loopback :5433)
 #   LITELLM_MASTER_KEY     proxy admin master key (mints virtual keys; never a consumer's)
 #   OPENROUTER_API_KEY     the prod gateway's OWN upstream OpenRouter key

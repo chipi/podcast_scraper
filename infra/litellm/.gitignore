@@ -1,4 +1,5 @@
-# Never commit the real gateway secrets — sops-delivered on prod, this file documents slots.
+# Never commit the real gateway secrets — on prod they come from GH Actions secrets, staged
+# into .env by deploy-litellm.yml (ADR-115 Option A); .env.example documents the slots.
 .env
 # Minted virtual keys written on the box by deploy-litellm.sh / manual mint (e.g.
 # .proj-podcast-prod.key). Plaintext consumer keys — never in git.
