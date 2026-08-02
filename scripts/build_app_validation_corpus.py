@@ -434,6 +434,11 @@ def _clean_insight_quote_excerpts(
     return {"topics": topics, "insights": insights, "quotes": quotes}
 
 
+# Sponsor-read pseudo-speakers (``Ad:`` lines etc.) are not people — excluded from the KG
+# person surface and counted as ``commercial`` (unattributed) voices in speaker diagnostics.
+_NON_PERSON_LABELS = {"ad", "ads", "sponsor", "announcer", "narrator", "promo"}
+
+
 def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> None:
     """Add Person nodes (+ episode→person edges) to a ``build_kg`` artifact in place.
 
@@ -451,9 +456,6 @@ def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> 
         (n.get("id") for n in nodes if isinstance(n, dict) and n.get("type") == "Episode"),
         None,
     )
-    # Sponsor-read pseudo-speakers (e.g. ``Ad:`` lines) are not people — exclude them
-    # so the entity-card people surface mirrors a real diarized roster (host + guests).
-    _NON_PERSON_LABELS = {"ad", "ads", "sponsor", "announcer", "narrator", "promo"}
     existing = {n.get("id") for n in nodes if isinstance(n, dict)}
     for i, sp in enumerate(roster):
         name = str(sp.get("name") or "").strip()
@@ -869,6 +871,62 @@ def _topic_similarity_data(
     }
 
 
+def _speaker_diagnostics(
+    roster: list[dict[str, str]], diar_segments: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Author a ``.speakers.diagnostics.json`` from the deterministic roster + segments.
+
+    Mirrors the real ``build_speaker_diagnostics`` shape (roster.py): talk-share per voice,
+    host/guest roles, the exposed roster, and the unattributed (sponsor/commercial) share —
+    so the diarized-speaker read surfaces (MCP ``episode_speaker_roster``) see real fixture
+    data. No ML: talk-share is summed from segment durations.
+    """
+    talk: dict[str, float] = {}
+    for s in diar_segments:
+        label = str(s.get("speaker_label") or "")
+        talk[label] = talk.get(label, 0.0) + (float(s.get("end", 0.0)) - float(s.get("start", 0.0)))
+    total = sum(talk.values()) or 1.0
+    named = 0
+    unattributed_s = 0.0
+    census: dict[str, dict[str, Any]] = {}
+    exposed: list[dict[str, Any]] = []
+    for sp in roster:
+        name = str(sp.get("name") or "").strip()
+        role = str(sp.get("role") or "").strip()
+        is_person = name.lower() not in _NON_PERSON_LABELS
+        voice_type = "named" if is_person else "commercial"
+        c = census.setdefault(voice_type, {"count": 0, "talk_s": 0.0})
+        c["count"] += 1
+        c["talk_s"] += talk.get(name, 0.0)
+        if is_person:
+            named += 1
+        else:
+            unattributed_s += talk.get(name, 0.0)
+        exposed.append(
+            {
+                "name": name if is_person else None,
+                "voice_type": voice_type,
+                "role": role,
+                "talk_share": round(talk.get(name, 0.0) / total, 4),
+                "named": is_person,
+            }
+        )
+    for c in census.values():
+        c["talk_share"] = round(c["talk_s"] / total, 4)
+    return {
+        "schema": "speakers.diagnostics/v1",
+        "summary": {
+            "num_speakers": len(roster),
+            "named": named,
+            "unresolved": len(roster) - named,
+            "by_voice_type": {vt: c["count"] for vt, c in census.items()},
+            "voice_census": census,
+            "exposed": exposed,
+            "unattributed_talk_share": round(unattributed_s / total, 4),
+        },
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -1051,6 +1109,13 @@ def main() -> int:
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
             (run_tr_dir / f"{ep_label}.segments.json").write_text(
                 json.dumps(_raw_canonical_segments(offset_segs), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            # Diarization diagnostics next to the transcript — what the diarized-speaker read
+            # surfaces (MCP episode_speaker_roster) read (talk-share, roster, host/guest).
+            (run_tr_dir / f"{ep_label}.speakers.diagnostics.json").write_text(
+                json.dumps(_speaker_diagnostics(roster, diar_segments), indent=2, sort_keys=True)
+                + "\n",
                 encoding="utf-8",
             )
 

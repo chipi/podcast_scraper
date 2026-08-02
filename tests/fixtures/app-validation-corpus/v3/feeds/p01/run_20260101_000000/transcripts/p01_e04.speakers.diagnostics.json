@@ -1,0 +1,35 @@
+{
+  "schema": "speakers.diagnostics/v1",
+  "summary": {
+    "by_voice_type": {
+      "named": 2
+    },
+    "exposed": [
+      {
+        "name": "Maya",
+        "named": true,
+        "role": "host",
+        "talk_share": 0.5556,
+        "voice_type": "named"
+      },
+      {
+        "name": "Sophie Laurent",
+        "named": true,
+        "role": "guest",
+        "talk_share": 0.4444,
+        "voice_type": "named"
+      }
+    ],
+    "named": 2,
+    "num_speakers": 2,
+    "unattributed_talk_share": 0.0,
+    "unresolved": 0,
+    "voice_census": {
+      "named": {
+        "count": 2,
+        "talk_s": 54.0,
+        "talk_share": 1.0
+      }
+    }
+  }
+}
