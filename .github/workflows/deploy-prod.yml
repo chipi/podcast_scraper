@@ -241,6 +241,11 @@ jobs:
             # via the overlay's extra_hosts homelab:<ip>). Non-secret. A box migration
             # is a one-line flip of the host here (DGX stopgap was dgx-llm-1:10428).
             printf '%s=%s\n' OTEL_EXPORTER_OTLP_TRACES_ENDPOINT 'http://homelab:10428/insert/opentelemetry/v1/traces'
+            # VictoriaMetrics read endpoint for the Ops view's Prod-LLM spend card (#53,
+            # ADR-142): the /api/ops/llm-gateway route queries per-key litellm spend from
+            # homelab VictoriaMetrics via podcast_obs. Non-secret; same tailnet as OTEL above.
+            # Only the tailnet-only control plane serves the ops routes (not operator-public).
+            printf '%s=%s\n' PODCAST_OBS_VICTORIAMETRICS_URL 'http://homelab:8428'
             # LLM provider keys + Sentry DSNs. Under ADR-115 Option A (#1250,
             # PODCAST_SECRETS_VIA_FILES=1) these are delivered as tmpfs FILES and
             # the shim exports them, so they are DROPPED from the plaintext .env

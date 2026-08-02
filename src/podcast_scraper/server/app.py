@@ -59,6 +59,7 @@ from podcast_scraper.server.routes import (
     index_rebuild,
     index_stats,
     jobs,
+    llm_gateway,
     operator_config,
     ops,
     query_activity,
@@ -156,6 +157,7 @@ _OPERATOR_READ_ROUTES = (
     corpus_trending,
     cil,
     ops,
+    llm_gateway,
 )
 # RFC-108: the CURATED subset of operator-read routers safe for the PUBLIC operator
 # surface (operator.closelistening.app). This is ``_OPERATOR_READ_ROUTES`` MINUS the ones
