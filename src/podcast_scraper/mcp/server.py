@@ -53,6 +53,7 @@ from .tools import (
     connectivity as _connectivity,
     enrichment as _enrichment,
     gi as _gi,
+    operators as _operators,
     relational as _relational,
 )
 from .tools.briefing_pack import corpus_briefing_pack as _corpus_briefing_pack
@@ -75,6 +76,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     _register_relational(server, ctx)
     _register_cil(server, ctx)
     _register_gi(server, ctx)
+    _register_operators(server, ctx)
     _register_enrichment(server, ctx)
     _register_connectivity(server, ctx)
     _register_catalog(server, ctx)
@@ -379,6 +381,32 @@ def _register_gi(server: Any, ctx: CorpusContext) -> None:
             max_tokens=max_tokens,
             insight_types=insight_types,
         )
+
+
+def _register_operators(server: Any, ctx: CorpusContext) -> None:
+    """Search result-set operators: cluster / consensus over a query's hits."""
+
+    @server.tool()
+    @_enveloped
+    def cluster_search(query: str, tier: str = "both", top_k: int = 20) -> dict:
+        """Search, then group the hits by topic/theme cluster (``operator=cluster`` parity).
+
+        Returns clustered ``groups`` (largest first) — "what themes does this query surface"
+        instead of a flat ranked list.
+        """
+        return _operators.cluster_search(ctx, query, tier=tier, top_k=top_k)
+
+    @server.tool()
+    @_enveloped
+    def consensus_search(
+        query: str, tier: str = "both", top_k: int = 20, max_pairs: int = 20
+    ) -> dict:
+        """Search, then surface cross-speaker consensus pairs among the hit topics.
+
+        "Where do speakers agree on what this query is about" — filters the topic_consensus
+        enricher to the surfaced topics. Empty when that enricher wasn't run.
+        """
+        return _operators.consensus_search(ctx, query, tier=tier, top_k=top_k, max_pairs=max_pairs)
 
 
 def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
