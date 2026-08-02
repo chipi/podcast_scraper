@@ -176,7 +176,7 @@ This is the rule the 2026-08-02 hygiene pass had to retrofit; the templates and 
     `NEXT_BATCH_REGISTRY_RUNTIME.md` (registry promotion in #1060),
     `SPEC_1035_NER_PREPASS_DESIGN.md` + `EVAL_1035_NER_PREPASS_VERDICT.md`
     (#1035 shipped), `KILL_CODESPACE_COLLAPSE_TO_DEV_PROD.md`
-    (subsumed by POST_RFC097_DEV_PROD_REMOVAL), `WAVE-3-PLAN.md`
+    (subsumed by `docs/guides/DEV_PROD_ENV_DETECT_REMOVAL.md`), `WAVE-3-PLAN.md`
     (audio waves 1–3 covered by `docs/guides/AUDIO_PIPELINE_GUIDE.md`).
   - **Eval verdicts for closed/superseded cohorts** (8):
     `EVAL_1016_FINAL_REPORT_2026_06_17.md` (superseded by §11 in itself),

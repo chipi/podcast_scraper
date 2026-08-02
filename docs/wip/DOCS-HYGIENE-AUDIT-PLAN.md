@@ -22,28 +22,25 @@ were only touched to remove their WIP references.
     `INFRA-HARDENING-PLAN.md`, `SPEAKER-PIPELINE-SUBSYSTEM-AUDIT.md`.
 - Strict docs build green throughout (`make docs` → `MAKE_DOCS_EXIT=0`); zero dangling refs remain.
 
-## HELD — 4 docs NOT deleted (need a decision), and why
+## HELD gaps — RESOLVED (promoted, then freed)
 
-These are the ones a permanent artifact still depends on — i.e. real gaps, not hygiene:
+Both held clusters turned out to be *already-promoted* content whose WIP archaeology just hadn't been
+cleaned. Resolved this pass:
 
-1. **The 3 ontology specs** — `SPEC_KG_GI_ONTOLOGY_REVIEW_2026-06-20.md`, `…_V2_…`, `…_V2_ROUND3_…` —
-   are referenced by **`docs/rfc/RFC-097-unified-kg-gi-ontology-v2.md`**, which literally labels
-   ROUND3 *"round-3 spec, the live design."* **The live ontology design lives in a WIP doc that a
-   permanent RFC points to.** This is the gap: promote the ROUND3 spec's live content **into**
-   RFC-097 (or a permanent `docs/spec/`), then the 3 WIP archaeology docs are free to delete.
-   (`project_ontology_v2_handoff` memory agrees ROUND3 was the live spec.)
-2. **`POST_RFC097_DEV_PROD_REMOVAL.md`** — freed from all code refs, BUT still referenced by
-   **`data/eval/runs/_PRE_FIX_NOTE.md`**, a **frozen eval-run artifact** (`feedback_never_mutate_
-   historical_artifacts` — never edit `data/eval/runs/`). Options: (a) leave POST_RFC097 as a
-   permanent-ish design record (move it to `docs/adr/` or `docs/guides/`), or (b) operator OK to
-   touch the frozen note. Recommend (a) — promote it out of WIP, since a frozen artifact will
-   forever cite it.
+1. **The 3 ontology specs** (REVIEW / V2 / ROUND3) — RFC-097 labelled ROUND3 "the live design," but
+   the live design had **already shipped** into the permanent `docs/architecture/corpus/ontology.md`
+   (RFC-097 Completed, #1036 CLOSED, chunks 1–9 shipped). RFC-097's "the live design" label was
+   stale. → RFC-097's WIP-spec references repointed to `docs/architecture/corpus/ontology.md`; the 3
+   archaeology specs **deleted** (history in git). `SPEC_KG_GI_ONTOLOGY_V3_WISHLIST` (deferred future
+   ideas) stays as a pure WIP doc, no longer referenced by RFC-097.
+2. **`POST_RFC097_DEV_PROD_REMOVAL.md`** — a decision record a **frozen** eval artifact
+   (`data/eval/runs/_PRE_FIX_NOTE.md`) cites. → **Promoted** to
+   `docs/guides/DEV_PROD_ENV_DETECT_REMOVAL.md` (added to the mkdocs nav). The frozen note keeps its
+   old `docs/wip/…` path (never edit `data/eval/runs/` — `feedback_never_mutate_historical_artifacts`);
+   that stale link lives outside the docs build and is the one accepted exception.
 
-## Gaps this surfaced (next-priority signal)
-
-The two held clusters are the actionable gaps: **the KG/GI ontology "live design" was never promoted
-out of WIP into RFC-097**, and **the dev/prod-removal reconciliation** is a design record a frozen
-eval note depends on but which lives in WIP. Both should be *promoted* (WIP→permanent), not deleted.
+Net: **32 WIP docs deleted** (18 + 11 + 3 ontology), **1 promoted** to guides; zero permanent artifact
+now references `docs/wip/`.
 
 ## NOT covered (equal weight)
 

@@ -31,13 +31,9 @@
 - **Related UX specs**:
   - PRD-028 / PRD-029 cover the viewer Position Tracker + Person Profile surfaces
 - **Related Documents**:
-  - `docs/architecture/corpus/ontology.md` (NEW, lands in chunk 1)
+  - `docs/architecture/corpus/ontology.md` (the live ontology design — shipped in chunk 1)
   - `docs/architecture/kg/ontology.md` (superseded by chunk 1)
   - `docs/architecture/gi/ontology.md` (superseded by chunk 1)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_REVIEW_2026-06-20.md` (round-1 spec, archaeology)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_2026-06-20.md` (round-2 spec, archaeology)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_ROUND3_2026-06-20.md` (round-3 spec, the live design)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_V3_WISHLIST_2026-06-20.md` (deferred items + preservation checklist)
 
 ## Abstract
 
@@ -726,11 +722,8 @@ Together they provide:
 - **Related PRDs**: PRD-017, PRD-019, PRD-026 through PRD-029, PRD-031
 - **Related RFCs**: RFC-049, RFC-050, RFC-055, RFC-056, RFC-072,
   RFC-088, RFC-090, RFC-091, RFC-092, RFC-093, RFC-094, RFC-095
-- **Round-1 WIP spec**: `docs/wip/SPEC_KG_GI_ONTOLOGY_REVIEW_2026-06-20.md`
-- **Round-2 WIP spec**: `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_2026-06-20.md`
-- **Round-3 WIP spec (live design)**:
-  `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_ROUND3_2026-06-20.md`
-- **v3 wishlist**: `docs/wip/SPEC_KG_GI_ONTOLOGY_V3_WISHLIST_2026-06-20.md`
+- **Live ontology design**: `docs/architecture/corpus/ontology.md` (shipped in chunk 1). The
+  round-1/2/3 design specs were WIP archaeology and have been removed — their history is in git.
 - **GH anchor**: #1036 (issue body updated to reflect round-3 framing)
 - **Programme epic**: #907 (autoresearch)
 - **Source code touched**: `src/podcast_scraper/{kg,gi}/`,
