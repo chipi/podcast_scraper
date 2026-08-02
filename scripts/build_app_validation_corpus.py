@@ -973,7 +973,14 @@ def main() -> int:
                 transcript_ref=transcript_run_rel,
                 metadata_relative_path=metadata_rel,
             )
-            kg = build_kg(episode_id, episode_title, excerpts, metadata_relative_path=metadata_rel)
+            kg = build_kg(
+                episode_id,
+                episode_title,
+                excerpts,
+                transcript_run_rel,
+                publish + "T12:00:00",
+                metadata_relative_path=metadata_rel,
+            )
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
             # consumer entity-card people surface has real data (host/guest).
             _enrich_kg_with_people(kg, roster)
