@@ -56,6 +56,7 @@ from .tools import (
 from .tools.briefing_pack import corpus_briefing_pack as _corpus_briefing_pack
 from .tools.resolve import resolve_entity as _resolve_entity
 from .tools.search import search_corpus as _search_corpus
+from .tools.trending import corpus_trending as _corpus_trending
 
 
 def build_server(corpus_dir: Path | str) -> Any:
@@ -85,16 +86,21 @@ def build_server(corpus_dir: Path | str) -> Any:
         grounded_only: bool = False,
         feed: Optional[str] = None,
         since: Optional[str] = None,
+        speaker: Optional[str] = None,
+        topic: Optional[str] = None,
+        episode_id: Optional[str] = None,
         top_k: int = 10,
     ) -> dict:
         """Search the corpus with hybrid two-tier retrieval and get grounded evidence.
 
         ``tier``: "insight" (synthesized claims), "segment" (raw transcript quotes), or
-        "both". ``grounded_only`` keeps only insights backed by a supporting quote. Each
-        result carries ``source_tier``, a relevance ``score``, and provenance
-        (``metadata`` with episode/feed ids); the response carries the detected
-        ``query_type``. For exact quotes use ``tier="segment"``; for positions/claims use
-        ``tier="insight"``.
+        "both". ``grounded_only`` keeps only insights backed by a supporting quote.
+        ``speaker``/``topic``/``episode_id`` scope the search (parity with the web
+        ``/api/search``): pass a resolved ``person:``/``topic:`` id from ``resolve_entity``,
+        or an episode id, to pivot a text search onto one entity/episode. Each result
+        carries ``source_tier``, a relevance ``score``, and provenance (``metadata`` with
+        episode/feed/entity ids); the response carries the detected ``query_type``. For
+        exact quotes use ``tier="segment"``; for positions/claims use ``tier="insight"``.
         """
         return _search_corpus(
             ctx,
@@ -103,6 +109,9 @@ def build_server(corpus_dir: Path | str) -> Any:
             grounded_only=grounded_only,
             feed=feed,
             since=since,
+            speaker=speaker,
+            topic=topic,
+            episode_id=episode_id,
             top_k=top_k,
         )
 
@@ -140,6 +149,21 @@ def build_server(corpus_dir: Path | str) -> Any:
             top_k=top_k,
             max_tokens=max_tokens,
         )
+
+    @server.tool()
+    @_enveloped
+    def corpus_trending(kind: Optional[str] = None, limit: int = 8) -> dict:
+        """What's rising corpus-wide right now (RFC-103 momentum).
+
+        Time-weighted "hot" ranking (EWMA velocity), the same signal the discover ranker
+        and the web trending views use. ``kind``: topic|cluster|storyline|person|episode|
+        show|insight, or omit for all kinds. ``limit`` is per-kind. Each entity carries a
+        namespaced ``entity_id`` you can pivot straight into the graph tools
+        (``entity_neighborhood``, ``insights_about_entity``, ``topic_entities`` …) — use it
+        to go "what's hot → expand it". ``velocity`` >1 = rising; ``series`` is the weekly
+        sparkline.
+        """
+        return _corpus_trending(ctx, kind=kind, limit=limit)
 
     # --- relational tools (RFC-095 slice 2): all take canonical ids (resolve first) ---
 

@@ -15,14 +15,20 @@ def search_corpus(
     grounded_only: bool = False,
     feed: Optional[str] = None,
     since: Optional[str] = None,
+    speaker: Optional[str] = None,
+    topic: Optional[str] = None,
+    episode_id: Optional[str] = None,
     top_k: int = 10,
 ) -> Dict[str, Any]:
     """Hybrid two-tier corpus search returning grounded evidence.
 
     ``tier`` is the evidence tier: ``insight`` (synthesized), ``segment`` (raw transcript),
-    or ``both``. Returns ``{query_type, results: [{doc_id, source_tier, score, text,
-    metadata, supporting_quotes?, lifted?}], error, lift_stats}`` — the same structured
-    shape the viewer's ``/api/search`` produces. Empty query → ``error: "empty_query"``.
+    or ``both``. ``speaker``/``topic``/``episode_id`` scope the search (parity with
+    ``GET /api/search``): pass a resolved ``person:``/``topic:`` id (see ``resolve_entity``)
+    or an episode id to restrict hits. Returns ``{query_type, results: [{doc_id,
+    source_tier, score, text, metadata, supporting_quotes?, lifted?}], error, lift_stats}``
+    — the same structured shape the viewer's ``/api/search`` produces. Empty query →
+    ``error: "empty_query"``.
     """
     cleaned = (query or "").strip()
     if not cleaned:
@@ -42,5 +48,8 @@ def search_corpus(
         grounded_only=grounded_only,
         feed=feed,
         since=since,
+        speaker=speaker,
+        topic=topic,
+        episode_id=episode_id,
         top_k=max(1, min(100, int(top_k))),
     )
