@@ -85,11 +85,19 @@ def test_operator_public_subset_excludes_the_mutating_operator_routes() -> None:
     public = set(app_mod._OPERATOR_PUBLIC_READ_ROUTES)
     full = set(app_mod._OPERATOR_READ_ROUTES)
     assert public < full, "public subset must be strictly smaller than the full read set"
+    # The excluded set = the mutating/control routes PLUS the tailnet-only observability
+    # routes. `llm_gateway` (ADR-142, #53) is read-only but carries per-key LLM *spend* —
+    # cost data that stays on the tailnet control plane, exactly like `ops`, never the
+    # public operator surface.
     assert full - public == {
         app_mod.index_rebuild,
         app_mod.ops,
         app_mod.resilience_routes,
-    }, "operator-public must exclude the mutating/control routes (index_rebuild, ops, resilience)"
+        app_mod.llm_gateway,
+    }, (
+        "operator-public must exclude the mutating/control routes (index_rebuild, ops, "
+        "resilience) and the tailnet-only spend route (llm_gateway)"
+    )
 
 
 def test_operator_public_curated_subset_has_no_mutating_operator_writes() -> None:
