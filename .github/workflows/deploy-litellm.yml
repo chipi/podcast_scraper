@@ -1,0 +1,207 @@
+# Deploy the PROD LiteLLM gateway (#1357 §1, ADR-142) to the always-on VPS.
+#
+# Standalone `-p litellm` compose project — isolated from the app / operator / player
+# stacks. The gateway is a LOCAL inference proxy: loopback-bound (127.0.0.1:4001) plus an
+# ADDITIVE tailnet bind for the admin UI (ACL: autogroup:admin -> tag:prod:4001). It is
+# NEVER public. All telemetry ships to the homelab pane over the tailnet (Langfuse traces,
+# GlitchTip errors, VictoriaLogs container logs via the shared node Alloy).
+#
+# Manual (workflow_dispatch); typed confirm; tailnet-only SSH; environment:prod gate.
+#
+# Deploys the ref it is dispatched on (github.ref_name) — the litellm scaffold lives on
+# `production` until it merges to main. Dispatch from the branch that carries infra/litellm.
+#
+# Prereqs (stage once):
+#   secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, PROD_SSH_PRIVATE_KEY,
+#            LITELLM_PG_PASSWORD, LITELLM_MASTER_KEY, LITELLM_OPENROUTER_API_KEY,
+#            LITELLM_LANGFUSE_PUBLIC_KEY, LITELLM_LANGFUSE_SECRET_KEY, LITELLM_SENTRY_DSN
+#   vars:    PROD_TAILNET_FQDN, HOMELAB_VICTORIALOGS_URL (o11y event, optional)
+# The box must already be on the tailnet with `homelab` reachable (telemetry extra_hosts).
+
+name: Deploy litellm — PROD gateway (tailnet, ADR-142)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type LITELLM_DEPLOY to confirm'
+        required: true
+      override_image_tag:
+        description: 'Optional litellm image tag to pin (blank = compose default main-stable)'
+        required: false
+
+concurrency:
+  group: deploy-litellm
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: prod
+    steps:
+      - name: Confirm LITELLM_DEPLOY
+        run: |
+          if [ "${{ inputs.confirm }}" != "LITELLM_DEPLOY" ]; then
+            echo "::error::Must type LITELLM_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          # Gateway-critical: without these it can't authenticate upstream or mint keys.
+          LITELLM_PG_PASSWORD: ${{ secrets.LITELLM_PG_PASSWORD }}
+          LITELLM_MASTER_KEY: ${{ secrets.LITELLM_MASTER_KEY }}
+          LITELLM_OPENROUTER_API_KEY: ${{ secrets.LITELLM_OPENROUTER_API_KEY }}
+          # Telemetry: strongly wanted, but the gateway boots without them (script defaults
+          # empty -> no telemetry). Missing -> warn, do NOT block the deploy.
+          LITELLM_LANGFUSE_PUBLIC_KEY: ${{ secrets.LITELLM_LANGFUSE_PUBLIC_KEY }}
+          LITELLM_LANGFUSE_SECRET_KEY: ${{ secrets.LITELLM_LANGFUSE_SECRET_KEY }}
+          LITELLM_SENTRY_DSN: ${{ secrets.LITELLM_SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
+          [ -z "${LITELLM_PG_PASSWORD:-}" ] && MISSING="$MISSING LITELLM_PG_PASSWORD"
+          [ -z "${LITELLM_MASTER_KEY:-}" ] && MISSING="$MISSING LITELLM_MASTER_KEY"
+          [ -z "${LITELLM_OPENROUTER_API_KEY:-}" ] && MISSING="$MISSING LITELLM_OPENROUTER_API_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING — stage them then re-run."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Telemetry soft-check — warn only.
+          for t in LITELLM_LANGFUSE_PUBLIC_KEY LITELLM_LANGFUSE_SECRET_KEY LITELLM_SENTRY_DSN; do
+            eval "v=\${$t:-}"
+            [ -z "$v" ] && echo "::warning::$t empty — gateway will deploy but that telemetry channel is off."
+          done || true
+
+      - name: Checkout (resolver scripts)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        if: steps.preflight.outputs.skip != 'true'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh repo on the box to this ref
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          # Deploy the ref the workflow was dispatched on — the litellm scaffold lives on
+          # `production` until it merges. Via env (not inline ${{ }}) to keep the ref out of
+          # the shell-injection surface. Mirrors deploy-operator.yml.
+          DEPLOY_REF: ${{ github.ref_name }}
+        run: |
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -euo pipefail; cd /srv/podcast-scraper; \
+             git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
+             git reset --hard 'origin/$DEPLOY_REF'"
+
+      - name: Stage infra/litellm/.env (secrets via /dev/shm scp, never inline over ssh)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          LITELLM_PG_PASSWORD: ${{ secrets.LITELLM_PG_PASSWORD }}
+          LITELLM_MASTER_KEY: ${{ secrets.LITELLM_MASTER_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.LITELLM_OPENROUTER_API_KEY }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LITELLM_LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LITELLM_LANGFUSE_SECRET_KEY }}
+          SENTRY_DSN: ${{ secrets.LITELLM_SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          ENVTMP="$(mktemp -p /dev/shm)"
+          {
+            echo "LITELLM_PG_PASSWORD=${LITELLM_PG_PASSWORD}"
+            echo "LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}"
+            # The prod gateway's OWN upstream OpenRouter key (provider-side billing separation
+            # from homelab/lab spend, #1357 §2).
+            echo "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}"
+            # Telemetry -> homelab over the tailnet. `homelab` (NOT host.docker.internal);
+            # deploy-litellm.sh pins homelab's tailnet IP into extra_hosts each deploy.
+            echo "LANGFUSE_HOST=http://homelab:4000"
+            echo "LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}"
+            echo "LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}"
+            echo "SENTRY_DSN=${SENTRY_DSN}"
+            # Written FRESH by deploy-litellm.sh (homelab tailnet IP). Leave blank.
+            echo "HOMELAB_TAILNET_IP="
+          } > "$ENVTMP"
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/infra/litellm/.env.staged"
+          rm -f "$ENVTMP"
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -euo pipefail; cd /srv/podcast-scraper/infra/litellm; \
+             mv .env.staged .env; chmod 600 .env"
+
+      - name: Deploy (compose up + telemetry extra_hosts + health-gate + alloy)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          # Optional image pin. SSH does not inherit the runner env, so pass inline (like
+          # deploy-operator passes OPERATOR_SECRETS_VIA_FILES). Blank -> compose default.
+          IMAGE_TAG: ${{ inputs.override_image_tag }}
+        run: |
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "LITELLM_IMAGE_TAG='${IMAGE_TAG}' /srv/podcast-scraper/infra/deploy/deploy-litellm.sh"
+
+      - name: Post-deploy gateway state (log visibility; non-fatal)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper/infra/litellm; \
+             docker compose -p litellm ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}' || true; \
+             docker exec litellm sh -c 'curl -fsS http://127.0.0.1:4000/health/liveliness' || true" \
+            || true
+
+      - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
+        if: always() && steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/emit-ops-event
+        with:
+          event-type: deploy
+          env: prod
+          victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
+          msg: "litellm gateway deploy ${{ job.status }}"
+          fields: status=${{ job.status }} surface=litellm triggered_by=${{ github.actor }}
