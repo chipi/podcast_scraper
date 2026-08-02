@@ -9,17 +9,16 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
 
 1. **DGX-local model decision is not made** — the current front (v2.5 stage D). The bake-off arm
    that decides the v2.5 Gemini→DGX swap **has not run**. → run it; it gates the whole v2.5 corpus.
-   **Entry-state verified 2026-08-02 (read-only SSH):** DGX `dgx-llm-1` reachable (key auth OK, ping
-   0% loss). **The DGX was re-provisioned since the plan was written** — the autoresearch-vLLM
-   bring-up path Phase D assumes is GONE: no `~/agentic-ai-homelab` repo, no `gpu-mode-swap.sh`
-   anywhere under `~`//opt//srv, and NO autoresearch/coder-next vLLM container; `:8003` serves nothing.
-   What IS running (persistent containers): `moss`, `pyannote`, `faster-whisper` (all ~10 d),
-   `librechat-*` (3 d), obs stack; `/opt` holds native `moss-server`/`pyannote-server`/`faster-whisper`/
-   `speaches-gb10`/`llm-models`/`actions-runner`; ollama `:11434` up (llama3.1:8b).
-   **BLOCKER for the fresh session: how the bake-off LLM is served on the re-provisioned box is an
-   open operator call** (moss? librechat? a new vLLM?) — Phase D's serving assumptions + the stale
-   `reference_gpu_mode_swap_script` / `project_dgx_vllm_distinction` / `project_dgx_tailscale_acl`
-   memories need re-confirmation before the bake-off runs.
+   **Entry-state verified 2026-08-02 (read-only SSH as `ops@dgx-llm-1`):** the DGX serving stack is
+   **intact and matches `agentic-ai-homelab/infra/dgx/README.md`** — an earlier probe as the personal
+   user wrongly concluded the box was re-provisioned; it was not. `gpu-mode-swap.sh` is present
+   (`/usr/local/bin/gpu-mode-swap.sh` → the `ops` deploy checkout `/home/ops/agentic-ai-homelab`).
+   GPU mode is currently **`free`/idle** — that is why `:8003` served nothing; bring the autoresearch
+   vLLM up with `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research`. Running: `moss` (:8004),
+   `pyannote` (:8001), `faster-whisper` (:8000), ollama (:11434), obs stack, plus **`librechat-*`
+   (:3080, added ~3 d ago — the only genuinely new service)**. So the original Phase-D plan
+   (stand up the autoresearch vLLM via `gpu-mode-swap research`) is viable as written; the operator's
+   "re-scope to live services" decision was taken on a **false blocker** and can be revisited.
    Local side present & verified: `autoresearch/` harness (JUDGING.md, PER_MODEL_OPTIMAL_PARAMS.md,
    bundled_prompt_tuning), `scripts/backfill/relabel_corpus.py`, DGX profiles (`prod_dgx_balanced`,
    `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`), parity baseline corpus

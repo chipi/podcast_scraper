@@ -85,21 +85,25 @@ plate. The remaining single-variable step is the **naming/summarization LLM swap
 4. **Sequencing = 2.5 first, THEN go-live (operator, 2026-08-02).** Single-track focus on the
    corpus arc; freeze the 2.5 corpus before returning to the go-live ops tail (CF WAF, alerts,
    RBAC). Go-live is largely done and has no corpus-pipeline dependency, so it waits, not blocks.
-5. **DGX serving re-scoped to the live stack (operator, 2026-08-02).** The box was
-   re-provisioned; the autoresearch-vLLM `:8003` / `gpu-mode-swap.sh` path is retired. Serve the
-   bake-off candidates via what's already up (moss / ollama `:11434` / the librechat backend) —
-   see stage D. First action is to enumerate what the re-provisioned box can actually serve.
+5. **DGX serving — CORRECTED 2026-08-02.** An earlier probe (personal SSH user, wrong home)
+   wrongly reported the box "re-provisioned / bring-up path gone" and the operator took a
+   "re-scope to live services" decision on that false premise. **The serving stack is intact**
+   (SSOT `agentic-ai-homelab/infra/dgx/README.md`; short bridge `docs/architecture/DGX_SERVING.md`):
+   `gpu-mode-swap.sh` is at `/usr/local/bin/` on the `ops` box; GPU was merely `free`/idle, so the
+   **original Phase-D plan — autoresearch vLLM on `:8003` via `ssh ops@dgx-llm-1
+   /usr/local/bin/gpu-mode-swap.sh research` — works as written.** The re-scope decision is OPEN for
+   the operator to revisit (original vLLM path vs live moss/ollama/librechat).
 
 ### The v2.5 sub-sequence
 
 - **D — Autoresearch prompt-tuning + bake-off (the pivot, BEFORE the swap).** Stand up
   the bake-off in the autoresearch harness (`autoresearch/`, `JUDGING.md`,
-  `bundled_prompt_tuning/`). **Serving re-scoped (2026-08-02):** the `:8003` autoresearch
-  vLLM is retired — first enumerate what the re-provisioned DGX serves (moss, ollama
-  `:11434`, librechat backend) and map the candidate set (originally Cohere Command,
-  Qwen3-30B-A3B, DeepSeek) onto what the box can actually host; deep-research each served
-  model's knobs (`feedback_deep_research_per_model`) and update
-  `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`. Metric = judge-panel parity vs the 2.4-Gemini
+  `bundled_prompt_tuning/`). **Serving (corrected 2026-08-02):** bring the autoresearch vLLM up on
+  `:8003` via `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research` (GPU was idle, not gone —
+  see decision 5 + `docs/architecture/DGX_SERVING.md`). Serve the candidate set (Cohere Command,
+  Qwen3-30B-A3B, DeepSeek); deep-research each model's knobs (`feedback_deep_research_per_model`) and
+  update `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`. (If the operator prefers the live moss/ollama/
+  librechat services instead, map the candidates onto those — that trade-off is open.) Metric = judge-panel parity vs the 2.4-Gemini
   baseline (the naming-4 relabel defect/named metrics from #1355 + the panel). Output:
   (a) winning DGX model, (b) tuned per-provider prompts, (c) recorded parity result.
   **This is critical-path gap #1.**

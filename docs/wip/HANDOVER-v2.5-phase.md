@@ -28,22 +28,23 @@ the frozen scale run.
    corpus dependency; it waits, does not block.
 5. **DGX serving re-scoped to the live stack** (2026-08-02) — see the verified state below.
 
-## ⚠️ Verified DGX entry-state (read-only SSH, 2026-08-02) — READ BEFORE Phase D
+## Verified DGX entry-state (read-only SSH as `ops@`, 2026-08-02) — READ BEFORE Phase D
 
-The DGX was **re-provisioned** since the original plan. The autoresearch-vLLM `:8003` /
-`gpu-mode-swap.sh` bring-up path is **GONE**:
+The DGX serving stack is **intact** and matches the SSOT
+`agentic-ai-homelab/infra/dgx/README.md`. (An earlier probe this day as the personal user
+looked in the wrong home and wrongly reported the box "re-provisioned / bring-up path gone" —
+that was a false alarm; corrected here.)
 
-- No `~/agentic-ai-homelab` repo; no `gpu-mode-swap.sh` anywhere under `~`//opt//srv; NO
-  autoresearch/coder-next vLLM container; `:8003` serves nothing.
-- **Running (persistent containers):** `moss`, `pyannote`, `faster-whisper` (~10 d), `librechat-*`
-  (3 d), obs stack (dcgm-exporter, cadvisor, alloy, ollama-metrics). `ollama :11434` up
-  (llama3.1:8b). `/opt` holds native `moss-server`/`pyannote-server`/`faster-whisper`/
-  `speaches-gb10`/`llm-models`/`actions-runner`.
-- **STALE memories — re-verify, do not trust:** `reference_gpu_mode_swap_script`,
-  `project_dgx_vllm_distinction`, `project_dgx_tailscale_acl`.
-
-DGX reachable via SSH `dgx-llm-1` (key auth OK). Never touch `code`/coder-next
-(`feedback_never_use_coder_next`) — but note that slot model appears retired anyway.
+- **Access:** `ssh ops@dgx-llm-1` — the box runs as **`ops`** from `/home/ops/agentic-ai-homelab`
+  (the personal home has nothing). `gpu-mode-swap.sh` is on PATH at
+  `/usr/local/bin/gpu-mode-swap.sh` (absolute path in non-interactive shells).
+- **GPU mode was `free`/idle**, which is why `:8003` served nothing. Bring the autoresearch
+  vLLM up before the bake-off: `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research`.
+  So Phase D's original plan (autoresearch vLLM on `:8003`) works as written.
+- **Running:** `moss` (:8004), `pyannote` (:8001), `faster-whisper` (:8000), ollama (:11434),
+  obs stack, plus **`librechat-*` (:3080)** added ~3 d ago (the only new service).
+- **Serving bridge (short → full):** `docs/architecture/DGX_SERVING.md` in this repo points to the
+  homelab SSOT. Never touch `code`/coder-next (`feedback_never_use_coder_next`).
 
 ## Part 1 — the ORIGINAL v2.5 arc (do this FIRST)
 
