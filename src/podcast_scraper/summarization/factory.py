@@ -90,6 +90,7 @@ def create_summarization_provider(  # noqa: C901
                     "deepseek",
                     "ollama",
                     "anthropic",
+                    "vllm",
                 ],
                 str(provider_type_override).strip().lower(),
             )
@@ -104,6 +105,7 @@ def create_summarization_provider(  # noqa: C901
                 "deepseek",
                 "ollama",
                 "anthropic",
+                "vllm",
             ):
                 raise ValueError(f"Invalid provider_type_override: {provider_type_override}")
         else:
@@ -124,6 +126,7 @@ def create_summarization_provider(  # noqa: C901
             "deepseek",
             "ollama",
             "anthropic",
+            "vllm",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
@@ -139,6 +142,7 @@ def create_summarization_provider(  # noqa: C901
                 "deepseek",
                 "ollama",
                 "anthropic",
+                "vllm",
             ],
             provider_type_str,
         )
@@ -292,6 +296,19 @@ def create_summarization_provider(  # noqa: C901
             provider = OpenAIProvider(cfg)
 
         # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
+    elif provider_type == "vllm":
+        # ADR-144: DGX-local open models over vLLM's OpenAI-compatible API. A sibling of the
+        # openai provider (real HF model ids on the wire), not a subclass.
+        from ..providers.vllm import VLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "vLLM provider is not wired for experiment-param mode; drive it with a Config "
+                "using summary_provider='vllm' and the vllm_* settings."
+            )
+        provider = VLLMProvider(cfg)
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
     elif provider_type == "gemini":

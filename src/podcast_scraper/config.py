@@ -1174,7 +1174,7 @@ class Config(BaseModel):
     )
     # Provider selection fields (Stage 0: Foundation)
     speaker_detector_provider: Literal[
-        "spacy", "openai", "gemini", "mistral", "grok", "deepseek", "anthropic", "ollama"
+        "spacy", "openai", "gemini", "mistral", "grok", "deepseek", "anthropic", "ollama", "vllm"
     ] = Field(
         default="spacy",
         alias="speaker_detector_provider",
@@ -1709,6 +1709,107 @@ class Config(BaseModel):
         alias="ner_prompt_params",
         description="Template parameters for NER prompts (passed to Jinja2 templates).",
     )
+
+    # --- vLLM provider (ADR-144) --------------------------------------------------------------
+    # A first-class OpenAI-compatible serving stack for the DGX-local open-model family
+    # (Qwen/DeepSeek/Llama). Distinct from `openai` (reserved for OpenAI-native models); they
+    # share only the wire protocol. Fields mirror the openai_* namespace and are read via the
+    # {ns}_ indirection landed in S1. Model fields name REAL HF ids on the wire — no served-name
+    # alias — and are verified fail-closed against the served model at provider init.
+    vllm_api_base: Optional[str] = Field(
+        default=None,
+        alias="vllm_api_base",
+        description="vLLM OpenAI-compatible base URL (e.g. http://<dgx>:8003/v1). Set explicitly "
+        "by DGX profiles; no env fallback (unlike openai_api_base) to avoid a stale-env route.",
+    )
+    vllm_api_key: Optional[str] = Field(
+        default=None,
+        alias="vllm_api_key",
+        description="Bearer for the vLLM endpoint. Usually unset (vLLM accepts any bearer when "
+        "served without auth); VLLMProvider supplies a dummy when absent.",
+    )
+    vllm_api_key_env: Optional[str] = Field(
+        default="VLLM_API_KEY",
+        alias="vllm_api_key_env",
+        description="Env var VLLMProvider reads the bearer from when vllm_api_key is unset.",
+    )
+    vllm_transcription_model: str = Field(
+        default="",
+        alias="vllm_transcription_model",
+        description="Unused: vLLM does not serve transcription (DGX-whisper/openai own it).",
+    )
+    vllm_speaker_model: str = Field(
+        default="",
+        alias="vllm_speaker_model",
+        description="Real HF model id for vLLM-served speaker detection/NER (naming). Set by the "
+        "profile; named on the wire (no served-name alias). ADR-144.",
+    )
+    vllm_summary_model: str = Field(
+        default="",
+        alias="vllm_summary_model",
+        description="Real HF model id for vLLM-served summarization (e.g. "
+        "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4). Named on the wire and verified fail-closed "
+        "against the served model at provider init (ADR-144).",
+    )
+    vllm_insight_model: Optional[str] = Field(
+        default=None,
+        alias="vllm_insight_model",
+        description="Optional vLLM chat model for GIL generate_insights; falls back to "
+        "vllm_summary_model when unset.",
+    )
+    vllm_temperature: float = Field(
+        default=0.3,
+        alias="vllm_temperature",
+        description="Temperature for vLLM generation (0.0-2.0, lower = more deterministic).",
+    )
+    vllm_summary_seed: Optional[int] = Field(
+        default=None,
+        alias="vllm_summary_seed",
+        description="Optional deterministic-sampling seed for vLLM summarization (with temp=0).",
+    )
+    vllm_extra_body: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="vllm_extra_body",
+        description="Extra fields merged into every chat.completions request. Qwen3 family needs "
+        "{chat_template_kwargs: {enable_thinking: false}} to suppress reasoning prose.",
+    )
+    vllm_cleaning_model: str = Field(
+        default="",
+        alias="vllm_cleaning_model",
+        description="Real HF model id for vLLM-served transcript cleaning; VLLMProvider defaults "
+        "it to the summary model when unset.",
+    )
+    vllm_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="vllm_cleaning_temperature",
+        description="Temperature for vLLM cleaning (0.0-2.0, default 0.2).",
+    )
+    vllm_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="vllm_max_tokens",
+        description="Max tokens for vLLM generation (None = model/server default).",
+    )
+    vllm_summary_system_prompt: str = Field(
+        default="openai/summarization/system_bullets_v1",
+        alias="vllm_summary_system_prompt",
+        description="System prompt for vLLM summarization (shared prompt_store template).",
+    )
+    vllm_summary_user_prompt: str = Field(
+        default="openai/summarization/bullets_json_v1",
+        alias="vllm_summary_user_prompt",
+        description="User prompt for vLLM summarization (shared prompt_store template).",
+    )
+    vllm_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="vllm_speaker_system_prompt",
+        description="System prompt name for vLLM speaker detection/NER.",
+    )
+    vllm_speaker_user_prompt: str = Field(
+        default="openai/ner/guest_host_v1",
+        alias="vllm_speaker_user_prompt",
+        description="User prompt name for vLLM speaker detection/NER (shared template).",
+    )
+
     # Gemini API configuration (Issue #194)
     gemini_api_key: Optional[str] = Field(
         default=None,
@@ -2432,6 +2533,7 @@ class Config(BaseModel):
         "deepseek",
         "anthropic",
         "ollama",
+        "vllm",
     ] = Field(
         default="transformers",
         alias="quote_extraction_provider",
@@ -2450,6 +2552,7 @@ class Config(BaseModel):
         "deepseek",
         "anthropic",
         "ollama",
+        "vllm",
     ] = Field(
         default="transformers",
         alias="entailment_provider",
@@ -2831,6 +2934,7 @@ class Config(BaseModel):
             "deepseek",
             "anthropic",
             "ollama",
+            "vllm",
         ]
     ] = Field(
         default=None,
@@ -2971,6 +3075,7 @@ class Config(BaseModel):
         "deepseek",
         "anthropic",
         "ollama",
+        "vllm",
     ] = Field(
         default="transformers",
         alias="summary_provider",
@@ -4857,10 +4962,17 @@ class Config(BaseModel):
 
     @field_validator("speaker_detector_provider", mode="before")
     @classmethod
-    def _validate_speaker_detector_provider(
-        cls, value: Any
-    ) -> Literal[
-        "spacy", "ner", "openai", "gemini", "mistral", "deepseek", "anthropic", "grok", "ollama"
+    def _validate_speaker_detector_provider(cls, value: Any) -> Literal[
+        "spacy",
+        "ner",
+        "openai",
+        "gemini",
+        "mistral",
+        "deepseek",
+        "anthropic",
+        "grok",
+        "ollama",
+        "vllm",
     ]:
         """Validate speaker detector provider type."""
         if value is None or value == "":
@@ -4876,10 +4988,11 @@ class Config(BaseModel):
             "anthropic",
             "grok",
             "ollama",
+            "vllm",
         ):
             raise ValueError(
                 "speaker_detector_provider must be 'spacy', 'openai', 'gemini', "
-                "'mistral', 'deepseek', 'anthropic', 'grok', or 'ollama'"
+                "'mistral', 'deepseek', 'anthropic', 'grok', 'ollama', or 'vllm'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -4926,6 +5039,7 @@ class Config(BaseModel):
         "deepseek",
         "anthropic",
         "ollama",
+        "vllm",
     ]:
         """Validate summary provider."""
         if value is None or value == "":
@@ -4943,10 +5057,12 @@ class Config(BaseModel):
             "deepseek",
             "anthropic",
             "ollama",
+            "vllm",
         ):
             raise ValueError(
                 "summary_provider must be 'transformers', 'hybrid_ml', 'summllama', "
-                "'openai', 'gemini', 'grok', 'mistral', 'deepseek', 'anthropic', or 'ollama'"
+                "'openai', 'gemini', 'grok', 'mistral', 'deepseek', 'anthropic', 'ollama', "
+                "or 'vllm'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -4961,6 +5077,7 @@ class Config(BaseModel):
         "deepseek",
         "anthropic",
         "ollama",
+        "vllm",
     ]:
         """Validate quote_extraction_provider and entailment_provider (same as summary)."""
         if value is None or value == "":
@@ -4976,11 +5093,12 @@ class Config(BaseModel):
             "deepseek",
             "anthropic",
             "ollama",
+            "vllm",
         ):
             raise ValueError(
                 "quote_extraction_provider/entailment_provider must be one of: "
                 "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
-                "'mistral', 'deepseek', 'anthropic', 'ollama'"
+                "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -5001,11 +5119,12 @@ class Config(BaseModel):
             "deepseek",
             "anthropic",
             "ollama",
+            "vllm",
         ):
             raise ValueError(
                 "kg_extraction_provider must be one of: "
                 "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
-                "'mistral', 'deepseek', 'anthropic', 'ollama'"
+                "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm'"
             )
         return value_str
 

@@ -88,12 +88,21 @@ def create_speaker_detector(  # noqa: C901
             "ollama",
             "deepseek",
             "anthropic",
+            "vllm",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
         provider_type = cast(
             Literal[
-                "spacy", "openai", "gemini", "mistral", "grok", "ollama", "deepseek", "anthropic"
+                "spacy",
+                "openai",
+                "gemini",
+                "mistral",
+                "grok",
+                "ollama",
+                "deepseek",
+                "anthropic",
+                "vllm",
             ],
             provider_type_str,
         )
@@ -286,6 +295,18 @@ def create_speaker_detector(  # noqa: C901
             provider = OllamaProvider(cfg)
 
         # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
+    elif provider_type == "vllm":
+        # ADR-144: naming/NER on the DGX-local vLLM open model (sibling of openai).
+        from ..providers.vllm import VLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "vLLM speaker detector is not wired for experiment-param mode; drive it with a "
+                "Config using speaker_detector_provider='vllm' and the vllm_* settings."
+            )
+        provider = VLLMProvider(cfg)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "anthropic":

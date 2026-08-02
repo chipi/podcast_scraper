@@ -117,16 +117,16 @@ def _record_openai_summarization_call(
 _TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
 
 
-class OpenAIProvider:
-    """Unified OpenAI provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
+class OpenAICompatibleProvider:
+    """OpenAI-compatible transport shared by OpenAIProvider (OpenAI-native) and VLLMProvider
+    (DGX-local open models). They are SIBLINGS, not parent/child — vLLM serves a wide family of
+    non-OpenAI models, so it is not modelled as "an OpenAI thing" (ADR-144). Identity is set by
+    the ``_CONFIG_NS`` / ``_TELEMETRY_PROVIDER`` / ``_PROVIDER_LABEL`` class attrs and the
+    ``_authenticate`` / ``_resolve_api_key`` hooks, so a sibling changes behaviour by overriding
+    those, not by copying method bodies.
 
-    This provider initializes and manages:
-    - OpenAI Whisper API for transcription
-    - OpenAI GPT API for speaker detection
-    - OpenAI GPT API for summarization
-
-    All three capabilities share the same OpenAI client, similar to how ML providers
-    share the same ML libraries. The client is initialized once and reused.
+    Implements TranscriptionProvider, SpeakerDetector, and SummarizationProvider over the OpenAI
+    wire API. All capabilities share one client, initialized once and reused.
     """  # noqa: E501
 
     # --- provider identity (parameterized so a sibling like VLLMProvider can share this
@@ -138,6 +138,34 @@ class OpenAIProvider:
     _PROVIDER_LABEL: str = "OpenAI"  # human label for log_provider_metadata
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
+
+    def _resolve_api_key(self, cfg: "config.Config") -> Optional[str]:
+        """Bearer for the OpenAI-compatible client. Base = the ``{ns}_api_key`` field
+        (OpenAI-native). VLLMProvider overrides to make the bearer optional — a local vLLM served
+        without auth accepts any bearer, so a dummy is supplied when none is configured. ADR-144."""
+        return getattr(cfg, f"{self._CONFIG_NS}_api_key", None)
+
+    def _authenticate(self, cfg: "config.Config") -> None:
+        """Validate credentials at construction. Base = OpenAI-native: a key is REQUIRED and must
+        look like an OpenAI key. VLLMProvider overrides this to a no-op (a local vLLM bearer is
+        optional). ADR-144."""
+        api_key = getattr(cfg, f"{self._CONFIG_NS}_api_key", None)
+        if not api_key:
+            raise ValueError(
+                "OpenAI API key required for OpenAI provider. "
+                "Set OPENAI_API_KEY environment variable or openai_api_key in config."
+            )
+        is_valid, _ = validate_api_key_format(
+            api_key,
+            self._PROVIDER_LABEL,
+            expected_prefixes=["sk-", "sk-proj-"],
+        )
+        if not is_valid:
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "OpenAI API key validation failed (missing, too short, or wrong prefix); "
+                "credentials are never logged."
+            )
 
     def __init__(self, cfg: config.Config):
         """Initialize unified OpenAI provider.
@@ -159,24 +187,9 @@ class OpenAIProvider:
                 "Install the project (OpenAI SDK is a core dependency), e.g. pip install -e ."
             ) from exc
 
-        if not cfg.openai_api_key:
-            raise ValueError(
-                "OpenAI API key required for OpenAI provider. "
-                "Set OPENAI_API_KEY environment variable or openai_api_key in config."
-            )
-
-        # Validate API key format
-        is_valid, _ = validate_api_key_format(
-            cfg.openai_api_key,
-            "OpenAI",
-            expected_prefixes=["sk-", "sk-proj-"],
-        )
-        if not is_valid:
-            # Do not log validation detail: CodeQL taints any message from this API-key path.
-            logger.warning(
-                "OpenAI API key validation failed (missing, too short, or wrong prefix); "
-                "credentials are never logged."
-            )
+        # Credentials: the base validates an OpenAI-native key (required + sk- prefix). A sibling
+        # like VLLMProvider overrides _authenticate (bearer optional for a local vLLM). ADR-144.
+        self._authenticate(cfg)
 
         self.cfg = cfg
 
@@ -217,7 +230,7 @@ class OpenAIProvider:
                 openai_logger.setLevel(logging.WARNING)
 
         # Support custom base_url for E2E testing with mock servers
-        client_kwargs: dict[str, Any] = {"api_key": getattr(cfg, f"{ns}_api_key", None)}
+        client_kwargs: dict[str, Any] = {"api_key": self._resolve_api_key(cfg)}
         _api_base = getattr(cfg, f"{ns}_api_base", None)
         if _api_base:
             client_kwargs["base_url"] = _api_base
@@ -2794,3 +2807,14 @@ class OpenAIProvider:
             provider_name=self._TELEMETRY_PROVIDER,
             supports_gi_segment_timing=True,
         )
+
+
+class OpenAIProvider(OpenAICompatibleProvider):
+    """OpenAI-native provider (GPT + Whisper).
+
+    Inherits the OpenAI-compatible transport unchanged: the base's default identity
+    (``_CONFIG_NS = "openai"``) and OpenAI-native auth (required ``sk-`` key) are exactly what this
+    class needs, so no overrides. Kept as a distinct class so the provider registry, factories, and
+    every existing ``OpenAIProvider`` import resolve, and so ADR-144's "``openai`` is reserved for
+    OpenAI-native models" is explicit in the type system.
+    """

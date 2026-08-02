@@ -1,0 +1,125 @@
+"""Unit tests for the first-class vLLM provider (ADR-144).
+
+Covers the sibling-of-openai contract: distinct identity/namespace, optional bearer, open-model
+token/temperature heuristics, real-model-id wiring, and factory dispatch — without any network.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict
+
+import pytest
+
+from podcast_scraper.config import Config
+from podcast_scraper.providers.openai.openai_provider import (
+    OpenAICompatibleProvider,
+    OpenAIProvider,
+)
+from podcast_scraper.providers.vllm import VLLMProvider
+
+_MODEL = "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4"
+
+
+def _vllm_cfg(**overrides: Any) -> Config:
+    base: Dict[str, Any] = dict(
+        rss_url="https://example.com/feed.xml",
+        summary_provider="vllm",
+        speaker_detector_provider="vllm",
+        generate_summaries=True,
+        generate_metadata=True,
+        vllm_api_base="http://dgx:8003/v1",
+        vllm_summary_model=_MODEL,
+        vllm_speaker_model=_MODEL,
+    )
+    base.update(overrides)
+    return Config(**base)
+
+
+class TestIdentity:
+    def test_is_sibling_not_openai_subclass(self):
+        # Shares the transport base, but is NOT an OpenAIProvider (ADR-144).
+        assert issubclass(VLLMProvider, OpenAICompatibleProvider)
+        assert not issubclass(VLLMProvider, OpenAIProvider)
+        assert not issubclass(OpenAIProvider, VLLMProvider)
+
+    def test_namespace_and_telemetry(self):
+        p = VLLMProvider(_vllm_cfg())
+        assert p._CONFIG_NS == "vllm"
+        assert p._TELEMETRY_PROVIDER == "vllm"
+        assert p._PROVIDER_LABEL == "vLLM"
+        assert p.get_capabilities().provider_name == "vllm"
+
+    def test_names_real_model_id_on_the_wire(self):
+        # No served-name alias: the wire model is the real HF id (reproducibility, ADR-143/144).
+        p = VLLMProvider(_vllm_cfg())
+        assert p.summary_model == _MODEL
+        assert "autoresearch" != p.summary_model
+        # The wire endpoint is config-driven (asserting the live client's base_url is fragile —
+        # a sibling test module installs a global openai.OpenAI mock that leaks into the suite).
+        assert p.cfg.vllm_api_base == "http://dgx:8003/v1"
+
+
+class TestOptionalBearer:
+    def test_dummy_when_unset(self, monkeypatch):
+        monkeypatch.delenv("VLLM_API_KEY", raising=False)
+        p = VLLMProvider(_vllm_cfg())
+        assert p._resolve_api_key(p.cfg) == "EMPTY"
+
+    def test_reads_env(self, monkeypatch):
+        monkeypatch.setenv("VLLM_API_KEY", "tok-from-env")
+        p = VLLMProvider(_vllm_cfg())
+        assert p._resolve_api_key(p.cfg) == "tok-from-env"
+
+    def test_explicit_key_wins(self, monkeypatch):
+        monkeypatch.setenv("VLLM_API_KEY", "tok-from-env")
+        p = VLLMProvider(_vllm_cfg(vllm_api_key="explicit-tok"))
+        assert p._resolve_api_key(p.cfg) == "explicit-tok"
+
+    def test_authenticate_never_raises_without_key(self, monkeypatch):
+        # Unlike OpenAIProvider, a missing/blank bearer must not fail construction.
+        monkeypatch.delenv("VLLM_API_KEY", raising=False)
+        VLLMProvider(_vllm_cfg())  # must not raise
+
+
+class TestOpenModelHeuristics:
+    def test_token_kwarg_always_max_tokens(self):
+        p = VLLMProvider(_vllm_cfg())
+        # Even a model whose NAME looks like an OpenAI reasoning model must not get the rename.
+        assert p._token_kwarg(512, model="gpt-5-lookalike") == {"max_tokens": 512}
+        assert p._token_kwarg(256) == {"max_tokens": 256}
+
+    def test_temperature_not_fixed(self):
+        p = VLLMProvider(_vllm_cfg())
+        assert p._temp_fixed_at_default == set()
+
+    def test_cleaning_defaults_to_summary_model(self):
+        p = VLLMProvider(_vllm_cfg())
+        assert p.cleaning_model == _MODEL
+
+    def test_cleaning_model_explicit_pin_respected(self):
+        p = VLLMProvider(_vllm_cfg(vllm_cleaning_model="some/other-model"))
+        assert p.cleaning_model == "some/other-model"
+
+
+class TestOpenAIProviderUnaffected:
+    def test_openai_still_requires_sk_key(self, monkeypatch):
+        # The base auth is unchanged for the OpenAI-native sibling.
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        with pytest.raises(ValueError, match="OpenAI API key required"):
+            OpenAIProvider(
+                Config(rss_url="https://example.com/feed.xml", summary_provider="openai")
+            )
+
+
+class TestFactoryDispatch:
+    def test_summarization_factory_returns_vllm(self):
+        from podcast_scraper.summarization.factory import create_summarization_provider
+
+        p = create_summarization_provider(_vllm_cfg())
+        assert isinstance(p, VLLMProvider)
+
+    def test_speaker_factory_returns_vllm(self):
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+
+        p = create_speaker_detector(_vllm_cfg())
+        assert isinstance(p, VLLMProvider)
