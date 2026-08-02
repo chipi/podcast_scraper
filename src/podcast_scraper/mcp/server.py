@@ -50,6 +50,7 @@ from .context import CorpusContext
 from .tools import (
     catalog as _catalog,
     cil as _cil,
+    composites as _composites,
     connectivity as _connectivity,
     enrichment as _enrichment,
     gi as _gi,
@@ -80,6 +81,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     _register_enrichment(server, ctx)
     _register_connectivity(server, ctx)
     _register_catalog(server, ctx)
+    _register_composites(server, ctx)
     return server
 
 
@@ -560,6 +562,33 @@ def _register_catalog(server: Any, ctx: CorpusContext) -> None:
     def top_people(limit: int = 10) -> dict:
         """The corpus's top voices — people ranked by grounded (quote-backed) insight count."""
         return _catalog.top_people(ctx, limit=limit)
+
+
+def _register_composites(server: Any, ctx: CorpusContext) -> None:
+    """Composite / dossier tools: one call that fuses many surfaces (the multipliers)."""
+
+    @server.tool()
+    @_enveloped
+    def entity_dossier(entity_id: str, k: int = 8) -> dict:
+        """The full picture on one entity in a single call — the person/topic page fan-out.
+
+        Kind-dispatched. person → profile + stated positions + neighborhood; topic → timeline
+        + conversation arc + clusters + neighborhood. Replaces the 5-6 call person/topic-page
+        chain; every nested item keeps its id so you can still drill any thread. ``k`` bounds
+        each section.
+        """
+        return _composites.entity_dossier(ctx, entity_id, k=k)
+
+    @server.tool()
+    @_enveloped
+    def episode_digest(metadata_path: str, insight_limit: int = 10) -> dict:
+        """Everything about one episode in a single call — detail + insights + signals + speakers.
+
+        Collapses the episode-page fan-out: catalog detail, salience-ranked grounded insights
+        (with quotes), per-episode enrichment signals, and the diarized speaker roster.
+        ``metadata_path`` from a ``list_episodes`` / ``search_corpus`` hit.
+        """
+        return _composites.episode_digest(ctx, metadata_path, insight_limit=insight_limit)
 
 
 def run_stdio(corpus_dir: Path | str) -> None:
