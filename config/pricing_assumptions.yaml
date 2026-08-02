@@ -286,3 +286,11 @@ providers:
       default:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0
+  # DGX-local vLLM (OpenAI-compat path). Real HF model ids on the wire (ADR-144), not a served-name
+  # alias; cost is electricity-only — $0/token at the API layer. `default` covers every local id;
+  # real cost is tracked via DGX power monitoring (#923 / #943).
+  vllm:
+    text:
+      default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
