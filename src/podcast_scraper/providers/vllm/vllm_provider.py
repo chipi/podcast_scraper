@@ -14,9 +14,11 @@ The fail-closed served-model verification against ``GET /v1/models`` is wired in
 
 from __future__ import annotations
 
+import json
 import logging
 import os
-from typing import Any, Dict, Optional
+import urllib.request
+from typing import Any, Dict, Optional, Set
 
 from ... import config
 from ..openai.openai_provider import OpenAICompatibleProvider
@@ -26,6 +28,26 @@ logger = logging.getLogger(__name__)
 # vLLM served without auth still requires the OpenAI SDK client to carry *some* bearer; it is
 # ignored server-side. Never a real secret.
 _VLLM_DUMMY_BEARER = "EMPTY"
+
+
+class VLLMServedModelMismatch(RuntimeError):
+    """The vLLM endpoint serves a different model than the profile pins (ADR-144 B3).
+
+    Raised fail-closed so a wrong model loaded on the DGX slot stops the run instead of silently
+    producing a corpus attributed to the wrong model.
+    """
+
+
+def _served_matches(expected: str, served: Set[str]) -> bool:
+    """True if the configured model id matches one the endpoint advertises. Casefold + dated/version
+    suffix tolerance (startswith either way); the org prefix is NOT stripped, so
+    ``Qwen/...`` never matches ``someoneelse/...``."""
+    e = expected.casefold()
+    for s in served:
+        sc = s.casefold()
+        if sc == e or sc.startswith(e) or e.startswith(sc):
+            return True
+    return False
 
 
 class VLLMProvider(OpenAICompatibleProvider):
@@ -72,3 +94,50 @@ class VLLMProvider(OpenAICompatibleProvider):
         """vLLM-served open models use the classic ``max_tokens``; there is no o1/o3/gpt-5
         ``max_completion_tokens`` rename to honour."""
         return {"max_tokens": n}
+
+    def initialize(self) -> None:
+        """Fail-closed served-model check before first use (ADR-144 B3), then the normal init."""
+        if getattr(self.cfg, "vllm_verify_served_model", True):
+            self._verify_served_model()
+        super().initialize()
+
+    def _verify_served_model(self) -> None:
+        """Assert the DGX slot actually serves the model this profile pins (real HF id).
+
+        A wrong model loaded on the slot must fail the run, not silently produce a corpus attributed
+        to the wrong model (ADR-143/144). An UNREACHABLE endpoint only warns — the real inference
+        call surfaces a connection error anyway, and hard-failing here would make an offline import
+        of the provider impossible. A REACHABLE endpoint serving a different model raises.
+        """
+        base = getattr(self.cfg, "vllm_api_base", None)
+        expected = self.summary_model
+        if not base or not expected:
+            return
+        url = f"{base.rstrip('/')}/models"
+        try:
+            req = urllib.request.Request(
+                url, headers={"Authorization": f"Bearer {self._resolve_api_key(self.cfg)}"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310 — fixed profile URL
+                data = json.loads(resp.read().decode("utf-8")).get("data", [])
+        except Exception as exc:  # noqa: BLE001 — unreachable != mismatch; surface at call time
+            logger.warning(
+                "vllm: could not verify served model at %s (%s); the inference call will surface "
+                "any real connectivity problem",
+                url,
+                type(exc).__name__,
+            )
+            return
+        served: Set[str] = set()
+        for entry in data if isinstance(data, list) else []:
+            for key in ("id", "root"):
+                val = entry.get(key) if isinstance(entry, dict) else None
+                if isinstance(val, str) and val:
+                    served.add(val)
+        if not _served_matches(expected, served):
+            raise VLLMServedModelMismatch(
+                f"vLLM at {base} serves {sorted(served) or '<none>'} but this profile pins "
+                f"{expected!r}. Load the right model on the DGX slot (or fix vllm_summary_model). "
+                f"Refusing to run to avoid corpus corruption (ADR-144 B3)."
+            )
+        logger.info("vllm: served-model check OK (%s advertised at %s)", expected, base)

@@ -1809,6 +1809,14 @@ class Config(BaseModel):
         alias="vllm_speaker_user_prompt",
         description="User prompt name for vLLM speaker detection/NER (shared template).",
     )
+    vllm_verify_served_model: bool = Field(
+        default=True,
+        alias="vllm_verify_served_model",
+        description="Fail-closed (ADR-144 B3): at initialize(), assert GET /v1/models advertises "
+        "the configured vllm model (real HF id) so a wrong model loaded on the DGX slot fails the "
+        "run instead of silently corrupting the corpus. Unreachable endpoint only warns. Set False "
+        "for offline/unit contexts.",
+    )
 
     # Gemini API configuration (Issue #194)
     gemini_api_key: Optional[str] = Field(

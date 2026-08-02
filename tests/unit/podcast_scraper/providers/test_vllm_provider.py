@@ -126,6 +126,71 @@ class TestFactoryDispatch:
         assert isinstance(p, VLLMProvider)
 
 
+class TestServedModelVerification:
+    """ADR-144 B3: fail-closed served-model check.
+
+    A wrong model on the DGX slot stops the run; an unreachable endpoint only warns.
+    """
+
+    @staticmethod
+    def _fake_urlopen(ids):
+        payload = __import__("json").dumps({"data": [{"id": i} for i in ids]}).encode()
+
+        class _Resp:
+            def read(self_inner):
+                return payload
+
+            def __enter__(self_inner):
+                return self_inner
+
+            def __exit__(self_inner, *a):
+                return False
+
+        def _open(req, timeout=10):
+            return _Resp()
+
+        return _open
+
+    def test_match_passes(self, monkeypatch):
+        import podcast_scraper.providers.vllm.vllm_provider as m
+
+        monkeypatch.setattr(m.urllib.request, "urlopen", self._fake_urlopen([_MODEL]))
+        VLLMProvider(_vllm_cfg())._verify_served_model()  # must not raise
+
+    def test_dated_suffix_tolerated(self, monkeypatch):
+        import podcast_scraper.providers.vllm.vllm_provider as m
+
+        monkeypatch.setattr(m.urllib.request, "urlopen", self._fake_urlopen([_MODEL + "-20260101"]))
+        VLLMProvider(_vllm_cfg())._verify_served_model()  # startswith tolerance
+
+    def test_mismatch_raises(self, monkeypatch):
+        import podcast_scraper.providers.vllm.vllm_provider as m
+        from podcast_scraper.providers.vllm.vllm_provider import VLLMServedModelMismatch
+
+        monkeypatch.setattr(m.urllib.request, "urlopen", self._fake_urlopen(["someoneelse/other"]))
+        with pytest.raises(VLLMServedModelMismatch):
+            VLLMProvider(_vllm_cfg())._verify_served_model()
+
+    def test_unreachable_warns_not_raises(self, monkeypatch):
+        import podcast_scraper.providers.vllm.vllm_provider as m
+
+        def _boom(req, timeout=10):
+            raise OSError("connection refused")
+
+        monkeypatch.setattr(m.urllib.request, "urlopen", _boom)
+        VLLMProvider(_vllm_cfg())._verify_served_model()  # must NOT raise
+
+    def test_initialize_gated_by_flag(self, monkeypatch):
+        # Flag off -> initialize() must not run the served-model check; on -> it must.
+        monkeypatch.setattr(OpenAICompatibleProvider, "initialize", lambda self: None)
+        for flag, expected in ((False, 0), (True, 1)):
+            called = {"n": 0}
+            p = VLLMProvider(_vllm_cfg(vllm_verify_served_model=flag))
+            monkeypatch.setattr(p, "_verify_served_model", lambda: called.__setitem__("n", 1))
+            p.initialize()
+            assert called["n"] == expected
+
+
 def _dgx_profile_cfg(name: str) -> Config:
     with open(f"config/profiles/{name}.yaml") as f:
         data = {k: v for k, v in yaml.safe_load(f).items() if k != "profile"}
