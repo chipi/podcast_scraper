@@ -88,7 +88,12 @@ def test_every_provider_honors_its_api_base(provider: str) -> None:
     than fall through to production.
     """
     src = (SRC / provider / f"{provider}_provider.py").read_text()
-    assert f"{provider}_api_base" in src, (
+    # Direct literal read, OR the ADR-144 parameterized form: the OpenAI-compatible base
+    # (OpenAICompatibleProvider) reads its base via getattr(cfg, f"{self._CONFIG_NS}_api_base"),
+    # which honors <provider>_api_base for the provider's own namespace (openai -> openai_api_base,
+    # vllm -> vllm_api_base). Still fails loud for any provider that reads NO api_base at all.
+    honors_base = f"{provider}_api_base" in src or ("_CONFIG_NS" in src and "_api_base" in src)
+    assert honors_base, (
         f"{provider} never reads {provider}_api_base — the CI mock / self-hosted base is "
         f"ignored, so the client silently hits the real hosted API (the Deepgram trap)."
     )
