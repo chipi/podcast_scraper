@@ -30,7 +30,7 @@ Usage
     python scripts/eval/compare_corpora_v1.py \
         --a .test_outputs/manual/prod-v2/corpus --a-label cloud \
         --b .test_outputs/manual/prod-v3/corpus --b-label dgx \
-        --out docs/wip/CORPUS_COMPARE_V2_V3.md
+        --out .test_outputs/eval/CORPUS_COMPARE_V2_V3.md
 
 Exit codes: 0 ok · 2 input error
 """

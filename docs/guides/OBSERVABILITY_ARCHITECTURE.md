@@ -7,7 +7,7 @@ fork can point observability at a different backend without touching app code.
 - **Decision record:** [ADR-119](../adr/ADR-119-vendor-neutral-event-emission.md)
   (this guide is the how-to; ADR-119 is the why) under
   [ADR-117](../adr/ADR-117-multi-tenant-observability-gitops.md) (multi-tenant split).
-- **Full plan / phases:** `docs/wip/observability-app-surface-plan.md`.
+- **Full plan / phases:** this guide (the phased app-surface rollout is folded in below).
 - **Sibling guides:** [OBSERVABILITY_CONTROL_PLANE](OBSERVABILITY_CONTROL_PLANE.md)
   (the `podcast_obs` cross-source probe CLI/MCP — "what is a deploy doing now?"),
   [OBSERVABILITY_EXTENSIONS](OBSERVABILITY_EXTENSIONS.md) (alerting / Sentry / Grafana).
@@ -93,7 +93,7 @@ The prod-podcast **Alloy** collector (homelab repo
   `users/*/listen.jsonl`, `.viewer/jobs.jsonl`). → VictoriaLogs.
 - **Security logs:** sshd/fail2ban journal + Caddy access → VictoriaLogs.
 - **Traces:** *not* via Alloy by default — the app exports OTLP directly (env-var
-  driven). See `agentic-ai-homelab/docs/wip/podcast-otel-traces-handover.md`.
+  driven). See the homelab o11y handover docs (`agentic-ai-homelab`).
 
 Dashboards are owned in-repo (`config/grafana/dashboards/vps/`) and pushed to the
 shared Grafana `VPS — Podcast` folder with `scripts/ops/push-grafana-dashboards.sh`

@@ -10,7 +10,8 @@ Usage (from project root)::
         .test_outputs/benchmark/gil_ml_evidence/run_YYYYMMDD-HHMMSS_xxxxx
 
 Each path should be a **run root** containing a ``metadata/`` folder with
-``*.gi.json``. See ``docs/wip/gil-ml-vs-openai-outcome-benchmark.md`` for benchmark context.
+``*.gi.json``. See the GIL ML-vs-OpenAI outcome benchmark (eval report, since
+removed) for context.
 
 Exits 0 always (reporting only). For PRD-017 aggregates per run, use
 ``scripts/tools/gil_quality_metrics.py``.

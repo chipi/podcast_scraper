@@ -140,8 +140,8 @@ moments), **browser** (shows + featured → something to play).
 
 - **Organizing principle / hero**: **Resolved (2026-06-24)** — **adaptive hero**: resume-state
   (Continue) when signed-in with in-progress history, else discover-state ("Ask your library" +
-  Featured); the corpus search is prominent in **both** states. Worked out via the two mockups
-  (`docs/wip/player/mockups/home-*`); contract in UXS-012, behaviour in RFC-099.
+  Featured); the corpus search is prominent in **both** states. Worked out via two mockups
+  (WIP scratch docs, since removed); contract in UXS-012, behaviour in RFC-099.
 - Which sections ship in Home v1 vs. iterate (Continue/Recommended/Stats need auth + new
   endpoints; What's-new/Shows/Featured are cheap).
 - Recommended heuristic for v1 (peers-of-recent-plays vs top-by-topic) until PRD-041.

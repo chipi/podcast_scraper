@@ -226,7 +226,7 @@ In-episode search (`EpisodeDetailPanel` inline field): renders `WorkspaceResults
 ]
 ```
 
-**CLI**: `python scripts/eval/search_quality.py --corpus <path> --queries <path> --top-k 10 --out docs/wip/search-v3/eval/`.
+**CLI**: `python scripts/eval/search_quality.py --corpus <path> --queries <path> --top-k 10 --out data/eval/search-v3/eval/`.
 
 **Metrics** produced per query + aggregated:
 - nDCG@10, MRR@10 (over labelled expected set).
@@ -283,7 +283,7 @@ Mirrors `scripts/dev/capture-graph-lcp.{sh,mjs}` — same shape, same output con
 | `ui-operator-graph` | click → graph camera settle ms |
 | `ui-enriched-answer-paint` | request-start → answer-first-byte + full-render ms |
 
-Median-of-3, `.metrics.json` per label, gzipped trace per label, committed under `docs/wip/search-v3/traces/`.
+Median-of-3, `.metrics.json` per label, gzipped trace per label, committed under `docs/guides/perf-traces/`.
 
 ### §P3 Deep-review pass after baseline
 

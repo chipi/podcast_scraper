@@ -162,7 +162,7 @@ curl -sG http://homelab:9428/select/logsql/query \
 - Errors: `src/podcast_scraper/utils/sentry_init.py` (`before_send` stamps `trace_id`).
 - Log shipping drop-ins: `infra/observability/{podcast,player,orrery}.alloy` (dropped into
   the VPS Alloy `config.d/` by `infra/deploy/deploy.sh` + `deploy-player.sh`).
-- Correlation plan: `docs/wip/observability-correlation-id-enhancement.md`.
+- Correlation plan: see [`OBSERVABILITY_ARCHITECTURE.md`](OBSERVABILITY_ARCHITECTURE.md).
 
 **Homelab repo (`agentic-ai-homelab`):**
 

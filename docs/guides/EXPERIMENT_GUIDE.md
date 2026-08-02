@@ -1432,7 +1432,7 @@ The **multi-run comparison report** builds a single markdown table from one opti
 
 **Make target: `report-multi-run`**
 
-- **Default:** With no arguments, uses baseline `baseline_ml_prod_authority_smoke_v1`, runs `hybrid_ml_tier1_smoke_v1` and `hybrid_ml_tier2_qwen25_7b_smoke_v1`, reference `silver_gpt4o_smoke_v1`, and writes `docs/wip/multi_run_comparison.md`.
+- **Default:** With no arguments, uses baseline `baseline_ml_prod_authority_smoke_v1`, runs `hybrid_ml_tier1_smoke_v1` and `hybrid_ml_tier2_qwen25_7b_smoke_v1`, reference `silver_gpt4o_smoke_v1`, and writes `.test_outputs/eval/multi_run_comparison.md`.
 - **Tier 2 (32B):** For larger hardware, eval config `hybrid_ml_tier2_qwen25_32b_smoke_v1` is available (`ollama pull qwen2.5:32b`). Add it to `RUN_IDS` when comparing against 7B or tier1.
 
 ```bash
@@ -1446,7 +1446,7 @@ make report-multi-run \
   BASELINE_ID=baseline_ml_prod_authority_smoke_v1 \
   RUN_IDS=hybrid_ml_tier1_smoke_v1,hybrid_ml_tier2_qwen25_7b_smoke_v1 \
   REFERENCE_ID=silver_gpt4o_smoke_v1 \
-  OUTPUT=docs/wip/my_comparison.md
+  OUTPUT=.test_outputs/eval/my_comparison.md
 ```
 
 - **Runs only (no baseline):** Omit `BASELINE_ID` and pass only `RUN_IDS` and `REFERENCE_ID`.
@@ -1464,7 +1464,7 @@ make report-multi-run \
 | `REFERENCE_ID` | Yes (or default) | Reference ID for vs_reference metrics (e.g. `silver_gpt4o_smoke_v1`). Default: `silver_gpt4o_smoke_v1` when using default baseline/runs. |
 | `BASELINE_ID` | No | Baseline ID; included as first row. Looked up in `data/eval/baselines/`. |
 | `RUN_IDS` | No* | Comma-separated run IDs. Looked up in `data/eval/runs/`. *At least one of `BASELINE_ID` or `RUN_IDS` required. |
-| `OUTPUT` | No | Output markdown path. Default: `docs/wip/multi_run_comparison.md`. |
+| `OUTPUT` | No | Output markdown path. Default: `.test_outputs/eval/multi_run_comparison.md`. |
 | `TITLE` | No | Report title (default: "Multi-Run Comparison"). |
 | `LABELS` | No | Comma-separated labels for each row (same order: baseline first, then runs). Default: use ID. |
 | `DATASET_ID` | No | Dataset ID for report subtitle (default: from first metrics). |
@@ -1478,7 +1478,7 @@ python scripts/eval/smoke_three_way_report.py \
   --reference-id silver_gpt4o_smoke_v1 \
   --baseline-id baseline_ml_prod_authority_smoke_v1 \
   --run-ids hybrid_ml_tier1_smoke_v1,hybrid_ml_tier2_qwen25_7b_smoke_v1 \
-  --output docs/wip/smoke_three_way_comparison.md \
+  --output .test_outputs/eval/smoke_three_way_comparison.md \
   [--title "Smoke comparison"] [--labels "Prod,Tier1,Tier2"]
 ```
 
@@ -1741,7 +1741,7 @@ running today?" After it, the registry is the answer and profile YAMLs
 become thin downstream views.
 
 See `AGENTS.md` ("Materialize autoresearch decisions in the registry"),
-`docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md` (the long form), and
+the original research-powered-registry plan (WIP doc, now removed — the long form), and
 `docs/adr/ADR-048-centralized-model-registry.md` (the 2026-06-12 amendment).
 
 ---

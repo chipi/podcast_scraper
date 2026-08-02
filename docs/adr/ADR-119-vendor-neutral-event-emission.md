@@ -6,7 +6,7 @@
 - **Related ADRs**: [ADR-117](ADR-117-multi-tenant-observability-gitops.md) (the
   multi-tenant o11y ownership split this refines — each tenant owns its app
   telemetry; this ADR fixes *how* the app emits it)
-- **Tracking**: app-surface o11y (`docs/wip/observability-app-surface-plan.md`)
+- **Tracking**: app-surface o11y (see [`OBSERVABILITY_ARCHITECTURE.md`](../guides/OBSERVABILITY_ARCHITECTURE.md))
 
 ## Context
 
@@ -64,8 +64,8 @@ GlitchTip→Sentry, VictoriaLogs→Loki by config/DSN, no app change. Traces are
 env-var driven (`opentelemetry-instrument`, zero app code); the OTLP traces
 endpoint uses the traces-specific var with VictoriaTraces' non-standard full path.
 This ADR governs the LOGS/EVENTS emit side (`emit_event`); the same discipline
-applies across the whole table. Backend/handover pointers:
-`agentic-ai-homelab/docs/wip/{podcast-otel-traces,glitchtip-*}-handover.md`.
+applies across the whole table. Backend/handover pointers live in the homelab
+repo's o11y handover docs (`agentic-ai-homelab`).
 
 ## Consequences
 

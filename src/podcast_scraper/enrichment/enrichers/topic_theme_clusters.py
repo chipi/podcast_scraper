@@ -62,8 +62,8 @@ _DEFAULT_MERGE_THRESHOLD = 2.0  # mean lift required to merge (>= 2× chance)
 # super-theme (rollup no-op).
 #
 # Signal choice — shared-bridge / cross-cluster co-occurrence (operator picked
-# 2026-07-17). Alternatives to explore + compare later live in
-# ``docs/wip/super-theme-signal-comparison.md``.
+# 2026-07-17). Alternatives to explore + compare later: a future super-theme
+# signal experiment.
 _SUPER_THEME_TARGET = 6  # target count when N > _SUPER_THEME_MIN
 _SUPER_THEME_MIN = 5  # no rollup when cluster_count ≤ this
 _SUPER_THEME_MAX = 8  # never emit more super-themes than this

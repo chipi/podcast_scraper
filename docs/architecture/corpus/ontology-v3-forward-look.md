@@ -1,6 +1,6 @@
 # KG + GI ontology — v3 wishlist (post-v2 forward look, 2026-06-20)
 
-**Status**: Forward-look reference (promoted from `docs/wip/` 2026-08-02 — RFC-097
+**Status**: Forward-look reference (promoted to the permanent layer 2026-08-02 — RFC-097
 depends on it as v3 spec input, so it lives in the permanent layer). Companion to
 the v2 ontology spec (`ontology.md` + RFC-097). Records what v2 explicitly leaves on
 the table so we can spot v2 choices that would lock v3 out, and so we have a

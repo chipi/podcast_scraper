@@ -1669,7 +1669,7 @@ def _transcribe_with_segments_maybe_chunked(
     # episodes whose NER density meets the gate threshold. Disabled by
     # default; activation gated on cfg.dgx_whisper_sniff_model being set
     # AND the active provider being tailnet_dgx_whisper. See
-    # src/podcast_scraper/workflow/sniff_gate.py + docs/wip/1046-WHISPER-MULTI-MODEL-DESIGN.md.
+    # src/podcast_scraper/workflow/sniff_gate.py + issue #1046.
     from . import sniff_gate as _sniff_gate
 
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:

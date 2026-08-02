@@ -37,8 +37,8 @@ The flow for any autoresearch finding that changes a default:
     run experiment → score → write eval report → MATERIALIZE here →
     REGENERATE profile YAML → behavior test
 
-See ``docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md`` for the vision /
-migration path, ``docs/adr/ADR-048-centralized-model-registry.md`` for the
+See RFC-044 for the vision / migration path,
+``docs/adr/ADR-048-centralized-model-registry.md`` for the
 amendment, and ``docs/guides/EXPERIMENT_GUIDE.md`` § Step 6 for the flow.
 """
 
@@ -735,8 +735,7 @@ class ModelRegistry:
 # ─────────────────────────────────────────────────────────────────────────────
 # Pipeline-stage registry — RFC-044 expansion beyond ML-only models.
 #
-# RFC-044 (and the WIP plan at `docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md`)
-# extends the model_registry concept from "just ML/HF models" to "canonical
+# RFC-044 extends the model_registry concept from "just ML/HF models" to "canonical
 # defaults for every pipeline stage with research provenance."
 #
 # Each StageOption below carries:
@@ -1082,7 +1081,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         model="qwen3.5:9b",
         endpoint="http://{dgx_tailnet_host}:11434/v1",
         extra_settings={"think": False, "bundled_mode_caveat": "fragile in bundled mode"},
-        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
+        research_ref="#113",
         headline_metric=(
             "Summary 0.529 bullets / 0.509 para (#928). #113 small-model "
             "standoff under #1035 NER pre-pass: KG topic 66% / entity 97% — "
@@ -1148,7 +1147,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
                 "presence_penalty": 1.5,
             },
         },
-        research_ref="docs/wip/EVAL_1016_FINAL_REPORT_2026_06_17.md",
+        research_ref="#1016",
         headline_metric=(
             "ROUGE-1 vs Opus 59.4%, cosine 83.7% (cohort leader); GI 36%, KG 38% "
             "(KG cohort leader). 13.6s/ep. Δ S−O = +3.6 (Sonnet-mimicry — needs "
@@ -1183,7 +1182,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
             "compose_flag_required": "--trust-remote-code --max-model-len=8192",
             "vendor_sampling": "greedy (no vendor recommendation)",
         },
-        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
+        research_ref="#113",
         headline_metric=(
             "Summary ROUGE-1 vs Opus 57.5%, cosine 78.6% (#1016 R3). "
             "#113 under #1035 NER pre-pass: KG topic 54% (cohort floor), "
@@ -1225,7 +1224,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
                 "presence_penalty": 1.5,
             },
         },
-        research_ref="docs/wip/EVAL_1033_COHORT_RERUN_2026-06-19.md",
+        research_ref="#1033",
         headline_metric=(
             "Corrected-pipeline (#1033) cohort: GI avg_sim 0.595 (rank 2), "
             "KG topic cov 45% (rank 2), summary rouge1_f1 vs Opus 0.5407 "

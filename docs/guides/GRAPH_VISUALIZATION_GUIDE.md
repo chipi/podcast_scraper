@@ -919,10 +919,8 @@ main and in `ci-ui-full` locally.
 
 **Change history:**
 
-- `docs/wip/graph-v3/HARDEN-FOLLOWUPS-2026-07-17.md` — the HD1–HD20 harden
-  pass audit + fixes.
-- `docs/wip/graph-v3/REPRODUCIBILITY.md` — running the enrichers end-to-end
-  against a corpus to reproduce the on-screen state.
+- The HD1–HD20 harden pass audit + fixes (WIP doc, now removed; open items tracked in issue #1219).
+- Running the enrichers end-to-end against a corpus to reproduce the on-screen state (WIP doc, now removed).
 
 **Related consumer surface:**
 

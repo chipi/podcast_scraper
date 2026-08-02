@@ -13,7 +13,7 @@
 - **Related Documents**:
   - `src/podcast_scraper/metrics.py` - Current metrics implementation
   - `src/podcast_scraper/workflow/orchestration.py` - Pipeline orchestration
-  - `docs/wip/METRICS_REVIEW.md` - Original analysis (to be deleted after RFC creation)
+  - Original metrics-review analysis (WIP doc, deleted after RFC creation)
 
 ## Abstract
 

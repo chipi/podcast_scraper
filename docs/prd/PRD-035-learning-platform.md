@@ -19,7 +19,7 @@
 - **Related analysis**:
   - `docs/rfc/RFC-107-search-v3-query-workspace.md` — server-side multi-user lift + sequencing
 
-> **Note on numbering**: the player drafts in `docs/wip/player/` (PRD-027 discovery,
+> **Note on numbering**: the player drafts (WIP scratch docs, since removed; PRD-027 discovery,
 > PRD-029 catalog, PRD-030 player) reuse numbers already taken by live viewer PRDs in
 > `docs/prd/`. This platform initiative takes a clean block, PRD-035–041. Those drafts
 > are superseded by the child PRDs above and will be folded in, not promoted as-is.

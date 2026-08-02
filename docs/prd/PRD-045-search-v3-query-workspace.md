@@ -160,7 +160,7 @@ Every rail launcher publishes the pre-filled scope to `activeSearchContext` (RFC
 - **FR11.1** New scripts `scripts/dev/capture-search-perf.{sh,mjs}` mirroring `capture-graph-lcp.{sh,mjs}`:
   - **API surface** — an HTTP capturer that records p50/p95/p99 for `/api/search`, `/api/app/search`, `/api/corpus/search` per intent class + per top_k, over the query set from FR10.
   - **UI surface** — Chrome DevTools/CDP trace of: Workspace-open (TTI), cmd-K-open latency, filter-apply, result-set operator ("Cluster", "Show on graph"), enriched-answer paint.
-- **FR11.2** Median-of-3 (same fair-comparison rule as GRAPH_PERF_TRACE_RUNBOOK); outputs `.metrics.json` + gzipped trace per label; committed under `docs/wip/search-v3/traces/`.
+- **FR11.2** Median-of-3 (same fair-comparison rule as GRAPH_PERF_TRACE_RUNBOOK); outputs `.metrics.json` + gzipped trace per label; committed under `docs/guides/perf-traces/`.
 - **FR11.3** Baseline against `main` captured on branch tip **before** slice 1; re-captured per slice; deltas reported in each PR body.
 - **FR11.4** After baseline, a **deep-review pass** (backend + frontend) surfaces optimization candidates — issues opened, not silently applied.
 

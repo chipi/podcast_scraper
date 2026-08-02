@@ -12,8 +12,7 @@
   - `docs/rfc/RFC-012-episode-summarization.md` (Episode summarization)
   - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` (ML benchmarking)
 - **Related Documents**:
-  - `docs/wip/preprocessing_improvements_plan.md` (Source document)
-  - `docs/wip/baseline_bart_experiment_plan.md` (Source document)
+  - Original preprocessing-improvements and baseline-BART-experiment plans (WIP source docs, now removed)
 
 ## Abstract
 
@@ -905,8 +904,7 @@ preprocessing:
 ## References
 
 - **Source Documents**:
-  - `docs/wip/preprocessing_improvements_plan.md`
-  - `docs/wip/baseline_bart_experiment_plan.md`
+  - Original preprocessing-improvements and baseline-BART-experiment plans (WIP source docs, now removed)
 - **Preprocessing Code**: `src/podcast_scraper/preprocessing/core.py`
 - **Profile Registry**: `src/podcast_scraper/preprocessing/profiles.py`
 - **Experiment Configs**: `data/eval/configs/`

@@ -359,11 +359,11 @@ lint-search-v3:
 
 # Search v3 quality-eval harness (RFC-107 §T2, PRD-045 FR10; #1230 S0(c)).
 # Default corpus + query set = the v3 synthetic fixture; output the S0 baseline
-# under docs/wip/search-v3/eval/. Override via CORPUS= / QUERIES= / OUT= to
+# under data/eval/search-v3/eval/. Override via CORPUS= / QUERIES= / OUT= to
 # eval against a different corpus / query set.
 CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
 QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
-OUT ?= docs/wip/search-v3/eval/latest.json
+OUT ?= data/eval/search-v3/eval/latest.json
 eval-search:
 	$(PYTHON) scripts/eval/search_quality.py --corpus $(CORPUS) --queries $(QUERIES) --out $(OUT)
 
@@ -1465,7 +1465,7 @@ diarization-quality:
 compare-gil-runs:
 	# Compare GIL outcomes between two pipeline run directories (metadata/*.gi.json).
 	# Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run
-	# See scripts/tools/compare_gil_runs.py and docs/wip/gil-ml-vs-openai-outcome-benchmark.md
+	# See scripts/tools/compare_gil_runs.py
 	@if [ -z "$(REF)" ] || [ -z "$(CAND)" ]; then \
 		echo "Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run"; exit 2; \
 	fi
@@ -3662,7 +3662,7 @@ report-multi-run:
 	cmd="$(PYTHON) scripts/eval/compare/multi_run_report.py --reference-id $$REFERENCE_ID"; \
 	if [ -n "$$BASELINE_ID" ]; then cmd="$$cmd --baseline-id $$BASELINE_ID"; fi; \
 	if [ -n "$$RUN_IDS" ]; then cmd="$$cmd --run-ids $$RUN_IDS"; fi; \
-	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; else cmd="$$cmd --output docs/wip/multi_run_comparison.md"; fi; \
+	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; else cmd="$$cmd --output .test_outputs/eval/multi_run_comparison.md"; fi; \
 	if [ -n "$(TITLE)" ]; then cmd="$$cmd --title '$(TITLE)'"; fi; \
 	if [ -n "$(LABELS)" ]; then cmd="$$cmd --labels '$(LABELS)'"; fi; \
 	if [ -n "$(DATASET_ID)" ]; then cmd="$$cmd --dataset-id $(DATASET_ID)"; fi; \

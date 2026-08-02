@@ -24,7 +24,7 @@ Usage:
         --interval 5 \\
         --model qwen3_5_35b \\
         --label phase2c_gi_round3_v1 \\
-        >> docs/wip/EVAL_1016_metrics/vllm_kv_metrics.log
+        >> .test_outputs/eval/EVAL_1016_metrics/vllm_kv_metrics.log
 
 Exit on Ctrl-C; the loop is robust to transient HTTP errors (logs and
 continues). Run this in a separate terminal / background process while an

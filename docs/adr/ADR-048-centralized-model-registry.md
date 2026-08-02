@@ -83,7 +83,7 @@ GI/KG/NER) as `StageOption` entries with `research_ref` provenance back to
 the eval report that justified each choice.
 
 This brings the registry into alignment with the
-`docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md` vision: profile YAMLs become
+original research-powered-registry vision (WIP doc, now removed): profile YAMLs become
 downstream views of the registry, and "what is production running today?"
 has a single, machine-readable answer.
 

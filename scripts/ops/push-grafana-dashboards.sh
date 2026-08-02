@@ -3,7 +3,7 @@
 # (folder "VPS — Podcast"). Dashboards-as-code: the JSON in git is the source of
 # truth; this re-pushes them idempotently (stable uid + overwrite).
 #
-# Ownership split (see agentic-ai-homelab docs/wip/observability-vps-dashboards-handover.md):
+# Ownership split (see the homelab observability dashboards handover docs):
 #   homelab repo  -> shared infra dashboards (host/GPU/containers/logs)
 #   THIS repo     -> podcast/VPS app + edge dashboards, pushed here on deploy.
 #
