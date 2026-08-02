@@ -51,6 +51,16 @@ def test_build_server_registers_tools(tmp_path) -> None:
         # cross-surface refresh: multi-hop + clusters
         "ego_network",
         "topic_clusters",
+        # cross-surface refresh: search result-set operators
+        "cluster_search",
+        "consensus_search",
+        # cross-surface refresh: enrichment + speaker
+        "corpus_enrichment_signals",
+        "episode_enrichment_signals",
+        "episode_speaker_roster",
+        # cross-surface refresh: composite dossiers
+        "entity_dossier",
+        "episode_digest",
         # slice 3 — catalog / navigation
         "list_feeds",
         "list_episodes",
