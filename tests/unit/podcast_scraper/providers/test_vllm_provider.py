@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 import pytest
+import yaml
 
 from podcast_scraper.config import Config
 from podcast_scraper.providers.openai.openai_provider import (
@@ -123,3 +124,43 @@ class TestFactoryDispatch:
 
         p = create_speaker_detector(_vllm_cfg())
         assert isinstance(p, VLLMProvider)
+
+
+def _dgx_profile_cfg(name: str) -> Config:
+    with open(f"config/profiles/{name}.yaml") as f:
+        data = {k: v for k, v in yaml.safe_load(f).items() if k != "profile"}
+    data.setdefault("rss_url", "https://example.com/feed.xml")
+    return Config(**data)
+
+
+class TestGroundingStaysLocal:
+    """ADR-144 B1: with summary=vllm, the GI grounding stages (quote/entailment) must ALSO be vllm.
+    Left as 'openai', they build a separate cloud OpenAIProvider (api.openai.com + gpt-4o-mini) and
+    the 'DGX-local' corpus gets its grounding from a cloud model — the corpus-corrupting bug."""
+
+    @pytest.mark.parametrize(
+        "name", ["prod_dgx_balanced", "prod_dgx_full_with_fallback", "eval_default"]
+    )
+    def test_dgx_profile_grounding_is_vllm_not_cloud(self, name: str):
+        from podcast_scraper.summarization.factory import create_summarization_provider
+
+        cfg = _dgx_profile_cfg(name)
+        # Every producing LLM stage is local — summary, naming, and grounding.
+        assert cfg.summary_provider == "vllm"
+        assert cfg.speaker_detector_provider == "vllm"
+        assert cfg.quote_extraction_provider == "vllm"
+        assert cfg.entailment_provider == "vllm"
+        # Fully airgapped: no cloud provider in any fallback chain either.
+        _CLOUD = {"openai", "gemini", "anthropic", "deepgram", "cohere", "grok", "mistral"}
+        assert not (set(cfg.summary_fallback_providers or []) & _CLOUD)
+        assert not (set(cfg.transcription_fallback_providers or []) & _CLOUD)
+        assert not (set(cfg.diarization_fallback_providers or []) & _CLOUD)
+        # The value gate stays ENABLED but fully local (airgapped): no cloud judge is pinned, so it
+        # self-grades with the same local model as the extractor (ADR-144). No internet dependency.
+        assert cfg.gi_value_gate_enabled is True
+        assert not getattr(cfg, "gi_value_gate_provider", None)  # unpinned -> extractor self-grades
+        assert not getattr(cfg, "gi_value_gate_model", None)  # no cloud judge model
+        # gi.deps routes the grounding stages by these provider keys; the 'vllm' key builds a
+        # VLLMProvider (a DGX-local client), never the cloud OpenAIProvider — proven end-to-end in
+        # TestFactoryDispatch (which builds it without needing a resolvable live endpoint).
+        assert callable(create_summarization_provider)
