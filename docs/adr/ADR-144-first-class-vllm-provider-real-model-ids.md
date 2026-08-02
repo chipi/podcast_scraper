@@ -23,13 +23,13 @@ Three concrete defects (verified against the tree, branch `feat/naming-arc-and-c
 1. **The registry does not govern the wire today — renaming it alone changes nothing.** The
    provider consumes `openai_api_base` / `openai_summary_model`, and in the DGX profiles those
    are **hand-authored above the `registry-materialized — do not hand-edit` divider**
-   ([config/profiles/prod_dgx_balanced.yaml](../../config/profiles/prod_dgx_balanced.yaml)).
+   (`config/profiles/prod_dgx_balanced.yaml`).
    The materializer emits `summary_model` / `summary_endpoint`
-   ([model_registry.py](../../src/podcast_scraper/providers/ml/model_registry.py) resolver,
+   (`model_registry.py` resolver,
    `_emit`*), but `summary_endpoint` is not a Config field and `materialize_profiles.py`
    deliberately drops non-Config resolver keys; the materialized `summary_model: autoresearch`
    is **decorative** — read only by metadata provenance
-   ([workflow/metadata_generation.py](../../src/podcast_scraper/workflow/metadata_generation.py)).
+   (`workflow/metadata_generation.py`).
    So the wire model + endpoint are governed by **nothing**.
 2. **The alias hides identity → reproducibility is violated.** Even the hand-authored key reads
    `autoresearch`, so **you cannot read a profile and know what produced the corpus**; the only
@@ -81,22 +81,23 @@ Verify the served model fail-closed at init. Take every DGX LLM stage local toge
    `entailment_provider` (grounding, today `openai`). Left unflipped, the grounding stages build a
    *separate* `OpenAIProvider` with no `openai_api_base` → **api.openai.com + `gpt-4o-mini`**
    silently produces the "DGX-local" grounding
-   ([gi/deps.py](../../src/podcast_scraper/gi/deps.py) instance-reuse breaks under the split). Add
+   (`gi/deps.py` instance-reuse breaks under the split). Add
    `vllm` to the evidence-provider enum + `GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS` + the `deps.py`
    match; **add a test that a vllm-summary profile builds zero cloud-OpenAI clients.**
-   **The one deliberate exception is the in-pipeline value-gate *judge*** — it grades the
-   extractor's output, so it stays a **cloud API judge (where we hold a key), objective,
-   vendor-disjoint** from the local model (`resolve_value_gate(sm.provider)` derives a non-`vllm`
-   judge; #939 self-grading bias), and **minimum Sonnet-level**: the current gate is on
-   `claude-haiku-4-5` (below the floor), so `resolve_value_gate` for `vllm` must return a
-   ≥Sonnet-class cross-vendor judge (e.g. `claude-sonnet-5`). It is an evaluation call, not a
-   producing call. Because one model now drives many stages, the parity gate must evaluate **per
-   stage / multi-perspective** (summary, naming, GI, KG), not summary alone.
+   **The in-pipeline value-gate *judge* also goes local** (operator, 2026-08-03 — see the As-built
+   amendment; this REVERSES the earlier "cross-vendor cloud ≥Sonnet judge" decision). A DGX profile
+   must consume nothing from the internet, so the value gate self-grades with the **same local
+   model** as the extractor (`vllm`/`ollama` join `_LOCAL_ONLY_LLM`; no cloud judge is pinned). The
+   #939 self-grading leniency is the accepted cost of airgapping — the gate still trims the clear
+   filler, just conservatively; a distinct **second local** judge (still airgapped) is a future
+   autoresearch evaluation point. Because one model now drives many stages, the *parity* gate (the
+   separate autoresearch scorer, not this in-pipeline gate) must evaluate **per stage /
+   multi-perspective** (summary, naming, GI, KG), not summary alone.
 4. **Fail-closed verification at provider init (closes B3).** The cost-telemetry `served_model`
    capture never fires on the DGX path (the summary cost event is gated on `cost>0` and the vLLM
    slot is priced `$0`). Instead, on `VLLMProvider` construction, `GET /v1/models` and assert the
    configured id ∈ the served-id set — reusing the existing pattern in
-   [onboard_model_smoke.py](../../scripts/eval/onboard_model_smoke.py) and the normalization in
+   `onboard_model_smoke.py` and the normalization in
    `verify_served_model` (casefold + dated-suffix tolerance; **do not strip the org prefix**).
    Raise a config error on mismatch. A cheap per-response check may follow, but the startup
    set-membership check is the robust seam.
@@ -170,15 +171,43 @@ non-DGX `openai` (cloud) path is untouched.
 
 ## References
 
-- [model_registry.py](../../src/podcast_scraper/providers/ml/model_registry.py) — `StageOption`,
+- `model_registry.py` — `StageOption`,
   DGX options, resolver/`_emit`*, `REGISTRY_GOVERNED_FIELDS`, `resolve_endpoint`
-- [openai_provider.py](../../src/podcast_scraper/providers/openai/openai_provider.py) — the
+- `openai_provider.py` — the
   transport `VLLMProvider` extraction is factored from; OpenAI-native heuristics to keep out of the base
-- [summarization/factory.py](../../src/podcast_scraper/summarization/factory.py),
+- `summarization/factory.py`,
   `speaker_detectors/factory.py` — provider dispatch
-- [gi/deps.py](../../src/podcast_scraper/gi/deps.py) — the quote/entailment instance-reuse that B1 turns on
-- [config.py](../../src/podcast_scraper/config.py) — provider enums, env-presence validators, `vllm_*` fields
+- `gi/deps.py` — the quote/entailment instance-reuse that B1 turns on
+- `config.py` — provider enums, env-presence validators, `vllm_*` fields
 - `config/` + `src/podcast_scraper/data/` — `pricing_assumptions.yaml`, `known_models.yaml` (both copies)
 - `workflow/helpers.py`, `workflow/metadata_generation.py`, `scripts/eval/onboard_model_smoke.py`,
   `evaluation/judges/vllm_chat.py`, `materialize_profiles.py`
 - agentic-ai-homelab `infra/vllm/autoresearch/docker-compose.yml` — owns `--served-model-name`
+
+## As-built amendment (2026-08-03)
+
+Implemented across commits (ADR `56fa7bc4` → B3 `763ab4d0`). Two operator decisions during
+implementation extended/changed the plan:
+
+1. **Fully airgapped DGX profiles.** Beyond swapping the producing LLMs, the operator required the
+   DGX profiles to consume **nothing** from the internet — every LLM stage AND every fallback is
+   DGX-local. As built (prod_dgx_balanced, prod_dgx_full_with_fallback, eval_default):
+   - summary / naming / GI / KG / quote / entailment → `vllm` (real Qwen id);
+   - summary fallback → **DGX-local ollama** (`:11434`), not cloud gemini;
+   - transcription → DGX-whisper + local in-process whisper + MOSS coverage failover (**no cloud
+     Whisper**); diarization → local pyannote (**no cloud deepgram**);
+   - a test asserts all three load with zero cloud API keys and hold no cloud provider anywhere.
+2. **Value gate self-grades local** — reverses the §3 cross-vendor-cloud-judge decision (see §3).
+
+**Ollama symmetry.** `vllm` and `ollama` are the two DGX-local serving stacks and are functionally
+symmetric: both first-class providers, both self-grade the value gate (`_LOCAL_ONLY_LLM`), both
+price at `$0`, neither cloud-governed, and ollama is the airgapped summary fallback. One asymmetry
+is deliberately **deferred**: vllm's wire config is registry-governed/materialized while ollama's
+stays hand-authored — auto-governing ollama would break experiment_dgx_only (its speaker
+StageOption `model` is a spaCy id; its profiles pin a different endpoint host). Unifying that is a
+follow-up.
+
+**Phased homelab migration (S3) — NOT YET DONE.** The registry/profiles now request the real HF id
+on the wire; the homelab vLLM must serve under that `--served-model-name` (dual-name transition)
+before a live run passes the B3 check. Prepared as a handoff, not deployed — see the session
+handover in `docs/wip/`.

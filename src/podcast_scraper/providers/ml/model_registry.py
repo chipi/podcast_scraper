@@ -2427,6 +2427,11 @@ def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
     ``summary_endpoint`` — so those must be materialized for the registry to actually govern what
     runs on the wire, rather than leaving it to a hand-authored profile block (ADR-144 B2). The
     endpoint is emitted in ``${DGX_TAILNET_HOST}``-template form (``_endpoint_to_env_template``).
+
+    ``ollama`` is deliberately NOT routed here yet: its speaker StageOption's ``model`` is a spaCy
+    id (not the LLM tag) and its profiles pin a different endpoint host default, so auto-governing
+    ollama's wire config would break experiment_dgx_only. Ollama stays hand-authored (it works);
+    governing it symmetrically is a follow-up once the ollama speaker-model semantics are unified.
     """
     ns = sm.provider
     if ns not in ("openai", "vllm"):
@@ -2446,7 +2451,7 @@ def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
     cloud default (ADR-144).
     """
     ns = ner.provider
-    if ns not in ("openai", "vllm"):
+    if ns not in ("openai", "vllm"):  # ollama's ner.model is a spaCy id, not the LLM tag — skip
         return
     if ner.model is not None:
         settings[f"{ns}_speaker_model"] = ner.model
