@@ -11,7 +11,7 @@ The status writer is **stateless** — every update reads the current
 state, mutates it, and writes back. No long-lived in-memory state
 needed; the executor calls ``update_status(...)`` between batches.
 
-See ``docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md``
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``
 §"Live status".
 """
 

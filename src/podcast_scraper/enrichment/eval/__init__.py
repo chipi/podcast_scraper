@@ -16,7 +16,7 @@ Public surface:
 * Gate side — ``evaluate_gate`` / ``GateDecision``.
 * Cascade — ``admit_enrichers`` / ``admitted_enricher_ids`` / ``AdmissionResult``.
 
-See ``docs/wip/RFC-088-ENRICHER-ACCURACY-GATE-2026-07.md``.
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``.
 """
 
 from __future__ import annotations

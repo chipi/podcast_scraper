@@ -27,7 +27,7 @@ safety net (``try/except Exception``) and turned into
 ``status="failed"`` results with ``error_class="<ExecutorBug>"`` so
 the pipeline-attached path stays robust.
 
-See ``docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md``
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``
 §"Resilience model" and §"Async execution + concurrency caps".
 """
 

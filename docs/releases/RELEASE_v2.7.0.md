@@ -193,13 +193,10 @@ resolvable under transformers 5.13.0.
   result-shape assembly) but SDK-specific request/response shapes.
   Orthogonal to transformers v5; ships in its own PR when scheduled.
   Full measurement + API proposal + test plan lives in the audit doc
-  (`docs/wip/ISSUE-382-AI-PROVIDER-AUDIT-2026-07-05.md`) and the issue.
+  and the issue.
 
 ## Related
 
-- Deep analysis: `docs/wip/ISSUE-382-TRANSFORMERS-V5-DEEP-ANALYSIS-2026-07-05.md`
-- Execution plan: `docs/wip/ISSUE-382-TRANSFORMERS-V5-EXECUTION-PLAN.md`
-- AI-provider audit: `docs/wip/ISSUE-382-AI-PROVIDER-AUDIT-2026-07-05.md`
 - Testing strategy: `docs/guides/testing-strategy-ml.md`
 - Post-impl notes: `docs/adr/ADR-068-bart-led-as-ml-production-baseline.md`
   (§ Post-Implementation Notes — #382)

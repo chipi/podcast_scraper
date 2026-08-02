@@ -14,7 +14,7 @@ This module defines:
   builders are equally usable with the existing workflow JSONLEmitter
   if the executor is invoked from inside a pipeline run.
 
-See ``docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md``
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``
 §"JSONL event vocabulary".
 """
 

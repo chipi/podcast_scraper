@@ -17,7 +17,7 @@
   - `docs/rfc/RFC-090-hybrid-corpus-search.md` — hybrid semantic + keyword retrieval
   - `docs/rfc/RFC-097-unified-kg-gi-ontology-v2.md` — v2 ontology
 - **Related analysis**:
-  - `docs/wip/MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` — server-side multi-user lift + sequencing
+  - `docs/rfc/RFC-107-search-v3-query-workspace.md` — server-side multi-user lift + sequencing
 
 > **Note on numbering**: the player drafts in `docs/wip/player/` (PRD-027 discovery,
 > PRD-029 catalog, PRD-030 player) reuse numbers already taken by live viewer PRDs in
@@ -280,7 +280,7 @@ no premature infrastructure.
 
 - `docs/prd/PRD-027-platform-discovery.md`, `PRD-029-platform-catalog.md`,
   `PRD-030-platform-player.md` — superseded drafts, folded into PRD-037/038/039.
-- `docs/wip/MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` — server-side multi-user lift + sequencing.
+- `docs/rfc/RFC-107-search-v3-query-workspace.md` — server-side multi-user lift + sequencing.
 - `docs/guides/GIL_KG_CIL_CROSS_LAYER.md`, `docs/api/HTTP_API.md` — intelligence layer + API surface.
 
 ## Release Checklist

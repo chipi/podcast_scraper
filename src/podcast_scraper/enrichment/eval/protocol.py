@@ -14,7 +14,7 @@ Scoring is synchronous: grading is a pure comparison of two dicts (output vs
 gold) with no ML providers in the loop, so authors don't pay the async tax the
 runtime protocol carries for its embedding / NLI backends.
 
-See ``docs/wip/RFC-088-ENRICHER-ACCURACY-GATE-2026-07.md``.
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``.
 """
 
 from __future__ import annotations

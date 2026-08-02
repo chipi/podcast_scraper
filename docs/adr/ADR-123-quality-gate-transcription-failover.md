@@ -10,7 +10,7 @@
 
 ## Context & Problem Statement
 
-The #1178/#1179 ASR bake-off (`docs/wip/ASR-BAKEOFF-ISOLATED-2026-07-22.md`) found that
+The #1178/#1179 ASR bake-off found that
 `large-v3-turbo` — the ~4× faster model we want for the v2→v3 reprocess — **silently drops large
 spans of speech on long episodes, with no error raised.** On a 100-minute episode it transcribed
 only **69% of the speech** (100 gaps, ~25 min dropped, 10,469 micro-segments) and scored 29.9 % WER
@@ -121,5 +121,4 @@ Gate is active only when `coverage_min > 0` **and** a failover model is set. Bot
 ## References
 
 - Issue [#1258](https://github.com/chipi/podcast_scraper/issues/1258) — scope + acceptance.
-- `docs/wip/ASR-BAKEOFF-ISOLATED-2026-07-22.md` — the ep6 evidence + coverage detector prototype.
 - [ADR-122](ADR-122-self-hosted-model-resilience-policy.md), RFC-106/#1198.

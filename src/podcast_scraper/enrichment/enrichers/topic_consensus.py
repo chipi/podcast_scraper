@@ -4,7 +4,8 @@ The reimagining of ``nli_contradiction``. The contradiction detector hit 0% prec
 sentence-pair NLI can't tell "same contested *proposition*" from "same *topic*" (the
 shared-question gate). This enricher detects **agreement** instead — "what the corpus corroborates".
 
-**The signal (from real-corpus eval, docs/wip/ADR-108-REAL-CORPUS-EVAL-2026-07.md):** an early
+**The signal (from real-corpus eval,
+docs/adr/ADR-108-nli-disagreement-enrichers-gated-dark.md):** an early
 version gated on *symmetric NLI entailment* and found almost nothing — genuine agreement between two
 speakers is expressed in different words, so mutual entailment is near-zero (1 pair / 2903 on
 prod-v2). The signal that actually recalls agreement is a **composite**:

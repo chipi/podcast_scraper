@@ -109,6 +109,5 @@ from `tofu apply` to the GitOps action).
 
 ## Migration
 
-State migration + workflow cutover steps live in
-[`docs/wip/2026-07-28-tailscale-acl-tofu-decouple-migration.md`](../wip/2026-07-28-tailscale-acl-tofu-decouple-migration.md).
+State migration + workflow cutover steps are planned separately.
 No state is touched until that plan is reviewed and approved (rule 4).

@@ -129,8 +129,7 @@ that never made it into a release.
 5. **Ship the two flagship viewer surfaces.** Position Tracker and
    Person Profile. The data foundation is delivered by v2 (chunk 7).
    **Scope-cut 2026-06-21**: the viewer UI for both surfaces is split
-   into follow-up tickets (A/B/C in
-   `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md`); revised chunk 8
+   into follow-up tickets (A/B/C); revised chunk 8
    ships only the two-tier edge contract visual styling so the v2
    foundation PR closes without a multi-week UI build.
 6. **Re-baseline measurement.** Full silver rebuild (`silver_opus47_*`
@@ -562,8 +561,7 @@ one PR at the end):**
   Profile view) are split into follow-up tickets so the v2 foundation
   PR closes cleanly without a multi-week UI build.
   Risk: low. Days: 0.5–1.
-  Follow-up tickets (drafted in
-  `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md`):
+  Follow-up tickets:
   - **Ticket A** — Person Landing shared component (PRD-029 spec)
   - **Ticket B** — Position Tracker view (PRD-028 spec, UXS-009)
   - **Ticket C** — Person Profile view (PRD-029 spec, UXS-010)

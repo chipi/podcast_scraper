@@ -146,7 +146,7 @@ KG proximity signal — rejected (**RFC-091**).
 implementation across 9 chunks (foundation + resilience + metrics/o11y + MCP correlation + 6
 deterministic enrichers + topic_similarity + nli_contradiction + QueryEnricher + viewer
 integration + profile-preset wiring + promotion). Live plan:
-`docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md`. Chunk 0 (ADR-104) shipped on the
+`docs/rfc/RFC-088-enrichment-layer-architecture.md`. Chunk 0 (ADR-104) shipped on the
 current branch.
 
 **Draft RFCs (not indexed):** Postgres projection (**RFC-051**), adaptive summarization routing

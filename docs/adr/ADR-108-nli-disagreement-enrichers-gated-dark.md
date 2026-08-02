@@ -75,8 +75,7 @@ clears its gold — gold comes from the v3 **position-arc / debate** fixtures (#
 
 ## Update — 2026-07-07: real-corpus validation corrects the consensus signal + activates it
 
-Ran both enrichers with the real DeBERTa over prod-v2 (99 bundles; full findings in
-[docs/wip/ADR-108-REAL-CORPUS-EVAL-2026-07.md](../wip/ADR-108-REAL-CORPUS-EVAL-2026-07.md)). The eval
+Ran both enrichers with the real DeBERTa over prod-v2 (99 bundles). The eval
 **refuted the original `topic_consensus` mechanism and confirmed a corrected one**:
 
 - **`topic_consensus`: symmetric NLI *entailment* fails; the composite works.** The first cut gated on

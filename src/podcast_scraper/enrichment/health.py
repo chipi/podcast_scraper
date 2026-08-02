@@ -17,7 +17,7 @@ Atomic write semantics: the file is written via
 ``write_text_atomic`` and loaded with corruption recovery (corrupt
 file → empty state + WARNING; never raises into the executor).
 
-See ``docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md``
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``
 §"Health persistence".
 """
 

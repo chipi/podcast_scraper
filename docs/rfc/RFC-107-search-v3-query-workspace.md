@@ -375,5 +375,4 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md) — perf-capture template
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current operator-facing enrichment config surface (per-enricher reference + provider-types registry)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes + `--with-ml` CLI (RFC-088 chunk 6; separate from Search v3's `/api/search?enrich_results=`)
-- USERPREFS-1: `docs/wip/USERPREFS-1.md`
 - #1205 — LanceDB SIGSEGV incident + fix `0fe0854b`

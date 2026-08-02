@@ -22,7 +22,8 @@ DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX = 20
 # "Extract 10 key takeaways" into the prompt, so no run could ever exceed 10 insights.
 # Raised 50 -> 200 so the DURATION-SCALED ceiling (duration_scaled_max_insights) can give a 4h
 # episode room instead of truncating real insights at 50 (a corpus-baked cutoff — see
-# docs/wip/GI_WHAT_TO_SURFACE.md). Interim; the full route-and-tag redesign is #1191.
+# docs/adr/ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md). Interim; the full
+# route-and-tag redesign is #1191.
 GI_MAX_INSIGHTS_CEILING = 200
 # Duration-scaled insight ceiling (interim, #1191): scale the configured gi_max_insights by episode
 # length — 1x up to 1h, then +0.5x per 30-min unit, to 4x at 4h, hard-capped at
@@ -72,7 +73,7 @@ def duration_scaled_max_insights(transcript_chars: int, base: int) -> int:
     2h ~100, 3h ~150, 4h+ ~200 (room, not truncation). Multiplicative, so a small EXPLICIT cap is
     respected (base=3 stays ~3, never lifted). The value gate — not this ceiling — removes filler.
     The full route-and-tag redesign that removes the cutoff entirely is #1191 /
-    docs/wip/GI_WHAT_TO_SURFACE.md.
+    docs/adr/ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md.
     """
     minutes = (max(0, int(transcript_chars)) / GI_CHARS_PER_HOUR) * 60.0
     units = max(1, min(GI_MAX_INSIGHT_UNITS, math.ceil(minutes / 30.0))) if minutes > 0 else 1

@@ -15,8 +15,7 @@ operator's separate multi-voice TTS PR).
 
 v3 extends the v2 fixture model with explicit knobs for the failure-mode
 catalogue harvested from the autoresearch programme
-(`docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`,
-`docs/wip/PROD_RUN_ANALYSIS_100EP.md`). Each prod-observed failure mode is
+(`docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`). Each prod-observed failure mode is
 now a structured field on the `GuestV3` / `EpisodeV3` / `PodcastV3` data
 classes, exercised by `≥ 1` episode, and recorded in the per-episode
 ground-truth labels so eval scoring can score against it.
@@ -244,8 +243,6 @@ pytest tests/integration/eval/test_v3_fixtures.py -p no:randomly
 
 * **Spec input:** `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md` (each section
   in this report points back to the source learning).
-* **Prod baseline:** `docs/wip/PROD_RUN_ANALYSIS_100EP.md` (Finding 1, 5,
-  12 — feed into the omnycontent / NPR / dialogue-insight patterns).
 * **v2 generator:** `scripts/eval/data/generate_v2_transcripts.py` (the
   schema v3 extends).
 * **v2 baseline report:**
