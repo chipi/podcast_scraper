@@ -77,7 +77,7 @@ Three classes still uncaught:
 - **Whisper-inserted token mid-name** — `Joe Eisenthal House` / `Joe Weisenthal` (Whisper added a spurious "House" token). Token-count mismatch but with internal-token-insertion, not title-prefix or family-only patterns. Would need a fuzzy-substring matcher.
 - **First-name-only-alias** — `Liam Verbeek` ↔ `Liam` (intentionally not handled — see design decision above).
 
-All three classes contributed to `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md` for #921.
+All three classes contributed to `docs/rfc/RFC-110-autoresearch-driven-fixture-corpus.md` for #921.
 
 ### Unit-test coverage
 
@@ -140,7 +140,7 @@ Every cell on v2 produced identical results: 7.31% chars removed / 3 blocks dete
 
 ## v3 fixtures contribution (#921)
 
-Two new entries appended to `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`:
+Two new entries appended to `docs/rfc/RFC-110-autoresearch-driven-fixture-corpus.md`:
 
 1. **Sponsor-coverage gap on real prod** — v3 should add fixtures with host-read native-ad copy that doesn't use "brought to you by"-style template markers, so detector tuning + pattern-set expansion can be evaluated against realistic content.
 2. **Frame-negative live exercise** — v3 should add ≥2 non-p04 frame-rooted topics in genuinely different domains (financial reporting "frame", legal "frame for decision") so the `_frame_negative_test` becomes `exercised: true` on live data.
@@ -157,7 +157,7 @@ Plus the existing #853 contribution section gets reinforced — the first-name-o
 - [x] All v2 deliberate-ambiguity cases from #903 still pass.
 - [x] 147 `kg` unit tests + 14 new #904 parametrised cases.
 - [x] Eval report (this file).
-- [x] v3 contributions logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`.
+- [x] v3 contributions logged in `docs/rfc/RFC-110-autoresearch-driven-fixture-corpus.md`.
 
 ## Out of scope (tracked elsewhere)
 

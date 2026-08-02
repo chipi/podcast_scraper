@@ -90,6 +90,7 @@ fallback is operator ergonomics, not a hidden default.
 
 Operators can also use it in prod / staging to set a default profile
 per deployment without changing call sites:
+
 ```bash
 export PODCAST_SCRAPER_PROFILE=cloud_with_dgx_primary
 python -m podcast_scraper.cli ...
@@ -98,6 +99,7 @@ python -m podcast_scraper.cli ...
 ### 6. `tests/conftest.py`: autouse profile injection
 
 Single line added at module import time:
+
 ```python
 os.environ.setdefault("PODCAST_SCRAPER_PROFILE", "test_default")
 ```
@@ -127,7 +129,8 @@ promotions — that's broader hygiene work.
 
 ## What tests look like before/after
 
-### Before (env-detect era):
+### Before (env-detect era)
+
 ```python
 def test_something():
     cfg = config.Config(rss_url="...")    # implicitly uses TEST_DEFAULT_*
@@ -135,7 +138,8 @@ def test_something():
     assert cfg.openai_summary_model == "gpt-4o-mini"  # because pytest in sys.modules
 ```
 
-### After (profile-as-source-of-truth):
+### After (profile-as-source-of-truth)
+
 ```python
 def test_something():
     cfg = config.Config(rss_url="...")    # implicitly uses test_default profile
@@ -221,7 +225,7 @@ separate small commit in this PR if you say go.
 (13 other knobs had TEST==PROD pairs — those flipped no-ops.)
 
 | Knob | TEST default (silent for 5 mo) | PROD default (now active) |
-|---|---|---|
+| --- | --- | --- |
 | ner_model | en_core_web_sm | en_core_web_trf |
 | openai_summary_model | gpt-4o-mini | gpt-4o |
 | anthropic_speaker_model | claude-haiku-4-5 | claude-3-5-sonnet-20241022 |

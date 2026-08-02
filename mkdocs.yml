@@ -438,6 +438,7 @@ nav:
       - RFC-112 Remote MCP Transport & Auth: rfc/RFC-112-remote-mcp-transport-and-auth.md
       - RFC-113 Graph-Aware PKM Export: rfc/RFC-113-graph-aware-pkm-export.md
       - RFC-114 Personal Corpus: rfc/RFC-114-personal-corpus.md
+      - RFC-110 Autoresearch-Driven Fixture Corpus: rfc/RFC-110-autoresearch-driven-fixture-corpus.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

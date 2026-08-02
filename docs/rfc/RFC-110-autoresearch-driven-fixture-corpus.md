@@ -1,11 +1,19 @@
-# Autoresearch learnings → v3 fixtures (rolling notes)
+# RFC-110: Autoresearch-Driven Fixture Corpus
 
-**Tracking issue:** [#921](https://github.com/chipi/podcast_scraper/issues/921) (v3 fixtures rebuild — incorporate autoresearch learnings).
-**Parent epic:** [#907](https://github.com/chipi/podcast_scraper/issues/907) (autoresearch programme).
+- **Status**: Draft — the v3 text/transcript/manifest side landed
+  (`scripts/build_v3_fixtures.py`); this RFC is the standing **driver for the next generation of
+  the fixture corpus** (audio TTS, the 500–1000 → 10k-episode scale-up, and new failure modes the
+  autoresearch programme keeps surfacing). Living design — append new failure modes here.
+- **Authors**: Marko Dragoljevic (chipi), Claude
+- **Stakeholders**: Operator (sign-off), corpus / eval / fixture maintainers
+- **Related RFCs**: `docs/rfc/RFC-057-autoresearch-optimization-loop.md` (the loop that produces these learnings)
+- **Related Documents**: `docs/guides/eval-reports/EVAL_FIXTURES_V3.md` (v2→v3 delta + failure-mode coverage), `scripts/build_v3_fixtures.py` (the generator)
+- **Anchors**: [#921](https://github.com/chipi/podcast_scraper/issues/921) (v3 fixtures rebuild), [#907](https://github.com/chipi/podcast_scraper/issues/907) (autoresearch programme)
 
-Living document. Each #907 child contributes failure-mode patterns it
-discovers, so v3 (when we build it) simulates real-prod defects directly in
-the fixture corpus instead of relying on dev to encounter them in prod.
+> Promoted from a WIP rolling-notes doc (2026-08-02). Each #907 child contributes real-prod
+> failure-mode patterns so the fixture corpus **simulates** those defects directly, instead of
+> dev encountering them in prod. This is the design input that drives fixture generation and, at
+> 10k-episode scale, decides which defects the eval harness must reproduce.
 
 **Status (2026-06-09):** the v3 text/transcript/manifest side has landed
 via `scripts/build_v3_fixtures.py`. See
@@ -237,7 +245,7 @@ diverge enough to stay in separate clusters?
 
 **LANDED IN V3 (2026-06-09):** `frame_topic_cross_domain` failure-mode tag
 exercised by p02_e03 (legal: "frame the decision" / threat modeling), p04_e01
-+ p04_e03 + p04_e04 (photography: "an underwater frame is built around
+- p04_e03 + p04_e04 (photography: "an underwater frame is built around
 backscatter"), p05_e01 (financial: "frame the market reaction first"). Three
 domains × the embedding-disambiguation question is now testable live.
 
@@ -569,7 +577,7 @@ empty output 4/5 episodes, hallucination 1/5),
 **#961** (R1-Distill reasoning-suppressed prompt — addresses
 the failure mode in point 5), **#962** (Gemini speaker
 detector provider deploy — unblocks the `cloud_*` slot of
-#930's panel), **#963** (re-test DGX whisper under contention
+# 930's panel), **#963** (re-test DGX whisper under contention
 now that the temperature bug is fixed), **#964** (Wave audio
 hardening umbrella from the WIP audit).
 
@@ -584,7 +592,7 @@ audio, or do we need to swap the DGX prod path?
 **Method:** 5 stratified episodes (~127 min audio), Deepgram nova-3 as
 silver reference (independent third engine; not gold). Three engines
 parallel-deployed on DGX: Speaches at `:8000` (faster-whisper int8 per
-#948), whisper-openai wrapper at `:8002` (large-v3), Deepgram via API.
+# 948), whisper-openai wrapper at `:8002` (large-v3), Deepgram via API.
 
 **Verdict:** faster-whisper validated, no swap. Aggregate WER vs silver:
 faster 10.23% vs openai 12.97% (faster is 2.74pp BETTER than the
