@@ -228,6 +228,20 @@ def build_server(corpus_dir: Path | str) -> Any:
 
     @server.tool()
     @_enveloped
+    def insight_detail(insight_id: str) -> dict:
+        """Resolve one insight's own content — the pivot bridge from search into the graph.
+
+        The master hop: take a ``search_corpus`` insight hit's ``pivot.id`` (or any
+        ``insight:`` id) and get the insight's text, type, grounded flag, supporting
+        ``quotes``, the ``topics`` it is about, and the ``entities`` it mentions — each with
+        an id you can hand to ``topic_entities`` / ``entity_neighborhood`` / etc. to keep
+        chaining. Unlike ``related_insights`` (structural neighbours), this is the insight
+        itself. Returns ``detail: None`` if the id is not an insight.
+        """
+        return _relational.insight_detail(ctx, insight_id)
+
+    @server.tool()
+    @_enveloped
     def show_episodes(podcast_id: str, k: int = 20) -> dict:
         """A show's episodes (``podcast:`` id; the HAS_EPISODE relationship)."""
         return _relational.show_episodes(ctx, podcast_id, k=k)

@@ -131,3 +131,35 @@ def cross_show_synthesis(ctx: CorpusContext, topic_id: str, per_show: int = 1) -
         "subject": topic_id,
         "groups": _groups(rq.cross_show_synthesis(graph, topic_id, per_show=per_show)),
     }
+
+
+def insight_detail(ctx: CorpusContext, insight_id: str) -> Dict[str, Any]:
+    """Resolve one insight's own content — the cross-surface pivot bridge.
+
+    The master hop from a ``search_corpus`` insight hit (its ``pivot.id``) into the graph:
+    returns the insight's text + type + grounded flag, the ``quotes`` that support it, the
+    ``topics`` it is about, and the ``entities`` it mentions — each carrying an id that
+    seeds the topic/entity tools. Returns ``detail: None`` when the id isn't an insight.
+    """
+    from ...search import relational_queries as rq
+
+    graph = _graph(ctx)
+    detail = rq.insight_detail(graph, insight_id)
+    if detail is None:
+        return {"subject": insight_id, "detail": None, "error": "not_an_insight"}
+    return {
+        "subject": insight_id,
+        "detail": {
+            "id": detail.id,
+            "type": detail.type,
+            "text": detail.text,
+            "insight_type": detail.insight_type,
+            "grounded": detail.grounded,
+            "episode_id": detail.episode_id,
+            "show_id": detail.show_id,
+            "quotes": _nodes(detail.quotes),
+            "topics": _nodes(detail.topics),
+            "entities": _nodes(detail.entities),
+        },
+        "error": None,
+    }
