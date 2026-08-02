@@ -129,6 +129,14 @@ class OpenAIProvider:
     share the same ML libraries. The client is initialized once and reused.
     """  # noqa: E501
 
+    # --- provider identity (parameterized so a sibling like VLLMProvider can share this
+    # OpenAI-compatible transport without being an "OpenAI thing"; see ADR-144). Reads of
+    # config fields use the ``{_CONFIG_NS}_*`` prefix and telemetry uses ``_TELEMETRY_PROVIDER``,
+    # so a subclass changes identity by overriding these three, not by copying method bodies. ---
+    _CONFIG_NS: str = "openai"  # config-field prefix: {ns}_summary_model, {ns}_api_base, …
+    _TELEMETRY_PROVIDER: str = "openai"  # provider/service label in metrics + guardrails
+    _PROVIDER_LABEL: str = "OpenAI"  # human label for log_provider_metadata
+
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
 
     def __init__(self, cfg: config.Config):
@@ -141,6 +149,7 @@ class OpenAIProvider:
             ValueError: If OpenAI API key is not provided
             ImportError: If openai package is not installed (core dependency)
         """
+        ns = self._CONFIG_NS  # config-field prefix; "openai" here, overridden by siblings (ADR-144)
         # Lazy import to allow unit tests without openai installed (Issue #405)
         try:
             from openai import OpenAI
@@ -184,9 +193,9 @@ class OpenAIProvider:
 
         # Cleaning model settings (config default: gpt-4o-mini; override for cheaper tiers)
         self.cleaning_model = getattr(
-            cfg, "openai_cleaning_model", config.DEFAULT_OPENAI_CLEANING_MODEL
+            cfg, f"{ns}_cleaning_model", config.DEFAULT_OPENAI_CLEANING_MODEL
         )
-        self.cleaning_temperature = getattr(cfg, "openai_cleaning_temperature", 0.2)
+        self.cleaning_temperature = getattr(cfg, f"{ns}_cleaning_temperature", 0.2)
 
         # Suppress verbose OpenAI SDK debug logs (they're too long and clutter the output)
         # Set OpenAI SDK loggers to WARNING level when root logger is DEBUG
@@ -208,9 +217,10 @@ class OpenAIProvider:
                 openai_logger.setLevel(logging.WARNING)
 
         # Support custom base_url for E2E testing with mock servers
-        client_kwargs: dict[str, Any] = {"api_key": cfg.openai_api_key}
-        if cfg.openai_api_base:
-            client_kwargs["base_url"] = cfg.openai_api_base
+        client_kwargs: dict[str, Any] = {"api_key": getattr(cfg, f"{ns}_api_key", None)}
+        _api_base = getattr(cfg, f"{ns}_api_base", None)
+        if _api_base:
+            client_kwargs["base_url"] = _api_base
 
         # Read timeout must cover Whisper and long chat calls (cleaning, summarize);
         # cfg.timeout alone is often too low (RSS/download tuning).
@@ -224,7 +234,7 @@ class OpenAIProvider:
         # False}`` to produce a clean summary instead of leaking reasoning prose.
         # Wrapping the client method here avoids fanning the kwarg through 17
         # call sites scattered across the provider.
-        _fixed_extra_body = getattr(cfg, "openai_extra_body", None)
+        _fixed_extra_body = getattr(cfg, f"{ns}_extra_body", None)
         if _fixed_extra_body:
             _orig_chat_create = self.client.chat.completions.create
             _frozen_extra = dict(_fixed_extra_body)
@@ -240,30 +250,30 @@ class OpenAIProvider:
 
         # Log non-sensitive provider metadata (for debugging)
         # Extract region from base_url if possible
-        region = extract_region_from_endpoint(cfg.openai_api_base)
+        region = extract_region_from_endpoint(getattr(cfg, f"{ns}_api_base", None))
         log_provider_metadata(
-            provider_name="OpenAI",
-            organization=getattr(cfg, "openai_organization", None),
-            base_url=cfg.openai_api_base,
+            provider_name=self._PROVIDER_LABEL,
+            organization=getattr(cfg, f"{ns}_organization", None),
+            base_url=getattr(cfg, f"{ns}_api_base", None),
             region=region,
         )
 
         # Transcription settings
-        self.transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
+        self.transcription_model = getattr(cfg, f"{ns}_transcription_model", "whisper-1")
 
         # Speaker detection settings
-        self.speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
-        self.speaker_temperature = getattr(cfg, "openai_temperature", 0.3)
+        self.speaker_model = getattr(cfg, f"{ns}_speaker_model", "gpt-4o-mini")
+        self.speaker_temperature = getattr(cfg, f"{ns}_temperature", 0.3)
 
         # Summarization settings
-        self.summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
-        _insight_override = getattr(cfg, "openai_insight_model", None)
+        self.summary_model = getattr(cfg, f"{ns}_summary_model", "gpt-4o-mini")
+        _insight_override = getattr(cfg, f"{ns}_insight_model", None)
         if isinstance(_insight_override, str) and _insight_override.strip():
             self.insight_model = _insight_override.strip()
         else:
             self.insight_model = self.summary_model
-        self.summary_temperature = getattr(cfg, "openai_temperature", 0.3)
-        _seed = getattr(cfg, "openai_summary_seed", None)
+        self.summary_temperature = getattr(cfg, f"{ns}_temperature", 0.3)
+        _seed = getattr(cfg, f"{ns}_summary_seed", None)
         self.summary_seed: Optional[int] = int(_seed) if _seed is not None else None
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate
@@ -830,7 +840,10 @@ class OpenAIProvider:
             # Get system prompt from prompt_store
             from ...prompts.store import render_prompt
 
-            system_prompt_name = self.cfg.openai_speaker_system_prompt or "openai/ner/system_ner_v1"
+            system_prompt_name = (
+                getattr(self.cfg, f"{self._CONFIG_NS}_speaker_system_prompt", None)
+                or "openai/ner/system_ner_v1"
+            )
             system_prompt = render_prompt(system_prompt_name)
 
             # Call OpenAI API with retry
@@ -980,7 +993,7 @@ class OpenAIProvider:
         from ...prompts.store import render_prompt
 
         # Use prompt_store to load versioned prompt template
-        prompt_name = self.cfg.openai_speaker_user_prompt
+        prompt_name: str = getattr(self.cfg, f"{self._CONFIG_NS}_speaker_user_prompt")
 
         # Merge config params with template params
         template_params = {
@@ -1304,7 +1317,7 @@ class OpenAIProvider:
             # configured degradation_policy.fallback_provider_on_failure.
             try:
                 _guardrails.check_chat_response(
-                    summary, service="openai", finish_reason=finish_reason
+                    summary, service=self._TELEMETRY_PROVIDER, finish_reason=finish_reason
                 )
             except _guardrails.GuardrailViolation:
                 _record_cost(triggered_guardrail=True)
@@ -1725,7 +1738,9 @@ class OpenAIProvider:
         # prose markers, finish_reason=length. Cost emitted in BOTH branches
         # for paid-but-rejected attribution.
         try:
-            _guardrails.check_chat_response(raw, service="openai", finish_reason=finish_reason)
+            _guardrails.check_chat_response(
+                raw, service=self._TELEMETRY_PROVIDER, finish_reason=finish_reason
+            )
         except _guardrails.GuardrailViolation:
             _record_cost(triggered_guardrail=True)
             raise
@@ -1856,7 +1871,7 @@ class OpenAIProvider:
 
                     emit_llm_cost_event(
                         self.cfg,
-                        provider="openai",
+                        provider=self._TELEMETRY_PROVIDER,
                         stage="gi",
                         model=self.insight_model,
                         estimated_cost_usd=float(gi_cost or 0.0),
@@ -1876,7 +1891,7 @@ class OpenAIProvider:
             # `except Exception: return []` does NOT swallow it.
             try:
                 _guardrails.check_chat_response(
-                    content, service="openai", finish_reason=finish_reason
+                    content, service=self._TELEMETRY_PROVIDER, finish_reason=finish_reason
                 )
             except _guardrails.GuardrailViolation as gv:
                 _emit_gi_cost(triggered_guardrail=True)
@@ -1955,7 +1970,7 @@ class OpenAIProvider:
         )
         content = (response.choices[0].message.content or "").strip()
         content = _insight_salvage.strip_json_fence(content)
-        _guardrails.check_chat_response(content, service="openai", expect_json=True)
+        _guardrails.check_chat_response(content, service=self._TELEMETRY_PROVIDER, expect_json=True)
         tiers = _json.loads(content)
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
@@ -1983,7 +1998,7 @@ class OpenAIProvider:
             response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
-        _guardrails.check_chat_response(content, service="openai", expect_json=True)
+        _guardrails.check_chat_response(content, service=self._TELEMETRY_PROVIDER, expect_json=True)
         return _insight_salvage.strip_json_fence(content)
 
     def extract_kg_graph(
@@ -2479,9 +2494,10 @@ class OpenAIProvider:
 
         # Use prompt_store to load versioned prompt templates
         system_prompt_name = (
-            self.cfg.openai_summary_system_prompt or "openai/summarization/system_v1"
+            getattr(self.cfg, f"{self._CONFIG_NS}_summary_system_prompt", None)
+            or "openai/summarization/system_v1"
         )
-        user_prompt_name = self.cfg.openai_summary_user_prompt
+        user_prompt_name: str = getattr(self.cfg, f"{self._CONFIG_NS}_summary_user_prompt")
 
         # Render system prompt
         system_prompt = render_prompt(system_prompt_name)
@@ -2675,7 +2691,7 @@ class OpenAIProvider:
 
                     emit_llm_cost_event(
                         self.cfg,
-                        provider="openai",
+                        provider=self._TELEMETRY_PROVIDER,
                         stage="cleaning",
                         model=self.cleaning_model,
                         estimated_cost_usd=float(cleaning_cost or 0.0),
@@ -2695,7 +2711,7 @@ class OpenAIProvider:
                 try:
                     _guardrails.check_chat_response(
                         cleaned,
-                        service="openai",
+                        service=self._TELEMETRY_PROVIDER,
                         finish_reason=response.choices[0].finish_reason,
                     )
                 except _guardrails.GuardrailViolation:
@@ -2775,6 +2791,6 @@ class OpenAIProvider:
             supports_tool_calls=True,  # GPT models support function calling
             supports_system_prompt=True,  # GPT models support system prompts
             supports_streaming=True,  # OpenAI API supports streaming
-            provider_name="openai",
+            provider_name=self._TELEMETRY_PROVIDER,
             supports_gi_segment_timing=True,
         )
