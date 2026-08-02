@@ -51,6 +51,7 @@ from .tools import (
     catalog as _catalog,
     cil as _cil,
     connectivity as _connectivity,
+    gi as _gi,
     relational as _relational,
 )
 from .tools.briefing_pack import corpus_briefing_pack as _corpus_briefing_pack
@@ -72,6 +73,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     _register_core(server, ctx)
     _register_relational(server, ctx)
     _register_cil(server, ctx)
+    _register_gi(server, ctx)
     _register_connectivity(server, ctx)
     _register_catalog(server, ctx)
     return server
@@ -307,6 +309,74 @@ def _register_cil(server: Any, ctx: CorpusContext) -> None:
         ``topic_conversation_arc``.
         """
         return _cil.topic_perspective_leaders(ctx, limit=limit)
+
+
+def _register_gi(server: Any, ctx: CorpusContext) -> None:
+    """GI / grounded-insight tools: faceted discovery, per-episode insights, compare."""
+
+    @server.tool()
+    @_enveloped
+    def explore_insights(
+        topic: Optional[str] = None,
+        speaker: Optional[str] = None,
+        grounded_only: bool = False,
+        min_confidence: Optional[float] = None,
+        sort_by: str = "confidence",
+        limit: int = 50,
+    ) -> dict:
+        """Faceted cross-episode insight discovery (UC5) — insights matching these facets.
+
+        Filter the corpus's grounded insights by ``topic`` / ``speaker`` (canonical ids),
+        ``grounded_only``, ``min_confidence``; ``sort_by`` = ``confidence`` | ``time``. The
+        discovery complement to the entity/topic-scoped relational tools; each insight's id
+        pivots on via ``insight_detail``.
+        """
+        return _gi.explore_insights(
+            ctx,
+            topic=topic,
+            speaker=speaker,
+            grounded_only=grounded_only,
+            min_confidence=min_confidence,
+            sort_by=sort_by,
+            limit=limit,
+        )
+
+    @server.tool()
+    @_enveloped
+    def episode_insights(metadata_path: str, limit: Optional[int] = None) -> dict:
+        """Salience-ranked grounded insights for one episode (ADR-135), with quotes.
+
+        ``metadata_path`` from a ``list_episodes`` / ``search_corpus`` hit. ``limit`` caps to
+        the top-N by salience. Fills the per-episode insight gap (the relational tools are
+        entity/topic-scoped).
+        """
+        return _gi.episode_insights(ctx, metadata_path, limit=limit)
+
+    @server.tool()
+    @_enveloped
+    def compare_subjects(
+        subject_a: str,
+        subject_b: str,
+        q: str = "",
+        top_k: int = 10,
+        max_tokens: int = 2000,
+        insight_types: Optional[list] = None,
+    ) -> dict:
+        """Compare two subjects — a briefing pack per side + a deterministic judge summary.
+
+        ``subject_a``/``subject_b`` are canonical ids (resolve names first). ``q`` focuses the
+        comparison; ``insight_types`` (e.g. ``["claim"]``) narrows both sides symmetrically.
+        The Search-v3 compare, so an agent doesn't run two packs and diff them badly.
+        """
+        return _gi.compare_subjects(
+            ctx,
+            subject_a,
+            subject_b,
+            q=q,
+            top_k=top_k,
+            max_tokens=max_tokens,
+            insight_types=insight_types,
+        )
 
 
 def _register_connectivity(server: Any, ctx: CorpusContext) -> None:
