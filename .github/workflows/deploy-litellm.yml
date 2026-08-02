@@ -185,7 +185,9 @@ jobs:
             "LITELLM_IMAGE_TAG='${IMAGE_TAG}' /srv/podcast-scraper/infra/deploy/deploy-litellm.sh"
 
       - name: Post-deploy gateway state (log visibility; non-fatal)
-        if: steps.preflight.outputs.skip != 'true'
+        # always() so a health-gate failure still surfaces `compose ps` + container state
+        # (a skipped step hid the diagnostic on the first failed run, 2026-08-02).
+        if: always() && steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |

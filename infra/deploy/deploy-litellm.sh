@@ -91,18 +91,22 @@ if ! "${COMPOSE[@]}" up -d --remove-orphans; then
   exit 1
 fi
 
-# Health-gate: LiteLLM's liveliness endpoint, from inside the container (loopback-only bind,
-# so the host can also curl 127.0.0.1:4001 — but exec keeps it independent of host routing).
-echo "[$(date -u +%FT%TZ)] waiting for gateway health..."
+# Health-gate: LiteLLM's liveliness endpoint via the HOST-published loopback port
+# (127.0.0.1:4001 -> container :4000). Host-side curl, NOT `docker exec ... curl`: the
+# litellm image is wolfi-minimal and ships no curl, so an in-container curl false-negatives
+# even when uvicorn is up (2026-08-02: gateway healthy, gate failed exit 3). Mirrors the
+# canonical host-curl gate in deploy.sh / deploy-operator.sh. 45x2s = 90s covers a cold
+# start's prisma migrations (~35-40s) plus headroom.
+echo "[$(date -u +%FT%TZ)] waiting for gateway health (host curl 127.0.0.1:4001)..."
 ok=0
-for _ in $(seq 1 30); do
-  if docker exec litellm sh -c 'curl -fsS http://127.0.0.1:4000/health/liveliness' >/dev/null 2>&1; then
+for _ in $(seq 1 45); do
+  if curl -fsS http://127.0.0.1:4001/health/liveliness >/dev/null 2>&1; then
     ok=1; break
   fi
   sleep 2
 done
 if [ "$ok" != 1 ]; then
-  echo "ERROR: litellm gateway did not report healthy within 60s" >&2
+  echo "ERROR: litellm gateway did not report healthy within 90s" >&2
   "${COMPOSE[@]}" logs --tail=50 litellm >&2 || true
   exit 3
 fi
