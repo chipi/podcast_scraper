@@ -13,7 +13,11 @@ collection — see the fixture present.
 from __future__ import annotations
 
 import importlib.util
+import time as _real_time
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 _REPO_ROOT = Path(__file__).parent.parent.parent
 _FIXTURE_DIR = _REPO_ROOT / "tests" / "fixtures" / "multi-run-corpus"
@@ -42,3 +46,37 @@ def _ensure_multi_run_corpus_fixture() -> None:
 
 # Module-level: runs at conftest import (before collection).
 _ensure_multi_run_corpus_fixture()
+
+
+class _NoBackoffSleep:
+    """Stand-in for the ``time`` module used by ``retry_with_metrics``: ``sleep`` is a no-op;
+    everything else (``time()``, ``monotonic()``, …) delegates to the real module."""
+
+    def sleep(self, *_args, **_kwargs):  # retry-backoff no-op
+        return None
+
+    def __getattr__(self, name):
+        return getattr(_real_time, name)
+
+
+@pytest.fixture(autouse=True)
+def _instant_retry_backoff():
+    """No-op retry-backoff sleeps across the whole integration suite so tests don't
+    wall-clock-wait real exponential backoff.
+
+    Provider error / resilience tests mock the upstream API to fail, then run
+    ``retry_with_metrics()``'s real ``time.sleep()`` schedule — e.g. Gemini's *production*
+    config is 6 retries @ up to 60s backoff, so one ``test_summarize_api_error`` used to sit
+    for ~123s (``docs/wip/nightly-test-time-analysis.md``). That wait tests nothing here: the
+    retry SCHEDULE (delays/jitter/cap/exhaustion) is asserted with a mocked clock in
+    ``tests/unit/.../test_provider_metrics.py``. Here we only need the retry PATH to run
+    (N attempts → correct terminal error), which it still does — instantly.
+
+    Module-scoped on the retry util's own ``time`` reference, so global ``time.sleep`` and
+    every other module are untouched. One fixture → ALL providers + integration resilience
+    tests, no per-directory gaps.
+    """
+    from podcast_scraper.utils import provider_metrics
+
+    with patch.object(provider_metrics, "time", _NoBackoffSleep()):
+        yield

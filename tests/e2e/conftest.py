@@ -914,3 +914,29 @@ def assert_cost_fields_populated(
                 "provider (ollama/whisper-local/spaCy should all be $0), "
                 "or a billable provider's cost leaked into the wrong stage."
             )
+
+
+# --- Retry-backoff sleep neutralizer (mirrors tests/integration/conftest.py) --------------
+# retry_with_metrics-based e2e tests (cloud resilience / fallback chain / guardrails) shouldn't
+# wall-clock-wait real exponential backoff — the SCHEDULE is asserted in the unit tier. Module-
+# scoped on the retry util's own `time`, so global time.sleep and the urllib3 HTTP-download
+# retry are untouched (the latter's 247s tests are a separate follow-up — see the wip note).
+import time as _e2e_real_time  # noqa: E402
+from unittest.mock import patch as _e2e_patch  # noqa: E402
+
+
+class _E2ENoBackoffSleep:
+    def sleep(self, *_args, **_kwargs):
+        return None
+
+    def __getattr__(self, name):
+        return getattr(_e2e_real_time, name)
+
+
+@pytest.fixture(autouse=True)
+def _instant_retry_backoff_e2e():
+    """No-op retry_with_metrics backoff sleeps for the e2e suite (retry logic still runs)."""
+    from podcast_scraper.utils import provider_metrics
+
+    with _e2e_patch.object(provider_metrics, "time", _E2ENoBackoffSleep()):
+        yield
