@@ -16,9 +16,20 @@
   //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml / drill-e2e
   //   tag:dgx-llm-host → operator DGX Spark (RFC-089); Ollama + embedding shim
   //   tag:homelab-host → homelab Mac mini; self-hosted observability (ADR-0005)
+  //
+  // tag:prod / tag:dr-drill are SELF-OWNED (list the tag as its own owner) so the
+  // TS_INFRA_OAUTH client — which is bound to BOTH tags — can mint a per-server auth
+  // key carrying just ONE of them. Tailscale lets an OAuth client mint a key with its
+  // full tag set unconditionally, but a strict subset (one tag) only if the client's
+  // tags include an owner of the requested tag; self-ownership provides that. Without
+  // this, `tofu apply` fails minting tailscale_tailnet_key.prod ("requested tags
+  // [tag:dr-drill] are invalid or not permitted", 400) — the OAuth-migration break of
+  // 2026-08-03 vs the old Personal API token, which acted as autogroup:admin. Trade-off:
+  // any tag:prod bearer (the prod VPS + the CI client) may now mint further tag:prod
+  // keys; the cleaner split (dedicated tag:infra-minter owning both) is deferred.
   "tagOwners": {
-    "tag:prod":         ["autogroup:admin"],
-    "tag:dr-drill":     ["autogroup:admin"],
+    "tag:prod":         ["autogroup:admin", "tag:prod"],
+    "tag:dr-drill":     ["autogroup:admin", "tag:dr-drill"],
     "tag:gha-deployer": ["autogroup:admin"],
     "tag:dgx-llm-host": ["autogroup:admin"],
     "tag:homelab-host": ["autogroup:admin"]
