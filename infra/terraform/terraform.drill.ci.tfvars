@@ -1,5 +1,6 @@
 # Non-secret drill defaults for GitHub Actions (workspace `drill`).
-# Tokens come from Actions secrets (`HCLOUD_TOKEN_DRILL`, `TS_API_KEY`).
+# Tokens come from Actions secrets (`HCLOUD_TOKEN_DRILL`, `TS_INFRA_OAUTH_CLIENT_ID`,
+# `TS_INFRA_OAUTH_SECRET`).
 # Keep in sync with terraform.drill.tfvars.example.
 #
 # **hel1** + **cpx32** by default: cheaper shared types are often unavailable in

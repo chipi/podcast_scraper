@@ -4,9 +4,14 @@ variable "hcloud_token" {
   sensitive   = true
 }
 
-variable "tailscale_api_key" {
+variable "tailscale_oauth_client_id" {
   type        = string
-  description = "Tailscale Personal API access token (Free-plan substitute for OAuth clients). Used by the tailscale Terraform provider to manage ACL + generate per-server auth keys. NOT to be confused with TS_AUTHKEY (the device-join auth key consumed by tailscale/github-action and cloud-init)."
+  description = "Tailscale OAuth client ID for the tailscale Terraform provider (scopes: acl + auth_keys + devices + dns; owns tag:prod + tag:dr-drill). Replaces the expiring tailscale_api_key (a Personal API token, which lapsed 2026-08-03). NOT the tag:gha-deployer device-join OAuth client (TS_OAUTH_*), and NOT TS_AUTHKEY (the join auth key for cloud-init / tailscale-action)."
+}
+
+variable "tailscale_oauth_client_secret" {
+  type        = string
+  description = "Tailscale OAuth client secret paired with tailscale_oauth_client_id (tskey-client-...). Delivered via TF_VAR_tailscale_oauth_client_secret from the TS_INFRA_OAUTH_SECRET GH secret."
   sensitive   = true
 }
 

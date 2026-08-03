@@ -1,9 +1,12 @@
 provider "tailscale" {
-  # Free-plan workaround: OAuth clients are gated to Tailscale Premium+ tiers.
-  # On Personal Free we authenticate the provider with a Personal API access
-  # token instead. See PROD_RUNBOOK.md "Tailscale credentials" + RFC-082 §Decision 2.
-  api_key = var.tailscale_api_key
-  tailnet = var.tailscale_tailnet
+  # Authenticate with an OAuth client instead of a Personal API access token. API tokens
+  # expire (≤90 days) — the previous one lapsed 2026-08-03 (HTTP 401 "API token invalid")
+  # and broke every infra + tailscale-management workflow. OAuth clients don't expire. The
+  # client carries the scopes this provider needs (acl + auth_keys + devices + dns) and owns
+  # tag:prod + tag:dr-drill (the tags its minted tailnet keys + managed devices use).
+  oauth_client_id     = var.tailscale_oauth_client_id
+  oauth_client_secret = var.tailscale_oauth_client_secret
+  tailnet             = var.tailscale_tailnet
 }
 
 # Per-server auth key. Rotated on every `tofu apply` so a leaked key only

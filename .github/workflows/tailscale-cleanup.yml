@@ -1,10 +1,11 @@
 name: Tailscale cleanup (gha-deployer devices)
 
 # Drops stale Tailscale devices left by ephemeral GitHub Actions runners.
-# Wraps scripts/ops/cleanup_tailscale_gha_deployers.py with the existing
-# TS_API_KEY secret + TAILNET_NAME var, so the operator (or a workflow on
-# a cron later) can prune the tailnet without exporting credentials
-# locally. Idempotent — devices newer than ``min_hours`` are never touched.
+# Wraps scripts/ops/cleanup_tailscale_gha_deployers.py with the TS_INFRA_OAUTH_*
+# client (devices scope, exchanged for a short-lived API token at run time) +
+# TAILNET_NAME var, so the operator (or a workflow on a cron later) can prune the
+# tailnet without exporting credentials locally. Idempotent — devices newer than
+# ``min_hours`` are never touched.
 
 on:
   workflow_dispatch:
@@ -37,12 +38,14 @@ jobs:
 
       - name: Pre-flight — required env present?
         env:
-          TS_API_KEY:    ${{ secrets.TS_API_KEY }}
+          TS_INFRA_OAUTH_CLIENT_ID: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TS_INFRA_OAUTH_SECRET: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TAILNET_NAME:  ${{ vars.TAILNET_NAME }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_API_KEY:-}" ]   && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TS_INFRA_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_INFRA_OAUTH_CLIENT_ID"
+          [ -z "${TS_INFRA_OAUTH_SECRET:-}" ] && MISSING="$MISSING TS_INFRA_OAUTH_SECRET"
           [ -z "${TAILNET_NAME:-}" ] && MISSING="$MISSING TAILNET_NAME"
           if [ -n "$MISSING" ]; then
             echo "::error::Missing prereqs:$MISSING."
@@ -51,12 +54,20 @@ jobs:
 
       - name: Run cleanup
         env:
-          TS_API_KEY:   ${{ secrets.TS_API_KEY }}
+          TS_INFRA_OAUTH_CLIENT_ID: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TS_INFRA_OAUTH_SECRET: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TAILNET_NAME: ${{ vars.TAILNET_NAME }}
           MIN_HOURS:    ${{ github.event.inputs.min_hours }}
           DRY_RUN:      ${{ github.event.inputs.dry_run }}
         run: |
           set -euo pipefail
+          # Exchange the Tailscale OAuth client (devices scope) for a short-lived API token,
+          # then hand it to the cleanup script as TS_API_KEY (an OAuth access token is a valid
+          # Bearer token). OAuth replaced the expiring TS_API_KEY secret (2026-08-03).
+          TS_API_KEY="$(curl -fsS https://api.tailscale.com/api/v2/oauth/token \
+            -d "client_id=${TS_INFRA_OAUTH_CLIENT_ID}" \
+            -d "client_secret=${TS_INFRA_OAUTH_SECRET}" | jq -r .access_token)"
+          export TS_API_KEY
           ARGS=( --min-hours "$MIN_HOURS" )
           if [ "$DRY_RUN" != "true" ]; then
             ARGS+=( --apply )
