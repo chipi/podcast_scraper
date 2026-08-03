@@ -186,13 +186,13 @@ def _is_episode_retryable(exc: Exception) -> bool:
     msg = str(exc).lower()
     if any(tok in msg for tok in ("timeout", "connection", "reset", "429", "503")):
         return True
-    # A structured-summary parse failure is usually TRANSIENT: the LLM occasionally emits truncated
-    # or invalid JSON that parses cleanly on a re-generation (observed ~1/9 on a mock multi-feed;
-    # the same episode succeeded on immediate retry). Retrying the episode (bounded by
-    # episode_retry_max) lets the summary regenerate rather than failing the whole episode on a
-    # one-off bad response — critical for an unattended 100-episode reprocess. A genuinely
-    # unparseable episode still fail-fasts once the bounded retries are exhausted.
-    return "summary schema parsing failed" in msg
+    # NOTE: a structured-summary parse failure is NOT episode-retryable. Content-retry lives at
+    # exactly one layer — the call (ADR-145): a transient invalid structured response gets one
+    # bounded in-place re-roll on the same provider inside `_generate_episode_summary`, then
+    # fallover, then fail. Re-running the whole episode (transcribe/diarize/GI/KG) to fix one bad
+    # LLM call is the wrong layer; the earlier `"summary schema parsing failed"` string-match here
+    # (commit 57ee206a) is replaced by that call-level re-roll.
+    return False
 
 
 _EpisodeResult = Tuple[bool, Optional[str], Optional[str], int]

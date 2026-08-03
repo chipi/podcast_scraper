@@ -1053,6 +1053,80 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.metadata_generation.time.time")
     @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_reroll_recovers_transient_invalid_schema(
+        self, mock_clean, mock_time
+    ):
+        """ADR-145: a transient invalid structured summary (p04) recovers via ONE in-place
+        re-roll on the SAME provider — the episode is NOT failed and NO fallover is needed.
+
+        First `summarize` returns truncated JSON that looks like the structured-summary
+        contract but fails strict parse (`parse_summary_output` → success=False); the re-roll
+        returns valid JSON. Rule #34 (repro before fix) at the real wiring layer."""
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+
+        time_values = iter([0.0, 1.0, 2.0, 3.0, 4.0])
+        mock_time.side_effect = lambda: next(time_values, 5.0)
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        # 1st: truncated structured-JSON (the p04 shape); 2nd: valid JSON summary.
+        mock_provider.summarize.side_effect = [
+            {"summary": '{"title": "T", "bullets": [', "metadata": {}},
+            {
+                "summary": '{"title": "T", "bullets": ["a real recovered bullet"]}',
+                "metadata": {},
+            },
+        ]
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        result, _ = metadata._generate_episode_summary(
+            transcript_file_path="transcript.txt",
+            output_dir=self.temp_dir,
+            cfg=self.cfg,
+            episode_idx=1,
+            summary_provider=mock_provider,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(mock_provider.summarize.call_count, 2)  # one in-place re-roll
+        self.assertIn("a real recovered bullet", result.bullets)
+
+    @patch("podcast_scraper.workflow.metadata_generation.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_reroll_bounded_then_fails(self, mock_clean, mock_time):
+        """ADR-145: a PERSISTENTLY invalid structured summary re-rolls exactly ONCE (bounded),
+        then fails the episode — the re-roll is prepended to the existing fail path, not a
+        replacement, and it does not storm the LLM-call budget."""
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+
+        time_values = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+        mock_time.side_effect = lambda: next(time_values, 6.0)
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        # Always truncated — never recovers.
+        mock_provider.summarize.return_value = {
+            "summary": '{"title": "T", "bullets": [',
+            "metadata": {},
+        }
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        with self.assertRaises(RuntimeError) as context:
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.temp_dir,
+                cfg=self.cfg,
+                episode_idx=1,
+                summary_provider=mock_provider,
+            )
+
+        self.assertEqual(mock_provider.summarize.call_count, 2)  # original + one bounded re-roll
+        self.assertIn("Summary schema parsing failed", str(context.exception))
+
+    @patch("podcast_scraper.workflow.metadata_generation.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
     def test_generate_episode_summary_provider_exception(self, mock_clean, mock_time):
         """Test provider exception raises RuntimeError when generate_summaries=True (fail-fast)."""
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")

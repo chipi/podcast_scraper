@@ -1,6 +1,6 @@
 # ADR-145 — One in-place re-roll for invalid structured LLM responses before provider fallover
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-03
 - **Authors:** Podcast Scraper Team
 - **Amends:** [ADR-099](ADR-099-lancedb-first-single-index-search.md) is unrelated;
@@ -51,12 +51,41 @@ replaces it.
    episode layer (revert `57ee206a`); episode-retry keeps only genuinely episode-scoped transients
    (download/transcode/connection).
 
+## Shared seam
+
+`providers/guardrails/reroll.py::structured_call_with_reroll(make_call, validate, *, service,
+max_reroll=1)` is the one reusable mechanism: call → validate → on any validator exception re-roll
+up to `max_reroll` on the same endpoint → then raise `GuardrailViolation` so the ADR-100
+`FallbackAware` chain engages. `validate` raising anything (a `GuardrailViolation` from
+`check_chat_response`, a `json`/schema error) counts as "invalid response, re-roll". It is
+provider- and call-type-agnostic.
+
+## What is wired (this PR) — and what is NOT
+
+Each structured call already has a recovery posture; the re-roll is added where a transient bad
+response would otherwise fail-up with no cheaper recovery:
+
+| Call | Validator | Recovery before this PR | Now |
+| --- | --- | --- | --- |
+| **Summary** (staged/mega/bundled) | `parse_summary_output` (schema) — runs in `workflow/metadata_generation` | none in place; validated a layer above the call → episode fail (the p04 bug) | one in-place re-roll at the orchestrator (re-issues the same summary call), then the existing hard fail |
+| **`complete_text`** (ADR-110 resolver) | `check_chat_response(expect_json)` | raise `GuardrailViolation` → fallover | seam re-roll → fallover |
+| **`classify_insights`** (GI value-gate) | `check_chat_response(expect_json)` + `json.loads` | raise → gate fails open | seam re-roll → then raise (gate fails open) |
+| **`generate_insights`** (GI line-list) | `check_chat_response(finish_reason)` | truncated-line **salvage**, else fallover | unchanged — salvage already recovers the common truncation; re-roll not added |
+| **`extract_kg_graph`** (KG) | `parse_kg_graph_response` | degrades to `None` (no episode fail) | unchanged — degrade-to-None is already safe |
+
+The summary re-roll is at the **orchestrator** (not inside the provider) because summary's real
+validator is `parse_summary_output`, which lives a layer above the provider call; re-issuing there
+keeps content-retry at exactly one layer for summary. The JSON provider calls use the seam directly
+at the call site. GI line-list and KG keep their existing (different, appropriate) recovery, so this
+is not deferred wiring — it is per-shape recovery, documented here so the boundary is explicit.
+
 ## Consequences
 
-**Positive:** transient bad responses recover for free on the same endpoint (the common case),
-across all structured call types (summary/GI/KG/labeling/quotes/entailment) and all providers
-(vLLM/Gemini/OpenAI/…) — it is a general capability, not a vLLM/summary patch. A persistent-bad
-response still fallovers then fail-fasts, so quality is unchanged.
+**Positive:** transient bad responses recover for free on the same endpoint (the common case). The
+seam is a general capability, not a vLLM/summary patch — it is provider-agnostic and wired today at
+summary (orchestrator) + `complete_text` + `classify_insights` (see the wiring table for the exact
+set, and for the calls that keep their own per-shape recovery). A persistent-bad response still
+fallovers then fail-fasts, so quality is unchanged.
 
 **Bounded / safe:** the in-place re-roll is capped at **1** — each attempt ticks the per-episode
 LLM-call fuse (the ~3500-call incident), so the blast radius stays tiny. Invalid-response carries no

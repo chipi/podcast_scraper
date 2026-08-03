@@ -20,9 +20,6 @@ import pytest
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.xfail(
-    reason="ADR-145 not yet implemented — capability lands in its own PR", strict=True
-)
 def test_transient_invalid_structured_response_recovers_via_one_in_place_reroll() -> None:
     """A structured call whose 1st response is invalid and 2nd is valid must recover on the SAME
     endpoint via one in-place re-roll — NOT fail, and NOT immediately fall over to another provider.
@@ -48,9 +45,6 @@ def test_transient_invalid_structured_response_recovers_via_one_in_place_reroll(
     assert '"bullets"' in out
 
 
-@pytest.mark.xfail(
-    reason="ADR-145 not yet implemented — capability lands in its own PR", strict=True
-)
 def test_persistent_invalid_response_exhausts_reroll_then_signals_fallover() -> None:
     """A persistently-invalid structured response must, after the bounded in-place re-roll, raise a
     GuardrailViolation so the existing ADR-100 FallbackAware chain fallovers (then episode-fails).

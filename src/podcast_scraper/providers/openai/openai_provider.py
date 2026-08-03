@@ -1974,16 +1974,29 @@ class OpenAICompatibleProvider:
             config_constants.GI_INSIGHT_TOKENS_FLOOR,
             len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
         )
-        response = self._chat_create(
-            model=self.summary_model,
-            messages=[{"role": "user", "content": user_prompt}],
-            temperature=0.0,
-            **self._token_kwarg(gate_max_tokens),
-            response_format={"type": "json_object"},
+
+        def _call() -> str:
+            response = self._chat_create(
+                model=self.summary_model,
+                messages=[{"role": "user", "content": user_prompt}],
+                temperature=0.0,
+                **self._token_kwarg(gate_max_tokens),
+                response_format={"type": "json_object"},
+            )
+            content = (response.choices[0].message.content or "").strip()
+            return _insight_salvage.strip_json_fence(content)
+
+        def _validate(content: str) -> None:
+            _guardrails.check_chat_response(
+                content, service=self._TELEMETRY_PROVIDER, expect_json=True
+            )
+            _json.loads(content)  # the real parse — a truncated JSON must trigger the re-roll
+
+        # ADR-145: one bounded in-place re-roll on a transient invalid value-gate JSON before
+        # raising. The gate fails open on a persistent bad response (owns keep-everything).
+        content = _guardrails.structured_call_with_reroll(
+            _call, _validate, service=self._TELEMETRY_PROVIDER, max_reroll=1
         )
-        content = (response.choices[0].message.content or "").strip()
-        content = _insight_salvage.strip_json_fence(content)
-        _guardrails.check_chat_response(content, service=self._TELEMETRY_PROVIDER, expect_json=True)
         tiers = _json.loads(content)
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
@@ -2003,15 +2016,26 @@ class OpenAICompatibleProvider:
         if not self._summarization_initialized:
             raise RuntimeError("OpenAI summarization not initialized for complete_text")
 
-        response = self._chat_create(
-            model=self.summary_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            **self._token_kwarg(800),
-            response_format={"type": "json_object"},
+        def _call() -> str:
+            response = self._chat_create(
+                model=self.summary_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                **self._token_kwarg(800),
+                response_format={"type": "json_object"},
+            )
+            return (response.choices[0].message.content or "").strip()
+
+        def _validate(content: str) -> None:
+            _guardrails.check_chat_response(
+                content, service=self._TELEMETRY_PROVIDER, expect_json=True
+            )
+
+        # ADR-145: one bounded in-place re-roll on a transient invalid JSON response before the
+        # guardrail fallover fires. A persistently-bad response still raises GuardrailViolation.
+        content = _guardrails.structured_call_with_reroll(
+            _call, _validate, service=self._TELEMETRY_PROVIDER, max_reroll=1
         )
-        content = (response.choices[0].message.content or "").strip()
-        _guardrails.check_chat_response(content, service=self._TELEMETRY_PROVIDER, expect_json=True)
         return _insight_salvage.strip_json_fence(content)
 
     def extract_kg_graph(

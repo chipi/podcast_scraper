@@ -30,6 +30,7 @@ from .chat import (
 )
 from .diarization import check_pyannote_response, REASON_DIARIZATION_EMPTY_SEGMENTS
 from .exceptions import GuardrailViolation
+from .reroll import structured_call_with_reroll
 from .transcription import (
     check_whisper_response,
     REASON_TRANSCRIPTION_EMPTY,
@@ -42,6 +43,7 @@ __all__ = [
     "check_chat_response",
     "check_pyannote_response",
     "check_whisper_response",
+    "structured_call_with_reroll",
     # Reason enum constants — stable strings used as Prometheus label values
     # and as ``GuardrailViolation.reason``. Pinned so tests can assert
     # exact-equality without typo risk.

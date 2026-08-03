@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import yaml
@@ -2406,6 +2406,14 @@ def _generate_episode_summary(  # noqa: C901
 
             result: Optional[Dict[str, Any]] = None
             pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
+            # ADR-145: a thunk that re-issues the SAME summary request on the SAME
+            # provider, set by whichever generation path produced `result`. Used for
+            # one bounded in-place re-roll when the downstream schema parse fails on a
+            # transient invalid response (vLLM is not bit-deterministic even at
+            # temperature 0). None ⇒ no path captured a re-callable summary call.
+            _resummarize: Optional[Callable[[], Optional[Dict[str, Any]]]] = None
+            # Imported once here (used by the mega_bundled + extraction_bundled branches below).
+            from ..providers.common.megabundle_parser import MegaBundleResult
 
             # mega_bundled / extraction_bundled (#643): single call returns
             # summary+bullets (mega only) PLUS insights+topics+entities. The
@@ -2417,7 +2425,6 @@ def _generate_episode_summary(  # noqa: C901
                 try:
                     logger.debug("[%s] mega_bundled single-call path", episode_idx)
                     from ..cleaning import PatternBasedCleaner
-                    from ..providers.common.megabundle_parser import MegaBundleResult
 
                     cleaning_started = time.perf_counter()
                     pattern_cleaned = PatternBasedCleaner().clean(
@@ -2428,26 +2435,32 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
-                    mega_result = mega_fn(
-                        pattern_cleaned,
-                        episode_title=None,
-                        episode_description=None,
-                        params=params,
-                        pipeline_metrics=pipeline_metrics,
-                        call_metrics=call_metrics,
-                    )
-                    if isinstance(mega_result, MegaBundleResult):
-                        summary_json = json.dumps(mega_result.to_summary_artifact())
-                        result = {
-                            "summary": summary_json,
+
+                    def _mega_call() -> Optional[Dict[str, Any]]:
+                        mr = mega_fn(
+                            pattern_cleaned,
+                            episode_title=None,
+                            episode_description=None,
+                            params=params,
+                            pipeline_metrics=pipeline_metrics,
+                            call_metrics=call_metrics,
+                        )
+                        if not isinstance(mr, MegaBundleResult):
+                            return None
+                        return {
+                            "summary": json.dumps(mr.to_summary_artifact()),
                             "summary_short": None,
                             "metadata": {
                                 "provider": getattr(cfg, "summary_provider", "unknown"),
                                 "bundled": True,
                                 "pipeline_mode": "mega_bundled",
-                                "prefilled_extraction": mega_result.to_extraction_partial(),
+                                "prefilled_extraction": mr.to_extraction_partial(),
                             },
                         }
+
+                    result = _mega_call()
+                    if result is not None:
+                        _resummarize = _mega_call
                     else:
                         # Provider returned something unexpected (not a MegaBundleResult
                         # instance). Contract violation — warn so ops notices, fall
@@ -2456,10 +2469,9 @@ def _generate_episode_summary(  # noqa: C901
                         if pipeline_metrics is not None:
                             pipeline_metrics.record_llm_bundled_fallback_to_staged()
                         logger.warning(
-                            "[%s] mega_bundled returned unexpected type %s "
+                            "[%s] mega_bundled returned unexpected type "
                             "(expected MegaBundleResult); falling back to staged",
                             episode_idx,
-                            type(mega_result).__name__,
                         )
                 except Exception as mega_exc:
                     if pipeline_metrics is not None:
@@ -2485,7 +2497,6 @@ def _generate_episode_summary(  # noqa: C901
             if pipeline_mode == "extraction_bundled" and callable(extr_fn):
                 try:
                     logger.debug("[%s] extraction_bundled single-call extraction", episode_idx)
-                    from ..providers.common.megabundle_parser import MegaBundleResult
 
                     extr_result = extr_fn(
                         transcript_text,
@@ -2534,7 +2545,7 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
-                    result = bundled_fn(
+                    _resummarize = lambda: bundled_fn(  # noqa: E731 - ADR-145 re-roll thunk
                         pattern_cleaned,
                         episode_title=None,
                         episode_description=None,
@@ -2542,6 +2553,7 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics=pipeline_metrics,
                         call_metrics=call_metrics,
                     )
+                    result = _resummarize()
                     cleaned_for_file = pattern_cleaned
                     if cfg.save_cleaned_transcript:
                         try:
@@ -2657,7 +2669,7 @@ def _generate_episode_summary(  # noqa: C901
                         )
 
                 # All providers must support call_metrics (no backward compatibility)
-                result = summary_provider.summarize(
+                _resummarize = lambda: summary_provider.summarize(  # noqa: E731 - ADR-145 thunk
                     text=cleaned_text,
                     episode_title=None,  # Not available in this context
                     episode_description=None,  # Not available in this context
@@ -2665,6 +2677,7 @@ def _generate_episode_summary(  # noqa: C901
                     pipeline_metrics=pipeline_metrics,
                     call_metrics=call_metrics,
                 )
+                result = _resummarize()
 
             # Finalize call metrics after provider call
             call_metrics.finalize()
@@ -2768,21 +2781,51 @@ def _generate_episode_summary(  # noqa: C901
 
             word_count = len(transcript_text.split())
 
-            # Parse summary using normalized schema (required, no legacy support)
-            # Try to get the full result text (may be JSON or plain text)
-            summary_text_for_parsing = short_summary
-            # Check if result has structured data we can parse
-            if isinstance(result, dict):
-                # Some providers may return JSON in a different field
-                if "summary_text" in result:
-                    summary_text_for_parsing = result["summary_text"]
-                elif "text" in result:
-                    summary_text_for_parsing = result["text"]
+            # Parse summary using normalized schema (required, no legacy support).
+            # A provider may carry the parseable text in a different field, so prefer
+            # result["summary_text"]/["text"] and fall back to the prose summary.
+            def _parse_summary(res: Any, prose_fallback: Any) -> Any:
+                text_for_parsing = prose_fallback
+                if isinstance(res, dict):
+                    if "summary_text" in res:
+                        text_for_parsing = res["summary_text"]
+                    elif "text" in res:
+                        text_for_parsing = res["text"]
+                return parse_summary_output(text_for_parsing, summary_provider, episode_title=None)
 
             # Parse using normalized schema - REQUIRED
-            parse_result = parse_summary_output(
-                summary_text_for_parsing, summary_provider, episode_title=None
-            )
+            parse_result = _parse_summary(result, short_summary)
+
+            # ADR-145: one bounded in-place re-roll on a transient invalid structured
+            # summary before failing the episode. A healthy vLLM endpoint is not
+            # bit-deterministic even at temperature 0, so a re-roll is a genuinely
+            # different sample — the observed p04 reprocess failure passed the
+            # provider's own guardrail (triggered_guardrail=false) yet failed the
+            # stricter downstream schema, and re-running produced valid JSON. Output
+            # depends only on `result` (prefilled_extraction) and `parse_result`
+            # (schema), so re-updating those two is sufficient. The re-roll re-issues
+            # the same request on the same provider; it ticks the per-episode
+            # LLM-call fuse (bounded to one), then falls through to the hard fail.
+            if (not parse_result.success or not parse_result.schema) and _resummarize is not None:
+                logger.warning(
+                    "[%s] Summary schema parse failed — one in-place re-roll " "(ADR-145): %s",
+                    episode_idx,
+                    parse_result.error or "unknown",
+                )
+                try:
+                    rerolled = _resummarize()
+                except Exception as reroll_exc:  # noqa: BLE001 - best-effort; keep original failure
+                    logger.warning(
+                        "[%s] Summary re-roll call failed; keeping original invalid "
+                        "response: %s",
+                        episode_idx,
+                        redact_for_log(str(reroll_exc)),
+                    )
+                else:
+                    if isinstance(rerolled, dict):
+                        result = rerolled
+                        call_metrics.finalize()
+                        parse_result = _parse_summary(result, result.get("summary"))
 
             # Require successful parsing - fail if schema parsing fails
             if not parse_result.success or not parse_result.schema:

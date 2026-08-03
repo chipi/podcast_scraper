@@ -233,15 +233,17 @@ class TestIsEpisodeRetryable(unittest.TestCase):
     def test_generic_exception_not_retryable(self):
         self.assertFalse(_is_episode_retryable(Exception("something else")))
 
-    def test_transient_summary_parse_failure_is_retryable(self):
-        # The LLM occasionally emits truncated/invalid structured-summary JSON that regenerates
-        # cleanly on retry; the episode must retry (not fail the whole episode) so an unattended
-        # multi-episode reprocess doesn't lose ~1/9 of episodes to one-off bad responses.
+    def test_summary_parse_failure_not_episode_retryable(self):
+        # ADR-145: content-retry lives at exactly one layer — the call. A transient invalid
+        # structured summary gets one bounded in-place re-roll inside _generate_episode_summary,
+        # NOT a whole-episode re-run (which would re-do transcribe/diarize/GI/KG for one bad LLM
+        # call). So a summary schema parse failure is NOT episode-retryable — it either recovered
+        # at the call layer or is a genuine fail. Replaces the 57ee206a string-match band-aid.
         exc = RuntimeError(
             "[1] Summary schema parsing failed. Error: Structured summary JSON was "
             "incomplete or invalid (e.g. truncated)."
         )
-        self.assertTrue(_is_episode_retryable(exc))
+        self.assertFalse(_is_episode_retryable(exc))
 
 
 class TestProcessEpisodeWithRetry(unittest.TestCase):
