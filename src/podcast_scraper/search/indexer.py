@@ -564,12 +564,20 @@ def index_corpus(
 
 
 def maybe_index_corpus(output_dir: str, cfg: config.Config) -> None:
-    """Run ``index_corpus`` when ``vector_search`` is enabled; log failures only."""
+    """Build the corpus vector index when ``vector_search`` is enabled; log failures only.
+
+    Runs in the SUBPROCESS-ISOLATED path (``run_index_in_subprocess``), never in-process. The
+    Arrow/LanceDB native layer can SIGSEGV inside ``create_table`` on the pipeline's torch+pyarrow
+    process (mimalloc ``mi_thread_init`` on a LanceDB background-loop thread with pthread state left
+    dirty by torch), and a native signal is uncatchable — an in-process ``index_corpus`` call takes
+    the WHOLE pipeline run down (#1205, and its resurfacing here on the single-feed path). The
+    multi-feed finalize (``corpus_operations``) already isolates this way; this closes the
+    single-feed gap so a native index crash is a non-fatal subprocess exit, not a killed run.
+    """
     if getattr(cfg, "skip_auto_vector_index", False) is True:
         return
     if getattr(cfg, "vector_search", False) is not True:
         return
-    try:
-        index_corpus(output_dir, cfg)
-    except Exception as exc:
-        logger.warning("Vector index update failed (non-fatal): %s", exc)
+    from .reindex import run_index_in_subprocess
+
+    run_index_in_subprocess(output_dir, cfg)
