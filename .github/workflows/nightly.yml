@@ -379,7 +379,7 @@ jobs:
   # ===========================================================================
   nightly-test-integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # was 30; full integration suite hit the 30m cap (cancelled 2026-08-03)
+    timeout-minutes: 60  # was 30; integration suite outgrew it (hit the 30m cap 2026-08-03)
     needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       HF_HOME: /home/runner/.cache/huggingface
