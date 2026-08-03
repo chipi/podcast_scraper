@@ -188,14 +188,15 @@ ssh deploy@prod-podcast.<tailnet>.ts.net \
 
 - `HCLOUD_TOKEN`: Hetzner API (infra apply).
 - `OPERATOR_SSH_PUBLIC_KEY`: operator laptop pubkey for OpenTofu (repo **secret** so CI logs mask it).
-- `TS_AUTHKEY`: tailnet join auth for workflows and machine registration.
-- `TS_API_KEY`: tailnet management API for Terraform provider.
+- `TS_INFRA_OAUTH_CLIENT_ID`/`_SECRET`: terraform `tailscale` provider (infra apply, device minting).
+- `TS_OAUTH_CLIENT_ID`/`_SECRET`: GHA runner join and VPS tailnet registration.
+- `TS_ACL_OAUTH_CLIENT_ID`/`_SECRET`: Tailscale GitOps ACL action (`tailscale/policy.hujson` apply).
 - `TFSTATE_AGE_KEY`: decrypts encrypted OpenTofu state.
 - Host `.env`: provider API keys, Grafana credentials, Sentry DSNs.
 
 ## Rotation rhythm
 
-- Tailscale keys on Free plan: rotate before 90-day expiry.
+- OAuth clients (**never expire**): no calendar rotation needed. See [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md).
 - Hetzner token: rotate after personnel/device changes or suspicious activity.
 - Age key: rotate carefully with state re-encryption and backup first.
 - Provider keys and auth passwords: rotate on incident or access changes.

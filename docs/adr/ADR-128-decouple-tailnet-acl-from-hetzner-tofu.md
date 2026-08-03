@@ -105,7 +105,7 @@ from `tofu apply` to the GitOps action).
   destructive Hetzner change from riding along an ACL apply. Rejected: it doesn't address
   the core mismatch (full-estate apply for a policy tweak) and keeps all the plumbing.
 - **C — OAuth vs API-key for the GitOps action.** The action supports both. Prefer a
-  scoped OAuth client (acl:write) over the broad `TS_API_KEY`; decide at implementation.
+  scoped OAuth client (acl:write) over the old `TS_API_KEY` (retired 2026-08-03; see [ADR-143](ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md)). Implemented using `TS_ACL_OAUTH_CLIENT_ID`/`_SECRET`.
 
 ## Migration
 

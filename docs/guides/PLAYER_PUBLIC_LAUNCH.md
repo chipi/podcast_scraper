@@ -72,8 +72,8 @@ confirm `PLAYER_DEPLOY`, tailnet-only SSH. It refreshes the repo on the box, sta
 `infra/deploy/deploy-player.sh` (compose up + vhost drop + **validate-before-reload** +
 health), and probes the public domain. Stage these first (once):
 
-- **secrets:** `TS_AUTHKEY`, `PROD_SSH_PRIVATE_KEY`, `PLAYER_APP_SESSION_SECRET`,
-  `PLAYER_GOOGLE_CLIENT_SECRET`
+- **secrets:** `TS_OAUTH_CLIENT_ID`/`_SECRET`, `PROD_SSH_PRIVATE_KEY`, `PLAYER_APP_SESSION_SECRET`,
+  `PLAYER_GOOGLE_CLIENT_SECRET` (see [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md) for Tailscale auth)
 - **vars:** `PROD_TAILNET_FQDN`, `PLAYER_DOMAIN`, `PODCAST_CORPUS_VOLUME`,
   `PLAYER_GOOGLE_CLIENT_ID`
 

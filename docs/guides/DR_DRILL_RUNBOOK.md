@@ -49,10 +49,11 @@ day-to-day prod operators.
 | Name | Kind | Used by |
 | --- | --- | --- |
 | `HCLOUD_TOKEN_DRILL` | secret | `drill-infra-plan`, `drill-infra-apply`, `drill-infra-destroy`, orchestrator |
-| `TS_API_KEY` | secret | Same infra workflows (Tailscale provider) |
+| `TS_INFRA_OAUTH_CLIENT_ID`/`_SECRET` | secret | Infra workflows (terraform Tailscale provider, ADR-143) |
+| `TS_OAUTH_CLIENT_ID`/`_SECRET` | secret | `drill-deploy`, `drill-e2e`, `drill-restore-corpus`, orchestrator app jobs (Tailscale join) |
+| `TS_ACL_OAUTH_CLIENT_ID`/`_SECRET` | secret | Tailscale ACL GitOps action (ADR-143) |
 | `TFSTATE_AGE_KEY` | secret | sops decrypt/encrypt for drill state |
 | `OPERATOR_SSH_PUBLIC_KEY` | secret | Same as prod infra (public half only; log masking). First-boot `deploy@` `authorized_keys` is written only from this value. |
-| `TS_AUTHKEY` | secret | `drill-deploy`, `drill-e2e`, `drill-restore-corpus`, orchestrator app jobs |
 | `DRILL_DEPLOY_SSH_PRIVATE_KEY` | secret | Same app jobs (PEM for **`deploy@`** on drill) |
 | `BACKUP_REPO_TOKEN` | secret (optional) | `drill-restore-corpus` when `chipi/podcast_scraper-backup` is private |
 | `TAILNET_NAME` | variable | Infra `TF_VAR_tailscale_tailnet` |

@@ -6,14 +6,14 @@ complete **before** the first `tofu apply` and first deploy in
 lives in this repo so a second operator can bootstrap from the repo alone (the bus-factor
 goal of [#805](https://github.com/chipi/podcast_scraper/issues/805)).
 
-> **Tailscale auth model:** this project runs on the Tailscale **Free plan**, which has no OAuth
-> clients. We use two separate credentials instead: **`TS_AUTHKEY`** (a device-join *auth key*,
-> consumed by `tailscale/github-action` and cloud-init) and **`TS_API_KEY`** (a Personal API
-> *access token*, used by the Terraform `tailscale` provider to manage the ACL and mint per-server
-> auth keys). The older [#714](https://github.com/chipi/podcast_scraper/issues/714) checklist
-> describes an **OAuth** client (`TS_OAUTH_CLIENT_ID`/`SECRET`) — that is **superseded**; do not
-> follow it. See `infra/terraform/variables.tf` (`tailscale_api_key` description) for the
-> in-code statement of this model.
+> **Tailscale auth model (migrated 2026-08-03):** this project now uses **OAuth clients** for all
+> Tailscale auth — they **do not expire**, unlike the old Free-plan Personal tokens. See
+> [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md) and
+> [PROD_RUNBOOK § Tailscale credentials (OAuth clients)](PROD_RUNBOOK.md#tailscale-credentials-oauth-clients)
+> for the full architecture. Three OAuth clients (GH Actions secret pairs):
+> - `TS_INFRA_OAUTH_CLIENT_ID`/`_SECRET` — terraform `tailscale` provider
+> - `TS_OAUTH_CLIENT_ID`/`_SECRET` — GHA runner + VPS tailnet join
+> - `TS_ACL_OAUTH_CLIENT_ID`/`_SECRET` — ACL GitOps action
 >
 > **Secret retrieval is password-manager-agnostic.** Commands below show values as
 > `<placeholders>`. Retrieve each from whatever secrets store you use (`pass`, a `.env` you keep
@@ -38,18 +38,21 @@ goal of [#805](https://github.com/chipi/podcast_scraper/issues/805)).
 - [ ] Confirm an EU location is available: **Falkenstein (fsn1)** or **Nuremberg (nbg1)**
       (RFC-082 Decision 1).
 
-## C. Tailscale (Free plan)
+## C. Tailscale (Free or Premium plan)
 
 - [ ] A tailnet (note its name, e.g. `tail-xxxxx.ts.net`).
 - [ ] **Settings → DNS → MagicDNS** enabled.
 - [ ] **Settings → DNS → HTTPS Certificates** enabled (so `tailscale cert` / `tailscale serve` can
       issue Let's Encrypt for `prod-podcast.<tailnet>`).
-- [ ] **`TS_AUTHKEY`** — a reusable, tagged **auth key** (Settings → Keys → Generate auth key;
-      tags `tag:prod`, `tag:gha-deployer`). Device-join credential; ~90-day expiry on Free plan.
-- [ ] **`TS_API_KEY`** — a **Personal API access token** (Settings → Keys → API access tokens).
-      Used by the Terraform provider; ~90-day expiry on Free plan.
-- [ ] **Access Controls** (`policy.hujson`): owners for `tag:prod` and `tag:gha-deployer`; rule
-      `tag:gha-deployer` → `tag:prod:22` (SSH); rule operator's user → `tag:prod:443` and `:80`.
+- [ ] **Three OAuth clients** (Admin → Settings → OAuth clients):
+  - [ ] **`TS_INFRA_OAUTH`** (terraform provider) — scopes: `auth_keys`, `devices:core`, `dns`, `policy_file`; tags: `tag:prod`, `tag:dr-drill`
+  - [ ] **`TS_OAUTH`** (device join) — scope: `auth_keys`; tag: `tag:gha-deployer`
+  - [ ] **`TS_ACL_OAUTH`** (GitOps action) — scope: `policy_file`
+- [ ] **Access Controls** (`policy.hujson`): 
+  - [ ] Owners for `tag:prod` and `tag:dr-drill` (self-owned, per ADR-143)
+  - [ ] Owners for `tag:gha-deployer`
+  - [ ] Rule `tag:gha-deployer` → `tag:prod:22` and `tag:dr-drill:22` (SSH)
+  - [ ] Rule operator's user → `tag:prod:443`, `:80`, `:22`; same for `tag:dr-drill`
 
 ## D. sops + age (Terraform state encryption)
 
@@ -81,13 +84,17 @@ With the above in hand, stage the **infra** credentials (the runtime `PROD_*` se
 separately per the runbook):
 
 ```bash
-gh secret set HCLOUD_TOKEN      --repo chipi/podcast_scraper --app actions --body '<from §B>'
-gh secret set TS_AUTHKEY        --repo chipi/podcast_scraper --app actions --body '<tskey-auth-… from §C>'
-gh secret set TS_API_KEY        --repo chipi/podcast_scraper --app actions --body '<tskey-api-… from §C>'
-gh secret set TFSTATE_AGE_KEY   --repo chipi/podcast_scraper --app actions --body "$(cat ~/.config/sops/age/keys.txt)"
-gh secret set BACKUP_REPO_TOKEN --repo chipi/podcast_scraper --app actions --body '<backup-repo-pat, optional>'
-gh secret set OPERATOR_SSH_PUBLIC_KEY --repo chipi/podcast_scraper --body "$(cat ~/.ssh/id_ed25519.pub)"
-gh variable set TAILNET_NAME    --repo chipi/podcast_scraper --body 'tail-xxxxx.ts.net'
+gh secret set HCLOUD_TOKEN              --repo chipi/podcast_scraper --app actions --body '<from §B>'
+gh secret set TS_INFRA_OAUTH_CLIENT_ID  --repo chipi/podcast_scraper --app actions --body '<client-id from §C TS_INFRA_OAUTH>'
+gh secret set TS_INFRA_OAUTH_SECRET     --repo chipi/podcast_scraper --app actions --body '<client-secret from §C TS_INFRA_OAUTH>'
+gh secret set TS_OAUTH_CLIENT_ID        --repo chipi/podcast_scraper --app actions --body '<client-id from §C TS_OAUTH>'
+gh secret set TS_OAUTH_SECRET           --repo chipi/podcast_scraper --app actions --body '<client-secret from §C TS_OAUTH>'
+gh secret set TS_ACL_OAUTH_CLIENT_ID    --repo chipi/podcast_scraper --app actions --body '<client-id from §C TS_ACL_OAUTH>'
+gh secret set TS_ACL_OAUTH_SECRET       --repo chipi/podcast_scraper --app actions --body '<client-secret from §C TS_ACL_OAUTH>'
+gh secret set TFSTATE_AGE_KEY           --repo chipi/podcast_scraper --app actions --body "$(cat ~/.config/sops/age/keys.txt)"
+gh secret set BACKUP_REPO_TOKEN         --repo chipi/podcast_scraper --app actions --body '<backup-repo-pat, optional>'
+gh secret set OPERATOR_SSH_PUBLIC_KEY   --repo chipi/podcast_scraper --body "$(cat ~/.ssh/id_ed25519.pub)"
+gh variable set TAILNET_NAME            --repo chipi/podcast_scraper --body 'tail-xxxxx.ts.net'
 ```
 
 `PROD_SSH_PRIVATE_KEY` (the CI deploy key) and `PROD_TAILNET_FQDN` are set during bootstrap, not
@@ -106,7 +113,7 @@ and [§ First `tofu apply`](PROD_RUNBOOK.md#first-tofu-apply-operators-laptop).
   ```
 
 - [ ] `gh secret list --repo chipi/podcast_scraper` shows the §F secrets.
-- [ ] Your secrets store holds: Hetzner token, `TS_AUTHKEY`, `TS_API_KEY`, sops-age private key.
+- [ ] Your secrets store holds: Hetzner token, three OAuth client pairs (from §C), sops-age private key.
 
 Once all boxes are checked, proceed to
 [PROD_RUNBOOK § First-time bootstrap](PROD_RUNBOOK.md#first-time-bootstrap).

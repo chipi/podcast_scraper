@@ -34,7 +34,7 @@ steps end to end.
 2. **Environment adapters** (what may differ deliberately):
    - Network path (**Tailscale** SSH **`deploy@`**, **Codespaces** **`postStart`**, **GHA runner**
      Docker Compose, **HTTPS MagicDNS** for drill Playwright).
-   - Credential names (**`PROD_*`**, **`DRILL_*`**, **`TS_AUTHKEY`**, deploy keys).
+   - Credential names (**`PROD_*`**, **`DRILL_*`**, OAuth clients, deploy keys; see [ADR-143](ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md)).
    - Typed confirmation strings on high-blast workflows.
    - Optional image **`sha-<short>`** overrides for incidents.
    - **Explicit non-goal**: we do **not** require one literal SSH invocation style everywhere.

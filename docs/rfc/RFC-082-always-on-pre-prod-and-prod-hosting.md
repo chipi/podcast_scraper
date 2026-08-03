@@ -266,23 +266,28 @@ least resistance.
 The Slack-direct-to-api path was speculative anyway; the Slack →
 GHA → api fan-out is fine for hobby scale.
 
-> **Free-plan auth model.** OAuth clients (the typical "service account"
-> path on Tailscale) are gated to Premium+ tiers. On Personal Free we
-> use **two separate credentials**:
+> **Superseded 2026-08-03 (ADR-143):** Tailscale lifted Free-plan OAuth gating;
+> all Tailscale auth now uses non-expiring OAuth clients. `TS_AUTHKEY` +
+> `TS_API_KEY` are **retired and deleted**. See [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md)
+> and PROD_RUNBOOK.md § "Tailscale credentials (OAuth clients)" for current
+> architecture. The table below is **historical**.
+>
+> **Free-plan auth model (RETIRED).** OAuth clients (the typical "service account"
+> path on Tailscale) were gated to Premium+ tiers. On Personal Free we
+> used **two separate credentials**:
 >
 > | Credential | Purpose |
 > | --- | --- |
 > | `TS_AUTHKEY` | Device-level auth: joins the GHA runner to the tailnet (used by `tailscale/github-action@v2`); also passed to cloud-init for the VPS's own `tailscale up`. |
 > | `TS_API_KEY` | Tailscale management API: terraform's `tailscale` provider uses this to sync the ACL from `tailscale/policy.hujson` and create per-server auth keys. |
 >
-> Both are **Tailscale Personal API access tokens / auth keys** (different
+> Both were **Tailscale Personal API access tokens / auth keys** (different
 > tabs of the same admin panel: [admin/settings/keys](https://login.tailscale.com/admin/settings/keys)).
-> Both expire ≤ 90 days on Free plan and need calendar-driven rotation.
-> See PROD_RUNBOOK.md "Tailscale credentials (Free-plan workaround)" for
-> rotation procedure. If the operator ever upgrades to Premium+, both
-> can be replaced with a single OAuth client and the workflows / terraform
-> provider switch back to `oauth-client-id` / `oauth_client_id` (one
-> diff, no architecture change).
+> Both expired ≤ 90 days on Free plan and needed calendar-driven rotation.
+> See old PROD_RUNBOOK.md "Tailscale credentials (Free-plan workaround)" for
+> rotation procedure (no longer needed). When Premium+ was adopted (it is now),
+> both could be replaced with OAuth clients and the workflows / terraform
+> provider switch to OAuth-based auth (one diff, no architecture change).
 
 ### Decision 3 — Deploy mechanism: push from GHA (over Tailscale)
 
@@ -302,8 +307,8 @@ jobs:
     steps:
       - uses: tailscale/github-action@v2
         with:
-          # Free-plan substitute for OAuth (Premium+ feature). See note below
-          # the snippet on the two-credential model.
+          # OAuth client for device join (ADR-143). Migrated to non-expiring
+          # OAuth on 2026-08-03; `TS_AUTHKEY` was the Free-plan predecessor.
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer
       - run: |
@@ -335,11 +340,11 @@ exported differently in the host's `.env`).
 
 **Backup mechanism: GHA-side, same as pre-prod.** The
 `backup-corpus-prod.yml` workflow joins the tailnet using the same
-`TS_AUTHKEY` device-auth credential as the deploy workflow (Free-plan
-substitute for OAuth — see Decision 2 note), reaches the VPS, tarballs
-the corpus, uploads to `chipi/podcast_scraper-backup` releases. The
-single change vs. pre-prod's backup is the SSH target hostname —
-`prod-podcast.<...>` instead of the codespace name.
+`TS_AUTHKEY` device-auth credential as the deploy workflow (see
+ADR-143 for current OAuth-based architecture), reaches the VPS,
+tarballs the corpus, uploads to `chipi/podcast_scraper-backup`
+releases. The single change vs. pre-prod's backup is the SSH target
+hostname — `prod-podcast.<...>` instead of the codespace name.
 
 This keeps backup logic in code-review (`.github/workflows/...`)
 rather than as a host-side cron that escapes git visibility.

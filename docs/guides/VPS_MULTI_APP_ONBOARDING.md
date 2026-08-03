@@ -9,9 +9,9 @@ New apps use the same GitOps shape: **CI → SSH over tailnet → `compose pull 
 
 - Prod VPS already exists; you reach it as `deploy@prod-podcast.<tailnet>.ts.net`
   (see [Prod runbook](PROD_RUNBOOK.md)).
-- You can add **GitHub Actions** secrets (`TS_AUTHKEY`, SSH key or reuse deploy)
+- You can add **GitHub Actions** secrets (Tailscale OAuth clients, SSH key or reuse deploy)
   and optional **Tailscale ACL** updates in
-  [`tailscale/policy.hujson`](https://github.com/chipi/podcast_scraper/blob/main/tailscale/policy.hujson).
+  [`tailscale/policy.hujson`](https://github.com/chipi/podcast_scraper/blob/main/tailscale/policy.hujson) (see [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md)).
 
 ## 1. Isolate each app on disk
 
@@ -70,7 +70,7 @@ Enable after `.env` exists and a one-time `docker compose pull` has succeeded.
 Copy the pattern from
 [`deploy-prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/deploy-prod.yml):
 
-1. Job joins tailnet: `tailscale/github-action@v2` with `secrets.TS_AUTHKEY`.
+1. Job joins tailnet: `tailscale/github-action@v4` with OAuth clients (ADR-143).
 2. SSH as `deploy` to the **same** VPS FQDN.
 3. `cd /srv/<app-slug> && git pull && docker compose ... pull && up -d`.
 4. Optional: health-check `curl` against tailnet URL or in-container probe.

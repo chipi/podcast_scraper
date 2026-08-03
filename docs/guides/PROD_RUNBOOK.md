@@ -73,14 +73,15 @@ For day-to-day prod (not DR drill, not manual corpus restore): **preflight** (se
 `snapshot.tgz` is **not** part of this path; see [Disaster recovery](#disaster-recovery) and
 [STACK_CONTRACT.md](STACK_CONTRACT.md).
 
-> **For the prerequisites checklist** (Hetzner account, Tailscale Free-plan credentials —
-> `TS_AUTHKEY` + `TS_API_KEY`, see "Tailscale credentials" below for the why — sops/age, runtime
-> service accounts, and GHA secrets), see
-> [Bootstrap prerequisites](BOOTSTRAP_PREREQUISITES.md). All commands below assume those are done.
+> **For the prerequisites checklist** (Hetzner account, Tailscale OAuth clients, sops/age, runtime
+> service accounts, and GHA secrets), see [Bootstrap prerequisites](BOOTSTRAP_PREREQUISITES.md). All
+> commands below assume those are done. See § [Tailscale credentials (OAuth clients)](#tailscale-credentials-oauth-clients)
+> for the current auth model ([ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md)).
 >
-> Historical: [#714](https://github.com/chipi/podcast_scraper/issues/714) was the original
-> prerequisites issue; it is **superseded** (it describes the Tailscale OAuth model, which the
-> Free-plan auth-key + API-key model replaced).
+> **Historical note:** [#714](https://github.com/chipi/podcast_scraper/issues/714) was the original
+> prerequisites issue. It described OAuth clients, but the Free-plan implementation used `TS_AUTHKEY`
+> (device-join) + `TS_API_KEY` (management token) instead. Both were **retired 2026-08-03** when
+> Tailscale lifted Free-plan OAuth gating; see ADR-143.
 
 ## Sections
 
@@ -132,14 +133,16 @@ age-keygen -o ~/.config/sops/age/keys.txt
 # replacing the `age1PLACEHOLDER…` value. Save the PRIVATE key contents to
 # your password manager as `sops/podcast-scraper/tofu-state-age-key`.
 
-# 3. Stage GHA secrets (from #714) — Free-plan auth: see "Tailscale credentials"
-#    section below for why TS_AUTHKEY + TS_API_KEY (two separate creds) instead
-#    of OAuth client ID/secret (which would be on Premium+ plans).
-gh secret set HCLOUD_TOKEN          --repo chipi/podcast_scraper --app actions --body '<token>'
-gh secret set TS_AUTHKEY            --repo chipi/podcast_scraper --app actions --body '<tskey-auth-...>'
-gh secret set TS_API_KEY            --repo chipi/podcast_scraper --app actions --body '<tskey-api-...>'
-gh secret set TFSTATE_AGE_KEY       --repo chipi/podcast_scraper --app actions --body "$(cat ~/.config/sops/age/keys.txt)"
-gh secret set BACKUP_REPO_TOKEN     --repo chipi/podcast_scraper --app actions --body '<backup-repo-pat>'
+# 3. Stage GHA secrets (OAuth clients; ADR-143; see "Tailscale credentials" section below)
+gh secret set HCLOUD_TOKEN              --repo chipi/podcast_scraper --app actions --body '<token>'
+gh secret set TS_INFRA_OAUTH_CLIENT_ID  --repo chipi/podcast_scraper --app actions --body '<client-id>'
+gh secret set TS_INFRA_OAUTH_SECRET     --repo chipi/podcast_scraper --app actions --body '<client-secret>'
+gh secret set TS_OAUTH_CLIENT_ID        --repo chipi/podcast_scraper --app actions --body '<client-id>'
+gh secret set TS_OAUTH_SECRET           --repo chipi/podcast_scraper --app actions --body '<client-secret>'
+gh secret set TS_ACL_OAUTH_CLIENT_ID    --repo chipi/podcast_scraper --app actions --body '<client-id>'
+gh secret set TS_ACL_OAUTH_SECRET       --repo chipi/podcast_scraper --app actions --body '<client-secret>'
+gh secret set TFSTATE_AGE_KEY           --repo chipi/podcast_scraper --app actions --body "$(cat ~/.config/sops/age/keys.txt)"
+gh secret set BACKUP_REPO_TOKEN         --repo chipi/podcast_scraper --app actions --body '<backup-repo-pat>'
 # PROD_SSH_PRIVATE_KEY — see [GitHub Actions SSH to prod](#github-actions-ssh-to-prod-prod_ssh_private_key)
 
 # 4. Stage GHA repo secrets and variables
@@ -562,7 +565,7 @@ Typed confirm matches sibling prod mutators (`PROD_RESTORE`, `PROD_FAILOVER_STAN
 1. Confirm **Stack test** (or the target SHA) is green on `main`:
    `gh run list --workflow stack-test.yml --limit 3`
 2. Note the image tag you intend to ship (`sha-<7>` from the green run, or blank = workflow SHA).
-3. Confirm prod secrets/vars are staged (`TS_AUTHKEY`, `PROD_SSH_PRIVATE_KEY`, `PROD_TAILNET_FQDN`).
+3. Confirm prod secrets/vars are staged (OAuth clients, `PROD_SSH_PRIVATE_KEY`, `PROD_TAILNET_FQDN`; see [Tailscale credentials (OAuth clients)](#tailscale-credentials-oauth-clients)).
 4. Optional rollback pin: keep the previous good `sha-<7>` from the last green deploy run.
 
 #### Dispatch
@@ -760,7 +763,7 @@ Use this when the prod VPS is gone or stuck in a state that surgical fixes can't
 | Artifact | Where it lives | Survives VPS destroy? |
 | --- | --- | --- |
 | IaaC code | this repo (`infra/`) | ✓ |
-| GH Secrets (TS_AUTHKEY, OPERATOR_SSH_PUBLIC_KEY, etc.) | repo settings | ✓ |
+| GH Secrets (OAuth clients, OPERATOR_SSH_PUBLIC_KEY, etc.) | repo settings | ✓ |
 | Encrypted tfstate (post-apply) | `infra/terraform/terraform.tfstate.enc` in main | ✓ if last apply's re-encrypt step succeeded AND was committed back; otherwise stale (see "State drift" below) |
 | Corpus snapshots | `chipi/podcast_scraper-backup` releases (`snapshot-prod-YYYYMMDD`) | ✓ — restore via `prod-restore-corpus.yml` |
 | Runtime `.env` (LLM keys, Sentry DSNs, Grafana creds) | on-disk `/srv/podcast-scraper/.env` only | ✗ **LOST** until #841 lands (GH Secrets-driven `.env` rendering); see "Recovering `.env` after destroy" below |
@@ -775,7 +778,7 @@ Use this when the prod VPS is gone or stuck in a state that surgical fixes can't
 ls -la infra/terraform/terraform.tfstate.enc
 
 # 2. Required GH Secrets staged? (operator dashboards or `gh secret list`)
-gh secret list | grep -E "TS_AUTHKEY|PROD_SSH_PRIVATE_KEY|HCLOUD_TOKEN|OPERATOR_SSH_PUBLIC_KEY|TFSTATE_AGE_KEY"
+gh secret list | grep -E "TS_INFRA_OAUTH|TS_OAUTH|TS_ACL_OAUTH|PROD_SSH_PRIVATE_KEY|HCLOUD_TOKEN|OPERATOR_SSH_PUBLIC_KEY|TFSTATE_AGE_KEY"
 ```
 
 **Wipe + rebuild** (single workflow run):
@@ -1249,34 +1252,70 @@ catch prod up.
 5. Trigger one workflow_dispatch run of `infra-apply.yml` to confirm the new
    token works (will be a no-op apply if no infra changes).
 
-### Tailscale credentials (Free-plan workaround)
+### Tailscale credentials (OAuth clients)
 
-OAuth clients are gated to Tailscale Premium+ tiers. On Personal Free we use
-**two separate credentials** instead, both rotated independently:
+**Migrated 2026-08-03 — see ADR-143.** Tailscale lifted the Free-plan OAuth
+gating that RFC-082 Decision 2 described, so all Tailscale auth now uses **OAuth
+clients**. Unlike the old Personal API tokens/auth keys, **OAuth clients do not
+expire** — no more calendar-driven 90-day rotation. The old `TS_API_KEY`
+(management token) and `TS_AUTHKEY` (device-join auth key) are **RETIRED and
+deleted** — do not recreate them.
 
-| Credential | Purpose | Where it's used | Where to generate |
-| --- | --- | --- | --- |
-| `TS_AUTHKEY` | Joins the GHA runner / VPS to the tailnet (device-level auth) | `tailscale/github-action@v2` in deploy-prod.yml + backup-corpus-prod.yml; cloud-init's `tailscale up` | [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **Auth keys** tab |
-| `TS_API_KEY` | Authenticates terraform's `tailscale` provider to the management API (creates per-server auth keys, syncs ACL) | infra-ci.yml + infra-apply.yml's `TF_VAR_tailscale_api_key` | [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **API access tokens** tab |
+Three single-purpose OAuth clients (all GH Actions secrets, `id`+`secret` pairs):
 
-Both expire at most every 90 days on Free plan — Tailscale doesn't allow
-non-expiring keys. Set a calendar reminder.
+| Secret pair | Purpose | Scopes | Tags bound | Consumed by |
+| --- | --- | --- | --- | --- |
+| `TS_INFRA_OAUTH_CLIENT_ID` / `_SECRET` | terraform `tailscale` provider — mints per-server tailnet keys, manages/sweeps devices | `auth_keys`, `devices:core`, `dns`, `policy_file` | `tag:prod` + `tag:dr-drill` | `TF_VAR_tailscale_oauth_client_id/_secret` in infra-apply / infra-ci / infra-drift / drill-infra-*; raw-REST device sweeps (via `/oauth/token` exchange) |
+| `TS_OAUTH_CLIENT_ID` / `_SECRET` | joins the ephemeral GHA runner to the tailnet | `auth_keys` | `tag:gha-deployer` | `tailscale/github-action@v4` in deploy-*, backup-corpus-*, drill-* |
+| `TS_ACL_OAUTH_CLIENT_ID` / `_SECRET` | applies `tailscale/policy.hujson` to the live tailnet | `policy_file` (write) | — | tailscale-acl.yml (GitOps action) |
 
-**Rotating `TS_AUTHKEY`:**
+The **VPS's own tailnet join** (cloud-init `tailscale up`) uses the key the tofu
+provider mints (`tailscale_tailnet_key.prod`, 1 h expiry, fresh every apply) —
+**not** a static secret. There is no longer any static device-join key.
 
-1. [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → Auth keys → Generate new (Reusable, Ephemeral, Pre-approved, Tags: `tag:gha-deployer`).
-2. `gh secret set TS_AUTHKEY --repo chipi/podcast_scraper --app actions --body '<tskey-auth-...>'`
-3. Update your password manager (entry: `Tailscale / podcast-scraper / authkey`).
-4. Revoke the old auth key in the Tailscale admin.
-5. Trigger one workflow_dispatch run of `deploy-prod.yml` to confirm.
+#### ⚠️ CRITICAL gotcha — tag self-ownership (read before editing `tagOwners` or the infra client)
 
-**Rotating `TS_API_KEY`:**
+`TS_INFRA_OAUTH` is bound to BOTH `tag:prod` + `tag:dr-drill`, but the provider
+mints **one** tag per workspace (prod→`tag:prod`, drill→`tag:dr-drill`). Tailscale
+rule: **an OAuth client may mint a key carrying its FULL tag set unconditionally,
+but a strict SUBSET (just one of its tags) only if the client's tags include an
+owner of the requested tag.** So `tailscale/policy.hujson` lists each tag as its
+own owner:
 
-1. [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → API access tokens → Generate new.
-2. `gh secret set TS_API_KEY --repo chipi/podcast_scraper --app actions --body '<tskey-api-...>'`
-3. Update your password manager (entry: `Tailscale / podcast-scraper / api-key`).
-4. Revoke the old token in the Tailscale admin.
-5. Trigger one workflow_dispatch run of `infra-apply.yml` to confirm (no-op apply if no infra changes).
+```
+"tag:prod":     ["autogroup:admin", "tag:prod"],
+"tag:dr-drill": ["autogroup:admin", "tag:dr-drill"],
+```
+
+Without the self-ownership entries, `tofu apply` fails with **`requested tags
+[tag:dr-drill] are invalid or not permitted (400)`**. The old `TS_API_KEY` never
+hit this because a Personal token acts as the admin user (∈ `autogroup:admin`).
+
+**If you see that 400: the ACL self-ownership is missing — do NOT recreate the
+OAuth client** (that theory burned hours on 2026-08-03; the client was always
+fine — see ADR-143). Diagnose in 10 seconds with a mint probe:
+
+```bash
+TAILNET=tail6d0ed4.ts.net
+TOK=$(curl -fsS https://api.tailscale.com/api/v2/oauth/token \
+  -d client_id=$TS_INFRA_OAUTH_CLIENT_ID -d client_secret=$TS_INFRA_OAUTH_SECRET | jq -r .access_token)
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $TOK" \
+  -H 'Content-Type: application/json' \
+  -d '{"capabilities":{"devices":{"create":{"reusable":false,"ephemeral":true,"preauthorized":true,"tags":["tag:prod"]}}},"expirySeconds":300}' \
+  https://api.tailscale.com/api/v2/tailnet/$TAILNET/keys
+# 200 = healthy · 400 = self-ownership missing from policy.hujson tagOwners
+```
+
+#### Recreating an OAuth client (rare — they don't expire)
+
+Only needed if a client is compromised or deleted. Admin → Settings → OAuth
+clients → Generate, binding the SAME scopes + tags from the table above. **Bind
+tags on the `auth_keys` scope's own tag selector** (a multi-scope client shows a
+tag field per write-scope — the tags MUST be on `auth_keys`, not only `devices`,
+or minting silently fails). Then `gh secret set TS_<X>_OAUTH_CLIENT_ID` +
+`_SECRET`. No revocation calendar needed. Future refinement (deferred, ADR-143):
+a dedicated `tag:infra-minter` owning `tag:prod`/`tag:dr-drill`, so CI identity ≠
+prod identity and the self-ownership entries can be dropped.
 
 ### age key (sops state)
 
@@ -1540,9 +1579,9 @@ DSNs are write-only public tokens designed to ship with frontend code
 
 ### Reaching the VPS
 
-The VPS joins the tailnet at provision time (cloud-init runs
-`tailscale up --auth-key=$TS_AUTHKEY --hostname=prod-podcast`). On
-your laptop:
+The VPS joins the tailnet at provision time (cloud-init runs `tailscale up` with a freshly-minted
+key from the terraform `tailscale_tailnet_key.prod` resource; see [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md)).
+On your laptop:
 
 ```bash
 tailscale status               # confirm laptop is on the tailnet
@@ -1604,11 +1643,11 @@ GitOps ACL action** (`.github/workflows/tailscale-acl.yml`), **not** OpenTofu. F
 (<https://login.tailscale.com/admin/acls>) drift from the file and get overwritten by
 the next GitOps `apply` — always land the change in `policy.hujson`.
 
-### Tailscale auth key vs API key
+### Tailscale OAuth clients
 
-Both expire ≤ 90 days on Free plan. See [Credential rotation →
-Tailscale credentials](#tailscale-credentials-free-plan-workaround)
-for the rotation flow. Reminder: set a calendar event for ~80 days out.
+**Do not expire** — see [Credential rotation → Tailscale credentials](#tailscale-credentials-oauth-clients)
+for details and the mint-probe diagnostic. No calendar-rotation reminder needed.
+Migrate from older Free-plan Personal tokens: see [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md).
 
 ---
 
@@ -1976,9 +2015,9 @@ tailscale ip -4 prod-podcast-1  # try variants if -1 / -2 suffix
 ```
 
 If laptop is logged in and IP resolves but ssh hangs, the VPS may
-have lost its tailscale registration (auth key expired before
-re-up). Use Hetzner console (see Hetzner ops) to `tailscale up` again
-with a fresh `TS_AUTHKEY`.
+have lost its tailscale registration (rare, but possible if tailscaled crashed).
+Use Hetzner console (see Hetzner ops) to run `tofu apply` from another machine
+to mint a fresh `tailscale_tailnet_key`, or use an older snapshot if available.
 
 ### "I can't sudo as deploy"
 
