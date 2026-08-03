@@ -91,96 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:b32ea17e1406a74b",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:7fed4785a0677ec4",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:b227b21d000fe047",
-      "to": "person:speaker-01"
-    },
-    {
-      "type": "MENTIONS_PERSON",
-      "from": "insight:b227b21d000fe047",
-      "to": "person:speaker-02"
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:b32ea17e1406a74b",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:b32ea17e1406a74b",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:b32ea17e1406a74b",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:7fed4785a0677ec4",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:7fed4785a0677ec4",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:7fed4785a0677ec4",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:b227b21d000fe047",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:b227b21d000fe047",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:b227b21d000fe047",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
@@ -190,68 +113,64 @@
       "id": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
-        "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
+        "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-07-02T12:00:00",
-        "title": "Below the Surface — Episode 2"
+        "publish_date": "2026-07-30T12:00:00",
+        "title": "Below the Surface \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
       "id": "topic:outdoor-activities",
       "properties": {
-        "label": "outdoor activities",
-        "score": 0.8
+        "label": "outdoor activities"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear",
-        "score": 0.8
+        "label": "gear"
       },
       "type": "Topic"
     },
     {
       "id": "topic:technology",
       "properties": {
-        "label": "Technology",
-        "score": 0.8
+        "label": "Technology"
       },
       "type": "Topic"
     },
     {
       "id": "insight:b32ea17e1406a74b",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "grounded": true,
-        "text": "Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems."
       },
       "type": "Insight"
     },
     {
       "id": "insight:7fed4785a0677ec4",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "grounded": true,
-        "text": "Hanna Crebo Rediker, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Hanna Crebo Rediker, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:b227b21d000fe047",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "grounded": true,
-        "text": "Hanna Crebo Rediker: Thanks, Rina.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Hanna Crebo Rediker: Thanks, Rina."
       },
       "type": "Insight"
     },
@@ -318,7 +237,7 @@
         "char_start": 372,
         "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it — Marco Sylva was on last week talking about wreck planning.",
+        "text": "Before we get into it \u2014 Marco Sylva was on last week talking about wreck planning.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p03_e02.txt"
@@ -346,7 +265,7 @@
         "char_start": 541,
         "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something — Marco Sylva mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something \u2014 Marco Sylva mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p03_e02.txt"
@@ -355,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

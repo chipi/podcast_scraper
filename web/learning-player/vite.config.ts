@@ -171,6 +171,10 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'happy-dom',
+    // Network isolation: short-circuit unmocked `/api/...` fetches (which happy-dom
+    // resolves against http://localhost:3000) so unit tests never open a real socket.
+    // See src/test/setup.ts.
+    setupFiles: ['src/test/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov', 'json-summary'],

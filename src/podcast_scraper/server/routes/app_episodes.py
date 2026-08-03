@@ -9,6 +9,7 @@ override (that is an operator concern; see the operator ``/api/corpus/*`` routes
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -225,7 +226,11 @@ async def episode_related(
     no-index search) so the panel section simply hides.
     """
     root, row = _resolve(request, slug)
-    outcome = run_similar_episodes(
+    # Offload off the event loop — the episode page fires this "more like this" call on load;
+    # running the blocking embed + LanceDB read inline froze concurrent requests (e.g. the topic
+    # card's /perspectives) while MiniLM lazy-loaded. Safe via the warm, shared index_pool backend.
+    outcome = await asyncio.to_thread(
+        run_similar_episodes,
         root,
         summary_title=row.summary_title,
         summary_bullets=row.summary_bullets,
@@ -430,7 +435,10 @@ async def episode_search(
     """
     root, row = _resolve(request, slug)
     internal_k = min(100, max(top_k, top_k * 5))
-    outcome = structured_corpus_search(root, q, feed=row.feed_id or None, top_k=internal_k)
+    # Offload off the event loop (see the /related + /search notes) — safe via the warm index_pool.
+    outcome = await asyncio.to_thread(
+        structured_corpus_search, root, q, feed=row.feed_id or None, top_k=internal_k
+    )
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))
     scoped = filter_outcome_to_episode(outcome, row.episode_id, top_k)

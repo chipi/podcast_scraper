@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:1a4e5aea5c8867a2",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1a4e5aea5c8867a2",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1a4e5aea5c8867a2",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1a4e5aea5c8867a2",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-a884b153355070f0",
       "to": "insight:dc5e6437623bc58f",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-a884b153355070f0",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:6d732fe3bf83fe82",
@@ -154,6 +94,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:55dd777396c19e6e",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:1a4e5aea5c8867a2",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "person:hanna-krebohticker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-a884b153355070f0",

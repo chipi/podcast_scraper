@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:6d6fb38e35223abc",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:6d6fb38e35223abc",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:6d6fb38e35223abc",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:6d6fb38e35223abc",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-db8f44d2e07a22bd",
       "to": "insight:26f018c921d9ba0d",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:26f018c921d9ba0d",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:26f018c921d9ba0d",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:26f018c921d9ba0d",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:26f018c921d9ba0d",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-db8f44d2e07a22bd",
       "to": "insight:62e96736fe305ae9",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:62e96736fe305ae9",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:62e96736fe305ae9",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:62e96736fe305ae9",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:62e96736fe305ae9",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:e1291bfadaf6e9f4",
@@ -154,6 +94,21 @@
       "from": "insight:62e96736fe305ae9",
       "to": "quote:13c50d65dc901ac8",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:6d6fb38e35223abc",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "person:liam-verbeek",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-db8f44d2e07a22bd",

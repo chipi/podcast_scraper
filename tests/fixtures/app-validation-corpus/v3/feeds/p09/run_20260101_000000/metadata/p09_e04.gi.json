@@ -27,22 +27,7 @@
     },
     {
       "from": "insight:fac4a8860cded82f",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:fac4a8860cded82f",
       "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:fac4a8860cded82f",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:fac4a8860cded82f",
-      "to": "topic:expert-interviews",
       "type": "ABOUT"
     },
     {
@@ -51,49 +36,9 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:95e6bff7ab4955fb",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:95e6bff7ab4955fb",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:95e6bff7ab4955fb",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:95e6bff7ab4955fb",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-4d94c63887afbd1a",
       "to": "insight:1f21124fba3a3ec2",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:1f21124fba3a3ec2",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1f21124fba3a3ec2",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1f21124fba3a3ec2",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1f21124fba3a3ec2",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:8176e8cb7469ecc3",
@@ -154,6 +99,21 @@
       "from": "insight:1f21124fba3a3ec2",
       "to": "quote:013d979065889bb0",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:fac4a8860cded82f",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:95e6bff7ab4955fb",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1f21124fba3a3ec2",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p09_e04-0",

@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "entity:outdoor-activities",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "entity:gear",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "to": "topic:outdoor-activities",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "to": "topic:gear",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "to": "topic:business-markets",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-30T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p01_e03.txt"
   },
   "nodes": [
     {
       "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "properties": {
-        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
-        "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-07-30T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 3"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:outdoor-activities",
-      "properties": {
-        "category": "Concept",
-        "label": "Outdoor Activities"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:gear",
-      "properties": {
-        "category": "Concept",
-        "label": "Gear"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:outdoor-activities",
       "properties": {
-        "label": "outdoor activities"
+        "label": "outdoor activities",
+        "slug": "outdoor-activities"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear"
+        "label": "gear",
+        "slug": "gear"
       },
       "type": "Topic"
     },
     {
       "id": "topic:business-markets",
       "properties": {
-        "label": "Business & markets"
+        "label": "Business & markets",
+        "slug": "business-markets"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

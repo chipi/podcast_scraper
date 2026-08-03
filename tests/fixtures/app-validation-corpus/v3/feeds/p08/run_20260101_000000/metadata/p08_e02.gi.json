@@ -31,44 +31,9 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:998a2296f62e5651",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:998a2296f62e5651",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:998a2296f62e5651",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-64ef09a7ee543045",
       "to": "insight:b4d1b05b601509cf",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:public-radio",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "episode:ep-64ef09a7ee543045",
@@ -78,21 +43,6 @@
     {
       "from": "insight:12fcd1b7633f8e06",
       "to": "topic:public-radio",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:12fcd1b7633f8e06",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:12fcd1b7633f8e06",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:12fcd1b7633f8e06",
-      "to": "topic:expert-interviews",
       "type": "ABOUT"
     },
     {
@@ -154,6 +104,21 @@
       "from": "insight:12fcd1b7633f8e06",
       "to": "quote:cdfc3fe427023cc8",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:998a2296f62e5651",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "person:renee-montague-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:12fcd1b7633f8e06",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-64ef09a7ee543045",

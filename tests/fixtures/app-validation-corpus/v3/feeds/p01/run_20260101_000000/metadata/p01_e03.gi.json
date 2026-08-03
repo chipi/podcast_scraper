@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:1c057c4c80fc3cb8",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1c057c4c80fc3cb8",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1c057c4c80fc3cb8",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1c057c4c80fc3cb8",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-0d9100843ee555f8",
       "to": "insight:0f09b8a5a1d5f64c",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-0d9100843ee555f8",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:2347bd84ba7d0751",
@@ -154,6 +94,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:1fcc09f6975d3f8d",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:1c057c4c80fc3cb8",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "person:noah-bryer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-0d9100843ee555f8",

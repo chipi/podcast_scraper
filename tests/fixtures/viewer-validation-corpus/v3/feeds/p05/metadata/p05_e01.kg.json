@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "entity:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "entity:without-the",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "topic:science-research",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "topic:without-the",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "topic:welcome-back-to",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-30T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p05_e01.txt"
   },
   "nodes": [
     {
       "id": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "properties": {
-        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-        "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-07-30T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:science-research",
-      "properties": {
-        "category": "Concept",
-        "label": "Science & Research"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:without-the",
-      "properties": {
-        "category": "Concept",
-        "label": "Without The"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research"
+        "label": "Science & research",
+        "slug": "science-research"
       },
       "type": "Topic"
     },
     {
       "id": "topic:without-the",
       "properties": {
-        "label": "without the"
+        "label": "without the",
+        "slug": "without-the"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to"
+        "label": "welcome back to",
+        "slug": "welcome-back-to"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

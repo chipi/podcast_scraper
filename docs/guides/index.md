@@ -79,6 +79,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Semantic Search](SEMANTIC_SEARCH_GUIDE.md) | RFC-061 corpus vector index; **`GET /api/search`**; **chunk-to-Insight lift** and **`verify-gil-chunk-offsets`** when GIL + index share transcript space |
 | [Grounded Insights](GROUNDED_INSIGHTS_GUIDE.md) | GIL: **`gi.json`**, quotes, schema, CLI; **`bridge.json`** sibling for canonical ids; optional [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Knowledge Graph](KNOWLEDGE_GRAPH_GUIDE.md) | KG: **`kg.json`**, entities/topics/relationships; **bridge** aligns KG with GIL for APIs; same [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
+| [MCP server — tool reference & user guide](MCP_SERVER_GUIDE.md) | **RFC-095** generic MCP server: all 38 read tools grouped by family, the **resolve→pivot→chain** cross-surface workflow, Claude Desktop/Code config, maintenance — for humans and agents |
 | [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Preprocessing profiles (`cleaning_v4`, `cleaning_hybrid_after_pattern`, …) for transcript cleaning and hybrid_ml MAP input (RFC-042 / Issue #419) |
 | [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs); same compose shape on prod VPS — [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) |
 | [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) | Running podcast_scraper as a single-container service (supervisor / systemd / scheduler-driven) |

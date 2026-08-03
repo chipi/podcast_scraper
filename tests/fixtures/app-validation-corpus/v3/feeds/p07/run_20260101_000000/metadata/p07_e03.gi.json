@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:5323cd36e981d158",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5323cd36e981d158",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5323cd36e981d158",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5323cd36e981d158",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-a86da8f148d3bf29",
       "to": "insight:7d6f7075083505ad",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:7d6f7075083505ad",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:7d6f7075083505ad",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:7d6f7075083505ad",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:7d6f7075083505ad",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-a86da8f148d3bf29",
       "to": "insight:4dd75a8b258e871f",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:92f336ef824c8fa6",
@@ -154,6 +94,21 @@
       "from": "insight:4dd75a8b258e871f",
       "to": "quote:77b8047c51ea5f8a",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:5323cd36e981d158",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:7d6f7075083505ad",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:4dd75a8b258e871f",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p07_e03-0",

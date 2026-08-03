@@ -23,7 +23,17 @@ export default defineConfig({
   // next local run and broke fresh-user "honest-empty" assertions. globalSetup wipes that dir so
   // every local run starts clean, matching CI's fresh checkout.
   globalSetup: './e2e/globalSetup.ts',
-  retries: process.env.CI ? 2 : 0,
+  // Parity with the stable gi-kg-viewer config (225 specs, green under the same full-`make ci`
+  // load): the emulated mobile-chrome (Pixel 7) render + real-API round-trip can exceed the
+  // default 5 s expect deadline when the machine is saturated at the end of a full-ci run — which
+  // is exactly when `make ci` invokes this stage LOCALLY (process.env.CI unset → previously 0
+  // retries + a 5 s deadline). Give the assertions headroom (15 s) and one local retry so a
+  // load-induced slow first paint self-heals instead of failing the gate. This matches the
+  // deadline to the real render time; it does not paper over a product bug (isolated, these specs
+  // pass in 0.5–5 s).
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
+  retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: 'http://127.0.0.1:4174',
@@ -61,6 +71,18 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         PYTHONPATH: '../../src',
+        // Use the cached MiniLM embedding model offline — the serve embeds the search query at
+        // request time, and without this it tries to reach huggingface.co, fails, and every
+        // /api/*/search returns embed_failed ("Search needs the library index"). The model is
+        // present locally (dev venv) and preloaded in CI (python-app.yml app-e2e). Pairs with the
+        // two-tier index e2e/globalSetup.ts builds, so search returns real grounded results.
+        HF_HUB_OFFLINE: '1',
+        TRANSFORMERS_OFFLINE: '1',
+        // The offline flags alone aren't enough — the model-load path needs the cache dir set
+        // explicitly (an inherited HOME is not sufficient). Default to the standard local location;
+        // CI sets HF_HOME to the runner cache where preload_ml_models.py stored MiniLM.
+        HF_HOME: process.env.HF_HOME || `${process.env.HOME}/.cache/huggingface`,
+        HF_HUB_CACHE: process.env.HF_HUB_CACHE || `${process.env.HOME}/.cache/huggingface/hub`,
         APP_OAUTH_PROVIDER: 'mock',
         APP_SESSION_SECRET: 'e2e-secret',
         // Allow the mock dev identity through the access policy (default is allowlist/deny).

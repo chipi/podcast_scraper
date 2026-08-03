@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-    "published_date": "2026-07-05",
+    "published_date": "2026-08-02",
     "title": "Frame & Light \u2014 Episode 3"
   },
   "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p04/metadata/p04_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-05",
+  "publish_date": "2026-08-02",
   "schema_version": "1",
   "summary": {
     "bullets": [

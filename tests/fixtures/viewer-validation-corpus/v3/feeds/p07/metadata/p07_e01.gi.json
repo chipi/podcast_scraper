@@ -91,81 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:6f139f511a98f949",
-      "to": "person:speaker-01"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:6f139f511a98f949",
-      "to": "topic:environment",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:6f139f511a98f949",
-      "to": "topic:health",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:6f139f511a98f949",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:1e81ad92e6acb871",
-      "to": "topic:environment",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:1e81ad92e6acb871",
-      "to": "topic:health",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:1e81ad92e6acb871",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:5de70b4a73d706e3",
-      "to": "topic:environment",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:5de70b4a73d706e3",
-      "to": "topic:health",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:5de70b4a73d706e3",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
@@ -175,68 +113,64 @@
       "id": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
-        "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
+        "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
         "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-        "publish_date": "2026-07-06T12:00:00",
-        "title": "The Long View — Episode 1"
+        "publish_date": "2026-08-03T12:00:00",
+        "title": "The Long View \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
       "id": "topic:environment",
       "properties": {
-        "label": "environment",
-        "score": 0.8
+        "label": "environment"
       },
       "type": "Topic"
     },
     {
       "id": "topic:health",
       "properties": {
-        "label": "health",
-        "score": 0.8
+        "label": "health"
       },
       "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research",
-        "score": 0.8
+        "label": "Science & research"
       },
       "type": "Topic"
     },
     {
       "id": "insight:6f139f511a98f949",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
         "grounded": true,
-        "text": "# The Long View — Sustainability — Episode\n## What Sustainability Really Means\nHost: Alex Morgan\nGuest: Dr.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "# The Long View \u2014 Sustainability \u2014 Episode\n## What Sustainability Really Means\nHost: Alex Morgan\nGuest: Dr."
       },
       "type": "Insight"
     },
     {
       "id": "insight:1e81ad92e6acb871",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
         "grounded": true,
-        "text": "Today we're talking about sustainability, and I'm joined by Dr.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Today we're talking about sustainability, and I'm joined by Dr."
       },
       "type": "Insight"
     },
     {
       "id": "insight:5de70b4a73d706e3",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
         "grounded": true,
-        "text": "Elena Fischer, sustainability researcher and systems thinker.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Elena Fischer, sustainability researcher and systems thinker."
       },
       "type": "Insight"
     },
@@ -254,7 +188,7 @@
         "char_start": 13,
         "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
         "speaker_id": "person:speaker-01",
-        "text": "Welcome back to The Long View — Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, thanks for being here.",
+        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, thanks for being here.",
         "timestamp_end_ms": 6000,
         "timestamp_start_ms": 0,
         "transcript_ref": "transcripts/p07_e01.txt"
@@ -275,7 +209,7 @@
         "char_start": 248,
         "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Alex Morgan. Excited for this one — sustainability and systems thinking is something I've been thinking about a lot.",
+        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p07_e01.txt"
@@ -340,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

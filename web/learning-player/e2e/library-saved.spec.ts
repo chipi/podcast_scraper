@@ -40,9 +40,16 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   await expect(page.getByRole('button', { name: 'Remove from favorites' }).first()).toBeVisible()
 
   // Favourite an insight from the Knowledge Panel (a different favourite KIND → its own section).
+  // Scope to the insights section: the "More like this" related-episode cards render their own
+  // "Save to favorites" buttons once the corpus has a real search index, so a page-wide .first()
+  // would favourite a related EPISODE instead of an insight (→ no Insights section in Saved).
   await page.getByRole('button', { name: 'Insights' }).first().click()
-  const insFav = page.getByRole('button', { name: 'Save to favorites' }).first()
-  if (await insFav.isVisible().catch(() => false)) await insFav.click()
+  const insFav = page
+    .getByTestId('kp-insights')
+    .getByRole('button', { name: 'Save to favorites' })
+    .first()
+  await expect(insFav).toBeVisible()
+  await insFav.click()
 
   // The Saved tab now shows BOTH per-kind sections, and the empty state is gone.
   await page.goto('/library')

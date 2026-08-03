@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-      "to": "entity:health",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
       "to": "topic:technology",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
       "to": "topic:health",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
       "to": "topic:science-research",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-08-01T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p09_e01.txt"
   },
   "nodes": [
     {
       "id": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
       "properties": {
-        "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-        "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-08-01T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:health",
-      "properties": {
-        "category": "Concept",
-        "label": "Health"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:technology",
       "properties": {
-        "label": "technology"
+        "label": "technology",
+        "slug": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:health",
       "properties": {
-        "label": "health"
+        "label": "health",
+        "slug": "health"
       },
       "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research"
+        "label": "Science & research",
+        "slug": "science-research"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

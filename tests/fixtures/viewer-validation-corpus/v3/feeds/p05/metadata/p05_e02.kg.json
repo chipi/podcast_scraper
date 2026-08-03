@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-      "to": "entity:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
       "to": "topic:technology",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
       "to": "topic:welcome-back-to",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
       "to": "topic:fed-vice-chair",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-08-03T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p05_e02.txt"
   },
   "nodes": [
     {
       "id": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
       "properties": {
-        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-        "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-08-03T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:welcome-back-to",
-      "properties": {
-        "category": "Concept",
-        "label": "Welcome Back To"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:technology",
       "properties": {
-        "label": "Technology"
+        "label": "Technology",
+        "slug": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to"
+        "label": "welcome back to",
+        "slug": "welcome-back-to"
       },
       "type": "Topic"
     },
     {
       "id": "topic:fed-vice-chair",
       "properties": {
-        "label": "fed vice chair"
+        "label": "fed vice chair",
+        "slug": "fed-vice-chair"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

@@ -11,6 +11,7 @@ goal of [#805](https://github.com/chipi/podcast_scraper/issues/805)).
 > [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md) and
 > [PROD_RUNBOOK § Tailscale credentials (OAuth clients)](PROD_RUNBOOK.md#tailscale-credentials-oauth-clients)
 > for the full architecture. Three OAuth clients (GH Actions secret pairs):
+>
 > - `TS_INFRA_OAUTH_CLIENT_ID`/`_SECRET` — terraform `tailscale` provider
 > - `TS_OAUTH_CLIENT_ID`/`_SECRET` — GHA runner + VPS tailnet join
 > - `TS_ACL_OAUTH_CLIENT_ID`/`_SECRET` — ACL GitOps action
@@ -48,7 +49,7 @@ goal of [#805](https://github.com/chipi/podcast_scraper/issues/805)).
   - [ ] **`TS_INFRA_OAUTH`** (terraform provider) — scopes: `auth_keys`, `devices:core`, `dns`, `policy_file`; tags: `tag:prod`, `tag:dr-drill`
   - [ ] **`TS_OAUTH`** (device join) — scope: `auth_keys`; tag: `tag:gha-deployer`
   - [ ] **`TS_ACL_OAUTH`** (GitOps action) — scope: `policy_file`
-- [ ] **Access Controls** (`policy.hujson`): 
+- [ ] **Access Controls** (`policy.hujson`):
   - [ ] Owners for `tag:prod` and `tag:dr-drill` (self-owned, per ADR-143)
   - [ ] Owners for `tag:gha-deployer`
   - [ ] Rule `tag:gha-deployer` → `tag:prod:22` and `tag:dr-drill:22` (SSH)

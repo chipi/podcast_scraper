@@ -44,7 +44,7 @@ pick + chain the tools itself.
 
 ```sh
 claude mcp add podcast-corpus -- \
-  .venv/bin/python -m podcast_scraper mcp --corpus "$PWD/.test_outputs/manual/prod-v2/corpus"
+  .venv/bin/python -m podcast_scraper.cli mcp --corpus "$PWD/.test_outputs/manual/prod-v2/corpus"
 ```
 
 **Claude Desktop** (`claude_desktop_config.json`):
@@ -62,7 +62,7 @@ claude mcp add podcast-corpus -- \
 ```
 
 Requires the `.[dev,search]` extras (the MCP SDK ships in `[dev]`). Verify the server
-launches: `.venv/bin/python -m podcast_scraper mcp --corpus <dir>` (it waits on stdio).
+launches: `.venv/bin/python -m podcast_scraper.cli mcp --corpus <dir>` (it waits on stdio).
 
 ### The golden prompt
 

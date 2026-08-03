@@ -355,6 +355,45 @@ def build_gi(
     # RFC-097 v3 insight types (deterministic spread so the §S8 compare insight_type
     # filter has claim/observation/recommendation to select over).
     _INSIGHT_TYPES = ("claim", "observation", "recommendation")
+    # RFC-097 v3 ABOUT edges: mirror the real extractor (src/podcast_scraper/gi/about_edges.py —
+    # top-2 topics by relevance, insights below the similarity floor get NO ABOUT edge). Blanket
+    # fan-out (every insight ABOUT every episode topic) is WRONG: it makes filler/greeting lines
+    # "about" contested topics, so topic_perspectives returns dozens of bogus speakers. No-ML
+    # deterministic proxy for the cosine match: an insight is ABOUT a topic only when ALL of the
+    # topic label's significant tokens appear in the insight text; capped at ABOUT_EDGE top-2.
+    _ABOUT_STOP = {
+        "the",
+        "a",
+        "an",
+        "of",
+        "and",
+        "or",
+        "to",
+        "in",
+        "on",
+        "for",
+        "is",
+        "are",
+        "with",
+        "as",
+        "at",
+        "by",
+        "how",
+        "what",
+        "why",
+        "that",
+        "this",
+        "it",
+    }
+
+    def _about_tokens(s: str) -> set[str]:
+        return {
+            w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2 and w not in _ABOUT_STOP
+        }
+
+    _topic_toksets = [
+        (tid, _about_tokens(label)) for tid, label in zip(topic_ids, excerpts["topics"])
+    ]
     insight_ids: list[str] = []
     for ii, txt in enumerate(excerpts["insights"]):
         iid = f"insight:{short_hash(txt)}"
@@ -373,8 +412,10 @@ def build_gi(
             }
         )
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": iid})
-        # RFC-097 v3: insight ABOUT topic (the typed topic link the v3 relational layer reads).
-        for tid in topic_ids:
+        # ABOUT only for topics whose label the insight actually discusses (see note above).
+        itoks = _about_tokens(txt)
+        about_tids = [tid for tid, ttoks in _topic_toksets if ttoks and ttoks <= itoks]
+        for tid in about_tids[:2]:
             edges.append({"type": "ABOUT", "from": iid, "to": tid})
 
     # Person nodes for every speaker that actually appears in a quote.

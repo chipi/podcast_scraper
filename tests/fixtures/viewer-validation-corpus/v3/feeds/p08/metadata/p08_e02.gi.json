@@ -91,57 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
-      "from": "insight:e84a13fb6e0bae28",
-      "to": "person:speaker-02"
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:6a77e36d51b1d25d",
-      "to": "topic:environment",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:6a77e36d51b1d25d",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:e84a13fb6e0bae28",
-      "to": "topic:environment",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:e84a13fb6e0bae28",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:db9acd5ee7759839",
-      "to": "topic:environment",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:db9acd5ee7759839",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
@@ -151,68 +113,64 @@
       "id": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
-        "metadata_relative_path": "feeds/p08/metadata/p08_e02.metadata.json",
+        "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
         "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "publish_date": "2026-07-03T12:00:00",
-        "title": "The Long View — Episode 2"
+        "publish_date": "2026-07-31T12:00:00",
+        "title": "The Long View \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
       "id": "topic:environment",
       "properties": {
-        "label": "environment",
-        "score": 0.8
+        "label": "environment"
       },
       "type": "Topic"
     },
     {
       "id": "topic:technology",
       "properties": {
-        "label": "technology",
-        "score": 0.8
+        "label": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:technology",
       "properties": {
-        "label": "Technology",
-        "score": 0.8
+        "label": "Technology"
       },
       "type": "Topic"
     },
     {
       "id": "insight:6a77e36d51b1d25d",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
         "grounded": true,
-        "text": "# Public Hour — Episode\n## Pronunciation as a Reliability Signal\nHost: A.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "# Public Hour \u2014 Episode\n## Pronunciation as a Reliability Signal\nHost: A."
       },
       "type": "Insight"
     },
     {
       "id": "insight:e84a13fb6e0bae28",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
         "grounded": true,
-        "text": "correspondent\nGuest: Renee Montague-Park\n#fixture-v3: failure_modes=zero_host_ner,recurring_guest\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "correspondent\nGuest: Renee Montague-Park\n#fixture-v3: failure_modes=zero_host_ner,recurring_guest\n#fixture-v3: voice=en-US host_voice=en-US\nA."
       },
       "type": "Insight"
     },
     {
       "id": "insight:db9acd5ee7759839",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
         "grounded": true,
-        "text": "correspondent: Welcome back to Public Hour.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "correspondent: Welcome back to Public Hour."
       },
       "type": "Insight"
     },
@@ -279,7 +237,7 @@
         "char_start": 426,
         "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it — Renee was on last week walking through public-radio voice conventions.",
+        "text": "Before we get into it \u2014 Renee was on last week walking through public-radio voice conventions.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p08_e02.txt"
@@ -316,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

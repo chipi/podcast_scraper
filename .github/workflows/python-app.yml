@@ -571,6 +571,9 @@ jobs:
   app-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      HF_HOME: /home/runner/.cache/huggingface
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     needs: [lint, build, app-unit, detect-changes]
     if: |
       always() &&
@@ -591,7 +594,15 @@ jobs:
         python -m venv .venv
         .venv/bin/pip install --upgrade pip
         # [dev] pulls FastAPI + uvicorn — needed for `podcast_scraper serve`.
-        .venv/bin/pip install -e ".[dev]"
+        # [search] pulls lancedb + sentence-transformers: the topic page + perspectives
+        # branch on has_index, so the e2e needs a real two-tier index (built offline in
+        # e2e/globalSetup.ts from the committed corpus). Without it, index-dependent specs
+        # (perspectives, search) render a different claim and fail (#1387).
+        .venv/bin/pip install -e ".[dev,search]"
+    - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - uses: actions/setup-node@v7
       with:
         node-version: "22"
@@ -602,7 +613,24 @@ jobs:
         cd web/learning-player
         npm ci
         npx playwright install --with-deps chromium
-    - name: Run Playwright E2E (real API + preview)
+    - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/huggingface
+        key: hf-hub-minilm-l6-v2
+        restore-keys: |
+          hf-hub-
+    - name: Preload the MiniLM embedding model (for the two-tier index build)
+      env:
+        # Only the embedding model is needed. Skip whisper/spaCy/transformers preload — they
+        # aren't installed under [dev,search]. index_corpus runs allow_download=False, so the
+        # model MUST be in the HF cache before e2e/globalSetup.ts builds the index.
+        SKIP_WHISPER: "1"
+        SKIP_SPACY: "1"
+        SKIP_TRANSFORMERS: "1"
+      run: |
+        .venv/bin/python scripts/cache/preload_ml_models.py
+    - name: Run Playwright E2E (real API + preview; globalSetup builds the two-tier index)
       run: |
         cd web/learning-player
         npm run test:e2e

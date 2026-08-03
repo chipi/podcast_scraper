@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:c2ea54ba4b0825a6",
-      "to": "topic:long-form",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:c2ea54ba4b0825a6",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:c2ea54ba4b0825a6",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:c2ea54ba4b0825a6",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "insight:3e28facea19a8b67",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:3e28facea19a8b67",
-      "to": "topic:long-form",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3e28facea19a8b67",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3e28facea19a8b67",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3e28facea19a8b67",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "insight:838e5efad224f1fa",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:838e5efad224f1fa",
-      "to": "topic:long-form",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:838e5efad224f1fa",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:838e5efad224f1fa",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:838e5efad224f1fa",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:3b38271f9aad647c",
@@ -154,6 +94,21 @@
       "from": "insight:838e5efad224f1fa",
       "to": "quote:c6d3548cd36e1bc5",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3e28facea19a8b67",
+      "to": "person:jordan-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:838e5efad224f1fa",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-3158b8ff3e943b1e",

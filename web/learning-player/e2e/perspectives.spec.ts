@@ -5,13 +5,19 @@ import { signInIsolated } from './helpers'
 /**
  * Multi-perspective synthesis (#1146) — the topic card's Perspectives section.
  *
- * The committed validation corpus now carries real speaker-attributed insights on a shared
- * topic: the panel episode "The Risk Panel: Diversify or Concentrate?" (p05_e04) plus the
- * risk-management insights threaded across the corpus give topic:risk-management seven distinct
- * speakers — Daniel Cho arguing diversification against Scott Bessent's concentration, and
- * others. The first test exercises this end-to-end against the REAL backend (no mocks), matching
- * the suite's full-stack contract. Only the per-speaker "show more" cap — which the corpus scale
- * can't reach (≤2 insights per speaker on any topic) — is covered with a focused mock below.
+ * The committed validation corpus carries real speaker-attributed insights on a shared topic:
+ * the panel episode "The Risk Panel: Diversify or Concentrate?" (p05_e04) plus the
+ * risk-management insights threaded across the 9 shows give topic:risk-management ten distinct
+ * speakers (cross-show synthesis) — Daniel Cho arguing diversification against Scott Bessent's
+ * concentration, and others. The first test exercises this end-to-end against the REAL backend
+ * (no mocks), matching the suite's full-stack contract. Only the per-speaker "show more" cap —
+ * which the corpus scale can't reach (≤2 insights per speaker on any topic) — is covered with a
+ * focused mock below.
+ *
+ * The count is asserted EXACTLY: it guards the ABOUT-edge contract (gi/about_edges.py — a topic
+ * link only where the insight actually discusses the topic). A blanket ABOUT fan-out once made
+ * every greeting "about" this topic → 27 bogus speakers, which pushed the engineered claim past
+ * the top-PREVIEW and surfaced only as a mystery claim-not-found here.
  */
 
 test('topic card shows real per-speaker perspectives from the corpus + speaker nav', async ({
@@ -29,7 +35,7 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   // The Perspectives section renders the real, corpus-derived speakers.
   const section = page.getByTestId('topic-perspectives')
   await expect(section).toBeVisible()
-  await expect(section.getByText('7 perspectives')).toBeVisible()
+  await expect(section.getByText('10 perspectives', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toBeVisible()
   // The engineered opposition surfaces verbatim as a grounded claim.

@@ -2,70 +2,47 @@
   "edges": [
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "to": "topic:technology",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "to": "topic:welcome-back-to",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-31T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e02.txt"
   },
   "nodes": [
     {
       "id": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "properties": {
-        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
-        "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-07-31T12:00:00",
         "title": "Practical Systems \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:technology",
       "properties": {
-        "label": "technology"
+        "label": "technology",
+        "slug": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to"
+        "label": "welcome back to",
+        "slug": "welcome-back-to"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

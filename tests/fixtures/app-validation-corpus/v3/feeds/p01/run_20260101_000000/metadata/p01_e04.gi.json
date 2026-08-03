@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:ec5c8497949e6439",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ec5c8497949e6439",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ec5c8497949e6439",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ec5c8497949e6439",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-de59d003651d9e5d",
       "to": "insight:62a7190d2a4ded85",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:62a7190d2a4ded85",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:62a7190d2a4ded85",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:62a7190d2a4ded85",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:62a7190d2a4ded85",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-de59d003651d9e5d",
       "to": "insight:5e35fb7106d60df7",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:5e35fb7106d60df7",
-      "to": "topic:endurance-sport",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5e35fb7106d60df7",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5e35fb7106d60df7",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5e35fb7106d60df7",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:b7bf22ac35088d66",
@@ -154,6 +94,21 @@
       "from": "insight:5e35fb7106d60df7",
       "to": "quote:110b8d9d2f282113",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:ec5c8497949e6439",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:62a7190d2a4ded85",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p01_e04-0",

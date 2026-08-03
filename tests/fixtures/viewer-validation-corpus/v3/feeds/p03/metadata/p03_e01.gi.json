@@ -91,86 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:4190e4d5a6f631a2",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:59968c55d935f3ce",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:4190e4d5a6f631a2",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:4190e4d5a6f631a2",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:4190e4d5a6f631a2",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:59968c55d935f3ce",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:59968c55d935f3ce",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:59968c55d935f3ce",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:235ac690e3034ff4",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:235ac690e3034ff4",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:235ac690e3034ff4",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
@@ -180,68 +113,64 @@
       "id": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
-        "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+        "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-07-04T12:00:00",
-        "title": "Below the Surface — Episode 1"
+        "publish_date": "2026-08-01T12:00:00",
+        "title": "Below the Surface \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
       "id": "topic:outdoor-activities",
       "properties": {
-        "label": "outdoor activities",
-        "score": 0.8
+        "label": "outdoor activities"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear",
-        "score": 0.8
+        "label": "gear"
       },
       "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research",
-        "score": 0.8
+        "label": "Science & research"
       },
       "type": "Topic"
     },
     {
       "id": "insight:4190e4d5a6f631a2",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
         "grounded": true,
-        "text": "Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist."
       },
       "type": "Insight"
     },
     {
       "id": "insight:59968c55d935f3ce",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
         "grounded": true,
-        "text": "Marco Sylva, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Marco Sylva, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:235ac690e3034ff4",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
         "grounded": true,
-        "text": "Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot."
       },
       "type": "Insight"
     },
@@ -280,7 +209,7 @@
         "char_start": 207,
         "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Rina. Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot.",
+        "text": "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p03_e01.txt"
@@ -345,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

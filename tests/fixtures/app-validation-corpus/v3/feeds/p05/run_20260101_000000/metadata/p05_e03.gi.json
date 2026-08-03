@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:695aed544e7fbef4",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:695aed544e7fbef4",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:695aed544e7fbef4",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:695aed544e7fbef4",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-8aa4d883afa10fa4",
       "to": "insight:859a389940dcde54",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:859a389940dcde54",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:859a389940dcde54",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:859a389940dcde54",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:859a389940dcde54",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-8aa4d883afa10fa4",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:4e369690b5c9d57f",
@@ -154,6 +94,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:373f8e83a2d34916",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:695aed544e7fbef4",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "person:scott-bessett",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-8aa4d883afa10fa4",

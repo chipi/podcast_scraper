@@ -22,8 +22,12 @@ test('transcript renders as flowing paragraphs with per-paragraph capture', asyn
   // The transcript renders from the real corpus (metadata → /segments path).
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
 
-  const paragraphs = page.locator('p.leading-relaxed')
-  const segs = page.locator('[data-testid="seg"]')
+  // Scope to the transcript container: p.leading-relaxed is also used by other index-fed panels on
+  // the episode page (the "More like this" related cards, the KnowledgePanel summary), so a
+  // page-wide count over-counts once the corpus has a real search index (the panels populate).
+  const transcript = page.getByTestId('transcript')
+  const paragraphs = transcript.locator('p.leading-relaxed')
+  const segs = transcript.locator('[data-testid="seg"]')
   await expect(paragraphs.first()).toBeVisible()
   const pCount = await paragraphs.count()
   const segCount = await segs.count()

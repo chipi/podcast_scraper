@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
-    "published_date": "2026-07-03",
+    "published_date": "2026-07-31",
     "title": "Practical Systems \u2014 Episode 2"
   },
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p02/metadata/p02_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-03",
+  "publish_date": "2026-07-31",
   "schema_version": "1",
   "summary": {
     "bullets": [

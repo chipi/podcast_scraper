@@ -1282,7 +1282,7 @@ but a strict SUBSET (just one of its tags) only if the client's tags include an
 owner of the requested tag.** So `tailscale/policy.hujson` lists each tag as its
 own owner:
 
-```
+```json
 "tag:prod":     ["autogroup:admin", "tag:prod"],
 "tag:dr-drill": ["autogroup:admin", "tag:dr-drill"],
 ```

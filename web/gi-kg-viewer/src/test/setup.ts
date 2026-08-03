@@ -28,6 +28,54 @@
  */
 import { afterEach, vi } from 'vitest'
 
+/* NETWORK-ISOLATION — unit tests must never open a real socket.
+ *
+ * happy-dom resolves a relative ``/api/...`` fetch against its default origin
+ * (``http://localhost:3000``). Any component that fetches on mount without the
+ * test mocking its api module therefore opens a REAL connection → ECONNREFUSED,
+ * and ``httpClient``'s 120 s ``AbortSignal.timeout`` leaves an abort that fires
+ * at worker teardown (``AbortError``) — which, under the ``forks`` pool +
+ * coverage on macOS, stalls finalize (the "Timeout terminating forks worker"
+ * seen in ``make test-ui``). USERPREFS-1 (below) plugged one endpoint
+ * (``/api/app/preferences``); this guard generalises it: short-circuit EVERY
+ * request to the happy-dom origin to an inert ``503`` so no unmocked endpoint —
+ * present or future — can reach the network. Absolute external URLs (none in
+ * unit tests) still pass through. A test that needs a real/asserted response
+ * still overrides ``fetch`` or ``vi.mock``s its api module locally (file-scoped,
+ * torn down per file, so it wins over this default).
+ *
+ * Plain closure over the real fetch — NOT ``vi.fn`` — so no spy-registry handle
+ * survives the worker-teardown boundary (see the userPreferences note below for
+ * why vi.fn here would re-introduce the very stall this removes). */
+{
+  const realFetch = globalThis.fetch
+  const isHappyDomOrigin = (raw: string): boolean =>
+    raw.startsWith('/') ||
+    raw.startsWith('http://localhost:3000') ||
+    raw.startsWith('http://127.0.0.1:3000') ||
+    raw.startsWith('http://[::1]:3000')
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = ((
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ) => {
+    const raw =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : (input as Request).url
+    if (isHappyDomOrigin(raw)) {
+      return Promise.resolve(
+        new Response('{}', {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+    }
+    return realFetch(input as RequestInfo, init)
+  }) as typeof fetch
+}
+
 vi.mock('../api/userPreferencesApi', () => ({
   fetchUserPreferences: async () => null,
   patchUserPreferences: async () => null,

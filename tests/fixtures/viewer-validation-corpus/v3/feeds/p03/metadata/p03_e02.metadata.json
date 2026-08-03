@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
-    "published_date": "2026-07-02",
+    "published_date": "2026-07-30",
     "title": "Below the Surface \u2014 Episode 2"
   },
   "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p03/metadata/p03_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-02",
+  "publish_date": "2026-07-30",
   "schema_version": "1",
   "summary": {
     "bullets": [

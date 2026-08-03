@@ -158,7 +158,7 @@ watch(
 </script>
 
 <template>
-  <div class="overflow-y-auto" @scroll.passive="onUserScroll">
+  <div data-testid="transcript" class="overflow-y-auto" @scroll.passive="onUserScroll">
     <p aria-live="polite" class="sr-only">
       {{ activeIndex >= 0 ? segments[activeIndex]?.text : '' }}
     </p>

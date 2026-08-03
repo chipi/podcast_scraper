@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:2b0dfa9c911f2b4d",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:2b0dfa9c911f2b4d",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:2b0dfa9c911f2b4d",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:2b0dfa9c911f2b4d",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-a1342cd495b1165b",
       "to": "insight:1b3d89444a6f5fb7",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-a1342cd495b1165b",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:13041dad1c5ed848",
@@ -154,6 +94,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:a276f0bdd91c3cf2",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:2b0dfa9c911f2b4d",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "person:skanda-amarnauth",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-a1342cd495b1165b",

@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
-      "to": "entity:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
-      "to": "entity:diversify-or",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
       "to": "topic:science-research",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
       "to": "topic:diversify-or",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
       "to": "topic:welcome-back-to",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-30T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p05_e04.txt"
   },
   "nodes": [
     {
       "id": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
       "properties": {
-        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
-        "metadata_relative_path": "feeds/p05/metadata/p05_e04.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-07-30T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 4"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:science-research",
-      "properties": {
-        "category": "Concept",
-        "label": "Science & Research"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:diversify-or",
-      "properties": {
-        "category": "Concept",
-        "label": "Diversify Or"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research"
+        "label": "Science & research",
+        "slug": "science-research"
       },
       "type": "Topic"
     },
     {
       "id": "topic:diversify-or",
       "properties": {
-        "label": "diversify or"
+        "label": "diversify or",
+        "slug": "diversify-or"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to"
+        "label": "welcome back to",
+        "slug": "welcome-back-to"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

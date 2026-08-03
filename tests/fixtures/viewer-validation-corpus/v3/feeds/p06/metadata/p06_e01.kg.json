@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-      "to": "entity:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-      "to": "entity:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "topic:science-research",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "topic:welcome-back-to",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "topic:excited-for-this-one",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-29T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e01.txt"
   },
   "nodes": [
     {
       "id": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "properties": {
-        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-        "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
+        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+        "publish_date": "2026-07-29T12:00:00",
         "title": "Edge Cases Podcast \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:science-research",
-      "properties": {
-        "category": "Concept",
-        "label": "Science & Research"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:welcome-back-to",
-      "properties": {
-        "category": "Concept",
-        "label": "Welcome Back To"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research"
+        "label": "Science & research",
+        "slug": "science-research"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to"
+        "label": "welcome back to",
+        "slug": "welcome-back-to"
       },
       "type": "Topic"
     },
     {
       "id": "topic:excited-for-this-one",
       "properties": {
-        "label": "excited for this one"
+        "label": "excited for this one",
+        "slug": "excited-for-this-one"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

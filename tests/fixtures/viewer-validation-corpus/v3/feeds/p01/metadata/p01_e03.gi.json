@@ -91,86 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:75528dd34e88bedc",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:c4d1e8940d7ed9a3",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:75528dd34e88bedc",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:75528dd34e88bedc",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:75528dd34e88bedc",
-      "to": "topic:business-markets",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c4d1e8940d7ed9a3",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c4d1e8940d7ed9a3",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c4d1e8940d7ed9a3",
-      "to": "topic:business-markets",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:3e91ef621d0c5cbf",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:3e91ef621d0c5cbf",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:3e91ef621d0c5cbf",
-      "to": "topic:business-markets",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
@@ -180,68 +113,64 @@
       "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
-        "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+        "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-07-02T12:00:00",
-        "title": "Singletrack Sessions — Episode 3"
+        "publish_date": "2026-07-30T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 3"
       },
       "type": "Episode"
     },
     {
       "id": "topic:outdoor-activities",
       "properties": {
-        "label": "outdoor activities",
-        "score": 0.8
+        "label": "outdoor activities"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear",
-        "score": 0.8
+        "label": "gear"
       },
       "type": "Topic"
     },
     {
       "id": "topic:business-markets",
       "properties": {
-        "label": "Business & markets",
-        "score": 0.8
+        "label": "Business & markets"
       },
       "type": "Topic"
     },
     {
       "id": "insight:75528dd34e88bedc",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
         "grounded": true,
-        "text": "Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench."
       },
       "type": "Insight"
     },
     {
       "id": "insight:c4d1e8940d7ed9a3",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
         "grounded": true,
-        "text": "Noah Bryer, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Noah Bryer, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:3e91ef621d0c5cbf",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
         "grounded": true,
-        "text": "Today's episode is sponsored by Notion.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Today's episode is sponsored by Notion."
       },
       "type": "Insight"
     },
@@ -308,7 +237,7 @@
         "char_start": 353,
         "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it — Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
+        "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p01_e03.txt"
@@ -336,7 +265,7 @@
         "char_start": 555,
         "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something — Sophie Lorent mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p01_e03.txt"
@@ -345,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

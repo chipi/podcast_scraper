@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
-      "to": "entity:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "topic:technology",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "topic:science-research",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "topic:welcome-back-to",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-08-02T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e01.txt"
   },
   "nodes": [
     {
       "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "properties": {
-        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
-        "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-08-02T12:00:00",
         "title": "Practical Systems \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:science-research",
-      "properties": {
-        "category": "Concept",
-        "label": "Science & Research"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:technology",
       "properties": {
-        "label": "technology"
+        "label": "technology",
+        "slug": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research"
+        "label": "Science & research",
+        "slug": "science-research"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to"
+        "label": "welcome back to",
+        "slug": "welcome-back-to"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

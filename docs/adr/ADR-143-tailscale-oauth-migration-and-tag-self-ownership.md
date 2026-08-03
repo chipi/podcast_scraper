@@ -54,18 +54,21 @@ because the client (bearing `tag:prod`) is then an owner of `tag:prod`.
 ## Consequences
 
 **Positive**
+
 - No more expiring Tailscale credentials for infra; the 2026-08-03 outage class is gone.
 - One credential model (OAuth) across provider, device-join, and ACL — three single-purpose
   clients (`TS_INFRA_OAUTH`, `TS_OAUTH`, `TS_ACL_OAUTH`).
 - Fewer secrets: `TS_API_KEY` + `TS_AUTHKEY` deleted.
 
 **Negative / trade-off**
+
 - Tag self-ownership means **any bearer of `tag:prod` may mint further `tag:prod` keys** —
   that now includes the prod VPS itself (it carries `tag:prod`), not just the CI client.
   Accepted: the prod VPS is already prod-trusted, so the marginal escalation is small.
   The cleaner split is deferred (see Alternatives).
 
 **Neutral**
+
 - The failure surfaces only when the provider actually **mints** a key (a real
   `tofu apply` / DR drill), not on `tofu plan` ("No changes"). Validate migrations with a
   drill or a direct mint probe — see PROD_RUNBOOK "Tailscale credentials" for the one-liner.

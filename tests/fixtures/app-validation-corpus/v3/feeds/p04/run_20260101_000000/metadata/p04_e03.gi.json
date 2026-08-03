@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:0b24940158f8521b",
-      "to": "topic:visual-craft",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0b24940158f8521b",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0b24940158f8521b",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0b24940158f8521b",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-9f97daef33906cf6",
       "to": "insight:cb626e0a5fe29a63",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:cb626e0a5fe29a63",
-      "to": "topic:visual-craft",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:cb626e0a5fe29a63",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:cb626e0a5fe29a63",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:cb626e0a5fe29a63",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-9f97daef33906cf6",
       "to": "insight:72fd97ce71dea026",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:72fd97ce71dea026",
-      "to": "topic:visual-craft",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:72fd97ce71dea026",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:72fd97ce71dea026",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:72fd97ce71dea026",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:4d5eb3b1e48280b9",
@@ -154,6 +94,21 @@
       "from": "insight:72fd97ce71dea026",
       "to": "quote:e1aaf6cc542c2585",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:0b24940158f8521b",
+      "to": "person:leo",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "person:daniel-olufemi",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "person:leo",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-9f97daef33906cf6",

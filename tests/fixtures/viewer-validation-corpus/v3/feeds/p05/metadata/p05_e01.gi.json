@@ -91,86 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:15b1d98fdea73abc",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:c1e3bcbe11e2a958",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:15b1d98fdea73abc",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:15b1d98fdea73abc",
-      "to": "topic:without-the",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:15b1d98fdea73abc",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c1e3bcbe11e2a958",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c1e3bcbe11e2a958",
-      "to": "topic:without-the",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c1e3bcbe11e2a958",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:ba0248f7d7723706",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:ba0248f7d7723706",
-      "to": "topic:without-the",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:ba0248f7d7723706",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
@@ -180,68 +113,64 @@
       "id": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-        "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
+        "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-07-02T12:00:00",
-        "title": "Long Horizon Notes — Episode 1"
+        "publish_date": "2026-07-30T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research",
-        "score": 0.8
+        "label": "Science & research"
       },
       "type": "Topic"
     },
     {
       "id": "topic:without-the",
       "properties": {
-        "label": "without the",
-        "score": 0.8
+        "label": "without the"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to",
-        "score": 0.8
+        "label": "welcome back to"
       },
       "type": "Topic"
     },
     {
       "id": "insight:15b1d98fdea73abc",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
         "grounded": true,
-        "text": "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate."
       },
       "type": "Insight"
     },
     {
       "id": "insight:c1e3bcbe11e2a958",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
         "grounded": true,
-        "text": "Daniel Cho, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Daniel Cho, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:ba0248f7d7723706",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
         "grounded": true,
-        "text": "Excited for this one — index investing is something I've been thinking about a lot.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Excited for this one \u2014 index investing is something I've been thinking about a lot."
       },
       "type": "Insight"
     },
@@ -280,7 +209,7 @@
         "char_start": 204,
         "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Nora. Excited for this one — index investing is something I've been thinking about a lot.",
+        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p05_e01.txt"
@@ -322,7 +251,7 @@
         "char_start": 520,
         "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
         "speaker_id": "person:speaker-02",
-        "text": "Let me give you the version I actually believe. Index funds are not a strategy — they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.",
+        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p05_e01.txt"
@@ -345,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

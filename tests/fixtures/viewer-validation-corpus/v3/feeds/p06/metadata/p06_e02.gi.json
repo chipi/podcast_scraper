@@ -91,86 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:157bc9c5953c5326",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:49ceee537c0fbff7",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:157bc9c5953c5326",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:157bc9c5953c5326",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:157bc9c5953c5326",
-      "to": "topic:great-to-be-back",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:49ceee537c0fbff7",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:49ceee537c0fbff7",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:49ceee537c0fbff7",
-      "to": "topic:great-to-be-back",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:9dae8f69e31392ca",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:9dae8f69e31392ca",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:9dae8f69e31392ca",
-      "to": "topic:great-to-be-back",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
@@ -180,68 +113,64 @@
       "id": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-        "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
+        "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "publish_date": "2026-07-05T12:00:00",
-        "title": "Edge Cases Podcast — Episode 2"
+        "publish_date": "2026-08-02T12:00:00",
+        "title": "Edge Cases Podcast \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
       "id": "topic:technology",
       "properties": {
-        "label": "Technology",
-        "score": 0.8
+        "label": "Technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to",
-        "score": 0.8
+        "label": "welcome back to"
       },
       "type": "Topic"
     },
     {
       "id": "topic:great-to-be-back",
       "properties": {
-        "label": "great to be back",
-        "score": 0.8
+        "label": "great to be back"
       },
       "type": "Topic"
     },
     {
       "id": "insight:157bc9c5953c5326",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
         "grounded": true,
-        "text": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic."
       },
       "type": "Insight"
     },
     {
       "id": "insight:49ceee537c0fbff7",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
         "grounded": true,
-        "text": "Jordan Park, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Jordan Park, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:9dae8f69e31392ca",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
         "grounded": true,
-        "text": "This episode is brought to you by Squarespace.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "This episode is brought to you by Squarespace."
       },
       "type": "Insight"
     },
@@ -345,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }
