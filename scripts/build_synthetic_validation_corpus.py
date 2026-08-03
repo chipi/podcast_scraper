@@ -631,6 +631,8 @@ def main() -> int:
                 excerpts,
                 transcript_ref=transcript_rel_eproot,
                 extracted_at=publish + "T12:00:00",
+                podcast_id=podcast_id,
+                publish_date=publish + "T12:00:00",
                 metadata_relative_path=metadata_rel,
             )
 
