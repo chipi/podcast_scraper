@@ -37,7 +37,7 @@ transcription:
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
 dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
-dgx_whisper_port: 8002
+dgx_whisper_port: 8000  # faster-whisper; :8002 (openai-whisper) was retired
 
 # --- Diarization: pyannote on DGX with local fallback ---
 # Identical to cloud_with_dgx_primary. The TailnetDgxDiarizationProvider
