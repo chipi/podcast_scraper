@@ -362,6 +362,14 @@ jobs:
           TS_INFRA_OAUTH_SECRET: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TAILNET_NAME: ${{ vars.TAILNET_NAME }}
         run: |
+          set -euo pipefail
+          # Exchange the Tailscale OAuth client (devices scope) for a short-lived API token,
+          # then hand it to the cleanup script as TS_API_KEY (an OAuth access token is a valid
+          # Bearer token). OAuth replaced the expiring TS_API_KEY secret (2026-08-03).
+          TS_API_KEY="$(curl -fsS https://api.tailscale.com/api/v2/oauth/token \
+            -d "client_id=${TS_INFRA_OAUTH_CLIENT_ID}" \
+            -d "client_secret=${TS_INFRA_OAUTH_SECRET}" | jq -r .access_token)"
+          export TS_API_KEY
           python3 scripts/ops/cleanup_tailscale_gha_deployers.py --apply --min-hours 3
 
       # ``tofu destroy`` can still exit non-zero when state drifts (e.g. server
