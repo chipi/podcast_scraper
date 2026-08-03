@@ -599,6 +599,10 @@ jobs:
         # e2e/globalSetup.ts from the committed corpus). Without it, index-dependent specs
         # (perspectives, search) render a different claim and fail (#1387).
         .venv/bin/pip install -e ".[dev,search]"
+    - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - uses: actions/setup-node@v7
       with:
         node-version: "22"
