@@ -365,6 +365,7 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
         "deepseek",
         "grok",
         "ollama",
+        "vllm",  # ADR-144: DGX-local LLM self-grounds (quote/entailment on the same model)
         "hybrid_ml",
     }
 )
