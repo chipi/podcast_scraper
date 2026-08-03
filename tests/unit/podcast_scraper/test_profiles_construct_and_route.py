@@ -63,7 +63,7 @@ class TestOpenAIRoutingPrecedence:
         monkeypatch.setenv("OPENAI_API_BASE", "https://api.openai.com/v1")
         cfg = Config.model_validate(
             {
-                "profile": "prod_dgx_full_with_fallback",
+                "profile": "prod_dgx_full",
                 "generate_gi": True,
                 "generate_metadata": True,
             }

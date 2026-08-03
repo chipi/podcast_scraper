@@ -62,3 +62,48 @@ def test_episode_span_noop_when_disabled(monkeypatch):
     assert m.otel_tracing_enabled() is False
     with m.episode_span(run_id="r", episode_id="e", feed_id="https://f") as span:
         assert span is None
+
+
+def test_wrap_with_current_context_noop_when_disabled(monkeypatch):
+    """With OTEL off, the wrapper returns the callable UNCHANGED (identity) — zero overhead."""
+    m = _fresh(monkeypatch)
+    assert m.otel_tracing_enabled() is False
+
+    def fn(x: int) -> int:
+        return x * 2
+
+    assert m.wrap_with_current_context(fn) is fn
+    assert m.wrap_with_current_context(fn)(3) == 6
+
+
+def test_wrap_with_current_context_propagates_span_into_worker_thread(monkeypatch):
+    """The fix for `trace=-`: a ThreadPoolExecutor worker does NOT inherit the caller's active span,
+    so it loses the trace_id; the wrapper re-attaches the submit-time context inside the worker."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    m = _fresh(
+        monkeypatch,
+        OTEL_TRACES_EXPORTER="otlp",
+        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://backend:10428/insert/opentelemetry/v1/traces",
+    )
+    assert m.otel_tracing_enabled() is True
+
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    if not isinstance(trace.get_tracer_provider(), TracerProvider):
+        trace.set_tracer_provider(TracerProvider())
+    tracer = trace.get_tracer("test.wrap_with_current_context")
+
+    def worker_trace_id() -> int:
+        return trace.get_current_span().get_span_context().trace_id
+
+    with tracer.start_as_current_span("root"):
+        expected = trace.get_current_span().get_span_context().trace_id
+        assert expected != 0  # a real, recording span
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            naive = ex.submit(worker_trace_id).result()
+            wrapped = ex.submit(m.wrap_with_current_context(worker_trace_id)).result()
+
+    assert naive != expected  # naive worker lost the span context (the bug)
+    assert wrapped == expected  # wrapper restored it (the fix)

@@ -27,7 +27,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 # DGX prod presets run turbo (tailnet_dgx_whisper) as the transcription primary since the real-GT
 # bake-off (#1178/#1179) — MOSS was demoted to an accurate-but-slow fallback. Two ladder shapes now
 # diverge: cloud_with_dgx_primary terminates each stage in the cloud_balanced tier, while
-# prod_dgx_full_with_fallback is fully airgapped (ADR-144) — its ladders end at the last DGX/local
+# prod_dgx_full is fully airgapped (ADR-144) — its ladders end at the last DGX/local
 # tier and never reach cloud (asserted separately below).
 _CLOUD_TERMINATED_PRESETS = ["cloud_with_dgx_primary"]
 
@@ -63,10 +63,10 @@ def test_cloud_summary_stage_gets_no_fallback() -> None:
 
 
 def test_airgapped_dgx_prod_ladders_never_reach_cloud() -> None:
-    """prod_dgx_full_with_fallback is fully airgapped (ADR-144): each stage falls back only to
+    """prod_dgx_full is fully airgapped (ADR-144): each stage falls back only to
     DGX/local tiers — transcription to DGX-then-local whisper, diarization to local pyannote,
     summary to DGX-local ollama — and never to a cloud vendor."""
-    resolved = resolve_profile_to_settings("prod_dgx_full_with_fallback")
+    resolved = resolve_profile_to_settings("prod_dgx_full")
     assert resolved["transcription_provider"] == "tailnet_dgx_whisper"
     assert resolved["transcription_fallback_providers"] == ["tailnet_dgx_whisper", "whisper"]
     assert resolved["diarization_fallback_providers"] == ["local"]
@@ -90,8 +90,8 @@ def test_a_preset_with_no_ladder_emits_no_fallback_keys() -> None:
 def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
     """The chain in the profile is provider strings, not StageOption ids — the ids are an internal
     handle; a Config/runtime consumer sees the provider it will actually construct. For the
-    airgapped prod_dgx_full_with_fallback the chain ends at the last DGX/local tier."""
-    resolved = resolve_profile_to_settings("prod_dgx_full_with_fallback")
+    airgapped prod_dgx_full the chain ends at the last DGX/local tier."""
+    resolved = resolve_profile_to_settings("prod_dgx_full")
     assert resolved["transcription_fallback_providers"] == [
         get_transcription_option("tailnet_dgx_speaches_thread_b").provider,
         get_transcription_option("local_mps_large_v3").provider,

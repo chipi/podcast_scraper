@@ -94,7 +94,7 @@ Reasoning:
 - **No DeepSeek-R1 distill is a contender.** Range 0.195-0.226 RougeL; reasoning-tuned, not summary-shaped.
 - **Sonnet-mimicry caveat applies.** Per [#932](https://github.com/chipi/podcast_scraper/issues/932) (G-Eval finale tier), RougeL measures lexical proximity to Sonnet 4.6's writing style, not summary quality itself. Relative ordering is informative; absolute scores are noisy.
 
-**Implication for #923 prod profile**: keep `ollama_summary_model: "qwen3.5:35b"` in `prod_dgx_full_with_fallback` **for now**. Re-evaluate qwen3.6:latest as the champion once:
+**Implication for #923 prod profile**: keep `ollama_summary_model: "qwen3.5:35b"` in `prod_dgx_full` **for now**. Re-evaluate qwen3.6:latest as the champion once:
 
 1. #933 prod-curated tier validates the quality edge on real podcasts.
 2. #932 G-Eval finale confirms it on faithfulness/coverage/coherence/fluency (the coverage delta is worth a closer look).

@@ -4765,6 +4765,17 @@ def main(  # noqa: C901 - main function handles multiple command paths
     from podcast_scraper.utils.otel_init import init_otel
 
     init_otel()
+    # Metrics push (ADR-119): a bare CLI run has no long-lived FastAPI process, so the in-process
+    # Prometheus registry (notably ``inference_guardrail_violations_total``) would otherwise die on
+    # exit unscraped. Start the same dev pusher the API uses; it registers an atexit final-snapshot
+    # so the last counter state ships to VictoriaMetrics before the process exits. No-op unless
+    # ``PODCAST_METRICS_PUSH_URL`` is set (dev via .env.obs.dev; the image leaves it unset).
+    try:
+        from podcast_scraper.obs.dev_push import start_metrics_pusher
+
+        start_metrics_pusher()
+    except Exception:  # pragma: no cover - o11y must never block the CLI
+        pass
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi/kg subcommands

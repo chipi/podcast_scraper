@@ -133,7 +133,7 @@ Profile impact (regenerated via `make profiles-materialize`):
 | profile | transcription before → after | notes |
 | --- | --- | --- |
 | `prod_dgx_balanced` | MOSS → **turbo** + coverage gate (0.85→large-v3) | serving |
-| `prod_dgx_full_with_fallback` | MOSS → **turbo** + coverage gate | serving |
+| `prod_dgx_full` | MOSS → **turbo** + coverage gate | serving |
 | `cloud_with_dgx_primary` | MOSS → **turbo** + coverage gate | DGX-primary hybrid |
 | `cloud_quality` | Deepgram → **openai-whisper-1** | diarization stays Deepgram |
 | `cloud_balanced`, `cloud_thin` | openai-whisper-1 (unchanged) | already correct |

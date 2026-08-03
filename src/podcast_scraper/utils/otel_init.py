@@ -17,11 +17,12 @@ the app.
 from __future__ import annotations
 
 import atexit
+import functools
 import importlib
 import logging
 import os
 from contextlib import contextmanager
-from typing import Any, Iterator, Optional
+from typing import Any, Callable, Iterator, Optional
 
 _LOGGER = logging.getLogger(__name__)
 _initialized = False
@@ -149,6 +150,36 @@ def episode_span(
     except Exception:  # noqa: BLE001 — telemetry must never break episode processing
         _LOGGER.debug("episode_span failed", exc_info=True)
         yield None
+
+
+def wrap_with_current_context(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap ``fn`` so it runs under the OTEL context active at wrap time.
+
+    ``ThreadPoolExecutor`` workers do NOT inherit the submitting thread's OTEL context, so a stage
+    that runs in a nested executor emits its logs/events with NO active span — ``trace_id`` renders
+    ``"-"`` and ``emit_event``'s ``_trace_context`` can't join them to the episode's root span.
+    Capturing the current context at submit and attaching it inside the worker restores the join
+    key (``run_id`` is process-global and ``episode_id`` is passed explicitly, but ``trace_id`` is
+    read from the *current span*, which is thread-local). TRUE no-op — returns ``fn`` unchanged —
+    when OTEL tracing is off or the API is unavailable; never raises.
+    """
+    if not otel_tracing_enabled():
+        return fn
+    try:
+        from opentelemetry import context as _otel_context
+    except ImportError:
+        return fn
+    ctx = _otel_context.get_current()
+
+    @functools.wraps(fn)
+    def _wrapped(*args: Any, **kwargs: Any) -> Any:
+        token = _otel_context.attach(ctx)
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            _otel_context.detach(token)
+
+    return _wrapped
 
 
 def _reset_for_tests() -> None:

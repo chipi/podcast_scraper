@@ -17,7 +17,7 @@ music/ad-heavy episode transcribed *fully* still read ~71% raw coverage and
 spuriously re-routed to MOSS. Fixed:
 
 - **Registry now emits `transcription_speech_coverage_min=0.85` (raw `=0.0`)**
-  for `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`.
+  for `prod_dgx_full`, `cloud_with_dgx_primary`.
   The speech-normalized gate is the **single** active quality gate whenever
   diarization runs; the raw gate stays a no-op fallback only for non-diarizing
   configs (where no speech denominator exists).

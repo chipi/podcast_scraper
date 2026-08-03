@@ -1985,12 +1985,14 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "(uncapped ceiling + chunking + value gate + temperature 0)."
         ),
     ),
-    "prod_dgx_full_with_fallback": ProfilePreset(
-        name="prod_dgx_full_with_fallback",
+    "prod_dgx_full": ProfilePreset(
+        name="prod_dgx_full",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_speech_coverage_min=0.85,  # ADR-131 speech-normalized gate (raw=metric only)
-        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
-        transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
+        # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
+        # ASR must be CONSTANT (always DGX whisper). A MOSS re-transcribe on a low-coverage episode
+        # swaps the transcript source mid-run and confounds a summary/GI/KG comparison. Fields left
+        # at defaults (speech_coverage_min=0.0, failover model/provider=None) → the ADR-131 gate
+        # returns early. The ASR speech_coverage METRIC is still recorded (separate from this gate).
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",

@@ -10,7 +10,7 @@ Need the short version for daily ops? Use
 [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md).
 **Optional DGX Whisper primary (cost optimization):** [DGX_RUNBOOK](DGX_RUNBOOK.md) and profile
 `cloud_with_dgx_primary` per [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md).
-**All-DGX hot path (zero cloud LLM spend):** profile `prod_dgx_full_with_fallback` (#923) —
+**All-DGX hot path (zero cloud LLM spend):** profile `prod_dgx_full` (#923) —
 adds Ollama qwen3.5:35b on DGX for summary/GI/KG with Gemini as the cloud fallback.
 **Operator-gated until #996 closes** — see § Provider model selection — DGX vs cloud per stage.
 

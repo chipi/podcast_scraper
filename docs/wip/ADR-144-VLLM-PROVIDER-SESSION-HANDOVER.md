@@ -22,7 +22,7 @@ internet). `vllm` is a first-class provider, a sibling of `openai`.
 | `763ab4d0` | **B3** — fail-closed `GET /v1/models` served-model verification at `initialize()` |
 | (this) | ADR as-built amendment + ollama-symmetry deferral note + this handover |
 
-### Airgapped as-built (DGX profiles: prod_dgx_full_with_fallback, eval_default)
+### Airgapped as-built (DGX profiles: prod_dgx_full, eval_default)
 
 - summary / naming / GI / KG / quote / entailment → `vllm` (real Qwen id `NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`).
 - value gate: **enabled, self-grades with the same local model** (no cloud judge; `_LOCAL_ONLY_LLM`).
@@ -45,7 +45,7 @@ internet). `vllm` is a first-class provider, a sibling of `openai`.
      retired (never-mutate); new configs use the real id.
    - **This is an infra deploy — left for the operator (not touched autonomously).**
 2. **Live DGX validation.** Bring the vLLM up (`gpu-mode-swap.sh research`) serving the real id, then
-   run `scripts/eval/onboard_model_smoke.py` + one pipeline episode on `prod_dgx_full_with_fallback` to confirm
+   run `scripts/eval/onboard_model_smoke.py` + one pipeline episode on `prod_dgx_full` to confirm
    the B3 check passes and the airgapped path works end-to-end. All validation so far is offline/unit.
 3. **Ollama full symmetry — DONE** (was deferred; operator asked to un-defer). Ollama's wire config
    is now registry-governed + materialized like vllm's (primary AND airgapped-fallback), via a

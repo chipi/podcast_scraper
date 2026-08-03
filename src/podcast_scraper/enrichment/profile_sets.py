@@ -206,7 +206,7 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
     # is the same. Note: only profile names with a real YAML under
     # config/profiles/ are matched here ('prod' was dropped because
     # there is no config/profiles/prod.yaml; the production-shaped
-    # profile is prod_dgx_full_with_fallback).
+    # profile is prod_dgx_full).
     # `experiment_dgx_*` is matched here because renaming `prod_dgx_only` -> `experiment_dgx_only`
     # dropped it out of the `prod_dgx_` prefix and straight into the unknown-profile fallback: an
     # EMPTY enricher set. The profile still declares all nine enrichers in its YAML and still runs a
