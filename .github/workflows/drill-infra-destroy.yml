@@ -42,7 +42,9 @@ on:
     secrets:
       HCLOUD_TOKEN_DRILL:
         required: true
-      TS_API_KEY:
+      TS_INFRA_OAUTH_CLIENT_ID:
+        required: true
+      TS_INFRA_OAUTH_SECRET:
         required: true
       TFSTATE_AGE_KEY:
         required: true
@@ -156,14 +158,16 @@ jobs:
       - name: "DR drill — pre-flight: secrets and tokens (OpenTofu provider)"
         env:
           HCLOUD_TOKEN_DRILL:       ${{ secrets.HCLOUD_TOKEN_DRILL }}
-          TS_API_KEY:               ${{ secrets.TS_API_KEY }}
+          TS_INFRA_OAUTH_CLIENT_ID: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TS_INFRA_OAUTH_SECRET: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TFSTATE_AGE_KEY:          ${{ secrets.TFSTATE_AGE_KEY }}
           OPERATOR_SSH_PUBLIC_KEY:  ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
           [ -z "${HCLOUD_TOKEN_DRILL:-}" ]      && MISSING="$MISSING HCLOUD_TOKEN_DRILL"
-          [ -z "${TS_API_KEY:-}" ]            && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TS_INFRA_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_INFRA_OAUTH_CLIENT_ID"
+          [ -z "${TS_INFRA_OAUTH_SECRET:-}" ] && MISSING="$MISSING TS_INFRA_OAUTH_SECRET"
           [ -z "${TFSTATE_AGE_KEY:-}" ]       && MISSING="$MISSING TFSTATE_AGE_KEY"
           [ -z "${OPERATOR_SSH_PUBLIC_KEY:-}" ] && MISSING="$MISSING OPERATOR_SSH_PUBLIC_KEY"
           if [ -n "$MISSING" ]; then
@@ -202,7 +206,8 @@ jobs:
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
-          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
@@ -308,7 +313,8 @@ jobs:
       - name: "DR drill — tailscale: remove drill devices (tag or hostname)"
         if: always()
         env:
-          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TS_INFRA_OAUTH_CLIENT_ID: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TS_INFRA_OAUTH_SECRET: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TAILNET: ${{ vars.TAILNET_NAME }}
         run: |
           set -euo pipefail
@@ -318,7 +324,13 @@ jobs:
             | sed -E 's/^[[:space:]]*tailnet_hostname[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
           echo "Tailscale cleanup for tailnet=$TAILNET hostname=$DRILL_HOST (tag:dr-drill or hostname match)"
 
-          RESP=$(curl -fsS -H "Authorization: Bearer $TS_API_KEY" \
+          # Exchange the Tailscale OAuth client (devices scope, tag:dr-drill) for a short-lived
+          # API token — OAuth replaced the expiring TS_API_KEY (2026-08-03).
+          TS_TOKEN="$(curl -fsS https://api.tailscale.com/api/v2/oauth/token \
+            -d "client_id=${TS_INFRA_OAUTH_CLIENT_ID}" \
+            -d "client_secret=${TS_INFRA_OAUTH_SECRET}" | jq -r .access_token)"
+
+          RESP=$(curl -fsS -H "Authorization: Bearer $TS_TOKEN" \
             "https://api.tailscale.com/api/v2/tailnet/$TAILNET/devices?fields=all")
 
           IDS=$(echo "$RESP" | jq -r --arg h "$DRILL_HOST" '
@@ -337,7 +349,7 @@ jobs:
 
           for id in $IDS; do
             echo "DELETE device id=$id"
-            curl -fsS -X DELETE -H "Authorization: Bearer $TS_API_KEY" \
+            curl -fsS -X DELETE -H "Authorization: Bearer $TS_TOKEN" \
               "https://api.tailscale.com/api/v2/device/$id" \
               || echo "::warning::Tailscale DELETE failed for $id (may already be gone)."
           done
@@ -346,7 +358,8 @@ jobs:
       - name: "DR drill — tailscale: cleanup stale GHA deployers"
         if: always()
         env:
-          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TS_INFRA_OAUTH_CLIENT_ID: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TS_INFRA_OAUTH_SECRET: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TAILNET_NAME: ${{ vars.TAILNET_NAME }}
         run: |
           python3 scripts/ops/cleanup_tailscale_gha_deployers.py --apply --min-hours 3

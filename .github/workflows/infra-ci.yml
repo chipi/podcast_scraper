@@ -8,9 +8,10 @@ name: Infra CI
 # dispatch side.
 #
 # Operator prerequisites (#714):
-#   secrets: HCLOUD_TOKEN, TS_API_KEY (Free-plan substitute for OAuth — used by
-#            the tailscale Terraform provider; see PROD_RUNBOOK.md "Tailscale
-#            credentials"), TFSTATE_AGE_KEY
+#   secrets: HCLOUD_TOKEN, TS_INFRA_OAUTH_CLIENT_ID + TS_INFRA_OAUTH_SECRET
+#            (OAuth client for the tailscale Terraform provider; replaces the
+#            expiring TS_API_KEY — see PROD_RUNBOOK.md "Tailscale credentials"),
+#            TFSTATE_AGE_KEY
 #   secrets: OPERATOR_SSH_PUBLIC_KEY (same value as laptop pubkey; secret so GHA masks logs)
 #   vars:    TAILNET_NAME
 
@@ -44,14 +45,16 @@ jobs:
         id: preflight
         env:
           HCLOUD_TOKEN:            ${{ secrets.HCLOUD_TOKEN }}
-          TS_API_KEY:              ${{ secrets.TS_API_KEY }}
+          TS_INFRA_OAUTH_CLIENT_ID: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TS_INFRA_OAUTH_SECRET: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TFSTATE_AGE_KEY:         ${{ secrets.TFSTATE_AGE_KEY }}
           OPERATOR_SSH_PUBLIC_KEY: ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
           [ -z "${HCLOUD_TOKEN:-}" ]            && MISSING="$MISSING HCLOUD_TOKEN"
-          [ -z "${TS_API_KEY:-}" ]              && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TS_INFRA_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_INFRA_OAUTH_CLIENT_ID"
+          [ -z "${TS_INFRA_OAUTH_SECRET:-}" ] && MISSING="$MISSING TS_INFRA_OAUTH_SECRET"
           [ -z "${TFSTATE_AGE_KEY:-}" ]         && MISSING="$MISSING TFSTATE_AGE_KEY"
           [ -z "${OPERATOR_SSH_PUBLIC_KEY:-}" ] && MISSING="$MISSING OPERATOR_SSH_PUBLIC_KEY"
           if [ -n "$MISSING" ]; then
@@ -105,7 +108,8 @@ jobs:
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
-          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_INFRA_OAUTH_CLIENT_ID }}
+          TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_INFRA_OAUTH_SECRET }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
           # Must match infra-apply.yml, or the plan preview lies: without it the default
