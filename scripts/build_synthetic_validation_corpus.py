@@ -417,6 +417,16 @@ def build_gi(
                     "to": qid,
                 }
             )
+    # RFC-097 v3: insight → person (MENTIONS_PERSON). Each insight names a roster person so
+    # the person-mention graph isn't empty (test_gi_v3_emission_contract requires >0 across the
+    # corpus; the checked-in fixture linked insights to speaker persons, e.g.
+    # insight → person:speaker-02). Deterministic: sorted persons, cycled by insight index.
+    person_list = sorted(persons_emitted)
+    if person_list:
+        for ii, iid in enumerate(insight_ids):
+            edges.append(
+                {"type": "MENTIONS_PERSON", "from": iid, "to": person_list[ii % len(person_list)]}
+            )
     return {
         "schema_version": "3.1",
         "model_version": "synthetic-validation-corpus-v1",
