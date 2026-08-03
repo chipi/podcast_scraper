@@ -184,7 +184,15 @@ def _is_episode_retryable(exc: Exception) -> bool:
     except ImportError:
         pass
     msg = str(exc).lower()
-    return any(tok in msg for tok in ("timeout", "connection", "reset", "429", "503"))
+    if any(tok in msg for tok in ("timeout", "connection", "reset", "429", "503")):
+        return True
+    # A structured-summary parse failure is usually TRANSIENT: the LLM occasionally emits truncated
+    # or invalid JSON that parses cleanly on a re-generation (observed ~1/9 on a mock multi-feed;
+    # the same episode succeeded on immediate retry). Retrying the episode (bounded by
+    # episode_retry_max) lets the summary regenerate rather than failing the whole episode on a
+    # one-off bad response — critical for an unattended 100-episode reprocess. A genuinely
+    # unparseable episode still fail-fasts once the bounded retries are exhausted.
+    return "summary schema parsing failed" in msg
 
 
 _EpisodeResult = Tuple[bool, Optional[str], Optional[str], int]

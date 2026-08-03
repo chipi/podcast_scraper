@@ -233,6 +233,16 @@ class TestIsEpisodeRetryable(unittest.TestCase):
     def test_generic_exception_not_retryable(self):
         self.assertFalse(_is_episode_retryable(Exception("something else")))
 
+    def test_transient_summary_parse_failure_is_retryable(self):
+        # The LLM occasionally emits truncated/invalid structured-summary JSON that regenerates
+        # cleanly on retry; the episode must retry (not fail the whole episode) so an unattended
+        # multi-episode reprocess doesn't lose ~1/9 of episodes to one-off bad responses.
+        exc = RuntimeError(
+            "[1] Summary schema parsing failed. Error: Structured summary JSON was "
+            "incomplete or invalid (e.g. truncated)."
+        )
+        self.assertTrue(_is_episode_retryable(exc))
+
 
 class TestProcessEpisodeWithRetry(unittest.TestCase):
     """_process_episode_with_retry wraps episode downloads."""
