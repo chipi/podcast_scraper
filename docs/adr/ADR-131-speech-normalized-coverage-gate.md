@@ -7,6 +7,29 @@
   failover this revises), [ADR-122](ADR-122-self-hosted-model-resilience-policy.md) (`hold`)
 - **Related**: #1178/#1179 (ASR bake-off), #1258 (coverage gate)
 
+## Amendment (2026-08-03): the speech gate is now the *active* gate; raw coverage becomes a metric
+
+When ADR-131 landed, the registry still emitted the **raw** ADR-123 gate
+(`transcription_coverage_min=0.85`) for every DGX preset, and set
+`transcription_speech_coverage_min` nowhere — so the diarizing profiles kept
+failing over on the total-audio denominator this ADR was written to replace. A
+music/ad-heavy episode transcribed *fully* still read ~71% raw coverage and
+spuriously re-routed to MOSS. Fixed:
+
+- **Registry now emits `transcription_speech_coverage_min=0.85` (raw `=0.0`)**
+  for `prod_dgx_balanced`, `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`.
+  The speech-normalized gate is the **single** active quality gate whenever
+  diarization runs; the raw gate stays a no-op fallback only for non-diarizing
+  configs (where no speech denominator exists).
+- **The failover now honors `transcription_coverage_failover_provider`** (e.g.
+  `moss`), matching the ADR-123 factory routing — it re-transcribes on the MOSS
+  service, not by sending the MOSS model id to the speaches whisper endpoint.
+- **Raw coverage lives on as `speech_audio_ratio`** — see the ADR-123
+  amendment. It is a metric, not a gate.
+
+Validated live: a real 630s episode with ~28% non-speech read **93.1%** speech
+coverage → gate passed, no failover (raw would have read 71.3% → failover).
+
 ## Context & Problem Statement
 
 ADR-123 gates a turbo→large-v3 failover on **coverage**:

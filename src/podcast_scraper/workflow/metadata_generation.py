@@ -3664,6 +3664,15 @@ def generate_episode_metadata(  # noqa: C901
         detected_hosts, detected_guests
     )
 
+    # content.whisper_model must carry the ACTUAL transcription model when the transcript came from
+    # ASR. Callers thread None (summarization path) or the unused local cfg.whisper_model, so a DGX
+    # run recorded None. Resolve from the configured provider; leave it None for direct-download
+    # transcripts, where no ASR ran and a model name would be misleading.
+    if not whisper_model and transcript_source == "whisper_transcription":
+        from ..utils.provider_metrics import transcription_model_for_cfg
+
+        whisper_model = transcription_model_for_cfg(cfg) or None
+
     # Prepare IDs and base metadata objects
     feed_id, episode_id, transcript_infos, media_id = _prepare_metadata_ids(
         feed_url,

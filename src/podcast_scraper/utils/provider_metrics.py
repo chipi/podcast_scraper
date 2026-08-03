@@ -243,6 +243,11 @@ def transcription_model_for_cfg(cfg: Any) -> str:
         "gemini": "gemini_transcription_model",
         "mistral": "mistral_transcription_model",
         "deepgram": "deepgram_model",
+        # DGX-served ASR: the real model lives in dgx_whisper_model / moss_model, NOT a
+        # ``<provider>_transcription_model`` field. Without these the resolver returned "" for a DGX
+        # run and callers fell back to the unused local ``whisper_model`` default (base.en).
+        "tailnet_dgx_whisper": "dgx_whisper_model",
+        "moss": "moss_model",
     }
     field = model_field_by_provider.get(provider, f"{provider}_transcription_model")
     model = getattr(cfg, field, None)

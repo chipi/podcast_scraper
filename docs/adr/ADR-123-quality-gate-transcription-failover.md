@@ -8,6 +8,23 @@
   policy: backoff→trip→hold), RFC-106 / #1198 (`FallbackChain` — infra failover), #1178/#1179 (the
   ASR bake-off that surfaced this).
 
+## Amendment (2026-08-03): the raw coverage gate is retired into the `speech_audio_ratio` metric
+
+Superseded as a **gate** by [ADR-131](ADR-131-speech-normalized-coverage-gate.md)
+for all diarizing profiles: the total-audio denominator counts music / ads /
+silence as "dropped speech", so it spuriously failed over on ad-heavy episodes
+(measured 71.3% on an episode whose *speech* was 93.1% transcribed). The
+registry no longer sets `transcription_coverage_min` above 0 for diarizing
+presets.
+
+The **computation** is not discarded — it is now emitted as the
+`speech_audio_ratio` metric (`Σ segment durations ÷ total audio`) on every
+episode's ASR provenance (`<base>.asr.json`) and processing-manifest ASR block.
+It measures how much of the runtime is actual audio content vs music / silence /
+dead-air (it does **not** exclude *spoken* ads — that is the ad-detection path).
+The raw gate remains available (code intact) only as the no-op fallback for
+non-diarizing configs, where no speech denominator exists.
+
 ## Context & Problem Statement
 
 The #1178/#1179 ASR bake-off found that

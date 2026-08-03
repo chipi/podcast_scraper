@@ -51,6 +51,15 @@ MIN_TRANSCRIPT_CHARS = 2000
 # tight cluster cap keeps excision focused on genuinely contiguous ad
 # blocks like the Invest-Like-the-Best pre-roll stack.
 MAX_AD_CLUSTER_SPAN = 2000
+# Per-cluster excision (the fix for "several ad blocks in one episode → cut nothing"): ad-pattern
+# hits within CLUSTER_GAP chars of each other belong to ONE ad block; a larger gap starts a new
+# block. Each block is excised on its own, so real content BETWEEN blocks is kept — the whole reason
+# the old first-to-last-span check declined to cut scattered hits.
+CLUSTER_GAP = 750
+# A block whose snapped end reaches within this many chars of the very end is a POST-roll — extend
+# its cut to the end. Measured against len(text), NOT the scan window, so it stays correct for
+# transcripts shorter than SCAN_CHARS (where the tail window starts at 0).
+POSTROLL_TRAILOUT = 350
 # After the last ad-pattern hit, extend the cut forward (pre-roll) or
 # backward (post-roll) to the next sentence terminator so we don't leave
 # ragged mid-sentence fragments on the content side.
@@ -72,6 +81,9 @@ class AdRegionMetadata:
     postroll_pattern_hits: int = 0
     source_length: int = 0
     excised_ranges: List[Tuple[int, int]] = field(default_factory=list)
+    # The ACTUAL text removed at each range, in order — so an operator chasing a bad cut can see
+    # exactly WHAT was excised (not just how many chars), straight from the ad-map sidecar.
+    excised_texts: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialise as JSON-friendly plain dict (for manifest / logs)."""
@@ -83,6 +95,7 @@ class AdRegionMetadata:
             "postroll_pattern_hits": self.postroll_pattern_hits,
             "source_length": self.source_length,
             "excised_ranges": [list(r) for r in self.excised_ranges],
+            "excised_texts": list(self.excised_texts),
         }
 
 
@@ -147,6 +160,89 @@ def _hits_are_clustered(hits: List[Tuple[int, int]], threshold: int) -> bool:
     first_start = min(start for start, _ in hits)
     last_end = max(end for _, end in hits)
     return (last_end - first_start) <= MAX_AD_CLUSTER_SPAN
+
+
+def _merge_ranges(ranges: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    """Sort and union overlapping/adjacent ``[lo, hi)`` ranges."""
+    out: List[Tuple[int, int]] = []
+    for lo, hi in sorted(ranges):
+        if lo >= hi:
+            continue
+        if out and lo <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], hi))
+        else:
+            out.append((lo, hi))
+    return out
+
+
+def _cluster_hits(
+    hits: List[Tuple[int, int]], max_gap: int = CLUSTER_GAP
+) -> List[List[Tuple[int, int]]]:
+    """Group sorted ``(start, end)`` hits into clusters. A gap larger than ``max_gap`` between one
+    hit's end and the next hit's start starts a new cluster — i.e., a run of nearby ad-pattern hits
+    is one ad block; a stretch of real content between hits splits the blocks apart."""
+    clusters: List[List[Tuple[int, int]]] = []
+    for hit in sorted(hits):
+        if clusters and hit[0] - clusters[-1][-1][1] <= max_gap:
+            clusters[-1].append(hit)
+        else:
+            clusters.append([hit])
+    return clusters
+
+
+def detect_ad_cut_ranges(
+    text: str,
+    *,
+    scan_chars: int = SCAN_CHARS,
+    threshold: int = PREROLL_THRESHOLD,
+) -> List[Tuple[int, int]]:
+    """Return every ad block's ``[lo, hi)`` cut range across the head + tail scan windows.
+
+    Replaces the old single-contiguous-block model (which cut ONE pre-roll span and declined
+    entirely when hits were scattered, leaving mid-episode sponsor reads in the transcript). Each
+    ad block is cut on its own, sentence-aligned, so content between blocks survives:
+
+    - Episode-level gate: fewer than ``threshold`` DISTINCT ad patterns anywhere → return ``[]``
+      (weak signal; do not risk cutting a lone false-positive phrase).
+    - Cluster the hits, then cut ``[snap_back(first) .. snap_forward(last)]`` per cluster.
+    - A block whose start lands within ``PREROLL_LEADIN`` of the top is a true pre-roll → extend to
+      0. A block reaching the tail window's end is a post-roll → extend to the end and expand
+      backward over its multi-sentence body.
+    """
+    if not text:
+        return []
+    head_hits = _distinct_hits(text[:scan_chars])
+    tail_start = max(0, len(text) - scan_chars)
+    tail_hits = [(tail_start + s, tail_start + e) for s, e in _distinct_hits(text[tail_start:])]
+    # De-dupe by position (a hit found in both windows on short transcripts) and gate on distinct
+    # PATTERN count — Σ head+tail distinct patterns — so a strong ad signal is required to cut.
+    all_hits = sorted(set(head_hits) | set(tail_hits))
+    if len(all_hits) < threshold:
+        return []
+    ranges: List[Tuple[int, int]] = []
+    prev_end = 0
+    for i, cluster in enumerate(_cluster_hits(all_hits)):
+        first = cluster[0][0]
+        last = cluster[-1][1]
+        start = _snap_backward_to_sentence_start(text, first)
+        end = _snap_forward_to_sentence_end(text, last)
+        # Post-roll ONLY when the cut reaches the very end of the text (measured vs len, not
+        # window — for short transcripts the tail window starts at 0, which would misclassify every
+        # block as a post-roll). Extend to end + expand backward over the ad body, bounded by
+        # previous kept region so it never eats real content between blocks.
+        if end >= len(text) - POSTROLL_TRAILOUT:
+            start = _expand_postroll_backward(text, start, floor=prev_end)
+            end = len(text)
+        elif i == 0 and first < scan_chars:
+            # The first ad block in the head window is the PRE-roll: cut from 0 so the ad PITCH that
+            # precedes its first URL/CTA pattern goes too (the pattern marks the CTA, not the ad's
+            # start; snapping back to a sentence boundary can't reach the start in a screenplay
+            # where sentences end in ".\n"). Matches the pre-per-cluster [0..end] model. Cost:
+            # intro before a near-start sponsor is also cut — a #1385 refinement (needs NLP).
+            start = 0
+        ranges.append((start, end))
+        prev_end = end
+    return _merge_ranges(ranges)
 
 
 def detect_preroll_ad_end(
@@ -307,21 +403,17 @@ def excise_ad_regions(
     postroll_hits = _distinct_hits(text[tail_start:])
     meta.postroll_pattern_hits = len(postroll_hits)
 
-    preroll_end = detect_preroll_ad_end(text, scan_chars=scan_chars, threshold=preroll_threshold)
-    postroll_start = detect_postroll_ad_start(
-        text, scan_chars=scan_chars, threshold=postroll_threshold
-    )
-
-    meta.preroll_cut_end = preroll_end
-    meta.postroll_cut_start = postroll_start
-
-    ranges: List[Tuple[int, int]] = []
-    if preroll_end is not None:
-        ranges.append((0, preroll_end))
-    if postroll_start is not None and (not ranges or postroll_start > ranges[-1][1]):
-        ranges.append((postroll_start, len(text)))
+    # Per-cluster excision: cut EVERY ad block (pre-, mid-, post-roll) independently, keeping the
+    # content between them — instead of the old single-span model that declined to cut at all when
+    # an episode had more than one ad block (the "5 hits, excised 0" bug).
+    ranges = detect_ad_cut_ranges(text, scan_chars=scan_chars, threshold=preroll_threshold)
     meta.excised_ranges = list(ranges)
     meta.chars_removed = sum(hi - lo for lo, hi in ranges)
+    meta.excised_texts = [text[lo:hi] for lo, hi in ranges]
+    # Backward-compatible boundary breadcrumbs: first range if it opens at 0 is the pre-roll; last
+    # range if it reaches the end is the post-roll (mid-roll blocks live only in excised_ranges).
+    meta.preroll_cut_end = ranges[0][1] if ranges and ranges[0][0] == 0 else None
+    meta.postroll_cut_start = ranges[-1][0] if ranges and ranges[-1][1] == len(text) else None
 
     if dry_run or not ranges:
         return text, segments, meta
@@ -367,7 +459,9 @@ def _complement_text(text: str, ranges: List[Tuple[int, int]]) -> str:
     return "".join(kept)
 
 
-def merge_preroll_range(meta: AdRegionMetadata, preroll_end: int) -> None:
+def merge_preroll_range(
+    meta: AdRegionMetadata, preroll_end: int, *, text: Optional[str] = None
+) -> None:
     """Fold an extra pre-roll range ``[0, preroll_end)`` into ``meta`` in place.
 
     The single seam both ad-free branches use to add a diarization-detected opening
@@ -376,13 +470,17 @@ def merge_preroll_range(meta: AdRegionMetadata, preroll_end: int) -> None:
     space for consumers and raw reconciliation."""
     if preroll_end <= 0:
         return
-    new_preroll_end = max(meta.preroll_cut_end or 0, preroll_end)
-    ranges: List[Tuple[int, int]] = [(0, new_preroll_end)]
-    if meta.postroll_cut_start is not None and meta.postroll_cut_start > new_preroll_end:
-        ranges.append((meta.postroll_cut_start, meta.source_length))
-    meta.preroll_cut_end = new_preroll_end
-    meta.excised_ranges = ranges
-    meta.chars_removed = sum(hi - lo for lo, hi in ranges)
+    # MERGE the extra pre-roll into the existing ranges (which now may include mid-roll blocks), not
+    # replace them — replacing would silently drop every non-pre-roll ad block from the ad-map.
+    merged = _merge_ranges(list(meta.excised_ranges) + [(0, preroll_end)])
+    meta.excised_ranges = merged
+    meta.preroll_cut_end = merged[0][1] if merged and merged[0][0] == 0 else preroll_end
+    if merged and merged[-1][1] == meta.source_length:
+        meta.postroll_cut_start = merged[-1][0]
+    meta.chars_removed = sum(hi - lo for lo, hi in merged)
+    # Refresh the audit trail of WHAT was cut when the source text is available (ranges just moved).
+    if text is not None:
+        meta.excised_texts = [text[lo:hi] for lo, hi in merged]
 
 
 def excise_ad_regions_with_offsets(
@@ -419,7 +517,7 @@ def excise_ad_regions_with_offsets(
     if extra_preroll_end > 0:
         # Caller-supplied opening cut (e.g. a diarization-detected cross-promo, #1188)
         # the density pass missed. Merge it in and re-cut the text from the new ranges.
-        merge_preroll_range(meta, extra_preroll_end)
+        merge_preroll_range(meta, extra_preroll_end, text=text)
         cleaned_text = _complement_text(text, meta.excised_ranges)
     ranges = meta.excised_ranges
     if not ranges:

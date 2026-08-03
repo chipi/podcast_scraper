@@ -155,3 +155,4 @@ transcription_coverage_min: 0.0
 enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
+transcription_speech_coverage_min: 0.0

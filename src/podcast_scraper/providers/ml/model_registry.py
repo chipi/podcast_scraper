@@ -1725,6 +1725,11 @@ class ProfilePreset:
     # presets (2026-07-22) and the yaml-only reprocess profiles all set the floor + failover model.
     # Non-turbo presets leave it OFF (0.0 / None).
     transcription_coverage_min: float = 0.0
+    # ADR-131 speech-normalized gate. When diarization runs, THIS is the active quality gate
+    # (denominator = diarizer speech, so music/ads/silence do not count as dropped speech); the raw
+    # transcription_coverage_min stays 0.0 (its Σsegments/total-audio value is emitted as the
+    # speech_audio_ratio METRIC, not a gate). Every diarizing preset sets this, not the raw floor.
+    transcription_speech_coverage_min: float = 0.0
     transcription_coverage_failover_model: Optional[str] = None
     transcription_coverage_failover_provider: Optional[str] = None  # #1273: 'moss' | None(=whisper)
     # ADR-124 (#1258) model governance: opt-in enforcement that every active model is
@@ -1851,6 +1856,7 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "resilience_failure_strategy",
     # ADR-123 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
+    "transcription_speech_coverage_min",
     "transcription_coverage_failover_model",
     "transcription_coverage_failover_provider",
     # ADR-124 (#1258): model-governance enforcement toggle.
@@ -1902,8 +1908,10 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        # turbo silently drops on long episodes -> ADR-123 coverage gate re-routes to large-v3.
-        transcription_coverage_min=0.85,
+        # turbo silently drops on long episodes -> ADR-131 speech-normalized gate re-routes. Uses
+        # the diarizer's speech duration as the denominator so music/ads/silence don't spuriously
+        # trip it (the raw Σsegments/total-audio value is emitted as the speech_audio_ratio metric).
+        transcription_speech_coverage_min=0.85,
         transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
         transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
         summary="gemini_flash_lite",
@@ -1980,7 +1988,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
+        transcription_speech_coverage_min=0.85,  # ADR-131 speech-normalized gate (raw=metric only)
         transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
         transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
@@ -2030,7 +2038,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "prod_dgx_balanced": ProfilePreset(
         name="prod_dgx_balanced",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
+        transcription_speech_coverage_min=0.85,  # ADR-131 speech-normalized gate (raw=metric only)
         transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
         transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
         # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
@@ -2537,6 +2545,7 @@ def resolve_profile_to_settings(
 
     # ADR-123 (#1258): quality-gate transcription-failover knobs, governed like the resilience ones.
     settings["transcription_coverage_min"] = preset.transcription_coverage_min
+    settings["transcription_speech_coverage_min"] = preset.transcription_speech_coverage_min
     settings["transcription_coverage_failover_model"] = preset.transcription_coverage_failover_model
     settings["transcription_coverage_failover_provider"] = (
         preset.transcription_coverage_failover_provider

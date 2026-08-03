@@ -17,6 +17,7 @@ from podcast_scraper.utils.provider_metrics import (
     openai_compatible_chat_usage_tokens,
     ProviderCallMetrics,
     retry_with_metrics,
+    transcription_model_for_cfg,
 )
 
 
@@ -657,6 +658,35 @@ class TestRetryWithMetricsPerStageAttribution(unittest.TestCase):
         )
         cm.finalize()
         self.assertIn("other", pm.llm_retry_reasons)
+
+
+class TestTranscriptionModelForCfg(unittest.TestCase):
+    """Resolver must name the ACTUAL model for DGX-served ASR, not fall through to the local
+    ``whisper_model`` default (base.en) — the bug that stamped base.en on every DGX run's manifest.
+    """
+
+    def test_dgx_whisper_resolves_dgx_whisper_model(self):
+        cfg = SimpleNamespace(
+            transcription_provider="tailnet_dgx_whisper",
+            dgx_whisper_model="deepdml/faster-whisper-large-v3-turbo-ct2",
+        )
+        self.assertEqual(
+            transcription_model_for_cfg(cfg), "deepdml/faster-whisper-large-v3-turbo-ct2"
+        )
+
+    def test_moss_resolves_moss_model(self):
+        cfg = SimpleNamespace(
+            transcription_provider="moss", moss_model="OpenMOSS-Team/MOSS-Transcribe-Diarize"
+        )
+        self.assertEqual(transcription_model_for_cfg(cfg), "OpenMOSS-Team/MOSS-Transcribe-Diarize")
+
+    def test_local_whisper_unchanged(self):
+        cfg = SimpleNamespace(transcription_provider="whisper", whisper_model="base.en")
+        self.assertEqual(transcription_model_for_cfg(cfg), "base.en")
+
+    def test_deepgram_unchanged(self):
+        cfg = SimpleNamespace(transcription_provider="deepgram", deepgram_model="nova-3")
+        self.assertEqual(transcription_model_for_cfg(cfg), "nova-3")
 
 
 if __name__ == "__main__":
