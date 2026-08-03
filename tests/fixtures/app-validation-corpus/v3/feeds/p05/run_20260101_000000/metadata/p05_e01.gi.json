@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:589d7b4ec978e114",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:589d7b4ec978e114",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:589d7b4ec978e114",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:589d7b4ec978e114",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "insight:3e93cad03b16c3fd",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:3e93cad03b16c3fd",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3e93cad03b16c3fd",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3e93cad03b16c3fd",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3e93cad03b16c3fd",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "insight:1860b98400777024",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:9cdef4e01fdcc6b3",
@@ -154,6 +94,21 @@
       "from": "insight:1860b98400777024",
       "to": "quote:a31d5906c0ad3c38",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:589d7b4ec978e114",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3e93cad03b16c3fd",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1860b98400777024",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-bccfce5798a83a6e",

@@ -209,3 +209,34 @@ def test_cross_show_topic_exists() -> None:
                 topic_shows.setdefault(nid, set()).add(feed)
     spanning = {t: s for t, s in topic_shows.items() if len(s) >= 3}
     assert spanning, "no topic spans ≥3 shows"
+
+
+def test_topic_perspectives_about_edges_are_not_fanned_out() -> None:
+    """The ABOUT-edge contract (gi/about_edges.py): an insight links to a topic only where it
+    actually discusses it. A blanket fan-out (every insight ABOUT every episode topic) makes
+    filler/greeting lines "about" contested topics, inflating topic_perspectives with bogus
+    speakers and pushing the engineered claims past the top-PREVIEW render (the #1371 regression
+    that flaked perspectives.spec). Guard the canonical contested topic: exactly the cross-show
+    risk-management speakers, and the engineered opposition (Daniel Cho / Scott Bessent) present.
+    """
+    from podcast_scraper.server.cil_queries import topic_perspectives
+
+    persp = topic_perspectives(str(_V3), str(_V3), "topic:risk-management")
+    names = {str(p.get("person_name") or "") for p in persp}
+    # Count is the fan-out canary: the #1371 blanket fan-out ballooned this to 27; the token-matched
+    # ABOUT contract yields exactly the cross-show risk-management speakers.
+    assert (
+        len(persp) == 10
+    ), f"expected 10 risk-management speakers, got {len(persp)}: {sorted(names)}"
+    assert {
+        "Daniel Cho",
+        "Scott Bessent",
+    } <= names, f"engineered opposition missing: {sorted(names)}"
+    # The engineered claim must land in Daniel Cho's top-PREVIEW (3) so the topic card renders it.
+    cho = next(p for p in persp if p.get("person_name") == "Daniel Cho")
+    top3 = [
+        (i.get("properties", {}).get("text") or i.get("text") or "") for i in cho["insights"][:3]
+    ]
+    assert any(
+        "Diversification is the only real risk control" in t for t in top3
+    ), f"engineered claim not in Daniel Cho's top-3: {[t[:40] for t in top3]}"

@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:bc1e76e9bb003658",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:bc1e76e9bb003658",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:bc1e76e9bb003658",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:bc1e76e9bb003658",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-2a703b6f57d9020f",
       "to": "insight:47c22603562181f7",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:47c22603562181f7",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:47c22603562181f7",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:47c22603562181f7",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:47c22603562181f7",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-2a703b6f57d9020f",
       "to": "insight:4213c32cc839904b",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:4213c32cc839904b",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:4213c32cc839904b",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:4213c32cc839904b",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:4213c32cc839904b",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:74f9067728bebe00",
@@ -154,6 +94,21 @@
       "from": "insight:4213c32cc839904b",
       "to": "quote:68e85b18af559bfb",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:bc1e76e9bb003658",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:47c22603562181f7",
+      "to": "person:marco-sylva",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:4213c32cc839904b",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-2a703b6f57d9020f",

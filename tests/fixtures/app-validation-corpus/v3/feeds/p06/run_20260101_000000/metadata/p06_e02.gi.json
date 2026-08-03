@@ -31,69 +31,14 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:5aa2ae9493ab602a",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5aa2ae9493ab602a",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:5aa2ae9493ab602a",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-f4b940a095192621",
       "to": "insight:18426252a4a72016",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:18426252a4a72016",
-      "to": "topic:long-form",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:18426252a4a72016",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:18426252a4a72016",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:18426252a4a72016",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-f4b940a095192621",
       "to": "insight:44763f042472c001",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:44763f042472c001",
-      "to": "topic:long-form",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:44763f042472c001",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:44763f042472c001",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:44763f042472c001",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:e5b2fc4e3710c8fe",
@@ -154,6 +99,21 @@
       "from": "insight:44763f042472c001",
       "to": "quote:6165d66e79d9a00a",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:5aa2ae9493ab602a",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:18426252a4a72016",
+      "to": "person:jordan-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:44763f042472c001",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-f4b940a095192621",

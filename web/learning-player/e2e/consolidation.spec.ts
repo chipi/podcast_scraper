@@ -43,17 +43,15 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   )
 
   // #1124: Recall — switch the scope to "My corpus". This isolated user has captured nothing, so the
-  // scoped search is honest-empty. The corpus vector index builds lazily + slowly (> the per-test
-  // budget) on first search, so a cold index surfaces "Search needs the library index" instead;
-  // either is a valid no-results state for a fresh user, and accepting both keeps this off the
-  // first-search-races-the-build flake without weakening the scope-toggle assertion.
+  // scoped search is honest-empty. scope=mine short-circuits to an empty result set server-side
+  // (app_search.py — the user's heard∪captured set is empty, so it never touches the corpus index
+  // or embedding model), so the "Nothing in your corpus" recall message is deterministic — no cold
+  // index/model race to tolerate (the corpus index is built by e2e/globalSetup.ts anyway).
   await page.goto('/search?q=index')
   const searchScope = page.getByRole('tablist', { name: 'Search scope' })
   await expect(searchScope).toBeVisible()
   await searchScope.getByRole('tab', { name: 'My corpus' }).click()
-  await expect(
-    page.getByText(/Nothing in your corpus on this yet|Search needs the library index/),
-  ).toBeVisible()
+  await expect(page.getByText(/Nothing in your corpus on this yet/)).toBeVisible()
 
   // #1125: the Revisit inbox — a fresh user has nothing due; the pacing control pauses.
   await page.goto('/library')

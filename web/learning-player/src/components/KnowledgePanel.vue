@@ -389,7 +389,7 @@ watch(
       </section>
 
       <!-- Insights -->
-      <section v-if="surfaceInsights.length">
+      <section v-if="surfaceInsights.length" data-testid="kp-insights">
         <div class="mb-2 flex items-center justify-between">
           <h3 class="lp-section">{{ t('kp.insights') }} · {{ surfaceInsights.length }}</h3>
         </div>

@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:d38c7a442d8d2b8c",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:d38c7a442d8d2b8c",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:d38c7a442d8d2b8c",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:d38c7a442d8d2b8c",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-1e526e495918fb27",
       "to": "insight:563dc22ce6a7cd56",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:563dc22ce6a7cd56",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:563dc22ce6a7cd56",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:563dc22ce6a7cd56",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:563dc22ce6a7cd56",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-1e526e495918fb27",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:2c8391573f65ea49",
@@ -154,6 +94,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:88cfb4351830b57d",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:d38c7a442d8d2b8c",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:563dc22ce6a7cd56",
+      "to": "person:rich-clarida",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-1e526e495918fb27",

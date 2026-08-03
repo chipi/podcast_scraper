@@ -31,21 +31,6 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:545cdaee7ad70ca9",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:545cdaee7ad70ca9",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:545cdaee7ad70ca9",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-efc13989b676df9d",
       "to": "insight:60ab353f2b28b593",
       "type": "HAS_INSIGHT"
@@ -56,44 +41,9 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:60ab353f2b28b593",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:60ab353f2b28b593",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:60ab353f2b28b593",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-efc13989b676df9d",
       "to": "insight:ac49c363a6ff3818",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:ac49c363a6ff3818",
-      "to": "topic:public-radio",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ac49c363a6ff3818",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ac49c363a6ff3818",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ac49c363a6ff3818",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:09cb22cca08a9cc6",
@@ -154,6 +104,21 @@
       "from": "insight:ac49c363a6ff3818",
       "to": "quote:67f5e78dc5732b4e",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:545cdaee7ad70ca9",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:60ab353f2b28b593",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ac49c363a6ff3818",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-efc13989b676df9d",

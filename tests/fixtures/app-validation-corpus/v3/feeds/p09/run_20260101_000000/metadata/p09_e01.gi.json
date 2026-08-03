@@ -31,21 +31,6 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:3db573b5d4da9a1f",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3db573b5d4da9a1f",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3db573b5d4da9a1f",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-1abf911df5bea2c3",
       "to": "insight:1805640e7650c366",
       "type": "HAS_INSIGHT"
@@ -56,44 +41,9 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:1805640e7650c366",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1805640e7650c366",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:1805640e7650c366",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-1abf911df5bea2c3",
       "to": "insight:56ffd3b93643f310",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:56ffd3b93643f310",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:56ffd3b93643f310",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:56ffd3b93643f310",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:56ffd3b93643f310",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:dfa81ea82fbebe59",
@@ -154,6 +104,21 @@
       "from": "insight:56ffd3b93643f310",
       "to": "quote:8dfa6b04d001a312",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:3db573b5d4da9a1f",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-1abf911df5bea2c3",

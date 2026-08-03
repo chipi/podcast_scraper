@@ -26,48 +26,13 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:f983a076829f066f",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:f983a076829f066f",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:f983a076829f066f",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:f983a076829f066f",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-362f5d463b877d2c",
       "to": "insight:e561fff4c04db8b9",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "insight:e561fff4c04db8b9",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:e561fff4c04db8b9",
       "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:e561fff4c04db8b9",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:e561fff4c04db8b9",
-      "to": "topic:expert-interviews",
       "type": "ABOUT"
     },
     {
@@ -77,22 +42,7 @@
     },
     {
       "from": "insight:646137f8417f698c",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:646137f8417f698c",
       "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:646137f8417f698c",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:646137f8417f698c",
-      "to": "topic:expert-interviews",
       "type": "ABOUT"
     },
     {
@@ -154,6 +104,21 @@
       "from": "insight:646137f8417f698c",
       "to": "quote:676a9e80bbe0a042",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:f983a076829f066f",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:e561fff4c04db8b9",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:646137f8417f698c",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p07_e04-0",

@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:25d37c9e4c351594",
-      "to": "topic:visual-craft",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:25d37c9e4c351594",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:25d37c9e4c351594",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:25d37c9e4c351594",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "insight:28764c321ca4022e",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:28764c321ca4022e",
-      "to": "topic:visual-craft",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:28764c321ca4022e",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:28764c321ca4022e",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:28764c321ca4022e",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:visual-craft",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:029339886a2dc5e0",
@@ -154,6 +94,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:f3aa5622f6cbd3b7",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:25d37c9e4c351594",
+      "to": "person:leo",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:28764c321ca4022e",
+      "to": "person:tarek-hassan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:leo",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-fb2bb5f0f4044f1d",

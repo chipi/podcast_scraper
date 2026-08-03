@@ -1083,7 +1083,14 @@ def topic_perspectives(
             continue
         # ADR-135/#1191: rank a speaker's takes by salience desc; position_hint breaks ties and
         # is the sole key for pre-3.1 artifacts (salience 0.0), so their order is unchanged.
-        insights = sorted(data["insights"], key=lambda n: (-_salience(n), _position_hint(n)))
+        # Insight id is the final, STABLE tiebreak: ``data["insights"]`` is built by iterating a
+        # ``set`` of insight ids (hash-randomized per process), so without it two takes that tie on
+        # salience+position_hint reorder across server restarts — surfacing a different top-PREVIEW
+        # take on reload (nondeterministic UX; flaked the perspectives e2e).
+        insights = sorted(
+            data["insights"],
+            key=lambda n: (-_salience(n), _position_hint(n), str(n.get("id") or "")),
+        )
         out.append(
             {
                 "person_id": pid,

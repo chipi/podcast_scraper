@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:fe16cc811aa5e99c",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:fe16cc811aa5e99c",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:fe16cc811aa5e99c",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:fe16cc811aa5e99c",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-d8cc458a5f0049a8",
       "to": "insight:00c37b14c35c25e2",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-d8cc458a5f0049a8",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:aeb886ec289fe681",
@@ -154,6 +94,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:5c4f8303c025b2d7",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:fe16cc811aa5e99c",
+      "to": "person:ethan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:00c37b14c35c25e2",
+      "to": "person:priya-nair",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:ethan",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-d8cc458a5f0049a8",

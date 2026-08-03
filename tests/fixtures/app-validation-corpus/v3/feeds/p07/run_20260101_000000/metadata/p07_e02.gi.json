@@ -26,26 +26,6 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:8b60cdb84d99cc9c",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:8b60cdb84d99cc9c",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:8b60cdb84d99cc9c",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:8b60cdb84d99cc9c",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-2cd5c6d11325a312",
       "to": "insight:cecf25e240f24083",
       "type": "HAS_INSIGHT"
@@ -56,44 +36,9 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:cecf25e240f24083",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:cecf25e240f24083",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:cecf25e240f24083",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-2cd5c6d11325a312",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:3aabb6d8787f9373",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:f14bdd36df788cb6",
@@ -154,6 +99,21 @@
       "from": "insight:3aabb6d8787f9373",
       "to": "quote:1e0dbb1269b55685",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:8b60cdb84d99cc9c",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:cecf25e240f24083",
+      "to": "person:skanda-eminas",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-2cd5c6d11325a312",

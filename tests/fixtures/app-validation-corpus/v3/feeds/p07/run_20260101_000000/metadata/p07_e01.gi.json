@@ -26,26 +26,6 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:7d3ed2ba74a32604",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:7d3ed2ba74a32604",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:7d3ed2ba74a32604",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:7d3ed2ba74a32604",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-1979e93514355ea6",
       "to": "insight:d04df2587b2471ad",
       "type": "HAS_INSIGHT"
@@ -56,21 +36,6 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:d04df2587b2471ad",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:d04df2587b2471ad",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:d04df2587b2471ad",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-1979e93514355ea6",
       "to": "insight:82d03ec8a8543c44",
       "type": "HAS_INSIGHT"
@@ -78,21 +43,6 @@
     {
       "from": "insight:82d03ec8a8543c44",
       "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:82d03ec8a8543c44",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:82d03ec8a8543c44",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:82d03ec8a8543c44",
-      "to": "topic:expert-interviews",
       "type": "ABOUT"
     },
     {
@@ -154,6 +104,21 @@
       "from": "insight:82d03ec8a8543c44",
       "to": "quote:78beaefeba439eff",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:7d3ed2ba74a32604",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-1979e93514355ea6",

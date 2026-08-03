@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:dd805d53ca392cff",
-      "to": "topic:public-radio",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:dd805d53ca392cff",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:dd805d53ca392cff",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:dd805d53ca392cff",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-b3570c1ceb5eca41",
       "to": "insight:b4d1b05b601509cf",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:public-radio",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-b3570c1ceb5eca41",
       "to": "insight:ceb14ee5e9abd1c1",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:ceb14ee5e9abd1c1",
-      "to": "topic:public-radio",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ceb14ee5e9abd1c1",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ceb14ee5e9abd1c1",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ceb14ee5e9abd1c1",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:1954dab8d3dbc57e",
@@ -154,6 +94,21 @@
       "from": "insight:ceb14ee5e9abd1c1",
       "to": "quote:e076acd695fb2e3b",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:dd805d53ca392cff",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-b3570c1ceb5eca41",

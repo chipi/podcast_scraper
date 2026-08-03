@@ -26,49 +26,9 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:0331a00a9535e6e6",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0331a00a9535e6e6",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0331a00a9535e6e6",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:0331a00a9535e6e6",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-916dab1698f88aec",
       "to": "insight:a7c9178cc26caaf1",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:a7c9178cc26caaf1",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:a7c9178cc26caaf1",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:a7c9178cc26caaf1",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:a7c9178cc26caaf1",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "episode:ep-916dab1698f88aec",
@@ -77,22 +37,7 @@
     },
     {
       "from": "insight:c1a333a563abe849",
-      "to": "topic:safety-practices",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:c1a333a563abe849",
       "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:c1a333a563abe849",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:c1a333a563abe849",
-      "to": "topic:expert-interviews",
       "type": "ABOUT"
     },
     {
@@ -154,6 +99,21 @@
       "from": "insight:c1a333a563abe849",
       "to": "quote:810618577bb53b5b",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:0331a00a9535e6e6",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:a7c9178cc26caaf1",
+      "to": "person:marco-silva",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p03_e04-0",

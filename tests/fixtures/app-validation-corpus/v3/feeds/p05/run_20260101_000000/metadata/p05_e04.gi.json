@@ -26,74 +26,14 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:f4be722c05ac0adc",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:f4be722c05ac0adc",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:f4be722c05ac0adc",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:f4be722c05ac0adc",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-16ff698c1bd21087",
       "to": "insight:ec9ec1e4f4e5a960",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:ec9ec1e4f4e5a960",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ec9ec1e4f4e5a960",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ec9ec1e4f4e5a960",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:ec9ec1e4f4e5a960",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-16ff698c1bd21087",
       "to": "insight:473ab86045cd6865",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:473ab86045cd6865",
-      "to": "topic:personal-finance",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:473ab86045cd6865",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:473ab86045cd6865",
-      "to": "topic:lifelong-learning",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:473ab86045cd6865",
-      "to": "topic:expert-interviews",
-      "type": "ABOUT"
     },
     {
       "from": "quote:544305e422db25a3",
@@ -154,6 +94,21 @@
       "from": "insight:473ab86045cd6865",
       "to": "quote:be6904c60151df16",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:f4be722c05ac0adc",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ec9ec1e4f4e5a960",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:473ab86045cd6865",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p05_e04-0",

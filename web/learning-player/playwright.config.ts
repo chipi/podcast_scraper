@@ -71,6 +71,18 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         PYTHONPATH: '../../src',
+        // Use the cached MiniLM embedding model offline — the serve embeds the search query at
+        // request time, and without this it tries to reach huggingface.co, fails, and every
+        // /api/*/search returns embed_failed ("Search needs the library index"). The model is
+        // present locally (dev venv) and preloaded in CI (python-app.yml app-e2e). Pairs with the
+        // two-tier index e2e/globalSetup.ts builds, so search returns real grounded results.
+        HF_HUB_OFFLINE: '1',
+        TRANSFORMERS_OFFLINE: '1',
+        // The offline flags alone aren't enough — the model-load path needs the cache dir set
+        // explicitly (an inherited HOME is not sufficient). Default to the standard local location;
+        // CI sets HF_HOME to the runner cache where preload_ml_models.py stored MiniLM.
+        HF_HOME: process.env.HF_HOME || `${process.env.HOME}/.cache/huggingface`,
+        HF_HUB_CACHE: process.env.HF_HUB_CACHE || `${process.env.HOME}/.cache/huggingface/hub`,
         APP_OAUTH_PROVIDER: 'mock',
         APP_SESSION_SECRET: 'e2e-secret',
         // Allow the mock dev identity through the access policy (default is allowlist/deny).
