@@ -125,3 +125,33 @@ def test_episode_scoped_tools_return_data(indexed_corpus: Path) -> None:
     # episode_digest — the composite that fuses all of the above in one call.
     digest = composites.episode_digest(ctx, rel)
     assert digest.get("insights") and digest.get("speaker_roster") is not None
+
+
+def test_search_operators_and_compare(indexed_corpus: Path) -> None:
+    """Search result-set operators + two-subject compare — the search-heavy tools that need
+    a real index (built at setup) to exercise cluster_hits / consensus / compare_subjects."""
+    from podcast_scraper.mcp.context import CorpusContext
+    from podcast_scraper.mcp.tools import gi, operators
+
+    ctx = CorpusContext.from_path(indexed_corpus)
+
+    # cluster_search: run the search then group the hits by cluster.
+    cl = operators.cluster_search(ctx, "risk management", top_k=15)
+    if cl.get("error") == "embed_failed":
+        pytest.skip("query embedding unavailable in this environment")
+    assert cl.get("error") is None
+    assert cl.get("hit_count", 0) >= 1
+    assert isinstance(cl.get("groups"), list)
+
+    # consensus_search: cross-speaker consensus pairs over the surfaced topics (may be empty).
+    co = operators.consensus_search(ctx, "risk management", top_k=15)
+    assert co.get("error") is None
+    assert isinstance(co.get("consensus_pairs"), list)
+
+    # compare_subjects: two topics -> a briefing pack per side + judge summary; insight_types
+    # narrows both sides symmetrically (the only insight_type filter in MCP).
+    cmp = gi.compare_subjects(
+        ctx, "topic:risk-management", "topic:systems-thinking", insight_types=["claim"]
+    )
+    assert "error" not in cmp or cmp.get("error") is None
+    assert cmp.get("pack_a") and cmp.get("pack_b")

@@ -102,6 +102,37 @@ def test_relational_tool_roundtrip(tmp_path, monkeypatch) -> None:
     assert [r["id"] for r in out["data"]["results"]] == ["insight:1"]
 
 
+# Every cross-surface-refresh tool, invoked through the FastMCP protocol against an empty
+# corpus: proves the registration wrapper dispatches and returns the uniform envelope (never
+# crashes the harness), even when the corpus has no index / graph / artifacts.
+_REFRESH_TOOL_CALLS = [
+    ("corpus_trending", {}),
+    ("insight_detail", {"insight_id": "insight:x"}),
+    ("topic_conversation_arc", {"topic_id": "topic:x"}),
+    ("topic_perspective_leaders", {}),
+    ("explore_insights", {}),
+    ("episode_insights", {"metadata_path": "nope.metadata.json"}),
+    ("compare_subjects", {"subject_a": "topic:a", "subject_b": "topic:b"}),
+    ("cluster_search", {"query": "x"}),
+    ("consensus_search", {"query": "x"}),
+    ("corpus_enrichment_signals", {}),
+    ("episode_enrichment_signals", {"metadata_path": "nope.metadata.json"}),
+    ("episode_speaker_roster", {"metadata_path": "nope.metadata.json"}),
+    ("ego_network", {"entity_id": "person:x"}),
+    ("topic_clusters", {"topic_id": "topic:x"}),
+    ("entity_dossier", {"entity_id": "topic:x"}),
+    ("episode_digest", {"metadata_path": "nope.metadata.json"}),
+]
+
+
+@pytest.mark.parametrize("name,args", _REFRESH_TOOL_CALLS)
+def test_refresh_tool_dispatches(tmp_path, name, args) -> None:
+    out = _call(build_server(tmp_path), name, args)
+    # Uniform envelope always; ok may be True (empty result) or False (clean error) — the
+    # point is the wrapper dispatched the tool without crashing the protocol layer.
+    assert isinstance(out.get("ok"), bool)
+
+
 def test_unknown_tool_raises(tmp_path) -> None:
     with pytest.raises(Exception):
         asyncio.run(build_server(tmp_path).call_tool("no_such_tool", {}))

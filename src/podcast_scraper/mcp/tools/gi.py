@@ -89,10 +89,12 @@ def _subject_ref(subject_id: str) -> Any:
 
 
 def _pack_dict(pack: Any) -> Dict[str, Any]:
+    # compare.BriefingPack carries `rendered` + `top_insight_id` as fields (distinct from the
+    # search context_pack, which exposes render()/top_insight).
     return {
-        "rendered": pack.render(),
+        "rendered": pack.rendered,
         "token_count": pack.token_count,
-        "top_insight_id": pack.top_insight.doc_id if pack.top_insight else None,
+        "top_insight_id": pack.top_insight_id,
         "coverage_summary": pack.coverage_summary,
         "confidence_p50": pack.confidence_p50,
     }
