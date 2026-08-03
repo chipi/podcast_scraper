@@ -22,7 +22,24 @@ pytestmark = [pytest.mark.integration]
 
 def _api_paths(output_dir: Path) -> set[str]:
     app = create_app(output_dir=output_dir)
-    return {getattr(r, "path", "") for r in app.routes if getattr(r, "path", "").startswith("/api")}
+    # fastapi >=0.137 / starlette 1.x nest each ``include_router`` call under an internal
+    # ``_IncludedRouter`` node instead of flattening its child routes into ``app.routes``,
+    # so a plain ``r.path`` scan no longer sees the mounted API routes. Pull the effective
+    # (prefixed) child paths back out via ``effective_route_contexts``; top-level routes
+    # (and older fastapi's flat routes) still expose ``.path`` directly.
+    paths: set[str] = set()
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if path:
+            paths.add(path)
+        contexts = getattr(route, "effective_route_contexts", None)
+        if callable(contexts):
+            for ctx in contexts():
+                child = getattr(ctx, "route", ctx)
+                child_path = getattr(child, "path", None)
+                if child_path:
+                    paths.add(child_path)
+    return {p for p in paths if p.startswith("/api")}
 
 
 def test_operator_public_mounts_curated_read_subset(tmp_path, monkeypatch) -> None:

@@ -1,8 +1,8 @@
 """Live E2E for the observability control plane (#803) — closes the loop against real APIs.
 
 Why a sibling dir (not ``tests/e2e/``): that suite's conftest blocks sockets and injects a
-pipeline ``e2e_server``; these tests need *real* network to GitHub/Sentry/Grafana/Loki and the
-target deploy. Run them explicitly (real sockets, no ``--disable-socket``)::
+pipeline ``e2e_server``; these tests need *real* network to GitHub/Sentry/Grafana/VictoriaLogs
+and the target deploy. Run them explicitly (real sockets, no ``--disable-socket``)::
 
     .venv/bin/python -m pytest tests/e2e_observability/ -q --no-cov -p no:cacheprovider
 
@@ -30,21 +30,13 @@ import pytest
 
 from podcast_obs import aggregate
 from podcast_obs.config import ObservabilityConfig, TargetConfig
-from podcast_obs.sources import github, grafana, langfuse, loki, prod_api, sentry
+from podcast_obs.sources import github, grafana, langfuse, prod_api, sentry, victoria
 
 pytestmark = pytest.mark.e2e
 
-_ALL_LABELS = {
-    "health",
-    "version",
-    "runs",
-    "deploys",
-    "cost",
-    "logs",
-    "errors",
-    "alerts",
-    "traces",
-}
+# Derived from aggregate's canonical probe list so this never drifts when a source is
+# added or removed (e.g. #1355's Loki→VictoriaLogs swap and the RFC-088 enrichment probes).
+_ALL_LABELS = {label for label, _ in aggregate._PROBES}
 
 
 def _gh_cli_token() -> str | None:
@@ -101,17 +93,24 @@ def test_github_deploys_live() -> None:
         assert deploy["conclusion"] is None or isinstance(deploy["conclusion"], str)
 
 
-def test_loki_cost_today_live() -> None:
-    data = _live_or_skip(loki.cost_today(_live_target()), "loki.cost")
-    cost = data["estimated_cost_usd"]
-    assert cost is None or (isinstance(cost, (int, float)) and cost >= 0)
+def test_victoria_cost_events_live() -> None:
+    # #1355 migrated the control-plane cost signal off Loki onto VictoriaLogs: cost is now the
+    # raw ``llm_cost`` emit_event stream (``aggregate`` maps the "cost" label to this), not a
+    # server-side ``estimated_cost_usd`` sum. Assert the wrapper shape, not values (live data).
+    data = _live_or_skip(
+        victoria.events(_live_target(), "llm_cost", window="24h", limit=5), "victoria.cost"
+    )
+    assert data["event_type"] == "llm_cost"
+    assert isinstance(data["events"], list)
+    assert data["count"] == len(data["events"])
 
 
-def test_loki_recent_logs_live() -> None:
-    data = _live_or_skip(loki.recent_logs(_live_target(), window="1h", limit=10), "loki.logs")
+def test_victoria_recent_logs_live() -> None:
+    data = _live_or_skip(
+        victoria.recent_logs(_live_target(), window="1h", limit=10), "victoria.logs"
+    )
     assert isinstance(data["lines"], list)
-    for line in data["lines"]:
-        assert {"ts", "service", "line"} <= set(line)
+    assert data["count"] == len(data["lines"])
 
 
 def test_grafana_alerts_live() -> None:

@@ -161,7 +161,7 @@ ml = [
 compare = [
   "streamlit>=1.41.0,<2.0.0",
   "plotly>=6.7.0,<7.0.0",
-  "pandas>=2.0.0,<3.0.0",
+  "pandas>=2.3.3,<3.0.0",
   "rouge-score>=0.1.2,<1.0.0",
 ]
 # LLM API providers - grouped for CI/test convenience
@@ -169,7 +169,7 @@ llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
   # Google Gemini (GeminiProvider); no [gemini] extra — install via .[llm]
   # 1.x: ThinkingConfig.thinking_budget for gemini-2.5-flash (Issue #572); 0.x lacked the field
-  "google-genai>=1.0.0,<2.0.0",
+  "google-genai>=2.16.0,<3.0.0",
   "google-api-core>=2.30.3,<3.0.0",  # Required by google-genai for some operations
   "anthropic>=0.116.0,<1.0.0",  # Anthropic API provider (Issue #106)
   # Mistral API provider (Issue #106). PyPI ``mistralai`` is quarantined (no installable
@@ -208,11 +208,12 @@ dev = [
   # via simulated absence. Runtime stays a no-op unless each service's secrets are set.
   "podcast-scraper[sentry]",
   "podcast-scraper[langfuse]",
-  # Cap <0.137 (#1029): fastapi 0.137 added the internal ``_IncludedRouter`` route
-  # type, which prometheus-fastapi-instrumentator 8.0.0 (latest) cannot resolve
-  # (``'_IncludedRouter' object has no attribute 'path'``) -> /api/health 500 when
-  # metrics are enabled (prod default). Lift once the instrumentator supports it.
-  "fastapi>=0.115.0,<0.137.0",
+  # Cap <0.137 lifted (#1029 → Dependabot #1375): prometheus-fastapi-instrumentator 8.0.1
+  # added handling for FastAPI's internal ``_IncludedRouter`` route type (the 0.137
+  # regression that returned /api/health 500 when metrics are enabled). Instrumentator
+  # floor is raised to >=8.0.1 below to guarantee that fix is present. Verified
+  # /api/health green on fastapi 0.141 + instrumentator 8.0.2.
+  "fastapi>=0.141.1,<0.142.0",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
@@ -222,7 +223,7 @@ dev = [
   "httpx>=0.28.1,<1.0.0",
   "uvicorn[standard]>=0.49.0,<1.0.0",
   # Prometheus exporter for /metrics (gated on PODCAST_METRICS_ENABLED in app.py).
-  "prometheus-fastapi-instrumentator>=8.0.0,<9.0.0",
+  "prometheus-fastapi-instrumentator>=8.0.1,<9.0.0",
   # In-process feed-sweep scheduler (#708); no-op unless ``scheduled_jobs:`` in viewer_operator.yaml.
   "apscheduler>=3.11.2,<4.0.0",
   "black>=26.5.1,<27.0.0",
@@ -231,7 +232,7 @@ dev = [
   "pytest>=9.0.3,<10.0.0",
   "pytest-cov>=4.1.0,<8.0.0",
   "pytest-xdist>=3.8.0,<4.0.0",  # Parallel test execution (RFC-018)
-  "pytest-rerunfailures>=16.3,<17.0",  # Flaky test reruns (RFC-018)
+  "pytest-rerunfailures>=16.4,<17.0",  # Flaky test reruns (RFC-018)
   "pytest-socket>=0.8.0,<1.0.0",  # Network blocking for E2E tests (RFC-019)
   "pytest-json-report>=1.5.0,<2.0.0",  # JSON test reports for metrics (RFC-025)
   "mypy==2.3.0",  # pinned exactly: a floating range let CI drift to 2.2.0 (differing jinja2 inference)
@@ -241,7 +242,15 @@ dev = [
   "build",
   "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
   "jiwer>=3.0.0,<5.0.0",  # Required for WER (Word Error Rate) computation
-  "nltk>=3.9.4,<4.0.0",  # Required for BLEU computation
+  # Floor >=3.10 (Dependabot #1373, taken): 3.10 fixes 3 download/pathsec CVEs that
+  # ``pip_audit`` (make quality) flags against 3.9.4 — CVE-2026-12061 / 12074 / 12075
+  # (zip-slip, signature bypass, SSRF in ``nltk.download`` / ``data.load``). 3.10 also
+  # ships ``nltk.inisec``, a CWD import-security hook that is incompatible with our
+  # in-tree ``.venv`` (it blocks NLTK-initiated dep imports resolving inside the CWD →
+  # breaks eval/BLEU collection from repo root). We disable ONLY that hook via
+  # ``NLTK_DISABLE_IMPORT_SECURITY=1`` (set in evaluation/scorer.py, the sole nltk import
+  # site) — the pathsec CVE fixes are in a different module and stay in effect.
+  "nltk>=3.10.0,<4.0.0",  # Required for BLEU computation
   # Code complexity analysis (RFC-031, #424). wily dropped (#1014) — it pinned radon<5.2 and was
   # near-vestigial (CI/dashboard read radon directly; only local make complexity-track used it).
   "radon>=6.0.1,<6.1",
