@@ -325,6 +325,7 @@ nav:
       - ADR-146 Your Week in-app surface and scheduling: adr/ADR-146-your-week-in-app-surface-and-scheduling.md
       - ADR-143 Corpus reprocess methodology: adr/ADR-143-corpus-reprocess-methodology.md
       - ADR-144 First-class vllm provider — real model ids: adr/ADR-144-first-class-vllm-provider-real-model-ids.md
+      - ADR-145 In-place re-roll for invalid structured responses: adr/ADR-145-structured-response-in-place-reroll-before-fallover.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
