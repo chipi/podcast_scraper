@@ -90,3 +90,38 @@ def test_pivot_chain_ids_flow_across_surfaces(indexed_corpus: Path) -> None:
     dossier = composites.entity_dossier(ctx, topic_id, k=5)
     assert dossier["kind"] == "topic"
     assert dossier.get("neighborhood") is not None
+
+
+def test_episode_scoped_tools_return_data(indexed_corpus: Path) -> None:
+    """The episode-scoped tools that were untestable until the synthetic corpus carried
+    diarization diagnostics + current-schema GI/enrichments (the gap that drove the corpus
+    realignment): speaker roster, per-episode insights, enrichment signals, episode digest."""
+    from podcast_scraper.mcp.context import CorpusContext
+    from podcast_scraper.mcp.tools import composites, enrichment, gi
+
+    ctx = CorpusContext.from_path(indexed_corpus)
+    metas = sorted(indexed_corpus.glob("feeds/*/*/metadata/*.metadata.json"))
+    assert metas, "no episodes in the fixture"
+    rel = str(metas[0].relative_to(indexed_corpus))
+
+    # episode_speaker_roster — reads .speakers.diagnostics.json (net-new; no HTTP route).
+    roster = enrichment.episode_speaker_roster(ctx, rel)
+    diag = roster.get("diagnostics")
+    assert diag is not None, "expected diarization diagnostics on the realigned corpus"
+    summary = diag.get("summary", {})
+    assert summary.get("num_speakers", 0) >= 1
+    assert isinstance(summary.get("exposed"), list) and summary["exposed"]
+    # talk-share is a fraction; the roster carries host/guest roles.
+    assert any(e.get("role") in {"host", "guest"} for e in summary["exposed"])
+
+    # episode_insights — salience-ranked grounded insights (current-schema GI).
+    insights = gi.episode_insights(ctx, rel).get("insights")
+    assert isinstance(insights, list) and insights
+
+    # episode_enrichment_signals — per-episode RFC-088 envelopes.
+    signals = enrichment.episode_enrichment_signals(ctx, rel).get("signals")
+    assert isinstance(signals, dict) and signals
+
+    # episode_digest — the composite that fuses all of the above in one call.
+    digest = composites.episode_digest(ctx, rel)
+    assert digest.get("insights") and digest.get("speaker_roster") is not None
