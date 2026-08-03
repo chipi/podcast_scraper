@@ -23,7 +23,17 @@ export default defineConfig({
   // next local run and broke fresh-user "honest-empty" assertions. globalSetup wipes that dir so
   // every local run starts clean, matching CI's fresh checkout.
   globalSetup: './e2e/globalSetup.ts',
-  retries: process.env.CI ? 2 : 0,
+  // Parity with the stable gi-kg-viewer config (225 specs, green under the same full-`make ci`
+  // load): the emulated mobile-chrome (Pixel 7) render + real-API round-trip can exceed the
+  // default 5 s expect deadline when the machine is saturated at the end of a full-ci run — which
+  // is exactly when `make ci` invokes this stage LOCALLY (process.env.CI unset → previously 0
+  // retries + a 5 s deadline). Give the assertions headroom (15 s) and one local retry so a
+  // load-induced slow first paint self-heals instead of failing the gate. This matches the
+  // deadline to the real render time; it does not paper over a product bug (isolated, these specs
+  // pass in 0.5–5 s).
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
+  retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: 'http://127.0.0.1:4174',
