@@ -94,12 +94,12 @@ fixture, so those assertions still exercise the real backoff computation).
 Measured: Gemini file 87 tests **~123s→2.5s**; all-providers 171 tests **7.6s**; an integration
 resilience file **5.1s**; unit backoff-schedule test unaffected (48 passed).
 
-**Still open — the second retry mechanism:** the e2e HTTP-download tests
-(`test_http_behaviors_e2e.py::test_retry_on_500_error` etc., ~247s each) retry via the
-**urllib3/requests adapter**, not `retry_with_metrics`, so the fixture above doesn't touch
-them. They need a targeted urllib3-backoff patch (that file also has one-sided timing
-asserts — `elapsed < 10` — which are safe, but validate before shipping). Follow-up, low
-priority: only 2 tests, and the 60m job cap absorbs them for now.
+**Second retry mechanism — also fixed.** The e2e HTTP-download tests
+(`test_http_behaviors_e2e.py::TestRetryLogic`, `test_error_handling_e2e.py`, ~247s each) retry
+via the custom `RetryTransport` in `rss/http_retry.py` (not `retry_with_metrics`). The e2e
+fixture now also patches `http_retry.time` (same module-scoped no-op-sleep proxy), so both
+retry paths are neutralized. Measured: the two HTTP-500 retry tests **~247s each → 1.4s total**.
+e2e timing asserts are one-sided (`elapsed < N`), so faster is safe.
 
 ## Not analyzed / caveats
 

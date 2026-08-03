@@ -917,10 +917,15 @@ def assert_cost_fields_populated(
 
 
 # --- Retry-backoff sleep neutralizer (mirrors tests/integration/conftest.py) --------------
-# retry_with_metrics-based e2e tests (cloud resilience / fallback chain / guardrails) shouldn't
-# wall-clock-wait real exponential backoff — the SCHEDULE is asserted in the unit tier. Module-
-# scoped on the retry util's own `time`, so global time.sleep and the urllib3 HTTP-download
-# retry are untouched (the latter's 247s tests are a separate follow-up — see the wip note).
+# The e2e suite has TWO retry mechanisms that wall-clock-wait real exponential backoff:
+#   1. retry_with_metrics (LLM provider / cloud-resilience / fallback-chain tests)
+#   2. the HTTP-download RetryTransport (rss/http_retry.py) used by the HTTP-500 / transient
+#      download tests (test_http_behaviors_e2e / test_error_handling_e2e — ~247s EACH).
+# Both sleep via a module-level `import time`, so we patch each module's `time` — scoped, so
+# global time.sleep and everything else are untouched. The retry LOGIC still runs (N attempts →
+# correct terminal error/behaviour), just instantly. e2e asserts behaviour + one-sided timing
+# (`elapsed < N`), never "backoff took ≥ N", so faster is safe. See
+# docs/wip/nightly-test-time-analysis.md.
 import time as _e2e_real_time  # noqa: E402
 from unittest.mock import patch as _e2e_patch  # noqa: E402
 
@@ -935,8 +940,13 @@ class _E2ENoBackoffSleep:
 
 @pytest.fixture(autouse=True)
 def _instant_retry_backoff_e2e():
-    """No-op retry_with_metrics backoff sleeps for the e2e suite (retry logic still runs)."""
+    """No-op both retry-backoff sleeps for the e2e suite (retry logic still runs)."""
+    from podcast_scraper.rss import http_retry
     from podcast_scraper.utils import provider_metrics
 
-    with _e2e_patch.object(provider_metrics, "time", _E2ENoBackoffSleep()):
+    _noop = _E2ENoBackoffSleep()
+    with (
+        _e2e_patch.object(provider_metrics, "time", _noop),
+        _e2e_patch.object(http_retry, "time", _noop),
+    ):
         yield
