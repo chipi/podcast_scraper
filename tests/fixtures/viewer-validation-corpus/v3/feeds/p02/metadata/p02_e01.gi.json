@@ -91,86 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:6e4d637fbcef879f",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:cc8dfdce8a173576",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:6e4d637fbcef879f",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:6e4d637fbcef879f",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:6e4d637fbcef879f",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:cc8dfdce8a173576",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:cc8dfdce8a173576",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:cc8dfdce8a173576",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:2104f2725b7b11dc",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:2104f2725b7b11dc",
-      "to": "topic:science-research",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:2104f2725b7b11dc",
-      "to": "topic:welcome-back-to",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
@@ -180,68 +113,64 @@
       "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
-        "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+        "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-07-05T12:00:00",
-        "title": "Practical Systems — Episode 1"
+        "publish_date": "2026-08-02T12:00:00",
+        "title": "Practical Systems \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
       "id": "topic:technology",
       "properties": {
-        "label": "technology",
-        "score": 0.8
+        "label": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research",
-        "score": 0.8
+        "label": "Science & research"
       },
       "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
-        "label": "welcome back to",
-        "score": 0.8
+        "label": "welcome back to"
       },
       "type": "Topic"
     },
     {
       "id": "insight:6e4d637fbcef879f",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
         "grounded": true,
-        "text": "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform."
       },
       "type": "Insight"
     },
     {
       "id": "insight:cc8dfdce8a173576",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
         "grounded": true,
-        "text": "Priya Nair, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Priya Nair, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:2104f2725b7b11dc",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
         "grounded": true,
-        "text": "Excited for this one — incident response and on-call design is something I've been thinking about a lot.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot."
       },
       "type": "Insight"
     },
@@ -280,7 +209,7 @@
         "char_start": 201,
         "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Ethan. Excited for this one — incident response and on-call design is something I've been thinking about a lot.",
+        "text": "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p02_e01.txt"
@@ -294,7 +223,7 @@
         "char_start": 328,
         "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
         "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first. Get started at linear.com/podcast.",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Get started at linear.com/podcast.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p02_e01.txt"
@@ -345,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

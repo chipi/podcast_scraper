@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
-    "published_date": "2026-07-04",
+    "published_date": "2026-08-01",
     "title": "The Long View: Biohacking \u2014 Episode 4"
   },
   "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p09/metadata/p09_e04.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-04",
+  "publish_date": "2026-08-01",
   "schema_version": "1",
   "summary": {
     "bullets": [

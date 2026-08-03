@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-    "published_date": "2026-07-05",
+    "published_date": "2026-08-02",
     "title": "Edge Cases Podcast \u2014 Episode 2"
   },
   "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p06/metadata/p06_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-05",
+  "publish_date": "2026-08-02",
   "schema_version": "1",
   "summary": {
     "bullets": [

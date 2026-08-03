@@ -32,7 +32,7 @@
   },
   "episode": {
     "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
-    "published_date": "2026-07-02",
+    "published_date": "2026-07-30",
     "title": "The Long View \u2014 Episode 3"
   },
   "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
@@ -57,7 +57,7 @@
     "artifact_path": "feeds/p07/metadata/p07_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-02",
+  "publish_date": "2026-07-30",
   "schema_version": "1",
   "summary": {
     "bullets": [

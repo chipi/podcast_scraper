@@ -2,82 +2,60 @@
   "edges": [
     {
       "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
-      "to": "entity:outdoor-activities",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
-      "to": "entity:gear",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "to": "topic:outdoor-activities",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "to": "topic:gear",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "to": "topic:science-research",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-08-03T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p01_e04.txt"
   },
   "nodes": [
     {
       "id": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "properties": {
-        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
-        "metadata_relative_path": "feeds/p01/metadata/p01_e04.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-08-03T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 4"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:outdoor-activities",
-      "properties": {
-        "category": "Concept",
-        "label": "Outdoor Activities"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:gear",
-      "properties": {
-        "category": "Concept",
-        "label": "Gear"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:outdoor-activities",
       "properties": {
-        "label": "outdoor activities"
+        "label": "outdoor activities",
+        "slug": "outdoor-activities"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear"
+        "label": "gear",
+        "slug": "gear"
       },
       "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
-        "label": "Science & research"
+        "label": "Science & research",
+        "slug": "science-research"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

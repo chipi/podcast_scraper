@@ -2,70 +2,47 @@
   "edges": [
     {
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
-      "to": "entity:health",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "to": "topic:technology",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "to": "topic:health",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-30T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p09_e02.txt"
   },
   "nodes": [
     {
       "id": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "properties": {
-        "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
-        "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-07-30T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:health",
-      "properties": {
-        "category": "Concept",
-        "label": "Health"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:technology",
       "properties": {
-        "label": "technology"
+        "label": "technology",
+        "slug": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:health",
       "properties": {
-        "label": "health"
+        "label": "health",
+        "slug": "health"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

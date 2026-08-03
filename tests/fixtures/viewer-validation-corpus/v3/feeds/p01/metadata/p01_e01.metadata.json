@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-    "published_date": "2026-07-06",
+    "published_date": "2026-08-03",
     "title": "Singletrack Sessions \u2014 Episode 1"
   },
   "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p01/metadata/p01_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-06",
+  "publish_date": "2026-08-03",
   "schema_version": "1",
   "summary": {
     "bullets": [

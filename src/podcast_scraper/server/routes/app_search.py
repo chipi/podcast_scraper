@@ -9,6 +9,7 @@ the user's own experience, with honest zero-coverage. Episode-scoped search live
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Literal
 
@@ -106,7 +107,13 @@ async def app_search(
             return build_search_response(q, {"query": q, "results": []})
     # Over-fetch when scoping so post-filtering to the user's set still fills the page.
     fetch_k = min(top_k * 5, 100) if mine is not None else top_k
-    outcome = structured_corpus_search(root, q, top_k=fetch_k, grounded_only=grounded_only)
+    # Offload the blocking, CPU-bound search (query embedding + LanceDB) off the event loop so it
+    # doesn't freeze concurrent requests — the first call also lazy-loads MiniLM (~seconds). Safe
+    # under concurrency: index_pool serves a warm, shared LanceDB backend (the pool is what removed
+    # the #1205 concurrent-cold-init SIGSEGV).
+    outcome = await asyncio.to_thread(
+        structured_corpus_search, root, q, top_k=fetch_k, grounded_only=grounded_only
+    )
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))
     resp = build_search_response(q, outcome)

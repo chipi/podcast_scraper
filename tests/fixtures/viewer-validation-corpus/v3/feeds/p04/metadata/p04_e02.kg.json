@@ -2,70 +2,47 @@
   "edges": [
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-      "to": "entity:technology",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-      "to": "entity:gear",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "to": "topic:technology",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "to": "topic:gear",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     }
   ],
   "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2026-07-29T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p04_e02.txt"
   },
   "nodes": [
     {
       "id": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "properties": {
-        "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-        "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
+        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+        "publish_date": "2026-07-29T12:00:00",
         "title": "Frame & Light \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:technology",
-      "properties": {
-        "category": "Concept",
-        "label": "Technology"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:gear",
-      "properties": {
-        "category": "Concept",
-        "label": "Gear"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:technology",
       "properties": {
-        "label": "technology"
+        "label": "technology",
+        "slug": "technology"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear"
+        "label": "gear",
+        "slug": "gear"
       },
       "type": "Topic"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

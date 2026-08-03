@@ -91,96 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:e2ea14821f904f6e",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:9e800db626f513b9",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:e9c7625096a4818e",
-      "to": "person:speaker-01"
-    },
-    {
-      "type": "MENTIONS_PERSON",
-      "from": "insight:e9c7625096a4818e",
-      "to": "person:speaker-02"
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:e2ea14821f904f6e",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:e2ea14821f904f6e",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:e2ea14821f904f6e",
-      "to": "topic:business-markets",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:9e800db626f513b9",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:9e800db626f513b9",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:9e800db626f513b9",
-      "to": "topic:business-markets",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:e9c7625096a4818e",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:e9c7625096a4818e",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:e9c7625096a4818e",
-      "to": "topic:business-markets",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
@@ -190,68 +113,64 @@
       "id": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-        "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+        "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-07-06T12:00:00",
-        "title": "Below the Surface — Episode 3"
+        "publish_date": "2026-08-03T12:00:00",
+        "title": "Below the Surface \u2014 Episode 3"
       },
       "type": "Episode"
     },
     {
       "id": "topic:outdoor-activities",
       "properties": {
-        "label": "outdoor activities",
-        "score": 0.8
+        "label": "outdoor activities"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear",
-        "score": 0.8
+        "label": "gear"
       },
       "type": "Topic"
     },
     {
       "id": "topic:business-markets",
       "properties": {
-        "label": "Business & markets",
-        "score": 0.8
+        "label": "Business & markets"
       },
       "type": "Topic"
     },
     {
       "id": "insight:e2ea14821f904f6e",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "grounded": true,
-        "text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems."
       },
       "type": "Insight"
     },
     {
       "id": "insight:9e800db626f513b9",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "grounded": true,
-        "text": "Hanna Krebohticker, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Hanna Krebohticker, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:e9c7625096a4818e",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "grounded": true,
-        "text": "Hanna Krebohticker: Thanks, Rina.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Hanna Krebohticker: Thanks, Rina."
       },
       "type": "Insight"
     },
@@ -318,7 +237,7 @@
         "char_start": 390,
         "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it — Marco was on episode 1 walking through wreck planning — the same discipline applies to reef surveys.",
+        "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p03_e03.txt"
@@ -346,7 +265,7 @@
         "char_start": 600,
         "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something — Marco mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p03_e03.txt"
@@ -355,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

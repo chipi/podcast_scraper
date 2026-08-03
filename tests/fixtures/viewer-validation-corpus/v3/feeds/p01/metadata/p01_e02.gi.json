@@ -91,86 +91,19 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:7eb4aef5d719f5c8",
-      "to": "person:speaker-02"
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "MENTIONS_PERSON",
       "from": "insight:ed902be0b7b87d7e",
-      "to": "person:speaker-02"
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "type": "ABOUT",
-      "from": "insight:7eb4aef5d719f5c8",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:7eb4aef5d719f5c8",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:7eb4aef5d719f5c8",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:ed902be0b7b87d7e",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:ed902be0b7b87d7e",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:ed902be0b7b87d7e",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
       "from": "insight:c518a18d27687d5d",
-      "to": "topic:outdoor-activities",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c518a18d27687d5d",
-      "to": "topic:gear",
-      "properties": {
-        "confidence": 0.5
-      }
-    },
-    {
-      "type": "ABOUT",
-      "from": "insight:c518a18d27687d5d",
-      "to": "topic:technology",
-      "properties": {
-        "confidence": 0.5
-      }
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
@@ -180,68 +113,64 @@
       "id": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-        "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
+        "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-07-04T12:00:00",
-        "title": "Singletrack Sessions — Episode 2"
+        "publish_date": "2026-08-01T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 2"
       },
       "type": "Episode"
     },
     {
       "id": "topic:outdoor-activities",
       "properties": {
-        "label": "outdoor activities",
-        "score": 0.8
+        "label": "outdoor activities"
       },
       "type": "Topic"
     },
     {
       "id": "topic:gear",
       "properties": {
-        "label": "gear",
-        "score": 0.8
+        "label": "gear"
       },
       "type": "Topic"
     },
     {
       "id": "topic:technology",
       "properties": {
-        "label": "Technology",
-        "score": 0.8
+        "label": "Technology"
       },
       "type": "Topic"
     },
     {
       "id": "insight:7eb4aef5d719f5c8",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "grounded": true,
-        "text": "Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach."
       },
       "type": "Insight"
     },
     {
       "id": "insight:ed902be0b7b87d7e",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "grounded": true,
-        "text": "Sophie Lorenz, thanks for being here.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Sophie Lorenz, thanks for being here."
       },
       "type": "Insight"
     },
     {
       "id": "insight:c518a18d27687d5d",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "grounded": true,
-        "text": "Today's episode is sponsored by Linear.",
-        "insight_type": "unknown",
-        "position_hint": 0.5
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Today's episode is sponsored by Linear."
       },
       "type": "Insight"
     },
@@ -294,7 +223,7 @@
         "char_start": 233,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Try linear.com today.",
+        "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Try linear.com today.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -308,7 +237,7 @@
         "char_start": 356,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it — Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.",
+        "text": "Before we get into it \u2014 Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -336,7 +265,7 @@
         "char_start": 562,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something — Liam Verbeck mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something \u2014 Liam Verbeck mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -345,5 +274,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "3.0"
+  "schema_version": "3.1"
 }

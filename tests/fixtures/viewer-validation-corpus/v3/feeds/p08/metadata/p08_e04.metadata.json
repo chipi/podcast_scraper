@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
-    "published_date": "2026-07-05",
+    "published_date": "2026-08-02",
     "title": "The Long View \u2014 Episode 4"
   },
   "episode_id": "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p08/metadata/p08_e04.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-05",
+  "publish_date": "2026-08-02",
   "schema_version": "1",
   "summary": {
     "bullets": [
