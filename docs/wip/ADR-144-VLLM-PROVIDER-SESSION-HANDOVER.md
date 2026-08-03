@@ -47,10 +47,10 @@ internet). `vllm` is a first-class provider, a sibling of `openai`.
 2. **Live DGX validation.** Bring the vLLM up (`gpu-mode-swap.sh research`) serving the real id, then
    run `scripts/eval/onboard_model_smoke.py` + one pipeline episode on `prod_dgx_balanced` to confirm
    the B3 check passes and the airgapped path works end-to-end. All validation so far is offline/unit.
-3. **Ollama wire-config governance (deferred, low priority).** vllm's wire config is
-   registry-governed; ollama's stays hand-authored. Unifying needs the ollama speaker StageOption's
-   `model` semantics (spaCy id vs LLM tag) reconciled and the endpoint host default aligned. See the
-   ADR as-built amendment.
+3. **Ollama full symmetry — DONE** (was deferred; operator asked to un-defer). Ollama's wire config
+   is now registry-governed + materialized like vllm's (primary AND airgapped-fallback), via a
+   `speaker_llm_model` split that also **fixed a latent bug** (the vllm naming option was leaking a
+   Qwen HF id into `ner_model`, a spaCy field). See the ADR as-built amendment.
 4. **The naming model is a placeholder.** `vllm_speaker_detector` defaults naming to the summary
    daily-driver Qwen; the winning naming model is still the bake-off's call (ADR Part-1 Step 3).
 

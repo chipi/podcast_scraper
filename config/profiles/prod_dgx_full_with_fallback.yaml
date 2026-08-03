@@ -83,8 +83,6 @@ llm_pipeline_mode: staged
 # tier is driven by the registry-emitted summary_fallback_providers below (RFC-106 / ADR-144).
 degradation_policy:
   continue_on_stage_failure: true
-ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
-ollama_summary_model: qwen3.5:35b
 
 preprocessing_enabled: true
 cloud_llm_structured_min_output_tokens: 4096
@@ -187,4 +185,6 @@ transcription_coverage_failover_provider: moss
 vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 vllm_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
 vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
-ner_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+ner_model: en_core_web_trf
+ollama_summary_model: qwen3.5:35b
+ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1

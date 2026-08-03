@@ -54,8 +54,6 @@ save_adfree_transcript: true
 # just mean "no LLM ran". Keeping the stage on the same pinned local model is what makes the
 # cloud-vs-local comparison say something.
 speaker_detector_provider: ollama
-ollama_speaker_model: qwen3.5:35b
-ner_model: en_core_web_trf # still used by the local entity stage
 auto_speakers: true
 
 # --- transcript cleaning: pattern, NOT the LLM ---------------------------------------------------
@@ -69,8 +67,6 @@ transcript_cleaning_strategy: pattern
 
 # --- summary / GI / KG: the pinned Ollama model ---------------------------------------------------
 summary_provider: ollama
-ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
-ollama_summary_model: qwen3.5:35b
 ollama_num_ctx: 32768 # transcripts are long; a smaller window truncates them silently
 # staged, NOT bundled. Measured on the pilot: qwen3.5:35b either emits invalid JSON for the
 # bundled clean+summary call (falls back to staged) or — worse — emits VALID JSON containing the
@@ -175,3 +171,7 @@ transcription_coverage_min: 0.0
 enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
+ollama_summary_model: qwen3.5:35b
+ollama_speaker_model: qwen3.5:35b
+ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
+ner_model: en_core_web_trf

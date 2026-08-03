@@ -199,13 +199,17 @@ implementation extended/changed the plan:
    - a test asserts all three load with zero cloud API keys and hold no cloud provider anywhere.
 2. **Value gate self-grades local** — reverses the §3 cross-vendor-cloud-judge decision (see §3).
 
-**Ollama symmetry.** `vllm` and `ollama` are the two DGX-local serving stacks and are functionally
-symmetric: both first-class providers, both self-grade the value gate (`_LOCAL_ONLY_LLM`), both
-price at `$0`, neither cloud-governed, and ollama is the airgapped summary fallback. One asymmetry
-is deliberately **deferred**: vllm's wire config is registry-governed/materialized while ollama's
-stays hand-authored — auto-governing ollama would break experiment_dgx_only (its speaker
-StageOption `model` is a spaCy id; its profiles pin a different endpoint host). Unifying that is a
-follow-up.
+**Ollama symmetry (now FULL).** `vllm` and `ollama` are the two DGX-local serving stacks and are
+fully symmetric: both first-class providers, both self-grade the value gate (`_LOCAL_ONLY_LLM`),
+both price at `$0`, neither cloud-governed, ollama is the airgapped summary fallback, AND ollama's
+wire config (`ollama_summary_model` / `ollama_speaker_model` / `ollama_api_base`) is now
+registry-governed + materialized like vllm's — whether ollama is the primary (experiment_dgx_only)
+or the airgapped summary fallback (`_emit_fallback_chains` emits the fallback ollama option's wire
+config). The blocker that had deferred this — an LLM naming StageOption's `model` being a **spaCy**
+id, not the LLM tag — is resolved by splitting the two: `model` = the spaCy `ner_model`, and the
+LLM tag lives in `extra_settings['speaker_llm_model']` → `{ns}_speaker_model`, identically for vllm
+and ollama. **This also fixed a latent bug**: the vllm naming option had been leaking its Qwen HF
+id into `ner_model` (a spaCy field) — `spacy.load()` would have crashed if the entity stage ran.
 
 **Phased homelab migration (S3) — NOT YET DONE.** The registry/profiles now request the real HF id
 on the wire; the homelab vLLM must serve under that `--served-model-name` (dual-name transition)

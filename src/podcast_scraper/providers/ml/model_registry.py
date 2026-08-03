@@ -1508,7 +1508,8 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         stage="ner",
         option_id="ollama_speaker_detector",
         provider="ollama",
-        model="en_core_web_trf",  # the local entity stage still runs spaCy alongside
+        model="en_core_web_trf",  # spaCy ner_model (local entity stage runs alongside)
+        extra_settings={"speaker_llm_model": "qwen3.5:35b"},  # DGX-local ollama LLM for naming
         research_ref="docs/guides/eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md",
         headline_metric=(
             "speaker/host detection served by the same DGX-resident LLM, so an all-DGX profile "
@@ -1521,11 +1522,15 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         stage="ner",
         option_id="vllm_speaker_detector",
         provider="vllm",
-        model="NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",  # real HF id; same daily-driver as summary
+        # `model` is the spaCy ner_model (the entity stage runs spaCy alongside, symmetric with
+        # ollama_speaker_detector); the LLM that does speaker NAMING is `speaker_llm_model` below,
+        # emitted to vllm_speaker_model. This split keeps ner_model a spaCy id, never a Qwen id.
+        model="en_core_web_trf",
         endpoint="http://{dgx_tailnet_host}:8003/v1",
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
+            "speaker_llm_model": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",  # real HF id (ADR-144)
         },
         research_ref="docs/adr/ADR-144-first-class-vllm-provider-real-model-ids.md",
         headline_metric=(
@@ -1817,6 +1822,11 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "vllm_summary_model",
     "vllm_speaker_model",
     "vllm_api_base",
+    # ollama is symmetric with vllm (ADR-144): its wire model + endpoint are governed too, whether
+    # ollama is the primary (experiment_dgx_only) or the airgapped summary fallback.
+    "ollama_summary_model",
+    "ollama_speaker_model",
+    "ollama_api_base",
     "kg_extraction_source",
     "kg_max_topics",
     "kg_max_entities",
@@ -2400,6 +2410,15 @@ def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> No
         if options:
             settings[key] = [opt.provider for opt in options]
 
+    # A DGX-local ollama SUMMARY fallback needs its wire config materialized too (governed), so a
+    # vllm-primary airgapped profile doesn't hand-author ollama_summary_model / ollama_api_base
+    # (ADR-144). Emit from the first ollama option in the summary-fallback ladder.
+    for oid in preset.summary_fallback:
+        opt = get_summary_option(oid)
+        if opt.provider == "ollama":
+            _emit_summary_model(opt, settings)
+            break
+
 
 def _emit_transcription_model(tx: StageOption, settings: Dict[str, Any]) -> None:
     """Route the transcription model to the backend's governed config field.
@@ -2422,19 +2441,15 @@ def _endpoint_to_env_template(endpoint: str) -> str:
 def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
     """Route the summary model + endpoint to the backend's GOVERNED, provider-namespaced fields.
 
-    The OpenAI-compatible providers (``openai``, ``vllm``) read a namespaced field
+    The provider-namespaced backends (``openai``, ``vllm``, ``ollama``) read a namespaced field
     (``{ns}_summary_model`` / ``{ns}_api_base``), NOT the generic ``summary_model`` /
     ``summary_endpoint`` — so those must be materialized for the registry to actually govern what
-    runs on the wire, rather than leaving it to a hand-authored profile block (ADR-144 B2). The
+    runs on the wire, rather than leaving it to a hand-authored profile block (ADR-144 B2). ``vllm``
+    and ``ollama`` are fully symmetric here — both DGX-local, self-describing serving stacks. The
     endpoint is emitted in ``${DGX_TAILNET_HOST}``-template form (``_endpoint_to_env_template``).
-
-    ``ollama`` is deliberately NOT routed here yet: its speaker StageOption's ``model`` is a spaCy
-    id (not the LLM tag) and its profiles pin a different endpoint host default, so auto-governing
-    ollama's wire config would break experiment_dgx_only. Ollama stays hand-authored (it works);
-    governing it symmetrically is a follow-up once the ollama speaker-model semantics are unified.
     """
     ns = sm.provider
-    if ns not in ("openai", "vllm"):
+    if ns not in ("openai", "vllm", "ollama"):
         return
     if sm.model is not None:
         settings[f"{ns}_summary_model"] = sm.model
@@ -2445,16 +2460,18 @@ def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
 def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
     """Route the naming/NER model + endpoint to the OpenAI-compatible provider's namespaced fields.
 
-    Mirrors ``_emit_summary_model`` for the speaker/naming stage: the vllm/openai speaker path
-    reads ``{ns}_speaker_model`` / ``{ns}_api_base``, NOT the generic ``ner_model`` (which is the
-    spaCy model name) — so an all-DGX naming stage must materialize those or it silently falls to a
-    cloud default (ADR-144).
+    The LLM speaker/naming model lives in ``extra_settings['speaker_llm_model']`` (NOT the generic
+    ``ner_model``, which is the spaCy entity model) and is routed to ``{ns}_speaker_model``. vllm,
+    openai and ollama are identical here — all three carry a spaCy id in ``model`` and the LLM tag
+    in ``speaker_llm_model`` — so a DGX naming stage materializes its real local model instead of
+    falling to a cloud/Config default (ADR-144).
     """
     ns = ner.provider
-    if ns not in ("openai", "vllm"):  # ollama's ner.model is a spaCy id, not the LLM tag — skip
+    if ns not in ("openai", "vllm", "ollama"):
         return
-    if ner.model is not None:
-        settings[f"{ns}_speaker_model"] = ner.model
+    llm = (ner.extra_settings or {}).get("speaker_llm_model")
+    if isinstance(llm, str) and llm:
+        settings[f"{ns}_speaker_model"] = llm
     if ner.endpoint:
         settings[f"{ns}_api_base"] = _endpoint_to_env_template(ner.endpoint)
 
