@@ -42,15 +42,17 @@ jobs:
       - name: Pre-flight — creds present + resolve mode
         id: preflight
         env:
-          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TS_ACL_OAUTH_CLIENT_ID: ${{ secrets.TS_ACL_OAUTH_CLIENT_ID }}
+          TS_ACL_OAUTH_SECRET: ${{ secrets.TS_ACL_OAUTH_SECRET }}
           TAILNET_NAME: ${{ vars.TAILNET_NAME }}
           EVENT: ${{ github.event_name }}
           DISPATCH_MODE: ${{ github.event.inputs.mode }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_API_KEY:-}" ]    && MISSING="$MISSING TS_API_KEY"
-          [ -z "${TAILNET_NAME:-}" ]  && MISSING="$MISSING TAILNET_NAME"
+          [ -z "${TS_ACL_OAUTH_CLIENT_ID:-}" ] && MISSING="$MISSING TS_ACL_OAUTH_CLIENT_ID"
+          [ -z "${TS_ACL_OAUTH_SECRET:-}" ]    && MISSING="$MISSING TS_ACL_OAUTH_SECRET"
+          [ -z "${TAILNET_NAME:-}" ]           && MISSING="$MISSING TAILNET_NAME"
           if [ -n "$MISSING" ]; then
             echo "::warning::Missing prereqs:$MISSING (e.g. a fork PR has no secrets) — skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -73,6 +75,11 @@ jobs:
         uses: tailscale/gitops-acl-action@5a4a17f5708e9bf96f4ee915a95e9f83c2eebe1a # v1.5.2
         with:
           tailnet: ${{ vars.TAILNET_NAME }}
-          api-key: ${{ secrets.TS_API_KEY }}
+          # OAuth client with the `acl` (policy write) scope — replaces the expiring TS_API_KEY
+          # (2026-08-03: it lapsed → HTTP 401 "API token invalid", blocking ACL sync). OAuth
+          # clients don't expire. Distinct from the tag:gha-deployer join client (that has
+          # `auth_keys` scope, not `acl`), so it's its own dedicated client + secret pair.
+          oauth-client-id: ${{ secrets.TS_ACL_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_ACL_OAUTH_SECRET }}
           policy-file: ./tailscale/policy.hujson
           action: ${{ steps.preflight.outputs.mode }}
