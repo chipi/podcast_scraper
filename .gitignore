@@ -298,3 +298,6 @@ docs/wip/search-v3/eval/latest.json
 # lance-format-version coupling. See tests/integration/test_mcp_pivot_chain_e2e.py.
 tests/fixtures/app-validation-corpus/v3/search/lance_index/
 tests/fixtures/app-validation-corpus/v3/search/metadata.json
+
+# Upgrade migration lock (runtime, never committed)
+tests/fixtures/**/upgrade_ledger.json.lock
