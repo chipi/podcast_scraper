@@ -80,6 +80,9 @@
     //   :8001  = pyannote diarization service (#926; #943 adds /metrics).
     //   :8002  = openai-whisper service (first-party Whisper code; #953).
     //            Runs alongside speaches:8000 until #952 picks the winner.
+    //   :8003  = vLLM autoresearch slot (ADR-144: naming/summary/GI/KG/grounding
+    //            + the in-pipeline value gate; the fully-airgapped DGX profiles).
+    //   :8004  = MOSS transcribe-diarize (ASR coverage failover; #1273 / ADR-123).
     // #943 observability sidecars:
     //   :8080  = cAdvisor (per-container resource use).
     //   :9100  = node-exporter (host CPU/mem/disk/net).
@@ -88,7 +91,7 @@
     {
       "action": "accept",
       "src":    ["autogroup:admin", "tag:gha-deployer"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
     {
       "action": "accept",
@@ -98,7 +101,7 @@
     {
       "action": "accept",
       "src":    ["tag:prod"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
     {
       // homelab Mac mini (tag:homelab-host) scrapes DGX telemetry over the TAILNET
