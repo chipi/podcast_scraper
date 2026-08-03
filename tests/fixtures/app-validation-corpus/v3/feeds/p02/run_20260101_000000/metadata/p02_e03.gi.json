@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:fe16cc811aa5e99c",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:fe16cc811aa5e99c",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:fe16cc811aa5e99c",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:fe16cc811aa5e99c",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-d8cc458a5f0049a8",
       "to": "insight:00c37b14c35c25e2",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:00c37b14c35c25e2",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:00c37b14c35c25e2",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:00c37b14c35c25e2",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:00c37b14c35c25e2",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-d8cc458a5f0049a8",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:aeb886ec289fe681",
@@ -103,8 +163,7 @@
       "id": "episode:ep-d8cc458a5f0049a8",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "metadata_relative_path": "feeds/p02/run_20260101_000000/metadata/p02_e03.metadata.json",
+        "feed_id": "p02",
         "podcast_id": "p02",
         "publish_date": "2024-08-26T12:00:00",
         "title": "Frame the Decision: Pragmatic Threat Models"
@@ -114,40 +173,38 @@
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:fe16cc811aa5e99c",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-d8cc458a5f0049a8",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:00c37b14c35c25e2",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-d8cc458a5f0049a8",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:3aabb6d8787f9373",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-d8cc458a5f0049a8",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Yeah, exactly. And it ties into what we're covering today."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:998a2296f62e5651",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:998a2296f62e5651",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:998a2296f62e5651",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:998a2296f62e5651",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-64ef09a7ee543045",
       "to": "insight:b4d1b05b601509cf",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-64ef09a7ee543045",
       "to": "insight:12fcd1b7633f8e06",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:12fcd1b7633f8e06",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:12fcd1b7633f8e06",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:12fcd1b7633f8e06",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:12fcd1b7633f8e06",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:8b5508a111ea67cd",
@@ -103,8 +163,7 @@
       "id": "episode:ep-64ef09a7ee543045",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-64ef09a7ee543045",
-        "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e02.metadata.json",
+        "feed_id": "p08",
         "podcast_id": "p08",
         "publish_date": "2025-04-25T12:00:00",
         "title": "Pronunciation as a Reliability Signal"
@@ -114,40 +173,38 @@
     {
       "id": "topic:public-radio",
       "properties": {
-        "label": "public radio",
-        "score": 0.8
+        "label": "public radio"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:998a2296f62e5651",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-64ef09a7ee543045",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:b4d1b05b601509cf",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-64ef09a7ee543045",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, A. correspondent. Great to be back."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:12fcd1b7633f8e06",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-64ef09a7ee543045",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Before we get into it \u2014 Renee was on last week walking through public-radio voice conventions."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

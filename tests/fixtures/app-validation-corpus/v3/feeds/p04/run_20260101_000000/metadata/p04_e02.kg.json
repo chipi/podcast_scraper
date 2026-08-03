@@ -2,33 +2,23 @@
   "edges": [
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
-      "to": "entity:visual-craft",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-fb2bb5f0f4044f1d",
-      "to": "entity:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "topic:visual-craft",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "topic:systems-thinking",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "topic:lifelong-learning",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "topic:expert-interviews",
-      "type": "RELATES_TO"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
@@ -43,61 +33,49 @@
   ],
   "episode_id": "ep-fb2bb5f0f4044f1d",
   "extraction": {
-    "model": "n/a",
-    "provider": "synthetic"
+    "extracted_at": "2024-10-04T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p04_e02.txt"
   },
   "nodes": [
     {
       "id": "episode:ep-fb2bb5f0f4044f1d",
       "properties": {
-        "episode_id": "ep-fb2bb5f0f4044f1d",
-        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e02.metadata.json",
+        "podcast_id": "p04",
         "publish_date": "2024-10-04T12:00:00",
         "title": "Documentary Workflow in the Field"
       },
       "type": "Episode"
     },
     {
-      "id": "entity:visual-craft",
-      "properties": {
-        "category": "Concept",
-        "label": "Visual Craft"
-      },
-      "type": "Entity"
-    },
-    {
-      "id": "entity:systems-thinking",
-      "properties": {
-        "category": "Concept",
-        "label": "Systems Thinking"
-      },
-      "type": "Entity"
-    },
-    {
       "id": "topic:visual-craft",
       "properties": {
-        "label": "visual craft"
+        "label": "visual craft",
+        "slug": "visual-craft"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking"
+        "label": "systems thinking",
+        "slug": "systems-thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning"
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews"
+        "label": "expert interviews",
+        "slug": "expert-interviews"
       },
       "type": "Topic"
     },
@@ -118,5 +96,5 @@
       "type": "Person"
     }
   ],
-  "schema_version": "2"
+  "schema_version": "2.0"
 }

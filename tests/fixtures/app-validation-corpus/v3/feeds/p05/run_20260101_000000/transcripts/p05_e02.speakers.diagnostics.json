@@ -1,0 +1,48 @@
+{
+  "schema": "speakers.diagnostics/v1",
+  "summary": {
+    "by_voice_type": {
+      "commercial": 1,
+      "named": 2
+    },
+    "exposed": [
+      {
+        "name": "Nora",
+        "named": true,
+        "role": "host",
+        "talk_share": 0.56,
+        "voice_type": "named"
+      },
+      {
+        "name": "Rich Clarida",
+        "named": true,
+        "role": "guest",
+        "talk_share": 0.42,
+        "voice_type": "named"
+      },
+      {
+        "name": null,
+        "named": false,
+        "role": "guest",
+        "talk_share": 0.02,
+        "voice_type": "commercial"
+      }
+    ],
+    "named": 2,
+    "num_speakers": 3,
+    "unattributed_talk_share": 0.02,
+    "unresolved": 1,
+    "voice_census": {
+      "commercial": {
+        "count": 1,
+        "talk_s": 6.0,
+        "talk_share": 0.02
+      },
+      "named": {
+        "count": 2,
+        "talk_s": 294.0,
+        "talk_share": 0.98
+      }
+    }
+  }
+}

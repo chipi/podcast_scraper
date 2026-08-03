@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:dd805d53ca392cff",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dd805d53ca392cff",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dd805d53ca392cff",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dd805d53ca392cff",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-b3570c1ceb5eca41",
       "to": "insight:b4d1b05b601509cf",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-b3570c1ceb5eca41",
       "to": "insight:ceb14ee5e9abd1c1",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:1954dab8d3dbc57e",
@@ -103,8 +163,7 @@
       "id": "episode:ep-b3570c1ceb5eca41",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-b3570c1ceb5eca41",
-        "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e03.metadata.json",
+        "feed_id": "p08",
         "podcast_id": "p08",
         "publish_date": "2025-09-02T12:00:00",
         "title": "The Desk That Never Sleeps"
@@ -114,40 +173,38 @@
     {
       "id": "topic:public-radio",
       "properties": {
-        "label": "public radio",
-        "score": 0.8
+        "label": "public radio"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:dd805d53ca392cff",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-b3570c1ceb5eca41",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:b4d1b05b601509cf",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-b3570c1ceb5eca41",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, A. correspondent. Great to be back."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:ceb14ee5e9abd1c1",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-b3570c1ceb5eca41",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

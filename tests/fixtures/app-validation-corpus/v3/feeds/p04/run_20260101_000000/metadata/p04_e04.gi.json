@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:e8f16514865f9d1a",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:e8f16514865f9d1a",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:e8f16514865f9d1a",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:e8f16514865f9d1a",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-9b36e2e3b959298d",
       "to": "insight:27b94dd5bdf2158f",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-9b36e2e3b959298d",
       "to": "insight:3aabb6d8787f9373",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:ec2226b63d7fc05d",
@@ -103,8 +163,7 @@
       "id": "episode:ep-9b36e2e3b959298d",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e04.metadata.json",
+        "feed_id": "p04",
         "podcast_id": "p04",
         "publish_date": "2025-06-21T12:00:00",
         "title": "Roundtable: Three Photographers on Light"
@@ -114,40 +173,38 @@
     {
       "id": "topic:visual-craft",
       "properties": {
-        "label": "visual craft",
-        "score": 0.8
+        "label": "visual craft"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:e8f16514865f9d1a",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-9b36e2e3b959298d",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Frame & Light. Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:27b94dd5bdf2158f",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-9b36e2e3b959298d",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:3aabb6d8787f9373",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-9b36e2e3b959298d",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Yeah, exactly. And it ties into what we're covering today."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

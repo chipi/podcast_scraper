@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:8b04cb73a2488e81",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8b04cb73a2488e81",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8b04cb73a2488e81",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8b04cb73a2488e81",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-febd9a8f53bf3a3a",
       "to": "insight:455872aaecba2cea",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:455872aaecba2cea",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:455872aaecba2cea",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:455872aaecba2cea",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:455872aaecba2cea",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-febd9a8f53bf3a3a",
       "to": "insight:6076c20099448055",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:6076c20099448055",
+      "to": "topic:visual-craft",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:6076c20099448055",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:6076c20099448055",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:6076c20099448055",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:ebd3129f171ca39e",
@@ -103,8 +163,7 @@
       "id": "episode:ep-febd9a8f53bf3a3a",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-febd9a8f53bf3a3a",
-        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e01.metadata.json",
+        "feed_id": "p04",
         "podcast_id": "p04",
         "publish_date": "2024-07-06T12:00:00",
         "title": "Underwater Images That Feel Alive"
@@ -114,40 +173,38 @@
     {
       "id": "topic:visual-craft",
       "properties": {
-        "label": "visual craft",
-        "score": 0.8
+        "label": "visual craft"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:8b04cb73a2488e81",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-febd9a8f53bf3a3a",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:455872aaecba2cea",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-febd9a8f53bf3a3a",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:6076c20099448055",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-febd9a8f53bf3a3a",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Let's start there. What's the structural angle most listeners don't have access to?"
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

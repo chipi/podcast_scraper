@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:5aa2ae9493ab602a",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:5aa2ae9493ab602a",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:5aa2ae9493ab602a",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:5aa2ae9493ab602a",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-f4b940a095192621",
       "to": "insight:18426252a4a72016",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:18426252a4a72016",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:18426252a4a72016",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:18426252a4a72016",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:18426252a4a72016",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-f4b940a095192621",
       "to": "insight:44763f042472c001",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:44763f042472c001",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:44763f042472c001",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:44763f042472c001",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:44763f042472c001",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:e5b2fc4e3710c8fe",
@@ -103,8 +163,7 @@
       "id": "episode:ep-f4b940a095192621",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-f4b940a095192621",
-        "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e02.metadata.json",
+        "feed_id": "p06",
         "podcast_id": "p06",
         "publish_date": "2025-03-17T12:00:00",
         "title": "More Drift, Less Signal"
@@ -114,40 +173,38 @@
     {
       "id": "topic:long-form",
       "properties": {
-        "label": "long-form",
-        "score": 0.8
+        "label": "long-form"
       },
       "type": "Topic"
     },
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:5aa2ae9493ab602a",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-f4b940a095192621",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:18426252a4a72016",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-f4b940a095192621",
         "grounded": false,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?"
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:44763f042472c001",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-f4b940a095192621",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

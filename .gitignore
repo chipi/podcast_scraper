@@ -292,3 +292,9 @@ docs/wip/graph-v3/traces/*.trace.json
 docs/wip/search-v3/eval/latest.json
 
 .shots/
+
+# MCP pivot-chain e2e: the app-validation fixture's two-tier search index is BUILT at
+# test setup (offline, cached MiniLM) — not committed, to avoid a binary lance blob +
+# lance-format-version coupling. See tests/integration/test_mcp_pivot_chain_e2e.py.
+tests/fixtures/app-validation-corpus/v3/search/lance_index/
+tests/fixtures/app-validation-corpus/v3/search/metadata.json

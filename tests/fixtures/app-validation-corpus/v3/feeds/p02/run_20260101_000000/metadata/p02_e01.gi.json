@@ -26,14 +26,74 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:dff2b7b8b5c7fadc",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dff2b7b8b5c7fadc",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dff2b7b8b5c7fadc",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:dff2b7b8b5c7fadc",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-4a1a673a7005a6b5",
       "to": "insight:c3641325c5f58acd",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:c3641325c5f58acd",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c3641325c5f58acd",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c3641325c5f58acd",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c3641325c5f58acd",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-4a1a673a7005a6b5",
       "to": "insight:7d5cfd740812ebf7",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:7d5cfd740812ebf7",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:7d5cfd740812ebf7",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:7d5cfd740812ebf7",
+      "to": "topic:lifelong-learning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:7d5cfd740812ebf7",
+      "to": "topic:expert-interviews",
+      "type": "ABOUT"
     },
     {
       "from": "quote:7631bc23e4c7df82",
@@ -103,8 +163,7 @@
       "id": "episode:ep-4a1a673a7005a6b5",
       "properties": {
         "duration_ms": 1800000,
-        "episode_id": "ep-4a1a673a7005a6b5",
-        "metadata_relative_path": "feeds/p02/run_20260101_000000/metadata/p02_e01.metadata.json",
+        "feed_id": "p02",
         "podcast_id": "p02",
         "publish_date": "2024-03-04T12:00:00",
         "title": "On-Call That Doesn't Break People"
@@ -114,40 +173,38 @@
     {
       "id": "topic:systems-thinking",
       "properties": {
-        "label": "systems thinking",
-        "score": 0.8
+        "label": "systems thinking"
       },
       "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
-        "label": "risk management",
-        "score": 0.8
+        "label": "risk management"
       },
       "type": "Topic"
     },
     {
       "id": "topic:lifelong-learning",
       "properties": {
-        "label": "lifelong learning",
-        "score": 0.8
+        "label": "lifelong learning"
       },
       "type": "Topic"
     },
     {
       "id": "topic:expert-interviews",
       "properties": {
-        "label": "expert interviews",
-        "score": 0.8
+        "label": "expert interviews"
       },
       "type": "Topic"
     },
     {
       "id": "insight:dff2b7b8b5c7fadc",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-4a1a673a7005a6b5",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here."
       },
       "type": "Insight"
@@ -155,8 +212,10 @@
     {
       "id": "insight:c3641325c5f58acd",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-4a1a673a7005a6b5",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "text": "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot."
       },
       "type": "Insight"
@@ -164,8 +223,10 @@
     {
       "id": "insight:7d5cfd740812ebf7",
       "properties": {
-        "confidence": 0.7,
+        "episode_id": "ep-4a1a673a7005a6b5",
         "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
         "text": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring."
       },
       "type": "Insight"
@@ -270,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.1"
 }

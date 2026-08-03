@@ -19,6 +19,8 @@ def test_build_server_registers_tools(tmp_path) -> None:
         "search_corpus",
         # RFC-093 LITM briefing pack (added 2026-06-25)
         "corpus_briefing_pack",
+        # cross-surface refresh: momentum (RFC-103)
+        "corpus_trending",
         # slice 2 — relational (RFC-094 traversals)
         "person_positions",
         "who_said_about_topic",
@@ -27,16 +29,38 @@ def test_build_server_registers_tools(tmp_path) -> None:
         "topic_entities",
         "related_insights",
         "show_episodes",
+        # cross-surface refresh: pivot bridge
+        "insight_detail",
         # slice 3 — CIL intelligence
         "person_profile",
         "topic_timeline",
         "position_arc",
+        # cross-surface refresh: temporal + centrality
+        "topic_conversation_arc",
+        "topic_perspective_leaders",
+        # cross-surface refresh: GI / grounded-insight
+        "explore_insights",
+        "episode_insights",
+        "compare_subjects",
         # connectivity / neighborhood (#1054)
         "entity_neighborhood",
         "person_topics",
         "co_occurring_entities",
         "bridge",
         "related_topics",
+        # cross-surface refresh: multi-hop + clusters
+        "ego_network",
+        "topic_clusters",
+        # cross-surface refresh: search result-set operators
+        "cluster_search",
+        "consensus_search",
+        # cross-surface refresh: enrichment + speaker
+        "corpus_enrichment_signals",
+        "episode_enrichment_signals",
+        "episode_speaker_roster",
+        # cross-surface refresh: composite dossiers
+        "entity_dossier",
+        "episode_digest",
         # slice 3 — catalog / navigation
         "list_feeds",
         "list_episodes",

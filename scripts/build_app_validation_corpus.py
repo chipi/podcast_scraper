@@ -260,6 +260,8 @@ def _inject_authored_claims(
     nodes = gi.setdefault("nodes", [])
     edges = gi.setdefault("edges", [])
     ids = {str(n.get("id")) for n in nodes}
+    episode_id = str(gi.get("episode_id") or "")
+    transcript_ref = f"transcripts/{ep_label}.txt"
     for i, (key, tid, text, grounded) in enumerate(claims):
         name = name_by_key.get(key)
         if not (name and tid and text):
@@ -270,7 +272,8 @@ def _inject_authored_claims(
             ids.add(pid)
         if tid not in ids:
             label = tid.replace("topic:", "").replace("-", " ")
-            nodes.append({"id": tid, "type": "Topic", "properties": {"name": label}})
+            # GI topic_node allows {label, aliases} — NOT slug (that is a KG-only field).
+            nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
             ids.add(tid)
         iid, qid = f"insight:authored-{ep_label}-{i}", f"quote:authored-{ep_label}-{i}"
         nodes.append(
@@ -279,13 +282,30 @@ def _inject_authored_claims(
                 "type": "Insight",
                 "properties": {
                     "text": text,
+                    "episode_id": episode_id,
                     "grounded": grounded,
                     "insight_type": "claim",
                     "position_hint": 0.5,
                 },
             }
         )
-        nodes.append({"id": qid, "type": "Quote", "properties": {"text": text}})
+        # RFC-097 v3 quote_node: required episode_id + char offsets + timestamps + transcript_ref.
+        nodes.append(
+            {
+                "id": qid,
+                "type": "Quote",
+                "properties": {
+                    "text": text,
+                    "episode_id": episode_id,
+                    "speaker_id": pid,
+                    "char_start": 0,
+                    "char_end": len(text),
+                    "timestamp_start_ms": 0,
+                    "timestamp_end_ms": 0,
+                    "transcript_ref": transcript_ref,
+                },
+            }
+        )
         edges.append({"from": iid, "to": qid, "type": "SUPPORTED_BY"})
         edges.append({"from": qid, "to": pid, "type": "SPOKEN_BY"})
         edges.append({"from": iid, "to": tid, "type": "ABOUT"})
@@ -434,6 +454,11 @@ def _clean_insight_quote_excerpts(
     return {"topics": topics, "insights": insights, "quotes": quotes}
 
 
+# Sponsor-read pseudo-speakers (``Ad:`` lines etc.) are not people — excluded from the KG
+# person surface and counted as ``commercial`` (unattributed) voices in speaker diagnostics.
+_NON_PERSON_LABELS = {"ad", "ads", "sponsor", "announcer", "narrator", "promo"}
+
+
 def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> None:
     """Add Person nodes (+ episode→person edges) to a ``build_kg`` artifact in place.
 
@@ -451,9 +476,6 @@ def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> 
         (n.get("id") for n in nodes if isinstance(n, dict) and n.get("type") == "Episode"),
         None,
     )
-    # Sponsor-read pseudo-speakers (e.g. ``Ad:`` lines) are not people — exclude them
-    # so the entity-card people surface mirrors a real diarized roster (host + guests).
-    _NON_PERSON_LABELS = {"ad", "ads", "sponsor", "announcer", "narrator", "promo"}
     existing = {n.get("id") for n in nodes if isinstance(n, dict)}
     for i, sp in enumerate(roster):
         name = str(sp.get("name") or "").strip()
@@ -476,12 +498,14 @@ def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> 
 _ENRICH_COMPUTED_AT = "2026-01-01T00:00:00Z"
 
 
-def _enrichment_envelope(enricher_id: str, data: dict[str, Any]) -> dict[str, Any]:
+def _enrichment_envelope(
+    enricher_id: str, data: dict[str, Any], version: str = "1.0"
+) -> dict[str, Any]:
     """An RFC-088 enricher output envelope (the shape the consumer read surface parses)."""
     return {
         "computed_at": _ENRICH_COMPUTED_AT,
         "enricher_id": enricher_id,
-        "enricher_version": "1.0",
+        "enricher_version": version,
         "schema_version": "1.0",
         "status": "ok",
         "data": data,
@@ -692,16 +716,22 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
     ]
     clusters: list[dict[str, Any]] = []
     if len(members) >= 2:
+        canonical = "Managing risk across domains"
         clusters.append(
             {
                 "cluster_type": "theme",
-                "canonical_label": "Managing risk across domains",
+                "canonical_label": canonical,
                 "graph_compound_parent_id": "thc:managing-risk",
                 "member_count": len(members),
                 "members": members,
+                # v1.1.0 super-theme rollup (tier 7-1a): with cluster_count ≤ _SUPER_THEME_MIN
+                # each cluster is its own super-theme (super_theme label = canonical_label).
+                "super_theme_id": f"sth:{slug(canonical)}",
+                "super_theme_label": canonical,
             }
         )
     n_members = sum(c["member_count"] for c in clusters)
+    super_theme_count = len({c["super_theme_id"] for c in clusters if c.get("super_theme_id")})
     return {
         "schema_version": "1",
         "method": "cooccurrence_lift",
@@ -712,6 +742,9 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
         "cluster_count": len(clusters),
         "singletons": max(0, len(topic_episodes) - n_members),
         "clusters": clusters,
+        # tier 7-1a super-theme summary (enricher v1.1.0+).
+        "super_theme_method": "cross_cluster_lift_avg_linkage" if clusters else None,
+        "super_theme_count": super_theme_count,
     }
 
 
@@ -869,6 +902,62 @@ def _topic_similarity_data(
     }
 
 
+def _speaker_diagnostics(
+    roster: list[dict[str, str]], diar_segments: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Author a ``.speakers.diagnostics.json`` from the deterministic roster + segments.
+
+    Mirrors the real ``build_speaker_diagnostics`` shape (roster.py): talk-share per voice,
+    host/guest roles, the exposed roster, and the unattributed (sponsor/commercial) share —
+    so the diarized-speaker read surfaces (MCP ``episode_speaker_roster``) see real fixture
+    data. No ML: talk-share is summed from segment durations.
+    """
+    talk: dict[str, float] = {}
+    for s in diar_segments:
+        label = str(s.get("speaker_label") or "")
+        talk[label] = talk.get(label, 0.0) + (float(s.get("end", 0.0)) - float(s.get("start", 0.0)))
+    total = sum(talk.values()) or 1.0
+    named = 0
+    unattributed_s = 0.0
+    census: dict[str, dict[str, Any]] = {}
+    exposed: list[dict[str, Any]] = []
+    for sp in roster:
+        name = str(sp.get("name") or "").strip()
+        role = str(sp.get("role") or "").strip()
+        is_person = name.lower() not in _NON_PERSON_LABELS
+        voice_type = "named" if is_person else "commercial"
+        c = census.setdefault(voice_type, {"count": 0, "talk_s": 0.0})
+        c["count"] += 1
+        c["talk_s"] += talk.get(name, 0.0)
+        if is_person:
+            named += 1
+        else:
+            unattributed_s += talk.get(name, 0.0)
+        exposed.append(
+            {
+                "name": name if is_person else None,
+                "voice_type": voice_type,
+                "role": role,
+                "talk_share": round(talk.get(name, 0.0) / total, 4),
+                "named": is_person,
+            }
+        )
+    for c in census.values():
+        c["talk_share"] = round(c["talk_s"] / total, 4)
+    return {
+        "schema": "speakers.diagnostics/v1",
+        "summary": {
+            "num_speakers": len(roster),
+            "named": named,
+            "unresolved": len(roster) - named,
+            "by_voice_type": {vt: c["count"] for vt, c in census.items()},
+            "voice_census": census,
+            "exposed": exposed,
+            "unattributed_talk_share": round(unattributed_s / total, 4),
+        },
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -973,7 +1062,16 @@ def main() -> int:
                 transcript_ref=transcript_run_rel,
                 metadata_relative_path=metadata_rel,
             )
-            kg = build_kg(episode_id, episode_title, excerpts, metadata_relative_path=metadata_rel)
+            kg = build_kg(
+                episode_id,
+                episode_title,
+                excerpts,
+                transcript_run_rel,
+                publish + "T12:00:00",
+                feed_id,
+                publish + "T12:00:00",
+                metadata_relative_path=metadata_rel,
+            )
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
             # consumer entity-card people surface has real data (host/guest).
             _enrich_kg_with_people(kg, roster)
@@ -1044,6 +1142,13 @@ def main() -> int:
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
             (run_tr_dir / f"{ep_label}.segments.json").write_text(
                 json.dumps(_raw_canonical_segments(offset_segs), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            # Diarization diagnostics next to the transcript — what the diarized-speaker read
+            # surfaces (MCP episode_speaker_roster) read (talk-share, roster, host/guest).
+            (run_tr_dir / f"{ep_label}.speakers.diagnostics.json").write_text(
+                json.dumps(_speaker_diagnostics(roster, diar_segments), indent=2, sort_keys=True)
+                + "\n",
                 encoding="utf-8",
             )
 
@@ -1186,7 +1291,11 @@ def main() -> int:
     # label, lift_to_cluster, episode_ids}]).
     theme = _theme_clusters_data(corpus_topic_episodes)
     (corpus_enrich_dir / "topic_theme_clusters.json").write_text(
-        json.dumps(_enrichment_envelope("topic_theme_clusters", theme), indent=2, sort_keys=True)
+        json.dumps(
+            _enrichment_envelope("topic_theme_clusters", theme, version="1.1.0"),
+            indent=2,
+            sort_keys=True,
+        )
         + "\n",
         encoding="utf-8",
     )

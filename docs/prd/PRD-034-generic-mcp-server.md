@@ -1,6 +1,6 @@
 # PRD-034: Generic MCP Server — Platform Capabilities as Agent Tools
 
-- **Status**: Implemented (v1, stdio) — slices 1–3 shipped; HTTP/SSE + RFC-093 tool deferred
+- **Status**: Implemented (v1, stdio) — slices 1–3 shipped; HTTP/SSE + RFC-093 tool deferred. **Cross-surface refresh (2026-08): 38 tools** (was 22) — added referential parity (pivot handles + `insight_detail`) so results chain across surfaces, plus graph/GI/speaker/enrichment/operator tools and composite dossiers. See RFC-095 status for the full list.
 - **Author**: Marko
 - **Created**: 2026-06-05
 - **Updated**: 2026-06-20 (reconciled with shipped code)

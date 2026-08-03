@@ -50,20 +50,43 @@ from .context import CorpusContext
 from .tools import (
     catalog as _catalog,
     cil as _cil,
+    composites as _composites,
     connectivity as _connectivity,
+    enrichment as _enrichment,
+    gi as _gi,
+    operators as _operators,
     relational as _relational,
 )
 from .tools.briefing_pack import corpus_briefing_pack as _corpus_briefing_pack
 from .tools.resolve import resolve_entity as _resolve_entity
 from .tools.search import search_corpus as _search_corpus
+from .tools.trending import corpus_trending as _corpus_trending
 
 
 def build_server(corpus_dir: Path | str) -> Any:
-    """Build a FastMCP server bound to *corpus_dir* with the read tools registered."""
+    """Build a FastMCP server bound to *corpus_dir* with the read tools registered.
+
+    Tool registration is split into per-family ``_register_*`` helpers (search / relational /
+    CIL / connectivity / catalog) so this stays flat as the tool count grows.
+    """
     from mcp.server.fastmcp import FastMCP
 
     ctx = CorpusContext.from_path(corpus_dir)
     server = FastMCP("podcast-scraper")
+    _register_core(server, ctx)
+    _register_relational(server, ctx)
+    _register_cil(server, ctx)
+    _register_gi(server, ctx)
+    _register_operators(server, ctx)
+    _register_enrichment(server, ctx)
+    _register_connectivity(server, ctx)
+    _register_catalog(server, ctx)
+    _register_composites(server, ctx)
+    return server
+
+
+def _register_core(server: Any, ctx: CorpusContext) -> None:
+    """Entry tools: resolve, hybrid search, briefing pack, trending."""
 
     @server.tool()
     @_enveloped
@@ -85,16 +108,21 @@ def build_server(corpus_dir: Path | str) -> Any:
         grounded_only: bool = False,
         feed: Optional[str] = None,
         since: Optional[str] = None,
+        speaker: Optional[str] = None,
+        topic: Optional[str] = None,
+        episode_id: Optional[str] = None,
         top_k: int = 10,
     ) -> dict:
         """Search the corpus with hybrid two-tier retrieval and get grounded evidence.
 
         ``tier``: "insight" (synthesized claims), "segment" (raw transcript quotes), or
-        "both". ``grounded_only`` keeps only insights backed by a supporting quote. Each
-        result carries ``source_tier``, a relevance ``score``, and provenance
-        (``metadata`` with episode/feed ids); the response carries the detected
-        ``query_type``. For exact quotes use ``tier="segment"``; for positions/claims use
-        ``tier="insight"``.
+        "both". ``grounded_only`` keeps only insights backed by a supporting quote.
+        ``speaker``/``topic``/``episode_id`` scope the search (parity with the web
+        ``/api/search``): pass a resolved ``person:``/``topic:`` id from ``resolve_entity``,
+        or an episode id, to pivot a text search onto one entity/episode. Each result
+        carries ``source_tier``, a relevance ``score``, and provenance (``metadata`` with
+        episode/feed/entity ids); the response carries the detected ``query_type``. For
+        exact quotes use ``tier="segment"``; for positions/claims use ``tier="insight"``.
         """
         return _search_corpus(
             ctx,
@@ -103,6 +131,9 @@ def build_server(corpus_dir: Path | str) -> Any:
             grounded_only=grounded_only,
             feed=feed,
             since=since,
+            speaker=speaker,
+            topic=topic,
+            episode_id=episode_id,
             top_k=top_k,
         )
 
@@ -141,7 +172,24 @@ def build_server(corpus_dir: Path | str) -> Any:
             max_tokens=max_tokens,
         )
 
-    # --- relational tools (RFC-095 slice 2): all take canonical ids (resolve first) ---
+    @server.tool()
+    @_enveloped
+    def corpus_trending(kind: Optional[str] = None, limit: int = 8) -> dict:
+        """What's rising corpus-wide right now (RFC-103 momentum).
+
+        Time-weighted "hot" ranking (EWMA velocity), the same signal the discover ranker
+        and the web trending views use. ``kind``: topic|cluster|storyline|person|episode|
+        show|insight, or omit for all kinds. ``limit`` is per-kind. Each entity carries a
+        namespaced ``entity_id`` you can pivot straight into the graph tools
+        (``entity_neighborhood``, ``insights_about_entity``, ``topic_entities`` …) — use it
+        to go "what's hot → expand it". ``velocity`` >1 = rising; ``series`` is the weekly
+        sparkline.
+        """
+        return _corpus_trending(ctx, kind=kind, limit=limit)
+
+
+def _register_relational(server: Any, ctx: CorpusContext) -> None:
+    """Relational traversals (RFC-095 slice 2): all take canonical ids (resolve first)."""
 
     @server.tool()
     @_enveloped
@@ -204,11 +252,27 @@ def build_server(corpus_dir: Path | str) -> Any:
 
     @server.tool()
     @_enveloped
+    def insight_detail(insight_id: str) -> dict:
+        """Resolve one insight's own content — the pivot bridge from search into the graph.
+
+        The master hop: take a ``search_corpus`` insight hit's ``pivot.id`` (or any
+        ``insight:`` id) and get the insight's text, type, grounded flag, supporting
+        ``quotes``, the ``topics`` it is about, and the ``entities`` it mentions — each with
+        an id you can hand to ``topic_entities`` / ``entity_neighborhood`` / etc. to keep
+        chaining. Unlike ``related_insights`` (structural neighbours), this is the insight
+        itself. Returns ``detail: None`` if the id is not an insight.
+        """
+        return _relational.insight_detail(ctx, insight_id)
+
+    @server.tool()
+    @_enveloped
     def show_episodes(podcast_id: str, k: int = 20) -> dict:
         """A show's episodes (``podcast:`` id; the HAS_EPISODE relationship)."""
         return _relational.show_episodes(ctx, podcast_id, k=k)
 
-    # --- CIL intelligence tools (RFC-095 slice 3): canonical ids (resolve first) ---
+
+def _register_cil(server: Any, ctx: CorpusContext) -> None:
+    """CIL intelligence tools (RFC-095 slice 3): canonical ids (resolve first)."""
 
     @server.tool()
     @_enveloped
@@ -228,7 +292,165 @@ def build_server(corpus_dir: Path | str) -> Any:
         """How a person's position on a topic evolves over time (``person:`` + ``topic:`` ids)."""
         return _cil.position_arc(ctx, person_id, topic_id)
 
-    # --- connectivity / neighborhood tools (#1054): one-call multi-faceted exploration ---
+    @server.tool()
+    @_enveloped
+    def topic_conversation_arc(topic_id: str, insight_types: Optional[list] = None) -> dict:
+        """A topic's conversation arc — weekly insight volume + sentiment mix over time.
+
+        The aggregated arc (vs ``topic_timeline``'s per-week blocks): each week's count and
+        neg/neu/pos split + mean compound sentiment, so an agent can read how the
+        conversation evolved / heated up / soured. ``insight_types`` (e.g. ``["claim"]``)
+        narrows it. ``topic_id`` is a ``topic:`` id.
+        """
+        return _cil.topic_conversation_arc(ctx, topic_id, insight_types=insight_types)
+
+    @server.tool()
+    @_enveloped
+    def topic_perspective_leaders(limit: int = 12) -> dict:
+        """Topics with the widest cross-speaker engagement — the corpus's most-debated nodes.
+
+        Ranks topics by distinct-speaker count (≥2), most-contested first — the corpus's
+        centrality proxy and a strong "what is everyone weighing in on" entrypoint. Each
+        leader carries a ``topic:`` id to pivot into ``who_said_about_topic`` /
+        ``topic_conversation_arc``.
+        """
+        return _cil.topic_perspective_leaders(ctx, limit=limit)
+
+
+def _register_gi(server: Any, ctx: CorpusContext) -> None:
+    """GI / grounded-insight tools: faceted discovery, per-episode insights, compare."""
+
+    @server.tool()
+    @_enveloped
+    def explore_insights(
+        topic: Optional[str] = None,
+        speaker: Optional[str] = None,
+        grounded_only: bool = False,
+        min_confidence: Optional[float] = None,
+        sort_by: str = "confidence",
+        limit: int = 50,
+    ) -> dict:
+        """Faceted cross-episode insight discovery (UC5) — insights matching these facets.
+
+        Filter the corpus's grounded insights by ``topic`` / ``speaker`` (canonical ids),
+        ``grounded_only``, ``min_confidence``; ``sort_by`` = ``confidence`` | ``time``. The
+        discovery complement to the entity/topic-scoped relational tools; each insight's id
+        pivots on via ``insight_detail``.
+        """
+        return _gi.explore_insights(
+            ctx,
+            topic=topic,
+            speaker=speaker,
+            grounded_only=grounded_only,
+            min_confidence=min_confidence,
+            sort_by=sort_by,
+            limit=limit,
+        )
+
+    @server.tool()
+    @_enveloped
+    def episode_insights(metadata_path: str, limit: Optional[int] = None) -> dict:
+        """Salience-ranked grounded insights for one episode (ADR-135), with quotes.
+
+        ``metadata_path`` from a ``list_episodes`` / ``search_corpus`` hit. ``limit`` caps to
+        the top-N by salience. Fills the per-episode insight gap (the relational tools are
+        entity/topic-scoped).
+        """
+        return _gi.episode_insights(ctx, metadata_path, limit=limit)
+
+    @server.tool()
+    @_enveloped
+    def compare_subjects(
+        subject_a: str,
+        subject_b: str,
+        q: str = "",
+        top_k: int = 10,
+        max_tokens: int = 2000,
+        insight_types: Optional[list] = None,
+    ) -> dict:
+        """Compare two subjects — a briefing pack per side + a deterministic judge summary.
+
+        ``subject_a``/``subject_b`` are canonical ids (resolve names first). ``q`` focuses the
+        comparison; ``insight_types`` (e.g. ``["claim"]``) narrows both sides symmetrically.
+        The Search-v3 compare, so an agent doesn't run two packs and diff them badly.
+        """
+        return _gi.compare_subjects(
+            ctx,
+            subject_a,
+            subject_b,
+            q=q,
+            top_k=top_k,
+            max_tokens=max_tokens,
+            insight_types=insight_types,
+        )
+
+
+def _register_operators(server: Any, ctx: CorpusContext) -> None:
+    """Search result-set operators: cluster / consensus over a query's hits."""
+
+    @server.tool()
+    @_enveloped
+    def cluster_search(query: str, tier: str = "both", top_k: int = 20) -> dict:
+        """Search, then group the hits by topic/theme cluster (``operator=cluster`` parity).
+
+        Returns clustered ``groups`` (largest first) — "what themes does this query surface"
+        instead of a flat ranked list.
+        """
+        return _operators.cluster_search(ctx, query, tier=tier, top_k=top_k)
+
+    @server.tool()
+    @_enveloped
+    def consensus_search(
+        query: str, tier: str = "both", top_k: int = 20, max_pairs: int = 20
+    ) -> dict:
+        """Search, then surface cross-speaker consensus pairs among the hit topics.
+
+        "Where do speakers agree on what this query is about" — filters the topic_consensus
+        enricher to the surfaced topics. Empty when that enricher wasn't run.
+        """
+        return _operators.consensus_search(ctx, query, tier=tier, top_k=top_k, max_pairs=max_pairs)
+
+
+def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
+    """Enrichment envelopes (RFC-088) + diarized speaker roster / talk-share."""
+
+    @server.tool()
+    @_enveloped
+    def corpus_enrichment_signals() -> dict:
+        """Corpus-scope enrichment signals (RFC-088) — the ``enrichments/`` aggregates.
+
+        One call for topic_similarity / topic_consensus / temporal_velocity / grounding_rate
+        / guest_coappearance / topic_cooccurrence etc. Same data as ``/api/corpus/enrichment``
+        — a capability probe + corpus aggregates.
+        """
+        return _enrichment.corpus_enrichment_signals(ctx)
+
+    @server.tool()
+    @_enveloped
+    def episode_enrichment_signals(metadata_path: str) -> dict:
+        """Per-episode enrichment signals (RFC-088) — sentiment, density, co-occurrence.
+
+        ``metadata_path`` from a ``list_episodes`` / ``search_corpus`` hit. Supplements
+        ``episode_detail`` with pacing/sentiment context (same data as the app episode
+        enrichment route).
+        """
+        return _enrichment.episode_enrichment_signals(ctx, metadata_path)
+
+    @server.tool()
+    @_enveloped
+    def episode_speaker_roster(metadata_path: str) -> dict:
+        """Diarized speaker roster + talk-share for one episode — who spoke, %, host/guest.
+
+        Reads the pipeline's ``.speakers.diagnostics.json`` (talk_share, unattributed share,
+        per-voice_type counts). This has no HTTP route — net-new capability. Distinct from the
+        knowledge-graph person tools: this is the diarized-voice layer. ``diagnostics: None``
+        when the episode has no persisted diarization diagnostics.
+        """
+        return _enrichment.episode_speaker_roster(ctx, metadata_path)
+
+
+def _register_connectivity(server: Any, ctx: CorpusContext) -> None:
+    """Connectivity / neighborhood tools (#1054): one-call multi-faceted exploration."""
 
     @server.tool()
     @_enveloped
@@ -284,7 +506,32 @@ def build_server(corpus_dir: Path | str) -> Any:
         """
         return _connectivity.related_topics(ctx, topic_id, k=k)
 
-    # --- catalog / navigation tools (RFC-095 slice 3) ---
+    @server.tool()
+    @_enveloped
+    def ego_network(entity_id: str, max_hops: int = 2, k: int = 20) -> dict:
+        """The multi-hop insight/segment neighborhood around an entity (KG proximity).
+
+        A variable-depth BFS (``max_hops`` 1-3) from an entity, returning reachable
+        insight/segment nodes scored by hop-distance — unlike ``entity_neighborhood`` (a
+        curated 1-hop entity projection). Use to gather everything "near" a person/topic/org.
+        Each node ``id`` pivots into ``insight_detail`` / ``episode_detail``.
+        """
+        return _connectivity.ego_network(ctx, entity_id, max_hops=max_hops, k=k)
+
+    @server.tool()
+    @_enveloped
+    def topic_clusters(topic_id: str) -> dict:
+        """A topic's cluster siblings — semantic + theme cluster neighbours.
+
+        ``topic_id`` is a canonical ``topic:`` id. Cluster *membership* (vs ``related_topics``
+        co-occurrence): the ``semantic`` (embedding) and ``theme`` siblings sharing its group,
+        each ``{id, label}`` a pivot back into the topic tools.
+        """
+        return _connectivity.topic_clusters(ctx, topic_id)
+
+
+def _register_catalog(server: Any, ctx: CorpusContext) -> None:
+    """Catalog / navigation tools (RFC-095 slice 3)."""
 
     @server.tool()
     @_enveloped
@@ -316,7 +563,32 @@ def build_server(corpus_dir: Path | str) -> Any:
         """The corpus's top voices — people ranked by grounded (quote-backed) insight count."""
         return _catalog.top_people(ctx, limit=limit)
 
-    return server
+
+def _register_composites(server: Any, ctx: CorpusContext) -> None:
+    """Composite / dossier tools: one call that fuses many surfaces (the multipliers)."""
+
+    @server.tool()
+    @_enveloped
+    def entity_dossier(entity_id: str, k: int = 8) -> dict:
+        """The full picture on one entity in a single call — the person/topic page fan-out.
+
+        Kind-dispatched. person → profile + stated positions + neighborhood; topic → timeline
+        + conversation arc + clusters + neighborhood. Replaces the 5-6 call person/topic-page
+        chain; every nested item keeps its id so you can still drill any thread. ``k`` bounds
+        each section.
+        """
+        return _composites.entity_dossier(ctx, entity_id, k=k)
+
+    @server.tool()
+    @_enveloped
+    def episode_digest(metadata_path: str, insight_limit: int = 10) -> dict:
+        """Everything about one episode in a single call — detail + insights + signals + speakers.
+
+        Collapses the episode-page fan-out: catalog detail, salience-ranked grounded insights
+        (with quotes), per-episode enrichment signals, and the diarized speaker roster.
+        ``metadata_path`` from a ``list_episodes`` / ``search_corpus`` hit.
+        """
+        return _composites.episode_digest(ctx, metadata_path, insight_limit=insight_limit)
 
 
 def run_stdio(corpus_dir: Path | str) -> None:

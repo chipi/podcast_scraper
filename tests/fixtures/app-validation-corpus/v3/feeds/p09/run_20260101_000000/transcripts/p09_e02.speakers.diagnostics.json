@@ -1,0 +1,48 @@
+{
+  "schema": "speakers.diagnostics/v1",
+  "summary": {
+    "by_voice_type": {
+      "commercial": 1,
+      "named": 2
+    },
+    "exposed": [
+      {
+        "name": "Sam",
+        "named": true,
+        "role": "host",
+        "talk_share": 0.6,
+        "voice_type": "named"
+      },
+      {
+        "name": "Skanda Amarnauth",
+        "named": true,
+        "role": "guest",
+        "talk_share": 0.3667,
+        "voice_type": "named"
+      },
+      {
+        "name": null,
+        "named": false,
+        "role": "guest",
+        "talk_share": 0.0333,
+        "voice_type": "commercial"
+      }
+    ],
+    "named": 2,
+    "num_speakers": 3,
+    "unattributed_talk_share": 0.0333,
+    "unresolved": 1,
+    "voice_census": {
+      "commercial": {
+        "count": 1,
+        "talk_s": 6.0,
+        "talk_share": 0.0333
+      },
+      "named": {
+        "count": 2,
+        "talk_s": 174.0,
+        "talk_share": 0.9667
+      }
+    }
+  }
+}
