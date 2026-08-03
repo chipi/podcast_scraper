@@ -171,17 +171,15 @@ class TestProfilePresets:
 
 
 class TestResolveProfileToSettings:
-    def test_cloud_with_dgx_primary_resolves_to_whisper_openai_8002(self) -> None:
-        """Post-#968 Thread B verdict: cloud_with_dgx_primary uses whisper-openai (:8002),
-        not speaches (:8000). This test catches accidental regression to the old
-        speaches routing."""
+    def test_cloud_with_dgx_primary_resolves_to_dgx_turbo_whisper(self) -> None:
+        """cloud_with_dgx_primary transcribes on the DGX whisper — turbo
+        (deepdml/faster-whisper-large-v3-turbo-ct2) on :8000 since the #1178/#1179 bake-off
+        (the :8002 openai-whisper port was retired). Guards against regressing the routing."""
         settings = resolve_profile_to_settings("cloud_with_dgx_primary")
         assert settings["transcription_provider"] == "tailnet_dgx_whisper"
-        assert settings["transcription_model"] == "large-v3"
-        assert "8002" in settings["transcription_endpoint"]
-        # NOT speaches:
-        assert "Systran/faster-whisper" not in settings["transcription_model"]
-        assert "8000" not in settings["transcription_endpoint"]
+        assert settings["transcription_model"] == "deepdml/faster-whisper-large-v3-turbo-ct2"
+        assert "8000" in settings["transcription_endpoint"]
+        assert "8002" not in settings["transcription_endpoint"]
 
     def test_local_dgx_balanced_resolves_to_qwen35_35b(self) -> None:
         """Post-#928 + #958 Cell D verdict: local DGX summary is qwen3.5:35b, not 9b."""

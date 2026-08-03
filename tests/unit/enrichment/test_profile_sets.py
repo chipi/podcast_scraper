@@ -58,7 +58,6 @@ def test_cloud_profiles_get_full_stack(profile: str) -> None:
     [
         "local_dgx_balanced",
         "local_dgx_full",
-        "prod_dgx_balanced",
         "prod_dgx_full_with_fallback",
         "cloud_with_dgx_primary",
         "dev",

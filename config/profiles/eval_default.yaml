@@ -19,8 +19,8 @@
 #   - Using Ollama for the eval baseline would create a compose-dance mismatch
 #     when iterating on new vLLM candidates
 #
-# Trade-offs vs prod_dgx_full_with_fallback / prod_dgx_balanced:
-#   - prod_dgx_balanced uses Moonlight too — these profiles are
+# Trade-offs vs prod_dgx_full_with_fallback:
+#   - same summary model (Qwen3-30B-A3B) — these profiles are
 #     functionally equivalent for the summary stage. The split exists for
 #     CLARITY: prod is for serving real users; eval_default is for running
 #     comparisons. Operators can flip either without affecting the other.

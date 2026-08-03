@@ -203,9 +203,7 @@ class TestGroundingStaysLocal:
     Left as 'openai', they build a separate cloud OpenAIProvider (api.openai.com + gpt-4o-mini) and
     the 'DGX-local' corpus gets its grounding from a cloud model — the corpus-corrupting bug."""
 
-    @pytest.mark.parametrize(
-        "name", ["prod_dgx_balanced", "prod_dgx_full_with_fallback", "eval_default"]
-    )
+    @pytest.mark.parametrize("name", ["prod_dgx_full_with_fallback", "eval_default"])
     def test_dgx_profile_grounding_is_vllm_not_cloud(self, name: str):
         from podcast_scraper.summarization.factory import create_summarization_provider
 

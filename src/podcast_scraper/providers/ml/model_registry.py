@@ -2018,10 +2018,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "Wins 2 of 3 stages decisively (summary 59.4% R-1 vs Opus cohort "
             "leader, KG 38% cohort leader, GI 36% second). Cost: needs "
             "--reasoning-parser=qwen3 server flag; carries +3.6 Sonnet-mimicry "
-            "on summary so any prod judge panel must be cross-vendor. If "
-            "judge-bias concerns dominate (third-party leaderboards, customer-"
-            "facing audited rankings), use prod_dgx_balanced (Moonlight safe "
-            "pick) instead. "
+            "on summary so any prod judge panel must be cross-vendor. "
             "OPERATIONAL GATE: the #963 / #996 catastrophic-tail risk applies — "
             "do not run autoresearch sweeps on coder-next vLLM concurrent with a "
             "pipeline run on this profile. The transcription and summary stages "
@@ -2033,51 +2030,6 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "-4.7% quality sum, wins GI stage outright. The "
             "vllm_qwen3_5_35b_a3b StageOption is retained for highest-stakes "
             "one-shot evals (manual compose swap)."
-        ),
-    ),
-    "prod_dgx_balanced": ProfilePreset(
-        name="prod_dgx_balanced",
-        transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_speech_coverage_min=0.85,  # ADR-131 speech-normalized gate (raw=metric only)
-        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
-        transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
-        # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
-        summary="vllm_qwen3_30b_a3b_nvfp4",
-        kg="provider_n10_15",
-        ner="vllm_speaker_detector",  # ADR-144: naming on the DGX-local model, no cloud
-        clustering="topic_clusters_default_0_75",
-        gi="provider_chunked_gated_v3",
-        diarization="tailnet_dgx_diarization_community1",
-        # ADR-144: FULLY AIRGAPPED — every LLM stage + every fallback is DGX-local, zero internet.
-        # Transcription falls back DGX-whisper -> local in-process whisper (no cloud Whisper); the
-        # MOSS coverage failover above is also local. Summary falls back to DGX-local ollama.
-        transcription_fallback=(
-            "tailnet_dgx_speaches_thread_b",
-            "local_mps_large_v3",
-        ),
-        diarization_fallback=("pyannote_diarization_community1",),  # local only, no cloud
-        summary_fallback=("ollama_qwen35_35b",),
-        notes=(
-            "Prod variant of prod_dgx_full_with_fallback that swaps the summary "
-            "stage to vLLM-served Moonlight-16B-A3B (#1016 Round 3 safe pick). "
-            "Trade-off vs prod_dgx_full_with_fallback (Qwen3.5-35B-A3B top dog): "
-            "- 33% faster (9s/ep vs 13.6s/ep) "
-            "- half the resident memory (32 GB vs 67 GB) — DGX-contention friendly "
-            "- style-neutral (Δ S−O = 0.0) — no judge-vendor caveat "
-            "- ROUGE-1 -1.9pt vs the top-dog Qwen3.5 (57.5% vs 59.4%) "
-            "Pick this profile when (a) DGX is shared with other workloads, "
-            "(b) downstream judge vendor is unknown/Sonnet-heavy, or (c) "
-            "audit-clean ranking matters more than peak quality. Otherwise "
-            "use prod_dgx_full_with_fallback. "
-            "2026-06-19 UPDATE (#1022 Cell F): the autoresearch-slot model "
-            "behind this profile's summary stage has been swapped from "
-            "Moonlight-16B-A3B (bf16, 32 GB) to "
-            "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 (18 GB). Cell F dominates "
-            "Moonlight in 4 of 5 dimensions: loses summary rouge1 by 6% but "
-            "wins GI by 161%, KG by 45%, end-to-end speed by 5%, weight "
-            "footprint by 44%. Style-neutrality note: Cell F has not been "
-            "Δ S−O measured; if strict bias-clean ranking is essential, "
-            "manually swap to Moonlight via homelab compose for that run."
         ),
     ),
     "eval_default": ProfilePreset(

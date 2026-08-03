@@ -70,8 +70,8 @@ Each step: what to do · goal optimized · metric evaluated against · operator 
   *Goal:* naming/resolver quality (correct speaker names + roles). *Metric:* judge-panel parity vs
   Gemini (winner ≥ Gemini within panel CI) + deterministic relabel defect/named parity.
   **GATE:** operator approves the winning model + parity result before any swap.
-- **Step 4 — Provider swap (Phase E).** Wire the winner into `config/profiles/prod_dgx_balanced`,
-  `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`; iterate prompts as real output diverges.
+- **Step 4 — Provider swap (Phase E).** Wire the winner into
+  `config/profiles/prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`; iterate prompts as real output diverges.
   *Goal:* same naming quality on the full pipeline. *Metric:* naming-4 harness + judge panel per
   iteration. *Gate:* none until Step 5.
 - **Step 5 — Freeze 2.5 (Phase F).** Full reprocess of the 90-ep corpus under the DGX-local

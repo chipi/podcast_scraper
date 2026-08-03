@@ -19,8 +19,8 @@ episodes**. It seeds the next-session plans; it is not itself a plan.
    services (faster-whisper ASR :8000, pyannote diarization :8001, MOSS ASR-failover :8004, ollama
    :11434) are fixed and run every reprocess unchanged. See `docs/architecture/DGX_SERVING.md`.
    Local side present & verified: `autoresearch/` harness (JUDGING.md, PER_MODEL_OPTIMAL_PARAMS.md,
-   bundled_prompt_tuning), `scripts/backfill/relabel_corpus.py`, DGX profiles (`prod_dgx_balanced`,
-   `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`), parity baseline corpus
+   bundled_prompt_tuning), `scripts/backfill/relabel_corpus.py`, DGX profiles
+   (`prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`), parity baseline corpus
    `.test_outputs/manual/prod-v2/corpus` (4.5G, 90 audio, 10 feeds).
 2. **Corpus-growth strategy is undecided** — `ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` has no target
    size, no curated-overlap-vs-broad-ingest call, no onboarding mechanics. This is the actual lever

@@ -24,13 +24,15 @@ from podcast_scraper.providers.ml.model_registry import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
-# The three DGX prod presets run turbo (tailnet_dgx_whisper) as the transcription primary since the
-# real-GT bake-off (#1178/#1179) — MOSS was demoted to an accurate-but-slow fallback. They share one
-# ladder shape: on-prem tier(s) first, then the cloud_balanced tier for that stage.
-_DGX_PRESETS = ["cloud_with_dgx_primary", "prod_dgx_full_with_fallback", "prod_dgx_balanced"]
+# DGX prod presets run turbo (tailnet_dgx_whisper) as the transcription primary since the real-GT
+# bake-off (#1178/#1179) — MOSS was demoted to an accurate-but-slow fallback. Two ladder shapes now
+# diverge: cloud_with_dgx_primary terminates each stage in the cloud_balanced tier, while
+# prod_dgx_full_with_fallback is fully airgapped (ADR-144) — its ladders end at the last DGX/local
+# tier and never reach cloud (asserted separately below).
+_CLOUD_TERMINATED_PRESETS = ["cloud_with_dgx_primary"]
 
 
-@pytest.mark.parametrize("name", _DGX_PRESETS)
+@pytest.mark.parametrize("name", _CLOUD_TERMINATED_PRESETS)
 def test_transcription_ladder_prefers_free_tiers_before_paid_cloud(name: str) -> None:
     """DGX turbo -> DGX large-v3 (coverage failover) -> local in-process whisper -> cloud whisper:
     the free/on-prem tiers are exhausted before the ladder pays for openai. Turbo replaced MOSS as
@@ -46,7 +48,7 @@ def test_transcription_ladder_prefers_free_tiers_before_paid_cloud(name: str) ->
     assert resolved["transcription_fallback_providers"][-1] == "openai"
 
 
-@pytest.mark.parametrize("name", _DGX_PRESETS)
+@pytest.mark.parametrize("name", _CLOUD_TERMINATED_PRESETS)
 def test_diarization_ladder_is_dgx_then_local_pyannote_then_deepgram(name: str) -> None:
     """DGX pyannote -> local in-process pyannote (free) -> deepgram (paid) only if local can't run."""
     resolved = resolve_profile_to_settings(name)
@@ -60,12 +62,18 @@ def test_cloud_summary_stage_gets_no_fallback() -> None:
     assert "summary_fallback_providers" not in resolved
 
 
-@pytest.mark.parametrize("name", ["prod_dgx_full_with_fallback", "prod_dgx_balanced"])
-def test_dgx_llm_summary_falls_back_to_cloud(name: str) -> None:
-    """A DGX-served (vLLM) summary stage degrades to the cloud_balanced summary tier when the box
-    is unreachable — the one thing an all-DGX LLM stage could not do before RFC-106."""
-    resolved = resolve_profile_to_settings(name)
-    assert resolved["summary_fallback_providers"] == ["gemini"]
+def test_airgapped_dgx_prod_ladders_never_reach_cloud() -> None:
+    """prod_dgx_full_with_fallback is fully airgapped (ADR-144): each stage falls back only to
+    DGX/local tiers — transcription to DGX-then-local whisper, diarization to local pyannote,
+    summary to DGX-local ollama — and never to a cloud vendor."""
+    resolved = resolve_profile_to_settings("prod_dgx_full_with_fallback")
+    assert resolved["transcription_provider"] == "tailnet_dgx_whisper"
+    assert resolved["transcription_fallback_providers"] == ["tailnet_dgx_whisper", "whisper"]
+    assert resolved["diarization_fallback_providers"] == ["local"]
+    assert resolved["summary_fallback_providers"] == ["ollama"]
+    for stage in ("transcription", "diarization", "summary"):
+        chain = resolved[f"{stage}_fallback_providers"]
+        assert not ({"openai", "deepgram", "gemini"} & set(chain)), chain
 
 
 def test_a_preset_with_no_ladder_emits_no_fallback_keys() -> None:
@@ -81,19 +89,18 @@ def test_a_preset_with_no_ladder_emits_no_fallback_keys() -> None:
 
 def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
     """The chain in the profile is provider strings, not StageOption ids — the ids are an internal
-    handle; a Config/runtime consumer sees the provider it will actually construct."""
+    handle; a Config/runtime consumer sees the provider it will actually construct. For the
+    airgapped prod_dgx_full_with_fallback the chain ends at the last DGX/local tier."""
     resolved = resolve_profile_to_settings("prod_dgx_full_with_fallback")
     assert resolved["transcription_fallback_providers"] == [
         get_transcription_option("tailnet_dgx_speaches_thread_b").provider,
         get_transcription_option("local_mps_large_v3").provider,
-        get_transcription_option("openai_whisper_1").provider,
     ]
     assert resolved["diarization_fallback_providers"] == [
         get_diarization_option("pyannote_diarization_community1").provider,
-        get_diarization_option("deepgram_diarization_nova3").provider,
     ]
     assert resolved["summary_fallback_providers"] == [
-        get_summary_option("gemini_flash_lite").provider,
+        get_summary_option("ollama_qwen35_35b").provider,
     ]
 
 

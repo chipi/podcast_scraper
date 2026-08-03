@@ -108,7 +108,7 @@ plate. The remaining single-variable step is the **naming/summarization LLM swap
   (a) winning DGX model, (b) tuned per-provider prompts, (c) recorded parity result.
   **This is critical-path gap #1.**
 - **E — Provider swap (Gemini → DGX-local).** Wire the winning model via the existing DGX
-  profiles: `prod_dgx_balanced`, `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`
+  profiles: `prod_dgx_full_with_fallback`, `cloud_with_dgx_primary`
   (`config/profiles/`). Expect iterative prompt fine-tuning as real output diverges from
   the bake-off. Re-validate with the naming-4 harness + judge panel each iteration.
 - **F — Freeze the 2.5 corpus.** Full reprocess under the DGX-local profile on the ~90-ep

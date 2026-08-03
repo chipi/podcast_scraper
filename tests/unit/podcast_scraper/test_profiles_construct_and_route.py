@@ -62,7 +62,11 @@ class TestOpenAIRoutingPrecedence:
         OPENAI_API_BASE cannot leak into the DGX path — the profile's DGX base wins by design."""
         monkeypatch.setenv("OPENAI_API_BASE", "https://api.openai.com/v1")
         cfg = Config.model_validate(
-            {"profile": "prod_dgx_balanced", "generate_gi": True, "generate_metadata": True}
+            {
+                "profile": "prod_dgx_full_with_fallback",
+                "generate_gi": True,
+                "generate_metadata": True,
+            }
         )
         assert cfg.summary_provider == "vllm"
         assert "dgx" in (cfg.vllm_api_base or ""), cfg.vllm_api_base

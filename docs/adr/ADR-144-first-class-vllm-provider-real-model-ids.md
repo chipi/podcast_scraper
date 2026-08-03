@@ -23,7 +23,7 @@ Three concrete defects (verified against the tree, branch `feat/naming-arc-and-c
 1. **The registry does not govern the wire today — renaming it alone changes nothing.** The
    provider consumes `openai_api_base` / `openai_summary_model`, and in the DGX profiles those
    are **hand-authored above the `registry-materialized — do not hand-edit` divider**
-   (`config/profiles/prod_dgx_balanced.yaml`).
+   (`config/profiles/prod_dgx_full_with_fallback.yaml`).
    The materializer emits `summary_model` / `summary_endpoint`
    (`model_registry.py` resolver,
    `_emit`*), but `summary_endpoint` is not a Config field and `materialize_profiles.py`
@@ -191,7 +191,7 @@ implementation extended/changed the plan:
 
 1. **Fully airgapped DGX profiles.** Beyond swapping the producing LLMs, the operator required the
    DGX profiles to consume **nothing** from the internet — every LLM stage AND every fallback is
-   DGX-local. As built (prod_dgx_balanced, prod_dgx_full_with_fallback, eval_default):
+   DGX-local. As built (prod_dgx_full_with_fallback, eval_default):
    - summary / naming / GI / KG / quote / entailment → `vllm` (real Qwen id);
    - summary fallback → **DGX-local ollama** (`:11434`), not cloud gemini;
    - transcription → DGX-whisper + local in-process whisper + MOSS coverage failover (**no cloud
