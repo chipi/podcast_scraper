@@ -17,7 +17,7 @@ tools exist, how to chain them, how to configure it in Claude, and how to mainta
 
 ```sh
 # against any corpus dir (one with metadata + .gi.json / .kg.json + a search/ index)
-python -m podcast_scraper mcp --corpus /path/to/corpus
+python -m podcast_scraper.cli mcp --corpus /path/to/corpus
 ```
 
 Needs the `.[dev,search]` extras (the MCP SDK rides in `[dev]`). It waits on stdio.
@@ -28,7 +28,7 @@ Needs the `.[dev,search]` extras (the MCP SDK rides in `[dev]`). It waits on std
 
 ```sh
 claude mcp add podcast-corpus -- \
-  python -m podcast_scraper mcp --corpus "$PWD/tests/fixtures/app-validation-corpus/v3"
+  python -m podcast_scraper.cli mcp --corpus "$PWD/tests/fixtures/app-validation-corpus/v3"
 ```
 
 **Claude Desktop** (`claude_desktop_config.json`):
@@ -38,7 +38,7 @@ claude mcp add podcast-corpus -- \
   "mcpServers": {
     "podcast-corpus": {
       "command": "/ABS/PATH/.venv/bin/python",
-      "args": ["-m", "podcast_scraper", "mcp", "--corpus", "/ABS/PATH/to/corpus"]
+      "args": ["-m", "podcast_scraper.cli", "mcp", "--corpus", "/ABS/PATH/to/corpus"]
     }
   }
 }

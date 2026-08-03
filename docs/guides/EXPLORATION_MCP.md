@@ -13,7 +13,7 @@ insights, and how they connect **across shows**. It's read-only over a built cor
 ## Run it
 
 ```bash
-python -m podcast_scraper mcp --corpus /path/to/corpus    # stdio (the agent-client transport)
+python -m podcast_scraper.cli mcp --corpus /path/to/corpus    # stdio (the agent-client transport)
 ```
 
 ## The one rule: resolve, then traverse by id
