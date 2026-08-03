@@ -1,5 +1,11 @@
 # Exploring the corpus through MCP
 
+> **The complete, current tool reference is
+> [MCP server — tool reference & user guide](MCP_SERVER_GUIDE.md)** (all 38 tools, the
+> resolve→pivot→chain workflow, Claude Desktop/Code config, maintenance). This page predates
+> the RFC-095 cross-surface refresh and covers only the original exploration tools — read it
+> for narrative background; use the guide above for the authoritative tool list.
+
 The exploration MCP (RFC-095, `src/podcast_scraper/mcp/`) lets an agent — Claude or any MCP
 client — *explore the knowledge graph your pipeline builds*: people, topics, positions,
 insights, and how they connect **across shows**. It's read-only over a built corpus.
