@@ -116,6 +116,51 @@ The OOM-killer took `sshd`'s ability to respond (banner never completes) and the
 
 ---
 
+## Recovery runbook (how to bring a hung box back)
+
+When a box is OOM-livelocked (kernel answers ping, but `sshd` never completes its banner
+and all metrics are stale) it will **not** self-heal — the OOM-killer is reactive and can't
+restart the daemons it already killed (see "Why the OOM-killer won't recover it" below).
+
+**DGX Spark (`dgx-llm-1` / `192.168.0.59`):**
+
+1. Cut power at the smart plug (remote), wait ~15 s, restore power.
+2. The Spark has a physical micro power-switch and (currently) does **not** auto-boot on
+   AC restore, so someone must press the button. WoL does **not** help after a full power
+   cut (the NIC loses standby power).
+3. Once up: `ssh dgx-llm-1 'sudo tailscale up'`; confirm it rejoins the tailnet; verify GPU
+   clean (`nvidia-smi`); restart the model services; re-run the episodes the batch didn't finish.
+
+**Make future power-cycles fully remote (do these to remove the house-visit):**
+
+- **DGX firmware:** set **"Restore on AC Power Loss = Power On"** (a.k.a. AC Recovery) in
+  BIOS/firmware. Then a smart-plug off→on boots it — no button, no WoL.
+- **Mac mini (`homelab`, Macmini8,1):** same risk — `pmset -g` shows `autorestart 0`
+  (verified 2026-08-04). Enable auto-boot-on-power-restore with `sudo pmset -a autorestart 1`
+  (and keep `sleep 0` so a headless server never sleeps).
+- **Both:** `OOMScoreAdjust=-1000` on `tailscaled` + `sshd` (systemd drop-ins) so the OOM
+  killer takes a workload process, not our remote access — the highest-leverage fix.
+
+### Why the OOM-killer won't recover it (it fired once — why not again?)
+
+At 23:45 the OOM-killer *did* fire and freed ~23 GB (it killed the largest process); the
+workload immediately re-consumed it. It won't "come again and fix it" now because:
+
+1. **The killer is reactive, not a sweeper.** It fires only when a process requests memory
+   that reclaim can't satisfy. In a livelock the remaining processes are blocked/waiting,
+   not making fresh large requests, so nothing triggers it — the kernel just pins on page
+   reclaim.
+2. **The memory it would need is likely unreclaimable.** A wedged GPU/CUDA context leaves
+   its holder in uninterruptible sleep (D-state); the OOM-killer **cannot** kill a D-state
+   process, and GPU/driver memory isn't reclaimable page cache.
+3. **Freeing RAM ≠ recovery.** `sshd` and `tailscaled` were killed hours ago. Freeing
+   memory doesn't respawn them — a wedged userspace (init not making progress) can't launch
+   new processes. Recovery needs *starting* daemons, which the killer never does.
+
+So the 23:45 kill "worked" only in the narrow sense of satisfying one re-request; by then
+the cascade had already taken the control-plane daemons, and the box is now in a state the
+killer can neither act on nor repair.
+
 ## What went well
 
 - **Full root-cause diagnosis with the box hung**, purely from the homelab observability stack: pinned the 2-minute cliff, the `/dev/shm` signature, the crash-loop, and correlated it to the diarization service by request timing (moss-app idle, vLLM steady).
