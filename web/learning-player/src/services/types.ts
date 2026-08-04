@@ -253,6 +253,8 @@ export interface Highlight {
   created_at: number
   /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
   anchor_status: string | null
+  /** Canonical person/topic refs (#1419) — the highlight as a graph node. Always sent by the API. */
+  graph_refs?: EntityRef[]
 }
 
 /** Body for POST /api/app/highlights. */

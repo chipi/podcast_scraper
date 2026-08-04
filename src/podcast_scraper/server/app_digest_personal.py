@@ -24,19 +24,16 @@ from typing import Any
 
 from podcast_scraper.server import (
     app_comms_store,
+    app_graph_refs,
     app_outbox_store,
     app_push_store,
     app_user_state,
 )
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_resurfacing import select_due
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import get_user, list_users, User
 
 SCHEMA_VERSION = "1"
 MAX_REVISIT_ITEMS = 5
-MAX_REFS_PER_ITEM = 3
 
 _CADENCE_SECONDS = {"weekly": 7 * 86_400, "daily": 86_400}
 
@@ -45,26 +42,16 @@ def _iso(ts: int) -> str:
     return dt.datetime.fromtimestamp(ts, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _graph_refs_for_slug(root: Path, slug: str) -> list[dict[str, str]]:
-    """Resolve a slug's episode KG to canonical person/topic refs (mirrors AppEntityRef)."""
-    row = resolve_slug(root, slug)
-    if row is None or not row.has_kg:
-        return []
-    persons, _orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
-    refs: list[dict[str, str]] = []
-    for p in persons:
-        refs.append({"id": p.id, "kind": "person", "label": p.name})
-    for t in topics:
-        refs.append({"id": t.id, "kind": "topic", "label": t.label})
-    return refs[:MAX_REFS_PER_ITEM]
-
-
 def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None:
-    """Build one graph-carrying digest item from a due highlight, or None if it has no graph."""
+    """Build one graph-carrying digest item from a due highlight, or None if it has no graph.
+
+    Prefers the refs persisted on the highlight at capture (#1419); falls back to episode-level
+    resolution for highlights captured before graph refs were stored.
+    """
     slug = str(highlight.get("episode_slug") or "")
     if not slug:
         return None
-    refs = _graph_refs_for_slug(root, slug)
+    refs = app_graph_refs.refs_for_highlight(root, highlight)
     if not refs:
         return None  # no graph → drop rather than ship a flat clip (moat rule)
     start_ms = highlight.get("start_ms")

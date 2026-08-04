@@ -68,6 +68,23 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('anchor drifted')
   })
 
+  it('renders graph-ref chips hued by kind (#1419)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({
+        graph_refs: [
+          { id: 'person:jane-doe', kind: 'person', label: 'Jane Doe' },
+          { id: 'topic:ai', kind: 'topic', label: 'AI' },
+        ],
+      }),
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView()
+    await flushPromises()
+    const chips = w.findAll('span').filter((s) => s.text() === 'Jane Doe' || s.text() === 'AI')
+    expect(chips.find((c) => c.text() === 'Jane Doe')!.classes()).toContain('text-person')
+    expect(chips.find((c) => c.text() === 'AI')!.classes()).toContain('text-topic')
+  })
+
   it('removes a highlight', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))

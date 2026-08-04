@@ -178,6 +178,15 @@ onMounted(async () => {
               >{{ h.kind === 'insight' ? t('highlights.insight') : t('highlights.span') }}</span>
               <p class="text-sm font-semibold leading-snug">{{ label(h) }}</p>
               <p v-if="h.speaker" class="lp-speaker mt-0.5 text-xs">{{ h.speaker }}</p>
+              <!-- Graph refs (#1419): the highlight as a node — person/topic it's linked to. -->
+              <div v-if="h.graph_refs?.length" class="mt-1 flex flex-wrap gap-1">
+                <span
+                  v-for="r in h.graph_refs"
+                  :key="r.id"
+                  class="rounded-full bg-overlay px-2 py-0.5 text-xs"
+                  :class="r.kind === 'person' ? 'text-person' : 'text-topic'"
+                >{{ r.label }}</span>
+              </div>
               <span
                 v-if="h.anchor_status === 'drifted'"
                 class="mt-1 inline-block rounded-full bg-overlay px-2 py-0.5 text-xs text-danger"

@@ -592,6 +592,10 @@ class Highlight(BaseModel):
     anchor_status: str | None = Field(
         default=None, description="'anchored' | 'drifted' after a re-anchor; None until re-scraped."
     )
+    graph_refs: list[AppEntityRef] = Field(
+        default_factory=list,
+        description="Canonical person/topic refs (#1419) — the highlight as a graph node.",
+    )
 
 
 class HighlightsResponse(BaseModel):

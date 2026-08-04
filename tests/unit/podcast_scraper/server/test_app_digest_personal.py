@@ -13,7 +13,12 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from podcast_scraper.server import app_comms_store, app_digest_personal, app_outbox_store
+from podcast_scraper.server import (
+    app_comms_store,
+    app_digest_personal,
+    app_graph_refs,
+    app_outbox_store,
+)
 from podcast_scraper.server.app_user_store import get_or_create_user
 
 pytestmark = pytest.mark.unit
@@ -30,10 +35,10 @@ _REFS = [{"id": "person:jane-doe", "kind": "person", "label": "Jane Doe"}]
 @pytest.fixture(autouse=True)
 def _stub_kg(monkeypatch: pytest.MonkeyPatch) -> None:
     # Episodes carry graph refs; a slug ending in "-bare" has none (to test the flat-clip drop).
-    def fake_refs(_root: Path, slug: str) -> list[dict[str, str]]:
+    def fake_refs(_root: Path, slug: str, *, limit: int = 3) -> list[dict[str, str]]:
         return [] if slug.endswith("-bare") else list(_REFS)
 
-    monkeypatch.setattr(app_digest_personal, "_graph_refs_for_slug", fake_refs)
+    monkeypatch.setattr(app_graph_refs, "refs_for_slug", fake_refs)
 
 
 def _user(data_dir: Path, *, provider: str = "google") -> str:
