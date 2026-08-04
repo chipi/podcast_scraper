@@ -12,10 +12,21 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 import statistics
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# nltk >=3.10 installs ``nltk.inisec``, a CWD import-security MetaPathFinder that blocks
+# NLTK-initiated imports of any module resolving *inside* the current working directory. Our
+# ``.venv`` is in-tree, so every nltk dependency (regex, …) counts as "in CWD" and the hook
+# raises ImportError on ``from nltk.tokenize import word_tokenize`` when run from the repo root
+# (breaks eval/BLEU collection). Disable only that import hook — it must be set before the first
+# nltk import, and this module is the sole nltk import site. The 3.10 download/pathsec CVE fixes
+# (CVE-2026-12061 / 12074 / 12075) live in ``nltk.pathsec``, NOT ``inisec``, so disabling the
+# hook does not weaken them; ``setdefault`` lets an operator re-enable it by exporting =0.
+os.environ.setdefault("NLTK_DISABLE_IMPORT_SECURITY", "1")
 
 from podcast_scraper.evaluation.gi_scorer import (
     compute_gil_prediction_stats,
