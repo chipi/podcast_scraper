@@ -59,6 +59,7 @@ from podcast_scraper.server.routes import (
     health,
     index_rebuild,
     index_stats,
+    internal_outbox,
     jobs,
     llm_gateway,
     operator_config,
@@ -121,6 +122,9 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # default so explicit-only stays the baseline until the derived signal is tuned.
     app.state.derived_interests = _env_truthy("APP_DERIVED_INTERESTS")
     app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
+    # Shared token for the internal outbox seam (#1415, RFC-110 §2) — the infra delivery worker
+    # authenticates with it over the tailnet. Empty → the /internal/outbox endpoints 503 (disabled).
+    app.state.internal_outbox_token = os.environ.get("INTERNAL_OUTBOX_TOKEN", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
     )
@@ -234,6 +238,8 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
             app.include_router(module.router, prefix="/api")
     for module in _APP_ROUTES:
         app.include_router(module.router, prefix="/api/app")
+    # The internal delivery-outbox seam (#1415) — service-to-service, token-gated, tailnet-only.
+    app.include_router(internal_outbox.router, prefix="/internal")
 
 
 class _AccessLogMiddleware:

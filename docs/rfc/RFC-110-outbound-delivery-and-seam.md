@@ -99,6 +99,12 @@ suppression; (6) `/internal/*` auth is a tailnet-only shared token `INTERNAL_OUT
 
 ### 2. Outbox transport (app exposes; delivery worker polls)
 
+**Implemented (app side, #1415):** `app_outbox_store` (persistence + idempotency + consent/expiry
+filtering + suppression write-back), `routes/internal_outbox` (the two endpoints, token-gated,
+mounted at `/internal`), and `app_digest_personal` (the extractive assembler → `enqueue_for_user` /
+`enqueue_due_digests`). The scheduler cron that *triggers* `enqueue_due_digests` on each user's
+cadence slot is the one remaining app-side piece.
+
 - `GET  /internal/outbox/pending?channel={email|push}&limit=N` → `{ envelopes: DeliveryEnvelope[] }`.
   **v1.1:** filters on **current** consent (re-reads `comms`), excludes past-`expires_at` envelopes,
   and never returns a user who unsubscribed after enqueue.

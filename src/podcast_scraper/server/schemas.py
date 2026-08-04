@@ -730,6 +730,30 @@ class CommsUpdate(BaseModel):
     push: CommsPush | None = Field(default=None)
 
 
+# --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
+
+
+class OutboxPendingResponse(BaseModel):
+    """GET /internal/outbox/pending — envelopes for the worker to render + deliver."""
+
+    envelopes: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class OutboxStatusBody(BaseModel):
+    """POST /internal/outbox/{id}/status — the worker's terminal report for an envelope."""
+
+    status: Literal["delivered", "bounced", "complaint", "suppressed", "failed"] = Field(
+        description="Terminal status. `failed` is always-terminal (dead-letter)."
+    )
+    detail: str | None = Field(default=None, description="Optional human-readable detail.")
+
+
+class OutboxStatusResponse(BaseModel):
+    """The effective (stored) status after an idempotent write."""
+
+    status: str = Field(description="Stored status; 'unknown' for an unrecognized id.")
+
+
 class PlaybackPosition(BaseModel):
     """Per-user playback position for one episode."""
 
