@@ -1,0 +1,64 @@
+# Bake-off profile (#1356): Gemini FAMILY reference. IDENTICAL control config to the litellm
+# bake-off profiles — only the provider (native gemini) + model change, so the model is the sole
+# variable. Target: gemini-2.5-pro (top-tier Gemini, $1.25/$10.00 per Mtok). Runs via the native
+# gemini provider + GEMINI_API_KEY (OpenRouter Gemini is data-policy blocked). relabel_only.
+profile: bakeoff_gemini_pro
+
+transcription:
+  primary: whisper
+diarize: false
+screenplay: true
+
+summary_provider: gemini
+speaker_detector_provider: gemini
+quote_extraction_provider: gemini
+entailment_provider: gemini
+kg_extraction_provider: gemini
+auto_speakers: true
+llm_pipeline_mode: staged
+
+gemini_summary_model: gemini-2.5-pro
+gemini_speaker_model: gemini-2.5-pro
+gemini_cleaning_model: gemini-2.5-pro
+gemini_temperature: 0.3
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+summarization_timeout: 300
+transcription_timeout: 300
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 8
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gil_evidence_match_summary_provider: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_insight_chunk_chars: 20000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+ner_model: en_core_web_trf
