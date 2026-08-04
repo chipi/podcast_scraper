@@ -41,7 +41,9 @@ summary_reduce_params:
 
 generate_gi: true
 gi_insight_source: provider
-gi_max_insights: 12
+# qwen iter-1: qwen3.7-flash over-generates on dense episodes (43 insights on flightcast at cap 12
+# x ~4 passes) — the judge penalized the noise. Lower the per-pass cap to 8.
+gi_max_insights: 8
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
@@ -55,7 +57,10 @@ gi_value_gate_min_tier: 3
 gi_insight_dedupe_threshold: 0.72
 gi_insight_temperature: 0.0
 gi_insight_prompt_version: v2
-gi_insight_chunk_chars: 30000
+# qwen iter-1: qwen3.7-flash's GI stalled/timed out on the 79K-char WSJ episode (one 30K chunk was
+# too big a generation for it). Smaller 20K chunks -> faster per-call GI -> rides under the 300s
+# timeout instead of stalling. (More passes, but the lower gi_max_insights=8 keeps totals in check.)
+gi_insight_chunk_chars: 20000
 gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
 topic_cluster_threshold: 0.75
