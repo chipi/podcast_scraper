@@ -428,6 +428,18 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/v1"
 
+    def litellm_api_base(self) -> str:
+        """Get LiteLLM gateway base URL (points to E2E server).
+
+        The LiteLLM gateway (#1356) is OpenAI-compatible, so it reuses the same mock endpoints:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - Note: the gateway serves chat only (ASR stays on whisper).
+
+        Returns:
+            LiteLLM gateway base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
     def dgx_host_port(self) -> tuple[str, int]:
         """``(host, port)`` for the DGX tailnet clients (#954).
 

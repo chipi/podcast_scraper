@@ -89,6 +89,7 @@ def create_speaker_detector(  # noqa: C901
             "deepseek",
             "anthropic",
             "vllm",
+            "litellm",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
@@ -307,6 +308,18 @@ def create_speaker_detector(  # noqa: C901
                 "Config using speaker_detector_provider='vllm' and the vllm_* settings."
             )
         provider = VLLMProvider(cfg)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
+    elif provider_type == "litellm":
+        # #1356: naming/NER via the homelab LiteLLM gateway (alias-routed).
+        from ..providers.litellm import LiteLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "LiteLLM speaker detector is not wired for experiment-param mode; drive it with a "
+                "Config using speaker_detector_provider='litellm' and the litellm_* settings."
+            )
+        provider = LiteLLMProvider(cfg)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "anthropic":
