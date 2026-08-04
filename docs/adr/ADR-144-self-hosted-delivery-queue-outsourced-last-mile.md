@@ -1,10 +1,32 @@
 # ADR-144: Self-host the delivery queue; outsource only the email last-mile reputation
 
-- **Status**: Accepted — 2026-08-04 (operator ratified the shape: self-host queue + service last-mile). Implementation tracked by epic #1413 / infra slice #1412; not yet executed.
+- **Status**: Accepted, then **REVISED 2026-08-04** (post-advisor review — see the revision note below). The original "Listmonk + Amazon SES" decision is **superseded**; the sections below are retained for history. Where they conflict with the revision, the revision wins.
 - **Date**: 2026-08-04
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
-- **Related**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (delivery design), [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (the seam this delivers over), [PRD-046](../prd/PRD-046-delivery-and-curation.md), ADR-114 (shared Caddy edge — the deployment pattern), PRD-035 Principle 4 (bridge-only audio)
+- **Related**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (delivery design), [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (the seam this delivers over), [PRD-046](../prd/PRD-046-delivery-and-curation.md), PRD-035 Principle 4 (bridge-only audio)
 - **Tracking**: epic #1413 / infra slice #1412
+
+## Revision 2026-08-04 — supersedes Listmonk + SES (post-advisor, operator-ratified)
+
+The finalized infra design (issue #1412 DESIGN UPDATE) changes the *mechanism*, not the *principle*
+(self-host what we run well; outsource only sending reputation):
+
+- **Listmonk DROPPED.** The **app outbox already *is* the self-hosted queue** this ADR wanted —
+  source of truth, restart-safe, dedupe-on-`id`. A second queue + its subscriber/suppression DB would
+  duplicate and **race the app consent store** (the seam's declared SSOT) → email a user who already
+  unsubscribed. The app consent store is the **only** suppression authority.
+- **SES → Resend** (operator ruled out AWS). Last-mile reputation via the **Resend HTTP API** (HTTPS
+  443), delivered by a **thin stateless worker** rendering Jinja templates. HTTP not SMTP → the
+  **port-25 concern is moot**. Bounce/complaint via cursor-based polling of Resend's events API (no
+  public webhook).
+- **Homelab, tailnet-only, no public ingress** (via `tailscale serve`, like GlitchTip) — **not** the
+  VPS public Caddy edge (ADR-114), which only fronts VPS-loopback apps. The "vhost+port on the shared
+  edge" note below no longer applies.
+- **Secrets** via the homelab `secrets.sops.env` + `bootstrap.sh` convention (Resend API key + VAPID
+  private key; VAPID key backed up at generation). Resend is the one new runtime dep.
+
+The rest of this ADR (the Web-Push-self-hosted decision, the deliverability reasoning, the
+alternatives) stands.
 
 ## Context
 

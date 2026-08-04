@@ -13,9 +13,9 @@ lifecycles:
 
 - **App** — *what/when/who*: assemble the digest payload (extractive, D6), enforce consent + cadence,
   know the user. Product logic. Must stay testable with **no mail stack in its CI**.
-- **Infra delivery** — *how*: render to HTML/push, relay through SES, sign VAPID, retry, handle
-  bounces/complaints/unsubscribe, deliverability. Operational, and **delegated to a separate infra
-  agent** (#1412) working in parallel.
+- **Infra delivery** — *how*: render to HTML/push, send via the Resend HTTP API, sign VAPID, retry,
+  handle bounces/complaints/unsubscribe, deliverability. Operational, and **delegated to a separate
+  infra agent** (#1412) working in parallel.
 
 If these two share more than a minimal contract, they can't move independently and product code ends
 up owning rendering + SMTP concerns. We need a single, frozen interface so both sides build against a
@@ -37,6 +37,26 @@ delivery worker drains.** They touch **only** here.
 4. **Suppression writes back** across the seam: bounce/complaint/unsubscribe → `POST
    /internal/outbox/{id}/status` + a public `POST /api/app/comms/unsubscribe?ref=` (app-owned) that
    flips consent. The app stops enqueuing suppressed recipients.
+
+### Seam v1.1 amendments (ratified 2026-08-04, post-advisor review — #1412/#1413)
+
+Dropping Listmonk (ADR-144 revision) makes the **app consent store the ONLY suppression authority**,
+which sharpens the contract:
+
+- **`/status` is idempotent per `id`** — a repeated terminal status is a no-op (retry after a
+  succeeded-but-unacked send).
+- **`/pending` filters *current* consent, not the snapshot.** `consent_snapshot` in the envelope is
+  **informational only**; the stateless worker cannot re-check, so the app must exclude a
+  since-unsubscribed user and any past-`expires_at` envelope at drain time.
+- **`expires_at` added** to `DeliveryEnvelope` (additive) — a homelab-down window must not flush stale
+  digests on recovery.
+- **`failed` is always-terminal** — the worker dead-letters as `failed` after N retries.
+- **Push `410 Gone` / `404` → `status: "bounced"`** — a dead push subscription is the push analog of
+  an email bounce; the app then suppresses it (so it stops enqueuing to dead subscriptions).
+- **`/internal/*` auth** is a **tailnet-only shared token `INTERNAL_OUTBOX_TOKEN`** (homelab sops-env
+  and the app secret store; both halves must agree the name to connect).
+
+The frozen envelope shape (beyond additive `expires_at`) and the two endpoints are unchanged.
 
 **Why channel-agnostic (the non-obvious core).** A per-channel handoff ("send this email", "send this
 push") would leak channel specifics into the app and force the app to render. Making the envelope

@@ -38,6 +38,11 @@
       "format": "date-time",
       "description": "Do not deliver before this instant (cadence pacing)."
     },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "TTL — the delivery service MUST NOT deliver after this instant, so a homelab-down window does not flush stale digests on recovery. The assembler SHOULD set it (e.g. not_before + one cadence period). Seam v1.1 (2026-08-04)."
+    },
     "created_at": { "type": "string", "format": "date-time" }
   },
   "allOf": [

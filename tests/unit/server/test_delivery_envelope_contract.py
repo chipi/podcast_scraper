@@ -81,6 +81,13 @@ def test_envelope_is_idempotent_and_versioned(golden_path: Path) -> None:
 
 
 @pytest.mark.parametrize("golden_path", _GOLDEN_FILES, ids=lambda p: p.name)
+def test_envelope_carries_ttl(golden_path: Path) -> None:
+    # Seam v1.1: expires_at bounds delivery so a homelab-down window can't flush stale digests.
+    env = _load(golden_path)
+    assert isinstance(env.get("expires_at"), str) and env["expires_at"] > env["created_at"]
+
+
+@pytest.mark.parametrize("golden_path", _GOLDEN_FILES, ids=lambda p: p.name)
 def test_channel_recipient_consistency(golden_path: Path) -> None:
     env = _load(golden_path)
     recipient = env["recipient"]

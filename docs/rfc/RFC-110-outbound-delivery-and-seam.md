@@ -78,24 +78,42 @@ file is the source of truth. The infra service (#1412) mirrors the same fixtures
     "email_verified": true,
     "push_subscription": { }      // channel=push (W3C PushSubscription JSON)
   },
-  "consent_snapshot": {
-    "digest_enabled": true,
+  "consent_snapshot": {           // v1.1: INFORMATIONAL ONLY — the worker is stateless and
+    "digest_enabled": true,       // must re-check CURRENT consent via /pending, not this snapshot
     "cadence": "weekly" | "daily",
     "unsubscribe_ref": "string" // delivery embeds this in the unsubscribe link
   },
   "payload": { },                 // structured, channel-agnostic, GRAPH-CARRYING (see §3)
   "not_before": "iso8601",
+  "expires_at": "iso8601",        // v1.1 TTL — do not deliver after this (no stale-flush on recovery)
   "created_at": "iso8601"
 }
 ```
 
+**Seam v1.1 amendments (ratified 2026-08-04, post-advisor review — issues #1412/#1413).** The frozen
+shape and endpoints are unchanged except the additive `expires_at`. Ratified: (1) `/status` idempotent
+per `id`; (2) `/pending` filters **current** consent, not the snapshot; (3) `expires_at` TTL added;
+(4) `failed` is an **always-terminal** dead-letter state; (5) push `410/404` → `status: "bounced"`
+suppression; (6) `/internal/*` auth is a tailnet-only shared token `INTERNAL_OUTBOX_TOKEN`. The
+`unsubscribe_ref` field name (was `unsubscribe_token`) is the ratified spelling — infra adopts `ref`.
+
 ### 2. Outbox transport (app exposes; delivery worker polls)
 
-- `GET  /internal/outbox/pending?channel={email|push}&limit=N` → `{ envelopes: DeliveryEnvelope[] }`
-- `POST /internal/outbox/{id}/status` → `{ status: delivered|bounced|complaint|suppressed|failed, detail? }`
-- Internal service-to-service auth (shared token, tailnet-only — infra's call).
+- `GET  /internal/outbox/pending?channel={email|push}&limit=N` → `{ envelopes: DeliveryEnvelope[] }`.
+  **v1.1:** filters on **current** consent (re-reads `comms`), excludes past-`expires_at` envelopes,
+  and never returns a user who unsubscribed after enqueue.
+- `POST /internal/outbox/{id}/status` → `{ status: delivered|bounced|complaint|suppressed|failed, detail? }`.
+  **v1.1:** **idempotent per `id`** (a repeated terminal status is a no-op — retries after a
+  succeeded-but-unacked send); `failed` is **always-terminal** (the worker dead-letters as `failed`
+  after N retries); a dead push subscription (`410 Gone` / `404`) reports `status: "bounced"` so the
+  app suppresses it.
+- Internal service-to-service authentication uses a **tailnet-only shared token
+  `INTERNAL_OUTBOX_TOKEN`** (staged in the homelab sops-env + the app secret store; both halves must
+  agree the name to connect).
 - The app writes envelopes to a per-user (or global) append-only outbox on enqueue; the delivery
-  worker leases + acks. Dedup + retry are keyed on `envelope.id`.
+  worker leases + acks. Dedup + retry are keyed on `envelope.id`. The **app consent store is the ONLY
+  suppression authority** (no external suppression list) — dropping a second queue removes the
+  two-lists race.
 
 ### 3. The payload carries the graph (moat rule)
 
@@ -125,18 +143,22 @@ reusing `user_episode_set()` + the resurfacing due-selection + interest profile 
 deltas + auto-picks. Emit a `DeliveryEnvelope`. Wired into the existing in-process APScheduler
 (`scheduler.py`, today feed-sweep-only) as a per-user digest cron. Extractive only (D6).
 
-### 5. Infra side — the delivery service (#1412; specified in ADR-144)
+### 5. Infra side — the delivery service (#1412; specified in ADR-144, revised to Resend)
 
-Drains the outbox → renders (`template`) → delivers (Web Push via VAPID; email via Listmonk → SES) →
-reports status (§2). Owns retries, bounce/complaint webhooks, unsubscribe link generation. Web Push
-subscription registration is `POST /api/app/push/subscribe` (app-owned endpoint, infra-owned worker).
+A **thin stateless worker** on the homelab, tailnet-only, 443-egress-only. Drains the outbox →
+renders (`template` → Jinja) → delivers (Web Push via VAPID; email via the **Resend HTTP API**) →
+reports status (§2). Bounce/complaint via **cursor-based polling of Resend's events API** (no public
+webhook — the service has no public ingress). No Listmonk/Postgres/Redis: the **app outbox already is
+the queue** ADR-144 wanted. Web Push subscription registration is `POST /api/app/push/subscribe`
+(app-owned endpoint, infra-owned worker).
 
 ### 6. Channels
 
 - **Web Push**: fully self-hosted. Server holds a VAPID keypair, signs, delivers to browser push
   endpoints (FCM/Mozilla/Apple). No third party, no reputation problem. Reuses the PWA service worker.
-- **Email**: Listmonk (self-hosted queue/manager) relays through Amazon SES (reputation last mile).
-  Renders the §3 payload; unsubscribe uses `consent_snapshot.unsubscribe_ref`.
+- **Email**: the worker renders the §3 payload (Jinja) and sends via the **Resend HTTP API**
+  (reputation last mile; HTTPS 443, so the port-25 concern is moot). Unsubscribe uses
+  `consent_snapshot.unsubscribe_ref`.
 
 ## Key Decisions
 
@@ -164,11 +186,11 @@ subscription registration is `POST /api/app/push/subscribe` (app-owned endpoint,
   zero-content → no envelope); auto-pick marking; cadence/consent gating.
 - **Integration**: outbox pending/ack round-trip; idempotent dedupe on `id`; suppression write-back
   flips consent. **No mail stack in app CI** — the delivery worker is stubbed at the outbox boundary.
-- **Infra (separate, #1412)**: real SES sandbox + a Web Push end-to-end; inbox-placement smoke test.
+- **Infra (separate, #1412)**: real Resend sandbox + a Web Push end-to-end; inbox-placement smoke test.
 
 ## Rollout & Monitoring
 
-- Ship **Web Push first** (no new dep) to de-risk the loop, then email once SES + deliverability
+- Ship **Web Push first** (no new dep) to de-risk the loop, then email once Resend + deliverability
   (ADR-144) are verified.
 - Opt-in + pausable; disabling the worker or pausing sends is a <5-min rollback.
 - Monitor: enqueue count, delivery success/bounce/complaint rate, unsubscribe rate.

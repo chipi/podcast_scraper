@@ -104,7 +104,7 @@ would make us a worse Snipd; distributing the graph is the category-of-one move.
 ### FR1 — Consent + comms identity (delivery prerequisite) · child #1414
 - **FR1.1**: The user profile gains `email_verified` (trust the OAuth verified claim) and a `comms`
   object: `digest {enabled, cadence: weekly|daily, day_of_week, hour, paused}`, `push {enabled}`,
-  `unsubscribe_token`.
+  `unsubscribe_ref`.
 - **FR1.2**: `GET/PUT /api/app/comms` + a public no-auth `POST /api/app/comms/unsubscribe?ref=`
   (one-click, legal requirement). Settings UI in `ProfileView.vue`. Back-compat: absent `comms`
   defaults to disabled.
@@ -137,9 +137,10 @@ would make us a worse Snipd; distributing the graph is the category-of-one move.
 - **FR6.3**: Freeze + document the highlight↔entity serialization shape for the next-arc export.
 
 ### FR7 — Delivery transport (delegated) · child #1412 (infra)
-- **FR7.1**: The app enqueues `DeliveryEnvelope`s; the infra delivery service (Listmonk queue + SES
-  last-mile + self-hosted Web Push) drains the outbox, renders, delivers, and writes suppression
-  back. Owned by the infra slice; see RFC-110 / ADR-144 / ADR-145. The app touches it **only** at the
+- **FR7.1**: The app enqueues `DeliveryEnvelope`s; the infra delivery service (thin stateless worker →
+  Resend HTTP API + self-hosted Web Push; the app outbox is the queue) drains the outbox, renders,
+  delivers, and writes suppression back. Owned by the infra slice; see RFC-110 / ADR-144 / ADR-145.
+  The app touches it **only** at the
   seam.
 
 ## Success Metrics
