@@ -237,3 +237,36 @@ def test_watchdog_hard_deadline_raises(
 
     assert elapsed < 2.0  # bailed at ~0.15s, did NOT wait for the 3s hang
     assert dp._diarize_breaker.state == "open"  # watchdog timeout trips the breaker
+
+
+def test_diarize_serialize_is_cross_process(tmp_path, monkeypatch):
+    """``_dgx_diarize_serialize`` holds a host-wide advisory flock, so a *second*
+    process (simulated by a second open fd) cannot acquire it concurrently — this is
+    the guardrail that stops a parallel batch from OOMing the single-GPU DGX
+    (INCIDENT-2026-08-04, #1397)."""
+    import os
+
+    # ``fcntl`` is stdlib on POSIX; the provider imports it as ``dp.fcntl`` (None on
+    # non-POSIX). Reference that rather than ``importorskip`` (banned in unit tests, U1).
+    fcntl = dp.fcntl
+    if fcntl is None:
+        pytest.skip("fcntl unavailable (non-POSIX)")
+    lock_path = str(tmp_path / "dgx_diarize.lock")
+    monkeypatch.setattr(dp, "_DGX_DIARIZE_LOCK_PATH", lock_path)
+
+    def _other_process_can_lock() -> bool:
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            return True
+        except BlockingIOError:
+            return False
+        finally:
+            os.close(fd)
+
+    with dp._dgx_diarize_serialize():
+        # While we hold the serialize lock, another process must NOT be able to grab it.
+        assert _other_process_can_lock() is False
+    # Released on exit — a subsequent caller can proceed.
+    assert _other_process_can_lock() is True

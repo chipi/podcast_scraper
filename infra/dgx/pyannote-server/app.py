@@ -100,6 +100,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Loading pyannote model %s on %s", _MODEL_NAME, _DEVICE)
     import torch
 
+    # Force PyTorch shared tensors (pyannote's embedding DataLoader workers) onto the
+    # file system instead of POSIX /dev/shm. On this unified-memory box, unbounded
+    # /dev/shm growth from a large-episode / concurrent diarization exhausted RAM and
+    # hard-locked the host (INCIDENT-2026-08-04, #1397). ``file_system`` mmaps temp
+    # files instead — no /dev/shm blow-up. Must be set before any DataLoader spins up.
+    try:
+        torch.multiprocessing.set_sharing_strategy("file_system")
+        logger.info("torch multiprocessing sharing strategy: file_system (avoids /dev/shm)")
+    except (RuntimeError, AttributeError) as exc:  # pragma: no cover - platform-dependent
+        logger.warning("could not set torch sharing strategy to file_system: %s", exc)
+
     # PyTorch 2.7 flipped `torch.load(..., weights_only=True)` to the default.
     # pyannote 3.x's checkpoints contain multiple non-tensor globals
     # (TorchVersion, numpy dtypes, omegaconf nodes, lightning hparams, etc.)
