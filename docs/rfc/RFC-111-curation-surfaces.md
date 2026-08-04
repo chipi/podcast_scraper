@@ -79,10 +79,12 @@ connected to serialize.
   assume them; it uses what the shipped bridge provides and degrades to "no refs" cleanly.
 - Surface the refs in `HighlightsView`, include them in the RFC-110 digest payload, and in the §2
   share cards.
-- **Freeze the serialization shape** (documented in this RFC + `PLATFORM_API.md`): a highlight
-  serializes as `{ quote, episode, t_ms, entity_refs:[{id,label}], topic_refs:[{id,label}], note? }`.
-  The next-arc PKM export (Obsidian/Notion) maps each ref to a `[[wikilink]]` note — that mapping is
-  what makes the export a *connected vault*, not a flat highlight dump (the Snipd-differentiator).
+- **Freeze the serialization shape** (documented here + `PLATFORM_API.md`; same `graph_refs` shape the
+  delivery seam uses, `docs/api/delivery-envelope.schema.json`): a highlight serializes as
+  `{ quote, episode_slug, t_ms, graph_refs:[{id,kind,label}], note? }`, where each `graph_ref` mirrors
+  the shipped `AppEntityRef` (`person:…`/`topic:…`). The next-arc PKM export maps each ref to a
+  `[[wikilink]]` note — that mapping is what makes the export a *connected vault*, not a flat highlight
+  dump (the Snipd-differentiator). One shape, three consumers: recall, digest, export.
 
 ## Key Decisions
 

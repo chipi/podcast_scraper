@@ -1,0 +1,32 @@
+{
+  "schema_version": "1",
+  "id": "ndg_2026-08-04_u_2f9c1a7b4e6d0a3c5b8e1f2a_01",
+  "user_id": "u_2f9c1a7b4e6d0a3c5b8e1f2a",
+  "channel": "push",
+  "template": "resurface-nudge.v1",
+  "recipient": {
+    "push_subscription": {
+      "endpoint": "https://push.example.invalid/fake-subscription-endpoint"
+    }
+  },
+  "consent_snapshot": {
+    "digest_enabled": true,
+    "cadence": "weekly",
+    "unsubscribe_ref": "example-unsubscribe-ref"
+  },
+  "payload": {
+    "highlight_count": 3,
+    "lead": {
+      "quote": "The bottleneck was never compute; it was our willingness to throw away a working model.",
+      "episode_slug": "acquired-nvidia-the-machine-that-makes-the-machine",
+      "episode_title": "NVIDIA: The Machine That Makes the Machine",
+      "t_ms": 3921000,
+      "graph_refs": [
+        { "id": "person:jensen-huang", "kind": "person", "label": "Jensen Huang" }
+      ],
+      "deep_link": "/player/acquired-nvidia-the-machine-that-makes-the-machine?t=3921",
+      "source": "user"
+    }
+  },
+  "created_at": "2026-08-04T09:12:44Z"
+}

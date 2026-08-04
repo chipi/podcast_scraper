@@ -60,6 +60,12 @@ extractive + testable and lets delivery be operated (and delegated) independentl
 Channel-agnostic, idempotent. The app produces it; the delivery service consumes it. See ADR-145 for
 why this is the boundary.
 
+**Normative contract (both tracks validate against these):** the machine-readable JSON Schema is
+`docs/api/delivery-envelope.schema.json`; golden fixtures live under `tests/fixtures/delivery/`
+(`your-week-digest.v1.golden.json`, `resurface-nudge.v1.golden.json`); the shared contract test is
+`tests/unit/server/test_delivery_envelope_contract.py`. The JSON below is illustrative — the schema
+file is the source of truth. The infra service (#1412) mirrors the same fixtures + assertions.
+
 ```jsonc
 {
   "schema_version": "1",
@@ -75,7 +81,7 @@ why this is the boundary.
   "consent_snapshot": {
     "digest_enabled": true,
     "cadence": "weekly" | "daily",
-    "unsubscribe_token": "string" // delivery embeds this in the unsubscribe link
+    "unsubscribe_ref": "string" // delivery embeds this in the unsubscribe link
   },
   "payload": { },                 // structured, channel-agnostic, GRAPH-CARRYING (see §3)
   "not_before": "iso8601",
@@ -93,20 +99,24 @@ why this is the boundary.
 
 ### 3. The payload carries the graph (moat rule)
 
-`payload` for `your-week-digest.v1` is a structured list of sections, each item pre-resolved:
+`payload` for `your-week-digest.v1` is a structured list of sections; every item is pre-resolved and
+carries `graph_refs` (the unified canonical-KG refs, mirroring the shipped `AppEntityRef`:
+`{id: "person:… | topic:…", kind, label}`) + a `deep_link`:
 
 ```jsonc
 {
   "sections": [
-    { "kind": "revisit",  "items": [ { "quote", "episode", "t_ms", "entity_refs":[...], "topic_refs":[...], "deep_link", "source": "user"|"auto" } ] },
-    { "kind": "new_in_follows", "items": [ { "episode", "show", "deep_link", "topic_refs":[...] } ] },
-    { "kind": "trending_in_your_corpus", "items": [ { "topic", "signal": "temporal_velocity", "deep_link" } ] }
+    { "kind": "revisit", "items": [
+      { "quote", "episode_slug", "episode_title", "t_ms", "graph_refs":[{ "id":"person:…","kind":"person","label":"…" }], "deep_link", "source": "user"|"auto" } ] },
+    { "kind": "new_in_follows", "items": [ { "episode_slug", "episode_title", "graph_refs":[…], "deep_link" } ] },
+    { "kind": "trending_in_your_corpus", "items": [ { "episode_slug", "graph_refs":[{ "id":"topic:…" }], "deep_link" } ] }
   ]
 }
 ```
 
-The delivery service renders this to HTML/push; it never computes it. `source: "auto"` marks
-auto-picks (FR3) distinctly.
+The delivery service renders this to HTML/push; it never computes it. Every item MUST carry
+`graph_refs` + `deep_link` (the moat rule — no flat clips), and `source: "auto"` marks auto-picks
+(FR3) distinctly. The `resurface-nudge.v1` payload is `{ highlight_count, lead: <digestItem> }`.
 
 ### 4. App side — the digest assembler (#1415)
 
@@ -126,7 +136,7 @@ subscription registration is `POST /api/app/push/subscribe` (app-owned endpoint,
 - **Web Push**: fully self-hosted. Server holds a VAPID keypair, signs, delivers to browser push
   endpoints (FCM/Mozilla/Apple). No third party, no reputation problem. Reuses the PWA service worker.
 - **Email**: Listmonk (self-hosted queue/manager) relays through Amazon SES (reputation last mile).
-  Renders the §3 payload; unsubscribe uses `consent_snapshot.unsubscribe_token`.
+  Renders the §3 payload; unsubscribe uses `consent_snapshot.unsubscribe_ref`.
 
 ## Key Decisions
 
