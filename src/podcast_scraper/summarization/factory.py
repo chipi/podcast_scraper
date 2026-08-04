@@ -91,6 +91,7 @@ def create_summarization_provider(  # noqa: C901
                     "ollama",
                     "anthropic",
                     "vllm",
+                    "litellm",
                 ],
                 str(provider_type_override).strip().lower(),
             )
@@ -106,6 +107,7 @@ def create_summarization_provider(  # noqa: C901
                 "ollama",
                 "anthropic",
                 "vllm",
+                "litellm",
             ):
                 raise ValueError(f"Invalid provider_type_override: {provider_type_override}")
         else:
@@ -127,6 +129,7 @@ def create_summarization_provider(  # noqa: C901
             "ollama",
             "anthropic",
             "vllm",
+            "litellm",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
@@ -143,6 +146,7 @@ def create_summarization_provider(  # noqa: C901
                 "ollama",
                 "anthropic",
                 "vllm",
+                "litellm",
             ],
             provider_type_str,
         )
@@ -309,6 +313,19 @@ def create_summarization_provider(  # noqa: C901
                 "using summary_provider='vllm' and the vllm_* settings."
             )
         provider = VLLMProvider(cfg)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
+    elif provider_type == "litellm":
+        # #1356: LLM calls via the homelab LiteLLM gateway (alias-routed to OpenRouter/vendors).
+        # A sibling of the openai/vllm providers over the shared OpenAI-compatible transport.
+        from ..providers.litellm import LiteLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "LiteLLM provider is not wired for experiment-param mode; drive it with a Config "
+                "using summary_provider='litellm' and the litellm_* settings."
+            )
+        provider = LiteLLMProvider(cfg)
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
     elif provider_type == "gemini":

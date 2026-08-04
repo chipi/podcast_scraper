@@ -366,6 +366,7 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
         "grok",
         "ollama",
         "vllm",  # ADR-144: DGX-local LLM self-grounds (quote/entailment on the same model)
+        "litellm",  # #1356: gateway-routed LLM — an API LLM, same self-grounding treatment
         "hybrid_ml",
     }
 )
@@ -1175,7 +1176,16 @@ class Config(BaseModel):
     )
     # Provider selection fields (Stage 0: Foundation)
     speaker_detector_provider: Literal[
-        "spacy", "openai", "gemini", "mistral", "grok", "deepseek", "anthropic", "ollama", "vllm"
+        "spacy",
+        "openai",
+        "gemini",
+        "mistral",
+        "grok",
+        "deepseek",
+        "anthropic",
+        "ollama",
+        "vllm",
+        "litellm",
     ] = Field(
         default="spacy",
         alias="speaker_detector_provider",
@@ -1817,6 +1827,111 @@ class Config(BaseModel):
         "the configured vllm model (real HF id) so a wrong model loaded on the DGX slot fails the "
         "run instead of silently corrupting the corpus. Unreachable endpoint only warns. Set False "
         "for offline/unit contexts.",
+    )
+
+    # --- LiteLLM gateway namespace (#1356) ---------------------------------------------------
+    # A first-class OpenAI-compatible provider that talks to the homelab LiteLLM GATEWAY, which
+    # proxies to OpenRouter/direct vendors behind swappable ALIASES. Sibling to vllm/openai; shares
+    # the wire protocol via OpenAICompatibleProvider, read through the {ns}_ indirection. Model
+    # fields name gateway ALIASES (e.g. homelab-qwen), not vendor ids — the gateway decides the
+    # route. Named `litellm` (the stable component), not `openrouter` (today's swappable backend).
+    litellm_api_base: Optional[str] = Field(
+        default=None,
+        alias="litellm_api_base",
+        description="LiteLLM gateway base URL (e.g. http://homelab:4001/v1). Set by the profile.",
+    )
+    litellm_api_key: Optional[str] = Field(
+        default=None,
+        alias="litellm_api_key",
+        description="Virtual key for the gateway (proj-podcast). Usually via litellm_api_key_env.",
+    )
+    litellm_api_key_env: Optional[str] = Field(
+        default="LITELLM_API_KEY",
+        alias="litellm_api_key_env",
+        description="Env var the provider reads the gateway virtual key from when litellm_api_key "
+        "is unset.",
+    )
+    litellm_transcription_model: str = Field(
+        default="",
+        alias="litellm_transcription_model",
+        description="Unused: the gateway serves chat only (ASR stays on whisper).",
+    )
+    litellm_speaker_model: str = Field(
+        default="",
+        alias="litellm_speaker_model",
+        description="Gateway alias for speaker detection/NER (naming). Set by the profile.",
+    )
+    litellm_summary_model: str = Field(
+        default="",
+        alias="litellm_summary_model",
+        description="Gateway alias for summarization (e.g. homelab-qwen). Verified fail-closed "
+        "against GET /v1/models at init — the gateway echoes the alias, so the check confirms the "
+        "alias is served.",
+    )
+    litellm_insight_model: Optional[str] = Field(
+        default=None,
+        alias="litellm_insight_model",
+        description="Optional gateway alias for GIL generate_insights; falls back to "
+        "litellm_summary_model when unset.",
+    )
+    litellm_temperature: float = Field(
+        default=0.3,
+        alias="litellm_temperature",
+        description="Temperature for gateway generation (0.0-2.0).",
+    )
+    litellm_summary_seed: Optional[int] = Field(
+        default=None,
+        alias="litellm_summary_seed",
+        description="Optional deterministic-sampling seed for gateway summarization.",
+    )
+    litellm_extra_body: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="litellm_extra_body",
+        description="Extra fields merged into every chat.completions request. Reasoning models "
+        "(qwen/glm/kimi) need {reasoning: {enabled: false}} to return content instead of only "
+        "reasoning_content — mirrors the vllm enable_thinking=false precedent.",
+    )
+    litellm_cleaning_model: str = Field(
+        default="",
+        alias="litellm_cleaning_model",
+        description="Gateway alias for transcript cleaning; defaults to the summary alias unset.",
+    )
+    litellm_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="litellm_cleaning_temperature",
+        description="Temperature for gateway cleaning (0.0-2.0, default 0.2).",
+    )
+    litellm_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="litellm_max_tokens",
+        description="Max tokens for gateway generation (None = model/server default).",
+    )
+    litellm_summary_system_prompt: str = Field(
+        default="openai/summarization/system_bullets_v1",
+        alias="litellm_summary_system_prompt",
+        description="System prompt for gateway summarization (shared prompt_store template).",
+    )
+    litellm_summary_user_prompt: str = Field(
+        default="openai/summarization/bullets_json_v1",
+        alias="litellm_summary_user_prompt",
+        description="User prompt for gateway summarization (shared prompt_store template).",
+    )
+    litellm_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="litellm_speaker_system_prompt",
+        description="System prompt name for gateway speaker detection/NER.",
+    )
+    litellm_speaker_user_prompt: str = Field(
+        default="openai/ner/guest_host_v1",
+        alias="litellm_speaker_user_prompt",
+        description="User prompt name for gateway speaker detection/NER (shared template).",
+    )
+    litellm_verify_served_model: bool = Field(
+        default=True,
+        alias="litellm_verify_served_model",
+        description="Fail-closed: at initialize(), assert GET /v1/models advertises the configured "
+        "gateway alias so a mis-typed/absent alias fails the run. Unreachable endpoint only warns. "
+        "Set False for offline/unit contexts.",
     )
 
     # Gemini API configuration (Issue #194)
@@ -2543,6 +2658,7 @@ class Config(BaseModel):
         "anthropic",
         "ollama",
         "vllm",
+        "litellm",
     ] = Field(
         default="transformers",
         alias="quote_extraction_provider",
@@ -2562,6 +2678,7 @@ class Config(BaseModel):
         "anthropic",
         "ollama",
         "vllm",
+        "litellm",
     ] = Field(
         default="transformers",
         alias="entailment_provider",
@@ -2944,6 +3061,7 @@ class Config(BaseModel):
             "anthropic",
             "ollama",
             "vllm",
+            "litellm",
         ]
     ] = Field(
         default=None,
@@ -3085,6 +3203,7 @@ class Config(BaseModel):
         "anthropic",
         "ollama",
         "vllm",
+        "litellm",
     ] = Field(
         default="transformers",
         alias="summary_provider",
@@ -4982,6 +5101,7 @@ class Config(BaseModel):
         "grok",
         "ollama",
         "vllm",
+        "litellm",
     ]:
         """Validate speaker detector provider type."""
         if value is None or value == "":
@@ -4998,6 +5118,7 @@ class Config(BaseModel):
             "grok",
             "ollama",
             "vllm",
+            "litellm",
         ):
             raise ValueError(
                 "speaker_detector_provider must be 'spacy', 'openai', 'gemini', "
@@ -5049,6 +5170,7 @@ class Config(BaseModel):
         "anthropic",
         "ollama",
         "vllm",
+        "litellm",
     ]:
         """Validate summary provider."""
         if value is None or value == "":
@@ -5067,6 +5189,7 @@ class Config(BaseModel):
             "anthropic",
             "ollama",
             "vllm",
+            "litellm",
         ):
             raise ValueError(
                 "summary_provider must be 'transformers', 'hybrid_ml', 'summllama', "
@@ -5087,6 +5210,7 @@ class Config(BaseModel):
         "anthropic",
         "ollama",
         "vllm",
+        "litellm",
     ]:
         """Validate quote_extraction_provider and entailment_provider (same as summary)."""
         if value is None or value == "":
@@ -5103,6 +5227,7 @@ class Config(BaseModel):
             "anthropic",
             "ollama",
             "vllm",
+            "litellm",
         ):
             raise ValueError(
                 "quote_extraction_provider/entailment_provider must be one of: "
@@ -5129,6 +5254,7 @@ class Config(BaseModel):
             "anthropic",
             "ollama",
             "vllm",
+            "litellm",
         ):
             raise ValueError(
                 "kg_extraction_provider must be one of: "
