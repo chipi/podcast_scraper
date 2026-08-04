@@ -22,7 +22,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server import app_comms_store, app_outbox_store, app_user_state
+from podcast_scraper.server import (
+    app_comms_store,
+    app_outbox_store,
+    app_push_store,
+    app_user_state,
+)
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_resurfacing import select_due
@@ -162,8 +167,72 @@ def enqueue_for_user(
     return str(envelope["id"])
 
 
+def build_push_envelope(
+    user: User,
+    comms: dict[str, Any],
+    subscription: dict[str, Any],
+    payload: dict[str, Any],
+    now: int,
+) -> dict[str, Any]:
+    """Wrap a nudge payload into a push DeliveryEnvelope for one subscription (schema v1)."""
+    # One envelope per subscription; the endpoint tail keeps ids distinct + idempotent per period.
+    endpoint = str(subscription.get("endpoint") or "")
+    sub_key = endpoint.rsplit("/", 1)[-1][:16] or "sub"
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "id": f"ndg_{_period_key(now, 'daily')}_{user.user_id}_{sub_key}",
+        "user_id": user.user_id,
+        "channel": "push",
+        "template": "resurface-nudge.v1",
+        "recipient": {"push_subscription": subscription},
+        "consent_snapshot": {
+            "digest_enabled": bool(comms["digest"]["enabled"]),
+            "cadence": str(comms["digest"]["cadence"]),
+            "unsubscribe_ref": comms.get("unsubscribe_ref") or "",
+        },
+        "payload": payload,
+        "not_before": _iso(now),
+        "expires_at": _iso(now + _CADENCE_SECONDS["daily"]),
+        "created_at": _iso(now),
+    }
+
+
+def _nudge_payload(revisit_items: list[dict[str, Any]]) -> dict[str, Any]:
+    """A resurface-nudge payload: a count + the single most-overdue lead item."""
+    return {"highlight_count": len(revisit_items), "lead": revisit_items[0]}
+
+
+def enqueue_push_for_user(
+    root: Path, data_dir: Path, user_id: str, now: int | None = None
+) -> list[str]:
+    """Enqueue a push nudge to each of the user's subscriptions. Returns the enqueued ids.
+
+    Gated on ``push.enabled`` + at least one stored subscription + graph-carrying due content.
+    """
+    now = int(time.time()) if now is None else now
+    user = get_user(data_dir, user_id)
+    if user is None:
+        return []
+    comms = app_comms_store.get_comms(data_dir, user_id)
+    if not comms["push"]["enabled"]:
+        return []
+    subs = app_push_store.list_subscriptions(data_dir, user_id)
+    if not subs:
+        return []
+    payload = assemble_digest_payload(root, data_dir, user_id, now)
+    if payload is None:
+        return []
+    nudge = _nudge_payload(payload["sections"][0]["items"])
+    enqueued: list[str] = []
+    for sub in subs:
+        envelope = build_push_envelope(user, comms, sub, nudge, now)
+        app_outbox_store.enqueue(data_dir, envelope)
+        enqueued.append(str(envelope["id"]))
+    return enqueued
+
+
 def enqueue_due_digests(root: Path, data_dir: Path, now: int | None = None) -> list[str]:
-    """Enqueue the current-period email digest for every consenting user. Returns enqueued ids.
+    """Enqueue the current-period email digest + push nudges for every consenting user.
 
     The cadence *timing* gate (is it this user's send slot?) belongs to the scheduler; this batch
     enqueues the current period and leans on per-period dedupe to stay idempotent across re-runs.
@@ -174,4 +243,5 @@ def enqueue_due_digests(root: Path, data_dir: Path, now: int | None = None) -> l
         eid = enqueue_for_user(root, data_dir, user.user_id, now)
         if eid is not None:
             enqueued.append(eid)
+        enqueued.extend(enqueue_push_for_user(root, data_dir, user.user_id, now))
     return enqueued

@@ -7,6 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
+import { disablePush, enablePush } from '../composables/usePushSubscription'
 import { useAuthStore } from '../stores/auth'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
@@ -61,8 +62,19 @@ function onSaved(ids: string[]): void {
 async function saveDigest(): Promise<void> {
   if (comms.value) comms.value = await putComms({ digest: comms.value.digest })
 }
-async function savePush(): Promise<void> {
-  if (comms.value) comms.value = await putComms({ push: comms.value.push })
+
+// Push needs a real browser subscription, not just a flag. Enabling registers the subscription
+// (which enables the channel server-side); if the browser can't, revert the toggle. Disabling
+// unregisters + clears the flag.
+async function onPushToggle(): Promise<void> {
+  if (!comms.value) return
+  if (comms.value.push.enabled) {
+    const ok = await enablePush()
+    if (!ok) comms.value = await putComms({ push: { enabled: false } })
+  } else {
+    await disablePush()
+    comms.value = await putComms({ push: { enabled: false } })
+  }
 }
 
 onMounted(load)
@@ -135,7 +147,7 @@ onMounted(load)
 
       <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
         <span class="text-sm font-medium">{{ t('profile.pushNudges') }}</span>
-        <input v-model="comms.push.enabled" type="checkbox" class="h-5 w-5" @change="savePush" />
+        <input v-model="comms.push.enabled" type="checkbox" class="h-5 w-5" @change="onPushToggle" />
       </label>
     </section>
 

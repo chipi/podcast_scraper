@@ -99,11 +99,16 @@ suppression; (6) `/internal/*` auth is a tailnet-only shared token `INTERNAL_OUT
 
 ### 2. Outbox transport (app exposes; delivery worker polls)
 
-**Implemented (app side, #1415):** `app_outbox_store` (persistence + idempotency + consent/expiry
-filtering + suppression write-back), `routes/internal_outbox` (the two endpoints, token-gated,
-mounted at `/internal`), and `app_digest_personal` (the extractive assembler → `enqueue_for_user` /
-`enqueue_due_digests`). The scheduler cron that *triggers* `enqueue_due_digests` on each user's
-cadence slot is the one remaining app-side piece.
+**Implemented (app side, #1415) — complete:** `app_outbox_store` (persistence + idempotency +
+consent/expiry filtering + suppression write-back), `routes/internal_outbox` (the two endpoints,
+token-gated, mounted at `/internal`), `app_digest_personal` (the extractive assembler → email
+digest + push nudges → `enqueue_due_digests`), the **scheduler `digest` job kind** (an operator
+schedules it in `viewer_operator.yaml` like any sweep — fires `enqueue_due_digests` on cadence), and
+the **Web Push** path: `app_push_store` + `POST/DELETE /api/app/push/subscribe` +
+`GET /api/app/push/vapid-key`, the browser `usePushSubscription` composable, and the SW push handler
+(`public/push-sw.js`). The only external inputs left are infra-owned: the **VAPID keypair**
+(`APP_VAPID_PUBLIC_KEY` for the app, private half in the worker), the **`INTERNAL_OUTBOX_TOKEN`**,
+and the **Resend** worker itself.
 
 - `GET  /internal/outbox/pending?channel={email|push}&limit=N` → `{ envelopes: DeliveryEnvelope[] }`.
   **v1.1:** filters on **current** consent (re-reads `comms`), excludes past-`expires_at` envelopes,

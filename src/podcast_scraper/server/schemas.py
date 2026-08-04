@@ -730,6 +730,33 @@ class CommsUpdate(BaseModel):
     push: CommsPush | None = Field(default=None)
 
 
+class PushSubscription(BaseModel):
+    """A W3C PushSubscription (POST /api/app/push/subscribe body). Stored opaquely."""
+
+    model_config = ConfigDict(extra="allow")
+
+    endpoint: str = Field(min_length=1, description="Push service endpoint URL (stable identity).")
+    keys: dict[str, str] = Field(default_factory=dict, description="{p256dh, auth} — opaque to us.")
+
+
+class PushUnsubscribeBody(BaseModel):
+    """DELETE /api/app/push/subscribe body."""
+
+    endpoint: str = Field(min_length=1, description="The subscription endpoint to remove.")
+
+
+class PushSubscriptionsResponse(BaseModel):
+    """Count only — endpoints are not echoed back."""
+
+    count: int = Field(ge=0, description="How many active subscriptions the user has.")
+
+
+class VapidKeyResponse(BaseModel):
+    """GET /api/app/push/vapid-key — the public VAPID key the browser needs to subscribe."""
+
+    key: str = Field(description="URL-safe base64 VAPID public key.")
+
+
 # --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
 
 

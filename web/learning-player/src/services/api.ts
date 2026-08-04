@@ -684,3 +684,33 @@ export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
   if (!resp.ok) throw new ApiError(resp.status, `PUT /comms → ${resp.status}`)
   return (await resp.json()) as CommsSettings
 }
+
+/** The public VAPID key the browser needs to subscribe (throws 503 when push isn't configured). */
+export async function getVapidKey(): Promise<string> {
+  const resp = await getJSON<{ key: string }>('/push/vapid-key')
+  return resp.key
+}
+
+/** Register a browser push subscription (also enables the push channel server-side). */
+export async function subscribePush(subscription: unknown): Promise<{ count: number }> {
+  const resp = await apiFetch(`${BASE}/push/subscribe`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /push/subscribe → ${resp.status}`)
+  return (await resp.json()) as { count: number }
+}
+
+/** Remove a browser push subscription (disables the channel when the last one goes). */
+export async function unsubscribePush(endpoint: string): Promise<{ count: number }> {
+  const resp = await apiFetch(`${BASE}/push/subscribe`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /push/subscribe → ${resp.status}`)
+  return (await resp.json()) as { count: number }
+}

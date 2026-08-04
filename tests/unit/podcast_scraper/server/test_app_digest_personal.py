@@ -126,3 +126,50 @@ def test_enqueue_is_period_idempotent(tmp_path: Path) -> None:
     b = app_digest_personal.enqueue_for_user(_ROOT, tmp_path, uid, now=10**9)
     assert a == b  # same period → same id
     assert len(app_outbox_store.list_pending(tmp_path, channel="email", now=10**9)) == 1
+
+
+def _add_push_sub(tmp_path: Path, uid: str, endpoint: str = "https://push.invalid/x") -> None:
+    from podcast_scraper.server import app_push_store
+
+    app_push_store.add_subscription(tmp_path, uid, {"endpoint": endpoint, "keys": {"auth": "a"}})
+
+
+def test_push_envelope_matches_contract_schema(tmp_path: Path) -> None:
+    uid = _user(tmp_path)
+    comms = app_comms_store.set_comms(tmp_path, uid, push={"enabled": True})
+    _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    assert payload is not None
+    from podcast_scraper.server.app_user_store import get_user
+
+    user = get_user(tmp_path, uid)
+    assert user is not None
+    nudge = app_digest_personal._nudge_payload(payload["sections"][0]["items"])
+    env = app_digest_personal.build_push_envelope(
+        user, comms, {"endpoint": "https://push.invalid/x"}, nudge, now=10**9
+    )
+    errors = sorted(Draft202012Validator(_SCHEMA).iter_errors(env), key=str)
+    assert not errors, "\n".join(f"{list(e.path)}: {e.message}" for e in errors)
+
+
+def test_enqueue_push_gated_on_subscription(tmp_path: Path) -> None:
+    uid = _user(tmp_path)
+    app_comms_store.set_comms(tmp_path, uid, push={"enabled": True})
+    _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
+    # push enabled but no subscription → nothing
+    assert app_digest_personal.enqueue_push_for_user(_ROOT, tmp_path, uid, now=10**9) == []
+    _add_push_sub(tmp_path, uid)
+    ids = app_digest_personal.enqueue_push_for_user(_ROOT, tmp_path, uid, now=10**9)
+    assert len(ids) == 1 and ids[0].startswith("ndg_")
+    pending = app_outbox_store.list_pending(tmp_path, channel="push", now=10**9)
+    assert [e["id"] for e in pending] == ids
+
+
+def test_due_batch_enqueues_both_channels(tmp_path: Path) -> None:
+    uid = _user(tmp_path)
+    app_comms_store.set_comms(tmp_path, uid, digest={"enabled": True}, push={"enabled": True})
+    _add_push_sub(tmp_path, uid)
+    _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
+    ids = app_digest_personal.enqueue_due_digests(_ROOT, tmp_path, now=10**9)
+    assert any(i.startswith("dgst_") for i in ids)
+    assert any(i.startswith("ndg_") for i in ids)

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import * as push from '../composables/usePushSubscription'
 import en from '../i18n/locales/en.json'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { useAuthStore } from '../stores/auth'
@@ -133,5 +134,31 @@ describe('ProfileView — notifications', () => {
 
     expect(put).toHaveBeenCalledWith({ digest: expect.objectContaining({ enabled: true }) })
     expect(w.text()).toContain('Frequency')
+  })
+
+  it('enabling push registers a browser subscription via the composable', async () => {
+    const enable = vi.spyOn(push, 'enablePush').mockResolvedValue(true)
+    const w = mountProfile()
+    await flushPromises()
+
+    // digest toggle is index 0; the push toggle is the last checkbox.
+    const boxes = w.findAll('input[type="checkbox"]')
+    await boxes[boxes.length - 1].setValue(true)
+    await flushPromises()
+
+    expect(enable).toHaveBeenCalled()
+  })
+
+  it('reverts the push toggle when the browser cannot subscribe', async () => {
+    vi.spyOn(push, 'enablePush').mockResolvedValue(false)
+    const put = vi.spyOn(api, 'putComms').mockResolvedValue(comms({ push: { enabled: false } }))
+    const w = mountProfile()
+    await flushPromises()
+
+    const boxes = w.findAll('input[type="checkbox"]')
+    await boxes[boxes.length - 1].setValue(true)
+    await flushPromises()
+
+    expect(put).toHaveBeenCalledWith({ push: { enabled: false } })
   })
 })

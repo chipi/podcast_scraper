@@ -19,17 +19,50 @@ from podcast_scraper.server.app_user_store import get_or_create_user
 pytestmark = [pytest.mark.integration]
 
 
-def _authed(tmp_path: Path, *, provider: str = "stub", email: str = "j@x.com") -> TestClient:
+def _authed(
+    tmp_path: Path, *, provider: str = "stub", email: str = "j@x.com", vapid: str = ""
+) -> TestClient:
     app = create_app(tmp_path, static_dir=False)
     data_dir = tmp_path / "appdata"
     app.state.session_secret = "test-secret"
     app.state.app_data_dir = data_dir
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    app.state.vapid_public_key = vapid
     user = get_or_create_user(data_dir, provider=provider, subject="s1", email=email, name="J")
     client = TestClient(app)
     token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
     client.cookies.set(app_sessions.SESSION_COOKIE, token)
     return client
+
+
+def test_vapid_key_503_when_unconfigured(tmp_path: Path) -> None:
+    assert _authed(tmp_path).get("/api/app/push/vapid-key").status_code == 503
+
+
+def test_vapid_key_returned_when_configured(tmp_path: Path) -> None:
+    resp = _authed(tmp_path, vapid="BPublicKeyValue").get("/api/app/push/vapid-key")
+    assert resp.status_code == 200 and resp.json()["key"] == "BPublicKeyValue"
+
+
+def test_push_subscribe_stores_and_enables(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    sub = {"endpoint": "https://push.invalid/x", "keys": {"p256dh": "p", "auth": "a"}}
+    resp = client.post("/api/app/push/subscribe", json=sub)
+    assert resp.status_code == 200 and resp.json()["count"] == 1
+    assert client.get("/api/app/comms").json()["push"]["enabled"] is True
+
+
+def test_push_unsubscribe_last_disables(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/push/subscribe",
+        json={"endpoint": "https://push.invalid/x", "keys": {"auth": "a"}},
+    )
+    resp = client.request(
+        "DELETE", "/api/app/push/subscribe", json={"endpoint": "https://push.invalid/x"}
+    )
+    assert resp.status_code == 200 and resp.json()["count"] == 0
+    assert client.get("/api/app/comms").json()["push"]["enabled"] is False
 
 
 def test_get_comms_defaults_when_unset(tmp_path: Path) -> None:

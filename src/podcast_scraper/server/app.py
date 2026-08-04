@@ -125,6 +125,9 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # Shared token for the internal outbox seam (#1415, RFC-110 §2) — the infra delivery worker
     # authenticates with it over the tailnet. Empty → the /internal/outbox endpoints 503 (disabled).
     app.state.internal_outbox_token = os.environ.get("INTERNAL_OUTBOX_TOKEN", "")
+    # Public VAPID key for Web Push (RFC-110 §6). The private half lives with the infra worker; the
+    # browser needs this public half to subscribe. Empty → GET /api/app/push/vapid-key 503s.
+    app.state.vapid_public_key = os.environ.get("APP_VAPID_PUBLIC_KEY", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
     )

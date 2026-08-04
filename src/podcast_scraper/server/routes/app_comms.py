@@ -13,12 +13,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from podcast_scraper.server import app_comms_store
+from podcast_scraper.server import app_comms_store, app_push_store
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
-from podcast_scraper.server.schemas import CommsSettings, CommsUpdate
+from podcast_scraper.server.schemas import (
+    CommsSettings,
+    CommsUpdate,
+    PushSubscription,
+    PushSubscriptionsResponse,
+    PushUnsubscribeBody,
+    VapidKeyResponse,
+)
 
 router = APIRouter(tags=["app"])
 
@@ -71,3 +78,38 @@ async def unsubscribe(request: Request, ref: str = Query(..., min_length=1)) -> 
     """
     ok = app_comms_store.unsubscribe(_data_dir(request), ref)
     return {"unsubscribed": ok}
+
+
+# --- Web Push subscriptions (RFC-110 §6) — the browser registers here so the worker can nudge. ---
+
+
+@router.get("/push/vapid-key", response_model=VapidKeyResponse)
+async def vapid_key(request: Request, user: User = Depends(get_current_user)) -> VapidKeyResponse:
+    """The public VAPID key the browser needs to subscribe. 503 when push isn't configured."""
+    key = getattr(request.app.state, "vapid_public_key", "") or ""
+    if not key:
+        raise HTTPException(status_code=503, detail="push not configured")
+    return VapidKeyResponse(key=key)
+
+
+@router.post("/push/subscribe", response_model=PushSubscriptionsResponse)
+async def subscribe_push(
+    request: Request, body: PushSubscription, user: User = Depends(get_current_user)
+) -> PushSubscriptionsResponse:
+    """Store a browser push subscription and enable the push channel for this user."""
+    subs = app_push_store.add_subscription(
+        _data_dir(request), user.user_id, body.model_dump(exclude_none=True)
+    )
+    app_comms_store.set_comms(_data_dir(request), user.user_id, push={"enabled": True})
+    return PushSubscriptionsResponse(count=len(subs))
+
+
+@router.delete("/push/subscribe", response_model=PushSubscriptionsResponse)
+async def unsubscribe_push(
+    request: Request, body: PushUnsubscribeBody, user: User = Depends(get_current_user)
+) -> PushSubscriptionsResponse:
+    """Remove a subscription; disable the push channel when the last one is gone."""
+    subs = app_push_store.remove_subscription(_data_dir(request), user.user_id, body.endpoint)
+    if not subs:
+        app_comms_store.set_comms(_data_dir(request), user.user_id, push={"enabled": False})
+    return PushSubscriptionsResponse(count=len(subs))

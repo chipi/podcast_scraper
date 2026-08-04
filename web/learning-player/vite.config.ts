@@ -82,6 +82,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Web Push handler (#1415) — injected into the generated SW so a delivery-worker
+        // push shows the resurfacing nudge + deep-links back in. See public/push-sw.js.
+        importScripts: ['push-sw.js'],
         // Cache the app shell + GET API responses (stale-while-revalidate).
         // Audio is NEVER cached/proxied by the SW (bridge-never-rehost): origin
         // media URLs are excluded from runtime caching.
