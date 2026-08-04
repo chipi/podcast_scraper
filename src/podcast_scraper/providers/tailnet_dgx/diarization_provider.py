@@ -36,11 +36,19 @@ Service contract (DGX-side, deploy.py / infra/dgx/pyannote-server/app.py):
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
+import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any, NoReturn, Optional
+from typing import Any, Iterator, NoReturn, Optional
+
+try:  # POSIX-only; the pipeline host (laptop) + DGX are Unix. No-op fallback elsewhere.
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX
+    fcntl = None  # type: ignore[assignment]
 
 from ... import config
 from ...providers.ml.diarization.base import (
@@ -68,6 +76,40 @@ _RETRY_BACKOFF_SEC = 5.0
 # self-contend; contention from *other* GPU tenants is ridden out by the
 # duration-scaled timeout + watchdog + breaker, not by piling on more requests.
 _dgx_diarize_single_flight = threading.Lock()
+
+# Cross-process single-flight. The threading.Lock above only serializes within ONE
+# Python process; a parallel batch (episodes across multiple processes) bypasses it
+# and hits the single-GPU DGX concurrently. Each in-flight diarize buffers a whole
+# episode upload + PyTorch /dev/shm embeddings on the box, and enough concurrent ones
+# OOM the DGX and hard-lock it (INCIDENT-2026-08-04, #1397). An advisory flock on a
+# host-local file extends the single-flight across processes too. Path is overridable
+# for tests / multi-tenant isolation.
+_DGX_DIARIZE_LOCK_PATH = os.getenv(
+    "PODCAST_DGX_DIARIZE_LOCK_PATH",
+    str(Path(tempfile.gettempdir()) / "podcast_dgx_diarize.lock"),
+)
+
+
+@contextlib.contextmanager
+def _dgx_diarize_serialize() -> Iterator[None]:
+    """Serialize DGX diarize calls within this process (threading.Lock) AND across
+    processes on this host (advisory ``flock``). The DGX GPU is serial and its service
+    has no concurrency/memory guard, so concurrent callers OOM it (INCIDENT-2026-08-04).
+    Falls back to process-local serialization only where ``fcntl`` is unavailable."""
+    with _dgx_diarize_single_flight:
+        if fcntl is None:
+            yield
+            return
+        lock_fd = os.open(_DGX_DIARIZE_LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            finally:
+                os.close(lock_fd)
+
 
 # Process-wide breaker for the DGX diarize endpoint (:8001). One hard timeout
 # trips it immediately; otherwise two failures inside the window open it for a
@@ -175,7 +217,8 @@ class TailnetDgxDiarizationProvider:
         # Serialize our own DGX diarize calls (single GPU, serial server) so we
         # never self-contend; external contention is ridden out by the timeout +
         # watchdog inside ``_diarize_dgx_guarded``, not by piling on requests.
-        with _dgx_diarize_single_flight:
+        # Cross-process too (#1397): a parallel batch must not OOM the DGX.
+        with _dgx_diarize_serialize():
             for attempt in range(self._max_attempts):
                 try:
                     if not check_pyannote_diarize_health(
@@ -293,7 +336,7 @@ class TailnetDgxDiarizationProvider:
             )
 
         try:
-            with _dgx_diarize_single_flight:
+            with _dgx_diarize_serialize():
                 return self._policy.run(_attempt, timeout_sec=timeout_sec)
         except ResilienceFuseOpenError as exc:
             emit_dgx_fallback_breadcrumb(
