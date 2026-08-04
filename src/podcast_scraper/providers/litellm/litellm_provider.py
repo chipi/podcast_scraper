@@ -61,6 +61,10 @@ class LiteLLMProvider(OpenAICompatibleProvider):
     _CONFIG_NS: str = "litellm"
     _TELEMETRY_PROVIDER: str = "litellm"
     _PROVIDER_LABEL: str = "LiteLLM"
+    # Gateway routes to deepseek/qwen/glm/kimi, which support an 8192-token output — double the
+    # OpenAI-native 4096 cap. Cleaning a full transcript needs the headroom or it truncates
+    # (finish_reason=length) and the guardrail discards the cleaned text (#1356).
+    _CLEANING_MAX_TOKENS_CAP: int = 8192
 
     def __init__(self, cfg: config.Config):
         super().__init__(cfg)

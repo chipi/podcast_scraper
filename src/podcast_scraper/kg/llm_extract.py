@@ -66,10 +66,22 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         "in the transcript, pick the single most likely correct spelling and emit it "
         "once — do not also emit the variant as a separate entity. Keep genuinely "
         "different entities (e.g. UPS vs USPS) separate. "
-        "Each topic label should be a compact heading: prefer about 2–8 words, "
-        "noun-phrase style (hard cap 200 characters). Avoid long sentences, "
-        'comma stacks, leading clauses ("How …", "Why …"), or pasting raw '
-        "transcript lines as the label — put nuance in description instead. "
+        "Each topic label should be a compact, CANONICAL heading: a stable "
+        "noun-phrase naming a concept, prefer about 2–5 words (hard cap 200 "
+        "characters). It must read like a subject heading someone would reuse "
+        "across episodes — NOT a paraphrase of one sentence from this transcript.\n"
+        "GOOD topic labels (canonical concepts):\n"
+        '  - "AI security"   - "reward hacking"   - "compute strategy"\n'
+        '  - "monetary policy"   - "autonomous delivery"   - "US AI policy"\n'
+        "BAD topic labels (NEVER emit — these are sentence fragments / clauses "
+        "lifted from the transcript, not headings):\n"
+        '  - "attack stemmed from reward"  → use "reward hacking"\n'
+        '  - "incident blurs the line"     → use "AI incident attribution"\n'
+        '  - "Trump administration is considering" → use "US AI policy"\n'
+        '  - "OpenAI\'s unreleased GPT model" → use "unreleased models"\n'
+        "Convert every candidate to its canonical concept, or drop it. Avoid long "
+        'sentences, comma stacks, leading clauses ("How …", "Why …"), verbs, and '
+        "pasting raw transcript lines — put nuance in description instead. "
         "Short stable headings align better across episodes in later tooling. "
         f"Hard limits: at most {mt} objects in topics and at most {me} in entities — "
         "never exceed these array lengths. Order by importance (strongest first); "

@@ -1,0 +1,71 @@
+# Bake-off profile (#1356): Chinese-model field. IDENTICAL frozen control config to
+# bakeoff_litellm_deepseek_flash.yaml — ONLY the model alias changes, so the model is the sole
+# variable. Target: qwen/qwen3.7-flash ($0.03/$0.13 per Mtok — the cheapest reliable candidate,
+# 6/6 rapid-burst via OpenRouter default routing; qwen3.6's DeepInfra-shared-pool block does NOT
+# affect 3.7-flash). reasoning OFF. relabel_only over frozen v2.4 transcripts.
+profile: bakeoff_litellm_qwen37
+
+transcription:
+  primary: whisper
+diarize: false
+screenplay: true
+
+summary_provider: litellm
+speaker_detector_provider: litellm
+quote_extraction_provider: litellm
+entailment_provider: litellm
+kg_extraction_provider: litellm
+auto_speakers: true
+llm_pipeline_mode: staged
+
+litellm_api_base: http://homelab:4001/v1
+litellm_summary_model: homelab-qwen37-flash
+litellm_speaker_model: homelab-qwen37-flash
+litellm_cleaning_model: homelab-qwen37-flash
+litellm_insight_model: homelab-qwen37-flash
+litellm_temperature: 0.3
+litellm_extra_body:
+  reasoning:
+    enabled: false
+litellm_verify_served_model: true
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+summarization_timeout: 300
+transcription_timeout: 300
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gil_evidence_match_summary_provider: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+ner_model: en_core_web_trf

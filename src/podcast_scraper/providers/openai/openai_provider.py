@@ -136,6 +136,10 @@ class OpenAICompatibleProvider:
     _CONFIG_NS: str = "openai"  # config-field prefix: {ns}_summary_model, {ns}_api_base, …
     _TELEMETRY_PROVIDER: str = "openai"  # provider/service label in metrics + guardrails
     _PROVIDER_LABEL: str = "OpenAI"  # human label for log_provider_metadata
+    # Output-token cap for transcript cleaning. OpenAI's per-model output cap is conservative;
+    # gateway subclasses (litellm) route to models that support more, so they raise this. A cap
+    # too low truncates cleaning (finish_reason=length) and the guardrail discards the result.
+    _CLEANING_MAX_TOKENS_CAP: int = OPENAI_CLEANING_MAX_TOKENS
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
 
@@ -2676,7 +2680,7 @@ class OpenAICompatibleProvider:
                     **self._token_kwarg(
                         clamp_cleaning_max_tokens(
                             estimate_cleaning_output_tokens(len(text.split())),
-                            OPENAI_CLEANING_MAX_TOKENS,
+                            self._CLEANING_MAX_TOKENS_CAP,
                         ),
                         model=self.cleaning_model,
                     ),

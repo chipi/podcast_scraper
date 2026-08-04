@@ -4429,6 +4429,20 @@ def generate_episode_metadata(  # noqa: C901
                     episode.idx if hasattr(episode, "idx") else episode_id,
                     len(topic_specs),
                 )
+                # #653 Part D follow-up: gi.json was written at build time (line ~4061) with the
+                # staged-mode bullet-derived Topic nodes. bridge_gi_payload IS that same payload
+                # object, now carrying KG canonical topics — re-persist gi.json so the on-disk
+                # artifact matches the bridge instead of keeping sentence-fragment topic labels.
+                try:
+                    from ..gi import write_artifact as _gi_write_artifact
+
+                    _gi_write_artifact(Path(gi_path), bridge_gi_payload, validate=True)
+                except Exception as _gi_rewrite_exc:
+                    logger.warning(
+                        "[%s] gi.json topic-alignment re-write failed (non-fatal): %s",
+                        episode.idx if hasattr(episode, "idx") else episode_id,
+                        _gi_rewrite_exc,
+                    )
         except Exception as align_exc:
             logger.warning(
                 "GI/KG topic alignment for bridge failed (non-fatal): %s",
