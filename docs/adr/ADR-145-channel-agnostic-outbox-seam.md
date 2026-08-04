@@ -35,7 +35,7 @@ delivery worker drains.** They touch **only** here.
 3. **Rendering lives on the infra side.** The app emits the structured payload; the delivery service
    maps `template` → HTML email / push notification. The app never emits HTML.
 4. **Suppression writes back** across the seam: bounce/complaint/unsubscribe → `POST
-   /internal/outbox/{id}/status` + a public `POST /api/app/comms/unsubscribe?token=` (app-owned) that
+   /internal/outbox/{id}/status` + a public `POST /api/app/comms/unsubscribe?ref=` (app-owned) that
    flips consent. The app stops enqueuing suppressed recipients.
 
 **Why channel-agnostic (the non-obvious core).** A per-channel handoff ("send this email", "send this

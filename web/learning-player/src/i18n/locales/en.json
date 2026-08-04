@@ -310,7 +310,16 @@
     "interests": "Interest topics",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",
-    "noInterests": "No interests chosen yet."
+    "noInterests": "No interests chosen yet.",
+    "notifications": "Notifications",
+    "notificationsHelp": "Get a periodic recap of highlights worth revisiting.",
+    "digestEmail": "Weekly digest email",
+    "cadence": "Frequency",
+    "cadenceWeekly": "Weekly",
+    "cadenceDaily": "Daily",
+    "pauseDigest": "Pause for now",
+    "pushNudges": "Push reminders",
+    "emailUnverified": "Email delivery needs a verified email address."
   },
   "library": {
     "title": "Library",

@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { InterestCluster, UserStats } from '../services/types'
+import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import ProfileView from './ProfileView.vue'
 
@@ -24,6 +24,16 @@ function stats(over: Partial<UserStats> = {}): UserStats {
   }
 }
 
+function comms(over: Partial<CommsSettings> = {}): CommsSettings {
+  return {
+    digest: { enabled: false, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
+    push: { enabled: false },
+    email_verified: true,
+    unsubscribe_ref: null,
+    ...over,
+  }
+}
+
 function mountProfile() {
   setActivePinia(createPinia())
   const auth = useAuthStore()
@@ -34,6 +44,7 @@ function mountProfile() {
 beforeEach(() => {
   vi.spyOn(api, 'getTopClusters').mockResolvedValue(clusters)
   vi.spyOn(api, 'getMyStats').mockResolvedValue(stats())
+  vi.spyOn(api, 'getComms').mockResolvedValue(comms())
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -94,5 +105,33 @@ describe('ProfileView — Your listening panel', () => {
     await flushPromises()
     expect(w.text()).toContain('Start listening to build your stats.')
     expect(w.text()).not.toContain('Day streak')
+  })
+})
+
+describe('ProfileView — notifications', () => {
+  beforeEach(() => vi.spyOn(api, 'getUserInterests').mockResolvedValue([]))
+
+  it('renders the digest + push toggles; cadence is hidden until the digest is on', async () => {
+    const w = mountProfile()
+    await flushPromises()
+    expect(w.text()).toContain('Notifications')
+    expect(w.text()).toContain('Weekly digest email')
+    expect(w.text()).toContain('Push reminders')
+    expect(w.text()).not.toContain('Frequency')
+  })
+
+  it('enabling the digest PUTs the whole section and reveals the cadence control', async () => {
+    const put = vi
+      .spyOn(api, 'putComms')
+      .mockResolvedValue(comms({ digest: { enabled: true, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false } }))
+    const w = mountProfile()
+    await flushPromises()
+
+    const digestToggle = w.findAll('input[type="checkbox"]')[0]
+    await digestToggle.setValue(true)
+    await flushPromises()
+
+    expect(put).toHaveBeenCalledWith({ digest: expect.objectContaining({ enabled: true }) })
+    expect(w.text()).toContain('Frequency')
   })
 })

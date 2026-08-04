@@ -28,6 +28,7 @@ from podcast_scraper.server.routes import (
     app_artwork,
     app_auth,
     app_capture,
+    app_comms,
     app_consolidation,
     app_discover,
     app_enrichment,
@@ -205,6 +206,7 @@ _APP_ROUTES = (
     app_user_state,
     app_user_preferences,
     app_capture,
+    app_comms,
     app_enrichment,
     app_consolidation,
 )

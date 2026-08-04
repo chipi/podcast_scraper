@@ -690,6 +690,46 @@ class DerivedInterestsResponse(BaseModel):
     items: list[DerivedInterest] = Field(default_factory=list)
 
 
+# --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
+
+
+class CommsDigest(BaseModel):
+    """The user's digest delivery settings (a section of GET/PUT /api/app/comms)."""
+
+    enabled: bool = Field(default=False, description="Send the periodic 'Your Week' digest.")
+    cadence: Literal["weekly", "daily"] = Field(default="weekly", description="How often.")
+    day_of_week: int = Field(default=6, ge=0, le=6, description="0=Mon … 6=Sun (weekly cadence).")
+    hour: int = Field(default=13, ge=0, le=23, description="Local send hour (0-23).")
+    paused: bool = Field(default=False, description="Temporarily pause without losing settings.")
+
+
+class CommsPush(BaseModel):
+    """The user's Web-Push nudge settings."""
+
+    enabled: bool = Field(default=False, description="Send Web-Push resurfacing nudges.")
+
+
+class CommsSettings(BaseModel):
+    """The user's full comms/consent state (GET /api/app/comms response)."""
+
+    digest: CommsDigest = Field(default_factory=CommsDigest)
+    push: CommsPush = Field(default_factory=CommsPush)
+    email_verified: bool = Field(
+        default=False, description="Identity-derived (OAuth); email delivery requires it."
+    )
+    unsubscribe_ref: str | None = Field(
+        default=None,
+        description="Opaque handle for the one-click unsubscribe link; minted on first save.",
+    )
+
+
+class CommsUpdate(BaseModel):
+    """PUT /api/app/comms body — send whichever section(s) changed (server-owned fields ignored)."""
+
+    digest: CommsDigest | None = Field(default=None)
+    push: CommsPush | None = Field(default=None)
+
+
 class PlaybackPosition(BaseModel):
     """Per-user playback position for one episode."""
 

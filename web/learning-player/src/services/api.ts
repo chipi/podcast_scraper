@@ -8,6 +8,8 @@
 
 import type {
   AudioSource,
+  CommsSettings,
+  CommsUpdate,
   CorpusEnrichmentSignals,
   EntitiesResponse,
   EntitySearchResponse,
@@ -652,4 +654,33 @@ export async function putResurfacingSettings(paused: boolean): Promise<Resurfaci
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /resurfacing/settings → ${resp.status}`)
   return (await resp.json()) as ResurfacingSettings
+}
+
+// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+
+const COMMS_DEFAULTS: CommsSettings = {
+  digest: { enabled: false, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
+  push: { enabled: false },
+  email_verified: false,
+  unsubscribe_ref: null,
+}
+
+export async function getComms(): Promise<CommsSettings> {
+  try {
+    return await getJSON<CommsSettings>('/comms')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { ...COMMS_DEFAULTS }
+    throw err
+  }
+}
+
+export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
+  const resp = await apiFetch(`${BASE}/comms`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /comms → ${resp.status}`)
+  return (await resp.json()) as CommsSettings
 }

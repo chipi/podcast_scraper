@@ -5,8 +5,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getMyStats, getTopClusters, getUserInterests } from '../services/api'
-import type { InterestCluster, UserStats } from '../services/types'
+import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
+import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
@@ -37,19 +37,32 @@ const interestLabels = computed(() => {
   }))
 })
 
+// Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges.
+const comms = ref<CommsSettings | null>(null)
+
 async function load(): Promise<void> {
-  const [ints, tops, st] = await Promise.all([
+  const [ints, tops, st, cm] = await Promise.all([
     getUserInterests().catch(() => [] as string[]),
     getTopClusters(50).catch(() => [] as InterestCluster[]),
     getMyStats().catch(() => null),
+    getComms().catch(() => null),
   ])
   interests.value = ints
   clusters.value = tops
   stats.value = st
+  comms.value = cm
 }
 
 function onSaved(ids: string[]): void {
   interests.value = ids
+}
+
+// Persist a whole section (server fills defaults on unset fields, so never send a partial).
+async function saveDigest(): Promise<void> {
+  if (comms.value) comms.value = await putComms({ digest: comms.value.digest })
+}
+async function savePush(): Promise<void> {
+  if (comms.value) comms.value = await putComms({ push: comms.value.push })
 }
 
 onMounted(load)
@@ -77,6 +90,53 @@ onMounted(load)
         >{{ i.label }}</span>
       </div>
       <p v-else class="text-sm text-muted">{{ t('profile.noInterests') }}</p>
+    </section>
+
+    <!-- Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges. -->
+    <section v-if="comms" class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-1">{{ t('profile.notifications') }}</h2>
+      <p class="mb-3 text-sm text-muted">{{ t('profile.notificationsHelp') }}</p>
+
+      <label class="flex items-center justify-between gap-3 py-2">
+        <span class="text-sm font-medium">{{ t('profile.digestEmail') }}</span>
+        <input
+          v-model="comms.digest.enabled"
+          type="checkbox"
+          class="h-5 w-5"
+          @change="saveDigest"
+        />
+      </label>
+
+      <template v-if="comms.digest.enabled">
+        <label class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm text-muted">{{ t('profile.cadence') }}</span>
+          <select
+            v-model="comms.digest.cadence"
+            class="rounded-lg border border-border bg-overlay px-2 py-1 text-sm"
+            @change="saveDigest"
+          >
+            <option value="weekly">{{ t('profile.cadenceWeekly') }}</option>
+            <option value="daily">{{ t('profile.cadenceDaily') }}</option>
+          </select>
+        </label>
+        <label class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm text-muted">{{ t('profile.pauseDigest') }}</span>
+          <input
+            v-model="comms.digest.paused"
+            type="checkbox"
+            class="h-5 w-5"
+            @change="saveDigest"
+          />
+        </label>
+        <p v-if="!comms.email_verified" class="mt-1 text-xs text-muted">
+          {{ t('profile.emailUnverified') }}
+        </p>
+      </template>
+
+      <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
+        <span class="text-sm font-medium">{{ t('profile.pushNudges') }}</span>
+        <input v-model="comms.push.enabled" type="checkbox" class="h-5 w-5" @change="savePush" />
+      </label>
     </section>
 
     <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->

@@ -105,7 +105,7 @@ would make us a worse Snipd; distributing the graph is the category-of-one move.
 - **FR1.1**: The user profile gains `email_verified` (trust the OAuth verified claim) and a `comms`
   object: `digest {enabled, cadence: weekly|daily, day_of_week, hour, paused}`, `push {enabled}`,
   `unsubscribe_token`.
-- **FR1.2**: `GET/PUT /api/app/comms` + a public no-auth `POST /api/app/comms/unsubscribe?token=`
+- **FR1.2**: `GET/PUT /api/app/comms` + a public no-auth `POST /api/app/comms/unsubscribe?ref=`
   (one-click, legal requirement). Settings UI in `ProfileView.vue`. Back-compat: absent `comms`
   defaults to disabled.
 

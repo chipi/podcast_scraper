@@ -324,6 +324,36 @@ export interface ResurfacingSettings {
   paused: boolean
 }
 
+// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+
+export interface CommsDigest {
+  enabled: boolean
+  cadence: 'weekly' | 'daily'
+  day_of_week: number
+  hour: number
+  paused: boolean
+}
+
+export interface CommsPush {
+  enabled: boolean
+}
+
+export interface CommsSettings {
+  digest: CommsDigest
+  push: CommsPush
+  email_verified: boolean
+  unsubscribe_ref: string | null
+}
+
+/**
+ * PUT /api/app/comms body. Send the FULL section object you want to change — the server fills
+ * unset fields with defaults, so a partial `digest` would silently reset cadence/hour/etc.
+ */
+export interface CommsUpdate {
+  digest?: CommsDigest
+  push?: CommsPush
+}
+
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
 export interface InterestCluster {
   id: string
