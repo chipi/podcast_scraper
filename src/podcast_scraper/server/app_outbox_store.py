@@ -20,6 +20,7 @@ Seam v1.1 amendments implemented here:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -45,9 +46,13 @@ def _outbox_dir(data_dir: Path) -> Path:
 
 
 def _envelope_path(data_dir: Path, envelope_id: str) -> Path:
-    # ``id`` is app-generated (dgst_/ndg_ + hex), never raw request input; still guard traversal.
-    safe = "".join(c for c in envelope_id if c.isalnum() or c in "._-")
-    return _outbox_dir(data_dir) / f"{safe}.json"
+    # The filename is a HASH of the id, never the id itself. ``envelope_id`` arrives as a request
+    # path param (POST /internal/outbox/{id}/status), so hashing removes the path-injection surface
+    # entirely (a hex digest can't carry a separator; CodeQL py/path-injection). Dedupe still holds:
+    # same id → same hash → same file. The real id lives inside the file, so ``list_pending`` (which
+    # reads file contents, not names) is unaffected.
+    digest = hashlib.sha256(envelope_id.encode("utf-8")).hexdigest()
+    return _outbox_dir(data_dir) / f"{digest}.json"
 
 
 def _lock(data_dir: Path, envelope_id: str) -> FileLock:
