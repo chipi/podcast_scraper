@@ -31,6 +31,7 @@ from podcast_scraper.server.routes import (
     app_collections,
     app_comms,
     app_consolidation,
+    app_corpus,
     app_discover,
     app_enrichment,
     app_episodes,
@@ -216,6 +217,7 @@ _APP_ROUTES = (
     app_capture,
     app_collections,
     app_comms,
+    app_corpus,
     app_enrichment,
     app_consolidation,
 )

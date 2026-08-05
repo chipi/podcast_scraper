@@ -54,8 +54,9 @@ authoritative, change-trackable definition.
 
 ## Constraints & Assumptions
 
-- **Recall semantics are frozen** — recall/connections stay on `experienced` (= today's
-  `user_episode_set`); this RFC must not change what those surfaces return.
+- **Recall stays on `experienced`** — recall/connections read `experienced` only. This *corrects*
+  today's `user_episode_set` by dropping episode-favorites (§1.1); it does not otherwise change what
+  those surfaces return.
 - **No per-user index rebuild** — read-time projection over shared artifacts + the per-user overlay.
 - **Privacy** — strictly the user's own signals; nothing crosses users.
 
@@ -64,13 +65,21 @@ authoritative, change-trackable definition.
 ### Phase 1 — membership, revision counter, API (keystone; ships first)
 
 **1.1 Faceted membership.**
-- `experienced(user)` = heard (≥threshold) ∪ captured (highlight/note/saved-insight). **Identical to
-  today's `user_episode_set`** — a rename/generalization, not a semantic change. Collections add
-  nothing (they hold highlights ⇒ already captured).
-- `saved(user)` = episodes the user favorited but has not experienced. A **distinct** facet.
+- `experienced(user)` = heard (≥threshold) ∪ highlights ∪ notes ∪ **saved-insights** (a bookmarked
+  grounded insight = engagement with that episode's content). Collections add nothing (they hold
+  highlights ⇒ already captured).
+- `saved(user)` = episodes the user **favorited as a whole episode** but has not experienced —
+  "save for later", not "learned". A **distinct** facet.
 - `personal_corpus(user)` = `{ experienced, saved }`. **Consumers choose the facet:** recall +
-  cross-episode connections use `experienced` **only** (no change to shipped behaviour); Library,
-  export, and the digest may show `saved` too, **visibly labelled** as saved-not-heard.
+  cross-episode connections use `experienced` **only**; Library, export, and the digest may show
+  `saved` too, **visibly labelled** as saved-not-heard.
+- **Deliberate correction (operator-confirmed 2026-08-05, NOT "no change"):** today's
+  `user_episode_set` wrongly folds **episode-favorites** into the captured set, so a
+  favorited-but-never-played episode currently appears in recall ("what have I learned about X").
+  This RFC **removes** episode-favorites from `experienced` → recall returns fewer results for users
+  who favorited episodes they never heard. That is an intended fix of a pre-existing conflation, not
+  a no-op rename. Saved-*insights* stay in `experienced` (content engagement); episode-*favorites*
+  move to `saved`. A regression test pins the corrected recall set.
 
 **1.2 Revision counter + change log (the missing primitive).**
 - A per-user monotonic `corpus_revision` integer, incremented on every personal-signal write:
@@ -133,9 +142,10 @@ only saved.
 
 ## Testing Strategy
 
-- Unit: `experienced` = exactly today's `user_episode_set` (regression: recall output unchanged);
-  `saved` excludes experienced; revision counter increments on each signal write; change log emits
-  tombstones on delete; playback-threshold crossing flips facet + bumps revision.
+- Unit: `experienced` = heard ∪ highlights ∪ notes ∪ saved-insights, and **excludes episode-favorites**
+  (regression pins the corrected recall set); `saved` = episode-favorites − experienced; revision
+  counter increments on each signal write; change log emits tombstones on delete; playback-threshold
+  crossing flips facet + bumps revision.
 - Integration: recall/connections return identically before/after (frozen semantics); `since=<rev>`
   delta = adds + removes; multi-user isolation (A's corpus never includes B's signals).
 

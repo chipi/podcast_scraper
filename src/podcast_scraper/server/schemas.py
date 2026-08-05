@@ -694,6 +694,47 @@ class DerivedInterestsResponse(BaseModel):
     items: list[DerivedInterest] = Field(default_factory=list)
 
 
+# --- Personal corpus — the unified definition (RFC-114 Phase 1, #1470) ---
+
+
+class CorpusSummary(BaseModel):
+    """GET /api/app/corpus — faceted membership counts + the current revision."""
+
+    revision: int = Field(ge=0, description="Current corpus revision (RFC-114 change-log counter).")
+    experienced_count: int = Field(ge=0, description="Heard ∪ highlights ∪ notes ∪ saved-insights.")
+    saved_count: int = Field(ge=0, description="Whole-episode favorites not in `experienced`.")
+    top_entities: list[DerivedInterest] = Field(
+        default_factory=list, description="Top person/topic in the experienced corpus."
+    )
+
+
+class CorpusFacetEpisodesResponse(BaseModel):
+    """GET /api/app/corpus/episodes?facet= — the episode slugs in a personal-corpus facet."""
+
+    facet: Literal["experienced", "saved"] = Field(description="Which membership facet.")
+    slugs: list[str] = Field(default_factory=list)
+
+
+class CorpusChangeEvent(BaseModel):
+    """One change-log entry — an add or a tombstone (removal)."""
+
+    seq: int = Field(ge=1, description="Monotonic revision at which this change happened.")
+    kind: Literal["added", "removed"] = Field(description="Membership add or removal (tombstone).")
+    facet: Literal["experienced", "saved"] = Field(description="Which facet changed.")
+    ref: str = Field(description="Episode slug the change concerns.")
+
+
+class CorpusChangesResponse(BaseModel):
+    """GET /api/app/corpus/changes?since= — the delta a consumer (export) applies."""
+
+    revision: int = Field(ge=0, description="Current revision after reconciling.")
+    since: int = Field(ge=0, description="The cursor the caller supplied.")
+    truncated: bool = Field(
+        description="True when `since` predates the retained log → do a full re-export."
+    )
+    events: list[CorpusChangeEvent] = Field(default_factory=list)
+
+
 # --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
 
 

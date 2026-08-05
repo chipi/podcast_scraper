@@ -60,16 +60,20 @@ def slug_durations(root: Path) -> dict[str, float]:
 
 
 def _captured_slugs(data_dir: Path, user_id: str) -> set[str]:
-    """Every slug the user has captured from — highlights, favourited episodes/insights, notes."""
+    """Slugs the user engaged with — highlights, notes, saved-**insights** (RFC-114 §1.1).
+
+    NOTE (RFC-114 correction): a whole-**episode** favorite is *saved-for-later*, not engagement, so
+    it is NOT captured here (it belongs to the :func:`saved_episode_set` facet). Saved-*insights*
+    stay — bookmarking a grounded insight is engagement with that episode's content.
+    """
     slugs: set[str] = set()
     for h in app_user_state.get_highlights(data_dir, user_id):
         if h.get("episode_slug"):
             slugs.add(str(h["episode_slug"]))
     for fav in app_user_state.get_favorites(data_dir, user_id):
-        kind, ref = fav.get("kind"), fav.get("ref")
-        if kind == "episode" and ref:
-            slugs.add(str(ref))
-        elif fav.get("slug"):  # saved insight carries its episode slug
+        # kind == "episode" → the `saved` facet, excluded here. Non-episode favorites (saved
+        # insights) carry their episode slug and count as engagement.
+        if fav.get("kind") != "episode" and fav.get("slug"):
             slugs.add(str(fav["slug"]))
     for note in app_user_state.get_notes(data_dir, user_id, target="episode"):
         if note.get("target_id"):
@@ -77,13 +81,37 @@ def _captured_slugs(data_dir: Path, user_id: str) -> set[str]:
     return slugs
 
 
-def user_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
-    """Assemble the user's heard∪captured episode set from their per-user files + the catalog."""
+def experienced_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
+    """The user's `experienced` corpus (RFC-114): heard ∪ highlights ∪ notes ∪ saved-insights.
+
+    Excludes whole-episode favorites (those are `saved`). This is the set recall / connections /
+    `scope=mine` read.
+    """
     playback = app_user_state.list_playback(data_dir, user_id)
     captured = _captured_slugs(data_dir, user_id)
     # Durations are only needed to judge "heard"; skip the catalog scan when there's no playback.
     durations = slug_durations(root) if playback else {}
     return derive_episode_set(playback, captured, durations)
+
+
+#: Back-compat alias — recall/connections/digest call ``user_episode_set``; it now returns
+#: the corrected ``experienced`` set (episode-favorites removed per RFC-114).
+def user_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
+    """Alias for :func:`experienced_episode_set` (RFC-114 concept rename; callers unchanged)."""
+    return experienced_episode_set(root, data_dir, user_id)
+
+
+def saved_episode_set(data_dir: Path, user_id: str) -> set[str]:
+    """The user's `saved` facet (RFC-114): whole-episode favorites (may overlap `experienced`).
+
+    Pure per-user read (no catalog needed). Consumers that want "saved but not experienced" subtract
+    :func:`experienced_episode_set` themselves.
+    """
+    out: set[str] = set()
+    for fav in app_user_state.get_favorites(data_dir, user_id):
+        if fav.get("kind") == "episode" and fav.get("ref"):
+            out.add(str(fav["ref"]))
+    return out
 
 
 def derive_interests(
