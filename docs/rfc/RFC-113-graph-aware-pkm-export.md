@@ -1,6 +1,9 @@
 # RFC-113: Graph-Aware PKM Export (Obsidian)
 
-- **Status**: Draft
+- **Status**: Draft — **v1 shipped** (#1472): full Obsidian export (`GET /api/app/export?format=obsidian`,
+  `app_pkm_export`) — id-keyed wikilinked highlight/entity/episode notes under `closelistening/`, zip +
+  manifest carrying the corpus revision. Incremental delta (over RFC-114's change log) + Notion remain
+  the follows below.
 - **Authors**: Marko, Claude (Opus 4.8), advisor (Fable 5)
 - **Related epic**: [#1472](https://github.com/chipi/podcast_scraper/issues/1472)
 - **Stakeholders**: Core team, platform users (PKM/second-brain), Consumer App
