@@ -102,14 +102,18 @@ authoritative, change-trackable definition.
 per-user entity view (person/topic → episodes, first/last heard). The graph recall traverses + the
 export serializes.
 
-### Phase 2 — strength model (trails; ranking only, no consumer blocks on it)
+### Phase 2 — strength model (trails; ranking only, no consumer blocks on it) — **implemented**
 
-- A transparent per-episode **strength** score from the present signals, used to rank recall, order
-  the digest, weight interest inference, and pick "strongest items". **Formula (v1, tunable):**
-  `strength = w_h·heard_fraction + w_c·min(captures,C)/C + w_f·favorited + w_r·min(relistens,R)/R`,
-  weights `w_*` summing to 1, clamped `[0,1]`, comparable within a user (not across users v1). Recency
-  decay + negative signals (dismissed/skipped) are **explicit open questions** (§Open Questions), not
-  silent. No ML.
+- A transparent per-episode **strength** score, `[0,1]`, from the present signals (`app_corpus_strength`).
+  **Formula:** `strength = w_h·heard_fraction + w_c·min(captures,C)/C + w_f·favorited + w_r·min(relistens,R)/R`,
+  weights summing to 1, clamped, **monotonic** in each signal. **v1 weights/caps** (`Weights`, tunable):
+  `w_h=0.4, w_c=0.3, w_f=0.1, w_r=0.2`; `C=5` captures, `R=3` relistens. Signals: `heard_fraction` from
+  playback/duration, `captures` = highlights + episode-notes, `favorited` = episode-favorite,
+  `relistens` = `max(0, opens−1)` from the listen log. Comparable **within** a user, not across users
+  (v1). No ML.
+- **Surfaced** at `GET /api/app/corpus/ranked` (experienced episodes, strongest first). **Not yet
+  adopted** by recall/digest ordering — that's incremental consumer wiring, a follow.
+- Recency decay + negative signals (dismissed/skipped) remain **open questions**, out of v1.
 - Nothing downstream **blocks** on Phase 2 — MCP scope + export need membership (Phase 1) only.
 
 ### Surface consumption

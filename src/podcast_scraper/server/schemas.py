@@ -735,6 +735,19 @@ class CorpusChangesResponse(BaseModel):
     events: list[CorpusChangeEvent] = Field(default_factory=list)
 
 
+class CorpusRankedEpisode(BaseModel):
+    """One experienced episode with its strength score (RFC-114 Phase 2)."""
+
+    slug: str = Field(description="Episode slug.")
+    strength: float = Field(ge=0.0, le=1.0, description="Corpus strength in [0,1] (within-user).")
+
+
+class CorpusRankedResponse(BaseModel):
+    """GET /api/app/corpus/ranked — experienced episodes, strongest first (RFC-114 Phase 2)."""
+
+    items: list[CorpusRankedEpisode] = Field(default_factory=list)
+
+
 # --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
 
 

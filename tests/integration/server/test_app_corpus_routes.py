@@ -111,3 +111,23 @@ def test_requires_auth(tmp_path: Path) -> None:
     app.state.session_secret = "s"
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     assert TestClient(app).get("/api/app/corpus").status_code in (401, 403)
+
+
+def test_ranked_by_strength(tmp_path: Path) -> None:
+    client, root, data_dir, uid = _authed(tmp_path)
+    slug = _corpus(root)
+    # heard the episode + a highlight on it → it ranks; a second experienced ep via a note only.
+    app_user_state.set_playback(data_dir, uid, slug, 1000.0, 1)  # fully heard
+    app_user_state.add_highlight(
+        data_dir, uid, {"id": "h1", "episode_slug": slug, "kind": "span", "created_at": 1}
+    )
+    app_user_state.add_highlight(
+        data_dir, uid, {"id": "h2", "episode_slug": "ep-note-only", "kind": "span", "created_at": 1}
+    )
+    ranked = client.get("/api/app/corpus/ranked").json()["items"]
+    slugs = [r["slug"] for r in ranked]
+    assert slug in slugs and "ep-note-only" in slugs
+    # the fully-heard + highlighted episode outranks the capture-only one
+    by = {r["slug"]: r["strength"] for r in ranked}
+    assert by[slug] > by["ep-note-only"]
+    assert ranked == sorted(ranked, key=lambda r: -r["strength"])  # strongest first

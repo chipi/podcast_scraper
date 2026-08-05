@@ -12,7 +12,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from podcast_scraper.server import app_corpus_revision, app_user_corpus
+from podcast_scraper.server import app_corpus_revision, app_corpus_strength, app_user_corpus
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_resurfacing import derive_interest_signals
@@ -22,6 +22,8 @@ from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     CorpusChangesResponse,
     CorpusFacetEpisodesResponse,
+    CorpusRankedEpisode,
+    CorpusRankedResponse,
     CorpusSummary,
     DerivedInterest,
 )
@@ -93,3 +95,16 @@ async def corpus_changes(
     root = corpus_root_or_503(request)
     result = app_corpus_revision.changes_since(root, _data_dir(request), user.user_id, since)
     return CorpusChangesResponse(**result)
+
+
+@router.get("/corpus/ranked", response_model=CorpusRankedResponse)
+async def corpus_ranked(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=500),
+    user: User = Depends(get_current_user),
+) -> CorpusRankedResponse:
+    """Experienced episodes ranked by corpus strength, strongest first (RFC-114 Phase 2)."""
+    root = corpus_root_or_503(request)
+    scores = app_corpus_strength.episode_strengths(root, _data_dir(request), user.user_id)
+    ordered = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+    return CorpusRankedResponse(items=[CorpusRankedEpisode(slug=s, strength=v) for s, v in ordered])
