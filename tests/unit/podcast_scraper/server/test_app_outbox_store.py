@@ -114,3 +114,28 @@ def test_delivered_does_not_suppress(tmp_path: Path) -> None:
     app_outbox_store.enqueue(tmp_path, _envelope())
     app_outbox_store.record_status(tmp_path, _envelope()["id"], "delivered")
     assert app_comms_store.get_comms(tmp_path, _UID)["digest"]["enabled"] is True
+
+
+def test_pending_multi_user_consent_isolation(tmp_path: Path) -> None:
+    # Two users, one consented one not — only the consented user's envelope is returned.
+    other = "u_fedcba9876543210fedcba98"
+    _enable_digest(tmp_path)  # _UID consents
+    app_outbox_store.enqueue(tmp_path, _envelope(eid="mine"))
+    app_outbox_store.enqueue(tmp_path, _envelope(eid="theirs", user_id=other))
+    got = [e["id"] for e in app_outbox_store.list_pending(tmp_path, channel="email")]
+    assert got == ["mine"]
+
+
+def test_pending_malformed_expires_at_is_not_dropped(tmp_path: Path) -> None:
+    # An unparsable TTL is treated as non-expiring (documented graceful behaviour), not dropped.
+    _enable_digest(tmp_path)
+    app_outbox_store.enqueue(tmp_path, _envelope(expires_at="not-a-date"))
+    got = app_outbox_store.list_pending(tmp_path, channel="email", now=10**12)
+    assert [e["id"] for e in got] == [_envelope()["id"]]
+
+
+def test_pending_excludes_expired_offset_form(tmp_path: Path) -> None:
+    # A tz-aware expires_at WITHOUT the Z suffix (explicit +00:00) is parsed + expired correctly.
+    _enable_digest(tmp_path)
+    app_outbox_store.enqueue(tmp_path, _envelope(expires_at="2000-01-01T00:00:00+00:00"))
+    assert app_outbox_store.list_pending(tmp_path, channel="email", now=10**9) == []

@@ -134,6 +134,8 @@ def remove_item(data_dir: Path, user_id: str, collection_id: str, highlight_id: 
         return []
     with _lock(data_dir, user_id):
         doc = _read(data_dir, user_id)
+        if not _collection_exists(doc, collection_id):
+            return []  # don't persist a ghost membership entry for an unknown collection
         members = [h for h in doc["items"].get(collection_id, []) if h != highlight_id]
         doc["items"][collection_id] = members
         _write(data_dir, user_id, doc)

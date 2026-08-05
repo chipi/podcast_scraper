@@ -65,3 +65,14 @@ def test_unsafe_user_id(tmp_path: Path) -> None:
     assert cs.list_collections(tmp_path, "../evil") == []
     with pytest.raises(ValueError):
         cs.create_collection(tmp_path, "../evil", "c")
+
+
+def test_remove_item_unknown_collection_no_ghost_write(tmp_path: Path) -> None:
+    cs.create_collection(tmp_path, _UID, "real")
+    assert cs.remove_item(tmp_path, _UID, "col_missing", "h1") == []
+    # the unknown id must NOT have been persisted as an empty membership
+    assert cs.get_items(tmp_path, _UID, "col_missing") == []
+    import json
+
+    raw = json.loads((tmp_path / "users" / _UID / "collections.json").read_text())
+    assert "col_missing" not in raw["items"]

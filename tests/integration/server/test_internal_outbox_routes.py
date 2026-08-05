@@ -114,3 +114,51 @@ def test_status_rejects_bad_enum(tmp_path: Path) -> None:
         headers={"X-Internal-Token": _TOKEN},
     )
     assert resp.status_code == 422
+
+
+def test_wrong_token_401(tmp_path: Path) -> None:
+    app, _ = _app(tmp_path)  # token configured
+    resp = TestClient(app).get(
+        "/internal/outbox/pending",
+        params={"channel": "email"},
+        headers={"X-Internal-Token": "wrong-token"},
+    )
+    assert resp.status_code == 401
+
+
+def test_expired_envelope_excluded_at_route(tmp_path: Path) -> None:
+    app, data_dir = _app(tmp_path)
+    app_comms_store.set_comms(data_dir, _UID, digest={"enabled": True})
+    env = _envelope()
+    env["expires_at"] = "2000-01-01T00:00:00Z"  # long past → excluded (route uses real now)
+    app_outbox_store.enqueue(data_dir, env)
+    resp = TestClient(app).get(
+        "/internal/outbox/pending",
+        params={"channel": "email"},
+        headers={"X-Internal-Token": _TOKEN},
+    )
+    assert resp.json()["envelopes"] == []
+
+
+def test_pending_refilters_after_unsubscribe(tmp_path: Path) -> None:
+    app, data_dir = _app(tmp_path)
+    ref = app_comms_store.set_comms(data_dir, _UID, digest={"enabled": True})["unsubscribe_ref"]
+    app_outbox_store.enqueue(data_dir, _envelope())
+    client = TestClient(app)
+    h = {"X-Internal-Token": _TOKEN}
+    assert (
+        len(
+            client.get("/internal/outbox/pending", params={"channel": "email"}, headers=h).json()[
+                "envelopes"
+            ]
+        )
+        == 1
+    )
+    # user unsubscribes → the next worker poll must not return their envelope
+    app_comms_store.unsubscribe(data_dir, ref)
+    assert (
+        client.get("/internal/outbox/pending", params={"channel": "email"}, headers=h).json()[
+            "envelopes"
+        ]
+        == []
+    )

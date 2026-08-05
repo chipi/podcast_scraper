@@ -1,6 +1,6 @@
 # ADR-145: The app↔infra delivery boundary is a channel-agnostic outbox seam
 
-- **Status**: Accepted — 2026-08-04 (operator ratified the seam as the app↔infra boundary). Implementation tracked by epic #1413; not yet executed.
+- **Status**: Accepted — 2026-08-04 (operator ratified the seam as the app↔infra boundary). **App side implemented** (epic #1413: `app_outbox_store`, `routes/internal_outbox`, `app_digest_personal`, the scheduler `digest` job, the Web Push path). The infra delivery worker (#1412) is the remaining half.
 - **Date**: 2026-08-04
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (full schema + endpoints), [ADR-144](ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md) (what runs on the infra side), [PRD-046](../prd/PRD-046-delivery-and-curation.md), the D6 no-request-time-LLM rule

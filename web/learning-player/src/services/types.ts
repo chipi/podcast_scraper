@@ -253,7 +253,8 @@ export interface Highlight {
   created_at: number
   /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
   anchor_status: string | null
-  /** Canonical person/topic refs (#1419) — the highlight as a graph node. Always sent by the API. */
+  /** Canonical person/topic refs (#1419) — the highlight as a graph node. Optional: absent on
+   *  pre-#1419 highlights and when the episode has no KG, so callers must guard (`?? []`). */
   graph_refs?: EntityRef[]
 }
 

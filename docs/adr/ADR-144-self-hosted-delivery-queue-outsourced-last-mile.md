@@ -49,6 +49,10 @@ MTA.
 
 ## Decision
 
+> **[SUPERSEDED — see the Revision note above.]** Items 2–4 (Listmonk + SES + Caddy edge) are no
+> longer the architecture; the app outbox is the queue and email goes via Resend. Item 1 (Web Push
+> self-hosted) still stands. Retained below for history.
+
 1. **Web Push: fully self-hosted.** Generate + store a VAPID keypair; run a push worker in our own
    infra. No third-party push provider.
 2. **Email queue/management: self-hosted Listmonk**, deployed behind the shared Caddy edge (ADR-114,

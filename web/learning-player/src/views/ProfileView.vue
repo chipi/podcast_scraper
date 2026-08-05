@@ -69,7 +69,15 @@ async function saveDigest(): Promise<void> {
 async function onPushToggle(): Promise<void> {
   if (!comms.value) return
   if (comms.value.push.enabled) {
-    const ok = await enablePush()
+    // enablePush registers the subscription (which enables the channel server-side). If the browser
+    // can't (false) OR the register POST throws, revert the toggle so the UI never claims "on"
+    // without a real subscription.
+    let ok = false
+    try {
+      ok = await enablePush()
+    } catch {
+      ok = false
+    }
     if (!ok) comms.value = await putComms({ push: { enabled: false } })
   } else {
     await disablePush()

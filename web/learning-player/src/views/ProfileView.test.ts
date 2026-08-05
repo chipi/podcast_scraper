@@ -161,4 +161,17 @@ describe('ProfileView — notifications', () => {
 
     expect(put).toHaveBeenCalledWith({ push: { enabled: false } })
   })
+
+  it('reverts the push toggle when the subscribe POST throws (no desync)', async () => {
+    vi.spyOn(push, 'enablePush').mockRejectedValue(new Error('network'))
+    const put = vi.spyOn(api, 'putComms').mockResolvedValue(comms({ push: { enabled: false } }))
+    const w = mountProfile()
+    await flushPromises()
+
+    const boxes = w.findAll('input[type="checkbox"]')
+    await boxes[boxes.length - 1].setValue(true)
+    await flushPromises()
+
+    expect(put).toHaveBeenCalledWith({ push: { enabled: false } })
+  })
 })

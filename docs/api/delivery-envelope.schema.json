@@ -14,6 +14,7 @@
     "recipient",
     "consent_snapshot",
     "payload",
+    "expires_at",
     "created_at"
   ],
   "properties": {
@@ -41,7 +42,7 @@
     "expires_at": {
       "type": "string",
       "format": "date-time",
-      "description": "TTL — the delivery service MUST NOT deliver after this instant, so a homelab-down window does not flush stale digests on recovery. The assembler SHOULD set it (e.g. not_before + one cadence period). Seam v1.1 (2026-08-04)."
+      "description": "TTL (required) — the delivery service MUST NOT deliver after this instant, so a homelab-down window does not flush stale digests on recovery. The assembler sets it to not_before + one cadence period. Seam v1.1 (2026-08-04)."
     },
     "created_at": { "type": "string", "format": "date-time" }
   },
@@ -126,6 +127,8 @@
         "t_ms": { "type": ["integer", "null"], "minimum": 0 },
         "graph_refs": {
           "type": "array",
+          "minItems": 1,
+          "description": "MUST be non-empty — an item carries the graph, never a flat clip (moat rule).",
           "items": { "$ref": "#/$defs/graphRef" }
         },
         "deep_link": {
@@ -145,7 +148,7 @@
       "required": ["kind", "items"],
       "properties": {
         "kind": { "enum": ["revisit", "new_in_follows", "trending_in_your_corpus"] },
-        "items": { "type": "array", "items": { "$ref": "#/$defs/digestItem" } }
+        "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/digestItem" } }
       }
     },
     "digestPayload": {

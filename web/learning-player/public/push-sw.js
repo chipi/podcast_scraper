@@ -29,8 +29,15 @@ self.addEventListener('notificationclick', (event) => {
   const url = (event.notification.data && event.notification.data.url) || '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // Focus an existing tab AND navigate it to the nudge's deep-link (not just wherever it was).
       for (const client of list) {
-        if ('focus' in client) return client.focus()
+        if ('focus' in client) {
+          const focused = client.focus()
+          if ('navigate' in client) {
+            return Promise.resolve(focused).then(() => client.navigate(url).catch(() => client))
+          }
+          return focused
+        }
       }
       return self.clients.openWindow(url)
     }),

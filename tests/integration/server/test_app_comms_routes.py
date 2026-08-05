@@ -129,3 +129,20 @@ def test_comms_requires_auth(tmp_path: Path) -> None:
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     resp = TestClient(app).get("/api/app/comms")
     assert resp.status_code in (401, 403)
+
+
+def test_push_unsubscribe_partial_keeps_enabled(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/push/subscribe",
+        json={"endpoint": "https://push.invalid/a", "keys": {"auth": "a"}},
+    )
+    client.post(
+        "/api/app/push/subscribe",
+        json={"endpoint": "https://push.invalid/b", "keys": {"auth": "b"}},
+    )
+    resp = client.request(
+        "DELETE", "/api/app/push/subscribe", json={"endpoint": "https://push.invalid/a"}
+    )
+    assert resp.status_code == 200 and resp.json()["count"] == 1
+    assert client.get("/api/app/comms").json()["push"]["enabled"] is True

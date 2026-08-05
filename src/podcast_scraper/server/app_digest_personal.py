@@ -18,6 +18,7 @@ period for every consenting user and relies on outbox dedupe (per-period id) to 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import time
 from pathlib import Path
 from typing import Any
@@ -173,9 +174,10 @@ def build_push_envelope(
     now: int,
 ) -> dict[str, Any]:
     """Wrap a nudge payload into a push DeliveryEnvelope for one subscription (schema v1)."""
-    # One envelope per subscription; the endpoint tail keeps ids distinct + idempotent per period.
+    # One envelope per subscription; a stable hash of the FULL endpoint keeps ids distinct across
+    # subscriptions (a prefix could collide) + idempotent per period.
     endpoint = str(subscription.get("endpoint") or "")
-    sub_key = endpoint.rsplit("/", 1)[-1][:16] or "sub"
+    sub_key = hashlib.sha256(endpoint.encode("utf-8")).hexdigest()[:16] if endpoint else "sub"
     return {
         "schema_version": SCHEMA_VERSION,
         "id": f"ndg_{_period_key(now, 'daily')}_{user.user_id}_{sub_key}",

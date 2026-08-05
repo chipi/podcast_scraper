@@ -122,11 +122,14 @@ export default defineConfig({
           },
           {
             // Shared, non-user GET reads (catalog/episode/segments/search) — SWR is safe.
-            // Per-user + auth endpoints (/me, /queue, /playback, /auth) are EXCLUDED: caching
-            // them risks serving one session's state to another across sign-in/out.
+            // Per-user + auth endpoints are EXCLUDED: caching them risks serving one session's
+            // state to another across sign-in/out (SWR ignores Cache-Control + isn't user-keyed).
+            // Keep this list in sync with every auth-gated /api/app surface.
             urlPattern: ({ url }: { url: URL }) =>
               url.pathname.startsWith('/api/app/') &&
-              !/^\/api\/app\/(me|queue|playback|auth)\b/.test(url.pathname),
+              !/^\/api\/app\/(me|auth|queue|playback|comms|push|highlights|notes|favorites|collections|resurfacing|interests)\b/.test(
+                url.pathname,
+              ),
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'api-app',

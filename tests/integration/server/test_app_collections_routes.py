@@ -74,3 +74,18 @@ def test_requires_auth(tmp_path: Path) -> None:
     app.state.session_secret = "s"
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     assert TestClient(app).get("/api/app/collections").status_code in (401, 403)
+
+
+def test_remove_item_route(tmp_path: Path) -> None:
+    client, data_dir, uid = _authed(tmp_path)
+    for hid in ("h1", "h2"):
+        app_user_state.add_highlight(
+            data_dir, uid, {"id": hid, "episode_slug": "ep", "kind": "span", "created_at": 1}
+        )
+    cid = client.post("/api/app/collections", json={"name": "c"}).json()["id"]
+    client.post(f"/api/app/collections/{cid}/items", json={"highlight_id": "h1"})
+    client.post(f"/api/app/collections/{cid}/items", json={"highlight_id": "h2"})
+    resp = client.request("DELETE", f"/api/app/collections/{cid}/items/h1")
+    assert resp.status_code == 200 and resp.json()["count"] == 1
+    ids = [h["id"] for h in client.get(f"/api/app/collections/{cid}").json()["highlights"]]
+    assert ids == ["h2"]
