@@ -761,6 +761,43 @@ class VapidKeyResponse(BaseModel):
     key: str = Field(description="URL-safe base64 VAPID public key.")
 
 
+# --- Collections / boards — the curation layer (#1417, PRD-046 FR4 / RFC-111 §1) ---
+
+
+class Collection(BaseModel):
+    """A user collection (GET/POST /api/app/collections)."""
+
+    id: str = Field(description="Opaque collection id.")
+    name: str = Field(description="Display name.")
+    created_at: int = Field(description="Unix time created.")
+    count: int = Field(default=0, ge=0, description="Number of highlights in the collection.")
+
+
+class CollectionCreate(BaseModel):
+    """POST /api/app/collections body."""
+
+    name: str = Field(min_length=1, max_length=120, description="Collection name.")
+
+
+class CollectionsResponse(BaseModel):
+    """The user's collections (newest-first)."""
+
+    items: list[Collection] = Field(default_factory=list)
+
+
+class CollectionItemBody(BaseModel):
+    """POST /api/app/collections/{id}/items body."""
+
+    highlight_id: str = Field(min_length=1, description="Highlight to add.")
+
+
+class CollectionDetail(BaseModel):
+    """A collection with its resolved highlights (GET /api/app/collections/{id})."""
+
+    collection: Collection
+    highlights: list[Highlight] = Field(default_factory=list)
+
+
 # --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
 
 

@@ -8,6 +8,8 @@
 
 import type {
   AudioSource,
+  Collection,
+  CollectionDetail,
   CommsSettings,
   CommsUpdate,
   CorpusEnrichmentSignals,
@@ -713,4 +715,59 @@ export async function unsubscribePush(endpoint: string): Promise<{ count: number
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /push/subscribe → ${resp.status}`)
   return (await resp.json()) as { count: number }
+}
+
+// --- Collections / boards (PRD-046 FR4 / #1417) ---
+
+export async function getCollections(): Promise<Collection[]> {
+  try {
+    return (await getJSON<{ items: Collection[] }>('/collections')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+export async function getCollection(id: string): Promise<CollectionDetail> {
+  return getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
+}
+
+export async function createCollection(name: string): Promise<Collection> {
+  const resp = await apiFetch(`${BASE}/collections`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /collections → ${resp.status}`)
+  return (await resp.json()) as Collection
+}
+
+export async function deleteCollection(id: string): Promise<Collection[]> {
+  const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id} → ${resp.status}`)
+  return ((await resp.json()) as { items: Collection[] }).items
+}
+
+export async function addToCollection(id: string, highlightId: string): Promise<Collection> {
+  const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ highlight_id: highlightId }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /collections/${id}/items → ${resp.status}`)
+  return (await resp.json()) as Collection
+}
+
+export async function removeFromCollection(id: string, highlightId: string): Promise<Collection> {
+  const resp = await apiFetch(
+    `${BASE}/collections/${encodeURIComponent(id)}/items/${encodeURIComponent(highlightId)}`,
+    { method: 'DELETE', credentials: 'include' },
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id}/items → ${resp.status}`)
+  return (await resp.json()) as Collection
 }

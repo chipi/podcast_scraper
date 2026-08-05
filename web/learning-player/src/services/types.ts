@@ -326,6 +326,20 @@ export interface ResurfacingSettings {
   paused: boolean
 }
 
+// --- Collections / boards — curation layer (PRD-046 FR4 / #1417) ---
+
+export interface Collection {
+  id: string
+  name: string
+  created_at: number
+  count: number
+}
+
+export interface CollectionDetail {
+  collection: Collection
+  highlights: Highlight[]
+}
+
 // --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
 
 export interface CommsDigest {

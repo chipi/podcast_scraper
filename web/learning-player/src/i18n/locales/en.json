@@ -281,6 +281,17 @@
     "up": "Move up",
     "down": "Move down"
   },
+  "collections": {
+    "namePlaceholder": "New collection name",
+    "create": "Create",
+    "empty": "No collections yet. Group highlights into named boards.",
+    "emptyBoard": "This collection is empty. Add highlights from the Highlights tab.",
+    "count": "no highlights | {count} highlight | {count} highlights",
+    "back": "Back",
+    "remove": "Delete collection",
+    "moment": "Moment",
+    "addTo": "Add to collection"
+  },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule.",
     "empty": "Nothing to revisit right now — check back later.",
@@ -325,6 +336,7 @@
     "title": "Library",
     "saved": "Saved",
     "highlights": "Highlights",
+    "collections": "Collections",
     "revisit": "Revisit",
     "queue": "Queue",
     "recent": "Recent",

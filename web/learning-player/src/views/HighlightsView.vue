@@ -8,7 +8,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { fetchHighlightsExport, getEpisode, highlightsExportUrl } from '../services/api'
+import {
+  addToCollection,
+  fetchHighlightsExport,
+  getCollections,
+  getEpisode,
+  highlightsExportUrl,
+} from '../services/api'
+import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from '../stores/capture'
@@ -102,8 +109,20 @@ async function exportHighlightsNative(): Promise<void> {
   }
 }
 
+// Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
+// "Add to…" select adds on change then resets to its placeholder.
+const collections = ref<Collection[]>([])
+
+async function addHighlightTo(highlightId: string, collectionId: string): Promise<void> {
+  if (!collectionId) return
+  const updated = await addToCollection(collectionId, highlightId)
+  const i = collections.value.findIndex((c) => c.id === updated.id)
+  if (i >= 0) collections.value[i] = updated
+}
+
 onMounted(async () => {
   await capture.ensureLoaded()
+  collections.value = await getCollections().catch(() => [])
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
   await Promise.all(
     slugs.map(async (slug) => {
@@ -199,6 +218,15 @@ onMounted(async () => {
                 :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
                 class="font-mono text-xs text-accent no-underline"
               >▶ {{ formatTime(h.start_ms / 1000) }}</RouterLink>
+              <select
+                v-if="collections.length"
+                class="max-w-[9rem] rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs"
+                :aria-label="t('collections.addTo')"
+                @change="addHighlightTo(h.id, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+              >
+                <option value="">{{ t('collections.addTo') }}</option>
+                <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
               <button
                 type="button"
                 class="rounded-full p-1 text-muted transition hover:text-danger"

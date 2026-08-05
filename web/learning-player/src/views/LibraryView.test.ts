@@ -63,6 +63,8 @@ beforeEach(() => {
   // HighlightsView (embedded) hydrates the capture store on mount.
   vi.spyOn(api, 'getHighlights').mockResolvedValue([])
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
+  // CollectionsView (embedded) loads on mount.
+  vi.spyOn(api, 'getCollections').mockResolvedValue([])
   // ResurfacingInbox (embedded) loads on mount.
   vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [], paused: false })
 })

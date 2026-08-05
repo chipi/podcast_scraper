@@ -37,6 +37,7 @@ const mountView = () => mount(HighlightsView, { global: { plugins: [i18n, router
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
+  vi.spyOn(api, 'getCollections').mockResolvedValue([])
 })
 afterEach(() => vi.restoreAllMocks())
 
