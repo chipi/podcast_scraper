@@ -29,7 +29,7 @@ pick the model that beats Gemini for less money at 100-ep scale.
 | deepseek-v4-pro | ~0.03+ | 8.44 | 7.11 | 6.33 | 7-2 | good summary but WEAK topics (loses to Gemini) + SLOW (36min on WSJ, hung) + pricey (9-ep) |
 | gpt-4.1-mini (openai) | ~0.020 | 7.67 | 6.89 | 7.44 | 6-3 | external ref: beats Gemini-lite but BELOW qwen/deepseek on every dimension + pricier |
 | kimi-k2.6 | ~0.044+ | 8.50 | 8.38 | 7.88 | 8-0* | BEST insights (8.38) but priciest output ($2.48/Mtok) + slow (~50min); *8-ep. Dominated by deepseek-flash (= quality, 5-10x cheaper, faster) |
-| glm-5.2 (full) | | | | | | pending |
+| glm-5.2 (full) | ~0.035 | 8.44 | 8.22 | 8.11 | 8-1 | full GLM FIXES glm-flash's weak topics (8.11 vs 6.86) — matches deepseek-flash quality, but 4x pricier + slow (~58min, timeouts) |
 | gpt-4.1-mini (openai) | | | | | | running |
 
 **Pro/reasoning tier verdict (gempro, deepseek-v4-pro, glm-4.7-flash, kimi):** all pathologically
