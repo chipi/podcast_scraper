@@ -87,6 +87,30 @@ def test_flat_clip_is_dropped(tmp_path: Path) -> None:
     assert app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9) is None
 
 
+def test_passive_user_gets_auto_seeded_digest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #1416: a user who captured nothing still gets a non-empty digest from editor's-picks.
+    uid = _user(tmp_path)
+    auto_item = {
+        "episode_slug": "ep-heard",
+        "graph_refs": _REFS,
+        "deep_link": "/player/ep-heard?t=60",
+        "t_ms": 60_000,
+        "quote": "auto pick",
+        "source": "auto",
+    }
+    monkeypatch.setattr(
+        app_digest_personal.app_auto_picks,
+        "auto_pick_items",
+        lambda root, dd, uid, *, exclude_slugs, limit: [auto_item],
+    )
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    assert payload is not None
+    items = payload["sections"][0]["items"]
+    assert [i["source"] for i in items] == ["auto"]
+
+
 def test_built_envelope_matches_contract_schema(tmp_path: Path) -> None:
     uid = _user(tmp_path)
     comms = app_comms_store.set_comms(tmp_path, uid, digest={"enabled": True})

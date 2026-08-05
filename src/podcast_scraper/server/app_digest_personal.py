@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.server import (
+    app_auto_picks,
     app_comms_store,
     app_graph_refs,
     app_outbox_store,
@@ -72,7 +73,12 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
 def assemble_digest_payload(
     root: Path, data_dir: Path, user_id: str, now: int
 ) -> dict[str, Any] | None:
-    """Assemble the extractive, graph-carrying digest payload, or None when nothing is due."""
+    """Assemble the extractive, graph-carrying digest payload, or None when there's nothing to send.
+
+    The revisit section is the user's due captures (source='user'), topped up — when under the cap —
+    with GI editor's-picks from heard-but-uncaptured episodes (source='auto', #1416). So a user who
+    captured nothing but listened still gets a non-empty digest.
+    """
     highlights = app_user_state.get_highlights(data_dir, user_id)
     state = app_user_state.get_resurfacing_state(data_dir, user_id)
     due = select_due(highlights, state, now)
@@ -83,6 +89,11 @@ def assemble_digest_payload(
             items.append(item)
         if len(items) >= MAX_REVISIT_ITEMS:
             break
+    if len(items) < MAX_REVISIT_ITEMS:
+        captured = {str(h.get("episode_slug")) for h in highlights}
+        items += app_auto_picks.auto_pick_items(
+            root, data_dir, user_id, exclude_slugs=captured, limit=MAX_REVISIT_ITEMS - len(items)
+        )
     if not items:
         return None
     return {"sections": [{"kind": "revisit", "items": items}]}
