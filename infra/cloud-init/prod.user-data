@@ -195,6 +195,71 @@ write_files:
     permissions: '0644'
     owner: root:root
 
+  # === INCIDENT-2026-08-05 prevention (prod root-disk exhaustion + tailnet clobber) ===
+  # Root cause was 128 GB of unpruned Docker images from deploying nonstop. Daily
+  # prune of unused images + build cache. Applied imperatively on the live box too
+  # (user_data is first-boot-only — see the hardening note above).
+  - path: /etc/systemd/system/docker-image-prune.service
+    content: |
+      [Unit]
+      Description=Prune unused Docker images (INCIDENT-2026-08-05 disk exhaustion prevention)
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/docker image prune -af
+      ExecStartPost=/usr/bin/docker builder prune -af
+    permissions: '0644'
+    owner: root:root
+
+  - path: /etc/systemd/system/docker-image-prune.timer
+    content: |
+      [Unit]
+      Description=Daily Docker image + build-cache prune
+
+      [Timer]
+      OnCalendar=daily
+      Persistent=true
+      RandomizedDelaySec=1h
+
+      [Install]
+      WantedBy=timers.target
+    permissions: '0644'
+    owner: root:root
+
+  # Inbound tailnet TCP accept. During the incident, dockerd churn dropped
+  # tailscale's INPUT accept rule, refusing ALL inbound tailnet TCP (SSH, :443)
+  # while pings still worked — blocking recovery. Oneshot re-inserts it after
+  # docker (mirrors the block-metadata-egress guard above). Idempotent; survives
+  # reboots. Plain iptables rules do not persist — this unit is why it does.
+  - path: /usr/local/sbin/ensure-tailscale-input.sh
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if ! iptables -C INPUT -i tailscale0 -j ACCEPT 2>/dev/null; then
+        iptables -I INPUT -i tailscale0 -j ACCEPT
+      fi
+    permissions: '0755'
+    owner: root:root
+
+  - path: /etc/systemd/system/tailscale-input-accept.service
+    content: |
+      [Unit]
+      Description=Ensure inbound tailnet TCP is accepted (INCIDENT-2026-08-05)
+      After=docker.service tailscaled.service
+      Wants=docker.service tailscaled.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/ensure-tailscale-input.sh
+
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0644'
+    owner: root:root
+
   # === Secret infra (ADR-115) ===
   # Shared multi-tenant secret-decrypt helper (sops/age -> /run/secrets/<tenant>
   # tmpfs files). Injected via file() (see main.tf ``decrypt_secrets_body``) so
@@ -294,6 +359,9 @@ runcmd:
   # Metadata-egress SSRF guard — oneshot unit re-inserts the DOCKER-USER DROP.
   - systemctl daemon-reload
   - systemctl enable --now block-metadata-egress.service
+  # INCIDENT-2026-08-05 prevention: daily image prune + persistent tailnet-input accept.
+  - systemctl enable --now docker-image-prune.timer
+  - systemctl enable --now tailscale-input-accept.service
   # ADR-115: dir for the VPS age identity. The PRIVATE key is staged by
   # deploy-prod.yml over the tailnet from a GH secret — deliberately NOT baked
   # into user_data (retrievable via the Hetzner metadata API). 0700 root.
