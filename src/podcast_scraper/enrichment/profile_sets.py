@@ -185,8 +185,9 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
-    if name in (
+    if name.startswith("bakeoff_") or name in (
         "cloud_thin",
+        "cloud_openrouter",
         "cloud_balanced",
         "cloud_quality",
         # ADR-134: cloud_balanced routing with community-1 diarization — same enricher tier.

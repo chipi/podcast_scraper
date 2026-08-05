@@ -1,13 +1,12 @@
-# Bake-off profile (#1356): v2.4 pipeline/quality with the LLM stages swapped to the homelab
-# LiteLLM gateway routing to OpenRouter deepseek-v4-flash-0731 (reasoning OFF). Bespoke (not a
-# registry preset) — used for the DGX-offline model bake-off via `--pipeline-stage enrich_only`
-# over FROZEN v2.4 transcripts (no ASR/diarization). Sibling of bakeoff_litellm_qwen36.yaml.
-#
-# Provider routing: qwen3.6 is only reachable via DeepInfra's rate-limited shared pool (needs BYOK
-# for real throughput); deepseek-flash-0731 is reachable via Novita WITHOUT BYOK and sustains the
-# real pipeline's call rate, so this is the runnable candidate today. `provider.order` prefers Novita
-# then DeepInfra as fallback.
-profile: bakeoff_litellm_deepseek_flash
+# Cloud production profile: v2.4 pipeline/quality with the LLM stages served via the homelab
+# LiteLLM gateway -> OpenRouter (cloud). The 100-ep v2.5 finale (2026-08-05) picked
+# deepseek-v4-flash as the CLOUD winner: it beats qwen3.7-flash on all dims (summary 8.31 vs 7.81,
+# insights 8.33 vs 7.94, topics 7.81 vs 7.40; 102-3 vs 2.4) at $0.0047/ep, and unlike qwen it does
+# not need to be DGX-served. Model is a config choice (podcast-flash-0731 alias); the DGX-local
+# winner (qwen, prod_dgx_full) is a separate profile because deepseek-flash cannot run on the DGX.
+# All PA finale fixes: chunked cleaning (PA1), reasoning-off, summarization_timeout 600 (PA-6),
+# GI/KG tuned knobs, real cost capture (PA3). Isolated podcast OpenRouter route via the gateway.
+profile: cloud_openrouter
 
 transcription:
   primary: whisper

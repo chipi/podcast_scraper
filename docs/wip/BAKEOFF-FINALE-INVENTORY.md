@@ -121,3 +121,40 @@ Commit checkpoint → resolve the reasoning-on/off confound → **deepseek-DIREC
 provider, not OpenRouter) to compare quality / speed(tokens-sec) / cost / reliability → build the
 **qwen native sibling** in parallel while it monitors. Base fixes (PA1/PA3) propagate to all
 siblings automatically.
+
+## HEAD-TO-HEAD — deepseek-v4-flash vs qwen3.7-flash (100-ep, fixed pipeline), 2026-08-05
+
+Both via the gateway→OpenRouter, reasoning-off, ALL PA fixes, judged vs 2.4 (Opus 4.8, blind A/B,
+top-12). deepseek = full 105; qwen = 89 eps judged (tail identical trend).
+
+| Dim | deepseek | qwen3.7 | Δ (deepseek−qwen) |
+|---|---|---|---|
+| Summary | 8.31 | 7.81 | +0.50 |
+| Insights | 8.33 | 7.94 | +0.39 |
+| Topics | 7.81 | 7.40 | +0.41 |
+| Overall vs 2.4 | **102-3** | 85-4 | both dominate 2.4 |
+| Cost/ep | $0.0047 | **$0.0025** | qwen ~half |
+
+**deepseek wins QUALITY on all three dimensions (+0.4–0.5 each); qwen wins COST (~half).** Both
+crush 2.4. This **contradicts the 9-ep bake-off** (where qwen was the "value winner") — at 100-ep
+scale on the fixed pipeline deepseek is clearly the stronger model, qwen the cheaper one.
+
+### Recommendation: default to **deepseek-v4-flash**
+At this price level the cost gap is negligible in absolute terms (~$0.23 per 100 eps; ~$2.30 per
+1000), while deepseek's quality edge is consistent and material (+0.4–0.5 per dimension, 102-3 vs
+85-4). deepseek's quality dominates unless the corpus scales to 10k+ eps where the per-ep cost
+compounds meaningfully — then qwen3.7-flash is the value fallback (still beats 2.4 decisively).
+Neither is close to Gemini/2.4 on the downside; both are safe replacements for the v2.4 Gemini LLM.
+
+## DEPLOYMENT-TARGETED PROFILES (operator, 2026-08-05)
+
+The winner is **deployment-dependent** — deepseek-v4-flash cannot be served on the DGX, qwen can:
+
+- **`cloud_openrouter`** (NEW) — cloud production via the LiteLLM gateway → OpenRouter. Model =
+  deepseek-v4-flash (`podcast-flash-0731`), the finale CLOUD winner (102-3 vs 2.4, $0.0047/ep). All
+  PA fixes, reasoning-off, PA-6 timeout 600. Provider-agnostic name (model is a config choice).
+  Registered in `profile_sets.py` (cloud tier) + `enrichment:` block added.
+- **`prod_dgx_full`** (UNCHANGED) — DGX-local production via vLLM. Model = the DGX-served qwen
+  (`Qwen3-30B-A3B`), the best qwen the hardware can run. Stays as-is.
+
+Backlog: research whether a **better qwen** is now available to serve on the DGX (task filed).

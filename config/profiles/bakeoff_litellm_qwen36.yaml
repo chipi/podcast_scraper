@@ -67,3 +67,23 @@ generate_summaries: true
 language: en
 log_level: INFO
 ner_model: en_core_web_trf
+
+# Corpus-enrichment layer (required top-level block; operators read the YAML to see what's active).
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
