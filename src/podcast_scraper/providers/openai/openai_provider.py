@@ -27,6 +27,7 @@ else:
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
 from ...utils.cleaning_max_tokens import (
+    _CLEANING_WORD_FACTOR,
     clamp_cleaning_max_tokens,
     estimate_cleaning_output_tokens,
     OPENAI_CLEANING_MAX_TOKENS,
@@ -57,6 +58,23 @@ def _openai_chat_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[in
     return input_tokens, output_tokens
 
 
+def _openai_response_cost_usd(response: Any) -> Optional[float]:
+    """PA3: the ACTUAL cost of a call, straight from the upstream response, when it exposes one.
+
+    OpenRouter returns ``usage.cost`` (real spend for the chosen backend); LiteLLM surfaces
+    ``_hidden_params["response_cost"]``. Preferring this over the local pricing-table estimate fixes
+    the gateway/OpenRouter ``estimated_cost_usd: 0.0`` gap (a table lookup misses aliased /
+    OpenRouter model ids). Returns None when no upstream cost is present so the caller falls back.
+    """
+    usage = getattr(response, "usage", None)
+    cost = getattr(usage, "cost", None) if usage is not None else None
+    if not isinstance(cost, (int, float)):
+        hidden = getattr(response, "_hidden_params", None)
+        if isinstance(hidden, dict):
+            cost = hidden.get("response_cost")
+    return float(cost) if isinstance(cost, (int, float)) and cost > 0 else None
+
+
 # Protocol types imported for type hints (used in docstrings and type annotations)
 # from ..speaker_detectors.base import SpeakerDetector  # noqa: F401
 # from ..summarization.base import SummarizationProvider  # noqa: F401
@@ -78,13 +96,18 @@ def _record_openai_summarization_call(
     *,
     cfg: Any,
     model: str,
+    provider_type: str = "openai",
 ) -> None:
-    """Record one OpenAI summarization LLM call into pipeline_metrics.
+    """Record one summarization LLM call into pipeline_metrics.
 
     Used by bundle-mode methods (summarize_bundled, summarize_mega_bundled,
     summarize_extraction_bundled) — these make one summary-pricing LLM call
     and historically skipped ``record_llm_summarization_call`` entirely, so
     cost/tokens vanished at pipeline level even though call_metrics saw them.
+
+    ``provider_type`` names the cost/pricing namespace (ADR-144): a sibling
+    (litellm/vllm/deepseek) passes its own ``_TELEMETRY_PROVIDER`` so cost is
+    never mis-attributed to ``openai`` pricing.
     """
     if pipeline_metrics is None or not hasattr(pipeline_metrics, "record_llm_summarization_call"):
         return
@@ -99,9 +122,9 @@ def _record_openai_summarization_call(
     out_tok = int(out_raw)
     from ...workflow.helpers import calculate_provider_cost
 
-    cost = calculate_provider_cost(
+    cost = _openai_response_cost_usd(response) or calculate_provider_cost(
         cfg=cfg,
-        provider_type="openai",
+        provider_type=provider_type,
         capability="summarization",
         model=model,
         prompt_tokens=in_tok,
@@ -140,6 +163,11 @@ class OpenAICompatibleProvider:
     # gateway subclasses (litellm) route to models that support more, so they raise this. A cap
     # too low truncates cleaning (finish_reason=length) and the guardrail discards the result.
     _CLEANING_MAX_TOKENS_CAP: int = OPENAI_CLEANING_MAX_TOKENS
+    # Default API endpoint used when no ``{ns}_api_base`` is configured. ``None`` = fall back to the
+    # OpenAI SDK default (api.openai.com). A vendor sibling (deepseek) sets its own vendor endpoint
+    # so the "direct, no gateway" path needs zero config; pointing ``{ns}_api_base`` at a LiteLLM
+    # gateway still overrides it, so the same class serves both direct and via-gateway. ADR-144.
+    _DEFAULT_API_BASE: Optional[str] = None
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
 
@@ -233,9 +261,10 @@ class OpenAICompatibleProvider:
                 openai_logger = logging.getLogger(logger_name)
                 openai_logger.setLevel(logging.WARNING)
 
-        # Support custom base_url for E2E testing with mock servers
+        # Support custom base_url for E2E testing with mock servers, and a per-sibling default
+        # endpoint (_DEFAULT_API_BASE) so a vendor sibling talks direct with no config (ADR-144).
         client_kwargs: dict[str, Any] = {"api_key": self._resolve_api_key(cfg)}
-        _api_base = getattr(cfg, f"{ns}_api_base", None)
+        _api_base = getattr(cfg, f"{ns}_api_base", None) or self._DEFAULT_API_BASE
         if _api_base:
             client_kwargs["base_url"] = _api_base
 
@@ -267,11 +296,11 @@ class OpenAICompatibleProvider:
 
         # Log non-sensitive provider metadata (for debugging)
         # Extract region from base_url if possible
-        region = extract_region_from_endpoint(getattr(cfg, f"{ns}_api_base", None))
+        region = extract_region_from_endpoint(_api_base)
         log_provider_metadata(
             provider_name=self._PROVIDER_LABEL,
             organization=getattr(cfg, f"{ns}_organization", None),
-            base_url=getattr(cfg, f"{ns}_api_base", None),
+            base_url=_api_base,
             region=region,
         )
 
@@ -356,16 +385,18 @@ class OpenAICompatibleProvider:
             return {"max_completion_tokens": n}
         return {"max_tokens": n}
 
-    @staticmethod
-    def get_pricing(model: str, capability: str) -> Dict[str, float]:
+    @classmethod
+    def get_pricing(cls, model: str, capability: str) -> Dict[str, float]:
         """Read pricing from ``config/pricing_assumptions.yaml`` (#651).
 
         YAML is the single source of truth; this thin wrapper is kept for API
         stability (test fixtures, tooling). Production cost calc goes through
         :func:`podcast_scraper.workflow.helpers._get_provider_pricing`.
 
-        Returns the rate dict for ``(provider=openai, capability, model)`` or
-        ``{}`` when no matching row exists.
+        Namespaced by ``_TELEMETRY_PROVIDER`` (ADR-144) so a sibling
+        (litellm/vllm/deepseek) reads its own pricing rows, never ``openai``'s.
+        Returns the rate dict for ``(provider, capability, model)`` or ``{}``
+        when no matching row exists.
         """
         from podcast_scraper.pricing_assumptions import (
             get_loaded_table,
@@ -375,7 +406,7 @@ class OpenAICompatibleProvider:
         table, _ = get_loaded_table("config/pricing_assumptions.yaml")
         if not table:
             return {}
-        ext = lookup_external_pricing(table, "openai", capability, model)
+        ext = lookup_external_pricing(table, cls._TELEMETRY_PROVIDER, capability, model)
         return dict(ext) if ext else {}
 
     def initialize(self) -> None:
@@ -658,13 +689,13 @@ class OpenAICompatibleProvider:
                     call_metrics,
                     calculate_provider_cost(
                         cfg=self.cfg,
-                        provider_type="openai",
+                        provider_type=self._TELEMETRY_PROVIDER,
                         capability="transcription",
                         model=self.transcription_model,
                         audio_minutes=audio_minutes,
                     ),
                     cfg=self.cfg,
-                    provider_type="openai",
+                    provider_type=self._TELEMETRY_PROVIDER,
                     capability="transcription",
                     model=self.transcription_model,
                     audio_minutes=audio_minutes,
@@ -915,7 +946,7 @@ class OpenAICompatibleProvider:
 
                     sd_cost = calculate_provider_cost(
                         cfg=self.cfg,
-                        provider_type="openai",
+                        provider_type=self._TELEMETRY_PROVIDER,
                         capability="speaker_detection",
                         model=self.speaker_model,
                         prompt_tokens=int(input_tokens),
@@ -1303,7 +1334,7 @@ class OpenAICompatibleProvider:
 
                 cost = calculate_provider_cost(
                     cfg=self.cfg,
-                    provider_type="openai",
+                    provider_type=self._TELEMETRY_PROVIDER,
                     capability="summarization",
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
@@ -1319,7 +1350,7 @@ class OpenAICompatibleProvider:
                     call_metrics,
                     cost,
                     cfg=self.cfg,
-                    provider_type="openai",
+                    provider_type=self._TELEMETRY_PROVIDER,
                     capability="summarization",
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
@@ -1518,7 +1549,11 @@ class OpenAICompatibleProvider:
                 pass
 
         _record_openai_summarization_call(
-            resp, pipeline_metrics, cfg=self.cfg, model=self.summary_model
+            resp,
+            pipeline_metrics,
+            cfg=self.cfg,
+            model=self.summary_model,
+            provider_type=self._TELEMETRY_PROVIDER,
         )
         return parse_megabundle_response(raw_text)
 
@@ -1616,7 +1651,11 @@ class OpenAICompatibleProvider:
                 pass
 
         _record_openai_summarization_call(
-            resp, pipeline_metrics, cfg=self.cfg, model=self.summary_model
+            resp,
+            pipeline_metrics,
+            cfg=self.cfg,
+            model=self.summary_model,
+            provider_type=self._TELEMETRY_PROVIDER,
         )
         return parse_extraction_bundle_response(raw_text)
 
@@ -1725,9 +1764,9 @@ class OpenAICompatibleProvider:
         if input_tokens is not None:
             from ...workflow.helpers import calculate_provider_cost
 
-            cost = calculate_provider_cost(
+            cost = _openai_response_cost_usd(response) or calculate_provider_cost(
                 cfg=self.cfg,
-                provider_type="openai",
+                provider_type=self._TELEMETRY_PROVIDER,
                 capability="summarization",
                 model=self.summary_model,
                 prompt_tokens=input_tokens,
@@ -1743,7 +1782,7 @@ class OpenAICompatibleProvider:
                 call_metrics,
                 cost,
                 cfg=self.cfg,
-                provider_type="openai",
+                provider_type=self._TELEMETRY_PROVIDER,
                 capability="summarization",
                 model=self.summary_model,
                 prompt_tokens=input_tokens,
@@ -1869,9 +1908,9 @@ class OpenAICompatibleProvider:
             if in_tok is not None and out_tok is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
-                gi_cost = calculate_provider_cost(
+                gi_cost = _openai_response_cost_usd(response) or calculate_provider_cost(
                     cfg=self.cfg,
-                    provider_type="openai",
+                    provider_type=self._TELEMETRY_PROVIDER,
                     capability="gi",
                     model=self.insight_model,
                     prompt_tokens=int(in_tok),
@@ -2112,9 +2151,9 @@ class OpenAICompatibleProvider:
             ):
                 from ...workflow.helpers import calculate_provider_cost
 
-                kg_cost = calculate_provider_cost(
+                kg_cost = _openai_response_cost_usd(response) or calculate_provider_cost(
                     cfg=self.cfg,
-                    provider_type="openai",
+                    provider_type=self._TELEMETRY_PROVIDER,
                     capability="summarization",
                     model=model,
                     prompt_tokens=int(in_tok),
@@ -2369,7 +2408,7 @@ class OpenAICompatibleProvider:
             in_tok,
             out_tok,
             cfg=self.cfg,
-            provider_type="openai",
+            provider_type=self._TELEMETRY_PROVIDER,
             model=self.summary_model,
             stage="extract_quotes",
         )
@@ -2496,7 +2535,7 @@ class OpenAICompatibleProvider:
             in_tok,
             out_tok,
             cfg=self.cfg,
-            provider_type="openai",
+            provider_type=self._TELEMETRY_PROVIDER,
             model=self.summary_model,
             stage="score_entailment",
         )
@@ -2617,6 +2656,46 @@ class OpenAICompatibleProvider:
             or self._summarization_initialized
         )
 
+    def _clean_transcript_chunked(
+        self,
+        text: str,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> str:
+        """PA1: clean a long transcript in line-aligned chunks that each fit the model output cap.
+
+        A single cleaning call on a long transcript truncates (finish_reason=length) and the
+        guardrail discards the whole result, so cleaning silently no-ops. Splitting on line
+        boundaries (one speaker-turn per line in screenplay format) keeps speaker labels intact;
+        each chunk is sized so ``words * factor`` stays under ~85% of the cap, then re-cleaned via
+        the normal single-call path (recursion terminates: each chunk is under the cap).
+        """
+        max_words = max(1, int((self._CLEANING_MAX_TOKENS_CAP * 0.85) / _CLEANING_WORD_FACTOR))
+        lines = text.split("\n")
+        chunks: list[str] = []
+        cur: list[str] = []
+        cur_words = 0
+        for line in lines:
+            w = len(line.split())
+            if cur and cur_words + w > max_words:
+                chunks.append("\n".join(cur))
+                cur, cur_words = [], 0
+            cur.append(line)
+            cur_words += w
+        if cur:
+            chunks.append("\n".join(cur))
+        logger.info(
+            "Cleaning long transcript in %d chunks (%d words > ~%d/chunk cap) to avoid truncation",
+            len(chunks),
+            len(text.split()),
+            max_words,
+        )
+        cleaned_parts = [
+            self.clean_transcript(chunk, pipeline_metrics=pipeline_metrics)
+            for chunk in chunks
+            if chunk.strip()
+        ]
+        return "\n".join(part for part in cleaned_parts if part)
+
     def clean_transcript(
         self,
         text: str,
@@ -2636,6 +2715,17 @@ class OpenAICompatibleProvider:
         """
         if not self._summarization_initialized:
             raise RuntimeError("OpenAIProvider not initialized. Call initialize() first.")
+
+        # PA1: cleaning output is ~the FULL input length, but a single call's output is bounded by
+        # the model cap (deepseek 8192). Any transcript over ~cap/1.6 words would truncate
+        # (finish_reason=length) and the guardrail discards the WHOLE result — cleaning then
+        # silently no-ops on long episodes (43/88 in the 100-ep run). Split into line-aligned
+        # chunks that each fit, clean each, rejoin. Screenplay lines are one speaker-turn, so line
+        # splits preserve speaker labels.
+        if estimate_cleaning_output_tokens(len(text.split())) > self._CLEANING_MAX_TOKENS_CAP and (
+            "\n" in text.strip()
+        ):
+            return self._clean_transcript_chunked(text, pipeline_metrics)
 
         from ...prompts.store import render_prompt
 
@@ -2709,9 +2799,9 @@ class OpenAICompatibleProvider:
             if in_tok is not None and out_tok is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
-                cleaning_cost = calculate_provider_cost(
+                cleaning_cost = _openai_response_cost_usd(response) or calculate_provider_cost(
                     cfg=self.cfg,
-                    provider_type="openai",
+                    provider_type=self._TELEMETRY_PROVIDER,
                     capability="cleaning",
                     model=self.cleaning_model,
                     prompt_tokens=int(in_tok),

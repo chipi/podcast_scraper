@@ -54,10 +54,14 @@ def _provider(model: str) -> DeepSeekProvider:
 
 
 def test_reasoning_model_gets_headroom_on_a_tight_budget() -> None:
-    """The 10-token entailment budget must grow, or content is always empty."""
+    """The 10-token entailment budget must grow, or content is always empty.
+
+    Post-ADR-144 the headroom lives in the ``_token_kwarg`` override (the single hook every
+    inherited stage method routes its budget through), not a separate ``_evidence_max_tokens``.
+    """
     p = _provider("deepseek-v4-flash")
     assert p._is_reasoning_model is True
-    assert p._evidence_max_tokens(10) == 10 + _REASONING_TOKEN_HEADROOM, (
+    assert p._token_kwarg(10)["max_tokens"] == 10 + _REASONING_TOKEN_HEADROOM, (
         "a reasoning model handed max_tokens=10 spends it all on reasoning and returns empty "
         "content — the exact failure that disconnected the grounding stack"
     )
@@ -68,12 +72,12 @@ def test_non_reasoning_model_budget_is_UNCHANGED() -> None:
     touch reasoning models ONLY."""
     p = _provider("deepseek-chat")
     assert p._is_reasoning_model is False
-    assert p._evidence_max_tokens(10) == 10
-    assert p._evidence_max_tokens(300) == 300
+    assert p._token_kwarg(10)["max_tokens"] == 10
+    assert p._token_kwarg(300)["max_tokens"] == 300
 
 
 def test_headroom_never_exceeds_the_api_cap() -> None:
     """DeepSeek caps chat max_tokens at 8192; the headroom must not push a large budget over it."""
     p = _provider("deepseek-v4-flash")
-    assert p._evidence_max_tokens(8000) <= 8192
-    assert p._evidence_max_tokens(7000) <= 8192
+    assert p._token_kwarg(8000)["max_tokens"] <= 8192
+    assert p._token_kwarg(7000)["max_tokens"] <= 8192
