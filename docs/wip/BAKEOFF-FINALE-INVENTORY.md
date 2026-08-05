@@ -157,4 +157,10 @@ The winner is **deployment-dependent** — deepseek-v4-flash cannot be served on
 - **`prod_dgx_full`** (UNCHANGED) — DGX-local production via vLLM. Model = the DGX-served qwen
   (`Qwen3-30B-A3B`), the best qwen the hardware can run. Stays as-is.
 
-Backlog: research whether a **better qwen** is now available to serve on the DGX (task filed).
+Backlog RESOLVED (2026-08-06): **yes** — `nvidia/Qwen3-Next-80B-A3B-Instruct-NVFP4` is the upgrade
+candidate. 80B total / 3B active (same active count as the current 30B-A3B, so ~same inference
+speed) but larger/newer; NVIDIA-official NVFP4 (the DGX-native format); already proven to run on
+the DGX (judge deployment ran "qwen-next NVFP4 64GB"). Newer open 30B-A3B is still the 2507 base;
+qwen3.5/3.6/3.7-flash are API-only (not DGX-servable). NOT YET measured on our pipeline — next step
+is serve it on the DGX + 100-ep + judge vs the 30B-A3B (bigger footprint ~40-64GB; watch other DGX
+slots).
