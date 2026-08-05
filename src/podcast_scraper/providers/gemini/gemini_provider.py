@@ -136,11 +136,28 @@ def _record_gemini_llm_call(
 
 
 def _should_disable_thinking_for_model(model: str) -> bool:
-    """True for Gemini 2.5 Flash (non-lite): default thinking consumes max_output_tokens."""
+    """True for Gemini 2.5 Flash (non-lite): default thinking consumes max_output_tokens.
+
+    Note: 2.5-PRO cannot disable thinking (the API rejects budget 0: "This model only works in
+    thinking mode"). It is handled separately in ``_merge_generate_content_config`` with a small
+    bounded budget + extra output headroom, so its thinking does not truncate the content."""
     m = (model or "").lower()
     if "flash-lite" in m:
         return False
     return "2.5-flash" in m
+
+
+# 2.5-pro requires thinking (budget 0 is rejected), and thinking shares the max_output_tokens
+# budget with the content — a small-budget call (chunked-GI insights) truncates the CONTENT
+# (finish_reason=MAX_TOKENS -> guardrail rejects the chunk -> stub fallback). Give pro a modest,
+# bounded thinking budget and add that headroom on top of the requested output tokens so content
+# always fits, keeping pro comparable to the other (reasoning-off) bake-off models (#1356).
+_GEMINI_PRO_THINKING_BUDGET = 1024
+
+
+def _should_bound_thinking_for_pro(model: str) -> bool:
+    m = (model or "").lower()
+    return "2.5-pro" in m and "flash-lite" not in m
 
 
 def _merge_generate_content_config(
@@ -153,6 +170,11 @@ def _merge_generate_content_config(
         del merged["thinking_config"]
     if "thinking_config" not in merged and _should_disable_thinking_for_model(model):
         merged["thinking_config"] = {"thinking_budget": 0}
+    elif "thinking_config" not in merged and _should_bound_thinking_for_pro(model):
+        merged["thinking_config"] = {"thinking_budget": _GEMINI_PRO_THINKING_BUDGET}
+        mot = merged.get("max_output_tokens")
+        if isinstance(mot, int):
+            merged["max_output_tokens"] = mot + _GEMINI_PRO_THINKING_BUDGET
     # Disable Automatic Function Calling. We never declare tools, so AFC has
     # nothing to do — disabling suppresses the "AFC is enabled with max remote
     # calls: 10" INFO line the SDK emits on every request. This is the
