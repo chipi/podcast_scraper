@@ -83,15 +83,6 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         'sentences, comma stacks, leading clauses ("How …", "Why …"), verbs, and '
         "pasting raw transcript lines — put nuance in description instead. "
         "Short stable headings align better across episodes in later tooling. "
-        "SPECIFICITY: prefer the most specific canonical topic this episode actually "
-        "discusses over a generic umbrella. A topic a listener could guess from the "
-        'show\'s genre alone (e.g. "technology", "business", "artificial '
-        'intelligence", "finance", "current events") is near-worthless — drop it '
-        "unless the episode is genuinely ABOUT that broad theme, and prefer the "
-        'concrete sub-topic instead: "AI" → "reward hacking" / "inference scaling"; '
-        '"finance" → "monetary policy" / "private credit"; "technology" → the actual '
-        "system discussed. Each topic should distinguish THIS episode from a random "
-        "other episode of the same show. "
         f"Hard limits: at most {mt} objects in topics and at most {me} in entities — "
         "never exceed these array lengths. Order by importance (strongest first); "
         "extras are truncated if you exceed the limit."
