@@ -9,7 +9,7 @@ Umbrella sequencing plan. Not authoritative for component detail — the compone
 specs (`CORPUS-V4-FIXTURE-LADDER.md`, the issue bodies, `autoresearch/JUDGING.md`)
 are. This doc carries the ordering and the gates. The durable **methodology**
 (single-variable validation, reprocess-once economics, the judge-panel parity gate)
-lives permanently in **ADR-143** (`docs/adr/ADR-143-corpus-reprocess-methodology.md`) —
+lives permanently in **ADR-143** (`docs/adr/ADR-146-corpus-reprocess-methodology.md`) —
 this plan is the ephemeral sequencing on top of it, and survives only as long as the arc.
 
 ## North star

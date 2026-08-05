@@ -64,5 +64,5 @@ inference servers stop answering `/health` under load while still serving.
 - [ADR-122](../adr/ADR-122-self-hosted-model-resilience-policy.md) — self-hosted model resilience (circuit-breaker on DGX contention).
 - [ADR-123](../adr/ADR-123-quality-gate-transcription-failover.md) — transcription failover (faster-whisper → MOSS).
 - [ADR-142](../adr/ADR-142-litellm-prod-gateway.md) — the prod-VPS LiteLLM gateway (a *different* failure domain from the DGX).
-- [ADR-143](../adr/ADR-143-corpus-reprocess-methodology.md) — the corpus arc; the v2.5 bake-off runs on the autoresearch vLLM above.
+- [ADR-143](../adr/ADR-146-corpus-reprocess-methodology.md) — the corpus arc; the v2.5 bake-off runs on the autoresearch vLLM above.
 - Profiles that target DGX services: `config/profiles/prod_dgx_*.yaml`, `cloud_with_dgx_primary.yaml`.
