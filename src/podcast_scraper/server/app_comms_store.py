@@ -128,6 +128,10 @@ def unsubscribe(data_dir: Path, ref: str) -> bool:
         if raw.get("unsubscribe_ref") == ref:
             with _comms_lock(data_dir, child.name):
                 current = _merged(_read_raw(data_dir, child.name))
+                # Re-verify under the lock — the ref could have been rotated out between the
+                # unlocked scan and here; don't disable the digest for a stale/rotated ref.
+                if current.get("unsubscribe_ref") != ref:
+                    return False
                 current["digest"]["enabled"] = False
                 atomic_write_text(
                     _comms_path(data_dir, child.name),

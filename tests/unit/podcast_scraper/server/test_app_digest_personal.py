@@ -196,9 +196,37 @@ def test_enqueue_push_gated_on_subscription(tmp_path: Path) -> None:
 
 def test_due_batch_enqueues_both_channels(tmp_path: Path) -> None:
     uid = _user(tmp_path)
-    app_comms_store.set_comms(tmp_path, uid, digest={"enabled": True}, push={"enabled": True})
+    # now=10**9 is 01:00 UTC; a daily cadence at hour 1 matches the slot.
+    app_comms_store.set_comms(
+        tmp_path,
+        uid,
+        digest={"enabled": True, "cadence": "daily", "hour": 1},
+        push={"enabled": True},
+    )
     _add_push_sub(tmp_path, uid)
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     ids = app_digest_personal.enqueue_due_digests(_ROOT, tmp_path, now=10**9)
     assert any(i.startswith("dgst_") for i in ids)
     assert any(i.startswith("ndg_") for i in ids)
+
+
+def test_due_batch_skips_users_outside_their_slot(tmp_path: Path) -> None:
+    # #1 cadence gate: a user whose chosen hour != now's hour is not enqueued.
+    uid = _user(tmp_path)
+    app_comms_store.set_comms(
+        tmp_path, uid, digest={"enabled": True, "cadence": "daily", "hour": 9}
+    )
+    _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
+    assert (
+        app_digest_personal.enqueue_due_digests(_ROOT, tmp_path, now=10**9) == []
+    )  # now is hour 1
+
+
+def test_is_due_slot_weekly(tmp_path: Path) -> None:
+    import datetime as _dt
+
+    when = _dt.datetime.fromtimestamp(10**9, _dt.timezone.utc)  # a specific UTC weekday/hour
+    comms = {"digest": {"cadence": "weekly", "day_of_week": when.weekday(), "hour": when.hour}}
+    assert app_digest_personal._is_due_slot(comms, 10**9) is True
+    comms["digest"]["hour"] = (when.hour + 1) % 24
+    assert app_digest_personal._is_due_slot(comms, 10**9) is False

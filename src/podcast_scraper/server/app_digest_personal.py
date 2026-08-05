@@ -26,6 +26,7 @@ from typing import Any
 from podcast_scraper.server import (
     app_auto_picks,
     app_comms_store,
+    app_digest_sections,
     app_graph_refs,
     app_outbox_store,
     app_push_store,
@@ -95,9 +96,20 @@ def assemble_digest_payload(
         items += app_auto_picks.auto_pick_items(
             root, data_dir, user_id, exclude_slugs=captured, limit=MAX_REVISIT_ITEMS - len(items)
         )
-    if not items:
+    sections: list[dict[str, Any]] = []
+    if items:
+        sections.append({"kind": "revisit", "items": items})
+    new_in_follows = app_digest_sections.new_in_follows_items(
+        root, data_dir, user_id, limit=MAX_REVISIT_ITEMS
+    )
+    if new_in_follows:
+        sections.append({"kind": "new_in_follows", "items": new_in_follows})
+    trending = app_digest_sections.trending_items(root, data_dir, user_id, limit=MAX_REVISIT_ITEMS)
+    if trending:
+        sections.append({"kind": "trending_in_your_corpus", "items": trending})
+    if not sections:
         return None
-    return {"sections": [{"kind": "revisit", "items": items}]}
+    return {"sections": sections}
 
 
 def _period_key(now: int, cadence: str) -> str:
@@ -231,15 +243,31 @@ def enqueue_push_for_user(
     return enqueued
 
 
-def enqueue_due_digests(root: Path, data_dir: Path, now: int | None = None) -> list[str]:
-    """Enqueue the current-period email digest + push nudges for every consenting user.
+def _is_due_slot(comms: dict[str, Any], now: int) -> bool:
+    """Whether ``now`` (UTC) matches the user's chosen cadence slot (day_of_week + hour / hour).
 
-    The cadence *timing* gate (is it this user's send slot?) belongs to the scheduler; this batch
-    enqueues the current period and leans on per-period dedupe to stay idempotent across re-runs.
+    UTC only for v1 — per-user timezone is RFC-110's open question (needs a profile ``timezone``
+    field). Pairs with an hourly digest cron: the per-period envelope id keeps it idempotent, so a
+    user gets exactly one digest at their slot even if the cron fires every hour.
+    """
+    when = dt.datetime.fromtimestamp(now, dt.timezone.utc)
+    digest = comms["digest"]
+    if digest["cadence"] == "daily":
+        return int(when.hour) == int(digest["hour"])
+    return (when.weekday(), int(when.hour)) == (int(digest["day_of_week"]), int(digest["hour"]))
+
+
+def enqueue_due_digests(root: Path, data_dir: Path, now: int | None = None) -> list[str]:
+    """Enqueue the email digest + push nudges for every consenting user *at their cadence slot*.
+
+    Honours each user's ``day_of_week``/``hour``/``cadence`` (UTC). Per-period dedupe keeps it
+    idempotent across re-runs, so an hourly cron is safe.
     """
     now = int(time.time()) if now is None else now
     enqueued: list[str] = []
     for user in list_users(data_dir):
+        if not _is_due_slot(app_comms_store.get_comms(data_dir, user.user_id), now):
+            continue
         eid = enqueue_for_user(root, data_dir, user.user_id, now)
         if eid is not None:
             enqueued.append(eid)
