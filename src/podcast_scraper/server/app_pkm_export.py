@@ -1,13 +1,14 @@
 """Graph-aware Obsidian export (RFC-113, #1472).
 
 Emits the user's personal corpus as a **connected** Obsidian vault: each highlight becomes a note
-note that **wikilinks** to id-keyed `[[People/…]]` / `[[Topics/…]]` / `[[Episodes/…]]`, so the
-vault mirrors the personal KG — not a flat highlight dump (the Snipd-differentiator). Extractive, no
-LLM (D6); bridge-only (transcript quotes + deep-links, never audio).
+that **wikilinks** to id-keyed `[[People/…]]` / `[[Topics/…]]` / `[[Episodes/…]]`, so the vault
+mirrors the personal KG — not a flat highlight dump (the Snipd-differentiator). Extractive, no LLM
+(D6); bridge-only (transcript quotes + deep-links, never audio).
 
-v1 is a **full export** under a `closelistening/` namespace we own — the client replaces that folder
-wholesale, which handles deletions without client-side diffing (RFC-113's endorsed v1 path). The
-manifest carries the corpus `revision` so a future incremental delta can start from it.
+**Incremental.** The server tracks a per-user vault snapshot (`path → content hash`) + a cursor.
+`export_bundle(since)` returns only the **changed** notes + a `removed` tombstone list when `since`
+matches the last export, else a **full** export (the fallback). The cursor advances only on real
+content change. The client writes `files` and deletes `removed` under `closelistening/`.
 
 Filenames are **canonical ids** (`person:jane` → `person_jane`), never labels: id-keyed names
 survive label renames + entity merges (RFC-072 KL2 is future — labels move). Labels live in
@@ -16,11 +17,16 @@ frontmatter `aliases:` and in each link's display text (`[[People/person_jane|Ja
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server import app_corpus_revision, app_user_state
+from filelock import FileLock
+
+from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.atomic_write import atomic_write_text
 
 _ROOT = "closelistening"
 
@@ -97,12 +103,8 @@ def _episode_note(slug: str, title: str) -> str:
     )
 
 
-def build_obsidian_bundle(root: Path, data_dir: Path, user_id: str) -> dict[str, Any]:
-    """Build the full Obsidian vault: ``{files: {path: content}, manifest: {...}}``.
-
-    Files live under ``closelistening/``; the client replaces that folder wholesale (deletions
-    handled by replacement). Idempotent — id-keyed filenames overwrite in place on re-export.
-    """
+def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
+    """The full current vault as ``{path: content}`` — highlight + entity + episode notes."""
     highlights = app_user_state.get_highlights(data_dir, user_id)
     files: dict[str, str] = {}
     entity_refs: dict[str, dict[str, Any]] = {}
@@ -125,12 +127,79 @@ def build_obsidian_bundle(root: Path, data_dir: Path, user_id: str) -> dict[str,
         files[path] = _entity_note(ref)
     for slug, title in episode_titles.items():
         files[f"{_ROOT}/Episodes/{slug}.md"] = _episode_note(slug, title)
+    return files
 
-    manifest = {
-        "format": "obsidian",
-        "revision": app_corpus_revision.current(root, data_dir, user_id),
+
+# --- incremental export state: per-user vault snapshot (path → content hash) + a cursor ---
+
+_STATE_FILE = "export_state.json"
+_LOCK_TIMEOUT_S = 5.0
+
+
+def _state_path(data_dir: Path, user_id: str) -> Path:
+    return data_dir / "users" / user_id / _STATE_FILE
+
+
+def _state_lock(data_dir: Path, user_id: str) -> FileLock:
+    path = _state_path(data_dir, user_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return FileLock(str(path.with_name(f".{_STATE_FILE}.lock")), timeout=_LOCK_TIMEOUT_S)
+
+
+def _load_state(data_dir: Path, user_id: str) -> dict[str, Any]:
+    path = _state_path(data_dir, user_id)
+    if not path.is_file():
+        return {"cursor": 0, "snapshot": {}}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"cursor": 0, "snapshot": {}}
+    if not isinstance(doc, dict):
+        return {"cursor": 0, "snapshot": {}}
+    doc.setdefault("cursor", 0)
+    doc.setdefault("snapshot", {})
+    return doc
+
+
+def _hash(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def export_bundle(root: Path, data_dir: Path, user_id: str, *, since: int) -> dict[str, Any]:
+    """Compute the export the client should apply, and advance the server's vault snapshot.
+
+    ``since`` is the revision the client last applied (0 = never). When it matches the server's
+    cursor we return an **incremental** delta (only changed files + a ``removed`` tombstone list);
+    otherwise (behind / never / a new device) we fall back to a **full** export — the always-valid
+    path (RFC-113). The cursor bumps only when the vault content actually changed, so re-exporting a
+    static vault (or a second device) doesn't churn it. The client writes ``files`` and deletes
+    ``removed`` under the ``closelistening/`` namespace.
+    """
+    current = _current_vault(root, data_dir, user_id)
+    current_hashes = {p: _hash(c) for p, c in current.items()}
+    with _state_lock(data_dir, user_id):
+        state = _load_state(data_dir, user_id)
+        prev_cursor = int(state["cursor"])
+        snapshot: dict[str, str] = dict(state["snapshot"])
+        changed = {p: c for p, c in current.items() if current_hashes[p] != snapshot.get(p)}
+        removed = sorted(p for p in snapshot if p not in current_hashes)
+        content_changed = bool(changed or removed)
+        cursor = prev_cursor + 1 if content_changed else prev_cursor
+        # Persist the new snapshot so the next call diffs against what we just served.
+        atomic_write_text(
+            _state_path(data_dir, user_id),
+            json.dumps(
+                {"cursor": cursor, "snapshot": current_hashes}, ensure_ascii=False, indent=2
+            ),
+        )
+
+    incremental = since == prev_cursor and since != 0
+    files = changed if incremental else current
+    return {
+        "mode": "incremental" if incremental else "full",
+        "revision": cursor,
         "namespace": _ROOT,
+        "files": files,
+        "removed": removed if incremental else [],
         "written": sorted(files.keys()),
-        "removed": [],  # full export: the client replaces the whole namespace folder
     }
-    return {"files": files, "manifest": manifest}

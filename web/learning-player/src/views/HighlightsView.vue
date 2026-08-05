@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import {
   addToCollection,
+  exportObsidian,
   fetchHighlightsExport,
   getCollections,
   getEpisode,
@@ -126,6 +127,30 @@ async function share(h: Highlight): Promise<void> {
   await shareHighlightCard(h, titles.value[h.episode_slug] ?? h.episode_slug)
 }
 
+// Graph-aware Obsidian export (#1472). Incremental: the last-applied revision is remembered in
+// localStorage so a repeat click only pulls what changed. First click (or cleared storage) is full.
+const OBSIDIAN_CURSOR_KEY = 'obsidian_export_cursor'
+const exportingObsidian = ref(false)
+const obsidianMsg = ref('')
+
+async function doObsidianExport(): Promise<void> {
+  exportingObsidian.value = true
+  obsidianMsg.value = ''
+  try {
+    const since = Number(localStorage.getItem(OBSIDIAN_CURSOR_KEY) ?? '0') || 0
+    const r = await exportObsidian(since)
+    localStorage.setItem(OBSIDIAN_CURSOR_KEY, String(r.revision))
+    obsidianMsg.value =
+      r.mode === 'incremental'
+        ? t('highlights.obsidianDelta', { written: r.written, removed: r.removed })
+        : t('highlights.obsidianFull', { written: r.written })
+  } catch {
+    obsidianMsg.value = t('highlights.obsidianError')
+  } finally {
+    exportingObsidian.value = false
+  }
+}
+
 onMounted(async () => {
   await capture.ensureLoaded()
   collections.value = await getCollections().catch(() => [])
@@ -157,7 +182,16 @@ onMounted(async () => {
         download="my-highlights.md"
         class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent no-underline transition hover:bg-overlay"
       >{{ t('highlights.export') }}</a>
+      <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
+      <button
+        v-if="!isNative()"
+        type="button"
+        :disabled="exportingObsidian"
+        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+        @click="doObsidianExport"
+      >{{ t('highlights.exportObsidian') }}</button>
     </div>
+    <p v-if="obsidianMsg" class="mb-3 text-xs text-muted">{{ obsidianMsg }}</p>
 
     <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
     <div v-if="capture.count" class="mb-4 flex items-center gap-2">

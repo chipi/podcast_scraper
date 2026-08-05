@@ -623,6 +623,38 @@ export async function fetchHighlightsExport(): Promise<string> {
   return resp.text()
 }
 
+export interface ObsidianExportResult {
+  mode: 'full' | 'incremental'
+  revision: number
+  written: number
+  removed: number
+}
+
+/**
+ * Graph-aware Obsidian export (RFC-113 / #1472). Downloads the vault zip and returns the
+ * `X-Export-*` header metadata so the caller can persist the cursor (for the next incremental
+ * pull) and show a summary. `since` = the last revision the client applied (0 = full).
+ */
+export async function exportObsidian(since: number): Promise<ObsidianExportResult> {
+  const resp = await apiFetch(`${BASE}/export?format=obsidian&since=${since}`, {
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /export → ${resp.status}`)
+  const blob = await resp.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'closelistening-obsidian.zip'
+  a.click()
+  URL.revokeObjectURL(url)
+  return {
+    mode: (resp.headers.get('X-Export-Mode') as 'full' | 'incremental') ?? 'full',
+    revision: Number(resp.headers.get('X-Export-Revision') ?? '0'),
+    written: Number(resp.headers.get('X-Export-Written') ?? '0'),
+    removed: Number(resp.headers.get('X-Export-Removed') ?? '0'),
+  }
+}
+
 // --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
 
 /** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */

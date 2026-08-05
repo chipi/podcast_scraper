@@ -30,21 +30,44 @@ def _data_dir(request: Request) -> Path:
 async def export_vault(
     request: Request,
     format: str = Query(default="obsidian"),
+    since: int = Query(default=0, ge=0, description="Last revision the client applied (0 = full)."),
     user: User = Depends(get_current_user),
 ) -> Response:
-    """Full graph-aware vault export as a zip (`closelistening/…` notes + `manifest.json`)."""
+    """Graph-aware vault export as a zip. Incremental when ``since`` matches the last export.
+
+    The zip carries the changed `closelistening/…` notes + a `manifest.json` listing `removed`
+    (tombstone) paths. The response headers (`X-Export-*`) let the client advance its cursor and
+    show a summary without unzipping. `since=0` (or a mismatch) → a full export.
+    """
     if format != "obsidian":
         raise HTTPException(status_code=400, detail="only format=obsidian is supported")
     root = corpus_root_or_503(request)
-    bundle = app_pkm_export.build_obsidian_bundle(root, _data_dir(request), user.user_id)
+    bundle = app_pkm_export.export_bundle(root, _data_dir(request), user.user_id, since=since)
 
+    manifest = {
+        "format": "obsidian",
+        "mode": bundle["mode"],
+        "revision": bundle["revision"],
+        "namespace": bundle["namespace"],
+        "written": bundle["written"],
+        "removed": bundle["removed"],
+    }
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for path, content in bundle["files"].items():
             zf.writestr(path, content)
-        zf.writestr("manifest.json", json.dumps(bundle["manifest"], ensure_ascii=False, indent=2))
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
     return Response(
         content=buf.getvalue(),
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="closelistening-obsidian.zip"'},
+        headers={
+            "Content-Disposition": 'attachment; filename="closelistening-obsidian.zip"',
+            "X-Export-Mode": bundle["mode"],
+            "X-Export-Revision": str(bundle["revision"]),
+            "X-Export-Written": str(len(bundle["written"])),
+            "X-Export-Removed": str(len(bundle["removed"])),
+            "Access-Control-Expose-Headers": (
+                "X-Export-Mode, X-Export-Revision, X-Export-Written, X-Export-Removed"
+            ),
+        },
     )

@@ -84,6 +84,8 @@ def test_export_zip_contains_notes_and_manifest(tmp_path: Path) -> None:
     resp = client.get("/api/app/export", params={"format": "obsidian"})
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/zip"
+    assert resp.headers["x-export-mode"] == "full"
+    rev = int(resp.headers["x-export-revision"])
 
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
     names = set(zf.namelist())
@@ -93,6 +95,32 @@ def test_export_zip_contains_notes_and_manifest(tmp_path: Path) -> None:
     assert f"closelistening/Episodes/{slug}.md" in names
     manifest = json.loads(zf.read("manifest.json"))
     assert manifest["format"] == "obsidian" and manifest["namespace"] == "closelistening"
+
+    # incremental: nothing changed → empty delta, same revision
+    r2 = client.get("/api/app/export", params={"format": "obsidian", "since": rev})
+    assert r2.headers["x-export-mode"] == "incremental"
+    assert int(r2.headers["x-export-written"]) == 0
+    assert int(r2.headers["x-export-revision"]) == rev
+
+    # add a highlight → incremental returns only the new note
+    app_user_state.add_highlight(
+        data_dir,
+        uid,
+        {
+            "id": "h_2",
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 2000,
+            "quote_text": "second",
+            "created_at": 2,
+            "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}],
+        },
+    )
+    r3 = client.get("/api/app/export", params={"format": "obsidian", "since": rev})
+    assert r3.headers["x-export-mode"] == "incremental"
+    names3 = set(zipfile.ZipFile(io.BytesIO(r3.content)).namelist())
+    assert "closelistening/Highlights/h_2.md" in names3
+    assert "closelistening/Highlights/h_1.md" not in names3  # unchanged, not re-sent
 
 
 def test_bad_format_400(tmp_path: Path) -> None:

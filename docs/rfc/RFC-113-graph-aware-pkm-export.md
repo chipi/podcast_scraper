@@ -1,9 +1,12 @@
 # RFC-113: Graph-Aware PKM Export (Obsidian)
 
-- **Status**: Draft — **v1 shipped** (#1472): full Obsidian export (`GET /api/app/export?format=obsidian`,
-  `app_pkm_export`) — id-keyed wikilinked highlight/entity/episode notes under `closelistening/`, zip +
-  manifest carrying the corpus revision. Incremental delta (over RFC-114's change log) + Notion remain
-  the follows below.
+- **Status**: Draft — **v1 shipped** (#1472): Obsidian export (`GET /api/app/export?format=obsidian&since=`,
+  `app_pkm_export`) — id-keyed wikilinked highlight/entity/episode notes under `closelistening/`.
+  **Incremental**: the server tracks a per-user vault snapshot (path→hash) + cursor; a matching `since`
+  yields only changed notes + a `removed` tombstone list, else a full export (fallback). Header
+  metadata (`X-Export-*`) drives the client cursor. Frontend: an "Export to Obsidian" button in the
+  Library Highlights tab (web; remembers the cursor in localStorage for incremental). Notion (OAuth
+  push) + native-shell zip handling remain the follows below.
 - **Authors**: Marko, Claude (Opus 4.8), advisor (Fable 5)
 - **Related epic**: [#1472](https://github.com/chipi/podcast_scraper/issues/1472)
 - **Stakeholders**: Core team, platform users (PKM/second-brain), Consumer App
