@@ -281,6 +281,17 @@
     "up": "Move up",
     "down": "Move down"
   },
+  "collections": {
+    "namePlaceholder": "New collection name",
+    "create": "Create",
+    "empty": "No collections yet. Group highlights into named boards.",
+    "emptyBoard": "This collection is empty. Add highlights from the Highlights tab.",
+    "count": "no highlights | {count} highlight | {count} highlights",
+    "back": "Back",
+    "remove": "Delete collection",
+    "moment": "Moment",
+    "addTo": "Add to collection"
+  },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule.",
     "empty": "Nothing to revisit right now — check back later.",
@@ -310,12 +321,22 @@
     "interests": "Interest topics",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",
-    "noInterests": "No interests chosen yet."
+    "noInterests": "No interests chosen yet.",
+    "notifications": "Notifications",
+    "notificationsHelp": "Get a periodic recap of highlights worth revisiting.",
+    "digestEmail": "Weekly digest email",
+    "cadence": "Frequency",
+    "cadenceWeekly": "Weekly",
+    "cadenceDaily": "Daily",
+    "pauseDigest": "Pause for now",
+    "pushNudges": "Push reminders",
+    "emailUnverified": "Email delivery needs a verified email address."
   },
   "library": {
     "title": "Library",
     "saved": "Saved",
     "highlights": "Highlights",
+    "collections": "Collections",
     "revisit": "Revisit",
     "queue": "Queue",
     "recent": "Recent",
@@ -330,6 +351,7 @@
     "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",
     "count": "No highlights | 1 highlight | {count} highlights",
     "export": "Export Markdown",
+    "share": "Share as card",
     "moment": "Marked moment",
     "span": "Transcript",
     "insight": "Insight",

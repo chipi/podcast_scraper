@@ -205,3 +205,25 @@ def test_scheduler_timezone_defaults_to_utc(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.delenv("PODCAST_SCHEDULER_TZ", raising=False)
     monkeypatch.delenv("TZ", raising=False)
     assert sched_mod._scheduler_timezone() == "UTC"
+
+
+def test_digest_spawn_calls_enqueue_due_digests(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The digest job kind (#1415) enqueues per-user digests instead of spawning a pipeline job."""
+    from types import SimpleNamespace
+
+    from podcast_scraper.server import app_digest_personal
+    from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
+
+    calls: list[Path] = []
+
+    def _fake_enqueue(root: Path, data_dir: Path, now: int | None = None) -> list[str]:
+        calls.append(data_dir)
+        return ["dgst_x"]
+
+    monkeypatch.setattr(app_digest_personal, "enqueue_due_digests", _fake_enqueue)
+    app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
+    spawn = make_app_spawn_callback(app)
+    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)
+    assert calls == [tmp_path / "appdata"]

@@ -8,12 +8,20 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { fetchHighlightsExport, getEpisode, highlightsExportUrl } from '../services/api'
+import {
+  addToCollection,
+  fetchHighlightsExport,
+  getCollections,
+  getEpisode,
+  highlightsExportUrl,
+} from '../services/api'
+import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
+import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
 const capture = useCaptureStore()
@@ -102,8 +110,25 @@ async function exportHighlightsNative(): Promise<void> {
   }
 }
 
+// Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
+// "Add to…" select adds on change then resets to its placeholder.
+const collections = ref<Collection[]>([])
+
+async function addHighlightTo(highlightId: string, collectionId: string): Promise<void> {
+  if (!collectionId) return
+  const updated = await addToCollection(collectionId, highlightId)
+  const i = collections.value.findIndex((c) => c.id === updated.id)
+  if (i >= 0) collections.value[i] = updated
+}
+
+// Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
+async function share(h: Highlight): Promise<void> {
+  await shareHighlightCard(h, titles.value[h.episode_slug] ?? h.episode_slug)
+}
+
 onMounted(async () => {
   await capture.ensureLoaded()
+  collections.value = await getCollections().catch(() => [])
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
   await Promise.all(
     slugs.map(async (slug) => {
@@ -178,6 +203,15 @@ onMounted(async () => {
               >{{ h.kind === 'insight' ? t('highlights.insight') : t('highlights.span') }}</span>
               <p class="text-sm font-semibold leading-snug">{{ label(h) }}</p>
               <p v-if="h.speaker" class="lp-speaker mt-0.5 text-xs">{{ h.speaker }}</p>
+              <!-- Graph refs (#1419): the highlight as a node — person/topic it's linked to. -->
+              <div v-if="h.graph_refs?.length" class="mt-1 flex flex-wrap gap-1">
+                <span
+                  v-for="r in h.graph_refs"
+                  :key="r.id"
+                  class="rounded-full bg-overlay px-2 py-0.5 text-xs"
+                  :class="r.kind === 'person' ? 'text-person' : 'text-topic'"
+                >{{ r.label }}</span>
+              </div>
               <span
                 v-if="h.anchor_status === 'drifted'"
                 class="mt-1 inline-block rounded-full bg-overlay px-2 py-0.5 text-xs text-danger"
@@ -190,6 +224,22 @@ onMounted(async () => {
                 :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
                 class="font-mono text-xs text-accent no-underline"
               >▶ {{ formatTime(h.start_ms / 1000) }}</RouterLink>
+              <select
+                v-if="collections.length"
+                class="max-w-[9rem] rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs"
+                :aria-label="t('collections.addTo')"
+                @change="addHighlightTo(h.id, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+              >
+                <option value="">{{ t('collections.addTo') }}</option>
+                <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+              <button
+                type="button"
+                class="rounded-full p-1 text-muted transition hover:text-accent"
+                :aria-label="t('highlights.share')"
+                :title="t('highlights.share')"
+                @click="share(h)"
+              >↗</button>
               <button
                 type="button"
                 class="rounded-full p-1 text-muted transition hover:text-danger"

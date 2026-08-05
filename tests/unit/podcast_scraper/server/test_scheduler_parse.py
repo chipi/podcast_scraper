@@ -51,6 +51,14 @@ class TestParseScheduledJobs:
         )
         assert jobs[0].kind == "enrichment"
 
+    def test_kind_digest_parses(self) -> None:
+        # #1415: the per-user "Your Week" digest enqueue is schedulable like any other job.
+        jobs = parse_scheduled_jobs(
+            "scheduled_jobs:\n  - name: weekly-digest\n"
+            "    cron: '0 13 * * 0'\n    kind: digest\n"
+        )
+        assert jobs[0].kind == "digest"
+
     def test_invalid_kind_raises(self) -> None:
         with pytest.raises(ScheduledJobsParseError, match="kind must be one of"):
             parse_scheduled_jobs(

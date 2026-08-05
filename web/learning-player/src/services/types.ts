@@ -253,6 +253,9 @@ export interface Highlight {
   created_at: number
   /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
   anchor_status: string | null
+  /** Canonical person/topic refs (#1419) — the highlight as a graph node. Optional: absent on
+   *  pre-#1419 highlights and when the episode has no KG, so callers must guard (`?? []`). */
+  graph_refs?: EntityRef[]
 }
 
 /** Body for POST /api/app/highlights. */
@@ -322,6 +325,50 @@ export interface ResurfacingResponse {
 
 export interface ResurfacingSettings {
   paused: boolean
+}
+
+// --- Collections / boards — curation layer (PRD-046 FR4 / #1417) ---
+
+export interface Collection {
+  id: string
+  name: string
+  created_at: number
+  count: number
+}
+
+export interface CollectionDetail {
+  collection: Collection
+  highlights: Highlight[]
+}
+
+// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+
+export interface CommsDigest {
+  enabled: boolean
+  cadence: 'weekly' | 'daily'
+  day_of_week: number
+  hour: number
+  paused: boolean
+}
+
+export interface CommsPush {
+  enabled: boolean
+}
+
+export interface CommsSettings {
+  digest: CommsDigest
+  push: CommsPush
+  email_verified: boolean
+  unsubscribe_ref: string | null
+}
+
+/**
+ * PUT /api/app/comms body. Send the FULL section object you want to change — the server fills
+ * unset fields with defaults, so a partial `digest` would silently reset cadence/hour/etc.
+ */
+export interface CommsUpdate {
+  digest?: CommsDigest
+  push?: CommsPush
 }
 
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */

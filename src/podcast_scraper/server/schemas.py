@@ -592,6 +592,10 @@ class Highlight(BaseModel):
     anchor_status: str | None = Field(
         default=None, description="'anchored' | 'drifted' after a re-anchor; None until re-scraped."
     )
+    graph_refs: list[AppEntityRef] = Field(
+        default_factory=list,
+        description="Canonical person/topic refs (#1419) — the highlight as a graph node.",
+    )
 
 
 class HighlightsResponse(BaseModel):
@@ -688,6 +692,134 @@ class DerivedInterestsResponse(BaseModel):
     """Ranked implicit interests (GET /api/app/interests/derived)."""
 
     items: list[DerivedInterest] = Field(default_factory=list)
+
+
+# --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
+
+
+class CommsDigest(BaseModel):
+    """The user's digest delivery settings (a section of GET/PUT /api/app/comms)."""
+
+    enabled: bool = Field(default=False, description="Send the periodic 'Your Week' digest.")
+    cadence: Literal["weekly", "daily"] = Field(default="weekly", description="How often.")
+    day_of_week: int = Field(default=6, ge=0, le=6, description="0=Mon … 6=Sun (weekly cadence).")
+    hour: int = Field(default=13, ge=0, le=23, description="Local send hour (0-23).")
+    paused: bool = Field(default=False, description="Temporarily pause without losing settings.")
+
+
+class CommsPush(BaseModel):
+    """The user's Web-Push nudge settings."""
+
+    enabled: bool = Field(default=False, description="Send Web-Push resurfacing nudges.")
+
+
+class CommsSettings(BaseModel):
+    """The user's full comms/consent state (GET /api/app/comms response)."""
+
+    digest: CommsDigest = Field(default_factory=CommsDigest)
+    push: CommsPush = Field(default_factory=CommsPush)
+    email_verified: bool = Field(
+        default=False, description="Identity-derived (OAuth); email delivery requires it."
+    )
+    unsubscribe_ref: str | None = Field(
+        default=None,
+        description="Opaque handle for the one-click unsubscribe link; minted on first save.",
+    )
+
+
+class CommsUpdate(BaseModel):
+    """PUT /api/app/comms body — send whichever section(s) changed (server-owned fields ignored)."""
+
+    digest: CommsDigest | None = Field(default=None)
+    push: CommsPush | None = Field(default=None)
+
+
+class PushSubscription(BaseModel):
+    """A W3C PushSubscription (POST /api/app/push/subscribe body). Stored opaquely."""
+
+    model_config = ConfigDict(extra="allow")
+
+    endpoint: str = Field(min_length=1, description="Push service endpoint URL (stable identity).")
+    keys: dict[str, str] = Field(default_factory=dict, description="{p256dh, auth} — opaque to us.")
+
+
+class PushUnsubscribeBody(BaseModel):
+    """DELETE /api/app/push/subscribe body."""
+
+    endpoint: str = Field(min_length=1, description="The subscription endpoint to remove.")
+
+
+class PushSubscriptionsResponse(BaseModel):
+    """Count only — endpoints are not echoed back."""
+
+    count: int = Field(ge=0, description="How many active subscriptions the user has.")
+
+
+class VapidKeyResponse(BaseModel):
+    """GET /api/app/push/vapid-key — the public VAPID key the browser needs to subscribe."""
+
+    key: str = Field(description="URL-safe base64 VAPID public key.")
+
+
+# --- Collections / boards — the curation layer (#1417, PRD-046 FR4 / RFC-111 §1) ---
+
+
+class Collection(BaseModel):
+    """A user collection (GET/POST /api/app/collections)."""
+
+    id: str = Field(description="Opaque collection id.")
+    name: str = Field(description="Display name.")
+    created_at: int = Field(description="Unix time created.")
+    count: int = Field(default=0, ge=0, description="Number of highlights in the collection.")
+
+
+class CollectionCreate(BaseModel):
+    """POST /api/app/collections body."""
+
+    name: str = Field(min_length=1, max_length=120, description="Collection name.")
+
+
+class CollectionsResponse(BaseModel):
+    """The user's collections (newest-first)."""
+
+    items: list[Collection] = Field(default_factory=list)
+
+
+class CollectionItemBody(BaseModel):
+    """POST /api/app/collections/{id}/items body."""
+
+    highlight_id: str = Field(min_length=1, description="Highlight to add.")
+
+
+class CollectionDetail(BaseModel):
+    """A collection with its resolved highlights (GET /api/app/collections/{id})."""
+
+    collection: Collection
+    highlights: list[Highlight] = Field(default_factory=list)
+
+
+# --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
+
+
+class OutboxPendingResponse(BaseModel):
+    """GET /internal/outbox/pending — envelopes for the worker to render + deliver."""
+
+    envelopes: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class OutboxStatusBody(BaseModel):
+    """POST /internal/outbox/{id}/status — the worker's terminal report for an envelope."""
+
+    status: Literal["delivered", "bounced", "complaint", "suppressed", "failed"] = Field(
+        description="Terminal status. `failed` is always-terminal (dead-letter)."
+    )
+    detail: str | None = Field(default=None, description="Optional human-readable detail.")
+
+
+class OutboxStatusResponse(BaseModel):
+    """The effective (stored) status after an idempotent write."""
+
+    status: str = Field(description="Stored status; 'unknown' for an unrecognized id.")
 
 
 class PlaybackPosition(BaseModel):

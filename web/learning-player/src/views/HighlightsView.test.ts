@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import * as shareCard from '../composables/useShareCard'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
 import HighlightsView from './HighlightsView.vue'
@@ -37,6 +38,7 @@ const mountView = () => mount(HighlightsView, { global: { plugins: [i18n, router
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
+  vi.spyOn(api, 'getCollections').mockResolvedValue([])
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -60,12 +62,39 @@ describe('HighlightsView', () => {
     expect(exportLink?.attributes('download')).toBe('my-highlights.md')
   })
 
+  it('shares a highlight as a card (#1418)', async () => {
+    const share = vi.spyOn(shareCard, 'shareHighlightCard').mockResolvedValue()
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'NVIDIA'))
+    const w = mountView()
+    await flushPromises()
+    await w.find('[aria-label="Share as card"]').trigger('click')
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ id: 'h1' }), 'NVIDIA')
+  })
+
   it('flags a drifted anchor', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ anchor_status: 'drifted' })])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const w = mountView()
     await flushPromises()
     expect(w.text()).toContain('anchor drifted')
+  })
+
+  it('renders graph-ref chips hued by kind (#1419)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({
+        graph_refs: [
+          { id: 'person:jane-doe', kind: 'person', label: 'Jane Doe' },
+          { id: 'topic:ai', kind: 'topic', label: 'AI' },
+        ],
+      }),
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView()
+    await flushPromises()
+    const chips = w.findAll('span').filter((s) => s.text() === 'Jane Doe' || s.text() === 'AI')
+    expect(chips.find((c) => c.text() === 'Jane Doe')!.classes()).toContain('text-person')
+    expect(chips.find((c) => c.text() === 'AI')!.classes()).toContain('text-topic')
   })
 
   it('removes a highlight', async () => {

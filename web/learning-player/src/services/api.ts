@@ -8,6 +8,10 @@
 
 import type {
   AudioSource,
+  Collection,
+  CollectionDetail,
+  CommsSettings,
+  CommsUpdate,
   CorpusEnrichmentSignals,
   EntitiesResponse,
   EntitySearchResponse,
@@ -652,4 +656,118 @@ export async function putResurfacingSettings(paused: boolean): Promise<Resurfaci
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /resurfacing/settings → ${resp.status}`)
   return (await resp.json()) as ResurfacingSettings
+}
+
+// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+
+const COMMS_DEFAULTS: CommsSettings = {
+  digest: { enabled: false, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
+  push: { enabled: false },
+  email_verified: false,
+  unsubscribe_ref: null,
+}
+
+export async function getComms(): Promise<CommsSettings> {
+  try {
+    return await getJSON<CommsSettings>('/comms')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { ...COMMS_DEFAULTS }
+    throw err
+  }
+}
+
+export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
+  const resp = await apiFetch(`${BASE}/comms`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /comms → ${resp.status}`)
+  return (await resp.json()) as CommsSettings
+}
+
+/** The public VAPID key the browser needs to subscribe (throws 503 when push isn't configured). */
+export async function getVapidKey(): Promise<string> {
+  const resp = await getJSON<{ key: string }>('/push/vapid-key')
+  return resp.key
+}
+
+/** Register a browser push subscription (also enables the push channel server-side). */
+export async function subscribePush(subscription: unknown): Promise<{ count: number }> {
+  const resp = await apiFetch(`${BASE}/push/subscribe`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /push/subscribe → ${resp.status}`)
+  return (await resp.json()) as { count: number }
+}
+
+/** Remove a browser push subscription (disables the channel when the last one goes). */
+export async function unsubscribePush(endpoint: string): Promise<{ count: number }> {
+  const resp = await apiFetch(`${BASE}/push/subscribe`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /push/subscribe → ${resp.status}`)
+  return (await resp.json()) as { count: number }
+}
+
+// --- Collections / boards (PRD-046 FR4 / #1417) ---
+
+export async function getCollections(): Promise<Collection[]> {
+  try {
+    return (await getJSON<{ items: Collection[] }>('/collections')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+export async function getCollection(id: string): Promise<CollectionDetail> {
+  return getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
+}
+
+export async function createCollection(name: string): Promise<Collection> {
+  const resp = await apiFetch(`${BASE}/collections`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /collections → ${resp.status}`)
+  return (await resp.json()) as Collection
+}
+
+export async function deleteCollection(id: string): Promise<Collection[]> {
+  const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id} → ${resp.status}`)
+  return ((await resp.json()) as { items: Collection[] }).items
+}
+
+export async function addToCollection(id: string, highlightId: string): Promise<Collection> {
+  const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ highlight_id: highlightId }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /collections/${id}/items → ${resp.status}`)
+  return (await resp.json()) as Collection
+}
+
+export async function removeFromCollection(id: string, highlightId: string): Promise<Collection> {
+  const resp = await apiFetch(
+    `${BASE}/collections/${encodeURIComponent(id)}/items/${encodeURIComponent(highlightId)}`,
+    { method: 'DELETE', credentials: 'include' },
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id}/items → ${resp.status}`)
+  return (await resp.json()) as Collection
 }

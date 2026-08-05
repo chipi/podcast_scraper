@@ -429,6 +429,25 @@ def test_highlight_create_list_patch_delete(tmp_path: Path) -> None:
     assert client.delete(f"/api/app/highlights/{hid}").json()["items"] == []
 
 
+def test_highlight_capture_persists_graph_refs(tmp_path: Path) -> None:
+    # #1419: a captured highlight resolves + stores its episode's canonical person/topic refs.
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    created = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 1000, "quote_text": "q"},
+    )
+    assert created.status_code == 201, created.text
+    refs = created.json()["graph_refs"]
+    assert refs, "expected resolved graph refs for an episode with KG"
+    assert all(r["kind"] in ("person", "topic") for r in refs)
+    assert all(r["id"].startswith(("person:", "topic:")) for r in refs)
+    # persisted: shows up on the subsequent list too
+    listed = client.get(f"/api/app/highlights?episode={slug}").json()["items"][0]
+    assert listed["graph_refs"] == refs
+
+
 def test_note_create_list_patch_delete(tmp_path: Path) -> None:
     client = _authed(tmp_path)
     created = client.post(
