@@ -25,7 +25,7 @@ pick the model that beats Gemini for less money at 100-ep scale.
 | gemini-2.5-flash | 0.0491 | 8.22 | 8.00 | 7.89 | 9-0 | beaten by qwen+deepseek on quality AND 5–10x pricier |
 | glm-4.7-flash | 0.0182 | 8.29 | 7.86 | 7.57 | 7-0* | decent quality but PRICIEST + PATHOLOGICALLY SLOW (56min, >10min GI calls); *7-ep |
 | Gemini-2.5-flash-lite | 0.0047 | (baseline) | — | — | — | cheapest Gemini (v2.4 baseline) |
-| gemini-2.5-pro | ~0.051 | 8.71 | (broken) | (broken) | — | ⚠️ summary EXCELLENT (8.71, best), but GI insight-chunk extraction FAILS (stub fallback) + KG topics malformed. Bug, not verdict: gemini provider has no reasoning-off (unlike litellm). Needs fix + re-run. |
+| gemini-2.5-pro | **0.2115** | **8.56** | 7.89 | 7.89 | 8-1 | ✅ GI-bug FIXED (c7877ffa: bounded thinking 1024 + max_output_tokens headroom). Re-run: 0 stub-fallback across 9 eps. BEST summary of ALL models (8.56), but insights/topics only mid-pack; EXACT cost $1.904/9ep — ~23–47x the flash models + pathologically SLOW (~2h40m for 9 eps). Dominated. |
 | deepseek-v4-pro | ~0.03+ | 8.44 | 7.11 | 6.33 | 7-2 | good summary but WEAK topics (loses to Gemini) + SLOW (36min on WSJ, hung) + pricey (9-ep) |
 | gpt-4.1-mini (openai) | ~0.020 | 7.67 | 6.89 | 7.44 | 6-3 | external ref: beats Gemini-lite but BELOW qwen/deepseek on every dimension + pricier |
 | kimi-k2.6 | ~0.044+ | 8.50 | 8.38 | 7.88 | 8-0* | BEST insights (8.38) but priciest output ($2.48/Mtok) + slow (~50min); *8-ep. Dominated by deepseek-flash (= quality, 5-10x cheaper, faster) |
@@ -66,8 +66,9 @@ and every pro/reasoning model on quality-per-dollar — and they're the only one
 
 **Everything else is dominated:**
 - **All Gemini tiers**: flash-lite is the weak baseline; gemini-2.5-flash is beaten on quality AND
-  10x pricier; gemini-2.5-pro's GI is broken in-pipeline (bug, not verdict — needs a reasoning-off
-  fix for the native gemini provider).
+  10x pricier; gemini-2.5-pro (GI-bug now FIXED, c7877ffa) has the BEST summary of any model (8.56)
+  and beats the baseline 8-1, but its insights/topics are only mid-pack, it costs **$0.21/ep**
+  (~23–47x the flash winners), and it is pathologically slow (~2h40m for 9 eps) — dominated.
 - **gpt-4.1-mini** (external ref): below qwen/deepseek on every dimension + pricier (~$0.02/ep).
 - **Pro/reasoning tier** (deepseek-v4-pro, kimi-k2.6, glm-4.7-flash, glm-5.2): all pathologically
   SLOW (10–36 min per long episode, 600s timeouts, keepalive-hangs) and far pricier; their quality
@@ -81,8 +82,9 @@ edge matters for downstream KG).
 
 ### Decisions flagged for operator
 1. Which model(s) advance to the 100-ep run — recommend qwen3.7-flash + deepseek-flash.
-2. gemini-2.5-pro GI bug: fix (reasoning-off for the native gemini provider) + re-run for a fair
-   number, or leave it (its summary was excellent at 8.71 but GI/topics unusable as-is).
+2. gemini-2.5-pro GI bug: FIXED (c7877ffa) + re-run — fair number now on the board (best summary
+   8.56, beats baseline 8-1) but dominated on cost ($0.21/ep) and speed. No open action; kept as
+   a reference row.
 3. Cost caveat: pro/reasoning-tier per-ep costs are token-estimates (parallel runs shared the
    LiteLLM key spend); flash-model costs are exact.
 
