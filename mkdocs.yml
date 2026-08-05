@@ -433,6 +433,9 @@ nav:
       - RFC-109 Per-Episode Observability Manifest: rfc/RFC-109-per-episode-observability-manifest.md
       - RFC-110 Outbound Delivery & the App-Infra Seam: rfc/RFC-110-outbound-delivery-and-seam.md
       - RFC-111 Curation Surfaces: rfc/RFC-111-curation-surfaces.md
+      - RFC-112 Remote MCP Transport & Auth: rfc/RFC-112-remote-mcp-transport-and-auth.md
+      - RFC-113 Graph-Aware PKM Export: rfc/RFC-113-graph-aware-pkm-export.md
+      - RFC-114 Personal Corpus: rfc/RFC-114-personal-corpus.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
