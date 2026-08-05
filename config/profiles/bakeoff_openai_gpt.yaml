@@ -1,0 +1,63 @@
+# Bake-off profile (#1356): popular-API reference — OpenAI gpt-4.1-mini (native openai provider,
+# OPENAI_API_KEY). Same robust control config; model-only swap. Not a reasoning model, so fast.
+# For the "how do the mainstream API LLMs compare for our use case" learning question.
+profile: bakeoff_openai_gpt
+
+transcription:
+  primary: whisper
+diarize: false
+screenplay: true
+
+summary_provider: openai
+speaker_detector_provider: openai
+quote_extraction_provider: openai
+entailment_provider: openai
+kg_extraction_provider: openai
+auto_speakers: true
+llm_pipeline_mode: staged
+
+openai_summary_model: gpt-4.1-mini
+openai_speaker_model: gpt-4.1-mini
+openai_cleaning_model: gpt-4.1-mini
+openai_temperature: 0.3
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+summarization_timeout: 600
+transcription_timeout: 600
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 8
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gil_evidence_match_summary_provider: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_insight_chunk_chars: 20000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+ner_model: en_core_web_trf
