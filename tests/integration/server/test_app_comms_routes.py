@@ -146,3 +146,20 @@ def test_push_unsubscribe_partial_keeps_enabled(tmp_path: Path) -> None:
     )
     assert resp.status_code == 200 and resp.json()["count"] == 1
     assert client.get("/api/app/comms").json()["push"]["enabled"] is True
+
+
+def test_unsubscribe_get_page_does_not_mutate(tmp_path: Path) -> None:
+    # Email-link GET must render a confirm form and NOT unsubscribe (prefetch-safe).
+    client = _authed(tmp_path)
+    ref = client.put("/api/app/comms", json={"digest": {"enabled": True}}).json()["unsubscribe_ref"]
+    page = TestClient(client.app).get("/api/app/comms/unsubscribe", params={"ref": ref})
+    assert page.status_code == 200
+    assert "text/html" in page.headers["content-type"]
+    assert "<form method=post" in page.text and ref in page.text
+    # still subscribed — the GET did not mutate
+    assert client.get("/api/app/comms").json()["digest"]["enabled"] is True
+    # the POST (form submit / RFC-8058 one-click) does mutate
+    assert TestClient(client.app).post(
+        "/api/app/comms/unsubscribe", params={"ref": ref}
+    ).json() == {"unsubscribed": True}
+    assert client.get("/api/app/comms").json()["digest"]["enabled"] is False

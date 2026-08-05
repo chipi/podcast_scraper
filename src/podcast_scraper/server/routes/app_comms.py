@@ -11,9 +11,11 @@ service (#1412) still suppresses on hard bounce regardless.
 
 from __future__ import annotations
 
+import html
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 
 from podcast_scraper.server import app_comms_store, app_push_store
 from podcast_scraper.server.app_user_store import User
@@ -69,11 +71,32 @@ async def put_comms(
     return _to_settings(stored, email_verified=_email_verified(user))
 
 
+@router.get("/comms/unsubscribe", response_class=HTMLResponse)
+async def unsubscribe_page(ref: str = Query(..., min_length=1)) -> HTMLResponse:
+    """The email-link landing page. A GET MUST NOT mutate — email clients + link scanners
+    prefetch links, which would silently unsubscribe the user. So this only renders a confirm
+    button that POSTs (the actual mutation). Complements the RFC-8058 one-click POST below.
+    """
+    safe_ref = html.escape(ref, quote=True)
+    page = (
+        "<!doctype html><html lang=en><meta charset=utf-8>"
+        "<meta name=robots content=noindex><title>Unsubscribe</title>"
+        "<body style='font-family:system-ui;max-width:32rem;margin:4rem auto;padding:0 1rem'>"
+        "<h1>Unsubscribe from the weekly digest?</h1>"
+        "<p>You'll stop receiving the “Your Week” email. Re-enable it anytime in the app.</p>"
+        f"<form method=post action='/api/app/comms/unsubscribe?ref={safe_ref}'>"
+        "<button type=submit style='padding:.6rem 1.2rem;font-size:1rem'>Unsubscribe</button>"
+        "</form></body></html>"
+    )
+    return HTMLResponse(page)
+
+
 @router.post("/comms/unsubscribe")
 async def unsubscribe(request: Request, ref: str = Query(..., min_length=1)) -> dict[str, bool]:
     """Public one-click unsubscribe: disable the digest for the user behind ``ref``.
 
-    No auth — the ref *is* the capability. Idempotent; unknown/used refs return
+    No auth — the ref *is* the capability. Serves both the confirm-page form POST (above) and the
+    RFC-8058 ``List-Unsubscribe-Post`` one-click header. Idempotent; unknown/used refs return
     ``{"unsubscribed": false}`` without leaking whether the ref ever existed.
     """
     ok = app_comms_store.unsubscribe(_data_dir(request), ref)
