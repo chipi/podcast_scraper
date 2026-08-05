@@ -351,6 +351,7 @@
     "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",
     "count": "No highlights | 1 highlight | {count} highlights",
     "export": "Export Markdown",
+    "share": "Share as card",
     "moment": "Marked moment",
     "span": "Transcript",
     "insight": "Insight",

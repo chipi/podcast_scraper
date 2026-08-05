@@ -21,6 +21,7 @@ import type { Highlight } from '../services/types'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
+import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
 const capture = useCaptureStore()
@@ -118,6 +119,11 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
   const updated = await addToCollection(collectionId, highlightId)
   const i = collections.value.findIndex((c) => c.id === updated.id)
   if (i >= 0) collections.value[i] = updated
+}
+
+// Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
+async function share(h: Highlight): Promise<void> {
+  await shareHighlightCard(h, titles.value[h.episode_slug] ?? h.episode_slug)
 }
 
 onMounted(async () => {
@@ -227,6 +233,13 @@ onMounted(async () => {
                 <option value="">{{ t('collections.addTo') }}</option>
                 <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
+              <button
+                type="button"
+                class="rounded-full p-1 text-muted transition hover:text-accent"
+                :aria-label="t('highlights.share')"
+                :title="t('highlights.share')"
+                @click="share(h)"
+              >↗</button>
               <button
                 type="button"
                 class="rounded-full p-1 text-muted transition hover:text-danger"

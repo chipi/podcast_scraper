@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import * as shareCard from '../composables/useShareCard'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
 import HighlightsView from './HighlightsView.vue'
@@ -59,6 +60,16 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('1:05') // 65_000ms
     const exportLink = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('export.md'))
     expect(exportLink?.attributes('download')).toBe('my-highlights.md')
+  })
+
+  it('shares a highlight as a card (#1418)', async () => {
+    const share = vi.spyOn(shareCard, 'shareHighlightCard').mockResolvedValue()
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'NVIDIA'))
+    const w = mountView()
+    await flushPromises()
+    await w.find('[aria-label="Share as card"]').trigger('click')
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ id: 'h1' }), 'NVIDIA')
   })
 
   it('flags a drifted anchor', async () => {
