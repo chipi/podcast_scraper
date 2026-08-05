@@ -51,7 +51,7 @@ cloud_llm_structured_min_output_tokens: 4096
 # iter-2: 180s was too aggressive — it killed legit-slow chunked-GI passes on long episodes and
 # caused retry churn (Sam Altman ~9min). 300s still fast-fails a true hang (was 30min) but lets a
 # genuine long pass finish.
-summarization_timeout: 300
+summarization_timeout: 600
 transcription_timeout: 300
 
 # iter-2: the default summary cap is 650 tokens (LED-base sized). deepseek's verbose summary JSON on

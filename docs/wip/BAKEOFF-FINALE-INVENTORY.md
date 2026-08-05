@@ -69,3 +69,55 @@ validation *after* the finale picks a model — about the SERVING PATH, not the 
 ## Rolling snapshot (updated during the run)
 - 39/105 judged: summary 8.18 vs 6.49 (37-2) · insights **8.44 vs 5.87 (39-0)** · topics
   7.72 vs 7.08 (23-5, 11t) · overall 38-1 · ~$0.0037/ep (token-estimate).
+
+## 2nd deepseek 100-ep run (all PA fixes, gateway podcast-flash-0731, isolated key) — 2026-08-05
+Corpus: v2.5-deepseek-fixed-100ep. Judged 87/105 (7 full feeds + flightcast) at report time.
+
+Scorecard (rolling judge, Opus 4.8, vs 2.4):
+- summary 8.30 / insights 8.32 / topics 7.79, overall **84-3**. Cost ~**$0.0050/ep** (isolated key, via PA3).
+- **PA1 chunked cleaning: WIN** — 0 cleaning-truncations across 88 eps (pre-fix 43/88).
+- **Budget isolation (dedicated OpenRouter key via gateway): WIN** — 0 budget-403; run completes
+  (pre-fix DIED at 88/105 on the shared-key weekly cap).
+- **PA3 cost observability: WORKS** through the gateway (real $/ep, was $0).
+- **PA4 rolling judge / PA5 corpus-build script: shipped**, used to run + judge this.
+- **PA2 topic specificity: NULL** — topics 7.79 ≈ pre-fix 7.78. No measurable lift; the topics
+  dimension needs a non-prompt lever (DGX embeddings / structural), not prompt tuning. Like the
+  earlier dead-end levers #1228/#1192.
+- **PA-6 (NEW) summarization_timeout=300 too low on the gateway** for the longest feeds
+  (flightcast/WSJ 100k+ char episodes): the extra gateway hop pushes the summary map-reduce past
+  300s → per-episode timeout → degraded summary (GI still runs; flightcast still scored 8.4, so
+  graceful). Slows the tail badly. Next pass: raise summarization_timeout for the gateway path or
+  optimize the reduce for very long transcripts.
+
+## FINAL — 2nd deepseek 100-ep (all fixes, gateway/isolated-key), 2026-08-05
+
+**Completed 105/105** (the pre-fix run died at 88 on the shared-OpenRouter budget cap). Judged vs
+the 2.4 baseline (Opus 4.8, blind A/B, top-12):
+
+| Dim | ds-fixed | 2.4 | Win |
+|---|---|---|---|
+| Summary | 8.31 | 6.31 | 102-3 |
+| Insights | 8.33 | 5.89 | 103-2 |
+| Topics | 7.81 | 7.16 | 63-13-29t |
+| Overall | | | **102-3** |
+
+- **Cost: $0.497 total = $0.0047/ep** (real OpenRouter/Novita cost, PA3-captured — cheaper than the
+  earlier $0.0092 token-estimate).
+- Every feed wins decisively; nvidia-ai recovered to 11-1.
+
+### Fix outcomes (honest)
+- **PA1 chunked cleaning — WIN.** 0 cleaning-truncations (was 43/88); base-level, all siblings.
+- **Budget isolation — WIN.** 0 budget-403 (dedicated podcast OpenRouter route via `podcast-flash-0731`).
+- **PA3 cost capture — WIN.** Real $/ep now visible; base-level.
+- **PA-6 summarization timeout — WIN.** 300→600s; validated on the 3 longest eps (0 timeouts;
+  summaries in 61/156/184s — the 12 main-run timeouts were transient gateway spikes, not
+  deterministic). Profile knob.
+- **PA2 topic specificity — NULL.** Topics 7.81 ≈ pre-fix 7.78. No measurable lift at scale.
+  Recommendation: revert (dead-end like #1228/#1192); topics already beats 2.4, real gains need a
+  non-prompt lever (low priority). **Pending operator's revert nod.**
+
+### Next (operator-agreed)
+Commit checkpoint → resolve the reasoning-on/off confound → **deepseek-DIRECT 100-ep** (native
+provider, not OpenRouter) to compare quality / speed(tokens-sec) / cost / reliability → build the
+**qwen native sibling** in parallel while it monitors. Base fixes (PA1/PA3) propagate to all
+siblings automatically.
