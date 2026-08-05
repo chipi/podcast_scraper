@@ -20,16 +20,25 @@ pick the model that beats Gemini for less money at 100-ep scale.
 
 | Model | $/ep | Summary | Insights | Topics | Overall | Notes |
 |---|---|---|---|---|---|---|
-| deepseek-v4-flash-0731 | 0.0092 | 8.44 | 8.44 | 8.22 | 9-0 | quality champion |
-| **qwen3.7-flash** | **0.0045** | 8.44 | 8.22 | 7.78 | 9-0 | **value winner** (< Gemini cost) |
-| glm-4.7-flash | 0.0131 | 8.14 | 7.71 | 6.86 | 7-0* | pricey + weak topics + PATHOLOGICALLY SLOW (>10min GI calls); *baseline 7-ep |
-| Gemini-2.5-flash-lite | 0.0047 | (baseline) | | | — | the cheapest Gemini (v2.4) |
-| gemini-2.5-flash | | | | | | pending |
-| gemini-2.5-pro | | | | | | pending |
-| deepseek-v4-pro | | | | | | pending |
-| kimi-k2.6 | | | | | | pending |
+| **qwen3.7-flash** | **0.0045** | 8.44 | 8.22 | 7.78 | 9-0 | **VALUE WINNER** — cheaper than flash-lite, near-deepseek quality |
+| deepseek-v4-flash-0731 | 0.0092 | 8.44 | 8.44 | 8.22 | 9-0 | **QUALITY CHAMPION** |
+| gemini-2.5-flash | 0.0491 | 8.22 | 8.00 | 7.89 | 9-0 | beaten by qwen+deepseek on quality AND 5–10x pricier |
+| glm-4.7-flash | 0.0182 | 8.29 | 7.86 | 7.57 | 7-0* | decent quality but PRICIEST + PATHOLOGICALLY SLOW (56min, >10min GI calls); *7-ep |
+| Gemini-2.5-flash-lite | 0.0047 | (baseline) | — | — | — | cheapest Gemini (v2.4 baseline) |
+| gemini-2.5-pro | ~0.051 | 8.71 | (broken) | (broken) | — | ⚠️ summary EXCELLENT (8.71, best), but GI insight-chunk extraction FAILS (stub fallback) + KG topics malformed. Bug, not verdict: gemini provider has no reasoning-off (unlike litellm). Needs fix + re-run. |
+| deepseek-v4-pro | ~pricey | 8.80 | 8.00 | 6.60 | 5-0* | good summary/insights but WEAK topics + SLOW (14-min GI calls, hung on ep7) + pricey; *6-ep partial |
+| kimi-k2.6 | | | | | | running (slow) |
 | glm-5.2 (full) | | | | | | pending |
 | gpt (openai) | | | | | | pending |
+
+**Pro/reasoning tier verdict (gempro, deepseek-v4-pro, glm-4.7-flash, kimi):** all pathologically
+SLOW (10–14 min GI calls, repeated 600s timeouts, occasional keepalive-hangs) and far pricier —
+impractical for this pipeline regardless of quality, and their quality does NOT clearly beat the
+flash models (weak topics or broken GI). The FLASH models win the practical frontier.
+
+**Interim read:** the two cheap Chinese flash models (qwen3.7-flash, deepseek-flash) BEAT mid-tier
+gemini-2.5-flash on quality while costing 5–10x less. gemini-2.5-flash beats only flash-lite. glm is
+out (slow + pricey). qwen3.7-flash is the standout value; deepseek-flash the quality lead.
 
 ## Queue (sequential — avoid machine thrash; slow runs finish, "slow" is a recorded finding)
 
