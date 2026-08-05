@@ -25,6 +25,7 @@ from podcast_scraper.server.app_user_store import (
     get_user,
     list_users,
     set_disabled,
+    set_mcp_access,
     set_role,
     User,
     user_id_for,
@@ -43,6 +44,7 @@ class UserOut(BaseModel):
     role: str
     disabled: bool
     provider: str
+    mcp_access: bool = False
 
 
 class CreateUserBody(BaseModel):
@@ -54,10 +56,11 @@ class CreateUserBody(BaseModel):
 
 
 class PatchUserBody(BaseModel):
-    """Partial update — set role and/or active state. Omitted fields are left unchanged."""
+    """Partial update — role, active state, and/or the MCP entitlement. Omitted fields untouched."""
 
     role: str | None = None
     disabled: bool | None = None
+    mcp_access: bool | None = None
 
 
 def _data_dir(request: Request) -> Path:
@@ -79,6 +82,7 @@ def _out(user: User) -> UserOut:
         role=user.role,
         disabled=user.disabled,
         provider=user.provider,
+        mcp_access=user.mcp_access,
     )
 
 
@@ -155,6 +159,16 @@ async def admin_patch_user(
                 user=user_id,
                 disabled=bool(body.disabled),
             )
+
+    if body.mcp_access is not None and bool(body.mcp_access) != user.mcp_access:
+        set_mcp_access(data_dir, user_id, body.mcp_access)
+        _audit(
+            request,
+            action="admin.user.mcp_access",
+            by=admin.user_id,
+            user=user_id,
+            mcp_access=bool(body.mcp_access),
+        )
 
     updated = get_user(data_dir, user_id)
     assert updated is not None  # we hold no lock, but the user was just present

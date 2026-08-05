@@ -240,6 +240,7 @@ def _user_dict(user: User) -> dict[str, object]:
         "name": user.name,
         "role": user.role,
         "disabled": user.disabled,
+        "mcp_access": user.mcp_access,  # RFC-112: gates the MCP connection UI
     }
 
 

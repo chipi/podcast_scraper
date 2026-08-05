@@ -43,6 +43,9 @@ class User:
     subject: str
     disabled: bool = False
     role: str = app_roles.DEFAULT_ROLE
+    #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
+    #: listener may have it, an admin may not) — admin-granted, not a rank. Default off.
+    mcp_access: bool = False
 
 
 #: The only shape ``user_id_for`` ever produces: ``u_`` + 24 lowercase hex chars.
@@ -84,6 +87,7 @@ def _write_profile(data_dir: Path, user: User) -> None:
                 "subject": user.subject,
                 "disabled": user.disabled,
                 "role": user.role,
+                "mcp_access": user.mcp_access,
             },
             ensure_ascii=False,
             indent=2,
@@ -113,6 +117,8 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         disabled=bool(doc.get("disabled", False)),
         # Profiles written before #1128 have no ``role`` → default to listener.
         role=app_roles.normalize_role(doc.get("role")),
+        # Profiles written before #1471 have no ``mcp_access`` → default off.
+        mcp_access=bool(doc.get("mcp_access", False)),
     )
 
 
@@ -197,6 +203,18 @@ def set_role(data_dir: Path, user_id: str, role: str) -> bool:
         if user is None:
             return False
         _write_profile(data_dir, replace(user, role=app_roles.normalize_role(role)))
+    return True
+
+
+def set_mcp_access(data_dir: Path, user_id: str, mcp_access: bool) -> bool:
+    """Grant/revoke a user's MCP-access entitlement (RFC-112). Returns False for unknown users."""
+    if not _is_safe_user_id(user_id):
+        return False
+    with _profile_lock(data_dir, user_id):
+        user = get_user(data_dir, user_id)
+        if user is None:
+            return False
+        _write_profile(data_dir, replace(user, mcp_access=bool(mcp_access)))
     return True
 
 

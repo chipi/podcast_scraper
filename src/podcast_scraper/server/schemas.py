@@ -748,6 +748,51 @@ class CorpusRankedResponse(BaseModel):
     items: list[CorpusRankedEpisode] = Field(default_factory=list)
 
 
+# --- MCP personal-access tokens (RFC-112 slice 1, #1471) ---
+
+
+class McpTokenMeta(BaseModel):
+    """Token metadata — never the secret. (GET/DELETE /api/app/mcp/tokens)."""
+
+    id: str = Field(description="Opaque token id (for revocation).")
+    label: str = Field(description="User-chosen label (e.g. the agent name).")
+    created_at: int = Field(description="Unix time created.")
+    last_used_at: int | None = Field(default=None, description="Unix time last used, or null.")
+
+
+class McpTokensResponse(BaseModel):
+    """The user's MCP tokens (metadata only)."""
+
+    items: list[McpTokenMeta] = Field(default_factory=list)
+
+
+class McpTokenCreate(BaseModel):
+    """POST /api/app/mcp/tokens body."""
+
+    label: str = Field(min_length=1, max_length=120, description="A label for the token/agent.")
+
+
+class McpTokenCreated(BaseModel):
+    """The created token — the plaintext is shown ONCE and never returned again."""
+
+    token: str = Field(description="The secret bearer token. Copy it now; it is not stored.")
+    meta: McpTokenMeta
+
+
+class McpVerifyBody(BaseModel):
+    """POST /internal/mcp/verify body — the MCP server presents a bearer token."""
+
+    token: str = Field(min_length=1, description="The presented MCP bearer token.")
+
+
+class McpVerifyResponse(BaseModel):
+    """The verified principal for a token, or an authenticated=false result."""
+
+    authenticated: bool = Field(description="Whether the token resolved to an entitled user.")
+    user_id: str | None = Field(default=None, description="The owning user id when authenticated.")
+    mcp_access: bool = Field(default=False, description="Whether that user holds the entitlement.")
+
+
 # --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
 
 
