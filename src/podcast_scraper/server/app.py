@@ -67,6 +67,7 @@ from podcast_scraper.server.routes import (
     internal_outbox,
     jobs,
     llm_gateway,
+    mcp_oauth,
     operator_config,
     ops,
     query_activity,
@@ -226,6 +227,7 @@ _APP_ROUTES = (
     app_corpus,
     app_export,
     app_mcp,
+    mcp_oauth,
     app_enrichment,
     app_consolidation,
 )
@@ -257,6 +259,8 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
     app.include_router(internal_outbox.router, prefix="/internal")
     # The internal MCP verify seam (#1471) — service-to-service, token-gated, tailnet-only.
     app.include_router(internal_mcp.router, prefix="/internal")
+    # MCP OAuth 2.1 authorization-server metadata at the app ROOT (RFC 8414 discovery, #1471).
+    app.include_router(mcp_oauth.wellknown_router)
 
 
 class _AccessLogMiddleware:

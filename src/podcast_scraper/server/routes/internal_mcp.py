@@ -18,7 +18,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
-from podcast_scraper.server import app_mcp_tokens
+from podcast_scraper.server import app_mcp_tokens, app_oauth_server
 from podcast_scraper.server.app_user_store import get_user
 from podcast_scraper.server.schemas import McpVerifyBody, McpVerifyResponse
 
@@ -46,9 +46,16 @@ def require_internal_mcp_token(
     dependencies=[Depends(require_internal_mcp_token)],
 )
 async def verify(request: Request, body: McpVerifyBody) -> McpVerifyResponse:
-    """Resolve a presented MCP bearer token to its user + live entitlement."""
+    """Resolve a presented MCP bearer token to its user + live entitlement.
+
+    Accepts **both** auth paths: a PAT (slice 1) or an OAuth 2.1 access token (slice 3). Either
+    resolves to a ``user_id``; the ``mcp_access`` entitlement is then re-checked live.
+    """
     data_dir = _data_dir(request)
     user_id = app_mcp_tokens.verify_token(data_dir, body.token)
+    if user_id is None:
+        oauth = app_oauth_server.verify_access_token(data_dir, body.token)
+        user_id = oauth["user_id"] if oauth else None
     if user_id is None:
         return McpVerifyResponse(authenticated=False)
     user = get_user(data_dir, user_id)
