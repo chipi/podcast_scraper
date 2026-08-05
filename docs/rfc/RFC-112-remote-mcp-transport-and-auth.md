@@ -2,6 +2,7 @@
 
 - **Status**: Draft
 - **Authors**: Marko, Claude (Opus 4.8), advisor (Fable 5)
+- **Related epic**: [#1471](https://github.com/chipi/podcast_scraper/issues/1471)
 - **Stakeholders**: Core team, platform users (bring-your-own-agent), Infra/Security
 - **Related PRDs**:
   - `docs/prd/PRD-034-generic-mcp-server.md` (the MCP product spec)

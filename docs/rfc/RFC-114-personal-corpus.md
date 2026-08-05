@@ -2,6 +2,7 @@
 
 - **Status**: Draft
 - **Authors**: Marko, Claude (Opus 4.8), advisor (Fable 5)
+- **Related epic**: [#1470](https://github.com/chipi/podcast_scraper/issues/1470)
 - **Stakeholders**: Core team, Consumer App, Search/Retrieval, MCP
 - **Related PRDs**:
   - `docs/prd/PRD-041-consolidation.md` (shipped the read-time personal projection; this generalizes it)

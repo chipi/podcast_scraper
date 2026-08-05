@@ -2,6 +2,7 @@
 
 - **Status**: Draft
 - **Authors**: Marko, Claude (Opus 4.8), advisor (Fable 5)
+- **Related epic**: [#1472](https://github.com/chipi/podcast_scraper/issues/1472)
 - **Stakeholders**: Core team, platform users (PKM/second-brain), Consumer App
 - **Related PRDs**:
   - `docs/prd/PRD-046-delivery-and-curation.md` (the arc this extends; the export was its named next arc)
