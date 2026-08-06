@@ -256,6 +256,63 @@ def test_revoke_client_grants_kills_live_tokens(tmp_path: Path) -> None:
     )
 
 
+def test_revoke_client_grants_kills_unexchanged_code(tmp_path: Path) -> None:
+    # H1: a disconnect must also drop a live (un-exchanged) authorization code, else it resurrects a
+    # fresh 30-day grant within the code's 60s TTL after the user clicked Disconnect.
+    client = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")
+    cid = client["client_id"]
+    verifier, challenge = _pkce()
+    code = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+    assert oa.revoke_client_grants(tmp_path, user_id=_UID, client_id=cid) == 1  # the code
+    assert (
+        oa.exchange_authorization_code(
+            tmp_path, code=code, code_verifier=verifier, client_id=cid, redirect_uri=_REDIRECT
+        )
+        is None  # the code can no longer be exchanged
+    )
+
+
+def test_exchange_and_refresh_reject_de_entitled_user(tmp_path: Path) -> None:
+    # H2: a user whose mcp_access was pulled cannot mint or rotate tokens (the AS re-checks).
+    client = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")
+    cid = client["client_id"]
+    verifier, challenge = _pkce()
+    code = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+
+    def denied(_uid: str) -> bool:
+        return False  # user is no longer entitled
+
+    assert (
+        oa.exchange_authorization_code(
+            tmp_path,
+            code=code,
+            code_verifier=verifier,
+            client_id=cid,
+            redirect_uri=_REDIRECT,
+            is_entitled=denied,
+        )
+        is None
+    )
+    # the entitled path still issues, but a refresh once de-entitled dies (old refresh consumed)
+    code2 = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+    t = oa.exchange_authorization_code(
+        tmp_path, code=code2, code_verifier=verifier, client_id=cid, redirect_uri=_REDIRECT
+    )
+    assert t is not None
+    assert (
+        oa.refresh_access_token(
+            tmp_path, refresh_token=t["refresh_token"], client_id=cid, is_entitled=denied
+        )
+        is None
+    )
+
+
 def test_consent_remember_and_revoke(tmp_path: Path) -> None:
     cid = "mcpc_abc"
     assert oa.has_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read") is False

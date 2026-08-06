@@ -85,6 +85,24 @@ def test_verify_audience_mismatch_denied(monkeypatch: pytest.MonkeyPatch) -> Non
     assert auth.verify_bearer("clp_mcp_pat") == "u_1"
 
 
+def test_verify_audience_bound_but_no_resource_configured_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config(monkeypatch)
+    monkeypatch.delenv("APP_MCP_RESOURCE_URL", raising=False)  # this server can't identify itself
+    # An aud-BOUND token must be rejected when we have no resource to check against (M1) …
+    _stub_urlopen(
+        monkeypatch,
+        b'{"authenticated": true, "user_id": "u_1", "mcp_access": true, "aud": "https://x"}',
+    )
+    assert auth.verify_bearer("clp_mcpat_x") is None
+    # … but an unbound PAT (empty aud) still works.
+    _stub_urlopen(
+        monkeypatch, b'{"authenticated": true, "user_id": "u_1", "mcp_access": true, "aud": ""}'
+    )
+    assert auth.verify_bearer("clp_mcp_pat") == "u_1"
+
+
 def test_verify_network_error_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     _config(monkeypatch)
     _stub_urlopen(monkeypatch, None, raise_exc=OSError("boom"))

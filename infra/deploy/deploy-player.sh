@@ -249,14 +249,24 @@ fi
 # A failure here does not fail the player deploy; it only flags that the MCP surface needs a look.
 if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
   echo "[$(date -u +%FT%TZ)] MCP reachability check (in-container :8009)..."
-  disc=$("${COMPOSE[@]}" exec -T mcp curl -fsS -o /dev/null -w '%{http_code}' \
-    http://127.0.0.1:8009/.well-known/oauth-protected-resource 2>/dev/null || echo 000)
+  meta=$("${COMPOSE[@]}" exec -T mcp curl -fsS \
+    http://127.0.0.1:8009/.well-known/oauth-protected-resource 2>/dev/null || echo "")
+  disc=$([ -n "$meta" ] && echo 200 || echo 000)
   gate=$("${COMPOSE[@]}" exec -T mcp curl -sS -o /dev/null -w '%{http_code}' \
     -X POST http://127.0.0.1:8009/mcp 2>/dev/null || echo 000)
-  if [ "$disc" = "200" ] && [ "$gate" = "401" ]; then
-    echo "[$(date -u +%FT%TZ)] MCP up: discovery 200, bearer gate 401 (token-less denied) — https://mcp.${PLAYER_DOMAIN}"
+  # Consistency: the discovery `resource` must equal APP_MCP_RESOURCE_URL and its
+  # authorization_servers must point at the apex issuer — the wiring most likely to drift and the
+  # exact drift that would silently defeat aud-binding (review M2). Best-effort grep, non-fatal.
+  want_res="https://mcp.${PLAYER_DOMAIN}"
+  want_iss="https://${PLAYER_DOMAIN}"
+  consistent=no
+  if echo "$meta" | grep -q "\"$want_res\"" && echo "$meta" | grep -q "\"$want_iss\""; then
+    consistent=yes
+  fi
+  if [ "$disc" = "200" ] && [ "$gate" = "401" ] && [ "$consistent" = "yes" ]; then
+    echo "[$(date -u +%FT%TZ)] MCP up: discovery 200, gate 401, metadata consistent — https://${want_res#https://}"
   else
-    echo "WARN: MCP surface not fully verified (discovery=$disc, token-less gate=$gate; want 200/401). Check the mcp container + APP_MCP_ISSUER_URL/APP_MCP_RESOURCE_URL." >&2
+    echo "WARN: MCP surface not fully verified (discovery=$disc, token-less gate=$gate, metadata-consistent=$consistent; want 200/401/yes). Check the mcp container + APP_MCP_ISSUER_URL/APP_MCP_RESOURCE_URL match ${want_iss} / ${want_res}." >&2
   fi
 fi
 

@@ -165,6 +165,15 @@ services:
       - FOWNER
       - SETUID
       - SETGID
+    # Liveness: the public discovery doc must answer 200 (it also proves the ASGI app + auth
+    # middleware booted). Without this a crash-looping mcp would still get a public vhost pointing at
+    # a dead upstream → 502s on a public surface (review M3).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8009/.well-known/oauth-protected-resource"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
     depends_on:
       api:
         condition: service_healthy

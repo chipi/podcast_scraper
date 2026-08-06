@@ -15,12 +15,12 @@ from __future__ import annotations
 
 import threading
 import time
+from collections import OrderedDict
 
 _LOCK = threading.Lock()
-_HITS: dict[str, list[float]] = {}
-_MAX_KEYS = (
-    20_000  # crude bound: if distinct keys blow past this, drop everything (safe for a limiter)
-)
+# OrderedDict for O(1) LRU eviction: touched keys move to the end, so the oldest are at the front.
+_HITS: "OrderedDict[str, list[float]]" = OrderedDict()
+_MAX_KEYS = 20_000  # bound on distinct keys; over this we evict the OLDEST, never clear all
 
 
 def allow(key: str, *, limit: int, window_s: float) -> bool:
@@ -28,15 +28,17 @@ def allow(key: str, *, limit: int, window_s: float) -> bool:
     now = time.monotonic()
     cutoff = now - window_s
     with _LOCK:
-        if len(_HITS) > _MAX_KEYS:
-            _HITS.clear()
         hits = [t for t in _HITS.get(key, ()) if t >= cutoff]
-        if len(hits) >= limit:
-            _HITS[key] = hits
-            return False
-        hits.append(now)
+        allowed = len(hits) < limit
+        if allowed:
+            hits.append(now)
         _HITS[key] = hits
-        return True
+        _HITS.move_to_end(key)  # most-recently-touched → end
+        # Evict the OLDEST keys, not the whole table: a flood of distinct (spoofable) keys must not
+        # be able to wipe live counters for legitimate principals (a reset attack). H3.
+        while len(_HITS) > _MAX_KEYS:
+            _HITS.popitem(last=False)
+        return allowed
 
 
 def reset() -> None:

@@ -23,6 +23,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from podcast_scraper.server import app_oauth_server, app_rate_limit
 from podcast_scraper.server.app_audit import audit_event
+from podcast_scraper.server.app_user_store import get_user
 from podcast_scraper.server.routes.app_auth import get_current_user
 
 router = APIRouter(tags=["app"])
@@ -34,7 +35,15 @@ _TOKEN_LIMIT, _TOKEN_WINDOW_S = 10, 60.0  # token exchanges per OAuth client
 
 
 def _client_ip(request: Request) -> str:
-    """The real client IP — first X-Forwarded-For hop (behind Caddy→nginx), else the peer."""
+    """Best-effort client IP for the DCR rate-limit key — the left-most X-Forwarded-For hop.
+
+    Trust model: the app is loopback-bound behind the edge (Cloudflare → Caddy → nginx). The true
+    outer edge (Cloudflare, ADR-118) overwrites XFF, so the left-most hop is edge-attested there —
+    the same posture the existing nginx `limit_req` relies on. Without that edge XFF is client-
+    spoofable, so this per-IP DCR limit is **best-effort**; the unbypassable backstop against DCR
+    abuse is the hard ``_MAX_CLIENTS`` registration cap, and the per-*client* token limit below keys
+    on the server-minted ``client_id`` (not spoofable).
+    """
     xff = request.headers.get("x-forwarded-for", "")
     if xff:
         return xff.split(",")[0].strip()
@@ -275,6 +284,11 @@ async def token(
     ):
         raise HTTPException(status_code=429, detail="too many token requests, slow down")
     data_dir = _data_dir(request)
+
+    def _entitled(uid: str) -> bool:
+        u = get_user(data_dir, uid)
+        return u is not None and u.mcp_access
+
     if grant_type == "authorization_code":
         result = app_oauth_server.exchange_authorization_code(
             data_dir,
@@ -282,10 +296,11 @@ async def token(
             code_verifier=code_verifier,
             client_id=client_id,
             redirect_uri=redirect_uri,
+            is_entitled=_entitled,
         )
     elif grant_type == "refresh_token":
         result = app_oauth_server.refresh_access_token(
-            data_dir, refresh_token=refresh_token, client_id=client_id
+            data_dir, refresh_token=refresh_token, client_id=client_id, is_entitled=_entitled
         )
     else:
         raise HTTPException(status_code=400, detail="unsupported grant_type")

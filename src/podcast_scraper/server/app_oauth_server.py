@@ -21,7 +21,7 @@ import secrets
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from filelock import FileLock
 
@@ -154,11 +154,13 @@ def revoke_consent(data_dir: Path, *, user_id: str, client_id: str) -> bool:
 
 
 def revoke_client_grants(data_dir: Path, *, user_id: str, client_id: str) -> int:
-    """Invalidate all live access + refresh tokens a user holds for a client. Returns the count.
+    """Invalidate a user's live grants for a client (codes + access + refresh); return the count.
 
     A true *disconnect*: forgetting consent alone leaves an already-issued access token valid until
-    expiry (and its refresh token usable for 30d). This drops those grants so the connection dies
-    immediately — pair it with :func:`revoke_consent`.
+    expiry (and its refresh token usable for 30d). It also leaves any **un-exchanged authorization
+    code** live for its 60s TTL — and since the code→token exchange does not re-check consent, that
+    code would resurrect a fresh 30-day grant *after* the user clicked Disconnect. So we drop codes
+    too. Pair with :func:`revoke_consent`.
     """
     with _lock(data_dir, _GRANTS_FILE):
         grants = _read(data_dir, _GRANTS_FILE)
@@ -168,7 +170,7 @@ def revoke_client_grants(data_dir: Path, *, user_id: str, client_id: str) -> int
             if isinstance(rec, dict)
             and rec.get("user_id") == user_id
             and rec.get("client_id") == client_id
-            and rec.get("kind") in ("access", "refresh")
+            and rec.get("kind") in ("code", "access", "refresh")
         ]
         for h in doomed:
             grants.pop(h, None)
@@ -300,8 +302,13 @@ def exchange_authorization_code(
     code_verifier: str,
     client_id: str,
     redirect_uri: str,
+    is_entitled: Callable[[str], bool] | None = None,
 ) -> dict[str, Any] | None:
-    """Verify code + PKCE + client/redirect binding, consume, issue tokens (None on fail)."""
+    """Verify code + PKCE + client/redirect binding, consume, issue tokens (None on fail).
+
+    ``is_entitled(user_id)`` (injected by the route) is re-checked at exchange time so a user whose
+    ``mcp_access`` was pulled cannot mint fresh tokens from a still-live code (H2).
+    """
     code_hash = _hash(code)
     with _lock(data_dir, _GRANTS_FILE):
         grants = _read(data_dir, _GRANTS_FILE)
@@ -317,15 +324,26 @@ def exchange_authorization_code(
         return None
     if not _pkce_ok(code_verifier, str(rec["code_challenge"])):
         return None
+    if is_entitled is not None and not is_entitled(str(rec["user_id"])):
+        return None
     return _issue_tokens(
         data_dir, user_id=str(rec["user_id"]), client_id=client_id, scope=str(rec["scope"])
     )
 
 
 def refresh_access_token(
-    data_dir: Path, *, refresh_token: str, client_id: str
+    data_dir: Path,
+    *,
+    refresh_token: str,
+    client_id: str,
+    is_entitled: Callable[[str], bool] | None = None,
 ) -> dict[str, Any] | None:
-    """Rotate a refresh token → new access+refresh. Consumes the old refresh. None on fail."""
+    """Rotate a refresh token → new access+refresh. Consumes the old refresh. None on fail.
+
+    ``is_entitled(user_id)`` is re-checked so the refresh chain dies the moment ``mcp_access`` is
+    pulled — the old refresh is already consumed above, so a de-entitled user's chain terminates
+    (not just its reads) rather than lingering re-activatable for 30 days (H2).
+    """
     rt_hash = _hash(refresh_token)
     with _lock(data_dir, _GRANTS_FILE):
         grants = _read(data_dir, _GRANTS_FILE)
@@ -335,6 +353,8 @@ def refresh_access_token(
         grants.pop(rt_hash, None)  # rotate: old refresh is invalidated
         _write(data_dir, _GRANTS_FILE, grants)
     if rec["expires_at"] < _now() or rec["client_id"] != client_id:
+        return None
+    if is_entitled is not None and not is_entitled(str(rec["user_id"])):
         return None
     return _issue_tokens(
         data_dir, user_id=str(rec["user_id"]), client_id=client_id, scope=str(rec["scope"])

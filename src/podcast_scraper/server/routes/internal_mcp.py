@@ -18,10 +18,23 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
-from podcast_scraper.server import app_mcp_tokens, app_oauth_server
+from podcast_scraper.server import app_mcp_tokens, app_oauth_server, app_rate_limit
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_user_store import get_user
 from podcast_scraper.server.schemas import McpVerifyBody, McpVerifyResponse
+
+# Cap denial-audit writes: hammering public /mcp with junk bearers triggers a verify denial per
+# request; uncapped that is unbounded disk write-amplification (M4). Past this rate the denials are
+# dropped from the audit (the edge fail2ban jail handles the flood itself).
+_DENIAL_AUDIT_LIMIT, _DENIAL_AUDIT_WINDOW_S = 60, 60.0
+
+
+def _audit_denial(audit_path: Path | None, **fields: object) -> None:
+    if app_rate_limit.allow(
+        "mcp_verify_denied", limit=_DENIAL_AUDIT_LIMIT, window_s=_DENIAL_AUDIT_WINDOW_S
+    ):
+        append_audit(audit_path, {"event": "mcp.auth.denied", **fields})
+
 
 router = APIRouter(tags=["internal"])
 
@@ -67,17 +80,14 @@ async def verify(request: Request, body: McpVerifyBody) -> McpVerifyResponse:
     audit_path = getattr(request.app.state, "audit_path", None)
     if user_id is None:
         # A presented token that resolved to nothing (unknown / expired / malformed). Audit the
-        # DENIAL (the security signal) — never the token itself. Successes are NOT audited here
-        # (every tool call verifies → too noisy); credential issuance/revocation is audited instead.
-        append_audit(audit_path, {"event": "mcp.auth.denied", "reason": "unresolved_token"})
+        # DENIAL (the security signal, throttled) — never the token. Successes are NOT audited here
+        # (every call verifies → noisy); issuance/revocation is audited elsewhere.
+        _audit_denial(audit_path, reason="unresolved_token")
         return McpVerifyResponse(authenticated=False)
     user = get_user(data_dir, user_id)
     if user is None or not user.mcp_access:
         # Token valid but the entitlement was revoked (or the user is gone) → deny at connect time.
-        append_audit(
-            audit_path,
-            {"event": "mcp.auth.denied", "reason": "entitlement_revoked", "user_id": user_id},
-        )
+        _audit_denial(audit_path, reason="entitlement_revoked", user_id=user_id)
         return McpVerifyResponse(authenticated=False, user_id=user_id, mcp_access=False)
     return McpVerifyResponse(
         authenticated=True, user_id=user_id, mcp_access=True, scope=scope, aud=aud

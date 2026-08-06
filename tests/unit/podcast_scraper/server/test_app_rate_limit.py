@@ -25,6 +25,20 @@ def test_keys_are_independent() -> None:
     assert rl.allow("b", limit=1, window_s=60.0) is True
 
 
+def test_key_flood_evicts_oldest_not_live_counters(monkeypatch: pytest.MonkeyPatch) -> None:
+    # H3: a flood of distinct (spoofable) keys must evict only the OLDEST — it must NOT wipe a
+    # still-active key's counter (the old clear-all reset attack). We keep "victim" recently-touched
+    # throughout the flood, so LRU never evicts it; its limit must stay enforced (never reset).
+    monkeypatch.setattr(rl, "_MAX_KEYS", 5)
+    assert rl.allow("victim", limit=1, window_s=60.0) is True
+    assert rl.allow("victim", limit=1, window_s=60.0) is False  # victim is now at its limit
+    for i in range(30):  # flood distinct keys far past _MAX_KEYS
+        rl.allow(f"flood-{i}", limit=1, window_s=60.0)
+        # re-touch the victim so it stays recent; it must remain AT its limit, never reset
+        assert rl.allow("victim", limit=1, window_s=60.0) is False
+    assert len(rl._HITS) <= 5  # table is bounded, not grown unbounded — and never cleared wholesale
+
+
 def test_window_expiry_frees_budget(monkeypatch: pytest.MonkeyPatch) -> None:
     clock = {"t": 1000.0}
     monkeypatch.setattr(rl.time, "monotonic", lambda: clock["t"])
