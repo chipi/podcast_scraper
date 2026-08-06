@@ -12,8 +12,7 @@ import asyncio
 
 import pytest
 
-pytest.importorskip("mcp.server.fastmcp")  # the MCP SDK ships in [dev]/[search] prod image
-
+# The MCP SDK is a [dev] extra, guaranteed present in the unit env (like test_server.py).
 pytestmark = pytest.mark.unit
 
 _CORPUS = "tests/fixtures/app-validation-corpus"

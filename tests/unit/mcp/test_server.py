@@ -94,10 +94,12 @@ def test_parse_mcp_argv_transport_defaults_stdio() -> None:
 
 
 def test_parse_mcp_argv_http_flags() -> None:
+    # A test string asserting CLI parse — no actual bind (the container binds 0.0.0.0 by design,
+    # loopback-published on the host). nosec per the repo convention for legitimate 0.0.0.0.
     args = parse_mcp_argv(
-        ["--corpus", "/d", "--transport", "http", "--host", "0.0.0.0", "--port", "9"]
+        ["--corpus", "/d", "--transport", "http", "--host", "0.0.0.0", "--port", "9"]  # nosec B104
     )
-    assert args.transport == "http" and args.host == "0.0.0.0" and args.port == 9
+    assert args.transport == "http" and args.host == "0.0.0.0" and args.port == 9  # nosec B104
 
 
 def test_run_server_rejects_unknown_transport(tmp_path) -> None:  # type: ignore[no-untyped-def]

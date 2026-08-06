@@ -111,6 +111,7 @@ def register_client(
 
 
 def get_client(data_dir: Path, client_id: str) -> dict[str, Any] | None:
+    """The registered client metadata for ``client_id``, or None if unknown."""
     client = _read(data_dir, _CLIENTS_FILE).get(client_id)
     return client if isinstance(client, dict) else None
 
