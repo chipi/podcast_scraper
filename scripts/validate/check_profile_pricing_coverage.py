@@ -41,6 +41,9 @@ PROFILES_DIR = REPO_ROOT / "config" / "profiles"
 PRICING_YAML = REPO_ROOT / "config" / "pricing_assumptions.yaml"
 
 # Providers that bill per-call (all others are local / free).
+# ``qwen`` is the native Qwen provider (ADR-144): unlike the vllm/litellm siblings (served-name /
+# gateway aliases, excluded), it names REAL billable model ids on a cloud host, so its models are
+# gated. DGX-served qwen models carry an explicit $0 row (electricity-only), so those pass too.
 _BILLABLE_PROVIDERS: Tuple[str, ...] = (
     "openai",
     "gemini",
@@ -48,11 +51,12 @@ _BILLABLE_PROVIDERS: Tuple[str, ...] = (
     "mistral",
     "deepseek",
     "grok",
+    "qwen",
 )
 
 # Field-name regex: <provider>_<capability>_model.
 _FIELD_RE = re.compile(
-    r"^(?P<provider>openai|gemini|anthropic|mistral|deepseek|grok|ollama)"
+    r"^(?P<provider>openai|gemini|anthropic|mistral|deepseek|grok|ollama|qwen)"
     r"_(?P<capability>transcription|speaker|summary|cleaning|insight|kg_extraction)"
     r"_model$"
 )

@@ -90,6 +90,7 @@ def create_speaker_detector(  # noqa: C901
             "anthropic",
             "vllm",
             "litellm",
+            "qwen",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
@@ -320,6 +321,18 @@ def create_speaker_detector(  # noqa: C901
                 "Config using speaker_detector_provider='litellm' and the litellm_* settings."
             )
         provider = LiteLLMProvider(cfg)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
+    elif provider_type == "qwen":
+        # ADR-144: naming/NER on a Qwen3 endpoint (cloud host or DGX vLLM); own `qwen` telemetry.
+        from ..providers.qwen import QwenProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "Qwen speaker detector is not wired for experiment-param mode; drive it with a "
+                "Config using speaker_detector_provider='qwen' and the qwen_* settings."
+            )
+        provider = QwenProvider(cfg)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "anthropic":

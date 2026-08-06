@@ -440,6 +440,19 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/v1"
 
+    def qwen_api_base(self) -> str:
+        """Get native Qwen provider base URL (points to E2E server).
+
+        The Qwen provider (ADR-144) is OpenAI-compatible, so it reuses the same mock endpoints as
+        openai/deepseek/litellm:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - Note: Qwen does NOT serve audio transcription (whisper/openai own it).
+
+        Returns:
+            Qwen API base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
     def dgx_host_port(self) -> tuple[str, int]:
         """``(host, port)`` for the DGX tailnet clients (#954).
 

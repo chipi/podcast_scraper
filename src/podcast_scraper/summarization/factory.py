@@ -92,6 +92,7 @@ def create_summarization_provider(  # noqa: C901
                     "anthropic",
                     "vllm",
                     "litellm",
+                    "qwen",
                 ],
                 str(provider_type_override).strip().lower(),
             )
@@ -108,6 +109,7 @@ def create_summarization_provider(  # noqa: C901
                 "anthropic",
                 "vllm",
                 "litellm",
+                "qwen",
             ):
                 raise ValueError(f"Invalid provider_type_override: {provider_type_override}")
         else:
@@ -130,6 +132,7 @@ def create_summarization_provider(  # noqa: C901
             "anthropic",
             "vllm",
             "litellm",
+            "qwen",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
@@ -147,6 +150,7 @@ def create_summarization_provider(  # noqa: C901
                 "anthropic",
                 "vllm",
                 "litellm",
+                "qwen",
             ],
             provider_type_str,
         )
@@ -326,6 +330,19 @@ def create_summarization_provider(  # noqa: C901
                 "using summary_provider='litellm' and the litellm_* settings."
             )
         provider = LiteLLMProvider(cfg)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
+    elif provider_type == "qwen":
+        # ADR-144: Qwen3 over any OpenAI-compatible endpoint (cloud host or DGX vLLM). A sibling of
+        # the vllm/deepseek providers with its own `qwen` telemetry namespace.
+        from ..providers.qwen import QwenProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "Qwen provider is not wired for experiment-param mode; drive it with a Config "
+                "using summary_provider='qwen' and the qwen_* settings."
+            )
+        provider = QwenProvider(cfg)
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
     elif provider_type == "gemini":

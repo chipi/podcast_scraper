@@ -367,6 +367,7 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
         "ollama",
         "vllm",  # ADR-144: DGX-local LLM self-grounds (quote/entailment on the same model)
         "litellm",  # #1356: gateway-routed LLM — an API LLM, same self-grounding treatment
+        "qwen",
         "hybrid_ml",
     }
 )
@@ -1186,6 +1187,7 @@ class Config(BaseModel):
         "ollama",
         "vllm",
         "litellm",
+        "qwen",
     ] = Field(
         default="spacy",
         alias="speaker_detector_provider",
@@ -1827,6 +1829,119 @@ class Config(BaseModel):
         "the configured vllm model (real HF id) so a wrong model loaded on the DGX slot fails the "
         "run instead of silently corrupting the corpus. Unreachable endpoint only warns. Set False "
         "for offline/unit contexts.",
+    )
+
+    # --- Qwen native namespace (ADR-144) -----------------------------------------------------
+    # First-class provider for Qwen3-family serving over ANY OpenAI-compatible endpoint — a cloud
+    # host (DeepInfra/Together/Fireworks) OR the DGX vLLM slot — via a configurable base_url + key.
+    # Sibling of vllm/deepseek: shares the wire protocol through OpenAICompatibleProvider, read via
+    # the {ns}_ indirection. Distinct `qwen` telemetry so cost is attributed to Qwen, not vllm or
+    # litellm. Qwen has no single vendor endpoint we commit to (DashScope is explicitly out of
+    # scope), so there is NO _DEFAULT_API_BASE — the profile always names the endpoint, like vllm.
+    qwen_api_base: Optional[str] = Field(
+        default=None,
+        alias="qwen_api_base",
+        description="Qwen OpenAI-compatible base URL (a cloud host e.g. "
+        "https://api.deepinfra.com/v1/openai, or the DGX vLLM slot). Set by the profile; no env "
+        "fallback (like vllm_api_base) to avoid a stale-env route.",
+    )
+    qwen_api_key: Optional[str] = Field(
+        default=None,
+        alias="qwen_api_key",
+        description="Bearer for the Qwen endpoint. Unset for a local vLLM (QwenProvider supplies "
+        "a dummy); required by a cloud host, usually via qwen_api_key_env.",
+    )
+    qwen_api_key_env: Optional[str] = Field(
+        default="QWEN_API_KEY",
+        alias="qwen_api_key_env",
+        description="Env var QwenProvider reads the bearer from when qwen_api_key is unset "
+        "(e.g. DEEPINFRA_API_KEY for a DeepInfra-hosted Qwen).",
+    )
+    qwen_transcription_model: str = Field(
+        default="",
+        alias="qwen_transcription_model",
+        description="Unused: Qwen does not serve transcription (whisper/openai own it).",
+    )
+    qwen_speaker_model: str = Field(
+        default="",
+        alias="qwen_speaker_model",
+        description="Real Qwen model id for speaker detection/NER (naming). Set by the profile; "
+        "named on the wire (no served-name alias). ADR-144.",
+    )
+    qwen_summary_model: str = Field(
+        default="",
+        alias="qwen_summary_model",
+        description="Real Qwen model id for summarization (e.g. Qwen/Qwen3-Next-80B-A3B-Instruct, "
+        "qwen3.7-flash). Named on the wire and verified fail-closed against the served model at "
+        "provider init when the endpoint advertises /v1/models (ADR-144).",
+    )
+    qwen_insight_model: Optional[str] = Field(
+        default=None,
+        alias="qwen_insight_model",
+        description="Optional Qwen chat model for GIL generate_insights; falls back to "
+        "qwen_summary_model when unset.",
+    )
+    qwen_temperature: float = Field(
+        default=0.3,
+        alias="qwen_temperature",
+        description="Temperature for Qwen generation (0.0-2.0, lower = more deterministic).",
+    )
+    qwen_summary_seed: Optional[int] = Field(
+        default=None,
+        alias="qwen_summary_seed",
+        description="Optional deterministic-sampling seed for Qwen summarization (with temp=0).",
+    )
+    qwen_extra_body: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="qwen_extra_body",
+        description="Extra fields merged into every chat.completions request. The Qwen3 thinking "
+        "toggle is host-specific: self-hosted vLLM wants {chat_template_kwargs: {enable_thinking: "
+        "false}}; DashScope wants {enable_thinking: false}; OpenRouter wants {reasoning: {enabled: "
+        "false}}. Thinking MUST be off for JSON extraction stages.",
+    )
+    qwen_cleaning_model: str = Field(
+        default="",
+        alias="qwen_cleaning_model",
+        description="Real Qwen model id for transcript cleaning; QwenProvider defaults it to the "
+        "summary model when unset.",
+    )
+    qwen_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="qwen_cleaning_temperature",
+        description="Temperature for Qwen cleaning (0.0-2.0, default 0.2).",
+    )
+    qwen_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="qwen_max_tokens",
+        description="Max tokens for Qwen generation (None = model/server default).",
+    )
+    qwen_summary_system_prompt: str = Field(
+        default="openai/summarization/system_bullets_v1",
+        alias="qwen_summary_system_prompt",
+        description="System prompt for Qwen summarization (shared prompt_store template).",
+    )
+    qwen_summary_user_prompt: str = Field(
+        default="openai/summarization/bullets_json_v1",
+        alias="qwen_summary_user_prompt",
+        description="User prompt for Qwen summarization (shared prompt_store template).",
+    )
+    qwen_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="qwen_speaker_system_prompt",
+        description="System prompt name for Qwen speaker detection/NER.",
+    )
+    qwen_speaker_user_prompt: str = Field(
+        default="openai/ner/guest_host_v1",
+        alias="qwen_speaker_user_prompt",
+        description="User prompt name for Qwen speaker detection/NER (shared template).",
+    )
+    qwen_verify_served_model: bool = Field(
+        default=True,
+        alias="qwen_verify_served_model",
+        description="Fail-closed (ADR-144 B3): at initialize(), assert /v1/models advertises the "
+        "configured qwen model so a wrong model on the endpoint fails the run instead of silently "
+        "corrupting the corpus. Unreachable endpoint only warns. Set False for offline/unit "
+        "contexts.",
     )
 
     # --- LiteLLM gateway namespace (#1356) ---------------------------------------------------
@@ -2659,6 +2774,7 @@ class Config(BaseModel):
         "ollama",
         "vllm",
         "litellm",
+        "qwen",
     ] = Field(
         default="transformers",
         alias="quote_extraction_provider",
@@ -2679,6 +2795,7 @@ class Config(BaseModel):
         "ollama",
         "vllm",
         "litellm",
+        "qwen",
     ] = Field(
         default="transformers",
         alias="entailment_provider",
@@ -3062,6 +3179,7 @@ class Config(BaseModel):
             "ollama",
             "vllm",
             "litellm",
+            "qwen",
         ]
     ] = Field(
         default=None,
@@ -3204,6 +3322,7 @@ class Config(BaseModel):
         "ollama",
         "vllm",
         "litellm",
+        "qwen",
     ] = Field(
         default="transformers",
         alias="summary_provider",
@@ -5102,6 +5221,7 @@ class Config(BaseModel):
         "ollama",
         "vllm",
         "litellm",
+        "qwen",
     ]:
         """Validate speaker detector provider type."""
         if value is None or value == "":
@@ -5119,6 +5239,7 @@ class Config(BaseModel):
             "ollama",
             "vllm",
             "litellm",
+            "qwen",
         ):
             raise ValueError(
                 "speaker_detector_provider must be 'spacy', 'openai', 'gemini', "
@@ -5171,6 +5292,7 @@ class Config(BaseModel):
         "ollama",
         "vllm",
         "litellm",
+        "qwen",
     ]:
         """Validate summary provider."""
         if value is None or value == "":
@@ -5190,6 +5312,7 @@ class Config(BaseModel):
             "ollama",
             "vllm",
             "litellm",
+            "qwen",
         ):
             raise ValueError(
                 "summary_provider must be 'transformers', 'hybrid_ml', 'summllama', "
@@ -5211,6 +5334,7 @@ class Config(BaseModel):
         "ollama",
         "vllm",
         "litellm",
+        "qwen",
     ]:
         """Validate quote_extraction_provider and entailment_provider (same as summary)."""
         if value is None or value == "":
@@ -5228,6 +5352,7 @@ class Config(BaseModel):
             "ollama",
             "vllm",
             "litellm",
+            "qwen",
         ):
             raise ValueError(
                 "quote_extraction_provider/entailment_provider must be one of: "
@@ -5255,6 +5380,7 @@ class Config(BaseModel):
             "ollama",
             "vllm",
             "litellm",
+            "qwen",
         ):
             raise ValueError(
                 "kg_extraction_provider must be one of: "

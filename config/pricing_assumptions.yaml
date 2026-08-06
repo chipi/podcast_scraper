@@ -52,6 +52,11 @@ providers:
       gpt-4o-mini:
         input_cost_per_1m_tokens: 0.15
         output_cost_per_1m_tokens: 0.60
+      # gpt-4.1-mini (bakeoff_openai_gpt reference arm); OpenAI list price (verify on the pricing
+      # page + re-date on update).
+      gpt-4.1-mini:
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 1.60
       gpt-4o:
         input_cost_per_1m_tokens: 2.5
         output_cost_per_1m_tokens: 10.0
@@ -292,5 +297,27 @@ providers:
   vllm:
     text:
       default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+
+  # Native Qwen provider (ADR-144). This namespace spans BOTH a paid cloud host and free DGX-local
+  # serving, so rates are per-model, not per-provider. Cloud: DeepInfra is the cloud_qwen default
+  # host (source: https://deepinfra.com/Qwen, research 2026-08-06 — verify + re-date on update).
+  # DGX-local open weights (native qwen pointed at the vLLM slot) are electricity-only — $0/token at
+  # the API layer, real cost via DGX power monitoring (#923/#943). No `default` row on purpose: an
+  # unlisted qwen model returns {} (cost unknown, tokens still captured), which stays honest for a
+  # mixed cloud+local namespace.
+  qwen:
+    text:
+      Qwen/Qwen3-Next-80B-A3B-Instruct:
+        input_cost_per_1m_tokens: 0.09
+        output_cost_per_1m_tokens: 0.78
+      qwen3.7-flash:
+        input_cost_per_1m_tokens: 0.03
+        output_cost_per_1m_tokens: 0.13
+      Qwen/Qwen3-30B-A3B-Instruct-2507:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+      NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0

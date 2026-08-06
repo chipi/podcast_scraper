@@ -27,6 +27,8 @@ def clamp_cleaning_max_tokens(estimated: int, cap: int) -> int:
 # Provider-specific output caps for cleaning calls (conservative; avoids 400s)
 OPENAI_CLEANING_MAX_TOKENS = 4096
 DEEPSEEK_CLEANING_MAX_TOKENS = 8192
+# Qwen3 family (open weights / hosted) comfortably emits 8192 output tokens for cleaning.
+QWEN_CLEANING_MAX_TOKENS = 8192
 ANTHROPIC_CLEANING_MAX_TOKENS = 8192
 MISTRAL_CLEANING_MAX_TOKENS = 8192
 GROK_CLEANING_MAX_TOKENS = 8192

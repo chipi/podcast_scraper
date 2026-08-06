@@ -46,10 +46,17 @@ CAPABILITIES = [
 
 PROMPTS = Path("src/podcast_scraper/prompts")
 SRC = Path("src/podcast_scraper/providers")
+# ADR-144: the shared OpenAI-compatible transport base. Thin siblings (deepseek/vllm/litellm/qwen)
+# inherit the capability methods from here instead of redefining them, so a provider's own
+# ``*_provider.py`` may legitimately hold only its overrides. Resolving capabilities against the
+# provider file ALONE would falsely report "deepseek cannot summarize" the moment it became a thin
+# sibling — so the scan folds in the base's methods for any provider that subclasses it.
+_BASE_FILE = SRC / "openai" / "openai_provider.py"
+_BASE_MARKER = "OpenAICompatibleProvider"
 
 
-def _functions(provider: str) -> dict:
-    src = (SRC / provider / f"{provider}_provider.py").read_text()
+def _funcs_in(path: Path) -> dict:
+    src = path.read_text()
     tree = ast.parse(src)
     return {
         n.name: (ast.get_source_segment(src, n) or "")
@@ -58,11 +65,35 @@ def _functions(provider: str) -> dict:
     }
 
 
-def _nodes(provider: str) -> dict:
-    """The AST node for each method — walked directly, never re-parsed from a source slice."""
-    src = (SRC / provider / f"{provider}_provider.py").read_text()
+def _nodes_in(path: Path) -> dict:
+    src = path.read_text()
     tree = ast.parse(src)
     return {n.name: (n, src) for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+
+
+def _is_thin_sibling(provider: str, src: str) -> bool:
+    """A provider that inherits the capability methods from the shared base (ADR-144)."""
+    return provider != "openai" and _BASE_MARKER in src
+
+
+def _functions(provider: str) -> dict:
+    path = SRC / provider / f"{provider}_provider.py"
+    own = _funcs_in(path)
+    if _is_thin_sibling(provider, path.read_text()):
+        # Own overrides win; the base fills in every inherited capability method.
+        return {**_funcs_in(_BASE_FILE), **own}
+    return own
+
+
+def _nodes(provider: str) -> dict:
+    """The AST node for each method — walked directly, never re-parsed from a source slice.
+
+    For a thin sibling the inherited methods come from the shared base file (ADR-144)."""
+    path = SRC / provider / f"{provider}_provider.py"
+    own = _nodes_in(path)
+    if _is_thin_sibling(provider, path.read_text()):
+        return {**_nodes_in(_BASE_FILE), **own}
+    return own
 
 
 @pytest.mark.parametrize("provider", LLM_PROVIDERS)

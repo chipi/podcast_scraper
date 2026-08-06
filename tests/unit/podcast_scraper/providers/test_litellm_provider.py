@@ -43,7 +43,11 @@ def test_factory_builds_litellm_provider_for_all_llm_stages() -> None:
     assert type(p).__name__ == "LiteLLMProvider"
     assert p.summary_model == "homelab-qwen"
     assert p.cleaning_model == "homelab-qwen"  # defaults to summary alias
-    assert "homelab:4001" in str(p.client.base_url)
+    # Assert the CONFIG carried the gateway base, not the live client's base_url: a sibling test
+    # module (test_capabilities / test_provider_params) installs a session-wide openai.OpenAI Mock
+    # with no teardown, so p.client.base_url is a Mock in a full-suite run (the vllm test documents
+    # the same trap). The base's client_kwargs base_url wiring is covered by the base's own tests.
+    assert p.cfg.litellm_api_base == "http://homelab:4001/v1"
 
 
 def test_reasoning_off_extra_body_wraps_the_client_for_every_call() -> None:
