@@ -68,6 +68,27 @@ Self-review of the arc's docs surfaced real drift; written + gated (`make docs` 
 
 **Correction:** the earlier note that `docs/history/0002-decisions.md` is a *dangling reference* was wrong — nothing in the shipped docs links it (only the new-doc skill names the convention path). No fix needed; no decision log created (the RFCs are the decision record).
 
+## Deferred items — now CLOSED (operator-directed)
+
+All three T-13 residue items I'd flagged as deferred were closed on your call:
+- **aud-binding** (built) — RFC 8707 audience-bound tokens; the resource server rejects a token minted for a different resource.
+- **Per-principal rate-limit** (built) — `app_rate_limit` in-process window on the OAuth endpoints (DCR/IP, token/client → 429); single-worker caveat documented.
+- **`Mcp-Session-Id` binding** (closed by design) — per-request bearer re-verify ⇒ no ambient session authority to bind.
+
+Sole remaining residue: **per-user corpus scoping** (v1 is shared-corpus by design; the grant buys gating/attribution/revocation, not confidentiality — there's no per-user data yet).
+
+## Commits (branch `feat/next-arc-rfcs`, unpushed)
+
+```
+5c2fc837 feat(mcp): close the last T-13 residue — aud-binding + per-principal rate-limit
+95eef64f docs: RFC-112/113/114 arc + remote-MCP deploy + T-13; API/CLI/README drift fixes
+04191219 feat(infra): remote MCP deploy plumbing so claude.ai works end-to-end
+0cdaff5f feat(mcp): "Connected agents" UI — player Profile + operator viewer
+b30b6623 feat(mcp): RFC-112 slice 4 + review-hardening + audit/consent-revocation
+```
+
+(Earlier on the branch: slices 1-3 + RFC-113/114 phases + RFC docs.)
+
 ## Push
 
 Nothing is pushed. When you say "push": rebase onto `origin/main`, run `make ci-fast` + `ci-ui-fast` (+ stack-test for the viewer testid/chip additions), then push and open/keep the PR against the RFC epics (#1470/#1471/#1472).
