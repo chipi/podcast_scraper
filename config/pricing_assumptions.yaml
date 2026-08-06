@@ -300,21 +300,25 @@ providers:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0
 
-  # Native Qwen provider (ADR-144). This namespace spans BOTH a paid cloud host and free DGX-local
-  # serving, so rates are per-model, not per-provider. Cloud: DeepInfra is the cloud_qwen default
-  # host (source: https://deepinfra.com/Qwen, research 2026-08-06 — verify + re-date on update).
-  # DGX-local open weights (native qwen pointed at the vLLM slot) are electricity-only — $0/token at
-  # the API layer, real cost via DGX power monitoring (#923/#943). No `default` row on purpose: an
-  # unlisted qwen model returns {} (cost unknown, tokens still captured), which stays honest for a
-  # mixed cloud+local namespace.
+  # Native Qwen provider (ADR-144). This namespace spans BOTH the paid OFFICIAL Alibaba Qwen API
+  # (DashScope / Model Studio — the cloud_qwen host) and free DGX-local serving, so rates are
+  # per-model. Cloud: qwen3.7-flash is Alibaba-hosted (source: the official Model Studio pricing
+  # page — ESTIMATE below, verify + re-date on update). DGX-local open weights (native qwen pointed
+  # at the vLLM slot) are electricity-only — $0/token at the API layer, real cost via DGX power
+  # monitoring (#923/#943). No `default` row on purpose: an unlisted qwen model returns {} (cost
+  # unknown, tokens still captured), which stays honest for a mixed cloud+local namespace.
   qwen:
     text:
+      # OFFICIAL Alibaba DashScope (cloud_qwen). ESTIMATE — verify on the Model Studio pricing page.
+      qwen3.7-flash:
+        input_cost_per_1m_tokens: 0.05
+        output_cost_per_1m_tokens: 0.40
+      # Reseller/other-host reference (Qwen3-Next-80B on a third-party host, e.g. DeepInfra ~$0.09/
+      # $0.78) — kept for a non-DashScope cloud swap; not used by cloud_qwen.
       Qwen/Qwen3-Next-80B-A3B-Instruct:
         input_cost_per_1m_tokens: 0.09
         output_cost_per_1m_tokens: 0.78
-      qwen3.7-flash:
-        input_cost_per_1m_tokens: 0.03
-        output_cost_per_1m_tokens: 0.13
+      # DGX-local open weights (native qwen -> vLLM slot): electricity-only.
       Qwen/Qwen3-30B-A3B-Instruct-2507:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0
