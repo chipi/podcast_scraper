@@ -1764,8 +1764,25 @@ _VALUE_GATE_JUDGES: Tuple[Tuple[str, str], ...] = (
 # such thing as a judge on that path. Enabling it would either crash or, far worse, reach for a
 # hosted judge: an `airgapped` profile making a network call is the one thing airgapped means it
 # cannot do, and a `dev` profile doing it would put real paid LLM calls into CI.
+# NB: ``litellm`` (gateway) and ``qwen`` (ADR-144 siblings) MUST be here or the value gate silently
+# fails-open on any litellm/qwen-routed run — ``_extractor_can_judge`` checks membership, so a stale
+# list disables an entire quality stage without erroring. The whole v2.5 finale ran via ``litellm``
+# and its ``gi_value_gate_enabled: true`` was a NO-OP because of exactly this omission. Both are
+# hosted (not local-only): litellm proxies cloud OpenRouter, qwen talks to the official DashScope
+# API — so both get a vendor-disjoint judge, not a local self-grade.
 _LLM_PROVIDERS: frozenset = frozenset(
-    {"anthropic", "deepseek", "gemini", "grok", "mistral", "ollama", "openai", "vllm"}
+    {
+        "anthropic",
+        "deepseek",
+        "gemini",
+        "grok",
+        "litellm",
+        "mistral",
+        "ollama",
+        "openai",
+        "qwen",
+        "vllm",
+    }
 )
 
 # LLMs on a fully-local / airgapped path. They get NO cloud judge — a DGX profile must consume

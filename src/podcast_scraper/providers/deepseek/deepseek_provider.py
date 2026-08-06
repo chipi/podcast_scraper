@@ -33,11 +33,15 @@ logger = logging.getLogger(__name__)
 # does not. Substring match so a dated snapshot ("deepseek-v4-flash-2026...") still hits.
 _REASONING_MODEL_MARKERS = ("v4", "-r1", "reasoner", "reasoning")
 
-# Room for the reasoning that must precede the answer on a reasoning model. A tight ``max_tokens``
-# (score_entailment used 10) is otherwise consumed entirely by reasoning and ``content`` comes back
-# EMPTY with finish_reason="length" — silently disconnecting the whole grounding stack (0 quotes,
-# every insight unsupported). There is NO reasoning-off switch on these models (reasoning_effort=
-# "none" is ignored), so the fix is headroom. DeepSeek caps chat max_tokens at 8192.
+# Room for the reasoning that must precede the answer WHEN reasoning is left ON. A tight
+# ``max_tokens`` (score_entailment used 10) is otherwise consumed entirely by reasoning and
+# ``content`` comes back EMPTY with finish_reason="length" — silently disconnecting the whole
+# grounding stack (0 quotes, every insight unsupported). Reasoning CAN be disabled on the native
+# api.deepseek.com — verified live: ``reasoning_effort:none`` AND ``thinking:{type:disabled}`` both
+# zero ``reasoning_content`` (documented form: ``thinking:{type:disabled}``; ``enable_thinking`` /
+# ``reasoning:{enabled:false}`` are ignored — those are OpenRouter/vLLM shapes). Set one via
+# ``deepseek_extra_body`` and no headroom is needed. This headroom is the FALLBACK for a run that
+# leaves reasoning on. DeepSeek caps chat max_tokens at 8192.
 _REASONING_TOKEN_HEADROOM = 2048
 _DEEPSEEK_MAX_TOKENS = 8192
 

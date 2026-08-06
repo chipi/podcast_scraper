@@ -611,7 +611,7 @@ class OpenAICompatibleProvider:
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("openai")
+            call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
             call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
@@ -1257,7 +1257,7 @@ class OpenAICompatibleProvider:
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("openai")
+            call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
             call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
@@ -1505,7 +1505,7 @@ class OpenAICompatibleProvider:
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
-        call_metrics.set_provider_name("openai")
+        call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
@@ -1607,7 +1607,7 @@ class OpenAICompatibleProvider:
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
-        call_metrics.set_provider_name("openai")
+        call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
@@ -1707,7 +1707,7 @@ class OpenAICompatibleProvider:
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
-        call_metrics.set_provider_name("openai")
+        call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
@@ -2194,7 +2194,7 @@ class OpenAICompatibleProvider:
             )
 
             call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("openai")
+            call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
             call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
@@ -2289,7 +2289,7 @@ class OpenAICompatibleProvider:
             )
 
             call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("openai")
+            call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
             call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
@@ -2373,7 +2373,7 @@ class OpenAICompatibleProvider:
         user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
 
         call_metrics = ProviderCallMetrics()
-        call_metrics.set_provider_name("openai")
+        call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
         call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
@@ -2501,7 +2501,7 @@ class OpenAICompatibleProvider:
         user = score_entailment_bundled_user(chunk_pairs)
 
         call_metrics = ProviderCallMetrics()
-        call_metrics.set_provider_name("openai")
+        call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
         call_metrics.set_breaker_config_from_cfg(self.cfg)
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
@@ -2756,7 +2756,7 @@ class OpenAICompatibleProvider:
             )
 
             call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("openai")
+            call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
             call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():

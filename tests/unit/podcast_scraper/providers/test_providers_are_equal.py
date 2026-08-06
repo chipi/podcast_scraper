@@ -72,8 +72,21 @@ def _nodes_in(path: Path) -> dict:
 
 
 def _is_thin_sibling(provider: str, src: str) -> bool:
-    """A provider that inherits the capability methods from the shared base (ADR-144)."""
-    return provider != "openai" and _BASE_MARKER in src
+    """A provider that inherits the capability methods from the shared base (ADR-144).
+
+    Detected by a real base-class EDGE, not a substring: a provider that merely *mentions*
+    ``OpenAICompatibleProvider`` in a docstring/comment must not be mistaken for a subclass of it.
+    """
+    if provider == "openai":
+        return False
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                if isinstance(base, ast.Name) and base.id == _BASE_MARKER:
+                    return True
+                if isinstance(base, ast.Attribute) and base.attr == _BASE_MARKER:
+                    return True
+    return False
 
 
 def _functions(provider: str) -> dict:

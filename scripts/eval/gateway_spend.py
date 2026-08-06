@@ -46,17 +46,37 @@ def _master_key() -> str:
 
 
 def fetch_spend(
-    start_date: str, end_date: str, *, base: str = DEFAULT_BASE, key: Optional[str] = None
+    start_date: str,
+    end_date: str,
+    *,
+    base: str = DEFAULT_BASE,
+    key: Optional[str] = None,
+    api_key_hash: Optional[str] = None,
 ) -> Dict[str, Dict[str, float]]:
-    """Per-model real spend + tokens over [start_date, end_date) from the gateway SpendLogs."""
+    """Per-model real spend over [start_date, end_date) from the gateway SpendLogs.
+
+    ``api_key_hash`` (B1): scope to ONE consumer's spend (the sha256 of that consumer's virtual key,
+    which is how LiteLLM stores it). WITHOUT it, the per-model totals aggregate EVERY consumer that
+    hit the model in the window — so a bake-off number is only clean if nothing else used that model
+    that day. When given, LiteLLM filters server-side so the totals are that one consumer's spend.
+    """
     key = key or _master_key()
     url = f"{base.rstrip('/')}/spend/logs?start_date={start_date}&end_date={end_date}"
+    if api_key_hash:
+        url += f"&api_key={api_key_hash}"
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
     with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310 — fixed tailnet gateway
         data = json.loads(resp.read().decode("utf-8"))
+    # B2: a shape mismatch (error body, or /global/spend/report's different schema) must NOT read as
+    # "$0 spend" — that silently mis-reports cost as free. Fail loud instead.
+    if not isinstance(data, list):
+        raise RuntimeError(
+            f"gateway SpendLogs returned {type(data).__name__}, expected a per-day list — "
+            f"cannot be treated as spend. Response head: {str(data)[:200]}"
+        )
     # SpendLogs date-range returns per-day objects each carrying a `models` spend dict.
     out: Dict[str, Dict[str, float]] = defaultdict(lambda: {"spend": 0.0})
-    for day in data if isinstance(data, list) else []:
+    for day in data:
         for model, spend in (day.get("models") or {}).items():
             if model:
                 out[model]["spend"] += float(spend or 0.0)

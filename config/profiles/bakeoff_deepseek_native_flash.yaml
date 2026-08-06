@@ -3,11 +3,11 @@
 # (same model, routed through the homelab LiteLLM gateway -> OpenRouter instead). Same v2.4
 # pipeline/quality; the ONLY variable is the LLM route: native direct here.
 #
-# NB (route-inherent difference, surfaced in the comparison): OpenRouter normalizes deepseek
-# reasoning OFF; the direct DeepSeek API does NOT expose a reasoning-off switch for v4-flash — it
-# always emits reasoning_content, and the native provider adds token headroom so the answer is not
-# starved. So this arm is reasoning-ON, the OpenRouter arm reasoning-OFF. That is the real package
-# each route delivers, not a misconfiguration.
+# Reasoning is OFF on BOTH arms — the fair match. OpenRouter normalizes deepseek reasoning off; the
+# native api.deepseek.com disables it via deepseek_extra_body (reasoning_effort:none, verified live;
+# thinking:{type:disabled} is the documented equivalent). An EARLIER note here wrongly claimed the
+# native API has no reasoning-off switch and that this arm was reasoning-ON — both false; corrected
+# after live-probing api.deepseek.com.
 profile: bakeoff_deepseek_native_flash
 
 transcription:
