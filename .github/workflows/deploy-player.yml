@@ -166,6 +166,12 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          # Delivery seam (#1412/#1415): shared token the infra worker presents on
+          # /internal/outbox/* (X-Internal-Token) — a runtime SECRET (tmpfs under Option A).
+          # APP_VAPID_PUBLIC_KEY is the PUBLIC half of the worker's VAPID key (served to the
+          # browser by /api/app/push/vapid-key) — not secret, always written to .env.player.
+          INTERNAL_OUTBOX_TOKEN: ${{ secrets.PLAYER_INTERNAL_OUTBOX_TOKEN }}
+          APP_VAPID_PUBLIC_KEY: ${{ secrets.PLAYER_APP_VAPID_PUBLIC_KEY }}
           # Player error DSNs → self-hosted GlitchTip project 5. SPLIT per surface (like the
           # operator's _API / _VIEWER) for flexibility: _WEB is the BROWSER DSN (dashless key,
           # via the public telemetry edge, baked into the bundle); _API is the BACKEND DSN
@@ -217,12 +223,15 @@ jobs:
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
             echo "APP_OAUTH_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+            # VAPID PUBLIC key — not secret (the browser fetches it); always written.
+            echo "APP_VAPID_PUBLIC_KEY=${APP_VAPID_PUBLIC_KEY}"
             # Runtime secrets (ADR-115 Option A): under PLAYER_SECRETS_VIA_FILES=1 these are
             # delivered as /run/secrets files + exported by the shim, so DROPPED from
             # .env.player (no secrets at rest on disk). Flag off = today's env behaviour.
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
               echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
+              echo "INTERNAL_OUTBOX_TOKEN=${INTERNAL_OUTBOX_TOKEN}"
             fi
             echo "PLAYER_PORT=8092"
             # Build-time BROWSER DSN for the player bundle (compose build-arg reads this from
@@ -268,6 +277,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+          INTERNAL_OUTBOX_TOKEN: ${{ secrets.PLAYER_INTERNAL_OUTBOX_TOKEN }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)
@@ -275,6 +285,9 @@ jobs:
           printf '%s' "$GOOGLE_CLIENT_SECRET"       > "$STAGE/app_oauth_google_client_secret"
           printf '%s' "$APP_SESSION_SECRET"         > "$STAGE/app_session_secret"
           printf '%s' "$PROD_SENTRY_DSN_PLAYER_API" > "$STAGE/podcast_sentry_dsn_api"
+          # Delivery seam shared token → /run/secrets/internal_outbox_token; the shim
+          # exports it as INTERNAL_OUTBOX_TOKEN (filename = lowercase of the env var).
+          printf '%s' "$INTERNAL_OUTBOX_TOKEN"       > "$STAGE/internal_outbox_token"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \

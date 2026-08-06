@@ -30,6 +30,13 @@ services:
       APP_OAUTH_GOOGLE_CLIENT_ID: ${APP_OAUTH_GOOGLE_CLIENT_ID:-}
       APP_OAUTH_GOOGLE_CLIENT_SECRET: ${APP_OAUTH_GOOGLE_CLIENT_SECRET:-}
       APP_SESSION_SECRET: ${APP_SESSION_SECRET:-}
+      # Delivery seam (#1412/#1415): the infra worker authenticates to /internal/outbox/*
+      # with this shared token (X-Internal-Token); empty → the endpoints 503 (disabled).
+      # APP_VAPID_PUBLIC_KEY is the PUBLIC half of the worker's VAPID key, served to the
+      # browser by GET /api/app/push/vapid-key so push subscriptions bind to the worker's
+      # keypair (the private half never leaves the homelab worker). Public value.
+      INTERNAL_OUTBOX_TOKEN: ${INTERNAL_OUTBOX_TOKEN:-}
+      APP_VAPID_PUBLIC_KEY: ${APP_VAPID_PUBLIC_KEY:-}
       APP_SESSION_COOKIE_SECURE: "true"
       # Trust X-Forwarded-* — this backend is only reachable via its own nginx proxy on
       # the compose network, so uvicorn can honor the forwarded scheme/host and derive the
