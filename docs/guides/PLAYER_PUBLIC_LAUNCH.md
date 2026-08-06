@@ -10,6 +10,18 @@ kg-gi surface stays tailnet-only until it is hardened (RBAC #1164 + the split #1
 `/api/*` — so it carries **no `docker.sock` and no provider keys**. It passes the
 [pre-public gate](../security/THREAT_MODEL.md#pre-public-gate-run-before-any-new-public-vhost).
 
+## Public surfaces (vhosts)
+
+All fronted by the one shared Caddy edge (ADR-114), TLS-terminated, routed by `Host` to a
+loopback container. The operator / kg-gi surface stays **tailnet-only** and is not listed here.
+
+| Vhost | Backend (loopback) | Auth | Purpose | Caddy file |
+| --- | --- | --- | --- | --- |
+| `<domain>` (apex) | `learning-app` → nginx → `api` (`:8092`) | coming-soon cookie gate → Google OAuth session | Player PWA + `/api/app/*` consumer platform **+ the OAuth 2.1 authorization server** (`/api/app/mcp/oauth/*`, `/.well-known/oauth-authorization-server` — gate-exempt) | `player.caddy` |
+| `mcp.<domain>` | `mcp` (`:8009`) | **bearer** (OAuth access token or PAT), in-process | Remote MCP server (`/mcp`) + RFC 9728 discovery. No coming-soon gate — the auth is the gate. **Only when MCP is enabled.** | `mcp.caddy` |
+| `telemetry.<domain>` | homelab GlitchTip | none (ingest-only) | Browser error-SDK ingest paths only | `player-telemetry.caddy` |
+| `analytics.<domain>` | Umami | none (script + collect) | Cookieless analytics | `player-analytics.caddy` |
+
 ## Prerequisites
 
 - The Caddy edge engine is live on the box (imperative-once install) and the firewall
@@ -136,3 +148,56 @@ the corpus backup).
 Pull the vhost + reload (`rm /etc/caddy/sites/player.caddy && systemctl reload caddy`) →
 public down; or `docker compose -f compose/docker-compose.player-public.yml down`. The
 operator/tailnet surface is unaffected.
+
+## MCP — remote agent access (RFC-112)
+
+Lets an external AI agent (claude.ai custom connector, Claude Code, Cursor) search + read the
+corpus **as a signed-in platform user** over MCP, with their own model (D6-safe). Off by default;
+turning it on is additive to the player deploy.
+
+**Topology.** The app-only `api` hosts the OAuth 2.1 authorization server
+(`/api/app/mcp/oauth/*` + `/.well-known/oauth-authorization-server`, on the player apex) and the
+tailnet-only verify seam (`/internal/mcp/verify`). A separate **`mcp`** container (same low-priv
+image, `podcast mcp --transport http`, corpus **read-only**, no keys/sock) serves the corpus tools
+on `127.0.0.1:8009` and verifies every bearer against that seam. Caddy fronts it at
+`mcp.<domain>`; the coming-soon gate exempts the OAuth AS paths (they're cookie-less
+server-to-server calls).
+
+**Enable (operator).**
+
+0. **Image:** the `mcp` service + the OAuth server need the MCP SDK, added to the api image in
+   RFC-112. Deploy a `PODCAST_IMAGE_TAG` built **after that change merged to main** (the deploy pins
+   the newest published `main` sha automatically — just ensure the merge's image is published first).
+1. **DNS:** add `A mcp.<player-domain> → VPS IP` (CF-proxied like the apex, or grey-cloud).
+2. **Secret:** set GH secret `PLAYER_INTERNAL_MCP_TOKEN` to a high-entropy value
+   (`openssl rand -hex 32`). This gates the verify seam **and** the `mcp` service — **unset = MCP
+   stays fully inert** (verify returns 503 → every connect 401, and `deploy-player.sh` skips the
+   `mcp` vhost). Optionally set var `PLAYER_MCP_ALLOWED_ORIGINS` (browser DNS-rebind guard;
+   unnecessary for claude.ai, which connects server-side).
+3. **Deploy:** run the player deploy workflow. It stages `INTERNAL_MCP_TOKEN` + derives
+   `APP_MCP_ISSUER_URL=https://<domain>` and `APP_MCP_RESOURCE_URL=https://mcp.<domain>`, brings up
+   the `mcp` service, installs `mcp.caddy`, and runs a non-fatal reachability probe.
+4. **Grant users:** a platform admin flips `mcp_access` on each allowed user
+   (`PATCH /api/app/admin/users/{id}` or the user-management UI). Without it, the "Connected agents"
+   UI is hidden and every OAuth/PAT step is refused.
+
+**Use (end user).** In player **Profile → Connected agents**: copy the **connector URL**
+(`https://mcp.<domain>/mcp`) into claude.ai's "add custom connector" (it self-registers via DCR,
+you approve a consent screen once), or mint a **PAT** for a CLI client (Claude Code / Cursor:
+`Authorization: Bearer clp_mcp_…`).
+
+**Verify.**
+
+- `curl https://mcp.<domain>/.well-known/oauth-protected-resource` → `200` with
+  `{resource, authorization_servers:[https://<domain>]}`.
+- `curl -X POST https://mcp.<domain>/mcp` (no bearer) → `401` with
+  `WWW-Authenticate: Bearer resource_metadata="…"`.
+- `curl https://<domain>/.well-known/oauth-authorization-server` → `200` RFC 8414 metadata
+  (NOT the coming-soon HTML — that's the gate exemption working).
+
+**Rollback.** `rm /etc/caddy/sites/mcp.caddy && systemctl restart caddy` (surface down), or unset
+`PLAYER_INTERNAL_MCP_TOKEN` + redeploy (fully inert). The player + operator surfaces are unaffected.
+
+**Residue (see THREAT_MODEL T-13).** v1 shared-corpus (per-user gating/attribution, not
+confidentiality); no `aud`-binding; no app-level per-principal rate-limit / audit / consent-revoke
+UI (admin `mcp_access` pull is the kill-switch).

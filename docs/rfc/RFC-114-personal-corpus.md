@@ -12,6 +12,25 @@
   - `docs/rfc/RFC-112-remote-mcp-transport-and-auth.md` (its personal-scope toggle consumes **Phase 1**)
   - `docs/rfc/RFC-113-graph-aware-pkm-export.md` (its incremental cursor consumes **Phase 1**'s revision counter)
 
+## Implementation status (2026-08-06)
+
+Built on `feat/next-arc-rfcs` (unpushed). **Phase 1 + Phase 2 shipped.**
+
+- **Phase 1** — faceted membership: `experienced` = heard ∪ captured (highlights, notes,
+  saved-**insights**) and **excludes whole-episode favorites**, which are the separate `saved` facet
+  (operator-confirmed correction — a favorite is save-for-later, not engagement). Reconcile-on-read
+  **revision counter + change log** (adds + tombstones) at `corpus_log.json`; `GET /api/app/corpus`,
+  `/corpus/episodes?facet=`, `/corpus/changes?since=`.
+- **Phase 2** — weighted **strength** model (`w_h=0.4/w_c=0.3/w_f=0.1/w_r=0.2`, caps C=5/R=3) +
+  `/api/app/corpus/ranked`.
+- **Consumers of the facet change**: `scope=mine` search/relational/consolidation (intended), plus
+  `app_auto_picks` + digest — a favorited-but-unplayed episode can now resurface (flows from the
+  save-for-later correction; flagged for operator confirmation).
+- **Review-hardening (fable-5)**: membership computed **inside** the reconcile lock (no phantom
+  tombstone/re-add under concurrent web+shell reconciles); `changes_since(since=0)` now reports
+  `truncated` correctly against a trimmed log; the multiuser isolation test updated to the new
+  `experienced` semantics (a capture, not a favorite, puts an episode in recall).
+
 ## Abstract
 
 "Personal corpus" is the platform's core thesis (PRD-035): listening compounds into a growing,

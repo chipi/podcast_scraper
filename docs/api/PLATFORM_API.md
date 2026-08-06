@@ -205,6 +205,39 @@ dropped).
 
 ---
 
+## Collections — curated highlight sets (PRD-046 / RFC-111)
+
+Named, ordered sets of the user's highlights (the curation surface). Per-user files; **auth-gated**.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET, POST | `/api/app/collections` | List (`CollectionsResponse`) / create (**201**, body `{name}` → `Collection`). |
+| GET, DELETE | `/api/app/collections/{id}` | Detail with hydrated items (`CollectionDetail`) / delete (returns remaining). |
+| POST | `/api/app/collections/{id}/items` | Add a highlight `{highlight_id}` (idempotent) → the updated `Collection`. |
+| DELETE | `/api/app/collections/{id}/items/{highlight_id}` | Remove a highlight from the collection. |
+
+---
+
+## Delivery — digest consent + web push (PRD-046 / RFC-110)
+
+The "Your Week" recap + push nudges. Consent-gated: nothing is delivered without an explicit opt-in;
+email delivery additionally needs a **verified** email. No request-time LLM (D6). **Auth-gated**
+except the unsubscribe GET (one-click, token-bearing).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET, PUT | `/api/app/comms` | Delivery settings `{digest{enabled, cadence(weekly\|daily), day_of_week, hour, paused}, push{enabled}, email_verified, unsubscribe_ref}` (`CommsSettings`). `PUT` a whole section (server fills defaults — never send a partial). |
+| GET | `/api/app/comms/unsubscribe?ref=` | One-click unsubscribe landing (HTML) — the `ref` is the opaque per-user token from the digest footer (RFC-110). |
+| POST | `/api/app/comms/unsubscribe` | Confirm unsubscribe (turns the digest off). |
+| GET | `/api/app/push/vapid-key` | The public VAPID key for the browser Push subscription (`VapidKeyResponse`). |
+| POST, DELETE | `/api/app/push/subscribe` | Register / remove a Web Push subscription `{endpoint, keys{…}}` → `{count}` of active subscriptions (`PushSubscriptionsResponse`). |
+
+> The delivery **outbox** is an internal, channel-agnostic seam (`/internal/outbox`, tailnet-only,
+> `INTERNAL_OUTBOX_TOKEN`-gated) — the last-mile sender drains it; it is not part of the public
+> consumer surface.
+
+---
+
 ## Consolidation — recall, enrichment, resurfacing (P3; PRD-041 / RFC-101)
 
 Read-time projections over the user's heard∪captured corpus + the RFC-088 enrichment envelopes — **no
@@ -222,6 +255,84 @@ capture (RFC-101 §1).
 
 > Recall itself is `GET /api/app/search?scope=mine` (see **Search**) — grounded retrieval over the
 > heard set, not a separate endpoint.
+
+---
+
+## Personal corpus — faceted membership + revision log (RFC-114 / #1470)
+
+The read-time definition of _what the user has engaged with_, split into two facets: **`experienced`**
+= heard (≥30% played) ∪ captured (highlights, notes, saved-**insights**), and **`saved`** = whole-episode
+favorites (save-for-later, deliberately **not** counted as experienced). A per-user **revision counter +
+change log** (reconcile-on-read: recompute membership, diff, append add/remove events, bump the
+revision) lets a consumer poll deltas incl. **tombstones**. No request-time LLM (D6). All **auth-gated**.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/corpus` | Summary `{revision, experienced_count, saved_count, top_entities[]}` (`CorpusSummary`). |
+| GET | `/api/app/corpus/episodes?facet=` | Episode slugs in one facet `{facet, slugs[]}` (`CorpusFacetEpisodesResponse`). `facet` ∈ `experienced`\|`saved`. |
+| GET | `/api/app/corpus/changes?since=` | Delta since a revision `{revision, since, truncated, events[{seq, kind: added\|removed, facet, ref}]}` (`CorpusChangesResponse`). `truncated=true` when `since` predates the retained window → the consumer must do a full re-read. `since=0` = a fresh consumer. |
+| GET | `/api/app/corpus/ranked` | Experienced episodes ranked by **strength** `{items[{slug, strength}]}` (`CorpusRankedResponse`) — weighted heard-fraction + captures + favorited + relistens (RFC-114 Phase 2). |
+
+> Distinct from `/api/app/corpus/enrichment` (RFC-088 corpus signals, under **Consolidation**) — same
+> prefix, different surface. The change log is the episode-granular primitive; RFC-113's export keeps
+> its own finer-grained content-hash snapshot instead (it must catch highlight edits, not just
+> membership).
+
+---
+
+## Knowledge export — graph-aware Obsidian vault (RFC-113 / #1472)
+
+Serializes the personal corpus as a **connected** Obsidian vault: each highlight becomes a note that
+**wikilinks** to id-keyed `[[People/…]]` / `[[Topics/…]]` / `[[Episodes/…]]` under `closelistening/`.
+Extractive, **bridge-only** (transcript quotes + `/player/{slug}?t=` deep links, never audio), **no
+LLM** (D6). **Incremental**: a server-side content-hash vault snapshot + cursor — `since` matching the
+last export returns only changed notes + a `removed` tombstone list; a mismatch (new device / behind)
+returns a **full** export with `replace_namespace: true` (replace the whole folder). **Auth-gated.**
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/export?format=obsidian&since=` | Zip of the changed `closelistening/…` notes + `manifest.json` (`mode`, `revision`, `written[]`, `removed[]`, `replace_namespace`). Response headers `X-Export-Mode` (`full`\|`incremental`), `X-Export-Revision`, `X-Export-Written`, `X-Export-Removed` (all `Access-Control-Expose-Headers`) advance the client cursor without unzipping. `since=0` (or a mismatch) → full. **400** for a non-`obsidian` format. |
+
+---
+
+## MCP access — remote agents (bring-your-own-model; RFC-112 / #1471)
+
+Lets an entitled user connect their **own** AI agent (claude.ai custom connector, Claude Code, Cursor)
+to the platform's remote MCP server and search/read the shared corpus **as them** — no platform-side
+LLM (D6). Two auth paths: **OAuth 2.1 + PKCE** (per-user connectors like claude.ai) and **personal-access
+tokens** (CLI clients). Everything here is gated by the **`mcp_access`** entitlement (an orthogonal
+boolean grant; **403** without it) on top of the session. The remote MCP server itself is a **separate
+service on its own vhost** (`mcp.<domain>/mcp`) — see `docs/guides/PLAYER_PUBLIC_LAUNCH.md` §MCP.
+
+**Token management + connector config** (`mcp_access`-gated):
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/mcp/config` | Connector wiring `{connector_url, authorization_server, oauth_enabled}` (`McpConnectionConfig`). `connector_url` = the MCP endpoint a client pastes (`https://mcp.<domain>/mcp`); null when unconfigured. |
+| GET | `/api/app/mcp/tokens` | List the user's PATs (metadata only) `{items[{id, label, created_at, last_used_at}]}` (`McpTokensResponse`) — the secret is never returned after creation. |
+| POST | `/api/app/mcp/tokens` | Mint a PAT `{token, meta}` (`McpTokenCreated`); body `{label}`. The `clp_mcp_…` plaintext is shown **once**, stored SHA-256-hashed. **201.** |
+| DELETE | `/api/app/mcp/tokens/{id}` | Revoke a PAT; returns the remaining list. |
+
+**OAuth 2.1 authorization server** (we host it — DCR + PKCE, public clients only). Discovery is public;
+`/authorize` is session-gated (+ `mcp_access`); `/register` + `/token` are cookie-less server-to-server:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/.well-known/oauth-authorization-server` | RFC 8414 metadata (root-mounted). **503** when `APP_MCP_ISSUER_URL` unset. |
+| POST | `/api/app/mcp/oauth/register` | Dynamic Client Registration — a public client self-registers its `redirect_uris`. **201.** |
+| GET | `/api/app/mcp/oauth/authorize` | Consent screen (discloses the redirect origin + a Deny) → single-use code; **silent 302** when consent is remembered. Session + `mcp_access` required (**401**/**403**). |
+| POST | `/api/app/mcp/oauth/authorize` | Approve → remember consent → mint a code → 302 back with `code` + `state`. |
+| POST | `/api/app/mcp/oauth/token` | Exchange an auth code (PKCE-S256) or refresh token (rotating) for `{access_token, refresh_token, token_type, expires_in, scope}`. `invalid_grant` **400** on failure. |
+
+> The RFC 9728 protected-resource metadata (`/.well-known/oauth-protected-resource`) is served by the
+> **MCP server** on `mcp.<domain>`, not the app — it points a cold client back to the authorization
+> server here.
+
+**Internal verify seam** (service-to-service, **tailnet-only**, NOT on the public edge):
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/internal/mcp/verify` | The `mcp` server resolves a presented bearer (PAT **or** OAuth access token) here → `{authenticated, user_id, mcp_access, scope}` (`McpVerifyResponse`). Gated by the shared `INTERNAL_MCP_TOKEN` (`X-Internal-Token`; **503** unconfigured, **401** mismatch). Re-checks `mcp_access` **live**, so a revoked grant denies an already-minted token at connect time. |
 
 ---
 
@@ -257,6 +368,21 @@ covers `/api/feeds`, `/api/operator-config`, `/api/ops`, `/api/jobs*`, `/api/sch
 | `APP_SIGNUP_MODE` / `APP_ALLOWED_EMAILS` / `APP_ALLOWED_DOMAINS` | `allowlist` / — / — | Access control. |
 | `APP_ADMIN_EMAILS` | _(unset → no bootstrap admins)_ | CSV of emails granted `admin` on login. |
 | `APP_OPERATOR_API_KEY` | _(unset)_ | Operator API key — an alternative to an admin session for the admin-only operator routes. |
+
+### Remote MCP (RFC-112)
+
+These configure the OAuth authorization server + the internal verify seam on the **app**, and the
+separate **`mcp`** server. `INTERNAL_MCP_TOKEN` unset ⇒ the whole MCP surface is **inert** (verify
+returns 503 → every agent connect 401), which is the safe default.
+
+| Env | Read by | Default | Purpose |
+| --- | --- | --- | --- |
+| `INTERNAL_MCP_TOKEN` | app + mcp | _(unset → MCP inert)_ | Shared secret gating `/internal/mcp/verify` (the app checks it; the `mcp` server sends it as `X-Internal-Token`). Also the master on/off switch. |
+| `APP_MCP_ISSUER_URL` | app + mcp | _(unset → OAuth 503)_ | The OAuth authorization-server origin (the player apex, e.g. `https://<domain>`). Builds the RFC 8414 metadata + endpoint URLs. |
+| `APP_MCP_RESOURCE_URL` | app + mcp | _(unset)_ | The MCP server's public origin (e.g. `https://mcp.<domain>`). The connector URL a client pastes is this + `/mcp`; also the RFC 9728 `resource` identifier. |
+| `APP_MCP_VERIFY_URL` | mcp | _(unset → auth fails closed)_ | Where the `mcp` server verifies bearers (compose-network URL of the app's seam, e.g. `http://api:8000/internal/mcp/verify`). |
+| `APP_MCP_ALLOWED_ORIGINS` | mcp | _(unset → no browser Origin gating)_ | Comma-sep browser `Origin` allow-list (DNS-rebind guard). claude.ai connects server-side (no Origin) so empty is safe; set e.g. `https://claude.ai` to lock the browser surface. |
+| `MCP_PORT` | mcp (compose) | `8009` | Loopback port the `mcp` container publishes for the Caddy `mcp.<domain>` vhost. |
 
 ---
 

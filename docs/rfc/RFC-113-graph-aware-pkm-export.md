@@ -18,6 +18,21 @@
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` (canonical ids → wikilink targets)
   - `docs/rfc/RFC-114-personal-corpus.md` (**Phase 1**: the corpus + the revision counter this exports over)
 
+## Implementation status (2026-08-06)
+
+Built on `feat/next-arc-rfcs` (unpushed). **v1 + incremental + frontend button shipped.**
+
+- `app_pkm_export.py` emits an id-keyed wikilinked vault (`closelistening/` — Highlights → People/
+  Topics/Episodes), extractive + bridge-only (no audio, no LLM — D6).
+- **Incremental**: a per-user content-hash vault snapshot (`path → hash`) + cursor; `export_bundle(since)`
+  returns only changed notes + a `removed` tombstone list when `since` matches, else a **full** export
+  (finer-grained than RFC-114's episode-log — it catches highlight-text/label edits).
+- `GET /api/app/export?format=obsidian&since=` → zip + `manifest.json` + `X-Export-*` headers.
+- Player **"Export to Obsidian"** button (HighlightsView, web-only) with a localStorage cursor.
+- **Review-hardening (fable-5)**: YAML frontmatter escapes quotes/newlines; highlight-id + slug run
+  through the traversal guard before becoming zip paths; **full mode sets `replace_namespace`** so a
+  fallen-behind client prunes stale notes; vault computed inside the state lock (no reconcile race).
+
 ## Abstract
 
 The podcast-Readwise category (Snipd, Podwise) is a **feeder**: it exports **flat** highlights into

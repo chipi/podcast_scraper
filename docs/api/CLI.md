@@ -675,7 +675,7 @@ for the full flag list; below is the one-line intent per command.
 | `cluster-corpus-topics` | Corpus-scope topic clustering (theme discovery). | `--threshold`, `--min-episodes`, `--dry-run`. |
 | `corpus-cost` | Cost projection over an already-run corpus root. | Positional: `corpus_path` (parent of `feeds/`). Reads existing artifacts; no LLM calls. |
 | `index-two-tier` | Build the two-tier LanceDB search index (RFC-090). | `--lance-path`, `--embedding-model`, `--limit-episodes`. |
-| `mcp` | Run the generic MCP server over a corpus, stdio transport (PRD-034 / RFC-095). | Requires `.[dev,search]`. `--corpus` (positional-alt via flag). |
+| `mcp` | Run the generic MCP server over a corpus (PRD-034 / RFC-095). `--transport stdio` (default; local child process, no auth) or `--transport http` (remote Streamable HTTP, bearer-auth per RFC-112). | Requires `.[dev,search]` (or `[search]` + `mcp` in prod). `--corpus <dir>` (required). HTTP: `--host`/`--port` (default `127.0.0.1:8009`); needs `APP_MCP_VERIFY_URL` + `INTERNAL_MCP_TOKEN` env for the verify seam (+ `APP_MCP_ISSUER_URL`/`APP_MCP_RESOURCE_URL` for discovery). |
 | `verify-gil-chunk-offsets` | Compare GIL Quote char ranges to indexed transcript chunk metadata per episode (offset-alignment gate before search lift). | `--index-path`, `--min-overlap-rate`, `--strict`, `--max-samples`. |
 
 ## See Also

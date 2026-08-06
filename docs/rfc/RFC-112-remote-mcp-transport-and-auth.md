@@ -11,8 +11,45 @@
   - `docs/rfc/RFC-095-generic-mcp-server.md` (the shipped stdio MCP server; this resolves its OQ-1)
   - `docs/rfc/RFC-098-learning-platform-foundation.md` (per-user identity + session auth reused here)
   - `docs/rfc/RFC-114-personal-corpus.md` (its personal-scope toggle depends on RFC-114 Phase 1)
-- **Related docs**: `docs/architecture/THREAT_MODEL.md` (expanded here — a new public ingress), ADR-114 (shared edge)
+- **Related docs**: `docs/security/THREAT_MODEL.md` (T-13 — a new public ingress), ADR-114 (shared edge)
 - **Decision provenance**: auth mechanism decided by client-capability research (2026-08-05) — see §2.
+
+## Implementation status (2026-08-06)
+
+Built on `feat/next-arc-rfcs` (unpushed). **Slices 1–4 landed + a fable-5 review-hardening pass.**
+
+- **Slice 1** — `mcp_access` entitlement (orthogonal boolean on the user profile), PAT store
+  (`clp_mcp_…`, SHA-256-hashed, O(1) index), `/api/app/mcp/tokens` CRUD, internal verify seam
+  (`POST /internal/mcp/verify`, tailnet-gated) that re-checks entitlement live.
+- **Slice 2** — HTTP transport (`build_http_app` wraps `streamable_http_app()`), pure-ASGI
+  `McpAuthMiddleware` (bearer → fail-closed verify → `current_mcp_user` contextvar), `run_server(transport=…)`.
+- **Slice 3** — OAuth 2.1 authorization server: DCR, PKCE-S256, single-use codes, rotating tokens,
+  RFC 8414 metadata, remembered+revocable consent (silent re-auth once approved).
+- **Slice 4** — "Connected agents" UI on **both** surfaces (player Profile + operator viewer
+  Configuration): connector URL + PAT create/copy-once/revoke, `mcp_access`-gated; `/api/app/mcp/config`.
+- **Discovery chain** — RFC 9728 protected-resource metadata (public) + `WWW-Authenticate` pointer.
+- **Review-hardening (fable-5)** — verify runs off the event loop (DoS fix); consent screen discloses
+  the redirect origin + registration + a Deny button + clickjacking headers; scope allow-listed;
+  DCR client/redirect_uri caps; expired-grant purge; Origin allow-list (DNS-rebind); scope carried in
+  the verify response; nginx proxies the root AS metadata.
+- **Deploy plumbing (built, 2026-08-06)** — the remote surface is wired end-to-end and
+  locally smoke-tested (discovery `200` + token-less `POST /mcp` → `401` with the `resource_metadata`
+  pointer). `compose/docker-compose.player-public.yml` gains an `mcp` service (same low-priv image,
+  `podcast mcp --transport http`, corpus RO, verifies via `api`'s tailnet-only seam); the api image
+  bundles the MCP SDK; a new `infra/caddy/mcp.caddy` fronts `mcp.<domain>`; `player.caddy` exempts the
+  OAuth AS paths from the coming-soon gate; the player nginx proxies the root AS metadata;
+  `deploy-player.sh` + `deploy-player.yml` stage `INTERNAL_MCP_TOKEN` + derived issuer/resource URLs
+  and install the `mcp` vhost **only when MCP is enabled**. Connector URL (what a client pastes) =
+  `https://mcp.<domain>/mcp`. See `docs/guides/PLAYER_PUBLIC_LAUNCH.md` §MCP.
+- **Deploy-time to turn it on** (operator): add DNS `A mcp.<domain> → VPS`; set GH secret
+  `PLAYER_INTERNAL_MCP_TOKEN`; run the player deploy. Unset secret = MCP stays fully inert.
+- **Revocation + audit (built 2026-08-06)** — user-facing per-connection disconnect
+  (`GET`/`DELETE /api/app/mcp/connections`; forgets consent + drops the client's live grants; in both
+  "Connected agents" UIs), and `app_audit` over the security events (verify denials, token
+  issued/denied, PAT + consent create/revoke).
+- **Accepted v1 residue** (see `docs/security/THREAT_MODEL.md` T-13): no `aud`-binding (single
+  resource), per-user corpus scoping deferred (v1 shared-corpus), no app-level per-principal
+  rate-limit, `Mcp-Session-Id`↔principal binding unexamined.
 
 ## Abstract
 
