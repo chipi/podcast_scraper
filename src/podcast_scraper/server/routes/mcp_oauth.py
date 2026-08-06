@@ -21,12 +21,24 @@ from urllib.parse import urlencode, urlsplit
 from fastapi import APIRouter, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from podcast_scraper.server import app_oauth_server
+from podcast_scraper.server import app_oauth_server, app_rate_limit
 from podcast_scraper.server.app_audit import audit_event
 from podcast_scraper.server.routes.app_auth import get_current_user
 
 router = APIRouter(tags=["app"])
 wellknown_router = APIRouter(tags=["app"])
+
+# Per-principal rate limits (app-level; the edge already limits per-IP). Beyond these → 429.
+_REGISTER_LIMIT, _REGISTER_WINDOW_S = 5, 60.0  # DCR per client IP
+_TOKEN_LIMIT, _TOKEN_WINDOW_S = 10, 60.0  # token exchanges per OAuth client
+
+
+def _client_ip(request: Request) -> str:
+    """The real client IP — first X-Forwarded-For hop (behind Caddy→nginx), else the peer."""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def _data_dir(request: Request) -> Path:
@@ -68,6 +80,10 @@ async def authorization_server_metadata() -> JSONResponse:
 async def register(request: Request) -> JSONResponse:
     """Dynamic Client Registration — the client self-registers its redirect URIs (public client)."""
     _require_issuer()
+    if not app_rate_limit.allow(
+        f"mcp_register:{_client_ip(request)}", limit=_REGISTER_LIMIT, window_s=_REGISTER_WINDOW_S
+    ):
+        raise HTTPException(status_code=429, detail="too many registrations, slow down")
     body = await request.json()
     redirect_uris = body.get("redirect_uris") if isinstance(body, dict) else None
     if not isinstance(redirect_uris, list) or not redirect_uris:
@@ -254,6 +270,10 @@ async def token(
 ) -> JSONResponse:
     """Exchange an authorization code (with PKCE) or a refresh token for tokens."""
     _require_issuer()
+    if not app_rate_limit.allow(
+        f"mcp_token:{client_id}", limit=_TOKEN_LIMIT, window_s=_TOKEN_WINDOW_S
+    ):
+        raise HTTPException(status_code=429, detail="too many token requests, slow down")
     data_dir = _data_dir(request)
     if grant_type == "authorization_code":
         result = app_oauth_server.exchange_authorization_code(

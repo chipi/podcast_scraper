@@ -253,10 +253,18 @@ def _prune_expired(grants: dict[str, Any]) -> dict[str, Any]:
     return {h: rec for h, rec in grants.items() if int(rec.get("expires_at", 0)) >= now}
 
 
+def _resource_aud() -> str:
+    """The audience (RFC 8707) tokens bind to — this AS's configured MCP resource URL, or ``""``."""
+    import os
+
+    return os.environ.get("APP_MCP_RESOURCE_URL", "").strip().rstrip("/")
+
+
 def _issue_tokens(data_dir: Path, *, user_id: str, client_id: str, scope: str) -> dict[str, Any]:
     access = _ACCESS_PREFIX + secrets.token_urlsafe(32)
     refresh = _REFRESH_PREFIX + secrets.token_urlsafe(32)
     now = _now()
+    aud = _resource_aud()
     with _lock(data_dir, _GRANTS_FILE):
         grants = _prune_expired(_read(data_dir, _GRANTS_FILE))
         grants[_hash(access)] = {
@@ -264,6 +272,7 @@ def _issue_tokens(data_dir: Path, *, user_id: str, client_id: str, scope: str) -
             "user_id": user_id,
             "client_id": client_id,
             "scope": scope,
+            "aud": aud,
             "expires_at": now + _ACCESS_TTL_S,
         }
         grants[_hash(refresh)] = {
@@ -271,6 +280,7 @@ def _issue_tokens(data_dir: Path, *, user_id: str, client_id: str, scope: str) -
             "user_id": user_id,
             "client_id": client_id,
             "scope": scope,
+            "aud": aud,
             "expires_at": now + _REFRESH_TTL_S,
         }
         _write(data_dir, _GRANTS_FILE, grants)
@@ -332,7 +342,7 @@ def refresh_access_token(
 
 
 def verify_access_token(data_dir: Path, token: str) -> dict[str, Any] | None:
-    """Resolve an OAuth access token → ``{user_id, scope}`` (unexpired), else None."""
+    """Resolve an OAuth access token → ``{user_id, scope, aud}`` (unexpired), else None."""
     if not token:
         return None
     rec = _read(data_dir, _GRANTS_FILE).get(_hash(token))
@@ -340,4 +350,8 @@ def verify_access_token(data_dir: Path, token: str) -> dict[str, Any] | None:
         return None
     if int(rec.get("expires_at", 0)) < _now():
         return None
-    return {"user_id": str(rec["user_id"]), "scope": str(rec.get("scope", _SCOPE))}
+    return {
+        "user_id": str(rec["user_id"]),
+        "scope": str(rec.get("scope", _SCOPE)),
+        "aud": str(rec.get("aud", "")),
+    }

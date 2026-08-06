@@ -49,10 +49,11 @@ def test_full_code_exchange_with_pkce(tmp_path: Path) -> None:
     assert tokens["access_token"].startswith("clp_mcpat_")
     assert tokens["refresh_token"].startswith("clp_mcprt_")
     assert tokens["token_type"] == "Bearer" and tokens["scope"] == "mcp:read"
-    # the access token verifies to the user
+    # the access token verifies to the user (aud empty — no APP_MCP_RESOURCE_URL configured here)
     assert oa.verify_access_token(tmp_path, tokens["access_token"]) == {
         "user_id": _UID,
         "scope": "mcp:read",
+        "aud": "",
     }
 
 
@@ -132,6 +133,24 @@ def test_refresh_rotates(tmp_path: Path) -> None:
 def test_verify_unknown_or_non_access(tmp_path: Path) -> None:
     assert oa.verify_access_token(tmp_path, "clp_mcpat_nope") is None
     assert oa.verify_access_token(tmp_path, "") is None
+
+
+def test_tokens_bind_audience_when_resource_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", "https://mcp.example.com/")  # trailing slash trimmed
+    client = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")
+    cid = client["client_id"]
+    verifier, challenge = _pkce()
+    code = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+    tokens = oa.exchange_authorization_code(
+        tmp_path, code=code, code_verifier=verifier, client_id=cid, redirect_uri=_REDIRECT
+    )
+    assert tokens is not None
+    resolved = oa.verify_access_token(tmp_path, tokens["access_token"])
+    assert resolved is not None and resolved["aud"] == "https://mcp.example.com"
 
 
 def test_scope_support_predicate() -> None:

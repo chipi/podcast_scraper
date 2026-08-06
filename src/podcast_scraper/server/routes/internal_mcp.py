@@ -53,14 +53,17 @@ async def verify(request: Request, body: McpVerifyBody) -> McpVerifyResponse:
     resolves to a ``user_id``; the ``mcp_access`` entitlement is then re-checked live.
     """
     data_dir = _data_dir(request)
-    # A PAT carries the full read scope; an OAuth access token carries its granted scope.
+    # A PAT carries the full read scope + no audience; an OAuth access token carries its granted
+    # scope + the `aud` it was issued for (the resource server checks aud at its boundary).
     scope = "mcp:read"
+    aud = ""
     user_id = app_mcp_tokens.verify_token(data_dir, body.token)
     if user_id is None:
         oauth = app_oauth_server.verify_access_token(data_dir, body.token)
         if oauth is not None:
             user_id = oauth["user_id"]
             scope = str(oauth.get("scope", "mcp:read"))
+            aud = str(oauth.get("aud", ""))
     audit_path = getattr(request.app.state, "audit_path", None)
     if user_id is None:
         # A presented token that resolved to nothing (unknown / expired / malformed). Audit the
@@ -76,4 +79,6 @@ async def verify(request: Request, body: McpVerifyBody) -> McpVerifyResponse:
             {"event": "mcp.auth.denied", "reason": "entitlement_revoked", "user_id": user_id},
         )
         return McpVerifyResponse(authenticated=False, user_id=user_id, mcp_access=False)
-    return McpVerifyResponse(authenticated=True, user_id=user_id, mcp_access=True, scope=scope)
+    return McpVerifyResponse(
+        authenticated=True, user_id=user_id, mcp_access=True, scope=scope, aud=aud
+    )

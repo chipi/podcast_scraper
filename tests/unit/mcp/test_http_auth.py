@@ -66,6 +66,25 @@ def test_verify_no_entitlement(monkeypatch: pytest.MonkeyPatch) -> None:
     assert auth.verify_bearer("clp_mcp_x") is None
 
 
+def test_verify_audience_mismatch_denied(monkeypatch: pytest.MonkeyPatch) -> None:
+    _config(monkeypatch)
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", "https://ours")
+
+    def _resp(aud: str) -> bytes:
+        return (
+            '{"authenticated": true, "user_id": "u_1", "mcp_access": true, "aud": "%s"}' % aud
+        ).encode()
+
+    # A token aud-bound to a DIFFERENT resource must not be replayable here.
+    _stub_urlopen(monkeypatch, _resp("https://other"))
+    assert auth.verify_bearer("clp_mcpat_x") is None
+    # matching aud (and an empty-aud PAT) are accepted
+    _stub_urlopen(monkeypatch, _resp("https://ours"))
+    assert auth.verify_bearer("clp_mcpat_x") == "u_1"
+    _stub_urlopen(monkeypatch, _resp(""))
+    assert auth.verify_bearer("clp_mcp_pat") == "u_1"
+
+
 def test_verify_network_error_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     _config(monkeypatch)
     _stub_urlopen(monkeypatch, None, raise_exc=OSError("boom"))

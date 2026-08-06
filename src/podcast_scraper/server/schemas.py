@@ -823,6 +823,10 @@ class McpVerifyResponse(BaseModel):
     scope: str | None = Field(
         default=None, description="The granted scope (e.g. 'mcp:read') when authenticated."
     )
+    aud: str | None = Field(
+        default=None,
+        description="Audience (RFC 8707) the OAuth token is bound to; empty/None for a PAT.",
+    )
 
 
 # --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---

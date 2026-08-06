@@ -43,13 +43,15 @@ Built on `feat/next-arc-rfcs` (unpushed). **Slices 1–4 landed + a fable-5 revi
   `https://mcp.<domain>/mcp`. See `docs/guides/PLAYER_PUBLIC_LAUNCH.md` §MCP.
 - **Deploy-time to turn it on** (operator): add DNS `A mcp.<domain> → VPS`; set GH secret
   `PLAYER_INTERNAL_MCP_TOKEN`; run the player deploy. Unset secret = MCP stays fully inert.
-- **Revocation + audit (built 2026-08-06)** — user-facing per-connection disconnect
-  (`GET`/`DELETE /api/app/mcp/connections`; forgets consent + drops the client's live grants; in both
-  "Connected agents" UIs), and `app_audit` over the security events (verify denials, token
-  issued/denied, PAT + consent create/revoke).
-- **Accepted v1 residue** (see `docs/security/THREAT_MODEL.md` T-13): no `aud`-binding (single
-  resource), per-user corpus scoping deferred (v1 shared-corpus), no app-level per-principal
-  rate-limit, `Mcp-Session-Id`↔principal binding unexamined.
+- **Revocation + audit + rate-limit + aud (built 2026-08-06)** — user-facing per-connection
+  disconnect (`GET`/`DELETE /api/app/mcp/connections`; forgets consent + drops the client's live
+  grants); `app_audit` over the security events; **audience-bound tokens** (RFC 8707 — `aud` = the
+  resource URL, checked at the resource boundary); **app-level per-principal rate-limit** (DCR per
+  IP, token exchanges per client → 429). `Mcp-Session-Id`↔principal binding closed by design
+  (per-request bearer re-verify → no ambient session authority).
+- **Accepted v1 residue** (see `docs/security/THREAT_MODEL.md` T-13): per-user corpus **scoping**
+  deferred (v1 shared-corpus); the in-process rate-limit assumes a single worker (move to a shared
+  store if the api scales out).
 
 ## Abstract
 

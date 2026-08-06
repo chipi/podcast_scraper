@@ -13,12 +13,22 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.server import app_sessions
+from podcast_scraper.server import app_rate_limit, app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_user_store import get_or_create_user, set_mcp_access
 
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit():
+    # The limiter is a process-global; reset it so /register + /token calls don't leak across tests.
+    app_rate_limit.reset()
+    yield
+    app_rate_limit.reset()
+
+
 _ISSUER = "https://app.example.com"
+_RESOURCE_AUD = "https://mcp.example.com"
 _REDIRECT = "https://claude.ai/api/mcp/callback"
 _INTERNAL = "internal-mcp-tok"
 
@@ -33,6 +43,7 @@ def _pkce() -> tuple[str, str]:
 
 def _app(tmp_path: Path, monkeypatch, *, mcp_access: bool = True):
     monkeypatch.setenv("APP_MCP_ISSUER_URL", _ISSUER)
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", _RESOURCE_AUD)  # tokens are aud-bound to this
     app = create_app(tmp_path, static_dir=False)
     data_dir = tmp_path / "app"
     app.state.session_secret = "test-secret"
@@ -112,6 +123,7 @@ def test_full_authorization_code_flow(tmp_path: Path, monkeypatch: pytest.Monkey
         "user_id": uid,
         "mcp_access": True,
         "scope": "mcp:read",
+        "aud": _RESOURCE_AUD,
     }
 
 
@@ -251,6 +263,18 @@ def test_bad_token_grant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
         },
     )
     assert resp.status_code == 400 and resp.json()["error"] == "invalid_grant"
+
+
+def test_register_rate_limited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client, _data_dir, _uid = _app(tmp_path, monkeypatch)
+    codes = [
+        client.post(
+            "/api/app/mcp/oauth/register", json={"redirect_uris": [_REDIRECT], "client_name": "c"}
+        ).status_code
+        for _ in range(7)  # limit is 5 / 60s per IP
+    ]
+    assert codes[:5] == [201] * 5
+    assert 429 in codes[5:]  # excess registrations are throttled
 
 
 def test_oauth_disabled_without_issuer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

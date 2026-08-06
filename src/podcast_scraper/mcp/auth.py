@@ -77,6 +77,15 @@ def verify_bearer(token: str, *, timeout: float = 5.0) -> str | None:
         logger.warning("MCP token verify failed: %s", exc)
         return None
     if isinstance(data, dict) and data.get("authenticated") and data.get("mcp_access"):
+        # Audience check (RFC 8707): an OAuth token carries the `aud` it was issued for. If it is
+        # bound to a DIFFERENT resource than this server, reject it — a token minted for another MCP
+        # resource must not be replayable here. Empty aud (a PAT, or an AS without a resource
+        # configured) skips the check; an unset resource here also skips (nothing to compare to).
+        aud = str(data.get("aud") or "")
+        resource = os.environ.get(_RESOURCE_URL_ENV, "").strip().rstrip("/")
+        if aud and resource and aud != resource:
+            logger.warning("MCP token audience mismatch (aud=%s, resource=%s)", aud, resource)
+            return None
         uid = data.get("user_id")
         return str(uid) if uid else None
     return None

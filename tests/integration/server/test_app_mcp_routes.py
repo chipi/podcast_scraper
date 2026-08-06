@@ -122,6 +122,7 @@ def test_internal_verify_flow(tmp_path: Path) -> None:
         "user_id": uid,
         "mcp_access": True,
         "scope": "mcp:read",
+        "aud": "",  # a PAT carries no audience
     }
 
     bad = client.post("/internal/mcp/verify", json={"token": "clp_mcp_nope"}, headers=h)
