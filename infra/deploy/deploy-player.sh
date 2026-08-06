@@ -77,6 +77,22 @@ else
   echo "WARN: could not resolve 'homelab' tailnet IP; player OTEL traces will not reach VictoriaTraces" >&2
 fi
 
+# Delivery seam (#1412 / ADR-145): the homelab delivery worker polls this player-api's
+# /internal/outbox/* over the tailnet (token-gated). Publish the low-privilege player-api on
+# the BOX'S OWN tailnet IP so the worker can reach it — tailnet-only, NOT the public edge.
+# Resolve fresh (never hardcoded); loopback default = no exposure if it can't resolve.
+BOX_IP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+if [ -n "$BOX_IP" ]; then
+  if grep -qE '^PLAYER_OUTBOX_LISTEN=' "$PLAYER_ENV"; then
+    sed -i "s#^PLAYER_OUTBOX_LISTEN=.*#PLAYER_OUTBOX_LISTEN=$BOX_IP#" "$PLAYER_ENV"
+  else
+    echo "PLAYER_OUTBOX_LISTEN=$BOX_IP" >>"$PLAYER_ENV"
+  fi
+  echo "[$(date -u +%FT%TZ)] published player-api outbox on tailnet IP ${BOX_IP}:8099 (worker → /internal/outbox/*)"
+else
+  echo "WARN: could not resolve the box tailnet IP; player-api outbox stays loopback-only (delivery worker cannot reach it)" >&2
+fi
+
 # Pin the api image to a CURRENT sha — NEVER the literal :main tag. CI stopped updating
 # :main 2026-05-28, so it is 8 weeks stale: pre-ADR-116, with no /api/app/* consumer
 # surface, which makes the player 404 every API call (prod incident 2026-07-23). The
