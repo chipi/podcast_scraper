@@ -132,3 +132,121 @@ def test_refresh_rotates(tmp_path: Path) -> None:
 def test_verify_unknown_or_non_access(tmp_path: Path) -> None:
     assert oa.verify_access_token(tmp_path, "clp_mcpat_nope") is None
     assert oa.verify_access_token(tmp_path, "") is None
+
+
+def test_scope_support_predicate() -> None:
+    assert oa.is_scope_supported("mcp:read") is True
+    assert oa.is_scope_supported("mcp:admin") is False
+    assert oa.is_scope_supported("") is False
+
+
+def test_non_ascii_verifier_rejected(tmp_path: Path) -> None:
+    client = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")
+    cid = client["client_id"]
+    _verifier, challenge = _pkce()
+    code = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+    # A non-ASCII verifier must fail closed (no 500).
+    assert (
+        oa.exchange_authorization_code(
+            tmp_path,
+            code=code,
+            code_verifier="vérifïer-ünicode",
+            client_id=cid,
+            redirect_uri=_REDIRECT,
+        )
+        is None
+    )
+
+
+def test_register_rejects_too_many_redirect_uris(tmp_path: Path) -> None:
+    uris = [f"https://ex{i}.example/cb" for i in range(oa._MAX_REDIRECT_URIS + 1)]
+    with pytest.raises(ValueError):
+        oa.register_client(tmp_path, redirect_uris=uris, client_name="greedy")
+
+
+def test_client_registration_capped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(oa, "_MAX_CLIENTS", 2)
+    oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="a")
+    oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="b")
+    with pytest.raises(ValueError):
+        oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")  # store full
+
+
+def test_expired_grants_pruned_on_issue(tmp_path: Path) -> None:
+    import json
+
+    client = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")
+    cid = client["client_id"]
+    verifier, challenge = _pkce()
+    # Inject a long-expired access record straight into the grants file.
+    grants_path = tmp_path / oa._GRANTS_FILE
+    stale_hash = oa._hash("clp_mcpat_stale")
+    grants_path.write_text(
+        json.dumps(
+            {stale_hash: {"kind": "access", "user_id": _UID, "scope": "mcp:read", "expires_at": 1}}
+        ),
+        encoding="utf-8",
+    )
+    code = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+    oa.exchange_authorization_code(
+        tmp_path, code=code, code_verifier=verifier, client_id=cid, redirect_uri=_REDIRECT
+    )
+    remaining = json.loads(grants_path.read_text(encoding="utf-8"))
+    assert stale_hash not in remaining  # the expired record was purged when new tokens were issued
+
+
+def test_list_consents_joins_client_names(tmp_path: Path) -> None:
+    c1 = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="claude.ai")
+    c2 = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="Cursor")
+    oa.remember_consent(tmp_path, user_id=_UID, client_id=c1["client_id"], scope="mcp:read")
+    oa.remember_consent(tmp_path, user_id=_UID, client_id=c2["client_id"], scope="mcp:read")
+    # another user's consent must not leak into _UID's list
+    oa.remember_consent(tmp_path, user_id="u_other", client_id=c1["client_id"], scope="mcp:read")
+
+    rows = oa.list_consents(tmp_path, _UID)
+    assert {r["client_id"] for r in rows} == {c1["client_id"], c2["client_id"]}
+    names = {r["client_name"] for r in rows}
+    assert names == {"claude.ai", "Cursor"}
+    assert all(r["scopes"] == ["mcp:read"] and r["connected_at"] > 0 for r in rows)
+
+
+def test_revoke_client_grants_kills_live_tokens(tmp_path: Path) -> None:
+    client = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")
+    cid = client["client_id"]
+    verifier, challenge = _pkce()
+    code = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+    tokens = oa.exchange_authorization_code(
+        tmp_path, code=code, code_verifier=verifier, client_id=cid, redirect_uri=_REDIRECT
+    )
+    assert tokens is not None
+    assert oa.verify_access_token(tmp_path, tokens["access_token"]) is not None  # live
+
+    dropped = oa.revoke_client_grants(tmp_path, user_id=_UID, client_id=cid)
+    assert dropped == 2  # the access + refresh grant
+    # the access token no longer verifies AND the refresh token can't rotate
+    assert oa.verify_access_token(tmp_path, tokens["access_token"]) is None
+    assert (
+        oa.refresh_access_token(tmp_path, refresh_token=tokens["refresh_token"], client_id=cid)
+        is None
+    )
+
+
+def test_consent_remember_and_revoke(tmp_path: Path) -> None:
+    cid = "mcpc_abc"
+    assert oa.has_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read") is False
+    oa.remember_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read")
+    assert oa.has_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read") is True
+    # scoped: a different scope is NOT implicitly consented
+    assert oa.has_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:write") is False
+    # scoped: a different user is NOT consented
+    assert oa.has_consent(tmp_path, user_id="u_other", client_id=cid, scope="mcp:read") is False
+    # revoke forgets all scopes for that (user, client)
+    assert oa.revoke_consent(tmp_path, user_id=_UID, client_id=cid) is True
+    assert oa.has_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read") is False
+    assert oa.revoke_consent(tmp_path, user_id=_UID, client_id=cid) is False  # nothing left

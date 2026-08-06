@@ -233,6 +233,12 @@ def test_per_user_personalization_search_and_library_are_isolated(
     assert [e["slug"] for e in alice.get("/api/app/favorites").json()["episodes"]] == [ep1]
     assert [e["slug"] for e in bob.get("/api/app/favorites").json()["episodes"]] == [ep2]
 
+    # Each *captures* from their episode (a highlight = engagement). Under RFC-114 the `experienced`
+    # set (what `scope=mine` recalls over) is heard∪captured and EXCLUDES whole-episode favorites —
+    # so a highlight, not the favorite above, is what puts ep1 in alice's recall set.
+    alice.post("/api/app/highlights", json={"episode_slug": ep1, "kind": "moment", "start_ms": 0})
+    bob.post("/api/app/highlights", json={"episode_slug": ep2, "kind": "moment", "start_ms": 0})
+
     # (4) Different searches (scope=mine) → each gets results only from their own corpus. The inner
     # search returns BOTH episodes; the heard∪captured filter narrows to each user's set.
     def both(output_dir: Path, query: str, **kw: Any) -> CorpusSearchOutcome:

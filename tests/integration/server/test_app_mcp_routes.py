@@ -57,6 +57,59 @@ def test_create_list_revoke(tmp_path: Path) -> None:
     assert remaining.status_code == 200 and remaining.json()["items"] == []
 
 
+def test_config_requires_entitlement(tmp_path: Path) -> None:
+    client, _, _ = _app(tmp_path, mcp_access=False)
+    assert client.get("/api/app/mcp/config").status_code == 403
+
+
+def test_config_reports_connector_and_oauth(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", "https://mcp.example.com/")
+    monkeypatch.setenv("APP_MCP_ISSUER_URL", "https://app.example.com")
+    client, _, _ = _app(tmp_path, mcp_access=True)
+    cfg = client.get("/api/app/mcp/config").json()
+    # origin (trailing slash trimmed) + the /mcp endpoint path = the URL a client pastes.
+    assert cfg["connector_url"] == "https://mcp.example.com/mcp"
+    assert cfg["authorization_server"] == "https://app.example.com"
+    assert cfg["oauth_enabled"] is True
+
+
+def test_config_null_when_unconfigured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("APP_MCP_RESOURCE_URL", raising=False)
+    monkeypatch.delenv("APP_MCP_ISSUER_URL", raising=False)
+    client, _, _ = _app(tmp_path, mcp_access=True)
+    cfg = client.get("/api/app/mcp/config").json()
+    assert cfg["connector_url"] is None
+    assert cfg["oauth_enabled"] is False
+
+
+def test_connections_list_and_revoke(tmp_path: Path) -> None:
+    from podcast_scraper.server import app_oauth_server as oa
+
+    client, data_dir, uid = _app(tmp_path, mcp_access=True)
+    # Seed a connected OAuth client (a remembered consent) directly in the store.
+    reg = oa.register_client(
+        data_dir, redirect_uris=["https://claude.ai/cb"], client_name="claude.ai"
+    )
+    cid = reg["client_id"]
+    oa.remember_consent(data_dir, user_id=uid, client_id=cid, scope="mcp:read")
+
+    listed = client.get("/api/app/mcp/connections").json()["items"]
+    assert [c["client_id"] for c in listed] == [cid]
+    assert listed[0]["client_name"] == "claude.ai"
+
+    remaining = client.delete(f"/api/app/mcp/connections/{cid}")
+    assert remaining.status_code == 200 and remaining.json()["items"] == []
+    # consent is forgotten → a later authorize would re-prompt (not silent)
+    assert oa.has_consent(data_dir, user_id=uid, client_id=cid, scope="mcp:read") is False
+
+
+def test_connections_require_entitlement(tmp_path: Path) -> None:
+    client, _, _ = _app(tmp_path, mcp_access=False)
+    assert client.get("/api/app/mcp/connections").status_code == 403
+
+
 def test_internal_verify_flow(tmp_path: Path) -> None:
     client, data_dir, uid = _app(tmp_path, mcp_access=True)
     token = client.post("/api/app/mcp/tokens", json={"label": "a"}).json()["token"]
@@ -64,7 +117,12 @@ def test_internal_verify_flow(tmp_path: Path) -> None:
 
     ok = client.post("/internal/mcp/verify", json={"token": token}, headers=h)
     assert ok.status_code == 200
-    assert ok.json() == {"authenticated": True, "user_id": uid, "mcp_access": True}
+    assert ok.json() == {
+        "authenticated": True,
+        "user_id": uid,
+        "mcp_access": True,
+        "scope": "mcp:read",
+    }
 
     bad = client.post("/internal/mcp/verify", json={"token": "clp_mcp_nope"}, headers=h)
     assert bad.json()["authenticated"] is False

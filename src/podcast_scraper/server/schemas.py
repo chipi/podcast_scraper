@@ -779,6 +779,35 @@ class McpTokenCreated(BaseModel):
     meta: McpTokenMeta
 
 
+class McpConnection(BaseModel):
+    """One connected OAuth client (a remembered consent) — GET /api/app/mcp/connections."""
+
+    client_id: str = Field(description="The OAuth client id.")
+    client_name: str = Field(description="The client's registered display name.")
+    scopes: list[str] = Field(default_factory=list, description="Scopes the user approved.")
+    connected_at: int = Field(description="Unix time the consent was (last) granted.")
+
+
+class McpConnectionsResponse(BaseModel):
+    """The user's connected OAuth agents (revocable)."""
+
+    items: list[McpConnection] = Field(default_factory=list)
+
+
+class McpConnectionConfig(BaseModel):
+    """Connector wiring for the 'Connected agents' UI (GET /api/app/mcp/config, RFC-112 §5)."""
+
+    connector_url: str | None = Field(
+        default=None, description="The remote MCP server URL to paste into a client, or null."
+    )
+    authorization_server: str | None = Field(
+        default=None, description="The OAuth issuer URL when OAuth is enabled, else null."
+    )
+    oauth_enabled: bool = Field(
+        default=False, description="Whether the per-user OAuth connector flow is configured."
+    )
+
+
 class McpVerifyBody(BaseModel):
     """POST /internal/mcp/verify body — the MCP server presents a bearer token."""
 
@@ -791,6 +820,9 @@ class McpVerifyResponse(BaseModel):
     authenticated: bool = Field(description="Whether the token resolved to an entitled user.")
     user_id: str | None = Field(default=None, description="The owning user id when authenticated.")
     mcp_access: bool = Field(default=False, description="Whether that user holds the entitlement.")
+    scope: str | None = Field(
+        default=None, description="The granted scope (e.g. 'mcp:read') when authenticated."
+    )
 
 
 # --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---

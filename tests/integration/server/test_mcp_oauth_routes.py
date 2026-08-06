@@ -107,7 +107,91 @@ def test_full_authorization_code_flow(tmp_path: Path, monkeypatch: pytest.Monkey
     verify = client.post(
         "/internal/mcp/verify", json={"token": access}, headers={"X-Internal-Token": _INTERNAL}
     )
-    assert verify.json() == {"authenticated": True, "user_id": uid, "mcp_access": True}
+    assert verify.json() == {
+        "authenticated": True,
+        "user_id": uid,
+        "mcp_access": True,
+        "scope": "mcp:read",
+    }
+
+
+def test_second_authorize_is_silent_after_consent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _data_dir, _uid = _app(tmp_path, monkeypatch)
+    _v, challenge = _pkce()
+    reg = client.post(
+        "/api/app/mcp/oauth/register", json={"redirect_uris": [_REDIRECT], "client_name": "c"}
+    )
+    cid = reg.json()["client_id"]
+    params = {
+        "response_type": "code",
+        "client_id": cid,
+        "redirect_uri": _REDIRECT,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "state": "s1",
+        "scope": "mcp:read",
+    }
+    # first GET renders the consent page (not yet remembered)
+    first = client.get("/api/app/mcp/oauth/authorize", params=params)
+    assert first.status_code == 200 and "<form method=post" in first.text
+    # approve → remembers consent
+    approve = client.post("/api/app/mcp/oauth/authorize", data=params, follow_redirects=False)
+    assert approve.status_code == 302
+    # second GET is now SILENT: direct 302 with a fresh code, no consent page re-prompt
+    second = client.get("/api/app/mcp/oauth/authorize", params=params, follow_redirects=False)
+    assert second.status_code == 302
+    loc = second.headers["location"]
+    assert loc.startswith(_REDIRECT) and "code=" in loc and "state=s1" in loc
+
+
+def test_consent_page_discloses_redirect_and_offers_deny(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _data_dir, _uid = _app(tmp_path, monkeypatch)
+    _v, challenge = _pkce()
+    reg = client.post(
+        "/api/app/mcp/oauth/register",
+        json={"redirect_uris": [_REDIRECT], "client_name": "Definitely Claude"},
+    )
+    cid = reg.json()["client_id"]
+    page = client.get(
+        "/api/app/mcp/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": _REDIRECT,
+            "code_challenge": challenge,
+        },
+    )
+    # The consent screen must disclose WHERE the code goes so a look-alike client_name can't trick
+    # the user (DCR is open) — and must offer a way to decline.
+    assert "https://claude.ai" in page.text  # the redirect origin is shown
+    assert "Deny" in page.text
+    assert page.headers.get("X-Frame-Options") == "DENY"
+
+
+def test_authorize_rejects_unsupported_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _data_dir, _uid = _app(tmp_path, monkeypatch)
+    _v, challenge = _pkce()
+    reg = client.post(
+        "/api/app/mcp/oauth/register", json={"redirect_uris": [_REDIRECT], "client_name": "c"}
+    )
+    cid = reg.json()["client_id"]
+    resp = client.get(
+        "/api/app/mcp/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": _REDIRECT,
+            "code_challenge": challenge,
+            "scope": "mcp:admin",  # not supported → must be refused, not silently minted
+        },
+    )
+    assert resp.status_code == 400
 
 
 def test_authorize_requires_entitlement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -14,13 +14,15 @@ from __future__ import annotations
 
 import html
 import os
+import time
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from podcast_scraper.server import app_oauth_server
+from podcast_scraper.server.app_audit import audit_event
 from podcast_scraper.server.routes.app_auth import get_current_user
 
 router = APIRouter(tags=["app"])
@@ -81,7 +83,9 @@ async def register(request: Request) -> JSONResponse:
     return JSONResponse(client, status_code=201)
 
 
-def _validate_authorize(request: Request, client_id: str, redirect_uri: str, method: str) -> None:
+def _validate_authorize(
+    request: Request, client_id: str, redirect_uri: str, method: str, scope: str
+) -> None:
     client = app_oauth_server.get_client(_data_dir(request), client_id)
     if client is None:
         raise HTTPException(status_code=400, detail="unknown client_id")
@@ -91,6 +95,79 @@ def _validate_authorize(request: Request, client_id: str, redirect_uri: str, met
         )  # anti open-redirect
     if method != "S256":
         raise HTTPException(status_code=400, detail="code_challenge_method must be S256")
+    # Only mint scopes we actually support — an unknown scope must not be silently granted.
+    if not app_oauth_server.is_scope_supported(scope):
+        raise HTTPException(status_code=400, detail=f"unsupported scope: {scope}")
+
+
+def _mint_and_redirect(
+    request: Request,
+    user_id: str,
+    client_id: str,
+    redirect_uri: str,
+    code_challenge: str,
+    scope: str,
+    state: str,
+) -> RedirectResponse:
+    """Mint a single-use code + 302 back to the client's redirect_uri (preserving state)."""
+    code = app_oauth_server.create_authorization_code(
+        _data_dir(request),
+        user_id=user_id,
+        client_id=client_id,
+        redirect_uri=redirect_uri,
+        code_challenge=code_challenge,
+        scope=scope,
+    )
+    params = {"code": code}
+    if state:
+        params["state"] = state
+    sep = "&" if "?" in redirect_uri else "?"
+    return RedirectResponse(url=f"{redirect_uri}{sep}{urlencode(params)}", status_code=302)
+
+
+def hidden_fields(**fields: str) -> str:
+    """Render the authorize params as hidden inputs (HTML-escaped) for the consent form POST."""
+    return "".join(
+        f'<input type=hidden name="{html.escape(k)}" value="{html.escape(v)}">'
+        for k, v in fields.items()
+    )
+
+
+def _origin_of(url: str) -> str:
+    """The scheme://host[:port] of a redirect_uri, for the consent-screen disclosure."""
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else url
+
+
+def _consent_page(client: dict, redirect_uri: str, scope: str, hidden: str) -> str:
+    """The consent screen. Discloses WHO (client name + registration) and WHERE the code goes
+    (redirect origin) so a user can't be tricked by a look-alike ``client_name`` — DCR is open, so
+    an attacker can register "Claude" pointing at their own redirect (review H3). Offers Deny too.
+    """
+    name = html.escape(str(client.get("client_name") or "an application"))
+    origin = html.escape(_origin_of(redirect_uri))
+    scope_txt = html.escape(scope)
+    created = client.get("created_at")
+    when = ""
+    if isinstance(created, (int, float)):
+        day = time.strftime("%Y-%m-%d", time.gmtime(int(created)))
+        when = f" · registered {day}"
+    return (
+        "<!doctype html><html lang=en><meta charset=utf-8><meta name=robots content=noindex>"
+        "<title>Authorize</title><body style='font-family:system-ui;max-width:32rem;margin:4rem "
+        "auto;padding:0 1rem'>"
+        f"<h1>Allow <b>{name}</b> to access your closelistening corpus?</h1>"
+        f"<p>It will be able to search and read your podcast knowledge base as you (scope "
+        f"<code>{scope_txt}</code>).</p>"
+        f"<p style='color:#555;font-size:.9rem'>You will be redirected to "
+        f"<b>{origin}</b>{when}. Only approve if you recognise this destination.</p>"
+        "<div style='display:flex;gap:.75rem;margin-top:1.25rem'>"
+        f"<form method=post action='/api/app/mcp/oauth/authorize'>{hidden}"
+        "<button type=submit style='padding:.6rem 1.2rem;font-size:1rem'>Allow</button></form>"
+        "<a href='/' style='padding:.6rem 1.2rem;font-size:1rem;border:1px solid #ccc;"
+        "border-radius:.4rem;text-decoration:none;color:#333'>Deny</a>"
+        "</div></body></html>"
+    )
 
 
 @router.get("/mcp/oauth/authorize", response_class=HTMLResponse)
@@ -103,41 +180,39 @@ async def authorize_page(
     scope: str = "mcp:read",
     code_challenge_method: str = "S256",
     response_type: str = "code",
-) -> HTMLResponse:
-    """The consent screen (session + mcp_access gated); a GET never issues a code."""
+) -> Response:
+    """Authorize: silent redirect if consent is remembered, else render the consent screen.
+
+    Session-gated + `mcp_access`. A GET issues a code ONLY when the user has already approved this
+    client + scope (a top-level client navigation, not a prefetch); otherwise it renders the form.
+    """
     _require_issuer()
     user = get_current_user(request)  # raises 401 when not logged in
     if not user.mcp_access:
         raise HTTPException(status_code=403, detail="mcp access not granted")
     if response_type != "code":
         raise HTTPException(status_code=400, detail="response_type must be code")
-    _validate_authorize(request, client_id, redirect_uri, code_challenge_method)
+    _validate_authorize(request, client_id, redirect_uri, code_challenge_method, scope)
+    # Remembered consent → skip the prompt, mint a code, redirect (silent re-auth).
+    if app_oauth_server.has_consent(
+        _data_dir(request), user_id=user.user_id, client_id=client_id, scope=scope
+    ):
+        return _mint_and_redirect(
+            request, user.user_id, client_id, redirect_uri, code_challenge, scope, state
+        )
     client = app_oauth_server.get_client(_data_dir(request), client_id)
     assert client is not None  # _validate_authorize raised otherwise
-    fields = {
-        "client_id": client_id,
-        "redirect_uri": redirect_uri,
-        "code_challenge": code_challenge,
-        "code_challenge_method": code_challenge_method,
-        "scope": scope,
-        "state": state,
-    }
-    hidden = "".join(
-        f'<input type=hidden name="{html.escape(k)}" value="{html.escape(v)}">'
-        for k, v in fields.items()
+    hidden = hidden_fields(
+        client_id=client_id,
+        redirect_uri=redirect_uri,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+        scope=scope,
+        state=state,
     )
-    name = html.escape(str(client["client_name"]))
-    page = (
-        "<!doctype html><html lang=en><meta charset=utf-8><meta name=robots content=noindex>"
-        "<title>Authorize</title><body style='font-family:system-ui;max-width:32rem;margin:4rem "
-        "auto;padding:0 1rem'>"
-        f"<h1>Allow {name} to access your closelistening corpus?</h1>"
-        "<p>It will be able to search and read your podcast knowledge base as you.</p>"
-        f"<form method=post action='/api/app/mcp/oauth/authorize'>{hidden}"
-        "<button type=submit style='padding:.6rem 1.2rem;font-size:1rem'>Allow</button></form>"
-        "</body></html>"
-    )
-    return HTMLResponse(page)
+    # Clickjacking defense-in-depth on a one-button approval page (review L4).
+    headers = {"X-Frame-Options": "DENY", "Content-Security-Policy": "frame-ancestors 'none'"}
+    return HTMLResponse(_consent_page(client, redirect_uri, scope, hidden), headers=headers)
 
 
 @router.post("/mcp/oauth/authorize")
@@ -150,25 +225,21 @@ async def authorize_approve(
     scope: str = Form("mcp:read"),
     state: str = Form(""),
 ) -> RedirectResponse:
-    """Consent approved → mint a code + redirect back to the client (RFC-8252/OAuth 2.1)."""
+    """Consent approved → remember it, mint a code, redirect back (RFC-8252/OAuth 2.1)."""
     _require_issuer()
     user = get_current_user(request)
     if not user.mcp_access:
         raise HTTPException(status_code=403, detail="mcp access not granted")
-    _validate_authorize(request, client_id, redirect_uri, code_challenge_method)
-    code = app_oauth_server.create_authorization_code(
-        _data_dir(request),
-        user_id=user.user_id,
-        client_id=client_id,
-        redirect_uri=redirect_uri,
-        code_challenge=code_challenge,
-        scope=scope,
+    _validate_authorize(request, client_id, redirect_uri, code_challenge_method, scope)
+    app_oauth_server.remember_consent(
+        _data_dir(request), user_id=user.user_id, client_id=client_id, scope=scope
     )
-    params = {"code": code}
-    if state:
-        params["state"] = state
-    sep = "&" if "?" in redirect_uri else "?"
-    return RedirectResponse(url=f"{redirect_uri}{sep}{urlencode(params)}", status_code=302)
+    audit_event(
+        request, "mcp.consent.granted", user_id=user.user_id, client_id=client_id, scope=scope
+    )
+    return _mint_and_redirect(
+        request, user.user_id, client_id, redirect_uri, code_challenge, scope, state
+    )
 
 
 @router.post("/mcp/oauth/token")
@@ -199,5 +270,7 @@ async def token(
     else:
         raise HTTPException(status_code=400, detail="unsupported grant_type")
     if result is None:
+        audit_event(request, "mcp.oauth.token_denied", grant_type=grant_type, client_id=client_id)
         return JSONResponse({"error": "invalid_grant"}, status_code=400)
+    audit_event(request, "mcp.oauth.token_issued", grant_type=grant_type, client_id=client_id)
     return JSONResponse(result)

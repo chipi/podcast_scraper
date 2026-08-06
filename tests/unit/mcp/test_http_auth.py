@@ -117,3 +117,105 @@ def test_middleware_passes_and_sets_user() -> None:
 
 def _app_unused():
     return None  # the middleware's inner is provided inside _run_asgi
+
+
+# --- RFC 9728 protected-resource discovery ---
+
+
+def _drive(app, scope: dict) -> tuple[int, dict[bytes, bytes], bytes]:
+    """Drive an ASGI app once; return (status, headers-dict, body)."""
+    import asyncio
+
+    sent: list[dict] = []
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(msg):
+        sent.append(msg)
+
+    asyncio.run(app(scope, receive, send))
+    start = next(m for m in sent if m["type"] == "http.response.start")
+    headers = {k: v for k, v in start.get("headers", [])}
+    body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+    return start["status"], headers, body
+
+
+def _mw(verifier=lambda t: None):
+    async def inner(s, r, sd):
+        await sd({"type": "http.response.start", "status": 200, "headers": []})
+        await sd({"type": "http.response.body", "body": b"ok"})
+
+    return auth.McpAuthMiddleware(inner, verifier=verifier)
+
+
+def test_protected_resource_metadata_public(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", "https://mcp.example.com")
+    monkeypatch.setenv("APP_MCP_ISSUER_URL", "https://app.example.com")
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/.well-known/oauth-protected-resource",
+        "headers": [],
+    }
+    status, _headers, body = _drive(_mw(), scope)  # no bearer → still served
+    assert status == 200
+    import json
+
+    meta = json.loads(body)
+    assert meta["resource"] == "https://mcp.example.com"
+    assert meta["authorization_servers"] == ["https://app.example.com"]
+
+
+def test_protected_resource_metadata_503_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("APP_MCP_RESOURCE_URL", raising=False)
+    monkeypatch.delenv("APP_MCP_ISSUER_URL", raising=False)
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/.well-known/oauth-protected-resource",
+        "headers": [],
+    }
+    status, _headers, _body = _drive(_mw(), scope)
+    assert status == 503
+
+
+def test_401_carries_resource_metadata_pointer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", "https://mcp.example.com")
+    scope = {"type": "http", "method": "POST", "path": "/mcp", "headers": []}
+    status, headers, _body = _drive(_mw(), scope)
+    assert status == 401
+    www = headers[b"www-authenticate"].decode()
+    assert 'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"' in www
+
+
+def test_origin_guard_blocks_disallowed_browser_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_MCP_ALLOWED_ORIGINS", "https://claude.ai")
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/mcp",
+        "headers": [(b"origin", b"https://evil.example"), (b"authorization", b"Bearer good")],
+    }
+    status, _h, _b = _drive(_mw(lambda t: "u_1"), scope)  # even a valid bearer is rejected
+    assert status == 403
+
+
+def test_origin_guard_allows_listed_origin_and_serverside_no_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_MCP_ALLOWED_ORIGINS", "https://claude.ai")
+    listed = {
+        "type": "http",
+        "method": "POST",
+        "path": "/mcp",
+        "headers": [(b"origin", b"https://claude.ai"), (b"authorization", b"Bearer good")],
+    }
+    no_origin = {
+        "type": "http",
+        "method": "POST",
+        "path": "/mcp",
+        "headers": [(b"authorization", b"Bearer good")],  # server-to-server sends no Origin
+    }
+    assert _drive(_mw(lambda t: "u_1"), listed)[0] == 200
+    assert _drive(_mw(lambda t: "u_1"), no_origin)[0] == 200

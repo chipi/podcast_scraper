@@ -48,6 +48,28 @@ def test_safe_id_strips_separators() -> None:
     assert "/" not in ex._safe_id("../evil")
 
 
+def test_yaml_scalar_escapes_quotes_and_newlines() -> None:
+    assert ex._yaml_scalar('He said "hi"') == '"He said \\"hi\\""'
+    assert "\n" not in ex._yaml_scalar("line1\nline2")
+
+
+def test_frontmatter_survives_quotes_in_title_and_quote(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        ex, "resolve_slug", lambda root, slug: SimpleNamespace(episode_title='The "Real" Show')
+    )
+    hl = {**_HL, "quote_text": 'a quote with "quotes" and\na newline', "graph_refs": []}
+    note = _vault(monkeypatch, [hl])["closelistening/Highlights/h_1.md"]
+    # The alias line must be valid single-line double-quoted YAML (escaped quotes, no newline).
+    alias_line = next(ln for ln in note.splitlines() if ln.startswith("aliases:"))
+    assert '\\"' in alias_line and "\n" not in alias_line
+
+
+def test_traversal_shaped_ids_cannot_escape_namespace(monkeypatch: pytest.MonkeyPatch) -> None:
+    hl = {**_HL, "id": "../../etc/passwd", "episode_slug": "../../../x", "graph_refs": []}
+    paths = list(_vault(monkeypatch, [hl]).keys())
+    assert all(p.startswith("closelistening/") and ".." not in p for p in paths)
+
+
 def test_highlight_note_wikilinks_and_deep_link(monkeypatch: pytest.MonkeyPatch) -> None:
     note = _vault(monkeypatch, [_HL])["closelistening/Highlights/h_1.md"]
     assert "> the bottleneck was never compute" in note
@@ -93,6 +115,9 @@ def test_first_export_is_full(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert b["revision"] == 1
     assert "closelistening/Highlights/h_1.md" in b["files"]
     assert b["removed"] == []
+    # Full mode tells the client to replace the whole namespace (it can't be sent per-file
+    # tombstones for notes it never saw) — review M8.
+    assert b["replace_namespace"] is True
 
 
 def test_incremental_only_changed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -103,6 +128,7 @@ def test_incremental_only_changed(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     _hls(monkeypatch, [_HL, h2])
     b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"])
     assert b2["mode"] == "incremental"
+    assert b2["replace_namespace"] is False  # incremental never wipes the namespace
     assert "closelistening/Highlights/h_2.md" in b2["files"]
     assert "closelistening/Highlights/h_1.md" not in b2["files"]  # unchanged → not re-sent
 

@@ -51,6 +51,9 @@ async def export_vault(
         "namespace": bundle["namespace"],
         "written": bundle["written"],
         "removed": bundle["removed"],
+        # Full export: the client deletes everything under `namespace` before writing `written`
+        # (a fallen-behind client can't be sent per-file tombstones — replace all). RFC-113 M8.
+        "replace_namespace": bundle["replace_namespace"],
     }
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:

@@ -3,8 +3,10 @@
 The keystone primitive of the personal-corpus definition: a monotonic per-user ``revision`` + a
 bounded append-only **change log** whose entries carry ``added`` / ``removed`` — so a consumer
 polling ``changes_since(rev)`` gets **both** additions and **tombstones** (removals). A flat
-"changed-after-timestamp" cannot express deletions or retroactive membership; this can. RFC-113's
-incremental Obsidian export is the first consumer.
+"changed-after-timestamp" cannot express deletions or retroactive membership; this can. It is the
+primitive for episode-granular incremental consumers; RFC-113's Obsidian export ships its own
+finer-grained content-hash vault snapshot instead (it must catch highlight-text/label edits, not
+just episode membership), so it does not consume this log today — any episode consumer can.
 
 **Reconcile-on-read (not writer-instrumented).** Consistent with the read-time-projection design
 (PRD-041): rather than bumping a counter from every signal-writing route (fragile — one missed call
@@ -75,8 +77,11 @@ def reconcile(root: Path, data_dir: Path, user_id: str) -> int:
     """Recompute membership, append add/remove events for the delta, bump + return the revision."""
     if not _is_safe_user_id(user_id):
         return 0
-    current_keys = _membership_keys(root, data_dir, user_id)
     with _lock(data_dir, user_id):
+        # Compute membership INSIDE the lock: two concurrent reconciles (web + native shell) that
+        # each computed outside could persist stale-then-fresh out of order, emitting phantom
+        # tombstone+re-add events into the very change stream that is supposed to be truthful (M5).
+        current_keys = _membership_keys(root, data_dir, user_id)
         doc = _read(data_dir, user_id)
         prev_keys = set(doc["snapshot"])
         added = sorted(current_keys - prev_keys)
@@ -115,7 +120,10 @@ def changes_since(root: Path, data_dir: Path, user_id: str, since: int) -> dict[
     doc = _read(data_dir, user_id)
     events = [e for e in doc["events"] if isinstance(e, dict)]
     oldest = int(events[0]["seq"]) if events else 0
-    truncated = bool(events) and since > 0 and since < oldest - 1
+    # Truncated when the retained window starts AFTER the event right past `since` — i.e. the
+    # consumer's next-needed seq (`since + 1`) was already trimmed. Covers `since=0` (a fresh
+    # consumer) against an already-trimmed log, which `since > 0` previously missed (M6).
+    truncated = bool(events) and oldest > since + 1
     delta = [e for e in events if int(e.get("seq", 0)) > since]
     return {
         "revision": int(doc["revision"]),

@@ -29,6 +29,19 @@ def test_empty_revision_zero(tmp_path: Path) -> None:
     assert rev.current(_ROOT, tmp_path, _UID) == 0
 
 
+def test_fresh_consumer_since_zero_sees_truncation_on_trimmed_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _stub_membership
+) -> None:
+    # Shrink the window so the earliest events get trimmed, leaving oldest seq > 1.
+    monkeypatch.setattr(rev, "_MAX_EVENTS", 2)
+    for i in range(4):  # 4 adds → 4 events, only the last 2 (seq 3,4) retained
+        _stub_membership["experienced"] = {f"ep-{j}" for j in range(i + 1)}
+        rev.reconcile(_ROOT, tmp_path, _UID)
+    ch = rev.changes_since(_ROOT, tmp_path, _UID, 0)  # a fresh consumer (never synced)
+    # oldest retained seq is 3, so seqs 1-2 are gone: a since=0 consumer can't rebuild from events.
+    assert ch["truncated"] is True
+
+
 def test_add_bumps_revision_and_logs(tmp_path: Path, _stub_membership) -> None:
     _stub_membership["experienced"] = {"ep-a"}
     r1 = rev.reconcile(_ROOT, tmp_path, _UID)

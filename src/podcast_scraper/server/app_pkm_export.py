@@ -32,8 +32,23 @@ _ROOT = "closelistening"
 
 
 def _safe_id(entity_id: str) -> str:
-    """Canonical id → filename stem: ``person:jane-doe`` → ``person_jane-doe`` (no seps)."""
+    """Canonical id → filename stem: ``person:jane-doe`` → ``person_jane-doe`` (no seps).
+
+    Also the traversal guard for any value that becomes a zip-entry path (highlight id, slug): every
+    non-``[alnum-_]`` char (``/``, ``.``, ``:`` …) collapses to ``_``, so a crafted id/slug cannot
+    escape the ``closelistening/`` namespace on a naive extractor (review M7).
+    """
     return "".join(c if (c.isalnum() or c in "-_") else "_" for c in entity_id)
+
+
+def _yaml_scalar(value: str) -> str:
+    """A safe double-quoted YAML scalar — escapes ``\\``/``"`` and flattens newlines.
+
+    Real titles/quotes routinely contain quotes and line breaks, which would otherwise produce
+    invalid frontmatter (review M7).
+    """
+    flat = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ")
+    return f'"{flat}"'
 
 
 def _fm_list(items: list[str]) -> str:
@@ -57,11 +72,11 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
     t_ms = h.get("start_ms")
     quote = str(h.get("quote_text") or "").strip()
     ent_ids = [_safe_id(str(r["id"])) for r in refs]
-    alias = f'"{quote[:80]}"' if quote else f'"{episode_title}"'
+    alias = _yaml_scalar(quote[:80] if quote else episode_title)
     lines = [
         "---",
-        f"id: {h.get('id')}",
-        f"episode: {slug}",
+        f"id: {_safe_id(str(h.get('id') or ''))}",
+        f"episode: {_yaml_scalar(slug)}",
     ]
     if isinstance(t_ms, int):
         lines.append(f"t_ms: {t_ms}")
@@ -71,7 +86,7 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
     lines.append("---")
     if quote:
         lines.append(f"> {quote}")
-    ep_link = f"[[{_ROOT}/Episodes/{slug}|{episode_title}]]"
+    ep_link = f"[[{_ROOT}/Episodes/{_safe_id(slug)}|{episode_title}]]"
     deep = f"/player/{slug}" + (f"?t={t_ms // 1000}" if isinstance(t_ms, int) else "")
     lines.append(f"— {ep_link} · [▶ jump]({deep})")
     if refs:
@@ -81,13 +96,14 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
 
 
 def _entity_note(ref: dict[str, Any]) -> str:
+    label = str(ref.get("label", ref["id"]))
     return (
         "---\n"
-        f"id: {ref['id']}\n"
+        f"id: {_yaml_scalar(str(ref['id']))}\n"
         f"kind: {ref['kind']}\n"
-        f"aliases: [\"{ref.get('label', ref['id'])}\"]\n"
+        f"aliases: [{_yaml_scalar(label)}]\n"
         "---\n"
-        f"# {ref.get('label', ref['id'])}\n"
+        f"# {label}\n"
         f"A {ref['kind']} in your closelistening corpus.\n"
     )
 
@@ -95,8 +111,8 @@ def _entity_note(ref: dict[str, Any]) -> str:
 def _episode_note(slug: str, title: str) -> str:
     return (
         "---\n"
-        f"slug: {slug}\n"
-        f'aliases: ["{title}"]\n'
+        f"slug: {_yaml_scalar(slug)}\n"
+        f"aliases: [{_yaml_scalar(title)}]\n"
         "---\n"
         f"# {title}\n"
         f"[Open in player](/player/{slug})\n"
@@ -117,7 +133,8 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
         if slug not in episode_titles:
             row = resolve_slug(root, slug)
             episode_titles[slug] = row.episode_title if row is not None else slug
-        files[f"{_ROOT}/Highlights/{h.get('id')}.md"] = _highlight_note(h, episode_titles[slug])
+        hid = _safe_id(str(h.get("id") or ""))
+        files[f"{_ROOT}/Highlights/{hid}.md"] = _highlight_note(h, episode_titles[slug])
         for ref in h.get("graph_refs") or []:
             if isinstance(ref, dict) and ref.get("id"):
                 entity_refs[str(ref["id"])] = ref
@@ -126,7 +143,7 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
         path = f"{_ROOT}/{_entity_dir(str(ref['kind']))}/{_safe_id(str(ref['id']))}.md"
         files[path] = _entity_note(ref)
     for slug, title in episode_titles.items():
-        files[f"{_ROOT}/Episodes/{slug}.md"] = _episode_note(slug, title)
+        files[f"{_ROOT}/Episodes/{_safe_id(slug)}.md"] = _episode_note(slug, title)
     return files
 
 
@@ -173,11 +190,16 @@ def export_bundle(root: Path, data_dir: Path, user_id: str, *, since: int) -> di
     otherwise (behind / never / a new device) we fall back to a **full** export — the always-valid
     path (RFC-113). The cursor bumps only when the vault content actually changed, so re-exporting a
     static vault (or a second device) doesn't churn it. The client writes ``files`` and deletes
-    ``removed`` under the ``closelistening/`` namespace.
+    ``removed`` under the ``closelistening/`` namespace. A **full** export sets
+    ``replace_namespace: true`` — the client must first delete everything under ``closelistening/``
+    then write ``files``, so notes that vanished while the client was behind don't linger (review
+    M8: a full export can't enumerate a fallen-behind client's stale notes, so replace wholesale).
     """
-    current = _current_vault(root, data_dir, user_id)
-    current_hashes = {p: _hash(c) for p, c in current.items()}
     with _state_lock(data_dir, user_id):
+        # Compute the vault INSIDE the lock so two concurrent exports (web + native shell) can't
+        # persist snapshots out of order and desync the cursor/diff (review M5).
+        current = _current_vault(root, data_dir, user_id)
+        current_hashes = {p: _hash(c) for p, c in current.items()}
         state = _load_state(data_dir, user_id)
         prev_cursor = int(state["cursor"])
         snapshot: dict[str, str] = dict(state["snapshot"])
@@ -201,5 +223,6 @@ def export_bundle(root: Path, data_dir: Path, user_id: str, *, since: int) -> di
         "namespace": _ROOT,
         "files": files,
         "removed": removed if incremental else [],
+        "replace_namespace": not incremental,
         "written": sorted(files.keys()),
     }
