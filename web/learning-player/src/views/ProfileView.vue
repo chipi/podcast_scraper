@@ -11,6 +11,7 @@ import { disablePush, enablePush } from '../composables/usePushSubscription'
 import { useAuthStore } from '../stores/auth'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
+import ConnectedAgents from '../components/ConnectedAgents.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -194,6 +195,9 @@ onMounted(load)
       </template>
       <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
     </section>
+
+    <!-- Connected agents (RFC-112 §5) — only for users with the mcp_access entitlement. -->
+    <ConnectedAgents v-if="auth.user?.mcp_access" />
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
   </section>

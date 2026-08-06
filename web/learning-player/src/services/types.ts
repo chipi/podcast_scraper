@@ -8,6 +8,37 @@ export interface Me {
   user_id: string
   email: string
   name: string
+  /** RFC-112: holds the MCP entitlement — gates the "Connected agents" UI. */
+  mcp_access?: boolean
+}
+
+/** One MCP personal-access token's metadata (GET /api/app/mcp/tokens — never the secret). */
+export interface McpTokenMeta {
+  id: string
+  label: string
+  created_at: number
+  last_used_at: number | null
+}
+
+/** The freshly-minted token — the plaintext is shown ONCE (POST /api/app/mcp/tokens). */
+export interface McpTokenCreated {
+  token: string
+  meta: McpTokenMeta
+}
+
+/** Connector wiring for the "Connected agents" section (GET /api/app/mcp/config). */
+export interface McpConnectionConfig {
+  connector_url: string | null
+  authorization_server: string | null
+  oauth_enabled: boolean
+}
+
+/** One connected OAuth agent (a remembered consent), revocable (GET /api/app/mcp/connections). */
+export interface McpConnection {
+  client_id: string
+  client_name: string
+  scopes: string[]
+  connected_at: number
 }
 
 export type EpisodeStatus = 'ready' | 'pending'

@@ -27,6 +27,10 @@ import type {
   InsightsResponse,
   InterestCluster,
   ListEpisodesParams,
+  McpConnection,
+  McpConnectionConfig,
+  McpTokenCreated,
+  McpTokenMeta,
   Me,
   Note,
   NoteCreate,
@@ -802,4 +806,59 @@ export async function removeFromCollection(id: string, highlightId: string): Pro
   )
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id}/items → ${resp.status}`)
   return (await resp.json()) as Collection
+}
+
+// --- MCP "Connected agents" (RFC-112 §5): connector config + personal-access tokens ---
+
+/** The connector wiring the Profile section shows (resource URL + OAuth status). mcp_access-gated. */
+export async function getMcpConfig(): Promise<McpConnectionConfig> {
+  const resp = await apiFetch(`${BASE}/mcp/config`, { credentials: 'include' })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/config → ${resp.status}`)
+  return (await resp.json()) as McpConnectionConfig
+}
+
+/** List the user's MCP tokens (metadata only — the secret is never returned after creation). */
+export async function getMcpTokens(): Promise<McpTokenMeta[]> {
+  const resp = await apiFetch(`${BASE}/mcp/tokens`, { credentials: 'include' })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/tokens → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpTokenMeta[]
+}
+
+/** Mint a token; the plaintext is returned ONCE (copy-then-forget). */
+export async function createMcpToken(label: string): Promise<McpTokenCreated> {
+  const resp = await apiFetch(`${BASE}/mcp/tokens`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /mcp/tokens → ${resp.status}`)
+  return (await resp.json()) as McpTokenCreated
+}
+
+/** Revoke a token by id; returns the remaining tokens. */
+export async function revokeMcpToken(id: string): Promise<McpTokenMeta[]> {
+  const resp = await apiFetch(`${BASE}/mcp/tokens/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /mcp/tokens/${id} → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpTokenMeta[]
+}
+
+/** List the OAuth agents (claude.ai etc.) the user has connected. */
+export async function getMcpConnections(): Promise<McpConnection[]> {
+  const resp = await apiFetch(`${BASE}/mcp/connections`, { credentials: 'include' })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/connections → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpConnection[]
+}
+
+/** Disconnect an OAuth agent (forget consent + drop its live tokens); returns the remaining. */
+export async function revokeMcpConnection(clientId: string): Promise<McpConnection[]> {
+  const resp = await apiFetch(`${BASE}/mcp/connections/${encodeURIComponent(clientId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /mcp/connections/${clientId} → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpConnection[]
 }
