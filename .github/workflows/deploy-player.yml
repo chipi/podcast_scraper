@@ -8,9 +8,13 @@
 # Prereqs (stage once, like deploy-prod #714):
 #   secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, PROD_SSH_PRIVATE_KEY, PLAYER_APP_SESSION_SECRET,
 #            PLAYER_GOOGLE_CLIENT_SECRET
+#            (optional, remote MCP RFC-112) PLAYER_INTERNAL_MCP_TOKEN — unset = MCP off
 #   vars:    PROD_TAILNET_FQDN, PLAYER_DOMAIN, PODCAST_CORPUS_VOLUME, PLAYER_GOOGLE_CLIENT_ID
+#            (optional) PLAYER_MCP_ALLOWED_ORIGINS
 # The Caddy edge + firewall 80/443 must already be live on the box, and DNS for
-# PLAYER_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md).
+# PLAYER_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md). When MCP is
+# enabled, add a DNS A record for mcp.<PLAYER_DOMAIN> → the VPS, and register the claude.ai
+# connector redirect at claude.ai (DCR is automatic; no manual client provisioning).
 
 name: Deploy player — PUBLIC surface
 
@@ -196,6 +200,14 @@ jobs:
           APP_SIGNUP_MODE: ${{ vars.PLAYER_SIGNUP_MODE }}
           APP_ALLOWED_EMAILS: ${{ vars.PLAYER_ALLOWED_EMAILS }}
           APP_ALLOWED_DOMAINS: ${{ vars.PLAYER_ALLOWED_DOMAINS }}
+          # Remote MCP (RFC-112). The shared secret that gates the internal verify seam + the mcp
+          # service. EMPTY (secret unset) = MCP stays inert (verify 503 → every connect 401) and the
+          # mcp vhost is skipped — a safe default. Set PLAYER_INTERNAL_MCP_TOKEN to turn MCP on.
+          # Issuer/resource URLs are derived from the domain host-side (deploy-player.sh); no secret.
+          INTERNAL_MCP_TOKEN: ${{ secrets.PLAYER_INTERNAL_MCP_TOKEN }}
+          # Optional browser DNS-rebind allow-list (claude.ai is server-side → no Origin, so empty
+          # is fine). e.g. "https://claude.ai".
+          APP_MCP_ALLOWED_ORIGINS: ${{ vars.PLAYER_MCP_ALLOWED_ORIGINS }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -254,6 +266,15 @@ jobs:
             # Both empty -> the bundle's Umami injection stays a no-op.
             echo "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
             echo "VITE_UMAMI_SRC=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/script.js}"
+            # Remote MCP (RFC-112). The shared verify-seam secret (empty → MCP inert + mcp vhost
+            # skipped by deploy-player.sh). Issuer = the player apex (hosts the OAuth AS); resource
+            # = the mcp subdomain (its own vhost). MCP_PORT is the loopback the Caddy mcp vhost
+            # proxies to. Origins guard is optional (claude.ai is server-side → sends no Origin).
+            echo "INTERNAL_MCP_TOKEN=${INTERNAL_MCP_TOKEN}"
+            echo "APP_MCP_ISSUER_URL=https://${PLAYER_DOMAIN}"
+            echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
+            echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS}"
+            echo "MCP_PORT=8009"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
