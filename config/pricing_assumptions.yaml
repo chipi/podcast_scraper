@@ -300,6 +300,33 @@ providers:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0
 
+  # LiteLLM gateway (#1356). The gateway reports estimated_cost_usd=0 in the app's cost events and
+  # its response_cost is inconsistent, so WITHOUT these rows every litellm-routed call priced to $0
+  # (PA3 gap — the finale had to token×price offline, and it under-counted grounding). The gateway
+  # resolves an ALIAS to an upstream model that the app can't see, so rates are keyed by ALIAS and
+  # mirror the upstream model's rate. ESTIMATES — verify against the upstream provider's pricing
+  # page + re-date on update. An unlisted alias still returns {} (honest), not a wrong number.
+  litellm:
+    text:
+      # deepseek-v4-flash-0731 upstream (DeepSeek direct rate; OpenRouter/Novita may add a margin).
+      podcast-flash-0731:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+      homelab-flash:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+      # qwen3.7-flash / plus upstream.
+      homelab-qwen37-flash:
+        input_cost_per_1m_tokens: 0.05
+        output_cost_per_1m_tokens: 0.40
+      homelab-qwen37-plus:
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 1.20
+      # qwen3.6-35b-a3b upstream (open MoE — rough).
+      homelab-qwen:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.40
+
   # Native Qwen provider (ADR-144). This namespace spans BOTH the paid OFFICIAL Alibaba Qwen API
   # (DashScope / Model Studio — the cloud_qwen host) and free DGX-local serving, so rates are
   # per-model. Cloud: qwen3.7-flash is Alibaba-hosted (source: the official Model Studio pricing

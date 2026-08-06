@@ -1,27 +1,18 @@
-# Cloud production profile: v2.4 pipeline/quality with the LLM stages served by the NATIVE Qwen
-# provider (ADR-144) talking DIRECT to the OFFICIAL first-party Alibaba Qwen API — DashScope /
-# Model Studio, the vendor endpoint (the analog of api.deepseek.com for DeepSeek), NOT a third-party
-# reseller (DeepInfra/Together/OpenRouter). No LiteLLM gateway. Qwen carries its OWN `qwen`
-# telemetry/cost namespace so cloud spend is attributed to Qwen, not vllm/litellm. This is the cloud
-# counterpart to prod_dgx_full's DGX-local Qwen (which stays on the `vllm` provider at $0).
+# Bake-off profile: NATIVE Qwen provider (ADR-144) direct to the OFFICIAL Alibaba Qwen API
+# (DashScope / Model Studio) — the native-vs-OpenRouter comparison arm for qwen3.7-flash. Sibling of
+# bakeoff_litellm_qwen37_finale (same model, routed through the homelab LiteLLM gateway -> OpenRouter
+# instead). Same v2.4 pipeline/quality; the ONLY variable is the LLM route: native DashScope here.
 #
-# Endpoint: DashScope OpenAI-compatible mode (international). Key: DASHSCOPE_API_KEY (the official
-# Qwen API key). Model: qwen3.7-flash — the v2.5 finale flash winner (API-only, Alibaba-hosted).
-# The provider is endpoint-agnostic: to serve the same qwen from the DGX vLLM slot instead, swap
-# `qwen_api_base` + `qwen_api_key_env` — no code change. DashScope wants the thinking toggle as a
-# TOP-LEVEL extra_body field (a self-hosted vLLM would want chat_template_kwargs); thinking MUST be
-# off for the JSON extraction stages.
-#
-# All PA finale fixes carried from cloud_openrouter: chunked cleaning (PA1), thinking off,
-# summarization_timeout 600 (PA-6), GI/KG tuned knobs, real cost capture (PA3).
-profile: cloud_qwen
+# DashScope wants the thinking toggle as a TOP-LEVEL extra_body field (enable_thinking:false); qwen3.7
+# -flash is Alibaba's non-thinking flash tier. Endpoint + key from .env (workspace-specific).
+profile: bakeoff_qwen_native_dashscope
 
 transcription:
   primary: whisper
 diarize: false
 screenplay: true
 
-# --- LLM stages: ALL via the native Qwen provider (direct to the fixed-price host), thinking off ---
+# --- LLM stages: ALL via the NATIVE qwen provider, direct to the official DashScope API ---
 summary_provider: qwen
 speaker_detector_provider: qwen
 quote_extraction_provider: qwen
@@ -30,8 +21,6 @@ kg_extraction_provider: qwen
 auto_speakers: true
 llm_pipeline_mode: staged
 
-# Workspace-specific DashScope endpoint from .env (keeps the account-specific URL out of the repo);
-# falls back to the generic international endpoint if DASHSCOPE_API_BASE is unset.
 qwen_api_base: ${DASHSCOPE_API_BASE:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
 qwen_api_key_env: DASHSCOPE_API_KEY
 qwen_summary_model: qwen3.7-flash
@@ -41,9 +30,6 @@ qwen_insight_model: qwen3.7-flash
 qwen_temperature: 0.3
 qwen_extra_body:
   enable_thinking: false
-# DashScope is a vendor API (not a DGX slot that could load the wrong weights), so the fail-closed
-# served-model check is off here — /v1/models on DashScope lists the catalog, not "the one served
-# model". Flip on only for a self-hosted (DGX vLLM) qwen endpoint.
 qwen_verify_served_model: false
 
 degradation_policy:
@@ -51,8 +37,6 @@ degradation_policy:
 preprocessing_enabled: true
 cloud_llm_structured_min_output_tokens: 4096
 
-# relabel_only does NO ASR, so a stalled chat call fast-fails at 300s instead of the 30min default;
-# summarization_timeout 600 lets a genuine long chunked-GI pass finish (PA-6, validated on deepseek).
 summarization_timeout: 600
 transcription_timeout: 300
 
@@ -60,7 +44,7 @@ summary_reduce_params:
   max_new_tokens: 2048
   min_new_tokens: 100
 
-# --- GI / KG (same knobs as cloud_openrouter / prod_dgx_full) ---
+# --- GI / KG (identical knobs to the OpenRouter arm — only the route differs) ---
 generate_gi: true
 gi_insight_source: provider
 gi_max_insights: 12

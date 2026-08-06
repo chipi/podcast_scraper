@@ -2356,6 +2356,14 @@ class Config(BaseModel):
         alias="deepseek_temperature",
         description="Temperature for DeepSeek generation (0.0-2.0, lower = more deterministic)",
     )
+    deepseek_extra_body: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="deepseek_extra_body",
+        description="Extra fields merged into every chat.completions request. For the v4 reasoning "
+        "family, `{reasoning_effort: none}` (or `{thinking: {type: disabled}}`) disables reasoning "
+        "on api.deepseek.com — verified: enable_thinking / reasoning:{enabled:false} are "
+        "ignored by DeepSeek's API (those are OpenRouter/vLLM shapes).",
+    )
     deepseek_cleaning_model: str = Field(
         default="deepseek-chat",
         alias="deepseek_cleaning_model",

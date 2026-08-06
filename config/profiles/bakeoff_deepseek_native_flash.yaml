@@ -1,0 +1,102 @@
+# Bake-off profile: NATIVE DeepSeek provider (ADR-144) talking DIRECT to api.deepseek.com — the
+# native-vs-OpenRouter comparison arm for deepseek-v4-flash. Sibling of bakeoff_litellm_deepseek_flash
+# (same model, routed through the homelab LiteLLM gateway -> OpenRouter instead). Same v2.4
+# pipeline/quality; the ONLY variable is the LLM route: native direct here.
+#
+# NB (route-inherent difference, surfaced in the comparison): OpenRouter normalizes deepseek
+# reasoning OFF; the direct DeepSeek API does NOT expose a reasoning-off switch for v4-flash — it
+# always emits reasoning_content, and the native provider adds token headroom so the answer is not
+# starved. So this arm is reasoning-ON, the OpenRouter arm reasoning-OFF. That is the real package
+# each route delivers, not a misconfiguration.
+profile: bakeoff_deepseek_native_flash
+
+transcription:
+  primary: whisper
+diarize: false
+screenplay: true
+
+# --- LLM stages: ALL via the NATIVE deepseek provider, direct to api.deepseek.com ---
+summary_provider: deepseek
+speaker_detector_provider: deepseek
+quote_extraction_provider: deepseek
+entailment_provider: deepseek
+kg_extraction_provider: deepseek
+auto_speakers: true
+llm_pipeline_mode: staged
+
+# deepseek_api_base omitted -> defaults to https://api.deepseek.com (direct, no gateway).
+# Key from DEEPSEEK_API_KEY env.
+deepseek_summary_model: deepseek-v4-flash
+deepseek_speaker_model: deepseek-v4-flash
+deepseek_cleaning_model: deepseek-v4-flash
+# (deepseek has no _insight_model override field — GI insights fall back to the summary model.)
+deepseek_temperature: 0.3
+# Reasoning OFF on the native API — the fair match to the OpenRouter arm (which normalizes reasoning
+# off). VERIFIED against api.deepseek.com: reasoning_effort:none zeroes reasoning_content on
+# deepseek-v4-flash; enable_thinking / reasoning:{enabled:false} are ignored by DeepSeek's own API.
+deepseek_extra_body:
+  reasoning_effort: none
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+
+summarization_timeout: 600
+transcription_timeout: 300
+
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+# --- GI / KG (identical knobs to the OpenRouter arm — only the route differs) ---
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gil_evidence_match_summary_provider: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+ner_model: en_core_web_trf
+
+# Corpus-enrichment layer (required top-level block; operators read the YAML to see what's active).
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
