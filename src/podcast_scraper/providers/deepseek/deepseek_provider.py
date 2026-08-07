@@ -52,6 +52,33 @@ def _model_reasons(model: Optional[str]) -> bool:
     return any(marker in name for marker in _REASONING_MODEL_MARKERS)
 
 
+def _extra_body_disables_thinking(extra_body: Any) -> bool:
+    """True if ``extra_body`` carries a directive that turns DeepSeek's thinking OFF.
+
+    Recognises every shape a profile might reasonably use — the two that actually work on
+    api.deepseek.com (``reasoning_effort: none``, ``thinking: {type: disabled}``) AND the
+    OpenRouter/vLLM shapes (``reasoning: {enabled: false}``, ``enable_thinking: false``,
+    ``chat_template_kwargs: {enable_thinking: false}``) so a gateway-routed profile is also read as
+    "intended off". The point is to detect INTENT, not to validate the endpoint.
+    """
+    if not isinstance(extra_body, dict):
+        return False
+    if str(extra_body.get("reasoning_effort", "")).strip().lower() == "none":
+        return True
+    thinking = extra_body.get("thinking")
+    if isinstance(thinking, dict) and str(thinking.get("type", "")).lower() == "disabled":
+        return True
+    reasoning = extra_body.get("reasoning")
+    if isinstance(reasoning, dict) and reasoning.get("enabled") is False:
+        return True
+    if extra_body.get("enable_thinking") is False:
+        return True
+    ctk = extra_body.get("chat_template_kwargs")
+    if isinstance(ctk, dict) and ctk.get("enable_thinking") is False:
+        return True
+    return False
+
+
 class DeepSeekProvider(OpenAICompatibleProvider):
     """OpenAI-compatible provider talking direct to DeepSeek's API (or a LiteLLM gateway alias).
 
@@ -82,6 +109,27 @@ class DeepSeekProvider(OpenAICompatibleProvider):
         self.cleaning_model = getattr(cfg, "deepseek_cleaning_model", None) or self.summary_model
         # v4/r1/reasoner emit reasoning before the answer; a tight budget starves ``content``.
         self._is_reasoning_model = _model_reasons(self.summary_model)
+        # B7 guard: a reasoning model whose thinking was NOT disabled emits reasoning_content into
+        # every JSON-extraction stage (summary/GI/KG/grounding). On the tight summary budget that
+        # consumes the whole allowance and content returns EMPTY (finish_reason=length) -> the
+        # episode fails (exactly the 8/9-episode failure this session). Warn LOUDLY at construction
+        # so the misconfig is caught before a paid run, not after N failed episodes. Not a hard
+        # error: the reasoning-token headroom is the intentional (if inferior) fallback for a run
+        # that deliberately leaves thinking on.
+        if self._thinking_left_on():
+            logger.warning(
+                "DeepSeek reasoning model %r has thinking LEFT ON (no reasoning-off directive in "
+                "deepseek_extra_body): JSON-extraction stages may truncate to empty content "
+                "(finish_reason=length) and fail. Set deepseek_extra_body: "
+                "{thinking: {type: disabled}} (or reasoning_effort: none) to disable it.",
+                self.summary_model,
+            )
+
+    def _thinking_left_on(self) -> bool:
+        """A reasoning model whose thinking is NOT disabled via deepseek_extra_body (B7 guard)."""
+        if not self._is_reasoning_model:
+            return False
+        return not _extra_body_disables_thinking(getattr(self.cfg, "deepseek_extra_body", None))
 
     def _authenticate(self, cfg: "config.Config") -> None:
         """A DeepSeek API key is REQUIRED (unlike a local vLLM bearer). It is an OpenAI-compatible

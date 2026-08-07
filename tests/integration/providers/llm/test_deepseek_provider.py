@@ -109,6 +109,65 @@ class TestReasoningHeadroom:
         assert p._token_kwarg(256, model="gpt-5-lookalike") == {"max_tokens": 256}
 
 
+class TestThinkingGuard:
+    """B7: a reasoning model with thinking LEFT ON truncates JSON-extraction stages to empty content
+    (the 8/9-episode failure this session). The guard detects the misconfig at construction and warns
+    loudly — a warning, not a hard error, because the reasoning-token headroom is the intended
+    fallback for a run that deliberately leaves thinking on."""
+
+    def test_disables_thinking_recognizes_every_shape(self):
+        from podcast_scraper.providers.deepseek.deepseek_provider import (
+            _extra_body_disables_thinking as d,
+        )
+
+        # The two that actually work on api.deepseek.com...
+        assert d({"reasoning_effort": "none"})
+        assert d({"thinking": {"type": "disabled"}})
+        # ...and the OpenRouter/vLLM shapes (still read as "intended off").
+        assert d({"reasoning": {"enabled": False}})
+        assert d({"enable_thinking": False})
+        assert d({"chat_template_kwargs": {"enable_thinking": False}})
+        # Not disabled:
+        assert not d(None)
+        assert not d({})
+        assert not d({"reasoning_effort": "high"})
+        assert not d({"thinking": {"type": "enabled"}})
+
+    def test_reasoning_model_thinking_on_is_flagged(self):
+        p = DeepSeekProvider(_ds_cfg(deepseek_summary_model=_REASONING_MODEL))
+        assert p._thinking_left_on() is True
+
+    def test_reasoning_model_with_thinking_off_is_ok(self):
+        for eb in ({"reasoning_effort": "none"}, {"thinking": {"type": "disabled"}}):
+            p = DeepSeekProvider(
+                _ds_cfg(deepseek_summary_model=_REASONING_MODEL, deepseek_extra_body=eb)
+            )
+            assert p._thinking_left_on() is False
+
+    def test_non_reasoning_model_never_flagged(self):
+        p = DeepSeekProvider(_ds_cfg(deepseek_summary_model=_CHAT_MODEL))
+        assert p._thinking_left_on() is False
+
+    def test_warns_at_init_when_thinking_left_on(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            DeepSeekProvider(_ds_cfg(deepseek_summary_model=_REASONING_MODEL))
+        assert any("thinking LEFT ON" in r.getMessage() for r in caplog.records)
+
+    def test_no_warning_when_thinking_disabled(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            DeepSeekProvider(
+                _ds_cfg(
+                    deepseek_summary_model=_REASONING_MODEL,
+                    deepseek_extra_body={"thinking": {"type": "disabled"}},
+                )
+            )
+        assert not any("thinking LEFT ON" in r.getMessage() for r in caplog.records)
+
+
 class TestOpenModelHeuristics:
     def test_temperature_not_fixed(self):
         p = DeepSeekProvider(_ds_cfg())
