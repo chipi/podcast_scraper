@@ -102,3 +102,33 @@ def openai_style_messages(
         {"role": "system", "content": system_content},
         {"role": "user", "content": usr_prompt},
     ]
+
+
+def anthropic_style_system(
+    transcript: str,
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    enabled: bool,
+) -> Tuple[object, str]:
+    """Anthropic application: the transcript block becomes a ``system`` content block carrying an
+    explicit ``cache_control`` breakpoint (Anthropic prefix caching is opt-in, unlike the auto-cache
+    providers). Returns ``(system, user)`` where — when enabled and the transcript is present —
+    ``system`` is a list of content blocks (transcript block with ``cache_control: ephemeral``, then
+    the instructions block) and ``user`` has the transcript replaced by the marker. Otherwise
+    ``system`` is the plain string and ``user`` is unchanged (exact legacy layout).
+
+    Anthropic caches the prefix up to and including the ``cache_control`` block, so the transcript
+    block (identical across an episode's stages) is the shared cache; the stage instructions follow
+    and diverge after the breakpoint. Blocks below the model's minimum cacheable size simply are not
+    cached (never wrong, just not cheaper) — real episode transcripts are well above it.
+    """
+    block, sys_prompt, usr_prompt = relocate_transcript(
+        transcript, system_prompt, user_prompt, enabled=enabled
+    )
+    if block is None:
+        return system_prompt, user_prompt
+    system_blocks = [{"type": "text", "text": block, "cache_control": {"type": "ephemeral"}}]
+    if sys_prompt:
+        system_blocks.append({"type": "text", "text": sys_prompt})
+    return system_blocks, usr_prompt

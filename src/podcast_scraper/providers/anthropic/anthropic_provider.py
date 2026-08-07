@@ -45,6 +45,7 @@ from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
+from ..common.transcript_cache import anthropic_style_system as _anthropic_style_system
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +167,8 @@ class AnthropicProvider:
             )
 
         self.cfg = cfg
+        # RFC-111: relocate the transcript to a cache_control'd leading system block (default on).
+        self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
         from ...cleaning import HybridCleaner, LLMBasedCleaner
@@ -783,18 +786,18 @@ class AnthropicProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
+            # RFC-111: transcript block leads the system with a cache_control breakpoint.
+            _sys, _usr = _anthropic_style_system(
+                text, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
+            )
+
             def _make_api_call():
                 return self._messages_create(
                     model=self.summary_model,
                     max_tokens=max_length,
                     temperature=self.summary_temperature,
-                    system=system_prompt,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": user_prompt,
-                        }
-                    ],
+                    system=_sys,
+                    messages=[{"role": "user", "content": _usr}],
                 )
 
             try:
@@ -1647,12 +1650,15 @@ class AnthropicProvider:
                 max_insights=max_insights,
             )
             system_prompt = render_prompt("anthropic/insight_extraction/system_v1")
+            _sys, _usr = _anthropic_style_system(  # RFC-111 transcript-first + cache_control
+                text_slice, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
+            )
             response = self._messages_create(
                 model=self.summary_model,
                 max_tokens=insight_max_tokens,
                 temperature=insight_temperature,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
+                system=_sys,
+                messages=[{"role": "user", "content": _usr}],
             )
             _record_anthropic_llm_call(
                 response,
@@ -1873,13 +1879,17 @@ class AnthropicProvider:
                 retry_with_metrics,
             )
 
+            _sys, _usr = _anthropic_style_system(  # RFC-111 transcript-first + cache_control
+                text_slice, system_msg, user_prompt, enabled=self._cache_transcript_prefix
+            )
+
             def _make_api_call():
                 return self._messages_create(
                     model=model,
                     max_tokens=2048,
                     temperature=0.1,
-                    system=system_msg,
-                    messages=[{"role": "user", "content": user_prompt}],
+                    system=_sys,
+                    messages=[{"role": "user", "content": _usr}],
                 )
 
             response = retry_with_metrics(
