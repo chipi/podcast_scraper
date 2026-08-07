@@ -11,7 +11,7 @@
  * section. Flip it inline with "Show more / Show less" (same preference the Your Week setting
  * writes). Hidden entirely when signed-out or nothing is due yet.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getYourWeek } from '../services/api'
 import type { YourWeekItem, YourWeekResponse, YourWeekSectionKind } from '../services/types'
@@ -46,13 +46,17 @@ function toggleLayout(): void {
   void userPrefs.set(LAYOUT_PREF_KEY, layout.value)
 }
 
-onMounted(async () => {
+async function load(): Promise<void> {
   if (!auth.isAuthenticated) return
   await userPrefs.hydrate() // idempotent; ensures the synced layout pref is loaded before we read it
   const pref = userPrefs.get<string>(LAYOUT_PREF_KEY)
   if (pref === 'full' || pref === 'compact') layout.value = pref
   data.value = await getYourWeek().catch(() => null)
-})
+}
+
+// Load when already authed AND re-load when auth resolves later: a fresh page load hydrates auth
+// asynchronously, so a one-shot onMounted fetch can race it and leave the section wrongly empty.
+watch(() => auth.isAuthenticated, (authed) => authed && load(), { immediate: true })
 </script>
 
 <template>
