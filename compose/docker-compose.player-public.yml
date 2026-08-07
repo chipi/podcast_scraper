@@ -27,6 +27,12 @@ services:
       - "${PLAYER_OUTBOX_LISTEN:-127.0.0.1}:${PLAYER_OUTBOX_PORT:-8099}:8000"
     environment:
       PODCAST_SERVE_APP_ONLY: "1"
+      # Digest scheduler (#1412/#1415): the image CMD already runs `serve --enable-jobs-api`,
+      # so the scheduler service is live — it just reads its job set from the operator YAML.
+      # Pin it to the committed, deploy-controlled player config (weekly-digest job) instead
+      # of the shared read-only corpus viewer_operator.yaml (which carries no jobs). Mounted
+      # below; consumed via the --config-file env fallback. Reproducible on a fresh box.
+      PODCAST_SERVE_CONFIG_FILE: /app/config/viewer_operator.player.yaml
       # Real Google OIDC in prod (NEVER APP_OAUTH_PROVIDER=mock). provider_from_env()
       # selects Google when these creds are present. Redirect URI to register in Google:
       #   https://<player-domain>/api/app/auth/callback
@@ -110,6 +116,10 @@ services:
     volumes:
       # Corpus is READ-ONLY here — the consumer plane reads it; per-user data is separate.
       - corpus_data:/app/output:ro
+      # Deploy-controlled scheduler config (weekly-digest job), pinned via
+      # PODCAST_SERVE_CONFIG_FILE above. Committed in-repo → present on every box after the
+      # deploy's `git reset --hard origin/<ref>`; read-only into the container.
+      - ../config/player/viewer_operator.player.yaml:/app/config/viewer_operator.player.yaml:ro
       # Per-user consumer data (playback/notes/favorites) — a HOST bind mount (like the
       # corpus) so it lives on the host FS: backupable (backup-player-appdata-prod.yml),
       # survives a container/volume prune, and operator-visible. #3.
