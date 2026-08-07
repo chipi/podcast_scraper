@@ -521,6 +521,17 @@ quality: complexity deadcode docstrings spelling
 	# TODO(CVE-2025-3000): drop ignore when torch upstream ships a fixed
 	#   version and we bump the pin.
 	#
+	# Ignore PYSEC-2026-3624 (lightning <= 2.6.5, load_from_checkpoint RCE via the
+	#   ``_instantiator`` hyperparameter importing attacker-controlled module names —
+	#   bypasses weights_only=True). Same attacker-supplied-artifact class as the torch
+	#   checkpoint PYSECs above: reached only when deserialising an UNTRUSTED checkpoint.
+	#   We load only pinned HuggingFace pyannote weights (lightning rides in transitively
+	#   via pyannote-audio); no request-time / user-supplied checkpoint loading (D6).
+	#   2.6.5 is the latest release and OSV's "fixed 2022.6.15" is phantom calendar-version
+	#   data — the real fix is unreleased commit d710d68, so there is nothing to bump to.
+	# TODO(PYSEC-2026-3624): drop ignore when lightning ships a release past commit
+	#   d710d68 (PR #21832) and we confirm pip-audit accepts it.
+	#
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
@@ -547,6 +558,7 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2026-139 \
 		--ignore-vuln PYSEC-2026-161 \
 		--ignore-vuln MAL-2026-4750 \
+		--ignore-vuln PYSEC-2026-3624 \
 		--ignore-vuln CVE-2025-3000
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
