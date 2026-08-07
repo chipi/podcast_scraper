@@ -67,6 +67,38 @@ def test_metadata_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert meta["code_challenge_methods_supported"] == ["S256"]
 
 
+def test_authorize_unauthenticated_redirects_to_login(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A remote client's /authorize with no player session bounces to Google sign-in (not 401).
+
+    Regression for the 2026-08-08 connector dead-end: claude.ai opened /authorize as a top-level
+    navigation, got a hard 401 ('Not authenticated'), and never showed a login prompt. It must
+    302 to /auth/login with a guarded return_to back to /authorize so the flow completes.
+    """
+    client, _data_dir, _uid = _app(tmp_path, monkeypatch)
+    client.cookies.clear()  # fresh browser: no player session
+    _v, challenge = _pkce()
+    params = {
+        "response_type": "code",
+        "client_id": "mcpc_dummy",
+        "redirect_uri": _REDIRECT,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "scope": "mcp:read",
+        "state": "st",
+    }
+    r = client.get("/api/app/mcp/oauth/authorize", params=params, follow_redirects=False)
+    assert r.status_code == 302, r.text
+    loc = r.headers["location"]
+    assert loc.startswith("/api/app/auth/login?return_to="), loc
+    from urllib.parse import parse_qs, unquote, urlsplit
+
+    rt = unquote(parse_qs(urlsplit(loc).query)["return_to"][0])
+    assert rt.startswith("/api/app/mcp/oauth/authorize"), rt
+    assert "client_id=mcpc_dummy" in rt  # original params preserved for the return trip
+
+
 def test_full_authorization_code_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     client, data_dir, uid = _app(tmp_path, monkeypatch)
     verifier, challenge = _pkce()

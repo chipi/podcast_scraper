@@ -85,6 +85,38 @@ def test_full_login_callback_me_logout(tmp_path: Path) -> None:
     assert client.get("/api/app/me").status_code == 401
 
 
+def test_login_return_to_round_trips_through_callback(tmp_path: Path) -> None:
+    """A safe same-origin ``return_to`` on /auth/login is honoured by the callback redirect.
+
+    This is what makes the MCP /authorize bounce (RFC-112) land back on the consent screen
+    after Google sign-in instead of dumping the user on the player home.
+    """
+    client = TestClient(_app(tmp_path))
+    dest = "/api/app/mcp/oauth/authorize?client_id=x&scope=mcp"
+    resp = client.get("/api/app/auth/login", params={"return_to": dest}, follow_redirects=False)
+    state = str(parse_qs(urlparse(resp.headers["location"]).query)["state"][0])
+    cb = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    assert cb.status_code == 307
+    assert cb.headers["location"] == dest
+
+
+def test_login_return_to_open_redirect_guard(tmp_path: Path) -> None:
+    """An off-site ``return_to`` is dropped — the callback falls back to the home path."""
+    client = TestClient(_app(tmp_path))
+    for evil in ("https://evil.example/x", "//evil.example/x"):
+        resp = client.get("/api/app/auth/login", params={"return_to": evil}, follow_redirects=False)
+        state = str(parse_qs(urlparse(resp.headers["location"]).query)["state"][0])
+        cb = client.get(
+            "/api/app/auth/callback",
+            params={"code": "good", "state": state},
+            follow_redirects=False,
+        )
+        assert cb.headers["location"] == "/", f"open-redirect not guarded for {evil!r}"
+        client.cookies.clear()
+
+
 def test_callback_rejects_bad_state(tmp_path: Path) -> None:
     client = TestClient(_app(tmp_path))
     _login_state(client)

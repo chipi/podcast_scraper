@@ -16,7 +16,7 @@ import html
 import os
 import time
 from pathlib import Path
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -223,7 +223,25 @@ async def authorize_page(
     client + scope (a top-level client navigation, not a prefetch); otherwise it renders the form.
     """
     _require_issuer()
-    user = get_current_user(request)  # raises 401 when not logged in
+    try:
+        user = get_current_user(request)
+    except HTTPException as exc:
+        # Not signed into the player yet. A remote MCP client (e.g. claude.ai) opens /authorize
+        # as a top-level navigation, so a hard 401 dead-ends the connector with no login prompt
+        # (INCIDENT 2026-08-08). Bounce through Google sign-in and return here — the consent
+        # screen needs a known user, and the Lax session cookie set on callback is carried back
+        # on the return redirect. Only the unauthenticated (401) case redirects; 403/others raise.
+        if exc.status_code == 401:
+            # /auth/login lives under the SAME app prefix as this route (…/api/app). Derive it
+            # from the current path so the redirect stays same-origin regardless of mount prefix
+            # or proxy host (url_for would emit the internal uvicorn host behind the edge).
+            suffix = "/mcp/oauth/authorize"
+            prefix = request.url.path[: -len(suffix)] if request.url.path.endswith(suffix) else ""
+            nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+            return RedirectResponse(
+                f"{prefix}/auth/login?return_to={quote(nxt, safe='')}", status_code=302
+            )
+        raise
     if not user.mcp_access:
         raise HTTPException(status_code=403, detail="mcp access not granted")
     if response_type != "code":
