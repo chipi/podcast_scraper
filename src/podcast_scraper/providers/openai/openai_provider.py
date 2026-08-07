@@ -140,6 +140,12 @@ def _record_openai_summarization_call(
 _TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
 
 
+# RFC-111: transcript-prefix caching lives in the shared, provider-family-agnostic module so every
+# provider (base siblings + grok/mistral/ollama/anthropic/gemini) relocates the transcript
+# identically.
+from ..common.transcript_cache import openai_style_messages as _openai_style_messages
+
+
 class OpenAICompatibleProvider:
     """OpenAI-compatible transport shared by OpenAIProvider (OpenAI-native) and VLLMProvider
     (DGX-local open models). They are SIBLINGS, not parent/child — vLLM serves a wide family of
@@ -333,6 +339,10 @@ class OpenAICompatibleProvider:
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
 
+        # RFC-111: relocate the transcript to the leading system block so it prefix-caches across
+        # an episode's LLM stages (default on). Off falls back to the exact legacy layout.
+        self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
+
         # Models that reject any explicit ``temperature`` other than the default (1). gpt-5.4-mini
         # still accepts temperature=0, but gpt-5.5 rejects it with a 400 "temperature does not
         # support 0 ... only the default (1)". Seeded and grown at runtime — see _chat_create.
@@ -384,6 +394,35 @@ class OpenAICompatibleProvider:
         if name.startswith(("o1", "o3", "gpt-5")):
             return {"max_completion_tokens": n}
         return {"max_tokens": n}
+
+    def _build_stage_messages(
+        self,
+        *,
+        transcript: str,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> List[Dict[str, str]]:
+        """RFC-111: assemble chat messages for a transcript-bearing LLM stage.
+
+        When ``cache_transcript_prefix`` is on (default) and the transcript appears verbatim in the
+        user prompt, relocate it to the LEADING block of the system prompt so it forms a stable,
+        stage-invariant prefix the provider caches at ~0.1x price across an episode's stages. The
+        content is only reordered — the model still sees the same transcript + instructions + task.
+
+        With the flag off — or when the transcript is not found verbatim in the user prompt (a
+        custom prompt, or a stage that truncated the transcript before rendering) — this returns
+        today's exact legacy layout, so it is always a safe no-op fallback that never drops content.
+
+        Auto-cache providers (openai/deepseek/qwen/litellm/vllm) need no extra API fields — the
+        layout alone enables caching. Anthropic (explicit ``cache_control``) and Gemini (native
+        ``cached_content``) are handled in their own providers in later RFC-111 phases.
+        """
+        return _openai_style_messages(
+            transcript,
+            system_prompt,
+            user_prompt,
+            enabled=bool(getattr(self, "_cache_transcript_prefix", True)),
+        )
 
     @classmethod
     def get_pricing(cls, model: str, capability: str) -> Dict[str, float]:
@@ -1274,13 +1313,18 @@ class OpenAICompatibleProvider:
                 else {"max_tokens": max_length}
             )
 
+            # RFC-111 Phase 1: relocate the transcript to a leading, cacheable system block
+            # (default on). ``text`` is the cleaned transcript rendered verbatim into user_prompt.
+            messages = self._build_stage_messages(
+                transcript=text,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+
             def _make_api_call():
                 kwargs: Dict[str, Any] = {
                     "model": self.summary_model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    "messages": messages,
                     "temperature": self.summary_temperature,
                     **_token_kwarg,
                 }
@@ -1356,6 +1400,7 @@ class OpenAICompatibleProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
+                    response=response,  # RFC-111: surfaces prefix-cache read tokens in llm_cost
                 )
 
             # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
@@ -1894,10 +1939,11 @@ class OpenAICompatibleProvider:
             system_prompt = render_prompt("openai/insight_extraction/system_v1")
             response = self._chat_create(
                 model=self.insight_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                # RFC-111: transcript-first so the cleaned transcript caches across this episode's
+                # stages (text_slice is rendered verbatim into user_prompt).
+                messages=self._build_stage_messages(
+                    transcript=text_slice, system_prompt=system_prompt, user_prompt=user_prompt
+                ),
                 temperature=insight_temperature,
                 **self._token_kwarg(insight_max_tokens),
             )
@@ -2126,10 +2172,11 @@ class OpenAICompatibleProvider:
             def _make_api_call():
                 return self._chat_create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    # RFC-111: transcript-first (text_slice is embedded verbatim in user_prompt),
+                    # so KG reuses the same cached transcript prefix as the other episode stages.
+                    messages=self._build_stage_messages(
+                        transcript=text_slice, system_prompt=system_msg, user_prompt=user_prompt
+                    ),
                     temperature=0.1,
                     **self._token_kwarg(2048),
                 )

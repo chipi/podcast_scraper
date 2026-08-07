@@ -2619,6 +2619,17 @@ class Config(BaseModel):
         ),
     )
     generate_summaries: bool = Field(default=False, alias="generate_summaries")
+    cache_transcript_prefix: bool = Field(
+        default=True,
+        alias="cache_transcript_prefix",
+        description=(
+            "RFC-111: assemble transcript-bearing LLM stages with the cleaned transcript as the "
+            "leading, stage-invariant block of the system prompt so providers prefix-cache it at "
+            "~0.1x price across the ~5 stages per episode (and across reprocessing runs). Content "
+            "is only reordered, never changed — the model sees the same transcript + instructions "
+            "+ task. Off falls back to the exact legacy layout (transcript in the user message)."
+        ),
+    )
     # GIL evidence stack (Issue #435): loaded lazily when GIL or dependent feature enabled
     embedding_model: str = Field(
         default=config_constants.DEFAULT_EMBEDDING_MODEL,

@@ -183,6 +183,7 @@ def record_provider_call_cost(
     completion_tokens: Optional[int] = None,
     audio_minutes: Optional[float] = None,
     triggered_guardrail: bool = False,
+    response: Any = None,
 ) -> None:
     """Set per-call USD, backfill when null, and emit ``llm_cost_event`` (#823 / #804).
 
@@ -190,6 +191,11 @@ def record_provider_call_cost(
     ``llm_cost_event`` so cost-rollup can pivot on paid-but-rejected
     spend (the cloud provider charged us for a response that tripped a
     response-shape guardrail and got routed to a fallback).
+
+    ``response`` (RFC-111): the raw provider response, forwarded to ``emit_llm_cost_event`` which
+    extracts the normalised cache-read / cache-write token counts from its usage. Passing it makes
+    prefix-cache savings observable in the ``llm_cost`` telemetry; omitting it is the prior
+    behaviour (no cache-token fields), so every existing call site is unaffected.
     """
     if cost is not None:
         call_metrics.set_cost(cost)
@@ -228,6 +234,7 @@ def record_provider_call_cost(
             completion_tokens=completion_tokens,
             run_id=run_id,
             triggered_guardrail=triggered_guardrail,
+            response=response,
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)
