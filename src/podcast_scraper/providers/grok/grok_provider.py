@@ -51,6 +51,7 @@ logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
+from ..common.transcript_cache import openai_style_messages as _openai_style_messages
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Pricing for Grok models lives in ``config/pricing_assumptions.yaml`` (#651).
@@ -138,6 +139,8 @@ class GrokProvider:
             )
 
         self.cfg = cfg
+        # RFC-111: relocate the transcript to a cacheable leading system block (default on).
+        self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
         from ...cleaning import HybridCleaner, LLMBasedCleaner
@@ -692,10 +695,9 @@ class GrokProvider:
             def _make_api_call():
                 return self.client.chat.completions.create(
                     model=self.summary_model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=_openai_style_messages(  # RFC-111 transcript-first
+                        text, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
+                    ),
                     temperature=self.summary_temperature,
                     max_tokens=max_length,
                 )
@@ -1308,10 +1310,9 @@ class GrokProvider:
             system_prompt = render_prompt("grok/insight_extraction/system_v1")
             response = self.client.chat.completions.create(
                 model=self.summary_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-111
+                    text_slice, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
+                ),
                 temperature=insight_temperature,
                 max_tokens=insight_max_tokens,
             )
@@ -1523,10 +1524,9 @@ class GrokProvider:
             def _make_api_call():
                 return self.client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=_openai_style_messages(  # RFC-111 transcript-first
+                        text_slice, system_msg, user_prompt, enabled=self._cache_transcript_prefix
+                    ),
                     temperature=0.1,
                     max_tokens=2048,
                 )
