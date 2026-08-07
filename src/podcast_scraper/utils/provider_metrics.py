@@ -747,19 +747,26 @@ def apply_gil_evidence_llm_call_metrics(
     if prompt_tokens is not None and completion_tokens is not None:
         call_metrics.set_tokens(prompt_tokens, completion_tokens)
     # Compute and attach cost if the provider didn't already.
-    cost_event_emitted = False
+    # B4: emit the llm_cost event whenever TOKENS are present, NOT only when a price resolves. This
+    # path used to emit ONLY if calculate_provider_cost returned a value (a missing rate row — e.g.
+    # a litellm gateway alias or any unpriced model — returned None) OR the provider had set a
+    # positive response_cost. So quote/extraction + entailment token usage VANISHED from the event
+    # log for every unpriced route, and rolling_assess's token x price cost silently excluded the
+    # ENTIRE grounding stage for those runs. record_provider_call_cost is itself tokens-gated (uses
+    # the provider's response_cost when already set, else the pricing table, else $0 with tokens
+    # still recorded — see its docstring), so route every grounding call through it exactly once.
+    # Passing the existing estimated_cost preserves a provider that already priced its own call.
     if (
-        call_metrics.estimated_cost is None
-        and cfg is not None
+        cfg is not None
         and provider_type
         and model
         and prompt_tokens is not None
         and completion_tokens is not None
     ):
         try:
-            from podcast_scraper.workflow.helpers import calculate_provider_cost
-
-            cost = calculate_provider_cost(
+            record_provider_call_cost(
+                call_metrics,
+                call_metrics.estimated_cost,
                 cfg=cfg,
                 provider_type=provider_type,
                 capability="summarization",
@@ -767,44 +774,8 @@ def apply_gil_evidence_llm_call_metrics(
                 prompt_tokens=int(prompt_tokens),
                 completion_tokens=int(completion_tokens),
             )
-            if cost is not None:
-                record_provider_call_cost(
-                    call_metrics,
-                    cost,
-                    cfg=cfg,
-                    provider_type=provider_type,
-                    capability="summarization",
-                    model=model,
-                    prompt_tokens=int(prompt_tokens),
-                    completion_tokens=int(completion_tokens),
-                )
-                cost_event_emitted = True
-        except Exception:
-            # Pricing is best-effort at this layer — a missing rate row
-            # shouldn't fail a GIL evidence call.
-            pass
-    if (
-        not cost_event_emitted
-        and call_metrics.estimated_cost is not None
-        and call_metrics.estimated_cost > 0
-        and cfg is not None
-        and provider_type
-        and model
-    ):
-        try:
-            from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
-
-            emit_llm_cost_event(
-                cfg,
-                provider=provider_type,
-                stage="summarization",
-                model=model,
-                estimated_cost_usd=float(call_metrics.estimated_cost),
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-            )
         except Exception as exc:
-            logger.debug("llm_cost_event emission skipped: %s", exc)
+            logger.debug("gi evidence cost event emission skipped: %s", exc)
     call_metrics.finalize()
     if pipeline_metrics is None:
         return

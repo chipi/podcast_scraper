@@ -489,6 +489,29 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         self.assertEqual(m.estimated_cost, 0.0042)
         pipe.record_llm_gi_call.assert_called_once_with(10, 20, cost_usd=0.0042)
 
+    def test_grounding_emits_cost_event_even_when_unpriced(self):
+        """B4: an unpriced grounding call (missing rate row — a litellm gateway alias, or any model
+        with no YAML price) must STILL emit an llm_cost event carrying its tokens. Before this fix
+        the emit was gated on a price resolving, so quote-extraction + entailment token usage
+        vanished from the event log for every unpriced route and rolling_assess's token x price cost
+        silently excluded the entire grounding stage.
+        """
+        m = ProviderCallMetrics()
+        with patch("podcast_scraper.workflow.cost_monitoring.emit_llm_cost_event") as emit:
+            apply_gil_evidence_llm_call_metrics(
+                m,
+                Mock(),
+                prompt_tokens=3000,
+                completion_tokens=120,
+                cfg=Mock(),
+                provider_type="unpriced_vendor_xyz",
+                model="no-such-model",
+                stage="extract_quotes",
+            )
+        emit.assert_called()
+        self.assertEqual(emit.call_args.kwargs.get("prompt_tokens"), 3000)
+        self.assertEqual(emit.call_args.kwargs.get("completion_tokens"), 120)
+
     def test_merge_failure_pipeline_none(self):
         m = ProviderCallMetrics()
         merge_gil_evidence_call_metrics_on_failure(m, None)
