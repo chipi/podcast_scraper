@@ -17,6 +17,14 @@ services:
   api:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
+    ports:
+      # Tailnet-only delivery-outbox seam (#1412 / ADR-145): the homelab delivery worker
+      # polls /internal/outbox/* here over the tailnet (token-gated by INTERNAL_OUTBOX_TOKEN).
+      # PLAYER_OUTBOX_LISTEN is set to the box's OWN tailnet IP by deploy-player.sh; the
+      # loopback default means NO exposure when unset. This is the low-privilege app-only api
+      # (no docker.sock, no LLM keys — the separate least-privilege plane), so binding it to
+      # the trusted tailnet is safe and is the sanctioned seam transport (NOT the public edge).
+      - "${PLAYER_OUTBOX_LISTEN:-127.0.0.1}:${PLAYER_OUTBOX_PORT:-8099}:8000"
     environment:
       PODCAST_SERVE_APP_ONLY: "1"
       # Real Google OIDC in prod (NEVER APP_OAUTH_PROVIDER=mock). provider_from_env()
