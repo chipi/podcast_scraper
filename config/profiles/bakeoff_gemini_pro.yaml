@@ -2,7 +2,6 @@
 # bake-off profiles — only the provider (native gemini) + model change, so the model is the sole
 # variable. Target: gemini-2.5-pro (top-tier Gemini, $1.25/$10.00 per Mtok). Runs via the native
 # gemini provider + GEMINI_API_KEY (OpenRouter Gemini is data-policy blocked). relabel_only.
-profile: bakeoff_gemini_pro
 
 transcription:
   primary: whisper
@@ -82,3 +81,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

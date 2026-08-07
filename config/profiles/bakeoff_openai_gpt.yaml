@@ -1,7 +1,6 @@
 # Bake-off profile (#1356): popular-API reference — OpenAI gpt-4.1-mini (native openai provider,
 # OPENAI_API_KEY). Same robust control config; model-only swap. Not a reasoning model, so fast.
 # For the "how do the mainstream API LLMs compare for our use case" learning question.
-profile: bakeoff_openai_gpt
 
 transcription:
   primary: whisper
@@ -81,3 +80,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

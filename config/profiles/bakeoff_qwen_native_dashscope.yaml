@@ -5,7 +5,6 @@
 #
 # DashScope wants the thinking toggle as a TOP-LEVEL extra_body field (enable_thinking:false); qwen3.7
 # -flash is Alibaba's non-thinking flash tier. Endpoint + key from .env (workspace-specific).
-profile: bakeoff_qwen_native_dashscope
 
 transcription:
   primary: whisper
@@ -95,3 +94,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

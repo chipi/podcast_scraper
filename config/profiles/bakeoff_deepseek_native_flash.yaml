@@ -8,7 +8,6 @@
 # thinking:{type:disabled} is the documented equivalent). An EARLIER note here wrongly claimed the
 # native API has no reasoning-off switch and that this arm was reasoning-ON — both false; corrected
 # after live-probing api.deepseek.com.
-profile: bakeoff_deepseek_native_flash
 
 transcription:
   primary: whisper
@@ -100,3 +99,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

@@ -3,7 +3,6 @@
 # variable. Target: qwen/qwen3.7-flash ($0.03/$0.13 per Mtok — the cheapest reliable candidate,
 # 6/6 rapid-burst via OpenRouter default routing; qwen3.6's DeepInfra-shared-pool block does NOT
 # affect 3.7-flash). reasoning OFF. relabel_only over frozen v2.4 transcripts.
-profile: bakeoff_litellm_qwen37
 
 transcription:
   primary: whisper
@@ -94,3 +93,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

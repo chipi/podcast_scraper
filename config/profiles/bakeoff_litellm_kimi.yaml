@@ -1,7 +1,6 @@
 # Bake-off profile (#1356): reference-tier model moonshotai/kimi-k2.6 ($0.59/$2.48 per Mtok).
 # Same robust control config as the flash bake-off profiles (chunk 20k, timeout 600s,
 # insights 8, dedup 0.72, gate 3) — only the model alias changes. reasoning OFF. relabel_only.
-profile: bakeoff_litellm_kimi
 
 transcription:
   primary: whisper
@@ -92,3 +91,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

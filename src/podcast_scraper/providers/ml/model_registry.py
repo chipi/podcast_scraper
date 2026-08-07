@@ -1001,6 +1001,32 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
 
 # Summary stage — local-DGX default holds per #928 + #958 Cell D.
 _SUMMARY_OPTIONS: Dict[str, StageOption] = {
+    # Cloud OpenRouter route via the homelab LiteLLM gateway — v2.5 finale CLOUD winner
+    # (deepseek-v4-flash beats qwen3.7-flash on all dims). Wire model = the ``podcast-flash-0731``
+    # gateway alias; ``_emit_summary_model`` now namespaces litellm/qwen (ADR-144 ext), so
+    # ``litellm_summary_model`` is registry-GOVERNED instead of hand-authored in the profile.
+    "cloud_or_deepseek_flash": StageOption(
+        stage="summary",
+        option_id="cloud_or_deepseek_flash",
+        provider="litellm",
+        model="podcast-flash-0731",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="v2.5 finale cloud winner — deepseek-v4-flash via OpenRouter (~$0.005/ep)",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
+    # Native first-party Qwen (DashScope) — the v2.5 finale flash arm; cloud counterpart of the
+    # DGX-local qwen. Wire model ``qwen3.7-flash`` -> governed via ``qwen_summary_model`` (ADR-144).
+    "cloud_qwen_flash": StageOption(
+        stage="summary",
+        option_id="cloud_qwen_flash",
+        provider="qwen",
+        model="qwen3.7-flash",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="v2.5 finale flash arm — qwen3.7-flash via DashScope",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     # Cloud cheap — current production default for cloud_balanced / cloud_thin /
     # cloud_with_dgx_primary's summary path.
     "gemini_flash_lite": StageOption(
@@ -1315,6 +1341,37 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 # Bundling (`bundled_ab`) is the cross-provider champion per #921
 # (EVAL_GIL_BUNDLING_2026_05). Grounding is treated as universal-on.
 _GI_OPTIONS: Dict[str, StageOption] = {
+    # v2.5 finale GI config — identical to ``provider_chunked_gated_v3`` EXCEPT three knobs the
+    # 2026-08 finale validated for the cloud flash summarisers (deepseek/qwen): max_insights 50->12
+    # (flash models saturate lower than gemini), dedupe 0.75->0.72, value_gate_min_tier 2->3
+    # (tighter gate for the cheaper models). All six finale bake-off arms ran these exact values.
+    "provider_chunked_gated_v25": StageOption(
+        stage="gi",
+        option_id="provider_chunked_gated_v25",
+        provider="provider",
+        extra_settings={
+            "max_insights": 12,
+            "require_grounding": True,
+            "evidence_quote_mode": "bundled",
+            "evidence_nli_mode": "bundled",
+            "insight_chunk_chars": 30000,
+            "insight_dedupe_threshold": 0.72,
+            "value_gate_enabled": True,
+            "value_gate_min_tier": 3,
+            "insight_temperature": 0.0,
+            "insight_prompt_version": "v2",
+            "qa_score_min": 0.3,
+            "nli_entailment_min": 0.5,
+            "evidence_match_summary_provider": True,
+        },
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric=(
+            "v2.5 finale cloud GI config (12/0.72/tier-3); all six bake-off arms beat the 2.4 "
+            "baseline (deepseek-native 9-0, +2.2 summary / +3.0 insights)"
+        ),
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     # SUPERSEDED by provider_chunked_gated_v3. Kept as history, not deleted: n=12 was never derived
     # from anything (the providers clamped to 10 anyway, so no run could honour it), and recording
     # WHY a value was abandoned is worth more than the value was.
@@ -1492,6 +1549,31 @@ _KG_OPTIONS: Dict[str, StageOption] = {
 # Cloud profiles route NER through Gemini instead of spaCy (the pipeline-llm
 # image doesn't ship spaCy models at all).
 _NER_OPTIONS: Dict[str, StageOption] = {
+    # Cloud OpenRouter / native-Qwen speaker detection: the LLM (via the summary provider) handles
+    # naming inline; spaCy ``en_core_web_trf`` is the entity model. ``speaker_detector_provider``
+    # follows the summariser (litellm/qwen). ``_emit_speaker_model`` only namespaces
+    # openai/vllm/ollama, so only ``speaker_detector_provider`` + ``ner_model`` are governed here
+    # (matches the cloud YAMLs; the naming LLM rides the same gateway/DashScope config).
+    "litellm_speaker_detector": StageOption(
+        stage="ner",
+        option_id="litellm_speaker_detector",
+        provider="litellm",
+        model="en_core_web_trf",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="cloud_openrouter speaker detection — LLM naming + spaCy trf NER",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
+    "qwen_speaker_detector": StageOption(
+        stage="ner",
+        option_id="qwen_speaker_detector",
+        provider="qwen",
+        model="en_core_web_trf",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="cloud_qwen speaker detection — LLM naming via DashScope + spaCy trf NER",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     "gemini_speaker_detector": StageOption(
         stage="ner",
         option_id="gemini_speaker_detector",
@@ -1607,6 +1689,22 @@ _DIARIZATION_RESEARCH_REF = (
     "docs/guides/eval-reports/EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07.md"
 )
 _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
+    # Diarization OFF — for cloud production profiles that run ``diarize: false`` (speaker turns
+    # come from the LLM naming stage, not a diarizer pass). ``model=None`` so the resolver emits NO
+    # diarization model field (``diarization_model`` / ``deepgram_diarization_model`` /
+    # ``dgx_diarize_model`` all stay absent), which is what a ``diarize: false`` YAML wants. This is
+    # what lets a ProfilePreset model a non-diarizing profile at all — every prior preset was
+    # ``diarize: true`` and the schema had no way to say otherwise (2026-08-07).
+    "no_diarization": StageOption(
+        stage="diarization",
+        option_id="no_diarization",
+        provider="none",
+        model=None,
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="diarize:false posture — speaker turns via LLM naming, no diarizer pass",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     "pyannote_diarization_community1": StageOption(
         stage="diarization",
         option_id="pyannote_diarization_community1",
@@ -1849,6 +1947,12 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "ollama_summary_model",
     "ollama_speaker_model",
     "ollama_api_base",
+    # litellm (gateway alias) + qwen (DashScope) — the v2.5 cloud winners. Their summary wire model
+    # is namespaced ({litellm,qwen}_summary_model), so govern it here, not hand-authored in
+    # cloud_openrouter / cloud_qwen (2026-08). Speaker/cleaning wire models stay YAML-authored for
+    # now (a further ADR-144-style extension), like openai_* — only the summary model is promoted.
+    "litellm_summary_model",
+    "qwen_summary_model",
     "kg_extraction_source",
     "kg_max_topics",
     "kg_max_entities",
@@ -1900,6 +2004,32 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
 
 # Profile presets — canonical compositions. Profile YAMLs are downstream views.
 _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
+    # Cloud production — v2.5 finale winners routed through the homelab LiteLLM gateway (OpenRouter)
+    # and native Qwen (DashScope). Both run diarize:false (speaker turns from LLM naming), so they
+    # use the ``no_diarization`` option, and the v2.5 GI config (``provider_chunked_gated_v25``).
+    # Same transcription/kg/clustering as cloud_balanced; only summary + speaker provider differ.
+    "cloud_openrouter": ProfilePreset(
+        name="cloud_openrouter",
+        transcription="openai_whisper_1",
+        summary="cloud_or_deepseek_flash",
+        kg="provider_n10_15",
+        ner="litellm_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v25",
+        diarization="no_diarization",
+        notes="Cloud prod: v2.5 finale winner (deepseek-v4-flash via OpenRouter); diarize:false.",
+    ),
+    "cloud_qwen": ProfilePreset(
+        name="cloud_qwen",
+        transcription="openai_whisper_1",
+        summary="cloud_qwen_flash",
+        kg="provider_n10_15",
+        ner="qwen_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v25",
+        diarization="no_diarization",
+        notes="Cloud production: v2.5 finale flash arm (native Qwen / DashScope); diarize:false.",
+    ),
     "cloud_balanced": ProfilePreset(
         name="cloud_balanced",
         transcription="openai_whisper_1",
@@ -2420,15 +2550,17 @@ def _endpoint_to_env_template(endpoint: str) -> str:
 def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
     """Route the summary model + endpoint to the backend's GOVERNED, provider-namespaced fields.
 
-    The provider-namespaced backends (``openai``, ``vllm``, ``ollama``) read a namespaced field
-    (``{ns}_summary_model`` / ``{ns}_api_base``), NOT the generic ``summary_model`` /
-    ``summary_endpoint`` — so those must be materialized for the registry to actually govern what
+    The provider-namespaced backends (openai, vllm, ollama, litellm, qwen) read a
+    namespaced field (``{ns}_summary_model`` / ``{ns}_api_base``), NOT the generic ``summary_model``
+    / ``summary_endpoint`` — so those must be materialized for the registry to actually govern what
     runs on the wire, rather than leaving it to a hand-authored profile block (ADR-144 B2). ``vllm``
-    and ``ollama`` are fully symmetric here — both DGX-local, self-describing serving stacks. The
-    endpoint is emitted in ``${DGX_TAILNET_HOST}``-template form (``_endpoint_to_env_template``).
+    and ``ollama`` are fully symmetric here — both DGX-local, self-describing serving stacks;
+    ``litellm`` (gateway alias) + ``qwen`` (DashScope) join them so the v2.5 cloud winners'
+    ``{litellm,qwen}_summary_model`` is governed, not hand-authored. The endpoint is emitted in
+    ``${DGX_TAILNET_HOST}``-template form (``_endpoint_to_env_template``).
     """
     ns = sm.provider
-    if ns not in ("openai", "vllm", "ollama"):
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen"):
         return
     if sm.model is not None:
         settings[f"{ns}_summary_model"] = sm.model

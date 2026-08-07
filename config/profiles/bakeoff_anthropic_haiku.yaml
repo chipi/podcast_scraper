@@ -8,7 +8,6 @@
 # value-gate judge to GEMINI (disjoint from anthropic). Consequence: the anthropic arm's INSIGHT
 # filtering uses a different judge than the other arms, so its insights ranking carries a caveat;
 # summary + topics are judged the same across all arms (rolling_assess uses one Opus judge for those).
-profile: bakeoff_anthropic_haiku
 
 transcription:
   primary: whisper
@@ -90,3 +89,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

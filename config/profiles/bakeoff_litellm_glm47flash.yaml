@@ -3,7 +3,6 @@
 # ($0.06/$0.40 per Mtok — cheap GLM, different vendor/architecture, 6/6 rapid-burst via OpenRouter
 # default routing). Requires gateway alias homelab-glm47-flash -> openrouter/z-ai/glm-4.7-flash.
 # reasoning OFF. relabel_only over frozen v2.4 transcripts.
-profile: bakeoff_litellm_glm47flash
 
 transcription:
   primary: whisper
@@ -94,3 +93,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

@@ -2,7 +2,6 @@
 # LiteLLM gateway routing to OpenRouter Qwen3.6-35B-A3B (reasoning OFF). Bespoke (not a registry
 # preset) — used for the DGX-offline model bake-off via `--pipeline-stage enrich_only` over FROZEN
 # v2.4 transcripts (no ASR/diarization). Swap litellm_*_model to bake off another alias.
-profile: bakeoff_litellm_qwen36
 
 # Transcription/diarization are NOT run under enrich_only (frozen transcripts reused); kept local so
 # nothing depends on the offline DGX.
@@ -87,3 +86,7 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).
