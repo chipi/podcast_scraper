@@ -1955,13 +1955,17 @@ class AnthropicProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
+            _sys, _usr = _anthropic_style_system(  # RFC-111 transcript-first + cache_control
+                transcript, system, user, enabled=self._cache_transcript_prefix
+            )
+
             def _make_api_call():
                 return self._messages_create(
                     model=self.summary_model,
                     max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                     temperature=0.0,
-                    system=system,
-                    messages=[{"role": "user", "content": user}],
+                    system=_sys,
+                    messages=[{"role": "user", "content": _usr}],
                 )
 
             try:
@@ -2143,7 +2147,11 @@ class AnthropicProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
+        clipped = transcript_clip(transcript)  # RFC-111: relocate exact embedded string
+        user = extract_quotes_bundled_user(clipped, insight_texts)
+        _sys, _usr = _anthropic_style_system(
+            clipped, system, user, enabled=self._cache_transcript_prefix
+        )
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("anthropic")
@@ -2156,8 +2164,8 @@ class AnthropicProvider:
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,
-                system=system,
-                messages=[{"role": "user", "content": user}],
+                system=_sys,
+                messages=[{"role": "user", "content": _usr}],
             )
 
         try:

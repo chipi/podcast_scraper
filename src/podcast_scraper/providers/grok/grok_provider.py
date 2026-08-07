@@ -1589,10 +1589,9 @@ class GrokProvider:
             def _make_api_call():
                 return self.client.chat.completions.create(
                     model=self.summary_model,
-                    messages=[
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
+                    messages=_openai_style_messages(  # RFC-111 transcript-first
+                        transcript, system, user, enabled=self._cache_transcript_prefix
+                    ),
                     temperature=0.0,
                     max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                 )
@@ -1768,7 +1767,11 @@ class GrokProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
+        clipped = transcript_clip(transcript)  # RFC-111: relocate exact embedded string
+        user = extract_quotes_bundled_user(clipped, insight_texts)
+        messages = _openai_style_messages(
+            clipped, system, user, enabled=self._cache_transcript_prefix
+        )
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("grok")
         call_metrics.set_breaker_config_from_cfg(self.cfg)
@@ -1778,10 +1781,7 @@ class GrokProvider:
         def _make_api_call() -> Any:
             return self.client.chat.completions.create(
                 model=self.summary_model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+                messages=messages,  # type: ignore[arg-type]
                 temperature=0.0,
                 max_tokens=max_out,
             )
