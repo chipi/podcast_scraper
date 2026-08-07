@@ -56,7 +56,15 @@ async function load(): Promise<void> {
 
 // Load when already authed AND re-load when auth resolves later: a fresh page load hydrates auth
 // asynchronously, so a one-shot onMounted fetch can race it and leave the section wrongly empty.
-watch(() => auth.isAuthenticated, (authed) => authed && load(), { immediate: true })
+// On sign-out, drop the prior user's rollup so a same-tab re-sign-in can never flash their data.
+watch(
+  () => auth.isAuthenticated,
+  (authed) => {
+    if (authed) load()
+    else data.value = null
+  },
+  { immediate: true },
+)
 </script>
 
 <template>

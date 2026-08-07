@@ -413,7 +413,9 @@ export interface YourWeekGraphRef {
  *  `episode_slug` + `episode_title` are always present, `quote`/`t_ms` only on `revisit`. */
 export interface YourWeekItem {
   episode_slug: string
-  episode_title: string
+  /** Route-backfilled from the catalog; absent only when a slug no longer resolves (card falls
+   *  back to the lead graph label). */
+  episode_title?: string
   deep_link: string
   quote?: string
   t_ms?: number

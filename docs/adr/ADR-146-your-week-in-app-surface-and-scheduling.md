@@ -59,11 +59,14 @@ viewer's Digest tab / corpus digest), and was being reused for the personal one.
 - The digest auto-fires on the player without granting it scheduler/jobs privileges.
 - In-app and email cannot drift (shared assembler); the envelope contract stays frozen (ADR-145).
 - A second appdata writer (the sidecar) exists — acceptable because the stores are multi-process-safe.
-- **Follow-ups (known, not blocking):** the route does a second `build_catalog_rows` scan for
-  enrichment (fine at current corpus size; thread the catalog through the assembler if it grows); a
-  homelab-side dead-man alert (no enqueue in >8 days while ≥1 user consents) still to wire; the
-  deep-rename of the internal `app_digest_personal` module + the `your-week-digest.v1` template string
-  is deferred (it touches the homelab worker's vendored schema — a coordinated cross-repo change).
+- The route's item enrichment reuses the **single** catalog scan the assembler already does this
+  request (threaded via an optional `catalog=` param — the email path omits it and is unchanged), so
+  `/your-week` is one scan, not two.
+- **Follow-ups (known, not blocking):** the deep-rename of the internal `app_digest_personal` module +
+  the `your-week-digest.v1` template string stays deferred (it touches the homelab worker's vendored
+  schema — a coordinated cross-repo change). The homelab-side dead-man alert (`delivery-scheduler-silent`,
+  log-absence of the sidecar's ticks) is wired in the homelab repo but must be provisioned **after**
+  the sidecar is deployed (log-absence can't tell "died" from "not deployed yet").
 
 ## Alternatives considered
 
