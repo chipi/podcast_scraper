@@ -2081,6 +2081,29 @@ class Config(BaseModel):
         alias="gemini_temperature",
         description="Temperature for Gemini generation (0.0-2.0, lower = more deterministic)",
     )
+    gemini_context_cache_enabled: bool = Field(
+        default=False,
+        alias="gemini_context_cache_enabled",
+        description=(
+            "RFC-111: use Gemini's EXPLICIT context caching (cachedContent) for the transcript so "
+            "the episode's LLM stages share it (~50% off the transcript-input tokens per run). "
+            "OFF by default: unlike the other providers' automatic caches, Gemini's explicit cache "
+            "is stateful (a per-episode handle) and bills storage by time — the global "
+            "cache_transcript_prefix flag does NOT drive Gemini. Enable only when Gemini is a real "
+            "run target and the within-run saving is worth the extra API calls + tiny storage cost."
+        ),
+    )
+    gemini_context_cache_ttl_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=3600,
+        alias="gemini_context_cache_ttl_seconds",
+        description=(
+            "TTL for a Gemini transcript cache handle. Kept short (default 5 min) so it covers one "
+            "episode's stage processing then auto-expires — minimising storage rent. It does NOT "
+            "bridge reprocessing rounds (that would need a long TTL and real storage cost)."
+        ),
+    )
     gemini_cleaning_model: str = Field(
         default="gemini-2.5-flash-lite",
         alias="gemini_cleaning_model",

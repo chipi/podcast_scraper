@@ -336,6 +336,16 @@ class GeminiProvider:
         # Gemini 1.5 Pro supports 2M context window
         self.max_context_tokens = 2000000  # Conservative estimate
 
+        # RFC-111: Gemini EXPLICIT context caching (cachedContent). Off by default (stateful +
+        # storage-billed, unlike the auto-cache providers). ``_gemini_cache_handles`` maps
+        # "{model}:{sha256(transcript)}" -> cache resource name so an episode's stages reuse one
+        # handle; a short TTL auto-expires it and we evict/delete stale handles on a new transcript.
+        self._gemini_context_cache_enabled = bool(
+            getattr(cfg, "gemini_context_cache_enabled", False)
+        )
+        self._gemini_cache_ttl_s = int(getattr(cfg, "gemini_context_cache_ttl_seconds", 300))
+        self._gemini_cache_handles: Dict[str, str] = {}
+
         # Initialization state
         self._transcription_initialized = False
         self._speaker_detection_initialized = False
@@ -1036,6 +1046,82 @@ class GeminiProvider:
     # SummarizationProvider Protocol Implementation
     # ============================================================================
 
+    # --- RFC-111: Gemini explicit context-cache lifecycle ------------------------------------
+    # Below Gemini's minimum cacheable size (~1k tokens) an explicit cache can't be created, so we
+    # skip and use the legacy layout. Real episode transcripts are far above this.
+    _GEMINI_CACHE_MIN_CHARS = 4096
+
+    def _gemini_cache_for(self, transcript: str, model: str) -> Optional[str]:
+        """Get-or-create a ``cachedContent`` handle for this (model, transcript). ``None`` = legacy.
+
+        One handle per (model, transcript) with a short TTL, reused across the episode's stages;
+        stale handles are deleted when a new transcript arrives (bounds rent). Any failure, a
+        disabled flag, or a transcript below the min cacheable size falls back to ``None``.
+        """
+        if not self._gemini_context_cache_enabled:
+            return None
+        canonical = (transcript or "").strip()
+        if len(canonical) < self._GEMINI_CACHE_MIN_CHARS:
+            return None
+        import hashlib
+
+        key = f"{model}:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
+        existing = self._gemini_cache_handles.get(key)
+        if existing:
+            return existing
+        try:
+            from google.genai import types
+
+            cache = self.client.caches.create(
+                model=model,
+                config=types.CreateCachedContentConfig(
+                    contents=cast(Any, [canonical]), ttl=f"{self._gemini_cache_ttl_s}s"
+                ),
+            )
+            name = getattr(cache, "name", None)
+            if not name:
+                return None
+            self._evict_gemini_caches(keep=key)  # new transcript -> drop the previous episode's
+            self._gemini_cache_handles[key] = name
+            return str(name)
+        except Exception as exc:  # noqa: BLE001 - never fail a stage on a cache hiccup
+            logger.debug("Gemini context-cache create failed; using legacy layout: %s", exc)
+            return None
+
+    def _evict_gemini_caches(self, *, keep: Optional[str] = None) -> None:
+        """Delete every cache handle except ``keep`` (bounds accumulation + storage rent)."""
+        for k, name in list(self._gemini_cache_handles.items()):
+            if k == keep:
+                continue
+            try:
+                self.client.caches.delete(name=name)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Gemini context-cache delete failed (will TTL-expire): %s", exc)
+            self._gemini_cache_handles.pop(k, None)
+
+    def _gemini_stage_request(
+        self, transcript: str, system_prompt: str, user_prompt: str, model: str
+    ) -> Tuple[Any, Dict[str, Any]]:
+        """Return ``(contents, config_overrides)`` for a Gemini stage.
+
+        Cache on + transcript cacheable: the transcript goes into a ``cachedContent`` handle and the
+        stage's system instructions + task (transcript removed) become the request ``contents``,
+        with ``cached_content`` referencing the handle. Otherwise legacy: the transcript stays in
+        ``contents`` and the stage system prompt is passed as ``system_instruction``.
+        """
+        handle = self._gemini_cache_for(transcript, model)
+        if handle is None:
+            return user_prompt, {"system_instruction": system_prompt}
+        from ..common.transcript_cache import relocate_transcript
+
+        block, _sys, user_wo = relocate_transcript(
+            transcript, system_prompt, user_prompt, enabled=True
+        )
+        if block is None:  # transcript not present verbatim -> legacy (keeps the input whole)
+            return user_prompt, {"system_instruction": system_prompt}
+        contents = f"{system_prompt}\n\n{user_wo}" if system_prompt else user_wo
+        return contents, {"cached_content": handle}
+
     def summarize(  # noqa: C901
         self,
         text: str,
@@ -1127,19 +1213,24 @@ class GeminiProvider:
                 retry_with_metrics,
             )
 
+            # RFC-111: transcript in a cachedContent handle (if enabled); else legacy.
+            _contents, _cfg_over = self._gemini_stage_request(
+                text, system_prompt, user_prompt, self.summary_model
+            )
+
             def _make_api_call():
                 generation_config = _merge_generate_content_config(
                     self.summary_model,
                     {
                         "temperature": self.summary_temperature,
                         "max_output_tokens": max_length,
-                        "system_instruction": system_prompt,
+                        **_cfg_over,
                     },
                 )
 
                 return self.client.models.generate_content(
                     model=self.summary_model,
-                    contents=user_prompt,
+                    contents=_contents,
                     config=cast(Any, generation_config),
                 )
 
@@ -1763,6 +1854,9 @@ class GeminiProvider:
         self._transcription_initialized = False
         self._speaker_detection_initialized = False
         self._summarization_initialized = False
+        # RFC-111: delete any live context-cache handles so we don't pay storage rent past the run
+        # (they would otherwise linger until their TTL).
+        self._evict_gemini_caches(keep=None)
 
     def clear_cache(self) -> None:
         """Clear cache (no-op for API provider)."""
@@ -1820,17 +1914,20 @@ class GeminiProvider:
                 max_insights=max_insights,
             )
             system_prompt = render_prompt("gemini/insight_extraction/system_v1")
+            _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+                text_slice, system_prompt, user_prompt, self.summary_model
+            )
             generation_config = _merge_generate_content_config(
                 self.summary_model,
                 {
                     "temperature": insight_temperature,
                     "max_output_tokens": insight_max_tokens,
-                    "system_instruction": system_prompt,
+                    **_cfg_over,
                 },
             )
             response = self.client.models.generate_content(
                 model=self.summary_model,
-                contents=user_prompt,
+                contents=_contents,
                 config=cast(Any, generation_config),
             )
             _record_gemini_llm_call(
@@ -2074,19 +2171,22 @@ class GeminiProvider:
                 retry_with_metrics,
             )
 
+            _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+                text_slice, system_msg, user_prompt, model
+            )
             generation_config = _merge_generate_content_config(
                 model,
                 {
                     "temperature": 0.1,
                     "max_output_tokens": 2048,
-                    "system_instruction": system_msg,
+                    **_cfg_over,
                 },
             )
 
             def _make_api_call():
                 return self.client.models.generate_content(
                     model=model,
-                    contents=user_prompt,
+                    contents=_contents,
                     config=cast(Any, generation_config),
                 )
 
@@ -2153,19 +2253,22 @@ class GeminiProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
+            _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+                transcript, system, user, self.summary_model
+            )
             generation_config = _merge_generate_content_config(
                 self.summary_model,
                 {
                     "temperature": 0.0,
                     "max_output_tokens": config_constants.GI_QUOTE_RESPONSE_TOKENS,
-                    "system_instruction": system,
+                    **_cfg_over,
                 },
             )
 
             def _make_api_call():
                 return self.client.models.generate_content(
                     model=self.summary_model,
-                    contents=user,
+                    contents=_contents,
                     config=cast(Any, generation_config),
                 )
 
@@ -2276,7 +2379,8 @@ class GeminiProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
+        clipped = transcript_clip(transcript)  # RFC-111: relocate exact embedded string
+        user = extract_quotes_bundled_user(clipped, insight_texts)
 
         from ...utils.provider_metrics import (
             _safe_gemini_retryable,
@@ -2294,19 +2398,22 @@ class GeminiProvider:
 
         # Bundled call may need a larger output budget than the per-insight call.
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
+        _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+            clipped, system, user, self.summary_model
+        )
         generation_config = _merge_generate_content_config(
             self.summary_model,
             {
                 "temperature": 0.0,
                 "max_output_tokens": max_out,
-                "system_instruction": system,
+                **_cfg_over,
             },
         )
 
         def _make_api_call() -> Any:
             return self.client.models.generate_content(
                 model=self.summary_model,
-                contents=user,
+                contents=_contents,
                 config=cast(Any, generation_config),
             )
 
