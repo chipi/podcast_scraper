@@ -419,6 +419,8 @@ export interface YourWeekItem {
   t_ms?: number
   graph_refs?: YourWeekGraphRef[]
   source?: string
+  /** Episode/show artwork used as the card backdrop (in-app enrichment; absent → flat card). */
+  image_url?: string | null
 }
 
 export type YourWeekSectionKind = 'revisit' | 'new_in_follows' | 'trending_in_your_corpus'

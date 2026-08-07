@@ -28,6 +28,7 @@ const RESP: YourWeekResponse = {
           deep_link: '/episode/ep-a?t=10',
           quote: 'A memorable line.',
           t_ms: 10000,
+          image_url: 'https://img.example/ep-a.jpg',
           graph_refs: [{ id: 'topic:x', kind: 'topic', label: 'Topic X' }],
         },
       ],
@@ -88,6 +89,14 @@ describe('YourWeek section', () => {
     expect(wrapper.text()).toContain(en.home.yourWeekShowMore)
     // section labels appear only in the full layout
     expect(wrapper.text()).not.toContain(en.home.yourWeekSection.new_in_follows)
+  })
+
+  it('uses the item artwork as the card backdrop when present', async () => {
+    const { wrapper } = mountIt({ signedIn: true, resp: RESP })
+    await flushPromises()
+    const art = wrapper.find('img')
+    expect(art.exists()).toBe(true)
+    expect(art.attributes('src')).toBe('https://img.example/ep-a.jpg')
   })
 
   it('respects a saved full layout and shows per-section labels', async () => {
