@@ -1,0 +1,92 @@
+# Bake-off profile: Anthropic FAMILY reference (added 2026-08-07 for the RFC-111 finale re-derivation).
+# IDENTICAL control config to the other bake-off profiles — only the provider (native anthropic) +
+# model change. Target: claude-haiku-4-5 (Anthropic's cheap tier). Runs via the native anthropic
+# provider + ANTHROPIC_API_KEY. relabel_only.
+#
+# NOTE (vendor-disjoint judge): the GI value gate defaults to an ANTHROPIC judge, which is
+# vendor-disjoint for the deepseek/qwen/gemini arms but SAME-vendor here. So this arm overrides the
+# value-gate judge to GEMINI (disjoint from anthropic). Consequence: the anthropic arm's INSIGHT
+# filtering uses a different judge than the other arms, so its insights ranking carries a caveat;
+# summary + topics are judged the same across all arms (rolling_assess uses one Opus judge for those).
+profile: bakeoff_anthropic_haiku
+
+transcription:
+  primary: whisper
+diarize: false
+screenplay: true
+
+summary_provider: anthropic
+speaker_detector_provider: anthropic
+quote_extraction_provider: anthropic
+entailment_provider: anthropic
+kg_extraction_provider: anthropic
+auto_speakers: true
+llm_pipeline_mode: staged
+
+anthropic_summary_model: claude-haiku-4-5
+anthropic_speaker_model: claude-haiku-4-5
+anthropic_cleaning_model: claude-haiku-4-5
+anthropic_temperature: 0.3
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+summarization_timeout: 300
+transcription_timeout: 300
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 8
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gil_evidence_match_summary_provider: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+gi_value_gate_enabled: true
+gi_value_gate_provider: gemini
+gi_value_gate_model: gemini-2.5-flash
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_insight_chunk_chars: 20000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+ner_model: en_core_web_trf
+
+# Corpus-enrichment layer (required top-level block; operators read the YAML to see what's active).
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
