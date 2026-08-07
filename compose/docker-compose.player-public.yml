@@ -64,6 +64,10 @@ services:
       APP_SIGNUP_MODE: ${APP_SIGNUP_MODE:-allowlist}
       APP_ALLOWED_EMAILS: ${APP_ALLOWED_EMAILS:-}
       APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
+      # Bootstrap admins (CSV of emails). Applied on login (admin allowlist > creator grant >
+      # existing role; never downgraded) → the listed accounts hold `admin` durably, which is what
+      # gates the operator surfaces + granting `mcp_access`. Empty → no bootstrap admins.
+      APP_ADMIN_EMAILS: ${APP_ADMIN_EMAILS:-}
       # Remote MCP (RFC-112). This app-only backend hosts the OAuth 2.1 authorization server
       # (/api/app/mcp/oauth/*, /.well-known/oauth-authorization-server) AND the internal verify
       # seam (/internal/mcp/verify — reached by the `mcp` service over the compose network only,

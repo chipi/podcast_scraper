@@ -48,6 +48,7 @@ else
     echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
     echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS:-}"
     echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS:-}"
+    echo "APP_ADMIN_EMAILS=${APP_ADMIN_EMAILS:-}"
     # OTEL traces (ADR-119). Default OFF for a manual run; set both to enable.
     echo "OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-none}"
     echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}"
