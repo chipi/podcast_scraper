@@ -184,6 +184,20 @@
       "action": "accept",
       "src":    ["tag:gha-deployer"],
       "dst":    ["tag:homelab-host:9428"]
+    },
+
+    // Operator's own devices reach EACH OTHER over the tailnet (phone ↔ laptop ↔
+    // mac mini) for hands-on work — SSH, file share, screen share. `autogroup:self`
+    // scopes the destination to devices owned by the SAME user as the source, so on
+    // this single-operator tailnet it is exactly "my devices talk to my devices" and
+    // exposes nothing cross-user. Without it, UNTAGGED personal devices (a laptop/phone,
+    // which are not tag:* hosts) had zero incoming grant, so e.g. phone→MBP:22 timed out
+    // — the packet filter dropped it before sshd. Tagged hosts (prod/dgx/homelab) are
+    // unaffected; this only adds owner-device-to-owner-device reachability.
+    {
+      "action": "accept",
+      "src":    ["autogroup:member"],
+      "dst":    ["autogroup:self:*"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.
