@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import logging
 import time
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,8 @@ from podcast_scraper.server import (
 )
 from podcast_scraper.server.app_resurfacing import select_due
 from podcast_scraper.server.app_user_store import get_user, list_users, User
+
+logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = "1"
 MAX_REVISIT_ITEMS = 5
@@ -266,10 +269,16 @@ def enqueue_due_digests(root: Path, data_dir: Path, now: int | None = None) -> l
     now = int(time.time()) if now is None else now
     enqueued: list[str] = []
     for user in list_users(data_dir):
-        if not _is_due_slot(app_comms_store.get_comms(data_dir, user.user_id), now):
-            continue
-        eid = enqueue_for_user(root, data_dir, user.user_id, now)
-        if eid is not None:
-            enqueued.append(eid)
-        enqueued.extend(enqueue_push_for_user(root, data_dir, user.user_id, now))
+        # Isolate each user: a lock timeout / assembler error on one must not skip the rest of
+        # the roster (the loop is order-sensitive, and a hourly cron/sidecar drives it). The
+        # per-period envelope id makes the next cycle idempotently retry the failed user.
+        try:
+            if not _is_due_slot(app_comms_store.get_comms(data_dir, user.user_id), now):
+                continue
+            eid = enqueue_for_user(root, data_dir, user.user_id, now)
+            if eid is not None:
+                enqueued.append(eid)
+            enqueued.extend(enqueue_push_for_user(root, data_dir, user.user_id, now))
+        except Exception:  # noqa: BLE001 — one bad user must never abort the whole run
+            logger.exception("digest: enqueue failed for user %s; skipping", user.user_id)
     return enqueued
