@@ -211,3 +211,29 @@ def test_no_prompt_is_BURIED_IN_CODE(provider: str, method: str) -> None:
     assert (
         not buried
     ), f"{provider}.{method} still builds {buried} as a literal instead of rendering a template"
+
+
+@pytest.mark.parametrize("provider", ["litellm", "vllm", "qwen"])
+def test_thin_sibling_prompts_reuse_a_parity_covered_namespace(provider: str) -> None:
+    """ADR-144 thin siblings (litellm/vllm/qwen) ship no ``prompts/<provider>/`` dir — they REUSE
+    another provider's prompt namespace (openai's). Fine, but it must be EXPLICIT, not luck: their
+    summary + speaker prompt-name defaults must resolve to a namespace this suite actually checks (a
+    member of ``LLM_PROVIDERS``). Otherwise a sibling could silently run an unvetted prompt with no
+    parity guard — how ``qwen`` slipped past the finale (not in ``LLM_PROVIDERS``, covered only
+    because its defaults happen to point at ``openai/``).
+    """
+    from podcast_scraper.config import Config
+
+    for field in (
+        f"{provider}_summary_system_prompt",
+        f"{provider}_summary_user_prompt",
+        f"{provider}_speaker_user_prompt",
+    ):
+        default = Config.model_fields[field].default
+        if not default:  # e.g. a speaker_system_prompt that defaults None — nothing to cover
+            continue
+        namespace = str(default).split("/", 1)[0]
+        assert namespace in LLM_PROVIDERS, (
+            f"{field} = {default!r}; namespace {namespace!r} not in LLM_PROVIDERS, so "
+            f"{provider}'s prompt is not covered by the cross-provider parity guard."
+        )
