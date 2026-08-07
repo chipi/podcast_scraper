@@ -49,6 +49,7 @@ import type {
   TopicPerspectivesResponse,
   TrendingEntity,
   UserStats,
+  YourWeekResponse,
 } from './types'
 import { resolveApiBase } from './tier'
 
@@ -708,6 +709,22 @@ export async function getComms(): Promise<CommsSettings> {
     return await getJSON<CommsSettings>('/comms')
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return { ...COMMS_DEFAULTS }
+    throw err
+  }
+}
+
+/**
+ * The in-app "Your Week" rollup — the same content the email digest sends, served live and
+ * DECOUPLED from email consent (a user's own data). Returns empty sections when unauthenticated
+ * or nothing is due yet, so callers render-or-hide without special-casing 401.
+ */
+export async function getYourWeek(): Promise<YourWeekResponse> {
+  try {
+    return await getJSON<YourWeekResponse>('/your-week')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      return { sections: [], period_label: '', generated_at: '' }
+    }
     throw err
   }
 }

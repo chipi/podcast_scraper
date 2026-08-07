@@ -27,12 +27,11 @@ services:
       - "${PLAYER_OUTBOX_LISTEN:-127.0.0.1}:${PLAYER_OUTBOX_PORT:-8099}:8000"
     environment:
       PODCAST_SERVE_APP_ONLY: "1"
-      # Digest scheduler (#1412/#1415): the image CMD already runs `serve --enable-jobs-api`,
-      # so the scheduler service is live — it just reads its job set from the operator YAML.
-      # Pin it to the committed, deploy-controlled player config (weekly-digest job) instead
-      # of the shared read-only corpus viewer_operator.yaml (which carries no jobs). Mounted
-      # below; consumed via the --config-file env fallback. Reproducible on a fresh box.
-      PODCAST_SERVE_CONFIG_FILE: /app/config/viewer_operator.player.yaml
+      # NOTE: this app_only backend does NOT run the in-process job scheduler — app.py force-
+      # disables enable_jobs_api under app_only (ADR-116 belt-and-suspenders), so it never reads
+      # a scheduled_jobs config. The "Your Week" digest cadence is owned by the `digest-scheduler`
+      # sidecar below (it calls the same assembler on an interval). Do NOT re-add a
+      # PODCAST_SERVE_CONFIG_FILE here expecting it to schedule — it would be inert.
       # Real Google OIDC in prod (NEVER APP_OAUTH_PROVIDER=mock). provider_from_env()
       # selects Google when these creds are present. Redirect URI to register in Google:
       #   https://<player-domain>/api/app/auth/callback
@@ -116,10 +115,6 @@ services:
     volumes:
       # Corpus is READ-ONLY here — the consumer plane reads it; per-user data is separate.
       - corpus_data:/app/output:ro
-      # Deploy-controlled scheduler config (weekly-digest job), pinned via
-      # PODCAST_SERVE_CONFIG_FILE above. Committed in-repo → present on every box after the
-      # deploy's `git reset --hard origin/<ref>`; read-only into the container.
-      - ../config/player/viewer_operator.player.yaml:/app/config/viewer_operator.player.yaml:ro
       # Per-user consumer data (playback/notes/favorites) — a HOST bind mount (like the
       # corpus) so it lives on the host FS: backupable (backup-player-appdata-prod.yml),
       # survives a container/volume prune, and operator-visible. #3.
@@ -243,6 +238,62 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  # Digest scheduler sidecar (#1412 / #1415). The app_only `api` above CANNOT run the in-process
+  # scheduler (enable_jobs_api is force-disabled under app_only), so this owns the "Your Week"
+  # digest cadence: the SAME low-privilege image, run as a tiny loop that wakes each interval and
+  # calls app_digest_personal.enqueue_due_digests (per-user consent + slot gated, per-period
+  # idempotent) to drop DeliveryEnvelopes into the shared appdata outbox. The homelab delivery
+  # worker drains + sends. Maximally isolated: network_mode none (pure filesystem — never talks to
+  # anything), no ports, no docker.sock, no provider keys, read-only rootfs, cap_drop ALL.
+  digest-scheduler:
+    image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    restart: unless-stopped
+    # Run as the image's non-root podcast uid directly. The entrypoint's privileged branch does
+    # `setpriv --reuid=podcast`, which needs CAP_SETUID/SETGID — dropped here — so we must NOT go
+    # through it; a plain `user:` makes entrypoint.sh take its non-root `exec "$@"` path. uid 1000
+    # matches the api's post-drop identity, keeping appdata file ownership uniform.
+    user: "1000:1000"
+    command: ["python", "/app/digest_scheduler.py"]
+    environment:
+      APP_DATA_DIR: /app/appdata
+      DIGEST_CORPUS_ROOT: /app/output
+      DIGEST_INTERVAL_SECONDS: "3600"
+      DIGEST_HEARTBEAT_FILE: /heartbeat/tick
+      # Context only (log lines). No Sentry/OTEL init in the runner — network none makes them dead
+      # weight, and `command:` bypasses the image's opentelemetry-instrument wrapper.
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+    # No network at all — the runner only touches mounted filesystems.
+    network_mode: none
+    volumes:
+      # Same read-only corpus + shared appdata bind mount the api uses (writes go through the
+      # per-envelope FileLock the api also honors — multi-process-safe, verified 2026-08-07).
+      - corpus_data:/app/output:ro
+      - ${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}:/app/appdata
+      # The committed runner, read-only (present on every box after the deploy's git reset).
+      - ../infra/deploy/digest_scheduler.py:/app/digest_scheduler.py:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /heartbeat
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 64
+    # Liveness = the loop is cycling: the runner rewrites /heartbeat/tick each cycle. Unhealthy if
+    # it hasn't beaten within ~2 intervals → visible in `docker ps`. (The homelab dead-man alert
+    # covers the 'healthy but enqueuing nothing' case.) CMD-SHELL, no curl (network none): mtime.
+    healthcheck:
+      test: ["CMD-SHELL", "test $(( $(date +%s) - $(stat -c %Y /heartbeat/tick 2>/dev/null || echo 0) )) -lt 7200"]
+      interval: 5m
+      timeout: 10s
+      start_period: 2m
+      retries: 2
+    depends_on:
+      api:
+        condition: service_started
 
 volumes:
   # Shared read-only with the operator stack. Set PODCAST_CORPUS_VOLUME to that stack's

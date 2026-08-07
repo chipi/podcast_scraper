@@ -8,6 +8,7 @@ import * as push from '../composables/usePushSubscription'
 import en from '../i18n/locales/en.json'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { useAuthStore } from '../stores/auth'
+import { useUserPreferencesStore } from '../stores/userPreferences'
 import ProfileView from './ProfileView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -48,6 +49,30 @@ beforeEach(() => {
   vi.spyOn(api, 'getComms').mockResolvedValue(comms())
 })
 afterEach(() => vi.restoreAllMocks())
+
+describe('ProfileView — Your Week layout', () => {
+  it('reflects the saved layout preference and persists a change', async () => {
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_1', email: 'dev@localhost', name: 'Dev' }
+    const prefs = useUserPreferencesStore()
+    vi.spyOn(prefs, 'hydrate').mockResolvedValue()
+    vi.spyOn(prefs, 'get').mockReturnValue('full') // a saved 'full' preference
+    const setSpy = vi.spyOn(prefs, 'set').mockResolvedValue()
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    // Initial state reflects the saved pref: the Full button is the active one.
+    const fullBtn = w.findAll('button').find((b) => b.text() === 'Full')!
+    expect(fullBtn.classes()).toContain('bg-accent')
+
+    // Switching to Compact persists the change under the shared key.
+    const compactBtn = w.findAll('button').find((b) => b.text() === 'Compact')!
+    await compactBtn.trigger('click')
+    expect(setSpy).toHaveBeenCalledWith('lp.yourweek.layout', 'compact')
+  })
+})
 
 describe('ProfileView — interest chips', () => {
   it('renders chips hued by kind: person → text-person, topic/cluster → text-topic', async () => {
@@ -112,11 +137,15 @@ describe('ProfileView — Your listening panel', () => {
 describe('ProfileView — notifications', () => {
   beforeEach(() => vi.spyOn(api, 'getUserInterests').mockResolvedValue([]))
 
-  it('renders the digest + push toggles; cadence is hidden until the digest is on', async () => {
+  it('renders the Your Week layout switch + email/push toggles; cadence hidden until digest on', async () => {
     const w = mountProfile()
     await flushPromises()
-    expect(w.text()).toContain('Notifications')
-    expect(w.text()).toContain('Weekly digest email')
+    expect(w.text()).toContain('Your Week')
+    // The in-app view is primary: the layout switch shows first, email is "the edge".
+    expect(w.text()).toContain('On your home')
+    expect(w.text()).toContain('Compact')
+    expect(w.text()).toContain('Full')
+    expect(w.text()).toContain('Also email it to me')
     expect(w.text()).toContain('Push reminders')
     expect(w.text()).not.toContain('Frequency')
   })

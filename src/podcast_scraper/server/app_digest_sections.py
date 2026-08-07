@@ -23,7 +23,7 @@ from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
 from podcast_scraper.server.app_user_corpus import user_episode_set
-from podcast_scraper.server.corpus_catalog import build_catalog_rows
+from podcast_scraper.server.corpus_catalog import build_catalog_rows, CatalogEpisodeRow
 
 # Bound the per-user corpus scans so a large catalog / heard-set can't slow a digest assembly.
 _MAX_ROWS_SCANNED = 500
@@ -36,9 +36,17 @@ _MIN_TOTAL = 3
 
 
 def new_in_follows_items(
-    root: Path, data_dir: Path, user_id: str, *, limit: int
+    root: Path,
+    data_dir: Path,
+    user_id: str,
+    *,
+    limit: int,
+    catalog: list[CatalogEpisodeRow] | None = None,
 ) -> list[dict[str, Any]]:
-    """Recent unheard episodes in the user's followed shows (newest-first), graph-carrying."""
+    """Recent unheard episodes in the user's followed shows (newest-first), graph-carrying.
+
+    ``catalog`` lets a caller pass a catalog it already built (the /your-week route reuses one scan
+    for the assembler + its enrichment); when omitted the scan happens here (the email path)."""
     if limit <= 0:
         return []
     feeds = {
@@ -49,7 +57,8 @@ def new_in_follows_items(
     if not feeds:
         return []
     heard = user_episode_set(root, data_dir, user_id)
-    rows = [r for r in build_catalog_rows(root) if r.feed_id in feeds]
+    source = catalog if catalog is not None else build_catalog_rows(root)
+    rows = [r for r in source if r.feed_id in feeds]
     rows.sort(key=lambda r: r.sort_key())  # newest-first
     items: list[dict[str, Any]] = []
     for row in rows[:_MAX_ROWS_SCANNED]:

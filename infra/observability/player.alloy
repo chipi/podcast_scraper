@@ -18,7 +18,7 @@ discovery.relabel "player" {
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(player-api-.*|player-learning-app-.*)"
+		regex         = "/(player-api-.*|player-learning-app-.*|player-digest-scheduler-.*)"
 		action        = "keep"
 	}
 
@@ -34,6 +34,15 @@ discovery.relabel "player" {
 		regex         = "/player-learning-app-.*"
 		target_label  = "surface"
 		replacement   = "app"
+	}
+
+	// The digest scheduler sidecar (#1412): ship its per-cycle `tick`/`cycle error` lines so the
+	// homelab dead-man can alert if it stops (network:none → logs are its only liveness signal out).
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-digest-scheduler-.*"
+		target_label  = "surface"
+		replacement   = "scheduler"
 	}
 
 	rule {

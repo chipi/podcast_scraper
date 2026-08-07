@@ -402,6 +402,43 @@ export interface CommsUpdate {
   push?: CommsPush
 }
 
+/** A graph entity referenced by a Your Week item (person/topic) — GET /api/app/your-week. */
+export interface YourWeekGraphRef {
+  id: string
+  kind: string
+  label: string
+}
+
+/** One item in a Your Week section. Shapes vary by section kind, so most fields are optional;
+ *  `episode_slug` + `episode_title` are always present, `quote`/`t_ms` only on `revisit`. */
+export interface YourWeekItem {
+  episode_slug: string
+  /** Route-backfilled from the catalog; absent only when a slug no longer resolves (card falls
+   *  back to the lead graph label). */
+  episode_title?: string
+  deep_link: string
+  quote?: string
+  t_ms?: number
+  graph_refs?: YourWeekGraphRef[]
+  source?: string
+  /** Episode/show artwork used as the card backdrop (in-app enrichment; absent → flat card). */
+  image_url?: string | null
+}
+
+export type YourWeekSectionKind = 'revisit' | 'new_in_follows' | 'trending_in_your_corpus'
+
+export interface YourWeekSection {
+  kind: YourWeekSectionKind
+  items: YourWeekItem[]
+}
+
+/** GET /api/app/your-week — the same rollup the email digest sends, decoupled from email consent. */
+export interface YourWeekResponse {
+  sections: YourWeekSection[]
+  period_label: string
+  generated_at: string
+}
+
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
 export interface InterestCluster {
   id: string

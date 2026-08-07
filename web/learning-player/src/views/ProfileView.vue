@@ -9,12 +9,23 @@ import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { disablePush, enablePush } from '../composables/usePushSubscription'
 import { useAuthStore } from '../stores/auth'
+import { useUserPreferencesStore } from '../stores/userPreferences'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
 import ConnectedAgents from '../components/ConnectedAgents.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const userPrefs = useUserPreferencesStore()
+
+// How "Your Week" lays out on the home page — a synced per-user preference, shared with the inline
+// "Show more / Show less" toggle on the home section (#1412). Independent of the email toggle below.
+const YOUR_WEEK_LAYOUT_KEY = 'lp.yourweek.layout'
+const yourWeekLayout = ref<'compact' | 'full'>('compact')
+function setYourWeekLayout(v: 'compact' | 'full'): void {
+  yourWeekLayout.value = v
+  void userPrefs.set(YOUR_WEEK_LAYOUT_KEY, v)
+}
 
 const interests = ref<string[]>([])
 const clusters = ref<InterestCluster[]>([])
@@ -53,6 +64,9 @@ async function load(): Promise<void> {
   clusters.value = tops
   stats.value = st
   comms.value = cm
+  await userPrefs.hydrate()
+  const layoutPref = userPrefs.get<string>(YOUR_WEEK_LAYOUT_KEY)
+  if (layoutPref === 'full' || layoutPref === 'compact') yourWeekLayout.value = layoutPref
 }
 
 function onSaved(ids: string[]): void {
@@ -118,7 +132,32 @@ onMounted(load)
       <h2 class="lp-section mb-1">{{ t('profile.notifications') }}</h2>
       <p class="mb-3 text-sm text-muted">{{ t('profile.notificationsHelp') }}</p>
 
-      <label class="flex items-center justify-between gap-3 py-2">
+      <!-- How Your Week lays out on your home — the in-app view is the primary surface. -->
+      <div class="flex items-center justify-between gap-3 py-2">
+        <span class="text-sm font-medium">{{ t('profile.yourWeekLayout') }}</span>
+        <div class="flex overflow-hidden rounded-full border border-border">
+          <button
+            type="button"
+            class="px-3 py-1 text-sm font-semibold"
+            :class="yourWeekLayout === 'compact' ? 'bg-accent text-accent-foreground' : 'text-muted'"
+            @click="setYourWeekLayout('compact')"
+          >
+            {{ t('profile.yourWeekCompact') }}
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1 text-sm font-semibold"
+            :class="yourWeekLayout === 'full' ? 'bg-accent text-accent-foreground' : 'text-muted'"
+            @click="setYourWeekLayout('full')"
+          >
+            {{ t('profile.yourWeekFull') }}
+          </button>
+        </div>
+      </div>
+      <p class="mb-1 text-xs text-muted">{{ t('profile.yourWeekLayoutHelp') }}</p>
+
+      <!-- The email edge: Your Week in your inbox for when you don't open the app. -->
+      <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
         <span class="text-sm font-medium">{{ t('profile.digestEmail') }}</span>
         <input
           v-model="comms.digest.enabled"

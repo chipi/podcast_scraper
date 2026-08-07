@@ -869,6 +869,24 @@ class CommsUpdate(BaseModel):
     push: CommsPush | None = Field(default=None)
 
 
+class YourWeekResponse(BaseModel):
+    """GET /api/app/your-week — the in-app view of the personal "Your Week" rollup.
+
+    The SAME payload the email digest assembles (revisit + new-in-follows + trending-in-your-
+    corpus), served synchronously and DECOUPLED from email consent: a user's own data is always
+    visible in-app; the digest email toggle only governs the outbound email edge. ``sections`` is
+    passed through verbatim from ``app_digest_personal.assemble_digest_payload`` — that assembler
+    is the single source of truth for item shape, so it is not re-modelled here.
+    """
+
+    sections: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Ordered rollup sections (kind + items); empty when nothing is due yet.",
+    )
+    period_label: str = Field(description="Human window label, e.g. 'Aug 1 – 7'.")
+    generated_at: str = Field(description="UTC ISO-8601 timestamp the rollup was assembled.")
+
+
 class PushSubscription(BaseModel):
     """A W3C PushSubscription (POST /api/app/push/subscribe body). Stored opaquely."""
 
