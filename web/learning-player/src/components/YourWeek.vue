@@ -56,7 +56,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section v-if="show" class="mt-7">
+  <section v-if="show" data-testid="your-week" class="mt-7">
     <div class="mb-3 flex items-baseline justify-between gap-3">
       <div>
         <span class="lp-kicker text-accent">{{ t('home.yourWeekKicker') }}</span>
