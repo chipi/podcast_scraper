@@ -444,6 +444,7 @@ nav:
       - RFC-113 Graph-Aware PKM Export: rfc/RFC-113-graph-aware-pkm-export.md
       - RFC-114 Personal Corpus: rfc/RFC-114-personal-corpus.md
       - RFC-110 Autoresearch-Driven Fixture Corpus: rfc/RFC-110-autoresearch-driven-fixture-corpus.md
+      - RFC-111 Transcript-Prefix Caching for LLM Stages: rfc/RFC-111-transcript-prefix-caching-llm-stages.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
