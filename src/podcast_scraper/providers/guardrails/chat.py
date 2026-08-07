@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from ...utils.json_parsing import strip_code_fences
 from ._telemetry import raise_violation
 
 REASON_CHAT_EMPTY = "empty_content"
@@ -76,7 +77,14 @@ def check_chat_response(
         if marker in head:
             raise_violation(service, REASON_CHAT_THINKING_PROSE, head)
 
-    # JSON-parse check (only when structured output was requested)
+    # JSON-parse check (only when structured output was requested). Strip markdown code fences
+    # first: models (notably anthropic claude-haiku, mistral, sometimes gemini) wrap otherwise-valid
+    # JSON in a ```json … ``` block, which every downstream parser strips (utils.json_parsing,
+    # summary_schema, resolution's first-{-to-last-} extraction) — so a raw ``json.loads`` here was
+    # STRICTER than the real parsers and rejected recoverable output. The 2026-08 finale saw
+    # claude-haiku fence 2/9 episodes, each cascading fence → guardrail json_parse_failed → speaker
+    # resolution fail → summary fail → whole episode dropped. Stripping fences (not full defensive
+    # parsing) keeps the guardrail's real job: genuinely-malformed JSON still fails.
     if expect_json:
         import json as _json
 
@@ -84,7 +92,7 @@ def check_chat_response(
             # ``content`` is non-empty by the early-return above; type-narrow
             # for mypy (Optional[str] -> str).
             assert content is not None
-            _json.loads(content)
+            _json.loads(strip_code_fences(content))
         except (ValueError, TypeError) as exc:
             summary = f"parse_error={exc!s} head={(content or '')[:80]!r}"
             raise_violation(service, REASON_CHAT_BAD_JSON, summary)
