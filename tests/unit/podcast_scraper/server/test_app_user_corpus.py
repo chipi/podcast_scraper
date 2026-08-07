@@ -125,3 +125,45 @@ def test_derive_interests_respects_k_and_empty(
         uc, "_episode_interest_tokens", lambda root, row: ["topic:a", "topic:b", "topic:c"]
     )
     assert uc.derive_interests(tmp_path, tmp_path, "u1", k=2) == ["topic:a", "topic:b"]
+
+
+# --- RFC-114 faceting: episode-favorites move to `saved`, out of `experienced` (the correction) ---
+
+
+def test_experienced_excludes_whole_episode_favorites(tmp_path: Path) -> None:
+    # A favorited-but-never-played episode must NOT be in `experienced` (recall) — RFC-114 §1.1.
+    from podcast_scraper.server import app_user_corpus, app_user_state
+
+    uid = "u_0123456789abcdef01234567"
+    app_user_state.add_favorite(tmp_path, uid, {"kind": "episode", "ref": "ep-fav"})
+    # no playback, no highlight for ep-fav
+    experienced = app_user_corpus.experienced_episode_set(tmp_path, tmp_path, uid)
+    saved = app_user_corpus.saved_episode_set(tmp_path, uid)
+    assert "ep-fav" not in experienced  # the correction: not in recall
+    assert saved == {"ep-fav"}  # it IS in the saved facet
+
+
+def test_saved_insight_favorite_counts_as_experienced(tmp_path: Path) -> None:
+    # A saved *insight* carries its episode slug and IS engagement → experienced.
+    from podcast_scraper.server import app_user_corpus, app_user_state
+
+    uid = "u_0123456789abcdef01234567"
+    app_user_state.add_favorite(
+        tmp_path, uid, {"kind": "insight", "ref": "ins-1", "slug": "ep-ins"}
+    )
+    experienced = app_user_corpus.experienced_episode_set(tmp_path, tmp_path, uid)
+    assert "ep-ins" in experienced
+    assert (
+        app_user_corpus.saved_episode_set(tmp_path, uid) == set()
+    )  # insight fav is not an episode
+
+
+def test_highlight_and_note_are_experienced(tmp_path: Path) -> None:
+    from podcast_scraper.server import app_user_corpus, app_user_state
+
+    uid = "u_0123456789abcdef01234567"
+    app_user_state.add_highlight(
+        tmp_path, uid, {"id": "h1", "episode_slug": "ep-hl", "kind": "span", "created_at": 1}
+    )
+    experienced = app_user_corpus.experienced_episode_set(tmp_path, tmp_path, uid)
+    assert "ep-hl" in experienced

@@ -68,6 +68,17 @@ closelistening.app {
 	# ("MIME type text/html" — the lazy /login route died, Sign in did nothing). The bare
 	# document (/, /login, /catalog, /episode/*) has no matching extension, so it never
 	# matches here and still hits the coming-soon gate below.
+	# OAuth 2.1 authorization server (RFC-112) — MUST bypass the coming-soon gate. These are
+	# cookie-less server-to-server calls from the agent (claude.ai): RFC 8414 discovery, DCR, and
+	# the token exchange carry no cl_preview cookie, so without this they hit the coming-soon
+	# `handle {}` fallback and get HTML instead of JSON, and the flow dies at step 0. Safe to
+	# expose: /authorize still requires a signed-in platform session + mcp_access (401 otherwise,
+	# no corpus); /register + /token are the standard public-client OAuth surface (PKCE-gated).
+	@oauth_public path /.well-known/oauth-authorization-server /api/app/mcp/oauth/*
+	handle @oauth_public {
+		reverse_proxy 127.0.0.1:8092
+	}
+
 	@static path_regexp \.(js|mjs|css|map|woff2?|ttf|otf|eot|png|jpe?g|gif|svg|ico|webmanifest|webp|avif)$
 	handle @static {
 		reverse_proxy 127.0.0.1:8092

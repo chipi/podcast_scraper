@@ -80,6 +80,30 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('anchor drifted')
   })
 
+  it('exports to Obsidian incrementally, persisting the cursor (#1472)', async () => {
+    const store: Record<string, string> = { obsidian_export_cursor: '4' }
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => { store[k] = v },
+      clear: () => { for (const k of Object.keys(store)) delete store[k] },
+    })
+    const exp = vi
+      .spyOn(api, 'exportObsidian')
+      .mockResolvedValue({ mode: 'incremental', revision: 5, written: 2, removed: 1 })
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView()
+    await flushPromises()
+
+    await w.findAll('button').find((b) => b.text() === 'Export to Obsidian')!.trigger('click')
+    await flushPromises()
+
+    expect(exp).toHaveBeenCalledWith(4) // passed the stored cursor
+    expect(store.obsidian_export_cursor).toBe('5') // advanced
+    expect(w.text()).toContain('2 changed, 1 removed')
+    vi.unstubAllGlobals()
+  })
+
   it('renders graph-ref chips hued by kind (#1419)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([
       hl({

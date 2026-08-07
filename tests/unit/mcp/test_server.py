@@ -83,3 +83,46 @@ def test_parse_mcp_argv_requires_corpus() -> None:
     assert args.corpus == "/some/dir"
     with pytest.raises(SystemExit):
         parse_mcp_argv([])
+
+
+# --- RFC-112 slice 2: transport selection + auth-wrapped HTTP app ---
+
+
+def test_parse_mcp_argv_transport_defaults_stdio() -> None:
+    args = parse_mcp_argv(["--corpus", "/d"])
+    assert args.transport == "stdio"
+
+
+def test_parse_mcp_argv_http_flags() -> None:
+    # A test string asserting CLI parse — no actual bind (the container binds 0.0.0.0 by design,
+    # loopback-published on the host). nosec per the repo convention for legitimate 0.0.0.0.
+    args = parse_mcp_argv(
+        ["--corpus", "/d", "--transport", "http", "--host", "0.0.0.0", "--port", "9"]  # nosec B104
+    )
+    assert args.transport == "http" and args.host == "0.0.0.0" and args.port == 9  # nosec B104
+
+
+def test_run_server_rejects_unknown_transport(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import pytest
+
+    from podcast_scraper.mcp.server import run_server
+
+    with pytest.raises(ValueError):
+        run_server(tmp_path, transport="carrier-pigeon")
+
+
+def test_run_server_stdio_dispatches(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from podcast_scraper.mcp import server as srv
+
+    called: dict = {}
+    monkeypatch.setattr(srv, "run_stdio", lambda c: called.setdefault("corpus", c))
+    srv.run_server(tmp_path, transport="stdio")
+    assert called["corpus"] == tmp_path
+
+
+def test_build_http_app_is_auth_wrapped(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from podcast_scraper.mcp.auth import McpAuthMiddleware
+    from podcast_scraper.mcp.server import build_http_app
+
+    app = build_http_app(tmp_path)
+    assert isinstance(app, McpAuthMiddleware)  # the HTTP transport is gated

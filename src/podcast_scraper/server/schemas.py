@@ -694,6 +694,141 @@ class DerivedInterestsResponse(BaseModel):
     items: list[DerivedInterest] = Field(default_factory=list)
 
 
+# --- Personal corpus — the unified definition (RFC-114 Phase 1, #1470) ---
+
+
+class CorpusSummary(BaseModel):
+    """GET /api/app/corpus — faceted membership counts + the current revision."""
+
+    revision: int = Field(ge=0, description="Current corpus revision (RFC-114 change-log counter).")
+    experienced_count: int = Field(ge=0, description="Heard ∪ highlights ∪ notes ∪ saved-insights.")
+    saved_count: int = Field(ge=0, description="Whole-episode favorites not in `experienced`.")
+    top_entities: list[DerivedInterest] = Field(
+        default_factory=list, description="Top person/topic in the experienced corpus."
+    )
+
+
+class CorpusFacetEpisodesResponse(BaseModel):
+    """GET /api/app/corpus/episodes?facet= — the episode slugs in a personal-corpus facet."""
+
+    facet: Literal["experienced", "saved"] = Field(description="Which membership facet.")
+    slugs: list[str] = Field(default_factory=list)
+
+
+class CorpusChangeEvent(BaseModel):
+    """One change-log entry — an add or a tombstone (removal)."""
+
+    seq: int = Field(ge=1, description="Monotonic revision at which this change happened.")
+    kind: Literal["added", "removed"] = Field(description="Membership add or removal (tombstone).")
+    facet: Literal["experienced", "saved"] = Field(description="Which facet changed.")
+    ref: str = Field(description="Episode slug the change concerns.")
+
+
+class CorpusChangesResponse(BaseModel):
+    """GET /api/app/corpus/changes?since= — the delta a consumer (export) applies."""
+
+    revision: int = Field(ge=0, description="Current revision after reconciling.")
+    since: int = Field(ge=0, description="The cursor the caller supplied.")
+    truncated: bool = Field(
+        description="True when `since` predates the retained log → do a full re-export."
+    )
+    events: list[CorpusChangeEvent] = Field(default_factory=list)
+
+
+class CorpusRankedEpisode(BaseModel):
+    """One experienced episode with its strength score (RFC-114 Phase 2)."""
+
+    slug: str = Field(description="Episode slug.")
+    strength: float = Field(ge=0.0, le=1.0, description="Corpus strength in [0,1] (within-user).")
+
+
+class CorpusRankedResponse(BaseModel):
+    """GET /api/app/corpus/ranked — experienced episodes, strongest first (RFC-114 Phase 2)."""
+
+    items: list[CorpusRankedEpisode] = Field(default_factory=list)
+
+
+# --- MCP personal-access tokens (RFC-112 slice 1, #1471) ---
+
+
+class McpTokenMeta(BaseModel):
+    """Token metadata — never the secret. (GET/DELETE /api/app/mcp/tokens)."""
+
+    id: str = Field(description="Opaque token id (for revocation).")
+    label: str = Field(description="User-chosen label (e.g. the agent name).")
+    created_at: int = Field(description="Unix time created.")
+    last_used_at: int | None = Field(default=None, description="Unix time last used, or null.")
+
+
+class McpTokensResponse(BaseModel):
+    """The user's MCP tokens (metadata only)."""
+
+    items: list[McpTokenMeta] = Field(default_factory=list)
+
+
+class McpTokenCreate(BaseModel):
+    """POST /api/app/mcp/tokens body."""
+
+    label: str = Field(min_length=1, max_length=120, description="A label for the token/agent.")
+
+
+class McpTokenCreated(BaseModel):
+    """The created token — the plaintext is shown ONCE and never returned again."""
+
+    token: str = Field(description="The secret bearer token. Copy it now; it is not stored.")
+    meta: McpTokenMeta
+
+
+class McpConnection(BaseModel):
+    """One connected OAuth client (a remembered consent) — GET /api/app/mcp/connections."""
+
+    client_id: str = Field(description="The OAuth client id.")
+    client_name: str = Field(description="The client's registered display name.")
+    scopes: list[str] = Field(default_factory=list, description="Scopes the user approved.")
+    connected_at: int = Field(description="Unix time the consent was (last) granted.")
+
+
+class McpConnectionsResponse(BaseModel):
+    """The user's connected OAuth agents (revocable)."""
+
+    items: list[McpConnection] = Field(default_factory=list)
+
+
+class McpConnectionConfig(BaseModel):
+    """Connector wiring for the 'Connected agents' UI (GET /api/app/mcp/config, RFC-112 §5)."""
+
+    connector_url: str | None = Field(
+        default=None, description="The remote MCP server URL to paste into a client, or null."
+    )
+    authorization_server: str | None = Field(
+        default=None, description="The OAuth issuer URL when OAuth is enabled, else null."
+    )
+    oauth_enabled: bool = Field(
+        default=False, description="Whether the per-user OAuth connector flow is configured."
+    )
+
+
+class McpVerifyBody(BaseModel):
+    """POST /internal/mcp/verify body — the MCP server presents a bearer token."""
+
+    token: str = Field(min_length=1, description="The presented MCP bearer token.")
+
+
+class McpVerifyResponse(BaseModel):
+    """The verified principal for a token, or an authenticated=false result."""
+
+    authenticated: bool = Field(description="Whether the token resolved to an entitled user.")
+    user_id: str | None = Field(default=None, description="The owning user id when authenticated.")
+    mcp_access: bool = Field(default=False, description="Whether that user holds the entitlement.")
+    scope: str | None = Field(
+        default=None, description="The granted scope (e.g. 'mcp:read') when authenticated."
+    )
+    aud: str | None = Field(
+        default=None,
+        description="Audience (RFC 8707) the OAuth token is bound to; empty/None for a PAT.",
+    )
+
+
 # --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
 
 

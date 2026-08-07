@@ -23,3 +23,12 @@ def append_audit(audit_path: Path | None, record: dict[str, Any]) -> None:
             handle.write(line + "\n")
     except OSError:
         pass
+
+
+def audit_event(request: Any, event: str, **fields: Any) -> None:
+    """Best-effort audit of a security-relevant ``event`` using the app's configured audit path.
+
+    Convenience over :func:`append_audit` for route handlers — reads the app's ``audit_path``
+    (``None`` on a bare deploy → no-op). Used for MCP credential/consent events + auth denials.
+    """
+    append_audit(getattr(request.app.state, "audit_path", None), {"event": event, **fields})

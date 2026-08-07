@@ -594,3 +594,38 @@ def _register_composites(server: Any, ctx: CorpusContext) -> None:
 def run_stdio(corpus_dir: Path | str) -> None:
     """Build and run the MCP server over stdio (the default agent-client transport)."""
     build_server(corpus_dir).run()
+
+
+def build_http_app(corpus_dir: Path | str) -> Any:
+    """The Streamable-HTTP ASGI app for the corpus MCP, wrapped in the auth gate (RFC-112 slice 2).
+
+    Every HTTP connection must present a valid MCP bearer token (verified against the app's internal
+    endpoint) — see ``mcp.auth``. Returned as an ASGI app so it can be served by uvicorn behind the
+    shared edge, or exercised in tests without a live socket.
+    """
+    from .auth import McpAuthMiddleware
+
+    server = build_server(corpus_dir)
+    return McpAuthMiddleware(server.streamable_http_app())
+
+
+def run_server(
+    corpus_dir: Path | str,
+    *,
+    transport: str = "stdio",
+    host: str = "127.0.0.1",
+    port: int = 8009,
+) -> None:
+    """Run the corpus MCP over *transport*.
+
+    ``stdio`` (local, auth-free) or ``http`` (Streamable HTTP on ``host:port``, auth-gated per
+    RFC-112). The tool registry is identical across transports (RFC-095 transport-agnostic design).
+    """
+    if transport == "stdio":
+        run_stdio(corpus_dir)
+        return
+    if transport != "http":
+        raise ValueError(f"unsupported transport: {transport!r} (use 'stdio' or 'http')")
+    import uvicorn
+
+    uvicorn.run(build_http_app(corpus_dir), host=host, port=port)

@@ -12,6 +12,10 @@
 #   APP_SESSION_SECRET              (secret) session signing key
 #   APP_OAUTH_GOOGLE_CLIENT_ID      Google OAuth client id
 #   APP_OAUTH_GOOGLE_CLIENT_SECRET  (secret) Google OAuth client secret
+# Optional (remote MCP, RFC-112 — unset = MCP off, mcp vhost skipped):
+#   INTERNAL_MCP_TOKEN             (secret) shared secret gating the verify seam + mcp service
+#   APP_MCP_ALLOWED_ORIGINS        optional browser Origin allow-list (claude.ai is server-side)
+#   (APP_MCP_ISSUER_URL / APP_MCP_RESOURCE_URL are derived from PLAYER_DOMAIN)
 #
 # Exit: 0 ok / 1 compose up failed / 2 vhost/reload failed / 3 health failed
 set -euo pipefail
@@ -48,6 +52,16 @@ else
     echo "OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-none}"
     echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}"
     echo "PLAYER_PORT=8092"
+    # Remote MCP (RFC-112). INTERNAL_MCP_TOKEN gates the internal verify seam AND the `mcp`
+    # service; EMPTY = the whole MCP surface stays inert (verify 503 → every connect 401), which
+    # is the safe default. Set it (GH secret PLAYER_INTERNAL_MCP_TOKEN) to turn MCP on. Issuer +
+    # resource are DERIVED from the domain (no secret): the AS is the apex, the resource the mcp
+    # subdomain.
+    echo "INTERNAL_MCP_TOKEN=${INTERNAL_MCP_TOKEN:-}"
+    echo "APP_MCP_ISSUER_URL=https://${PLAYER_DOMAIN}"
+    echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
+    echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS:-}"
+    echo "MCP_PORT=8009"
   } >"$PLAYER_ENV"
 fi
 chmod 600 "$PLAYER_ENV"
@@ -152,7 +166,15 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
 #   player.caddy            -> ${PLAYER_DOMAIN}             SPA + app-only api (coming-soon gated)
 #   player-telemetry.caddy  -> telemetry.${PLAYER_DOMAIN}  GlitchTip ingest (browser error SDK)
 #   player-analytics.caddy  -> analytics.${PLAYER_DOMAIN}  Umami tracking
+# The `mcp` vhost is included ONLY when MCP is enabled (INTERNAL_MCP_TOKEN set) — otherwise the
+# mcp container isn't serving and publishing a public vhost to a dead upstream is pointless.
 PLAYER_VHOSTS=(player player-telemetry player-analytics)
+if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
+  PLAYER_VHOSTS+=(mcp)
+  echo "[$(date -u +%FT%TZ)] MCP enabled — installing mcp.${PLAYER_DOMAIN} vhost"
+else
+  echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp vhost"
+fi
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
   # Two substitutions: the shared `player.example.com` placeholder -> real domain (all
@@ -238,4 +260,30 @@ if [ "${PLAYER_SECRETS_VIA_FILES:-}" = "1" ]; then
   fi
   echo "[$(date -u +%FT%TZ)] secrets: verified /run/secrets present + non-empty in player-api"
 fi
+# MCP reachability (RFC-112) — NON-fatal. When enabled, confirm the mcp container answers the
+# public RFC 9728 discovery doc (200) and that its bearer gate is live (a token-less MCP POST → 401).
+# A failure here does not fail the player deploy; it only flags that the MCP surface needs a look.
+if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
+  echo "[$(date -u +%FT%TZ)] MCP reachability check (in-container :8009)..."
+  meta=$("${COMPOSE[@]}" exec -T mcp curl -fsS \
+    http://127.0.0.1:8009/.well-known/oauth-protected-resource 2>/dev/null || echo "")
+  disc=$([ -n "$meta" ] && echo 200 || echo 000)
+  gate=$("${COMPOSE[@]}" exec -T mcp curl -sS -o /dev/null -w '%{http_code}' \
+    -X POST http://127.0.0.1:8009/mcp 2>/dev/null || echo 000)
+  # Consistency: the discovery `resource` must equal APP_MCP_RESOURCE_URL and its
+  # authorization_servers must point at the apex issuer — the wiring most likely to drift and the
+  # exact drift that would silently defeat aud-binding (review M2). Best-effort grep, non-fatal.
+  want_res="https://mcp.${PLAYER_DOMAIN}"
+  want_iss="https://${PLAYER_DOMAIN}"
+  consistent=no
+  if echo "$meta" | grep -q "\"$want_res\"" && echo "$meta" | grep -q "\"$want_iss\""; then
+    consistent=yes
+  fi
+  if [ "$disc" = "200" ] && [ "$gate" = "401" ] && [ "$consistent" = "yes" ]; then
+    echo "[$(date -u +%FT%TZ)] MCP up: discovery 200, gate 401, metadata consistent — https://${want_res#https://}"
+  else
+    echo "WARN: MCP surface not fully verified (discovery=$disc, token-less gate=$gate, metadata-consistent=$consistent; want 200/401/yes). Check the mcp container + APP_MCP_ISSUER_URL/APP_MCP_RESOURCE_URL match ${want_iss} / ${want_res}." >&2
+  fi
+fi
+
 echo "[$(date -u +%FT%TZ)] player-public up + healthy; vhost live for https://${PLAYER_DOMAIN}"

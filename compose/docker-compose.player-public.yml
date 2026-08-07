@@ -64,6 +64,15 @@ services:
       APP_SIGNUP_MODE: ${APP_SIGNUP_MODE:-allowlist}
       APP_ALLOWED_EMAILS: ${APP_ALLOWED_EMAILS:-}
       APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
+      # Remote MCP (RFC-112). This app-only backend hosts the OAuth 2.1 authorization server
+      # (/api/app/mcp/oauth/*, /.well-known/oauth-authorization-server) AND the internal verify
+      # seam (/internal/mcp/verify — reached by the `mcp` service over the compose network only,
+      # NOT via the public nginx). INTERNAL_MCP_TOKEN gates that seam (unset → 503, so the seam is
+      # off by default). Issuer = this player origin; resource = the mcp subdomain (shown by
+      # /api/app/mcp/config). Empty INTERNAL_MCP_TOKEN keeps the whole MCP surface inert.
+      INTERNAL_MCP_TOKEN: ${INTERNAL_MCP_TOKEN:-}
+      APP_MCP_ISSUER_URL: ${APP_MCP_ISSUER_URL:-}
+      APP_MCP_RESOURCE_URL: ${APP_MCP_RESOURCE_URL:-}
       # OTEL distributed tracing (ADR-119) — mirror the operator (vps-prod.yml). The api
       # image already wraps the process in `opentelemetry-instrument` (auto FastAPI + HTTP
       # spans); flipping the exporter to otlp + pointing at the homelab VictoriaTraces OTLP
@@ -113,6 +122,69 @@ services:
       - FOWNER
       - SETUID
       - SETGID
+
+  # Remote MCP server (RFC-112) — the SAME low-privilege api image, but run as the corpus MCP
+  # over Streamable HTTP instead of the app. It authenticates every connection by presenting the
+  # bearer to `api`'s tailnet-only /internal/mcp/verify (it never mounts the user store) and serves
+  # the read-only corpus tools. Fronted publicly by its own vhost (mcp.<domain>, Caddy → :8009);
+  # bearer-auth is enforced in-process. No docker.sock, no provider keys (app-only image), corpus RO.
+  # Inert unless INTERNAL_MCP_TOKEN is set (verify fails closed → every connect 401s).
+  mcp:
+    image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    restart: unless-stopped
+    command:
+      - "python"
+      - "-m"
+      - "podcast_scraper.cli"
+      - "mcp"
+      - "--transport"
+      - "http"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8009"
+      - "--corpus"
+      - "/app/output"
+    environment:
+      # Where the bearer is verified (compose-network DNS name `api`, never the public edge).
+      APP_MCP_VERIFY_URL: http://api:8000/internal/mcp/verify
+      INTERNAL_MCP_TOKEN: ${INTERNAL_MCP_TOKEN:-}
+      # This server's own public URL (the OAuth `resource`) + the authorization server (the app).
+      APP_MCP_RESOURCE_URL: ${APP_MCP_RESOURCE_URL:-}
+      APP_MCP_ISSUER_URL: ${APP_MCP_ISSUER_URL:-}
+      # Optional browser DNS-rebind guard. claude.ai connects server-side (no Origin), so leaving
+      # this empty is safe; set it (e.g. https://claude.ai) to lock the browser surface down.
+      APP_MCP_ALLOWED_ORIGINS: ${APP_MCP_ALLOWED_ORIGINS:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+    ports:
+      # Loopback only — the Caddy edge (mcp.caddy) is the public front (ADR-114).
+      - "127.0.0.1:${MCP_PORT:-8009}:8009"
+    volumes:
+      # Read-only corpus — the MCP tools only read; per-user data stays on `api` (verify seam).
+      - corpus_data:/app/output:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    # Liveness: the public discovery doc must answer 200 (it also proves the ASGI app + auth
+    # middleware booted). Without this a crash-looping mcp would still get a public vhost pointing at
+    # a dead upstream → 502s on a public surface (review M3).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8009/.well-known/oauth-protected-resource"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      api:
+        condition: service_healthy
 
   # Consumer player PWA (static SPA + nginx proxying ONLY /api/app/* to `api`).
   learning-app:

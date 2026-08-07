@@ -31,10 +31,13 @@ from podcast_scraper.server.routes import (
     app_collections,
     app_comms,
     app_consolidation,
+    app_corpus,
     app_discover,
     app_enrichment,
     app_episodes,
+    app_export,
     app_graph_events,
+    app_mcp,
     app_relational,
     app_search,
     app_user_preferences,
@@ -60,9 +63,11 @@ from podcast_scraper.server.routes import (
     health,
     index_rebuild,
     index_stats,
+    internal_mcp,
     internal_outbox,
     jobs,
     llm_gateway,
+    mcp_oauth,
     operator_config,
     ops,
     query_activity,
@@ -129,6 +134,9 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # Public VAPID key for Web Push (RFC-110 §6). The private half lives with the infra worker; the
     # browser needs this public half to subscribe. Empty → GET /api/app/push/vapid-key 503s.
     app.state.vapid_public_key = os.environ.get("APP_VAPID_PUBLIC_KEY", "")
+    # Shared token for the internal MCP verify seam (RFC-112 §4, #1471) — the MCP server process
+    # authenticates with it over the tailnet. Empty → /internal/mcp/verify 503 (disabled).
+    app.state.internal_mcp_token = os.environ.get("INTERNAL_MCP_TOKEN", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
     )
@@ -216,6 +224,10 @@ _APP_ROUTES = (
     app_capture,
     app_collections,
     app_comms,
+    app_corpus,
+    app_export,
+    app_mcp,
+    mcp_oauth,
     app_enrichment,
     app_consolidation,
 )
@@ -245,6 +257,10 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
         app.include_router(module.router, prefix="/api/app")
     # The internal delivery-outbox seam (#1415) — service-to-service, token-gated, tailnet-only.
     app.include_router(internal_outbox.router, prefix="/internal")
+    # The internal MCP verify seam (#1471) — service-to-service, token-gated, tailnet-only.
+    app.include_router(internal_mcp.router, prefix="/internal")
+    # MCP OAuth 2.1 authorization-server metadata at the app ROOT (RFC 8414 discovery, #1471).
+    app.include_router(mcp_oauth.wellknown_router)
 
 
 class _AccessLogMiddleware:
