@@ -27,9 +27,9 @@ Hardening rationale (advisor review 2026-08-07):
 from __future__ import annotations
 
 import os
-import sys
 import time
 from pathlib import Path
+from typing import Callable, NoReturn
 
 HEARTBEAT = Path(os.environ.get("DIGEST_HEARTBEAT_FILE", "/heartbeat/tick"))
 CORPUS_ROOT = Path(os.environ.get("DIGEST_CORPUS_ROOT", "/app/output"))
@@ -61,25 +61,31 @@ def _run_once() -> None:
     _log(f"tick: enqueued {len(ids)} envelope(s){detail}")
 
 
-def _sleep_to_next_interval(sleep: object = time.sleep) -> None:
+def _sleep_to_next_interval(sleep: Callable[[float], object] = time.sleep) -> None:
     now = time.time()
     delay = INTERVAL_S - (now % INTERVAL_S) + OFFSET_S
-    sleep(delay)  # type: ignore[operator]
+    sleep(delay)
 
 
-def main() -> int:
+def _cycle() -> None:
+    """One iteration: enqueue, and beat regardless — a bad enqueue must never kill the loop, and
+    the heartbeat proves the process is still alive (an empty-but-alive loop is a homelab alert)."""
+    try:
+        _run_once()
+    except Exception as exc:  # noqa: BLE001 — a bad cycle must never kill the loop
+        _log(f"cycle error: {exc!r}")
+    _beat()
+
+
+def main() -> NoReturn:
     _log(
         f"start: corpus={CORPUS_ROOT} data_dir={DATA_DIR} "
         f"interval={INTERVAL_S}s offset={OFFSET_S}s heartbeat={HEARTBEAT}"
     )
     while True:
-        try:
-            _run_once()
-        except Exception as exc:  # noqa: BLE001 — a bad cycle must never kill the loop
-            _log(f"cycle error: {exc!r}")
-        _beat()
+        _cycle()
         _sleep_to_next_interval()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

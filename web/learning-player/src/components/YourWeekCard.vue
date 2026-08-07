@@ -22,6 +22,10 @@ const to = computed(() => ({
 }))
 
 const chips = computed(() => (props.item.graph_refs ?? []).slice(0, 2))
+
+// The route backfills episode_title for every resolvable item; fall back to the lead graph label
+// so an unresolvable slug (e.g. a stale reference) never renders a blank card headline.
+const title = computed(() => props.item.episode_title || props.item.graph_refs?.[0]?.label || '')
 </script>
 
 <template>
@@ -43,7 +47,7 @@ const chips = computed(() => (props.item.graph_refs ?? []).slice(0, 2))
         “{{ item.quote }}”
       </p>
       <div :class="item.quote ? 'mt-auto pt-3' : ''">
-        <div class="line-clamp-2 text-sm font-bold leading-tight">{{ item.episode_title }}</div>
+        <div class="line-clamp-2 text-sm font-bold leading-tight">{{ title }}</div>
         <ul v-if="chips.length" class="mt-2 flex flex-wrap gap-1.5">
           <li
             v-for="c in chips"

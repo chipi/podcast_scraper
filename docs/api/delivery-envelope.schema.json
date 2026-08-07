@@ -119,6 +119,7 @@
       "type": "object",
       "additionalProperties": false,
       "description": "One resurfaced/highlighted moment. MUST carry graph_refs + a deep_link (moat rule).",
+      "$comment": "additionalProperties:false is load-bearing: it walls off the in-app-only fields the GET /api/app/your-week route adds for card rendering (image_url artwork backdrop, and a backfilled episode_title for topic-centric trending items). Those are route-local enrichments — the assembler MUST NOT write them into the envelope (they would fail validation here), and the delivery worker renders from graph_refs, not from artwork.",
       "required": ["episode_slug", "deep_link", "graph_refs"],
       "properties": {
         "quote": { "type": "string" },

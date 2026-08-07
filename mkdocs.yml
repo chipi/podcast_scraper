@@ -320,6 +320,7 @@ nav:
       - ADR-143 Tailscale OAuth migration and tag self-ownership: adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md
       - ADR-144 Self-hosted delivery queue, outsourced last-mile: adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md
       - ADR-145 Channel-agnostic outbox seam: adr/ADR-145-channel-agnostic-outbox-seam.md
+      - ADR-146 Your Week in-app surface and scheduling: adr/ADR-146-your-week-in-app-surface-and-scheduling.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

@@ -167,3 +167,27 @@ def test_your_week_route_ignores_email_consent_with_real_content(tmp_path: Path)
     resp = _client(root, data_dir, user.user_id).get("/api/app/your-week")
     assert resp.status_code == 200
     assert _kinds(resp.json())["revisit"][0]["quote"] == "a grounded point"
+
+
+def test_your_week_route_backfills_trending_episode_title(tmp_path: Path) -> None:
+    """Trending items are topic-centric and carry NO episode_title from the assembler; the route
+    backfills it (and the artwork) from the catalog so the card never renders a blank headline."""
+    root, data_dir = tmp_path / "corpus", tmp_path / "app"
+    user = get_or_create_user(
+        data_dir, provider="google", subject="s", email="u@gmail.com", name="U"
+    )
+    heard = _write_ep(root, stem="0001", feed_id="fa", episode_id="e1", topics=[("topic:ai", "AI")])
+    app_user_state.set_playback(data_dir, user.user_id, heard, 500.0, 1)  # heard → in "your corpus"
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    (root / "enrichments" / "temporal_velocity.json").write_text(
+        json.dumps(
+            {"topics": [{"topic_id": "topic:ai", "velocity_last_over_6mo": 3.0, "total": 10}]}
+        ),
+        encoding="utf-8",
+    )
+    resp = _client(root, data_dir, user.user_id).get("/api/app/your-week")
+    assert resp.status_code == 200
+    trend = _kinds(resp.json())["trending_in_your_corpus"][0]
+    assert trend["episode_title"] == "Episode e1"  # backfilled — the assembler omits it
+    assert trend["image_url"] == "https://img.example/fa.jpg"
+    assert trend["graph_refs"] == [{"id": "topic:ai", "kind": "topic", "label": "AI"}]

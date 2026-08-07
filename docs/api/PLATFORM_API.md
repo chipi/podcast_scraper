@@ -220,12 +220,14 @@ Named, ordered sets of the user's highlights (the curation surface). Per-user fi
 
 ## Delivery — digest consent + web push (PRD-046 / RFC-110)
 
-The "Your Week" recap + push nudges. Consent-gated: nothing is delivered without an explicit opt-in;
-email delivery additionally needs a **verified** email. No request-time LLM (D6). **Auth-gated**
-except the unsubscribe GET (one-click, token-bearing).
+The "Your Week" recap + push nudges. The **in-app** view is the primary surface and is _not_
+consent-gated (a user's own data); the **email + push** _delivery_ is consent-gated — nothing is
+delivered without an explicit opt-in, and email additionally needs a **verified** email. No
+request-time LLM (D6). **Auth-gated** except the unsubscribe GET (one-click, token-bearing).
 
 | Method | Path | Description |
 | --- | --- | --- |
+| GET | `/api/app/your-week` | The in-app **"Your Week"** view (`YourWeekResponse` `{sections[{kind, items[]}], period_label, generated_at}`, #1412) — the SAME rollup the email sends, served live and **decoupled from email consent** (visible in-app even with the digest email off; the `comms.digest.enabled` toggle governs only the outbound email edge). Items are enriched **in-app** with local artwork (`image_url`) + a backfilled `episode_title` for topic-centric items — route-local fields, **not** part of the `DeliveryEnvelope` contract. Empty `sections` when nothing is due yet. |
 | GET, PUT | `/api/app/comms` | Delivery settings `{digest{enabled, cadence(weekly\|daily), day_of_week, hour, paused}, push{enabled}, email_verified, unsubscribe_ref}` (`CommsSettings`). `PUT` a whole section (server fills defaults — never send a partial). |
 | GET | `/api/app/comms/unsubscribe?ref=` | One-click unsubscribe landing (HTML) — the `ref` is the opaque per-user token from the digest footer (RFC-110). |
 | POST | `/api/app/comms/unsubscribe` | Confirm unsubscribe (turns the digest off). |

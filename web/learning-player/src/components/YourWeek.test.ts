@@ -44,6 +44,17 @@ const RESP: YourWeekResponse = {
         },
       ],
     },
+    {
+      kind: 'trending_in_your_corpus',
+      items: [
+        {
+          episode_slug: 'ep-c',
+          episode_title: 'Episode C',
+          deep_link: '/topic/z?scope=mine',
+          graph_refs: [{ id: 'topic:z', kind: 'topic', label: 'Topic Z' }],
+        },
+      ],
+    },
   ],
   period_label: 'Aug 1 – 7',
   generated_at: '2026-08-07T00:00:00Z',
@@ -104,6 +115,9 @@ describe('YourWeek section', () => {
     await flushPromises()
     expect(wrapper.text()).toContain(en.home.yourWeekSection.revisit)
     expect(wrapper.text()).toContain(en.home.yourWeekSection.new_in_follows)
+    expect(wrapper.text()).toContain(en.home.yourWeekSection.trending_in_your_corpus)
+    // trending cards carry a (route-backfilled) episode title — never blank
+    expect(wrapper.text()).toContain('Episode C')
     expect(wrapper.text()).toContain(en.home.yourWeekShowLess)
   })
 

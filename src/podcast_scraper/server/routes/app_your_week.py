@@ -69,10 +69,12 @@ def _image_for(row: CatalogEpisodeRow) -> str | None:
     )
 
 
-def _enrich_images(root: Path, sections: list[dict[str, Any]]) -> None:
-    """Add ``image_url`` to each item so the in-app card can use the episode/show art as a
-    backdrop. In-app only — the shared assembler (and the email contract) stay untouched. Builds
-    the catalog once and only indexes the slugs actually present."""
+def _enrich_items(root: Path, sections: list[dict[str, Any]]) -> None:
+    """Enrich each item from its catalog row: the episode/show art (``image_url``) for the card
+    backdrop, and ``episode_title`` where the assembler omits it (the ``trending_in_your_corpus``
+    items are topic-centric and carry none, which would render a blank card title). In-app ONLY —
+    the shared assembler and the email envelope contract stay untouched. One catalog scan, indexing
+    only the slugs actually present."""
     slugs = {
         it.get("episode_slug")
         for s in sections
@@ -91,6 +93,7 @@ def _enrich_images(root: Path, sections: list[dict[str, Any]]) -> None:
             match = by_slug.get(it.get("episode_slug"))
             if match is not None:
                 it["image_url"] = _image_for(match)
+                it.setdefault("episode_title", match.episode_title)
 
 
 @router.get("/your-week", response_model=YourWeekResponse)
@@ -102,11 +105,12 @@ async def get_your_week(
     Consent-decoupled: always visible in-app regardless of the email digest toggle.
     """
     now = int(time.time())
+    root = _corpus_root(request)
     payload = app_digest_personal.assemble_digest_payload(
-        _corpus_root(request), _data_dir(request), user.user_id, now
+        root, _data_dir(request), user.user_id, now
     )
     sections = payload["sections"] if payload else []
-    _enrich_images(_corpus_root(request), sections)
+    _enrich_items(root, sections)
     return YourWeekResponse(
         sections=sections,
         period_label=_period_label(now),
