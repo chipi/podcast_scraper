@@ -197,6 +197,20 @@ def record_provider_call_cost(
     prefix-cache savings observable in the ``llm_cost`` telemetry; omitting it is the prior
     behaviour (no cache-token fields), so every existing call site is unaffected.
     """
+    if cost is None and response is not None:
+        # Prefer the gateway/upstream REAL cost (OpenRouter ``usage.cost`` / LiteLLM
+        # ``_hidden_params['response_cost']``) over the local pricing-table estimate: the table
+        # misses aliased gateway model ids and prices the OR route at the vendor-DIRECT rate — 3-5x
+        # the real bill (2026-08 finale: deepseek-or telemetry $0.68 vs SpendLogs ~$0.20).
+        # Lazy import dodges the openai_provider <-> provider_metrics cycle.
+        try:
+            from podcast_scraper.providers.openai.openai_provider import _openai_response_cost_usd
+
+            cost = _openai_response_cost_usd(response)
+        except (
+            Exception
+        ):  # pragma: no cover — cost extraction is best-effort; table is the fallback
+            pass
     if cost is not None:
         call_metrics.set_cost(cost)
     else:
