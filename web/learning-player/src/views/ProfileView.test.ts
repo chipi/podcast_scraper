@@ -112,11 +112,15 @@ describe('ProfileView — Your listening panel', () => {
 describe('ProfileView — notifications', () => {
   beforeEach(() => vi.spyOn(api, 'getUserInterests').mockResolvedValue([]))
 
-  it('renders the digest + push toggles; cadence is hidden until the digest is on', async () => {
+  it('renders the Your Week layout switch + email/push toggles; cadence hidden until digest on', async () => {
     const w = mountProfile()
     await flushPromises()
-    expect(w.text()).toContain('Notifications')
-    expect(w.text()).toContain('Weekly digest email')
+    expect(w.text()).toContain('Your Week')
+    // The in-app view is primary: the layout switch shows first, email is "the edge".
+    expect(w.text()).toContain('On your home')
+    expect(w.text()).toContain('Compact')
+    expect(w.text()).toContain('Full')
+    expect(w.text()).toContain('Also email it to me')
     expect(w.text()).toContain('Push reminders')
     expect(w.text()).not.toContain('Frequency')
   })
