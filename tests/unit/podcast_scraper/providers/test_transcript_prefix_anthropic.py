@@ -69,3 +69,39 @@ def test_anthropic_off_is_plain_string_legacy() -> None:
     kwargs = _run(_provider(cache=False))
     assert isinstance(kwargs["system"], str), "flag off must keep the plain-string system"
     assert TRANSCRIPT in kwargs["messages"][0]["content"]
+
+
+def test_anthropic_cache_read_tokens_surface_in_llm_cost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cache_control saving must be observable: summarize forwards the response so the llm_cost
+    event carries the normalised cache-read token count."""
+    import podcast_scraper.workflow.cost_monitoring as cm
+    from podcast_scraper.workflow.token_accounting import extract_token_usage
+
+    captured: dict = {}
+    real = cm.emit_llm_cost_event
+
+    def _spy(*a, **k):  # noqa: ANN002, ANN003
+        captured.update(k)
+        return real(*a, **k)
+
+    monkeypatch.setattr(cm, "emit_llm_cost_event", _spy)
+
+    p = _provider(cache=True)
+    client = Mock()
+    resp = Mock()
+    resp.content = [Mock(text="a summary")]
+    resp.stop_reason = "end_turn"
+    resp.usage = Mock(
+        input_tokens=200,
+        output_tokens=20,
+        cache_read_input_tokens=9000,
+        cache_creation_input_tokens=0,
+    )
+    resp.model = "claude-haiku-4-5"
+    resp.id = "r"
+    client.messages.create.return_value = resp
+    p.client = client
+    p.summarize(text=TRANSCRIPT + "\n", episode_title="Ep")
+
+    assert captured.get("response") is not None
+    assert extract_token_usage("anthropic", captured["response"]).cached_input_tokens == 9000

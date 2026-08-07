@@ -1539,7 +1539,9 @@ class OpenAICompatibleProvider:
             or 16384
         )
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_megabundle_prompt(
+            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+        )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
         _token_kwarg: Dict[str, Any] = (
@@ -1641,7 +1643,9 @@ class OpenAICompatibleProvider:
             or 16384
         )
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_extraction_bundle_prompt(
+            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+        )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
         _token_kwarg: Dict[str, Any] = (

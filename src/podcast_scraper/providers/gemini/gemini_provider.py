@@ -1330,6 +1330,7 @@ class GeminiProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
+                    response=response,  # RFC-111: surfaces cached_content tokens in llm_cost
                 )
 
             # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
@@ -1741,6 +1742,7 @@ class GeminiProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 triggered_guardrail=triggered_guardrail,
+                response=response,  # RFC-111: surfaces cached_content tokens in llm_cost
             )
 
         # Response-shape guardrail (ADR-100, #1003) on bundled output.

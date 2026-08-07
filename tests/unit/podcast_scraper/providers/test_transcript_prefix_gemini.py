@@ -103,3 +103,26 @@ def test_gemini_cleanup_deletes_handles() -> None:
     p.cleanup()
     p.client.caches.delete.assert_called_once()
     assert not p._gemini_cache_handles
+
+
+def test_gemini_cached_tokens_surface_in_llm_cost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cachedContent saving must be observable: summarize forwards the response so the llm_cost
+    event carries the normalised cached_content token count."""
+    import podcast_scraper.workflow.cost_monitoring as cm
+    from podcast_scraper.workflow.token_accounting import extract_token_usage
+
+    captured: dict = {}
+    real = cm.emit_llm_cost_event
+
+    def _spy(*a, **k):  # noqa: ANN002, ANN003
+        captured.update(k)
+        return real(*a, **k)
+
+    monkeypatch.setattr(cm, "emit_llm_cost_event", _spy)
+
+    p = _provider(enabled=True)
+    p.client = _mock_client()  # usage_metadata.cached_content_token_count = 90
+    p.summarize(text=TRANSCRIPT, episode_title="Ep")
+
+    assert captured.get("response") is not None
+    assert extract_token_usage("gemini", captured["response"]).cached_input_tokens == 90

@@ -868,6 +868,7 @@ class AnthropicProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
+                    response=response,  # RFC-111: surfaces cache_read/creation tokens in llm_cost
                 )
 
             # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
@@ -1275,6 +1276,7 @@ class AnthropicProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 triggered_guardrail=triggered_guardrail,
+                response=response,  # RFC-111: surfaces cache_read/creation tokens in llm_cost
             )
 
         # Response-shape guardrail (ADR-100, #1003): cost emitted in BOTH

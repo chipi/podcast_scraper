@@ -271,6 +271,25 @@ _SIBLING_IMPORTS = [
 ]
 
 
+@pytest.mark.parametrize(
+    "builder",
+    ["build_megabundle_prompt", "build_extraction_bundle_prompt"],
+)
+def test_megabundle_builders_relocate_transcript_when_enabled(builder: str) -> None:
+    """The mega-bundle builders truncate the transcript internally, so they relocate it themselves
+    (the provider can't match the truncated string). Flag on -> transcript-first; off -> legacy."""
+    import podcast_scraper.prompting.megabundle as mb
+
+    fn = getattr(mb, builder)
+    long_transcript = ("HOST: durable software for small teams. " * 100).strip()
+    sys_on, user_on = fn(long_transcript, cache_transcript_prefix=True)
+    assert sys_on.startswith(_TRANSCRIPT_BLOCK_HEADER)
+    assert long_transcript not in user_on  # moved out of the user prompt
+    sys_off, user_off = fn(long_transcript, cache_transcript_prefix=False)
+    assert not sys_off.startswith(_TRANSCRIPT_BLOCK_HEADER)
+    assert long_transcript in user_off  # legacy keeps it in the user prompt
+
+
 @pytest.mark.parametrize("module_path, class_name", _SIBLING_IMPORTS)
 def test_every_autocache_sibling_inherits_the_base_layout(
     module_path: str, class_name: str

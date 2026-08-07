@@ -898,7 +898,9 @@ class GrokProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_megabundle_prompt(
+            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -982,7 +984,9 @@ class GrokProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_extraction_bundle_prompt(
+            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()

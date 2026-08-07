@@ -96,3 +96,23 @@ summary/insight/KG output on the next reprocess.
 3. **Forward the response** in anthropic/gemini cost paths so cache savings show in `llm_cost`.
 4. Re-run the cost proof (`gateway_spend.py` / cached-token telemetry) on a reprocess to quantify the
    real $/episode drop now that summary+GI+KG share one prefix.
+
+## Update — smaller loose ends closed (2026-08-07, later)
+
+1. **Flag default: ON** (decided by operator). `cache_transcript_prefix` stays `default=True` globally;
+   the quality gate passed (neutral, deepseek+anthropic × summary+insights). Implication accepted: the
+   next reprocess rewrites all outputs (same quality, different wording). Gemini remains its own
+   `gemini_context_cache_enabled=False`.
+2. **Cache-token telemetry (anthropic + gemini)**: their summarization cost path now forwards the raw
+   `response` to `emit_llm_cost_event`, so `token_accounting.extract_token_usage` surfaces the
+   cache-read tokens (anthropic `cache_read_input_tokens`, gemini `cached_content_token_count`) in the
+   `llm_cost` events. Verified live (anthropic 9000, gemini 90). Guard tests added.
+3. **Mega-bundle variants** (`summarize_mega_bundled` / `summarize_extraction_bundled`): the shared
+   builders (`prompting/megabundle.py`) now relocate the (internally-truncated) transcript to the
+   leading system block behind a `cache_transcript_prefix` param. Wired for the AUTO-CACHE providers
+   only (openai/deepseek/qwen/litellm/vllm + grok + mistral) — a single mega-bundle call is a free
+   reprocessing win there. Deliberately NOT wired for anthropic (cache-write premium) or gemini
+   (storage rent): caching a lone, never-re-read call is a net LOSS on those. Ollama has no
+   mega-bundle methods.
+
+Remaining from the original plan: the reprocessing / finale re-derivation run (#2 + #3) — scope TBD.
