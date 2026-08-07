@@ -37,6 +37,10 @@ from urllib.parse import urlparse
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.providers.common.transcript_cache import (
+    TRANSCRIPT_BLOCK_HEADER,
+    TRANSCRIPT_BLOCK_SEPARATOR,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +82,19 @@ def _bundled_gil_json(text: str) -> Optional[str]:
     """
     if "Return JSON only." not in text:
         return None
-    if "Insights:" in text and "Transcript (excerpt):" in text:
+    if "Insights:" in text and ("Transcript (excerpt):" in text or TRANSCRIPT_BLOCK_HEADER in text):
         # extract_quotes_bundled -> {index: [verbatim transcript snippet]} so quotes ground.
-        transcript = text.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
+        # RFC-111: the transcript may be relocated to a leading cache block (in the system message)
+        # instead of the "Transcript (excerpt):" span in the user message. Read whichever carries
+        # it — callers pass system+user combined so the relocated block is visible here.
+        if TRANSCRIPT_BLOCK_HEADER in text:
+            transcript = (
+                text.split(TRANSCRIPT_BLOCK_HEADER, 1)[1]
+                .split(TRANSCRIPT_BLOCK_SEPARATOR, 1)[0]
+                .strip()
+            )
+        else:
+            transcript = text.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
         snippet = transcript[:60].strip() or "Evidence from transcript."
         block = text.split("Insights:")[1].split("Return JSON only.")[0]
         idxs = re.findall(r"^\s*(\d+):", block, re.MULTILINE) or ["0"]
@@ -994,7 +1008,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # Determine response type: resolution, bundled GIL, speaker, GIL evidence, or summary
             resolution_json = _resolution_response_json(user_content)
-            bundled_json = _bundled_gil_json(user_content)
+            # RFC-111: pass system+user so a transcript relocated to the system block is visible.
+            bundled_json = _bundled_gil_json(f"{system_content}\n{user_content}")
             if resolution_json is not None:
                 response_data = {
                     "id": "chatcmpl-test-resolution",
@@ -1722,7 +1737,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             system = request_data.get("system", "")
 
             # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
-            bundled_json = _bundled_gil_json(user_content)
+            # RFC-111: include the system (may carry the relocated transcript cache block).
+            bundled_json = _bundled_gil_json(f"{_anthropic_system_text(system)}\n{user_content}")
             if bundled_json is not None:
                 response_data = {
                     "id": "msg-test-bundled",
