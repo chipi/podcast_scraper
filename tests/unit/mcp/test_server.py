@@ -126,3 +126,41 @@ def test_build_http_app_is_auth_wrapped(tmp_path) -> None:  # type: ignore[no-un
 
     app = build_http_app(tmp_path)
     assert isinstance(app, McpAuthMiddleware)  # the HTTP transport is gated
+
+
+def test_transport_security_admits_public_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: behind the edge the forwarded Host is the public name, not loopback.
+
+    FastMCP auto-enables DNS-rebind protection with loopback-only ``allowed_hosts`` when the
+    default ``host`` is 127.0.0.1, so the deployed server 421'd every request under
+    ``Host: mcp.closelistening.app``. ``_transport_security`` must derive the public host from
+    ``APP_MCP_RESOURCE_URL`` and admit it while still rejecting arbitrary hosts.
+    """
+    from mcp.server.transport_security import TransportSecurityMiddleware
+
+    from podcast_scraper.mcp.server import _transport_security
+
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", "https://mcp.closelistening.app")
+    monkeypatch.delenv("APP_MCP_ALLOWED_HOSTS", raising=False)
+    monkeypatch.delenv("APP_MCP_ALLOWED_ORIGINS", raising=False)
+
+    mw = TransportSecurityMiddleware(_transport_security())
+    assert mw._validate_host("mcp.closelistening.app") is True  # the public edge host
+    assert mw._validate_host("127.0.0.1:8000") is True  # container healthcheck still works
+    assert mw._validate_host("evil.example.com") is False  # protection intact
+
+
+def test_transport_security_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``APP_MCP_ALLOWED_HOSTS`` adds hosts even when no resource URL is set."""
+    from mcp.server.transport_security import TransportSecurityMiddleware
+
+    from podcast_scraper.mcp.server import _transport_security
+
+    monkeypatch.delenv("APP_MCP_RESOURCE_URL", raising=False)
+    monkeypatch.setenv("APP_MCP_ALLOWED_HOSTS", "mcp.example.test, alt.example.test")
+    monkeypatch.delenv("APP_MCP_ALLOWED_ORIGINS", raising=False)
+
+    mw = TransportSecurityMiddleware(_transport_security())
+    assert mw._validate_host("mcp.example.test") is True
+    assert mw._validate_host("alt.example.test") is True
+    assert mw._validate_host("127.0.0.1:8000") is True

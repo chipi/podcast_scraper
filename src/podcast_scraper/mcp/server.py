@@ -9,10 +9,58 @@ from __future__ import annotations
 
 import functools
 import logging
+import os
 from pathlib import Path
 from typing import Any, Callable, Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+# Loopback patterns are ALWAYS allowed so the container healthcheck (127.0.0.1) and local dev
+# keep working regardless of the public host config.
+_LOOPBACK_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*", "127.0.0.1", "localhost"]
+_LOOPBACK_ORIGINS = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"]
+
+
+def _transport_security() -> Any:
+    """SDK-level DNS-rebinding protection tuned for serving behind the public edge (RFC-112).
+
+    FastMCP defaults ``host`` to ``127.0.0.1`` and, seeing loopback, auto-enables DNS-rebind
+    protection whose ``allowed_hosts`` is loopback-only. Behind Caddy/Cloudflare the forwarded
+    ``Host`` is the public name (e.g. ``mcp.closelistening.app``), so every request would 421
+    ("Invalid Host header"). We keep protection ON but add the public host(s) — derived from
+    ``APP_MCP_RESOURCE_URL`` plus an explicit ``APP_MCP_ALLOWED_HOSTS`` override — alongside the
+    always-allowed loopback set. Origins fold in the same ``APP_MCP_ALLOWED_ORIGINS`` allow-list
+    the auth gate already honours. This is defence-in-depth: bearer-token auth + our own Origin
+    guard (:mod:`mcp.auth`) still run in front.
+    """
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    hosts = list(_LOOPBACK_HOSTS)
+    origins = list(_LOOPBACK_ORIGINS)
+
+    resource = os.environ.get("APP_MCP_RESOURCE_URL", "").strip()
+    if resource:
+        host = urlparse(resource).hostname
+        if host:
+            hosts += [host, f"{host}:*"]
+            origins += [f"https://{host}", f"https://{host}:*"]
+
+    for extra in os.environ.get("APP_MCP_ALLOWED_HOSTS", "").split(","):
+        extra = extra.strip()
+        if extra and extra not in hosts:
+            hosts.append(extra)
+
+    for origin in os.environ.get("APP_MCP_ALLOWED_ORIGINS", "").split(","):
+        origin = origin.strip()
+        if origin and origin not in origins:
+            origins.append(origin)
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=hosts,
+        allowed_origins=origins,
+    )
 
 
 def _safe(call: Callable[[], Any]) -> dict:
@@ -72,7 +120,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     from mcp.server.fastmcp import FastMCP
 
     ctx = CorpusContext.from_path(corpus_dir)
-    server = FastMCP("podcast-scraper")
+    server = FastMCP("podcast-scraper", transport_security=_transport_security())
     _register_core(server, ctx)
     _register_relational(server, ctx)
     _register_cil(server, ctx)
