@@ -178,8 +178,14 @@ def test_consent_page_discloses_redirect_and_offers_deny(
         },
     )
     # The consent screen must disclose WHERE the code goes so a look-alike client_name can't trick
-    # the user (DCR is open) — and must offer a way to decline.
-    assert "https://claude.ai" in page.text  # the redirect origin is shown
+    # the user (DCR is open) — and must offer a way to decline. We extract the disclosed origin and
+    # compare by EQUALITY (not a URL-substring `in` check, which trips CodeQL's
+    # py/incomplete-url-substring-sanitization heuristic — `==` is exactly the fix that rule wants).
+    import re
+
+    assert "redirected to" in page.text  # the "where the code goes" disclosure renders
+    disclosed = re.search(r"redirected to <b>([^<]+)</b>", page.text)
+    assert disclosed is not None and disclosed.group(1) == "https://claude.ai"  # the real origin
     assert "Deny" in page.text
     assert page.headers.get("X-Frame-Options") == "DENY"
 

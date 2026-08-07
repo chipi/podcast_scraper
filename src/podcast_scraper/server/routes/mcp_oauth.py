@@ -134,20 +134,31 @@ def _mint_and_redirect(
     scope: str,
     state: str,
 ) -> RedirectResponse:
-    """Mint a single-use code + 302 back to the client's redirect_uri (preserving state)."""
+    """Mint a single-use code + 302 back to the client's redirect_uri (preserving state).
+
+    We redirect ONLY to a URI taken from the client's **registered allow-list** — not the raw
+    request value. Re-resolving the target from stored client data (rather than reflecting the
+    request param) is the anti-open-redirect guard made explicit: an unregistered value can never
+    reach the ``Location`` header (defense-in-depth on top of ``_validate_authorize``).
+    """
+    client = app_oauth_server.get_client(_data_dir(request), client_id)
+    allowed = list((client or {}).get("redirect_uris", []))
+    if redirect_uri not in allowed:  # unreachable post-validation; fail closed regardless
+        raise HTTPException(status_code=400, detail="redirect_uri not registered")
+    safe_redirect = allowed[allowed.index(redirect_uri)]  # from stored data, not the request
     code = app_oauth_server.create_authorization_code(
         _data_dir(request),
         user_id=user_id,
         client_id=client_id,
-        redirect_uri=redirect_uri,
+        redirect_uri=safe_redirect,
         code_challenge=code_challenge,
         scope=scope,
     )
     params = {"code": code}
     if state:
         params["state"] = state
-    sep = "&" if "?" in redirect_uri else "?"
-    return RedirectResponse(url=f"{redirect_uri}{sep}{urlencode(params)}", status_code=302)
+    sep = "&" if "?" in safe_redirect else "?"
+    return RedirectResponse(url=f"{safe_redirect}{sep}{urlencode(params)}", status_code=302)
 
 
 def hidden_fields(**fields: str) -> str:
