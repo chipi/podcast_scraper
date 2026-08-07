@@ -121,6 +121,26 @@ describe('YourWeek section', () => {
     expect(wrapper.text()).toContain(en.home.yourWeekShowLess)
   })
 
+  it('loads once auth resolves AFTER mount (guards the async-auth race)', async () => {
+    setActivePinia(createPinia())
+    const prefs = useUserPreferencesStore()
+    vi.spyOn(prefs, 'hydrate').mockResolvedValue()
+    vi.spyOn(prefs, 'get').mockReturnValue(undefined)
+    vi.spyOn(prefs, 'set').mockResolvedValue()
+    const auth = useAuthStore() // signed OUT at mount time
+    const spy = vi.spyOn(api, 'getYourWeek').mockResolvedValue(RESP)
+    const wrapper = mount(YourWeek, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(wrapper.find('section').exists()).toBe(false) // hidden; no fetch while signed out
+    expect(spy).not.toHaveBeenCalled()
+
+    auth.user = { user_id: 'u_1', email: 'd@l', name: 'Dev' } // auth hydrates after mount
+    await flushPromises()
+    expect(spy).toHaveBeenCalled() // the watcher (re)loads on the transition
+    await flushPromises()
+    expect(wrapper.find('[data-testid="your-week"]').exists()).toBe(true)
+  })
+
   it('toggles layout inline and persists the preference', async () => {
     const { wrapper, setSpy } = mountIt({ signedIn: true, resp: RESP })
     await flushPromises()
