@@ -69,12 +69,12 @@ def _image_for(row: CatalogEpisodeRow) -> str | None:
     )
 
 
-def _enrich_items(root: Path, sections: list[dict[str, Any]]) -> None:
+def _enrich_items(catalog: list[CatalogEpisodeRow], sections: list[dict[str, Any]]) -> None:
     """Enrich each item from its catalog row: the episode/show art (``image_url``) for the card
     backdrop, and ``episode_title`` where the assembler omits it (the ``trending_in_your_corpus``
     items are topic-centric and carry none, which would render a blank card title). In-app ONLY —
-    the shared assembler and the email envelope contract stay untouched. One catalog scan, indexing
-    only the slugs actually present."""
+    the shared assembler and the email envelope contract stay untouched. ``catalog`` is the SAME
+    scan the assembler used this request (threaded through), so enrichment adds no extra scan."""
     slugs = {
         it.get("episode_slug")
         for s in sections
@@ -84,7 +84,7 @@ def _enrich_items(root: Path, sections: list[dict[str, Any]]) -> None:
     if not slugs:
         return
     by_slug: dict[str, CatalogEpisodeRow] = {}
-    for row in build_catalog_rows(root):
+    for row in catalog:
         slug = episode_slug(row.feed_id, row.episode_id, row.metadata_relative_path)
         if slug in slugs:
             by_slug[slug] = row
@@ -106,11 +106,12 @@ async def get_your_week(
     """
     now = int(time.time())
     root = _corpus_root(request)
+    catalog = build_catalog_rows(root)  # one scan, shared by the assembler + the item enrichment
     payload = app_digest_personal.assemble_digest_payload(
-        root, _data_dir(request), user.user_id, now
+        root, _data_dir(request), user.user_id, now, catalog=catalog
     )
     sections = payload["sections"] if payload else []
-    _enrich_items(root, sections)
+    _enrich_items(catalog, sections)
     return YourWeekResponse(
         sections=sections,
         period_label=_period_label(now),

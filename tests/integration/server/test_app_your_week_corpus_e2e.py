@@ -19,7 +19,12 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.server import app_comms_store, app_sessions, app_user_state
+from podcast_scraper.server import (
+    app_comms_store,
+    app_digest_sections,
+    app_sessions,
+    app_user_state,
+)
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_slugs import episode_slug
@@ -191,3 +196,21 @@ def test_your_week_route_backfills_trending_episode_title(tmp_path: Path) -> Non
     assert trend["episode_title"] == "Episode e1"  # backfilled — the assembler omits it
     assert trend["image_url"] == "https://img.example/fa.jpg"
     assert trend["graph_refs"] == [{"id": "topic:ai", "kind": "topic", "label": "AI"}]
+
+
+def test_new_in_follows_honors_passed_catalog(tmp_path: Path) -> None:
+    """The route threads ONE catalog into the assembler + enrichment (one scan, not two). Passing
+    an explicit catalog must be used verbatim — an empty one bypasses the scan entirely."""
+    root, data_dir = tmp_path / "corpus", tmp_path / "app"
+    user = get_or_create_user(
+        data_dir, provider="google", subject="s", email="u@gmail.com", name="U"
+    )
+    _write_ep(root, stem="0001", feed_id="fa", episode_id="e1", topics=[("topic:ai", "AI")])
+    app_user_state.add_subscription(data_dir, user.user_id, {"feed_id": "fa"})
+    # A real scan finds the followed episode...
+    assert app_digest_sections.new_in_follows_items(root, data_dir, user.user_id, limit=5)
+    # ...but an explicitly-passed empty catalog is used verbatim (no scan) → nothing.
+    assert (
+        app_digest_sections.new_in_follows_items(root, data_dir, user.user_id, limit=5, catalog=[])
+        == []
+    )

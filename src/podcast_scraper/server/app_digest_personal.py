@@ -35,6 +35,7 @@ from podcast_scraper.server import (
 )
 from podcast_scraper.server.app_resurfacing import select_due
 from podcast_scraper.server.app_user_store import get_user, list_users, User
+from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 
 logger = logging.getLogger(__name__)
 
@@ -76,13 +77,21 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
 
 
 def assemble_digest_payload(
-    root: Path, data_dir: Path, user_id: str, now: int
+    root: Path,
+    data_dir: Path,
+    user_id: str,
+    now: int,
+    *,
+    catalog: list[CatalogEpisodeRow] | None = None,
 ) -> dict[str, Any] | None:
     """Assemble the extractive, graph-carrying digest payload, or None when there's nothing to send.
 
     The revisit section is the user's due captures (source='user'), topped up — when under the cap —
     with GI editor's-picks from heard-but-uncaptured episodes (source='auto', #1416). So a user who
     captured nothing but listened still gets a non-empty digest.
+
+    ``catalog`` is an optional pre-built catalog the caller can pass so a single request does one
+    corpus scan (the /your-week route shares it with its item enrichment); the email path omits it.
     """
     highlights = app_user_state.get_highlights(data_dir, user_id)
     state = app_user_state.get_resurfacing_state(data_dir, user_id)
@@ -103,7 +112,7 @@ def assemble_digest_payload(
     if items:
         sections.append({"kind": "revisit", "items": items})
     new_in_follows = app_digest_sections.new_in_follows_items(
-        root, data_dir, user_id, limit=MAX_REVISIT_ITEMS
+        root, data_dir, user_id, limit=MAX_REVISIT_ITEMS, catalog=catalog
     )
     if new_in_follows:
         sections.append({"kind": "new_in_follows", "items": new_in_follows})
