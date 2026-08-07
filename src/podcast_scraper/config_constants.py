@@ -345,17 +345,20 @@ DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.1:8b"
 DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"
 
 # Grok (xAI) model defaults (Issue #1095)
-# Test defaults: beta model for dev/testing (grok-beta)
-# Production defaults: production model (grok-2)
+# grok-4.3 = xAI's current general "latest" tier (alias grok-latest), pinned for reproducibility.
+# It replaces grok-2 / grok-beta, which xAI has DEPRECATED and now 404s ("Model not found") — the
+# old defaults left the whole xAI path broken. Chosen (2026-08-07) over the grok-4.5 flagship
+# (~2.4x output cost + un-disableable reasoning tax) and grok-4.20-non-reasoning (dated snapshot):
+# 4.3 is cost-aligned with the other native flash tiers, keeps reasoning out of the JSON, and is the
+# current general model. Bump deliberately when xAI ships a newer general tier.
 #
-# For current pricing, see: https://console.x.ai or https://docs.x.ai
-# Key advantage: Real-time information access via X/Twitter integration
-# Note: Grok does NOT support transcription (no audio API)
-# Note: Model names should be verified with your xAI API access
-TEST_DEFAULT_GROK_SPEAKER_MODEL = "grok-beta"  # Beta model for development
-TEST_DEFAULT_GROK_SUMMARY_MODEL = "grok-beta"  # Beta model for development
-PROD_DEFAULT_GROK_SPEAKER_MODEL = "grok-2"  # Production model, best quality
-PROD_DEFAULT_GROK_SUMMARY_MODEL = "grok-2"  # Production model, best quality
+# For current models/pricing: https://console.x.ai or GET https://api.x.ai/v1/language-models
+# Key advantage: real-time information access via X integration.
+# Note: Grok does NOT support transcription (no audio API).
+TEST_DEFAULT_GROK_SPEAKER_MODEL = "grok-4.3"
+TEST_DEFAULT_GROK_SUMMARY_MODEL = "grok-4.3"
+PROD_DEFAULT_GROK_SPEAKER_MODEL = "grok-4.3"
+PROD_DEFAULT_GROK_SUMMARY_MODEL = "grok-4.3"
 
 # Validation constants
 VALID_WHISPER_MODELS = (

@@ -61,9 +61,9 @@ mistral_transcription_model: voxtral-mini-latest
 mistral_speaker_model: mistral-small-latest
 mistral_summary_model: mistral-small-latest
 
-# Grok — beta tier for tests.
-grok_speaker_model: grok-beta
-grok_summary_model: grok-beta
+# Grok — current general tier (grok-beta was deprecated / 404s).
+grok_speaker_model: grok-4.3
+grok_summary_model: grok-4.3
 
 # Gemini — flash-lite (TEST == PROD; pinned for transparency).
 gemini_transcription_model: gemini-2.5-flash-lite

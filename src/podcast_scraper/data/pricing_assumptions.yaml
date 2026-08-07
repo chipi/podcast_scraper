@@ -52,6 +52,11 @@ providers:
       gpt-4o-mini:
         input_cost_per_1m_tokens: 0.15
         output_cost_per_1m_tokens: 0.60
+      # gpt-4.1-mini (bakeoff_openai_gpt reference arm); OpenAI list price (verify on the pricing
+      # page + re-date on update).
+      gpt-4.1-mini:
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 1.60
       gpt-4o:
         input_cost_per_1m_tokens: 2.5
         output_cost_per_1m_tokens: 10.0
@@ -259,7 +264,10 @@ providers:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       grok-4.3:
-        # Judge model (#939); same tier as grok-4.
+        # Judge model (#939) + xAI pipeline default (2026-08-07). Kept at the grok-4 tier
+        # (3.00/15.00); the live xAI /v1/language-models price units suggest it may now be cheaper
+        # (prompt 12500 / completion 25000) — VERIFY the real $/1M against console.x.ai before
+        # trusting cost rollups on the grok arm.
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       grok-4-fast:
@@ -292,5 +300,58 @@ providers:
   vllm:
     text:
       default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+
+  # LiteLLM gateway (#1356). The gateway reports estimated_cost_usd=0 in the app's cost events and
+  # its response_cost is inconsistent, so WITHOUT these rows every litellm-routed call priced to $0
+  # (PA3 gap — the finale had to token×price offline, and it under-counted grounding). The gateway
+  # resolves an ALIAS to an upstream model that the app can't see, so rates are keyed by ALIAS and
+  # mirror the upstream model's rate. ESTIMATES — verify against the upstream provider's pricing
+  # page + re-date on update. An unlisted alias still returns {} (honest), not a wrong number.
+  litellm:
+    text:
+      # deepseek-v4-flash-0731 upstream (DeepSeek direct rate; OpenRouter/Novita may add a margin).
+      podcast-flash-0731:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+      homelab-flash:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+      # qwen3.7-flash / plus upstream.
+      homelab-qwen37-flash:
+        input_cost_per_1m_tokens: 0.05
+        output_cost_per_1m_tokens: 0.40
+      homelab-qwen37-plus:
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 1.20
+      # qwen3.6-35b-a3b upstream (open MoE — rough).
+      homelab-qwen:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.40
+
+  # Native Qwen provider (ADR-144). This namespace spans BOTH the paid OFFICIAL Alibaba Qwen API
+  # (DashScope / Model Studio — the cloud_qwen host) and free DGX-local serving, so rates are
+  # per-model. Cloud: qwen3.7-flash is Alibaba-hosted (source: the official Model Studio pricing
+  # page — ESTIMATE below, verify + re-date on update). DGX-local open weights (native qwen pointed
+  # at the vLLM slot) are electricity-only — $0/token at the API layer, real cost via DGX power
+  # monitoring (#923/#943). No `default` row on purpose: an unlisted qwen model returns {} (cost
+  # unknown, tokens still captured), which stays honest for a mixed cloud+local namespace.
+  qwen:
+    text:
+      # OFFICIAL Alibaba DashScope (cloud_qwen). ESTIMATE — verify on the Model Studio pricing page.
+      qwen3.7-flash:
+        input_cost_per_1m_tokens: 0.05
+        output_cost_per_1m_tokens: 0.40
+      # Reseller/other-host reference (Qwen3-Next-80B on a third-party host, e.g. DeepInfra ~$0.09/
+      # $0.78) — kept for a non-DashScope cloud swap; not used by cloud_qwen.
+      Qwen/Qwen3-Next-80B-A3B-Instruct:
+        input_cost_per_1m_tokens: 0.09
+        output_cost_per_1m_tokens: 0.78
+      # DGX-local open weights (native qwen -> vLLM slot): electricity-only.
+      Qwen/Qwen3-30B-A3B-Instruct-2507:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+      NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0

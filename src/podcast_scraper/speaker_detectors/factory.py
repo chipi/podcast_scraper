@@ -242,7 +242,7 @@ def create_speaker_detector(  # noqa: C901
             cfg = Config(
                 rss="",  # Dummy, not used for speaker detection (use alias)
                 speaker_detector_provider="grok",
-                grok_speaker_model=(params.model_name if params.model_name else "grok-2"),
+                grok_speaker_model=(params.model_name if params.model_name else "grok-4.3"),
                 grok_temperature=params.temperature if params.temperature is not None else 0.3,
                 grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
             )

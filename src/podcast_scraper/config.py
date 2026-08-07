@@ -2448,9 +2448,9 @@ class Config(BaseModel):
         description="Temperature for Grok generation (0.0-2.0, lower = more deterministic)",
     )
     grok_cleaning_model: str = Field(
-        default="grok-beta",
+        default="grok-4.3",
         alias="grok_cleaning_model",
-        description="Grok model for transcript cleaning (default: grok-beta)",
+        description="Grok cleaning model (default: grok-4.3; grok-beta deprecated).",
     )
     grok_cleaning_temperature: float = Field(
         default=0.2,

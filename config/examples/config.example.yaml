@@ -207,8 +207,8 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # Environment-based defaults:
 #   Test/Dev: llama-3.1-8b-instant (ultra-fast, free tier)
 #   Production: llama-3.3-70b-versatile (best quality, still 10x faster than other providers)
-# grok_speaker_model: grok-2  # Default: environment-based (grok-beta for test, grok-2 for prod)
-# grok_summary_model: grok-2  # Default: environment-based (grok-beta for test, grok-2 for prod)
+# grok_speaker_model: grok-4.3  # Default: grok-4.3 (grok-2/grok-beta deprecated)
+# grok_summary_model: grok-4.3  # Default: grok-4.3 (grok-2/grok-beta deprecated)
 # grok_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
 # grok_max_tokens: null  # Default: null (use model default)
 

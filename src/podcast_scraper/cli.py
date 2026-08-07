@@ -1975,13 +1975,13 @@ def _add_grok_arguments(parser: argparse.ArgumentParser) -> None:
         "--grok-speaker-model",
         type=str,
         default=None,
-        help="Grok speaker detection model (default: grok-2)",
+        help="Grok speaker detection model (default: grok-4.3)",
     )
     parser.add_argument(
         "--grok-summary-model",
         type=str,
         default=None,
-        help="Grok summarization model (default: grok-2)",
+        help="Grok summarization model (default: grok-4.3)",
     )
     parser.add_argument(
         "--grok-temperature",

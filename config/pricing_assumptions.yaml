@@ -264,7 +264,10 @@ providers:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       grok-4.3:
-        # Judge model (#939); same tier as grok-4.
+        # Judge model (#939) + xAI pipeline default (2026-08-07). Kept at the grok-4 tier
+        # (3.00/15.00); the live xAI /v1/language-models price units suggest it may now be cheaper
+        # (prompt 12500 / completion 25000) — VERIFY the real $/1M against console.x.ai before
+        # trusting cost rollups on the grok arm.
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       grok-4-fast:

@@ -154,7 +154,7 @@ class GrokProvider:
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
         # Cleaning model settings (cheaper model for cost efficiency)
-        self.cleaning_model = getattr(cfg, "grok_cleaning_model", "grok-beta")
+        self.cleaning_model = getattr(cfg, "grok_cleaning_model", "grok-4.3")
         self.cleaning_temperature = getattr(cfg, "grok_cleaning_temperature", 0.2)
 
         # Suppress verbose OpenAI SDK debug logs (same as OpenAI provider)

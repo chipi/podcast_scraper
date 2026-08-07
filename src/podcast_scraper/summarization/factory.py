@@ -413,7 +413,7 @@ def create_summarization_provider(  # noqa: C901
                 summary_provider="grok",
                 generate_summaries=True,  # Required for Grok provider initialization
                 generate_metadata=True,  # Required when generate_summaries=True
-                grok_summary_model=(params.model_name if params.model_name else "grok-2"),
+                grok_summary_model=(params.model_name if params.model_name else "grok-4.3"),
                 grok_temperature=params.temperature if params.temperature is not None else 0.3,
                 grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
                 grok_max_tokens=params.max_length if params.max_length else None,
