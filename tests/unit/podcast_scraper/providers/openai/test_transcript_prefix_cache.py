@@ -333,6 +333,39 @@ def test_summary_gi_kg_share_one_transcript_block() -> None:
     assert summary_sys[: len(prefix)] == gi_sys[: len(prefix)] == kg_sys[: len(prefix)]
 
 
+def test_quote_stages_are_transcript_first() -> None:
+    """The grounding quote stages (single + bundled) must also lead with the transcript block, so
+    the prod quote path (gil_evidence_quote_mode: bundled) joins the shared cross-stage cache."""
+    p = _provider(cache=True)
+    p._summarization_initialized = True
+    prefix = _cacheable_transcript_prefix(TRANSCRIPT)
+
+    def messages_for(kind: str) -> list:
+        client = Mock()
+        resp = Mock()
+        resp.choices = [Mock()]
+        resp.choices[0].message.content = (
+            '{"0": ["a quote"]}' if kind == "bundled" else '{"quotes": []}'
+        )
+        resp.choices[0].finish_reason = "stop"
+        resp.usage = Mock(prompt_tokens=100, completion_tokens=20)
+        resp.usage.prompt_tokens_details = Mock(cached_tokens=0)
+        resp.model = "gpt-4o-mini"
+        resp.id = "r"
+        client.chat.completions.create.return_value = resp
+        p.client = client
+        if kind == "bundled":
+            p.extract_quotes_bundled(TRANSCRIPT, ["insight one"])
+        else:
+            p.extract_quotes(TRANSCRIPT, "insight one")
+        return _first_messages(client)
+
+    for kind in ("single", "bundled"):
+        msgs = messages_for(kind)
+        assert msgs[0]["content"].startswith(prefix), f"{kind} quote stage not transcript-first"
+        assert TRANSCRIPT not in msgs[1]["content"]
+
+
 def test_relocation_normalises_surrounding_whitespace() -> None:
     """A transcript embedded raw (trailing newline) and the same transcript pre-stripped must yield
     the IDENTICAL block — otherwise stray whitespace silently splits the cross-stage cache."""

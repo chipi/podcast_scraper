@@ -2248,10 +2248,11 @@ class OpenAICompatibleProvider:
             def _make_api_call():
                 return self._chat_create(
                     model=self.summary_model,
-                    messages=[
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
+                    # RFC-111: transcript-first so the per-insight quote calls share one cached
+                    # prefix (system was empty; the transcript is embedded verbatim in `user`).
+                    messages=self._build_stage_messages(
+                        transcript=transcript, system_prompt=system, user_prompt=user
+                    ),
                     temperature=0.0,
                     **self._token_kwarg(config_constants.GI_QUOTE_RESPONSE_TOKENS),
                 )
@@ -2417,7 +2418,15 @@ class OpenAICompatibleProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
+        # RFC-111: relocate the CLIPPED transcript (the exact string the builder embeds) so the
+        # quote stage shares one cached prefix with summary/GI/KG. NB the clip (transcript_clip,
+        # ~50k) can differ from those stages' window, so sharing only holds for episodes under the
+        # clip; longer ones send a clipped block once (cold) — never wrong, just not shared.
+        clipped = transcript_clip(transcript)
+        user = extract_quotes_bundled_user(clipped, insight_texts)
+        messages = self._build_stage_messages(
+            transcript=clipped, system_prompt=system, user_prompt=user
+        )
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
@@ -2428,10 +2437,7 @@ class OpenAICompatibleProvider:
         def _make_api_call() -> Any:
             return self._chat_create(
                 model=self.summary_model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+                messages=messages,
                 temperature=0.0,
                 **self._token_kwarg(max_out),
             )
