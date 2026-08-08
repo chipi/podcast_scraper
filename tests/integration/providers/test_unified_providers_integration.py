@@ -16,6 +16,22 @@ from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
+def setUpModule():
+    """Restore the REAL ``openai`` SDK for this module's real-client assertions.
+
+    Many unit-test modules mock ``sys.modules['openai']`` at import and deliberately never stop
+    it (so ``find_spec('openai')`` stays happy without the SDK). In a single-process run that
+    Mock leaks into this module, where ``test_openai_providers_share_same_client`` needs the real
+    SDK to read ``client.api_key``. CI's xdist isolates workers so it only bit combined local
+    runs. ``openai`` is a core dependency (always installed), so reimporting it is safe.
+    """
+    import importlib
+    import sys
+
+    sys.modules.pop("openai", None)
+    importlib.import_module("openai")
+
+
 @pytest.mark.integration
 class TestUnifiedProvidersIntegration(unittest.TestCase):
     """Integration tests for unified providers working with components."""
