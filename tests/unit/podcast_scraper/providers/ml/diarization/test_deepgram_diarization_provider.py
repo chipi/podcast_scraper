@@ -255,30 +255,37 @@ class TestInitializeUsesGenerousTimeout:
     get the same generous SDK timeout override, not just the transcription provider."""
 
     def test_no_base_url_uses_generous_write_timeout(self) -> None:
+        # Inject a fake ``deepgram`` module (the SDK is an optional extra, absent in the unit-CI
+        # env) so ``initialize()``'s ``from deepgram import DeepgramClient`` resolves hermetically.
+        import sys
+
         from podcast_scraper import config_constants
 
-        with patch("deepgram.DeepgramClient") as fake_client:
-            fake_client.return_value = "HOSTED_CLIENT"
+        fake_deepgram = MagicMock()
+        with patch.dict(sys.modules, {"deepgram": fake_deepgram}):
             p = DeepgramDiarizationProvider(api_key="dg-key")
             p.initialize()
 
-        fake_client.assert_called_once_with(
+        fake_deepgram.DeepgramClient.assert_called_once_with(
             api_key="dg-key", timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS
         )
 
     def test_base_url_override_uses_generous_write_timeout(self) -> None:
+        import sys
+
         from podcast_scraper import config_constants
 
-        with (
-            patch("deepgram.DeepgramClient") as fake_client,
-            patch("deepgram.environment.DeepgramClientEnvironment") as fake_env_cls,
+        fake_deepgram = MagicMock()
+        fake_env_module = MagicMock()
+        fake_env_module.DeepgramClientEnvironment.return_value = "FAKE_ENV"
+        with patch.dict(
+            sys.modules,
+            {"deepgram": fake_deepgram, "deepgram.environment": fake_env_module},
         ):
-            fake_client.return_value = "HOSTED_CLIENT"
-            fake_env_cls.return_value = "FAKE_ENV"
             p = DeepgramDiarizationProvider(api_key="dg-key", api_base="http://self-hosted:8080")
             p.initialize()
 
-        fake_client.assert_called_once_with(
+        fake_deepgram.DeepgramClient.assert_called_once_with(
             api_key="dg-key",
             environment="FAKE_ENV",
             timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS,
