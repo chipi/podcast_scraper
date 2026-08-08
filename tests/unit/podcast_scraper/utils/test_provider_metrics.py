@@ -452,15 +452,16 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         )
         m = ProviderCallMetrics()
         pipe = Mock()
-        apply_gil_evidence_llm_call_metrics(
-            m,
-            pipe,
-            prompt_tokens=5000,
-            completion_tokens=200,
-            cfg=cfg,
-            provider_type="anthropic",
-            model="claude-haiku-4-5",
-        )
+        with patch("podcast_scraper.workflow.cost_monitoring.emit_llm_cost_event") as emit:
+            apply_gil_evidence_llm_call_metrics(
+                m,
+                pipe,
+                prompt_tokens=5000,
+                completion_tokens=200,
+                cfg=cfg,
+                provider_type="anthropic",
+                model="claude-haiku-4-5",
+            )
         # Cost computed + pushed into both call_metrics and pipeline_metrics.
         self.assertIsNotNone(m.estimated_cost)
         self.assertGreater(m.estimated_cost, 0.0)
@@ -469,6 +470,11 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         self.assertEqual(call.args, (5000, 200))
         self.assertIsNotNone(call.kwargs.get("cost_usd"))
         self.assertEqual(call.kwargs["cost_usd"], m.estimated_cost)
+        # BUG 2 repro: this call_metrics started with no cost, cfg/provider_type/model resolve a
+        # real price -> record_provider_call_cost's cost-missing backfill recursed into itself and
+        # emitted TWICE (a 9-episode real run logged 86 exact-duplicate stage=summarization events
+        # from exactly this path). One logical provider call must emit exactly one llm_cost event.
+        emit.assert_called_once()
 
     def test_apply_preserves_existing_call_metrics_cost(self):
         """If call_metrics.estimated_cost is already set, helper must not
@@ -508,7 +514,7 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
                 model="no-such-model",
                 stage="extract_quotes",
             )
-        emit.assert_called()
+        emit.assert_called_once()
         self.assertEqual(emit.call_args.kwargs.get("prompt_tokens"), 3000)
         self.assertEqual(emit.call_args.kwargs.get("completion_tokens"), 120)
 

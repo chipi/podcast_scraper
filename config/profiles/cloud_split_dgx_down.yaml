@@ -21,8 +21,12 @@ transcription_provider: groq
 groq_transcription_model: whisper-large-v3-turbo
 
 # --- Diarization: Deepgram (independent of the ASR provider; groq is now diarization-eligible) ---
+# Groq whisper does NOT self-diarize, so this deepgram pass is NECESSARY (one diarize-only call) —
+# unlike cloud_balanced where deepgram IS the ASR and self-diarizes (there we use diarize:false to
+# reuse it). Pin the diarization model so the choice is explicit (drift-check requires it).
 diarize: true
 diarization_provider: deepgram
+deepgram_diarization_model: nova-3-general
 deepgram_model: nova-3
 screenplay: true
 

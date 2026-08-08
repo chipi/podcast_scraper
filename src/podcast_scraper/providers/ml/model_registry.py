@@ -2039,21 +2039,22 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_balanced": ProfilePreset(
         name="cloud_balanced",
-        # Deepgram nova-3 does ASR AND diarization in ONE pass (the transcription self-diarizes and
-        # feeds the deepgram diarization_provider), so this is the cheapest speaker-attributed cloud
-        # path (~$0.0043/min for both) — no second audio pass. Replaces the old openai-whisper ASR +
-        # separate deepgram-diarize (two passes) + gemini LLM composition (2026-08-08).
+        # Deepgram nova-3 self-diarizes on the transcription call (diarize=True is always on), so
+        # a SEPARATE diarization_provider=deepgram would re-POST the audio — a redundant 2nd billed
+        # pass. Instead use ``no_diarization`` (diarize:false): the ``_apply_native_speaker_roster``
+        # path reuses the transcription's own speaker clustering (precomputed_diarization,
+        # cost_usd=0.0, NO extra call), exactly like MOSS. Net: ONE Deepgram pass for ASR+speakers
+        # (~$0.0043/min). (2026-08-08: the earlier deepgram_diarization_nova3 wiring double-billed.)
         transcription="deepgram_nova_3",
         summary="cloud_or_deepseek_flash",
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v25",
-        diarization="deepgram_diarization_nova3",
-        notes="Production cloud default: Deepgram nova-3 ASR+diarization (single pass) + "
-        "DeepSeek-v4-flash LLM (v2.5 finale cloud winner, via the LiteLLM gateway). Real "
-        "diarization, unlike cloud_openrouter (diarize:false). Needs DEEPGRAM_API_KEY + the "
-        "homelab LiteLLM gateway reachable.",
+        diarization="no_diarization",
+        notes="Production cloud default: Deepgram nova-3 single-pass ASR+diarization (speakers "
+        "reused from the transcription, no 2nd call) + DeepSeek-v4-flash LLM (v2.5 finale cloud "
+        "winner, via the LiteLLM gateway). Needs DEEPGRAM_API_KEY + the homelab gateway reachable.",
     ),
     "cloud_thin": ProfilePreset(
         name="cloud_thin",

@@ -233,6 +233,7 @@ def create_diarization_provider(
             api_key=api_key,
             model=getattr(cfg, "deepgram_diarization_model", "nova-3-general"),
             api_base=getattr(cfg, "deepgram_api_base", None),
+            cfg=cfg,
         )
         if hasattr(dg_provider, "initialize"):
             dg_provider.initialize()

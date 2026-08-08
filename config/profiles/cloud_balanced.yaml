@@ -37,12 +37,14 @@ profile: cloud_balanced
 # mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
 transcription_provider: deepgram
 deepgram_model: nova-3
-# Diarization is a core pipeline stage (#913). Deepgram nova-3 does ASR AND diarization in ONE
-# pass (self-diarized), so the diarize labels come free with the transcription call — ~$0.0043/min
-# for both, no second audio pass (was: openai-whisper ASR + separate deepgram diarize, two passes).
-diarize: true
-diarization_provider: deepgram
-deepgram_diarization_model: nova-3-general  # from registry: deepgram_diarization_nova3
+# Deepgram nova-3 self-diarizes on the transcription call (diarize=True is unconditional in the
+# transcription provider), tagging each segment with a ``speaker`` id. So we DO NOT run a separate
+# diarization pass (diarize:false) — a diarization_provider=deepgram would re-POST the whole audio, a
+# redundant SECOND billed pass. Instead the ``_apply_native_speaker_roster`` path reuses the
+# transcription's own speaker clustering (precomputed_diarization, cost_usd=0.0, no extra call),
+# exactly like MOSS. Net: ONE Deepgram audio pass for ASR + speakers (~$0.0043/min). screenplay
+# stays on because deepgram is a native-screenplay provider even with diarize:false.
+diarize: false
 screenplay: true
 
 # Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).

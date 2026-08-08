@@ -140,18 +140,39 @@ def check_artifact_invariants(
     return violations
 
 
+_ATTRIBUTION_EMPTY_MARKER = "attribution produced NOTHING"
+
+
 def log_artifact_invariants(
     artifact: Dict[str, Any],
     transcript_text: Optional[str] = None,
     turns: Optional[Sequence[Tuple[int, str]]] = None,
 ) -> List[str]:
-    """Check *artifact* and log every violation at ERROR. Returns the violations.
+    """Check *artifact* and log every violation. Returns the violations.
 
     Deliberately does not raise: a broken wire should be loud, but an episode that already cost a
     transcription should still emit what it has. The contract tests are what keep this from being
     a log nobody reads.
+
+    Every violation logs at ERROR *except* "attribution produced NOTHING" when ``turns`` is empty.
+    That message already names two possible causes (see check 3 above): a genuinely anonymised
+    transcript (every voice is ``SPEAKER_NN`` / no roster names — nothing for attribution to have
+    resolved against) versus the real GI attribution-never-ran bug (named turns WERE available and
+    attribution still produced zero speakers). ``turns`` (``named_turns`` upstream, built by
+    ``build_unverified_named_turns``) is empty in exactly the first case — it only contains markers
+    that already look like a person name, so an anonymised transcript yields no turns to give it.
+    Downgrading THAT combination to a warning stops a valid, privacy-scrubbed transcript from
+    logging as a pipeline error; every other violation (including this same message when named
+    turns *did* exist) still logs at ERROR.
     """
     violations = check_artifact_invariants(artifact, transcript_text, turns)
     for v in violations:
+        if _ATTRIBUTION_EMPTY_MARKER in v and not turns:
+            logger.warning(
+                "GI invariant (expected — anonymised transcript) [%s]: %s",
+                artifact.get("episode_id", "?"),
+                v,
+            )
+            continue
         logger.error("GI INVARIANT VIOLATED [%s]: %s", artifact.get("episode_id", "?"), v)
     return violations
