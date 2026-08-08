@@ -96,6 +96,33 @@ def test_umami_posts_event_when_configured(monkeypatch: pytest.MonkeyPatch) -> N
     assert captured["ua"]  # Umami drops UA-less events
 
 
+def test_umami_hostname_is_bare_host_from_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Umami wants a bare host; the env often carries the full resource URL (advisor M2)."""
+    import types
+
+    import podcast_scraper.mcp.telemetry as tele
+
+    monkeypatch.setenv("PODCAST_MCP_UMAMI_WEBSITE_ID", "site-abc")
+    monkeypatch.setenv("PODCAST_MCP_UMAMI_URL", "https://analytics.example/api/send")
+    monkeypatch.setenv("PODCAST_MCP_UMAMI_HOSTNAME", "https://mcp.closelistening.app")
+    captured: dict = {}
+
+    def fake_urlopen(req: object, timeout: object = None) -> None:
+        import json as _json
+
+        payload = _json.loads(req.data)["payload"]  # type: ignore[attr-defined]
+        captured["hostname"] = payload["hostname"]
+
+    monkeypatch.setattr(
+        tele.threading,
+        "Thread",
+        lambda target, name=None, daemon=None: types.SimpleNamespace(start=target),
+    )
+    monkeypatch.setattr(tele.urllib.request, "urlopen", fake_urlopen)
+    tele._emit_umami("corpus_trending", True)
+    assert captured["hostname"] == "mcp.closelistening.app"  # scheme stripped
+
+
 def test_metrics_endpoint_serves_prometheus_and_delegates_else() -> None:
     import asyncio
 

@@ -148,6 +148,11 @@ def _emit_umami(tool: str, ok: bool) -> None:
     if not website or not url:
         return
     hostname = os.environ.get(_UMAMI_HOSTNAME, "").strip() or "mcp"
+    # The env often carries the full resource URL (APP_MCP_RESOURCE_URL); Umami wants a bare host.
+    if "://" in hostname:
+        from urllib.parse import urlparse
+
+        hostname = urlparse(hostname).hostname or hostname
     body = json.dumps(
         {
             "type": "event",

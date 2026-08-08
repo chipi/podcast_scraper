@@ -165,7 +165,6 @@ services:
       # this empty is safe; set it (e.g. https://claude.ai) to lock the browser surface down.
       APP_MCP_ALLOWED_ORIGINS: ${APP_MCP_ALLOWED_ORIGINS:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
-      PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
       # o11y parity with the api (#1505). Traces: init_otel() + inbound ASGI spans + per-tool
       # spans (mcp/telemetry.py) export over http/protobuf to the homelab VictoriaTraces OTLP
       # ingest. Errors: its own GlitchTip DSN (per-surface split). Default `none`/empty = off;

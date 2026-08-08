@@ -21,9 +21,20 @@ mcp.player.example.com {
 	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
 	tls info@player.example.com
 
-	# Everything proxies to the MCP server. Streamable HTTP responses can stream (chunked / SSE),
-	# so disable response buffering (flush_interval -1) — otherwise a long tool call would buffer.
-	reverse_proxy 127.0.0.1:8009 {
-		flush_interval -1
+	# ONLY the MCP endpoint + the public RFC 9728 discovery doc are exposed. Everything else —
+	# notably /metrics (the o11y Prometheus registry, served UNGATED on :8009) — must NOT be public:
+	# Alloy scrapes :8009/metrics HOST-INTERNALLY over the docker network, never through this edge
+	# (advisor review H1, #1505). A bare `reverse_proxy` forwarded ALL paths incl. /metrics.
+	@mcp path /mcp /mcp/* /.well-known/*
+	handle @mcp {
+		# Streamable HTTP responses can stream (chunked / SSE), so disable response buffering
+		# (flush_interval -1) — otherwise a long tool call would buffer.
+		reverse_proxy 127.0.0.1:8009 {
+			flush_interval -1
+		}
+	}
+	# Default-deny everything else on this public surface (no /metrics, no stray paths).
+	handle {
+		respond "Not Found" 404
 	}
 }
