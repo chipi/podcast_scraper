@@ -185,6 +185,39 @@ def test_attribution_empty_severity_pinned_by_turns(
         assert "GI INVARIANT VIOLATED" not in matching[0].getMessage()
 
 
+@pytest.mark.parametrize(
+    "n_insights, expected_level, expect_error_marker",
+    [
+        # Few insights + 0 quotes: a transient grounding-call failure (APIConnectionError on quote
+        # extraction) or a legitimately weak episode — NOT the disconnection signature. The pipeline
+        # already warned + set gi_grounding_degraded. WARNING, not ERROR.
+        pytest.param(1, logging.WARNING, False, id="one-insight-transient-or-weak"),
+        pytest.param(4, logging.WARNING, False, id="below-disconnect-threshold"),
+        # The whole insight set ungrounded = the 513-insights-zero-quotes disconnection signature.
+        pytest.param(5, logging.ERROR, True, id="at-threshold-disconnection"),
+        pytest.param(20, logging.ERROR, True, id="many-insights-disconnection"),
+    ],
+)
+def test_grounding_empty_severity_pinned_by_insight_count(
+    caplog: pytest.LogCaptureFixture, n_insights, expected_level, expect_error_marker
+) -> None:
+    """Grounding 0-quotes severity: WARNING for the transient/weak signature (few insights),
+    ERROR only for the many-insights structural disconnection. A transient API failure on a
+    1-insight episode must not log a misleading 'grounder disconnected' ERROR (2026-08-08)."""
+    artifact = _artifact([_insight(f"i{i}", None) for i in range(n_insights)], [], [])
+    with caplog.at_level(logging.WARNING, logger="podcast_scraper.gi.invariants"):
+        violations = log_artifact_invariants(artifact, TRANSCRIPT, TURNS)
+
+    assert any("grounding produced NOTHING" in v for v in violations)
+    matching = [r for r in caplog.records if "grounding produced NOTHING" in r.getMessage()]
+    assert len(matching) == 1
+    assert matching[0].levelno == expected_level
+    if expect_error_marker:
+        assert "GI INVARIANT VIOLATED" in matching[0].getMessage()
+    else:
+        assert "GI INVARIANT VIOLATED" not in matching[0].getMessage()
+
+
 def test_anonymised_transcript_run_continues_no_raise() -> None:
     """A genuinely anonymised transcript must not raise — the episode already paid for
     transcription and should still emit what it has."""

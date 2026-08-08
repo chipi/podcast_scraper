@@ -74,8 +74,10 @@ def check_artifact_invariants(
     #    emits insights — this is the 513-insights-zero-quotes signature.
     if not quotes:
         violations.append(
-            f"grounding produced NOTHING: {len(insights)} insights, 0 quotes. The grounder is "
-            "disconnected (check the evidence-provider align: model_copy skips validators)"
+            f"grounding produced NOTHING: {len(insights)} insights, 0 quotes. Either the grounder "
+            "is disconnected (the 513-insights-zero-quotes signature — check the evidence-provider "
+            "align: model_copy skips validators) OR the grounding calls failed transiently "
+            "(e.g. APIConnectionError on quote extraction — see the GIL warnings above)"
         )
         return violations
 
@@ -141,6 +143,13 @@ def check_artifact_invariants(
 
 
 _ATTRIBUTION_EMPTY_MARKER = "attribution produced NOTHING"
+_GROUNDING_EMPTY_MARKER = "grounding produced NOTHING"
+# A structurally disconnected grounder leaves the WHOLE insight set ungrounded (the
+# "513-insights-zero-quotes" signature). Below this many insights, 0 quotes is far more likely a
+# transient grounding-call failure (an APIConnectionError the pipeline already logged + degraded on)
+# or a legitimately weak episode — not a wiring fault. Downgrade THAT to a warning; keep the
+# many-insights disconnection at ERROR (and a real config break still surfaces on richer episodes).
+_GROUNDING_DISCONNECT_MIN_INSIGHTS = 5
 
 
 def log_artifact_invariants(
@@ -166,10 +175,22 @@ def log_artifact_invariants(
     turns *did* exist) still logs at ERROR.
     """
     violations = check_artifact_invariants(artifact, transcript_text, turns)
+    n_insights = len(_nodes_of(artifact, "Insight"))
     for v in violations:
         if _ATTRIBUTION_EMPTY_MARKER in v and not turns:
             logger.warning(
                 "GI invariant (expected — anonymised transcript) [%s]: %s",
+                artifact.get("episode_id", "?"),
+                v,
+            )
+            continue
+        if _GROUNDING_EMPTY_MARKER in v and n_insights < _GROUNDING_DISCONNECT_MIN_INSIGHTS:
+            # Too few insights to be the disconnection signature — a transient grounding-call
+            # failure or a weak episode. The pipeline already warned + set gi_grounding_degraded;
+            # a genuine disconnect still ERRORs on richer episodes and shows in the run rollup.
+            logger.warning(
+                "GI invariant (grounding degraded — likely transient/weak, %d insights) [%s]: %s",
+                n_insights,
                 artifact.get("episode_id", "?"),
                 v,
             )
