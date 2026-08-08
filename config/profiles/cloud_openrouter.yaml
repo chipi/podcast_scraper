@@ -25,7 +25,7 @@ llm_pipeline_mode: staged
 litellm_api_base: http://homelab:4001/v1
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
-litellm_cleaning_model: podcast-flash-0731
+# litellm_cleaning_model omitted — the provider defaults cleaning to summary_model (governed).
 litellm_insight_model: podcast-flash-0731
 litellm_temperature: 0.3
 litellm_extra_body:

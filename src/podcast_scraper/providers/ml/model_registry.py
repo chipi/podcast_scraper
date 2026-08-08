@@ -1559,6 +1559,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         option_id="litellm_speaker_detector",
         provider="litellm",
         model="en_core_web_trf",
+        extra_settings={"speaker_llm_model": "podcast-flash-0731"},
         research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
         headline_metric="cloud_openrouter speaker detection — LLM naming + spaCy trf NER",
         measured_at="2026-08-07",
@@ -1569,6 +1570,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         option_id="qwen_speaker_detector",
         provider="qwen",
         model="en_core_web_trf",
+        extra_settings={"speaker_llm_model": "qwen3.7-flash"},
         research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
         headline_metric="cloud_qwen speaker detection — LLM naming via DashScope + spaCy trf NER",
         measured_at="2026-08-07",
@@ -1953,6 +1955,8 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # now (a further ADR-147-style extension), like openai_* — only the summary model is promoted.
     "litellm_summary_model",
     "qwen_summary_model",
+    "litellm_speaker_model",
+    "qwen_speaker_model",
     "kg_extraction_source",
     "kg_max_topics",
     "kg_max_entities",
@@ -2575,10 +2579,11 @@ def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
     ``ner_model``, which is the spaCy entity model) and is routed to ``{ns}_speaker_model``. vllm,
     openai and ollama are identical here — all three carry a spaCy id in ``model`` and the LLM tag
     in ``speaker_llm_model`` — so a DGX naming stage materializes its real local model instead of
-    falling to a cloud/Config default (ADR-147).
+    falling to a cloud/Config default (ADR-147). litellm/qwen join them (2026-08) so the v2.5 cloud
+    winners' ``{litellm,qwen}_speaker_model`` is governed, not hand-authored.
     """
     ns = ner.provider
-    if ns not in ("openai", "vllm", "ollama"):
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen"):
         return
     llm = (ner.extra_settings or {}).get("speaker_llm_model")
     if isinstance(llm, str) and llm:

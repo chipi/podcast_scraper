@@ -36,7 +36,7 @@ qwen_api_base: ${DASHSCOPE_API_BASE:-https://dashscope-intl.aliyuncs.com/compati
 qwen_api_key_env: DASHSCOPE_API_KEY
 qwen_summary_model: qwen3.7-flash
 qwen_speaker_model: qwen3.7-flash
-qwen_cleaning_model: qwen3.7-flash
+# qwen_cleaning_model omitted — the provider defaults cleaning to summary_model (governed).
 qwen_insight_model: qwen3.7-flash
 qwen_temperature: 0.3
 qwen_extra_body:
