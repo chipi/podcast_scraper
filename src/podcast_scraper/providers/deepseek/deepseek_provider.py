@@ -155,5 +155,8 @@ class DeepSeekProvider(OpenAICompatibleProvider):
         empty; capped at DeepSeek's 8192 chat limit. On deepseek-chat this is a plain passthrough.
         """
         if self._is_reasoning_model:
-            n = min(n + _REASONING_TOKEN_HEADROOM, _DEEPSEEK_MAX_TOKENS)
-        return {"max_tokens": n}
+            n = n + _REASONING_TOKEN_HEADROOM
+        # DeepSeek's API hard-caps chat output at 8192 for EVERY model (not just reasoning). The
+        # bundled/summary paths can request up to llm_bundled_max_output_tokens (16384), so clamp
+        # here — the single token-kwarg chokepoint — or the API 400s / truncates (#1504 regression).
+        return {"max_tokens": min(n, _DEEPSEEK_MAX_TOKENS)}

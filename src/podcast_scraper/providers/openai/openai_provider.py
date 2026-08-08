@@ -1305,13 +1305,8 @@ class OpenAICompatibleProvider:
                 retry_with_metrics,
             )
 
-            # Newer OpenAI models (o1/o3/gpt-5 series) require max_completion_tokens.
-            _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
-            _token_kwarg = (
-                {"max_completion_tokens": max_length}
-                if _uses_completion_tokens
-                else {"max_tokens": max_length}
-            )
+            # Token-limit kwarg via the single helper (o1/o3/gpt-5 rename + provider caps).
+            _token_kwarg = self._token_kwarg(max_length)
 
             # RFC-115 Phase 1: relocate the transcript to a leading, cacheable system block
             # (default on). ``text`` is the cleaned transcript rendered verbatim into user_prompt.
@@ -1544,11 +1539,9 @@ class OpenAICompatibleProvider:
         )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
-        _token_kwarg: Dict[str, Any] = (
-            {"max_completion_tokens": max_out}
-            if _uses_completion_tokens
-            else {"max_tokens": max_out}
-        )
+        # Route through the single token-kwarg helper so provider caps (e.g. DeepSeek's 8192
+        # hard limit) apply on the bundled paths too — not just the o1/o3/gpt-5 rename (#1504).
+        _token_kwarg: Dict[str, Any] = self._token_kwarg(max_out)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1648,11 +1641,9 @@ class OpenAICompatibleProvider:
         )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
-        _token_kwarg: Dict[str, Any] = (
-            {"max_completion_tokens": max_out}
-            if _uses_completion_tokens
-            else {"max_tokens": max_out}
-        )
+        # Route through the single token-kwarg helper so provider caps (e.g. DeepSeek's 8192
+        # hard limit) apply on the bundled paths too — not just the o1/o3/gpt-5 rename (#1504).
+        _token_kwarg: Dict[str, Any] = self._token_kwarg(max_out)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1735,12 +1726,9 @@ class OpenAICompatibleProvider:
         )
 
         max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
-        _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
-        _token_kwarg: Dict[str, Any] = (
-            {"max_completion_tokens": max_out}
-            if _uses_completion_tokens
-            else {"max_tokens": max_out}
-        )
+        # Route through the single token-kwarg helper so provider caps (e.g. DeepSeek's 8192
+        # hard limit) apply on the bundled paths too — not just the o1/o3/gpt-5 rename (#1504).
+        _token_kwarg: Dict[str, Any] = self._token_kwarg(max_out)
 
         tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
         system_prompt = render_prompt(
