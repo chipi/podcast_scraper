@@ -272,9 +272,10 @@ jobs:
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER_API}"
             fi
-            # MCP-surface backend DSN (#1505) → its own GlitchTip project. Written to .env.player
-            # (the mcp service isn't on the tmpfs-secret shim); empty until the project exists.
-            echo "PODCAST_SENTRY_DSN_MCP=${PROD_SENTRY_DSN_PLAYER_MCP}"
+            # MCP-surface backend DSN (#1505). Falls back to the player API DSN so MCP errors land
+            # in the shared GlitchTip project tagged `component=mcp` + `environment` (no new project
+            # / UI needed) until a dedicated PROD_SENTRY_DSN_PLAYER_MCP is set to repoint it.
+            echo "PODCAST_SENTRY_DSN_MCP=${PROD_SENTRY_DSN_PLAYER_MCP:-${PROD_SENTRY_DSN_PLAYER_API}}"
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
             # Both empty -> the bundle's Umami injection stays a no-op.
