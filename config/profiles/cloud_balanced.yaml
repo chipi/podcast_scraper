@@ -86,6 +86,36 @@ litellm_extra_body:
       - deepinfra
     allow_fallbacks: true
 litellm_verify_served_model: true
+
+# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient homelab:4001 ->
+# OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
+# exhausted retry_with_metrics' short default window (~12s: 4 tries, 0.9s->2s->4s) before the
+# operator could react, and the whole grounding pass for that insight was lost. Two layers, in
+# order:
+#   1. HOLD — retry the gateway itself for minutes before giving up. Config-driven (config.py
+#      llm_retry_*, resolved in utils/llm_resilience.py resolve_resilience) so only THIS profile
+#      pays the long window; the Field defaults (3 / 1.0s / 30.0s) are unchanged, so tests and
+#      every other profile keep today's short window.
+#   2. FAILOVER — if the gateway is still down after that, fail over to DIRECT DeepSeek (bypasses
+#      homelab:4001 entirely, hits api.deepseek.com), via the RFC-106 ordered failover chain
+#      (registry-governed ``summary_fallback_providers`` — see the ``deepseek_native_flash``
+#      StageOption + ``cloud_balanced.summary_fallback`` in model_registry.py; materialized into the
+#      registry block near the bottom of this file, not hand-authored here). The same wrapped
+#      provider backs summary + quote + entailment roles here since quote_extraction_provider /
+#      entailment_provider both already match summary_provider (litellm) above.
+llm_retry_max_retries: 12
+llm_retry_initial_delay_seconds: 2.0
+llm_retry_max_delay_seconds: 120.0
+
+# deepseek_summary_model / deepseek_extra_body are NOT registry-governed (only the litellm/qwen/
+# vllm/ollama summary wire models are — see REGISTRY_GOVERNED_FIELDS), so the fallback tier's model
+# + reasoning-off knob are hand-authored here, mirroring bakeoff_deepseek_native_flash.yaml.
+# deepseek_api_base omitted -> defaults to https://api.deepseek.com (direct, no gateway).
+# Key from DEEPSEEK_API_KEY env (auto-loaded by the deepseek_api_key field validator).
+deepseek_summary_model: deepseek-v4-flash
+deepseek_extra_body:
+  reasoning_effort: none
+
 preprocessing_enabled: true
 
 # Pipeline mode — mega_bundled (#646 real-episode validation):
@@ -223,3 +253,4 @@ transcription_speech_coverage_min: 0.0
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
 ner_model: en_core_web_trf
+summary_fallback_providers: [deepseek]

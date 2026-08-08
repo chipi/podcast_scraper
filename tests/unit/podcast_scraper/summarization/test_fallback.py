@@ -418,6 +418,64 @@ class TestWrapWithFallbackIfConfigured:
         assert isinstance(wrapped, FallbackAwareSummarizationProvider)
 
 
+class TestLiteLlmGatewayOutageFailsOverToDirectDeepseek:
+    """RFC-111 (#1482) repro: the litellm gateway (homelab:4001 -> OpenRouter) drops the
+    connection — an APIConnectionError, not a model-side 503 — and cloud_balanced's
+    ``summary_fallback_providers: [deepseek]`` must route to DIRECT DeepSeek (bypassing the
+    dead gateway entirely). No network: both providers are mocked.
+    """
+
+    def test_gateway_connection_error_routes_to_direct_deepseek(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        primary = _FakeProvider(
+            "litellm",
+            raises=ConnectionError("APIConnectionError: connection to homelab:4001 failed"),
+        )
+        deepseek = _FakeProvider("deepseek")
+        _patch_factory(monkeypatch, deepseek)
+
+        cfg = MagicMock()
+        cfg.summary_provider = "litellm"
+        cfg.summary_fallback_providers = ["deepseek"]
+        cfg.degradation_policy = None
+        cfg.resilience_run_context = "serve"
+
+        wrapped = wrap_with_fallback_if_configured(primary, cfg)
+        assert isinstance(wrapped, FallbackAwareSummarizationProvider)
+
+        metrics = _FakeMetrics()
+        result = wrapped.summarize("transcript text", pipeline_metrics=metrics)
+
+        assert result == {"summary": "from-deepseek"}
+        assert primary.summarize_calls  # gateway was tried first
+        assert deepseek.summarize_calls  # then direct deepseek served it
+        assert metrics.calls == ["deepseek"]
+
+    def test_gil_evidence_also_fails_over_on_gateway_outage(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The same wrapped instance backs quote/entailment when their provider config matches
+        summary_provider (cloud_balanced pins quote_extraction_provider: litellm too) — a gateway
+        outage must not silently drop grounding."""
+        primary = _FakeProvider("litellm", raises=ConnectionError("gateway unreachable"))
+        deepseek = _FakeProvider("deepseek")
+        _patch_factory(monkeypatch, deepseek)
+
+        cfg = MagicMock()
+        cfg.summary_provider = "litellm"
+        cfg.summary_fallback_providers = ["deepseek"]
+        cfg.degradation_policy = None
+        cfg.resilience_run_context = "serve"
+
+        wrapped = wrap_with_fallback_if_configured(primary, cfg)
+        metrics = _FakeMetrics()
+        result = wrapped.extract_quotes("transcript", "insight", pipeline_metrics=metrics)
+
+        assert result == [{"text": "quote-from-deepseek", "start": 0, "end": 10}]
+        assert metrics.calls == ["deepseek"]
+
+
 class TestRegistryChainSourcing:
     """RFC-106 (#1198): the registry-emitted ``summary_fallback_providers`` is the source of truth
     for the LLM failover ladder; the legacy ``degradation_policy`` is back-compat only."""

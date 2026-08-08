@@ -143,8 +143,16 @@ class TestProfilePresets:
         s = resolve_profile_to_settings("eval_default", dgx_tailnet_host="h")
         assert s["dgx_diarize_model"] == "pyannote/speaker-diarization-community-1"
         assert "diarization_model" not in s and "deepgram_diarization_model" not in s
-        # cloud_balanced -> standalone Deepgram pass
+        # cloud_balanced -> RFC-111 (#1482): single-pass Deepgram self-diarizes (diarize:false,
+        # no_diarization backend), so it no longer carries a diarization model at all.
         s = resolve_profile_to_settings("cloud_balanced", dgx_tailnet_host="h")
+        assert (
+            "diarization_model" not in s
+            and "dgx_diarize_model" not in s
+            and "deepgram_diarization_model" not in s
+        )
+        # cloud_thin -> standalone Deepgram diarization pass (still on deepgram_diarization_nova3)
+        s = resolve_profile_to_settings("cloud_thin", dgx_tailnet_host="h")
         assert s["deepgram_diarization_model"] == "nova-3-general"
         assert "diarization_model" not in s and "dgx_diarize_model" not in s
 

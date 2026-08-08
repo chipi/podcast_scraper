@@ -77,8 +77,13 @@ def test_airgapped_dgx_prod_ladders_never_reach_cloud() -> None:
 
 
 def test_a_preset_with_no_ladder_emits_no_fallback_keys() -> None:
-    """cloud_balanced carries no ``*_fallback`` tuples, so the resolver must not invent chains."""
-    resolved = resolve_profile_to_settings("cloud_balanced")
+    """cloud_qwen carries no ``*_fallback`` tuples, so the resolver must not invent chains.
+
+    (Was cloud_balanced until RFC-111 (#1482) gave it a ``summary_fallback`` — a homelab gateway
+    CONNECTION outage now fails over to direct DeepSeek; see
+    ``test_cloud_balanced_summary_ladder_fails_over_to_direct_deepseek`` below.)
+    """
+    resolved = resolve_profile_to_settings("cloud_qwen")
     for key in (
         "transcription_fallback_providers",
         "diarization_fallback_providers",
@@ -102,6 +107,17 @@ def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
     assert resolved["summary_fallback_providers"] == [
         get_summary_option("ollama_qwen35_35b").provider,
     ]
+
+
+def test_cloud_balanced_summary_ladder_fails_over_to_direct_deepseek() -> None:
+    """RFC-111 (#1482): a homelab:4001 LiteLLM gateway CONNECTION outage (not a model-side 503)
+    must fail over to DIRECT DeepSeek (api.deepseek.com), bypassing the dead gateway entirely —
+    same model (deepseek-v4-flash) as the litellm-routed primary, just a different wire path."""
+    resolved = resolve_profile_to_settings("cloud_balanced")
+    assert resolved["summary_fallback_providers"] == [
+        get_summary_option("deepseek_native_flash").provider,
+    ]
+    assert get_summary_option("deepseek_native_flash").provider == "deepseek"
 
 
 # --- allow_cloud_fallback fail-closed (RFC-106 increment 3) ---------------------------------------

@@ -689,6 +689,75 @@ class TestRetryWithMetricsPerStageAttribution(unittest.TestCase):
         self.assertIn("other", pm.llm_retry_reasons)
 
 
+class TestSetBreakerConfigFromCfgResilienceProfile(unittest.TestCase):
+    """set_breaker_config_from_cfg's resolved _resilience_profile reflects cfg's llm_retry_*
+    knobs (RFC-111 gateway-outage follow-up, #1482): a prod cfg with a long hold window must
+    resolve to that window, and the default cfg must resolve to today's unchanged behaviour
+    (3 retries / 1.0s / 30.0s) — asserted on the RESOLVED values only, never wall-clock sleep.
+    """
+
+    def test_default_cfg_resolves_unchanged_profile(self):
+        from podcast_scraper import config as cfg_mod
+
+        cfg = cfg_mod.Config(
+            transcription_provider="whisper",
+            summary_provider="litellm",
+            transcribe_missing=False,
+            generate_summaries=True,
+        )
+        m = ProviderCallMetrics()
+        m.set_provider_name("litellm")
+        m.set_breaker_config_from_cfg(cfg)
+        profile = m._resilience_profile
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile.max_retries, 3)
+        self.assertEqual(profile.initial_delay, 1.0)
+        self.assertEqual(profile.max_delay, 30.0)
+
+    def test_prod_cfg_resolves_long_hold_window(self):
+        from podcast_scraper import config as cfg_mod
+
+        cfg = cfg_mod.Config(
+            transcription_provider="whisper",
+            summary_provider="litellm",
+            transcribe_missing=False,
+            generate_summaries=True,
+            llm_retry_max_retries=12,
+            llm_retry_initial_delay_seconds=2.0,
+            llm_retry_max_delay_seconds=120.0,
+        )
+        m = ProviderCallMetrics()
+        m.set_provider_name("litellm")
+        m.set_breaker_config_from_cfg(cfg)
+        profile = m._resilience_profile
+        self.assertEqual(profile.max_retries, 12)
+        self.assertEqual(profile.initial_delay, 2.0)
+        self.assertEqual(profile.max_delay, 120.0)
+
+    def test_resolved_profile_drives_retry_with_metrics_max_retries(self):
+        """End-to-end: the cfg-resolved profile is what retry_with_metrics actually uses (the
+        override mechanism the whole feature depends on, provider_metrics.py ~line 522)."""
+        func = Mock(side_effect=Exception("boom"))
+        from podcast_scraper import config as cfg_mod
+
+        cfg = cfg_mod.Config(
+            transcription_provider="whisper",
+            summary_provider="litellm",
+            transcribe_missing=False,
+            generate_summaries=True,
+            llm_retry_max_retries=1,
+            llm_retry_initial_delay_seconds=0.001,
+            llm_retry_max_delay_seconds=0.001,
+        )
+        m = ProviderCallMetrics()
+        m.set_provider_name("litellm")
+        m.set_breaker_config_from_cfg(cfg)
+        with patch("time.sleep"):
+            with self.assertRaises(Exception):
+                retry_with_metrics(func, max_retries=99, metrics=m)  # call-site value overridden
+        self.assertEqual(func.call_count, 2)  # initial + 1 retry (cfg-resolved), not 100
+
+
 class TestTranscriptionModelForCfg(unittest.TestCase):
     """Resolver must name the ACTUAL model for DGX-served ASR, not fall through to the local
     ``whisper_model`` default (base.en) — the bug that stamped base.en on every DGX run's manifest.

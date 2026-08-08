@@ -894,6 +894,40 @@ class Config(BaseModel):
             "Sized to outlast typical Gemini Flash 503 spikes (~30-60s)."
         ),
     )
+    # ------------------------------------------------------------------
+    # General LLM retry window (provider-agnostic; cfg-driven override of the per-(provider,model)
+    # ResilienceProfile in utils/llm_resilience.py — see resolve_resilience()). Defaults match
+    # DEFAULT_PROFILE exactly so nothing changes (incl. test duration) unless a profile opts in.
+    # A gateway-connection outage (homelab LiteLLM unreachable) needs MINUTES of patience in prod,
+    # but tests must keep the short window — hence config-driven, not a code constant. Any field
+    # set to something other than its default here overrides the resolved profile for that field
+    # only, composing with (not replacing) per-model overrides like the gemini-flash-lite profile.
+    # ------------------------------------------------------------------
+    llm_retry_max_retries: int = Field(
+        default=3,
+        alias="llm_retry_max_retries",
+        ge=0,
+        le=100,
+        description=(
+            "Max retries after the first LLM call fails, across every provider (overrides the "
+            "resolved per-model ResilienceProfile when set to a non-default value). Prod profiles "
+            "surviving a gateway outage set this high (e.g. 12) to hold for minutes."
+        ),
+    )
+    llm_retry_initial_delay_seconds: float = Field(
+        default=1.0,
+        alias="llm_retry_initial_delay_seconds",
+        ge=0.0,
+        le=600.0,
+        description="First backoff delay (seconds) before the second LLM retry (cfg override).",
+    )
+    llm_retry_max_delay_seconds: float = Field(
+        default=30.0,
+        alias="llm_retry_max_delay_seconds",
+        ge=0.0,
+        le=1800.0,
+        description="Cap (seconds) on exponential backoff between LLM retries (cfg override).",
+    )
     rss_conditional_get: bool = Field(
         default=False,
         alias="rss_conditional_get",
@@ -2987,9 +3021,12 @@ class Config(BaseModel):
         ),
     )
     gi_max_insights: int = Field(
-        # The registry's measured ceiling (50), not the old 20. n=12/20 were never derived from
-        # anything; the gates trim filler, so the cap is not what protects quality.
-        default=config_constants.GI_DEFAULT_MAX_INSIGHTS,
+        # cloud_balanced (the researched no-profile pipeline, see
+        # test_the_config_default_is_not_a_trap) generates 12 and lets the value gate trim filler —
+        # the cap is not what protects quality, so a low floor does not starve real episodes.
+        # config_constants.GI_DEFAULT_MAX_INSIGHTS (50) stays separate: it is the base for
+        # duration_scaled_max_insights' 30-min scaling curve, not this static default.
+        default=12,
         ge=1,
         le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
@@ -3027,7 +3064,7 @@ class Config(BaseModel):
         ),
     )
     gi_insight_dedupe_threshold: float = Field(
-        default=0.75,
+        default=0.72,
         ge=0.0,
         le=1.0,
         alias="gi_insight_dedupe_threshold",

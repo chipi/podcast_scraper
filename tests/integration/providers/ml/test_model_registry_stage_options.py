@@ -187,10 +187,13 @@ class TestResolveProfileToSettings:
         assert settings["summary_provider"] == "ollama"
         assert settings["summary_model"] == "qwen3.5:35b"
 
-    def test_cloud_balanced_resolves_to_gemini_flash_lite(self) -> None:
+    def test_cloud_balanced_resolves_to_litellm_podcast_flash(self) -> None:
+        """RFC-111 (#1482): summary moved onto litellm (podcast-flash-0731) so the
+        RFC-106 failover chain can cover it alongside quote/entailment/speaker
+        roles on the same wrapped gateway provider."""
         settings = resolve_profile_to_settings("cloud_balanced")
-        assert settings["summary_provider"] == "gemini"
-        assert settings["summary_model"] == "gemini-2.5-flash-lite"
+        assert settings["summary_provider"] == "litellm"
+        assert settings["summary_model"] == "podcast-flash-0731"
 
     def test_resolved_settings_carry_research_refs(self) -> None:
         """Every resolved profile must surface the research provenance for traceability."""

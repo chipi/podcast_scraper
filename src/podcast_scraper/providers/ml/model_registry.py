@@ -1015,6 +1015,21 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         measured_at="2026-08-07",
         tier="primary",
     ),
+    # RFC-111 (#1482) gateway-outage fallback tier: DIRECT to api.deepseek.com, bypassing the
+    # homelab:4001 LiteLLM gateway entirely. Root-caused 2026-08-07 — a gateway CONNECTION failure
+    # (APIConnectionError, not a model-side 503) exhausted the short retry window before the
+    # operator could react. Same model as the litellm-routed primary above (deepseek-v4-flash), just
+    # a different wire path, so a fallover doesn't also change WHICH model produced the output.
+    "deepseek_native_flash": StageOption(
+        stage="summary",
+        option_id="deepseek_native_flash",
+        provider="deepseek",
+        model="deepseek-v4-flash",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="Direct-DeepSeek fallback tier for a homelab gateway outage (RFC-111)",
+        measured_at="2026-08-07",
+        tier="fallback",
+    ),
     # Native first-party Qwen (DashScope) — the v2.5 finale flash arm; cloud counterpart of the
     # DGX-local qwen. Wire model ``qwen3.7-flash`` -> governed via ``qwen_summary_model`` (ADR-147).
     "cloud_qwen_flash": StageOption(
@@ -2052,9 +2067,13 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v25",
         diarization="no_diarization",
+        # RFC-111 (#1482): a homelab:4001 gateway CONNECTION outage must fail over to direct
+        # DeepSeek (same model, different wire path) rather than lose the whole LLM stack.
+        summary_fallback=("deepseek_native_flash",),
         notes="Production cloud default: Deepgram nova-3 single-pass ASR+diarization (speakers "
         "reused from the transcription, no 2nd call) + DeepSeek-v4-flash LLM (v2.5 finale cloud "
-        "winner, via the LiteLLM gateway). Needs DEEPGRAM_API_KEY + the homelab gateway reachable.",
+        "winner, via the LiteLLM gateway). Needs DEEPGRAM_API_KEY + the homelab gateway reachable "
+        "(RFC-111: falls over to direct api.deepseek.com if the gateway connection itself fails).",
     ),
     "cloud_thin": ProfilePreset(
         name="cloud_thin",

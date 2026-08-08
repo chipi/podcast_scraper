@@ -52,7 +52,9 @@ class ProviderCallMetrics:
         through every :func:`retry_with_metrics` call site — they already call this. The per-model
         profile (retries/backoff, and the breaker's own threshold/cooldown) is resolved here from
         ``_provider_name`` + the summary model, so gemini-2.5-flash-lite backs off harder than a
-        heavier model WITHOUT any call-site changes.
+        heavier model WITHOUT any call-site changes. ``cfg``'s general ``llm_retry_*`` knobs then
+        override the resolved profile field-by-field when set (see ``resolve_resilience``), so a
+        prod profile can hold/retry for minutes through a gateway outage without a code change.
         """
         if cfg is None:
             return
@@ -61,7 +63,7 @@ class ProviderCallMetrics:
         from .llm_resilience import resolve_resilience
 
         model = getattr(cfg, f"{self._provider_name}_summary_model", None)
-        profile = resolve_resilience(self._provider_name, model)
+        profile = resolve_resilience(self._provider_name, model, cfg)
         self._resilience_profile = profile
 
         if not getattr(cfg, "llm_circuit_breaker_enabled", False):
