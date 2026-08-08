@@ -2043,7 +2043,7 @@ class TestAddArgumentGroups(unittest.TestCase):
         self.assertIsNotNone(transcription_action)
         self.assertEqual(
             transcription_action.choices,
-            ["whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"],
+            ["whisper", "openai", "gemini", "mistral", "deepgram", "groq", "tailnet_dgx_whisper"],
         )
         self.assertEqual(transcription_action.default, "whisper")
 
