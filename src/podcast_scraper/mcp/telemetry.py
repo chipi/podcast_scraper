@@ -14,6 +14,7 @@ leave the process — never query args, corpus content, or transcripts.
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import logging
 import os
@@ -26,6 +27,12 @@ from typing import Any, Iterator, Optional
 from .auth import current_mcp_user
 
 _LOGGER = logging.getLogger("podcast_scraper.mcp.tool")
+
+# Umami sender: a SMALL bounded pool (not one daemon thread per call — advisor L1). A semaphore
+# caps queued+running sends so a hung/slow analytics host can't accumulate threads under load; past
+# the cap we DROP the event (analytics is best-effort; a tool call must never wait on it).
+_UMAMI_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="umami-mcp")
+_UMAMI_INFLIGHT = threading.BoundedSemaphore(8)
 
 # Umami server-side analytics (#1505): a tool call is a "page view" for the MCP surface. We POST an
 # event to Umami's collect API (parity with the browser beacon). Website id + collect URL come from
@@ -165,6 +172,11 @@ def _emit_umami(tool: str, ok: bool) -> None:
         }
     ).encode()
 
+    # Backpressure: if too many sends are already in flight (slow/hung Umami), drop this event
+    # rather than queue unboundedly. Released in _send's finally.
+    if not _UMAMI_INFLIGHT.acquire(blocking=False):
+        return
+
     def _send() -> None:
         try:
             req = urllib.request.Request(
@@ -180,8 +192,10 @@ def _emit_umami(tool: str, ok: bool) -> None:
             urllib.request.urlopen(req, timeout=4)  # noqa: S310 - fixed https collect URL from env
         except Exception:  # noqa: BLE001 - analytics never breaks a tool call
             pass
+        finally:
+            _UMAMI_INFLIGHT.release()
 
     try:
-        threading.Thread(target=_send, name="umami-mcp", daemon=True).start()
-    except Exception:  # noqa: BLE001
-        pass
+        _UMAMI_POOL.submit(_send)
+    except Exception:  # noqa: BLE001 - pool shutdown/full → drop, don't break the call
+        _UMAMI_INFLIGHT.release()

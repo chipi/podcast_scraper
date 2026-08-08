@@ -58,15 +58,14 @@ def test_umami_noop_when_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PODCAST_MCP_UMAMI_URL", raising=False)
 
     def _boom(*a: object, **k: object) -> None:
-        raise AssertionError("must not spawn a sender when Umami is unconfigured")
+        raise AssertionError("must not submit a sender when Umami is unconfigured")
 
-    monkeypatch.setattr(tele.threading, "Thread", _boom)
-    tele._emit_umami("search_corpus", True)  # returns early — no thread, no raise
+    monkeypatch.setattr(tele._UMAMI_POOL, "submit", _boom)
+    tele._emit_umami("search_corpus", True)  # returns early — no submit, no raise
 
 
 def test_umami_posts_event_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     import json as _json
-    import types
 
     import podcast_scraper.mcp.telemetry as tele
 
@@ -80,11 +79,7 @@ def test_umami_posts_event_when_configured(monkeypatch: pytest.MonkeyPatch) -> N
         captured["ua"] = req.headers.get("User-agent")  # type: ignore[attr-defined]
 
     # Run the sender inline (no real thread) so the assertion is deterministic.
-    monkeypatch.setattr(
-        tele.threading,
-        "Thread",
-        lambda target, name=None, daemon=None: types.SimpleNamespace(start=target),
-    )
+    monkeypatch.setattr(tele._UMAMI_POOL, "submit", lambda fn: fn())
     monkeypatch.setattr(tele.urllib.request, "urlopen", fake_urlopen)
 
     tele._emit_umami("who_said_about_topic", False)
@@ -98,8 +93,6 @@ def test_umami_posts_event_when_configured(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_umami_hostname_is_bare_host_from_url(monkeypatch: pytest.MonkeyPatch) -> None:
     """Umami wants a bare host; the env often carries the full resource URL (advisor M2)."""
-    import types
-
     import podcast_scraper.mcp.telemetry as tele
 
     monkeypatch.setenv("PODCAST_MCP_UMAMI_WEBSITE_ID", "site-abc")
@@ -113,11 +106,7 @@ def test_umami_hostname_is_bare_host_from_url(monkeypatch: pytest.MonkeyPatch) -
         payload = _json.loads(req.data)["payload"]  # type: ignore[attr-defined]
         captured["hostname"] = payload["hostname"]
 
-    monkeypatch.setattr(
-        tele.threading,
-        "Thread",
-        lambda target, name=None, daemon=None: types.SimpleNamespace(start=target),
-    )
+    monkeypatch.setattr(tele._UMAMI_POOL, "submit", lambda fn: fn())
     monkeypatch.setattr(tele.urllib.request, "urlopen", fake_urlopen)
     tele._emit_umami("corpus_trending", True)
     assert captured["hostname"] == "mcp.closelistening.app"  # scheme stripped
