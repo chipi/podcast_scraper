@@ -48,8 +48,19 @@ def test_chunk_count_scales_with_length() -> None:
     assert plan_chunks("x" * 90_000, 30_000) == 3
 
 
-def test_chunking_disabled_by_default() -> None:
+def test_chunking_disabled_when_explicitly_zero() -> None:
     assert plan_chunks("x" * 200_000, 0) == 1
+
+
+def test_config_default_chunks_long_episodes() -> None:
+    """#20: the config default must chunk long episodes — a 0 default single-passed them and
+    truncated the back half (all insights from segment A). Default is now 30k (the norm)."""
+    from podcast_scraper.config import Config
+
+    default = Config.model_fields["gi_insight_chunk_chars"].default
+    assert default == 30_000
+    assert plan_chunks("x" * 90_000, default) == 3  # long ep → 3 passes, not a single truncated one
+    assert plan_chunks("x" * (MIN_CHARS_TO_CHUNK - 1), default) == 1  # short eps still never chunk
 
 
 def test_split_never_starts_mid_sentence() -> None:
