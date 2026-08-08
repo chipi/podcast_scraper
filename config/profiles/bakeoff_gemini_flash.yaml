@@ -25,7 +25,7 @@ degradation_policy:
   continue_on_stage_failure: true
 preprocessing_enabled: true
 cloud_llm_structured_min_output_tokens: 4096
-summarization_timeout: 300
+summarization_timeout: 600
 transcription_timeout: 300
 summary_reduce_params:
   max_new_tokens: 2048
