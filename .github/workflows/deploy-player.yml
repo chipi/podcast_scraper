@@ -183,6 +183,10 @@ jobs:
           # (e.g. a distinct backend project, or the tailnet host for _API). Empty → no-op.
           PROD_SENTRY_DSN_PLAYER_WEB: ${{ secrets.PROD_SENTRY_DSN_PLAYER_WEB }}
           PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+          # MCP-surface backend DSN (#1505). Its own GlitchTip project (per-surface split);
+          # empty until the project + secret exist → GlitchTip no-op for the MCP, traces + logs
+          # still flow.
+          PROD_SENTRY_DSN_PLAYER_MCP: ${{ secrets.PROD_SENTRY_DSN_PLAYER_MCP }}
           # Umami website UUID (public — ships in the bundle; a var, not a secret).
           PLAYER_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
           # ADR-115 Option A: when '1', the RUNTIME secrets (client secret, session secret,
@@ -235,6 +239,9 @@ jobs:
             # homelab tailnet IP for extra_hosts is resolved on the box by deploy-player.sh.
             echo "OTEL_TRACES_EXPORTER=otlp"
             echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://homelab:10428/insert/opentelemetry/v1/traces"
+            # Env-tag every span (api + mcp) so staging (laptop) and prod (VPS) split in Grafana —
+            # parity with the GlitchTip `environment` tag (#1505 staging↔prod separation).
+            echo "OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
@@ -265,11 +272,20 @@ jobs:
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER_API}"
             fi
+            # MCP-surface backend DSN (#1505). Falls back to the player API DSN so MCP errors land
+            # in the shared GlitchTip project tagged `component=mcp` + `environment` (no new project
+            # / UI needed) until a dedicated PROD_SENTRY_DSN_PLAYER_MCP is set to repoint it.
+            echo "PODCAST_SENTRY_DSN_MCP=${PROD_SENTRY_DSN_PLAYER_MCP:-${PROD_SENTRY_DSN_PLAYER_API}}"
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
             # Both empty -> the bundle's Umami injection stays a no-op.
             echo "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
             echo "VITE_UMAMI_SRC=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/script.js}"
+            # MCP server-side analytics (#1505): reuse the player Umami site — MCP events are named
+            # `mcp_tool:<tool>` (distinct from page views), POSTed to the public beacon collect API.
+            # A dedicated MCP site can be split later; env split comes from deployment.environment.
+            echo "PODCAST_MCP_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
+            echo "PODCAST_MCP_UMAMI_URL=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/api/send}"
             # Remote MCP (RFC-112). The shared verify-seam secret (empty → MCP inert + mcp vhost
             # skipped by deploy-player.sh). Issuer = the player apex (hosts the OAuth AS); resource
             # = the mcp subdomain (its own vhost). MCP_PORT is the loopback the Caddy mcp vhost

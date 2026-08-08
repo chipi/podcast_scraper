@@ -326,3 +326,41 @@ def test_consent_remember_and_revoke(tmp_path: Path) -> None:
     assert oa.revoke_consent(tmp_path, user_id=_UID, client_id=cid) is True
     assert oa.has_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read") is False
     assert oa.revoke_consent(tmp_path, user_id=_UID, client_id=cid) is False  # nothing left
+
+
+def _challenge(verifier: str) -> str:
+    return (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    )
+
+
+def test_pkce_verifier_length_enforced() -> None:
+    """RFC 7636 §4.1: reject a verifier outside 43–128, even if the challenge matches (MED)."""
+    short = "abc"  # < 43
+    assert oa._pkce_ok(short, _challenge(short)) is False
+    valid = "v" * 50  # 43–128
+    assert oa._pkce_ok(valid, _challenge(valid)) is True
+    toolong = "v" * 200  # > 128
+    assert oa._pkce_ok(toolong, _challenge(toolong)) is False
+
+
+def test_prune_stale_clients() -> None:
+    """Old clients with no live grant are reclaimed; granted/recent ones kept (advisor LOW)."""
+    now = oa._now()
+    old = now - oa._CLIENT_UNUSED_TTL_S - 10
+    clients = {
+        "old_unused": {"client_id": "old_unused", "created_at": old},
+        "old_active": {"client_id": "old_active", "created_at": old},
+        "recent": {"client_id": "recent", "created_at": now - 5},
+    }
+    grants = {"h1": {"kind": "refresh", "client_id": "old_active", "expires_at": now + 3600}}
+    kept = oa._prune_stale_clients(clients, grants)
+    assert set(kept) == {"old_active", "recent"}  # old_unused pruned
+
+
+def test_prune_ignores_expired_grant_when_keeping_client() -> None:
+    """A client whose only grant has EXPIRED is treated as un-granted → pruned if old."""
+    now = oa._now()
+    clients = {"c": {"client_id": "c", "created_at": now - oa._CLIENT_UNUSED_TTL_S - 10}}
+    grants = {"h": {"kind": "access", "client_id": "c", "expires_at": now - 1}}  # expired
+    assert oa._prune_stale_clients(clients, grants) == {}

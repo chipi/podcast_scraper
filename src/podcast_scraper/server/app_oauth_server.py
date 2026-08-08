@@ -40,6 +40,9 @@ _SUPPORTED_SCOPES = frozenset({"mcp:read"})  # v1: read-only; room for mcp:expor
 
 _MAX_CLIENTS = 2000  # disk-fill guard on unauthenticated DCR (H4)
 _MAX_REDIRECT_URIS = 10  # per-client cap (L2)
+# Prune DCR clients that never completed a flow (no live grant) after this age, so an
+# unauthenticated registration flood can't PERMANENTLY fill the store at _MAX_CLIENTS (advisor LOW).
+_CLIENT_UNUSED_TTL_S = 7 * 24 * 3600
 
 _ACCESS_PREFIX = "clp_mcpat_"
 _REFRESH_PREFIX = "clp_mcprt_"
@@ -102,6 +105,11 @@ def register_client(
     }
     with _lock(data_dir, _CLIENTS_FILE):
         clients = _read(data_dir, _CLIENTS_FILE)
+        # Drop stale never-used clients first (advisor LOW): a client with NO live grant that is
+        # older than the unused-TTL is a registration that never completed a flow — reclaim it so a
+        # DCR flood can't permanently wedge the store at the cap. Clients with a live grant (active
+        # code/access/refresh) are always kept.
+        clients = _prune_stale_clients(clients, _read(data_dir, _GRANTS_FILE))
         if len(clients) >= _MAX_CLIENTS:
             # Unauthenticated DCR: refuse once the store is full rather than grow without bound.
             raise ValueError("client registration limit reached")
@@ -241,6 +249,10 @@ def create_authorization_code(
 
 def _pkce_ok(verifier: str, challenge: str) -> bool:
     """S256: base64url(sha256(verifier)) == challenge (no padding)."""
+    # RFC 7636 §4.1: the verifier is 43–128 chars. Enforce the length bounds so a lazy/malicious
+    # client can't self-downgrade to a low-entropy verifier (advisor MED #1505).
+    if not (43 <= len(verifier) <= 128):
+        return False
     try:
         raw = verifier.encode("ascii")  # PKCE verifiers are ASCII (RFC 7636); non-ASCII → reject
     except UnicodeEncodeError:
@@ -254,6 +266,26 @@ def _prune_expired(grants: dict[str, Any]) -> dict[str, Any]:
     """Drop expired codes/access/refresh records so ``oauth_grants.json`` stays bounded (M2)."""
     now = _now()
     return {h: rec for h, rec in grants.items() if int(rec.get("expires_at", 0)) >= now}
+
+
+def _prune_stale_clients(clients: dict[str, Any], grants: dict[str, Any]) -> dict[str, Any]:
+    """Drop DCR clients with no LIVE grant that are older than the unused-TTL (advisor LOW).
+
+    A client is kept if it has any non-expired grant (code/access/refresh → an active connection)
+    OR it was registered within the unused-TTL (give an in-flight authorize time to complete).
+    Everything else is a registration that never completed a flow — reclaim its slot.
+    """
+    now = _now()
+    active = {
+        str(rec.get("client_id"))
+        for rec in _prune_expired(grants).values()
+        if isinstance(rec, dict) and rec.get("client_id")
+    }
+    return {
+        cid: c
+        for cid, c in clients.items()
+        if cid in active or (now - int(c.get("created_at", 0))) < _CLIENT_UNUSED_TTL_S
+    }
 
 
 def _resource_aud() -> str:
