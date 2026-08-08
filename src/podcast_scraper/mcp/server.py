@@ -89,7 +89,14 @@ def _enveloped(fn: Callable[..., Any]) -> Callable[..., dict]:
 
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> dict:
-        return _safe(lambda: fn(*args, **kwargs))
+        # Per-tool observability (#1505): span + structured log + metric, best-effort. The tool
+        # NAME comes from the wrapped fn; user_id from the auth contextvar. Never breaks the call.
+        from .telemetry import observe_tool_call
+
+        with observe_tool_call(fn.__name__) as call:
+            result = _safe(lambda: fn(*args, **kwargs))
+            call.set_result(result)
+            return result
 
     return wrapper
 
@@ -676,4 +683,36 @@ def run_server(
         raise ValueError(f"unsupported transport: {transport!r} (use 'stdio' or 'http')")
     import uvicorn
 
-    uvicorn.run(build_http_app(corpus_dir), host=host, port=port)
+    # o11y parity with the api (#1505): OTel traces + GlitchTip errors + inbound request spans.
+    # All best-effort — telemetry never blocks the server from starting (ADR-120). No-ops unless
+    # the OTEL_*/PODCAST_SENTRY_DSN_MCP env is set (dev + tests stay silent).
+    try:
+        from podcast_scraper.utils.otel_init import init_otel
+
+        init_otel()
+    except Exception:  # noqa: BLE001 - never block serving on tracing
+        logger.debug("mcp otel init skipped", exc_info=True)
+    try:
+        from podcast_scraper.utils.sentry_init import init_sentry
+
+        init_sentry("mcp")
+    except Exception:  # noqa: BLE001 - never block serving on error reporting
+        logger.debug("mcp sentry init skipped", exc_info=True)
+
+    uvicorn.run(_instrument_asgi(build_http_app(corpus_dir)), host=host, port=port)
+
+
+def _instrument_asgi(app: Any) -> Any:
+    """Wrap the ASGI app with OTel inbound-request spans (so every ``/mcp`` gets a ``trace_id``).
+
+    No-op if the OTel ASGI instrumentation isn't installed or tracing isn't configured. The tool
+    spans (:mod:`mcp.telemetry`) nest under these server spans, and the trace propagates onward to
+    the api's ``/internal/mcp/verify`` via the auto-instrumented outbound HTTP client.
+    """
+    try:
+        from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
+
+        return OpenTelemetryMiddleware(app)
+    except Exception:  # noqa: BLE001 - no ASGI instrumentor → serve un-instrumented
+        logger.debug("mcp ASGI instrumentation skipped", exc_info=True)
+        return app

@@ -166,6 +166,23 @@ services:
       APP_MCP_ALLOWED_ORIGINS: ${APP_MCP_ALLOWED_ORIGINS:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      # o11y parity with the api (#1505). Traces: init_otel() + inbound ASGI spans + per-tool
+      # spans (mcp/telemetry.py) export over http/protobuf to the homelab VictoriaTraces OTLP
+      # ingest. Errors: its own GlitchTip DSN (per-surface split). Default `none`/empty = off;
+      # deploy-player.sh stages the exporter + endpoint + DSN host-side (never hardcoded).
+      OTEL_SERVICE_NAME: player-mcp
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      PODCAST_SENTRY_DSN_MCP: ${PODCAST_SENTRY_DSN_MCP:-}
+    extra_hosts:
+      # VictoriaTraces + GlitchTip via Tailscale MagicDNS `homelab` (Docker DNS can't resolve it);
+      # static hosts entry, IP staged fresh at deploy. Loopback default so interpolation never
+      # fails when tracing is off. Mirrors the api service.
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     ports:
       # Loopback only — the Caddy edge (mcp.caddy) is the public front (ADR-114).
       - "127.0.0.1:${MCP_PORT:-8009}:8009"

@@ -183,6 +183,10 @@ jobs:
           # (e.g. a distinct backend project, or the tailnet host for _API). Empty → no-op.
           PROD_SENTRY_DSN_PLAYER_WEB: ${{ secrets.PROD_SENTRY_DSN_PLAYER_WEB }}
           PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+          # MCP-surface backend DSN (#1505). Its own GlitchTip project (per-surface split);
+          # empty until the project + secret exist → GlitchTip no-op for the MCP, traces + logs
+          # still flow.
+          PROD_SENTRY_DSN_PLAYER_MCP: ${{ secrets.PROD_SENTRY_DSN_PLAYER_MCP }}
           # Umami website UUID (public — ships in the bundle; a var, not a secret).
           PLAYER_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
           # ADR-115 Option A: when '1', the RUNTIME secrets (client secret, session secret,
@@ -265,6 +269,9 @@ jobs:
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER_API}"
             fi
+            # MCP-surface backend DSN (#1505) → its own GlitchTip project. Written to .env.player
+            # (the mcp service isn't on the tmpfs-secret shim); empty until the project exists.
+            echo "PODCAST_SENTRY_DSN_MCP=${PROD_SENTRY_DSN_PLAYER_MCP}"
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
             # Both empty -> the bundle's Umami injection stays a no-op.

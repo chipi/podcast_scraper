@@ -28,11 +28,13 @@ from typing import Literal, Optional
 
 _LOGGER = logging.getLogger(__name__)
 
-Component = Literal["api", "pipeline"]
+Component = Literal["api", "pipeline", "mcp"]
 
 _DSN_ENV = {
     "api": "PODCAST_SENTRY_DSN_API",
     "pipeline": "PODCAST_SENTRY_DSN_PIPELINE",
+    # The remote MCP server (RFC-112) — its own GlitchTip project, per the per-surface DSN split.
+    "mcp": "PODCAST_SENTRY_DSN_MCP",
 }
 
 # Dev rung of the env ladder (dev → prod; the backend has no staging). On the
@@ -63,6 +65,8 @@ def _use_dev_default() -> bool:
 _DEFAULT_TRACES_SAMPLE_RATE: dict[Component, float] = {
     "api": 0.1,
     "pipeline": 0.0,
+    # Long-lived server like the api, low request volume at hobby scale — same 10% sample.
+    "mcp": 0.1,
 }
 
 # Substrings that mark a key as sensitive — scrubbed from anything we send.
