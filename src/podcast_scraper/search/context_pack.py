@@ -64,8 +64,16 @@ class CorpusBriefingPack:
 
         lines.append("")
         lines.append("[CAVEATS]")
-        lines.append(f"Coverage gaps: {', '.join(self.coverage_gaps) or 'none'}")
-        lines.append(f"Confidence (p50): {self.confidence_p50:.2f}")
+        # The corpus-impact gap surface is not wired yet — an empty list means "not assessed",
+        # NOT "no gaps" (#21: the old "none" read as a trustworthy all-clear when it wasn't).
+        gaps = ", ".join(self.coverage_gaps) if self.coverage_gaps else "not assessed"
+        lines.append(f"Coverage gaps: {gaps}")
+        # Insight confidence isn't scored in the current index (all rows carry 0.0), so a "0.00"
+        # p50 is misleading precision — surface it as n/a until real confidences exist (#21).
+        if self.confidence_p50 and self.confidence_p50 > 0:
+            lines.append(f"Confidence (p50): {self.confidence_p50:.2f}")
+        else:
+            lines.append("Confidence (p50): n/a (insight confidence not scored in this corpus)")
         lines.append(f"Date range: {cov.get('date_range') or 'n/a'}")
         return "\n".join(lines)
 
@@ -115,9 +123,21 @@ def build_briefing_pack(
         elif result.source_tier == "segment":
             segments.append(result)
 
-    show_ids = sorted({s for r in results if (s := _result_payload(r).get("show_id"))})
+    # Robust show extraction: raw index rows carry ``show_id``; some result shapes carry
+    # ``feed_id`` — read either so coverage can't report 0 shows while counting episodes (#21).
+    show_ids = sorted(
+        {
+            s
+            for r in results
+            if (s := (_result_payload(r).get("show_id") or _result_payload(r).get("feed_id")))
+        }
+    )
     episode_count = len({e for r in results if (e := _result_payload(r).get("episode_id"))})
-    confidences = sorted(c for r in insights if (c := r.payload.get("confidence")) is not None)
+    # Only real (>0) confidences count — the indexer currently hardcodes 0.0 on every insight,
+    # and averaging those produced a fake "0.00" p50 (#21). Empty → 0.0 → rendered as n/a.
+    confidences = sorted(
+        c for r in insights if (c := r.payload.get("confidence")) is not None and c > 0
+    )
     p50 = confidences[len(confidences) // 2] if confidences else 0.0
 
     pack = CorpusBriefingPack(
