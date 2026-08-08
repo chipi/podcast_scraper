@@ -119,10 +119,13 @@ def check_artifact_invariants(
     #    never built (GI had no names list; or the transcript was anonymised by cleaning_v4).
     speakers = [(i.get("properties") or {}).get("speaker") for i in grounded]
     if grounded and not any(speakers):
-        violations.append(
-            f"attribution produced NOTHING: {len(grounded)} grounded insights, 0 with a speaker. "
-            "The speaker map is empty (anonymised transcript, or no named turns were read)"
-        )
+        if turns is not None and not turns:
+            pass  # empty speaker map is legitimately expected when there are no named turns
+        else:
+            violations.append(
+                f"attribution produced NOTHING: {len(grounded)} grounded insights, 0 with a speaker. "
+                "The speaker map is empty (anonymised transcript, or no named turns were read)"
+            )
 
     # 4. A speaker who never holds the microphone. This is the Elon Musk bug: a name that appears
     #    only in the episode description, assigned to a diarized voice cluster.

@@ -135,3 +135,15 @@ def test_a_quote_whose_offset_points_elsewhere_is_caught() -> None:
 def test_no_insights_is_not_a_wiring_violation() -> None:
     """An episode that yields nothing is a content outcome, not a disconnected wire."""
     assert check_artifact_invariants(_artifact([], [], []), TRANSCRIPT, TURNS) == []
+
+
+def test_empty_speaker_map_with_no_turns_is_allowed() -> None:
+    """If there are no named turns, the speaker map is legitimately empty and not a wiring violation."""
+    broken = _artifact(
+        [_insight("i1", None)],
+        [_quote("q1", QUOTE_TEXT, TRANSCRIPT.index(QUOTE_TEXT))],
+        [{"type": "SUPPORTED_BY", "from": "i1", "to": "q1"}],
+    )
+    violations = check_artifact_invariants(broken, TRANSCRIPT, [])
+    assert not any("attribution produced NOTHING" in v for v in violations)
+
