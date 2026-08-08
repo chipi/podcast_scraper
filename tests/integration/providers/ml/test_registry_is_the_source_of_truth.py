@@ -319,7 +319,7 @@ def test_the_judge_is_never_the_defendant(name: str) -> None:
     )
 
 
-@pytest.mark.parametrize("provider", ["openai", "deepseek", "litellm", "qwen", "vllm"])
+@pytest.mark.parametrize("provider", ["openai", "deepseek", "litellm", "qwen", "vllm", "groq"])
 def test_value_gate_runs_for_every_hosted_llm_sibling(provider: str) -> None:
     """The gate is membership-gated on ``_LLM_PROVIDERS``; a summary provider missing from that set
     SILENTLY fails open — no grading, no error. The entire v2.5 finale ran via ``litellm`` and its

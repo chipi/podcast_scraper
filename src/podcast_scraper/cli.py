@@ -1147,7 +1147,15 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--transcription-provider",
-        choices=["whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"],
+        choices=[
+            "whisper",
+            "openai",
+            "gemini",
+            "mistral",
+            "deepgram",
+            "groq",
+            "tailnet_dgx_whisper",
+        ],
         default="whisper",
         help=(
             "Transcription provider to use (default: whisper). "

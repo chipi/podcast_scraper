@@ -67,6 +67,13 @@ USE_REAL_DEEPSEEK_API = os.getenv("USE_REAL_DEEPSEEK_API", "0") == "1"
 if not USE_REAL_DEEPSEEK_API and "DEEPSEEK_API_KEY" not in os.environ:
     os.environ["DEEPSEEK_API_KEY"] = "test-dummy-key-for-e2e-tests"
 
+# Set dummy Groq API key for E2E tests (unless using real API). Groq auth is warn-not-raise, so this
+# is not strictly required, but it silences the "Groq API key not configured" warning every mock run
+# would otherwise emit (note: groq is gsk_-prefixed, not sk-).
+USE_REAL_GROQ_API = os.getenv("USE_REAL_GROQ_API", "0") == "1"
+if not USE_REAL_GROQ_API and "GROQ_API_KEY" not in os.environ:
+    os.environ["GROQ_API_KEY"] = "gsk_e2e-key"
+
 # Check if we should use real Ollama API (for manual testing only)
 USE_REAL_OLLAMA_API = os.getenv("USE_REAL_OLLAMA_API", "0") == "1"
 # Note: Ollama doesn't require an API key, but we set a dummy value for consistency
@@ -512,6 +519,47 @@ def configure_deepseek_mock_server(request, monkeypatch):
     # This will be picked up by the Config model's field validator
     deepseek_api_base = e2e_server.urls.deepseek_api_base()
     monkeypatch.setenv("DEEPSEEK_API_BASE", deepseek_api_base)
+
+
+@pytest.fixture(autouse=True)
+def configure_groq_mock_server(request, monkeypatch):
+    """Configure Groq providers to use E2E server mock endpoints.
+
+    Groq (ADR-147) uses OpenAI-compatible API format AND is DUAL-USE (unlike deepseek/grok/qwen):
+    the same base serves BOTH chat and Whisper transcription, so it reuses the same endpoints:
+    - /v1/chat/completions: summarization / speaker detection / GI / KG
+    - /v1/audio/transcriptions: whisper-large-v3-turbo transcription (Groq has NO diarization)
+
+    This lets E2E tests exercise the full HTTP client -> Network -> Mock Server -> Response chain
+    for both the LLM and transcription halves of the provider.
+
+    Note:
+        This fixture is autouse=True, so it's automatically applied to all E2E tests.
+
+    Real API Mode:
+        When USE_REAL_GROQ_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
+    """
+    # Check if we should use real Groq API (for manual testing only)
+    USE_REAL_GROQ_API = os.getenv("USE_REAL_GROQ_API", "0") == "1"
+
+    # Skip E2E server configuration if using real Groq API
+    # Also explicitly unset GROQ_API_BASE to ensure real API is used
+    if USE_REAL_GROQ_API:
+        monkeypatch.delenv("GROQ_API_BASE", raising=False)
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_GROQ_API=1)
+    try:
+        e2e_server = request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        return
+
+    # Set GROQ_API_BASE environment variable to point to E2E server
+    # This will be picked up by the Config model's env loader (_load_string_env_var)
+    groq_api_base = e2e_server.urls.groq_api_base()
+    monkeypatch.setenv("GROQ_API_BASE", groq_api_base)
 
 
 @pytest.fixture(autouse=True)

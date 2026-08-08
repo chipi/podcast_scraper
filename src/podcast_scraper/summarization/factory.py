@@ -93,6 +93,7 @@ def create_summarization_provider(  # noqa: C901
                     "vllm",
                     "litellm",
                     "qwen",
+                    "groq",
                 ],
                 str(provider_type_override).strip().lower(),
             )
@@ -110,6 +111,7 @@ def create_summarization_provider(  # noqa: C901
                 "vllm",
                 "litellm",
                 "qwen",
+                "groq",
             ):
                 raise ValueError(f"Invalid provider_type_override: {provider_type_override}")
         else:
@@ -133,6 +135,7 @@ def create_summarization_provider(  # noqa: C901
             "vllm",
             "litellm",
             "qwen",
+            "groq",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
@@ -151,6 +154,7 @@ def create_summarization_provider(  # noqa: C901
                 "vllm",
                 "litellm",
                 "qwen",
+                "groq",
             ],
             provider_type_str,
         )
@@ -451,6 +455,34 @@ def create_summarization_provider(  # noqa: C901
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
+    elif provider_type == "groq":
+        from ..providers.groq.groq_provider import GroqProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SummarizationParams
+            assert isinstance(params, SummarizationParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for summarization (use alias)
+                summary_provider="groq",
+                generate_summaries=True,  # Required for Groq provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
+                groq_summary_model=(
+                    params.model_name if params.model_name else "llama-3.3-70b-versatile"
+                ),
+                groq_temperature=params.temperature if params.temperature is not None else 0.3,
+                groq_api_key=os.getenv("GROQ_API_KEY"),  # Load from env
+                groq_max_tokens=params.max_length if params.max_length else None,
+            )
+            provider = GroqProvider(cfg)
+        else:
+            provider = GroqProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "ollama":
         from ..providers.ollama.ollama_provider import OllamaProvider
 
@@ -511,5 +543,5 @@ def create_summarization_provider(  # noqa: C901
         raise ValueError(
             f"Unsupported summarization provider: {provider_type}. "
             "Supported providers: 'transformers', 'openai', 'gemini', 'grok', "
-            "'deepseek', 'mistral', 'ollama', 'anthropic'."
+            "'deepseek', 'mistral', 'ollama', 'anthropic', 'groq'."
         )

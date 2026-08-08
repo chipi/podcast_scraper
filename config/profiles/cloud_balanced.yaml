@@ -35,12 +35,11 @@ profile: cloud_balanced
 # voxtral-mini-latest is 6x cheaper with comparable WER (8.6% avg) but showed a
 # hallucination on 1/5 test eps — parked pending investigation of anti-loop
 # mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
-transcription_provider: openai
-openai_transcription_model: whisper-1
-# Diarization is a core pipeline stage (#913, 2026-06-15). Cloud
-# profiles route to Deepgram for the diarize pass — independent API call,
-# no [ml]/HF_TOKEN install on the pipeline host. Cost: ~$0.004/min for the
-# diarize call on top of OpenAI Whisper ($0.006/min) for transcription.
+transcription_provider: deepgram
+deepgram_model: nova-3
+# Diarization is a core pipeline stage (#913). Deepgram nova-3 does ASR AND diarization in ONE
+# pass (self-diarized), so the diarize labels come free with the transcription call — ~$0.0043/min
+# for both, no second audio pass (was: openai-whisper ASR + separate deepgram diarize, two passes).
 diarize: true
 diarization_provider: deepgram
 deepgram_diarization_model: nova-3-general  # from registry: deepgram_diarization_nova3
@@ -55,7 +54,7 @@ audio_preprocessing_profile: speech_optimal_v1
 # this profile run on the pipeline-llm image (which ships [llm] + minimum [search]
 # but no spaCy / transformer NER models). Switch to ``spacy`` + ``en_core_web_trf``
 # if running on the full ``pipeline`` (ml) image and you want offline NER.
-speaker_detector_provider: gemini
+speaker_detector_provider: litellm
 auto_speakers: true
 
 # Summarization
@@ -67,8 +66,24 @@ auto_speakers: true
 # 2026-05-24 prod operating point: ~15-20% Gemini 503 burst absorbed by
 # #697 circuit breaker. Do not swap without re-running the harness at the
 # target operating point.
-summary_provider: gemini
-gemini_summary_model: gemini-2.5-flash-lite
+summary_provider: litellm
+
+# LiteLLM gateway wiring (homelab:4001 -> OpenRouter deepseek-v4-flash), reasoning OFF — mirrors
+# cloud_openrouter. The governed model fields (litellm_*_model) are materialized near the file end.
+# NOTE: this profile now depends on the homelab LiteLLM gateway being reachable from the pipeline
+# host (tailnet) AND carrying the OpenRouter key. If the gateway is down, LLM stages fail.
+litellm_api_base: http://homelab:4001/v1
+litellm_insight_model: podcast-flash-0731
+litellm_temperature: 0.3
+litellm_extra_body:
+  reasoning:
+    enabled: false
+  provider:
+    order:
+      - novita
+      - deepinfra
+    allow_fallbacks: true
+litellm_verify_served_model: true
 preprocessing_enabled: true
 
 # Pipeline mode — mega_bundled (#646 real-episode validation):
@@ -80,7 +95,7 @@ preprocessing_enabled: true
 # vs staged ($0.00445/ep, 3 calls) → 72 % cheaper.
 # Gemini may occasionally return transient 503 UNAVAILABLE — retry_with_metrics
 # handles this with backoff but it can add a few seconds on a bad minute.
-llm_pipeline_mode: mega_bundled
+llm_pipeline_mode: staged
 
 # Output token floor for cloud LLM structured JSON (#645). Prevents truncated
 # JSON (Gemini returned empty strings on long transcripts below ~650 tokens).
@@ -91,7 +106,7 @@ generate_gi: true
 gi_insight_source: provider
 # Generate broadly and let the GATE trim: the cap is not a quality control, it is a truncation.
 # Prod ran 12 while every eval ran 50, so the comparison measured a pipeline production never runs.
-gi_max_insights: 50
+gi_max_insights: 12
 gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
@@ -166,10 +181,10 @@ gi_value_gate_enabled: true
 # different strictness the surviving counts are not comparable. Vendor-disjoint from the extractor.
 gi_value_gate_provider: anthropic
 gi_value_gate_model: claude-haiku-4-5-20251001
-gi_value_gate_min_tier: 2
+gi_value_gate_min_tier: 3
 # The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
 # redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
-gi_insight_dedupe_threshold: 0.75
+gi_insight_dedupe_threshold: 0.72
 # PINNED, not defaulted. v3 (the speech-act variant) LOST its A/B — route kappa 0.57 against
 # v2's 0.67 — and stays on disk only as the record of that measurement. Naming the winner
 # here means a future change of default cannot silently move this profile off it.
@@ -181,11 +196,15 @@ gi_insight_prompt_version: v2
 # An LLM grounds with an LLM. `gil_evidence_*_mode: bundled` above is an LLM-only path, and with
 # the provider left at its "transformers" default it did nothing — these profiles asked for bundled
 # LLM grounding and got local DeBERTa.
-quote_extraction_provider: gemini
-entailment_provider: gemini
+# Match the summary provider (litellm -> deepseek) so ALL LLM stages are on one provider — an LLM
+# summariser grounds with the same LLM. These are NOT registry-governed, so on a provider swap they
+# must be updated by hand (or left unset to let the gil_evidence_match_summary_provider auto-coerce
+# fire — it only promotes summary->quote/entail when BOTH are unset).
+quote_extraction_provider: litellm
+entailment_provider: litellm
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
-summary_model: gemini-2.5-flash-lite
+summary_model: podcast-flash-0731
 topic_cluster_threshold: 0.75
 insight_cluster_threshold: 0.75
 gi_insight_chunk_chars: 30000
@@ -199,3 +218,6 @@ enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 transcription_speech_coverage_min: 0.0
+litellm_summary_model: podcast-flash-0731
+litellm_speaker_model: podcast-flash-0731
+ner_model: en_core_web_trf

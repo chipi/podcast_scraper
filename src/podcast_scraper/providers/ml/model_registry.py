@@ -1869,13 +1869,16 @@ _VALUE_GATE_JUDGES: Tuple[Tuple[str, str], ...] = (
 # list disables an entire quality stage without erroring. The whole v2.5 finale ran via ``litellm``
 # and its ``gi_value_gate_enabled: true`` was a NO-OP because of exactly this omission. Both are
 # hosted (not local-only): litellm proxies cloud OpenRouter, qwen talks to the official DashScope
-# API — so both get a vendor-disjoint judge, not a local self-grade.
+# API — so both get a vendor-disjoint judge, not a local self-grade. ``groq`` (ADR-147 sibling) is
+# the same shape — a hosted cloud API, not local-only — so it MUST be here too or the same
+# fail-open bug repeats for a groq-routed run.
 _LLM_PROVIDERS: frozenset = frozenset(
     {
         "anthropic",
         "deepseek",
         "gemini",
         "grok",
+        "groq",
         "litellm",
         "mistral",
         "ollama",
@@ -2036,14 +2039,21 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_balanced": ProfilePreset(
         name="cloud_balanced",
-        transcription="openai_whisper_1",
-        summary="gemini_flash_lite",
+        # Deepgram nova-3 does ASR AND diarization in ONE pass (the transcription self-diarizes and
+        # feeds the deepgram diarization_provider), so this is the cheapest speaker-attributed cloud
+        # path (~$0.0043/min for both) — no second audio pass. Replaces the old openai-whisper ASR +
+        # separate deepgram-diarize (two passes) + gemini LLM composition (2026-08-08).
+        transcription="deepgram_nova_3",
+        summary="cloud_or_deepseek_flash",
         kg="provider_n10_15",
-        ner="gemini_speaker_detector",
+        ner="litellm_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_chunked_gated_v3",
+        gi="provider_chunked_gated_v25",
         diarization="deepgram_diarization_nova3",
-        notes="Production cloud default. Best compound (quality × cost × latency).",
+        notes="Production cloud default: Deepgram nova-3 ASR+diarization (single pass) + "
+        "DeepSeek-v4-flash LLM (v2.5 finale cloud winner, via the LiteLLM gateway). Real "
+        "diarization, unlike cloud_openrouter (diarize:false). Needs DEEPGRAM_API_KEY + the "
+        "homelab LiteLLM gateway reachable.",
     ),
     "cloud_thin": ProfilePreset(
         name="cloud_thin",
@@ -2478,7 +2488,7 @@ def resolve_endpoint(
 # Cloud vendors a fallback tier can reach. A cloud vendor pointed at a DGX/local endpoint (e.g.
 # vLLM served over the openai protocol) is on-prem, not cloud — see _is_cloud_option.
 _CLOUD_FALLBACK_VENDORS: Final = frozenset(
-    {"openai", "gemini", "anthropic", "deepgram", "mistral", "deepseek", "grok", "cohere"}
+    {"openai", "gemini", "anthropic", "deepgram", "mistral", "deepseek", "grok", "cohere", "groq"}
 )
 
 
@@ -2554,17 +2564,17 @@ def _endpoint_to_env_template(endpoint: str) -> str:
 def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
     """Route the summary model + endpoint to the backend's GOVERNED, provider-namespaced fields.
 
-    The provider-namespaced backends (openai, vllm, ollama, litellm, qwen) read a
+    The provider-namespaced backends (openai, vllm, ollama, litellm, qwen, groq) read a
     namespaced field (``{ns}_summary_model`` / ``{ns}_api_base``), NOT the generic ``summary_model``
     / ``summary_endpoint`` — so those must be materialized for the registry to actually govern what
     runs on the wire, rather than leaving it to a hand-authored profile block (ADR-147 B2). ``vllm``
     and ``ollama`` are fully symmetric here — both DGX-local, self-describing serving stacks;
-    ``litellm`` (gateway alias) + ``qwen`` (DashScope) join them so the v2.5 cloud winners'
-    ``{litellm,qwen}_summary_model`` is governed, not hand-authored. The endpoint is emitted in
+    ``litellm`` (gateway alias) + ``qwen`` (DashScope) + ``groq`` join them so a cloud winner's
+    ``{litellm,qwen,groq}_summary_model`` is governed, not hand-authored. The endpoint is emitted in
     ``${DGX_TAILNET_HOST}``-template form (``_endpoint_to_env_template``).
     """
     ns = sm.provider
-    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen"):
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
         return
     if sm.model is not None:
         settings[f"{ns}_summary_model"] = sm.model
@@ -2579,11 +2589,11 @@ def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
     ``ner_model``, which is the spaCy entity model) and is routed to ``{ns}_speaker_model``. vllm,
     openai and ollama are identical here — all three carry a spaCy id in ``model`` and the LLM tag
     in ``speaker_llm_model`` — so a DGX naming stage materializes its real local model instead of
-    falling to a cloud/Config default (ADR-147). litellm/qwen join them (2026-08) so the v2.5 cloud
-    winners' ``{litellm,qwen}_speaker_model`` is governed, not hand-authored.
+    falling to a cloud/Config default (ADR-147). litellm/qwen/groq join them so a cloud winner's
+    ``{litellm,qwen,groq}_speaker_model`` is governed, not hand-authored.
     """
     ns = ner.provider
-    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen"):
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
         return
     llm = (ner.extra_settings or {}).get("speaker_llm_model")
     if isinstance(llm, str) and llm:

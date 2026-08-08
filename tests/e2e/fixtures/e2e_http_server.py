@@ -430,6 +430,19 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/v1"
 
+    def groq_api_base(self) -> str:
+        """Get Groq API base URL (points to E2E server).
+
+        Groq is OpenAI-compatible AND dual-use (unlike deepseek/grok/qwen): the same base serves
+        BOTH chat and Whisper transcription, so it reuses the generic mock endpoints:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - /v1/audio/transcriptions for whisper-large-v3-turbo transcription
+
+        Returns:
+            Groq API base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
     def ollama_api_base(self) -> str:
         """Get Ollama API base URL (points to E2E server).
 

@@ -64,7 +64,7 @@ _DIARIZATION_MODEL_FIELD = {
 # (transformers / summllama / hybrid_ml) run a mode-pinned model, not a free-form field, so they are
 # not gated here.
 _SUMMARY_CLOUD_PROVIDERS = frozenset(
-    {"gemini", "openai", "anthropic", "deepseek", "grok", "mistral", "ollama"}
+    {"gemini", "openai", "anthropic", "deepseek", "grok", "mistral", "ollama", "groq"}
 )
 
 
