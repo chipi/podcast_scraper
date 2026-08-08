@@ -599,7 +599,7 @@ class OpenAICompatibleProvider:
 
             raise ProviderRuntimeError(
                 message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
-                provider="OpenAIProvider/Transcription",
+                provider=f"{type(self).__name__}/Transcription",
             ) from exc
 
     def transcribe_with_segments(
@@ -815,7 +815,7 @@ class OpenAICompatibleProvider:
             ):
                 raise ProviderAuthError(
                     message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Transcription",
+                    provider=f"{type(self).__name__}/Transcription",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
                         "Verify the key is valid and has not expired."
@@ -824,13 +824,13 @@ class OpenAICompatibleProvider:
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
                     message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Transcription",
+                    provider=f"{type(self).__name__}/Transcription",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
                     message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Transcription",
+                    provider=f"{type(self).__name__}/Transcription",
                 ) from exc
 
     # ============================================================================
@@ -1022,7 +1022,7 @@ class OpenAICompatibleProvider:
             ):
                 raise ProviderAuthError(
                     message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/SpeakerDetection",
+                    provider=f"{type(self).__name__}/SpeakerDetection",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
                         "Verify the key is valid and has not expired."
@@ -1031,13 +1031,13 @@ class OpenAICompatibleProvider:
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
                     message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/SpeakerDetection",
+                    provider=f"{type(self).__name__}/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
                     message=f"OpenAI speaker detection failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/SpeakerDetection",
+                    provider=f"{type(self).__name__}/SpeakerDetection",
                 ) from exc
 
     def analyze_patterns(
@@ -1480,7 +1480,7 @@ class OpenAICompatibleProvider:
             ):
                 raise ProviderAuthError(
                     message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Summarization",
+                    provider=f"{type(self).__name__}/Summarization",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
                         "Verify the key is valid and has not expired."
@@ -1489,13 +1489,13 @@ class OpenAICompatibleProvider:
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
                     message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Summarization",
+                    provider=f"{type(self).__name__}/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
                     message=f"OpenAI summarization failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Summarization",
+                    provider=f"{type(self).__name__}/Summarization",
                 ) from exc
 
     def summarize_mega_bundled(
@@ -2932,7 +2932,7 @@ class OpenAICompatibleProvider:
             ):
                 raise ProviderAuthError(
                     message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Cleaning",
+                    provider=f"{type(self).__name__}/Cleaning",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
                         "Verify the key is valid and has not expired."
@@ -2941,13 +2941,13 @@ class OpenAICompatibleProvider:
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
                     message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Cleaning",
+                    provider=f"{type(self).__name__}/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
                     message=f"OpenAI cleaning failed: {format_exception_for_log(exc)}",
-                    provider="OpenAIProvider/Cleaning",
+                    provider=f"{type(self).__name__}/Cleaning",
                 ) from exc
 
     def get_capabilities(self) -> ProviderCapabilities:

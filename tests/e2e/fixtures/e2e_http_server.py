@@ -1735,10 +1735,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 user_content = str(user_content_raw)
             system = request_data.get("system", "")
+            # Anthropic `system` may be a str OR a list of content blocks (RFC-115 transcript
+            # cache_control relocates it into a system block). Normalize to text ONCE so every
+            # downstream check below is list-safe (#1504 made this path send list-shaped systems).
+            system_text = _anthropic_system_text(system)
 
             # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
             # RFC-115: include the system (may carry the relocated transcript cache block).
-            bundled_json = _bundled_gil_json(f"{_anthropic_system_text(system)}\n{user_content}")
+            bundled_json = _bundled_gil_json(f"{system_text}\n{user_content}")
             if bundled_json is not None:
                 response_data = {
                     "id": "msg-test-bundled",
@@ -1785,7 +1789,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "stop_sequence": None,
                     "usage": {"input_tokens": 60, "output_tokens": 2},
                 }
-            elif "knowledge-graph fragment" in _anthropic_system_text(system).lower():
+            elif "knowledge-graph fragment" in system_text.lower():
                 # KG extract_kg_graph (system from build_kg_transcript_system_prompt)
                 kg_json = {
                     "topics": [{"label": "E2E mock topic"}],
@@ -1805,9 +1809,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 # Determine response type based on system prompt
                 # If system prompt contains "speaker" or "NER", it's speaker detection
                 is_speaker_detection = (
-                    "speaker" in system.lower()
-                    or "ner" in system.lower()
-                    or "name" in system.lower()
+                    "speaker" in system_text.lower()
+                    or "ner" in system_text.lower()
+                    or "name" in system_text.lower()
                 )
 
                 if is_speaker_detection:
