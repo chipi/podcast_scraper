@@ -7,7 +7,7 @@ block via the shared ``openai_style_messages`` helper, exactly like the base sib
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -50,6 +50,7 @@ def _grok():
 
 
 def _mistral():
+    from podcast_scraper.providers.mistral import mistral_provider as _mp
     from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 
     cfg = cfgmod.Config(
@@ -59,7 +60,11 @@ def _mistral():
         generate_summaries=True,
         cache_transcript_prefix=True,
     )
-    p = MistralProvider(cfg)
+    # Unit-hermetic: the ``mistralai`` SDK is in the ``.[llm]`` extra (absent in the unit-CI env),
+    # and the provider guards ``if Mistral is None`` at init. Patch the module symbol so init
+    # succeeds without the real package; the test overrides ``p.client`` with a Mock anyway.
+    with patch.object(_mp, "Mistral", Mock()):
+        p = MistralProvider(cfg)
     p._summarization_initialized = True
     client = Mock()
     client.chat.complete.return_value = _mk_response()
@@ -76,7 +81,10 @@ def _ollama():
         generate_summaries=True,
         cache_transcript_prefix=True,
     )
-    p = OllamaProvider(cfg)
+    # Unit-hermetic: OllamaProvider.__init__ calls ``_validate_ollama_running`` which connects to a
+    # live server (absent in unit CI -> ConnectionError). No-op it; the test overrides ``p.client``.
+    with patch.object(OllamaProvider, "_validate_ollama_running", lambda self, base_url: None):
+        p = OllamaProvider(cfg)
     p._summarization_initialized = True
     client = Mock()
     client.chat.completions.create.return_value = _mk_response()
