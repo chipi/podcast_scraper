@@ -23,8 +23,8 @@ class TestCleaningMaxTokens(unittest.TestCase):
         self.assertEqual(estimate_cleaning_output_tokens(1), 1)
 
     def test_estimate_scales_with_word_count(self) -> None:
-        # 100 words * 0.85 * 1.3 = 110.5 -> 110
-        self.assertEqual(estimate_cleaning_output_tokens(100), 110)
+        # 100 words * 1.6 (cleaning output ~= full input, ~1.3 tok/word + headroom) = 160
+        self.assertEqual(estimate_cleaning_output_tokens(100), 160)
 
     def test_clamp_respects_cap(self) -> None:
         huge = 1_000_000

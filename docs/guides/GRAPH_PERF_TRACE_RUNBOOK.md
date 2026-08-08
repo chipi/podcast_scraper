@@ -187,7 +187,7 @@ For any perf claim on a PR:
 
 - `docs/guides/GRAPH_VISUALIZATION_GUIDE.md` §Layout — describes what LCP is
   measuring (the graph settling under fcose after artifact fetch + merge).
-- `docs/wip/graph-v3/SUMMARY.md` §Perf — the Tier-C baseline number lives
+- `docs/guides/GRAPH_VISUALIZATION_GUIDE.md` §Perf — the Tier-C baseline number lives
   there. First entry above.
 - `web/gi-kg-viewer/src/utils/cyCoseLayoutOptions.ts` — fcose params. The
   most common target for capture-driven tuning.

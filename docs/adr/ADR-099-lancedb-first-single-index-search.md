@@ -133,4 +133,3 @@ FAISS is removed entirely — build, serve, and config.**
 
 - [RFC-090: Hybrid retrieval (two-tier LanceDB)](../rfc/RFC-090-hybrid-retrieval.md)
 - [ADR-098: Embedding provider as a profile axis](ADR-098-embedding-provider-profile-axis.md)
-- `docs/wip/DASHBOARD-PERF-ANALYSIS-digest-99ep.md` — the measurement trail.

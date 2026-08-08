@@ -178,7 +178,7 @@ channels are provisioned as code (homelab `backend/grafana/provisioning/alerting
 
 | # | Step | Owner | Rollback |
 |---|---|---|---|
-| 4.1 | ✅ **Static pre-review done** — see [PHASE4-FIREWALL-PREREVIEW](GOAL1-PHASE4-FIREWALL-PREREVIEW.md): the `:80`/`:443` rules are an in-place `~` update of `hcloud_firewall.main`; `hcloud_server.prod` is protected by `lifecycle { ignore_changes = [user_data, ssh_keys] }` + a stable `firewall_ids` id ref, so it must show **no change**. Still confirm the live `tofu plan` matches before 4.2; **abort if the server shows `-/+`**. | 🤖 | abort if replace |
+| 4.1 | ✅ **Static pre-review done**: the `:80`/`:443` rules are an in-place `~` update of `hcloud_firewall.main`; `hcloud_server.prod` is protected by `lifecycle { ignore_changes = [user_data, ssh_keys] }` + a stable `firewall_ids` id ref, so it must show **no change**. Still confirm the live `tofu plan` matches before 4.2; **abort if the server shows `-/+`**. | 🤖 | abort if replace |
 | 4.2 | `tofu apply` the 80/443 rules | 🧑 | remove rules + apply (<2 min) |
 | 4.3 | Confirm :443 reachable from outside; box otherwise still locked down | 🤝 | 4.2 rollback |
 

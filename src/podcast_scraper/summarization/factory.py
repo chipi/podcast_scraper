@@ -90,6 +90,9 @@ def create_summarization_provider(  # noqa: C901
                     "deepseek",
                     "ollama",
                     "anthropic",
+                    "vllm",
+                    "litellm",
+                    "qwen",
                 ],
                 str(provider_type_override).strip().lower(),
             )
@@ -104,6 +107,9 @@ def create_summarization_provider(  # noqa: C901
                 "deepseek",
                 "ollama",
                 "anthropic",
+                "vllm",
+                "litellm",
+                "qwen",
             ):
                 raise ValueError(f"Invalid provider_type_override: {provider_type_override}")
         else:
@@ -124,6 +130,9 @@ def create_summarization_provider(  # noqa: C901
             "deepseek",
             "ollama",
             "anthropic",
+            "vllm",
+            "litellm",
+            "qwen",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
@@ -139,6 +148,9 @@ def create_summarization_provider(  # noqa: C901
                 "deepseek",
                 "ollama",
                 "anthropic",
+                "vllm",
+                "litellm",
+                "qwen",
             ],
             provider_type_str,
         )
@@ -294,6 +306,45 @@ def create_summarization_provider(  # noqa: C901
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
+    elif provider_type == "vllm":
+        # ADR-147: DGX-local open models over vLLM's OpenAI-compatible API. A sibling of the
+        # openai provider (real HF model ids on the wire), not a subclass.
+        from ..providers.vllm import VLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "vLLM provider is not wired for experiment-param mode; drive it with a Config "
+                "using summary_provider='vllm' and the vllm_* settings."
+            )
+        provider = VLLMProvider(cfg)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
+    elif provider_type == "litellm":
+        # #1356: LLM calls via the homelab LiteLLM gateway (alias-routed to OpenRouter/vendors).
+        # A sibling of the openai/vllm providers over the shared OpenAI-compatible transport.
+        from ..providers.litellm import LiteLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "LiteLLM provider is not wired for experiment-param mode; drive it with a Config "
+                "using summary_provider='litellm' and the litellm_* settings."
+            )
+        provider = LiteLLMProvider(cfg)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
+    elif provider_type == "qwen":
+        # ADR-147: Qwen3 over any OpenAI-compatible endpoint (cloud host or DGX vLLM). A sibling of
+        # the vllm/deepseek providers with its own `qwen` telemetry namespace.
+        from ..providers.qwen import QwenProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "Qwen provider is not wired for experiment-param mode; drive it with a Config "
+                "using summary_provider='qwen' and the qwen_* settings."
+            )
+        provider = QwenProvider(cfg)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "gemini":
         from ..providers.gemini.gemini_provider import GeminiProvider
 
@@ -362,7 +413,7 @@ def create_summarization_provider(  # noqa: C901
                 summary_provider="grok",
                 generate_summaries=True,  # Required for Grok provider initialization
                 generate_metadata=True,  # Required when generate_summaries=True
-                grok_summary_model=(params.model_name if params.model_name else "grok-2"),
+                grok_summary_model=(params.model_name if params.model_name else "grok-4.3"),
                 grok_temperature=params.temperature if params.temperature is not None else 0.3,
                 grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
                 grok_max_tokens=params.max_length if params.max_length else None,

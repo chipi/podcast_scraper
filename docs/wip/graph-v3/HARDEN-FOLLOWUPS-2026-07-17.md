@@ -59,7 +59,7 @@ two work items on this branch:
   `24fec52f`.
 - **#1215 — gi-kg-viewer operator surface.** `corpusLens` preset
   write-through (`corpusLensPreset` key, `'all' | '7' | '30' | '90'`
-  persistence — see [../USERPREFS-1.md](../USERPREFS-1.md) for
+  persistence — see [RFC-107](../../rfc/RFC-107-search-v3-query-workspace.md) for
   rationale on persisting the preset rather than the calculated
   YMD), and `useUserPreferencesStore.resetToDefaults()` (PUT `{}`,
   clear local, broadcast null per key). Deferred to a later pass:

@@ -212,3 +212,64 @@ def test_record_provider_call_cost_no_span_when_cost_zero(monkeypatch: pytest.Mo
         model="llama",
     )
     assert captured == []
+
+
+@pytest.mark.unit
+def test_record_provider_call_cost_prefers_upstream_usage_cost() -> None:
+    """2026-08 finale fix: the OR/gateway route must bill from the upstream REAL cost
+    (``response.usage.cost``), NOT the pricing-table estimate, which prices aliased gateway ids at
+    the vendor-DIRECT rate — 3-5x the real OpenRouter bill. When the caller has no cost but the
+    response carries ``usage.cost``, prefer it.
+    """
+    import types
+
+    cfg = create_test_config(pricing_assumptions_file="config/pricing_assumptions.yaml")
+    real_cost = 0.0123
+    response = types.SimpleNamespace(usage=types.SimpleNamespace(cost=real_cost))
+    call = ProviderCallMetrics()
+    record_provider_call_cost(
+        call,
+        None,  # caller has no cost -> without the fix this hits the pricing table (direct-rate)
+        cfg=cfg,
+        provider_type="litellm",
+        capability="summarization",
+        model="podcast-flash-0731",
+        prompt_tokens=1000,
+        completion_tokens=500,
+        response=response,
+    )
+    assert call.estimated_cost == pytest.approx(real_cost)
+
+
+@pytest.mark.unit
+def test_record_provider_call_cost_table_fallback_unchanged_without_upstream() -> None:
+    """The fix must NOT change behaviour when there is no upstream cost: a response without
+    ``usage.cost`` (or no response) still falls back to the pricing-table estimate.
+    """
+    import types
+
+    cfg = create_test_config(pricing_assumptions_file="config/pricing_assumptions.yaml")
+    baseline = ProviderCallMetrics()
+    apply_estimated_cost_if_missing(
+        baseline,
+        cfg=cfg,
+        provider_type="litellm",
+        capability="summarization",
+        model="podcast-flash-0731",
+        prompt_tokens=1000,
+        completion_tokens=500,
+    )
+    response = types.SimpleNamespace(usage=types.SimpleNamespace(cost=None))
+    call = ProviderCallMetrics()
+    record_provider_call_cost(
+        call,
+        None,
+        cfg=cfg,
+        provider_type="litellm",
+        capability="summarization",
+        model="podcast-flash-0731",
+        prompt_tokens=1000,
+        completion_tokens=500,
+        response=response,
+    )
+    assert call.estimated_cost == baseline.estimated_cost

@@ -183,6 +183,7 @@ def record_provider_call_cost(
     completion_tokens: Optional[int] = None,
     audio_minutes: Optional[float] = None,
     triggered_guardrail: bool = False,
+    response: Any = None,
 ) -> None:
     """Set per-call USD, backfill when null, and emit ``llm_cost_event`` (#823 / #804).
 
@@ -190,7 +191,26 @@ def record_provider_call_cost(
     ``llm_cost_event`` so cost-rollup can pivot on paid-but-rejected
     spend (the cloud provider charged us for a response that tripped a
     response-shape guardrail and got routed to a fallback).
+
+    ``response`` (RFC-115): the raw provider response, forwarded to ``emit_llm_cost_event`` which
+    extracts the normalised cache-read / cache-write token counts from its usage. Passing it makes
+    prefix-cache savings observable in the ``llm_cost`` telemetry; omitting it is the prior
+    behaviour (no cache-token fields), so every existing call site is unaffected.
     """
+    if cost is None and response is not None:
+        # Prefer the gateway/upstream REAL cost (OpenRouter ``usage.cost`` / LiteLLM
+        # ``_hidden_params['response_cost']``) over the local pricing-table estimate: the table
+        # misses aliased gateway model ids and prices the OR route at the vendor-DIRECT rate — 3-5x
+        # the real bill (2026-08 finale: deepseek-or telemetry $0.68 vs SpendLogs ~$0.20).
+        # Lazy import dodges the openai_provider <-> provider_metrics cycle.
+        try:
+            from podcast_scraper.providers.openai.openai_provider import _openai_response_cost_usd
+
+            cost = _openai_response_cost_usd(response)
+        except (
+            Exception
+        ):  # pragma: no cover — cost extraction is best-effort; table is the fallback
+            pass
     if cost is not None:
         call_metrics.set_cost(cost)
     else:
@@ -228,6 +248,7 @@ def record_provider_call_cost(
             completion_tokens=completion_tokens,
             run_id=run_id,
             triggered_guardrail=triggered_guardrail,
+            response=response,
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)
@@ -243,6 +264,11 @@ def transcription_model_for_cfg(cfg: Any) -> str:
         "gemini": "gemini_transcription_model",
         "mistral": "mistral_transcription_model",
         "deepgram": "deepgram_model",
+        # DGX-served ASR: the real model lives in dgx_whisper_model / moss_model, NOT a
+        # ``<provider>_transcription_model`` field. Without these the resolver returned "" for a DGX
+        # run and callers fell back to the unused local ``whisper_model`` default (base.en).
+        "tailnet_dgx_whisper": "dgx_whisper_model",
+        "moss": "moss_model",
     }
     field = model_field_by_provider.get(provider, f"{provider}_transcription_model")
     model = getattr(cfg, field, None)
@@ -742,19 +768,26 @@ def apply_gil_evidence_llm_call_metrics(
     if prompt_tokens is not None and completion_tokens is not None:
         call_metrics.set_tokens(prompt_tokens, completion_tokens)
     # Compute and attach cost if the provider didn't already.
-    cost_event_emitted = False
+    # B4: emit the llm_cost event whenever TOKENS are present, NOT only when a price resolves. This
+    # path used to emit ONLY if calculate_provider_cost returned a value (a missing rate row — e.g.
+    # a litellm gateway alias or any unpriced model — returned None) OR the provider had set a
+    # positive response_cost. So quote/extraction + entailment token usage VANISHED from the event
+    # log for every unpriced route, and rolling_assess's token x price cost silently excluded the
+    # ENTIRE grounding stage for those runs. record_provider_call_cost is itself tokens-gated (uses
+    # the provider's response_cost when already set, else the pricing table, else $0 with tokens
+    # still recorded — see its docstring), so route every grounding call through it exactly once.
+    # Passing the existing estimated_cost preserves a provider that already priced its own call.
     if (
-        call_metrics.estimated_cost is None
-        and cfg is not None
+        cfg is not None
         and provider_type
         and model
         and prompt_tokens is not None
         and completion_tokens is not None
     ):
         try:
-            from podcast_scraper.workflow.helpers import calculate_provider_cost
-
-            cost = calculate_provider_cost(
+            record_provider_call_cost(
+                call_metrics,
+                call_metrics.estimated_cost,
                 cfg=cfg,
                 provider_type=provider_type,
                 capability="summarization",
@@ -762,44 +795,8 @@ def apply_gil_evidence_llm_call_metrics(
                 prompt_tokens=int(prompt_tokens),
                 completion_tokens=int(completion_tokens),
             )
-            if cost is not None:
-                record_provider_call_cost(
-                    call_metrics,
-                    cost,
-                    cfg=cfg,
-                    provider_type=provider_type,
-                    capability="summarization",
-                    model=model,
-                    prompt_tokens=int(prompt_tokens),
-                    completion_tokens=int(completion_tokens),
-                )
-                cost_event_emitted = True
-        except Exception:
-            # Pricing is best-effort at this layer — a missing rate row
-            # shouldn't fail a GIL evidence call.
-            pass
-    if (
-        not cost_event_emitted
-        and call_metrics.estimated_cost is not None
-        and call_metrics.estimated_cost > 0
-        and cfg is not None
-        and provider_type
-        and model
-    ):
-        try:
-            from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
-
-            emit_llm_cost_event(
-                cfg,
-                provider=provider_type,
-                stage="summarization",
-                model=model,
-                estimated_cost_usd=float(call_metrics.estimated_cost),
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-            )
         except Exception as exc:
-            logger.debug("llm_cost_event emission skipped: %s", exc)
+            logger.debug("gi evidence cost event emission skipped: %s", exc)
     call_metrics.finalize()
     if pipeline_metrics is None:
         return

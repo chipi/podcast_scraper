@@ -13,17 +13,7 @@
 - **Related Documents**:
   - `docs/architecture/ARCHITECTURE.md` - System architecture
   - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md` - Provider implementation guide
-  - `docs/wip/PROVIDER_REFACTORING_OPPORTUNITIES.md` - Refactoring opportunities (consolidated here)
-  - `docs/wip/UNIFIED_PROVIDERS_STATUS.md` - Status tracking (consolidated here)
-  - `docs/wip/UNIFIED_ML_PROVIDER_STATUS.md` - ML provider status (consolidated here)
-  - `docs/wip/ML_PROVIDER_UNIFIED_DESIGN.md` - Design decisions (consolidated here)
-  - `docs/wip/PROVIDER_INTEGRATION_STATUS.md` - Integration status (consolidated here)
-  - `docs/wip/PROVIDER_NAMING_CONSISTENCY.md` - Naming analysis (consolidated here)
-  - `docs/wip/PROVIDER_TEST_STRATEGY.md` - Test strategy (consolidated here)
-  - `docs/wip/PROVIDER_TEST_COVERAGE_EXPANSION.md` - Test coverage (consolidated here)
-  - `docs/wip/TEST_VS_PRODUCTION_CONFIGURATION.md` - Test vs production config (consolidated here)
-  - `docs/wip/MODULARITY_ARCHITECTURE_STRENGTHENING.md` - Modularity architecture (consolidated here)
-  - `docs/wip/NEXT_STEPS_ROADMAP.md` - Next steps roadmap (consolidated here)
+  - Consolidated from prior WIP working docs (refactoring opportunities, status tracking, ML provider status, design decisions, integration status, naming analysis, test strategy, test coverage, test-vs-production config, modularity architecture, next-steps roadmap — all now removed)
 
 ## Abstract
 

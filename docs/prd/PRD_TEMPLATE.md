@@ -138,7 +138,9 @@
 
 ## Related Work
 
-[Links to related issues, PRDs, RFCs, UX specs:]
+[Links to related issues, PRDs, RFCs, UX specs — NEVER a `docs/wip/` note. WIP is ephemeral;
+promote its substance inline or cite the shipped code / commit / issue. See AGENTS.md → "Committed
+WIP docs".]
 
 - Issue #XXX: [Related issue description]
 - PRD-XXX: [Related PRD]

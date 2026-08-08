@@ -7,7 +7,7 @@
  *
  * View mode is now a proper Pinia store with USERPREFS-1 write-through so the
  * choice syncs across devices (was previously component-local localStorage —
- * see docs/wip/USERPREFS-1.md § "Not shipped" migration item, and stores/
+ * see docs/rfc/RFC-107-search-v3-query-workspace.md § "Not shipped" migration item, and stores/
  * libraryViewMode.ts for the store definition).
  */
 import { computed } from 'vue'

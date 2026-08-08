@@ -1,4 +1,4 @@
-"""Post-reingestion validation harness (docs/wip/POST_REINGESTION_PLAN.md).
+"""Post-reingestion validation harness (docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md).
 
 Runs the 5 explore-expansion CLI commands + collects metrics so a re-
 ingested production corpus can be validated against the expected

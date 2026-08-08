@@ -148,7 +148,7 @@ The script is reusable across future summary-model evaluation cycles; the schema
 
 ## v3 fixtures contribution (#921)
 
-Logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`:
+Logged in `docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`:
 
 - **Sustained-load reliability is invisible at small-batch eval scale.** v3 fixtures should include a "reliability burst" mode that runs N parallel summary calls against the configured provider to stress-test the operating-point reliability axis.
 - **Per-stage `ProviderCallMetrics` export** would close the prod-evidence gap that D1 hit — the in-process retry counter should be serializable to the run metrics JSON so future prod runs auto-emit reliability evidence.

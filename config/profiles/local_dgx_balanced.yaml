@@ -9,7 +9,7 @@ profile: local_dgx_balanced
 # See docs/guides/DGX_RUNBOOK.md.
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
-ollama_api_base: http://your-dgx.tailnet.ts.net:11434/v1
+ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
 
 transcription_provider: whisper
 whisper_model: small.en
@@ -145,3 +145,4 @@ transcription_coverage_min: 0.0
 enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
+transcription_speech_coverage_min: 0.0

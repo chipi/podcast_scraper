@@ -210,7 +210,7 @@ After this ADR's PR merges:
 
 - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — the
   unified KG+GI ontology v2; chunk 9 is the legacy-drop step.
-- `docs/wip/RFC097_CHUNK9_PLAN.md` — the implementation plan
+- The original chunk-9 implementation plan was a WIP working doc
   (pre-execution; this ADR records the executed decision).
 - `src/podcast_scraper/kg/schema.py` — KG validator (strict).
 - `src/podcast_scraper/gi/schema.py` — GI validator (strict).

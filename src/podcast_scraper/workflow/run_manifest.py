@@ -262,8 +262,12 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     except ImportError:
         pass
 
-    # Get model information from config
-    whisper_model = getattr(cfg, "whisper_model", None)
+    # Get model information from config. Resolve the ACTUAL transcription model for the configured
+    # provider (dgx_whisper_model for DGX, moss_model, etc.) — reading cfg.whisper_model directly
+    # stamped the unused local default (base.en) on every DGX run.
+    from ..utils.provider_metrics import transcription_model_for_cfg
+
+    whisper_model = transcription_model_for_cfg(cfg) or getattr(cfg, "whisper_model", None)
     summary_model = getattr(cfg, "summary_model", None)
     reduce_model = getattr(cfg, "summary_reduce_model", None)
 

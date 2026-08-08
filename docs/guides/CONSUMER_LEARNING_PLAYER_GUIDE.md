@@ -73,7 +73,7 @@ user's own experience.
 
 The app is an installable PWA. The install / offline / update path has been hardened against
 the specific traps in the shipping guide (`docs/guides/PWA_SHIPPING_GUIDE.md` if present, or
-the source in `docs/wip/` before v2.8):
+the source WIP doc before v2.8, since removed):
 
 - **Icons.** `icon-192.png`, `icon-512.png`, `maskable-512.png` (Android crop safe-zone),
   `apple-touch-icon-180.png` for iOS. Fixtures live in `web/learning-player/public/`. Missing icons silently

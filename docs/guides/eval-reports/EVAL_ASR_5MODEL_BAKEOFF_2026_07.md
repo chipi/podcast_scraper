@@ -38,7 +38,7 @@
 >   issue, and a weak coverage-failover target. Tracked in **#1273**. **Update (2026-07-28):** the
 >   coverage failover was retargeted large-v3 → **MOSS** (2nd-best accuracy, DGX-local) — commit
 >   `1fd5b7a0`. The int8-vs-float16 serving test (#1273 TODO 1) is BLOCKED on DGX SSH; harness ready
->   (`docs/wip/1273-largev3-int8-vs-fp16-BLOCKED.md`), not on the v2.3 critical path.
+>   (see issue #1273), not on the v2.3 critical path.
 > - **Deepgram = diarization only** (cheap, cloud-native speaker labels), confirmed not a
 >   transcription contender.
 >
@@ -133,7 +133,7 @@ Profile impact (regenerated via `make profiles-materialize`):
 | profile | transcription before → after | notes |
 | --- | --- | --- |
 | `prod_dgx_balanced` | MOSS → **turbo** + coverage gate (0.85→large-v3) | serving |
-| `prod_dgx_full_with_fallback` | MOSS → **turbo** + coverage gate | serving |
+| `prod_dgx_full` | MOSS → **turbo** + coverage gate | serving |
 | `cloud_with_dgx_primary` | MOSS → **turbo** + coverage gate | DGX-primary hybrid |
 | `cloud_quality` | Deepgram → **openai-whisper-1** | diarization stays Deepgram |
 | `cloud_balanced`, `cloud_thin` | openai-whisper-1 (unchanged) | already correct |

@@ -124,7 +124,7 @@ def build_adfree_artifacts(
         # of an ad that coalesced into the same-speaker turn as the following content —
         # and the offsets come straight from the formatter, so they stay exact.
         _, _, meta = excise_ad_regions(text)
-        merge_preroll_range(meta, cp_end)
+        merge_preroll_range(meta, cp_end, text=text)
         ranges = meta.excised_ranges
         survivors = (
             [s for s in offset_segs if not _overlaps_any(s["char_start"], s["char_end"], ranges)]

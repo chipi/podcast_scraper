@@ -1,7 +1,8 @@
 """Duration-scaled insight ceiling (#1191 interim).
 
 A flat 50-insight cap truncated long episodes (a corpus-baked cutoff, see
-docs/wip/GI_WHAT_TO_SURFACE.md) while a high flat cap invited padding on short ones. The ceiling now
+docs/adr/ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md) while a high flat cap invited padding
+on short ones. The ceiling now
 scales +25 per 30-min unit up to 200 at 4h, floored at the configured gi_max_insights. The value
 gate — not this ceiling — removes filler; the full route-and-tag redesign is #1191.
 """

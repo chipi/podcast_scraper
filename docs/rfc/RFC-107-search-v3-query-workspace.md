@@ -40,7 +40,7 @@ See PRD-045 §Background. Concretely:
 
 ## Design
 
-Ten sub-designs; each mapped to a slice in [`docs/wip/SEARCH-V3-IMPLEMENTATION-PLAN.md`](../wip/SEARCH-V3-IMPLEMENTATION-PLAN.md).
+Ten sub-designs, shipped as slices S1–S8 under epic #1229 (landed by commit `e590887f` / #1274).
 
 ### §1 Shell IA changes
 
@@ -226,7 +226,7 @@ In-episode search (`EpisodeDetailPanel` inline field): renders `WorkspaceResults
 ]
 ```
 
-**CLI**: `python scripts/eval/search_quality.py --corpus <path> --queries <path> --top-k 10 --out docs/wip/search-v3/eval/`.
+**CLI**: `python scripts/eval/search_quality.py --corpus <path> --queries <path> --top-k 10 --out data/eval/search-v3/eval/`.
 
 **Metrics** produced per query + aggregated:
 - nDCG@10, MRR@10 (over labelled expected set).
@@ -283,7 +283,7 @@ Mirrors `scripts/dev/capture-graph-lcp.{sh,mjs}` — same shape, same output con
 | `ui-operator-graph` | click → graph camera settle ms |
 | `ui-enriched-answer-paint` | request-start → answer-first-byte + full-render ms |
 
-Median-of-3, `.metrics.json` per label, gzipped trace per label, committed under `docs/wip/search-v3/traces/`.
+Median-of-3, `.metrics.json` per label, gzipped trace per label, committed under `docs/guides/perf-traces/`.
 
 ### §P3 Deep-review pass after baseline
 
@@ -314,7 +314,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 
 ## Migration / rollout
 
-- **Slice order** — see [`docs/wip/SEARCH-V3-IMPLEMENTATION-PLAN.md`](../wip/SEARCH-V3-IMPLEMENTATION-PLAN.md).
+- **Slice order** — S0 baseline → S1–S8 (epic #1229; shipped via #1274).
 - **Feature flag** — none. Search v3 is an operator-viewer refactor; no toggle behind users. LeftPanel Search remains functional until slice 1 lands the tab; the mode-switch is retired only when the tab is in.
 - **E2E surface map** — updated in each slice; the old Explore test IDs get a "retired in RFC-107 slice 2" note.
 - **Docs** — VIEWER_IA.md gains a Search-tab paragraph; UXS-005 grows a "compact launcher" section (retiring its main-column role); UXS-008 grows a "hero placement" section; UXS-016 is the primary UX doc for the Workspace.
@@ -375,5 +375,4 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md) — perf-capture template
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current operator-facing enrichment config surface (per-enricher reference + provider-types registry)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes + `--with-ml` CLI (RFC-088 chunk 6; separate from Search v3's `/api/search?enrich_results=`)
-- USERPREFS-1: `docs/wip/USERPREFS-1.md`
 - #1205 — LanceDB SIGSEGV incident + fix `0fe0854b`

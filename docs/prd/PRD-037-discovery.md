@@ -27,7 +27,6 @@ sources (OPML, manual RSS) can be added without touching core logic.
 > `DiscoverySource` (FR1), user-triggered scrape (FR2 / FR4), and the guardrail implementations
 > (rate / quota / cost / abuse). The FRs below describe the full Phase-2 target; the
 > `DiscoverySource` seam (`app_content_source`) is scaffolded now so Phase 2 adds no API reshape.
-> See `docs/wip/player/1069-SCRAPE-ON-DEMAND-SCOPE-ANALYSIS.md` for the decision + build plan.
 
 ## Background & Context
 

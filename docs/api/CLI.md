@@ -631,7 +631,7 @@ make quality-metrics-ci
 ```
 
 `compare-gil-runs` expects each path to be a **pipeline run root** with `metadata/*.gi.json`
-(see `docs/wip/gil-ml-vs-openai-outcome-benchmark.md`).
+(see the original GIL-ML-vs-OpenAI outcome benchmark, WIP doc now removed).
 
 ## Knowledge Graph (`kg`) subcommands
 

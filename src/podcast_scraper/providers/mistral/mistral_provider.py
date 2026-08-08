@@ -75,6 +75,7 @@ logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
+from ..common.transcript_cache import openai_style_messages as _openai_style_messages
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Pricing for Mistral models lives in ``config/pricing_assumptions.yaml`` (#651).
@@ -188,6 +189,8 @@ class MistralProvider:
             )
 
         self.cfg = cfg
+        # RFC-115: relocate the transcript to a cacheable leading system block (default on).
+        self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
         from ...cleaning import HybridCleaner, LLMBasedCleaner
@@ -922,10 +925,9 @@ class MistralProvider:
             def _make_api_call():
                 return self.client.chat.complete(
                     model=self.summary_model,
-                    messages=[  # type: ignore[arg-type]
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
+                        text, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
+                    ),
                     temperature=self.summary_temperature,
                     max_tokens=max_length,
                 )
@@ -1120,7 +1122,9 @@ class MistralProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_megabundle_prompt(
+            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1204,7 +1208,9 @@ class MistralProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_extraction_bundle_prompt(
+            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1530,10 +1536,9 @@ class MistralProvider:
             system_prompt = render_prompt("mistral/insight_extraction/system_v1")
             response = self.client.chat.complete(
                 model=self.summary_model,
-                messages=[  # type: ignore[arg-type]
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
+                    text_slice, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
+                ),
                 temperature=insight_temperature,
                 max_tokens=insight_max_tokens,
             )
@@ -1749,10 +1754,9 @@ class MistralProvider:
             def _make_api_call():
                 return self.client.chat.complete(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
+                        text_slice, system_msg, user_prompt, enabled=self._cache_transcript_prefix
+                    ),
                     temperature=0.1,
                     max_tokens=2048,
                 )
@@ -1820,10 +1824,9 @@ class MistralProvider:
             def _make_api_call():
                 return self.client.chat.complete(
                     model=self.summary_model,
-                    messages=[  # type: ignore[arg-type]
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
+                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
+                        transcript, system, user, enabled=self._cache_transcript_prefix
+                    ),
                     temperature=0.0,
                     max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                 )
@@ -1989,7 +1992,11 @@ class MistralProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
+        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
+        user = extract_quotes_bundled_user(clipped, insight_texts)
+        messages = _openai_style_messages(
+            clipped, system, user, enabled=self._cache_transcript_prefix
+        )
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("mistral")
         call_metrics.set_breaker_config_from_cfg(self.cfg)
@@ -1999,10 +2006,7 @@ class MistralProvider:
         def _make_api_call() -> Any:
             return self.client.chat.complete(
                 model=self.summary_model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+                messages=messages,  # type: ignore[arg-type]
                 temperature=0.0,
                 max_tokens=max_out,
             )

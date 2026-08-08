@@ -14,7 +14,7 @@ co-operating APIs:
 
 This page is the authoritative reference; the canonical implementation
 plan lives in
-[`docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md`](../wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md).
+[`docs/rfc/RFC-088-enrichment-layer-architecture.md`](../rfc/RFC-088-enrichment-layer-architecture.md).
 
 ## HTTP API
 
@@ -239,8 +239,7 @@ subprocess and tracks it through the shared jobs registry).
 
 - [RFC-088 Enrichment Layer Architecture](../rfc/RFC-088-enrichment-layer-architecture.md) — protocol spec (status: **Completed**, 2026-06-27)
 - [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) — operator + developer companion (CLI / viewer / writing a new enricher)
-- [Implementation plan](../wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md) — chunk-by-chunk decomposition
-- [Chunk-1 lock audit](../wip/RFC-088-CHUNK1-LOCK-AUDIT.md) — locked decisions for the foundation
+- [RFC-088 enrichment-layer architecture](../rfc/RFC-088-enrichment-layer-architecture.md) — the design + chunk decomposition + locked foundation decisions
 - Source: [`src/podcast_scraper/enrichment/`](https://github.com/chipi/podcast_scraper/tree/main/src/podcast_scraper/enrichment)
 - HTTP routes: [`src/podcast_scraper/server/routes/enrichment.py`](https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/routes/enrichment.py) + [`corpus_enrichments.py`](https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/routes/corpus_enrichments.py)
 - MCP tools: [`src/podcast_obs/sources/enrichment.py`](https://github.com/chipi/podcast_scraper/blob/main/src/podcast_obs/sources/enrichment.py)

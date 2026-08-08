@@ -88,12 +88,23 @@ def create_speaker_detector(  # noqa: C901
             "ollama",
             "deepseek",
             "anthropic",
+            "vllm",
+            "litellm",
+            "qwen",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
         provider_type = cast(
             Literal[
-                "spacy", "openai", "gemini", "mistral", "grok", "ollama", "deepseek", "anthropic"
+                "spacy",
+                "openai",
+                "gemini",
+                "mistral",
+                "grok",
+                "ollama",
+                "deepseek",
+                "anthropic",
+                "vllm",
             ],
             provider_type_str,
         )
@@ -231,7 +242,7 @@ def create_speaker_detector(  # noqa: C901
             cfg = Config(
                 rss="",  # Dummy, not used for speaker detection (use alias)
                 speaker_detector_provider="grok",
-                grok_speaker_model=(params.model_name if params.model_name else "grok-2"),
+                grok_speaker_model=(params.model_name if params.model_name else "grok-4.3"),
                 grok_temperature=params.temperature if params.temperature is not None else 0.3,
                 grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
             )
@@ -286,6 +297,42 @@ def create_speaker_detector(  # noqa: C901
             provider = OllamaProvider(cfg)
 
         # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
+    elif provider_type == "vllm":
+        # ADR-147: naming/NER on the DGX-local vLLM open model (sibling of openai).
+        from ..providers.vllm import VLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "vLLM speaker detector is not wired for experiment-param mode; drive it with a "
+                "Config using speaker_detector_provider='vllm' and the vllm_* settings."
+            )
+        provider = VLLMProvider(cfg)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
+    elif provider_type == "litellm":
+        # #1356: naming/NER via the homelab LiteLLM gateway (alias-routed).
+        from ..providers.litellm import LiteLLMProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "LiteLLM speaker detector is not wired for experiment-param mode; drive it with a "
+                "Config using speaker_detector_provider='litellm' and the litellm_* settings."
+            )
+        provider = LiteLLMProvider(cfg)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
+    elif provider_type == "qwen":
+        # ADR-147: naming/NER on a Qwen3 endpoint (cloud host or DGX vLLM); own `qwen` telemetry.
+        from ..providers.qwen import QwenProvider
+
+        if experiment_mode:
+            raise NotImplementedError(
+                "Qwen speaker detector is not wired for experiment-param mode; drive it with a "
+                "Config using speaker_detector_provider='qwen' and the qwen_* settings."
+            )
+        provider = QwenProvider(cfg)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "anthropic":

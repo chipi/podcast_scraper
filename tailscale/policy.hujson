@@ -101,7 +101,7 @@
     //   :8001  = pyannote diarization service (#926; #943 adds /metrics).
     //   :8002  = openai-whisper service (first-party Whisper code; #953).
     //            Runs alongside speaches:8000 until #952 picks the winner.
-    //   :8003  = vLLM autoresearch slot (ADR-144: naming/summary/GI/KG/grounding
+    //   :8003  = vLLM autoresearch slot (ADR-147: naming/summary/GI/KG/grounding
     //            + the in-pipeline value gate; the fully-airgapped DGX profiles).
     //   :8004  = MOSS transcribe-diarize (ASR coverage failover; #1273 / ADR-123).
     // #943 observability sidecars:

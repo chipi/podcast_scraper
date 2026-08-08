@@ -277,7 +277,7 @@ qwen3.5:9b) with cloud judges.
 
 ## Data
 
-- Leaderboard A: `docs/wip/CLOUD_COHORT_LEADERBOARD_2026-07-03.json`
+- Leaderboard A: raw sweep data (archived, not tracked as a permanent doc)
 - Leaderboard B (ledger): `data/autoresearch_baselines/autoresearch-2026-W27.json`
   (2026-07-02 GHA cron run, committed by baselines-commit-bot)
 - Cloud sweep log: `/tmp/cloud_cohort.log`

@@ -283,8 +283,7 @@ def test_fixtures_version_is_v3():
 
     v3 became feature-complete (enricher structures + scripted natural episodes +
     corpus_meta) and was promoted to the active version; the app/viewer corpus
-    now builds from it. The v2→v3 migration tail is tracked in
-    ``docs/wip/V3-PROMOTION-MIGRATION-2026-07.md``.
+    now builds from it.
     """
     fv = PROJECT_ROOT / "tests" / "fixtures" / "FIXTURES_VERSION"
     if not fv.exists():

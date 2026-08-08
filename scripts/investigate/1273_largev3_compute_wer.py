@@ -127,7 +127,7 @@ def main() -> int:
         else:
             print(f"  {label:24s} no scores")
 
-    out = Path("docs/wip/EVAL_1273_largev3_int8_vs_fp16.json")
+    out = Path(".test_outputs/eval/EVAL_1273_largev3_int8_vs_fp16.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"summary": summary, "per_episode": results}, indent=2))
     print(f"\nwrote {out}")

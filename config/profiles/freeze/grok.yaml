@@ -1,6 +1,6 @@
 # Profile: freeze/grok — max-Grok (NER + summary via Grok).
 # Grok has no transcription API, so whisper small.en (production WER sweet spot).
-# grok-3-mini is the currently-working x.ai model (grok-2 / grok-beta are stale).
+# grok-4.3 is the current general x.ai model (grok-2 / grok-beta / grok-3-mini are stale).
 # Provider-only prescription; operational fields injected by freeze_profile / CLI.
 #
 # Run:
@@ -17,13 +17,13 @@ diarize: true
 
 # Speaker detection — Grok
 speaker_detector_provider: grok
-grok_speaker_model: grok-3-mini
+grok_speaker_model: grok-4.3
 auto_speakers: true
 
 # Summarization — Grok
 summary_provider: grok
-grok_summary_model: grok-3-mini
-grok_cleaning_model: grok-3-mini
+grok_summary_model: grok-4.3
+grok_cleaning_model: grok-4.3
 
 # Grounded Insights
 generate_gi: true

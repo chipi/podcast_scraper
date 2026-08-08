@@ -301,3 +301,4 @@ tests/fixtures/app-validation-corpus/v3/search/metadata.json
 
 # Upgrade migration lock (runtime, never committed)
 tests/fixtures/**/upgrade_ledger.json.lock
+scripts/eval/rolling_cache_*.json

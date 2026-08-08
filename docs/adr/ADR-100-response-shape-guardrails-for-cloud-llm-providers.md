@@ -335,16 +335,16 @@ summarize is the load-bearing call for paid-but-rejected spend
 attribution (largest cost per call); the smaller call sites have the
 guardrail wired and the cost field exists for them, they just don't
 emit-with-flag in their `except` blocks. Marked as a known scope
-decision, not a deferred follow-up, in
-`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`.
+decision, not a deferred follow-up, in the original resilience-gap
+audit (retired WIP doc; findings folded into this ADR).
 
 ### E. Resilience-coverage audit + close-out
 
 A second user-requested follow-up audit during the same review
 flagged that prior to #1003, no cloud LLM provider had E2E
 resilience coverage via the mock server's `set_error_behavior`
-hooks. The matrix and the original gaps are documented in
-`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`. All 5 gaps in
+hooks. The matrix and the original gaps are documented in the
+retired resilience-gap audit (WIP doc, now removed). All 5 gaps in
 that doc closed on 2026-06-15:
 
 | Gap | Closed by |

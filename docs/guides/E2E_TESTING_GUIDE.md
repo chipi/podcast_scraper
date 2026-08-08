@@ -109,7 +109,7 @@ await page.waitForTimeout(1500) // noisy under parallel workers
 
 **2. `resetUserPreferences(page)` — call in every `beforeEach` after `mockSignIn` to prevent per-user state leaks across walks.**
 
-Under USERPREFS-1 (`docs/wip/USERPREFS-1.md`) each per-user preference
+Under USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`) each per-user preference
 (theme, panels, lens flags, graph load mode, legend collapsed state)
 persists server-side to
 `<data_dir>/users/<id>/preferences.json`. Without a reset, walk N+1

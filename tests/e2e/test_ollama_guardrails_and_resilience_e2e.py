@@ -1,7 +1,7 @@
 """E2E: Ollama guardrails + resilience via the mock server.
 
 Ollama is the self-hosted-but-OpenAI-compatible third axis alongside the
-4 cloud providers; the prod_dgx_full_with_fallback profile and the
+4 cloud providers; the prod_dgx_full profile and the
 freeze/ollama_qwen35 profile both wire it as the summary provider.
 Symmetric coverage with the cloud suites:
 

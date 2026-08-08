@@ -101,4 +101,4 @@ make app-stack-down
 
 **C1 scaffold (#1080):** shell, routing, typed API client, auth store, i18n, theme tokens,
 PWA, Docker, test harness. Catalog + Player are minimal scaffolds — full surfaces land in
-C3 (#1082) / C4 (#1083). See `docs/wip/player/EPIC-2-CONSUMER-APP-PLAN.md`.
+C3 (#1082) / C4 (#1083).

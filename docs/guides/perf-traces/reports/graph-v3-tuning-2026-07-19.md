@@ -1,7 +1,7 @@
 # graph-v3 LCP traces (report, 2026-07-19)
 
 > **Historical report**, migrated into the perf-traces framework
-> ([../index.md](../index.md)) verbatim from `docs/wip/graph-v3/traces/README.md`.
+> ([../index.md](../index.md)) verbatim from the original graph-v3 traces WIP README.
 > The raw artifacts it references (`prod-v2-*.metrics.json`, `*.trace.json.gz`,
 > `*.screenshot.png`) now live under **`data/perf/traces/graph/`**. First entry
 > in the [report index](index.md).
@@ -381,7 +381,7 @@ path. What it made visible:
   `artifacts.ts` refactor, not an fcose-options tune.
 + **Expand-on-tap:** fcose IS a real cost (100-node settle per
   tap). The `cy.add(delta)` refactor called out in
-  `docs/wip/graph-tech-debt.md:31` applies here just as much as
+  issue #1219 applies here just as much as
   to the KG-second-wave `everything` path.
 
 **Net:** fcose tuning that's just about options in

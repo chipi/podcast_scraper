@@ -123,7 +123,7 @@ ml = [
   # transformers v5 (#382): pipeline() removed for summarization / text2text-generation /
   # question-answering — call sites rewritten to AutoModel*.from_pretrained + generate() /
   # QA-head forward. Also picks up the CVE-2026-1839 fix (Trainer rng_state / torch.load
-  # weights_only) that shipped in >=5.0.0rc3. See docs/wip/ISSUE-382-*.md + ADR-068 post-impl.
+  # weights_only) that shipped in >=5.0.0rc3. See docs/releases/RELEASE_v2.7.0.md + ADR-068 post-impl.
   # Native-wheel drift guard (2026-07-17): the acceptance job was green on
   # 84b17ab (07-11, transformers 5.13.1 / sentencepiece 0.2.1 / torchcodec
   # 0.14.0) and started SIGSEGV/SIGBUS-ing at ML-stack teardown on 2174be4

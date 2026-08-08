@@ -6,7 +6,7 @@
 - **Related RFCs**:
   - [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — Search v3 (first consumer; retracts the per-corpus JSON store)
 - **Related Documents**:
-  - `docs/wip/USERPREFS-1.md` — server-backed per-user preferences (shipped)
+  - [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — server-backed per-user preferences (shipped)
   - `web/gi-kg-viewer/src/stores/userPreferences.ts` — client store
 
 ## Context & Problem
@@ -68,5 +68,5 @@ The default when in doubt is **per-user via USERPREFS-1**.
 ## References
 
 - [RFC-107 §8 — Saved queries + query history](../rfc/RFC-107-search-v3-query-workspace.md) (USERPREFS-1 backed)
-- `docs/wip/USERPREFS-1.md` — the shipped USERPREFS-1 mechanism.
+- [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — the shipped USERPREFS-1 mechanism.
 - Retracted design: `<corpus_root>/.viewer/saved_queries.json` (never implemented).

@@ -102,6 +102,23 @@ def test_formatter_defaults_to_dash_outside_a_run() -> None:
     assert fmt.format(_record("x")) == "[run=- ep=-] x"
 
 
+def test_formatter_coerces_non_string_ids_to_str() -> None:
+    # #1360: a heavily-mocked unit test can leave a raw Mock in the run/episode
+    # context. The formatter must stamp plain `str`s onto the record — a raw Mock
+    # on a captured record crashes pytest-json-report's execnet serialization under
+    # `-n` (worker INTERNALERROR). Coercion is the regression guard.
+    from unittest.mock import Mock
+
+    corr._RUN_ID = Mock()
+    corr._EPISODE_ID.set(Mock())
+    fmt = corr.CorrelationFormatter("%(message)s")
+    record = _record("boom")
+    fmt.format(record)
+    assert isinstance(record.run_id, str)
+    assert isinstance(record.episode_id, str)
+    assert isinstance(record.trace_id, str)
+
+
 # ── episode_scope (o11y correlation spine) ──────────────────────────────────
 
 

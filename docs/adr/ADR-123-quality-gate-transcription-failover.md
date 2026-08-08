@@ -8,9 +8,26 @@
   policy: backoff→trip→hold), RFC-106 / #1198 (`FallbackChain` — infra failover), #1178/#1179 (the
   ASR bake-off that surfaced this).
 
+## Amendment (2026-08-03): the raw coverage gate is retired into the `speech_audio_ratio` metric
+
+Superseded as a **gate** by [ADR-131](ADR-131-speech-normalized-coverage-gate.md)
+for all diarizing profiles: the total-audio denominator counts music / ads /
+silence as "dropped speech", so it spuriously failed over on ad-heavy episodes
+(measured 71.3% on an episode whose *speech* was 93.1% transcribed). The
+registry no longer sets `transcription_coverage_min` above 0 for diarizing
+presets.
+
+The **computation** is not discarded — it is now emitted as the
+`speech_audio_ratio` metric (`Σ segment durations ÷ total audio`) on every
+episode's ASR provenance (`<base>.asr.json`) and processing-manifest ASR block.
+It measures how much of the runtime is actual audio content vs music / silence /
+dead-air (it does **not** exclude *spoken* ads — that is the ad-detection path).
+The raw gate remains available (code intact) only as the no-op fallback for
+non-diarizing configs, where no speech denominator exists.
+
 ## Context & Problem Statement
 
-The #1178/#1179 ASR bake-off (`docs/wip/ASR-BAKEOFF-ISOLATED-2026-07-22.md`) found that
+The #1178/#1179 ASR bake-off found that
 `large-v3-turbo` — the ~4× faster model we want for the v2→v3 reprocess — **silently drops large
 spans of speech on long episodes, with no error raised.** On a 100-minute episode it transcribed
 only **69% of the speech** (100 gaps, ~25 min dropped, 10,469 micro-segments) and scored 29.9 % WER
@@ -121,5 +138,4 @@ Gate is active only when `coverage_min > 0` **and** a failover model is set. Bot
 ## References
 
 - Issue [#1258](https://github.com/chipi/podcast_scraper/issues/1258) — scope + acceptance.
-- `docs/wip/ASR-BAKEOFF-ISOLATED-2026-07-22.md` — the ep6 evidence + coverage detector prototype.
 - [ADR-122](ADR-122-self-hosted-model-resilience-policy.md), RFC-106/#1198.

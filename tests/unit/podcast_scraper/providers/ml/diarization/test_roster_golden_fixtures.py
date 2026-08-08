@@ -297,6 +297,32 @@ def assert_guest_soup(roster: SpeakerRoster) -> None:
     assert roster.by_voice["GUEST_1"].named is False
 
 
+def perturb_early_guest(fixture: Dict[str, Any]) -> Dict[str, Any]:
+    """+early_guest — the guest gives a long answer INSIDE the 90s intro window while a host still
+    opens first: the #1169 swap (host opens briefly, guest out-talks them EARLY, so an intro-window
+    talk-time argmax crowns the guest and the known-host name lands on the guest voice). On the real
+    46-fixture eval this was all 12/12 host misses. Guards: host selection follows WHO OPENS
+    (`_opening_voice`, earliest non-ad turn), not intro-window talk share, so no host↔guest swap.
+    Distinct from +loud_guest, whose guest is huge but starts at 1800s — AFTER the intro window."""
+    f = copy.deepcopy(fixture)
+    diar = f["diarization"]
+    opener = next(s for s in diar if s["speaker"] == "HOST_A")  # first HOST_A turn, start=30
+    opener["end"] = 45.0  # host opens only 15s (content_start=30, window ~30-120)
+    idx = diar.index(opener)
+    diar.insert(idx + 1, {"speaker": "GUEST_1", "start": 45.0, "end": 119.0})  # 74s, wins window
+    diar.insert(idx + 2, {"speaker": "HOST_A", "start": 119.0, "end": 250.0})  # host resumes
+    return f
+
+
+def assert_early_guest(roster: SpeakerRoster) -> None:
+    # The opener is host though the guest won the intro-window talk time; no name gets swapped.
+    assert roster.by_voice["HOST_A"].role == "host", "opener host demoted (intro-window swap #1169)"
+    assert roster.by_voice["HOST_A"].name == "Kevin Roose"
+    assert roster.by_voice["HOST_B"].role == "host"
+    assert roster.by_voice["GUEST_1"].role == "guest", "guest crowned host by intro-window talk"
+    assert roster.by_voice["GUEST_1"].name == "Dr. Adam Rodman"
+
+
 # PENDING: +short — cut the episode to ~4 minutes (240s). AD_VOICE_MIN_EPISODE_S (600s) makes
 # the edge-ad-voice rule ABSTAIN below that length (by design — "too short for only-at-the-edges
 # to mean anything"). On this fixture that means AD_1/AD_2 (the pre-roll ad) are no longer
@@ -315,18 +341,17 @@ def perturb_short(fixture: Dict[str, Any]) -> Dict[str, Any]:
     return f
 
 
-# PENDING: +no_feed_hosts — blank known_hosts/host_candidates (the feed states no host).
-# HOST_A is still correctly identified as host (performs "Welcome to Hard Fork" — a recognized
-# host speech act, `roles_from_conversation`). HOST_B is NOT: it only self-introduces ("And I'm
-# Casey Newton...") without a recognized host speech act, and with known_hosts empty the host
-# cap collapses to whatever the CONVERSATION alone establishes (uncapped, since host_pool is
-# empty) — but nothing puts HOST_B in `conv_hosts`, so it falls through to guest-naming and the
-# real roster names it "Casey Newton" with role=guest. This matches
-# CORPUS-V4-FIXTURE-LADDER.md §G case #4 ("the feed names NO host") exactly as a case the
-# fixture ladder says fixtures "must simulate" — it is not claimed fixed there. Tracked as #1228
-# (precision-safe recall gap — the name is right, only the role is wrong): a co-host who only
-# self-introduces (never utters a host-shaped phrase) on a no-host-stated feed is demoted to
-# "guest". Shares its root + fix surface with +crosspost below.
+# PENDING: +no_feed_hosts — blank known_hosts/host_candidates (the feed states no host). HOST_A is
+# host (performs "Welcome to Hard Fork" — a recognized host speech act, `roles_from_conversation`).
+# HOST_B ("And I'm Casey Newton... Let's get into this week's news.") does not self-name as a STATED
+# host (there are none) and performs no recognized host act, so with known_hosts empty nothing puts
+# it in `conv_hosts` and it falls through to role=guest with the right name. CORPUS-V4-FIXTURE-
+# LADDER.md §G case #4 ("the feed names NO host"). Tracked as #1228 (precision-safe recall gap — the
+# name is right, only the role is wrong). A floor-managing host-act lever ("Let's get into this
+# week's news" ⇒ host) was TRIED and REVERTED: on the prod-v2 corpus (90 eps, relabel-only) the
+# nameability-gated pattern promoted ZERO real voices while the untightened form painted wrong host
+# names on guests (show-directing boilerplate smears across diarization clusters). Inert + unsafe on
+# real data ⇒ left as the documented precision boundary (#876). Revisit with #1189 human-GT.
 def perturb_no_feed_hosts(fixture: Dict[str, Any]) -> Dict[str, Any]:
     f = copy.deepcopy(fixture)
     f["resolver_inputs"]["known_hosts"] = []
@@ -361,17 +386,23 @@ def assert_merged_cluster(roster: SpeakerRoster) -> None:
 
 
 # PENDING: +crosspost — swap in another show's host (known_hosts=["Ezra Klein"]), simulating
-# Hard Fork airing as a guest episode on a different feed. Host_pool caps at 1 (the crosspost
-# feed states one host who isn't in this episode at all). HOST_A still matches via
-# `roles_from_conversation` ("Welcome to Hard Fork") and fills the one slot; HOST_B — self-
-# introduces but performs no recognized host speech act — is left out of the capped host list
-# and falls through to guest-naming, and the real roster names it "Casey Newton" with
-# role=guest: a real host, correctly self-identified, demoted to guest because the FEED's host
-# count doesn't match this episode. This is exactly CORPUS-V4-FIXTURE-LADDER.md §G case #12
-# ("the feed's hosts are not the episode's") — listed there as a case the fixtures "must
-# simulate," not as already-fixed behaviour. Tracked as #1228 (precision-safe recall gap; same
-# root + fix surface as +no_feed_hosts — Ezra Klein is never painted onto a voice, only the real
-# co-host's role is demoted).
+# Hard Fork airing as a guest episode on a different feed. CORPUS-V4-FIXTURE-LADDER.md §G case #12
+# ("the feed's hosts are not the episode's"). Deliberately left PENDING and precision-UNSAFE to fix.
+#
+# CORRECTED mechanism (#1228, verified against the shipped roster 2026-07-31 — the issue's original
+# description was wrong, it claimed HOST_A survives): the perturbation demotes BOTH hosts to guest,
+# the episode ends with ZERO hosts. The blocker is NOT the host-count cap but `stated_non_host`
+# (roster.py:1606-1610): a voice whose spoken name is not in the feed's host pool is evidence
+# it is NOT a stated host, so with the pool = {Ezra Klein} both Kevin Roose and Casey Newton land in
+# that set and are barred from every host step BEFORE the cap is consulted. Raising/removing the
+# cap is a no-op here.
+#
+# The only fix that helps crosspost is relaxing `stated_non_host_voices` — and that guard is
+# load-bearing: its comment cites No Priors (Andy Fang seated over absent Sarah Guo) and Unhedged
+# (Joshua Franklin over absent Rob Armstrong). A crosspost is structurally identical to those from
+# inside the roster (feed states host X, X absent, voices state non-X names), so relaxing the guard
+# reopens the exact over-assignment it exists to stop. Current behaviour paints NO wrong name
+# (Ezra Klein lands nowhere) — the safe direction (#876). Leaving it broken is the deliberate call.
 def perturb_crosspost(fixture: Dict[str, Any]) -> Dict[str, Any]:
     f = copy.deepcopy(fixture)
     f["resolver_inputs"]["known_hosts"] = ["Ezra Klein"]
@@ -403,6 +434,7 @@ _GREEN_PERTURBATIONS: List[Tuple[str, Callable, Callable]] = [
     ("+solo", perturb_solo, assert_solo),
     ("+guest_soup", perturb_guest_soup, assert_guest_soup),
     ("+merged_cluster", perturb_merged_cluster, assert_merged_cluster),
+    ("+early_guest", perturb_early_guest, assert_early_guest),
 ]
 
 

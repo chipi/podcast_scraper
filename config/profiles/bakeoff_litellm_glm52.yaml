@@ -1,0 +1,97 @@
+# Bake-off profile (#1356): reference-tier model z-ai/glm-5.2 (full GLM, $0.40/$1.75 per Mtok).
+# Same robust control config as the flash bake-off profiles (chunk 20k, timeout 600s,
+# insights 8, dedup 0.72, gate 3) — only the model alias changes. reasoning OFF. relabel_only.
+
+transcription:
+  primary: whisper
+diarize: false
+screenplay: true
+
+summary_provider: litellm
+speaker_detector_provider: litellm
+quote_extraction_provider: litellm
+entailment_provider: litellm
+kg_extraction_provider: litellm
+auto_speakers: true
+llm_pipeline_mode: staged
+
+litellm_api_base: http://homelab:4001/v1
+litellm_summary_model: homelab-glm
+litellm_speaker_model: homelab-glm
+litellm_cleaning_model: homelab-glm
+litellm_insight_model: homelab-glm
+litellm_temperature: 0.3
+litellm_extra_body:
+  reasoning:
+    enabled: false
+litellm_verify_served_model: true
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+# glm iter-1: glm-4.7-flash is slow — its chunked-GI calls exceed 300s. Raise to 600s so they
+# complete (slower wall-clock, but the run finishes all 9 episodes).
+summarization_timeout: 600
+transcription_timeout: 600
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+generate_gi: true
+gi_insight_source: provider
+# glm iter-1: match qwen's successful tuning — lower per-pass cap curbs dense-episode over-gen.
+gi_max_insights: 8
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gil_evidence_match_summary_provider: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+# glm iter-1: glm's GI stalled on the 79K-char WSJ episode with 30K chunks (same as qwen). Smaller
+# 20K chunks -> faster per-call GI -> completes under the 300s timeout.
+gi_insight_chunk_chars: 20000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+ner_model: en_core_web_trf
+
+# Corpus-enrichment layer (required top-level block; operators read the YAML to see what's active).
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (removed the self-referential `profile:` key 2026-08-07 to opt out
+# of registry-drift checking, per the drift test design for experiment configs).

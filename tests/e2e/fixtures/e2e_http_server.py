@@ -37,6 +37,10 @@ from urllib.parse import urlparse
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.providers.common.transcript_cache import (
+    TRANSCRIPT_BLOCK_HEADER,
+    TRANSCRIPT_BLOCK_SEPARATOR,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +82,19 @@ def _bundled_gil_json(text: str) -> Optional[str]:
     """
     if "Return JSON only." not in text:
         return None
-    if "Insights:" in text and "Transcript (excerpt):" in text:
+    if "Insights:" in text and ("Transcript (excerpt):" in text or TRANSCRIPT_BLOCK_HEADER in text):
         # extract_quotes_bundled -> {index: [verbatim transcript snippet]} so quotes ground.
-        transcript = text.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
+        # RFC-115: the transcript may be relocated to a leading cache block (in the system message)
+        # instead of the "Transcript (excerpt):" span in the user message. Read whichever carries
+        # it — callers pass system+user combined so the relocated block is visible here.
+        if TRANSCRIPT_BLOCK_HEADER in text:
+            transcript = (
+                text.split(TRANSCRIPT_BLOCK_HEADER, 1)[1]
+                .split(TRANSCRIPT_BLOCK_SEPARATOR, 1)[0]
+                .strip()
+            )
+        else:
+            transcript = text.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
         snippet = transcript[:60].strip() or "Evidence from transcript."
         block = text.split("Insights:")[1].split("Return JSON only.")[0]
         idxs = re.findall(r"^\s*(\d+):", block, re.MULTILINE) or ["0"]
@@ -425,6 +439,31 @@ class E2EServerURLs:
 
         Returns:
             Ollama API base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def litellm_api_base(self) -> str:
+        """Get LiteLLM gateway base URL (points to E2E server).
+
+        The LiteLLM gateway (#1356) is OpenAI-compatible, so it reuses the same mock endpoints:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - Note: the gateway serves chat only (ASR stays on whisper).
+
+        Returns:
+            LiteLLM gateway base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def qwen_api_base(self) -> str:
+        """Get native Qwen provider base URL (points to E2E server).
+
+        The Qwen provider (ADR-147) is OpenAI-compatible, so it reuses the same mock endpoints as
+        openai/deepseek/litellm:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - Note: Qwen does NOT serve audio transcription (whisper/openai own it).
+
+        Returns:
+            Qwen API base URL (e.g., "http://127.0.0.1:18765/v1")
         """
         return f"{self.base_url}/v1"
 
@@ -969,7 +1008,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # Determine response type: resolution, bundled GIL, speaker, GIL evidence, or summary
             resolution_json = _resolution_response_json(user_content)
-            bundled_json = _bundled_gil_json(user_content)
+            # RFC-115: pass system+user so a transcript relocated to the system block is visible.
+            bundled_json = _bundled_gil_json(f"{system_content}\n{user_content}")
             if resolution_json is not None:
                 response_data = {
                     "id": "chatcmpl-test-resolution",
@@ -1697,7 +1737,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             system = request_data.get("system", "")
 
             # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
-            bundled_json = _bundled_gil_json(user_content)
+            # RFC-115: include the system (may carry the relocated transcript cache block).
+            bundled_json = _bundled_gil_json(f"{_anthropic_system_text(system)}\n{user_content}")
             if bundled_json is not None:
                 response_data = {
                     "id": "msg-test-bundled",

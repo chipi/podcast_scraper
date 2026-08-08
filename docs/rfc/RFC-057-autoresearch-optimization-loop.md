@@ -386,7 +386,7 @@ sustained-load testing is invisible at the small-batch eval scale that v2
 fixtures support. v3 (#921) should include a "reliability burst" mode in
 the fixture-generation tooling so future cycles can stress-test the
 operating-point reliability axis against the same input shape every
-cycle. See [`docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`](../wip/AUTORESEARCH_LEARNINGS_FOR_V3.md)
+cycle. See [`docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`](RFC-116-autoresearch-driven-fixture-corpus.md)
 §#816.
 
 ## References

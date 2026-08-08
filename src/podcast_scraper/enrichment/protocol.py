@@ -7,7 +7,7 @@ use the ``@sync_enricher`` decorator to run in the default thread executor.
 
 See ``docs/rfc/RFC-088-enrichment-layer-architecture.md`` §Enricher Protocol
 for the amended protocol shape. Audit cross-ref:
-``docs/wip/RFC-088-CHUNK1-LOCK-AUDIT.md`` §B1 (async amendment) + §B2
+``docs/rfc/RFC-088-enrichment-layer-architecture.md`` §B1 (async amendment) + §B2
 (EnricherResult definition).
 """
 

@@ -125,8 +125,7 @@ reproduced end-to-end by the auditing agent; `[reported]` agent-read, not indepe
   across ALL `run_*` dirs in the feed** with no run-tag correlation and no listing of skipped
   alternates. The documented reprocess workflow routinely leaves multiple run dirs on disk.
 - **B2 — hygiene** — branch is behind `origin/main`; rebase before any push (rule #2).
-- **B3 — docs** — `CORPUS_REPROCESSING.md` has no row for `relabel_only`/`rediarize_only`
-  (tracked open in `docs/wip/RELABEL-ONLY-OPTION-PROPER-JOB.md`).
+- **B3 — docs** — `CORPUS_REPROCESSING.md` has no row for `relabel_only`/`rediarize_only`.
 - **Verified clean:** secrets scan (0 hits); obs (`dev_push`/`otel_init`) truly inert when env
   unset — no prod/Docker leak; RSS `follow_redirects` correctly wired; embedding-device never-MPS
   clean; deleted backfill scripts leave no dangling references; config/CLI pipeline_stage plumbing

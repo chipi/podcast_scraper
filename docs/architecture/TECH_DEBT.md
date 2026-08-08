@@ -136,7 +136,7 @@ fallback if engineering bandwidth is tight.
   both hard-depend on Quote nodes with speaker IDs
 - User feedback indicates ML-stack search results are noticeably worse
 - A lightweight local model (< 2 GB) becomes easy to bundle or auto-download
-- Acceptance benchmark (`docs/wip/gil-ml-vs-openai-outcome-benchmark.md`)
+- Acceptance benchmark (original GIL-ML-vs-OpenAI outcome benchmark, WIP doc now removed)
   produces quantitative lift/quality comparisons that justify the investment
 
 ---

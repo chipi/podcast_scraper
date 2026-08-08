@@ -538,3 +538,22 @@ test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
   counted as our defect (§E2). It is a real ceiling, not a bug — but it is worth revisiting whether
   a narrated-show fixture could recover any of it from the narrator's own framing ("*a school
   teacher in Ohio told us…*").
+
+- **v4 must carry ad-region fixtures so ad EXCISION is testable on our own fixtures** (2026-08-03).
+  `gi.ad_regions.excise_ad_regions` was rewritten this arc from a single-contiguous-block cutter
+  (which cut ONE pre-roll span and **excised nothing at all** when an episode had more than one ad
+  block — "5 pattern hits, 0 chars removed") to **per-cluster excision**: cluster the ad-pattern
+  hits, cut each block on its own (pre-, mid-, post-roll), keep the content between. It is currently
+  exercised only by hand-built strings in `tests/unit/podcast_scraper/gi/test_ad_regions.py`. v4
+  should add fixtures that make this real:
+  - a **multi-ad episode**: pre-roll + at least one mid-roll + post-roll, with real content between
+    each — asserts every block is cut and the middle survives (the exact bug: multiple blocks →
+    cut nothing);
+  - a **near-start sponsor after a brief real intro** — documents the accepted trade that the
+    pre-roll rule cuts from char 0, so a short real opening is collateral (the precision fix — an
+    NLP ad-*start* boundary that spares short intros — is deferred to #1385);
+  - a **screenplay-formatted** variant (`Name:\n` turns), since sentence-snapping behaves
+    differently there (`".\n"` vs `". "`), and the ad-map now records `excised_texts` — the actual
+    removed text per range — which a fixture can assert against.
+  Ties into #1188 (mid-roll house ads) and the RFC-#1385 content-quality/ad-load work (which needs
+  reliable excision for the spoken-ad metric).

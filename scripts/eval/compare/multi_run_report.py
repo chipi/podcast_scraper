@@ -15,7 +15,7 @@ Usage:
 
     # Runs only (no baseline)
     make report-multi-run RUN_IDS=id1,id2,id3 \\
-        REFERENCE_ID=silver_gpt4o_smoke_v1 OUTPUT=docs/wip/my_comparison.md
+        REFERENCE_ID=silver_gpt4o_smoke_v1 OUTPUT=.test_outputs/eval/my_comparison.md
 
     # With custom labels and title
     make report-multi-run BASELINE_ID=... RUN_IDS=... REFERENCE_ID=... \\
@@ -97,8 +97,8 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("docs/wip/multi_run_comparison.md"),
-        help="Output markdown path (default: docs/wip/multi_run_comparison.md)",
+        default=Path(".test_outputs/eval/multi_run_comparison.md"),
+        help="Output markdown path (default: .test_outputs/eval/multi_run_comparison.md)",
     )
     parser.add_argument(
         "--baselines-dir",

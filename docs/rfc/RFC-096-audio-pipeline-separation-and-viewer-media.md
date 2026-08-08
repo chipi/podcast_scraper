@@ -13,7 +13,7 @@
   - [#547](https://github.com/chipi/podcast_scraper/issues/547) — Viewer synced audio playback
 - **Related Documents**:
   - `docs/guides/AUDIO_PIPELINE_GUIDE.md`
-  - `docs/wip/WAVE-3-PLAN.md`
+  - Original Wave-3 implementation plan (WIP doc, now removed)
 
 ## Abstract
 

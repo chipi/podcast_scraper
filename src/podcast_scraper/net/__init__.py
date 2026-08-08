@@ -1,8 +1,4 @@
-"""Central outbound-network plumbing (#1129 proxy + #1130 TLS trust).
-
-See ``docs/wip/1129-1130-OUTBOUND-HTTP-FACTORY.md`` for the design and
-per-subsystem migration matrix.
-"""
+"""Central outbound-network plumbing (#1129 proxy + #1130 TLS trust)."""
 
 from __future__ import annotations
 

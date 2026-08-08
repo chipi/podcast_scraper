@@ -291,7 +291,7 @@ class TestDeepSeekCostWiring(unittest.TestCase):
     def setUp(self) -> None:
         self.cfg = _make_openai_compat_cfg("deepseek")
 
-    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    @patch("openai.OpenAI")
     def test_generate_insights_records_cost(self, mock_openai: Mock) -> None:
         from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
 
@@ -306,7 +306,7 @@ class TestDeepSeekCostWiring(unittest.TestCase):
         _assert_cost_recorded(pm, "record_llm_gi_call")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    @patch("openai.OpenAI")
     def test_extract_kg_graph_records_cost(self, mock_openai: Mock, mock_retry: Mock) -> None:
         from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
 
@@ -324,7 +324,7 @@ class TestDeepSeekCostWiring(unittest.TestCase):
         _assert_cost_recorded(pm, "record_llm_kg_call")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    @patch("openai.OpenAI")
     def test_clean_transcript_records_cost(self, mock_openai: Mock, mock_retry: Mock) -> None:
         from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
 
@@ -623,7 +623,7 @@ class TestBundleModeSummarizationCostWiring(unittest.TestCase):
         _assert_cost_recorded(pm, "record_llm_summarization_call")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    @patch("openai.OpenAI")
     def test_deepseek_mega_bundled(self, mock_openai: Mock, mock_retry: Mock) -> None:
         from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
 
@@ -642,7 +642,7 @@ class TestBundleModeSummarizationCostWiring(unittest.TestCase):
         _assert_cost_recorded(pm, "record_llm_summarization_call")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    @patch("openai.OpenAI")
     def test_deepseek_extraction_bundled(self, mock_openai: Mock, mock_retry: Mock) -> None:
         from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
 

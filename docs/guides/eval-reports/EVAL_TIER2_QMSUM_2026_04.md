@@ -101,6 +101,6 @@ without per-dataset prompt tuning.
 ## Related
 
 - [Held-out v2 eval report](EVAL_HELDOUT_V2_2026_04.md) — podcast baseline
-- `docs/wip/TIER2_CROSSDATASET_PLAN.md` — phase plan
+- Original Tier-2 cross-dataset phase plan (WIP doc, now removed)
 - `data/eval/materialized/qmsum_phase21_v1/` — materialized dataset
 - `data/eval/references/gold/qmsum_phase21_v1_gold_paragraph/` — gold refs

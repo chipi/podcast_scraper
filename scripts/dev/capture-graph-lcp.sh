@@ -174,7 +174,7 @@ echo "[capture-graph-lcp] booting viewer on :${VIEWER_PORT} (proxying api to :${
 (
   cd "$RUN_ROOT/web/gi-kg-viewer"
   # env -u NODE_OPTIONS — strip cmux/agent env poison that breaks node preload
-  # scripts (see docs/wip/graph-v3/HARDEN-FOLLOWUPS-2026-07-17.md).
+  # scripts (graph-v3 harden follow-ups, issue #1219).
   exec env -u NODE_OPTIONS \
     VITE_API_TARGET="http://127.0.0.1:${API_PORT}" \
     ./node_modules/.bin/vite dev --port "$VIEWER_PORT" --host 127.0.0.1

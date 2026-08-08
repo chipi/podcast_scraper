@@ -94,9 +94,25 @@ class ObservabilityConfig:
 
     @classmethod
     def load(cls, path: Optional[str | os.PathLike[str]] = None) -> "ObservabilityConfig":
-        """YAML if ``path``/``PODCAST_OBS_CONFIG`` is set, else a single target from env."""
+        """Resolve config in precedence order, then build:
+
+        1. explicit ``path`` arg (a caller passed it),
+        2. ``PODCAST_OBS_CONFIG`` env var,
+        3. the committed dev default ``config/observability.homelab.yaml`` if present,
+        4. a single target from ``PODCAST_OBS_*`` / platform env (``from_env``).
+
+        Step 3 is what makes ``podcast_obs`` zero-config on a dev box: the multi-target homelab
+        YAML (correct org/projects/URLs) is auto-discovered so nobody has to remember to export
+        ``PODCAST_OBS_CONFIG``. The old failure was skipping straight to ``from_env``, which then
+        read stale/wrong ``PODCAST_OBS_SENTRY_*`` from ``.env`` and 401'd against a nonexistent org.
+        """
         _load_obs_dev_env()  # zero-config: pick up the worktree's .env.obs.dev if present
         path = path or os.environ.get(f"{ENV_PREFIX}CONFIG")
+        # Auto-discovery is a dev-machine convenience; skip under pytest so the env-path tests stay
+        # hermetic (they run from the repo cwd, where the committed YAML would otherwise be found) —
+        # same rationale as ``_load_obs_dev_env``; ``_discover_default_config`` stays testable.
+        if not path and not os.environ.get("PYTEST_CURRENT_TEST"):
+            path = _discover_default_config()
         if path:
             return cls.from_yaml(path)
         return cls.from_env()
@@ -204,6 +220,27 @@ def _origin(url: Optional[str]) -> Optional[str]:
         return None
     port = f":{parts.port}" if parts.port else ""
     return f"{parts.scheme}://{parts.hostname}{port}"
+
+
+def _discover_default_config() -> Optional[str]:
+    """Return the committed dev-default multi-target YAML if it exists, else ``None``.
+
+    Looks for ``config/observability.homelab.yaml`` under the cwd (worktree root when an agent
+    launches the tool there) then the editable repo root (two levels up from this file). This is
+    the zero-config default for a developer machine: the file is TRACKED (correct homelab
+    org/projects/URLs, secrets via ``*_env`` indirection), so discovering it needs no per-machine
+    setup. Deliberately exact — never globs ``observability.*.yaml`` so the shipped
+    ``observability.example.yaml`` can't be picked up by accident.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    for base in (Path.cwd(), repo_root):
+        candidate = base / "config" / "observability.homelab.yaml"
+        try:
+            if candidate.is_file():
+                return str(candidate)
+        except Exception:  # pragma: no cover — dev convenience only, never fail config load
+            continue
+    return None
 
 
 def _load_obs_dev_env() -> None:

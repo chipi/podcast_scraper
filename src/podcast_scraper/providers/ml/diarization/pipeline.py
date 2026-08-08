@@ -678,6 +678,10 @@ def apply_diarization_to_result(
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["diarization_num_speakers"] = roster.num_speakers
+    # ADR-132 provenance: the ACTUAL diarization model served (e.g. pyannote/speaker-diarization-
+    # community-1), so the processing manifest records which model produced the speaker turns — the
+    # diarization analogue of the ASR model_used, previously absent from the manifest's diar block.
+    enriched_result["diarization_model_name"] = getattr(diarization, "model_name", None) or None
     # ADR-131: the diarizer's total SPEECH duration (Σ merged speaker turns) — the denominator for
     # the speech-normalized coverage gate. Provider-agnostic (any DiarizationResult). Non-speech
     # (music/ads/silence) has no speaker turn, so it is excluded here, unlike raw audio duration.

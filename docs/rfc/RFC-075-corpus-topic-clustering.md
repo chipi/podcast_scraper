@@ -233,4 +233,4 @@ rows.
 - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
 - `docs/architecture/ARCHITECTURE.md`
 - `tests/fixtures/search/topic_clusters_validation.example.yaml` (test-only minimal example)
-- `docs/wip/wip-topic-clusters-validation-reference.yaml` (optional WIP copy of a richer validation set for local `--validate-config`; not used by CI)
+- An optional, local-only, richer validation-set copy for `--validate-config` (not used by CI; not tracked as a permanent doc)

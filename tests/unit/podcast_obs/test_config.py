@@ -78,6 +78,32 @@ def test_from_yaml_multitarget_and_secret_env(tmp_path, monkeypatch: pytest.Monk
     assert local_base is not None and local_base.endswith(":8080")
 
 
+def test_discover_default_config_finds_cwd_homelab_yaml(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Zero-config dev default: a committed ``config/observability.homelab.yaml`` under the cwd is
+    auto-discovered so ``podcast_obs`` needs no ``PODCAST_OBS_CONFIG`` on a developer box."""
+    (tmp_path / "config").mkdir()
+    yaml = tmp_path / "config" / "observability.homelab.yaml"
+    yaml.write_text("default_target: homelab\ntargets:\n  homelab: {}\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    assert obs_config._discover_default_config() == str(yaml)
+
+
+def test_discover_default_config_ignores_example_yaml(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Discovery is exact (``observability.homelab.yaml``) — it must NOT latch onto the shipped
+    ``observability.example.yaml``. With only the example under cwd, cwd yields nothing and it falls
+    through to the real repo-root default (which is the homelab file, never the example)."""
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "observability.example.yaml").write_text("x: 1\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    found = obs_config._discover_default_config()
+    assert found is None or found.endswith("observability.homelab.yaml")
+    assert found is None or not found.endswith("observability.example.yaml")
+
+
 def test_from_yaml_langfuse_keys_fall_back_to_env(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

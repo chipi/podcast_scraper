@@ -182,6 +182,6 @@ From `pyproject.toml [tool.pytest.ini_options] markers`:
 ## Related
 
 - `docs/adr/ADR-068-bart-led-as-ml-production-baseline.md` — post-impl notes on the migration.
-- `docs/wip/ISSUE-382-AI-PROVIDER-AUDIT-2026-07-05.md` — audit of AI-provider vs local-ML abstraction alignment.
+- `docs/releases/RELEASE_v2.7.0.md` — audit of AI-provider vs local-ML abstraction alignment.
 - `docs/guides/UNIT_TESTING_GUIDE.md` — general unit-testing conventions.
 - `docs/guides/INTEGRATION_TESTING_GUIDE.md` — integration test patterns.

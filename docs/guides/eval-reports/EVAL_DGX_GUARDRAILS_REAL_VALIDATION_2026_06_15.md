@@ -3,7 +3,7 @@
 **Issue:** #999 (and by extension #1003 ADR-100 cloud-side wiring)
 **Date:** 2026-06-15
 **Branch:** `feat/guardrails-batch-2026-06-15`
-**Tested against:** `prod_dgx_full_with_fallback` profile on live
+**Tested against:** `prod_dgx_full` profile on live
 `dgx-llm-1.tail6d0ed4.ts.net`
 **Probe scripts:** `/tmp/dgx_guardrail_direct_probe.py`,
 `/tmp/dgx_fallback_probe.py`, `/tmp/dgx_validation_profile.yaml`
@@ -15,7 +15,7 @@ proven against real DGX-Ollama responses end-to-end.
 The 4 things that needed empirical proof on real DGX (not just mock
 server E2E):
 
-1. ✅ The pipeline runs end-to-end against `prod_dgx_full_with_fallback`
+1. ✅ The pipeline runs end-to-end against `prod_dgx_full`
    on real DGX (Speaches whisper, pyannote diarize, Gemini speaker
    detection, Ollama qwen3.5:35b summary). Happy-path run cost $0.0061
    per episode.
@@ -39,7 +39,7 @@ fallback does route. The whole batch can ship to prod.
 
 Ran `python -m podcast_scraper.cli --config <validation profile>` with
 the `p01_e01_fast` v2 fixture (1-minute audio, "Building Trails That
-Last") through the full `prod_dgx_full_with_fallback`-shaped path:
+Last") through the full `prod_dgx_full`-shaped path:
 
 | Stage | Backend | Wall time | Notes |
 | --- | --- | --- | --- |
@@ -243,7 +243,7 @@ ships, deciding whether to act based on real production signal.
 ## Run details
 
 - Validation profile: `/tmp/dgx_validation_profile.yaml` (NOT a shipped
-  profile — derived from `prod_dgx_full_with_fallback` with extra
+  profile — derived from `prod_dgx_full` with extra
   forcing knobs; deleted after run).
 - Phase A smoke output:
   `/tmp/dgx_validation_outputs/smoke/run_smoke_happy_path_*` — 1

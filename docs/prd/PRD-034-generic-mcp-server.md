@@ -67,7 +67,8 @@ Claude Code, Cursor, custom agents) can use a podcast corpus as a tool: resolve 
 for grounded evidence, ask "who said what about X across shows," pull a person's positions, walk a
 topic's timeline — and get back **structured, provenance-bearing** results it can compose.
 
-This is the infrastructure expression of the objectivization mission (`docs/wip/VISION-search-and-intelligence.md`):
+This is the infrastructure expression of the objectivization mission — turning unstructured
+podcast content into agent-queryable, provenance-bearing structured knowledge:
 *agents query with intent, receive grounded evidence, and can trust the provenance.* Generic tools
 first; synthesized intelligence (briefing packs, RFC-093) layers on top.
 

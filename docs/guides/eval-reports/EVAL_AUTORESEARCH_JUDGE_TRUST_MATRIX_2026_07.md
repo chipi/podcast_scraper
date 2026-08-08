@@ -257,11 +257,10 @@ extra scalar phases.
 
 ## Data
 
-+ Trust matrix numbers: `docs/wip/FINAL_TRUST_MATRIX_2026-07-04.json`
-+ Reconstructed partial sweep data: `docs/wip/MEGA_SWEEP_V3_PARTIAL.json`
-+ Targeted rejudge (post-parser-fix): `docs/wip/TARGETED_REJUDGE_NEMOTRON_GPT_OSS.json`
-+ Cloud ground truth (unchanged): `docs/wip/CLOUD_COHORT_LEADERBOARD_2026-07-03.json`
-+ Iteration roadmap: `docs/wip/AUTORESEARCH_JUDGE_ITERATION_ROADMAP.md`
++ Trust matrix numbers: raw sweep data (archived, not tracked as a permanent doc)
++ Reconstructed partial sweep data: raw sweep data (archived, not tracked as a permanent doc)
++ Targeted rejudge (post-parser-fix): raw sweep data (archived, not tracked as a permanent doc)
++ Cloud ground truth (unchanged): raw sweep data (archived, not tracked as a permanent doc)
 
 ## Recipes
 

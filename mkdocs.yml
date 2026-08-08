@@ -15,6 +15,7 @@ nav:
       - Exploring the corpus through MCP: guides/EXPLORATION_MCP.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
+      - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
       - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
@@ -113,6 +114,7 @@ nav:
       - Testing Strategy: architecture/TESTING_STRATEGY.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
       - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
+      - DGX serving (bridge to homelab): architecture/DGX_SERVING.md
       - Corpus artifacts and viewer surfaces: architecture/CORPUS_ARTIFACTS_AND_SURFACES.md
       - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
       - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
@@ -321,6 +323,9 @@ nav:
       - ADR-144 Self-hosted delivery queue, outsourced last-mile: adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md
       - ADR-145 Channel-agnostic outbox seam: adr/ADR-145-channel-agnostic-outbox-seam.md
       - ADR-146 Your Week in-app surface and scheduling: adr/ADR-146-your-week-in-app-surface-and-scheduling.md
+      - ADR-147 First-class vllm provider — real model ids: adr/ADR-147-first-class-vllm-provider-real-model-ids.md
+      - ADR-148 In-place re-roll for invalid structured responses: adr/ADR-148-structured-response-in-place-reroll-before-fallover.md
+      - ADR-149 Corpus reprocess methodology: adr/ADR-149-corpus-reprocess-methodology.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -437,6 +442,8 @@ nav:
       - RFC-112 Remote MCP Transport & Auth: rfc/RFC-112-remote-mcp-transport-and-auth.md
       - RFC-113 Graph-Aware PKM Export: rfc/RFC-113-graph-aware-pkm-export.md
       - RFC-114 Personal Corpus: rfc/RFC-114-personal-corpus.md
+      - RFC-116 Autoresearch-Driven Fixture Corpus: rfc/RFC-116-autoresearch-driven-fixture-corpus.md
+      - RFC-115 Transcript-Prefix Caching for LLM Stages: rfc/RFC-115-transcript-prefix-caching-llm-stages.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -484,7 +491,6 @@ nav:
   - Legal Notice: LEGAL.md
   - Work in Progress:
       - wip/WIP_README.md
-      - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
       - "WIP: Concurrent pipelines + HTTP retry metrics": wip/wip-concurrent-pipeline-http-retry-metrics.md
       - "WIP: Full app-surface observability plan": wip/observability-app-surface-plan.md
 theme:

@@ -624,6 +624,27 @@ def _save_speaker_diagnostics_file(
         logger.warning("Could not save speaker diagnostics %s: %s", diag_path, e)
 
 
+def _attach_speech_audio_ratio(
+    result: Any, media_for_transcription: str, episode_duration_seconds: Optional[float]
+) -> None:
+    """Attach the speech_audio_ratio METRIC (not a gate) to ``result`` in place.
+
+    ``Σ(transcript segments) / total audio`` — the fraction of runtime that is actual audio content
+    vs music/silence/dead-air. Computed ALWAYS (independent of any coverage gate) and surfaced
+    in the ASR provenance + manifest so every episode records how much of its runtime is signal.
+    raw ADR-123 coverage value repurposed as an observability metric after that gate was retired in
+    favour of the speech-normalized ADR-131 one.
+    """
+    if not isinstance(result, dict):
+        return
+    from ..providers.resilience.fallback import _segment_coverage
+
+    dur = int(episode_duration_seconds) if episode_duration_seconds is not None else None
+    sar = _segment_coverage(result, media_for_transcription, dur)
+    if sar is not None:
+        result["speech_audio_ratio"] = round(sar, 3)
+
+
 def _save_asr_provenance_file(
     result: Optional[Dict[str, Any]],
     cfg: config.Config,
@@ -642,7 +663,8 @@ def _save_asr_provenance_file(
         return
     cov = result.get("asr_speech_coverage")
     failover = result.get("speech_coverage_failover")
-    if cov is None and not failover:
+    sar = result.get("speech_audio_ratio")
+    if cov is None and not failover and sar is None:
         return
     provenance: Dict[str, Any] = {
         "model": (
@@ -651,6 +673,8 @@ def _save_asr_provenance_file(
             or getattr(cfg, "transcription_provider", None)
         ),
         "speech_coverage": cov,
+        # Σ(segments)/total-audio content signal — always present, gate or not (see caller).
+        "speech_audio_ratio": sar,
         "failed_over": bool(failover),
     }
     if failover:
@@ -697,7 +721,10 @@ def _write_processing_manifest(
     # --- ASR: actual model + speech coverage + failover (ADR-131 provenance) ---
     cov = result.get("asr_speech_coverage")
     failover = result.get("speech_coverage_failover")
-    if cov is not None or failover:
+    sar = result.get("speech_audio_ratio")
+    # The metric alone is enough to record the ASR stage — so the block is present on every episode
+    # (not only the rare failover / speech-gate run), closing the "no asr stage in manifest" gap.
+    if cov is not None or failover or sar is not None:
         asr_flags: List[str] = []
         if failover:
             asr_flags.append("asr_failover")
@@ -720,7 +747,7 @@ def _write_processing_manifest(
             # 0.0/None for local ASR (DGX/whisper); real USD for cloud ASR (OpenAI/Deepgram),
             # populated by apply_estimated_cost_if_missing before this write.
             cost_usd=asr_cost,
-            metrics={"speech_coverage": cov},
+            metrics={"speech_coverage": cov, "speech_audio_ratio": sar},
             failover=failover or None,
         )
         pm.update_stage(
@@ -741,6 +768,14 @@ def _write_processing_manifest(
         diar = pm.stage_block(
             ran=True,
             method=getattr(cfg, "diarization_provider", None),
+            # ADR-132 provenance: the ACTUAL served model (from the DiarizationResult), falling back
+            # to the configured field for the provider — so the diar block records WHICH model, not
+            # just the method. Previously absent (the diar block carried method but no model).
+            model=(
+                result.get("diarization_model_name")
+                or getattr(cfg, "dgx_diarize_model", None)
+                or getattr(cfg, "diarization_model", None)
+            ),
             method_version=pm.METHOD_VERSIONS["diarization"],
             # None for local diarizers (pyannote/DGX); real USD for cloud (Deepgram/Gemini), which
             # populate DiarizationResult.cost_usd -> result["diarization_cost_usd"].
@@ -1669,7 +1704,7 @@ def _transcribe_with_segments_maybe_chunked(
     # episodes whose NER density meets the gate threshold. Disabled by
     # default; activation gated on cfg.dgx_whisper_sniff_model being set
     # AND the active provider being tailnet_dgx_whisper. See
-    # src/podcast_scraper/workflow/sniff_gate.py + docs/wip/1046-WHISPER-MULTI-MODEL-DESIGN.md.
+    # src/podcast_scraper/workflow/sniff_gate.py + issue #1046.
     from . import sniff_gate as _sniff_gate
 
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
@@ -2194,14 +2229,21 @@ def _maybe_speech_coverage_failover(
         transcription_model_for_cfg,
     )
 
-    # Disable both gates on the failover pass so it cannot recurse into another re-transcription.
-    fo_cfg = cfg.model_copy(
-        update={
-            "dgx_whisper_model": fo_model,
-            "transcription_coverage_min": 0.0,
-            "transcription_speech_coverage_min": 0.0,
-        }
-    )
+    # Route the failover to the configured provider — parity with the ADR-123 raw gate's factory
+    # logic (#1273): 'moss' re-transcribes on the DGX MOSS service (:8004) with moss_model, not the
+    # speaches whisper service, so the MOSS model id is never sent to a server that cannot serve it.
+    # None (default) keeps the historical whisper-on-whisper swap via dgx_whisper_model. Both gates
+    # are disabled on the failover pass so it cannot recurse into another re-transcription.
+    cov_provider = getattr(cfg, "transcription_coverage_failover_provider", None)
+    model_field = "moss_model" if cov_provider == "moss" else "dgx_whisper_model"
+    fo_updates: Dict[str, Any] = {
+        model_field: fo_model,
+        "transcription_coverage_min": 0.0,
+        "transcription_speech_coverage_min": 0.0,
+    }
+    if cov_provider:
+        fo_updates["transcription_provider"] = cov_provider
+    fo_cfg = cfg.model_copy(update=fo_updates)
     fo_provider = create_transcription_provider(fo_cfg)
     fo_call_metrics = ProviderCallMetrics()
     fo_result, _ = _transcribe_with_segments_maybe_chunked(
@@ -2500,6 +2542,7 @@ def transcribe_media_to_text(
             # pass — route it through the single role authority (no-op otherwise). Guard + failure
             # handling live in the helper so this stays one branch.
             result = _apply_native_speaker_roster(result, cfg, job)
+        _attach_speech_audio_ratio(result, media_for_transcription, episode_duration_seconds)
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )

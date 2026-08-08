@@ -185,4 +185,3 @@ no LLM/network calls.
 
 - **Related PRDs**: `docs/prd/PRD-041-consolidation.md`, `docs/prd/PRD-040-capture.md`
 - **Related RFCs**: `docs/rfc/RFC-090-hybrid-retrieval.md`, `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md`, `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
-- **Analysis**: `docs/wip/player/SERVER-SIDE-GAP-ANALYSIS.md` (G13–G15)

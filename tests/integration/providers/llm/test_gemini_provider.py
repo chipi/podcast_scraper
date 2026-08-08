@@ -1754,9 +1754,24 @@ class TestGeminiThinkingConfigMerge(unittest.TestCase):
 
         self.assertTrue(_should_disable_thinking_for_model("gemini-2.5-flash"))
         self.assertTrue(_should_disable_thinking_for_model("models/gemini-2.5-flash-preview"))
+        # 2.5-pro cannot disable thinking (API rejects budget 0); it is bounded, not disabled.
+        self.assertFalse(_should_disable_thinking_for_model("gemini-2.5-pro"))
         self.assertFalse(_should_disable_thinking_for_model("gemini-2.5-flash-lite"))
         self.assertFalse(_should_disable_thinking_for_model("gemini-2.0-flash"))
-        self.assertFalse(_should_disable_thinking_for_model("gemini-2.5-pro"))
+
+    def test_pro_gets_bounded_thinking_plus_headroom(self):
+        # #1356: 2.5-pro requires thinking; give it a small bounded budget and add that headroom to
+        # max_output_tokens so its thinking does not truncate the content (chunked-GI insights).
+        from podcast_scraper.providers.gemini.gemini_provider import (
+            _GEMINI_PRO_THINKING_BUDGET,
+            _merge_generate_content_config,
+        )
+
+        cfg = _merge_generate_content_config(
+            "gemini-2.5-pro", {"temperature": 0.1, "max_output_tokens": 500}
+        )
+        self.assertEqual(cfg["thinking_config"]["thinking_budget"], _GEMINI_PRO_THINKING_BUDGET)
+        self.assertEqual(cfg["max_output_tokens"], 500 + _GEMINI_PRO_THINKING_BUDGET)
 
     def test_merge_injects_thinking_budget(self):
         from podcast_scraper.providers.gemini.gemini_provider import (

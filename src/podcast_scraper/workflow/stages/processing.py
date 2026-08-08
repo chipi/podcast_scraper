@@ -184,7 +184,15 @@ def _is_episode_retryable(exc: Exception) -> bool:
     except ImportError:
         pass
     msg = str(exc).lower()
-    return any(tok in msg for tok in ("timeout", "connection", "reset", "429", "503"))
+    if any(tok in msg for tok in ("timeout", "connection", "reset", "429", "503")):
+        return True
+    # NOTE: a structured-summary parse failure is NOT episode-retryable. Content-retry lives at
+    # exactly one layer — the call (ADR-148): a transient invalid structured response gets one
+    # bounded in-place re-roll on the same provider inside `_generate_episode_summary`, then
+    # fallover, then fail. Re-running the whole episode (transcribe/diarize/GI/KG) to fix one bad
+    # LLM call is the wrong layer; the earlier `"summary schema parsing failed"` string-match here
+    # (commit 57ee206a) is replaced by that call-level re-roll.
+    return False
 
 
 _EpisodeResult = Tuple[bool, Optional[str], Optional[str], int]
