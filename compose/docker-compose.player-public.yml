@@ -177,7 +177,15 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       OTEL_PYTHON_LOG_CORRELATION: "true"
+      # Env-tag traces so staging (laptop) and prod (VPS) split in Grafana (parity with the
+      # GlitchTip `environment` tag, which init_sentry already sets from PODCAST_ENV).
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
       PODCAST_SENTRY_DSN_MCP: ${PODCAST_SENTRY_DSN_MCP:-}
+      # Umami server-side analytics (#1505): each tool call is an event, like a page view. Website
+      # id + collect URL from deploy; both empty → no-op. Hostname stamps the event's origin.
+      PODCAST_MCP_UMAMI_WEBSITE_ID: ${PODCAST_MCP_UMAMI_WEBSITE_ID:-}
+      PODCAST_MCP_UMAMI_URL: ${PODCAST_MCP_UMAMI_URL:-}
+      PODCAST_MCP_UMAMI_HOSTNAME: ${APP_MCP_RESOURCE_URL:-mcp}
     extra_hosts:
       # VictoriaTraces + GlitchTip via Tailscale MagicDNS `homelab` (Docker DNS can't resolve it);
       # static hosts entry, IP staged fresh at deploy. Loopback default so interpolation never

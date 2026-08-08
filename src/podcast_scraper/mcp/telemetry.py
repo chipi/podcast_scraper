@@ -14,14 +14,25 @@ leave the process — never query args, corpus content, or transcripts.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import threading
 import time
+import urllib.request
 from contextlib import contextmanager
 from typing import Any, Iterator, Optional
 
 from .auth import current_mcp_user
 
 _LOGGER = logging.getLogger("podcast_scraper.mcp.tool")
+
+# Umami server-side analytics (#1505): a tool call is a "page view" for the MCP surface. We POST an
+# event to Umami's collect API (parity with the browser beacon). Website id + collect URL come from
+# env; both unset → no-op. Umami REQUIRES a User-Agent header (it drops UA-less events).
+_UMAMI_WEBSITE_ID = "PODCAST_MCP_UMAMI_WEBSITE_ID"
+_UMAMI_COLLECT_URL = "PODCAST_MCP_UMAMI_URL"  # e.g. https://analytics.<domain>/api/send
+_UMAMI_HOSTNAME = "PODCAST_MCP_UMAMI_HOSTNAME"  # the MCP public host, for the event hostname
 
 # Prometheus metrics — module-level singletons; a missing prometheus_client (or duplicate
 # registration under test reload) degrades to no-op rather than breaking tool calls.
@@ -120,5 +131,52 @@ def _emit(tool: str, ok: bool, duration_s: float, user: Optional[str], span: Any
             ok,
             duration_s * 1000.0,
         )
+    except Exception:  # noqa: BLE001
+        pass
+    _emit_umami(tool, ok)
+
+
+def _emit_umami(tool: str, ok: bool) -> None:
+    """Fire-and-forget a tool-call event to Umami (server-side beacon). No-op unless configured.
+
+    Runs on a daemon thread so a slow/unreachable analytics host never delays a tool call, and
+    every failure is swallowed (ADR-120). Privacy: sends the tool name + ok only — no user_id
+    (analytics is aggregate, not per-user), no query args, no corpus content.
+    """
+    website = os.environ.get(_UMAMI_WEBSITE_ID, "").strip()
+    url = os.environ.get(_UMAMI_COLLECT_URL, "").strip()
+    if not website or not url:
+        return
+    hostname = os.environ.get(_UMAMI_HOSTNAME, "").strip() or "mcp"
+    body = json.dumps(
+        {
+            "type": "event",
+            "payload": {
+                "website": website,
+                "hostname": hostname,
+                "name": f"mcp_tool:{tool}",
+                "data": {"tool": tool, "ok": ok},
+            },
+        }
+    ).encode()
+
+    def _send() -> None:
+        try:
+            req = urllib.request.Request(
+                url,
+                data=body,
+                headers={
+                    "Content-Type": "application/json",
+                    # Umami drops events without a User-Agent; identify the server-side sender.
+                    "User-Agent": "podcast-mcp/1.0 (+server-side)",
+                },
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=4)  # noqa: S310 - fixed https collect URL from env
+        except Exception:  # noqa: BLE001 - analytics never breaks a tool call
+            pass
+
+    try:
+        threading.Thread(target=_send, name="umami-mcp", daemon=True).start()
     except Exception:  # noqa: BLE001
         pass

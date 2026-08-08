@@ -699,7 +699,36 @@ def run_server(
     except Exception:  # noqa: BLE001 - never block serving on error reporting
         logger.debug("mcp sentry init skipped", exc_info=True)
 
-    uvicorn.run(_instrument_asgi(build_http_app(corpus_dir)), host=host, port=port)
+    uvicorn.run(_instrument_asgi(_with_metrics(build_http_app(corpus_dir))), host=host, port=port)
+
+
+def _with_metrics(app: Any) -> Any:
+    """Serve Prometheus ``/metrics`` (the per-tool counters) UNGATED, delegating everything else.
+
+    Wrapped OUTSIDE the auth middleware so a scraper needs no bearer; the mcp binds loopback
+    (:8009, Caddy fronts ``/mcp`` publicly), so ``/metrics`` is internal-only. No-op if
+    prometheus_client isn't installed.
+    """
+    try:
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+    except Exception:  # noqa: BLE001 - no client → no /metrics endpoint
+        return app
+
+    async def _asgi(scope: dict, receive: Any, send: Any) -> None:
+        if scope.get("type") == "http" and scope.get("path") == "/metrics":
+            body = generate_latest()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [(b"content-type", CONTENT_TYPE_LATEST.encode())],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
+            return
+        await app(scope, receive, send)
+
+    return _asgi
 
 
 def _instrument_asgi(app: Any) -> Any:

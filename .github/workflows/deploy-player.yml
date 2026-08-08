@@ -239,6 +239,9 @@ jobs:
             # homelab tailnet IP for extra_hosts is resolved on the box by deploy-player.sh.
             echo "OTEL_TRACES_EXPORTER=otlp"
             echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://homelab:10428/insert/opentelemetry/v1/traces"
+            # Env-tag every span (api + mcp) so staging (laptop) and prod (VPS) split in Grafana —
+            # parity with the GlitchTip `environment` tag (#1505 staging↔prod separation).
+            echo "OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
@@ -277,6 +280,11 @@ jobs:
             # Both empty -> the bundle's Umami injection stays a no-op.
             echo "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
             echo "VITE_UMAMI_SRC=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/script.js}"
+            # MCP server-side analytics (#1505): reuse the player Umami site — MCP events are named
+            # `mcp_tool:<tool>` (distinct from page views), POSTed to the public beacon collect API.
+            # A dedicated MCP site can be split later; env split comes from deployment.environment.
+            echo "PODCAST_MCP_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
+            echo "PODCAST_MCP_UMAMI_URL=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/api/send}"
             # Remote MCP (RFC-112). The shared verify-seam secret (empty → MCP inert + mcp vhost
             # skipped by deploy-player.sh). Issuer = the player apex (hosts the OAuth AS); resource
             # = the mcp subdomain (its own vhost). MCP_PORT is the loopback the Caddy mcp vhost

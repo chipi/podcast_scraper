@@ -49,3 +49,77 @@ def test_observe_carries_user_id_when_set(caplog: pytest.LogCaptureFixture) -> N
     finally:
         current_mcp_user.reset(token)
     assert any("user=u_test123" in m for m in _messages(caplog))
+
+
+def test_umami_noop_when_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
+    import podcast_scraper.mcp.telemetry as tele
+
+    monkeypatch.delenv("PODCAST_MCP_UMAMI_WEBSITE_ID", raising=False)
+    monkeypatch.delenv("PODCAST_MCP_UMAMI_URL", raising=False)
+
+    def _boom(*a: object, **k: object) -> None:
+        raise AssertionError("must not spawn a sender when Umami is unconfigured")
+
+    monkeypatch.setattr(tele.threading, "Thread", _boom)
+    tele._emit_umami("search_corpus", True)  # returns early — no thread, no raise
+
+
+def test_umami_posts_event_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    import json as _json
+    import types
+
+    import podcast_scraper.mcp.telemetry as tele
+
+    monkeypatch.setenv("PODCAST_MCP_UMAMI_WEBSITE_ID", "site-abc")
+    monkeypatch.setenv("PODCAST_MCP_UMAMI_URL", "https://analytics.example/api/send")
+    captured: dict = {}
+
+    def fake_urlopen(req: object, timeout: object = None) -> None:
+        captured["url"] = req.full_url  # type: ignore[attr-defined]
+        captured["body"] = _json.loads(req.data)  # type: ignore[attr-defined]
+        captured["ua"] = req.headers.get("User-agent")  # type: ignore[attr-defined]
+
+    # Run the sender inline (no real thread) so the assertion is deterministic.
+    monkeypatch.setattr(
+        tele.threading,
+        "Thread",
+        lambda target, name=None, daemon=None: types.SimpleNamespace(start=target),
+    )
+    monkeypatch.setattr(tele.urllib.request, "urlopen", fake_urlopen)
+
+    tele._emit_umami("who_said_about_topic", False)
+
+    assert captured["url"] == "https://analytics.example/api/send"
+    assert captured["body"]["payload"]["name"] == "mcp_tool:who_said_about_topic"
+    assert captured["body"]["payload"]["website"] == "site-abc"
+    assert captured["body"]["payload"]["data"] == {"tool": "who_said_about_topic", "ok": False}
+    assert captured["ua"]  # Umami drops UA-less events
+
+
+def test_metrics_endpoint_serves_prometheus_and_delegates_else() -> None:
+    import asyncio
+
+    from podcast_scraper.mcp.server import _with_metrics
+
+    delegated = {"hit": False}
+
+    async def _downstream(scope: dict, receive: object, send: object) -> None:
+        delegated["hit"] = True
+
+    app = _with_metrics(_downstream)
+    sent: list = []
+
+    async def _send(m: dict) -> None:
+        sent.append(m)
+
+    async def _receive() -> dict:
+        return {"type": "http.request"}
+
+    asyncio.run(app({"type": "http", "path": "/metrics"}, _receive, _send))
+    assert sent[0]["status"] == 200
+    assert any(h == (b"content-type",) or h[0] == b"content-type" for h in sent[0]["headers"])
+    assert not delegated["hit"]  # /metrics handled here, not delegated
+
+    delegated["hit"] = False
+    asyncio.run(app({"type": "http", "path": "/mcp"}, _receive, _send))
+    assert delegated["hit"]  # everything else passes through to the auth-gated app
