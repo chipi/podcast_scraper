@@ -357,7 +357,7 @@ differently-but-well — Opus silver lets the metric breathe.
 - [SILVER_OPUS47_GENERATION_2026_06](SILVER_OPUS47_GENERATION_2026_06.md) — generation report for the new silver
 - [EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06](EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06.md) — the prior DGX validation pass
 - Original autoresearch next-phase-dependencies map (WIP doc, removed 2026-06-24; #907 + children all closed)
-- [RFC-110 fixture corpus](../../rfc/RFC-110-autoresearch-driven-fixture-corpus.md) — failure-mode catalogue
+- [RFC-116 fixture corpus](../../rfc/RFC-116-autoresearch-driven-fixture-corpus.md) — failure-mode catalogue
 
 ### Tuned prompt addendum — hermes3:8b (#937, 2026-06-09)
 

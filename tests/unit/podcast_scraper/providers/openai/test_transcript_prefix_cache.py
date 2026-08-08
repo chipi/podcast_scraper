@@ -1,13 +1,13 @@
-"""RFC-111 Phase 1: transcript-prefix caching for the summary stage.
+"""RFC-115 Phase 1: transcript-prefix caching for the summary stage.
 
 Every provider we use (except Gemini's OpenAI-compat endpoint) caches an identical LEADING token
 prefix at ~0.1x price, but the legacy layout put each stage's *system* prompt first, so the
-transcript — sent to ~5 stages per episode — never cached (probed: 0%). RFC-111 moves the
+transcript — sent to ~5 stages per episode — never cached (probed: 0%). RFC-115 moves the
 transcript to the byte-stable leading block of the system prompt so it caches across the stages of
 an episode (and across reprocessing runs). Caching reuses the model's compute (KV state), never the
 answer, so this changes cost/latency, not correctness.
 
-These tests are the deterministic safety net (RFC-111 §6 tests 1-6, 10, 11): the layout builder,
+These tests are the deterministic safety net (RFC-115 §6 tests 1-6, 10, 11): the layout builder,
 the flag-off legacy fallback, content invariance (the model must see exactly what it saw before,
 only reordered), auto-cache provider shaping, the end-to-end summarize wiring, cache-token
 telemetry plumbing, and the cross-provider coverage guard. The paid live gate (§6 tests 7-9:
@@ -164,7 +164,7 @@ def test_content_invariance_only_reordered_nothing_dropped() -> None:
 def test_autocache_provider_attaches_no_extra_api_fields() -> None:
     """For auto-prefix-cache providers (openai/deepseek/qwen/litellm/vllm) the LAYOUT alone enables
     caching — no cache_control / cached_content fields. (Anthropic + Gemini get provider-specific
-    shaping in RFC-111 phases 3-4, in their own providers.)"""
+    shaping in RFC-115 phases 3-4, in their own providers.)"""
     msgs = _provider()._build_stage_messages(
         transcript=TRANSCRIPT, system_prompt=SYSTEM_INSTRUCTIONS, user_prompt=USER_PROMPT
     )
@@ -260,7 +260,7 @@ def test_summarize_forwards_cache_read_tokens_to_cost_event(
 # §6.10 / §6.11 — [regression] layout guard + cross-provider coverage
 # ---------------------------------------------------------------------------------------------
 
-# Every thin sibling that shares the OpenAI-compatible transport is an auto-cache provider (ADR-144)
+# Every thin sibling that shares the OpenAI-compatible transport is an auto-cache provider (ADR-147)
 # and MUST inherit the identical transcript-first layout — not silently redefine message assembly.
 _SIBLING_IMPORTS = [
     ("podcast_scraper.providers.openai.openai_provider", "OpenAIProvider"),

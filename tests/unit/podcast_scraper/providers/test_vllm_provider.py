@@ -1,4 +1,4 @@
-"""Unit tests for the first-class vLLM provider (ADR-144).
+"""Unit tests for the first-class vLLM provider (ADR-147).
 
 Covers the sibling-of-openai contract: distinct identity/namespace, optional bearer, open-model
 token/temperature heuristics, real-model-id wiring, and factory dispatch — without any network.
@@ -38,7 +38,7 @@ def _vllm_cfg(**overrides: Any) -> Config:
 
 class TestIdentity:
     def test_is_sibling_not_openai_subclass(self):
-        # Shares the transport base, but is NOT an OpenAIProvider (ADR-144).
+        # Shares the transport base, but is NOT an OpenAIProvider (ADR-147).
         assert issubclass(VLLMProvider, OpenAICompatibleProvider)
         assert not issubclass(VLLMProvider, OpenAIProvider)
         assert not issubclass(OpenAIProvider, VLLMProvider)
@@ -127,7 +127,7 @@ class TestFactoryDispatch:
 
 
 class TestServedModelVerification:
-    """ADR-144 B3: fail-closed served-model check.
+    """ADR-147 B3: fail-closed served-model check.
 
     A wrong model on the DGX slot stops the run; an unreachable endpoint only warns.
     """
@@ -199,7 +199,7 @@ def _dgx_profile_cfg(name: str) -> Config:
 
 
 class TestGroundingStaysLocal:
-    """ADR-144 B1: with summary=vllm, the GI grounding stages (quote/entailment) must ALSO be vllm.
+    """ADR-147 B1: with summary=vllm, the GI grounding stages (quote/entailment) must ALSO be vllm.
     Left as 'openai', they build a separate cloud OpenAIProvider (api.openai.com + gpt-4o-mini) and
     the 'DGX-local' corpus gets its grounding from a cloud model — the corpus-corrupting bug."""
 
@@ -219,7 +219,7 @@ class TestGroundingStaysLocal:
         assert not (set(cfg.transcription_fallback_providers or []) & _CLOUD)
         assert not (set(cfg.diarization_fallback_providers or []) & _CLOUD)
         # The value gate stays ENABLED but fully local (airgapped): no cloud judge is pinned, so it
-        # self-grades with the same local model as the extractor (ADR-144). No internet dependency.
+        # self-grades with the same local model as the extractor (ADR-147). No internet dependency.
         assert cfg.gi_value_gate_enabled is True
         assert not getattr(cfg, "gi_value_gate_provider", None)  # unpinned -> extractor self-grades
         assert not getattr(cfg, "gi_value_gate_model", None)  # no cloud judge model

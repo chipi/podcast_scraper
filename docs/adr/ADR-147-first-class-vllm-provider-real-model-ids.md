@@ -1,10 +1,10 @@
-# ADR-144: First-class `vllm` provider — real model ids + fail-closed served-model verification
+# ADR-147: First-class `vllm` provider — real model ids + fail-closed served-model verification
 
 - **Status**: Accepted
 - **Date**: 2026-08-02
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related**: [ADR-044](ADR-044-local-llm-backend-abstraction.md) (local LLM backend
-  abstraction), [ADR-143](ADR-146-corpus-reprocess-methodology.md) (reproducible
+  abstraction), [ADR-143](ADR-149-corpus-reprocess-methodology.md) (reproducible
   single-variable corpus arc — the reason this matters now), [ADR-124](ADR-124-model-governance-registry-sanctioned.md)
   (registry-sanctioned model governance); agentic-ai-homelab `infra/vllm/autoresearch/`
   (the compose that owns `--served-model-name`)

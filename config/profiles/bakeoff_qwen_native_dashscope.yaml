@@ -1,4 +1,4 @@
-# Bake-off profile: NATIVE Qwen provider (ADR-144) direct to the OFFICIAL Alibaba Qwen API
+# Bake-off profile: NATIVE Qwen provider (ADR-147) direct to the OFFICIAL Alibaba Qwen API
 # (DashScope / Model Studio) — the native-vs-OpenRouter comparison arm for qwen3.7-flash. Sibling of
 # bakeoff_litellm_qwen37_finale (same model, routed through the homelab LiteLLM gateway -> OpenRouter
 # instead). Same v2.4 pipeline/quality; the ONLY variable is the LLM route: native DashScope here.

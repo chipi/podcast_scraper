@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integration tests for the native Qwen provider against the E2E server mock (ADR-144).
+"""Integration tests for the native Qwen provider against the E2E server mock (ADR-147).
 
 The Qwen provider is OpenAI-compatible, so it reuses the same mock chat endpoints as
 openai/deepseek/litellm. These verify the provider routes chat (summary + speaker) through the

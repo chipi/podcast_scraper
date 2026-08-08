@@ -1,4 +1,4 @@
-# ADR-145 — One in-place re-roll for invalid structured LLM responses before provider fallover
+# ADR-148 — One in-place re-roll for invalid structured LLM responses before provider fallover
 
 - **Status:** Accepted
 - **Date:** 2026-08-03

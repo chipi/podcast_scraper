@@ -1,4 +1,4 @@
-"""QwenProvider — Qwen3-family serving over any OpenAI-compatible endpoint (ADR-144).
+"""QwenProvider — Qwen3-family serving over any OpenAI-compatible endpoint (ADR-147).
 
 A SIBLING of :class:`OpenAIProvider` / :class:`VLLMProvider` / :class:`LiteLLMProvider` /
 :class:`DeepSeekProvider`, not a subclass. Qwen3 is an open family we serve either from a cloud host
@@ -10,7 +10,7 @@ optional for a local vLLM, required by a cloud host), and the open-model *heuris
 apply to OpenAI-native models.
 
 Why its own provider and not just vllm/litellm pointed at a Qwen endpoint: cost/telemetry
-attribution. "we cannot attribute vllm and litellm to openai" (ADR-144) applies here too — running
+attribution. "we cannot attribute vllm and litellm to openai" (ADR-147) applies here too — running
 Qwen through the vllm provider bills it to ``vllm``, through litellm to ``litellm``; neither says
 ``qwen``. This sibling gives Qwen its own cost namespace and a cloud-direct path to a single
 fixed-price host, sidestepping OpenRouter's per-host price variance.
@@ -47,7 +47,7 @@ _QWEN_DUMMY_BEARER = "EMPTY"
 
 
 class QwenServedModelMismatch(RuntimeError):
-    """The Qwen endpoint serves a different model than the profile pins (ADR-144 B3).
+    """The Qwen endpoint serves a different model than the profile pins (ADR-147 B3).
 
     Raised fail-closed so a wrong model behind the endpoint stops the run instead of silently
     producing a corpus attributed to the wrong model.
@@ -94,7 +94,7 @@ class QwenProvider(OpenAICompatibleProvider):
 
     def _authenticate(self, cfg: "config.Config") -> None:
         """A bearer is optional — a local vLLM Qwen needs none; a cloud host supplies one via
-        ``qwen_api_key`` / ``qwen_api_key_env``. No required-key / ``sk-`` validation (ADR-144)."""
+        ``qwen_api_key`` / ``qwen_api_key_env``. No required-key / ``sk-`` validation (ADR-147)."""
         return None
 
     def _resolve_api_key(self, cfg: "config.Config") -> Optional[str]:
@@ -116,7 +116,7 @@ class QwenProvider(OpenAICompatibleProvider):
         return {"max_tokens": n}
 
     def initialize(self) -> None:
-        """Fail-closed served-model check before first use (ADR-144 B3), then the normal init."""
+        """Fail-closed served-model check before first use (ADR-147 B3), then the normal init."""
         if getattr(self.cfg, "qwen_verify_served_model", True):
             self._verify_served_model()
         super().initialize()
@@ -158,6 +158,6 @@ class QwenProvider(OpenAICompatibleProvider):
             raise QwenServedModelMismatch(
                 f"Qwen at {base} serves {sorted(served) or '<none>'} but this profile pins "
                 f"{expected!r}. Load/point at the right Qwen model (or fix qwen_summary_model). "
-                f"Refusing to run to avoid corpus corruption (ADR-144 B3)."
+                f"Refusing to run to avoid corpus corruption (ADR-147 B3)."
             )
         logger.info("qwen: served-model check OK (%s advertised at %s)", expected, base)

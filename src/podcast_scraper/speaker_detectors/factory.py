@@ -300,7 +300,7 @@ def create_speaker_detector(  # noqa: C901
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "vllm":
-        # ADR-144: naming/NER on the DGX-local vLLM open model (sibling of openai).
+        # ADR-147: naming/NER on the DGX-local vLLM open model (sibling of openai).
         from ..providers.vllm import VLLMProvider
 
         if experiment_mode:
@@ -324,7 +324,7 @@ def create_speaker_detector(  # noqa: C901
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "qwen":
-        # ADR-144: naming/NER on a Qwen3 endpoint (cloud host or DGX vLLM); own `qwen` telemetry.
+        # ADR-147: naming/NER on a Qwen3 endpoint (cloud host or DGX vLLM); own `qwen` telemetry.
         from ..providers.qwen import QwenProvider
 
         if experiment_mode:

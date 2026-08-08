@@ -84,7 +84,7 @@ def _bundled_gil_json(text: str) -> Optional[str]:
         return None
     if "Insights:" in text and ("Transcript (excerpt):" in text or TRANSCRIPT_BLOCK_HEADER in text):
         # extract_quotes_bundled -> {index: [verbatim transcript snippet]} so quotes ground.
-        # RFC-111: the transcript may be relocated to a leading cache block (in the system message)
+        # RFC-115: the transcript may be relocated to a leading cache block (in the system message)
         # instead of the "Transcript (excerpt):" span in the user message. Read whichever carries
         # it — callers pass system+user combined so the relocated block is visible here.
         if TRANSCRIPT_BLOCK_HEADER in text:
@@ -457,7 +457,7 @@ class E2EServerURLs:
     def qwen_api_base(self) -> str:
         """Get native Qwen provider base URL (points to E2E server).
 
-        The Qwen provider (ADR-144) is OpenAI-compatible, so it reuses the same mock endpoints as
+        The Qwen provider (ADR-147) is OpenAI-compatible, so it reuses the same mock endpoints as
         openai/deepseek/litellm:
         - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
         - Note: Qwen does NOT serve audio transcription (whisper/openai own it).
@@ -1008,7 +1008,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # Determine response type: resolution, bundled GIL, speaker, GIL evidence, or summary
             resolution_json = _resolution_response_json(user_content)
-            # RFC-111: pass system+user so a transcript relocated to the system block is visible.
+            # RFC-115: pass system+user so a transcript relocated to the system block is visible.
             bundled_json = _bundled_gil_json(f"{system_content}\n{user_content}")
             if resolution_json is not None:
                 response_data = {
@@ -1737,7 +1737,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             system = request_data.get("system", "")
 
             # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
-            # RFC-111: include the system (may carry the relocated transcript cache block).
+            # RFC-115: include the system (may carry the relocated transcript cache block).
             bundled_json = _bundled_gil_json(f"{_anthropic_system_text(system)}\n{user_content}")
             if bundled_json is not None:
                 response_data = {

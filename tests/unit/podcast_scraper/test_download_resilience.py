@@ -234,7 +234,7 @@ class TestIsEpisodeRetryable(unittest.TestCase):
         self.assertFalse(_is_episode_retryable(Exception("something else")))
 
     def test_summary_parse_failure_not_episode_retryable(self):
-        # ADR-145: content-retry lives at exactly one layer — the call. A transient invalid
+        # ADR-148: content-retry lives at exactly one layer — the call. A transient invalid
         # structured summary gets one bounded in-place re-roll inside _generate_episode_summary,
         # NOT a whole-episode re-run (which would re-do transcribe/diarize/GI/KG for one bad LLM
         # call). So a summary schema parse failure is NOT episode-retryable — it either recovered

@@ -1,4 +1,4 @@
-"""Sibling-contract tests for the first-class DeepSeek provider (ADR-144).
+"""Sibling-contract tests for the first-class DeepSeek provider (ADR-147).
 
 DeepSeekProvider is a thin SIBLING of OpenAIProvider/VLLMProvider/LiteLLMProvider over the shared
 :class:`OpenAICompatibleProvider` transport base. These tests cover ONLY what is DeepSeek-specific —
@@ -43,7 +43,7 @@ def _ds_cfg(**overrides: Any) -> Config:
 
 class TestIdentity:
     def test_is_sibling_not_openai_subclass(self):
-        # Shares the transport base, but is NOT an OpenAIProvider (ADR-144).
+        # Shares the transport base, but is NOT an OpenAIProvider (ADR-147).
         assert issubclass(DeepSeekProvider, OpenAICompatibleProvider)
         assert not issubclass(DeepSeekProvider, OpenAIProvider)
         assert not issubclass(OpenAIProvider, DeepSeekProvider)
@@ -62,7 +62,7 @@ class TestDirectAndGatewayEndpoint:
 
     def test_api_base_override_routes_via_gateway(self):
         # Same class, config-only switch: pointing deepseek_api_base at a LiteLLM gateway routes
-        # DeepSeek THROUGH the gateway instead of direct (ADR-144). Asserting the live client's
+        # DeepSeek THROUGH the gateway instead of direct (ADR-147). Asserting the live client's
         # base_url is fragile (a sibling test installs a global openai mock); assert the config.
         p = DeepSeekProvider(_ds_cfg(deepseek_api_base="http://homelab:4001/v1"))
         assert p.cfg.deepseek_api_base == "http://homelab:4001/v1"

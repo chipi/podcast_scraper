@@ -1,4 +1,4 @@
-"""DeepSeekProvider — direct DeepSeek serving over its OpenAI-compatible API (ADR-144).
+"""DeepSeekProvider — direct DeepSeek serving over its OpenAI-compatible API (ADR-147).
 
 A SIBLING of :class:`OpenAIProvider` / :class:`VLLMProvider` / :class:`LiteLLMProvider`, not a
 standalone re-implementation. It shares the OpenAI-compatible transport via the common
@@ -11,7 +11,7 @@ LiteLLM-independent by design: this talks straight to DeepSeek. Pointing ``deeps
 LiteLLM gateway (with a ``deepseek-*`` alias) routes the same class *through* the gateway instead —
 so DeepSeek runs both directly and via LiteLLM with only a config change, never a code change.
 
-Superseded the former ~2,100-line standalone class (pre-ADR-144); cost/pricing attribution,
+Superseded the former ~2,100-line standalone class (pre-ADR-147); cost/pricing attribution,
 transport, cleaning, and stage methods now come from the shared base, correctly namespaced to
 ``deepseek`` via ``_TELEMETRY_PROVIDER``.
 """

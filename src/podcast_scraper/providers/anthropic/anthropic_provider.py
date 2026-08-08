@@ -167,7 +167,7 @@ class AnthropicProvider:
             )
 
         self.cfg = cfg
-        # RFC-111: relocate the transcript to a cache_control'd leading system block (default on).
+        # RFC-115: relocate the transcript to a cache_control'd leading system block (default on).
         self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
@@ -786,7 +786,7 @@ class AnthropicProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
-            # RFC-111: transcript block leads the system with a cache_control breakpoint.
+            # RFC-115: transcript block leads the system with a cache_control breakpoint.
             _sys, _usr = _anthropic_style_system(
                 text, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
             )
@@ -868,7 +868,7 @@ class AnthropicProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
-                    response=response,  # RFC-111: surfaces cache_read/creation tokens in llm_cost
+                    response=response,  # RFC-115: surfaces cache_read/creation tokens in llm_cost
                 )
 
             # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
@@ -1276,7 +1276,7 @@ class AnthropicProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 triggered_guardrail=triggered_guardrail,
-                response=response,  # RFC-111: surfaces cache_read/creation tokens in llm_cost
+                response=response,  # RFC-115: surfaces cache_read/creation tokens in llm_cost
             )
 
         # Response-shape guardrail (ADR-100, #1003): cost emitted in BOTH
@@ -1652,7 +1652,7 @@ class AnthropicProvider:
                 max_insights=max_insights,
             )
             system_prompt = render_prompt("anthropic/insight_extraction/system_v1")
-            _sys, _usr = _anthropic_style_system(  # RFC-111 transcript-first + cache_control
+            _sys, _usr = _anthropic_style_system(  # RFC-115 transcript-first + cache_control
                 text_slice, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
             )
             response = self._messages_create(
@@ -1881,7 +1881,7 @@ class AnthropicProvider:
                 retry_with_metrics,
             )
 
-            _sys, _usr = _anthropic_style_system(  # RFC-111 transcript-first + cache_control
+            _sys, _usr = _anthropic_style_system(  # RFC-115 transcript-first + cache_control
                 text_slice, system_msg, user_prompt, enabled=self._cache_transcript_prefix
             )
 
@@ -1957,7 +1957,7 @@ class AnthropicProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
-            _sys, _usr = _anthropic_style_system(  # RFC-111 transcript-first + cache_control
+            _sys, _usr = _anthropic_style_system(  # RFC-115 transcript-first + cache_control
                 transcript, system, user, enabled=self._cache_transcript_prefix
             )
 
@@ -2149,7 +2149,7 @@ class AnthropicProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        clipped = transcript_clip(transcript)  # RFC-111: relocate exact embedded string
+        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
         user = extract_quotes_bundled_user(clipped, insight_texts)
         _sys, _usr = _anthropic_style_system(
             clipped, system, user, enabled=self._cache_transcript_prefix

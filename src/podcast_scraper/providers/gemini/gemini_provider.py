@@ -336,7 +336,7 @@ class GeminiProvider:
         # Gemini 1.5 Pro supports 2M context window
         self.max_context_tokens = 2000000  # Conservative estimate
 
-        # RFC-111: Gemini EXPLICIT context caching (cachedContent). Off by default (stateful +
+        # RFC-115: Gemini EXPLICIT context caching (cachedContent). Off by default (stateful +
         # storage-billed, unlike the auto-cache providers). ``_gemini_cache_handles`` maps
         # "{model}:{sha256(transcript)}" -> cache resource name so an episode's stages reuse one
         # handle; a short TTL auto-expires it and we evict/delete stale handles on a new transcript.
@@ -1046,7 +1046,7 @@ class GeminiProvider:
     # SummarizationProvider Protocol Implementation
     # ============================================================================
 
-    # --- RFC-111: Gemini explicit context-cache lifecycle ------------------------------------
+    # --- RFC-115: Gemini explicit context-cache lifecycle ------------------------------------
     # Below Gemini's minimum cacheable size (~1k tokens) an explicit cache can't be created, so we
     # skip and use the legacy layout. Real episode transcripts are far above this.
     _GEMINI_CACHE_MIN_CHARS = 4096
@@ -1213,7 +1213,7 @@ class GeminiProvider:
                 retry_with_metrics,
             )
 
-            # RFC-111: transcript in a cachedContent handle (if enabled); else legacy.
+            # RFC-115: transcript in a cachedContent handle (if enabled); else legacy.
             _contents, _cfg_over = self._gemini_stage_request(
                 text, system_prompt, user_prompt, self.summary_model
             )
@@ -1330,7 +1330,7 @@ class GeminiProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
-                    response=response,  # RFC-111: surfaces cached_content tokens in llm_cost
+                    response=response,  # RFC-115: surfaces cached_content tokens in llm_cost
                 )
 
             # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
@@ -1742,7 +1742,7 @@ class GeminiProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 triggered_guardrail=triggered_guardrail,
-                response=response,  # RFC-111: surfaces cached_content tokens in llm_cost
+                response=response,  # RFC-115: surfaces cached_content tokens in llm_cost
             )
 
         # Response-shape guardrail (ADR-100, #1003) on bundled output.
@@ -1856,7 +1856,7 @@ class GeminiProvider:
         self._transcription_initialized = False
         self._speaker_detection_initialized = False
         self._summarization_initialized = False
-        # RFC-111: delete any live context-cache handles so we don't pay storage rent past the run
+        # RFC-115: delete any live context-cache handles so we don't pay storage rent past the run
         # (they would otherwise linger until their TTL).
         self._evict_gemini_caches(keep=None)
 
@@ -1916,7 +1916,7 @@ class GeminiProvider:
                 max_insights=max_insights,
             )
             system_prompt = render_prompt("gemini/insight_extraction/system_v1")
-            _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+            _contents, _cfg_over = self._gemini_stage_request(  # RFC-115
                 text_slice, system_prompt, user_prompt, self.summary_model
             )
             generation_config = _merge_generate_content_config(
@@ -2173,7 +2173,7 @@ class GeminiProvider:
                 retry_with_metrics,
             )
 
-            _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+            _contents, _cfg_over = self._gemini_stage_request(  # RFC-115
                 text_slice, system_msg, user_prompt, model
             )
             generation_config = _merge_generate_content_config(
@@ -2255,7 +2255,7 @@ class GeminiProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
-            _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+            _contents, _cfg_over = self._gemini_stage_request(  # RFC-115
                 transcript, system, user, self.summary_model
             )
             generation_config = _merge_generate_content_config(
@@ -2381,7 +2381,7 @@ class GeminiProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        clipped = transcript_clip(transcript)  # RFC-111: relocate exact embedded string
+        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
         user = extract_quotes_bundled_user(clipped, insight_texts)
 
         from ...utils.provider_metrics import (
@@ -2400,7 +2400,7 @@ class GeminiProvider:
 
         # Bundled call may need a larger output budget than the per-insight call.
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
-        _contents, _cfg_over = self._gemini_stage_request(  # RFC-111
+        _contents, _cfg_over = self._gemini_stage_request(  # RFC-115
             clipped, system, user, self.summary_model
         )
         generation_config = _merge_generate_content_config(

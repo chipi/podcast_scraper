@@ -1,4 +1,4 @@
-"""Unit tests for the first-class Qwen provider (ADR-144).
+"""Unit tests for the first-class Qwen provider (ADR-147).
 
 QwenProvider is a thin SIBLING of OpenAIProvider/VLLMProvider/LiteLLMProvider/DeepSeekProvider over
 the shared :class:`OpenAICompatibleProvider` transport base. These tests cover ONLY what is
@@ -42,7 +42,7 @@ def _qwen_cfg(**overrides: Any) -> Config:
 
 class TestIdentity:
     def test_is_sibling_not_openai_subclass(self):
-        # Shares the transport base, but is NOT an OpenAIProvider (ADR-144).
+        # Shares the transport base, but is NOT an OpenAIProvider (ADR-147).
         assert issubclass(QwenProvider, OpenAICompatibleProvider)
         assert not issubclass(QwenProvider, OpenAIProvider)
         assert not issubclass(OpenAIProvider, QwenProvider)
@@ -70,7 +70,7 @@ class TestNoVendorDefaultEndpoint:
 
 class TestOwnCostNamespace:
     def test_pricing_reads_qwen_namespace_not_openai(self):
-        # ADR-144: cost is attributed to `qwen`, never leaks openai's rows. A known OpenAI model
+        # ADR-147: cost is attributed to `qwen`, never leaks openai's rows. A known OpenAI model
         # name has no row under the qwen provider namespace.
         assert QwenProvider.get_pricing("gpt-4o", "summarization") == {}
 
@@ -152,7 +152,7 @@ class TestFactoryDispatch:
 
 
 class TestServedModelVerification:
-    """ADR-144 B3: fail-closed served-model check.
+    """ADR-147 B3: fail-closed served-model check.
 
     A wrong model behind the endpoint stops the run; an unreachable endpoint only warns.
     """

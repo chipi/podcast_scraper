@@ -1,4 +1,4 @@
-"""RFC-111: shared transcript-prefix relocation for prompt caching, used by every LLM provider.
+"""RFC-115: shared transcript-prefix relocation for prompt caching, used by every LLM provider.
 
 Providers cache an identical LEADING token prefix at ~0.1x price. The transcript-bearing LLM stages
 of an episode (summary, GI insights, quote extraction, KG) all consume the SAME cleaned transcript,
@@ -16,10 +16,10 @@ its place. Each provider family then APPLIES that block to its own request conta
 * Gemini: the block seeds a native ``cached_content`` handle — handled in the gemini provider.
 
 The block wrapper MUST be assembled identically on every stage of an episode — any per-stage
-interpolation before the transcript would shift the shared prefix and kill the cache (RFC-111 §8).
+interpolation before the transcript would shift the shared prefix and kill the cache (RFC-115 §8).
 Caching reuses the model's compute (KV state), never the answer: this changes cost/latency only.
 Moving the transcript DOES change the prompt wording (and thus can change the generated text), which
-is why RFC-111 §6.8 gates rollout on a quality-parity check — but it does not change correctness.
+is why RFC-115 §6.8 gates rollout on a quality-parity check — but it does not change correctness.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ TRANSCRIPT_MOVED_MARKER = (
 
 
 def cacheable_transcript_prefix(transcript: str) -> str:
-    """The byte-stable leading block that carries the transcript into the prompt (RFC-111)."""
+    """The byte-stable leading block that carries the transcript into the prompt (RFC-115)."""
     return f"{TRANSCRIPT_BLOCK_HEADER}\n\n{transcript}{TRANSCRIPT_BLOCK_SEPARATOR}"
 
 
@@ -51,7 +51,7 @@ def relocate_transcript(
     *,
     enabled: bool,
 ) -> Tuple[Optional[str], str, str]:
-    """Move the transcript from the user prompt to a leading cache block (RFC-111 core).
+    """Move the transcript from the user prompt to a leading cache block (RFC-115 core).
 
     Returns ``(transcript_block, new_system, new_user)``. When ``enabled`` and the transcript
     appears in ``user_prompt``, ``transcript_block`` is the byte-stable leading block and
@@ -63,7 +63,7 @@ def relocate_transcript(
     The transcript is NORMALISED (``strip``) before it becomes the block, so stages that embed it
     raw (summary) and stages that pre-strip it (GI insights, KG) emit a BYTE-IDENTICAL block and
     therefore share one cached prefix across the episode. Without this, a stray leading/trailing
-    newline on the cleaned transcript would silently split the cache per stage (RFC-111 §8).
+    newline on the cleaned transcript would silently split the cache per stage (RFC-115 §8).
     """
     if not enabled or not transcript:
         return None, system_prompt, user_prompt

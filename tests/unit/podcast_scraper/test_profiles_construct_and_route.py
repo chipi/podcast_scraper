@@ -57,7 +57,7 @@ class TestOpenAIRoutingPrecedence:
     def test_profile_base_url_wins_over_ambient_env(
         self, _dummy_provider_keys: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A DGX profile must route to the DGX, never a stale ambient env. ADR-144 moved the DGX
+        """A DGX profile must route to the DGX, never a stale ambient env. ADR-147 moved the DGX
         routing off openai onto vllm_api_base (which has NO env fallback), so a stale
         OPENAI_API_BASE cannot leak into the DGX path — the profile's DGX base wins by design."""
         monkeypatch.setenv("OPENAI_API_BASE", "https://api.openai.com/v1")

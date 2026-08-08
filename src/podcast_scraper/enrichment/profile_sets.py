@@ -188,7 +188,7 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
     if name.startswith("bakeoff_") or name in (
         "cloud_thin",
         "cloud_openrouter",
-        # ADR-144: native Qwen provider direct to a fixed-price cloud host — cloud routing tier.
+        # ADR-147: native Qwen provider direct to a fixed-price cloud host — cloud routing tier.
         "cloud_qwen",
         "cloud_balanced",
         "cloud_quality",

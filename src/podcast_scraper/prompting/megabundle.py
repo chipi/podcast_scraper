@@ -58,7 +58,7 @@ QUALITY_RULES = (
 def _maybe_transcript_first(
     system: str, user: str, transcript: str, *, cache_transcript_prefix: bool
 ) -> Tuple[str, str]:
-    """RFC-111: when enabled, move the (already-truncated) transcript to the leading system block so
+    """RFC-115: when enabled, move the (already-truncated) transcript to the leading system block so
     it prefix-caches. Done here — not at the provider — because the builder holds the exact embedded
     (truncated) string. Only the AUTO-CACHE providers pass the flag: caching a single mega-bundle
     call is free-and-helps-reprocessing for them, but a net LOSS for anthropic (cache-write premium)

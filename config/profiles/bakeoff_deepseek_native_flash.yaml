@@ -1,4 +1,4 @@
-# Bake-off profile: NATIVE DeepSeek provider (ADR-144) talking DIRECT to api.deepseek.com — the
+# Bake-off profile: NATIVE DeepSeek provider (ADR-147) talking DIRECT to api.deepseek.com — the
 # native-vs-OpenRouter comparison arm for deepseek-v4-flash. Sibling of bakeoff_litellm_deepseek_flash
 # (same model, routed through the homelab LiteLLM gateway -> OpenRouter instead). Same v2.4
 # pipeline/quality; the ONLY variable is the LLM route: native direct here.

@@ -1,4 +1,4 @@
-"""RFC-111 Phase D: Anthropic relocates the transcript to a cache_control'd system block.
+"""RFC-115 Phase D: Anthropic relocates the transcript to a cache_control'd system block.
 
 Anthropic prefix caching is opt-in, so (unlike the auto-cache providers) the transcript block must
 be a ``system`` content block carrying an explicit ``cache_control`` breakpoint. Live-verified:

@@ -105,7 +105,7 @@ def _record_openai_summarization_call(
     and historically skipped ``record_llm_summarization_call`` entirely, so
     cost/tokens vanished at pipeline level even though call_metrics saw them.
 
-    ``provider_type`` names the cost/pricing namespace (ADR-144): a sibling
+    ``provider_type`` names the cost/pricing namespace (ADR-147): a sibling
     (litellm/vllm/deepseek) passes its own ``_TELEMETRY_PROVIDER`` so cost is
     never mis-attributed to ``openai`` pricing.
     """
@@ -140,7 +140,7 @@ def _record_openai_summarization_call(
 _TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
 
 
-# RFC-111: transcript-prefix caching lives in the shared, provider-family-agnostic module so every
+# RFC-115: transcript-prefix caching lives in the shared, provider-family-agnostic module so every
 # provider (base siblings + grok/mistral/ollama/anthropic/gemini) relocates the transcript
 # identically.
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
@@ -149,7 +149,7 @@ from ..common.transcript_cache import openai_style_messages as _openai_style_mes
 class OpenAICompatibleProvider:
     """OpenAI-compatible transport shared by OpenAIProvider (OpenAI-native) and VLLMProvider
     (DGX-local open models). They are SIBLINGS, not parent/child — vLLM serves a wide family of
-    non-OpenAI models, so it is not modelled as "an OpenAI thing" (ADR-144). Identity is set by
+    non-OpenAI models, so it is not modelled as "an OpenAI thing" (ADR-147). Identity is set by
     the ``_CONFIG_NS`` / ``_TELEMETRY_PROVIDER`` / ``_PROVIDER_LABEL`` class attrs and the
     ``_authenticate`` / ``_resolve_api_key`` hooks, so a sibling changes behaviour by overriding
     those, not by copying method bodies.
@@ -159,7 +159,7 @@ class OpenAICompatibleProvider:
     """  # noqa: E501
 
     # --- provider identity (parameterized so a sibling like VLLMProvider can share this
-    # OpenAI-compatible transport without being an "OpenAI thing"; see ADR-144). Reads of
+    # OpenAI-compatible transport without being an "OpenAI thing"; see ADR-147). Reads of
     # config fields use the ``{_CONFIG_NS}_*`` prefix and telemetry uses ``_TELEMETRY_PROVIDER``,
     # so a subclass changes identity by overriding these three, not by copying method bodies. ---
     _CONFIG_NS: str = "openai"  # config-field prefix: {ns}_summary_model, {ns}_api_base, …
@@ -172,7 +172,7 @@ class OpenAICompatibleProvider:
     # Default API endpoint used when no ``{ns}_api_base`` is configured. ``None`` = fall back to the
     # OpenAI SDK default (api.openai.com). A vendor sibling (deepseek) sets its own vendor endpoint
     # so the "direct, no gateway" path needs zero config; pointing ``{ns}_api_base`` at a LiteLLM
-    # gateway still overrides it, so the same class serves both direct and via-gateway. ADR-144.
+    # gateway still overrides it, so the same class serves both direct and via-gateway. ADR-147.
     _DEFAULT_API_BASE: Optional[str] = None
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
@@ -180,13 +180,13 @@ class OpenAICompatibleProvider:
     def _resolve_api_key(self, cfg: "config.Config") -> Optional[str]:
         """Bearer for the OpenAI-compatible client. Base = the ``{ns}_api_key`` field
         (OpenAI-native). VLLMProvider overrides to make the bearer optional — a local vLLM served
-        without auth accepts any bearer, so a dummy is supplied when none is configured. ADR-144."""
+        without auth accepts any bearer, so a dummy is supplied when none is configured. ADR-147."""
         return getattr(cfg, f"{self._CONFIG_NS}_api_key", None)
 
     def _authenticate(self, cfg: "config.Config") -> None:
         """Validate credentials at construction. Base = OpenAI-native: a key is REQUIRED and must
         look like an OpenAI key. VLLMProvider overrides this to a no-op (a local vLLM bearer is
-        optional). ADR-144."""
+        optional). ADR-147."""
         api_key = getattr(cfg, f"{self._CONFIG_NS}_api_key", None)
         if not api_key:
             raise ValueError(
@@ -215,7 +215,7 @@ class OpenAICompatibleProvider:
             ValueError: If OpenAI API key is not provided
             ImportError: If openai package is not installed (core dependency)
         """
-        ns = self._CONFIG_NS  # config-field prefix; "openai" here, overridden by siblings (ADR-144)
+        ns = self._CONFIG_NS  # config-field prefix; "openai" here, overridden by siblings (ADR-147)
         # Lazy import to allow unit tests without openai installed (Issue #405)
         try:
             from openai import OpenAI
@@ -226,7 +226,7 @@ class OpenAICompatibleProvider:
             ) from exc
 
         # Credentials: the base validates an OpenAI-native key (required + sk- prefix). A sibling
-        # like VLLMProvider overrides _authenticate (bearer optional for a local vLLM). ADR-144.
+        # like VLLMProvider overrides _authenticate (bearer optional for a local vLLM). ADR-147.
         self._authenticate(cfg)
 
         self.cfg = cfg
@@ -268,7 +268,7 @@ class OpenAICompatibleProvider:
                 openai_logger.setLevel(logging.WARNING)
 
         # Support custom base_url for E2E testing with mock servers, and a per-sibling default
-        # endpoint (_DEFAULT_API_BASE) so a vendor sibling talks direct with no config (ADR-144).
+        # endpoint (_DEFAULT_API_BASE) so a vendor sibling talks direct with no config (ADR-147).
         client_kwargs: dict[str, Any] = {"api_key": self._resolve_api_key(cfg)}
         _api_base = getattr(cfg, f"{ns}_api_base", None) or self._DEFAULT_API_BASE
         if _api_base:
@@ -339,7 +339,7 @@ class OpenAICompatibleProvider:
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
 
-        # RFC-111: relocate the transcript to the leading system block so it prefix-caches across
+        # RFC-115: relocate the transcript to the leading system block so it prefix-caches across
         # an episode's LLM stages (default on). Off falls back to the exact legacy layout.
         self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
@@ -402,7 +402,7 @@ class OpenAICompatibleProvider:
         system_prompt: str,
         user_prompt: str,
     ) -> List[Dict[str, str]]:
-        """RFC-111: assemble chat messages for a transcript-bearing LLM stage.
+        """RFC-115: assemble chat messages for a transcript-bearing LLM stage.
 
         When ``cache_transcript_prefix`` is on (default) and the transcript appears verbatim in the
         user prompt, relocate it to the LEADING block of the system prompt so it forms a stable,
@@ -415,7 +415,7 @@ class OpenAICompatibleProvider:
 
         Auto-cache providers (openai/deepseek/qwen/litellm/vllm) need no extra API fields — the
         layout alone enables caching. Anthropic (explicit ``cache_control``) and Gemini (native
-        ``cached_content``) are handled in their own providers in later RFC-111 phases.
+        ``cached_content``) are handled in their own providers in later RFC-115 phases.
         """
         return _openai_style_messages(
             transcript,
@@ -432,7 +432,7 @@ class OpenAICompatibleProvider:
         stability (test fixtures, tooling). Production cost calc goes through
         :func:`podcast_scraper.workflow.helpers._get_provider_pricing`.
 
-        Namespaced by ``_TELEMETRY_PROVIDER`` (ADR-144) so a sibling
+        Namespaced by ``_TELEMETRY_PROVIDER`` (ADR-147) so a sibling
         (litellm/vllm/deepseek) reads its own pricing rows, never ``openai``'s.
         Returns the rate dict for ``(provider, capability, model)`` or ``{}``
         when no matching row exists.
@@ -1313,7 +1313,7 @@ class OpenAICompatibleProvider:
                 else {"max_tokens": max_length}
             )
 
-            # RFC-111 Phase 1: relocate the transcript to a leading, cacheable system block
+            # RFC-115 Phase 1: relocate the transcript to a leading, cacheable system block
             # (default on). ``text`` is the cleaned transcript rendered verbatim into user_prompt.
             messages = self._build_stage_messages(
                 transcript=text,
@@ -1400,7 +1400,7 @@ class OpenAICompatibleProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
-                    response=response,  # RFC-111: surfaces prefix-cache read tokens in llm_cost
+                    response=response,  # RFC-115: surfaces prefix-cache read tokens in llm_cost
                 )
 
             # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
@@ -1943,7 +1943,7 @@ class OpenAICompatibleProvider:
             system_prompt = render_prompt("openai/insight_extraction/system_v1")
             response = self._chat_create(
                 model=self.insight_model,
-                # RFC-111: transcript-first so the cleaned transcript caches across this episode's
+                # RFC-115: transcript-first so the cleaned transcript caches across this episode's
                 # stages (text_slice is rendered verbatim into user_prompt).
                 messages=self._build_stage_messages(
                     transcript=text_slice, system_prompt=system_prompt, user_prompt=user_prompt
@@ -2085,7 +2085,7 @@ class OpenAICompatibleProvider:
             )
             _json.loads(content)  # the real parse — a truncated JSON must trigger the re-roll
 
-        # ADR-145: one bounded in-place re-roll on a transient invalid value-gate JSON before
+        # ADR-148: one bounded in-place re-roll on a transient invalid value-gate JSON before
         # raising. The gate fails open on a persistent bad response (owns keep-everything).
         content = _guardrails.structured_call_with_reroll(
             _call, _validate, service=self._TELEMETRY_PROVIDER, max_reroll=1
@@ -2124,7 +2124,7 @@ class OpenAICompatibleProvider:
                 content, service=self._TELEMETRY_PROVIDER, expect_json=True
             )
 
-        # ADR-145: one bounded in-place re-roll on a transient invalid JSON response before the
+        # ADR-148: one bounded in-place re-roll on a transient invalid JSON response before the
         # guardrail fallover fires. A persistently-bad response still raises GuardrailViolation.
         content = _guardrails.structured_call_with_reroll(
             _call, _validate, service=self._TELEMETRY_PROVIDER, max_reroll=1
@@ -2176,7 +2176,7 @@ class OpenAICompatibleProvider:
             def _make_api_call():
                 return self._chat_create(
                     model=model,
-                    # RFC-111: transcript-first (text_slice is embedded verbatim in user_prompt),
+                    # RFC-115: transcript-first (text_slice is embedded verbatim in user_prompt),
                     # so KG reuses the same cached transcript prefix as the other episode stages.
                     messages=self._build_stage_messages(
                         transcript=text_slice, system_prompt=system_msg, user_prompt=user_prompt
@@ -2252,7 +2252,7 @@ class OpenAICompatibleProvider:
             def _make_api_call():
                 return self._chat_create(
                     model=self.summary_model,
-                    # RFC-111: transcript-first so the per-insight quote calls share one cached
+                    # RFC-115: transcript-first so the per-insight quote calls share one cached
                     # prefix (system was empty; the transcript is embedded verbatim in `user`).
                     messages=self._build_stage_messages(
                         transcript=transcript, system_prompt=system, user_prompt=user
@@ -2422,7 +2422,7 @@ class OpenAICompatibleProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        # RFC-111: relocate the CLIPPED transcript (the exact string the builder embeds) so the
+        # RFC-115: relocate the CLIPPED transcript (the exact string the builder embeds) so the
         # quote stage shares one cached prefix with summary/GI/KG. NB the clip (transcript_clip,
         # ~50k) can differ from those stages' window, so sharing only holds for episodes under the
         # clip; longer ones send a clipped block once (cold) — never wrong, just not shared.
@@ -2990,6 +2990,6 @@ class OpenAIProvider(OpenAICompatibleProvider):
     Inherits the OpenAI-compatible transport unchanged: the base's default identity
     (``_CONFIG_NS = "openai"``) and OpenAI-native auth (required ``sk-`` key) are exactly what this
     class needs, so no overrides. Kept as a distinct class so the provider registry, factories, and
-    every existing ``OpenAIProvider`` import resolve, and so ADR-144's "``openai`` is reserved for
+    every existing ``OpenAIProvider`` import resolve, and so ADR-147's "``openai`` is reserved for
     OpenAI-native models" is explicit in the type system.
     """

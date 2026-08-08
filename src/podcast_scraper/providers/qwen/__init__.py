@@ -1,4 +1,4 @@
-"""Qwen native provider for speaker detection and summarization (ADR-144).
+"""Qwen native provider for speaker detection and summarization (ADR-147).
 
 A single :class:`QwenProvider` class implements both the SpeakerDetector and SummarizationProvider
 protocols over the shared OpenAI-compatible transport, serving the Qwen3 family from any

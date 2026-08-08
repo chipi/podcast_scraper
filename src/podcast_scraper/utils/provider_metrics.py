@@ -192,7 +192,7 @@ def record_provider_call_cost(
     spend (the cloud provider charged us for a response that tripped a
     response-shape guardrail and got routed to a fallback).
 
-    ``response`` (RFC-111): the raw provider response, forwarded to ``emit_llm_cost_event`` which
+    ``response`` (RFC-115): the raw provider response, forwarded to ``emit_llm_cost_event`` which
     extracts the normalised cache-read / cache-write token counts from its usage. Passing it makes
     prefix-cache savings observable in the ``llm_cost`` telemetry; omitting it is the prior
     behaviour (no cache-token fields), so every existing call site is unaffected.

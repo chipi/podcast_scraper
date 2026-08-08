@@ -294,7 +294,7 @@ providers:
       default:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0
-  # DGX-local vLLM (OpenAI-compat path). Real HF model ids on the wire (ADR-144), not a served-name
+  # DGX-local vLLM (OpenAI-compat path). Real HF model ids on the wire (ADR-147), not a served-name
   # alias; cost is electricity-only — $0/token at the API layer. `default` covers every local id;
   # real cost is tracked via DGX power monitoring (#923 / #943).
   vllm:
@@ -330,7 +330,7 @@ providers:
         input_cost_per_1m_tokens: 0.10
         output_cost_per_1m_tokens: 0.40
 
-  # Native Qwen provider (ADR-144). This namespace spans BOTH the paid OFFICIAL Alibaba Qwen API
+  # Native Qwen provider (ADR-147). This namespace spans BOTH the paid OFFICIAL Alibaba Qwen API
   # (DashScope / Model Studio — the cloud_qwen host) and free DGX-local serving, so rates are
   # per-model. Cloud: qwen3.7-flash is Alibaba-hosted (source: the official Model Studio pricing
   # page — ESTIMATE below, verify + re-date on update). DGX-local open weights (native qwen pointed

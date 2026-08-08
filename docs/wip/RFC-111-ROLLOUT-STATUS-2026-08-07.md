@@ -1,4 +1,4 @@
-# RFC-111 transcript-prefix caching — holistic rollout status (2026-08-07)
+# RFC-115 transcript-prefix caching — holistic rollout status (2026-08-07)
 
 Branch `feat/naming-arc-and-corpus-prep`. **3 new commits** (`118536f5` Phase B core, `10bea0e4`
 Phase C, `fdb4197e` Phase D) on top of the handover base. **Not pushed.** Gemini (Phase E) is the
@@ -62,7 +62,7 @@ So a plain reorder gives gemini **nothing**. The only path is the **explicit `ca
   `config.cached_content=<handle>` on each stage's `generate_content`, and clean the handle up.
 - This is **stateful** (unlike every other provider) and has a **cost tradeoff**: creating/storing a
   per-episode handle costs money; it only pays off if the transcript is reused enough across stages
-  (it is — 3+ stages) and the handle TTL covers the episode's processing. This is **RFC-111 §8's open
+  (it is — 3+ stages) and the handle TTL covers the episode's processing. This is **RFC-115 §8's open
   question**.
 
 **Decision needed:** implement explicit `cached_content` (with a per-episode create→reference→delete
@@ -71,7 +71,7 @@ lifecycle), or leave gemini on legacy? Gemini is currently safe on legacy (flag-
 ## Findings that change the RFC's framing
 
 - **The reorder changes output TEXT.** RFC §1's "caching never changes the answer" is true for the
-  *cache*, but RFC-111 also *reorders* the prompt, which **does** change the generated text (temp=0
+  *cache*, but RFC-115 also *reorders* the prompt, which **does** change the generated text (temp=0
   isolation: transcript-first summaries are far more different from legacy than two legacy resamples
   are from each other — 3/4 episodes). This is the "heart surgery" risk RFC §4 flagged.
 - **Quality is preserved.** Conclusive gate (temp=0, n=10, blind Opus, with a legacy-vs-legacy

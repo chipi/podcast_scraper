@@ -41,7 +41,7 @@ PROFILES_DIR = REPO_ROOT / "config" / "profiles"
 PRICING_YAML = REPO_ROOT / "config" / "pricing_assumptions.yaml"
 
 # Providers that bill per-call (all others are local / free).
-# ``qwen`` is the native Qwen provider (ADR-144): unlike the vllm/litellm siblings (served-name /
+# ``qwen`` is the native Qwen provider (ADR-147): unlike the vllm/litellm siblings (served-name /
 # gateway aliases, excluded), it names REAL billable model ids on a cloud host, so its models are
 # gated. DGX-served qwen models carry an explicit $0 row (electricity-only), so those pass too.
 _BILLABLE_PROVIDERS: Tuple[str, ...] = (

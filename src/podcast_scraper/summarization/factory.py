@@ -307,7 +307,7 @@ def create_summarization_provider(  # noqa: C901
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
     elif provider_type == "vllm":
-        # ADR-144: DGX-local open models over vLLM's OpenAI-compatible API. A sibling of the
+        # ADR-147: DGX-local open models over vLLM's OpenAI-compatible API. A sibling of the
         # openai provider (real HF model ids on the wire), not a subclass.
         from ..providers.vllm import VLLMProvider
 
@@ -333,7 +333,7 @@ def create_summarization_provider(  # noqa: C901
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
     elif provider_type == "qwen":
-        # ADR-144: Qwen3 over any OpenAI-compatible endpoint (cloud host or DGX vLLM). A sibling of
+        # ADR-147: Qwen3 over any OpenAI-compatible endpoint (cloud host or DGX vLLM). A sibling of
         # the vllm/deepseek providers with its own `qwen` telemetry namespace.
         from ..providers.qwen import QwenProvider
 

@@ -1,4 +1,4 @@
-"""VLLMProvider — DGX-local open-model serving over vLLM's OpenAI-compatible API (ADR-144).
+"""VLLMProvider — DGX-local open-model serving over vLLM's OpenAI-compatible API (ADR-147).
 
 A SIBLING of :class:`OpenAIProvider`, not a subclass: with vLLM we serve a wide family of
 *non-OpenAI* open models (Qwen/DeepSeek/Llama), so it must not be modelled as "an OpenAI thing".
@@ -31,7 +31,7 @@ _VLLM_DUMMY_BEARER = "EMPTY"
 
 
 class VLLMServedModelMismatch(RuntimeError):
-    """The vLLM endpoint serves a different model than the profile pins (ADR-144 B3).
+    """The vLLM endpoint serves a different model than the profile pins (ADR-147 B3).
 
     Raised fail-closed so a wrong model loaded on the DGX slot stops the run instead of silently
     producing a corpus attributed to the wrong model.
@@ -75,7 +75,7 @@ class VLLMProvider(OpenAICompatibleProvider):
             self.cleaning_model = self.summary_model
 
     def _authenticate(self, cfg: "config.Config") -> None:
-        """A local vLLM bearer is optional — no required-key / ``sk-`` validation (ADR-144)."""
+        """A local vLLM bearer is optional — no required-key / ``sk-`` validation (ADR-147)."""
         return None
 
     def _resolve_api_key(self, cfg: "config.Config") -> Optional[str]:
@@ -96,7 +96,7 @@ class VLLMProvider(OpenAICompatibleProvider):
         return {"max_tokens": n}
 
     def initialize(self) -> None:
-        """Fail-closed served-model check before first use (ADR-144 B3), then the normal init."""
+        """Fail-closed served-model check before first use (ADR-147 B3), then the normal init."""
         if getattr(self.cfg, "vllm_verify_served_model", True):
             self._verify_served_model()
         super().initialize()
@@ -138,6 +138,6 @@ class VLLMProvider(OpenAICompatibleProvider):
             raise VLLMServedModelMismatch(
                 f"vLLM at {base} serves {sorted(served) or '<none>'} but this profile pins "
                 f"{expected!r}. Load the right model on the DGX slot (or fix vllm_summary_model). "
-                f"Refusing to run to avoid corpus corruption (ADR-144 B3)."
+                f"Refusing to run to avoid corpus corruption (ADR-147 B3)."
             )
         logger.info("vllm: served-model check OK (%s advertised at %s)", expected, base)

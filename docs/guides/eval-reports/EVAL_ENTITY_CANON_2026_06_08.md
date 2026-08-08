@@ -94,7 +94,7 @@ The recommended thresholds also pass the v2 deliberate-ambiguity cases without r
 - [x] Tuned thresholds applied to `src/podcast_scraper/kg/entity_clusters.py`; unit tests pass.
 - [x] v2 deliberate-ambiguity cases validated — no regression vs baseline.
 - [x] Eval report (this file).
-- [x] Failure-mode catalogue contributed to `docs/rfc/RFC-110-autoresearch-driven-fixture-corpus.md` (#921).
+- [x] Failure-mode catalogue contributed to `docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md` (#921).
 
 ## Out of scope (tracked elsewhere)
 

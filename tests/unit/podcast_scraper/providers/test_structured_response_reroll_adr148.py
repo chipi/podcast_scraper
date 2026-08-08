@@ -1,4 +1,4 @@
-"""Repro + spec for ADR-145: one in-place re-roll for an invalid structured LLM response.
+"""Repro + spec for ADR-148: one in-place re-roll for an invalid structured LLM response.
 
 Rule #34 (repro before fix). Reproduces the p04 failure mode observed on a v2.5 mock reprocess:
 a structured LLM call (summary) returns truncated/invalid JSON on the FIRST attempt and valid JSON
@@ -7,7 +7,7 @@ call with no in-place retry — response-shape violations are non-retryable in p
 the summary schema check runs a layer above the call so it never reaches fallover either; the whole
 EPISODE fails on a one-off bad response.
 
-The fix (ADR-145): validation co-located at the call, and a response-shape violation triggers ONE
+The fix (ADR-148): validation co-located at the call, and a response-shape violation triggers ONE
 bounded in-place re-roll on the same endpoint before falling over to another provider. These tests
 pin the two invariants that fix must satisfy. They are xfail until the capability lands, so the
 repro is recorded without breaking the build.
@@ -24,7 +24,7 @@ def test_transient_invalid_structured_response_recovers_via_one_in_place_reroll(
     """A structured call whose 1st response is invalid and 2nd is valid must recover on the SAME
     endpoint via one in-place re-roll — NOT fail, and NOT immediately fall over to another provider.
 
-    Wired against the real seam once ADR-145 lands (a call-level validate + bounded re-roll). Until
+    Wired against the real seam once ADR-148 lands (a call-level validate + bounded re-roll). Until
     then this asserts the intent so the repro is on record."""
     from podcast_scraper.providers.guardrails import structured_call_with_reroll  # type: ignore
 

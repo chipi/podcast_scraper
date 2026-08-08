@@ -189,7 +189,7 @@ class MistralProvider:
             )
 
         self.cfg = cfg
-        # RFC-111: relocate the transcript to a cacheable leading system block (default on).
+        # RFC-115: relocate the transcript to a cacheable leading system block (default on).
         self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
@@ -925,7 +925,7 @@ class MistralProvider:
             def _make_api_call():
                 return self.client.chat.complete(
                     model=self.summary_model,
-                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-111
+                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
                         text, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
                     ),
                     temperature=self.summary_temperature,
@@ -1536,7 +1536,7 @@ class MistralProvider:
             system_prompt = render_prompt("mistral/insight_extraction/system_v1")
             response = self.client.chat.complete(
                 model=self.summary_model,
-                messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-111
+                messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
                     text_slice, system_prompt, user_prompt, enabled=self._cache_transcript_prefix
                 ),
                 temperature=insight_temperature,
@@ -1754,7 +1754,7 @@ class MistralProvider:
             def _make_api_call():
                 return self.client.chat.complete(
                     model=model,
-                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-111
+                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
                         text_slice, system_msg, user_prompt, enabled=self._cache_transcript_prefix
                     ),
                     temperature=0.1,
@@ -1824,7 +1824,7 @@ class MistralProvider:
             def _make_api_call():
                 return self.client.chat.complete(
                     model=self.summary_model,
-                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-111
+                    messages=_openai_style_messages(  # type: ignore[arg-type]  # RFC-115
                         transcript, system, user, enabled=self._cache_transcript_prefix
                     ),
                     temperature=0.0,
@@ -1992,7 +1992,7 @@ class MistralProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        clipped = transcript_clip(transcript)  # RFC-111: relocate exact embedded string
+        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
         user = extract_quotes_bundled_user(clipped, insight_texts)
         messages = _openai_style_messages(
             clipped, system, user, enabled=self._cache_transcript_prefix

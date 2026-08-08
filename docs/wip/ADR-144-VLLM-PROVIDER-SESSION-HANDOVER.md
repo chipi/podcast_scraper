@@ -1,8 +1,8 @@
-# ADR-144 — first-class vLLM provider + fully-airgapped DGX profiles: session handover
+# ADR-147 — first-class vLLM provider + fully-airgapped DGX profiles: session handover
 
 **Session:** 2026-08-02 → 08-03 (autonomous completion while operator asleep).
 **Branch:** `feat/naming-arc-and-corpus-prep` — **committed locally, NOT pushed** (operator reviews
-+ pushes). Governing decision: `docs/adr/ADR-144-first-class-vllm-provider-real-model-ids.md`.
++ pushes). Governing decision: `docs/adr/ADR-147-first-class-vllm-provider-real-model-ids.md`.
 
 ## What this delivered
 
@@ -14,7 +14,7 @@ internet). `vllm` is a first-class provider, a sibling of `openai`.
 
 | Commit | What |
 | --- | --- |
-| `56fa7bc4` | ADR-144 (Accepted, advisor-reviewed) |
+| `56fa7bc4` | ADR-147 (Accepted, advisor-reviewed) |
 | `bacfed77` | **S1** — `OpenAIProvider` config-namespace + telemetry parameterized (zero-behaviour) |
 | `da0bc1ef` | **S2** — `OpenAICompatibleProvider` base extracted; `VLLMProvider` sibling; config `vllm_*`; factories dispatch `vllm`; tests |
 | `b14feeec` | **B2/B1** — registry real HF ids + governed `vllm_*` wire materialization; grounding local; value gate local; naming→vllm; **fully airgapped** profiles (ollama/local fallbacks) |
@@ -33,7 +33,7 @@ internet). `vllm` is a first-class provider, a sibling of `openai`.
 
 ## NOT done — needs the operator / a live DGX
 
-1. **Phased homelab migration (ADR-144 S3) — the live-run blocker.** The repo now requests the real
+1. **Phased homelab migration (ADR-147 S3) — the live-run blocker.** The repo now requests the real
    HF id on the wire, but the homelab vLLM currently serves under `--served-model-name autoresearch`.
    Until the homelab serves the real id, the **B3 fail-closed check will reject the run**. Required
    change in **`agentic-ai-homelab` `infra/vllm/autoresearch/docker-compose.yml`**:

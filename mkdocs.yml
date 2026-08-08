@@ -323,10 +323,9 @@ nav:
       - ADR-144 Self-hosted delivery queue, outsourced last-mile: adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md
       - ADR-145 Channel-agnostic outbox seam: adr/ADR-145-channel-agnostic-outbox-seam.md
       - ADR-146 Your Week in-app surface and scheduling: adr/ADR-146-your-week-in-app-surface-and-scheduling.md
-      - ADR-143 Corpus reprocess methodology: adr/ADR-143-corpus-reprocess-methodology.md
-      - ADR-144 First-class vllm provider — real model ids: adr/ADR-144-first-class-vllm-provider-real-model-ids.md
-      - ADR-145 In-place re-roll for invalid structured responses: adr/ADR-145-structured-response-in-place-reroll-before-fallover.md
-      - ADR-146 Corpus reprocess methodology: adr/ADR-146-corpus-reprocess-methodology.md
+      - ADR-147 First-class vllm provider — real model ids: adr/ADR-147-first-class-vllm-provider-real-model-ids.md
+      - ADR-148 In-place re-roll for invalid structured responses: adr/ADR-148-structured-response-in-place-reroll-before-fallover.md
+      - ADR-149 Corpus reprocess methodology: adr/ADR-149-corpus-reprocess-methodology.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -443,8 +442,8 @@ nav:
       - RFC-112 Remote MCP Transport & Auth: rfc/RFC-112-remote-mcp-transport-and-auth.md
       - RFC-113 Graph-Aware PKM Export: rfc/RFC-113-graph-aware-pkm-export.md
       - RFC-114 Personal Corpus: rfc/RFC-114-personal-corpus.md
-      - RFC-110 Autoresearch-Driven Fixture Corpus: rfc/RFC-110-autoresearch-driven-fixture-corpus.md
-      - RFC-111 Transcript-Prefix Caching for LLM Stages: rfc/RFC-111-transcript-prefix-caching-llm-stages.md
+      - RFC-116 Autoresearch-Driven Fixture Corpus: rfc/RFC-116-autoresearch-driven-fixture-corpus.md
+      - RFC-115 Transcript-Prefix Caching for LLM Stages: rfc/RFC-115-transcript-prefix-caching-llm-stages.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

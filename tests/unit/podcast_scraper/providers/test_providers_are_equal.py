@@ -46,7 +46,7 @@ CAPABILITIES = [
 
 PROMPTS = Path("src/podcast_scraper/prompts")
 SRC = Path("src/podcast_scraper/providers")
-# ADR-144: the shared OpenAI-compatible transport base. Thin siblings (deepseek/vllm/litellm/qwen)
+# ADR-147: the shared OpenAI-compatible transport base. Thin siblings (deepseek/vllm/litellm/qwen)
 # inherit the capability methods from here instead of redefining them, so a provider's own
 # ``*_provider.py`` may legitimately hold only its overrides. Resolving capabilities against the
 # provider file ALONE would falsely report "deepseek cannot summarize" the moment it became a thin
@@ -72,7 +72,7 @@ def _nodes_in(path: Path) -> dict:
 
 
 def _is_thin_sibling(provider: str, src: str) -> bool:
-    """A provider that inherits the capability methods from the shared base (ADR-144).
+    """A provider that inherits the capability methods from the shared base (ADR-147).
 
     Detected by a real base-class EDGE, not a substring: a provider that merely *mentions*
     ``OpenAICompatibleProvider`` in a docstring/comment must not be mistaken for a subclass of it.
@@ -101,7 +101,7 @@ def _functions(provider: str) -> dict:
 def _nodes(provider: str) -> dict:
     """The AST node for each method — walked directly, never re-parsed from a source slice.
 
-    For a thin sibling the inherited methods come from the shared base file (ADR-144)."""
+    For a thin sibling the inherited methods come from the shared base file (ADR-147)."""
     path = SRC / provider / f"{provider}_provider.py"
     own = _nodes_in(path)
     if _is_thin_sibling(provider, path.read_text()):
@@ -132,7 +132,7 @@ def test_every_provider_honors_its_api_base(provider: str) -> None:
     than fall through to production.
     """
     src = (SRC / provider / f"{provider}_provider.py").read_text()
-    # Direct literal read, OR the ADR-144 parameterized form: the OpenAI-compatible base
+    # Direct literal read, OR the ADR-147 parameterized form: the OpenAI-compatible base
     # (OpenAICompatibleProvider) reads its base via getattr(cfg, f"{self._CONFIG_NS}_api_base"),
     # which honors <provider>_api_base for the provider's own namespace (openai -> openai_api_base,
     # vllm -> vllm_api_base). Still fails loud for any provider that reads NO api_base at all.
@@ -215,7 +215,7 @@ def test_no_prompt_is_BURIED_IN_CODE(provider: str, method: str) -> None:
 
 @pytest.mark.parametrize("provider", ["litellm", "vllm", "qwen"])
 def test_thin_sibling_prompts_reuse_a_parity_covered_namespace(provider: str) -> None:
-    """ADR-144 thin siblings (litellm/vllm/qwen) ship no ``prompts/<provider>/`` dir — they REUSE
+    """ADR-147 thin siblings (litellm/vllm/qwen) ship no ``prompts/<provider>/`` dir — they REUSE
     another provider's prompt namespace (openai's). Fine, but it must be EXPLICIT, not luck: their
     summary + speaker prompt-name defaults must resolve to a namespace this suite actually checks (a
     member of ``LLM_PROVIDERS``). Otherwise a sibling could silently run an unvetted prompt with no

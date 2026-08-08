@@ -121,7 +121,7 @@ Pattern is straightforward to port to other providers (OpenAI, Gemini, DeepSeek,
 
 ## v3 fixtures contribution (#921)
 
-Three findings appended to `docs/rfc/RFC-110-autoresearch-driven-fixture-corpus.md` — NER named-person density, 3-accent-mix Whisper test bed, more cross-episode-recurring guests + position arcs.
+Three findings appended to `docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md` — NER named-person density, 3-accent-mix Whisper test bed, more cross-episode-recurring guests + position arcs.
 
 ---
 

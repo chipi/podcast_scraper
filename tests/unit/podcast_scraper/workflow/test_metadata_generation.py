@@ -1056,7 +1056,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
     def test_generate_episode_summary_reroll_recovers_transient_invalid_schema(
         self, mock_clean, mock_time
     ):
-        """ADR-145: a transient invalid structured summary (p04) recovers via ONE in-place
+        """ADR-148: a transient invalid structured summary (p04) recovers via ONE in-place
         re-roll on the SAME provider — the episode is NOT failed and NO fallover is needed.
 
         First `summarize` returns truncated JSON that looks like the structured-summary
@@ -1095,7 +1095,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
     @patch("podcast_scraper.workflow.metadata_generation.time.time")
     @patch("podcast_scraper.preprocessing.clean_transcript")
     def test_generate_episode_summary_reroll_bounded_then_fails(self, mock_clean, mock_time):
-        """ADR-145: a PERSISTENTLY invalid structured summary re-rolls exactly ONCE (bounded),
+        """ADR-148: a PERSISTENTLY invalid structured summary re-rolls exactly ONCE (bounded),
         then fails the episode — the re-roll is prepended to the existing fail path, not a
         replacement, and it does not storm the LLM-call budget."""
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")

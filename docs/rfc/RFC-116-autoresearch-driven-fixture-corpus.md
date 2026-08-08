@@ -1,4 +1,4 @@
-# RFC-110: Autoresearch-Driven Fixture Corpus
+# RFC-116: Autoresearch-Driven Fixture Corpus
 
 - **Status**: Draft — the v3 text/transcript/manifest side landed
   (`scripts/build_v3_fixtures.py`); this RFC is the standing **driver for the next generation of

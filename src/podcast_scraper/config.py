@@ -365,7 +365,7 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
         "deepseek",
         "grok",
         "ollama",
-        "vllm",  # ADR-144: DGX-local LLM self-grounds (quote/entailment on the same model)
+        "vllm",  # ADR-147: DGX-local LLM self-grounds (quote/entailment on the same model)
         "litellm",  # #1356: gateway-routed LLM — an API LLM, same self-grounding treatment
         "qwen",
         "hybrid_ml",
@@ -1723,7 +1723,7 @@ class Config(BaseModel):
         description="Template parameters for NER prompts (passed to Jinja2 templates).",
     )
 
-    # --- vLLM provider (ADR-144) --------------------------------------------------------------
+    # --- vLLM provider (ADR-147) --------------------------------------------------------------
     # A first-class OpenAI-compatible serving stack for the DGX-local open-model family
     # (Qwen/DeepSeek/Llama). Distinct from `openai` (reserved for OpenAI-native models); they
     # share only the wire protocol. Fields mirror the openai_* namespace and are read via the
@@ -1755,14 +1755,14 @@ class Config(BaseModel):
         default="",
         alias="vllm_speaker_model",
         description="Real HF model id for vLLM-served speaker detection/NER (naming). Set by the "
-        "profile; named on the wire (no served-name alias). ADR-144.",
+        "profile; named on the wire (no served-name alias). ADR-147.",
     )
     vllm_summary_model: str = Field(
         default="",
         alias="vllm_summary_model",
         description="Real HF model id for vLLM-served summarization (e.g. "
         "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4). Named on the wire and verified fail-closed "
-        "against the served model at provider init (ADR-144).",
+        "against the served model at provider init (ADR-147).",
     )
     vllm_insight_model: Optional[str] = Field(
         default=None,
@@ -1825,13 +1825,13 @@ class Config(BaseModel):
     vllm_verify_served_model: bool = Field(
         default=True,
         alias="vllm_verify_served_model",
-        description="Fail-closed (ADR-144 B3): at initialize(), assert GET /v1/models advertises "
+        description="Fail-closed (ADR-147 B3): at initialize(), assert GET /v1/models advertises "
         "the configured vllm model (real HF id) so a wrong model loaded on the DGX slot fails the "
         "run instead of silently corrupting the corpus. Unreachable endpoint only warns. Set False "
         "for offline/unit contexts.",
     )
 
-    # --- Qwen native namespace (ADR-144) -----------------------------------------------------
+    # --- Qwen native namespace (ADR-147) -----------------------------------------------------
     # First-class provider for Qwen3-family serving over ANY OpenAI-compatible endpoint — a cloud
     # host (DeepInfra/Together/Fireworks) OR the DGX vLLM slot — via a configurable base_url + key.
     # Sibling of vllm/deepseek: shares the wire protocol through OpenAICompatibleProvider, read via
@@ -1866,14 +1866,14 @@ class Config(BaseModel):
         default="",
         alias="qwen_speaker_model",
         description="Real Qwen model id for speaker detection/NER (naming). Set by the profile; "
-        "named on the wire (no served-name alias). ADR-144.",
+        "named on the wire (no served-name alias). ADR-147.",
     )
     qwen_summary_model: str = Field(
         default="",
         alias="qwen_summary_model",
         description="Real Qwen model id for summarization (e.g. Qwen/Qwen3-Next-80B-A3B-Instruct, "
         "qwen3.7-flash). Named on the wire and verified fail-closed against the served model at "
-        "provider init when the endpoint advertises /v1/models (ADR-144).",
+        "provider init when the endpoint advertises /v1/models (ADR-147).",
     )
     qwen_insight_model: Optional[str] = Field(
         default=None,
@@ -1938,7 +1938,7 @@ class Config(BaseModel):
     qwen_verify_served_model: bool = Field(
         default=True,
         alias="qwen_verify_served_model",
-        description="Fail-closed (ADR-144 B3): at initialize(), assert /v1/models advertises the "
+        description="Fail-closed (ADR-147 B3): at initialize(), assert /v1/models advertises the "
         "configured qwen model so a wrong model on the endpoint fails the run instead of silently "
         "corrupting the corpus. Unreachable endpoint only warns. Set False for offline/unit "
         "contexts.",
@@ -2085,7 +2085,7 @@ class Config(BaseModel):
         default=False,
         alias="gemini_context_cache_enabled",
         description=(
-            "RFC-111: use Gemini's EXPLICIT context caching (cachedContent) for the transcript so "
+            "RFC-115: use Gemini's EXPLICIT context caching (cachedContent) for the transcript so "
             "the episode's LLM stages share it (~50% off the transcript-input tokens per run). "
             "OFF by default: unlike the other providers' automatic caches, Gemini's explicit cache "
             "is stateful (a per-episode handle) and bills storage by time — the global "
@@ -2646,7 +2646,7 @@ class Config(BaseModel):
         default=True,
         alias="cache_transcript_prefix",
         description=(
-            "RFC-111: assemble transcript-bearing LLM stages with the cleaned transcript as the "
+            "RFC-115: assemble transcript-bearing LLM stages with the cleaned transcript as the "
             "leading, stage-invariant block of the system prompt so providers prefix-cache it at "
             "~0.1x price across the ~5 stages per episode (and across reprocessing runs). Content "
             "is only reordered, never changed — the model sees the same transcript + instructions "

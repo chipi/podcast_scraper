@@ -56,7 +56,7 @@ def _provider(model: str) -> DeepSeekProvider:
 def test_reasoning_model_gets_headroom_on_a_tight_budget() -> None:
     """The 10-token entailment budget must grow, or content is always empty.
 
-    Post-ADR-144 the headroom lives in the ``_token_kwarg`` override (the single hook every
+    Post-ADR-147 the headroom lives in the ``_token_kwarg`` override (the single hook every
     inherited stage method routes its budget through), not a separate ``_evidence_max_tokens``.
     """
     p = _provider("deepseek-v4-flash")

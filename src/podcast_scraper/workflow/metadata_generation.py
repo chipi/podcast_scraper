@@ -2406,7 +2406,7 @@ def _generate_episode_summary(  # noqa: C901
 
             result: Optional[Dict[str, Any]] = None
             pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
-            # ADR-145: a thunk that re-issues the SAME summary request on the SAME
+            # ADR-148: a thunk that re-issues the SAME summary request on the SAME
             # provider, set by whichever generation path produced `result`. Used for
             # one bounded in-place re-roll when the downstream schema parse fails on a
             # transient invalid response (vLLM is not bit-deterministic even at
@@ -2545,7 +2545,7 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
-                    _resummarize = lambda: bundled_fn(  # noqa: E731 - ADR-145 re-roll thunk
+                    _resummarize = lambda: bundled_fn(  # noqa: E731 - ADR-148 re-roll thunk
                         pattern_cleaned,
                         episode_title=None,
                         episode_description=None,
@@ -2669,7 +2669,7 @@ def _generate_episode_summary(  # noqa: C901
                         )
 
                 # All providers must support call_metrics (no backward compatibility)
-                _resummarize = lambda: summary_provider.summarize(  # noqa: E731 - ADR-145 thunk
+                _resummarize = lambda: summary_provider.summarize(  # noqa: E731 - ADR-148 thunk
                     text=cleaned_text,
                     episode_title=None,  # Not available in this context
                     episode_description=None,  # Not available in this context
@@ -2796,7 +2796,7 @@ def _generate_episode_summary(  # noqa: C901
             # Parse using normalized schema - REQUIRED
             parse_result = _parse_summary(result, short_summary)
 
-            # ADR-145: one bounded in-place re-roll on a transient invalid structured
+            # ADR-148: one bounded in-place re-roll on a transient invalid structured
             # summary before failing the episode. A healthy vLLM endpoint is not
             # bit-deterministic even at temperature 0, so a re-roll is a genuinely
             # different sample — the observed p04 reprocess failure passed the
@@ -2808,7 +2808,7 @@ def _generate_episode_summary(  # noqa: C901
             # LLM-call fuse (bounded to one), then falls through to the hard fail.
             if (not parse_result.success or not parse_result.schema) and _resummarize is not None:
                 logger.warning(
-                    "[%s] Summary schema parse failed — one in-place re-roll " "(ADR-145): %s",
+                    "[%s] Summary schema parse failed — one in-place re-roll " "(ADR-148): %s",
                     episode_idx,
                     parse_result.error or "unknown",
                 )

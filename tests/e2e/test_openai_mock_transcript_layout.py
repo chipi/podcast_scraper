@@ -1,4 +1,4 @@
-"""Guard: the e2e OpenAI mock reads the transcript under BOTH RFC-111 layouts.
+"""Guard: the e2e OpenAI mock reads the transcript under BOTH RFC-115 layouts.
 
 If the mock only read the user message, the transcript-first layout (flag on, the default) would
 make it "summarize" the marker instead of the transcript — the e2e tests would still pass but

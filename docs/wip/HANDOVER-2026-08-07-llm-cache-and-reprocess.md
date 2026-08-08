@@ -1,12 +1,12 @@
-# HANDOVER — LLM prompt-caching (RFC-111) + reprocessing kickoff (2026-08-07)
+# HANDOVER — LLM prompt-caching (RFC-115) + reprocessing kickoff (2026-08-07)
 
 > Written to hand a FRESH session the full context with zero prior memory. Branch:
 > `feat/naming-arc-and-corpus-prep`. **67 unpushed commits, clean tree. DO NOT PUSH** — the handover
-> travels on the branch. Today's 8 commits are the top of the log (RFC-111 down to the qwen sibling).
+> travels on the branch. Today's 8 commits are the top of the log (RFC-115 down to the qwen sibling).
 
 ## 0. What the next session does (operator's stated intent)
 
-1. **Implement RFC-111** (transcript-prefix caching for the LLM stages) — the big cost lever.
+1. **Implement RFC-115** (transcript-prefix caching for the LLM stages) — the big cost lever.
    Phase 1 first (base mechanism + summary stage), gated by a live quality-parity check.
 2. **Kick off reprocessing** to actually bank the caching win (the whole point: reprocessing re-runs
    the same frozen transcripts, so the cache hits hard).
@@ -19,18 +19,18 @@ Start empty-brained; everything you need is below or committed.
 
 | Commit | What |
 |---|---|
-| `a39c6e93` | RFC-111 transcript-prefix caching + issue #1482 (design only, NOT implemented) |
+| `a39c6e93` | RFC-115 transcript-prefix caching + issue #1482 (design only, NOT implemented) |
 | `f0aa67a9` | B6b — guard thin siblings reuse a parity-covered prompt namespace |
 | `39365c11` | B4 — grounding calls emit `llm_cost` events even when unpriced |
 | `475d668e` | B7 — warn at init when a reasoning model has thinking LEFT ON |
 | `d629f0b7` | **value gate `_LLM_PROVIDERS` fix** (+ A3 docs, B5 attribution, B6a AST, B1/B2 gateway_spend) |
 | `aba69cc4` | real gateway cost source (`gateway_spend.py`) + native-vs-OR bakeoff profiles + litellm pricing |
 | `9fd7d289` | cloud_qwen → OFFICIAL Alibaba DashScope (not DeepInfra) |
-| `2d4ab3f2` | native Qwen provider (ADR-144 sibling) + cloud_qwen + qwen cost pricing |
+| `2d4ab3f2` | native Qwen provider (ADR-147 sibling) + cloud_qwen + qwen cost pricing |
 
 `.env` is **untracked** (gitignored) and holds real secrets — see §5.
 
-## 2. RFC-111 — the headline feature (read `docs/rfc/RFC-111-...md`, issue #1482)
+## 2. RFC-115 — the headline feature (read `docs/rfc/RFC-115-...md`, issue #1482)
 
 **Problem:** the cleaned transcript is re-sent to ~5 LLM stages/episode (~71K input tok/ep). Every
 provider we use caches an identical **leading token prefix** at ~0.1× price — EXCEPT the current
@@ -72,7 +72,7 @@ under `src/podcast_scraper/prompts/` (`openai/summarization/...`, `openai/insigh
 `shared/kg_graph_extraction/...`). Thin siblings (deepseek/qwen/litellm/vllm) all default to the
 `openai/` prompt namespace (so a change there covers them).
 
-**Test plan** is RFC-111 §6 — layered unit → mock → **live quality-parity GATE** (caching on vs off,
+**Test plan** is RFC-115 §6 — layered unit → mock → **live quality-parity GATE** (caching on vs off,
 blind Opus A/B, must be within noise, else it does NOT ship) → cost proof via `gateway_spend.py`.
 
 **Re-verify the cache probe any time** (the test-7 basis) — minimal reproduction:
@@ -180,7 +180,7 @@ The finale ranked models with (a) the value gate SILENTLY OFF (§3a) and (b) gro
 under-counted cost (§3b). Both are fixed now. To redo it honestly: re-run the finale arms (value gate
 now runs → filtered insights; grounding cost now emits) on the frozen corpus, judge with
 `rolling_assess.py`, and take REAL cost from `gateway_spend.py` SpendLogs (per-key scoped so it's not
-contaminated). Best done AFTER RFC-111 caching lands (cheaper re-runs). Scope (which models, ep count)
+contaminated). Best done AFTER RFC-115 caching lands (cheaper re-runs). Scope (which models, ep count)
 is the operator's call.
 
 ## 5. `.env` keys available (gitignored, present on this machine)
@@ -194,10 +194,10 @@ committed.
 
 ## 6. Key file reference
 
-- `docs/rfc/RFC-111-transcript-prefix-caching-llm-stages.md` — the design + test plan (issue #1482).
+- `docs/rfc/RFC-115-transcript-prefix-caching-llm-stages.md` — the design + test plan (issue #1482).
 - `scripts/eval/gateway_spend.py` — REAL per-model cost from LiteLLM SpendLogs (the source of truth).
 - `src/podcast_scraper/providers/openai/openai_provider.py` — base transport + all stage message
-  construction (the RFC-111 refactor target).
+  construction (the RFC-115 refactor target).
 - `src/podcast_scraper/providers/ml/model_registry.py` — `_LLM_PROVIDERS` / `resolve_value_gate`.
 - `src/podcast_scraper/utils/provider_metrics.py` — `apply_gil_evidence_llm_call_metrics` (B4).
 - `src/podcast_scraper/config.py` — `deepseek_extra_body` / `qwen_extra_body` / provider fields.
@@ -207,8 +207,8 @@ committed.
 
 ## 7. First actions for the fresh session
 
-1. Read RFC-111 + this file. Confirm branch + clean tree (`git status`).
-2. RFC-111 Phase 1: base `_cacheable_transcript_prefix` + flag + summary stage + unit/mock tests
+1. Read RFC-115 + this file. Confirm branch + clean tree (`git status`).
+2. RFC-115 Phase 1: base `_cacheable_transcript_prefix` + flag + summary stage + unit/mock tests
    (RFC §6 tests 1–6), THEN the live gate (tests 7–9) on a few episodes. Ship phase 1 only if the
    quality-parity gate passes.
 3. Then reprocessing to bank the win; then opp#2.

@@ -1,4 +1,4 @@
-# RFC-111: Transcript-Prefix Caching for LLM Stages
+# RFC-115: Transcript-Prefix Caching for LLM Stages
 
 - **Status**: Proposed (2026-08-07)
 - **Authors**: Marko Dragoljevic (chipi), Claude
@@ -87,7 +87,7 @@ falls back to today's exact layout — zero behaviour change).
 **Positive**
 
 - ~4–5× input-cost reduction on the transcript-heavy stages; the dominant, provider-independent cost
-  lever the RFC-111 investigation surfaced.
+  lever the RFC-115 investigation surfaced.
 - Step-change for **reprocessing** (identical transcript across runs).
 - Faster (cache-hit tokens are served faster than recompute).
 
@@ -146,7 +146,7 @@ regression).
 10. **[regression] Layout guard** — assert transcript-first is used whenever `cache_transcript_prefix`
     is on; a future prompt-template edit that puts instructions first (killing the cache) fails.
 11. **[regression] Cross-provider coverage** — the layout is applied for every auto-cache provider
-    (parallels the ADR-144 sibling parity guards added this session).
+    (parallels the ADR-147 sibling parity guards added this session).
 
 ## 7. Rollout (staged, each gated by §6)
 

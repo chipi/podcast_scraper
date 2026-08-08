@@ -1,4 +1,4 @@
-# Bake-off profile: Anthropic FAMILY reference (added 2026-08-07 for the RFC-111 finale re-derivation).
+# Bake-off profile: Anthropic FAMILY reference (added 2026-08-07 for the RFC-115 finale re-derivation).
 # IDENTICAL control config to the other bake-off profiles — only the provider (native anthropic) +
 # model change. Target: claude-haiku-4-5 (Anthropic's cheap tier). Runs via the native anthropic
 # provider + ANTHROPIC_API_KEY. relabel_only.

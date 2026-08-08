@@ -1,4 +1,4 @@
-"""ADR-145: one bounded in-place re-roll for an invalid structured LLM response before fallover.
+"""ADR-148: one bounded in-place re-roll for an invalid structured LLM response before fallover.
 
 Response-shape violations are non-retryable *in place* under ADR-100 — they fall over to another
 provider. But a transient truncated/invalid structured response (observed on vLLM: valid on a

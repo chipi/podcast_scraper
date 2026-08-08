@@ -1,4 +1,4 @@
-# ADR-146: Corpus reprocess methodology — single-variable validation, reprocess-once economics, judge-panel parity gate
+# ADR-149: Corpus reprocess methodology — single-variable validation, reprocess-once economics, judge-panel parity gate
 
 - **Status**: Accepted
 - **Date**: 2026-08-02

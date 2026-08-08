@@ -1,4 +1,4 @@
-"""RFC-111 Phase E: Gemini explicit context caching (cachedContent).
+"""RFC-115 Phase E: Gemini explicit context caching (cachedContent).
 
 Gemini's implicit cache does not fire for our pattern (probed 0%), so the transcript goes into an
 explicit cache handle referenced across the episode's stages. It is STATEFUL and storage-billed, so

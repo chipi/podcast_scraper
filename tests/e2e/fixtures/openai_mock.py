@@ -23,7 +23,7 @@ from podcast_scraper.providers.common.transcript_cache import (
 
 
 def _transcript_from_messages(messages: list) -> str:
-    """Reconstruct the transcript the model was given, regardless of RFC-111 layout.
+    """Reconstruct the transcript the model was given, regardless of RFC-115 layout.
 
     With ``cache_transcript_prefix`` on (the default), the transcript is the leading block of the
     SYSTEM message and the user message only carries a marker; with it off, the transcript is in the
@@ -128,7 +128,7 @@ def openai_mock():
         # Configure chat.completions.create for summarization
         def summarize_side_effect(*args, **kwargs):
             messages = kwargs.get("messages", [])
-            # RFC-111: read the transcript wherever it is (leading system block when flag on).
+            # RFC-115: read the transcript wherever it is (leading system block when flag on).
             text = _transcript_from_messages(messages)
             return mock_client._create_summarization_response(text)
 

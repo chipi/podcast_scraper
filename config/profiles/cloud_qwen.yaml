@@ -1,5 +1,5 @@
 # Cloud production profile: v2.4 pipeline/quality with the LLM stages served by the NATIVE Qwen
-# provider (ADR-144) talking DIRECT to the OFFICIAL first-party Alibaba Qwen API — DashScope /
+# provider (ADR-147) talking DIRECT to the OFFICIAL first-party Alibaba Qwen API — DashScope /
 # Model Studio, the vendor endpoint (the analog of api.deepseek.com for DeepSeek), NOT a third-party
 # reseller (DeepInfra/Together/OpenRouter). No LiteLLM gateway. Qwen carries its OWN `qwen`
 # telemetry/cost namespace so cloud spend is attributed to Qwen, not vllm/litellm. This is the cloud

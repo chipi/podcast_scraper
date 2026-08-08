@@ -1,4 +1,4 @@
-"""RFC-111 Phase C: standalone OpenAI-style providers (grok/mistral/ollama) are transcript-first.
+"""RFC-115 Phase C: standalone OpenAI-style providers (grok/mistral/ollama) are transcript-first.
 
 These providers do not subclass OpenAICompatibleProvider — each builds its own messages — so this
 guards that their summary/GI/KG message sites relocate the transcript to a leading, cacheable system
