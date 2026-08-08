@@ -91,8 +91,12 @@ def _raw_screenplay_requested(value: Any) -> bool:
 # ``deepgram`` joined the eligibility set in the 2026-06-15 "diarize-everywhere"
 # change — its self-diarized output feeds the ``deepgram`` diarization_provider
 # (new in the same change), and a Deepgram-paired pyannote pass also runs cleanly.
+# ``groq`` (ADR-147) qualifies for the same reason as ``openai``: its Whisper models
+# return ``verbose_json`` timestamped segments over locally-downloaded audio, so a
+# separate diarizer (local pyannote OR ``diarization_provider: deepgram``) can align
+# speaker turns onto the Groq transcript — the "Groq ASR + external diarization" split.
 _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset(
-    {"whisper", "tailnet_dgx_whisper", "openai", "deepgram", "moss"}
+    {"whisper", "tailnet_dgx_whisper", "openai", "groq", "deepgram", "moss"}
 )
 
 # Of the eligible providers, these default ``diarize`` ON (the local Whisper paths
@@ -368,6 +372,7 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
         "vllm",  # ADR-147: DGX-local LLM self-grounds (quote/entailment on the same model)
         "litellm",  # #1356: gateway-routed LLM — an API LLM, same self-grounding treatment
         "qwen",
+        "groq",
         "hybrid_ml",
     }
 )
@@ -889,6 +894,40 @@ class Config(BaseModel):
             "Sized to outlast typical Gemini Flash 503 spikes (~30-60s)."
         ),
     )
+    # ------------------------------------------------------------------
+    # General LLM retry window (provider-agnostic; cfg-driven override of the per-(provider,model)
+    # ResilienceProfile in utils/llm_resilience.py — see resolve_resilience()). Defaults match
+    # DEFAULT_PROFILE exactly so nothing changes (incl. test duration) unless a profile opts in.
+    # A gateway-connection outage (homelab LiteLLM unreachable) needs MINUTES of patience in prod,
+    # but tests must keep the short window — hence config-driven, not a code constant. Any field
+    # set to something other than its default here overrides the resolved profile for that field
+    # only, composing with (not replacing) per-model overrides like the gemini-flash-lite profile.
+    # ------------------------------------------------------------------
+    llm_retry_max_retries: int = Field(
+        default=3,
+        alias="llm_retry_max_retries",
+        ge=0,
+        le=100,
+        description=(
+            "Max retries after the first LLM call fails, across every provider (overrides the "
+            "resolved per-model ResilienceProfile when set to a non-default value). Prod profiles "
+            "surviving a gateway outage set this high (e.g. 12) to hold for minutes."
+        ),
+    )
+    llm_retry_initial_delay_seconds: float = Field(
+        default=1.0,
+        alias="llm_retry_initial_delay_seconds",
+        ge=0.0,
+        le=600.0,
+        description="First backoff delay (seconds) before the second LLM retry (cfg override).",
+    )
+    llm_retry_max_delay_seconds: float = Field(
+        default=30.0,
+        alias="llm_retry_max_delay_seconds",
+        ge=0.0,
+        le=1800.0,
+        description="Cap (seconds) on exponential backoff between LLM retries (cfg override).",
+    )
     rss_conditional_get: bool = Field(
         default=False,
         alias="rss_conditional_get",
@@ -1188,13 +1227,14 @@ class Config(BaseModel):
         "vllm",
         "litellm",
         "qwen",
+        "groq",
     ] = Field(
         default="spacy",
         alias="speaker_detector_provider",
         description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
     transcription_provider: Literal[
-        "whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper", "moss"
+        "whisper", "openai", "gemini", "mistral", "deepgram", "groq", "tailnet_dgx_whisper", "moss"
     ] = Field(
         default="whisper",
         alias="transcription_provider",
@@ -1942,6 +1982,110 @@ class Config(BaseModel):
         "configured qwen model so a wrong model on the endpoint fails the run instead of silently "
         "corrupting the corpus. Unreachable endpoint only warns. Set False for offline/unit "
         "contexts.",
+    )
+
+    # --- Groq native namespace (ADR-147) -----------------------------------------------------
+    # First-class provider for Groq's low-latency hosted catalog (Llama, gpt-oss, Qwen3,
+    # DeepSeek-R1-distill, and more) over its OpenAI-compatible API. Sibling of vllm/deepseek/qwen:
+    # shares the wire protocol through OpenAICompatibleProvider, read via the {ns}_ indirection.
+    # Distinct `groq` telemetry so cost is attributed to Groq, not deepseek or qwen. Groq has one
+    # fixed vendor endpoint (like deepseek), so a direct "no gateway" run needs zero config; unlike
+    # DeepSeek, a missing key only WARNS at construction (Groq auth is otherwise identical to a
+    # cloud host — required, but not worth hard-failing an offline import over).
+    groq_api_base: Optional[str] = Field(
+        default=None,
+        alias="groq_api_base",
+        description="Groq OpenAI-compatible base URL (default: https://api.groq.com/openai/v1, "
+        "so the direct no-gateway path needs zero config). Pointing this at a LiteLLM gateway "
+        "with a groq-* alias routes the same class through the gateway instead.",
+    )
+    groq_api_key: Optional[str] = Field(
+        default=None,
+        alias="groq_api_key",
+        description="Bearer for the Groq endpoint (Groq issues gsk_... keys, not OpenAI's sk-). "
+        "Usually set via groq_api_key_env instead.",
+    )
+    groq_api_key_env: Optional[str] = Field(
+        default="GROQ_API_KEY",
+        alias="groq_api_key_env",
+        description="Env var GroqProvider reads the bearer from when groq_api_key is unset.",
+    )
+    groq_speaker_model: str = Field(
+        default="llama-3.3-70b-versatile",
+        alias="groq_speaker_model",
+        description="Groq model id for speaker detection/NER (naming). Named on the wire (no "
+        "served-name alias). Defaults to the same model as groq_summary_model so an unpinned "
+        "speaker stage still has a priced, valid model rather than an empty id. ADR-147.",
+    )
+    groq_summary_model: str = Field(
+        default="llama-3.3-70b-versatile",
+        alias="groq_summary_model",
+        description="Groq model id for summarization (e.g. llama-3.3-70b-versatile, "
+        "openai/gpt-oss-120b, qwen/qwen3.6-27b). Named on the wire (Groq's own model id).",
+    )
+    groq_insight_model: Optional[str] = Field(
+        default=None,
+        alias="groq_insight_model",
+        description="Optional Groq chat model for GIL generate_insights; falls back to "
+        "groq_summary_model when unset.",
+    )
+    groq_temperature: float = Field(
+        default=0.3,
+        alias="groq_temperature",
+        description="Temperature for Groq generation (0.0-2.0, lower = more deterministic).",
+    )
+    groq_extra_body: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="groq_extra_body",
+        description="Extra fields merged into every chat.completions request. Groq's reasoning "
+        "models (gpt-oss, Qwen3, R1-distill) need reasoning explicitly turned off for JSON "
+        "extraction stages — e.g. {reasoning_effort: none} for gpt-oss/qwen3, or "
+        "{thinking: {type: disabled}} for R1-distill (DeepSeek-shape).",
+    )
+    groq_cleaning_model: str = Field(
+        default="",
+        alias="groq_cleaning_model",
+        description="Groq model id for transcript cleaning; GroqProvider defaults it to the "
+        "summary model when unset.",
+    )
+    groq_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="groq_cleaning_temperature",
+        description="Temperature for Groq cleaning (0.0-2.0, default 0.2).",
+    )
+    groq_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="groq_max_tokens",
+        description="Max tokens for Groq generation (None = model/server default).",
+    )
+    groq_summary_system_prompt: str = Field(
+        default="openai/summarization/system_bullets_v1",
+        alias="groq_summary_system_prompt",
+        description="System prompt for Groq summarization (shared prompt_store template; Groq "
+        "hosts many vendors' models so there is no dedicated groq/* template family).",
+    )
+    groq_summary_user_prompt: str = Field(
+        default="openai/summarization/bullets_json_v1",
+        alias="groq_summary_user_prompt",
+        description="User prompt for Groq summarization (shared prompt_store template).",
+    )
+    groq_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="groq_speaker_system_prompt",
+        description="System prompt name for Groq speaker detection/NER.",
+    )
+    groq_speaker_user_prompt: str = Field(
+        default="openai/ner/guest_host_v1",
+        alias="groq_speaker_user_prompt",
+        description="User prompt name for Groq speaker detection/NER (shared template).",
+    )
+    # Groq is the first DUAL-USE provider besides OpenAI: the same GroqProvider class serves LLM
+    # stages AND OpenAI-compatible Whisper transcription (base ``transcribe`` reads this field).
+    groq_transcription_model: str = Field(
+        default="whisper-large-v3-turbo",
+        alias="groq_transcription_model",
+        description="Groq Whisper transcription model (default: whisper-large-v3-turbo). Groq has "
+        "no diarization — use with a separate speaker stage.",
     )
 
     # --- LiteLLM gateway namespace (#1356) ---------------------------------------------------
@@ -2817,6 +2961,7 @@ class Config(BaseModel):
         "vllm",
         "litellm",
         "qwen",
+        "groq",
     ] = Field(
         default="transformers",
         alias="quote_extraction_provider",
@@ -2838,6 +2983,7 @@ class Config(BaseModel):
         "vllm",
         "litellm",
         "qwen",
+        "groq",
     ] = Field(
         default="transformers",
         alias="entailment_provider",
@@ -2875,9 +3021,12 @@ class Config(BaseModel):
         ),
     )
     gi_max_insights: int = Field(
-        # The registry's measured ceiling (50), not the old 20. n=12/20 were never derived from
-        # anything; the gates trim filler, so the cap is not what protects quality.
-        default=config_constants.GI_DEFAULT_MAX_INSIGHTS,
+        # cloud_balanced (the researched no-profile pipeline, see
+        # test_the_config_default_is_not_a_trap) generates 12 and lets the value gate trim filler —
+        # the cap is not what protects quality, so a low floor does not starve real episodes.
+        # config_constants.GI_DEFAULT_MAX_INSIGHTS (50) stays separate: it is the base for
+        # duration_scaled_max_insights' 30-min scaling curve, not this static default.
+        default=12,
         ge=1,
         le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
@@ -2915,7 +3064,7 @@ class Config(BaseModel):
         ),
     )
     gi_insight_dedupe_threshold: float = Field(
-        default=0.75,
+        default=0.72,
         ge=0.0,
         le=1.0,
         alias="gi_insight_dedupe_threshold",
@@ -3222,6 +3371,7 @@ class Config(BaseModel):
             "vllm",
             "litellm",
             "qwen",
+            "groq",
         ]
     ] = Field(
         default=None,
@@ -3365,6 +3515,7 @@ class Config(BaseModel):
         "vllm",
         "litellm",
         "qwen",
+        "groq",
     ] = Field(
         default="transformers",
         alias="summary_provider",
@@ -4798,6 +4949,8 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "deepseek_api_base", "DEEPSEEK_API_BASE")
         cls._load_string_env_var(data, "grok_api_key", "GROK_API_KEY")
         cls._load_string_env_var(data, "grok_api_base", "GROK_API_BASE")
+        cls._load_string_env_var(data, "groq_api_key", "GROQ_API_KEY")
+        cls._load_string_env_var(data, "groq_api_base", "GROQ_API_BASE")
         cls._load_string_env_var(data, "ollama_api_base", "OLLAMA_API_BASE")
         cls._load_string_env_var(data, "pricing_assumptions_file", "PRICING_ASSUMPTIONS_FILE")
         cls._load_float_env_var(
@@ -5264,6 +5417,7 @@ class Config(BaseModel):
         "vllm",
         "litellm",
         "qwen",
+        "groq",
     ]:
         """Validate speaker detector provider type."""
         if value is None or value == "":
@@ -5282,10 +5436,12 @@ class Config(BaseModel):
             "vllm",
             "litellm",
             "qwen",
+            "groq",
         ):
             raise ValueError(
                 "speaker_detector_provider must be 'spacy', 'openai', 'gemini', "
-                "'mistral', 'deepseek', 'anthropic', 'grok', 'ollama', or 'vllm'"
+                "'mistral', 'deepseek', 'anthropic', 'grok', 'ollama', 'vllm', 'litellm', "
+                "'qwen', or 'groq'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -5297,6 +5453,7 @@ class Config(BaseModel):
         "gemini",
         "mistral",
         "deepgram",
+        "groq",
         "anthropic",
         "tailnet_dgx_whisper",
     ]:
@@ -5310,13 +5467,14 @@ class Config(BaseModel):
             "gemini",
             "mistral",
             "deepgram",
+            "groq",
             "anthropic",
             "tailnet_dgx_whisper",
             "moss",
         ):
             raise ValueError(
                 "transcription_provider must be 'whisper', 'openai', 'gemini', "
-                "'mistral', 'deepgram', 'anthropic', 'tailnet_dgx_whisper', or 'moss'"
+                "'mistral', 'deepgram', 'groq', 'anthropic', 'tailnet_dgx_whisper', or 'moss'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -5335,6 +5493,7 @@ class Config(BaseModel):
         "vllm",
         "litellm",
         "qwen",
+        "groq",
     ]:
         """Validate summary provider."""
         if value is None or value == "":
@@ -5355,11 +5514,12 @@ class Config(BaseModel):
             "vllm",
             "litellm",
             "qwen",
+            "groq",
         ):
             raise ValueError(
                 "summary_provider must be 'transformers', 'hybrid_ml', 'summllama', "
                 "'openai', 'gemini', 'grok', 'mistral', 'deepseek', 'anthropic', 'ollama', "
-                "or 'vllm'"
+                "'vllm', 'litellm', 'qwen', or 'groq'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -5377,6 +5537,7 @@ class Config(BaseModel):
         "vllm",
         "litellm",
         "qwen",
+        "groq",
     ]:
         """Validate quote_extraction_provider and entailment_provider (same as summary)."""
         if value is None or value == "":
@@ -5395,11 +5556,12 @@ class Config(BaseModel):
             "vllm",
             "litellm",
             "qwen",
+            "groq",
         ):
             raise ValueError(
                 "quote_extraction_provider/entailment_provider must be one of: "
                 "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
-                "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm'"
+                "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm', 'litellm', 'qwen', 'groq'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -5423,11 +5585,12 @@ class Config(BaseModel):
             "vllm",
             "litellm",
             "qwen",
+            "groq",
         ):
             raise ValueError(
                 "kg_extraction_provider must be one of: "
                 "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
-                "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm'"
+                "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm', 'litellm', 'qwen', 'groq'"
             )
         return value_str
 

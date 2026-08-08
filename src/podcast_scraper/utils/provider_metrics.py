@@ -52,7 +52,9 @@ class ProviderCallMetrics:
         through every :func:`retry_with_metrics` call site — they already call this. The per-model
         profile (retries/backoff, and the breaker's own threshold/cooldown) is resolved here from
         ``_provider_name`` + the summary model, so gemini-2.5-flash-lite backs off harder than a
-        heavier model WITHOUT any call-site changes.
+        heavier model WITHOUT any call-site changes. ``cfg``'s general ``llm_retry_*`` knobs then
+        override the resolved profile field-by-field when set (see ``resolve_resilience``), so a
+        prod profile can hold/retry for minutes through a gateway outage without a code change.
         """
         if cfg is None:
             return
@@ -61,7 +63,7 @@ class ProviderCallMetrics:
         from .llm_resilience import resolve_resilience
 
         model = getattr(cfg, f"{self._provider_name}_summary_model", None)
-        profile = resolve_resilience(self._provider_name, model)
+        profile = resolve_resilience(self._provider_name, model, cfg)
         self._resilience_profile = profile
 
         if not getattr(cfg, "llm_circuit_breaker_enabled", False):
@@ -137,8 +139,20 @@ def apply_estimated_cost_if_missing(
     prompt_tokens: Optional[int] = None,
     completion_tokens: Optional[int] = None,
     audio_minutes: Optional[float] = None,
+    _emit: bool = True,
 ) -> None:
-    """Populate ``estimated_cost`` from pricing YAML when providers omit it (#823)."""
+    """Populate ``estimated_cost`` from pricing YAML when providers omit it (#823).
+
+    ``_emit`` (BUG 2, internal): :func:`record_provider_call_cost` calls this to backfill a
+    missing cost, then ALWAYS emits its own ``llm_cost`` event once this returns. Recursing
+    back into ``record_provider_call_cost`` here (the pre-fix behaviour) therefore emitted a
+    SECOND, exact-duplicate event for the same call — 86 of 177 ``stage=summarization``
+    events in a 9-episode run were exact duplicates, some 4x, all traced to this recursion.
+    ``record_provider_call_cost`` passes ``_emit=False`` so this only sets the value; the
+    standalone callers (diarization/transcription cost backstops, which have no other emitter
+    for their call) keep the default ``True`` and are unaffected — same single emission as
+    before.
+    """
     if call_metrics.estimated_cost is not None:
         return
     if not provider_type or not model:
@@ -155,7 +169,9 @@ def apply_estimated_cost_if_missing(
             completion_tokens=completion_tokens,
             audio_minutes=audio_minutes,
         )
-        if cost is not None:
+        if cost is None:
+            return
+        if _emit:
             record_provider_call_cost(
                 call_metrics,
                 float(cost),
@@ -167,6 +183,8 @@ def apply_estimated_cost_if_missing(
                 completion_tokens=completion_tokens,
                 audio_minutes=audio_minutes,
             )
+        else:
+            call_metrics.set_cost(float(cost))
     except Exception:
         pass
 
@@ -214,6 +232,9 @@ def record_provider_call_cost(
     if cost is not None:
         call_metrics.set_cost(cost)
     else:
+        # BUG 2: _emit=False — this function emits the event itself below; letting the backfill
+        # recurse into record_provider_call_cost (the pre-fix behaviour) emitted a second,
+        # exact-duplicate event for the same call.
         apply_estimated_cost_if_missing(
             call_metrics,
             cfg=cfg,
@@ -223,6 +244,7 @@ def record_provider_call_cost(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             audio_minutes=audio_minutes,
+            _emit=False,
         )
     final = call_metrics.estimated_cost
     # NOT gated on cost>0 any more: a call with tokens but no known price (an unpriced model, or a

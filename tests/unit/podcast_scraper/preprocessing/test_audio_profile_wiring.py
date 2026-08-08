@@ -20,7 +20,8 @@ from podcast_scraper.preprocessing.audio.factory import create_audio_preprocesso
 
 @pytest.fixture
 def _fake_keys(monkeypatch: pytest.MonkeyPatch) -> None:
-    """cloud_balanced wires summary_provider=gemini → Config validates an api key."""
+    """cloud_balanced wires transcription=deepgram + summary=litellm/deepseek → Config validates
+    api keys for them (deepgram raises at validation without a key)."""
     for name in (
         "GEMINI_API_KEY",
         "OPENAI_API_KEY",
@@ -28,6 +29,7 @@ def _fake_keys(monkeypatch: pytest.MonkeyPatch) -> None:
         "DEEPSEEK_API_KEY",
         "MISTRAL_API_KEY",
         "GROK_API_KEY",
+        "DEEPGRAM_API_KEY",
     ):
         monkeypatch.setenv(name, "test-" + name.lower().replace("_", "-") + "-dummy-key")
 

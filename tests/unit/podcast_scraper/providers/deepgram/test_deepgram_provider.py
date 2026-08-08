@@ -571,3 +571,44 @@ class TestCreateDeepgramClient:
 
         # The hosted client must NEVER be constructed when a base was configured.
         fake_deepgram.DeepgramClient.assert_not_called()
+
+    def test_no_base_url_uses_generous_write_timeout(self) -> None:
+        """BUG 4: the deepgram-sdk httpx client defaults to a 60s timeout for the WHOLE
+        request (connect + write/upload + read) unless overridden at construction. A
+        ~40-60MB episode upload on a throttled connection blew through that default
+        ("write operation timed out", 4 retries exhausted). Pin the generous override so a
+        future refactor can't silently drop it."""
+        from podcast_scraper import config_constants
+
+        fake_deepgram = types.ModuleType("deepgram")
+        fake_client = MagicMock(return_value="HOSTED_CLIENT")
+        fake_deepgram.DeepgramClient = fake_client  # type: ignore[attr-defined]
+
+        with patch.dict(sys.modules, {"deepgram": fake_deepgram}):
+            _create_deepgram_client("dg-key")
+
+        fake_client.assert_called_once_with(
+            api_key="dg-key", timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS
+        )
+
+    def test_base_url_override_uses_generous_write_timeout(self) -> None:
+        """Same generous timeout applies on the base_url (self-hosted / mock server) path."""
+        from podcast_scraper import config_constants
+
+        fake_deepgram = types.ModuleType("deepgram")
+        fake_client = MagicMock(return_value="HOSTED_CLIENT")
+        fake_deepgram.DeepgramClient = fake_client  # type: ignore[attr-defined]
+        fake_env_mod = types.ModuleType("deepgram.environment")
+        fake_env_cls = MagicMock(return_value="FAKE_ENV")
+        fake_env_mod.DeepgramClientEnvironment = fake_env_cls  # type: ignore[attr-defined]
+
+        with patch.dict(
+            sys.modules, {"deepgram": fake_deepgram, "deepgram.environment": fake_env_mod}
+        ):
+            _create_deepgram_client("dg-key", base_url="http://self-hosted:8080")
+
+        fake_client.assert_called_once_with(
+            api_key="dg-key",
+            environment="FAKE_ENV",
+            timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS,
+        )

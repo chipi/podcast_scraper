@@ -164,6 +164,133 @@ class TestDiarizeAgainstMockedClient:
         assert call_kwargs["diarize"] is True
         assert call_kwargs["model"] == "nova-3-general"
 
+    def test_diarize_without_cfg_skips_cost_recording(self, tmp_audio):
+        """No cfg passed (legacy construction) -> cost_usd stays None, no crash (BUG 1)."""
+        p = DeepgramDiarizationProvider(api_key="test")
+        fake_client = MagicMock()
+        fake_client.listen.v1.media.transcribe_file.return_value = _make_dict_response(
+            [_word(0.0, 60.0, 0)]
+        )
+        p._client = fake_client
+
+        result = p.diarize(tmp_audio)
+        assert result.cost_usd is None
+
+
+class TestDeepgramDiarizationCost:
+    """BUG 1: the diarization API call is a full billed audio pass that must emit its own
+    ``llm_cost`` event — before this fix, only the transcription stage ever recorded cost, so a
+    profile pairing ``diarization_provider: deepgram`` with a non-Deepgram transcriber silently
+    dropped ALL diarization spend from telemetry (0 events, despite every call being billed)."""
+
+    @pytest.fixture
+    def tmp_audio(self, tmp_path):
+        audio = tmp_path / "test.mp3"
+        audio.write_bytes(b"fake-mp3-bytes")
+        return str(audio)
+
+    def _cfg(self):
+        from podcast_scraper import config as cfg_module
+
+        return cfg_module.Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "diarization_provider": "deepgram",
+                "deepgram_api_key": "test-key",
+            }
+        )
+
+    def test_diarize_emits_exactly_one_deepgram_diarization_cost_event(self, tmp_audio, caplog):
+        import json
+        import logging
+
+        p = DeepgramDiarizationProvider(api_key="test", cfg=self._cfg())
+        fake_client = MagicMock()
+        # 10 minutes (600s) of audio across two speakers.
+        fake_client.listen.v1.media.transcribe_file.return_value = _make_dict_response(
+            [
+                _word(0.0, 300.0, 0),
+                _word(300.0, 600.0, 1),
+            ]
+        )
+        p._client = fake_client
+
+        with caplog.at_level(logging.INFO, logger="podcast_scraper.workflow.cost_monitoring"):
+            result = p.diarize(tmp_audio)
+
+        cost_events = [
+            json.loads(r.message)
+            for r in caplog.records
+            if r.name == "podcast_scraper.workflow.cost_monitoring"
+        ]
+        assert len(cost_events) == 1
+        event = cost_events[0]
+        assert event["provider"] == "deepgram"
+        assert event["stage"] == "diarization"
+        assert event["estimated_cost_usd"] > 0.0
+        # 10 min * $0.0043/min (nova-3 rate, deepgram.transcription.nova-3 pricing row).
+        assert event["estimated_cost_usd"] == pytest.approx(0.043, rel=1e-3)
+        assert result.cost_usd == pytest.approx(0.043, rel=1e-3)
+
+    def test_diarize_no_cost_event_for_zero_duration(self, tmp_audio, caplog):
+        import logging
+
+        p = DeepgramDiarizationProvider(api_key="test", cfg=self._cfg())
+        fake_client = MagicMock()
+        fake_client.listen.v1.media.transcribe_file.return_value = _make_dict_response([])
+        p._client = fake_client
+
+        with caplog.at_level(logging.INFO, logger="podcast_scraper.workflow.cost_monitoring"):
+            result = p.diarize(tmp_audio)
+
+        cost_events = [
+            r for r in caplog.records if r.name == "podcast_scraper.workflow.cost_monitoring"
+        ]
+        assert cost_events == []
+        assert result.cost_usd is None
+
+
+class TestInitializeUsesGenerousTimeout:
+    """BUG 4: the diarization upload is the same size/cost as the transcription upload — it must
+    get the same generous SDK timeout override, not just the transcription provider."""
+
+    def test_no_base_url_uses_generous_write_timeout(self) -> None:
+        # Inject a fake ``deepgram`` module (the SDK is an optional extra, absent in the unit-CI
+        # env) so ``initialize()``'s ``from deepgram import DeepgramClient`` resolves hermetically.
+        import sys
+
+        from podcast_scraper import config_constants
+
+        fake_deepgram = MagicMock()
+        with patch.dict(sys.modules, {"deepgram": fake_deepgram}):
+            p = DeepgramDiarizationProvider(api_key="dg-key")
+            p.initialize()
+
+        fake_deepgram.DeepgramClient.assert_called_once_with(
+            api_key="dg-key", timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS
+        )
+
+    def test_base_url_override_uses_generous_write_timeout(self) -> None:
+        import sys
+
+        from podcast_scraper import config_constants
+
+        fake_deepgram = MagicMock()
+        fake_env_module = MagicMock()
+        fake_env_module.DeepgramClientEnvironment.return_value = "FAKE_ENV"
+        with patch.dict(
+            sys.modules,
+            {"deepgram": fake_deepgram, "deepgram.environment": fake_env_module},
+        ):
+            p = DeepgramDiarizationProvider(api_key="dg-key", api_base="http://self-hosted:8080")
+            p.initialize()
+
+        fake_deepgram.DeepgramClient.assert_called_once_with(
+            api_key="dg-key",
+            environment="FAKE_ENV",
+            timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS,
+        )
+
 
 class TestFactoryWiring:
     def test_factory_dispatches_to_deepgram(self, monkeypatch):
@@ -185,6 +312,7 @@ class TestFactoryWiring:
             mocked_init.assert_called_once()
         assert isinstance(provider, DeepgramDiarizationProvider)
         assert provider.api_key == "test-key"
+        assert provider.cfg is cfg  # BUG 1: cfg threaded through so cost can be recorded
 
     def test_factory_raises_without_api_key(self):
         from podcast_scraper import config as cfg_module

@@ -91,6 +91,7 @@ def create_speaker_detector(  # noqa: C901
             "vllm",
             "litellm",
             "qwen",
+            "groq",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
@@ -105,6 +106,7 @@ def create_speaker_detector(  # noqa: C901
                 "deepseek",
                 "anthropic",
                 "vllm",
+                "groq",
             ],
             provider_type_str,
         )
@@ -276,6 +278,31 @@ def create_speaker_detector(  # noqa: C901
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
+    elif provider_type == "groq":
+        from ..providers.groq.groq_provider import GroqProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="groq",
+                groq_speaker_model=(
+                    params.model_name if params.model_name else "llama-3.3-70b-versatile"
+                ),
+                groq_temperature=params.temperature if params.temperature is not None else 0.3,
+                groq_api_key=os.getenv("GROQ_API_KEY"),  # Load from env
+            )
+            provider = GroqProvider(cfg)
+        else:
+            provider = GroqProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "ollama":
         from ..providers.ollama.ollama_provider import OllamaProvider
 
@@ -366,5 +393,5 @@ def create_speaker_detector(  # noqa: C901
         raise ValueError(
             f"Unsupported speaker detector type: {provider_type}. "
             "Supported types: 'spacy', 'openai', 'gemini', 'mistral', 'grok', "
-            "'deepseek', 'ollama', 'anthropic'"
+            "'deepseek', 'ollama', 'anthropic', 'groq'"
         )

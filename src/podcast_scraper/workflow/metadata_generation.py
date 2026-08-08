@@ -1964,6 +1964,10 @@ def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str,
             provider_info["mistral_model"] = transcription_model
     elif cfg.transcription_provider == "deepgram":
         provider_info["deepgram_model"] = getattr(cfg, "deepgram_model", "nova-3")
+    elif cfg.transcription_provider == "groq":
+        provider_info["groq_model"] = getattr(
+            cfg, "groq_transcription_model", "whisper-large-v3-turbo"
+        )
 
     return provider_info
 
@@ -1993,6 +1997,8 @@ def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[
     elif cfg.speaker_detector_provider == "anthropic":
         speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-haiku-4-5")
         provider_info["anthropic_model"] = speaker_model
+    elif cfg.speaker_detector_provider == "groq":
+        provider_info["groq_model"] = getattr(cfg, "groq_speaker_model", "llama-3.3-70b-versatile")
 
     return provider_info
 
@@ -2080,6 +2086,8 @@ def _append_external_llm_summary_models(provider_info: Dict[str, Any], cfg: conf
         provider_info["deepseek_model"] = cfg.deepseek_summary_model
     elif sp == "grok":
         provider_info["grok_model"] = cfg.grok_summary_model
+    elif sp == "groq":
+        provider_info["groq_model"] = cfg.groq_summary_model
     elif sp == "ollama":
         provider_info["ollama_model"] = cfg.ollama_summary_model
 
@@ -2131,6 +2139,8 @@ def _attach_llm_cleaning_models_to_summarization_info(
         provider_info["deepseek_cleaning_model"] = cfg.deepseek_cleaning_model
     elif sp == "grok":
         provider_info["grok_cleaning_model"] = cfg.grok_cleaning_model
+    elif sp == "groq":
+        provider_info["groq_cleaning_model"] = cfg.groq_cleaning_model
     elif sp == "ollama":
         provider_info["ollama_cleaning_model"] = cfg.ollama_cleaning_model
 

@@ -304,6 +304,51 @@ def test_every_diarizing_profile_pins_its_diarization_model() -> None:
     assert not violations, "\n".join(violations)
 
 
+def test_every_llm_profile_grounds_with_its_summary_provider() -> None:
+    """A profile whose summariser is an aligning LLM must run the GIL evidence stack
+    (quote extraction + NLI entailment) on THAT SAME provider — an LLM grounds with itself.
+
+    ``quote_extraction_provider`` / ``entailment_provider`` are NOT registry-governed, so a preset
+    provider swap (e.g. summary gemini -> litellm) governs ``summary_provider`` but silently leaves
+    these two pinned to the OLD vendor. The ``gil_evidence_match_summary_provider`` auto-coerce only
+    promotes summary -> quote/entail when BOTH are UNSET, so an explicit stale pin slips through and
+    the evidence stack runs on the wrong LLM. This is the 2026-08-08 cloud_balanced regression:
+    summary flipped to deepseek (litellm) while quote/entail stayed on gemini, so grounding silently
+    ran on a different model than summarization.
+
+    Rule: when ``summary_provider`` is an aligning LLM and ``gil_evidence_match_summary_provider`` is
+    on (the default), ``quote_extraction_provider``/``entailment_provider`` must be UNSET (let the
+    coerce fire) or EQUAL to the summary provider.
+    """
+    from podcast_scraper.config import GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
+
+    if not _PROFILE_DIR.is_dir():
+        pytest.skip("profile dir absent")
+
+    violations: List[str] = []
+    for path in sorted(_PROFILE_DIR.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            continue
+        if not isinstance(data, dict):
+            continue
+        summary = data.get("summary_provider")
+        if summary not in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS:
+            continue
+        if data.get("gil_evidence_match_summary_provider", True) is not True:
+            continue
+        for field in ("quote_extraction_provider", "entailment_provider"):
+            val = data.get(field)
+            if val is not None and val != summary:
+                violations.append(
+                    f"{path.name}: summary_provider={summary!r} but {field}={val!r} — an LLM "
+                    f"summariser must self-ground. Unset {field} or set it to {summary!r}."
+                )
+
+    assert not violations, "\n".join(violations)
+
+
 def test_every_yaml_only_profile_documents_its_status() -> None:
     """YAML-only profiles (no `profile:` top-level field) MUST carry a
     comment explaining why they don't have a `ProfilePreset` — otherwise

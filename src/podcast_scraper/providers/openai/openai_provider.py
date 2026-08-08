@@ -594,11 +594,18 @@ class OpenAICompatibleProvider:
             return text
 
         except Exception as exc:
-            logger.error("OpenAI Whisper API error: %s", format_exception_for_log(exc))
+            # Use the concrete sibling's label/class so a Groq (or any sibling) transcription
+            # failure is not misreported as an OpenAI one — the transcribe path is inherited.
+            logger.error(
+                "%s Whisper API error: %s", self._PROVIDER_LABEL, format_exception_for_log(exc)
+            )
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             raise ProviderRuntimeError(
-                message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
+                message=(
+                    f"{self._PROVIDER_LABEL} transcription failed: "
+                    f"{format_exception_for_log(exc)}"
+                ),
                 provider=f"{type(self).__name__}/Transcription",
             ) from exc
 
@@ -799,10 +806,13 @@ class OpenAICompatibleProvider:
 
         except Exception as exc:
             elapsed = time.time() - start_time
-            logger.error("OpenAI Whisper API error: %s", format_exception_for_log(exc))
+            # Label from the concrete sibling (Groq/etc.), not a hardcoded "OpenAI" (inherited).
+            label = self._PROVIDER_LABEL
+            provider_tag = f"{type(self).__name__}/Transcription"
+            logger.error("%s Whisper API error: %s", label, format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
-            # Handle OpenAI-specific error types
+            # Handle OpenAI-compatible error types
             error_msg = str(exc).lower()
             exc_type_name = type(exc).__name__
             if (
@@ -814,23 +824,23 @@ class OpenAICompatibleProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
-                    provider=f"{type(self).__name__}/Transcription",
+                    message=f"{label} authentication failed: {format_exception_for_log(exc)}",
+                    provider=provider_tag,
                     suggestion=(
-                        "Check your OPENAI_API_KEY environment variable or config setting. "
+                        "Check your API key environment variable or config setting. "
                         "Verify the key is valid and has not expired."
                     ),
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider=f"{type(self).__name__}/Transcription",
+                    message=f"{label} rate limit exceeded: {format_exception_for_log(exc)}",
+                    provider=provider_tag,
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
-                    provider=f"{type(self).__name__}/Transcription",
+                    message=f"{label} transcription failed: {format_exception_for_log(exc)}",
+                    provider=provider_tag,
                 ) from exc
 
     # ============================================================================

@@ -1674,7 +1674,7 @@ def _resolve_episode_duration_seconds(job) -> Optional[int]:
 # context truncates episodes past ~30 min, so it chunks by duration through the same
 # AudioChunker path (#1174/#1177). The duration governor lives in
 # ``transcription_max_chunk_duration_seconds``; the byte cap is set high for it.
-_API_CHUNKING_PROVIDERS = frozenset({"openai", "gemini", "mistral", "deepgram", "moss"})
+_API_CHUNKING_PROVIDERS = frozenset({"openai", "groq", "gemini", "mistral", "deepgram", "moss"})
 
 
 def _transcription_provider_supports_chunking(cfg: config.Config) -> bool:

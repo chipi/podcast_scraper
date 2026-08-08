@@ -29,6 +29,8 @@ OPENAI_CLEANING_MAX_TOKENS = 4096
 DEEPSEEK_CLEANING_MAX_TOKENS = 8192
 # Qwen3 family (open weights / hosted) comfortably emits 8192 output tokens for cleaning.
 QWEN_CLEANING_MAX_TOKENS = 8192
+# Groq's hosted catalog (Llama/gpt-oss/Qwen3/R1-distill) comfortably emits 8192 output tokens.
+GROQ_CLEANING_MAX_TOKENS = 8192
 ANTHROPIC_CLEANING_MAX_TOKENS = 8192
 MISTRAL_CLEANING_MAX_TOKENS = 8192
 GROK_CLEANING_MAX_TOKENS = 8192

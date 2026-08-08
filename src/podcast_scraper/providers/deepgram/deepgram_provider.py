@@ -108,6 +108,13 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
     SDK posts ``{production}/v1/listen``, so every environment URL is set to the
     given root. If the installed SDK lacks the environment override, fall back
     to the default hosted client and warn — the override is opt-in.
+
+    BUG 4: the SDK's httpx client defaults to a 60s timeout for the entire request
+    (connect + write/upload + read) unless ``timeout=`` is passed at construction
+    (``deepgram.base_client.BaseClient.__init__``). A ~40-60MB episode upload blew
+    through that on a throttled connection ("write operation timed out", 4 retries
+    exhausted) — pass ``DEEPGRAM_SDK_TIMEOUT_SECONDS`` so every call this client
+    makes gets generous headroom for the upload, not just the JSON response.
     """
     try:
         from deepgram import DeepgramClient
@@ -116,6 +123,8 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
             "deepgram-sdk is required for transcription_provider='deepgram'. "
             "Install with: pip install -e '.[llm]'"
         ) from exc
+    from ...config_constants import DEEPGRAM_SDK_TIMEOUT_SECONDS
+
     if base_url:
         try:
             from deepgram.environment import DeepgramClientEnvironment
@@ -132,7 +141,9 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
                 agent=base_url,
                 agent_rest=base_url,
             )
-            return DeepgramClient(api_key=api_key, environment=env)
+            return DeepgramClient(
+                api_key=api_key, environment=env, timeout=DEEPGRAM_SDK_TIMEOUT_SECONDS
+            )
         except Exception as exc:  # noqa: BLE001
             # A base was explicitly configured (self-hosted / on-prem / the CI mock
             # server). If the SDK can't honor it, FAIL LOUD — never silently fall
@@ -143,7 +154,7 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
                 f"Deepgram SDK ({format_exception_for_log(exc)}); refusing to fall back to "
                 "the hosted endpoint."
             ) from exc
-    return DeepgramClient(api_key=api_key)
+    return DeepgramClient(api_key=api_key, timeout=DEEPGRAM_SDK_TIMEOUT_SECONDS)
 
 
 class DeepgramTranscriptionProvider:

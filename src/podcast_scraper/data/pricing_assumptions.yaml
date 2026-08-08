@@ -42,6 +42,7 @@ metadata:
     deepgram: https://deepgram.com/pricing
     deepseek: https://platform.deepseek.com/pricing
     grok: https://docs.x.ai
+    groq: https://groq.com/pricing
 
 providers:
   openai:
@@ -288,6 +289,41 @@ providers:
       default:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
+
+  # Groq (ADR-147). Hosts a third-party open-model catalog (Llama, gpt-oss, Qwen3,
+  # DeepSeek-R1-distill) at low latency; rates below are per hosted model, not per vendor. # VERIFY
+  # on groq.com/pricing — ESTIMATE, re-date on update. No `default` row on purpose: an unlisted groq
+  # model returns {} (cost unknown, tokens still captured) rather than a wrong number.
+  groq:
+    text:
+      # Rates below are Groq's own published per-model pricing, read live from the
+      # api.groq.com/openai/v1/models endpoint (authoritative) on 2026-08-08, NOT third-party
+      # estimates. Groq output tokens are expensive (the LPU-throughput premium): qwen3.6-27b bills
+      # $3.00/1M output. Groq also supports prompt caching (input_cache_read below) — cached input
+      # reads are ~half the fresh input rate; the pipeline does not yet split cached vs fresh, so
+      # cost_rollup treats all input as fresh (a conservative OVER-estimate when caching is warm).
+      llama-3.3-70b-versatile:
+        input_cost_per_1m_tokens: 0.59
+        output_cost_per_1m_tokens: 0.79
+      openai/gpt-oss-120b:
+        input_cost_per_1m_tokens: 0.15
+        output_cost_per_1m_tokens: 0.60
+      openai/gpt-oss-20b:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.50
+      qwen/qwen3.6-27b:
+        input_cost_per_1m_tokens: 0.60
+        output_cost_per_1m_tokens: 3.00
+        input_cache_read_cost_per_1m_tokens: 0.30
+    # Groq is dual-use: it also serves OpenAI-compatible Whisper transcription (no diarization).
+    # Rates are Groq's per-hour audio pricing converted to per-minute. # VERIFY on groq.com/pricing.
+    transcription:
+      whisper-large-v3-turbo:  # $0.04/hr
+        cost_per_minute: 0.00067
+      whisper-large-v3:  # $0.111/hr
+        cost_per_minute: 0.00185
+      distil-whisper-large-v3-en:  # $0.02/hr
+        cost_per_minute: 0.00033
 
   ollama:
     text:

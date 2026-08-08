@@ -230,6 +230,7 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
         "mistral": ("ms", "mistral_summary_model", "mistral-small-latest"),
         "grok": ("gk", "grok_summary_model", "grok-3-mini"),
         "ollama": ("ol", "ollama_summary_model", "qwen3.5:9b"),
+        "groq": ("gq", "groq_summary_model", "llama-3.3-70b-versatile"),
     }
     if cfg.generate_summaries:
         if cfg.summary_provider in ("transformers", "local"):

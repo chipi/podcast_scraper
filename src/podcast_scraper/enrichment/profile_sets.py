@@ -188,6 +188,8 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
     if name.startswith("bakeoff_") or name in (
         "cloud_thin",
         "cloud_openrouter",
+        # ADR-147: DGX-down cloud split (groq ASR + deepgram diarize + deepseek LLM) — cloud tier.
+        "cloud_split_dgx_down",
         # ADR-147: native Qwen provider direct to a fixed-price cloud host — cloud routing tier.
         "cloud_qwen",
         "cloud_balanced",

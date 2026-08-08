@@ -21,6 +21,7 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 
+from .... import config
 from .base import DiarizationProvider, DiarizationResult, DiarizationSegment
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class DeepgramDiarizationProvider(DiarizationProvider):
         api_key: str,
         model: str = "nova-3-general",
         api_base: Optional[str] = None,
+        cfg: Optional[config.Config] = None,
     ) -> None:
         if not api_key:
             raise ValueError(
@@ -43,6 +45,9 @@ class DeepgramDiarizationProvider(DiarizationProvider):
         self.api_key = api_key
         self.model = model
         self.api_base = api_base
+        # Optional (defaults None) so existing call sites/tests that construct this provider
+        # without a Config keep working; cost recording is skipped without it (BUG 1).
+        self.cfg = cfg
         self._client: Any = None
 
     def initialize(self) -> None:
@@ -51,6 +56,12 @@ class DeepgramDiarizationProvider(DiarizationProvider):
         Mirrors the construction shape used by the transcription
         provider so the SDK-environment override (for testing against
         the e2e mock server) works the same way.
+
+        BUG 4: also mirrors the transcription provider's ``timeout=`` override — the
+        SDK's httpx client otherwise defaults to a 60s timeout for the whole request
+        (connect + write/upload + read), which a large episode's diarization upload
+        (identical audio, identical upload cost to the transcription pass) can blow
+        through on a throttled connection.
         """
         try:
             from deepgram import DeepgramClient
@@ -58,6 +69,7 @@ class DeepgramDiarizationProvider(DiarizationProvider):
             raise RuntimeError(
                 "deepgram-sdk not installed. Install with the deepgram extras."
             ) from exc
+        from ....config_constants import DEEPGRAM_SDK_TIMEOUT_SECONDS
 
         if self.api_base:
             try:
@@ -76,7 +88,9 @@ class DeepgramDiarizationProvider(DiarizationProvider):
                     agent=self.api_base,
                     agent_rest=self.api_base,
                 )
-                self._client = DeepgramClient(api_key=self.api_key, environment=env)
+                self._client = DeepgramClient(
+                    api_key=self.api_key, environment=env, timeout=DEEPGRAM_SDK_TIMEOUT_SECONDS
+                )
             except Exception as exc:  # noqa: BLE001 - SDK shape can vary
                 # FAIL LOUD when a base was configured but can't be applied — never
                 # silently fall back to real Deepgram. Silent fallback here is what
@@ -87,7 +101,9 @@ class DeepgramDiarizationProvider(DiarizationProvider):
                     "endpoint."
                 ) from exc
         else:
-            self._client = DeepgramClient(api_key=self.api_key)
+            self._client = DeepgramClient(
+                api_key=self.api_key, timeout=DEEPGRAM_SDK_TIMEOUT_SECONDS
+            )
 
     def diarize(
         self,
@@ -136,11 +152,58 @@ class DeepgramDiarizationProvider(DiarizationProvider):
             len(segments),
             num_speakers_detected,
         )
+        audio_seconds = max((s.end for s in segments), default=0.0)
+        cost_usd = self._record_diarization_cost(audio_seconds / 60.0)
         return DiarizationResult(
             segments=segments,
             num_speakers=num_speakers_detected,
             model_name=f"deepgram/{self.model}",
+            cost_usd=cost_usd,
         )
+
+    def _record_diarization_cost(self, audio_minutes: float) -> Optional[float]:
+        """Emit a cost event for this diarization pass (BUG 1).
+
+        The diarization API call is a full billed audio pass, exactly like transcription, but
+        historically only the transcription provider recorded cost — any profile pairing
+        ``diarization_provider: deepgram`` with a non-Deepgram transcriber silently dropped this
+        spend from telemetry entirely (0 events, even though every call is billed).
+
+        Deepgram has no separate ``diarization`` pricing row (it's the same per-minute audio rate
+        as transcription), so the rate is looked up under ``deepgram.transcription.<model>`` — but
+        the emitted event is stamped ``stage="diarization"`` so cost rollups attribute it to the
+        right stage instead of folding it into transcription.
+
+        ``audio_minutes`` is derived from the diarization turns' max end time (the caller doesn't
+        have the precise feed duration here); this undercounts trailing non-speech, same tradeoff
+        the processing-manifest estimator (``pipeline.py::_estimate_diarization_cost``) already
+        makes for the no-cost-set case. Setting ``DiarizationResult.cost_usd`` here means that
+        estimator now trusts this precise, event-backed figure instead of re-deriving its own.
+        """
+        if audio_minutes <= 0 or self.cfg is None:
+            return None
+
+        from ....utils.provider_metrics import ProviderCallMetrics, record_provider_call_cost
+        from ....workflow.helpers import calculate_provider_cost
+
+        cost = calculate_provider_cost(
+            cfg=self.cfg,
+            provider_type="deepgram",
+            capability="transcription",
+            model=self.model,
+            audio_minutes=audio_minutes,
+        )
+        call_metrics = ProviderCallMetrics()
+        record_provider_call_cost(
+            call_metrics,
+            cost,
+            cfg=self.cfg,
+            provider_type="deepgram",
+            capability="diarization",
+            model=self.model,
+            audio_minutes=audio_minutes,
+        )
+        return call_metrics.estimated_cost
 
     @staticmethod
     def _extract_speaker_turns(response: Any) -> List[DiarizationSegment]:

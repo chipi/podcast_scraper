@@ -87,6 +87,11 @@ DEFAULT_TIMEOUT_SECONDS = 20
 # Timeout defaults for ML operations (Issue #379)
 DEFAULT_TRANSCRIPTION_TIMEOUT_SECONDS = 1800  # 30 minutes
 DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS = 1200  # 20 minutes (room for provider 503 storms — see #697)
+# BUG 4: the deepgram-sdk httpx client defaults to a 60s timeout for the WHOLE request (connect +
+# write/upload + read) unless overridden at construction. A ~40-60MB episode upload on a throttled
+# connection blew through that default ("write operation timed out", 4 retries exhausted) — 300s
+# is generous headroom for the largest episodes without masking a genuinely dead connection.
+DEEPGRAM_SDK_TIMEOUT_SECONDS = 300
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "

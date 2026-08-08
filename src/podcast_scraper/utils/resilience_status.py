@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 
 # The providers whose LLM breaker we surface. Kept explicit so the status view lists every one, even
 # those that have not failed yet (absence would read as "no breaker" rather than "closed").
-_LLM_PROVIDERS = ("openai", "anthropic", "gemini", "mistral", "deepseek", "grok", "ollama")
+_LLM_PROVIDERS = ("openai", "anthropic", "gemini", "mistral", "deepseek", "grok", "ollama", "groq")
 
 
 def resilience_snapshot(cfg: Optional[Any] = None) -> Dict[str, Any]:

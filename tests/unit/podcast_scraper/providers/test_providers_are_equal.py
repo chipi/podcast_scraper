@@ -213,14 +213,14 @@ def test_no_prompt_is_BURIED_IN_CODE(provider: str, method: str) -> None:
     ), f"{provider}.{method} still builds {buried} as a literal instead of rendering a template"
 
 
-@pytest.mark.parametrize("provider", ["litellm", "vllm", "qwen"])
+@pytest.mark.parametrize("provider", ["litellm", "vllm", "qwen", "groq"])
 def test_thin_sibling_prompts_reuse_a_parity_covered_namespace(provider: str) -> None:
-    """ADR-147 thin siblings (litellm/vllm/qwen) ship no ``prompts/<provider>/`` dir — they REUSE
-    another provider's prompt namespace (openai's). Fine, but it must be EXPLICIT, not luck: their
-    summary + speaker prompt-name defaults must resolve to a namespace this suite actually checks (a
-    member of ``LLM_PROVIDERS``). Otherwise a sibling could silently run an unvetted prompt with no
-    parity guard — how ``qwen`` slipped past the finale (not in ``LLM_PROVIDERS``, covered only
-    because its defaults happen to point at ``openai/``).
+    """ADR-147 thin siblings (litellm/vllm/qwen/groq) ship no ``prompts/<provider>/`` dir — they
+    REUSE another provider's prompt namespace (openai's). Fine, but it must be EXPLICIT, not luck:
+    their summary + speaker prompt-name defaults must resolve to a namespace this suite actually
+    checks (a member of ``LLM_PROVIDERS``). Otherwise a sibling could silently run an unvetted
+    prompt with no parity guard — how ``qwen`` slipped past the finale (not in ``LLM_PROVIDERS``,
+    covered only because its defaults happen to point at ``openai/``).
     """
     from podcast_scraper.config import Config
 
