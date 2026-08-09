@@ -76,6 +76,30 @@ def test_swap_preserves_corpus_dir_inode(tmp_path: Path):
 
 
 @_needs_tools
+def test_swap_rolls_back_on_install_failure(tmp_path: Path):
+    """H1: a mid-install failure (after the live dir is emptied) must restore the prior corpus to
+    the SAME inode and exit non-zero — never leave a split/empty corpus with a green exit."""
+    corpus = tmp_path / "corpus"
+    (corpus / "old").mkdir(parents=True)
+    (corpus / "old" / "e0.gi.json").write_text('{"marker": "OLD"}', encoding="utf-8")
+    inode_before = os.stat(corpus).st_ino
+
+    tgz = _make_corpus_tarball(tmp_path, "e1", "NEW")
+    res = subprocess.run(
+        ["bash", str(_SWAP), str(tgz), str(corpus)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "SWAP_TEST_FAIL_INSTALL": "1"},
+    )
+    assert res.returncode != 0
+    assert "rolled back" in res.stderr
+    # Prior corpus restored, to the same inode; the new corpus was NOT installed.
+    assert os.stat(corpus).st_ino == inode_before
+    assert list(corpus.rglob("e0.gi.json"))
+    assert not list(corpus.rglob("e1.gi.json"))
+
+
+@_needs_tools
 def test_swap_refuses_empty_corpus_tarball(tmp_path: Path):
     """A tarball with no gi.json must NOT wipe the live corpus (safe rollback = do nothing)."""
     corpus = tmp_path / "corpus"

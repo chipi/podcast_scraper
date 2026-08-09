@@ -135,6 +135,8 @@ def build_briefing_pack(
     episode_count = len({e for r in results if (e := _result_payload(r).get("episode_id"))})
     # Only real (>0) confidences count — the indexer currently hardcodes 0.0 on every insight,
     # and averaging those produced a fake "0.00" p50 (#21). Empty → 0.0 → rendered as n/a.
+    # TODO(#21): drop the `> 0` filter once the indexer scores real per-insight confidence — until
+    # then a genuine 0.0 can't be distinguished from "unscored", so excluding 0.0 is correct.
     confidences = sorted(
         c for r in insights if (c := r.payload.get("confidence")) is not None and c > 0
     )

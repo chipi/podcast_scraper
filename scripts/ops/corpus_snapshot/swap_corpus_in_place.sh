@@ -48,14 +48,33 @@ if [ -z "$(find "$NEW" -name '*.gi.json' ! -name '._*' -print -quit 2>/dev/null)
   exit 1
 fi
 
-# 2. In-place swap preserving the $CORPUS_DIR inode.
+# 2. In-place swap preserving the $CORPUS_DIR inode. STAGE, $CORPUS_DIR and $BACKUP_DIR are all
+#    under the same parent (the bind's host device dir — same filesystem), so every mv is a rename:
+#    no double-disk, and the corpus/ dir inode is untouched so the shared bind keeps resolving.
 mkdir -p "$BACKUP_DIR"
 _move_children "$CORPUS_DIR" "$BACKUP_DIR"   # empty the live dir (keeps its inode)
-if ! _move_children "$NEW" "$CORPUS_DIR"; then
-  echo "ERROR: install failed — rolling back from $BACKUP_DIR" >&2
-  find "$CORPUS_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-  _move_children "$BACKUP_DIR" "$CORPUS_DIR"
-  rmdir "$BACKUP_DIR" 2>/dev/null || true
+
+install_ok=1
+if [ "${SWAP_TEST_FAIL_INSTALL:-}" = "1" ]; then
+  install_ok=0                               # test seam (DR-7): exercise the rollback branch
+else
+  _move_children "$NEW" "$CORPUS_DIR" || install_ok=0
+fi
+
+if [ "$install_ok" -eq 0 ]; then
+  # Rollback must be as rigorous as the happy path (advisor H1): guard the restore and, if it
+  # ALSO fails (e.g. genuine disk-full), fail LOUD with the recovery location — never a silent
+  # green that leaves a corpus split across two dirs.
+  echo "ERROR: install failed — rolling back prior corpus from $BACKUP_DIR" >&2
+  find "$CORPUS_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+  if _move_children "$BACKUP_DIR" "$CORPUS_DIR"; then
+    rmdir "$BACKUP_DIR" 2>/dev/null || true
+    echo "rolled back: prior corpus restored to $CORPUS_DIR (inode preserved)" >&2
+  else
+    echo "FATAL: rollback ALSO failed — MANUAL RECOVERY NEEDED." >&2
+    echo "       Prior corpus is in $BACKUP_DIR; partial contents (if any) in $CORPUS_DIR." >&2
+    echo "       Do NOT start/keep consumers on $CORPUS_DIR until restored by hand." >&2
+  fi
   exit 1
 fi
 

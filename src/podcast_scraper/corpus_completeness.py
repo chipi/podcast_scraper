@@ -212,6 +212,10 @@ def format_report(report: CompletenessReport) -> str:
     """Human-readable gate report (used by the CLI / make target)."""
     lines: List[str] = []
     lines.append(f"episodes scanned (*.gi.json): {report.episodes_scanned}")
+    if report.episodes_scanned == 0 and report.index.present:
+        lines.append(
+            "  ✗ no *.gi.json under the corpus root — wrong CORPUS_DIR, or an empty/partial corpus"
+        )
     lines.append(f"index: {report.index.reason()}")
     enr = "present" if report.has_enrichments else "MISSING (kills corpus_enrichment_signals)"
     lines.append(f"enrichments/: {enr}")
