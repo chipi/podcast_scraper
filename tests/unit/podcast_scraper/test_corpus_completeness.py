@@ -187,3 +187,49 @@ def test_check_corpus_pass_and_fail(tmp_path: Path):
     _write_index(bad, 1)  # stale + no edges + no enrichments
     ok2, text2 = check_corpus(bad)
     assert not ok2 and "VERDICT: FAIL" in text2
+
+
+import os  # noqa: E402
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="needs make")
+def test_make_target_exits_nonzero_on_hard_gap(tmp_path: Path):
+    """The `make corpus-completeness-check` wiring must exit non-zero on a HARD gap and 0 when
+    complete — the wrapper is what makes it usable as a pre-deploy gate, not just check_corpus."""
+
+    def _make(corpus: Path) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["make", "corpus-completeness-check", f"CORPUS_DIR={corpus}"],
+            cwd=str(_REPO_ROOT),
+            capture_output=True,
+            text=True,
+            env={**os.environ},
+        )
+
+    good = tmp_path / "good"
+    good.mkdir()
+    _complete_corpus(good)
+    assert _make(good).returncode == 0
+
+    bad = tmp_path / "bad"
+    bad.mkdir()
+    _write_index(bad, 1)  # stale + missing stages → HARD gap
+    r = _make(bad)
+    assert r.returncode != 0
+    assert "VERDICT: FAIL" in (r.stdout + r.stderr)
+
+
+def test_make_target_requires_corpus_dir():
+    r = subprocess.run(
+        ["make", "corpus-completeness-check"],
+        cwd=str(_REPO_ROOT),
+        capture_output=True,
+        text=True,
+        env={k: v for k, v in os.environ.items() if k != "CORPUS_DIR"},
+    )
+    assert r.returncode != 0
+    assert "CORPUS_DIR required" in (r.stdout + r.stderr)

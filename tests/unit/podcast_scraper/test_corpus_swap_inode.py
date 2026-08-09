@@ -96,6 +96,28 @@ def test_swap_rolls_back_on_install_failure(tmp_path: Path):
 
 
 @_needs_tools
+def test_swap_double_failure_fails_loud_and_preserves_backup(tmp_path: Path):
+    """H1: if the install fails AND the rollback ALSO fails, exit non-zero with a LOUD
+    manual-recovery message — and the prior corpus must survive in the backup dir (never lost)."""
+    corpus = tmp_path / "corpus"
+    (corpus / "old").mkdir(parents=True)
+    (corpus / "old" / "e0.gi.json").write_text('{"marker": "OLD"}', encoding="utf-8")
+    backup = tmp_path / "corpus.bak.DOUBLE"
+
+    tgz = _make_corpus_tarball(tmp_path, "e1", "NEW")
+    res = subprocess.run(
+        ["bash", str(_SWAP), str(tgz), str(corpus), str(backup)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "SWAP_TEST_FAIL_INSTALL": "1", "SWAP_TEST_FAIL_ROLLBACK": "1"},
+    )
+    assert res.returncode != 0
+    assert "FATAL: rollback ALSO failed" in res.stderr
+    # The prior corpus is NOT lost — it's recoverable from the backup dir.
+    assert list(backup.rglob("e0.gi.json"))
+
+
+@_needs_tools
 def test_swap_refuses_empty_corpus_tarball(tmp_path: Path):
     """A tarball with no gi.json must NOT wipe the live corpus (safe rollback = do nothing)."""
     corpus = tmp_path / "corpus"

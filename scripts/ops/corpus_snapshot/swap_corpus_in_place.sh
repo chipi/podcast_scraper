@@ -76,7 +76,13 @@ if [ "$install_ok" -eq 0 ]; then
   # green that leaves a corpus split across two dirs.
   echo "ERROR: install failed — rolling back prior corpus from $BACKUP_DIR" >&2
   find "$CORPUS_DIR" -mindepth 1 -maxdepth 1 ! -path "$STAGE" -exec rm -rf {} + 2>/dev/null || true
-  if _move_children "$BACKUP_DIR" "$CORPUS_DIR"; then
+  rollback_ok=1
+  if [ "${SWAP_TEST_FAIL_ROLLBACK:-}" = "1" ]; then
+    rollback_ok=0                              # test seam (H1): exercise the double-failure branch
+  else
+    _move_children "$BACKUP_DIR" "$CORPUS_DIR" || rollback_ok=0
+  fi
+  if [ "$rollback_ok" -eq 1 ]; then
     rmdir "$BACKUP_DIR" 2>/dev/null || true
     echo "rolled back: prior corpus restored to $CORPUS_DIR (inode preserved)" >&2
   else
