@@ -121,6 +121,11 @@ services:
       # secrets configured yet.
       PODCAST_METRICS_ENABLED: ${PODCAST_METRICS_ENABLED:-1}
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      # Operator write-API key (app_operator_guard.py). Headless automation presents it as
+      # X-Operator-Key to POST /api/jobs, PUT /api/feeds, DELETE /api/corpus/*. Empty default =
+      # no key (tailnet reads stay open; writes require an admin session). Under ADR-115 VIA_FILES
+      # the shim overrides this from /run/secrets/app_operator_api_key (tmpfs, never on disk).
+      APP_OPERATOR_API_KEY: ${APP_OPERATOR_API_KEY:-}
       PODCAST_JOB_WEBHOOK_URL: ${PODCAST_JOB_WEBHOOK_URL:-}
       PODCAST_ENV: ${PODCAST_ENV:-preprod}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}

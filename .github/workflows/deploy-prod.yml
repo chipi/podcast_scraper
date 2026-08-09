@@ -216,6 +216,8 @@ jobs:
           PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
           PROD_SENTRY_DSN_VIEWER:       ${{ secrets.PROD_SENTRY_DSN_VIEWER }}
+          # Operator write-API key (app_operator_guard.py) — X-Operator-Key for headless automation.
+          PROD_APP_OPERATOR_API_KEY:    ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
           # (Grafana Cloud retired — o11y is self-hosted homelab VictoriaMetrics/VictoriaLogs
           # via the /opt/vps-observability Alloy container; nothing staged into .env here.)
           # Optional outbound webhook
@@ -259,6 +261,9 @@ jobs:
               printf '%s=%s\n' GROK_API_KEY       "$PROD_GROK_API_KEY"
               printf '%s=%s\n' PODCAST_SENTRY_DSN_API      "$PROD_SENTRY_DSN_API"
               printf '%s=%s\n' PODCAST_SENTRY_DSN_PIPELINE "$PROD_SENTRY_DSN_PIPELINE"
+              # Write-grant credential — same VIA_FILES treatment as the provider keys: on disk
+              # only when the tmpfs overlay is OFF; delivered as a tmpfs file when it is ON.
+              printf '%s=%s\n' APP_OPERATOR_API_KEY "$PROD_APP_OPERATOR_API_KEY"
             fi
             # Viewer DSN is a build-time FRONTEND var (baked into the viewer image),
             # not a runtime container secret — always keep it in .env.
@@ -296,6 +301,7 @@ jobs:
           PROD_GROK_API_KEY:        ${{ secrets.PROD_GROK_API_KEY }}
           PROD_SENTRY_DSN_API:      ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE: ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          PROD_APP_OPERATOR_API_KEY: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm secstage.XXXXXX)
@@ -309,6 +315,7 @@ jobs:
           printf '%s' "$PROD_GROK_API_KEY"        > "$STAGE/grok_api_key"
           printf '%s' "$PROD_SENTRY_DSN_API"      > "$STAGE/podcast_sentry_dsn_api"
           printf '%s' "$PROD_SENTRY_DSN_PIPELINE" > "$STAGE/podcast_sentry_dsn_pipeline"
+          printf '%s' "$PROD_APP_OPERATOR_API_KEY" > "$STAGE/app_operator_api_key"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
