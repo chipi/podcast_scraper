@@ -59,6 +59,42 @@ def test_argv_multi_feed_still_passes_feeds_spec(tmp_path: Path) -> None:
     assert "--feeds-spec" in argv
 
 
+def test_argv_feed_scope_runs_single_feed_not_batch(tmp_path: Path) -> None:
+    """P1.4: a feed_url scopes the run to one feed (corpus layout) + knobs, NOT the whole batch."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: cloud_balanced\n", encoding="utf-8")
+    (corpus / FEEDS_SPEC_DEFAULT_BASENAME).write_text(
+        "feeds:\n  - https://a.example/1.xml\n", encoding="utf-8"
+    )
+    argv = build_pipeline_argv(
+        corpus,
+        op,
+        feed_url="https://a.example/1.xml",
+        skip_existing=True,
+        max_episodes=5,
+        episode_order="newest",
+    )
+    assert "--feeds-spec" not in argv  # NOT the batch
+    i = argv.index("--rss")
+    assert argv[i + 1] == "https://a.example/1.xml"
+    assert "--single-feed-uses-corpus-layout" in argv
+    assert "--skip-existing" in argv
+    assert argv[argv.index("--max-episodes") + 1] == "5"
+    assert argv[argv.index("--episode-order") + 1] == "newest"
+
+
+def test_argv_feed_scope_omits_unset_knobs(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: cloud_balanced\n", encoding="utf-8")
+    argv = build_pipeline_argv(corpus, op, feed_url="https://a.example/1.xml")
+    for flag in ("--skip-existing", "--append", "--max-episodes", "--episode-offset"):
+        assert flag not in argv
+
+
 def test_argv_omits_feeds_spec_when_missing(tmp_path: Path) -> None:
     corpus = tmp_path / "corpus"
     corpus.mkdir()

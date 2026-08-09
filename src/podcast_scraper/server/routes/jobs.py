@@ -39,6 +39,39 @@ from podcast_scraper.server.schemas import (
 
 router = APIRouter(tags=["jobs"])
 
+_EPISODE_ORDERS = {"newest", "oldest"}
+
+
+def _resolve_feed_url(corpus: Path, feed: str) -> str:
+    """Resolve a ``feed`` scope (raw URL or stable feed slug) to its RSS URL (P1.4).
+
+    A value containing ``://`` is taken as the URL verbatim; otherwise it's a
+    ``feed_workspace_dirname`` slug matched against the corpus ``feeds.spec.yaml``. 404 if a slug
+    matches no known feed — refuse to silently run the whole batch when one feed was asked for.
+    """
+    raw = feed.strip()
+    if "://" in raw:
+        return raw
+    from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME, load_feeds_spec_file
+    from podcast_scraper.utils.filesystem import feed_workspace_dirname
+
+    spec_path = corpus / FEEDS_SPEC_DEFAULT_BASENAME
+    if spec_path.is_file():
+        try:
+            doc = load_feeds_spec_file(spec_path)
+        except Exception as exc:  # noqa: BLE001 — a malformed spec is a 400, not a 500
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not read {FEEDS_SPEC_DEFAULT_BASENAME}: {exc}",
+            ) from exc
+        for entry in doc.feeds:
+            if entry.url == raw or feed_workspace_dirname(entry.url) == raw:
+                return entry.url
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"feed {feed!r} not found in {FEEDS_SPEC_DEFAULT_BASENAME}.",
+    )
+
 
 async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
     """Resolve registry row → log file on disk; same rules for path- and query-style routes."""
@@ -90,9 +123,40 @@ async def submit_pipeline_job(
         default=None,
         description="Corpus output directory (same anchor rules as other viewer routes).",
     ),
+    feed: str | None = Query(
+        default=None,
+        description="Scope the run to ONE feed (RSS URL or feed slug); omit for the whole batch.",
+    ),
+    skip_existing: bool = Query(
+        default=False, description="Per-feed only: skip episodes already present (guid-keyed)."
+    ),
+    append: bool = Query(
+        default=False, description="Per-feed only: append mode (episode_id-validated resume)."
+    ),
+    max_episodes: int | None = Query(
+        default=None, ge=1, description="Per-feed only: cap episodes this run (cost guardrail)."
+    ),
+    episode_offset: int | None = Query(
+        default=None, ge=0, description="Per-feed only: skip the newest N before selecting."
+    ),
+    episode_order: str | None = Query(
+        default=None, description="Per-feed only: 'newest' or 'oldest'."
+    ),
 ) -> PipelineJobAccepted:
-    """Queue a pipeline CLI job for the corpus (202 + optional queue position)."""
+    """Queue a pipeline CLI job for the corpus (202 + optional queue position).
+
+    Default: the whole ``feeds.spec.yaml`` batch. With ``feed=`` the run is scoped to that one feed
+    as a single-feed corpus-layout run plus the incremental knobs (P1.4) — cautious per-feed add.
+    """
     corpus, operator_yaml = _corpus_and_operator(request, path)
+    feed_url: str | None = None
+    if feed is not None and feed.strip():
+        feed_url = _resolve_feed_url(corpus, feed)
+    if episode_order is not None and episode_order not in _EPISODE_ORDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"episode_order must be one of {sorted(_EPISODE_ORDERS)}.",
+        )
     # #666 review #8: read exec mode from ``app.state`` (pinned at startup by
     # ``create_app``) instead of re-reading ``PODCAST_PIPELINE_EXEC_MODE`` here.
     # Re-reading would drift if the env is rotated mid-process.
@@ -121,7 +185,17 @@ async def submit_pipeline_job(
         await asyncio.to_thread(validate_operator_profile_allowed, operator_yaml)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    rec = await asyncio.to_thread(enqueue_pipeline_job, corpus, operator_yaml)
+    rec = await asyncio.to_thread(
+        enqueue_pipeline_job,
+        corpus,
+        operator_yaml,
+        feed_url=feed_url,
+        skip_existing=skip_existing,
+        append=append,
+        max_episodes=max_episodes,
+        episode_offset=episode_offset,
+        episode_order=episode_order,
+    )
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None
     if rec.get("status") == "queued":
