@@ -1708,6 +1708,13 @@ def _finalize_pipeline(
             pipeline_metrics,
             threshold=getattr(cfg, "topic_cluster_threshold", None),
         )
+        # Derive relational edges (HAS_EPISODE / MENTIONS / SPOKEN_BY) into each gi.json inline so a
+        # fresh add is COMPLETE with no manual enrich-edges CLI pass — the edges went stale on every
+        # add before this. Errors are surfaced (logged + a metric flag + the completeness gate
+        # catches missing edges), never fire-and-forget. Runs under the vector_search guard because
+        # the edge walker imports search.indexer (numpy) — cloud_balanced (the incremental-add
+        # profile) ships it; cloud_thin does not and skips indexing anyway.
+        _finalize_enrich_edges(effective_output_dir, pipeline_metrics)
     pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
     if metrics_path:
         try:
@@ -1849,6 +1856,30 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
         )
     except OSError as exc:
         logger.warning("enrichment: background spawn failed (%s); pipeline returns normally", exc)
+
+
+def _finalize_enrich_edges(output_dir: str, pipeline_metrics: Any) -> None:
+    """Run the idempotent enrich-edges pass inline (HAS_EPISODE / MENTIONS / SPOKEN_BY → gi.json).
+
+    Surfaced, not fire-and-forget: sets ``pipeline_metrics.edges_enriched`` and logs at ERROR on
+    failure so a broken pass is visible (and the completeness gate flags the missing edges) rather
+    than silently leaving a fresh add without its relational edges.
+    """
+    from argparse import Namespace
+
+    from podcast_scraper.search.cli_handlers import run_enrich_edges_cli
+
+    args = Namespace(output_dir=output_dir, no_speaker=False, use_ner=False, retro_audit=False)
+    try:
+        rc = run_enrich_edges_cli(args, logger)
+        pipeline_metrics.edges_enriched = rc == 0
+        if rc != 0:
+            logger.error(
+                "enrich-edges returned non-zero (%s); relational edges may be incomplete", rc
+            )
+    except Exception as exc:  # noqa: BLE001 — surface the failure, don't crash a completed ingest
+        pipeline_metrics.edges_enriched = False
+        logger.error("enrich-edges failed inline: %s", format_exception_for_log(exc))
 
 
 def _maybe_build_topic_clusters_after_index(
