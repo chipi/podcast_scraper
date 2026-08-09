@@ -54,9 +54,22 @@ export interface CorpusManifestFeed {
   ok?: boolean
 }
 
+/** Corpus-wide LLM/transcription cost rollup (aggregate_corpus_costs → corpus_manifest.json). */
+export interface CorpusCostRollup {
+  total_transcription_cost_usd?: number
+  total_llm_cost_usd?: number
+  total_cost_usd?: number
+  by_stage?: Record<string, number>
+  run_count?: number
+  metrics_files_missing_cost_fields?: number
+  /** True when metrics exist with cost fields but sum to 0.0 — the recorder dropped data (#823). */
+  cost_appears_uninstrumented?: boolean
+}
+
 export interface CorpusManifestDocument {
   schema_version?: string
   feeds?: CorpusManifestFeed[]
+  cost_rollup?: CorpusCostRollup
 }
 
 async function readJson<T>(res: Response): Promise<T> {

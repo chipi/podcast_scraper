@@ -17,6 +17,7 @@ import FeedCoverageTable from './FeedCoverageTable.vue'
 import DashboardTopicPerspectives from './DashboardTopicPerspectives.vue'
 import DashboardTrendingTopics from './DashboardTrendingTopics.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
+import CostRollupCard from './CostRollupCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicBriefingCards from './TopicBriefingCards.vue'
 import QueryActivityChart from './QueryActivityChart.vue'
@@ -376,6 +377,7 @@ function openLibraryFailures(): void {
       />
       <ArtifactActivityChart :artifact-items="shell.artifactList" />
       <IndexStatusCard />
+      <CostRollupCard />
     </div>
 
     <div
