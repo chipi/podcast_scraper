@@ -105,9 +105,8 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
         is_write = request.method.upper() in _WRITE_METHODS
         # Write-only bases (corpus rollback DELETEs) are operator surface for writes only — their
         # sibling GETs (e.g. /api/corpus/episodes Library list) must stay open to consumers.
-        if not (
-            is_operator_path(path) or (is_write and _matches_base(path, _OPERATOR_WRITE_BASES))
-        ):
+        destructive_write = is_write and _matches_base(path, _OPERATOR_WRITE_BASES)
+        if not (is_operator_path(path) or destructive_write):
             return await call_next(request)
 
         state = request.app.state
@@ -119,6 +118,16 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
 
         # Enforce only when a credential could exist: platform auth configured, or a key set.
         enforce = bool(secret and data_dir is not None) or bool(key)
+        # A brand-new DESTRUCTIVE corpus write (rollback DELETE) must FAIL CLOSED even on a bare
+        # deploy with no credential configured — unlike the legacy read/operator plane which keeps
+        # its network-only posture. Refusing here means a misconfigured box can't be corpus-wiped by
+        # anyone who merely reaches the tailnet. (Fable-5 review finding #1.)
+        if destructive_write and not enforce:
+            append_audit(audit_path, {**base, "outcome": "denied", "reason": "no_credential"})
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Operator credential required for corpus mutation."},
+            )
         if enforce and not (
             _valid_key(request, key) or _is_admin_session(request, secret, data_dir)
         ):

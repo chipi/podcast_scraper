@@ -2869,11 +2869,14 @@ def process_transcript_download(
     # so summaries can be generated even when transcript exists
     if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
         if cfg.generate_summaries:
-            # Find existing transcript file to return its path for summarization
-            # Transcripts are now in the transcripts/ subdirectory
+            # Find existing transcript file to return its path for summarization.
+            # Resolve the on-disk idx by STABLE guid — episode.idx shifts when the feed grows, so
+            # rebuilding the glob from it would miss the transcript and silently skip summarization
+            # for an already-present episode (the same P0.1 drift, one branch missed; Fable-5 #2).
             run_tag = f"_{run_suffix}" if run_suffix else ""
+            skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
             base_name = (
-                f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
+                f"{skip_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
                 f"- {episode.title_safe}{run_tag}"
             )
             transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)

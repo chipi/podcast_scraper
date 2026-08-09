@@ -103,19 +103,30 @@ def _episode_files(root: Path, episode_id: str) -> Tuple[Optional[Path], List[Pa
     meta_abs = (root / entry.metadata_rel).resolve()
     run_dir = meta_abs.parent.parent  # <run>/metadata/NNNN.json -> <run>
     prefix = f"{entry.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
+    # Sweep EVERY per-episode subdir under the run (transcripts/ metadata/ media/ + any future one),
+    # matched by the NNNN prefix — not just transcripts+metadata, or the episode's audio in media/
+    # would be left orphaned on an episode-scoped rollback (Fable-5 review finding #4).
     files: List[Path] = []
-    for sub in (filesystem.TRANSCRIPTS_SUBDIR, filesystem.METADATA_SUBDIR):
-        d = run_dir / sub
-        if d.is_dir():
-            files.extend(p for p in d.glob(f"{prefix}*") if p.is_file())
+    if run_dir.is_dir():
+        for sub in sorted(p for p in run_dir.iterdir() if p.is_dir()):
+            files.extend(p for p in sub.glob(f"{prefix}*") if p.is_file())
     return run_dir, sorted(files)
 
 
 def _move_to_trash(root: Path, targets: List[Path], stamp: str) -> List[str]:
     """Move each target into ``<corpus>/.trash/<stamp>/`` (relative path preserved); return rels."""
     trash_root = root / ".trash" / stamp
+    root_real = os.path.realpath(str(root))
+    prefix = root_real + os.sep
     moved: List[str] = []
     for src in targets:
+        # Re-resolve immediately before the move (follows symlinks) to close the check-vs-use gap
+        # between the earlier _assert_under_root and this write (Fable-5 review finding #3).
+        src_real = os.path.realpath(str(src))
+        if src_real != root_real and not src_real.startswith(prefix):
+            raise HTTPException(
+                status_code=400, detail="Refusing to move a path outside the corpus."
+            )
         rel = os.path.relpath(str(src), str(root))
         dst = trash_root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)

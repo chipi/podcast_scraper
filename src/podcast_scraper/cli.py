@@ -5338,7 +5338,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         # monitoring parity. cost_rollup is corpus-wide (aggregated from all run metrics on disk).
         try:
             write_corpus_run_summary(stamp_parent, [fr], overall_ok=True)
-        except OSError as exc:
+        except Exception as exc:  # noqa: BLE001 — best-effort summary; never fail a done ingest
             log.warning("Failed to write corpus_run_summary.json for single-feed run: %s", exc)
     return 0
 

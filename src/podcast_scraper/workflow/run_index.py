@@ -299,11 +299,32 @@ def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMe
                 episode_id=(episode.get("episode_id") or None),
             )
             guid = episode.get("guid")
-            if isinstance(guid, str) and guid.strip() and guid.strip() not in by_guid:
-                by_guid[guid.strip()] = entry
+            if isinstance(guid, str) and guid.strip():
+                g = guid.strip()
+                if g in by_guid:
+                    # First-writer-wins, but a duplicate guid on disk (re-published / re-added
+                    # episode) means callers that act on ONE entry (rollback episode delete) may
+                    # leave a copy behind — surface it rather than resolve silently.
+                    logger.warning(
+                        "corpus_metadata_index: duplicate guid %s (%s and %s); keeping first",
+                        g,
+                        by_guid[g].metadata_rel,
+                        entry.metadata_rel,
+                    )
+                else:
+                    by_guid[g] = entry
             eid = episode.get("episode_id")
-            if isinstance(eid, str) and eid.strip() and eid.strip() not in by_id:
-                by_id[eid.strip()] = entry
+            if isinstance(eid, str) and eid.strip():
+                e = eid.strip()
+                if e in by_id:
+                    logger.warning(
+                        "corpus_metadata_index: duplicate episode_id %s (%s and %s); keeping first",
+                        e,
+                        by_id[e].metadata_rel,
+                        entry.metadata_rel,
+                    )
+                else:
+                    by_id[e] = entry
     return {"by_guid": by_guid, "by_id": by_id}
 
 
