@@ -10,10 +10,34 @@ from podcast_scraper.workflow.corpus_operations import (
     _manifest_feed_rows_to_results,
     CORPUS_MANIFEST_FILE,
     corpus_parent_for_manifest_stamp_from_cfg,
+    CORPUS_RUN_SUMMARY_FILE,
     MultiFeedFeedResult,
     upsert_corpus_manifest_feed,
     utc_iso_now,
+    write_corpus_run_summary,
 )
+
+
+def test_single_feed_run_writes_corpus_run_summary(tmp_path: Path) -> None:
+    """P1.5: single-feed runs refresh corpus_run_summary.json (was --feeds-spec batches only)."""
+    parent = tmp_path / "corpus"
+    parent.mkdir()
+    doc = write_corpus_run_summary(
+        str(parent),
+        [
+            MultiFeedFeedResult(
+                "https://a.example/feed.xml", True, None, 2, finished_at=utc_iso_now()
+            )
+        ],
+        overall_ok=True,
+    )
+    assert (parent / CORPUS_RUN_SUMMARY_FILE).is_file()
+    on_disk = json.loads((parent / CORPUS_RUN_SUMMARY_FILE).read_text(encoding="utf-8"))
+    assert on_disk == doc
+    assert on_disk["overall_ok"] is True
+    assert len(on_disk["feeds"]) == 1
+    assert on_disk["feeds"][0]["episodes_processed"] == 2
+    assert "cost_rollup" in on_disk  # corpus-wide rollup present
 
 
 def test_upsert_corpus_manifest_feed_writes_produced_by(tmp_path: Path) -> None:

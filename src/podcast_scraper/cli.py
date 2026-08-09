@@ -5322,18 +5322,24 @@ def main(  # noqa: C901 - main function handles multiple command paths
             MultiFeedFeedResult,
             upsert_corpus_manifest_feed,
             utc_iso_now,
+            write_corpus_run_summary,
         )
 
-        upsert_corpus_manifest_feed(
-            stamp_parent,
-            MultiFeedFeedResult(
-                feed_url,
-                True,
-                None,
-                int(episode_count),
-                finished_at=utc_iso_now(),
-            ),
+        fr = MultiFeedFeedResult(
+            feed_url,
+            True,
+            None,
+            int(episode_count),
+            finished_at=utc_iso_now(),
         )
+        upsert_corpus_manifest_feed(stamp_parent, fr)
+        # P1.5: single-feed corpus-layout runs also refresh corpus_run_summary.json (previously
+        # written only for --feeds-spec batches) so incremental adds have run-level cost/episode
+        # monitoring parity. cost_rollup is corpus-wide (aggregated from all run metrics on disk).
+        try:
+            write_corpus_run_summary(stamp_parent, [fr], overall_ok=True)
+        except Exception as exc:  # noqa: BLE001 — best-effort summary; never fail a done ingest
+            log.warning("Failed to write corpus_run_summary.json for single-feed run: %s", exc)
     return 0
 
 

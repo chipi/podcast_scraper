@@ -258,8 +258,8 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 ### Control Options
 
 - `--dry-run` - Preview without writing files (includes LLM cost projection when API providers are configured)
-- `--skip-existing` - Skip episodes with existing output
-- `--append` - Resume into a **stable** `run_append_*` directory and skip episodes whose on-disk metadata already matches the RSS `episode_id` and required artifacts (GitHub #444). Incompatible with `--clean-output`. Unlike `--skip-existing` (path/exists heuristics in metadata generation), append skips **before** download using validated metadata + transcript (and optional summary / GI / KG files when those features are enabled).
+- `--skip-existing` - Skip episodes already present in the corpus, keyed on stable `episode_id` / GUID (not position, which shifts when the feed grows). Unlike `--append`, does not require pre-validated metadata completeness.
+- `--append` - Resume into a **stable** `run_append_*` directory and skip episodes whose on-disk metadata already matches the RSS `episode_id` and required artifacts (GitHub #444). Incompatible with `--clean-output`. Both `--append` and `--skip-existing` use GUID-keyed resolution; append additionally validates metadata completeness before download.
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
 - `--max-failures N` - Stop after N episode failures (Issue #379)

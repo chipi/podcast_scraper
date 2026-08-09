@@ -78,3 +78,46 @@ def test_tier_scoping(corpus):
 def test_missing_index_returns_none(tmp_path):
     # No LanceDB index → None (no_index signal), not an empty list.
     assert hs.hybrid_candidates(tmp_path / "nope", "AI", top_k=5) is None
+
+
+def test_grounded_flag_roundtrips_through_lancedb(tmp_path):
+    """#19 end-to-end: the insight ``derived`` field round-trips through REAL LanceDB storage →
+    hybrid_candidates → grounded metadata, so grounded_only can drop ungrounded insights (the unit
+    test used a hand-built result; this proves the live-index path the prod bug hit)."""
+    idx = tmp_path / "corpus" / "search" / "lance_index"
+    idx.parent.mkdir(parents=True)
+    b = LanceDBBackend(str(idx), embed_dim=384)
+    b.upsert_insight(
+        InsightDocument(
+            id="insight:grounded",
+            text="Altman argues AI scaling continues",
+            show_id="A",
+            episode_id="ep1",
+            entity_type="insight",
+            confidence=0.8,
+            derived=True,
+            embedding=_emb("Altman argues AI scaling continues"),
+        )
+    )
+    b.upsert_insight(
+        InsightDocument(
+            id="insight:ungrounded",
+            text="AI scaling is a speculative claim",
+            show_id="A",
+            episode_id="ep1",
+            entity_type="insight",
+            confidence=0.4,
+            derived=False,
+            embedding=_emb("AI scaling is a speculative claim"),
+        )
+    )
+    b.create_indices()
+
+    rows = hs.hybrid_candidates(tmp_path / "corpus", "AI scaling", top_k=10, doc_types=["insight"])
+    grounded = {r.doc_id: r.metadata.get("grounded") for r in rows}
+    assert grounded.get("insight:grounded") is True
+    assert grounded.get("insight:ungrounded") is False
+    # The grounded_only filter (explore.py: `if grounded_only and not ins.grounded`) keeps only the
+    # grounded row — before #19 the flag was absent so EVERY insight was dropped.
+    kept = [r.doc_id for r in rows if r.metadata.get("grounded")]
+    assert kept == ["insight:grounded"]

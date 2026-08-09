@@ -188,8 +188,30 @@ def pid_alive(pid: int | None) -> bool:
     return True
 
 
-def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
+def build_pipeline_argv(
+    corpus_root: Path,
+    operator_yaml: Path,
+    *,
+    run_id: str | None = None,
+    feed_url: str | None = None,
+    skip_existing: bool = False,
+    append: bool = False,
+    max_episodes: int | None = None,
+    episode_offset: int | None = None,
+    episode_order: str | None = None,
+) -> list[str]:
     """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
+
+    When *run_id* is given it is passed as ``--run-id`` so the pipeline's self-generated run id ==
+    the Jobs API job_id — a single join key across the Jobs API and observability (podcast_obs
+    correlate --run-id), instead of scraping ``[run=…]`` from the log tail (P1.6). The docker exec
+    path preserves the CLI-flag tail, so the flag flows through both local and docker modes.
+
+    When *feed_url* is given the run is scoped to that ONE feed as a single-feed corpus-layout run
+    (``--rss <url> --single-feed-uses-corpus-layout``) instead of the whole ``--feeds-spec`` batch —
+    the cautious per-feed incremental add (P1.4). The incremental knobs (skip_existing / append /
+    max_episodes / episode_offset / episode_order) apply only in this scoped mode. Whole-batch is
+    unchanged when *feed_url* is None.
 
     Profile resolution order:
 
@@ -208,6 +230,8 @@ def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
 
     exe = sys.executable
     argv: list[str] = [exe, "-m", "podcast_scraper.cli", "--output-dir", str(corpus_root)]
+    if run_id:
+        argv.extend(["--run-id", str(run_id)])
     try:
         op_text = operator_yaml.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -221,9 +245,24 @@ def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
     if pn:
         argv.extend(["--profile", pn])
     argv.extend(["--config", str(operator_yaml)])
-    spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
-    if spec.is_file():
-        argv.extend(["--feeds-spec", str(spec.resolve())])
+    if feed_url:
+        # Scoped per-feed incremental add: just this feed into the shared corpus, corpus layout.
+        argv.extend(["--rss", str(feed_url), "--single-feed-uses-corpus-layout"])
+        if skip_existing:
+            argv.append("--skip-existing")
+        if append:
+            argv.append("--append")
+        if max_episodes is not None:
+            argv.extend(["--max-episodes", str(int(max_episodes))])
+        if episode_offset is not None:
+            argv.extend(["--episode-offset", str(int(episode_offset))])
+        if episode_order:
+            argv.extend(["--episode-order", str(episode_order)])
+    else:
+        spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
+        if spec.is_file():
+            argv.extend(["--feeds-spec", str(spec.resolve())])
     return argv
 
 
@@ -390,13 +429,36 @@ def enqueue_enrichment_job(
     return with_jobs_locked_mutate(corpus_root, fn)
 
 
-def enqueue_pipeline_job(corpus_root: Path, operator_yaml: Path) -> dict[str, Any]:
-    """Append a new job; promote to *running* immediately when under the concurrency cap."""
+def enqueue_pipeline_job(
+    corpus_root: Path,
+    operator_yaml: Path,
+    *,
+    feed_url: str | None = None,
+    skip_existing: bool = False,
+    append: bool = False,
+    max_episodes: int | None = None,
+    episode_offset: int | None = None,
+    episode_order: str | None = None,
+) -> dict[str, Any]:
+    """Append a new job; promote to *running* immediately when under the concurrency cap.
+
+    When *feed_url* is given the run is scoped to that one feed (P1.4) — see build_pipeline_argv.
+    """
 
     def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
         job_id = str(uuid.uuid4())
         log_relpath = f".viewer/jobs/{job_id}.log"
-        argv = build_pipeline_argv(corpus_root, operator_yaml)
+        argv = build_pipeline_argv(
+            corpus_root,
+            operator_yaml,
+            run_id=job_id,
+            feed_url=feed_url,
+            skip_existing=skip_existing,
+            append=append,
+            max_episodes=max_episodes,
+            episode_offset=episode_offset,
+            episode_order=episode_order,
+        )
         cap = max_concurrent_jobs()
         if _running_count(jobs) < cap:
             rec = _new_job_record(
@@ -705,7 +767,7 @@ async def start_job_if_running_record(
     # Source of truth = the row's stored (command-typed) argv; rebuild only for
     # a legacy row that predates argv persistence. This is what lets an
     # enrichment (or any non-pipeline) job spawn its own CLI, not the pipeline.
-    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml)
+    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml, run_id=job_id)
     log_abs = corpus_root / str(job.get("log_relpath", f".viewer/jobs/{job_id}.log"))
     try:
         proc = await spawn_pipeline_subprocess(app, corpus_root, job_id, argv, log_abs)

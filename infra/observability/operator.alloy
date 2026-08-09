@@ -15,13 +15,16 @@
 // Do NOT touch base.alloy or the orrery/player sources.
 
 // ---------- Operator podcast stack containers (compose project `compose`) ----------
-// Keep ONLY the operator api + viewer. surface=api|web mirrors the orrery/player split.
+// Keep the operator api + viewer AND the ephemeral pipeline-llm job container. surface=api|web
+// mirrors the orrery/player split; surface=pipeline is the docker-mode pipeline run spawned by the
+// api (`docker compose run pipeline-llm`), named ``compose-pipeline-llm-run-<id>`` — without this it
+// was never discovered, so {app="podcast",surface="pipeline"} was empty in VictoriaLogs (P2.7).
 discovery.relabel "podcast" {
 	targets = discovery.docker.app.targets
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(compose-api-1|compose-viewer-1)"
+		regex         = "/(compose-api-1|compose-viewer-1|compose-pipeline-llm[-_].*)"
 		action        = "keep"
 	}
 
@@ -37,6 +40,13 @@ discovery.relabel "podcast" {
 		regex         = "/compose-viewer-1"
 		target_label  = "surface"
 		replacement   = "web"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/compose-pipeline-llm[-_].*"
+		target_label  = "surface"
+		replacement   = "pipeline"
 	}
 
 	rule {

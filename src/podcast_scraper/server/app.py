@@ -53,6 +53,7 @@ from podcast_scraper.server.routes import (
     corpus_media,
     corpus_metrics,
     corpus_persons,
+    corpus_rollback,
     corpus_text_file,
     corpus_theme_clusters,
     corpus_topic_clusters,
@@ -176,6 +177,10 @@ _OPERATOR_READ_ROUTES = (
     cil,
     ops,
     llm_gateway,
+    # Destructive operator rollback (DELETE runs/episodes) — tailnet operator plane only, gated by
+    # the OperatorWriteGuard middleware (X-Operator-Key / admin session) + a typed confirm token.
+    # Deliberately NOT in _OPERATOR_PUBLIC_READ_ROUTES (mutates) and NOT mounted on the player.
+    corpus_rollback,
 )
 # RFC-108: the CURATED subset of operator-read routers safe for the PUBLIC operator
 # surface (operator.closelistening.app). This is ``_OPERATOR_READ_ROUTES`` MINUS the ones

@@ -1157,11 +1157,27 @@ corpus-compat-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
 
+# Pre-deploy gate (#1494 / #1497): fail if a corpus would silently under-serve the MCP —
+# a stale/absent LanceDB index (every search → no_index) or missing typed edges /
+# enrichments (relational tools → empty). Non-zero exit on a HARD gap; diarization is a
+# soft warn. Run before shipping a corpus (or wire into the deploy). CORPUS_DIR required.
+corpus-completeness-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
+
+# Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
+# so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
+# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). THRESHOLD defaults to 0.75
+# (cloud_balanced's topic_cluster_threshold) — NOT the 0.35 small-fixture override. CORPUS_DIR req'd.
+topic-clusters:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" --threshold "$${THRESHOLD:-0.75}"
 
 # Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
 # Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).

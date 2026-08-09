@@ -29,6 +29,7 @@ from ..utils import filesystem
 from ..utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ..utils.corpus_incidents import append_corpus_incident
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
+from . import run_index
 
 logger = logging.getLogger(__name__)
 
@@ -317,8 +318,16 @@ def download_media_for_transcription(
     Returns:
         TranscriptionJob object or None if skipped/failed
     """
+    # Skip-existing must key on the STABLE guid, not the run-local idx (which shifts when the feed
+    # grows → silent reprocess + duplicates). Resolve the on-disk idx by guid for the existence
+    # check; a genuinely new episode falls back to its run-local idx (its real output path).
+    skip_idx = (
+        run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
+        if cfg.skip_existing
+        else episode.idx
+    )
     final_out_path = filesystem.build_whisper_output_path(
-        episode.idx, episode.title_safe, run_suffix, effective_output_dir
+        skip_idx, episode.title_safe, run_suffix, effective_output_dir
     )
     # pipeline_stage=relabel_only reuses the on-disk transcript + diarization and re-runs
     # only the speaker-name resolution — no audio is needed. Return a no-download job so
@@ -2752,8 +2761,11 @@ def _check_existing_transcript(
         return False
 
     run_tag = f"_{run_suffix}" if run_suffix else ""
+    # Key on the STABLE guid, not the run-local idx (which shifts when the feed grows → silent
+    # reprocess + duplicates). New episodes fall back to their run-local idx.
+    skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
     base_name = (
-        f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
+        f"{skip_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
     )
     transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
     existing_matches = list(Path(transcripts_dir).glob(f"{base_name}*"))
@@ -2857,11 +2869,14 @@ def process_transcript_download(
     # so summaries can be generated even when transcript exists
     if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
         if cfg.generate_summaries:
-            # Find existing transcript file to return its path for summarization
-            # Transcripts are now in the transcripts/ subdirectory
+            # Find existing transcript file to return its path for summarization.
+            # Resolve the on-disk idx by STABLE guid — episode.idx shifts when the feed grows, so
+            # rebuilding the glob from it would miss the transcript and silently skip summarization
+            # for an already-present episode (the same P0.1 drift, one branch missed; Fable-5 #2).
             run_tag = f"_{run_suffix}" if run_suffix else ""
+            skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
             base_name = (
-                f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
+                f"{skip_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
                 f"- {episode.title_safe}{run_tag}"
             )
             transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)

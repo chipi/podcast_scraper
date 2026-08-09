@@ -365,3 +365,23 @@ gh api repos/chipi/podcast_scraper/code-scanning/alerts/ALERT_NUMBER \
 
 Add a row to the "Dismissed alerts" table and, if applicable, remove the
 matching row from "Still open."
+| 1 | #487 | server/routes/corpus_rollback.py | 71 | 2026-08-09 | `_assert_under_root`: resolve+startswith guard (rollback DELETE) |
+| 1 | #488 | server/routes/corpus_rollback.py | 84 | 2026-08-09 | `run_id` sanitized by `_require_safe_run_id`; root anchor-guarded |
+| 1 | #489 | server/routes/corpus_rollback.py | 86 | 2026-08-09 | `run_id` sanitized; root anchor-guarded |
+| 1 | #490 | server/routes/corpus_rollback.py | 103 | 2026-08-09 | `run_dir` from on-disk metadata index under root |
+| 1 | #491 | server/routes/corpus_rollback.py | 110 | 2026-08-09 | `run_dir` from on-disk metadata index; numeric idx prefix |
+| 1 | #492 | server/routes/corpus_rollback.py | 132 | 2026-08-09 | dst under <root>/.trash; src realpath re-checked under root |
+| 1 | #493 | server/routes/corpus_rollback.py | 133 | 2026-08-09 | shutil.move; src realpath re-checked under root immediately above |
+| 1 | #494 | server/routes/corpus_rollback.py | 133 | 2026-08-09 | shutil.move; src realpath re-checked under root immediately above |
+| 1 | #495 | server/routes/corpus_rollback.py | 157 | 2026-08-09 | manifest is <root>/<constant>; root anchor-guarded |
+| 1 | #496 | server/routes/corpus_rollback.py | 162 | 2026-08-09 | manifest is <root>/<constant>; root anchor-guarded |
+| 1 | #497 | server/routes/corpus_rollback.py | 166 | 2026-08-09 | manifest read; <root>/<constant> path |
+| 1 | #498 | server/routes/corpus_topic_clusters.py | 154 | 2026-08-09 | root via `resolve_corpus_path_param`; normpath+realpath |
+| 1 | #499 | utils/filesystem.py | 117 | 2026-08-09 | `validate_and_normalize_output_dir`: this IS the validator (resolve + validate_path_is_safe) |
+| 1 | #500 | server/routes/jobs.py | 59 | 2026-08-09 | corpus is resolved anchor; feeds.spec is a constant filename |
+| 1 | #501 | server/jobs.py | 263 | 2026-08-09 | corpus_root is resolved anchor; feeds.spec constant filename |
+| 1 | #502 | server/jobs.py | 264 | 2026-08-09 | corpus_root resolved anchor; spec.resolve() constant filename |
+| 1 | #503 | workflow/run_index.py | 287 | 2026-08-09 | output_dir server default / `resolve_corpus_path_param`; constant glob |
+| 1 | #504 | server/routes/corpus_rollback.py | 86 | 2026-08-09 | run_id sanitized; root anchor-guarded (re-dismiss after pragma line-shift) |
+| 1 | #505 | server/routes/corpus_rollback.py | 137 | 2026-08-09 | dst under root/.trash; src realpath re-checked (re-dismiss after line-shift) |
+| 1 | #506 | server/routes/corpus_rollback.py | 165 | 2026-08-09 | manifest is root/constant; anchor-guarded (re-dismiss after line-shift) |

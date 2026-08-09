@@ -72,6 +72,45 @@ def test_render_litm_order_and_stable_null_fields():
     assert pack.top_contradiction is None and pack.coverage_gaps == []  # stable until inputs exist
 
 
+def test_confidence_renders_na_when_unscored():
+    """#21: indexer hardcodes confidence=0.0 → surface as n/a, not a misleading '0.00'."""
+    pack = build_briefing_pack("q", "semantic", [_ins("i1", "claim", conf=0.0)])
+    assert pack.confidence_p50 == 0.0
+    assert "Confidence (p50): n/a" in pack.render()
+    assert "0.00" not in pack.render()
+
+
+def test_coverage_gaps_render_not_assessed_when_empty():
+    """#21: an empty gap list is 'not assessed' (surface unwired), not a trustworthy 'none'."""
+    pack = build_briefing_pack("q", "semantic", [_ins("i1", "claim", conf=0.9)])
+    assert "Coverage gaps: not assessed" in pack.render()
+
+
+def test_show_ids_fall_back_to_feed_id():
+    """#21: don't report 0 shows while counting episodes — read feed_id when show_id is absent."""
+    r = ScoredResult(
+        "i9", 0.9, 1, {"text": "x", "feed_id": "B", "episode_id": "e2"}, "vector", "insight"
+    )
+    pack = build_briefing_pack("q", "semantic", [r])
+    assert pack.coverage_summary["show_ids"] == ["B"]
+    assert pack.coverage_summary["episode_count"] == 1
+
+
+def test_compound_show_read_from_insight_tier_when_segment_lacks_it():
+    """#21/advisor-L2: a compound's SEGMENT payload may lack show_id while the INSIGHT carries it.
+    Coverage must read BOTH tiers or it under-counts shows (0 shows, N episodes)."""
+    seg = ScoredResult(
+        "s1", 0.8, 1, {"text": "q", "episode_id": "e1"}, "bm25", "segment"
+    )  # no show
+    ins = ScoredResult(
+        "i1", 0.9, 1, {"text": "claim", "episode_id": "e1", "show_id": "A"}, "vector", "insight"
+    )
+    comp = CompoundResult(doc_id="s1", score=0.9, rank=1, segment=seg, insight=ins)
+    pack = build_briefing_pack("q", "semantic", [comp])
+    assert pack.coverage_summary["show_ids"] == ["A"]  # recovered from the insight tier
+    assert pack.coverage_summary["episode_count"] == 1
+
+
 def test_token_budget_trims_segments():
     long = "word " * 200
     results = [_ins("i1", "claim")] + [_seg(f"s{i}", long) for i in range(5)]

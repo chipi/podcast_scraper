@@ -117,8 +117,30 @@ export async function listPipelineJobs(corpusPath: string): Promise<PipelineJobs
   return (await res.json()) as PipelineJobsList
 }
 
-export async function submitPipelineJob(corpusPath: string): Promise<PipelineJobAccepted> {
+/** Per-feed incremental-add scope for {@link submitPipelineJob} (P1.4). Omit for the whole batch. */
+export interface PipelineJobScope {
+  /** RSS URL or stable feed slug — scopes the run to one feed. */
+  feed?: string
+  skipExisting?: boolean
+  append?: boolean
+  maxEpisodes?: number
+  episodeOffset?: number
+  episodeOrder?: 'newest' | 'oldest'
+}
+
+export async function submitPipelineJob(
+  corpusPath: string,
+  scope?: PipelineJobScope,
+): Promise<PipelineJobAccepted> {
   const q = new URLSearchParams({ path: corpusPath.trim() })
+  if (scope?.feed?.trim()) {
+    q.set('feed', scope.feed.trim())
+    if (scope.skipExisting) q.set('skip_existing', 'true')
+    if (scope.append) q.set('append', 'true')
+    if (scope.maxEpisodes != null) q.set('max_episodes', String(scope.maxEpisodes))
+    if (scope.episodeOffset != null) q.set('episode_offset', String(scope.episodeOffset))
+    if (scope.episodeOrder) q.set('episode_order', scope.episodeOrder)
+  }
   const res = await fetchWithTimeout(
     `/api/jobs?${q}`,
     { method: 'POST' },

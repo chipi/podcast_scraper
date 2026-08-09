@@ -36,6 +36,9 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const reconcileToast = ref<string | null>(null)
 const runToast = ref<string | null>(null)
+// Per-feed incremental add (P1.4): scope a run to one feed (URL/slug) + a small episode cap.
+const feedScope = ref('')
+const feedMaxEpisodes = ref<number | null>(null)
 /** Bumps once per second while any job is running so elapsed time updates without spamming the API. */
 const nowTick = ref(Date.now())
 
@@ -183,6 +186,31 @@ async function onRun(): Promise<void> {
   try {
     const acc = await submitPipelineJob(root.value)
     runToast.value = `Queued job ${shortId(acc.job_id)} (${acc.status})`
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function onRunFeed(): Promise<void> {
+  const feed = feedScope.value.trim()
+  if (!canUseJobs.value || !feed) {
+    return
+  }
+  loading.value = true
+  error.value = null
+  runToast.value = null
+  try {
+    // Cautious per-feed incremental add: skip-existing on (guid-keyed), optional small episode cap.
+    const acc = await submitPipelineJob(root.value, {
+      feed,
+      skipExisting: true,
+      maxEpisodes: feedMaxEpisodes.value ?? undefined,
+      episodeOrder: 'newest',
+    })
+    runToast.value = `Queued feed job ${shortId(acc.job_id)} (${acc.status})`
     await refresh()
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -409,6 +437,33 @@ onUnmounted(() => {
           Refresh
         </button>
       </div>
+    </div>
+    <!-- Per-feed incremental add (P1.4): one feed (URL/slug), skip-existing + a small cap. -->
+    <div class="mb-2 flex flex-wrap items-center gap-1" data-testid="pipeline-jobs-feed-scope">
+      <input
+        v-model="feedScope"
+        type="text"
+        placeholder="feed URL or slug"
+        class="min-w-[10rem] flex-1 rounded border border-border bg-surface px-1 py-0.5 text-[10px]"
+        data-testid="pipeline-jobs-feed-input"
+      >
+      <input
+        v-model.number="feedMaxEpisodes"
+        type="number"
+        min="1"
+        placeholder="N new"
+        class="w-16 rounded border border-border bg-surface px-1 py-0.5 text-[10px]"
+        data-testid="pipeline-jobs-feed-max"
+      >
+      <button
+        type="button"
+        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-50"
+        :disabled="!canUseJobs || loading || !feedScope.trim()"
+        data-testid="pipeline-jobs-run-feed"
+        @click="void onRunFeed()"
+      >
+        Run feed
+      </button>
     </div>
     <p
       v-if="!shell.jobsApiAvailable && shell.healthStatus"

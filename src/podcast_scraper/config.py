@@ -3050,7 +3050,7 @@ class Config(BaseModel):
         ),
     )
     gi_insight_chunk_chars: int = Field(
-        default=0,
+        default=30_000,
         ge=0,
         le=200_000,
         alias="gi_insight_chunk_chars",
@@ -3060,7 +3060,11 @@ class Config(BaseModel):
             "insights however long the episode is, while gemini scales with the material. Context "
             "is not the limit — a 90k transcript fits — so more calls, not a bigger window, is the "
             "fix. On 65-77k episodes, 3 passes took insights 24.7 -> 56.0 and CORE knowledge "
-            "10.7 -> 17.3, with grounding rising to 96-98%. Episodes under 40k are never chunked."
+            "10.7 -> 17.3, with grounding rising to 96-98%. Episodes under 40k are never chunked. "
+            "Default is 30k (the norm across cloud_balanced/prod_dgx_full/airgapped) so no profile "
+            "can silently single-pass a long episode and truncate its back half (#20 — a profile "
+            "that left this at 0, e.g. prod_dgx_balanced/reprocess_dgx_turbo, dropped mid/late "
+            "insights); set 0 explicitly to opt out."
         ),
     )
     gi_insight_dedupe_threshold: float = Field(

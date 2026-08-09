@@ -77,3 +77,29 @@ def test_to_search_result_aux_uses_payload_doc_type():
     )
     out = hs._to_search_result(aux)
     assert out.metadata["doc_type"] == "kg_topic"  # aux carries its real doc_type
+
+
+def test_to_search_result_insight_carries_grounded_flag():
+    """#19: the indexer stores grounded on the insight row as ``derived``; the result must
+    surface it as ``grounded`` or grounded_only drops every insight."""
+    grounded = ScoredResult(
+        "insight:1",
+        0.9,
+        1,
+        {"text": "claim", "episode_id": "e1", "show_id": "A", "derived": True},
+        "vector",
+        "insight",
+    )
+    ungrounded = ScoredResult(
+        "insight:2",
+        0.8,
+        2,
+        {"text": "claim2", "episode_id": "e1", "show_id": "A", "derived": False},
+        "vector",
+        "insight",
+    )
+    assert hs._to_search_result(grounded).metadata["grounded"] is True
+    assert hs._to_search_result(ungrounded).metadata["grounded"] is False
+    # A segment hit never gets a grounded flag (insight-tier only).
+    seg = ScoredResult("s1", 0.7, 1, {"text": "t", "episode_id": "e1"}, "bm25", "segment")
+    assert "grounded" not in hs._to_search_result(seg).metadata
