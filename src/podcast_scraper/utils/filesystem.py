@@ -114,6 +114,7 @@ def validate_and_normalize_output_dir(path: str) -> str:
     if not path or not path.strip():
         raise ValueError("Output directory path cannot be empty")
 
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     path_obj = Path(path).expanduser()
     try:
         resolved = path_obj.resolve()

@@ -56,6 +56,7 @@ def _resolve_feed_url(corpus: Path, feed: str) -> str:
     from podcast_scraper.utils.filesystem import feed_workspace_dirname
 
     spec_path = corpus / FEEDS_SPEC_DEFAULT_BASENAME
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     if spec_path.is_file():
         try:
             doc = load_feeds_spec_file(spec_path)

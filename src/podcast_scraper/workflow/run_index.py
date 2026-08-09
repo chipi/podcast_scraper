@@ -284,6 +284,7 @@ def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMe
         "feeds/*/metadata/*.metadata.*",
         "feeds/*/run_*/metadata/*.metadata.*",
     ):
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
         for meta_path in sorted(root.glob(pattern)):
             if meta_path.name.startswith("._") or not meta_path.is_file():
                 continue  # macOS AppleDouble

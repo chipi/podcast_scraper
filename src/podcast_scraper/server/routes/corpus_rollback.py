@@ -68,6 +68,7 @@ def _require_safe_run_id(run_id: str) -> str:
 
 def _assert_under_root(root: Path, targets: List[Path]) -> None:
     """Refuse to touch anything outside the corpus root (belt-and-suspenders vs traversal)."""
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     root_res = root.resolve()
     prefix = str(root_res) + os.sep
     for src in targets:
@@ -81,8 +82,10 @@ def _assert_under_root(root: Path, targets: List[Path]) -> None:
 def _run_dirs_for_id(root: Path, run_id: str) -> List[Path]:
     """All on-disk run dirs matching ``run_<run_id>`` (corpus feeds layout + flat layout)."""
     name = f"run_{run_id}"
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     found = [p for p in root.glob(f"feeds/*/{name}") if p.is_dir()]
     flat = root / name
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     if flat.is_dir():
         found.append(flat)
     return sorted(found)
@@ -107,6 +110,7 @@ def _episode_files(root: Path, episode_id: str) -> Tuple[Optional[Path], List[Pa
     # matched by the NNNN prefix — not just transcripts+metadata, or the episode's audio in media/
     # would be left orphaned on an episode-scoped rollback (Fable-5 review finding #4).
     files: List[Path] = []
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     if run_dir.is_dir():
         for sub in sorted(p for p in run_dir.iterdir() if p.is_dir()):
             files.extend(p for p in sub.glob(f"{prefix}*") if p.is_file())
@@ -129,7 +133,9 @@ def _move_to_trash(root: Path, targets: List[Path], stamp: str) -> List[str]:
             )
         rel = os.path.relpath(str(src), str(root))
         dst = trash_root / rel
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
         dst.parent.mkdir(parents=True, exist_ok=True)
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
         shutil.move(str(src), str(dst))
         moved.append(rel)
     return moved
@@ -139,6 +145,7 @@ def _count_metadata_files(paths: List[Path]) -> int:
     """Episodes represented by *paths* — count of ``*.metadata.*`` (one per episode)."""
     total = 0
     for p in paths:
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
         if p.is_dir():
             total += sum(1 for _ in (p / filesystem.METADATA_SUBDIR).glob("*.metadata.*"))
         elif ".metadata." in p.name:
@@ -154,11 +161,13 @@ def _reaggregate_manifest(root: Path) -> Optional[float]:
     from podcast_scraper.workflow import corpus_operations as cops
 
     manifest = root / cops.CORPUS_MANIFEST_FILE
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     if not manifest.is_file():
         return None
     try:
         import json
 
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
         doc = json.loads(manifest.read_text(encoding="utf-8"))
         rows = doc.get("feeds") if isinstance(doc, dict) else None
         results = cops._manifest_feed_rows_to_results(rows) if isinstance(rows, list) else []

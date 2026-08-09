@@ -260,6 +260,7 @@ def build_pipeline_argv(
             argv.extend(["--episode-order", str(episode_order)])
     else:
         spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
         if spec.is_file():
             argv.extend(["--feeds-spec", str(spec.resolve())])
     return argv

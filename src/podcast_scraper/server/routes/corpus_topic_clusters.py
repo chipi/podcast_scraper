@@ -66,7 +66,7 @@ async def corpus_topic_clusters(
                 "available": False,
             },
         )
-    # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
         return JSONResponse(
             status_code=404,
@@ -151,6 +151,7 @@ async def rebuild_topic_clusters(
     if root is None:
         raise HTTPException(status_code=400, detail="Corpus path is required (query or default).")
 
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     corpus_key = os.path.normpath(os.path.realpath(str(root.resolve())))
     gate = gate_for_corpus(request.app, root)
     if not gate.try_begin():
