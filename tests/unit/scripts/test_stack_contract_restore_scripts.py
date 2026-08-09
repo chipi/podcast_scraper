@@ -40,8 +40,10 @@ def test_restore_script_declares_vps_compose_stack_and_health_probe() -> None:
     assert "docker-compose.vps-prod.yml" in text
     assert "http://127.0.0.1:8000/api/health" in text
     assert "PODCAST_REPO_DIR:-/srv/podcast-scraper" in text
-    assert "expected top-level corpus/" in text
     assert "RESTORE_EXTRACT_ONLY" in text
+    # DR-2: in-place inode-preserving swap + recreate ALL consumers (not the old `api viewer` only).
+    assert "swap_corpus_in_place.sh" in text
+    assert "up -d --force-recreate" in text
 
 
 def test_restore_script_rejects_tarball_without_prod_corpus_layout(tmp_path: Path) -> None:
@@ -63,13 +65,17 @@ def test_restore_script_rejects_tarball_without_prod_corpus_layout(tmp_path: Pat
         check=False,
     )
     assert proc.returncode != 0
-    assert "expected top-level corpus/" in proc.stderr
+    # DR-2: the in-place swap refuses a tarball with no corpus artifacts (empty/wrong layout).
+    assert "gi.json" in proc.stderr
 
 
 def test_restore_script_extract_only_round_trip_prod_layout(tmp_path: Path) -> None:
     corpus_dir = tmp_path / "build" / "corpus"
     corpus_dir.mkdir(parents=True)
     (corpus_dir / "marker.txt").write_text("ok", encoding="utf-8")
+    # DR-2: the in-place swap refuses an artifact-less corpus, so a realistic fixture carries a
+    # gi.json (a real corpus always does).
+    (corpus_dir / "e1.gi.json").write_text('{"episode": {"episode_id": "e1"}}', encoding="utf-8")
     tarball = tmp_path / "snapshot.tgz"
     with tarfile.open(tarball, "w:gz") as tar:
         tar.add(corpus_dir, arcname="corpus")
@@ -78,6 +84,7 @@ def test_restore_script_extract_only_round_trip_prod_layout(tmp_path: Path) -> N
     repo_dir.mkdir()
     (repo_dir / "corpus" / "old.txt").parent.mkdir(parents=True)
     (repo_dir / "corpus" / "old.txt").write_text("stale", encoding="utf-8")
+    inode_before = (repo_dir / "corpus").stat().st_ino
 
     env = os.environ.copy()
     env["PODCAST_REPO_DIR"] = str(repo_dir)
@@ -92,7 +99,9 @@ def test_restore_script_extract_only_round_trip_prod_layout(tmp_path: Path) -> N
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert (repo_dir / "corpus" / "marker.txt").read_text(encoding="utf-8") == "ok"
-    assert "Restore extract OK" in proc.stdout
+    assert not (repo_dir / "corpus" / "old.txt").exists()  # old contents swapped out
+    assert (repo_dir / "corpus").stat().st_ino == inode_before  # DR-2: inode preserved (bind holds)
+    assert "OK under" in proc.stdout
     assert list(repo_dir.glob("corpus.bak.*"))
 
 

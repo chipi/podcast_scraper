@@ -149,6 +149,24 @@ def _has_enrichments(corpus_root: Path) -> bool:
     return False
 
 
+def _has_topic_clusters(corpus_root: Path) -> bool:
+    """True when ``search/topic_clusters.json`` exists AND carries a non-empty ``clusters`` array.
+
+    Mirrors the post-deploy smoke, which fails on BOTH the 404 (missing) and the empty-clusters
+    case on a populated corpus — a present-but-empty file would still break the surface.
+    """
+    p = corpus_root / "search" / TOPIC_CLUSTERS_FILENAME
+    if not p.is_file():
+        return False
+    try:
+        with open(p, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return False
+    clusters = doc.get("clusters") if isinstance(doc, dict) else None
+    return isinstance(clusters, list) and len(clusters) > 0
+
+
 def assess_index_staleness(corpus_root: Path) -> IndexStaleness:
     index_dir = lance_index_dir(corpus_root)
     served = stored_schema_version(index_dir)
@@ -178,7 +196,7 @@ def assess_completeness(corpus_root: Path) -> CompletenessReport:
 
     index = assess_index_staleness(root)
     edge_types, seen = _collect_edge_types(root)
-    topic_clusters = (root / "search" / TOPIC_CLUSTERS_FILENAME).is_file()
+    topic_clusters = _has_topic_clusters(root)
     return CompletenessReport(
         index=index,
         missing_hard=_missing_stages(edge_types, _HARD_STAGES),

@@ -152,6 +152,17 @@ def test_missing_topic_clusters_fails_when_index_present(tmp_path: Path):
     assert report2.ok and report2.has_topic_clusters
 
 
+def test_empty_topic_clusters_fails(tmp_path: Path):
+    """Present-but-empty topic_clusters.json still breaks the surface — mirror the smoke's
+    'clusters empty on populated prod corpus' rule, not just the 404."""
+    _write_index(tmp_path, LANCE_SCHEMA_VERSION)
+    _write_episode(tmp_path, "e1", ["HAS_EPISODE", "MENTIONS_PERSON", "SPOKEN_BY"])
+    _write_enrichments(tmp_path)
+    (tmp_path / "search" / "topic_clusters.json").write_text('{"clusters": []}', encoding="utf-8")
+    report = assess_completeness(tmp_path)
+    assert not report.ok and not report.has_topic_clusters
+
+
 def test_stale_index_fails_even_if_edges_complete(tmp_path: Path):
     _write_index(tmp_path, 1)  # stale
     _write_episode(tmp_path, "e1", ["HAS_EPISODE", "MENTIONS_PERSON", "SPOKEN_BY"])
