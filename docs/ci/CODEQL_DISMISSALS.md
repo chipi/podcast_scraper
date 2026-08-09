@@ -382,3 +382,6 @@ matching row from "Still open."
 | 1 | #501 | server/jobs.py | 263 | 2026-08-09 | corpus_root is resolved anchor; feeds.spec constant filename |
 | 1 | #502 | server/jobs.py | 264 | 2026-08-09 | corpus_root resolved anchor; spec.resolve() constant filename |
 | 1 | #503 | workflow/run_index.py | 287 | 2026-08-09 | output_dir server default / `resolve_corpus_path_param`; constant glob |
+| 1 | #504 | server/routes/corpus_rollback.py | 86 | 2026-08-09 | run_id sanitized; root anchor-guarded (re-dismiss after pragma line-shift) |
+| 1 | #505 | server/routes/corpus_rollback.py | 137 | 2026-08-09 | dst under root/.trash; src realpath re-checked (re-dismiss after line-shift) |
+| 1 | #506 | server/routes/corpus_rollback.py | 165 | 2026-08-09 | manifest is root/constant; anchor-guarded (re-dismiss after line-shift) |
