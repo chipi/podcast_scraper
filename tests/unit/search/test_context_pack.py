@@ -96,6 +96,21 @@ def test_show_ids_fall_back_to_feed_id():
     assert pack.coverage_summary["episode_count"] == 1
 
 
+def test_compound_show_read_from_insight_tier_when_segment_lacks_it():
+    """#21/advisor-L2: a compound's SEGMENT payload may lack show_id while the INSIGHT carries it.
+    Coverage must read BOTH tiers or it under-counts shows (0 shows, N episodes)."""
+    seg = ScoredResult(
+        "s1", 0.8, 1, {"text": "q", "episode_id": "e1"}, "bm25", "segment"
+    )  # no show
+    ins = ScoredResult(
+        "i1", 0.9, 1, {"text": "claim", "episode_id": "e1", "show_id": "A"}, "vector", "insight"
+    )
+    comp = CompoundResult(doc_id="s1", score=0.9, rank=1, segment=seg, insight=ins)
+    pack = build_briefing_pack("q", "semantic", [comp])
+    assert pack.coverage_summary["show_ids"] == ["A"]  # recovered from the insight tier
+    assert pack.coverage_summary["episode_count"] == 1
+
+
 def test_token_budget_trims_segments():
     long = "word " * 200
     results = [_ins("i1", "claim")] + [_seg(f"s{i}", long) for i in range(5)]

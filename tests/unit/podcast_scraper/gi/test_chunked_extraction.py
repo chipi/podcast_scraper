@@ -63,6 +63,28 @@ def test_config_default_chunks_long_episodes() -> None:
     assert plan_chunks("x" * (MIN_CHARS_TO_CHUNK - 1), default) == 1  # short eps still never chunk
 
 
+def test_no_profile_pins_chunking_to_zero() -> None:
+    """#20: a good default is defeated if a profile pins gi_insight_chunk_chars: 0 — that was the
+    original prod state that single-passed long episodes and truncated the back half. A non-zero
+    chunk SIZE (e.g. 20000 on the bakeoff profiles) is fine; only 0 disables chunking. Guard every
+    profile so an edit can't silently reopen it."""
+    import re
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[4]
+    profiles = sorted((repo_root / "config" / "profiles").glob("*.yaml"))
+    assert profiles, "expected config/profiles/*.yaml"
+    offenders = [
+        p.name
+        for p in profiles
+        for line in p.read_text(encoding="utf-8").splitlines()
+        if (m := re.match(r"\s*gi_insight_chunk_chars:\s*(\d+)\s*$", line)) and int(m.group(1)) == 0
+    ]
+    assert (
+        not offenders
+    ), f"profiles must not disable chunking (gi_insight_chunk_chars: 0): {offenders}"
+
+
 def test_split_never_starts_mid_sentence() -> None:
     text = "\n".join(f"line {i}" for i in range(90))
     parts = split(text, 3)

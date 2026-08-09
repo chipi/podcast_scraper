@@ -2,7 +2,11 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { fetchArtifactJson } from '../api/artifactsApi'
 import type { TopicClustersDocument, TopicClustersFetchResult } from '../api/corpusTopicClustersApi'
-import { fetchThemeClustersFromApi, fetchTopicClustersFromApi } from '../api/corpusTopicClustersApi'
+import {
+  fetchThemeClustersFromApi,
+  fetchTopicClustersFromApi,
+  postTopicClustersRebuild,
+} from '../api/corpusTopicClustersApi'
 import type { BridgeDocument } from '../types/bridge'
 import type { ArtifactData, ParsedArtifact } from '../types/artifact'
 import { parseBridgeDocument } from '../utils/bridgeDocument'
@@ -59,6 +63,8 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const topicClustersErrorDetail = ref<string | null>(null)
   /** Soft schema warning (unknown ``schema_version``); non-blocking. */
   const topicClustersSchemaWarning = ref<string | null>(null)
+  /** True while a server-side topic_clusters rebuild is in flight (drives the dashboard button). */
+  const topicClustersRebuilding = ref(false)
   const loadError = ref<string | null>(null)
   const loading = ref(false)
   const loadGate = new StaleGeneration()
@@ -216,6 +222,33 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       themeClustersDoc.value = th.status === 'ok' ? th.document : null
     } catch {
       themeClustersDoc.value = null
+    }
+  }
+
+  /**
+   * Trigger a server-side topic_clusters rebuild (operator surface), then poll the reader until
+   * the clusters appear so the dashboard card flips to "Loaded" with no CLI/SSH step (task-#14).
+   */
+  async function rebuildTopicClusters(): Promise<void> {
+    const root = corpusPath.value.trim()
+    if (!root || topicClustersRebuilding.value) return
+    topicClustersRebuilding.value = true
+    try {
+      await postTopicClustersRebuild(root)
+      // Poll the reader (build runs in a background thread server-side); force a real re-fetch
+      // each tick by clearing the #769 memo. Give up after ~30s — the card just stays as-is.
+      for (let i = 0; i < 20; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+        topicClustersFetchedForRoot = null
+        topicClustersDoc.value = null
+        await syncTopicClustersForCurrentCorpus()
+        if (topicClustersLoadState.value === 'ok') break
+      }
+    } catch (e) {
+      topicClustersLoadState.value = 'error'
+      topicClustersErrorDetail.value = e instanceof Error ? e.message : String(e)
+    } finally {
+      topicClustersRebuilding.value = false
     }
   }
 
@@ -837,6 +870,8 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     topicClustersLoadState,
     topicClustersErrorDetail,
     topicClustersSchemaWarning,
+    topicClustersRebuilding,
+    rebuildTopicClusters,
     loadError,
     loading,
     siblingMergeLine,

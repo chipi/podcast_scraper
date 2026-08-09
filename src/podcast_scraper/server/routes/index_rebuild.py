@@ -34,6 +34,16 @@ def _parse_csv_types(raw: Optional[str]) -> Optional[List[str]]:
     return [x.strip() for x in str(raw).split(",") if x.strip()]
 
 
+def resolve_topic_cluster_threshold(request: Request, override: Optional[float] = None) -> float:
+    """Threshold for the folded topic_clusters build: explicit override > server config >
+    0.75 (the profile default; NOT the 0.35 viewer-validation small-fixture override)."""
+    if override is not None:
+        return float(override)
+    cfg = getattr(request.app.state, "config", None)
+    val = getattr(cfg, "topic_cluster_threshold", None) if cfg is not None else None
+    return float(val) if val is not None else 0.75
+
+
 def _spawn_rebuild_thread(
     corpus_key: str,
     output_dir: str,
@@ -42,9 +52,13 @@ def _spawn_rebuild_thread(
     vector_index_path: Optional[str],
     vector_embedding_model: Optional[str],
     vector_index_types: Optional[List[str]],
+    topic_cluster_threshold: float,
     gate: CorpusRebuildGate,
 ) -> None:
-    """Run ``index_corpus`` off the request thread; clear gate + mtime cache in ``finally``."""
+    """Run ``index_corpus`` off the request thread, then (re)build topic_clusters.json so a single
+    reindex yields a COMPLETE searchable corpus (index + clusters). Without this the clusters file
+    was CLI-only, forcing a docker exec on prod (#14 red smoke). Clears gate + mtime in ``finally``.
+    """
     err: Optional[str] = None
     try:
         cfg = _minimal_vector_config(
@@ -54,6 +68,10 @@ def _spawn_rebuild_thread(
             vector_index_types=vector_index_types,
         )
         index_corpus(output_dir, cfg, rebuild=rebuild)
+        # Build topic_clusters.json off the just-built LanceDB index (reads search/lance_index).
+        from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+
+        build_topic_clusters_for_corpus(output_dir, threshold=topic_cluster_threshold)
     except Exception as exc:
         logger.exception("Background index rebuild failed for %s", corpus_key)
         err = str(exc)
@@ -127,6 +145,7 @@ async def trigger_index_rebuild(
             "vector_index_path": vector_index_path,
             "vector_embedding_model": embedding_model,
             "vector_index_types": vit,
+            "topic_cluster_threshold": resolve_topic_cluster_threshold(request),
             "gate": gate,
         },
         daemon=True,

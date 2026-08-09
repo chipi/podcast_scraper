@@ -90,6 +90,19 @@ const statusClass = computed((): string => {
     >
       {{ artifacts.topicClustersErrorDetail }}
     </p>
+    <button
+      v-if="
+        artifacts.topicClustersLoadState === 'missing' ||
+          artifacts.topicClustersLoadState === 'error'
+      "
+      type="button"
+      class="mt-1.5 rounded border border-border bg-overlay px-2 py-0.5 text-[10px] font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+      data-testid="topic-clusters-rebuild"
+      :disabled="artifacts.topicClustersRebuilding"
+      @click="artifacts.rebuildTopicClusters()"
+    >
+      {{ artifacts.topicClustersRebuilding ? 'Rebuilding…' : 'Rebuild' }}
+    </button>
     <p
       v-if="artifacts.topicClustersLoadState === 'local_files'"
       class="mt-1 leading-snug text-muted"

@@ -10,9 +10,15 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-RESTORE = REPO_ROOT / "scripts" / "ops" / "restore_corpus_from_tarball_host.sh"
-RESOLVE = REPO_ROOT / "scripts" / "ops" / "resolve_latest_snapshot_prod_tag.sh"
-SELECT = REPO_ROOT / "scripts" / "ops" / "corpus_snapshot" / "select_release_tag.sh"
+OPS = REPO_ROOT / "scripts" / "ops"
+RESTORE = OPS / "restore_corpus_from_tarball_host.sh"
+RESOLVE = OPS / "resolve_latest_snapshot_prod_tag.sh"
+SELECT = OPS / "corpus_snapshot" / "select_release_tag.sh"
+CUTOVER = OPS / "cutover_corpus_inplace.sh"
+SWAP = OPS / "corpus_snapshot" / "swap_corpus_in_place.sh"
+PRUNE = OPS / "corpus_snapshot" / "prune_corpus_backups.sh"
+SMOKE = OPS / "post_deploy_smoke.sh"
+PACK = OPS / "corpus_snapshot" / "pack_corpus_local.sh"
 
 
 def _run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -138,11 +144,39 @@ def test_backup_workflows_finalize_before_upload(workflow: Path) -> None:
     assert "snapshot.manifest.json" in text
 
 
+def test_cutover_refuses_unmanifested_tarball_without_override(tmp_path: Path) -> None:
+    """DR-3/M3: the ONE sanctioned prod swap must HARD-fail on a tarball with no
+    snapshot.manifest.json (the flipped WARN→fail). Exits 1 at step 1, before any docker call."""
+    tarball = tmp_path / "snapshot.tgz"
+    stage = tmp_path / "stage" / "corpus"
+    stage.mkdir(parents=True)
+    (stage / "e1.gi.json").write_text('{"episode": {"episode_id": "e1"}}', encoding="utf-8")
+    with tarfile.open(tarball, "w:gz") as tar:
+        tar.add(stage, arcname="corpus")  # corpus payload, but NO snapshot.manifest.json
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    env = os.environ.copy()
+    env["PODCAST_REPO_DIR"] = str(repo)
+    env.pop("ALLOW_UNMANIFESTED", None)
+    proc = subprocess.run(
+        ["/usr/bin/env", "bash", str(CUTOVER), str(tarball)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode != 0
+    assert "refusing unverified cutover" in proc.stderr
+
+
 @pytest.mark.parametrize(
     "script",
-    [RESTORE, RESOLVE],
+    [RESTORE, RESOLVE, CUTOVER, SWAP, PRUNE, SMOKE, PACK],
 )
 def test_restore_ops_scripts_pass_bash_syntax_check(script: Path) -> None:
+    assert script.is_file(), f"missing {script}"
     proc = subprocess.run(
         ["/usr/bin/env", "bash", "-n", str(script)],
         cwd=str(REPO_ROOT),

@@ -155,3 +155,28 @@ export async function fetchTopicClustersDocument(
   }
   throw new Error(r.message)
 }
+
+export interface TopicClustersRebuildAccepted {
+  accepted: boolean
+  corpus_path: string
+}
+
+/**
+ * Trigger a server-side rebuild of ``search/topic_clusters.json`` (operator surface;
+ * requires viewer access). 202 = accepted; poll ``fetchTopicClustersFromApi`` for completion.
+ * Removes the CLI/SSH-only path that made the task-#14 cutover smoke go red.
+ */
+export async function postTopicClustersRebuild(
+  corpusPath: string,
+): Promise<TopicClustersRebuildAccepted> {
+  const url = `/api/corpus/topic-clusters/rebuild${corpusQuery(corpusPath)}`
+  const res = await fetchWithTimeout(
+    url,
+    { method: 'POST' },
+    { timeoutDetail: 'corpus/topic-clusters/rebuild' },
+  )
+  if (!res.ok) {
+    throw new Error(`topic-clusters rebuild failed: HTTP ${res.status}`)
+  }
+  return (await res.json()) as TopicClustersRebuildAccepted
+}

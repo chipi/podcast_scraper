@@ -5,12 +5,17 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from podcast_scraper.server.index_rebuild import CorpusRebuildGate, gate_for_corpus
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
+from podcast_scraper.server.routes.app_auth import require_viewer_access
+from podcast_scraper.server.routes.index_rebuild import resolve_topic_cluster_threshold
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
@@ -95,3 +100,72 @@ async def corpus_topic_clusters(
         _n,
     )
     return JSONResponse(content=payload)
+
+
+def _spawn_topic_clusters_thread(
+    corpus_key: str, output_dir: str, *, threshold: float, gate: CorpusRebuildGate
+) -> None:
+    """(Re)build topic_clusters.json off the request thread; clear the gate in ``finally``."""
+    err: Optional[str] = None
+    try:
+        from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+
+        build_topic_clusters_for_corpus(output_dir, threshold=threshold)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Background topic-clusters rebuild failed for %s", corpus_key)
+        err = str(exc)
+    finally:
+        gate.end(err)
+
+
+@router.post(
+    "/corpus/topic-clusters/rebuild",
+    status_code=202,
+    responses={
+        409: {"description": "A rebuild is already running for this corpus"},
+        503: {"description": "LanceDB unavailable"},
+    },
+)
+async def rebuild_topic_clusters(
+    request: Request,
+    path: str | None = Query(
+        default=None, description="Corpus output dir. Omit for server default."
+    ),
+    threshold: float | None = Query(
+        default=None, description="Cluster merge threshold; default = profile value (0.75)."
+    ),
+    _user=Depends(require_viewer_access),
+) -> JSONResponse:
+    """Regenerate ``search/topic_clusters.json`` without a full reindex (operator surface only).
+
+    Reuses the per-corpus rebuild gate, so it is mutually exclusive with an index rebuild (both
+    write ``search/``). Poll ``GET /api/corpus/topic-clusters`` for completion.
+    """
+    try:
+        import lancedb  # noqa: F401
+    except ImportError:
+        raise HTTPException(status_code=503, detail="LanceDB is not available.") from None
+
+    fallback = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, fallback)
+    if root is None:
+        raise HTTPException(status_code=400, detail="Corpus path is required (query or default).")
+
+    corpus_key = os.path.normpath(os.path.realpath(str(root.resolve())))
+    gate = gate_for_corpus(request.app, root)
+    if not gate.try_begin():
+        raise HTTPException(status_code=409, detail="A rebuild is already running for this corpus.")
+
+    thread = threading.Thread(
+        target=_spawn_topic_clusters_thread,
+        name=f"topic-clusters-rebuild-{corpus_key}",
+        kwargs={
+            "corpus_key": corpus_key,
+            "output_dir": corpus_key,
+            "threshold": resolve_topic_cluster_threshold(request, threshold),
+            "gate": gate,
+        },
+        daemon=True,
+    )
+    thread.start()
+    return JSONResponse(status_code=202, content={"accepted": True, "corpus_path": corpus_key})
