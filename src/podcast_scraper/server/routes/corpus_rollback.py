@@ -96,7 +96,7 @@ def _episode_files(root: Path, episode_id: str) -> Tuple[Optional[Path], List[Pa
     """
     from podcast_scraper.workflow import run_index
 
-    run_index.reset_corpus_metadata_index_cache_for_tests()
+    run_index.invalidate_corpus_metadata_index_cache()
     entry = run_index.corpus_metadata_index(str(root))["by_id"].get(episode_id)
     if entry is None:
         return None, []
@@ -173,7 +173,7 @@ def _reaggregate_manifest(root: Path) -> Optional[float]:
 def _remaining_episode_count(root: Path) -> int:
     from podcast_scraper.workflow import run_index
 
-    run_index.reset_corpus_metadata_index_cache_for_tests()
+    run_index.invalidate_corpus_metadata_index_cache()
     return len(run_index.corpus_metadata_index(str(root))["by_id"])
 
 

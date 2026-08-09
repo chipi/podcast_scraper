@@ -1331,6 +1331,7 @@ class TestFinalizePipeline(unittest.TestCase):
             threshold=cfg.topic_cluster_threshold,
         )
 
+    @patch("podcast_scraper.workflow.orchestration._finalize_enrich_edges")
     @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
     @patch("podcast_scraper.search.indexer.maybe_index_corpus")
     @patch("podcast_scraper.workflow.orchestration.wf_helpers.generate_pipeline_summary")
@@ -1343,8 +1344,9 @@ class TestFinalizePipeline(unittest.TestCase):
         mock_generate_summary,
         mock_maybe_index_corpus,
         mock_topic_clusters,
+        mock_finalize_enrich_edges,
     ):
-        """Vector-search disabled skips both indexing and topic-cluster build."""
+        """Vector-search disabled skips indexing, topic-cluster build, and enrich-edges."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             dry_run=False,
@@ -1369,6 +1371,7 @@ class TestFinalizePipeline(unittest.TestCase):
 
         mock_maybe_index_corpus.assert_not_called()
         mock_topic_clusters.assert_not_called()
+        mock_finalize_enrich_edges.assert_not_called()
 
 
 @pytest.mark.unit

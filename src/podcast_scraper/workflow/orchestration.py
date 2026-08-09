@@ -1702,19 +1702,20 @@ def _finalize_pipeline(
             stage="vector_indexing",
             episode_total=len(episodes),
         )
+        # Derive relational edges (HAS_EPISODE / MENTIONS / SPOKEN_BY) into each gi.json inline so a
+        # fresh add is COMPLETE with no manual enrich-edges CLI pass — the edges went stale on every
+        # add before this. Run it BEFORE the index build so the LanceDB index reflects the freshly
+        # derived edges in the same run (harden #4). Errors are surfaced (logged + a metric flag +
+        # the completeness gate catches missing edges), never fire-and-forget. Under the
+        # vector_search guard because the edge walker imports search.indexer (numpy) — the
+        # incremental-add profile cloud_balanced ships it; cloud_thin does not and skips indexing.
+        _finalize_enrich_edges(effective_output_dir, pipeline_metrics)
         maybe_index_corpus(effective_output_dir, cfg)
         _maybe_build_topic_clusters_after_index(
             effective_output_dir,
             pipeline_metrics,
             threshold=getattr(cfg, "topic_cluster_threshold", None),
         )
-        # Derive relational edges (HAS_EPISODE / MENTIONS / SPOKEN_BY) into each gi.json inline so a
-        # fresh add is COMPLETE with no manual enrich-edges CLI pass — the edges went stale on every
-        # add before this. Errors are surfaced (logged + a metric flag + the completeness gate
-        # catches missing edges), never fire-and-forget. Runs under the vector_search guard because
-        # the edge walker imports search.indexer (numpy) — cloud_balanced (the incremental-add
-        # profile) ships it; cloud_thin does not and skips indexing anyway.
-        _finalize_enrich_edges(effective_output_dir, pipeline_metrics)
     pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
     if metrics_path:
         try:

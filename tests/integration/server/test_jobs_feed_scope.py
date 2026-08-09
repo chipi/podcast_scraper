@@ -9,6 +9,7 @@ import pytest
 pytest.importorskip("fastapi")
 
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME
 from podcast_scraper.server.routes.jobs import _resolve_feed_url
@@ -42,3 +43,17 @@ def test_unknown_slug_is_404(tmp_path: Path) -> None:
     with pytest.raises(HTTPException) as ei:
         _resolve_feed_url(corpus, "rss_nope_0000")
     assert ei.value.status_code == 404
+
+
+def test_post_jobs_invalid_episode_order_returns_400(tmp_path: Path) -> None:
+    """HTTP-level validation: episode_order with an unrecognised value → 400."""
+    from podcast_scraper.server.app import create_app
+
+    corpus = _corpus_with_feed(tmp_path)
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app, raise_server_exceptions=False)
+    resp = client.post(
+        "/api/jobs",
+        params={"feed": _URL, "episode_order": "bad"},
+    )
+    assert resp.status_code == 400

@@ -73,7 +73,7 @@ diverge **after extract** on the VPS:
 | Path | When | After extract |
 | ---- | ---- | ------------- |
 | **`make restore-corpus-prod`** | On-host rehearsal, migration SSH, laptop prod-layout rehearsal | Downloads and verifies assets, extracts top-level **`corpus/`** under **`WORKSPACE_DIR`** (default **`/srv/podcast-scraper`**). Does **not** recreate containers — recycle **`api`** + **`viewer`** per [Prod runbook](PROD_RUNBOOK.md) corpus migration. |
-| **`prod-restore-corpus.yml`** / **`drill-restore-corpus.yml`** | Controlled GHA restore (typed confirm on manual runs) | Runner uploads tarball + **`restore_corpus_from_tarball_host.sh`**; host script backs up prior **`corpus/`**, extracts, asserts **`corpus/`**, **`compose up --force-recreate api viewer`**, in-container **`/api/health`** on **`api`** `:8000`. |
+| **`prod-restore-corpus.yml`** / **`drill-restore-corpus.yml`** | Controlled GHA restore (typed confirm on manual runs) | Runner uploads tarball + **`restore_corpus_from_tarball_host.sh`**; host script does an **in-place, inode-preserving swap** (`swap_corpus_in_place.sh` — empties `corpus/` and extracts INTO it, keeping the dir inode so the shared bind volume re-resolves; the prior `corpus/` is moved to `corpus.bak.<ts>`, pruned to `RESTORE_BACKUP_KEEP`), then **`compose up -d --force-recreate`** for **ALL** consumers (not just `api`+`viewer` — every stack cached the old corpus at boot; DR-2), then in-container **`/api/health`** on **`api`** `:8000`. |
 
 Codespace layout restore stays on **`make restore-corpus`** (``.codespace_corpus/`` in tarball).
 
@@ -132,6 +132,36 @@ make import-corpus \
   stay authoritative for scheduled snapshots to `chipi/podcast_scraper-backup`.
 
 Detailed operator recipes live in the [Corpus airgap runbook](CORPUS_AIRGAP_RUNBOOK.md).
+
+## Pre-deploy completeness gate (#1494 / #1497)
+
+Run `make corpus-completeness-check` before exporting a snapshot or cutting over a corpus. It
+exits **0 (VERDICT: PASS)** when all required artifacts are present and non-empty; non-zero on
+any gap.
+
+```bash
+# Local / on the VPS — must exit 0 before cutover
+make corpus-completeness-check CORPUS_DIR=<path-to-corpus-root>
+```
+
+**When to run:**
+
+1. **Before `make export-corpus` / `backup-corpus-prod.yml`** — ensures the snapshot is
+   complete, not a partial-run artifact.
+2. **After `make import-corpus` / `prod-restore-corpus.yml` restores a corpus** — validates
+   the restored tree before restarting the stack.
+3. **As part of the `cutover_corpus_inplace.sh` sequence** — the script already includes this
+   step; verify it exits 0 before proceeding to `compose up --force-recreate`.
+
+**Post-restore topic-clusters check:** the completeness gate validates that
+`search/topic_clusters.json` is present and non-empty. If it is missing after a restore (the
+`#14` smoke failure pattern), rebuild it before restarting the consumer stack:
+
+```bash
+docker compose exec -T api python -m podcast_scraper.cli topic-clusters \
+    --output-dir /app/output --threshold 0.75
+# Or: cutover_corpus_inplace.sh already runs this step automatically.
+```
 
 ## When newest-compatible default is wrong
 

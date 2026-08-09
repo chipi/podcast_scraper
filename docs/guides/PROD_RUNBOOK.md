@@ -344,6 +344,7 @@ Repo Settings → Secrets → Actions → New repository secret. Stage these
 | `PROD_SENTRY_DSN_PIPELINE` | Error DSN (pipeline project) | homelab **GlitchTip** (`http://homelab:8090`) → project → Client Keys (DSN) |
 | `PROD_SENTRY_DSN_VIEWER` | Error DSN (viewer SPA — baked into Vite bundle) | homelab **GlitchTip** → project → Client Keys (DSN) |
 | `PROD_JOB_WEBHOOK_URL` | Outbound pipeline-completion webhook (optional) | your config |
+| `PROD_APP_OPERATOR_API_KEY` | Operator HTTP write-API key (`X-Operator-Key` header for corpus rollback, job enqueue, feeds `PUT`) | generate a random token, e.g. `openssl rand -hex 32`; empty = no key (tailnet reads open, writes require admin session) |
 
 > **Grafana Cloud retired (2026-07-27).** The `PROD_GRAFANA_CLOUD_*` secrets are **removed** —
 > observability is fully self-hosted on homelab (VictoriaMetrics `:8428` + VictoriaLogs `:9428`
@@ -694,7 +695,15 @@ make restore-corpus-prod          # newest-compatible snapshot-prod-* → corpus
 See [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
 
 ```bash
-# Verify
+# 1. Pre-cutover completeness gate — must exit 0 (VERDICT: PASS) before restarting the stack
+#    (#1494 / #1497; validates gi.json coverage, topic_clusters.json, and manifest integrity)
+make corpus-completeness-check CORPUS_DIR=/srv/podcast-scraper/corpus
+
+# 2. If topic_clusters.json is missing or empty, rebuild it before the restart:
+docker compose exec -T api python -m podcast_scraper.cli topic-clusters \
+    --output-dir /app/output --threshold 0.75
+
+# 3. Verify
 ls -la corpus/feeds/ | head
 find corpus -name '*.gi.json' | wc -l
 docker compose -f compose/docker-compose.stack.yml \

@@ -241,9 +241,19 @@ class CorpusMetadataEntry:
 _CORPUS_METADATA_INDEX_CACHE: Dict[str, Dict[str, Dict[str, CorpusMetadataEntry]]] = {}
 
 
-def reset_corpus_metadata_index_cache_for_tests() -> None:
-    """Clear the corpus-metadata index cache (test isolation)."""
+def invalidate_corpus_metadata_index_cache() -> None:
+    """Drop the cached corpus-metadata index so the next read re-scans from disk.
+
+    Production callers use this after MUTATING a corpus on disk (e.g. the rollback DELETE) to force
+    a fresh post-delete view. It clears the whole cache — fine because it is realpath-keyed and a
+    rebuild is cheap; targeted per-corpus invalidation is a future refinement (harden #3).
+    """
     _CORPUS_METADATA_INDEX_CACHE.clear()
+
+
+def reset_corpus_metadata_index_cache_for_tests() -> None:
+    """Test-isolation alias for :func:`invalidate_corpus_metadata_index_cache`."""
+    invalidate_corpus_metadata_index_cache()
 
 
 def _leading_idx(name: str) -> Optional[int]:
