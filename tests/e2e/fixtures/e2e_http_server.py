@@ -1540,11 +1540,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "model": "pyannote/speaker-diarization-community-1",
             }
         else:  # /v1/models
+            # Shared by the DGX faster-whisper/pyannote probe AND the LiteLLM gateway
+            # served-alias verify (``_verify_served_model``). ``podcast-flash-0731`` is the chat
+            # alias the fast ``cloud_balanced`` profile pins for summary/speaker/insight (#1527,
+            # ``litellm_verify_served_model: true``); advertise it so the reachable mock passes
+            # verification instead of raising LiteLLMServedModelMismatch.
             body = {
                 "object": "list",
                 "data": [
                     {"id": "large-v3", "object": "model", "owned_by": "openai"},
                     {"id": "pyannote/speaker-diarization-community-1", "object": "model"},
+                    {"id": "podcast-flash-0731", "object": "model", "owned_by": "litellm"},
                 ],
             }
         response_json = json.dumps(body)

@@ -111,9 +111,11 @@ def test_operator_public_subset_excludes_the_mutating_operator_routes() -> None:
         app_mod.ops,
         app_mod.resilience_routes,
         app_mod.llm_gateway,
+        app_mod.corpus_rollback,
     }, (
-        "operator-public must exclude the mutating/control routes (index_rebuild, ops, "
-        "resilience) and the tailnet-only spend route (llm_gateway)"
+        "operator-public must exclude the mutating/control routes (index_rebuild — now also "
+        "hosts POST topic-clusters/rebuild — ops, resilience), the destructive rollback plane "
+        "(corpus_rollback: DELETE runs/episodes), and the tailnet-only spend route (llm_gateway)"
     )
 
 

@@ -818,6 +818,13 @@ def modify_config_for_fixtures(
         os.environ["ANTHROPIC_API_BASE"] = e2e_server.urls.anthropic_api_base()
         os.environ["DEEPGRAM_API_BASE"] = e2e_server.urls.deepgram_api_base()
 
+        # LiteLLM is config-driven, not env-driven: OpenAICompatibleProvider reads
+        # ``cfg.litellm_api_base`` (not a LITELLM_API_BASE env var), so an env override would be
+        # ignored. cloud_balanced routes summary + speaker through the LiteLLM gateway (#1527,
+        # ``litellm_api_base: http://homelab:4001/v1``) — rewrite the CONFIG field to the E2E mock
+        # (OpenAI-compatible) so the fixture run never dials the real homelab gateway.
+        config_dict["litellm_api_base"] = e2e_server.urls.litellm_api_base()
+
         # Set dummy API keys (required for config validation, but won't be used with mocks)
         if "OPENAI_API_KEY" not in os.environ:
             os.environ["OPENAI_API_KEY"] = "sk-test-dummy-key-for-bulk-tests"
