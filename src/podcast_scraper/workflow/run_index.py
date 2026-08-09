@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import yaml
+
 logger = logging.getLogger(__name__)
 
 
@@ -223,6 +225,117 @@ def _find_metadata_file(
     return None
 
 
+@dataclass(frozen=True)
+class CorpusMetadataEntry:
+    """One on-disk episode located by its STABLE identity (guid / episode_id), not feed order."""
+
+    metadata_rel: str  # path relative to the corpus output_dir
+    idx: int  # the NNNN prefix its transcript/metadata are stored under
+    guid: Optional[str]
+    episode_id: Optional[str]
+
+
+# realpath(output_dir) -> {"by_guid": {...}, "by_id": {...}}. Skip-existing/append run this per
+# episode; the corpus is stable within a run, so cache the scan. Keyed by realpath, and cleared by
+# reset_corpus_metadata_index_cache_for_tests() so a reused tmp path can't leak across tests (#22).
+_CORPUS_METADATA_INDEX_CACHE: Dict[str, Dict[str, Dict[str, CorpusMetadataEntry]]] = {}
+
+
+def reset_corpus_metadata_index_cache_for_tests() -> None:
+    """Clear the corpus-metadata index cache (test isolation)."""
+    _CORPUS_METADATA_INDEX_CACHE.clear()
+
+
+def _leading_idx(name: str) -> Optional[int]:
+    digits = ""
+    for ch in name:
+        if ch.isdigit():
+            digits += ch
+        else:
+            break
+    return int(digits) if digits else None
+
+
+def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMetadataEntry]]:
+    """Scan the corpus once, mapping guid AND episode_id -> :class:`CorpusMetadataEntry`.
+
+    This is the drift-immune replacement for idx-derived filename lookups: the feed's enumerate
+    position shifts whenever a feed grows, so "already processed?" and the append metadata lookup
+    must resolve by the stable guid/episode_id instead (generalizes ``_on_disk_guid_index``).
+    """
+    root = Path(output_dir)
+    by_guid: Dict[str, CorpusMetadataEntry] = {}
+    by_id: Dict[str, CorpusMetadataEntry] = {}
+    for pattern in ("metadata/*.metadata.*", "run_*/metadata/*.metadata.*"):
+        for meta_path in sorted(root.glob(pattern)):
+            if meta_path.name.startswith("._") or not meta_path.is_file():
+                continue  # macOS AppleDouble
+            try:
+                text = meta_path.read_text(encoding="utf-8")
+                data = (
+                    yaml.safe_load(text)
+                    if meta_path.suffix in (".yaml", ".yml")
+                    else json.loads(text)
+                )
+            except (OSError, json.JSONDecodeError, yaml.YAMLError):
+                continue
+            episode = data.get("episode", {}) if isinstance(data, dict) else {}
+            if not isinstance(episode, dict):
+                continue
+            idx = _leading_idx(meta_path.name)
+            if idx is None:
+                continue
+            entry = CorpusMetadataEntry(
+                metadata_rel=os.path.relpath(str(meta_path), output_dir),
+                idx=idx,
+                guid=(episode.get("guid") or None),
+                episode_id=(episode.get("episode_id") or None),
+            )
+            guid = episode.get("guid")
+            if isinstance(guid, str) and guid.strip() and guid.strip() not in by_guid:
+                by_guid[guid.strip()] = entry
+            eid = episode.get("episode_id")
+            if isinstance(eid, str) and eid.strip() and eid.strip() not in by_id:
+                by_id[eid.strip()] = entry
+    return {"by_guid": by_guid, "by_id": by_id}
+
+
+def corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMetadataEntry]]:
+    """Cached :func:`_scan_corpus_metadata_index` (per realpath output_dir)."""
+    key = os.path.realpath(output_dir)
+    if key not in _CORPUS_METADATA_INDEX_CACHE:
+        _CORPUS_METADATA_INDEX_CACHE[key] = _scan_corpus_metadata_index(output_dir)
+    return _CORPUS_METADATA_INDEX_CACHE[key]
+
+
+def _episode_guid(episode: Any) -> Optional[str]:
+    item = getattr(episode, "item", None)
+    if item is None:
+        return None
+    try:
+        elem = item.find("guid")
+    except Exception:
+        return None
+    if elem is not None and getattr(elem, "text", None):
+        return str(elem.text).strip() or None
+    return None
+
+
+def resolve_ondisk_idx_for_episode(episode: Any, output_dir: str) -> int:
+    """The idx an episode's transcript/metadata are stored under on disk.
+
+    Resolves by STABLE guid so skip-existing survives feed growth (the run-local ``episode.idx``
+    shifts when a feed publishes between runs → silent reprocess + duplicates). Falls back to the
+    run-local idx when the guid is unknown (a genuinely new episode).
+    """
+    guid = _episode_guid(episode)
+    if guid:
+        entry = corpus_metadata_index(output_dir)["by_guid"].get(guid)
+        if entry is not None:
+            return entry.idx
+    return int(episode.idx)
+
+
 def find_episode_metadata_relative_path(
     episode: Any,
     effective_output_dir: str,
@@ -230,7 +343,8 @@ def find_episode_metadata_relative_path(
 ) -> Optional[str]:
     """Locate an episode metadata file under *effective_output_dir* if present.
 
-    Uses the same naming rules as :func:`create_run_index` (run suffix and title truncation).
+    Resolves by the STABLE guid first (drift-immune — the feed's enumerate position shifts when a
+    feed grows), then falls back to the idx-derived filename lookup for episodes with no guid.
 
     Args:
         episode: Episode model instance
@@ -241,6 +355,14 @@ def find_episode_metadata_relative_path(
         Path relative to *effective_output_dir*, or ``None`` if not found.
     """
     from ..utils import filesystem
+
+    guid = _episode_guid(episode)
+    if guid:
+        entry = corpus_metadata_index(effective_output_dir)["by_guid"].get(guid)
+        if entry is not None and os.path.isfile(
+            os.path.join(effective_output_dir, entry.metadata_rel)
+        ):
+            return entry.metadata_rel
 
     metadata_dir = os.path.join(effective_output_dir, filesystem.METADATA_SUBDIR)
     title_for_paths = filesystem.truncate_whisper_title(
