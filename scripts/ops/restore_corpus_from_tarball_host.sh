@@ -41,7 +41,7 @@ if [ "${RESTORE_EXTRACT_ONLY:-}" = "1" ]; then
   echo "Restore swap OK under $REPO_DIR/corpus (RESTORE_EXTRACT_ONLY — skipping docker recreate)"
   exit 0
 fi
-chown -R deploy:deploy corpus
+chown -R deploy:deploy corpus 2>/dev/null || true  # best-effort (matches cutover); deploy owns on prod
 rm -f "$TARBALL"
 
 COMPOSE=(

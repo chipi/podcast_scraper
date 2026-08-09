@@ -171,6 +171,111 @@ def test_cutover_refuses_unmanifested_tarball_without_override(tmp_path: Path) -
     assert "refusing unverified cutover" in proc.stderr
 
 
+def _docker_stub_bin(tmp_path: Path) -> Path:
+    """A fake ``docker`` on PATH that appends its argv to docker.log and exits 0 (no daemon)."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    stub = bin_dir / "docker"
+    stub.write_text(
+        '#!/usr/bin/env bash\necho "docker $*" >> "$DOCKER_STUB_LOG"\nexit 0\n', encoding="utf-8"
+    )
+    stub.chmod(0o755)
+    return bin_dir
+
+
+def test_cutover_composition_ordering(tmp_path: Path) -> None:
+    """DR-3: cutover composes validate→swap→recreate-ALL→topic-clusters→prune in order. Docker is
+    stubbed (records argv) and the smoke is skipped, so this asserts the orchestration behaviorally
+    without a live stack — the piece each sub-script does is unit-tested separately."""
+    repo = tmp_path / "repo"
+    (repo / "corpus").mkdir(parents=True)
+    (repo / "corpus" / "old.gi.json").write_text('{"episode": {"episode_id": "old"}}', "utf-8")
+    for stamp in ("20260101T000000Z", "20260102T000000Z", "20260103T000000Z"):
+        (repo / f"corpus.bak.{stamp}").mkdir()  # pre-existing backups → prune should trim to KEEP
+
+    # Manifested-layout tarball (corpus/ with a gi.json so the swap accepts it).
+    stage = tmp_path / "stage" / "corpus" / "feeds" / "f" / "run_1" / "metadata"
+    stage.mkdir(parents=True)
+    (stage / "e1.gi.json").write_text('{"episode": {"episode_id": "e1"}}', "utf-8")
+    tarball = tmp_path / "snapshot.tgz"
+    with tarfile.open(tarball, "w:gz") as tf:
+        tf.add(tmp_path / "stage" / "corpus", arcname="corpus")
+
+    log = tmp_path / "docker.log"
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_docker_stub_bin(tmp_path)}:{env['PATH']}",
+            "DOCKER_STUB_LOG": str(log),
+            "PODCAST_REPO_DIR": str(repo),
+            "CUTOVER_SKIP_SMOKE": "1",  # smoke curls a live endpoint — out of scope here
+            "ALLOW_UNMANIFESTED": "1",  # manifest validation is covered by its own test
+            "PLAYER_COMPOSE": "",  # skip the separate player project
+            "RESTORE_BACKUP_KEEP": "1",
+        }
+    )
+    proc = subprocess.run(
+        ["/usr/bin/env", "bash", str(CUTOVER), str(tarball)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "cutover complete" in proc.stdout + proc.stderr
+    # Swap ran in place (new corpus installed, old gone, inode-preserving handled by swap test).
+    assert list((repo / "corpus").rglob("e1.gi.json"))
+    assert not list((repo / "corpus").rglob("old.gi.json"))
+    docker_calls = log.read_text(encoding="utf-8")
+    # Recreate ALL control-plane consumers (no filter) + topic-clusters in the api container.
+    assert "up -d --force-recreate" in docker_calls
+    assert "exec -T api" in docker_calls and "topic-clusters" in docker_calls
+    # DR-6 prune trimmed the backups to KEEP=1 (+ the fresh one the swap just made).
+    assert len(list(repo.glob("corpus.bak.*"))) <= 2
+
+
+def test_restore_recreates_all_consumers_behaviorally(tmp_path: Path) -> None:
+    """DR-2: the full restore (not extract-only) recreates ALL consumers + health-probes via docker.
+    Docker is stubbed (records argv; the in-container curl is itself a `docker exec` → stubbed), so
+    this asserts the real recreate call behaviorally, not just a text grep of the script."""
+    repo = tmp_path / "repo"
+    (repo / "corpus").mkdir(parents=True)
+    (repo / "corpus" / "old.txt").write_text("stale", encoding="utf-8")
+
+    stage = tmp_path / "stage" / "corpus"
+    stage.mkdir(parents=True)
+    (stage / "e1.gi.json").write_text('{"episode": {"episode_id": "e1"}}', encoding="utf-8")
+    tarball = tmp_path / "snapshot.tgz"
+    with tarfile.open(tarball, "w:gz") as tf:
+        tf.add(stage, arcname="corpus")
+
+    log = tmp_path / "docker.log"
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_docker_stub_bin(tmp_path)}:{env['PATH']}",
+            "DOCKER_STUB_LOG": str(log),
+            "PODCAST_REPO_DIR": str(repo),
+        }
+    )
+    proc = subprocess.run(
+        ["/usr/bin/env", "bash", str(RESTORE), str(tarball)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert list((repo / "corpus").rglob("e1.gi.json"))  # swapped in
+    assert not (repo / "corpus" / "old.txt").exists()  # old swapped out
+    docker_calls = log.read_text(encoding="utf-8")
+    assert "up -d --force-recreate" in docker_calls  # ALL consumers, no service filter (DR-2)
+    # in-container health probe via docker exec
+    assert "exec -T api" in docker_calls and "api/health" in docker_calls
+
+
 @pytest.mark.parametrize(
     "script",
     [RESTORE, RESOLVE, CUTOVER, SWAP, PRUNE, SMOKE, PACK],

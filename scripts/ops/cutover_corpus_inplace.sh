@@ -79,10 +79,13 @@ if [ -n "$PLAYER_COMPOSE" ] && [ -f "$PLAYER_COMPOSE" ]; then
 fi
 
 # 6. Identity smoke — RED if the served corpus is not the one we intended (DR-1).
-log "running identity smoke"
-_smoke_args=(--base-url http://127.0.0.1:8090 --corpus-path /app/output)
-[ -n "${EXPECT_CORPUS_PRODUCED_AT:-}" ] && _smoke_args+=(--expect-corpus-produced-at "$EXPECT_CORPUS_PRODUCED_AT")
-bash "$SCRIPT_DIR/post_deploy_smoke.sh" "${_smoke_args[@]}"
+# CUTOVER_SKIP_SMOKE=1 skips the live-endpoint probe (test seam for composition tests; never in prod).
+if [ "${CUTOVER_SKIP_SMOKE:-}" != "1" ]; then
+  log "running identity smoke"
+  _smoke_args=(--base-url http://127.0.0.1:8090 --corpus-path /app/output)
+  [ -n "${EXPECT_CORPUS_PRODUCED_AT:-}" ] && _smoke_args+=(--expect-corpus-produced-at "$EXPECT_CORPUS_PRODUCED_AT")
+  bash "$SCRIPT_DIR/post_deploy_smoke.sh" "${_smoke_args[@]}"
+fi
 
 # DR-6: retention for the corpus.bak.* left by the swap.
 bash "$SCRIPT_DIR/corpus_snapshot/prune_corpus_backups.sh" "$REPO_DIR" "${RESTORE_BACKUP_KEEP:-2}"
