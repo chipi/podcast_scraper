@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import threading
 from datetime import datetime, timezone
@@ -50,6 +51,31 @@ def _corpus_root(request: Request, path: Optional[str]) -> Path:
         return resolve_corpus_path_param(path or "", anchor)
     except CorpusPathRequestError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+#: Run ids are timestamp / uuid / ``append_<hash>`` tokens — never path separators. Validating
+#: this is load-bearing: ``run_id`` reaches ``root / f"run_{run_id}"``, so a ``../..`` value would
+#: escape the corpus in a DELETE. The operator guard limits WHO; this stops WHAT (defense-in-depth).
+_SAFE_RUN_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _require_safe_run_id(run_id: str) -> str:
+    v = (run_id or "").strip()
+    if not v or ".." in v or "/" in v or "\\" in v or not _SAFE_RUN_ID.match(v):
+        raise HTTPException(status_code=400, detail="Invalid run_id.")
+    return v
+
+
+def _assert_under_root(root: Path, targets: List[Path]) -> None:
+    """Refuse to touch anything outside the corpus root (belt-and-suspenders vs traversal)."""
+    root_res = root.resolve()
+    prefix = str(root_res) + os.sep
+    for src in targets:
+        src_res = src.resolve()
+        if src_res != root_res and not str(src_res).startswith(prefix):
+            raise HTTPException(
+                status_code=400, detail="Refusing to touch a path outside the corpus."
+            )
 
 
 def _run_dirs_for_id(root: Path, run_id: str) -> List[Path]:
@@ -176,6 +202,9 @@ def _rollback(
             detail=f"confirm must equal the {scope}_id being deleted ({target_id!r}).",
         )
 
+    # Defense-in-depth: never move anything resolving outside the corpus root.
+    _assert_under_root(root, targets)
+
     # 409 BEFORE moving anything — never leave a half-deleted corpus with no rebuild running.
     gate = gate_for_corpus(request.app, root)
     if not gate.try_begin():
@@ -227,6 +256,7 @@ async def delete_corpus_run(
 ) -> JSONResponse:
     """Roll back a whole run: move its episodes to ``.trash/`` then full reindex."""
     root = _corpus_root(request, path)
+    run_id = _require_safe_run_id(run_id)
     targets = _run_dirs_for_id(root, run_id)
     if not targets:
         raise HTTPException(status_code=404, detail=f"No run dir found for run_id {run_id!r}.")

@@ -187,6 +187,17 @@ def test_delete_run_reaggregates_manifest_cost_downward(tmp_path: Path, monkeypa
     assert manifest["cost_rollup"]["total_cost_usd"] == 3.0
 
 
+@pytest.mark.parametrize("bad", ["../../etc", "..%2f..", "a/b", "..", "with space", ""])
+def test_delete_run_rejects_unsafe_run_id(client_and_corpus, bad):
+    """Path-traversal / malformed run_id → 400, nothing moved (defense-in-depth on a DELETE)."""
+    client, corpus, _spawned, _app = client_and_corpus
+    r = client.request(
+        "DELETE", f"/api/corpus/runs/{bad}", params={"path": str(corpus), "confirm": bad}
+    )
+    assert r.status_code in (400, 404)  # rejected or simply not found — never a traversal delete
+    assert (corpus / "feeds" / "rss_show" / "run_R1").is_dir()  # untouched
+
+
 def test_consumer_episodes_get_stays_open_under_write_gate(tmp_path: Path):
     """The write-only gate must NOT lock the consumer Library GET /api/corpus/episodes."""
     corpus = tmp_path / "corpus"
