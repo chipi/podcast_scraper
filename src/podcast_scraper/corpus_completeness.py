@@ -78,6 +78,7 @@ class IndexStaleness:
         return self.present and not self.stale
 
     def reason(self) -> str:
+        """Human-readable explanation of the index staleness verdict."""
         if not self.present:
             return "no LanceDB index (search/lance_index) — every semantic search returns no_index"
         if self.stale:
@@ -90,12 +91,16 @@ class IndexStaleness:
 
 @dataclass
 class MissingStage:
+    """A completeness stage that is absent, plus the surfaces it takes down (``kills``)."""
+
     stage: str
     kills: Tuple[str, ...]
 
 
 @dataclass
 class CompletenessReport:
+    """Aggregate corpus-completeness verdict: index staleness + missing hard/soft stages."""
+
     index: IndexStaleness
     missing_hard: List[MissingStage] = field(default_factory=list)
     missing_soft: List[MissingStage] = field(default_factory=list)
@@ -168,6 +173,7 @@ def _has_topic_clusters(corpus_root: Path) -> bool:
 
 
 def assess_index_staleness(corpus_root: Path) -> IndexStaleness:
+    """Compare the on-disk LanceDB index schema version against the code's expected version."""
     index_dir = lance_index_dir(corpus_root)
     served = stored_schema_version(index_dir)
     stale = served is not None and served < LANCE_SCHEMA_VERSION
