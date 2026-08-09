@@ -32,6 +32,8 @@ curl -s "$B/api/corpus/episodes?$Q&limit=500" | jq '.items|length'
 curl -s "$B/api/index/stats?$Q" | jq '{reindex:.reindex_recommended, reasons:.reindex_reasons, last_updated:.stats.last_updated, artifact_newest:.artifact_newest_mtime, counts:.stats.doc_type_counts}'
 #   reindex_recommended:false + counts sane => index is fine. It compares index
 #   last_updated vs newest gi.json/kg/transcript mtime (index_staleness.py).
+#   REINDEX (remote, no SSH) — builds the two-tier index; poll stats for rebuild_in_progress:
+#     curl -X POST "$B/api/index/rebuild?$Q&rebuild=true"   # 202; 409 if already running
 
 # 4. Topic clusters present (smoke fails without this) + search works
 curl -s "$B/api/corpus/topic-clusters?$Q" | jq '.clusters|length'
@@ -93,6 +95,13 @@ Grafana UI: `http://homelab:3000` (folders *Podcast Operator*, *Podcast Player*)
 
 ## When you actually need prod SSH
 
-Only for **mutations on the box**: reindex (`docker exec compose-api-1 python -m
-podcast_scraper.cli index-two-tier --output-dir /app/output`), invoking gated player MCP
-tools, or manual container ops. All *validation* above is doable without it.
+Most mutations are already remote APIs — **reindex** is `POST /api/index/rebuild` (above),
+no SSH. The genuine box-only exceptions today:
+
+- **Generating `topic_clusters.json`** — CLI-only, NO API/button (gap; the fix is to have
+  `/api/index/rebuild` regenerate it). Until then: `docker exec compose-api-1 python -m
+  podcast_scraper.cli topic-clusters --output-dir /app/output --threshold 0.75`.
+- **Invoking the gated player MCP tools** (needs the MCP OAuth token instead, ideally).
+- Raw container ops / inspecting the on-disk corpus dir.
+
+All *validation* above is doable without SSH.
