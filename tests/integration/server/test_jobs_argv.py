@@ -27,6 +27,25 @@ def test_argv_includes_feeds_spec_when_present(tmp_path: Path) -> None:
     assert argv[idx + 1] == str(spec_path.resolve())
 
 
+def test_argv_passes_run_id_when_given(tmp_path: Path) -> None:
+    """P1.6: run_id → --run-id so the pipeline run id == the Jobs API job_id (one join key)."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: local\n", encoding="utf-8")
+    argv = build_pipeline_argv(corpus, op, run_id="job-abc-123")
+    i = argv.index("--run-id")
+    assert argv[i + 1] == "job-abc-123"
+
+
+def test_argv_omits_run_id_when_absent(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: local\n", encoding="utf-8")
+    assert "--run-id" not in build_pipeline_argv(corpus, op)
+
+
 def test_argv_multi_feed_still_passes_feeds_spec(tmp_path: Path) -> None:
     corpus = tmp_path / "corpus"
     corpus.mkdir()

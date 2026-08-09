@@ -188,8 +188,15 @@ def pid_alive(pid: int | None) -> bool:
     return True
 
 
-def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
+def build_pipeline_argv(
+    corpus_root: Path, operator_yaml: Path, *, run_id: str | None = None
+) -> list[str]:
     """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
+
+    When *run_id* is given it is passed as ``--run-id`` so the pipeline's self-generated run id ==
+    the Jobs API job_id — a single join key across the Jobs API and observability (podcast_obs
+    correlate --run-id), instead of scraping ``[run=…]`` from the log tail (P1.6). The docker exec
+    path preserves the CLI-flag tail, so the flag flows through both local and docker modes.
 
     Profile resolution order:
 
@@ -208,6 +215,8 @@ def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
 
     exe = sys.executable
     argv: list[str] = [exe, "-m", "podcast_scraper.cli", "--output-dir", str(corpus_root)]
+    if run_id:
+        argv.extend(["--run-id", str(run_id)])
     try:
         op_text = operator_yaml.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -396,7 +405,7 @@ def enqueue_pipeline_job(corpus_root: Path, operator_yaml: Path) -> dict[str, An
     def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
         job_id = str(uuid.uuid4())
         log_relpath = f".viewer/jobs/{job_id}.log"
-        argv = build_pipeline_argv(corpus_root, operator_yaml)
+        argv = build_pipeline_argv(corpus_root, operator_yaml, run_id=job_id)
         cap = max_concurrent_jobs()
         if _running_count(jobs) < cap:
             rec = _new_job_record(
@@ -705,7 +714,7 @@ async def start_job_if_running_record(
     # Source of truth = the row's stored (command-typed) argv; rebuild only for
     # a legacy row that predates argv persistence. This is what lets an
     # enrichment (or any non-pipeline) job spawn its own CLI, not the pipeline.
-    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml)
+    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml, run_id=job_id)
     log_abs = corpus_root / str(job.get("log_relpath", f".viewer/jobs/{job_id}.log"))
     try:
         proc = await spawn_pipeline_subprocess(app, corpus_root, job_id, argv, log_abs)
