@@ -59,24 +59,48 @@ jobs:
           R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
           echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
 
-      - name: Overwrite app_operator_api_key tmpfs secret + force-recreate api
+      - name: Re-stage tmpfs secrets + force-recreate api
+        # The host tmpfs dir (/dev/shm/podcast-secrets, RAM) is not guaranteed to persist between
+        # deploys — Docker copied the secrets into the api at create-time, so the container keeps
+        # running off its copy even after the host dir is cleaned. To recreate the api and have it
+        # re-read the rotated key, the WHOLE dir must be re-staged first (identical to deploy-prod's
+        # staging), then force-recreate ONLY the api from the pinned image. All 9 files are staged so
+        # the other provider/DSN secrets are never dropped.
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_OPENAI_API_KEY:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          PROD_ANTHROPIC_API_KEY:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          PROD_GEMINI_API_KEY:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          PROD_MISTRAL_API_KEY:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          PROD_DEEPSEEK_API_KEY:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          PROD_GROK_API_KEY:         ${{ secrets.PROD_GROK_API_KEY }}
+          PROD_SENTRY_DSN_API:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          PROD_SENTRY_DSN_PIPELINE:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
           PROD_APP_OPERATOR_API_KEY: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
         run: |
           set -euo pipefail
-          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          SSHF=(-i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
           if [ -z "${PROD_APP_OPERATOR_API_KEY:-}" ]; then
             echo "::error::PROD_APP_OPERATOR_API_KEY secret is empty — refusing to stage an empty key."
             exit 1
           fi
-          # 1) Overwrite ONLY app_operator_api_key IN PLACE (same inode; leaves the other 8
-          #    provider/DSN secrets in /dev/shm/podcast-secrets intact). Value via stdin so it
-          #    never appears in argv/process list. GH masks it in logs regardless.
-          printf '%s' "$PROD_APP_OPERATOR_API_KEY" | "${SSH[@]}" "$SSH_TARGET" \
-            'set -euo pipefail; test -d /dev/shm/podcast-secrets || { echo "secrets dir missing — run deploy-prod first" >&2; exit 5; }; umask 377; cat > /dev/shm/podcast-secrets/app_operator_api_key; chmod 400 /dev/shm/podcast-secrets/app_operator_api_key'
-          # 2) Force-recreate ONLY the api container from the pinned image (.env PODCAST_IMAGE_TAG);
-          #    the entrypoint secrets-shim re-reads /run/secrets/app_operator_api_key -> env.
-          "${SSH[@]}" "$SSH_TARGET" \
-            'set -euo pipefail; cd /srv/podcast-scraper; docker compose --env-file .env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml -f compose/docker-compose.secrets.yml up -d --force-recreate --no-deps api'
-          echo "::notice::api force-recreated; APP_OPERATOR_API_KEY re-read from tmpfs secret."
+          # Stage all 9 secret files in /dev/shm on the runner, scp, then atomic-swap into place.
+          STAGE=$(mktemp -d -p /dev/shm secstage.XXXXXX)
+          trap 'rm -rf "$STAGE"' EXIT
+          printf '%s' "$PROD_OPENAI_API_KEY"       > "$STAGE/openai_api_key"
+          printf '%s' "$PROD_ANTHROPIC_API_KEY"    > "$STAGE/anthropic_api_key"
+          printf '%s' "$PROD_GEMINI_API_KEY"       > "$STAGE/gemini_api_key"
+          printf '%s' "$PROD_MISTRAL_API_KEY"      > "$STAGE/mistral_api_key"
+          printf '%s' "$PROD_DEEPSEEK_API_KEY"     > "$STAGE/deepseek_api_key"
+          printf '%s' "$PROD_GROK_API_KEY"         > "$STAGE/grok_api_key"
+          printf '%s' "$PROD_SENTRY_DSN_API"       > "$STAGE/podcast_sentry_dsn_api"
+          printf '%s' "$PROD_SENTRY_DSN_PIPELINE"  > "$STAGE/podcast_sentry_dsn_pipeline"
+          printf '%s' "$PROD_APP_OPERATOR_API_KEY" > "$STAGE/app_operator_api_key"
+          chmod 400 "$STAGE"/*
+          ssh "${SSHF[@]}" "$SSH_TARGET" "rm -rf /dev/shm/podcast-secrets.staged && mkdir -p /dev/shm/podcast-secrets.staged && chmod 700 /dev/shm/podcast-secrets.staged"
+          scp "${SSHF[@]}" "$STAGE"/* "${SSH_TARGET}:/dev/shm/podcast-secrets.staged/"
+          ssh "${SSHF[@]}" "$SSH_TARGET" "set -euo pipefail; chmod 400 /dev/shm/podcast-secrets.staged/*; rm -rf /dev/shm/podcast-secrets; mv /dev/shm/podcast-secrets.staged /dev/shm/podcast-secrets; chmod 700 /dev/shm/podcast-secrets"
+          # Force-recreate ONLY the api container from the pinned image; the secrets-shim re-reads
+          # /run/secrets/app_operator_api_key -> APP_OPERATOR_API_KEY.
+          ssh "${SSHF[@]}" "$SSH_TARGET" "set -euo pipefail; cd /srv/podcast-scraper; docker compose --env-file .env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml -f compose/docker-compose.secrets.yml up -d --force-recreate --no-deps api"
+          echo "::notice::secrets re-staged (9 files) + api force-recreated."
