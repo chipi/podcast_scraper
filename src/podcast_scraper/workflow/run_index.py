@@ -266,7 +266,14 @@ def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMe
     root = Path(output_dir)
     by_guid: Dict[str, CorpusMetadataEntry] = {}
     by_id: Dict[str, CorpusMetadataEntry] = {}
-    for pattern in ("metadata/*.metadata.*", "run_*/metadata/*.metadata.*"):
+    # Works at BOTH the feed output dir (run_*/metadata) used by skip-existing during a run, AND
+    # the corpus root (feeds/<slug>/run_*/metadata) used by the rollback DELETE API.
+    for pattern in (
+        "metadata/*.metadata.*",
+        "run_*/metadata/*.metadata.*",
+        "feeds/*/metadata/*.metadata.*",
+        "feeds/*/run_*/metadata/*.metadata.*",
+    ):
         for meta_path in sorted(root.glob(pattern)):
             if meta_path.name.startswith("._") or not meta_path.is_file():
                 continue  # macOS AppleDouble

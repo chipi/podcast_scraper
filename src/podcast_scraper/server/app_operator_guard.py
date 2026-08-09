@@ -50,14 +50,31 @@ _OPERATOR_BASES = (
 )
 
 
+#: Bases gated for WRITE methods ONLY — their GETs are consumer surface that must stay open.
+#: ``/api/corpus/episodes`` is the Library list (consumer GET); ``DELETE .../episodes/{id}`` and
+#: ``DELETE /api/corpus/runs/{id}`` are the operator rollback endpoints (corpus_rollback.py). A
+#: blanket prefix gate would lock the consumer Library out, so gate these on write only.
+_OPERATOR_WRITE_BASES = (
+    "/api/corpus/runs",
+    "/api/corpus/episodes",
+)
+
+
+def _matches_base(path: str, bases: tuple[str, ...]) -> bool:
+    return any(path == base or path.startswith(base + "/") for base in bases)
+
+
 def is_operator_path(path: str) -> bool:
     """True for any request (read or write) to an operator API endpoint."""
-    return any(path == base or path.startswith(base + "/") for base in _OPERATOR_BASES)
+    return _matches_base(path, _OPERATOR_BASES)
 
 
 def is_operator_write(method: str, path: str) -> bool:
     """True for mutating requests to operator endpoints (drives audit + back-compat callers)."""
-    return method.upper() in _WRITE_METHODS and is_operator_path(path)
+    method_up = method.upper()
+    if method_up not in _WRITE_METHODS:
+        return False
+    return is_operator_path(path) or _matches_base(path, _OPERATOR_WRITE_BASES)
 
 
 def _valid_key(request: Request, key: str) -> bool:
@@ -85,7 +102,12 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
     ) -> Response:
         """Gate operator reads+writes on admin-session-or-key (when enforceable); audit writes."""
         path = request.url.path
-        if not is_operator_path(path):
+        is_write = request.method.upper() in _WRITE_METHODS
+        # Write-only bases (corpus rollback DELETEs) are operator surface for writes only — their
+        # sibling GETs (e.g. /api/corpus/episodes Library list) must stay open to consumers.
+        if not (
+            is_operator_path(path) or (is_write and _matches_base(path, _OPERATOR_WRITE_BASES))
+        ):
             return await call_next(request)
 
         state = request.app.state
@@ -93,7 +115,6 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
         secret = getattr(state, "session_secret", "") or ""
         data_dir = getattr(state, "app_data_dir", None)
         audit_path = getattr(state, "audit_path", None)
-        is_write = request.method.upper() in _WRITE_METHODS
         base = {"method": request.method, "path": path, "actor": "operator"}
 
         # Enforce only when a credential could exist: platform auth configured, or a key set.
