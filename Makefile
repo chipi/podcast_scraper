@@ -1171,6 +1171,14 @@ index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
 
+# Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
+# so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
+# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). THRESHOLD defaults to 0.75
+# (cloud_balanced's topic_cluster_threshold) — NOT the 0.35 small-fixture override. CORPUS_DIR req'd.
+topic-clusters:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" --threshold "$${THRESHOLD:-0.75}"
+
 # Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
 # Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).
 # Idempotent cross-layer pass; re-run after new diarization (#876) to fill SPOKEN_BY.

@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from .search.backends.lancedb_backend import LANCE_SCHEMA_VERSION, stored_schema_version
 from .search.hybrid_search import lance_index_dir
+from .search.topic_clusters import TOPIC_CLUSTERS_FILENAME
 from .utils.path_validation import safe_resolve_directory
 
 # Stage → (edge types that satisfy it, MCP tools it kills). From #1497's evidence table.
@@ -100,12 +101,23 @@ class CompletenessReport:
     missing_soft: List[MissingStage] = field(default_factory=list)
     edge_types_present: Set[str] = field(default_factory=set)
     has_enrichments: bool = False
+    has_topic_clusters: bool = False
     episodes_scanned: int = 0
 
     @property
     def ok(self) -> bool:
-        """Gate verdict: index servable + no HARD stage missing + enrichments present."""
-        return self.index.ok and not self.missing_hard and self.has_enrichments
+        """Gate verdict: index servable + no HARD stage missing + enrichments + topic clusters.
+
+        ``has_topic_clusters`` only bites when the index is servable (``index.ok``) — i.e. a
+        populated corpus. An absent index already fails via ``index.ok``, so a bare/empty
+        corpus isn't spuriously flagged for missing clusters.
+        """
+        return (
+            self.index.ok
+            and not self.missing_hard
+            and self.has_enrichments
+            and self.has_topic_clusters
+        )
 
 
 def _collect_edge_types(corpus_root: Path) -> Tuple[Set[str], int]:
@@ -166,12 +178,14 @@ def assess_completeness(corpus_root: Path) -> CompletenessReport:
 
     index = assess_index_staleness(root)
     edge_types, seen = _collect_edge_types(root)
+    topic_clusters = (root / "search" / TOPIC_CLUSTERS_FILENAME).is_file()
     return CompletenessReport(
         index=index,
         missing_hard=_missing_stages(edge_types, _HARD_STAGES),
         missing_soft=_missing_stages(edge_types, _SOFT_STAGES),
         edge_types_present=edge_types,
         has_enrichments=_has_enrichments(root),
+        has_topic_clusters=topic_clusters,
         episodes_scanned=seen,
     )
 
@@ -183,6 +197,12 @@ def format_report(report: CompletenessReport) -> str:
     lines.append(f"index: {report.index.reason()}")
     enr = "present" if report.has_enrichments else "MISSING (kills corpus_enrichment_signals)"
     lines.append(f"enrichments/: {enr}")
+    # search/topic_clusters.json is a query-time-read file the pipeline/prep never generated —
+    # its absence 404s /api/corpus/topic-clusters on a populated corpus (the post-deploy smoke
+    # rule). Only a fault when the index is servable (populated).
+    if report.index.present:
+        tc = "present" if report.has_topic_clusters else "MISSING (404s /api/corpus/topic-clusters)"
+        lines.append(f"search/topic_clusters.json: {tc}")
     lines.append(f"edge types present: {', '.join(sorted(report.edge_types_present)) or '(none)'}")
     if report.missing_hard:
         lines.append("HARD gaps (fail):")
@@ -190,6 +210,8 @@ def format_report(report: CompletenessReport) -> str:
             lines.append(f"  ✗ {m.stage} — kills: {', '.join(m.kills)}")
     if not report.has_enrichments:
         lines.append("  ✗ enrichments/ missing — kills: corpus_enrichment_signals")
+    if report.index.present and not report.has_topic_clusters:
+        lines.append("  ✗ search/topic_clusters.json missing — 404s /api/corpus/topic-clusters")
     if report.missing_soft:
         lines.append("SOFT gaps (warn — optional):")
         for m in report.missing_soft:

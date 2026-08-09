@@ -41,6 +41,10 @@ is otherwise mutated in place. `CORPUS=` is the corpus root.
    delete the older `run_2026072[89]-*_ba02775e`. Result: **105 eps** (12+10+12+12+12+12+12+11+12).
 3. **Reindex** (safety — index doc-count provenance unverified after dedup):
    `make index-two-tier CORPUS_DIR=$CORPUS`.
+3b. **Topic clusters** (fixes `topic_clusters.json` 404 — the #14-cutover red smoke; the pipeline/
+   prep never generated it): `make topic-clusters CORPUS_DIR=$CORPUS` (THRESHOLD defaults to 0.75 =
+   cloud_balanced's `topic_cluster_threshold`; **not** the 0.35 small-fixture override). Must run
+   AFTER `index-two-tier` (reads `search/lance_index/`); query-time-read → no container recreate.
 4. **Relational edges** (fixes `show_episodes` — adds `HAS_EPISODE`; idempotent):
    `make enrich-relational-edges CORPUS_DIR=$CORPUS`.
 5. **Enrichment** (fixes `enrichment_signals` + `consensus_search`):
@@ -88,7 +92,7 @@ Run against the exported corpus root; paste the command output as evidence.
 | A6 | Lance index consistent with 105 eps | doc-count sane; **no duplicate-run entries** (dedup + reindex worked) |
 | A7 | `feeds.spec.yaml` present at root | required by export; export succeeded |
 | A8 | Tarball restores cleanly in a **local rehearsal** | `make restore-corpus` into a throwaway `WORKSPACE_DIR`, then A1–A6 pass on the restored copy |
-| **A9** | **Completeness gate PASSES (#16)** — one command covering A2/A4/A5/A6 + index staleness | `make corpus-completeness-check CORPUS_DIR=$CORPUS` → `VERDICT: PASS` (exit 0). Fails on a stale/absent index or missing HAS_EPISODE / typed MENTIONS / enrichments; diarization is a soft warn. Run this as the final pre-export check. |
+| **A9** | **Completeness gate PASSES (#16)** — one command covering A2/A4/A5/A6 + index staleness + topic_clusters | `make corpus-completeness-check CORPUS_DIR=$CORPUS` → `VERDICT: PASS` (exit 0). Fails on a stale/absent index or missing HAS_EPISODE / typed MENTIONS / enrichments / **`search/topic_clusters.json`**; diarization is a soft warn. Run this as the final pre-export check — it would have caught the #14 topic_clusters 404 before deploy. |
 
 ## Gate B — MCP tools return real data (post-deploy, via claude.ai)
 

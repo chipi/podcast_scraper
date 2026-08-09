@@ -15,6 +15,7 @@ from podcast_scraper.corpus_completeness import (
     assess_completeness,
     assess_index_staleness,
     check_corpus,
+    format_report,
     LANCE_SCHEMA_VERSION,
 )
 
@@ -43,11 +44,18 @@ def _write_enrichments(root: Path) -> None:
     (enr / "insight_density.json").write_text("{}", encoding="utf-8")
 
 
+def _write_topic_clusters(root: Path) -> None:
+    idx = root / "search"
+    idx.mkdir(parents=True, exist_ok=True)
+    (idx / "topic_clusters.json").write_text(json.dumps({"clusters": [{"id": "tc1"}]}), "utf-8")
+
+
 def _complete_corpus(root: Path) -> Path:
-    """A fully-populated corpus: fresh index, typed edges, diarization, enrichments."""
+    """A fully-populated corpus: fresh index, typed edges, diarization, enrichments, clusters."""
     _write_index(root, LANCE_SCHEMA_VERSION)
     _write_episode(root, "e1", ["HAS_EPISODE", "MENTIONS_PERSON", "MENTIONS_ORG", "SPOKEN_BY"])
     _write_enrichments(root)
+    _write_topic_clusters(root)
     return root
 
 
@@ -122,9 +130,26 @@ def test_missing_diarization_is_soft_only(tmp_path: Path):
     _write_index(tmp_path, LANCE_SCHEMA_VERSION)
     _write_episode(tmp_path, "e1", ["HAS_EPISODE", "MENTIONS_PERSON"])  # no SPOKEN_BY
     _write_enrichments(tmp_path)
+    _write_topic_clusters(tmp_path)
     report = assess_completeness(tmp_path)
     assert report.ok  # hard checks pass → gate passes
     assert any("SPOKEN_BY" in m.stage for m in report.missing_soft)
+
+
+def test_missing_topic_clusters_fails_when_index_present(tmp_path: Path):
+    """#14 cutover: index present but search/topic_clusters.json absent → 404 smoke → HARD fail."""
+    _write_index(tmp_path, LANCE_SCHEMA_VERSION)
+    _write_episode(tmp_path, "e1", ["HAS_EPISODE", "MENTIONS_PERSON", "SPOKEN_BY"])
+    _write_enrichments(tmp_path)
+    # no topic_clusters.json
+    report = assess_completeness(tmp_path)
+    assert not report.ok
+    assert not report.has_topic_clusters
+    assert "topic_clusters.json" in format_report(report)
+
+    _write_topic_clusters(tmp_path)  # once present → passes
+    report2 = assess_completeness(tmp_path)
+    assert report2.ok and report2.has_topic_clusters
 
 
 def test_stale_index_fails_even_if_edges_complete(tmp_path: Path):
