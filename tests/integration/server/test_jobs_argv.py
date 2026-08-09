@@ -9,7 +9,7 @@ import pytest
 from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME
 from podcast_scraper.server.jobs import build_pipeline_argv
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def test_argv_includes_feeds_spec_when_present(tmp_path: Path) -> None:

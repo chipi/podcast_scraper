@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 pytest.importorskip("prometheus_client")
 

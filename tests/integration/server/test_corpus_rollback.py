@@ -23,7 +23,7 @@ from podcast_scraper.server.app import create_app
 from podcast_scraper.server.index_rebuild import gate_for_corpus
 from podcast_scraper.server.routes import corpus_rollback
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def _seed_run(corpus: Path, run_id: str, idx: int, guid: str, episode_id: str) -> None:

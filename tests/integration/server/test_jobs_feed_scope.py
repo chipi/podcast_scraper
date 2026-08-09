@@ -15,7 +15,7 @@ from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME
 from podcast_scraper.server.routes.jobs import _resolve_feed_url
 from podcast_scraper.utils.filesystem import feed_workspace_dirname
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 _URL = "https://a.example/podcast.xml"
 

@@ -15,7 +15,7 @@ from fastapi import Request
 
 from podcast_scraper.server.routes.index_rebuild import resolve_topic_cluster_threshold
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def _request(config: object) -> Request:
