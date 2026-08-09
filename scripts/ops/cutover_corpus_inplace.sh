@@ -35,11 +35,18 @@ log() { printf '[cutover %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 log "validating snapshot manifest"
 _mtmp="$(mktemp -d)"
 trap 'rm -rf "$_mtmp"' EXIT
-if tar -xzf "$TARBALL" -C "$_mtmp" --wildcards '*snapshot.manifest.json' 2>/dev/null; then
-  _manifest="$(find "$_mtmp" -name 'snapshot.manifest.json' -print -quit)"
-  [ -n "$_manifest" ] && bash "$SCRIPT_DIR/corpus_snapshot/validate_snapshot_manifest.sh" "$_manifest"
+tar -xzf "$TARBALL" -C "$_mtmp" --wildcards '*snapshot.manifest.json' 2>/dev/null || true
+_manifest="$(find "$_mtmp" -name 'snapshot.manifest.json' -print -quit)"
+if [ -n "$_manifest" ]; then
+  bash "$SCRIPT_DIR/corpus_snapshot/validate_snapshot_manifest.sh" "$_manifest"
+elif [ "${ALLOW_UNMANIFESTED:-}" = "1" ]; then
+  log "WARN: no snapshot.manifest.json — proceeding (ALLOW_UNMANIFESTED=1)"
 else
-  log "WARN: no snapshot.manifest.json in tarball — skipping manifest validation"
+  # This is the ONE sanctioned prod swap — refuse to cut over an unverifiable tarball. The whole
+  # point of the arc is 'verify before swap'. Override with ALLOW_UNMANIFESTED=1 if intentional.
+  echo "ERROR: no snapshot.manifest.json in tarball — refusing unverified cutover." >&2
+  echo "       (set ALLOW_UNMANIFESTED=1 to override.)" >&2
+  exit 1
 fi
 
 # 2. In-place, inode-preserving swap (the linchpin — see swap_corpus_in_place.sh).
@@ -76,5 +83,8 @@ log "running identity smoke"
 _smoke_args=(--base-url http://127.0.0.1:8090 --corpus-path /app/output)
 [ -n "${EXPECT_CORPUS_PRODUCED_AT:-}" ] && _smoke_args+=(--expect-corpus-produced-at "$EXPECT_CORPUS_PRODUCED_AT")
 bash "$SCRIPT_DIR/post_deploy_smoke.sh" "${_smoke_args[@]}"
+
+# DR-6: retention for the corpus.bak.* left by the swap.
+bash "$SCRIPT_DIR/corpus_snapshot/prune_corpus_backups.sh" "$REPO_DIR" "${RESTORE_BACKUP_KEEP:-2}"
 
 log "cutover complete"

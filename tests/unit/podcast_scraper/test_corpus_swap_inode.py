@@ -20,13 +20,9 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-_SWAP = (
-    Path(__file__).resolve().parents[3]
-    / "scripts"
-    / "ops"
-    / "corpus_snapshot"
-    / "swap_corpus_in_place.sh"
-)
+_OPS = Path(__file__).resolve().parents[3] / "scripts" / "ops"
+_SWAP = _OPS / "corpus_snapshot" / "swap_corpus_in_place.sh"
+_PRUNE = _OPS / "corpus_snapshot" / "prune_corpus_backups.sh"
 
 _needs_tools = pytest.mark.skipif(
     shutil.which("bash") is None or shutil.which("tar") is None,
@@ -117,6 +113,34 @@ def test_swap_refuses_empty_corpus_tarball(tmp_path: Path):
     )
     assert res.returncode != 0
     assert list(corpus.rglob("e0.gi.json"))  # live corpus untouched
+
+
+@_needs_tools
+def test_prune_keeps_newest_n_backups(tmp_path: Path):
+    """DR-6: prune_corpus_backups keeps the newest KEEP corpus.bak.* and deletes the rest."""
+    stamps = [
+        "20260101T000000Z",
+        "20260102T000000Z",
+        "20260103T000000Z",
+        "20260104T000000Z",
+    ]
+    for s in stamps:
+        (tmp_path / f"corpus.bak.{s}").mkdir()
+    (tmp_path / "corpus").mkdir()  # the live dir must never be touched
+
+    res = subprocess.run(["bash", str(_PRUNE), str(tmp_path), "2"], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    remaining = sorted(p.name for p in tmp_path.glob("corpus.bak.*"))
+    assert remaining == ["corpus.bak.20260103T000000Z", "corpus.bak.20260104T000000Z"]
+    assert (tmp_path / "corpus").is_dir()  # live corpus untouched
+
+
+@_needs_tools
+def test_prune_keep_zero_disables(tmp_path: Path):
+    (tmp_path / "corpus.bak.20260101T000000Z").mkdir()
+    res = subprocess.run(["bash", str(_PRUNE), str(tmp_path), "0"], capture_output=True, text=True)
+    assert res.returncode == 0
+    assert list(tmp_path.glob("corpus.bak.*"))  # nothing pruned when KEEP=0
 
 
 def test_mv_dir_changes_inode_the_trap(tmp_path: Path):

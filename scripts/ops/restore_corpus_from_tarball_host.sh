@@ -63,15 +63,8 @@ echo
 
 # DR-6: prune old corpus.bak.* so full-corpus copies don't accumulate on the single-VPS device
 # path (disk-full-during-restore is the very failure the rollback can't recover from). Keep the
-# newest RESTORE_BACKUP_KEEP (default 2); set 0 to disable.
-KEEP="${RESTORE_BACKUP_KEEP:-2}"
-if [ "$KEEP" -gt 0 ]; then
-  # shellcheck disable=SC2012  # names are ISO-stamped; ls -1d ordering is stable + sufficient
-  ls -1d "$REPO_DIR"/corpus.bak.* 2>/dev/null | sort -r | tail -n "+$((KEEP + 1))" | while read -r old; do
-    echo "pruning old corpus backup: $old"
-    rm -rf "$old"
-  done
-fi
+# newest RESTORE_BACKUP_KEEP (default 2); set 0 to disable. Factored into a testable helper.
+bash "$SCRIPT_DIR/corpus_snapshot/prune_corpus_backups.sh" "$REPO_DIR" "${RESTORE_BACKUP_KEEP:-2}"
 echo "Restore complete on host"
 
 # Optional, decoupled corpus upgrade for a MANUAL restore — off by default

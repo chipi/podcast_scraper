@@ -27,7 +27,11 @@ BACKUP_DIR="${3:-${CORPUS_DIR%/}.bak.${STAMP}}"
 [ -f "$TARBALL" ] || { echo "ERROR: tarball not found: $TARBALL" >&2; exit 1; }
 mkdir -p "$CORPUS_DIR"
 CORPUS_DIR="$(cd "$CORPUS_DIR" && pwd)"
-STAGE="$(dirname "$CORPUS_DIR")/.corpus.incoming.${STAMP}"
+# STAGE lives INSIDE corpus/ (a hidden dir), NOT as a sibling. The corpus may be a separate
+# Hetzner volume (terraform hcloud_volume.corpus, mounted at the corpus path) — a sibling STAGE
+# would then be on a DIFFERENT filesystem, making the install move a cross-fs copy (double-disk +
+# slow). Inside corpus/, the install move is always a same-fs rename regardless of the mount layout.
+STAGE="$CORPUS_DIR/.corpus-incoming.${STAMP}"
 
 cleanup_stage() { rm -rf "$STAGE" 2>/dev/null || true; }
 trap cleanup_stage EXIT
@@ -36,9 +40,13 @@ trap cleanup_stage EXIT
 _move_children() {
   find "$1" -mindepth 1 -maxdepth 1 -exec mv {} "$2"/ \;
 }
+# Same, but never touch the staging dir (used when emptying the live corpus, which contains STAGE).
+_move_children_except_stage() {
+  find "$1" -mindepth 1 -maxdepth 1 ! -path "$STAGE" -exec mv {} "$2"/ \;
+}
 
-# 1. Extract + validate into STAGE. corpus/ is UNTOUCHED until the new corpus is proven good,
-#    so a bad tarball / disk-full leaves the live corpus in place (safe rollback = do nothing).
+# 1. Extract + validate into STAGE. corpus/'s real contents are UNTOUCHED until the new corpus is
+#    proven good, so a bad tarball / disk-full leaves the live corpus in place (rollback = nothing).
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 tar -xzf "$TARBALL" -C "$STAGE"
 if [ -d "$STAGE/corpus" ]; then NEW="$STAGE/corpus"; else NEW="$STAGE"; fi
@@ -48,11 +56,12 @@ if [ -z "$(find "$NEW" -name '*.gi.json' ! -name '._*' -print -quit 2>/dev/null)
   exit 1
 fi
 
-# 2. In-place swap preserving the $CORPUS_DIR inode. STAGE, $CORPUS_DIR and $BACKUP_DIR are all
-#    under the same parent (the bind's host device dir — same filesystem), so every mv is a rename:
-#    no double-disk, and the corpus/ dir inode is untouched so the shared bind keeps resolving.
+# 2. In-place swap preserving the $CORPUS_DIR inode. STAGE→corpus is a same-fs rename (both on the
+#    corpus filesystem); the corpus/ dir inode is never touched so the shared bind keeps resolving.
+#    Only the OLD-contents backup may cross fs when the corpus is a separate volume — a bounded,
+#    one-time cost capped by the DR-6 prune (pass BACKUP_DIR on the corpus fs to avoid even that).
 mkdir -p "$BACKUP_DIR"
-_move_children "$CORPUS_DIR" "$BACKUP_DIR"   # empty the live dir (keeps its inode)
+_move_children_except_stage "$CORPUS_DIR" "$BACKUP_DIR"   # empty the live dir (keeps its inode)
 
 install_ok=1
 if [ "${SWAP_TEST_FAIL_INSTALL:-}" = "1" ]; then
@@ -66,7 +75,7 @@ if [ "$install_ok" -eq 0 ]; then
   # ALSO fails (e.g. genuine disk-full), fail LOUD with the recovery location — never a silent
   # green that leaves a corpus split across two dirs.
   echo "ERROR: install failed — rolling back prior corpus from $BACKUP_DIR" >&2
-  find "$CORPUS_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+  find "$CORPUS_DIR" -mindepth 1 -maxdepth 1 ! -path "$STAGE" -exec rm -rf {} + 2>/dev/null || true
   if _move_children "$BACKUP_DIR" "$CORPUS_DIR"; then
     rmdir "$BACKUP_DIR" 2>/dev/null || true
     echo "rolled back: prior corpus restored to $CORPUS_DIR (inode preserved)" >&2

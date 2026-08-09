@@ -84,6 +84,22 @@ def _result_payload(result: Result) -> Dict:
     return result.payload
 
 
+def _result_show(result: Result) -> Optional[str]:
+    """Show id for coverage — reads ``show_id`` then ``feed_id``, checking BOTH tiers of a
+    compound (its segment payload may lack the field while the insight carries it, which would
+    otherwise under-count shows). #21/advisor-L2."""
+    payloads = (
+        [result.segment.payload, result.insight.payload]
+        if isinstance(result, CompoundResult)
+        else [result.payload]
+    )
+    for p in payloads:
+        v = (p or {}).get("show_id") or (p or {}).get("feed_id")
+        if v:
+            return str(v)
+    return None
+
+
 def _date_range(results: Sequence[Result]) -> Optional[str]:
     dates = sorted(
         d
@@ -125,13 +141,7 @@ def build_briefing_pack(
 
     # Robust show extraction: raw index rows carry ``show_id``; some result shapes carry
     # ``feed_id`` — read either so coverage can't report 0 shows while counting episodes (#21).
-    show_ids = sorted(
-        {
-            s
-            for r in results
-            if (s := (_result_payload(r).get("show_id") or _result_payload(r).get("feed_id")))
-        }
-    )
+    show_ids = sorted({s for r in results if (s := _result_show(r))})
     episode_count = len({e for r in results if (e := _result_payload(r).get("episode_id"))})
     # Only real (>0) confidences count — the indexer currently hardcodes 0.0 on every insight,
     # and averaging those produced a fake "0.00" p50 (#21). Empty → 0.0 → rendered as n/a.
