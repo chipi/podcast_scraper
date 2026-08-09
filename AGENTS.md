@@ -16,6 +16,9 @@ Detail manuals (load on demand by any agent):
 
 - `.ai-coding-guidelines-quick.md` — 90-line quick reference
 - `.ai-coding-guidelines.md` — deep reference manual (~2,500 lines)
+- **`docs/guides/PROD_VALIDATION_QUICKREF.md` — did something to prod (deploy, corpus
+  swap, restart)? Validate it in ~2 min: copy-paste API + observability probes, mostly
+  NO SSH. READ THIS FIRST instead of spelunking runbooks / SSHing around.**
 - `docs/guides/*` — topic-specific guides (TESTING_GUIDE, ENGINEERING_PROCESS,
   POLYGLOT_REPO_GUIDE, AGENT_BROWSER_LOOP_GUIDE, SERVER_GUIDE, …)
 
