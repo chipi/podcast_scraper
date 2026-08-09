@@ -98,10 +98,19 @@ if [[ ! -f "$CORPUS_DIR/feeds.spec.yaml" ]]; then
   exit 1
 fi
 
-GI_COUNT="$(find "$CORPUS_DIR" -name '*.gi.json' -print -quit 2>/dev/null | wc -l | tr -d ' ')"
+# DR-8: a REAL count (not -print -quit, which is only ever 0/1), excluding macOS AppleDouble
+# ._* companions so the number is the true gi.json count — catches under-capture AND the ._*
+# doubling (#14: a 105-ep corpus read as 210). Assert a floor when CORPUS_SNAPSHOT_MIN_GI is set.
+GI_COUNT="$(find "$CORPUS_DIR" -name '*.gi.json' ! -name '._*' 2>/dev/null | wc -l | tr -d ' ')"
+echo "gi.json artifacts: $GI_COUNT"
 if [[ "$GI_COUNT" -eq 0 ]]; then
   echo "ERROR: $CORPUS_DIR has no *.gi.json artifacts — corpus looks empty." >&2
   echo "       (backup-corpus.yml applies the same guard; see #699.)" >&2
+  exit 1
+fi
+MIN_GI="${CORPUS_SNAPSHOT_MIN_GI:-0}"
+if [[ "$MIN_GI" -gt 0 && "$GI_COUNT" -lt "$MIN_GI" ]]; then
+  echo "ERROR: $CORPUS_DIR has $GI_COUNT *.gi.json < expected floor $MIN_GI — under-capture?" >&2
   exit 1
 fi
 
@@ -138,9 +147,13 @@ mkdir "$WORKDIR/$LAYOUT_ROOT"
 # The `.` shell-glob in the source path copies contents, not the parent dir
 # itself; this gives us `<WORKDIR>/<LAYOUT_ROOT>/<contents>` — matching what
 # the CI tar step in backup-corpus.yml produces (`tar -czf snapshot.tgz .codespace_corpus`).
-cp -a "$CORPUS_DIR/." "$WORKDIR/$LAYOUT_ROOT/"
+# DR-5: COPYFILE_DISABLE=1 stops macOS from writing AppleDouble (._*) companions during cp/tar,
+# and the find-delete sweeps any that slipped in — otherwise they ride into the tarball and land
+# on the Linux box as ._*.gi.json etc. (the #14 105->210 gi.json inflation).
+COPYFILE_DISABLE=1 cp -a "$CORPUS_DIR/." "$WORKDIR/$LAYOUT_ROOT/"
+find "$WORKDIR/$LAYOUT_ROOT" -name '._*' -delete 2>/dev/null || true
 
-tar -czf "$OUT_ABS" -C "$WORKDIR" "$LAYOUT_ROOT"
+COPYFILE_DISABLE=1 tar -czf "$OUT_ABS" -C "$WORKDIR" "$LAYOUT_ROOT"
 
 MIN_BYTES="${CORPUS_SNAPSHOT_MIN_TARBALL_BYTES:-1024}"
 SIZE_BYTES="$(wc -c < "$OUT_ABS" | tr -d ' ')"

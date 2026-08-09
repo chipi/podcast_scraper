@@ -19,32 +19,26 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARBALL="${1:?usage: restore_corpus_from_tarball_host.sh <tarball_path>}"
 REPO_DIR="${PODCAST_REPO_DIR:-/srv/podcast-scraper}"
 
 cd "$REPO_DIR"
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-if [ -d corpus ]; then
-  mv corpus "corpus.bak.$STAMP"
-fi
-# Roll the timestamped backup back on any extract failure — otherwise a corrupt
-# tarball / disk-full / bad layout leaves the host with NO corpus/ and the api
-# can't boot (review 2026-07-17 H7).
-_restore_backup_and_die() {
-  echo "ERROR: $1 — restoring prior corpus." >&2
-  rm -rf corpus 2>/dev/null || true
-  [ -d "corpus.bak.$STAMP" ] && mv "corpus.bak.$STAMP" corpus
-  exit 1
-}
-if ! tar -xzf "$TARBALL" -C "$REPO_DIR"; then
-  _restore_backup_and_die "tar extraction failed"
-fi
-if [ ! -d corpus ]; then
-  _restore_backup_and_die "expected top-level corpus/ after prod layout extract under $REPO_DIR"
-fi
+BAK="$REPO_DIR/corpus.bak.$STAMP"
+
+# DR-2: swap the corpus IN PLACE (preserving the corpus/ inode) instead of `mv corpus corpus.bak`.
+# The corpus is a bind-backed volume (device=.../corpus) shared across the compose/operator/player
+# stacks; mv-ing the dir orphaned every bind onto the stale .bak inode while /api/health reported
+# green (the trap this script's old comment admitted + the #14 swap re-hit). swap_corpus_in_place.sh
+# extracts+validates into a temp dir, then empties+refills corpus/ keeping its inode, backing up the
+# old contents to $BAK (a rename within the fs — no double-disk). It refuses an empty tarball, so a
+# bad/corrupt archive leaves the live corpus untouched.
+bash "$SCRIPT_DIR/corpus_snapshot/swap_corpus_in_place.sh" "$TARBALL" "$REPO_DIR/corpus" "$BAK"
+
 if [ "${RESTORE_EXTRACT_ONLY:-}" = "1" ]; then
-  echo "Restore extract OK under $REPO_DIR/corpus"
+  echo "Restore swap OK under $REPO_DIR/corpus (RESTORE_EXTRACT_ONLY — skipping docker recreate)"
   exit 0
 fi
 chown -R deploy:deploy corpus
@@ -57,16 +51,27 @@ COMPOSE=(
   -f compose/docker-compose.vps-prod.yml
 )
 
-# Restore is FAITHFUL: the corpus is restored exactly as it was backed up. Corpus
-# migrations are DECOUPLED from restore (they used to run here — #862/#1176 — but
-# a) the api tolerates an un-migrated corpus [corpus_version compat is a WARNING,
-# not a gate, down to MIN_SUPPORTED], and b) that pre-boot ``run`` container saw a
-# stale/empty ``/app/output`` after the mv+re-extract swapped the corpus_data bind
-# dir, silently no-op'ing every migration. DR restore never needs it.
-"${COMPOSE[@]}" up -d --force-recreate api viewer
+# DR-2: recreate ALL corpus consumers in this compose (not just `api viewer`). In-place swap keeps
+# the bind resolved, but each consumer loaded the OLD corpus at boot, so every service must be
+# recreated to re-read it. (The PUBLIC player is a separate compose project — recreate it via
+# deploy-player / the blessed cutover_corpus_inplace.sh, which also runs the identity smoke.)
+# Restore is FAITHFUL (restore-as-is); corpus migrations stay DECOUPLED (#862/#1176).
+"${COMPOSE[@]}" up -d --force-recreate
 sleep 8
 "${COMPOSE[@]}" exec -T api curl -fsS http://127.0.0.1:8000/api/health | head -c 200
 echo
+
+# DR-6: prune old corpus.bak.* so full-corpus copies don't accumulate on the single-VPS device
+# path (disk-full-during-restore is the very failure the rollback can't recover from). Keep the
+# newest RESTORE_BACKUP_KEEP (default 2); set 0 to disable.
+KEEP="${RESTORE_BACKUP_KEEP:-2}"
+if [ "$KEEP" -gt 0 ]; then
+  # shellcheck disable=SC2012  # names are ISO-stamped; ls -1d ordering is stable + sufficient
+  ls -1d "$REPO_DIR"/corpus.bak.* 2>/dev/null | sort -r | tail -n "+$((KEEP + 1))" | while read -r old; do
+    echo "pruning old corpus backup: $old"
+    rm -rf "$old"
+  done
+fi
 echo "Restore complete on host"
 
 # Optional, decoupled corpus upgrade for a MANUAL restore — off by default

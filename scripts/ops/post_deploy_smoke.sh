@@ -26,6 +26,12 @@ FQDN=""
 CORPUS_PATH=""
 BASE_URL="${SMOKE_BASE_URL:-}"
 EXPECT_POPULATED="${EXPECT_POPULATED:-1}"
+# Corpus-identity assertion (DR-1): a stale corpus passes every subsystem check, so the smoke
+# must also confirm the SERVED corpus is the one we intended. Set either (or both) to the value
+# the new corpus's manifest carries; empty = skip (back-compat). This is what would have caught
+# the #14 bad deploy reporting green while serving the old corpus.
+EXPECT_CORPUS_PRODUCED_AT="${EXPECT_CORPUS_PRODUCED_AT:-}"
+EXPECT_CORPUS_CODE_VERSION="${EXPECT_CORPUS_CODE_VERSION:-}"
 
 usage() {
   sed -n '2,22p' "$0" | sed 's/^# \?//'
@@ -45,6 +51,14 @@ while [ $# -gt 0 ]; do
       ;;
     --allow-empty-corpus)
       EXPECT_POPULATED=0
+      ;;
+    --expect-corpus-produced-at)
+      shift
+      EXPECT_CORPUS_PRODUCED_AT="${1:?--expect-corpus-produced-at requires a value}"
+      ;;
+    --expect-corpus-code-version)
+      shift
+      EXPECT_CORPUS_CODE_VERSION="${1:?--expect-corpus-code-version requires a value}"
       ;;
     -*)
       echo "Unknown option: $1" >&2
@@ -123,6 +137,25 @@ for flag in artifacts_api search_api explore_api index_routes_api corpus_library
     exit 1
   fi
 done
+
+# --- 1b. Corpus IDENTITY (DR-1) --- a stale corpus passes every check above; assert the served
+# corpus is the intended one. Skipped unless an expected value is provided.
+if [ -n "$EXPECT_CORPUS_PRODUCED_AT" ]; then
+  served_at="$(printf '%s' "$health_json" | jq -r '.corpus_produced_by.produced_at // "null"')"
+  if [ "$served_at" != "$EXPECT_CORPUS_PRODUCED_AT" ]; then
+    echo "ERROR: served corpus produced_at=${served_at} != expected ${EXPECT_CORPUS_PRODUCED_AT} — STALE/WRONG corpus" >&2
+    exit 1
+  fi
+  log "corpus identity OK: produced_at=${served_at}"
+fi
+if [ -n "$EXPECT_CORPUS_CODE_VERSION" ]; then
+  served_cv="$(printf '%s' "$health_json" | jq -r '.corpus_code_version // "null"')"
+  if [ "$served_cv" != "$EXPECT_CORPUS_CODE_VERSION" ]; then
+    echo "ERROR: served corpus_code_version=${served_cv} != expected ${EXPECT_CORPUS_CODE_VERSION} — STALE/WRONG corpus" >&2
+    exit 1
+  fi
+  log "corpus identity OK: code_version=${served_cv}"
+fi
 
 if [ -z "$CORPUS_PATH" ]; then
   log "no --corpus-path; health-only smoke complete"
