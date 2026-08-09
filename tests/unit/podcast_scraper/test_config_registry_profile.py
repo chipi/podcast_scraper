@@ -62,12 +62,12 @@ class TestRegistryLayering:
         flattened AFTER the explicit-data merge — masking the precedence
         signal we want to assert.
         """
-        # cloud_balanced registry default for summary is gemini-2.5-flash-lite;
-        # override to a different gemini model to exercise the precedence path.
+        # cloud_balanced's registry default summary provider is ``litellm`` (the gateway,
+        # #1527 single-pass); explicit ``summary_provider`` in the data must still win over it.
         cfg = Config.model_validate(
             {
                 "profile": "cloud_balanced",
-                "summary_provider": "openai",  # override registry's 'gemini'
+                "summary_provider": "openai",  # override the registry default provider
             }
         )
         assert cfg.summary_provider == "openai"

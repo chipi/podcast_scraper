@@ -111,6 +111,7 @@ jobs:
       app: ${{ steps.filter.outputs.app }}
       stack-profiles: ${{ steps.filter.outputs.stack-profiles }}
       stack-compose: ${{ steps.filter.outputs.stack-compose }}
+      acceptance: ${{ steps.filter.outputs.acceptance }}
     steps:
     - uses: actions/checkout@v7
     - uses: dorny/paths-filter@v4
@@ -162,6 +163,18 @@ jobs:
             - 'docker/viewer/**'
             - 'docker/pipeline/Dockerfile'
             - 'compose/docker-compose.jobs-docker.yml'
+            - '.github/workflows/python-app.yml'
+          # Acceptance-relevant paths — provider wiring / profiles / the acceptance harness +
+          # E2E mock. Changes here are exactly what regressed the fixture acceptance run in #1527
+          # (config-only litellm base dialing real infra). Gating the acceptance job on these
+          # lets it run on the PR, not just push-to-main, so the failure is caught before merge.
+          acceptance:
+            - 'config/acceptance/**'
+            - 'config/profiles/**'
+            - 'scripts/acceptance/**'
+            - 'tests/e2e/fixtures/e2e_http_server.py'
+            - 'src/podcast_scraper/config.py'
+            - 'src/podcast_scraper/providers/**'
             - '.github/workflows/python-app.yml'
 
   # GI/KG viewer v2 — Playwright E2E
@@ -1280,10 +1293,19 @@ jobs:
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+    # Push-to-main runs the full acceptance gate. Additionally run on PRs that touch
+    # acceptance-relevant paths (provider wiring / profiles / harness / E2E mock) so a
+    # fixture-run regression like #1527 (config-only litellm base dialing homelab:4001) is caught
+    # BEFORE merge, not only on the post-merge main-push run.
     if: |
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
-      needs.detect-changes.outputs.python == 'true'
+      (
+        github.event_name == 'push' &&
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
+        needs.detect-changes.outputs.python == 'true'
+      ) || (
+        github.event_name == 'pull_request' &&
+        needs.detect-changes.outputs.acceptance == 'true'
+      )
     steps:
     - uses: actions/checkout@v7
     - name: Free disk space

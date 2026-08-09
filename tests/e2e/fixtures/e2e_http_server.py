@@ -480,6 +480,19 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/v1"
 
+    def vllm_api_base(self) -> str:
+        """Get native vLLM provider base URL (points to E2E server).
+
+        vLLM (ADR-147) is OpenAI-compatible and, like ``litellm_api_base`` / ``qwen_api_base``,
+        has NO env-var fallback in :mod:`podcast_scraper.config` — the acceptance harness must
+        redirect the CONFIG field (``vllm_api_base``) or a fixture run would dial a real host.
+        Reuses the shared OpenAI-compatible mock endpoints (/v1/chat/completions).
+
+        Returns:
+            vLLM API base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
     def dgx_host_port(self) -> tuple[str, int]:
         """``(host, port)`` for the DGX tailnet clients (#954).
 

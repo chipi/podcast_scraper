@@ -17,7 +17,11 @@ pytest.importorskip("fastapi")
 from podcast_scraper.server import app as app_mod
 from podcast_scraper.server.app import create_app
 
-pytestmark = [pytest.mark.integration]
+# critical_path so the public-surface route audit runs in test-integration-fast on PRs — not
+# just the push-to-main full suite. A mutating route leaking onto operator.closelistening.app
+# (the #1528 topic-clusters/rebuild + corpus_rollback leak) must be caught before merge, not after.
+# Pure route enumeration + a few TestClient calls; no ml_models, fits the fast-job budget.
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def _api_paths(output_dir: Path) -> set[str]:

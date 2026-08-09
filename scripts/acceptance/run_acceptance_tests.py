@@ -818,12 +818,16 @@ def modify_config_for_fixtures(
         os.environ["ANTHROPIC_API_BASE"] = e2e_server.urls.anthropic_api_base()
         os.environ["DEEPGRAM_API_BASE"] = e2e_server.urls.deepgram_api_base()
 
-        # LiteLLM is config-driven, not env-driven: OpenAICompatibleProvider reads
-        # ``cfg.litellm_api_base`` (not a LITELLM_API_BASE env var), so an env override would be
-        # ignored. cloud_balanced routes summary + speaker through the LiteLLM gateway (#1527,
-        # ``litellm_api_base: http://homelab:4001/v1``) — rewrite the CONFIG field to the E2E mock
-        # (OpenAI-compatible) so the fixture run never dials the real homelab gateway.
+        # Config-driven provider bases (NO env-var fallback in podcast_scraper.config): litellm,
+        # qwen, vllm. OpenAICompatibleProvider reads ``cfg.<ns>_api_base`` directly, so the
+        # env overrides above do NOT reach them — the CONFIG field must be rewritten or a fixture
+        # run dials the real host (the #1527 cloud_balanced -> homelab:4001 bug). Redirect all
+        # three to the OpenAI-compatible E2E mock. (Only litellm is used by the current fast
+        # matrix; qwen/vllm are covered pre-emptively so a future qwen/vllm acceptance profile
+        # can't reintroduce the bug. Guarded by test_fixture_provider_redirect.py.)
         config_dict["litellm_api_base"] = e2e_server.urls.litellm_api_base()
+        config_dict["qwen_api_base"] = e2e_server.urls.qwen_api_base()
+        config_dict["vllm_api_base"] = e2e_server.urls.vllm_api_base()
 
         # Set dummy API keys (required for config validation, but won't be used with mocks)
         if "OPENAI_API_KEY" not in os.environ:

@@ -935,8 +935,9 @@ class TestGeminiProviderE2E:
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_gemini_mega_bundled_pipeline_records_cost(self, mock_genai, e2e_server: Optional[Any]):
-        """#650/#651 mega_bundled parity — Gemini is the cloud_balanced default
-        summary provider, so regression here is the production failure mode.
+        """#650/#651 mega_bundled parity — exercises the Gemini mega_bundled cost-recording
+        path directly (builds an explicit gemini config below). Note: cloud_balanced's default
+        summary provider is now the LiteLLM gateway (#1527), not Gemini.
         """
         temp_dir = tempfile.mkdtemp()
         try:
