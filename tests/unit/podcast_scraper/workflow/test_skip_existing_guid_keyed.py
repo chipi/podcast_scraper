@@ -113,6 +113,63 @@ def test_find_metadata_relative_path_locates_by_guid_across_shift(tmp_path: Path
     assert rel.endswith("0001 - Ep A.metadata.json")
 
 
+def test_corpus_metadata_index_logs_duplicate_guid_first_wins(tmp_path: Path, caplog):
+    """A duplicate guid on disk (re-published/re-added ep) is logged and resolved first-wins —
+    so a caller acting on one entry (rollback episode delete) surfaces rather than hides it."""
+    import logging
+
+    run = tmp_path / "feeds" / "feedA" / "run_1" / "metadata"
+    run.mkdir(parents=True)
+    for n in (1, 2):  # same guid, two on-disk copies
+        (run / f"{n:04d} - Ep A.metadata.json").write_text(
+            json.dumps({"episode": {"guid": "dupG", "episode_id": f"id{n}"}}), encoding="utf-8"
+        )
+    with caplog.at_level(logging.WARNING):
+        index = run_index.corpus_metadata_index(str(tmp_path))
+    assert index["by_guid"]["dupG"].idx == 1  # first-wins
+    assert any("duplicate guid" in r.message for r in caplog.records)
+
+
+def test_corpus_metadata_index_logs_duplicate_episode_id(tmp_path: Path, caplog):
+    import logging
+
+    run = tmp_path / "feeds" / "feedA" / "run_1" / "metadata"
+    run.mkdir(parents=True)
+    for i, g in ((1, "gX"), (2, "gY")):  # distinct guids, SAME episode_id
+        (run / f"{i:04d} - Ep.metadata.json").write_text(
+            json.dumps({"episode": {"guid": g, "episode_id": "dupID"}}), encoding="utf-8"
+        )
+    with caplog.at_level(logging.WARNING):
+        idx = run_index.corpus_metadata_index(str(tmp_path))
+    assert idx["by_id"]["dupID"].idx == 1  # first-wins
+    assert any("duplicate episode_id" in r.message for r in caplog.records)
+
+
+def test_corpus_metadata_index_skips_appledouble(tmp_path: Path):
+    run = tmp_path / "feeds" / "feedA" / "run_1" / "metadata"
+    run.mkdir(parents=True)
+    (run / "0001 - Ep.metadata.json").write_text(
+        json.dumps({"episode": {"guid": "gA", "episode_id": "idA"}}), encoding="utf-8"
+    )
+    (run / "._0001 - Ep.metadata.json").write_text("junk", encoding="utf-8")  # AppleDouble
+    idx = run_index.corpus_metadata_index(str(tmp_path))
+    assert set(idx["by_guid"]) == {"gA"}  # ._ sidecar ignored
+
+
+def test_resolve_ondisk_idx_no_guid_element_falls_back(tmp_path: Path):
+    _seed_processed_episode(tmp_path, "gA", on_disk_idx=1)
+    item = ET.Element("item")  # no <guid> child
+    ET.SubElement(item, "title").text = "Ep A"
+    ep = models.Episode(idx=7, title="Ep A", title_safe="Ep A", item=item, transcript_urls=[])
+    assert run_index.resolve_ondisk_idx_for_episode(ep, str(tmp_path)) == 7  # keep run-local idx
+
+
+def test_find_metadata_relative_path_guid_not_on_disk_returns_none(tmp_path: Path):
+    _seed_processed_episode(tmp_path, "gA", on_disk_idx=1)
+    ep = _episode("gUNSEEN", idx=9, title="Ghost", title_safe="Ghost")
+    assert run_index.find_episode_metadata_relative_path(ep, str(tmp_path), None) is None
+
+
 def test_corpus_metadata_index_maps_guid_and_episode_id(tmp_path: Path):
     eid = _seed_processed_episode(tmp_path, "gA", on_disk_idx=1)
     idx = run_index.corpus_metadata_index(str(tmp_path))

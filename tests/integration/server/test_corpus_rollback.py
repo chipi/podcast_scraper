@@ -244,6 +244,85 @@ def test_episode_scoped_delete_also_sweeps_media(tmp_path: Path, monkeypatch):
     assert trashed  # recoverable
 
 
+def test_unknown_episode_id_404(client_and_corpus):
+    client, corpus, _spawned, _app = client_and_corpus
+    r = client.request(
+        "DELETE", "/api/corpus/episodes/nope-9", params={"path": str(corpus), "confirm": "nope-9"}
+    )
+    assert r.status_code == 404
+
+
+def test_flat_layout_run_dir_is_found(tmp_path: Path):
+    """A run dir directly under the corpus root (non-feeds layout) is also located."""
+    from podcast_scraper.server.routes.corpus_rollback import _run_dirs_for_id
+
+    corpus = tmp_path / "corpus"
+    (corpus / "run_FLAT" / "metadata").mkdir(parents=True)
+    found = _run_dirs_for_id(corpus, "FLAT")
+    assert [p.name for p in found] == ["run_FLAT"]
+
+
+def test_assert_under_root_rejects_outside_path(tmp_path: Path):
+    from fastapi import HTTPException
+
+    from podcast_scraper.server.routes.corpus_rollback import _assert_under_root
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    with pytest.raises(HTTPException) as ei:
+        _assert_under_root(corpus, [tmp_path / "elsewhere" / "x"])
+    assert ei.value.status_code == 400
+
+
+def test_move_to_trash_rejects_symlink_escape(tmp_path: Path):
+    from fastapi import HTTPException
+
+    from podcast_scraper.server.routes.corpus_rollback import _move_to_trash
+
+    corpus = tmp_path / "corpus"
+    (corpus / "feeds").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    escape = corpus / "feeds" / "link"
+    escape.symlink_to(outside)  # a target that realpath-resolves outside the corpus
+    with pytest.raises(HTTPException) as ei:
+        _move_to_trash(corpus, [escape], "ts")
+    assert ei.value.status_code == 400
+
+
+def test_reaggregate_manifest_none_and_bad(tmp_path: Path):
+    from podcast_scraper.server.routes.corpus_rollback import _reaggregate_manifest
+    from podcast_scraper.workflow import corpus_operations as cops
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    assert _reaggregate_manifest(corpus) is None  # no manifest → None
+    (corpus / cops.CORPUS_MANIFEST_FILE).write_text("{ not json", encoding="utf-8")
+    assert _reaggregate_manifest(corpus) is None  # unreadable manifest → best-effort None
+
+
+def test_rollback_aborts_and_releases_gate_on_move_failure(tmp_path: Path, monkeypatch):
+    """If the move/re-aggregate fails, the gate is released (gate.end) and the error propagates —
+    never a half-deleted corpus holding the rebuild gate."""
+    from podcast_scraper.server.index_rebuild import gate_for_corpus
+
+    corpus = tmp_path / "corpus"
+    _seed_run(corpus, "R1", 1, "g1", "ep-1")
+    monkeypatch.setattr(
+        corpus_rollback, "_move_to_trash", lambda *a, **k: (_ for _ in ()).throw(OSError("disk"))
+    )
+    app = create_app(corpus, static_dir=False)
+    app.state.operator_api_key = "k"
+    client = TestClient(app, raise_server_exceptions=False)
+    client.headers["X-Operator-Key"] = "k"
+    r = client.request(
+        "DELETE", "/api/corpus/runs/R1", params={"path": str(corpus), "confirm": "R1"}
+    )
+    assert r.status_code == 500
+    # gate released so a later rebuild can start
+    assert gate_for_corpus(app, corpus.resolve()).try_begin() is True
+
+
 def test_consumer_episodes_get_stays_open_under_write_gate(tmp_path: Path):
     """The write-only gate must NOT lock the consumer Library GET /api/corpus/episodes."""
     corpus = tmp_path / "corpus"
