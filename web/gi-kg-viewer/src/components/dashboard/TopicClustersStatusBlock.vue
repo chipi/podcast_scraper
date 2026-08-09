@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 
@@ -8,6 +8,20 @@ const artifacts = useArtifactsStore()
 
 const showBlock = computed(
   () => Boolean(shell.healthStatus) && shell.hasCorpusPath,
+)
+
+// Fetch our own status so the card resolves to Loaded / Not built / Unavailable — and surfaces the
+// Rebuild button when missing — on the DASHBOARD, without waiting for a Graph-tab open (App.vue only
+// syncs topic-clusters once the graph is opened; the operator rebuild surface must not depend on
+// that). The #769 memo dedupes, so this is cheap when the graph path already fetched.
+watch(
+  () => [shell.corpusPath, shell.healthStatus] as const,
+  () => {
+    if (showBlock.value) {
+      void artifacts.syncTopicClustersForCurrentCorpus()
+    }
+  },
+  { immediate: true },
 )
 
 const statusLabel = computed((): string => {

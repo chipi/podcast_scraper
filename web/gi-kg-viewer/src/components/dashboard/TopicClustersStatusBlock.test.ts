@@ -12,6 +12,8 @@ function mountWith(loadState: string) {
   shell.corpusPath = '/corpus'
   shell.healthStatus = 'ok'
   const artifacts = useArtifactsStore()
+  // Stub the self-fetch (sync-on-mount) so the explicitly-patched loadState under test persists.
+  vi.spyOn(artifacts, 'syncTopicClustersForCurrentCorpus').mockResolvedValue()
   artifacts.$patch({ topicClustersLoadState: loadState })
   const spy = vi.spyOn(artifacts, 'rebuildTopicClusters').mockResolvedValue()
   const w = mount(TopicClustersStatusBlock)
