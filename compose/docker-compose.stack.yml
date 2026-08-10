@@ -76,6 +76,10 @@ services:
       retries: 3
       start_period: 120s
     environment:
+      # Unbuffered stdout/stderr so tracebacks + progress surface in captured logs rather
+      # than being lost on a crash (a spawned pipeline run exited 1 with an empty log
+      # because Python buffered its output). Also on api for parity across services.
+      PYTHONUNBUFFERED: "1"
       # Provider keys: empty defaults (set in repo-root ``.env`` for Compose substitution only).
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -144,6 +148,9 @@ services:
       - corpus_data:/app/output
     environment:
       PODCAST_SCRAPER_WORK_DIR: /app
+      # Unbuffered so a crash surfaces its traceback in the captured job log instead of an
+      # empty log — the cloud_balanced Step-0 run exited 1 with zero diagnostics otherwise.
+      PYTHONUNBUFFERED: "1"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -188,6 +195,9 @@ services:
       - corpus_data:/app/output
     environment:
       PODCAST_SCRAPER_WORK_DIR: /app
+      # Unbuffered so a crash surfaces its traceback in the captured job log instead of an
+      # empty log — the cloud_balanced Step-0 run exited 1 with zero diagnostics otherwise.
+      PYTHONUNBUFFERED: "1"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
