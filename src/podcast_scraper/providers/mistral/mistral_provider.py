@@ -537,9 +537,13 @@ class MistralProvider:
                     audio_minutes=audio_minutes,
                 )
 
-        # Track LLM call metrics if available
+        # Track LLM call metrics if available (#1523: idempotent via the call_metrics latch).
         if pipeline_metrics is not None and audio_minutes > 0:
-            pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=tr_cost)
+            from ...utils.provider_metrics import record_transcription_cost_to_pipeline
+
+            record_transcription_cost_to_pipeline(
+                pipeline_metrics, call_metrics, audio_minutes, tr_cost
+            )
 
         # Finalize call_metrics (Mistral audio transcription may not have tokens,
         # but finalize for consistency)

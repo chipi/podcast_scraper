@@ -348,7 +348,10 @@ class DeepgramTranscriptionProvider:
         if audio_minutes <= 0:
             return
 
-        from ...utils.provider_metrics import record_provider_call_cost
+        from ...utils.provider_metrics import (
+            record_provider_call_cost,
+            record_transcription_cost_to_pipeline,
+        )
         from ...workflow.helpers import calculate_provider_cost
 
         cost = calculate_provider_cost(
@@ -368,6 +371,7 @@ class DeepgramTranscriptionProvider:
                 model=self.model,
                 audio_minutes=audio_minutes,
             )
-        if pipeline_metrics is not None:
-            estimated = getattr(call_metrics, "estimated_cost", cost) if call_metrics else cost
-            pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=estimated)
+        estimated = getattr(call_metrics, "estimated_cost", cost) if call_metrics else cost
+        record_transcription_cost_to_pipeline(
+            pipeline_metrics, call_metrics, audio_minutes, estimated
+        )

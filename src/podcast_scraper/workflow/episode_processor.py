@@ -1527,6 +1527,7 @@ def _record_transcription_metrics(
     pipeline_metrics.record_transcribe_time(tc_elapsed, job.idx)
     from podcast_scraper.utils.provider_metrics import (
         apply_estimated_cost_if_missing,
+        record_transcription_cost_to_pipeline,
         transcription_model_for_cfg,
     )
 
@@ -1540,6 +1541,12 @@ def _record_transcription_metrics(
         capability="transcription",
         model=transcription_model_for_cfg(cfg),
         audio_minutes=audio_min,
+    )
+    # #1523: backstop — record this call's transcription cost onto the run-level metrics so it
+    # reaches the manifest cost_rollup. No-op (via the call_metrics latch) when the provider already
+    # self-recorded; covers every path where it didn't (duration unknown, deepgram audio<=0 bail).
+    record_transcription_cost_to_pipeline(
+        pipeline_metrics, call_metrics, audio_min, getattr(call_metrics, "estimated_cost", None)
     )
     # Update episode status: transcribed (Issue #391)
     if _job_has_episode_for_metrics(job):
