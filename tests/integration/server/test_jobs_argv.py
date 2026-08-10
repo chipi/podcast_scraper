@@ -225,3 +225,147 @@ def test_argv_env_default_typo_does_not_fall_back(
     op.write_text("max_episodes: 2\n", encoding="utf-8")
     argv = build_pipeline_argv(corpus, op)
     assert "--profile" not in argv
+
+
+# ---------------------------------------------------------------------------
+# Per-feed incremental knobs — argv contract (#1542 regression guard)
+# ---------------------------------------------------------------------------
+
+
+def test_argv_feed_scope_all_knobs_present(tmp_path: Path) -> None:
+    """append, episode_offset, episode_order, skip_existing all appear in argv when set."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: cloud_balanced\n", encoding="utf-8")
+    argv = build_pipeline_argv(
+        corpus,
+        op,
+        feed_url="https://a.example/1.xml",
+        skip_existing=True,
+        append=True,
+        max_episodes=3,
+        episode_offset=2,
+        episode_order="oldest",
+    )
+    assert "--skip-existing" in argv
+    assert "--append" in argv
+    assert argv[argv.index("--max-episodes") + 1] == "3"
+    assert argv[argv.index("--episode-offset") + 1] == "2"
+    assert argv[argv.index("--episode-order") + 1] == "oldest"
+
+
+def test_argv_feed_scope_skip_existing_only(tmp_path: Path) -> None:
+    """skip_existing=True → --skip-existing; others omitted when not set."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: cloud_balanced\n", encoding="utf-8")
+    argv = build_pipeline_argv(corpus, op, feed_url="https://a.example/1.xml", skip_existing=True)
+    assert "--skip-existing" in argv
+    assert "--append" not in argv
+    assert "--episode-offset" not in argv
+
+
+def test_argv_feed_scope_append_only(tmp_path: Path) -> None:
+    """append=True → --append; others omitted when not set."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: cloud_balanced\n", encoding="utf-8")
+    argv = build_pipeline_argv(corpus, op, feed_url="https://a.example/1.xml", append=True)
+    assert "--append" in argv
+    assert "--skip-existing" not in argv
+
+
+def test_argv_feed_scope_episode_offset_zero_omitted(tmp_path: Path) -> None:
+    """episode_offset=0 is the default — build_pipeline_argv should NOT emit --episode-offset 0."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: cloud_balanced\n", encoding="utf-8")
+    argv = build_pipeline_argv(corpus, op, feed_url="https://a.example/1.xml", episode_offset=None)
+    assert "--episode-offset" not in argv
+
+
+# ---------------------------------------------------------------------------
+# Airgapped single-feed pipeline smoke (#1542) — no network, no real ML
+# ---------------------------------------------------------------------------
+
+
+def _cli_argv_tokens(full_argv: list[str]) -> list[str]:
+    """Strip the interpreter + module prefix from a build_pipeline_argv result.
+
+    ``build_pipeline_argv`` returns:
+        [sys.executable, '-m', 'podcast_scraper.cli', ...]
+    ``parse_args`` expects only the tokens after the module invocation.
+    """
+    # Locate '-m' and skip past 'podcast_scraper.cli'.
+    try:
+        m_idx = full_argv.index("-m")
+        return full_argv[m_idx + 2 :]
+    except ValueError:
+        return full_argv[3:]  # fallback: drop first 3 tokens
+
+
+def test_per_feed_job_config_resolves_rss_url(tmp_path: Path) -> None:
+    """Regression guard for #1542: the per-feed job path must produce a Config
+    where ``rss_url`` is set to the requested feed URL so the scraping stage
+    never sees None and does not raise "RSS URL is required".
+
+    No network, no ML — pure CLI arg parsing + Config construction."""
+    from podcast_scraper.cli import _build_config, parse_args  # type: ignore[attr-defined]
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    # Use a profile-free operator so parse_args stays offline (no YAML load
+    # that touches packaged profile presets which pull in optional deps).
+    op.write_text("max_episodes: 1\n", encoding="utf-8")
+
+    feed_url = "https://example.com/podcast.xml"
+    full_argv = build_pipeline_argv(corpus, op, feed_url=feed_url)
+    tokens = _cli_argv_tokens(full_argv)
+
+    # parse_args may call validate_args which raises "RSS URL is required"
+    # if the positional rss arg is missing — this is what we're guarding.
+    args = parse_args(tokens)
+    cfg = _build_config(args)
+
+    assert cfg.rss_url == feed_url, (
+        f"config.rss_url must equal the requested feed URL to prevent "
+        f"'RSS URL is required' in the scraping stage; got {cfg.rss_url!r}"
+    )
+
+
+def test_per_feed_job_config_resolves_rss_url_with_knobs(tmp_path: Path) -> None:
+    """Same as above but with incremental-add knobs set — prove they survive
+    the CLI round-trip and land in Config correctly."""
+    from podcast_scraper.cli import _build_config, parse_args  # type: ignore[attr-defined]
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("max_episodes: 1\n", encoding="utf-8")
+
+    feed_url = "https://example.com/podcast.xml"
+    full_argv = build_pipeline_argv(
+        corpus,
+        op,
+        feed_url=feed_url,
+        skip_existing=True,
+        append=True,
+        max_episodes=5,
+        episode_offset=2,
+        episode_order="oldest",
+    )
+    tokens = _cli_argv_tokens(full_argv)
+    args = parse_args(tokens)
+    cfg = _build_config(args)
+
+    assert cfg.rss_url == feed_url
+    assert cfg.skip_existing is True
+    assert cfg.append is True
+    assert cfg.max_episodes == 5
+    assert cfg.episode_offset == 2
+    assert cfg.episode_order == "oldest"
