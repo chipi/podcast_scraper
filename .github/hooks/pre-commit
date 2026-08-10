@@ -482,6 +482,101 @@ if [ -n "$STAGED_ALL" ]; then
     echo ""
 fi
 
+# --------------------------------------------------------------------------
+# gitleaks scan (staged content)
+#
+# Augments the pattern scan above with the full gitleaks ruleset (generic-api-key
+# and all built-in detectors).  Requires gitleaks v8+ on PATH; if absent, prints
+# a warning and continues — dev machines without gitleaks are not hard-blocked.
+# CI runs gitleaks unconditionally via secret-scan.yml.
+# --------------------------------------------------------------------------
+if command_exists gitleaks; then
+    echo "→ Running gitleaks on staged content..."
+    GITLEAKS_CONFIG=""
+    if file_exists ".gitleaks.toml"; then
+        GITLEAKS_CONFIG="-c .gitleaks.toml"
+    fi
+    # shellcheck disable=SC2086
+    if gitleaks protect --staged --no-banner $GITLEAKS_CONFIG > /dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} gitleaks scan passed"
+    else
+        echo -e "${RED}✗${NC} gitleaks found potential secrets in staged files"
+        # Re-run without quiet so the operator sees the findings
+        # shellcheck disable=SC2086
+        gitleaks protect --staged --no-banner $GITLEAKS_CONFIG 2>&1 || true
+        echo ""
+        echo "  Fix: remove the secret, replace with a \${ENV_VAR} reference, then re-stage."
+        ERRORS=$((ERRORS + 1))
+    fi
+    echo ""
+else
+    echo -e "${YELLOW}⚠${NC} gitleaks not on PATH — install for stronger secret detection (CI still enforces it)"
+    echo "    brew install gitleaks"
+    echo ""
+fi
+
+# --------------------------------------------------------------------------
+# .env guard — fail if a bare .env file (not *.example) is staged
+# --------------------------------------------------------------------------
+echo "→ Checking for bare .env files in staged set..."
+ENV_HITS=""
+for f in $STAGED_ALL; do
+    case "$f" in
+        *.env|*/.env)
+            # Allow .env.example, .env.test, .env.sample, etc.
+            case "$f" in
+                *.example|*.sample|*.test|*.ci|*.template) ;;
+                *) ENV_HITS="${ENV_HITS}${ENV_HITS:+ }$f" ;;
+            esac
+            ;;
+        .env)
+            ENV_HITS="${ENV_HITS}${ENV_HITS:+ }$f"
+            ;;
+    esac
+done
+if [ -n "$ENV_HITS" ]; then
+    echo -e "${RED}✗${NC} Bare .env file(s) staged — never commit real .env files:"
+    for f in $ENV_HITS; do echo "    $f"; done
+    echo ""
+    echo "  Use .env.example with placeholder values instead."
+    ERRORS=$((ERRORS + 1))
+else
+    echo -e "${GREEN}✓${NC} No bare .env files staged"
+fi
+echo ""
+
+# --------------------------------------------------------------------------
+# Identifier deny-list (best-effort, local)
+#
+# If .git/identifier-denylist exists (one literal per line, populated by the
+# operator out-of-band — never committed), grep staged content for each
+# identifier and fail on a match.  If the file is absent, skip silently.
+# CI enforces this gate authoritatively via secret-scan.yml with the
+# SECURITY_IDENTIFIER_DENYLIST Actions secret.
+# --------------------------------------------------------------------------
+IDENT_DENYLIST=".git/identifier-denylist"
+if [ -f "$IDENT_DENYLIST" ]; then
+    echo "→ Checking staged content against local identifier deny-list..."
+    IDENT_HIT=0
+    STAGED_CONTENT_TMP="${LOG_PREFIX}_staged_content.txt"
+    git diff --cached 2>/dev/null > "$STAGED_CONTENT_TMP"
+    while IFS= read -r identifier; do
+        [ -z "$identifier" ] && continue
+        if grep -qF "$identifier" "$STAGED_CONTENT_TMP" 2>/dev/null; then
+            # Print only that a match was found, never the literal value
+            echo -e "${RED}✗${NC} Operator identifier found in staged diff — check your staged files."
+            IDENT_HIT=1
+        fi
+    done < "$IDENT_DENYLIST"
+    rm -f "$STAGED_CONTENT_TMP"
+    if [ "$IDENT_HIT" -eq 0 ]; then
+        echo -e "${GREEN}✓${NC} Identifier deny-list check passed"
+    else
+        ERRORS=$((ERRORS + 1))
+    fi
+    echo ""
+fi
+
 # Check YAML syntax validation (required when YAML files are staged)
 if [ -n "$STAGED_YAML" ]; then
     echo "→ Running YAML syntax validation..."
