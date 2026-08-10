@@ -219,16 +219,24 @@ data/eval/configs/_pipeline_validate/
 data/lance_index/
 data/query_router.joblib
 
-# Environment variables
+# Environment variables. Prefix globs (not exact names) so backup/variant droppings like
+# `.env.obs.dev.pre-obs-sync.bak` are ALSO ignored — the exact-name patterns missed those and a
+# real secrets backup got committed (2026-08-10).
 .env
-.env.local
-.env.autoresearch
+.env.local*
+.env.autoresearch*
 .env.*.local
 # Dev observability secrets (GlitchTip DSN + Langfuse keys pointing at the homelab).
 # Template committed as .env.obs.dev.example; the real keys stay local-only.
-.env.obs.dev
+.env.obs.dev*
 # Homelab obs-MCP deploy read tokens (template committed as .env.homelab.example).
-.env.homelab
+.env.homelab*
+# But NEVER ignore the committed *.example templates — they are legitimate and tracked.
+!.env*.example
+# Editor/backup droppings — never commit (they hid the leaked env backup above).
+*.bak
+*.orig
+*.save
 
 # Local ML model cache - ignore all contents except README.md
 .cache/*
