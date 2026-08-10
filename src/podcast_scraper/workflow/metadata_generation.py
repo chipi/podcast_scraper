@@ -2855,15 +2855,19 @@ def _generate_episode_summary(  # noqa: C901
                         call_metrics.finalize()
                         parse_result = _parse_summary(result, result.get("summary"))
 
-            # Require successful parsing - fail if schema parsing fails
+            # Require successful parsing. #1496: after the bounded ADR-148 re-roll a still-invalid
+            # structured summary is a RECOVERABLE failure — continue WITHOUT the summary (the
+            # episode keeps its transcript / GI / KG) instead of dropping the whole episode as an
+            # "unexpected error". The re-roll fuse already bounds the retry to one; this is the
+            # graceful terminal fail, caught by the summary try/except at the caller.
             if not parse_result.success or not parse_result.schema:
-                error_msg = (
-                    f"[{episode_idx}] Summary schema parsing failed. "
-                    f"Error: {parse_result.error or 'Unknown error'}. "
-                    "All summaries must use normalized schema format."
+                raise RecoverableSummarizationError(
+                    episode_idx=episode_idx,
+                    reason=(
+                        "Summary schema parsing failed after the ADR-148 re-roll: "
+                        f"{parse_result.error or 'Unknown error'}"
+                    ),
                 )
-                logger.error("%s", redact_for_log(error_msg))
-                raise RuntimeError(redact_for_log(error_msg))
 
             schema = parse_result.schema
 
@@ -2938,6 +2942,13 @@ def _generate_episode_summary(  # noqa: C901
             )
             logger.error("%s", redact_for_log(error_msg_full), exc_info=True)
             raise RuntimeError(redact_for_log(error_msg_full)) from e
+        except RecoverableSummarizationError:
+            # #1496: a recoverable summary failure raised in the try body (e.g. schema parse still
+            # invalid after the bounded ADR-148 re-roll) must propagate to the caller's summary
+            # try/except so the episode continues WITHOUT a summary — never re-wrapped as the hard
+            # RuntimeError below (which would drop the whole episode as an "unexpected error").
+            call_metrics.finalize()
+            raise
         except Exception as e:
             call_metrics.finalize()
             # Fail fast - if summarization fails for a specific episode, raise exception

@@ -1094,10 +1094,13 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.metadata_generation.time.time")
     @patch("podcast_scraper.preprocessing.clean_transcript")
-    def test_generate_episode_summary_reroll_bounded_then_fails(self, mock_clean, mock_time):
-        """ADR-148: a PERSISTENTLY invalid structured summary re-rolls exactly ONCE (bounded),
-        then fails the episode — the re-roll is prepended to the existing fail path, not a
-        replacement, and it does not storm the LLM-call budget."""
+    def test_generate_episode_summary_reroll_bounded_then_recoverable(self, mock_clean, mock_time):
+        """ADR-148 + #1496: a PERSISTENTLY invalid structured summary re-rolls exactly ONCE
+        (bounded), then raises RecoverableSummarizationError — so the caller drops only the summary
+        and keeps the episode (transcript / GI / KG), instead of the whole episode failing as an
+        'unexpected error'. The re-roll still does not storm the LLM-call budget (one retry)."""
+        from podcast_scraper.exceptions import RecoverableSummarizationError
+
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")
         with open(transcript_path, "w") as f:
             f.write("This is a long transcript that should be long enough for summarization. " * 10)
@@ -1113,7 +1116,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         }
         self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(RecoverableSummarizationError) as context:
             metadata._generate_episode_summary(
                 transcript_file_path="transcript.txt",
                 output_dir=self.temp_dir,
