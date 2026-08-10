@@ -1999,6 +1999,12 @@ def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[
         provider_info["anthropic_model"] = speaker_model
     elif cfg.speaker_detector_provider == "groq":
         provider_info["groq_model"] = getattr(cfg, "groq_speaker_model", "llama-3.3-70b-versatile")
+    elif cfg.speaker_detector_provider == "vllm":
+        provider_info["vllm_model"] = cfg.vllm_speaker_model
+    elif cfg.speaker_detector_provider == "litellm":
+        provider_info["litellm_model"] = cfg.litellm_speaker_model
+    elif cfg.speaker_detector_provider == "qwen":
+        provider_info["qwen_model"] = cfg.qwen_speaker_model
 
     return provider_info
 
@@ -2090,6 +2096,12 @@ def _append_external_llm_summary_models(provider_info: Dict[str, Any], cfg: conf
         provider_info["groq_model"] = cfg.groq_summary_model
     elif sp == "ollama":
         provider_info["ollama_model"] = cfg.ollama_summary_model
+    elif sp == "vllm":
+        provider_info["vllm_model"] = cfg.vllm_summary_model
+    elif sp == "litellm":
+        provider_info["litellm_model"] = cfg.litellm_summary_model
+    elif sp == "qwen":
+        provider_info["qwen_model"] = cfg.qwen_summary_model
 
 
 def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str, Any]]:
@@ -2143,6 +2155,12 @@ def _attach_llm_cleaning_models_to_summarization_info(
         provider_info["groq_cleaning_model"] = cfg.groq_cleaning_model
     elif sp == "ollama":
         provider_info["ollama_cleaning_model"] = cfg.ollama_cleaning_model
+    elif sp == "vllm":
+        provider_info["vllm_cleaning_model"] = cfg.vllm_cleaning_model
+    elif sp == "litellm":
+        provider_info["litellm_cleaning_model"] = cfg.litellm_cleaning_model
+    elif sp == "qwen":
+        provider_info["qwen_cleaning_model"] = cfg.qwen_cleaning_model
 
 
 def _extract_episode_stage_timings(

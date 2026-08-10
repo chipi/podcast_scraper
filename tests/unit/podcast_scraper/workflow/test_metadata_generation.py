@@ -2592,6 +2592,41 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
                 "ollama_model",
                 "ollama_cleaning_model",
             ),
+            # ADR-147 siblings (#1524): the gateway-routed / DGX-local LLM providers must record
+            # their stage model in the sidecar too — cloud_balanced summarises via litellm.
+            (
+                "vllm",
+                {
+                    "summary_provider": "vllm",
+                    "vllm_summary_model": "qwen3-vllm-test",
+                    "vllm_cleaning_model": "vllm-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "vllm_model",
+                "vllm_cleaning_model",
+            ),
+            (
+                "litellm",
+                {
+                    "summary_provider": "litellm",
+                    "litellm_summary_model": "podcast-flash-test",
+                    "litellm_cleaning_model": "litellm-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "litellm_model",
+                "litellm_cleaning_model",
+            ),
+            (
+                "qwen",
+                {
+                    "summary_provider": "qwen",
+                    "qwen_summary_model": "qwen3-native-test",
+                    "qwen_cleaning_model": "qwen-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "qwen_model",
+                "qwen_cleaning_model",
+            ),
         )
         for name, kwargs, model_key, cleaning_key in cases:
             with self.subTest(provider=name):
@@ -2602,6 +2637,30 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
                 self.assertIn(model_key, result)
                 self.assertIn(cleaning_key, result)
                 self.assertTrue(str(result[cleaning_key]).endswith("-test"))
+
+    def test_speaker_detection_records_adr147_sibling_models(self):
+        """#1524: litellm/vllm/qwen speaker detectors record their model in the sidecar.
+
+        cloud_balanced runs ``speaker_detector_provider: litellm``; before #1524 the sidecar
+        recorded only the provider name, never which model resolved the speakers.
+        """
+        cases = (
+            ("vllm", {"vllm_speaker_model": "qwen3-vllm-spk"}, "vllm_model", "qwen3-vllm-spk"),
+            (
+                "litellm",
+                {"litellm_speaker_model": "homelab-flash-spk"},
+                "litellm_model",
+                "homelab-flash-spk",
+            ),
+            ("qwen", {"qwen_speaker_model": "qwen3-native-spk"}, "qwen_model", "qwen3-native-spk"),
+        )
+        for name, kwargs, model_key, expected in cases:
+            with self.subTest(provider=name):
+                cfg = create_test_config(speaker_detector_provider=name, **kwargs)
+                result = metadata._build_speaker_detection_provider_info(cfg)
+                self.assertIsNotNone(result)
+                self.assertEqual(result["provider"], name)
+                self.assertEqual(result[model_key], expected)
 
     def test_openai_includes_cleaning_model_when_llm_strategy(self):
         """transcript_cleaning_strategy=llm also attaches cleaning model ids."""
