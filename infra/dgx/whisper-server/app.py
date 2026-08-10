@@ -75,7 +75,7 @@ if _SENTRY_DSN:
         dsn=_SENTRY_DSN,
         traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.01")),
         environment=os.environ.get("SENTRY_ENVIRONMENT", "dgx-prod"),
-        server_name=os.environ.get("SENTRY_SERVER_NAME", "dgx-llm-1.tail6d0ed4.ts.net"),
+        server_name=os.environ.get("SENTRY_SERVER_NAME", "dgx-llm-1"),
         release=os.environ.get("SERVICE_VERSION", "dev"),
         before_send=lambda event, hint: (
             None if "whisper model not yet loaded" in str(event.get("message", "")) else event

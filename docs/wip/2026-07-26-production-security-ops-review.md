@@ -90,7 +90,7 @@ surface.**
   (`app_auth.py:81-92`) passes for anyone who can sign in.
 - RFC-108 frames "double gate + role authZ"; in practice the role check adds no
   independent defense — security depends entirely on `OPERATOR_ALLOWED_EMAILS`
-  (currently `marko.dragoljevic@gmail.com`, `allowlist`, VERIFIED via `gh variable
+  (currently `<OPERATOR_EMAIL>`, `allowlist`, VERIFIED via `gh variable
   list`). If anyone sets `OPERATOR_SIGNUP_MODE=open`, the corpus-read surface opens
   to any Google account (self-granted creator).
 - Blast radius today: none (allowlist = 1). Latent footgun.

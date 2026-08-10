@@ -474,24 +474,45 @@ performance before merging.
    [AGENTS.md § "Materialize autoresearch decisions"](AGENTS.md) for the
    full flow.
 
-### Hostnames in the registry
+### No operator identifiers in the repo
 
-**Never commit operator-specific Tailscale MagicDNS hostnames to the
-repo.** Registry `StageOption.endpoint` fields and example YAMLs use the
-literal placeholder `{dgx_tailnet_host}` (Python format-string token) or
-`your-dgx.tailnet.ts.net` (visually-obvious docstring marker), depending
-on the file type:
+**Never commit operator-specific identifiers anywhere in the repo** — this
+covers docs, scripts, tests, infra files, data configs, and workflows.
+The deny-list CI gate (`secret-scan.yml` → `identifier-denylist` job) will
+fail the PR if any denylisted literal appears in a changed file.
 
-- **Python (registry, scripts)**: use `{dgx_tailnet_host}` in templates;
-  resolve via `resolve_endpoint(template, dgx_tailnet_host=None)` which
-  pulls from explicit arg → `DGX_TAILNET_HOST` env var → a fail-fast
-  sentinel.
-- **Docs, YAMLs, READMEs**: use `your-dgx.tailnet.ts.net` as the visual
-  placeholder. Operators replace per-checkout or set the env var.
-- **Env files**: see `config/examples/dgx-dev.env.example` for the full
-  env-var contract (`DGX_TAILNET_FQDN` for the pyinfra deploy path,
-  `DGX_TAILNET_HOST` for the registry resolver — same value; both should
-  be set).
+Prohibited categories and their placeholders:
+
+| Category | Placeholder to use |
+| --- | --- |
+| Tailscale tailnet suffix | `<TAILNET>.ts.net` |
+| DGX FQDN (docs/YAML/READMEs) | `your-dgx.tailnet.ts.net` |
+| DGX FQDN (Python registry/scripts) | `{dgx_tailnet_host}` |
+| Prod VPS tailnet FQDN | `prod-podcast.<TAILNET>.ts.net` |
+| Homelab FQDN | `homelab.<TAILNET>.ts.net` |
+| Tailscale IPs (any host) | `<HOMELAB_IP>`, `<DGX_IP>`, `<PROD_HOST_IP>` |
+| Hetzner public IP | `<HETZNER_IP>` |
+| Hetzner server id | `<HETZNER_SERVER_ID>` |
+| Operator OS username | `<OPERATOR_USER>` |
+| Operator email | `<OPERATOR_EMAIL>` |
+
+**Python (registry, scripts)**: use `{dgx_tailnet_host}` in templates;
+resolve via `resolve_endpoint(template, dgx_tailnet_host=None)` which
+pulls from explicit arg → `DGX_TAILNET_HOST` env var → a fail-fast
+sentinel.
+
+**Env example files**: use the angle-bracket placeholders above or the
+`your-dgx.tailnet.ts.net` marker. See `infra/.env.dgx.local.example` and
+`infra/.env.local.example` for the canonical patterns.
+
+**Exceptions** (paths excluded from the deny-list gate — do NOT scrub):
+
+- `tests/**` — assert literal FQDNs to prove resolver behaviour; scrubbing
+  breaks the suite.
+- `docs/guides/eval-reports/**` — dated lab records; editing falsifies them.
+- `docs/wip/EVAL_1016_metrics/**` — raw captured logs.
+- `tailscale/policy.hujson` — live ACL GitOps source; editing may break
+  the deploy pipeline.
 
 **Performance validation (`data/profiles/`):**
 

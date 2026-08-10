@@ -18,7 +18,7 @@ update only this thin bridge here.
 ## Access (verified 2026-08-02)
 
 - The DGX runs as **`ops`** from `/home/ops/agentic-ai-homelab` (a **deploy-only** checkout —
-  never commit on the box). Reach it over Tailscale: **`ssh ops@dgx-llm-1`** (`100.69.49.126`).
+  never commit on the box). Reach it over Tailscale: **`ssh ops@dgx-llm-1`** (`<DGX_IP>`).
 - `gpu-mode-swap.sh` is on PATH at **`/usr/local/bin/gpu-mode-swap.sh`** — always call by that
   absolute path in non-interactive shells (the `gpu-mode` alias only loads interactively).
 

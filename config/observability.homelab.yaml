@@ -3,7 +3,7 @@
 #   export SENTRY_AUTH_TOKEN=<the existing GlitchTip Internal-Integration token>   # already a GH secret
 #   PODCAST_OBS_CONFIG=config/observability.homelab.yaml python -m podcast_obs surface pipeline
 #
-# All backends live on `homelab` (Mac mini, tailnet 100.87.33.61). The Victoria* endpoints have
+# All backends live on `homelab` (Mac mini, tailnet <HOMELAB_IP>). The Victoria* endpoints have
 # NO auth — tailnet reachability IS the auth (live-verified). Only the errors source (GlitchTip)
 # needs a token, and it already exists: the `SENTRY_AUTH_TOKEN` GH secret (org=homelab, targets
 # homelab:8090). Wire it via `token_env` below — secrets never live in this file.

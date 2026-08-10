@@ -1305,7 +1305,7 @@ OAuth client** (that theory burned hours on 2026-08-03; the client was always
 fine — see ADR-143). Diagnose in 10 seconds with a mint probe:
 
 ```bash
-TAILNET=tail6d0ed4.ts.net
+TAILNET=<TAILNET>.ts.net
 TOK=$(curl -fsS https://api.tailscale.com/api/v2/oauth/token \
   -d client_id=$TS_INFRA_OAUTH_CLIENT_ID -d client_secret=$TS_INFRA_OAUTH_SECRET | jq -r .access_token)
 curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $TOK" \
@@ -1418,7 +1418,7 @@ time, then the pipeline crashes on first provider call with
 
 > **Grafana Cloud vars removed (retired 2026-07-27):** `GRAFANA_CLOUD_PROM_URL`, `GRAFANA_CLOUD_LOKI_URL`,
 > `GRAFANA_CLOUD_PROM_USER`, `GRAFANA_CLOUD_LOKI_USER`, `GRAFANA_CLOUD_API_KEY` are no longer used.
-> Observability is fully self-hosted on homelab (Mac mini, tailnet `homelab`, 100.87.33.61).
+> Observability is fully self-hosted on homelab (Mac mini, tailnet `homelab`, `<HOMELAB_IP>`).
 > Remove these vars from any existing `.env` or GHA secrets to avoid confusion.
 >
 > **Operator note:** if your existing prod VPS is already running and Grafana
@@ -2007,7 +2007,7 @@ ssh -o IdentitiesOnly=yes -i ~/.ssh/<operator-private-key> \
   deploy@prod-podcast-1.<tailnet> 'echo ok'
 ```
 
-Replace `<tailnet>` with your MagicDNS suffix (for example `tail6d0ed4.ts.net`).
+Replace `<tailnet>` with your MagicDNS suffix (for example `<TAILNET>.ts.net`).
 If this fails but `tailscale status` shows prod as active, you are using the
 wrong private key file for `deploy@`.
 

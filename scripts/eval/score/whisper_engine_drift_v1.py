@@ -20,8 +20,8 @@ What it does, per episode:
 
 Usage::
 
-    WHISPER_FASTER_URL=http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions \\
-    WHISPER_OPENAI_URL=http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions \\
+    WHISPER_FASTER_URL=http://your-dgx.tailnet.ts.net:8000/v1/audio/transcriptions \\
+    WHISPER_OPENAI_URL=http://your-dgx.tailnet.ts.net:8002/v1/audio/transcriptions \\
     DEEPGRAM_API_KEY=... \\
     python scripts/eval/score/whisper_engine_drift_v1.py \\
         --audio tests/fixtures/audio/v1/p01_e01.mp3 ... \\

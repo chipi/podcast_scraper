@@ -39,3 +39,12 @@ def fixtures_dir(subdir: str, version: str | None = None) -> Path:
     if subdir in VERSIONED_SUBDIRS:
         return base / (version or DEFAULT_FIXTURE_VERSION)
     return base
+
+
+# Placeholder DGX/tailnet host for tests — NEVER the operator's real tailnet suffix. Production
+# resolvers read the host from env (``DGX_TAILNET_FQDN`` → ``vllm_chat._resolve_vllm_base``,
+# ``scripts/ops/resolve_dgx_tailnet_host.sh``); tests inject THIS fake value instead of hardcoding
+# a real FQDN. Keeps a ``dgx-`` prefix + ``.ts.net`` suffix so ``_classify_inference_target`` still
+# yields ``"dgx-vllm"``.
+TEST_DGX_FQDN: str = "dgx-test.tailnet.ts.net"
+TEST_DGX_VLLM_BASE_URL: str = f"http://{TEST_DGX_FQDN}:8003/v1"

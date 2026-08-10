@@ -12,7 +12,7 @@ Matching logic (OR):
 Env (required):
 
   TS_API_KEY   — Tailscale API key (``tskey-api-...``, not TS_AUTHKEY).
-  TAILNET_NAME or TAILNET — tailnet id (e.g. ``tail6d0ed4.ts.net`` or org DNS name).
+  TAILNET_NAME or TAILNET — tailnet id (e.g. ``<TAILNET>.ts.net`` or org DNS name).
 
 Examples:
 
@@ -58,7 +58,7 @@ def _tailnet() -> str:
     t = (os.environ.get("TAILNET_NAME") or os.environ.get("TAILNET") or "").strip()
     if not t:
         print(
-            "Set TAILNET_NAME or TAILNET (e.g. tail6d0ed4.ts.net).",
+            "Set TAILNET_NAME or TAILNET (e.g. <TAILNET>.ts.net).",
             file=sys.stderr,
         )
         sys.exit(1)

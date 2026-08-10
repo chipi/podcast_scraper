@@ -10,13 +10,13 @@
 #   kill %1
 #
 # Env vars:
-#   DGX_HOST (default: dgx-llm-1.tail6d0ed4.ts.net)
+#   DGX_HOST (default: your-dgx.tailnet.ts.net)
 #   VLLM_PORT (default: 9000)
 #   VLLM_MODEL (default: Qwen/Qwen3-Coder-Next-FP8)
 #   VLLM_API_KEY (default: buddy-is-the-king)
 #   LOAD_LOG (default: /tmp/dgx_vllm_load.jsonl) — per-request timing
 set -euo pipefail
-DGX_HOST="${DGX_HOST:-dgx-llm-1.tail6d0ed4.ts.net}"
+DGX_HOST="${DGX_HOST:?set DGX_HOST to the tailnet FQDN of your DGX}"
 VLLM_PORT="${VLLM_PORT:-9000}"
 VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen3-Coder-Next-FP8}"
 VLLM_API_KEY="${VLLM_API_KEY:-buddy-is-the-king}"

@@ -3413,7 +3413,7 @@ function redraw(): void {
     
     /**
      * ``selectionReplaced`` and ``contextSwitch`` are hard-coded ``false`` and load-bearing — do
-     * NOT delete without an FSM-based replacement (planned for C6, /Users/markodragoljevic/.claude/plans/in-this-b-tanch-gentle-pillow.md).
+     * NOT delete without an FSM-based replacement (planned for C6, see graphHandoffFsm.ts FSM design spec).
      * They invert the incremental-layout gate on lines below: with both ``false``, the predicate
      * becomes "incremental allowed unless egoChanged or external-nav", which is the *opposite*
      * of the original gate. Removing them reverts behaviour to a state nobody has tested in

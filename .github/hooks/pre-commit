@@ -558,17 +558,31 @@ IDENT_DENYLIST=".git/identifier-denylist"
 if [ -f "$IDENT_DENYLIST" ]; then
     echo "→ Checking staged content against local identifier deny-list..."
     IDENT_HIT=0
-    STAGED_CONTENT_TMP="${LOG_PREFIX}_staged_content.txt"
-    git diff --cached 2>/dev/null > "$STAGED_CONTENT_TMP"
-    while IFS= read -r identifier; do
-        [ -z "$identifier" ] && continue
-        if grep -qF "$identifier" "$STAGED_CONTENT_TMP" 2>/dev/null; then
-            # Print only that a match was found, never the literal value
-            echo -e "${RED}✗${NC} Operator identifier found in staged diff — check your staged files."
-            IDENT_HIT=1
-        fi
-    done < "$IDENT_DENYLIST"
-    rm -f "$STAGED_CONTENT_TMP"
+    # Paths excluded from this gate — they legitimately contain operator identifiers
+    # and must NOT be scrubbed (mirrors the exclusions in .github/workflows/secret-scan.yml).
+    # Test CODE is parameterized via tests/_fixtures.py placeholders, so it is NOT excluded —
+    # only frozen fixture DATA is:
+    #   tests/fixtures/**             — frozen corpus fixtures with absolute paths
+    #   docs/guides/eval-reports/**   — dated lab records; editing falsifies them
+    #   docs/wip/EVAL_1016_metrics/** — raw captured logs
+    #   tailscale/policy.hujson       — live ACL GitOps source-of-truth
+    for f in $STAGED_ALL; do
+        [ -f "$f" ] || continue
+        case "$f" in
+            tests/fixtures/*) continue ;;
+            docs/guides/eval-reports/*) continue ;;
+            docs/wip/EVAL_1016_metrics/*) continue ;;
+            tailscale/policy.hujson) continue ;;
+        esac
+        while IFS= read -r identifier; do
+            [ -z "$identifier" ] && continue
+            if grep -qF "$identifier" "$f" 2>/dev/null; then
+                # Print only that a match was found, never the literal value
+                echo -e "${RED}✗${NC} Operator identifier found in staged file: $f — check your staged files."
+                IDENT_HIT=1
+            fi
+        done < "$IDENT_DENYLIST"
+    done
     if [ "$IDENT_HIT" -eq 0 ]; then
         echo -e "${GREEN}✓${NC} Identifier deny-list check passed"
     else

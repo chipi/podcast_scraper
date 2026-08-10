@@ -14,11 +14,11 @@
 # this model BEFORE running this config. Procedure:
 #
 #   ssh into DGX
-#   sudo -u markodragoljevic gpu-mode-swap.sh idle
+#   sudo -u <OPERATOR_USER> gpu-mode-swap.sh idle
 #   $EDITOR ~/agentic-ai-homelab/infra/vllm/autoresearch/docker-compose.yml
 #     # Change the `- Qwen/Qwen3-30B-A3B-Instruct-2507` line to
 #     #         `- deepseek-ai/DeepSeek-R1-Distill-Qwen-32B`
-#   sudo -u markodragoljevic gpu-mode-swap.sh research
+#   sudo -u <OPERATOR_USER> gpu-mode-swap.sh research
 #   # Wait for /health 200 (cold boot ~10-15 min, smaller model than Qwen)
 #
 # Post-processing: R1-Distill emits ``<think>...</think>`` blocks

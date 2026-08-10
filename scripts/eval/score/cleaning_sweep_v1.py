@@ -138,7 +138,7 @@ def _clean_ollama(client: Any, model: str, transcript: str, temperature: float) 
     # documented in prompt_v2_cross_provider_v1.py.
     base = os.environ.get(
         "OLLAMA_API_BASE_NATIVE",
-        "http://dgx-llm-1.tail6d0ed4.ts.net:11434",
+        "http://your-dgx.tailnet.ts.net:11434",
     )
     timeout = float(os.environ.get("OLLAMA_TIMEOUT_S", "600"))
     resp = client.post(

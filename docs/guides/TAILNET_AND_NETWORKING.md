@@ -12,7 +12,7 @@ tailnet, or to expose a service on it: **you change one file here and open a PR.
 
 ## TL;DR
 
-- The tailnet is a private WireGuard mesh (Tailscale, tailnet `tail6d0ed4.ts.net`). Nothing
+- The tailnet is a private WireGuard mesh (Tailscale, tailnet `<TAILNET>.ts.net`). Nothing
   here is public — reachability requires being on the tailnet **and** an ACL grant.
 - **The ACL is the single source of truth in this repo: `tailscale/policy.hujson`.** It is
   default-deny; only listed `src → dst:port` grants are allowed.
@@ -36,9 +36,9 @@ tailnet, or to expose a service on it: **you change one file here and open a PR.
 
 | Tag | Host | Tailnet IP | Notes |
 | --- | --- | --- | --- |
-| `tag:prod` | prod VPS (`prod-podcast`) | `100.124.111.115` | player/operator/api; public via Cloudflare→Caddy |
-| `tag:homelab-host` | homelab Mac mini (`homelab`) | `100.87.33.61` | self-hosted o11y (Grafana, VictoriaMetrics/Logs/Traces, GlitchTip, Umami, Langfuse) |
-| `tag:dgx-llm-host` | DGX Spark (`dgx-llm-1`) | `100.69.49.126` | Ollama + inference + GPU/host exporters |
+| `tag:prod` | prod VPS (`prod-podcast`) | `<PROD_HOST_IP>` | player/operator/api; public via Cloudflare→Caddy |
+| `tag:homelab-host` | homelab Mac mini (`homelab`) | `<HOMELAB_IP>` | self-hosted o11y (Grafana, VictoriaMetrics/Logs/Traces, GlitchTip, Umami, Langfuse) |
+| `tag:dgx-llm-host` | DGX Spark (`dgx-llm-1`) | `<DGX_IP>` | Ollama + inference + GPU/host exporters |
 | `tag:gha-deployer` | ephemeral GitHub Actions runners | (dynamic) | deploy / backup / drill / ops-event push |
 | `tag:dr-drill` | throwaway DR-drill VPS | (dynamic) | disaster-recovery rehearsals only |
 
@@ -83,7 +83,7 @@ the local service. **`serve`, never `funnel`** (funnel is public). Two patterns:
   ```sh
   # on the host (no sudo needed for serve):
   tailscale serve --bg --https=443 --set-path=/grafana http://127.0.0.1:3000
-  # → https://homelab.tail6d0ed4.ts.net/grafana  (proxies to :3000, prefix stripped)
+  # → https://homelab.<TAILNET>.ts.net/grafana  (proxies to :3000, prefix stripped)
   ```
 
   Breaks web UIs that emit root-absolute asset URLs — for those, either set the app's
@@ -92,7 +92,7 @@ the local service. **`serve`, never `funnel`** (funnel is public). Two patterns:
 
   ```sh
   tailscale serve --bg --https=8443 --set-path=/ http://127.0.0.1:4000
-  # → https://homelab.tail6d0ed4.ts.net:8443/  (Langfuse, root path)
+  # → https://homelab.<TAILNET>.ts.net:8443/  (Langfuse, root path)
   ```
 
   A non-443 port **needs an ACL grant** (Runbook 1) — add `<port>` to the host's dst list, e.g.

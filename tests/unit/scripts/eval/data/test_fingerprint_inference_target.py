@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._fixtures import TEST_DGX_VLLM_BASE_URL
+
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
@@ -32,7 +34,7 @@ pytestmark = pytest.mark.unit
         ("http://localhost:8003/v1", "openai", "local-vllm"),
         ("http://0.0.0.0:8000/v1", "openai", "local-vllm"),
         # DGX (Tailscale / dgx- hostname)
-        ("http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1", "openai", "dgx-vllm"),
+        (TEST_DGX_VLLM_BASE_URL, "openai", "dgx-vllm"),
         ("http://dgx-llm-1:8003/v1", "openai", "dgx-vllm"),
         # In-process HF
         (None, "hf_local", "local-hf"),
@@ -61,7 +63,7 @@ def test_ollama_vs_dgx_distinction_drives_different_fingerprints() -> None:
     ``provider_type: openai``, same model alias, but inference target differs
     materially. Distinct classifications → distinct fingerprint values."""
     local = _classify_inference_target("http://localhost:11434/v1", "openai")
-    dgx = _classify_inference_target("http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1", "openai")
+    dgx = _classify_inference_target(TEST_DGX_VLLM_BASE_URL, "openai")
     assert local == "local-ollama"
     assert dgx == "dgx-vllm"
     assert local != dgx

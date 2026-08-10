@@ -155,7 +155,7 @@ Operator direction on P1-4/P1-5 refined the backups and DR:
   set `OPERATOR_SECRETS_VIA_FILES=1` **after** this merges (so the overlay is on the box), then
   redeploy operator — do NOT flip before merge.
 - **P2-2 (`.com` admin email) — DONE.** Operator confirmed it was a typo for `.app`;
-  `APP_ADMIN_EMAILS` corrected to `marko.dragoljevic@gmail.com,info@closelistening.app` (GH var,
+  `APP_ADMIN_EMAILS` corrected to `<OPERATOR_EMAIL>,info@closelistening.app` (GH var,
   effective next deploy). No `closelistening.com` remains in any variable.
 - **P2-5 (external uptime) — DONE (operator-side).** Operator confirmed external uptime
   monitoring is already covered. Dismissed.

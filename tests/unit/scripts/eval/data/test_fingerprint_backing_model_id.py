@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests._fixtures import TEST_DGX_VLLM_BASE_URL
+
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
@@ -126,7 +128,7 @@ def test_fingerprint_captures_backing_model_id_and_base_url(
         "provider_library": "openai",
         "provider_library_version": "2.15.0",
     }
-    cfg = _experiment_cfg(base_url="http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1")
+    cfg = _experiment_cfg(base_url=TEST_DGX_VLLM_BASE_URL)
     fp = generate_enhanced_fingerprint(
         baseline_id="autoresearch_prompt_vllm_magistral_small_2509_dev_knowledge_graph_v1",
         dataset_id="curated_5feeds_dev_v1",
@@ -137,7 +139,7 @@ def test_fingerprint_captures_backing_model_id_and_base_url(
         git_info={"commit_sha": "x", "branch": "y", "is_dirty": False},
     )
     model_block = fp["pipeline"]["stages"]["main"]["model"]
-    assert model_block["base_url"] == "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+    assert model_block["base_url"] == TEST_DGX_VLLM_BASE_URL
     assert model_block["backing_model_id"] == "mistralai/Magistral-Small-2509"
 
 
