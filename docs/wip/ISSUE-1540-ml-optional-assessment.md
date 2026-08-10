@@ -12,9 +12,10 @@ locally-built embedding index). We split them.
 
 - **#1540 (this) → the CI/build wins we can do now:** lever **F** (cache the ML
   model download for e2e) + the doc-vs-code divergence it surfaced.
-- **New discussion issue → the design that needs to be understood first:** lever
-  **A** (torch-free default image + gateway embeddings), lever **E** (CI
-  path-narrowing), and lever **D** (NER prepass on cloud). See "Deferred" below.
+- **#1544 (design discussion) → understood first:** lever **A** (torch-free default
+  image + gateway embeddings) + lever **E** (CI path-narrowing). See "Deferred" below.
+- **#1545 (its own issue) → lever D** (NER prepass on cloud) — pulled out of #1544
+  because it's a possibly-live prod-quality regression, narrower than the A/E design.
 
 ## What actually drags torch into the "cloud" image (verified)
 
