@@ -219,7 +219,7 @@
 
   // Tailscale SSH — narrowly enabled for the DGX host only (RFC-089 / #897
   // post-merge). Operator (autogroup:admin) reaches dgx-llm-host as either
-  // markodragoljevic (the actual login user) or root (emergencies). Tailnet
+  // operator (the actual login user) or root (emergencies). Tailnet
   // identity authenticates; no SSH keys to manage on the operator side.
   //
   // Prod / drill VPSes intentionally NOT covered — they keep classic key-
@@ -231,7 +231,7 @@
       "action": "accept",
       "src":    ["autogroup:admin", "tag:homelab-host"],
       "dst":    ["tag:dgx-llm-host"],
-      "users":  ["markodragoljevic", "ops", "root"]
+      "users":  ["operator", "ops", "root"]
     }
   ]
 }

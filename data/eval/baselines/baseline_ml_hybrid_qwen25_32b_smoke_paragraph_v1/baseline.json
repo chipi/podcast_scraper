@@ -2,7 +2,7 @@
   "run_id": "hybrid_ml_tier2_qwen25_32b_smoke_paragraph_v1",
   "dataset_id": "curated_5feeds_smoke_v1",
   "created_at": "2026-04-03T06:19:20.239537Z",
-  "created_by": "markodragoljevic",
+  "created_by": "operator",
   "fingerprint_ref": "fingerprint.json",
   "task": "summarization",
   "backend": {

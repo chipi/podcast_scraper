@@ -3,7 +3,7 @@
   "label": "2.7.0.dev1-surfaces",
   "captured_at": "2026-07-24T11:38:34.094Z",
   "viewer": "http://127.0.0.1:5621",
-  "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "corpus": "/workspace/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
   "runs": 6,
   "viewport": {
     "width": 1440,

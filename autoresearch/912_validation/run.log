@@ -1,6 +1,6 @@
 [setup] sys=2990 chars, user=2989 chars, model=qwen3.5:9b
 [setup] fixture=p01_e01_fast.txt (1483 bytes)
-[setup] trials/arm=10, output=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/autoresearch/912_validation/trials.jsonl
+[setup] trials/arm=10, output=/workspace/Projects/podcast_scraper-FUTURE/autoresearch/912_validation/trials.jsonl
 
 [baseline] running 10 trials...
   [baseline #00] ✓ 24.756s (2475 chars)
@@ -30,4 +30,4 @@
   {'arm': 'baseline', 'n': 10, 'parse_ok': 10, 'parse_rate': 1.0, 'has_summary': 10, 'median_latency_s': 23.18, 'p95_latency_s': None, 'max_latency_s': 26.8, 'median_completion_tokens': 440.0}
   {'arm': 'path_a', 'n': 10, 'parse_ok': 10, 'parse_rate': 1.0, 'has_summary': 10, 'median_latency_s': 24.89, 'p95_latency_s': None, 'max_latency_s': 28.48, 'median_completion_tokens': 466.0}
 
-[done] trials written to /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/autoresearch/912_validation/trials.jsonl
+[done] trials written to /workspace/Projects/podcast_scraper-FUTURE/autoresearch/912_validation/trials.jsonl

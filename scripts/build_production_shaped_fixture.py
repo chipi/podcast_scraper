@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import pathlib
 import sys
 import urllib.parse
 import urllib.request
@@ -280,7 +281,7 @@ def main() -> int:
     (out / "search").mkdir(exist_ok=True)
 
     api = args.api
-    corpus = str(args.corpus.resolve())
+    corpus = str(args.corpus.resolve()).replace(str(pathlib.Path.home()), "~")
 
     # 1. Feeds — pick first N deterministically by feed_id alphabetical.
     feeds_resp = fetch_json(api, "/api/corpus/feeds", {"path": corpus})

@@ -2,7 +2,7 @@
   "profile_stage_truth_version": 1,
   "release": "issue477-staged-gpt4o",
   "dataset_id": "e2e_podcast1_mtb_n2",
-  "source_metrics_path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.tmp/profile_capture/e2e/openai/run_20260412-124251_b6c57b7d/metrics.json",
+  "source_metrics_path": "/workspace/Projects/podcast_scraper-FUTURE/.tmp/profile_capture/e2e/openai/run_20260412-124251_b6c57b7d/metrics.json",
   "sample_interval_s": 0.5,
   "run_wall_s": 40.3144,
   "sum_mapped_stage_wall_s": 104.0307,

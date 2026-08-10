@@ -1984,7 +1984,7 @@ def run_experiment(  # noqa: C901
             "run_id": run_id,  # Primary identifier for runs
             "dataset_id": dataset_id,
             "created_at": datetime.utcnow().isoformat() + "Z",
-            "created_by": os.getenv("USER", "unknown"),
+            "created_by": os.environ.get("EVAL_ARTIFACT_AUTHOR", "local"),
             "fingerprint_ref": "fingerprint.json",
             "task": cfg.task,
             "backend": {

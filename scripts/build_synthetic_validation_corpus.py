@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import pathlib
 import re
 import sys
 import uuid
@@ -1081,7 +1082,7 @@ def main() -> int:
         {
             "schema_version": "1",
             "kind": "synthetic-validation-corpus",
-            "generated_from": str(args.rss_dir.resolve()),
+            "generated_from": str(args.rss_dir.resolve()).replace(str(pathlib.Path.home()), "~"),
             "feed_count": len(feeds),
             "episode_count": len(episodes),
             "total_size_bytes": total_size,

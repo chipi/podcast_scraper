@@ -31,7 +31,7 @@
 2026-02-02 18:41:35,683 INFO __main__: Fingerprint: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/fingerprint.json
 2026-02-02 18:41:35,683 INFO __main__: Created README.md: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/README.md
 2026-02-02 18:41:35,684 INFO __main__: Computing metrics...
-2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Loaded 5 gold episode(s) from /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/references/gold/ner_entities/ner_entities_smoke_gold_v1
+2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Loaded 5 gold episode(s) from /workspace/Projects/podcast_scraper-FUTURE/data/eval/references/gold/ner_entities/ner_entities_smoke_gold_v1
 2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Episode p01_e01: 54 predicted entities → 54 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
 2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Episode p02_e01: 59 predicted entities → 59 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
 2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Episode p03_e01: 57 predicted entities → 57 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}

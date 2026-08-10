@@ -2,7 +2,7 @@
   "schema_version": "1",
   "label": "2.7.0.dev1-graph-api",
   "api": "http://127.0.0.1:8611",
-  "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "corpus": "/workspace/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
   "iterations": 3,
   "artifact_sample": 20,
   "scenarios": [

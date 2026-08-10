@@ -1,7 +1,7 @@
 {
   "api": "http://localhost:8000",
   "captured_at": "2026-07-20T21:03:51Z",
-  "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v3",
+  "corpus": "/workspace/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v3",
   "iterations": 3,
   "label": "S4-shell-fixture-baseline",
   "queries_path": "tests/fixtures/viewer-validation-corpus/v3/search-queries.json",
