@@ -50,7 +50,7 @@ EPISODES="${EPISODES:-$DEFAULT_EPISODES}"
 # Sanity check
 if [[ -z "${WHISPER_DGX_URL:-}" ]]; then
     echo "ERROR: WHISPER_DGX_URL must be set." >&2
-    echo "  e.g. WHISPER_DGX_URL=http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions" >&2
+    echo "  e.g. WHISPER_DGX_URL=http://your-dgx.tailnet.ts.net:8002/v1/audio/transcriptions" >&2
     exit 2
 fi
 

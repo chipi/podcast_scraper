@@ -5872,6 +5872,27 @@ class Config(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _derive_rss_url_from_single_feed(self) -> "Config":
+        """Belt-and-suspenders for the per-feed job path (#1542): when ``rss_url`` is
+        None/empty but exactly one feed was supplied via ``rss_urls``, promote that
+        URL to ``rss_url`` so the single-feed scraping stage never sees None.
+
+        Guard conditions (all must hold):
+        - ``rss_url`` is not already set (no override).
+        - ``rss_urls`` has exactly one entry (genuine single-feed, not a batch).
+
+        The two-or-more case is intentionally left alone: multi-feed runs iterate
+        their feeds and set ``rss_url`` per feed inside the run loop; collapsing
+        them here would silently discard the batch semantics."""
+        if self.rss_url:
+            return self
+        urls = self.rss_urls or []
+        if len(urls) != 1:
+            return self
+        object.__setattr__(self, "rss_url", urls[0].url)
+        return self
+
+    @model_validator(mode="after")
     def _multi_feed_requires_output_dir(self) -> "Config":
         """Corpus parent is mandatory when two or more feeds are configured (GitHub #440)."""
         urls = self.rss_urls or []

@@ -61,7 +61,7 @@ if _SENTRY_DSN:
         # 0.01 keeps us well under budget while still surfacing slow paths.
         traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.01")),
         environment=os.environ.get("SENTRY_ENVIRONMENT", "dgx-prod"),
-        server_name=os.environ.get("SENTRY_SERVER_NAME", "dgx-llm-1.tail6d0ed4.ts.net"),
+        server_name=os.environ.get("SENTRY_SERVER_NAME", "dgx-llm-1"),
         release=os.environ.get("SERVICE_VERSION", "dev"),
         # Drop expected 503s (model still loading at boot) — they're
         # health-check noise, not real errors. Anything else propagates.
@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if _is_gated and not hf_token:
         raise RuntimeError(
             f"HF_TOKEN env var required for gated model {_MODEL_NAME}. "
-            "Set it in /home/markodragoljevic/.env on DGX, or use the non-gated "
+            "Set it in ~/.env on DGX, or use the non-gated "
             "community-1 default."
         )
 

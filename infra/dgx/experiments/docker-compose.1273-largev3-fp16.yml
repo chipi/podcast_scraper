@@ -20,7 +20,7 @@ services:
     network_mode: host
     runtime: nvidia
     env_file:
-      - /home/markodragoljevic/.env      # HF_TOKEN / HF_HOME / HF_HUB_CACHE (same as prod)
+      - /home/<OPERATOR_USER>/.env      # HF_TOKEN / HF_HOME / HF_HUB_CACHE (same as prod)
     environment:
       - WHISPER__MODEL=Systran/faster-whisper-large-v3
       - WHISPER__DEVICE=cuda

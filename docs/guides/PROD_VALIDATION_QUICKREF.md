@@ -9,18 +9,18 @@ not 15. **Almost none of this needs prod SSH.** Full detail: [Prod Runbook](PROD
 
 | Surface | Reach | Gate |
 | --- | --- | --- |
-| Operator/compose API | `https://prod-podcast.tail6d0ed4.ts.net` (tailnet) | ungated — use this for all corpus checks |
+| Operator/compose API | `https://prod-podcast.<TAILNET>.ts.net` (tailnet) | ungated — use this for all corpus checks |
 | Public player | `https://closelistening.app` | `/preview` cookie gate |
 | Player MCP | `https://mcp.closelistening.app` | OAuth (tool calls need a token) |
-| Homelab (obs) | `homelab` = `100.87.33.61` (tailnet) | services below are tailnet-open |
-| Prod box (only for mutations) | `ssh -i ~/.ssh/podcast_prod_operator -o IdentitiesOnly=yes deploy@prod-podcast.tail6d0ed4.ts.net` | key is **transient — operator re-adds on request**. `make` is NOT on the box; use `docker exec compose-api-1 python -m podcast_scraper.cli …` |
+| Homelab (obs) | `homelab` = `<HOMELAB_IP>` (tailnet) | services below are tailnet-open |
+| Prod box (only for mutations) | `ssh -i ~/.ssh/podcast_prod_operator -o IdentitiesOnly=yes deploy@prod-podcast.<TAILNET>.ts.net` | key is **transient — operator re-adds on request**. `make` is NOT on the box; use `docker exec compose-api-1 python -m podcast_scraper.cli …` |
 
 In-container corpus path is `/app/output` (pass `path=/app/output` to API probes).
 
 ## "I changed the corpus — is prod serving the RIGHT one?" (no SSH)
 
 ```sh
-B=https://prod-podcast.tail6d0ed4.ts.net; Q=path=/app/output
+B=https://prod-podcast.<TAILNET>.ts.net; Q=path=/app/output
 
 # 1. Identity — is the INTENDED corpus served? (not just "healthy")
 curl -s "$B/api/health" | jq '{code:.code_version, produced:.corpus_produced_by.produced_at, corpus_ver:.corpus_code_version, warn:.corpus_version_warning}'
@@ -40,7 +40,7 @@ curl -s "$B/api/corpus/topic-clusters?$Q" | jq '.clusters|length'
 curl -s "$B/api/search?q=markets&$Q&limit=3" | jq '.results|length'
 
 # 5. Or just run the 6-surface smoke (what deploy-prod runs):
-bash scripts/ops/post_deploy_smoke.sh prod-podcast.tail6d0ed4.ts.net --corpus-path /app/output
+bash scripts/ops/post_deploy_smoke.sh prod-podcast.<TAILNET>.ts.net --corpus-path /app/output
 ```
 
 ## Observability checkup (no SSH except GlitchTip/Umami DB)

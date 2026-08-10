@@ -363,6 +363,9 @@ class TestDeepgramCost:
         provider = _provider_with_mock_client(mock_client)
         call_metrics = MagicMock()
         call_metrics.estimated_cost = None
+        # Mirror the real ProviderCallMetrics default so the #1523 record-once latch doesn't
+        # short-circuit on a bare MagicMock's truthy auto-attribute.
+        call_metrics.pipeline_transcription_recorded = False
         pipeline_metrics = MagicMock()
         with (
             patch("builtins.open", create=True) as mock_open,

@@ -148,7 +148,7 @@ def _make_summarizer(provider: str) -> Callable[[str], str]:
 
         base = os.environ.get(
             "OLLAMA_API_BASE_NATIVE",
-            "http://dgx-llm-1.tail6d0ed4.ts.net:11434",
+            "http://your-dgx.tailnet.ts.net:11434",
         )
         model = os.environ.get("OLLAMA_SUMMARY_MODEL", "qwen3.5:35b")
         timeout = float(os.environ.get("OLLAMA_TIMEOUT_S", "300"))

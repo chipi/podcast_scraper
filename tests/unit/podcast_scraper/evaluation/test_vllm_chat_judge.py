@@ -15,6 +15,7 @@ import pytest
 
 from podcast_scraper.evaluation.judges.base import JudgeUnavailableError
 from podcast_scraper.evaluation.judges.vllm_chat import _resolve_vllm_base, VllmChatJudge
+from tests._fixtures import TEST_DGX_FQDN, TEST_DGX_VLLM_BASE_URL
 
 pytestmark = pytest.mark.unit
 
@@ -42,8 +43,8 @@ def test_resolve_base_falls_back_to_dgx_tailnet_on_port_8003(monkeypatch) -> Non
     """No VLLM_API_BASE → ``http://<DGX_TAILNET_FQDN>:8003/v1``. Port 8003 is
     the autoresearch slot (NOT 11434 — that's Ollama, not vLLM)."""
     monkeypatch.delenv("VLLM_API_BASE", raising=False)
-    monkeypatch.setenv("DGX_TAILNET_FQDN", "dgx-llm-1.tail6d0ed4.ts.net")
-    assert _resolve_vllm_base() == "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+    monkeypatch.setenv("DGX_TAILNET_FQDN", TEST_DGX_FQDN)
+    assert _resolve_vllm_base() == TEST_DGX_VLLM_BASE_URL
 
 
 def test_resolve_base_falls_back_to_localhost(monkeypatch) -> None:

@@ -56,7 +56,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.kg.json",
     "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-04-14",
     "summary_bullets": [
       "Quantum computing utilizes quantum mechanical objects as switches (qubits) instead of classical transistors, enabling solutions to problems previously intractable due to exponential or strong polynomial advantages over conventional computers.",
@@ -131,7 +131,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.kg.json",
     "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-04-17",
     "summary_bullets": [
       "Customer focus, resilience, and disciplined execution are timeless leadership principles, even in a rapidly changing tech landscape.",
@@ -201,7 +201,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.kg.json",
     "metadata_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-04-17",
     "summary_bullets": [
       "The AI backlash has escalated to violence, with incidents like an attack on Sam Altman's home and threats against a city councilman over data centers.",
@@ -271,7 +271,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.kg.json",
     "metadata_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-04-20",
     "summary_bullets": [
       "US and Israeli attempts at regime change in Iran through targeted assassinations have backfired, strengthening hardliners.",
@@ -341,7 +341,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.kg.json",
     "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-05-04",
     "summary_bullets": [
       "Baltimore faces a persistent vacant housing crisis, directly linked to historical racial redlining and disinvestment.",
@@ -411,7 +411,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.kg.json",
     "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-05-02",
     "summary_bullets": [
       "The dinosaur fossil market is a rapidly growing sector, drawing parallels to the art and antiquities markets.",
@@ -481,7 +481,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.kg.json",
     "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-05-01",
     "summary_bullets": [
       "The Strait of Hormuz blockade is a current reality, while a China blockade of Taiwan remains a significant geopolitical hypothetical.",
@@ -551,7 +551,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.kg.json",
     "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-04-30",
     "summary_bullets": [
       "Four major trends in finance include the rise of the buy-side, the impact of technology, the growth of private markets, and the dominance of large companies.",
@@ -621,7 +621,7 @@
     "has_kg": true,
     "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.kg.json",
     "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.metadata.json",
-    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "path": "/opt/test_outputs/manual/my-manual-run-10",
     "publish_date": "2026-04-27",
     "summary_bullets": [
       "Private credit has experienced significant growth since the 2008 financial crisis, largely due to increased regulatory scrutiny on traditional banks.",

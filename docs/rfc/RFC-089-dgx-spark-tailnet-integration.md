@@ -80,7 +80,7 @@ Additional models added based on autoresearch findings.
 
 ### Tailnet integration
 
-DGX joins the existing tailnet (`tail6d0ed4.ts.net`) via the operator's Tailscale account, **not** via an auth-key (auth-keys are reserved for ephemeral GHA + cloud-init use per RFC-082). Operator manually authenticates DGX once; tag set: `tag:dgx-llm-host`.
+DGX joins the existing tailnet (`<TAILNET>.ts.net`) via the operator's Tailscale account, **not** via an auth-key (auth-keys are reserved for ephemeral GHA + cloud-init use per RFC-082). Operator manually authenticates DGX once; tag set: `tag:dgx-llm-host`.
 
 ACL changes in `tailscale/policy.hujson`:
 

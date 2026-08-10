@@ -389,7 +389,7 @@ def generate(cfg_path: Path, run_id: str, force: bool = False) -> Path:
         "run_id": run_id,
         "dataset_id": dataset_id,
         "created_at": started.isoformat(),
-        "created_by": os.environ.get("USER", "unknown"),
+        "created_by": os.environ.get("EVAL_ARTIFACT_AUTHOR", "local"),
         "fingerprint_ref": "fingerprint.json",
         "task": "summarization",
         "backend": {"type": "anthropic", "model": model},

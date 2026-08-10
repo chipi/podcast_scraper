@@ -2,8 +2,7 @@
  * Pure finite state machine for the graph handoff orchestrator.
  *
  * Implements the FSM design locked in the plan
- * (`/Users/markodragoljevic/.claude/plans/in-this-b-tanch-gentle-pillow.md`,
- * §"FSM design specification (locked)") and pressure-tested in subsequent
+ * (§"FSM design specification (locked)") and pressure-tested in subsequent
  * passes.
  *
  *   8 states: idle → loading_fetch → loading_bootstrap → loading_merge →

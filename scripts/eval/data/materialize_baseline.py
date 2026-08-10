@@ -2044,7 +2044,7 @@ def materialize_baseline(
         "baseline_id": baseline_id,
         "dataset_id": dataset_id,
         "created_at": datetime.utcnow().isoformat() + "Z",
-        "created_by": os.getenv("USER", "unknown"),
+        "created_by": os.environ.get("EVAL_ARTIFACT_AUTHOR", "local"),
         "fingerprint_ref": "fingerprint.json",
         "stats": {
             "num_episodes": len(predictions),

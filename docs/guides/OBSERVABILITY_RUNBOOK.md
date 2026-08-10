@@ -16,7 +16,7 @@ actually live *today*, how to debug prod when something breaks, and what's missi
 ## 30-second orientation
 
 Four signals, one join key. Everything lands on the **homelab** box (Mac mini, tailnet
-name `homelab` = `100.87.33.61`), reached over Tailscale.
+name `homelab` = `<HOMELAB_IP>`), reached over Tailscale.
 
 | Signal | App emits | Ships via | Backend (on `homelab`) | Grafana datasource |
 | --- | --- | --- | --- | --- |
@@ -31,7 +31,7 @@ signals on these. Grafana `http://homelab:3000`.
 ## Live topology (verified 2026-07-24)
 
 ```text
-VPS (prod-podcast, tailnet)                      homelab (Mac mini, 100.87.33.61)
+VPS (prod-podcast, tailnet)                      homelab (Mac mini, <HOMELAB_IP>)
   operator api  ─ /metrics ───┐                    ┌── VictoriaMetrics :8428
   (compose-api-1)             │  VPS node Alloy     │
   player  api   ─ /metrics ───┼─ (/opt/vps-        ─┼── VictoriaLogs    :9428

@@ -78,7 +78,7 @@ _FASTER_WHISPER_SRC = _FasterWhisperPath(__file__).resolve().parents[1] / "speac
 # for HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE). Compose injects it
 # via ``env_file:``. The model cache itself is shared with vLLM (also bind-mounts
 # /opt/llm-models/huggingface) so weights aren't duplicated.
-OPERATOR_ENV_FILE = "/home/markodragoljevic/.env"
+OPERATOR_ENV_FILE = "/home/<OPERATOR_USER>/.env"
 HF_CACHE_HOST = "/opt/llm-models/huggingface"
 
 # 1. Install root only — no separate HF cache directory needed; the operator's

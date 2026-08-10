@@ -31,6 +31,10 @@ class ProviderCallMetrics:
     retries: int = 0  # Number of retries attempted
     rate_limit_sleep_sec: float = 0.0  # Time spent sleeping due to rate limits
     estimated_cost: Optional[float] = None  # Estimated cost in USD
+    # #1523: latched once this call's transcription cost has been recorded onto the run-level
+    # pipeline_metrics (by the provider's self-record OR the orchestration backstop) so the two
+    # never double-count. call_metrics is per-episode, so this is a per-call latch.
+    pipeline_transcription_recorded: bool = False
     _retry_count: int = field(default=0, init=False, repr=False)  # Internal retry counter
     _rate_limit_sleep_total: float = field(
         default=0.0, init=False, repr=False
@@ -274,6 +278,32 @@ def record_provider_call_cost(
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)
+
+
+def record_transcription_cost_to_pipeline(
+    pipeline_metrics: Any,
+    call_metrics: Optional[ProviderCallMetrics],
+    audio_minutes: Optional[float],
+    cost_usd: Optional[float],
+) -> None:
+    """Record a transcription call's cost onto the run-level metrics exactly once (#1523).
+
+    Transcription cost reaches the manifest ``cost_rollup`` only through
+    ``pipeline_metrics.llm_transcription_cost_usd``. Providers self-record when they can price the
+    call precisely (feed duration known); the orchestration backstop
+    (``_record_transcription_metrics``) records for every other path — a provider that couldn't
+    determine audio duration (deepgram's ``audio_minutes<=0`` bail), or one that never self-records.
+    Both route through here; the per-call ``call_metrics`` latch makes whichever fires first the
+    only one that counts, so the cost is neither dropped (the #1523 rollup-undercount) nor
+    double-counted.
+    """
+    if pipeline_metrics is None:
+        return
+    if call_metrics is not None and call_metrics.pipeline_transcription_recorded:
+        return
+    pipeline_metrics.record_llm_transcription_call(float(audio_minutes or 0.0), cost_usd=cost_usd)
+    if call_metrics is not None:
+        call_metrics.pipeline_transcription_recorded = True
 
 
 def transcription_model_for_cfg(cfg: Any) -> str:

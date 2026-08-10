@@ -728,7 +728,10 @@ class OpenAICompatibleProvider:
             if audio_minutes > 0:
                 # Compute cost first so the same value can flow into both
                 # call_metrics (per-episode) and pipeline_metrics (per-stage).
-                from ...utils.provider_metrics import record_provider_call_cost
+                from ...utils.provider_metrics import (
+                    record_provider_call_cost,
+                    record_transcription_cost_to_pipeline,
+                )
                 from ...workflow.helpers import calculate_provider_cost
 
                 record_provider_call_cost(
@@ -746,10 +749,9 @@ class OpenAICompatibleProvider:
                     model=self.transcription_model,
                     audio_minutes=audio_minutes,
                 )
-                if pipeline_metrics is not None:
-                    pipeline_metrics.record_llm_transcription_call(
-                        audio_minutes, cost_usd=call_metrics.estimated_cost
-                    )
+                record_transcription_cost_to_pipeline(
+                    pipeline_metrics, call_metrics, audio_minutes, call_metrics.estimated_cost
+                )
 
             # OpenAI API returns a Transcription object with text and segments
             # when verbose_json is used. Convert to dict format matching Whisper output.

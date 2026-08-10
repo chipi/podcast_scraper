@@ -71,7 +71,7 @@ logging platform-wide:
 
 ```caddyfile
 {
-    email marko.dragoljevic@gmail.com   # ACME account contact (expiry notices; not public)
+    email <OPERATOR_EMAIL>   # ACME account contact (expiry notices; not public)
 }
 
 (hardened) {

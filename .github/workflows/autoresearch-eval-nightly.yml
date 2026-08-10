@@ -117,7 +117,7 @@ jobs:
         timeout-minutes: 5
         env:
           DGX_LOCAL_MODE: "1"
-          GPU_MODE_SWAP_BIN: /home/markodragoljevic/bin/gpu-mode-swap.sh
+          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN || '/home/<OPERATOR_USER>/bin/gpu-mode-swap.sh' }}
           # GPU_MODE_DOCKER=docker — the runner user (gha-runner) is in the
           # docker group already; the swap script's default is ``sudo docker``
           # which blocks under the runner service's NoNewPrivileges sandbox.
@@ -170,7 +170,7 @@ jobs:
           # Point the shim at the operator's gpu-mode-swap.sh (the gha-
           # runner's $HOME is /opt/actions-runner, not the operator's
           # home dir where the swap script actually lives).
-          GPU_MODE_SWAP_BIN: /home/markodragoljevic/bin/gpu-mode-swap.sh
+          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN || '/home/<OPERATOR_USER>/bin/gpu-mode-swap.sh' }}
           # GPU_MODE_DOCKER=docker — the runner user (gha-runner) is in the
           # docker group already; the swap script's default is ``sudo docker``
           # which blocks under the runner service's NoNewPrivileges sandbox.
@@ -306,7 +306,7 @@ jobs:
         timeout-minutes: 10
         env:
           DGX_LOCAL_MODE: "1"
-          GPU_MODE_SWAP_BIN: /home/markodragoljevic/bin/gpu-mode-swap.sh
+          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN || '/home/<OPERATOR_USER>/bin/gpu-mode-swap.sh' }}
           # GPU_MODE_DOCKER=docker — the runner user (gha-runner) is in the
           # docker group already; the swap script's default is ``sudo docker``
           # which blocks under the runner service's NoNewPrivileges sandbox.

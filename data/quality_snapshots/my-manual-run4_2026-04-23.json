@@ -10,7 +10,7 @@
     "status": "ok",
     "total_identities": 2529
   },
-  "corpus_root": "/Users/markodragoljevic/Projects/podcast_scraper-autoresearch/.test_outputs/_653_backfill_test",
+  "corpus_root": "/workspace/Projects/podcast_scraper-autoresearch/.test_outputs/_653_backfill_test",
   "cost_rollup": {
     "status": "missing-cost-rollup"
   },

@@ -15,7 +15,7 @@ fork can point observability at a different backend without touching app code.
   — the verified coverage matrix, debugging flows, and gaps. **This design guide has drifted
   in places** (backend host, dashboards, GlitchTip player project); the runbook is the
   verified current-state. Notably: the reference backend **moved DGX → `homelab`** (Mac mini,
-  tailnet `100.87.33.61`) — anywhere below that says `dgx-llm-1:8428/9428/10428`, read `homelab:…`.
+  tailnet `<HOMELAB_IP>`) — anywhere below that says `dgx-llm-1:8428/9428/10428`, read `homelab:…`.
 
 ## The one idea
 

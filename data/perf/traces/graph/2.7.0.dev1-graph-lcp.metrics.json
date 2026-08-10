@@ -1,7 +1,7 @@
 {
   "captured_at": "2026-07-24T15:49:34.949Z",
   "label": "2.7.0.dev1-graph-lcp",
-  "target_url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "target_url": "http://127.0.0.1:5600/?path=/workspace/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
   "viewport": {
     "width": 1440,
     "height": 900,
@@ -36,7 +36,7 @@
     },
     "sanity": {
       "title": "Podcast Intelligence Platform",
-      "url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+      "url": "http://127.0.0.1:5600/?path=/workspace/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
       "hasCanvas": true,
       "cytoscapeCanvasCount": 3,
       "graphMountEl": true,
@@ -47,7 +47,7 @@
   },
   "trace_events_count": 209333,
   "trace_files": {
-    "raw": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/perf/traces/graph/2.7.0.dev1-graph-lcp.trace.json",
-    "gz": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/perf/traces/graph/2.7.0.dev1-graph-lcp.trace.json.gz"
+    "raw": "/workspace/Projects/podcast_scraper-FUTURE/data/perf/traces/graph/2.7.0.dev1-graph-lcp.trace.json",
+    "gz": "/workspace/Projects/podcast_scraper-FUTURE/data/perf/traces/graph/2.7.0.dev1-graph-lcp.trace.json.gz"
   }
 }

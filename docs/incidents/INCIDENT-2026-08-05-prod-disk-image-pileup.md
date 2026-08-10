@@ -53,7 +53,7 @@ re-deploying the public stacks pinned to the running version.
 | ~16:2xz | Found the public `operator` + `player` stacks crash-looping: their own `api` services never came back — the app secrets live in tmpfs `/dev/shm/*-secrets/` (RAM-only by design) and were **wiped by the reboot** | agent, container logs |
 | ~16:2xz | In-place restore (pinned to running `sha-4e8b1a7`, no upgrade) via `deploy-operator.yml`/`deploy-player.yml` **fails**: runner cannot join the tailnet — `oauth2: cannot fetch token: 401 Unauthorized` | GH Actions run 31023660438 |
 | ~16:2xz | Root-caused to the stale runtime `TS_OAUTH_*` secret (unchanged by the 08-04 rotation). New OAuth client provided; `TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` updated | operator + agent, `gh secret set` |
-| 16:27→16:30z | Pinned deploys re-run and **succeed**; `operator-api`, `operator-viewer`, `player-api`, `player-learning-app` all healthy; public surface serves 200 via `prod-podcast.tail6d0ed4.ts.net` | GH runs 31025348685 / 31025351273 |
+| 16:27→16:30z | Pinned deploys re-run and **succeed**; `operator-api`, `operator-viewer`, `player-api`, `player-learning-app` all healthy; public surface serves 200 via `prod-podcast.<TAILNET>.ts.net` | GH runs 31025348685 / 31025351273 |
 | ~16:31z | Telemetry shipper (`alloy` in `vps-observability`) found down (only cadvisor was up); restarted → remote-writing to VM again | agent |
 | ~16:32z | Full recovery: 11/11 containers healthy, disk 120 GB free, public API 200, telemetry recovering | agent |
 

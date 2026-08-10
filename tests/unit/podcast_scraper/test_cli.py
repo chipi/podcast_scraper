@@ -3431,5 +3431,97 @@ class TestGiValidateAndExportCli(unittest.TestCase):
         self.assertEqual(rc, 1)
 
 
+class TestTopLevelFailureTraceback(unittest.TestCase):
+    """Regression: pipeline top-level exception must emit full traceback to stderr (GH #1541).
+
+    Before the fix, both single-feed and multi-feed handlers called log.error() with
+    format_exception_for_log() — message only, no stack.  The captured docker compose
+    run stdout+stderr therefore showed only an 8-line HF-warning tail with no traceback.
+    The fix switches those handlers to log.exception() (which sets exc_info=True) and
+    calls _flush_log_streams() before returning so the traceback reaches the captured
+    stream even when the process exits immediately.
+    """
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_single_feed_traceback_on_stderr(self, _mock_py: object, _mock_ff: object) -> None:
+        """Top-level exception from single-feed run_pipeline produces full traceback on stderr."""
+        import io
+
+        def _boom(cfg: config.Config) -> tuple[int, str]:
+            raise RuntimeError("Deepgram API key required")
+
+        fake_stderr = io.StringIO()
+        handler = logging.StreamHandler(fake_stderr)
+        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        root = logging.getLogger()
+        root.addHandler(handler)
+        original_level = root.level
+        root.setLevel(logging.DEBUG)
+        try:
+            with tempfile.TemporaryDirectory() as out:
+                code = cli.main(
+                    [
+                        "https://example.com/feed.xml",
+                        "--output-dir",
+                        out,
+                        "--max-episodes",
+                        "1",
+                    ],
+                    run_pipeline_fn=_boom,
+                )
+        finally:
+            root.removeHandler(handler)
+            root.setLevel(original_level)
+
+        captured = fake_stderr.getvalue()
+        self.assertNotEqual(code, 0, "exit code must be non-zero on failure")
+        self.assertIn("Traceback", captured, "full traceback must appear in captured stream")
+        self.assertIn("RuntimeError", captured, "exception type must appear in captured stream")
+        self.assertIn("Deepgram API key required", captured, "exception message must appear")
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_multi_feed_traceback_on_stderr(self, _mock_py: object, _mock_ff: object) -> None:
+        """Top-level exception from a multi-feed run_pipeline produces full traceback on stderr."""
+        import io
+
+        def _boom(cfg: config.Config) -> tuple[int, str]:
+            if "b.example" in (cfg.rss_url or ""):
+                raise RuntimeError("Invalid proxy server token")
+            return (1, "ok")
+
+        fake_stderr = io.StringIO()
+        handler = logging.StreamHandler(fake_stderr)
+        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        root = logging.getLogger()
+        root.addHandler(handler)
+        original_level = root.level
+        root.setLevel(logging.DEBUG)
+        try:
+            with tempfile.TemporaryDirectory() as corpus:
+                code = cli.main(
+                    [
+                        "https://a.example/feed.xml",
+                        "--rss",
+                        "https://b.example/feed.xml",
+                        "--output-dir",
+                        corpus,
+                        "--max-episodes",
+                        "1",
+                    ],
+                    run_pipeline_fn=_boom,
+                )
+        finally:
+            root.removeHandler(handler)
+            root.setLevel(original_level)
+
+        captured = fake_stderr.getvalue()
+        self.assertNotEqual(code, 0, "exit code must be non-zero on feed failure")
+        self.assertIn("Traceback", captured, "full traceback must appear in captured stream")
+        self.assertIn("RuntimeError", captured, "exception type must appear in captured stream")
+        self.assertIn("Invalid proxy server token", captured, "exception message must appear")
+
+
 if __name__ == "__main__":
     unittest.main()

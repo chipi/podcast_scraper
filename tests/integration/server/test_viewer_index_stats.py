@@ -180,3 +180,20 @@ def test_index_timeseries_empty_when_no_index(tmp_path: Path) -> None:
     body = response.json()
     assert body["available"] is False
     assert body["by_month"] == []
+
+
+def test_index_stats_lance_read_error_degrades_gracefully(tmp_path: Path) -> None:
+    """#1546: a LanceDB read error (e.g. Permission denied on a /root/.cargo build path under the
+    non-root runtime user) must NOT 500 /index/stats — it reports the index as unavailable."""
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    boom = RuntimeError(
+        "lance error: LanceError(IO): Permission denied (os error 13), "
+        "/root/.cargo/registry/src/index.crate"
+    )
+    with patch(_READ_STATS, side_effect=boom):
+        response = client.get("/api/index/stats", params={"path": str(tmp_path)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is False
+    assert body["reason"] == "index_unreadable"
