@@ -10,6 +10,7 @@ import copy
 import logging
 import os
 import sys
+import traceback
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
@@ -5312,6 +5313,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
         episode_count, summary = run_pipeline_fn(cfg)
     except Exception as exc:  # pragma: no cover - defensive
         log.error(f"Unexpected failure: {exc}")
+        # Write the traceback straight to stderr so it lands in the captured
+        # ``docker compose run`` job log. The logging handler can target a file /
+        # structured sink inside the ``--rm`` pipeline container (lost on exit), which is
+        # why a failing spawned run showed an empty job log and the error was reachable
+        # only via Sentry/GlitchTip. See issue: pipeline job failures undiagnosable from log.
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
         return 1
 
     log.info(summary)
