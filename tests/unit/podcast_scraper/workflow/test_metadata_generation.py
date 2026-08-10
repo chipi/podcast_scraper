@@ -1130,6 +1130,35 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.metadata_generation.time.time")
     @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_guardrail_violation_recoverable(self, mock_clean, mock_time):
+        """#1409: a terminal GuardrailViolation (finish_reason_length) from the provider degrades to
+        RecoverableSummarizationError (keep the episode) instead of dropping it as 'unexpected'."""
+        from podcast_scraper.exceptions import RecoverableSummarizationError
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+        time_values = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+        mock_time.side_effect = lambda: next(time_values, 6.0)
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        mock_provider.summarize.side_effect = GuardrailViolation(
+            "litellm", "finish_reason_length", "truncated"
+        )
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        with self.assertRaises(RecoverableSummarizationError):
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.temp_dir,
+                cfg=self.cfg,
+                episode_idx=1,
+                summary_provider=mock_provider,
+            )
+
+    @patch("podcast_scraper.workflow.metadata_generation.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
     def test_generate_episode_summary_provider_exception(self, mock_clean, mock_time):
         """Test provider exception raises RuntimeError when generate_summaries=True (fail-fast)."""
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")
@@ -3096,6 +3125,46 @@ class TestExtractEpisodeStageTimings(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertIsNone(result.download_media_time)
         self.assertEqual(result.transcribe_time, 2.0)
+
+
+@pytest.mark.unit
+class TestSummaryContentFailureRecoverable(unittest.TestCase):
+    """#1386/#1409/#1480: terminal CONTENT failures degrade to no-summary, not episode-drop."""
+
+    def test_reject_poisoned_summary_raises_recoverable(self):
+        from podcast_scraper.exceptions import RecoverableSummarizationError
+
+        with self.assertRaises(RecoverableSummarizationError):
+            metadata._reject_if_prompt_examples_leaked(
+                3, "Ep", ["Speed gains come from braking earlier and smoother"]
+            )
+
+    def test_clean_summary_not_rejected(self):
+        # No prompt-example fragment → no raise (returns None).
+        self.assertIsNone(
+            metadata._reject_if_prompt_examples_leaked(
+                3, "Real title", ["A bullet about the guest"]
+            )
+        )
+
+    def test_guardrail_violation_is_recoverable(self):
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
+        reason = metadata._recoverable_summary_content_reason(
+            GuardrailViolation("litellm", "finish_reason_length", "truncated…")
+        )
+        self.assertIsNotNone(reason)
+
+    def test_data_inspection_failed_is_recoverable(self):
+        reason = metadata._recoverable_summary_content_reason(
+            Exception("Error code: 400 - {'error': {'code': 'data_inspection_failed'}}")
+        )
+        self.assertIsNotNone(reason)
+
+    def test_generic_provider_error_stays_hard(self):
+        self.assertIsNone(
+            metadata._recoverable_summary_content_reason(Exception("connection reset by peer"))
+        )
 
 
 @pytest.mark.unit

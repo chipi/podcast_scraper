@@ -64,17 +64,53 @@ _PROMPT_EXAMPLE_FRAGMENTS: tuple[str, ...] = (
 )
 
 
-def _warn_if_prompt_examples_leaked(title: Optional[str], bullets: Optional[List[str]]) -> None:
-    """Log loudly when a summary contains the prompt's own few-shot examples."""
+def _reject_if_prompt_examples_leaked(
+    episode_idx: int, title: Optional[str], bullets: Optional[List[str]]
+) -> None:
+    """#1386: reject (not just log) a summary that copied the prompt's few-shot examples verbatim.
+
+    Detection alone shipped the fabricated summary with only an ERROR log — the "silent success with
+    fabricated content" this module warns is worse than a loud failure. So a poisoned summary is now
+    dropped: raise RecoverableSummarizationError so metadata generation continues without a summary
+    (the episode keeps its transcript / GI / KG) — the same terminal-but-graceful path as any other
+    unusable summary (#1496). The prompts are already hardened; this is the enforcement.
+    """
     haystack = " ".join([str(title or "")] + [str(b) for b in (bullets or [])]).lower()
     leaked = [f for f in _PROMPT_EXAMPLE_FRAGMENTS if f in haystack]
     if leaked:
         logger.error(
-            "SUMMARY POISONED: the model copied the prompt's style examples verbatim (%s). "
-            "This summary is about the example's subject, not the episode — treat it as "
+            "[%s] SUMMARY POISONED: the model copied the prompt's style examples verbatim (%s). "
+            "This summary is about the example's subject, not the episode — dropping it as "
             "fabricated. Check the summarization prompt for the model in use.",
+            episode_idx,
             ", ".join(repr(f) for f in leaked),
         )
+        raise RecoverableSummarizationError(
+            episode_idx=episode_idx,
+            reason=("summary poisoned — copied prompt example(s) verbatim: " + ", ".join(leaked)),
+        )
+
+
+def _recoverable_summary_content_reason(exc: BaseException) -> Optional[str]:
+    """#1409/#1480: reason string when a summary-provider error is a terminal CONTENT failure that
+    should degrade to no-summary (the episode keeps its transcript / GI / KG), or None when it is a
+    genuine provider break that must still hard-fail.
+
+    Recoverable content failures:
+      - GuardrailViolation (ADR-099) — e.g. finish_reason_length after the bounded re-rolls (#1409).
+      - provider content-inspection rejection — OpenAI 400 ``data_inspection_failed`` (#1480): the
+        provider refused THIS input, so a retry cannot help; the episode should not be lost over it.
+    """
+    try:
+        from ..providers.guardrails.exceptions import GuardrailViolation
+
+        if isinstance(exc, GuardrailViolation):
+            return f"guardrail violation (terminal content failure): {redact_for_log(str(exc))}"
+    except Exception:  # noqa: BLE001 - classification must never itself break the handler
+        pass
+    if "data_inspection_failed" in str(exc).lower():
+        return "provider content-inspection rejected the input (data_inspection_failed)"
+    return None
 
 
 # Cleaning strips ads, intros and meta-commentary. It removes a slice, never the episode. Below
@@ -2899,7 +2935,7 @@ def _generate_episode_summary(  # noqa: C901
                     if isinstance(pe, dict):
                         prefilled_extraction = pe
 
-            _warn_if_prompt_examples_leaked(schema.title, schema.bullets)
+            _reject_if_prompt_examples_leaked(episode_idx, schema.title, schema.bullets)
 
             # Build SummaryMetadata with required schema fields
             return (
@@ -2935,6 +2971,13 @@ def _generate_episode_summary(  # noqa: C901
                     episode_idx=episode_idx,
                     reason=f"Tokenizer threading error: {redact_for_log(str(e))}",
                 ) from e
+            # #1409/#1480: a terminal CONTENT failure (guardrail truncation / provider
+            # content-inspection rejection) degrades to no-summary, keeping the episode.
+            _content_reason = _recoverable_summary_content_reason(e)
+            if _content_reason is not None:
+                raise RecoverableSummarizationError(
+                    episode_idx=episode_idx, reason=_content_reason
+                ) from e
             # For other provider errors, fail fast
             error_msg_full = (
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
@@ -2951,6 +2994,14 @@ def _generate_episode_summary(  # noqa: C901
             raise
         except Exception as e:
             call_metrics.finalize()
+            # #1409/#1480: a terminal CONTENT failure (guardrail truncation / provider
+            # content-inspection rejection) degrades to no-summary, keeping the episode — rather
+            # than the hard RuntimeError below that drops the whole episode as "unexpected".
+            _content_reason = _recoverable_summary_content_reason(e)
+            if _content_reason is not None:
+                raise RecoverableSummarizationError(
+                    episode_idx=episode_idx, reason=_content_reason
+                ) from e
             # Fail fast - if summarization fails for a specific episode, raise exception
             error_msg = (
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
