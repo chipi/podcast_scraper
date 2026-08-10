@@ -66,10 +66,12 @@ CLOUD_BALANCED_EXPECTED = {
     # to its default of False and the value gate — the judge that removes filler — never ran in
     # production at all. It ran only in evals.
     "gi_value_gate_enabled": True,
-    # PIN the judge, vendor-disjoint from the extractor: a model grading its own output is lenient
-    # (#939), and if each arm is filtered by a different strictness the counts are not comparable.
-    "gi_value_gate_provider": "anthropic",
-    "gi_value_gate_model": "claude-haiku-4-5-20251001",
+    # Judge routes through the SAME LiteLLM gateway (-> DeepSeek) as every other LLM role here:
+    # cloud_balanced has no Anthropic credential in prod and must not depend on one for the gate.
+    # Trade-off: same-vendor grading is more lenient than a vendor-disjoint judge (#939), accepted
+    # for provider consistency + single-vendor prod ops. Model stays PINNED (never inherit default).
+    "gi_value_gate_provider": "litellm",
+    "gi_value_gate_model": "podcast-flash-0731",
     "gi_value_gate_min_tier": 3,
     # The same claim twice is not two insights. The judge grades each one ALONE and cannot see
     # redundancy — measured on the real corpus, 35% of one model's insights restated an earlier one.
