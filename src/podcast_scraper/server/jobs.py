@@ -247,7 +247,12 @@ def build_pipeline_argv(
     argv.extend(["--config", str(operator_yaml)])
     if feed_url:
         # Scoped per-feed incremental add: just this feed into the shared corpus, corpus layout.
-        argv.extend(["--rss", str(feed_url), "--single-feed-uses-corpus-layout"])
+        # The URL MUST be the positional ``rss`` arg — that is what populates ``config.rss_url``
+        # (the single-feed scraping stage reads it). ``--rss`` binds to ``rss_extra`` (the plural
+        # multi-feed list), which leaves ``config.rss_url`` None and the run dies at the scraping
+        # stage with "RSS URL is required". A single ``rss_extra`` entry does NOT trigger the
+        # multi-feed loop that would otherwise set rss_url per feed.
+        argv.extend([str(feed_url), "--single-feed-uses-corpus-layout"])
         if skip_existing:
             argv.append("--skip-existing")
         if append:

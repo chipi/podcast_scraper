@@ -77,12 +77,45 @@ def test_argv_feed_scope_runs_single_feed_not_batch(tmp_path: Path) -> None:
         episode_order="newest",
     )
     assert "--feeds-spec" not in argv  # NOT the batch
-    i = argv.index("--rss")
-    assert argv[i + 1] == "https://a.example/1.xml"
+    # The URL is the POSITIONAL ``rss`` arg (what populates ``config.rss_url``, which the
+    # single-feed scraping stage reads), NOT ``--rss`` — that binds to ``rss_extra`` (the
+    # plural multi-feed list) and leaves ``config.rss_url`` None, so the run dies at the
+    # scraping stage with "RSS URL is required". A single ``rss_extra`` entry does not
+    # trigger the multi-feed loop that would set rss_url per feed. Regression guard.
+    assert "--rss" not in argv
+    assert "https://a.example/1.xml" in argv
     assert "--single-feed-uses-corpus-layout" in argv
     assert "--skip-existing" in argv
     assert argv[argv.index("--max-episodes") + 1] == "5"
     assert argv[argv.index("--episode-order") + 1] == "newest"
+
+
+def test_argv_feed_url_maps_to_positional_rss_not_rss_extra(tmp_path: Path) -> None:
+    """The feed URL must parse into ``args.rss`` (the positional) — the value
+    ``config.rss_url`` is derived from — not ``args.rss_extra``. Passing it via
+    ``--rss`` was the prod bug: the single-feed run got ``config.rss_url = None``.
+    """
+    import argparse
+
+    from podcast_scraper.cli import _add_common_arguments
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    op = corpus / "viewer_operator.yaml"
+    op.write_text("profile: cloud_balanced\n", encoding="utf-8")
+    url = "https://a.example/1.xml"
+    argv = build_pipeline_argv(corpus, op, feed_url=url, skip_existing=True)
+
+    parser = argparse.ArgumentParser()
+    _add_common_arguments(parser)
+    # Parse only the tokens the common parser owns: the positional URL + the single-feed flag.
+    ns, _unknown = parser.parse_known_args([url, "--single-feed-uses-corpus-layout"])
+    assert (
+        ns.rss == url
+    ), f"URL must land in positional args.rss (config.rss_url source); got {ns.rss!r}"
+    assert not getattr(ns, "rss_extra", None), "URL must NOT go to rss_extra (the plural list)"
+    # And the built argv must not resurrect the broken form.
+    assert "--rss" not in argv and url in argv
 
 
 def test_argv_feed_scope_omits_unset_knobs(tmp_path: Path) -> None:
