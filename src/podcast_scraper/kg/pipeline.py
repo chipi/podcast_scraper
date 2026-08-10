@@ -148,11 +148,17 @@ def _resolve_ner_prepass(
 ) -> tuple[List[Dict[str, str]], str]:
     """#1035 — NER pre-pass: returns (hints, prompt_version).
 
-    When ``cfg.kg_extraction_use_ner_prepass`` is False (default) or the
-    NER pipeline isn't available, returns ``([], "v4")`` — caller renders
-    the v4 prompt with no hints. When enabled and the spaCy model resolves,
-    returns the deduped + capped PERSON+ORG candidate list and prompt
-    ``"v5"``.
+    When ``cfg.kg_extraction_use_ner_prepass`` is False (the Field default is
+    ``True``; see config.py) or the NER pipeline isn't available, returns
+    ``([], "v4")`` — caller renders the v4 prompt with no hints. When enabled
+    and the spaCy model resolves, returns the deduped + capped PERSON+ORG
+    candidate list and prompt ``"v5"``.
+
+    NB (#1540): the shipped cloud image is ``[llm,search]`` — spaCy lives only
+    in ``[ml]`` — so on cloud_balanced this pass load-fails and silently
+    downgrades to v4. Whether that materially hurts cloud KG entity recall
+    (the #1035 0%→100% win was measured on DGX models, not the litellm cloud
+    model) is an open question tracked in the ML-opt-in discussion issue.
 
     Reuses ``kg_extraction_provider._spacy_nlp`` when cached (Issue #387)
     or falls back to a fresh ``get_ner_model(cfg)`` load. Any failure
