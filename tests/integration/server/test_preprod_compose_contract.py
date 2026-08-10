@@ -56,6 +56,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 REPO_ROOT = Path(__file__).resolve().parents[3]
 STACK_YML = REPO_ROOT / "compose" / "docker-compose.stack.yml"
 PROD_YML = REPO_ROOT / "compose" / "docker-compose.prod.yml"
+SECRETS_YML = REPO_ROOT / "compose" / "docker-compose.secrets.yml"
 
 
 def _docker_available() -> bool:
@@ -352,3 +353,77 @@ def test_pipeline_llm_image_pulled_from_ghcr(
     assert image.startswith(
         "ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:"
     ), f"prod overlay must point pipeline-llm at GHCR-published image; got {image!r}"
+
+
+# ---------------------------------------------------------------------------
+# Secret env-interpolation coverage — every secret the overlay mounts into
+# pipeline-llm MUST have a matching ``${VAR:-}`` line in stack.yml's
+# pipeline-llm ``environment:`` block.
+#
+# Why this exists: prod pipeline jobs are spawned as an ephemeral
+# ``docker compose run pipeline-llm`` that does NOT join the secrets overlay
+# (that path is deliberately excluded — a ``compose run`` hard-errors if any
+# declared secret source file is absent, and /dev/shm is transient). Instead
+# the run inherits provider keys from the api process env (shim-exported
+# ``/run/secrets``) and Compose forwards them ONLY where a ``${VAR:-}``
+# interpolation line exists. When ``deepgram_api_key`` + ``litellm_api_key``
+# were added to the overlay's pipeline-llm secrets list but NOT to the env
+# block, cloud_balanced runs died at Config validation ("Deepgram API key
+# required"). This test makes that drift impossible to ship silently.
+# ---------------------------------------------------------------------------
+
+
+def _pipeline_llm_mounted_secret_env_names() -> list[str]:
+    """Env-var names (uppercased) the overlay mounts into ``pipeline-llm``.
+
+    The baked ``docker/secrets-shim.sh`` maps ``/run/secrets/<name>`` ->
+    ``<NAME>`` env, so the contract is: uppercase the secret name.
+    """
+    doc = yaml.safe_load(SECRETS_YML.read_text())
+    svc = (doc.get("services") or {}).get("pipeline-llm") or {}
+    names = svc.get("secrets") or []
+    return [str(n).upper() for n in names]
+
+
+def test_pipeline_llm_env_forwards_deepgram_and_litellm(
+    resolved_compose_with_pipeline: Dict[str, Any],
+) -> None:
+    """cloud_balanced's two required keys are present in the resolved env block.
+
+    Direct regression guard for the prod ``cloud_balanced`` failure: the keys
+    resolve to empty here (no fixture value) — what matters is the KEY EXISTS,
+    i.e. Compose has an interpolation line to forward it to the spawned run.
+    """
+    env = (resolved_compose_with_pipeline.get("services") or {}).get("pipeline-llm", {}).get(
+        "environment"
+    ) or {}
+    for key in ("DEEPGRAM_API_KEY", "LITELLM_API_KEY"):
+        assert key in env, (
+            f"pipeline-llm ``environment:`` is missing ``{key}: ${{{key}:-}}`` — Compose "
+            "will not forward it to the spawned ``docker compose run``, and cloud_balanced "
+            "dies at Config validation. This is the exact drift that broke prod."
+        )
+
+
+def test_pipeline_llm_env_covers_all_mounted_secrets(
+    resolved_compose_with_pipeline: Dict[str, Any],
+) -> None:
+    """Every secret the overlay mounts into pipeline-llm has an env-interpolation line.
+
+    General drift guard so no future secret added to the overlay's pipeline-llm
+    list is silently un-forwarded to the on-demand run.
+    """
+    env = (resolved_compose_with_pipeline.get("services") or {}).get("pipeline-llm", {}).get(
+        "environment"
+    ) or {}
+    expected = _pipeline_llm_mounted_secret_env_names()
+    assert expected, "could not read pipeline-llm secrets list from docker-compose.secrets.yml"
+    missing = [name for name in expected if name not in env]
+    assert not missing, (
+        "docker-compose.secrets.yml mounts these secrets into pipeline-llm, but "
+        "docker-compose.stack.yml's pipeline-llm ``environment:`` has no matching "
+        f"``${{VAR:-}}`` line for them: {missing}. The on-demand ``docker compose run "
+        "pipeline-llm`` won't forward them (it doesn't join the overlay), so the run "
+        "would fail on the first use of that provider. Add each as "
+        "``<NAME>: ${<NAME>:-}`` to the pipeline-llm env block."
+    )

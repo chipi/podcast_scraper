@@ -58,6 +58,16 @@ if ! grep -qE '^PODCAST_CORPUS_HOST_PATH=' .env; then
   echo "PODCAST_CORPUS_HOST_PATH=$REPO_DIR/corpus" >> .env
   chmod 600 .env
 fi
+# The jobs API spawns the pipeline as a nested ``docker compose run pipeline-llm``
+# whose ``-f`` list comes from this var (prod.yml default is stack+prod only —
+# codespace-shaped). On the VPS it MUST also include vps-prod so the spawned
+# container inherits ``homelab`` extra_hosts (LiteLLM gateway + o11y DNS) and OTEL
+# trace export. Without it, cloud_balanced runs can't resolve the gateway host.
+# Idempotent + fallback for hand-run deploys; deploy-prod.yml stages it as SSOT.
+if ! grep -qE '^PODCAST_DOCKER_COMPOSE_FILES=' .env; then
+  echo "PODCAST_DOCKER_COMPOSE_FILES=compose/docker-compose.stack.yml,compose/docker-compose.prod.yml,compose/docker-compose.vps-prod.yml" >> .env
+  chmod 600 .env
+fi
 mkdir -p "$REPO_DIR/corpus"
 
 # Resolve the o11y backend (homelab) tailnet IP for the vps-prod `extra_hosts`.

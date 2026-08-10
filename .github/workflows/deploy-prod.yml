@@ -254,6 +254,11 @@ jobs:
             printf '%s=%s\n' PODCAST_ENV                 prod
             printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
             printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
+            # Nested ``docker compose run pipeline-llm`` file list for the jobs API.
+            # MUST include vps-prod so spawned cloud_balanced runs get the ``homelab``
+            # extra_hosts (LiteLLM gateway + o11y DNS) + OTEL export; prod.yml's default
+            # is stack+prod (codespace-shaped) and omits it.
+            printf '%s=%s\n' PODCAST_DOCKER_COMPOSE_FILES compose/docker-compose.stack.yml,compose/docker-compose.prod.yml,compose/docker-compose.vps-prod.yml
             # OTEL traces endpoint (ADR-119). vps-prod overlay flips the exporter
             # to otlp; the endpoint is the self-hosted VictoriaTraces OTLP ingest on
             # homelab, addressed by its Tailscale MagicDNS name (resolved in-container
