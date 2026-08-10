@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
@@ -36,6 +37,56 @@ from podcast_scraper.server.schemas import (
     PipelineJobRecord,
     PipelineJobsListResponse,
 )
+
+# Markers that identify a provider-secret error from Config validation.
+# Only these are surfaced as 400; all other validation errors are ignored
+# so a valid-at-runtime config is never wrongly rejected at submit time.
+_PROVIDER_SECRET_RE = re.compile(
+    r"API key required|key required|environment variable", re.IGNORECASE
+)
+
+
+def _check_provider_secrets(operator_yaml: Path) -> None:
+    """Raise ValueError when the operator config is missing a required provider secret.
+
+    Runs Config.model_validate against the resolved operator YAML (including
+    its profile presets) so the same validation the pipeline CLI does at
+    startup fires eagerly at submit time — no container spawned.
+
+    Scoped: only provider-secret ValidationErrors ("API key required", …) are
+    re-raised. Any other validation error is silently swallowed so that a
+    config that is valid at runtime (rss/output_dir supplied by CLI flags,
+    etc.) is never wrongly rejected at submit time.
+    """
+    try:
+        from podcast_scraper.config import Config, load_config_file
+    except ImportError:  # pragma: no cover — always available in api process
+        return
+
+    try:
+        data = load_config_file(str(operator_yaml))
+    except (ValueError, OSError):
+        # Missing file / parse error — not our job to reject here; let the
+        # pipeline CLI handle it with its richer error messages.
+        return
+
+    try:
+        import pydantic
+
+        Config.model_validate(data)
+    except (pydantic.ValidationError, ValueError) as exc:
+        msg = str(exc)
+        if _PROVIDER_SECRET_RE.search(msg):
+            # Extract just the first matching error line to keep the 400 terse.
+            for line in msg.splitlines():
+                if _PROVIDER_SECRET_RE.search(line):
+                    raise ValueError(line.strip()) from exc
+            raise ValueError(msg) from exc
+        # Not a provider-secret error; let the pipeline fail at runtime with
+        # its own clear message (e.g. missing rss_url, which is CLI-injected).
+    except Exception:  # noqa: BLE001 — defensive; unexpected validators must not block submit
+        pass
+
 
 router = APIRouter(tags=["jobs"])
 
@@ -184,6 +235,15 @@ async def submit_pipeline_job(
     # the same path the run will execute against — single source of truth.
     try:
         await asyncio.to_thread(validate_operator_profile_allowed, operator_yaml)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    # Preflight: validate the profile's required provider secrets are present
+    # in the api process env. A missing secret → 400 with the missing key named,
+    # no container spawned. Only provider-secret errors are surfaced (see
+    # _check_provider_secrets); unrelated fields that CLI injects at runtime
+    # (rss_url, output_dir, …) are not checked.
+    try:
+        await asyncio.to_thread(_check_provider_secrets, operator_yaml)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     rec = await asyncio.to_thread(

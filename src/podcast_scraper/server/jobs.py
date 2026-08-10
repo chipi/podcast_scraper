@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import signal
 import sys
 import uuid
@@ -100,6 +101,88 @@ def stale_after_seconds() -> int:
 # disk space is bounded. 0 disables the cap entirely.
 _LOG_MAX_BYTES_DEFAULT = 50 * 1024 * 1024
 
+# Docker pull-progress lines emitted during ``docker compose run`` image pulls
+# consume the capped log window and can truncate the real pipeline error away.
+# These lines are layer-digest / status chatter that has no diagnostic value.
+# Tight match: only the docker-compose pull verbs, not generic log lines that
+# happen to contain those words.
+_DOCKER_PULL_RE = re.compile(
+    rb"^(?:"
+    rb"Pulling\s+"  # Pulling from … / Pulling fs layer …
+    rb"|Waiting\b"
+    rb"|Downloading\b"
+    rb"|Extracting\b"
+    rb"|Verifying Checksum\b"
+    rb"|Download complete\b"
+    rb"|Pull complete\b"
+    rb"|Already exists\b"
+    rb"|Pulling fs layer\b"
+    rb"|[0-9a-f]{12}:\s+"  # layer-digest prefix lines
+    rb")",
+    re.IGNORECASE,
+)
+
+_ERROR_REASON_MAX_LEN = 300
+
+
+def _parse_error_reason_from_log(log_path: Path) -> str | None:
+    """Scan the captured log for a human-readable failure cause.
+
+    Priority order (first match wins):
+      1. A line containing "API key required" or "required" from a config
+         validator — these are the missing-secret messages.
+      2. The final line of a ``Traceback`` block (the exception class + message).
+      3. The last line starting with ``ERROR``/``Error:``/``CRITICAL``.
+
+    Returns None when the log is absent, empty, or yields nothing parseable.
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    if not text.strip():
+        return None
+
+    lines = text.splitlines()
+
+    # Priority 1: config-validation error (key-required messages).
+    for line in lines:
+        ls = line.strip()
+        if "API key required" in ls or (
+            "required" in ls.lower()
+            and ("key" in ls.lower() or "provider" in ls.lower())
+            and len(ls) < 400
+        ):
+            return ls[:_ERROR_REASON_MAX_LEN]
+
+    # Priority 2: last traceback final line (exception type + message).
+    last_exc: str | None = None
+    in_tb = False
+    for line in lines:
+        ls = line.rstrip()
+        if ls.strip() == "Traceback (most recent call last):":
+            in_tb = True
+            continue
+        if in_tb:
+            # Indented continuation lines are the traceback frames.
+            if ls.startswith(" ") or ls.startswith("\t"):
+                continue
+            # A non-indented line after a traceback = the exception line.
+            if ls:
+                last_exc = ls.strip()
+            in_tb = False
+
+    if last_exc:
+        return last_exc[:_ERROR_REASON_MAX_LEN]
+
+    # Priority 3: last ERROR/CRITICAL line.
+    for line in reversed(lines):
+        ls = line.strip()
+        if ls.startswith(("ERROR", "Error:", "CRITICAL")):
+            return ls[:_ERROR_REASON_MAX_LEN]
+
+    return None
+
 
 def job_log_max_bytes() -> int:
     """Max bytes a single job may write to its ``.viewer/jobs/*.log``.
@@ -132,12 +215,50 @@ async def _pump_subprocess_to_log(
     subprocess stream (so the child does not block on a full pipe) but not
     written. A truncation marker is emitted to the log the first time the
     cap is hit.
+
+    Docker pull-progress lines (layer digests, "Pulling", "Waiting", …) are
+    dropped before the byte counter advances — they consume the cap without
+    adding diagnostic value, causing real pipeline errors to be truncated away.
     """
     log_abs.parent.mkdir(parents=True, exist_ok=True)
     written = 0
     truncated = False
     # ``max_bytes == 0`` disables the cap (operators who want unlimited logs).
     uncapped = max_bytes <= 0
+    # Line-buffer: carry the trailing partial line across chunk boundaries so
+    # the pull-progress filter sees complete lines, not split prefixes.
+    buf = b""
+
+    def _emit(data: bytes) -> None:
+        """Write data respecting the cap; emits truncation marker once."""
+        nonlocal written, truncated
+        if _DOCKER_PULL_RE.match(data):
+            return
+        if uncapped:
+            out.write(data)
+            return
+        if written >= max_bytes:
+            return
+        remaining = max_bytes - written
+        if len(data) <= remaining:
+            out.write(data)
+            written += len(data)
+        else:
+            out.write(data[:remaining])
+            written = max_bytes
+            if not truncated:
+                marker = (
+                    f"\n[LOG TRUNCATED at {max_bytes} bytes "
+                    "(set PODCAST_JOB_LOG_MAX_BYTES=0 to disable)]\n"
+                ).encode("utf-8")
+                out.write(marker)
+                truncated = True
+                logger.warning(
+                    "job log truncated job=%s after %d bytes",
+                    job_id,
+                    max_bytes,
+                )
+
     with open(log_abs, "wb") as out:
         while True:
             try:
@@ -148,32 +269,18 @@ async def _pump_subprocess_to_log(
                 logger.warning("log pump read failed job=%s: %s", job_id, exc)
                 break
             if not chunk:
+                # EOF: flush any trailing partial line (process wrote without newline).
+                if buf:
+                    _emit(buf)
+                    buf = b""
                 break
-            if uncapped:
-                out.write(chunk)
-                continue
-            if written >= max_bytes:
-                # Already truncated; drain silently to unblock the subprocess.
-                continue
-            remaining = max_bytes - written
-            if len(chunk) <= remaining:
-                out.write(chunk)
-                written += len(chunk)
-            else:
-                out.write(chunk[:remaining])
-                written = max_bytes
-                if not truncated:
-                    marker = (
-                        f"\n[LOG TRUNCATED at {max_bytes} bytes "
-                        "(set PODCAST_JOB_LOG_MAX_BYTES=0 to disable)]\n"
-                    ).encode("utf-8")
-                    out.write(marker)
-                    truncated = True
-                    logger.warning(
-                        "job log truncated job=%s after %d bytes",
-                        job_id,
-                        max_bytes,
-                    )
+            buf += chunk
+            # Emit complete lines; hold the trailing partial line in buf.
+            while b"\n" in buf:
+                nl = buf.index(b"\n")
+                line = buf[: nl + 1]
+                buf = buf[nl + 1 :]
+                _emit(line)
             out.flush()
 
 
@@ -644,7 +751,16 @@ async def _finalize_job(
     *,
     exit_code: int | None,
     cancelled: bool,
-) -> None:
+) -> str | None:
+    """Finalize the job registry row and return the log_relpath on failure (else None).
+
+    The returned relpath is used by the caller (monitor_subprocess) to parse
+    the job log for a human-readable error_reason AFTER the pump finishes
+    draining — the file is not fully written until after the pump task completes,
+    so parsing cannot happen inside this function.
+    """
+    log_relpath_holder: list[str] = []
+
     def fn(jobs: list[dict[str, Any]]) -> None:
         for j in jobs:
             if str(j.get("job_id")) != job_id:
@@ -664,8 +780,98 @@ async def _finalize_job(
             else:
                 j["status"] = STATUS_FAILED
                 j["error_reason"] = j.get("error_reason") or f"exit_code_{code}"
+                lr = j.get("log_relpath")
+                if lr:
+                    log_relpath_holder.append(str(lr))
 
     await asyncio.to_thread(with_jobs_locked_mutate, corpus_root, fn)
+    return log_relpath_holder[0] if log_relpath_holder else None
+
+
+def _patch_error_reason_from_log(corpus_root: Path, job_id: str, log_relpath: str) -> None:
+    """Replace the placeholder ``exit_code_N`` error_reason with a parsed cause.
+
+    Called (in a thread) after the log pump finishes so the file is complete.
+    No-op when parsing yields nothing — the exit_code_N fallback stays.
+    """
+    log_abs = corpus_root / log_relpath
+    parsed = _parse_error_reason_from_log(log_abs)
+    if not parsed:
+        return
+
+    def fn(jobs: list[dict[str, Any]]) -> None:
+        for j in jobs:
+            if str(j.get("job_id")) != job_id:
+                continue
+            # Only overwrite the auto-generated ``exit_code_N`` placeholder;
+            # leave any reason set by reconcile / spawn-failed / cancel as-is.
+            current = j.get("error_reason") or ""
+            if current.startswith("exit_code_"):
+                j["error_reason"] = parsed
+
+    with_jobs_locked_mutate(corpus_root, fn)
+
+
+async def monitor_subprocess(
+    app: Any,
+    corpus_root: Path,
+    job_id: str,
+    proc: asyncio.subprocess.Process,
+) -> None:
+    """Wait for the child, drain the log pump, finalize registry, then try
+    to promote queued work.
+
+    ``_ps_log_fp`` (legacy file-handle path, used by the Docker factory) and
+    ``_ps_log_pump`` (default PIPE+pump path, #666 review #10) are mutually
+    exclusive; whichever is present is cleaned up in the finally block.
+    """
+    log_fp = getattr(proc, "_ps_log_fp", None)
+    log_pump = getattr(proc, "_ps_log_pump", None)
+    failed_log_relpath: str | None = None
+    try:
+        try:
+            code = await proc.wait()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("job wait failed job=%s: %s", job_id, exc)
+            code = -1
+        rec = await asyncio.to_thread(get_job, corpus_root, job_id)
+        cancelled = bool(rec and rec.get("cancel_requested"))
+        failed_log_relpath = await _finalize_job(
+            corpus_root, job_id, exit_code=code, cancelled=cancelled
+        )
+        await drain_queue_async(app, corpus_root)
+    finally:
+        # #666 review #10: wait for the pump task to finish draining stdout
+        # AFTER the child exited — otherwise the last buffered chunks are
+        # lost. The pump owns the file handle internally and closes it.
+        if log_pump is not None:
+            try:
+                await log_pump
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("job log pump task failed job=%s: %s", job_id, exc)
+        # #666 review #11: log cleanup failures instead of silently
+        # swallowing them — disk-full / readonly-fs conditions leave the
+        # operator with no signal that pipeline output was truncated.
+        if log_fp is not None:
+            try:
+                log_fp.close()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("job log close failed job=%s: %s", job_id, exc)
+
+    # Parse the fully-written log for a human-readable failure cause, then
+    # fire the downstream webhook/prometheus notification with the final state.
+    # Both run after the finally block so the log file is guaranteed complete.
+    if failed_log_relpath:
+        try:
+            await asyncio.to_thread(
+                _patch_error_reason_from_log, corpus_root, job_id, failed_log_relpath
+            )
+        except Exception:
+            logger.exception("error_reason log parse failed job=%s", job_id)
 
     # Fire-and-forget downstream notification. No-op when
     # PODCAST_JOB_WEBHOOK_URL is unset (default). Failures are logged
@@ -687,54 +893,6 @@ async def _finalize_job(
         from podcast_scraper.server.job_webhook import emit_job_state_change
 
         await emit_job_state_change(rec_after)
-
-
-async def monitor_subprocess(
-    app: Any,
-    corpus_root: Path,
-    job_id: str,
-    proc: asyncio.subprocess.Process,
-) -> None:
-    """Wait for the child, drain the log pump, finalize registry, then try
-    to promote queued work.
-
-    ``_ps_log_fp`` (legacy file-handle path, used by the Docker factory) and
-    ``_ps_log_pump`` (default PIPE+pump path, #666 review #10) are mutually
-    exclusive; whichever is present is cleaned up in the finally block.
-    """
-    log_fp = getattr(proc, "_ps_log_fp", None)
-    log_pump = getattr(proc, "_ps_log_pump", None)
-    try:
-        try:
-            code = await proc.wait()
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.exception("job wait failed job=%s: %s", job_id, exc)
-            code = -1
-        rec = await asyncio.to_thread(get_job, corpus_root, job_id)
-        cancelled = bool(rec and rec.get("cancel_requested"))
-        await _finalize_job(corpus_root, job_id, exit_code=code, cancelled=cancelled)
-        await drain_queue_async(app, corpus_root)
-    finally:
-        # #666 review #10: wait for the pump task to finish draining stdout
-        # AFTER the child exited — otherwise the last buffered chunks are
-        # lost. The pump owns the file handle internally and closes it.
-        if log_pump is not None:
-            try:
-                await log_pump
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("job log pump task failed job=%s: %s", job_id, exc)
-        # #666 review #11: log cleanup failures instead of silently
-        # swallowing them — disk-full / readonly-fs conditions leave the
-        # operator with no signal that pipeline output was truncated.
-        if log_fp is not None:
-            try:
-                log_fp.close()
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("job log close failed job=%s: %s", job_id, exc)
 
 
 def argv_from_record(job: dict[str, Any]) -> list[str] | None:
