@@ -7,7 +7,10 @@ collisions when multiple feeds share a corpus parent.
 from __future__ import annotations
 
 import glob as _glob
+import json
 import os
+import re
+import time
 from pathlib import Path
 from typing import Any, Iterable, List, Optional, Tuple
 
@@ -120,15 +123,130 @@ def filter_metadata_paths_to_latest_feed_run(corpus_root: Path, paths: List[Path
     return sorted(set(out))
 
 
+_RUN_TS_RE = re.compile(r"^run_(\d{8}-\d{6})")
+
+
+def run_recency_epoch(meta_path: Path, run_seg: str) -> float:
+    """Recency of a run for supersession ordering — newest wins.
+
+    Prefer the run-folder timestamp (``run_YYYYMMDD-HHMMSS_*``): it is immune to file-copy /
+    backup-restore / rsync mtime churn, which matters for a production corpus. Fall back to the
+    metadata file's mtime ONLY for timestamp-less run dirs (``run_append_<hash>``, #444) — those
+    sort lexicographically after every timestamped run, so a lexicographic rule would let a stale
+    append copy win forever; real recency (mtime) breaks the tie correctly. Both axes are compared
+    as local-epoch seconds (``time.mktime`` ∘ ``strptime`` vs ``st_mtime``).
+    """
+    m = _RUN_TS_RE.match(run_seg or "")
+    if m:
+        try:
+            return time.mktime(time.strptime(m.group(1), filesystem.TIMESTAMP_FORMAT))
+        except (ValueError, OverflowError):
+            pass
+    try:
+        return meta_path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _read_feed_episode_ids(meta_path: Path) -> Tuple[Optional[str], Optional[str]]:
+    """Read ``(normalized feed_id, episode_id)`` from a metadata file; ``(None, None)`` on failure.
+
+    Mirrors ``server.corpus_catalog._feed_and_episode_ids`` without importing server code into the
+    lower-level search layer.
+    """
+    try:
+        text = meta_path.read_text(encoding="utf-8")
+    except OSError:
+        return None, None
+    try:
+        name = meta_path.name.lower()
+        if name.endswith((".yaml", ".yml")):
+            import yaml
+
+            doc = yaml.safe_load(text)
+        else:
+            doc = json.loads(text)
+    except Exception:
+        return None, None
+    if not isinstance(doc, dict):
+        return None, None
+    feed = doc.get("feed")
+    episode = doc.get("episode")
+    fid = feed.get("feed_id") if isinstance(feed, dict) else None
+    eid = episode.get("episode_id") if isinstance(episode, dict) else None
+    if not (isinstance(eid, str) and eid.strip()):
+        # Real metadata carries both ``episode_id`` and the RSS-native ``guid``; some fixtures /
+        # older docs carry only ``guid``. Fall back to it so dedup identity stays aligned with the
+        # enrichment bundle resolution (``discover_episode_bundles``) and never fails to collapse a
+        # reprocessed episode just because ``episode_id`` is absent.
+        eid = episode.get("guid") if isinstance(episode, dict) else None
+    eid_s = eid.strip() if isinstance(eid, str) and eid.strip() else None
+    return normalize_feed_id(fid), eid_s
+
+
+def dedupe_metadata_paths_newest_run_per_episode(
+    corpus_root: Path, paths: List[Path]
+) -> List[Path]:
+    """Central corpus-membership rule: one winner per ``(feed_id, episode_id)`` across ALL runs.
+
+    - Non-feed-layout files (flat ``metadata/``, or ``feeds/...`` without a ``run_*`` segment) are
+      always kept — no cross-run identity to reconcile.
+    - A feed dir with a SINGLE ``run_*`` cannot have a cross-run collision, so all its files are
+      kept WITHOUT reading them (keeps the common case as cheap as the old path-only filter).
+    - A feed dir with MULTIPLE ``run_*`` dirs is deduped by ``(feed_id, episode_id)`` read from the
+      metadata; the newest run wins (:func:`run_recency_epoch`). Disjoint episodes across runs (the
+      incremental-add case) all survive; a reprocessed episode's older "trophy" copy is dropped.
+
+    Files whose ``episode_id`` cannot be read are kept (never silently dropped).
+    """
+    root_res = corpus_root.resolve()
+    by_feed_dir: dict[str, list[Tuple[str, Path]]] = {}
+    keep: list[Path] = []
+    for p in paths:
+        try:
+            rel = p.resolve().relative_to(root_res).as_posix()
+        except ValueError:
+            keep.append(p)
+            continue
+        feed_dir, run_seg = feed_dir_and_run_segment_from_relpath(rel)
+        if feed_dir is None or run_seg is None:
+            keep.append(p)
+            continue
+        by_feed_dir.setdefault(feed_dir, []).append((run_seg, p))
+
+    for entries in by_feed_dir.values():
+        if len({rs for rs, _ in entries}) <= 1:
+            keep.extend(p for _, p in entries)
+            continue
+        winners: dict[Tuple[Optional[str], str], Tuple[float, str, str, Path]] = {}
+        for run_seg, p in entries:
+            _fid, eid = _read_feed_episode_ids(p)
+            if eid is None:
+                keep.append(p)
+                continue
+            key = (_fid, eid)
+            cand = (run_recency_epoch(p, run_seg), run_seg, p.as_posix(), p)
+            cur = winners.get(key)
+            if cur is None or cand[:3] > cur[:3]:
+                winners[key] = cand
+        keep.extend(w[3] for w in winners.values())
+
+    return sorted(set(keep))
+
+
 def discover_metadata_files(output_root: Path) -> List[Path]:
-    """List episode metadata files (flat output or corpus parent with ``feeds/``).
+    """List episode metadata files — the CENTRAL corpus-membership rule (single source of truth).
 
     Hybrid layout: if ``feeds/`` exists **and** top-level ``metadata/`` exists, both are
     included (GitHub #505 follow-up).
 
-    When multiple ``feeds/<feedDir>/run_*/metadata/`` trees exist for the same
-    ``feedDir``, only files under the lexicographically greatest ``run_*`` directory are
-    returned so catalog, indexing, and digest see a single run per feed folder.
+    Discovers every ``feeds/<feedDir>/run_*/metadata/`` tree (union across ALL runs) and returns one
+    winner per ``(feed_id, episode_id)``: when the same episode is reprocessed into a newer run the
+    newest run wins (:func:`dedupe_metadata_paths_newest_run_per_episode`). This is what makes an
+    incremental add (a new run dir with only the new episode) weave into the corpus WITHOUT dropping
+    the feed's prior episodes, while a full reindex still supersedes reprocessed "trophy" runs
+    instead of double-indexing them. Indexing, digest, topic-clusters, enrichment, catalog, and
+    staleness all share this one rule so they can never diverge (the 94-vs-106 split-brain).
     """
     corpus_root = safe_resolve_directory(output_root)
     if corpus_root is None:
@@ -172,7 +290,7 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
         _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
 
     corpus_path = Path(root_normed)
-    deduped = filter_metadata_paths_to_latest_feed_run(corpus_path, list(set(found)))
+    deduped = dedupe_metadata_paths_newest_run_per_episode(corpus_path, list(set(found)))
     return sorted(deduped)
 
 

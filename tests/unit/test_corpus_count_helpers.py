@@ -52,20 +52,20 @@ def test_discover_all_metadata_files_flat_layout(tmp_path: Path) -> None:
 
 
 def test_discover_all_metadata_files_keeps_all_runs(tmp_path: Path) -> None:
-    """Multiple runs per feed: ALL files are returned (no last-run filter).
-
-    Contrast with :func:`discover_metadata_files` which drops older runs.
+    """discover_all returns EVERY run's physical file; discover_metadata_files returns one winner
+    per ``(feed_id, episode_id)`` — the same episode reprocessed across runs collapses to newest.
     """
     feed = tmp_path / "feeds" / "rss_feed_a"
-    for run_name in ("run_001", "run_002", "run_003"):
+    doc = json.dumps({"feed": {"feed_id": "fa"}, "episode": {"episode_id": "e1"}})
+    for run_name in ("run_20260101-000000_a", "run_20260102-000000_b", "run_20260103-000000_c"):
         meta_dir = feed / run_name / "metadata"
         meta_dir.mkdir(parents=True)
-        (meta_dir / f"{run_name}_ep01.metadata.json").write_text("{}")
+        (meta_dir / "0001 - ep.metadata.json").write_text(doc)
 
     all_files = discover_all_metadata_files(tmp_path)
-    last_run_only = discover_metadata_files(tmp_path)
+    winners = discover_metadata_files(tmp_path)
     assert len(all_files) == 3, "discover_all sees every run's metadata file"
-    assert len(last_run_only) == 1, "discover_metadata_files keeps only latest"
+    assert len(winners) == 1, "same episode reprocessed across runs → newest run wins"
 
 
 # -----------------------------------------------------------------------------
