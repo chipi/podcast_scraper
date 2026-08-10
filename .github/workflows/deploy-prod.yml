@@ -227,6 +227,8 @@ jobs:
           PROD_DEEPSEEK_API_KEY:        ${{ secrets.PROD_DEEPSEEK_API_KEY }}
           PROD_GROK_API_KEY:            ${{ secrets.PROD_GROK_API_KEY }}
           PROD_DEEPGRAM_API_KEY:        ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          # LiteLLM gateway virtual key (proj-podcast-prod) -> LITELLM_API_KEY in-container.
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
           # Sentry DSNs (one per project)
           PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
@@ -275,6 +277,7 @@ jobs:
               printf '%s=%s\n' DEEPSEEK_API_KEY   "$PROD_DEEPSEEK_API_KEY"
               printf '%s=%s\n' GROK_API_KEY       "$PROD_GROK_API_KEY"
               printf '%s=%s\n' DEEPGRAM_API_KEY   "$PROD_DEEPGRAM_API_KEY"
+              printf '%s=%s\n' LITELLM_API_KEY    "$LITELLM_PROJ_PODCAST_PROD_KEY"
               printf '%s=%s\n' PODCAST_SENTRY_DSN_API      "$PROD_SENTRY_DSN_API"
               printf '%s=%s\n' PODCAST_SENTRY_DSN_PIPELINE "$PROD_SENTRY_DSN_PIPELINE"
               # Write-grant credential — same VIA_FILES treatment as the provider keys: on disk
@@ -316,6 +319,7 @@ jobs:
           PROD_DEEPSEEK_API_KEY:    ${{ secrets.PROD_DEEPSEEK_API_KEY }}
           PROD_GROK_API_KEY:        ${{ secrets.PROD_GROK_API_KEY }}
           PROD_DEEPGRAM_API_KEY:    ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
           PROD_SENTRY_DSN_API:      ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE: ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
           PROD_APP_OPERATOR_API_KEY: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
@@ -331,6 +335,7 @@ jobs:
           printf '%s' "$PROD_DEEPSEEK_API_KEY"    > "$STAGE/deepseek_api_key"
           printf '%s' "$PROD_GROK_API_KEY"        > "$STAGE/grok_api_key"
           printf '%s' "$PROD_DEEPGRAM_API_KEY"    > "$STAGE/deepgram_api_key"
+          printf '%s' "$LITELLM_PROJ_PODCAST_PROD_KEY" > "$STAGE/litellm_api_key"
           printf '%s' "$PROD_SENTRY_DSN_API"      > "$STAGE/podcast_sentry_dsn_api"
           printf '%s' "$PROD_SENTRY_DSN_PIPELINE" > "$STAGE/podcast_sentry_dsn_pipeline"
           printf '%s' "$PROD_APP_OPERATOR_API_KEY" > "$STAGE/app_operator_api_key"
