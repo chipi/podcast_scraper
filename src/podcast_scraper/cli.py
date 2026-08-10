@@ -46,6 +46,16 @@ _LOGGER = logging.getLogger(__name__)
 BYTES_PER_KB = 1024
 
 
+def _flush_log_streams() -> None:
+    """Flush all root-logger handlers and stderr so captured streams see the full traceback."""
+    for handler in logging.getLogger().handlers:
+        try:
+            handler.flush()
+        except Exception:  # noqa: BLE001
+            pass
+    sys.stderr.flush()
+
+
 def _cli_iso_date(value: str):
     """Parse ``YYYY-MM-DD`` for ``--since`` / ``--until`` (GitHub #521)."""
     from datetime import date as date_cls
@@ -5216,11 +5226,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     try:
                         count, summary = run_pipeline_fn(cfg)
                     except Exception as exc:  # pragma: no cover - defensive
-                        log.error(
+                        log.exception(
                             "Feed failed: rss=%s detail=%s",
                             url,
                             format_exception_for_log(exc),
                         )
+                        _flush_log_streams()
                         kind = classify_multi_feed_feed_exception(exc)
                         if kind == "hard":
                             any_hard_failed = True
@@ -5312,14 +5323,15 @@ def main(  # noqa: C901 - main function handles multiple command paths
     try:
         episode_count, summary = run_pipeline_fn(cfg)
     except Exception as exc:  # pragma: no cover - defensive
-        log.error(f"Unexpected failure: {exc}")
-        # Write the traceback straight to stderr so it lands in the captured
-        # ``docker compose run`` job log. The logging handler can target a file /
-        # structured sink inside the ``--rm`` pipeline container (lost on exit), which is
-        # why a failing spawned run showed an empty job log and the error was reachable
-        # only via Sentry/GlitchTip. See issue: pipeline job failures undiagnosable from log.
+        # log.exception (not log.error) attaches the stack to the structured sink / Sentry.
+        log.exception("Unexpected failure: %s", exc)
+        # AND write the traceback straight to stderr so it lands in the captured
+        # ``docker compose run`` job log — the logging handler can target a file / structured sink
+        # inside the ``--rm`` pipeline container (lost on exit), which is why a failing spawned run
+        # showed an empty job log with the error reachable only via Sentry/GlitchTip.
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
+        _flush_log_streams()
         return 1
 
     log.info(summary)
