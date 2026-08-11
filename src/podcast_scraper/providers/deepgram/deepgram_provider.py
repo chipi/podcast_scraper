@@ -263,6 +263,11 @@ class DeepgramTranscriptionProvider:
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
+        # D9: announce the provider + model like the Whisper path does (ml_provider "transcribing
+        # with Whisper (...)"). Cloud providers were silent in the log, so an operator watching a
+        # run could not tell WHICH engine transcribed (the 2026-08-11 "did Deepgram run?" case).
+        logger.info("    transcribing with Deepgram (model=%s, diarize=on)...", self.model)
+
         # Own the call_metrics lifecycle like every sibling provider: instantiate
         # when the caller passes None so retry_with_metrics has somewhere to record
         # retries/backoff, and finalize() below so `retries`/`rate_limit_sleep_sec`

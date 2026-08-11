@@ -170,6 +170,38 @@ class TestDeepgramTranscriptionProvider:
         mock_create_client.assert_called_once_with("dg-test-key", base_url=None)
 
     @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_transcribe_logs_provider_and_model(self, mock_create_client, caplog) -> None:
+        """D9: cloud transcription announces provider+model so an operator watching a run can tell
+        WHICH engine ran (the 2026-08-11 'did Deepgram even run?' confusion — cloud was silent)."""
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}]}
+        }
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test-key",
+            deepgram_model="nova-3",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        provider.initialize()
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+            caplog.at_level("INFO", logger="podcast_scraper.providers.deepgram.deepgram_provider"),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            provider.transcribe_with_segments("/tmp/ep.mp3", language="en")
+
+        assert any(
+            "Deepgram" in r.message and "nova-3" in r.message for r in caplog.records
+        ), "transcription must log the provider + model (D9)"
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
     def test_initialize_passes_api_base_override(self, mock_create_client) -> None:
         """deepgram_api_base (self-hosted / mock server) is forwarded to the client."""
         mock_create_client.return_value = MagicMock()

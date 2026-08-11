@@ -557,7 +557,10 @@ def index_corpus(
         stats.errors.append(f"two-tier index build: {exc}")
         return stats
     stats.episodes_scanned = tt.episodes
-    stats.episodes_reindexed = tt.episodes
+    # D8: the two-tier builder now skips re-embedding UNCHANGED episodes. Reflect the real split so
+    # the stat + the "0 new vectors" warning below are accurate (previously always 0 = dead metric).
+    stats.episodes_skipped_unchanged = tt.episodes_skipped_unchanged
+    stats.episodes_reindexed = tt.episodes - tt.episodes_skipped_unchanged
     stats.vectors_upserted = tt.segments + tt.insights + tt.aux
     _warn_if_zero_vectors_built(stats)
     return stats
