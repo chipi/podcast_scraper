@@ -1,0 +1,93 @@
+name: Deploy ALL prod planes (control -> operator -> player)
+
+# D1 — one-trigger orchestrator. Rolls the three prod deploys IN ORDER (control plane, then public
+# operator, then public player), waiting for each to FINISH — including its `prod` environment
+# approval — before starting the next, and STOPS if any plane fails. So the public operator/player
+# surfaces never roll onto a control-plane engine that didn't deploy, and no plane is forgotten.
+#
+# It does NOT modify the three underlying workflows: each keeps its own typed confirm + `prod`
+# approval gate, so you still approve each plane in the Actions UI (ONE trigger, three approvals, in
+# the correct order, stop-on-failure). Collapsing to a single approval would require restructuring
+# the per-plane `environment: prod` gates — deliberately out of scope so each workflow stays
+# independently safe when run on its own. See docs/guides/PROD_RUNBOOK.md "The two operator planes +
+# deploy map" for what each plane deploys.
+#
+# Requires a PAT in `secrets.DEPLOY_ORCHESTRATOR_PAT` with `actions:write` on this repo: the default
+# GITHUB_TOKEN cannot trigger another workflow_dispatch (GitHub blocks token-initiated workflow
+# recursion), so this orchestrator needs its own token to dispatch the downstream deploys.
+#
+# NOTE: GitHub Actions behaviour cannot be validated locally — dispatch this once and watch the run
+# before relying on it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY_ALL_PROD to roll all three planes in order'
+        required: true
+        default: ''
+
+permissions:
+  actions: write
+
+concurrency:
+  # A distinct group from `deploy-prod` — sharing it would DEADLOCK (this job holds the group while
+  # waiting for the deploy-prod run it triggered, which would then queue behind it).
+  group: deploy-all-prod
+  cancel-in-progress: false
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    # Each plane pauses for a human approval, so the whole chain can be long-lived.
+    timeout-minutes: 180
+    steps:
+      - name: Confirm DEPLOY_ALL_PROD
+        run: |
+          if [ "${{ inputs.confirm }}" != "DEPLOY_ALL_PROD" ]; then
+            echo "::error::Must type DEPLOY_ALL_PROD to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Roll all three planes in order (stop on failure)
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_ORCHESTRATOR_PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::secrets.DEPLOY_ORCHESTRATOR_PAT is required (a PAT with actions:write; the default GITHUB_TOKEN cannot dispatch downstream workflows)."
+            exit 1
+          fi
+
+          roll() {
+            wf="$1"
+            token="$2"
+            echo "::group::Deploy via ${wf}"
+            since="$(date -u +%FT%TZ)"
+            gh workflow run "${wf}" --repo "${REPO}" -f confirm="${token}"
+            # Resolve the run we just triggered (created at/after `since`); the dispatch is async.
+            id=""
+            for _ in $(seq 1 20); do
+              id="$(gh run list --repo "${REPO}" --workflow "${wf}" --event workflow_dispatch \
+                     --created ">=${since}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
+              if [ -n "${id}" ] && [ "${id}" != "null" ]; then
+                break
+              fi
+              sleep 6
+            done
+            if [ -z "${id}" ] || [ "${id}" = "null" ]; then
+              echo "::error::could not resolve the triggered run for ${wf}"
+              return 1
+            fi
+            echo "watching ${wf} run ${id} (waits for its prod approval + completion)..."
+            # --exit-status makes a failed/cancelled downstream run fail this step (set -e stops the
+            # chain here → later planes are NOT deployed onto a bad engine).
+            gh run watch "${id}" --repo "${REPO}" --exit-status --interval 20
+            echo "::endgroup::"
+          }
+
+          roll deploy-prod.yml     PROD_DEPLOY
+          roll deploy-operator.yml OPERATOR_DEPLOY
+          roll deploy-player.yml   PLAYER_DEPLOY
+          echo "All three prod planes deployed in order."

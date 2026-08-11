@@ -343,7 +343,21 @@ def download_media_for_transcription(
             metadata_named=list(metadata_named) if metadata_named else None,
             episode=episode,
         )
-    if cfg.skip_existing and os.path.exists(final_out_path):
+    # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so an
+    # already-processed episode's transcript is in a PRIOR run dir — NOT final_out_path (this run's
+    # OUTPUT path). Resolve presence corpus-wide by stable guid; else skip-existing scoped to the
+    # empty run dir silently re-transcribes it (the Step-1 NO-GO, 2026-08-11).
+    _corpus_layout = bool(getattr(cfg, "single_feed_uses_corpus_layout", False))
+    if cfg.skip_existing and _corpus_layout and cfg.output_dir:
+        _existing_transcript = run_index.existing_transcript_path_in_corpus(
+            episode, str(cfg.output_dir)
+        )
+    elif cfg.skip_existing and os.path.exists(final_out_path):
+        _existing_transcript = final_out_path
+    else:
+        _existing_transcript = None
+
+    if cfg.skip_existing and _existing_transcript is not None:
         if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
             # #925: a scoped reprocess (--reprocess-source) forces matching episodes
             # (e.g. whisper_transcription) back through download+transcribe so diarization
@@ -355,25 +369,26 @@ def download_media_for_transcription(
                 "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
                 episode.idx,
                 cfg.reprocess_source,
-                final_out_path,
+                _existing_transcript,
             )
             # Fall through: schedule download/transcribe.
-        elif _should_retranscribe_for_gi_segments(cfg, final_out_path):
+        elif _should_retranscribe_for_gi_segments(cfg, _existing_transcript):
             logger.info(
                 "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
                 "sidecar for GI quote timestamps and segment-backed speaker_id when segments "
                 "carry speaker labels (backfill_transcript_segments + generate_gi): %s",
                 episode.idx,
-                final_out_path,
+                _existing_transcript,
             )
             # Fall through: do not return — schedule download/transcribe to populate sidecar (#542).
-        # If generate_summaries is enabled, still return a job so transcript path can be used
-        # for summarization (even though we won't re-transcribe)
-        elif cfg.generate_summaries:
+        # If generate_summaries is enabled, still return a job so transcript path can be used for
+        # summarization (even though we won't re-transcribe). NOT in corpus-layout: there the
+        # episode is already fully processed in a prior run — reusing re-summarizes; skip instead.
+        elif cfg.generate_summaries and not _corpus_layout:
             logger.debug(
                 "[%s] Transcript exists, but will use for summarization: %s",
                 episode.idx,
-                final_out_path,
+                _existing_transcript,
             )
             # Return a job with empty temp_media since we won't download/transcribe
             # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
@@ -393,7 +408,7 @@ def download_media_for_transcription(
                 "[%s] %stranscript already exists; skipping (--skip-existing): %s",
                 episode.idx,
                 prefix,
-                final_out_path,
+                _existing_transcript,
             )
             return None
 
@@ -2765,6 +2780,20 @@ def _check_existing_transcript(
             cfg.reprocess_source,
             episode.title_safe,
         )
+        return False
+
+    # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so the episode's
+    # transcript lives in a PRIOR run dir, not effective_output_dir. Resolve presence corpus-wide by
+    # stable guid (all feeds/runs) — else skip-existing scoped to the empty run dir silently
+    # re-transcribes an already-present episode (the Step-1 NO-GO, 2026-08-11).
+    if getattr(cfg, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
+        present = run_index.episode_metadata_rel_in_corpus(episode, str(cfg.output_dir))
+        if present:
+            prefix = "[dry-run] " if cfg.dry_run else ""
+            logger.info(
+                "    %salready present in corpus, skipping (--skip-existing): %s", prefix, present
+            )
+            return True
         return False
 
     run_tag = f"_{run_suffix}" if run_suffix else ""

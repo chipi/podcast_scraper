@@ -202,6 +202,10 @@ def encode(
         texts_list,
         normalize_embeddings=normalize,
         batch_size=batch_size,
+        # D9: the index build calls encode() once per doc, so the default per-call tqdm bar floods
+        # the pipeline log ("Batches: 100%|...") — thousands of lines that bury real stage output
+        # and can truncate errors under the per-job log cap. The build reports its own progress.
+        show_progress_bar=False,
     )
 
     if return_numpy:

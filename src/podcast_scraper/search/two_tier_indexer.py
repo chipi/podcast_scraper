@@ -20,8 +20,10 @@ migration left them empty (it had no edges to supply), so compounds need a nativ
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, cast, Dict, List, Optional, Tuple
@@ -30,7 +32,11 @@ from .. import config as _config, config_constants as _config_constants
 from ..providers.ml import embedding_loader
 from .backend import AuxDocument, InsightDocument, SegmentDocument
 from .backends.lancedb_backend import lance_index_is_stale, LanceDBBackend
-from .corpus_scope import discover_metadata_files, episode_root_from_metadata_path
+from .corpus_scope import (
+    discover_metadata_files,
+    episode_root_from_metadata_path,
+    index_fingerprint_scope_key,
+)
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
 from .segments import link_insights_to_segments, link_insights_to_segments_by_text
 
@@ -64,6 +70,14 @@ _AUX_DOC_TYPES = frozenset(
 )
 
 
+# D8: per-episode content fingerprints let an incremental reindex skip re-embedding UNCHANGED
+# episodes (embedding is the O(N) cost; upsert-merge-on-id is idempotent for storage but was not
+# for compute). Persisted next to the lance index. Bump ``_FP_SCHEMA_VERSION`` whenever the row
+# construction / chunking changes so every fingerprint invalidates and the next build re-embeds all.
+_EPISODE_FINGERPRINTS_FILENAME = "episode_fingerprints.json"
+_FP_SCHEMA_VERSION = 1
+
+
 @dataclass
 class TwoTierIndexStats:
     """Counts from a from-corpus two-tier index build."""
@@ -73,6 +87,8 @@ class TwoTierIndexStats:
     insights: int = 0
     aux: int = 0
     linked: int = 0
+    # D8: episodes whose content fingerprint matched the last build → embed+upsert skipped.
+    episodes_skipped_unchanged: int = 0
 
 
 def _embed(text: str, model_id: str, *, allow_download: bool) -> List[float]:
@@ -86,6 +102,97 @@ def _embed(text: str, model_id: str, *, allow_download: bool) -> List[float]:
         provider=cfg.vector_embedding_provider,
     )
     return [float(x) for x in cast(List[float], vec)]
+
+
+def _episode_fingerprint(rows: List[Tuple[str, str, dict]], model_id: str) -> str:
+    """Content hash of an episode's embeddable rows (D8).
+
+    Hashes the exact ``(doc_id, text)`` pairs that would be embedded, plus ``model_id`` +
+    ``_FP_SCHEMA_VERSION`` — so any change to embedded content, the embedding model, or the row
+    construction changes the hash and forces a re-embed. Order-independent (rows are sorted).
+    """
+    h = hashlib.sha256()
+    h.update(f"v{_FP_SCHEMA_VERSION}\x1f{model_id}".encode("utf-8"))
+    for doc_id, text, _meta in sorted(rows, key=lambda r: str(r[0])):
+        h.update(b"\x1e")
+        h.update(str(doc_id).encode("utf-8"))
+        h.update(b"\x1f")
+        h.update(str(text).encode("utf-8"))
+    return h.hexdigest()
+
+
+def _episode_scope_key(rows: List[Tuple[str, str, dict]], doc: dict) -> Optional[str]:
+    """Stable per-episode fingerprint key: ``index_fingerprint_scope_key(feed_id, episode_id)``.
+
+    Resolves ``(feed_id, episode_id)`` from the embeddable rows' meta (each carries them), falling
+    back to the loaded episode metadata. ``None`` when no episode_id is resolvable (never skip).
+    """
+    for _doc_id, _text, meta in rows:
+        eid = meta.get("episode_id")
+        if isinstance(eid, str) and eid:
+            return index_fingerprint_scope_key(meta.get("feed_id"), eid)
+    ep = doc.get("episode") if isinstance(doc, dict) else None
+    if isinstance(ep, dict):
+        eid = ep.get("episode_id")
+        if isinstance(eid, str) and eid:
+            return index_fingerprint_scope_key(ep.get("feed_id"), eid)
+    return None
+
+
+def _fingerprints_path(lance_path: Path | str) -> Path:
+    return Path(lance_path).parent / _EPISODE_FINGERPRINTS_FILENAME
+
+
+def _load_episode_fingerprints(lance_path: Path | str) -> Dict[str, str]:
+    """Load ``{scope_key: fingerprint}`` from the sidecar next to the index; ``{}`` if absent."""
+    try:
+        data = json.loads(_fingerprints_path(lance_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    fps = data.get("fingerprints") if isinstance(data, dict) else None
+    return {str(k): str(v) for k, v in fps.items()} if isinstance(fps, dict) else {}
+
+
+def _write_episode_fingerprints(lance_path: Path | str, fps: Dict[str, str]) -> None:
+    """Atomically persist the fingerprints sidecar (temp + rename). Non-fatal on failure."""
+    p = _fingerprints_path(lance_path)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_name(p.name + ".tmp")
+        tmp.write_text(
+            json.dumps({"schema": _FP_SCHEMA_VERSION, "fingerprints": fps}, sort_keys=True),
+            encoding="utf-8",
+        )
+        tmp.replace(p)
+    except OSError as exc:  # a fingerprint-write hiccup must never fail the index build
+        logger.warning("could not write %s: %s", p, exc)
+
+
+def _fingerprint_skip_unchanged(
+    rows: List[Tuple[str, str, dict]],
+    doc: dict,
+    model_id: str,
+    stored_fps: Dict[str, str],
+    result_fps: Dict[str, str],
+    clear_requested: bool,
+    index_metadata: Dict[str, dict],
+) -> bool:
+    """D8: decide whether this episode is UNCHANGED and can skip embed+upsert.
+
+    Records the episode's current fingerprint in ``result_fps`` (so it carries forward), and when
+    skipping, populates ``index_metadata`` (cheap, no embed) so the rewritten metadata.json sidecar
+    stays complete. Returns True only when a prior fingerprint matches and it is not a full rebuild.
+    """
+    fp = _episode_fingerprint(rows, model_id)
+    scope_key = _episode_scope_key(rows, doc)
+    if not scope_key:
+        return False  # no stable key → always (re)embed
+    result_fps[scope_key] = fp
+    if clear_requested or stored_fps.get(scope_key) != fp:
+        return False
+    for doc_id, _text, meta in rows:
+        index_metadata[doc_id] = {k: v for k, v in meta.items() if k != "text"}
+    return True
 
 
 def _insight_grounding_quotes(gi_path: Path) -> Dict[str, Tuple[float, Optional[float]]]:
@@ -233,6 +340,13 @@ def build_two_tier_index(
     stats = TwoTierIndexStats()
     backend: Optional[LanceDBBackend] = None
 
+    # D8: load prior per-episode fingerprints so an incremental build can skip re-embedding
+    # UNCHANGED episodes. A full/stale reindex (clear_requested) ignores them, rebuilds every
+    # episode, then rewrites a fresh sidecar. ``result_fps`` accumulates every walked episode's
+    # current fingerprint (skipped + embedded) and replaces the file on success.
+    stored_fps: Dict[str, str] = {} if clear_requested else _load_episode_fingerprints(lance_path)
+    result_fps: Dict[str, str] = {}
+
     def _ensure_backend(vec_len: int) -> LanceDBBackend:
         # Lazy: size the schema from the model's real dim (or an explicit override) on
         # the first embedded doc, so a non-MiniLM model can't silently mismatch — and an
@@ -309,6 +423,14 @@ def build_two_tier_index(
             overlap_tokens=overlap_tokens,
             metadata_relative_path=meta_rel,
         )
+        # D8: skip re-embedding an UNCHANGED episode. ``_collect_docs_for_episode`` above is cheap;
+        # ``_embed`` below is the O(N) cost. If the episode's content fingerprint matches the last
+        # build, its rows are already embedded+upserted (merge on id) — skip embed+upsert.
+        if _fingerprint_skip_unchanged(
+            rows, doc, model_id, stored_fps, result_fps, clear_requested, index_metadata
+        ):
+            stats.episodes_skipped_unchanged += 1
+            continue
         # Collect this episode's docs first, then link insights to the segment that
         # contains their grounding quote, then upsert — so linked_insight_ids /
         # source_segment_id are populated (the compound-result path needs them).
@@ -409,21 +531,60 @@ def build_two_tier_index(
     _flush_insights()
     _flush_auxes()
 
-    # Full/stale reindex: MVCC-empty any tier that existed before but got no rows this
-    # build, so its stale rows don't survive the "clear" (rmtree parity, no reader stranded).
+    _finalize_index_build(
+        backend,
+        lance_path,
+        clear_requested=clear_requested,
+        pre_existing_tiers=pre_existing_tiers,
+        overwritten_tiers=overwritten_tiers,
+        index_metadata=index_metadata,
+        model_id=model_id,
+    )
+    # D8: persist fingerprints on success so the NEXT incremental build can skip unchanged episodes.
+    # A mid-build failure returns/raises before here, leaving the old sidecar → next build re-embeds
+    # (safe). Skipped on a limited walk (a partial episode set would drop fingerprints for un-walked
+    # episodes, forcing needless re-embeds — but never staleness).
+    if limit_episodes is None:
+        _write_episode_fingerprints(lance_path, result_fps)
+    return stats
+
+
+def _finalize_index_build(
+    backend: Optional[LanceDBBackend],
+    lance_path: str | Path,
+    *,
+    clear_requested: bool,
+    pre_existing_tiers: set,
+    overwritten_tiers: set,
+    index_metadata: Dict[str, dict],
+    model_id: str,
+) -> None:
+    """Post-walk finalize: clear stale tiers, write index meta, compact, re-emit the sidecar, and
+    bump the index dir mtime (D2). Extracted from ``build_two_tier_index`` to keep it under the
+    complexity gate."""
+    # Full/stale reindex: MVCC-empty any tier that existed before but got no rows this build, so its
+    # stale rows don't survive the "clear" (rmtree parity, no reader stranded).
     if clear_requested:
         _finalize_reindex_clear(Path(lance_path), backend, pre_existing_tiers, overwritten_tiers)
-
-    if backend is not None:
-        backend.write_index_meta(model_id)  # query path must embed in the same space
-        backend.create_indices()
-        # Reclaim the fragments + superseded versions this build created, so the index
-        # stays bounded across full AND incremental reindexes.
-        backend.compact()
-        # Re-emit the FAISS-era ``metadata.json`` sidecar (doc_id -> meta) next to the index;
-        # the GIL chunk-offset verifier reads char_start/char_end from it (see note above).
-        (Path(lance_path).parent / "metadata.json").write_text(
-            json.dumps(index_metadata, ensure_ascii=False, sort_keys=True),
-            encoding="utf-8",
-        )
-    return stats
+    if backend is None:
+        return
+    backend.write_index_meta(model_id)  # query path must embed in the same space
+    backend.create_indices()
+    # Reclaim the fragments + superseded versions this build created, so the index stays bounded
+    # across full AND incremental reindexes.
+    backend.compact()
+    # Re-emit the FAISS-era ``metadata.json`` sidecar (doc_id -> meta) next to the index; the GIL
+    # chunk-offset verifier reads char_start/char_end from it.
+    (Path(lance_path).parent / "metadata.json").write_text(
+        json.dumps(index_metadata, ensure_ascii=False, sort_keys=True),
+        encoding="utf-8",
+    )
+    # D2: LanceDB upserts write into per-table SUBDIRS and don't bump the top-level index dir
+    # mtime — but read_lance_index_stats() caches on that mtime (perf_cache.lance_mtime) and derives
+    # last_updated from it. Bump it after any build that changed the index so the stats endpoint +
+    # viewer index card refresh — INCLUDING a pipeline-subprocess reindex (an in-process cache clear
+    # can't cross that boundary; the on-disk mtime can).
+    try:
+        os.utime(lance_path, None)
+    except OSError:  # non-fatal: a stale stats card must never fail the index build
+        pass

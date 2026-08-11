@@ -375,6 +375,54 @@ def resolve_ondisk_idx_for_episode(episode: Any, output_dir: str) -> int:
     return int(episode.idx)
 
 
+def episode_metadata_rel_in_corpus(episode: Any, corpus_root: str) -> Optional[str]:
+    """Return the metadata path (relative to *corpus_root*) if this episode already exists ANYWHERE
+    in the corpus (by STABLE guid), else ``None`` (D7).
+
+    Corpus-wide: ``corpus_metadata_index`` globs ``feeds/*/run_*/metadata/*`` across ALL runs, so an
+    episode processed under a PRIOR run dir is found even when the current run writes a fresh run
+    dir (``--single-feed-uses-corpus-layout``). Without this, skip-existing scoped to the fresh
+    (empty) run dir silently re-transcribes an already-present episode.
+    """
+    guid = _episode_guid(episode)
+    if not guid:
+        return None
+    entry = corpus_metadata_index(corpus_root)["by_guid"].get(guid)
+    if entry is None:
+        return None
+    if os.path.isfile(os.path.join(corpus_root, entry.metadata_rel)):
+        return entry.metadata_rel
+    return None
+
+
+def existing_transcript_path_in_corpus(episode: Any, corpus_root: str) -> Optional[str]:
+    """Absolute path to this episode's existing transcript (or its metadata, as a presence marker)
+    ANYWHERE in the corpus, else ``None`` (D7). Used by the corpus-layout skip-existing path so the
+    reuse/segment-backfill/skip sub-cases resolve against the real prior-run artifact.
+    """
+    meta_rel = episode_metadata_rel_in_corpus(episode, corpus_root)
+    if meta_rel is None:
+        return None
+    meta_abs = Path(corpus_root) / meta_rel
+    stem = meta_abs.name
+    base = stem
+    for suffix in (".metadata.json", ".metadata.yaml", ".metadata.yml"):
+        if stem.endswith(suffix):
+            base = stem[: -len(suffix)]
+            break
+    transcripts_dir = meta_abs.parent.parent / "transcripts"
+    if transcripts_dir.is_dir():
+        preferred = transcripts_dir / f"{base}.txt"
+        if preferred.is_file():
+            return str(preferred)
+        for candidate in sorted(transcripts_dir.glob(f"{base}.*")):
+            if candidate.is_file():
+                return str(candidate)
+    # Metadata present but no transcript file located → the metadata itself marks the episode as
+    # processed (skip-existing only needs presence; the path is used for logging).
+    return str(meta_abs)
+
+
 def find_episode_metadata_relative_path(
     episode: Any,
     effective_output_dir: str,
