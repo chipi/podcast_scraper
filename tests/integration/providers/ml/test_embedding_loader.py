@@ -94,7 +94,7 @@ class TestEncodeMocked:
         fake_vec = [0.1] * 384
 
         class FakeModel:
-            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+            def encode(self, texts, normalize_embeddings=True, batch_size=64, **kwargs):
                 return [fake_vec] * len(texts)
 
         monkeypatch.setattr(
@@ -112,7 +112,7 @@ class TestEncodeMocked:
         fake_vec = [0.2] * 384
 
         class FakeModel:
-            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+            def encode(self, texts, normalize_embeddings=True, batch_size=64, **kwargs):
                 return [fake_vec] * len(texts)
 
         monkeypatch.setattr(
@@ -131,7 +131,7 @@ class TestEncodeMocked:
         seen = {}
 
         class FakeModel:
-            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+            def encode(self, texts, normalize_embeddings=True, batch_size=64, **kwargs):
                 seen["batch_size"] = batch_size
                 return [[0.1, 0.2]] * len(texts)
 
@@ -148,7 +148,7 @@ class TestEncodeMocked:
         import numpy as np
 
         class FakeModel:
-            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+            def encode(self, texts, normalize_embeddings=True, batch_size=64, **kwargs):
                 return np.array([[0.5, 0.5]], dtype=np.float32)
 
         monkeypatch.setattr(
@@ -165,7 +165,7 @@ class TestEncodeMocked:
         import numpy as np
 
         class FakeModel:
-            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+            def encode(self, texts, normalize_embeddings=True, batch_size=64, **kwargs):
                 return np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32)
 
         monkeypatch.setattr(
@@ -181,7 +181,7 @@ class TestEncodeMocked:
         """``to_list`` falls back to ``list()`` when embedding row has no ``tolist``."""
 
         class FakeModel:
-            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+            def encode(self, texts, normalize_embeddings=True, batch_size=64, **kwargs):
                 return [(0.25, 0.75)]
 
         monkeypatch.setattr(
