@@ -21,6 +21,7 @@ import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
+import { useLibraryStore } from '../stores/library'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
@@ -37,6 +38,7 @@ const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
+const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
@@ -83,6 +85,36 @@ const rank = (i: number) => String(i + 2).padStart(2, '0')
 const resumeTop = computed(() => continueItems.value[0] ?? null)
 const resumeArt = episodeArtwork
 /**
+ * Resolve the user's followed shows into full `Podcast` records.
+ *
+ * The library API returns subscriptions (feed_id + title + added_at), not catalogue metadata, so
+ * artwork and episode counts are joined from the public catalogue. A followed feed that isn't in
+ * the corpus still renders — from its stored title — rather than vanishing.
+ */
+async function loadFollowedShows(): Promise<void> {
+  if (!auth.isAuthenticated) {
+    shows.value = []
+    return
+  }
+  const [catalogue] = await Promise.all([
+    getPodcasts().catch(() => [] as Podcast[]),
+    library.ensureLoaded().catch(() => {}),
+  ])
+  const byId = new Map(catalogue.map((p) => [p.feed_id, p]))
+  shows.value = library.items.map(
+    (i) =>
+      byId.get(i.feed_id) ?? {
+        feed_id: i.feed_id,
+        title: i.title,
+        artwork_url: null,
+        image_url: null,
+        description: null,
+        episode_count: 0,
+      },
+  )
+}
+
+/**
  * Home caps the shows grid and links out for the rest (#1584). Unbounded, this section grows without
  * limit as the corpus does — it was the "taking all that real estate" half of the complaint. 5 and
  * 11 leave room for the See-all tile to complete a row at 3 columns (mobile) and 4 (desktop).
@@ -109,9 +141,11 @@ onMounted(async () => {
   const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
   if (remote === true) interestsDismissed.value = true
   latest.value = (await getDiscover(8).catch(() => null))?.items ?? []
-  getPodcasts()
-    .then((s) => (shows.value = s))
-    .catch(() => (shows.value = []))
+  // "Your shows" means the shows you follow. UXS-014:102 decided this ("we don't show the whole
+  // corpus as 'your shows'") and gated it on subscriptions being user-curated — which they now are,
+  // since follow-show shipped. The corpus catalogue lives in Browse. Artwork/titles still come from
+  // the public catalogue, since the library rows carry only feed_id + title (#1585).
+  void loadFollowedShows()
 
   if (auth.isAuthenticated || !auth.loaded) {
     const positions = await getPlaybackList().catch(() => [])
@@ -335,18 +369,29 @@ onMounted(async () => {
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
 
-    <!-- Your shows -->
-    <section v-if="shows.length" class="mt-7">
+    <!-- Your shows — the shows you FOLLOW (UXS-014:102), not the corpus catalogue.
+         Shown to any signed-in user, empty or not: a signed-in listener following nothing needs to
+         learn the capability exists, and a section that silently vanishes can't teach it. -->
+    <section v-if="auth.isAuthenticated" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
-      <ul class="grid grid-cols-3 gap-3 sm:grid-cols-4">
+      <div
+        v-if="!shows.length"
+        class="rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted"
+      >
+        {{ t('home.showsEmpty') }}
+        <RouterLink :to="{ name: 'catalog' }" class="ml-1 font-bold text-accent no-underline">
+          {{ t('home.showsBrowse') }}
+        </RouterLink>
+      </div>
+      <ul v-else class="grid grid-cols-3 gap-3 sm:grid-cols-4">
         <li v-for="p in visibleShows" :key="p.feed_id">
           <ShowTile :show="p" />
         </li>
-        <!-- Home is a dispatch surface, not an index: cap the grid so its length stays constant as
-             the corpus grows, and hand off to the full catalogue. -->
+        <!-- Home is a dispatch surface, not an index: cap the grid so its length stays constant
+             however many shows you follow, and hand off for the rest. -->
         <li v-if="shows.length > visibleShows.length">
           <RouterLink
-            :to="{ name: 'catalog' }"
+            :to="{ name: 'library' }"
             class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border p-2 text-center text-xs font-bold text-accent no-underline"
           >
             {{ t('home.seeAllShows', { count: shows.length }) }}

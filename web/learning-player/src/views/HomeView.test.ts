@@ -52,7 +52,7 @@ function signIn(): void {
 }
 
 describe('HomeView (discover state, signed out)', () => {
-  it('renders the ask hero, What\'s new and Your shows', async () => {
+  it('renders the ask hero and What\'s new, but no shows section', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
     })
@@ -66,8 +66,10 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.text()).toContain("Find any moment you've heard.") // discover hero
     expect(w.text()).toContain("What's new")
     expect(w.text()).toContain('First Ep')
-    expect(w.text()).toContain('All shows')
-    expect(w.text()).toContain('Show A')
+    // "Your shows" is per-user (#1585): signed out there are no follows, so no section — and
+    // crucially it must NOT fall back to showing the whole catalogue, which is what it used to do.
+    expect(w.text()).not.toContain('Your shows')
+    expect(w.text()).not.toContain('Show A')
   })
 
   it('submitting the search navigates to /search', async () => {
@@ -80,6 +82,53 @@ describe('HomeView (discover state, signed out)', () => {
     await w.find('input#home-search').setValue('memory')
     await w.find('form').trigger('submit')
     expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
+  })
+})
+
+describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () => {
+  const catalogue = [
+    { feed_id: 'showa', title: 'Show A', artwork_url: null, image_url: null, episode_count: 2 } as Podcast,
+    { feed_id: 'showb', title: 'Show B', artwork_url: null, image_url: null, episode_count: 5 } as Podcast,
+  ]
+
+  beforeEach(() => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue(catalogue)
+  })
+
+  it('renders only the followed shows, joined to catalogue artwork', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([
+      { feed_id: 'showb', feed_url: null, title: 'Show B', added_at: 1 },
+    ])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).toContain('Your shows')
+    expect(w.text()).toContain('Show B')
+    // Show A is in the corpus but NOT followed. Before #1585 this section rendered the whole
+    // catalogue while calling itself "Your shows".
+    expect(w.text()).not.toContain('Show A')
+  })
+
+  it('teaches the capability instead of vanishing when you follow nothing', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    // A section that silently self-hides can't tell a new user the feature exists.
+    expect(w.text()).toContain('Your shows')
+    expect(w.text()).toContain('Follow a show')
+  })
+
+  it('still renders a followed feed that is absent from the catalogue', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([
+      { feed_id: 'gone', feed_url: null, title: 'Departed Show', added_at: 1 },
+    ])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).toContain('Departed Show')
   })
 })
 
