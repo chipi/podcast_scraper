@@ -74,10 +74,17 @@
     // outbox (`/internal/outbox/*`, token-gated by INTERNAL_OUTBOX_TOKEN) published on the
     // prod VPS tailnet IP at :8099 by deploy-player.sh. Tailnet-only seam transport; the
     // token is the capability, the ACL scopes reachability to just the homelab host.
+    //
+    // :443 = the operator API (tailscale-serve fronts the api on :443, same listener the
+    // admin grant above uses). The homelab drives corpus ingestion against /api/jobs on a
+    // STANDING basis — feed batches are run from here over the coming months, not as a
+    // one-off — so this is a durable grant. Auth remains the operator key
+    // (X-Operator-Key); the ACL scopes reachability to just the homelab host, the same
+    // capability-plus-network pattern as :8099 above.
     {
       "action": "accept",
       "src":    ["tag:homelab-host"],
-      "dst":    ["tag:prod:8099"]
+      "dst":    ["tag:prod:443,8099"]
     },
 
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.
