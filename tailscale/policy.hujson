@@ -81,10 +81,19 @@
     // one-off — so this is a durable grant. Auth remains the operator key
     // (X-Operator-Key); the ACL scopes reachability to just the homelab host, the same
     // capability-plus-network pattern as :8099 above.
+    //
+    // :4001 = the prod-local LiteLLM gateway admin API (ADR-130 / ADR-142). The homelab now
+    // owns ingestion, so it also needs to read the spend the ingestion incurs — per-episode
+    // cost, budget headroom against the podcast-prod key's $25 cap, and whether routing is
+    // landing on the prod gateway rather than leaking to homelab (the ADR-142 regression).
+    // Without this the box driving the pipeline is blind to what the pipeline costs, and cost
+    // review needs an admin device every time. Auth is the gateway master key; the ACL scopes
+    // reachability to the homelab host only. Read-only in practice — analysis, not config
+    // changes, which stay with autogroup:admin.
     {
       "action": "accept",
       "src":    ["tag:homelab-host"],
-      "dst":    ["tag:prod:443,8099"]
+      "dst":    ["tag:prod:443,4001,8099"]
     },
 
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.

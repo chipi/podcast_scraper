@@ -56,6 +56,28 @@ Observed: WSJ / NVIDIA +4 of 5, Flightcast fewer.
 **Optional fix:** re-read corpus guids immediately before each feed, or widen the window
 and cap on adds. Either way, document the offset semantics.
 
+### B2 — `[WITHDRAWN 2026-08-12]` "Latent Space feed serves only 2 items" — measurement error
+
+**Raised and disproved within the same session. Recorded so nobody re-raises it.**
+
+The claim was that the Flightcast/Latent Space feed served only 2 `<item>` elements and was
+therefore permanently capped at 13 episodes. **This was false.** The feed serves **219
+items** and is healthy.
+
+**Cause of the error:** discovery counted items with `grep -c "<item>"`, which counts matching
+**lines**, not occurrences. The Latent Space feed is 13.2 MB of XML minified onto very few
+lines, so it reported 2. The other eight feeds serve multi-line XML where line count happens
+to equal occurrence count, so they were unaffected — which made a tooling bug look like a
+feed-specific defect. Correct form: `grep -o "<item>" | wc -l`.
+
+**Lesson worth keeping:** when one item in a survey looks catastrophically different from the
+others, suspect the measurement before the subject. The "dead feed" story was coherent,
+matched an existing known issue (B1's Flightcast note), and was entirely wrong.
+
+**Latent Space's `+0` in the +50 batch** therefore reverts to the original explanation:
+`episode_offset=0` targeted the newest 10 episodes, which were already among its 13, and
+`skip_existing` skipped them. It can reach any reasonable target using a real offset.
+
 ---
 
 ## C. Outcome / index signals (cosmetic)
@@ -149,16 +171,28 @@ insight-node confidence scores.
 
 ## Status summary
 
-15 items → **13 distinct** (F2+F12 merged, F4+F15 merged).
+15 items → **13 distinct** (F2+F12 merged, F4+F15 merged). B2 was raised 2026-08-12 and
+**withdrawn the same session** as a measurement error — it is not open work.
 
 | State | Count | Items |
 | --- | --- | --- |
 | `[DONE]` | 1 | D1 (residual code TODO still open) |
 | `[INFO]` | 2 | C3, part of B1 |
+| `[WITHDRAWN]` | 1 | B2 |
 | `[OPEN]` | 10 | A1, A2, B1(docs), C1, C2, D2, D3, D4, D5, E1, F1qa |
 
 **Highest-value OPEN:** D3 / D4 / D5 (gateway durability + correctness), A1 (label bug),
 C1 (skip mislabel breaks EXIT gates).
+
+### Found during the 2026-08-12 homelab session, not in the original F1–F15
+
+| Item | Where | Nature |
+| --- | --- | --- |
+| **B1 evidence** | Rollout log | B1's under-count did **not** reproduce 5/5 when discovery ran per-feed; suggests the fix target and that the pending WSJ/NVIDIA +4 investigation can close |
+| **Cost blindness** | Rollout log | `prod:4001` unreachable from `tag:homelab-host` — cost cannot be measured from the box that now runs ingestion. Companion to D3/D4 |
+| **Enricher artifacts** | Rollout log | Only `topic_cooccurrence_corpus` appears under `/api/corpus/enrichments`; the enrichers the corpus growth is meant to feed are unaccounted for |
+| **ACL grant** | Rollout log | `tag:homelab-host → tag:prod:443` added and applied; README corrected |
+| **B2 (withdrawn)** | §B | Kept as a record of a disproved claim, not as work |
 
 ---
 
@@ -273,6 +307,95 @@ session picked up.
   intermediate numbers are approximate, or something added beyond the cap. Noted because it
   runs *opposite* to the B1 under-count, which is the direction everything else drifts.
   Not treated as blocking.
+
+### Pass-3 — RSS discovery, and the Latent Space cap (2026-08-12)
+
+Target: ~500 episodes. Discovery run **from the homelab without SSH**, by fetching each RSS
+directly and counting `<item>` elements — this is a viable substitute for `discover10.py` and
+needs no box access.
+
+| Feed | In corpus | RSS items available |
+| --- | --- | --- |
+| The Daily | 31 | 2944 |
+| Invest Like the Best | 25 | 592 |
+| Planet Money | 28 | 355 |
+| Unhedged | 27 | 330 |
+| NVIDIA AI Podcast | 26 | 306 |
+| The Journal. | 26 | 300 |
+| Hard Fork | 27 | 209 |
+| No Priors | 27 | 173 |
+| Latent Space | 13 | 219 |
+
+**Every feed has ample back-catalog.** The smallest (No Priors, 173) still supports more than
+triple the target.
+
+> **Correction:** the first run of this table reported Latent Space at **2** items and
+> concluded the feed was dead. That was a measurement error — see the withdrawn **B2**. The
+> count above (219) is correct. Counting must use `grep -o "<item>" | wc -l`; `grep -c`
+> counts lines and undercounts minified feeds catastrophically.
+
+**Target: ~500 across all 9 feeds**, i.e. **55 per feed**. Invest Like the Best was already
+launched at +36 (to 61) before the correction landed and is left to overshoot slightly —
+harmless.
+
+| Feed | Now | Target | Deficit | Offset |
+| --- | --- | --- | --- | --- |
+| Invest Like the Best | 25 | 61 | +36 | 25 (running) |
+| Latent Space | 13 | 55 | +42 | 13 |
+| The Journal. | 26 | 55 | +29 | 26 |
+| NVIDIA AI Podcast | 26 | 55 | +29 | 26 |
+| No Priors | 27 | 55 | +28 | 27 |
+| Unhedged | 27 | 55 | +28 | 27 |
+| Hard Fork | 27 | 55 | +28 | 27 |
+| Planet Money | 28 | 55 | +27 | 28 |
+| The Daily | 31 | 55 | +24 | 31 |
+| **Total** | **230** | | **+271** | **= 501** |
+
+Run as **one job per feed** covering its full deficit, rather than 27 separate 10-windows —
+fewer jobs to supervise, and `skip_existing` keeps a retry cheap if one fails.
+
+**Throughput — plan for ~18 hours, not an afternoon.** Invest Like the Best added roughly 15
+episodes in its first hour, i.e. **~4 min/episode**, putting the full +271 push on the order of
+**18 hours**. The +50 batch took ~3 hours; this one is 5.4× the volume. Rough estimate,
+extrapolated from one feed's partial progress — expect variance, since episode length drives
+transcription time and The Daily (~20 min/episode) should run far faster than Invest Like the
+Best (~90 min/episode).
+
+**Operational note:** a job of this size outlives a 1-hour monitor. Use a persistent watcher,
+or the job will silently outrun its supervision and look like it stalled.
+
+### Quality assessment after the +50 batch (2026-08-12)
+
+Requested check on whether quality degraded. **No degradation detected.**
+
+Verified:
+
+- **Coverage is complete:** `total_episodes: 230, with_gi: 230, with_kg: 230, with_both: 230,
+  with_neither: 0`.
+- **Index agrees:** `episode_title: 230`, `summary_short: 230`, 24 961 vectors.
+- **Per-episode density sits inside the batch-1 baseline** — insights 17.6/ep (baseline 6–31),
+  KG nodes 22.7/ep (baseline ~20–29), quotes 26/ep.
+- **Spot-check** of a newly-ingested The Daily episode: thesis-level `summary_title`,
+  substantive bullets carrying named entities and hard figures, and
+  `bridge_partition: {gi_only: 0, kg_only: 13, both: 13, total: 26}` — every GI node has a KG
+  counterpart.
+- **Unplanned benefit:** the batch extended the corpus *backward* — a new month appeared
+  (2025-11, 6 episodes) and Feb–May thickened. Useful for `temporal_velocity`.
+
+NOT verified:
+
+- **The new 50 cannot be isolated** from corpus-wide averages — no per-episode stats endpoint
+  and no pre-batch index snapshot. In-band averages are evidence, not proof.
+- **No semantic grounding check** (F1qa / F14 still open).
+- **Only one corpus-level enricher artifact exists:** `topic_cooccurrence_corpus` v1.1.0.
+  `topic_perspectives`, disagreement, `guest_coappearance`, `temporal_velocity` and
+  `topic_similarity` do **not** appear under `/api/corpus/enrichments`. They may be
+  per-episode sidecars rather than corpus artifacts — undetermined from this endpoint.
+  **Worth resolving**, since the entire expansion rationale is feeding those enrichers.
+- **Cost is unobtainable from the homelab.** `prod:4001` returns `000` (dropped — the ACL
+  grants `tag:prod:4001` to `autogroup:admin` only, not `tag:homelab-host`) and
+  `/api/corpus/runs` is `404`. Credentials do not help; the packets never arrive. Fixing it
+  means adding `4001` to the homelab grant, exactly as `443` was added above.
 
 ### Offsets used
 
