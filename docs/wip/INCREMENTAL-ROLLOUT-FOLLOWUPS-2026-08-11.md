@@ -329,6 +329,28 @@ insight-node confidence scores.
 15 items → **13 distinct** (F2+F12 merged, F4+F15 merged). B2 was raised 2026-08-12 and
 **withdrawn the same session** as a measurement error — it is not open work.
 
+> ### Implementation status — branch `fix/pipeline-resilience-supervision` (2026-08-12)
+>
+> Anchored by [#1620](https://github.com/chipi/podcast_scraper/issues/1620); designed in
+> [RFC-117](../rfc/RFC-117-pipeline-supervision-and-absence-detection.md) and
+> [ADR-150](../adr/ADR-150-supervision-bounds-and-absence-detection.md).
+>
+> | Item | State |
+> | --- | --- |
+> | **G1** silent wedge | **Fixed on branch** — loop bounded by main-thread liveness + wall-clock budget, evaluated unconditionally before queue state |
+> | **G2** executor race | **Fixed on branch** — both submits guarded; explicit executor lifecycle so abandoning does not `shutdown(wait=True)` on the stuck future |
+> | **C1 / F1** skip tallies as failed | **Fixed on branch** — records `status="skipped"`, exception-safe |
+> | **A1** Deepgram labelled Whisper | **Partly fixed on branch** — provider-neutral `transcription_provider` / `transcription_model` added to the run manifest; the `transcript_source` enum rename is deliberately deferred (it is a migration touching argparse, config, evaluation and every on-disk metadata file) |
+> | `timeout_context` decorative | **Documented honestly on branch** — cannot interrupt; demoted to a detection signal, deadline log raised to ERROR, timer made daemon |
+> | **D1** budget cap | **Done** — plus the per-run cap raised 5.0 → 10.0 on the box (see cost analysis) |
+> | **D2** orphan gateway key | **Verified closeable** — `$0.00000088` spend, `/key/delete` is safe |
+> | **C2** `reindex_recommended` | **Not patchable as scoped.** The mtime scan (`search/index_source_mtime.py:28-63`) is already correctly limited to metadata + GI/KG/transcript and never sees run summaries. The false positive comes from episode metadata being **rewritten with identical content**, so a real fix needs a content fingerprint stored at index time and compared as a set. That is an index-schema change and a decision, not a patch. |
+> | **A2**, **D3**, **D4**, **D5**, **E1**, **F1qa** | Untouched |
+>
+> **None of the branch code has been executed.** The authoring environment had no venv,
+> no pytest and no mkdocs — `ast.parse` plus a 526-link relative-link check is the entire
+> extent of local verification. Everything needs CI before it is trusted.
+
 | State | Count | Items |
 | --- | --- | --- |
 | `[DONE]` | 1 | D1 (residual code TODO still open) |
