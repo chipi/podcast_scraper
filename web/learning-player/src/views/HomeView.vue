@@ -19,7 +19,7 @@ import {
 import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
-import { episodeArtwork, showArtwork } from '../utils/episode'
+import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import EntityCard from '../components/EntityCard.vue'
@@ -27,6 +27,7 @@ import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import QueueButton from '../components/QueueButton.vue'
+import ShowTile from '../components/ShowTile.vue'
 import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
 import YourWeek from '../components/YourWeek.vue'
@@ -81,7 +82,13 @@ const wnRows = computed(() => latest.value.slice(1, 6))
 const rank = (i: number) => String(i + 2).padStart(2, '0')
 const resumeTop = computed(() => continueItems.value[0] ?? null)
 const resumeArt = episodeArtwork
-const showArt = showArtwork
+/**
+ * Home caps the shows grid and links out for the rest (#1584). Unbounded, this section grows without
+ * limit as the corpus does — it was the "taking all that real estate" half of the complaint. 5 and
+ * 11 leave room for the See-all tile to complete a row at 3 columns (mobile) and 4 (desktop).
+ */
+const SHOWS_ON_HOME = 11
+const visibleShows = computed(() => shows.value.slice(0, SHOWS_ON_HOME))
 const epArt = episodeArtwork
 
 function goSearch(q: string): void {
@@ -317,8 +324,10 @@ onMounted(async () => {
           <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
             <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <div class="mt-2 line-clamp-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
-            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
+            <!-- Reserved height, not just a clamp: a 1-line title beside a 2-line one still leaves
+                 rows ragged. Kicker truncates so a long show name can't wrap and undo it (#1584). -->
+            <div class="mt-2 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-tight">{{ ep.title }}</div>
+            <div class="lp-kicker mt-0.5 truncate">{{ ep.podcast_title }}</div>
           </RouterLink>
         </li>
       </ul>
@@ -330,11 +339,17 @@ onMounted(async () => {
     <section v-if="shows.length" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
       <ul class="grid grid-cols-3 gap-3 sm:grid-cols-4">
-        <li v-for="p in shows" :key="p.feed_id">
-          <RouterLink :to="{ name: 'podcast', params: { feedId: p.feed_id } }" class="block no-underline text-canvas-foreground">
-            <img v-if="showArt(p)" :src="showArt(p)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
-            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <div class="mt-1 text-xs font-bold">{{ p.title ?? p.feed_id }}</div>
+        <li v-for="p in visibleShows" :key="p.feed_id">
+          <ShowTile :show="p" />
+        </li>
+        <!-- Home is a dispatch surface, not an index: cap the grid so its length stays constant as
+             the corpus grows, and hand off to the full catalogue. -->
+        <li v-if="shows.length > visibleShows.length">
+          <RouterLink
+            :to="{ name: 'catalog' }"
+            class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border p-2 text-center text-xs font-bold text-accent no-underline"
+          >
+            {{ t('home.seeAllShows', { count: shows.length }) }}
           </RouterLink>
         </li>
       </ul>

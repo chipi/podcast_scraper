@@ -38,6 +38,7 @@
     "browseNavLabel": "Browse the corpus",
     "recommended": "Recommended for you",
     "shows": "All shows",
+    "seeAllShows": "See all {count} →",
     "resume": "Resume",
     "trending": "Trending topics",
     "trendingHint": "Heating up across the library lately",
