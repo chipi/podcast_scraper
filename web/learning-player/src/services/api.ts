@@ -26,6 +26,7 @@ import type {
   HighlightUpdate,
   InsightsResponse,
   InterestCluster,
+  LibraryItem,
   ListEpisodesParams,
   McpConnection,
   McpConnectionConfig,
@@ -384,9 +385,52 @@ export async function putUserInterests(clusterIds: string[]): Promise<string[]> 
   return ((await resp.json()) as { items: string[] }).items
 }
 
-/** Shows in the user's library (Home "Your shows"). */
+/** Distinct shows in the corpus (public, not per-user). */
 export async function getPodcasts(): Promise<Podcast[]> {
   return (await getJSON<{ items: Podcast[] }>('/podcasts')).items
+}
+
+// --- Feed subscriptions ("follow a show") — the library the Your Week digest reads for its
+// "new in your follows" section. NOT the same store as interests (topic:/person: tokens), which
+// feed "Recommended for you".
+
+/** The user's followed shows (auth-gated); `[]` when signed out. */
+export async function getLibrary(): Promise<LibraryItem[]> {
+  try {
+    return (await getJSON<{ items: LibraryItem[] }>('/library')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Follow a show (idempotent on feed_id, auth-gated); returns the updated library. */
+export async function followShow(
+  feedId: string,
+  meta: { feedUrl?: string | null; title?: string | null } = {},
+): Promise<LibraryItem[]> {
+  const resp = await apiFetch(`${BASE}/library`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      feed_id: feedId,
+      ...(meta.feedUrl != null ? { feed_url: meta.feedUrl } : {}),
+      ...(meta.title != null ? { title: meta.title } : {}),
+    }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /library → ${resp.status}`)
+  return ((await resp.json()) as { items: LibraryItem[] }).items
+}
+
+/** Unfollow a show (no-op if absent, auth-gated); returns the remaining library. */
+export async function unfollowShow(feedId: string): Promise<LibraryItem[]> {
+  const resp = await apiFetch(`${BASE}/library/${encodeURIComponent(feedId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /library → ${resp.status}`)
+  return ((await resp.json()) as { items: LibraryItem[] }).items
 }
 
 /** Show-level signals for a show page: topics/themes it's about, who's on it, what's trending. */

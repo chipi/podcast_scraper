@@ -143,7 +143,7 @@ export interface PlaybackPosition {
   updated_at: number | null
 }
 
-/** A show in the user's library (Home "Your shows"). */
+/** A distinct show in the corpus (GET /api/app/podcasts) — public, not per-user. */
 export interface Podcast {
   feed_id: string
   title: string | null
@@ -151,6 +151,18 @@ export interface Podcast {
   image_url: string | null
   description: string | null
   episode_count: number
+}
+
+/**
+ * A feed the user is subscribed to (GET/POST/DELETE /api/app/library) — auth-gated per-user state,
+ * distinct from the public corpus catalog above and from interest tokens (topic:/person:). This is
+ * the store the "Your Week" digest reads for its "new in your follows" section.
+ */
+export interface LibraryItem {
+  feed_id: string
+  feed_url: string | null
+  title: string | null
+  added_at: number | null
 }
 
 /** Show-level signals for the consumer show page (GET /api/app/podcasts/{feed_id}/signals). */

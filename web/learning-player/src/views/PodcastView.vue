@@ -4,7 +4,7 @@
  * Header derives the show title + total from the first page (no separate feed endpoint in
  * the MVP). Cards reuse EpisodeCard.
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import EntityCard from '../components/EntityCard.vue'
@@ -12,6 +12,8 @@ import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
+import { useAuthStore } from '../stores/auth'
+import { useLibraryStore } from '../stores/library'
 import { showArtwork } from '../utils/episode'
 import type { EpisodeSummary, Podcast } from '../services/types'
 
@@ -33,6 +35,30 @@ const showArt = showArtwork
 async function loadShow(): Promise<void> {
   const all = await getPodcasts().catch(() => [] as Podcast[])
   show.value = all.find((p) => p.feed_id === props.feedId) ?? null
+}
+
+// Follow this show → a feed subscription (/api/app/library), which is what fills the "new in your
+// follows" section of Your Week. Distinct from the interest tokens followed on entity cards.
+const auth = useAuthStore()
+const library = useLibraryStore()
+// Auth may resolve after this mounts, so load follow-state on the transition, not just onMounted.
+watch(
+  () => auth.isAuthenticated,
+  (authed) => {
+    if (authed) void library.ensureLoaded().catch(() => {})
+  },
+  { immediate: true },
+)
+
+const following = computed(() => library.has(props.feedId))
+const togglingFollow = ref(false)
+async function toggleFollow(): Promise<void> {
+  togglingFollow.value = true
+  try {
+    await library.toggle(props.feedId, { title: show.value?.title ?? episodes.value[0]?.podcast_title })
+  } finally {
+    togglingFollow.value = false
+  }
 }
 
 async function loadMore(): Promise<void> {
@@ -102,6 +128,24 @@ watch(() => props.feedId, reset)
           @click="descExpanded = !descExpanded"
         >
           {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
+        </button>
+
+        <!-- Follow → feed subscription; its unheard episodes surface in Your Week. -->
+        <button
+          v-if="auth.isAuthenticated"
+          type="button"
+          data-testid="follow-show"
+          class="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"
+          :class="
+            following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+          "
+          :aria-pressed="following"
+          :disabled="togglingFollow"
+          :title="t('podcast.followHint')"
+          @click="toggleFollow"
+        >
+          <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+          {{ following ? t('podcast.following') : t('podcast.follow') }}
         </button>
       </div>
     </header>
