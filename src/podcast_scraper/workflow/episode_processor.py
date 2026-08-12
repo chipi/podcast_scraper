@@ -410,6 +410,12 @@ def download_media_for_transcription(
                 prefix,
                 _existing_transcript,
             )
+            _mark_episode_skipped_existing(
+                episode,
+                cfg,
+                pipeline_metrics,
+                f"transcript already exists: {_existing_transcript}",
+            )
             return None
 
     if not episode.media_url:
@@ -1650,6 +1656,44 @@ def _append_preprocessing_incident(
         episode_id=episode_id,
         episode_idx=episode_idx,
     )
+
+
+def _mark_episode_skipped_existing(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    pipeline_metrics: Any,
+    reason: str,
+    *,
+    stage: str = "transcription",
+) -> None:
+    """Record a skip-existing skip as ``skipped`` rather than leaving it untallied (F1/C1).
+
+    Before this, the skip-existing branches returned ``None`` without touching
+    ``pipeline_metrics``. A clean all-skip run therefore reported ``{failed: 1}`` and
+    failed the Step-0/Step-1 EXIT criteria despite doing exactly the right thing. Only
+    the policy-skip and exception paths ever set ``status="skipped"``.
+
+    Never raises: a metrics problem must not turn a successful skip into a failure.
+    """
+    if pipeline_metrics is None or episode is None:
+        return
+    try:
+        from podcast_scraper.workflow.helpers import (
+            get_episode_id_from_episode,
+            update_metric_safely,
+        )
+
+        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+        pipeline_metrics.update_episode_status(
+            episode_id=episode_id,
+            status="skipped",
+            stage=stage,
+            error_type="SkipExisting",
+            error_message=redact_for_log(reason, max_len=500),
+        )
+        update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+    except Exception:  # noqa: BLE001 — telemetry must never break a successful skip
+        logger.debug("failed to record skip-existing status", exc_info=True)
 
 
 def _mark_episode_skipped_policy(

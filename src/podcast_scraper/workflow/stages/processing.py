@@ -41,6 +41,31 @@ def process_episode_download(*args, **kwargs):
     return factory_process_episode_download(*args, **kwargs)
 
 
+#: Fallback wall-clock ceiling for the parallel processing loop, in seconds.
+#: Chosen as roughly 2x the longest legitimate run observed in prod (a 36-episode job takes
+#: ~2h) so it never truncates real work, while still bounding the pathological case. The
+#: sharper bound is main-thread liveness — this is the backstop for when the main thread is
+#: alive but the loop can no longer make progress.
+DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS = 4 * 60 * 60
+
+
+def _processing_loop_budget_seconds(cfg: Any, max_workers: int) -> Optional[float]:
+    """Wall-clock ceiling for ``_run_parallel_processing_loop``.
+
+    Returns ``None`` to disable the bound entirely (explicit opt-out only). Set
+    ``processing_loop_budget_seconds: 0`` in config to disable; any positive value
+    overrides the default.
+    """
+    override = getattr(cfg, "processing_loop_budget_seconds", None)
+    if override is not None:
+        try:
+            value = float(override)
+        except (TypeError, ValueError):
+            return float(DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS)
+        return None if value <= 0 else value
+    return float(DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS)
+
+
 def _mark_processed(processed_job_indices: Set[int], idx: int) -> None:
     """Record an episode as finished — ONCE — and emit a ``pipeline_progress`` event (ADR-119).
 
@@ -1512,9 +1537,64 @@ def process_processing_jobs_concurrent(  # noqa: C901
         jobs_processed_ok = [0]  # Use list for nonlocal access
         jobs_processed_failed = [0]  # Use list for nonlocal access
         stop_requested = [False]  # Issue #429: set when fail_fast or max_failures reached
+        abandoned_futures = [0]  # bounded-loop exit left these in flight
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Supervision (2026-08-12 incident): this loop previously had no termination
+        # guarantee. `_should_continue_processing` defaults to True, so if the main thread
+        # died without setting `transcription_complete_event` — e.g. CostCapExceeded raised
+        # out of `orchestration.check_cost_soft_cap_at_stage`, which sits in a region with
+        # no try/finally — this thread span forever at 0.05s/iteration: live pid, 2.5% CPU,
+        # zero progress, zero logs, indefinitely. Two independent bounds now apply:
+        #   1. main-thread liveness — a worker must never outlive its parent
+        #   2. a wall-clock budget   — nothing here may run unbounded
+        loop_started_at = time.time()
+        loop_budget_seconds = _processing_loop_budget_seconds(cfg, max_workers)
+
+        def _supervision_exit_reason() -> Optional[str]:
+            """Return a reason string when this loop must stop regardless of queue state."""
+            if not threading.main_thread().is_alive():
+                return "main thread exited"
+            elapsed = time.time() - loop_started_at
+            if loop_budget_seconds is not None and elapsed > loop_budget_seconds:
+                return f"wall-clock budget exceeded ({elapsed:.0f}s > {loop_budget_seconds:.0f}s)"
+            return None
+
+        # NOT a `with` block: ThreadPoolExecutor.__exit__ calls shutdown(wait=True), which
+        # blocks until every in-flight future finishes. On the supervision-abort path the
+        # whole point is that a future may never finish, so `with` would reintroduce the
+        # exact hang the bounds above exist to break. Shutdown mode is chosen in `finally`.
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        try:
             futures = {}
+
+            def _try_submit(job: Any) -> bool:
+                """Submit one job, tolerating a pool that can no longer accept work.
+
+                Returns True when the job was scheduled. A submit during interpreter
+                teardown raises ``RuntimeError: cannot schedule new futures after
+                interpreter shutdown``; before 2026-08-12 that propagated out of the
+                comprehension here and killed the entire run, discarding every episode
+                still queued. The work itself was already defended (see
+                ``_process_single_processing_job``) — only the scheduling was not.
+                """
+                _mark_processed(processed_job_indices, job.episode.idx)
+                try:
+                    future = executor.submit(process_job_func, job)
+                except RuntimeError as exc:
+                    # Un-mark so a resumed run re-submits this episode; skip_existing
+                    # keeps that idempotent.
+                    processed_job_indices.discard(job.episode.idx)
+                    stop_requested[0] = True
+                    logger.warning(
+                        "Cannot schedule episode %s — executor no longer accepts work (%s). "
+                        "Stopping submission; %d future(s) still in flight.",
+                        job.episode.idx,
+                        exc,
+                        len(futures),
+                    )
+                    return False
+                futures[future] = job.episode.idx
+                return True
 
             def _submit_new_jobs() -> None:
                 """Submit new jobs as they become available."""
@@ -1528,9 +1608,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                     job.episode.idx not in processed_job_indices
                                     and job.episode.idx not in futures
                                 ):
-                                    _mark_processed(processed_job_indices, job.episode.idx)
-                                    future = executor.submit(process_job_func, job)
-                                    futures[future] = job.episode.idx
+                                    if not _try_submit(job):
+                                        return
                 else:
                     with processed_job_indices_lock:
                         for job in processing_resources.processing_jobs:
@@ -1538,9 +1617,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                 job.episode.idx not in processed_job_indices
                                 and job.episode.idx not in futures
                             ):
-                                _mark_processed(processed_job_indices, job.episode.idx)
-                                future = executor.submit(process_job_func, job)
-                                futures[future] = job.episode.idx
+                                if not _try_submit(job):
+                                    return
 
             def _process_completed_futures() -> None:
                 """Process completed futures (delegate to module-level helper)."""
@@ -1553,7 +1631,30 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     stop_requested[0] = True
 
             def _should_continue_processing() -> bool:
-                """Check if processing should continue."""
+                """Check if processing should continue.
+
+                Supervision bounds are evaluated FIRST and unconditionally. They must not
+                be reachable only through the queue-state branches below, because the
+                2026-08-12 wedge was precisely the case where those branches could never
+                fire: `transcription_complete_event` was never set (the main thread died
+                before reaching `.set()`), so the function fell through to `return True`
+                on every iteration, forever.
+                """
+                reason = _supervision_exit_reason()
+                if reason is not None:
+                    if len(futures):
+                        abandoned_futures[0] = len(futures)
+                        logger.error(
+                            "Processing loop stopping: %s. Abandoning %d in-flight "
+                            "episode(s); they are not marked complete and a resumed run "
+                            "will reprocess them (skip_existing keeps this idempotent).",
+                            reason,
+                            len(futures),
+                        )
+                    else:
+                        logger.warning("Processing loop stopping: %s.", reason)
+                    stop_requested[0] = True
+                    return False
                 if stop_requested[0] and len(futures) == 0:
                     return False
                 if transcription_complete_event and transcription_complete_event.is_set():
@@ -1586,6 +1687,13 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     pipeline_metrics.record_queue_wait_time(queue_wait_duration)
                     if workers_all_idle:
                         pipeline_metrics.record_processing_queue_idle_time(queue_wait_duration)
+        finally:
+            if abandoned_futures[0]:
+                # Do not wait: at least one future is presumed stuck, and waiting is the
+                # failure mode we are escaping. cancel_futures drops anything still queued.
+                executor.shutdown(wait=False, cancel_futures=True)
+            else:
+                executor.shutdown(wait=True)
 
         return (jobs_processed_ok[0], jobs_processed_failed[0])
 
