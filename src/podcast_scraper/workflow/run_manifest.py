@@ -57,7 +57,20 @@ class RunManifest:
     whisper_version: Optional[str] = None
 
     # Models used
-    whisper_model: Optional[str] = None
+    #
+    # A1 (2026-08-12): ``whisper_model`` is a MISNOMER retained for backward compatibility.
+    # It holds the actual transcription model for whichever provider ran — so a Deepgram run
+    # stamps ``whisper_model="nova-3"``. That mislabelling caused a false "wrong profile"
+    # scare during a provenance audit, and makes it impossible to select one engine's
+    # episodes for reprocessing in a mixed corpus.
+    #
+    # Prefer the provider-neutral pair below. Both are populated on every run; the legacy
+    # field is kept so existing readers and on-disk manifests keep working. Do not add new
+    # readers of ``whisper_model``.
+    transcription_provider: Optional[str] = None
+    transcription_model: Optional[str] = None
+
+    whisper_model: Optional[str] = None  # legacy alias of transcription_model — see above
     whisper_model_revision: Optional[str] = None
     summary_model: Optional[str] = None
     summary_model_revision: Optional[str] = None
@@ -267,7 +280,14 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     # stamped the unused local default (base.en) on every DGX run.
     from ..utils.provider_metrics import transcription_model_for_cfg
 
-    whisper_model = transcription_model_for_cfg(cfg) or getattr(cfg, "whisper_model", None)
+    # A1: resolve the ACTUAL provider + model, and record them under provider-neutral names.
+    # ``whisper_model`` keeps receiving the same value purely for backward compatibility —
+    # a Deepgram run has always stamped whisper_model="nova-3" there, which is what made
+    # provenance audits misread the engine.
+    transcription_model = transcription_model_for_cfg(cfg) or getattr(cfg, "whisper_model", None)
+    transcription_provider = getattr(cfg, "transcription_provider", None)
+    transcription_provider = str(transcription_provider) if transcription_provider else None
+    whisper_model = transcription_model
     summary_model = getattr(cfg, "summary_model", None)
     reduce_model = getattr(cfg, "summary_reduce_model", None)
 
@@ -306,6 +326,8 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
         torch_version=torch_version,
         transformers_version=transformers_version,
         whisper_version=whisper_version,
+        transcription_provider=transcription_provider,
+        transcription_model=transcription_model,
         whisper_model=whisper_model,
         whisper_model_revision=whisper_model_revision,
         summary_model=summary_model,
