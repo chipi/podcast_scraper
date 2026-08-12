@@ -193,11 +193,18 @@ watch(
               :class="grounded[i] ? 'underline decoration-grounded decoration-2 underline-offset-2' : ''"
             >{{ segments[i].text }}</span></span>{{ ' ' }}</template></p>
 
-        <!-- Save the paragraph (or the selected phrase). Quiet until hover/focus; filled when saved. -->
+        <!-- Save the paragraph (or the selected phrase). Quiet until hover/focus on pointer devices;
+             filled when saved.
+
+             ALWAYS visible where there is no hover (#1592). Phones are the primary platform and have
+             no hover, so `opacity-0 + group-hover` alone made the capture affordance — the entry
+             point to the whole learning loop — transparent but still tappable: undiscoverable rather
+             than obviously missing, which is worse than absent. PlayerView solved the same problem
+             for its summary overlay with this media query. -->
         <button
           v-if="canCapture"
           type="button"
-          class="absolute right-0 top-1 rounded-full p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+          class="absolute right-0 top-1 rounded-full p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           :class="paraSaved(para) ? 'text-accent opacity-100' : 'text-muted hover:text-accent'"
           :aria-pressed="paraSaved(para)"
           :aria-label="paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"

@@ -62,6 +62,15 @@ async function onSignOut(): Promise<void> {
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
           </svg>
         </NavIconLink>
+        <!-- Search is the differentiator — corpus-wide semantic search with jump-to-moment, which
+             neither Spotify nor Apple Podcasts offers. It had exactly ONE entry point (the Home
+             search box), so from the catalogue, player, library or a show page there was no way to
+             reach it at all (#1588). Public, like Browse: reads are open. -->
+        <NavIconLink :to="{ name: 'search' }" :label="t('nav.search')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+          </svg>
+        </NavIconLink>
         <template v-if="auth.isAuthenticated">
           <NavIconLink :to="{ name: 'library' }" :label="t('library.title')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
