@@ -108,6 +108,161 @@ The fingerprints file didn't exist yet, so the first reindex after the D8 deploy
 everything once; every reindex after that skips unchanged episodes. Not a bug — note it in
 ops so a post-deploy ~10 min reindex isn't misread as a regression.
 
+### C4 — `/api/corpus/feeds` lags behind the catalog — `[OPEN, low]`
+
+> **Revised 2026-08-12, same session.** First written as "under-reports episode counts",
+> implying permanent misattribution. **That was too strong.** The counts *do* catch up — after
+> the next run completed, the endpoint showed Invest at 57 and The Journal at 34, summing
+> exactly to the catalog's 270. It is a **staleness/refresh** problem, not a data problem.
+> Severity dropped medium → low. The operational warning below still stands, because the lag
+> window is long enough to mislead offset planning.
+
+**Found 2026-08-12.** After a run added 32 episodes to Invest Like the Best,
+`/api/corpus/feeds` still reported that feed at its pre-run count of **25**, while
+`/api/corpus/stats` reported `catalog_episode_count: 262` and `/api/corpus/coverage` confirmed
+`total_episodes: 262, with_gi: 262, with_kg: 262`.
+
+So 32 fully-processed episodes were **counted by the catalog and by coverage, but attributed
+to no feed**. Per-feed counts summed to 230 against a catalog of 262.
+
+This matters more than cosmetics suggest: **per-feed counts are what any
+equal-representation plan computes offsets from.** A feed that under-reports will be given an
+offset that re-reads episodes already ingested — `skip_existing` prevents duplicates, but the
+window is wasted and the target is never reached. Anyone automating "top up each feed to N"
+against this endpoint will silently stall.
+
+**Suspected cause (not investigated):** the endpoint aggregates from an episode-metadata scan
+that may not associate episodes written under the `--single-feed-uses-corpus-layout` / D7
+branch back to their feed. Worth checking against the same code path C1 implicates.
+
+**Workaround in the meantime:** trust `catalog_episode_count` + `coverage` for totals, and
+treat per-feed counts as a lower bound.
+
+---
+
+## G. Job execution and supervision
+
+### G1 — long jobs wedge silently; `status` stays `running` forever — `[OPEN, high]`
+
+**Found 2026-08-12.** A `max_episodes=36` job ran for **6 h 20 m**, of which the last
+**4 h 15 m** did nothing at all, while continuing to report:
+
+```
+"status": "running"   "error_reason": null   "exit_code": null   "pid": 14043
+```
+
+Every internal signal said healthy. The evidence it was dead came only from **outside** the
+job record:
+
+| Signal | Value |
+| --- | --- |
+| `increase(podcast_pipeline_run_cost_usd_total[6h])` | **0** (was $28.11 for the same window earlier) |
+| `node_cpu` on `prod-podcast` | **2.5 %** — box idle |
+| `catalog_episode_count` | frozen at 262 for 4 h 15 m |
+
+**`POST /api/jobs/reconcile` did not help** — it returned `updated: 0`, because the pid still
+existed. The process had not crashed; it was **wedged**, most likely blocked on a network call
+with no timeout (feed fetch, transcription, or LLM). Reconcile only detects *dead* processes,
+not *hung* ones.
+
+`POST /api/jobs/{id}/cancel` worked cleanly (`exit_code: 130`), and the 32 episodes completed
+before the wedge were intact and fully enriched — no data loss, no partial artifacts.
+
+**Why this is high severity:** an unattended batch loses its whole remaining window to a hang
+and reports success-shaped state throughout. A scheduled or overnight run would burn hours
+silently, and the operator has no signal that anything is wrong.
+
+**Suggested fixes, cheapest first:**
+
+1. **A watchdog on progress, not liveness.** If a running job's episode count has not advanced
+   in N minutes, mark it `stale`. The `stale` status already exists in the status enum and is
+   currently unreachable for this failure mode.
+2. **Timeouts on outbound calls** in the pipeline — the wedge is almost certainly an untimed
+   socket read.
+3. **Expose per-job progress** (episodes done / total) on `GET /api/jobs/{id}`. Today a job's
+   only observable is a status string that cannot distinguish "working" from "hung".
+
+**Operational mitigation now in use:** smaller windows (`max_episodes=15` rather than 36) so a
+hang costs minutes rather than hours, plus a client-side stall detector that alarms when
+`catalog_episode_count` is static for ~30 min while status is `running`.
+
+### G2 — `RuntimeError: cannot schedule new futures after interpreter shutdown` — `[OPEN, high]`
+
+**Found 2026-08-12.** First hard job failure of the rollout.
+
+```
+job_id:       97180b23-e8e5-4714-8475-2d2341a70803
+feed:         Latent Space (Flightcast)
+status:       failed        exit_code: 1
+started:      15:37:59Z     ended: 16:29:28Z   (~51 min)
+args:         --max-episodes 15 --episode-offset 13 --episode-order newest --skip-existing
+error_reason: RuntimeError: cannot schedule new futures after interpreter shutdown
+```
+
+#### It is NOT a load or capacity problem — measured, not assumed
+
+| Signal | Value | Reading |
+| --- | --- | --- |
+| `node_memory_MemAvailable` (prod), now | 73.4 % | healthy |
+| Same, **min over the 6 h containing the failure** | **66.4 %** | never pressured; no OOM |
+| prod CPU during window | ~2.5 % | idle |
+| `podcast_pipeline_run_cost_usd_created` | `1786468912.96`, **unchanged** | the api container did **not** restart |
+
+#### It left NO dirty state
+
+`/api/corpus/coverage` after the failure: `total_episodes: 296, with_gi: 296, with_kg: 296,
+with_both: 296, with_neither: 0`. The job completed **12 of 15** episodes and every one is
+fully enriched. There are no partial artifacts to clean up, and the run is safely re-runnable
+because `skip_existing` will pass over the 12.
+
+#### What actually happened
+
+The error is raised by CPython's `concurrent.futures.thread` when `executor.submit()` is
+called after the interpreter's shutdown hook (`_python_exit`) has run. So something invoked
+the summarizer's parallel chunk path **while the job process was already tearing down** —
+this is a lifecycle race inside the job's own process, unrelated to the api or the host.
+
+**The fragility that turns it into a hard failure** is at
+`providers/ml/summarizer.py:2795-2799`:
+
+```python
+with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    future_to_chunk = {
+        executor.submit(_summarize_chunk, (i, chunk)): i for i, chunk in enumerate(chunks, 1)
+    }
+```
+
+`_summarize_chunk` has its own `try/except Exception` and degrades a failed chunk to
+`(chunk_idx, None)`. **The submission loop has no such guard.** A `submit()` that raises
+propagates straight out of `_summarize_chunks_parallel` and fails the entire run — so the
+code is defensive about *doing* the work and undefended about *scheduling* it.
+
+#### Suggested fixes
+
+1. **Guard the submit loop** — wrap submission so a scheduling failure degrades to
+   sequential/in-thread summarization (or to `(idx, None)` per chunk) instead of killing the
+   run. Cheapest fix, highest value, no behaviour change on the happy path.
+2. **Find the shutdown trigger.** Something began interpreter teardown while summarization was
+   live. Worth checking whether summarization can be reached from a non-main or daemon thread,
+   or from an `atexit`/finalizer path.
+3. **Not the cause, but adjacent:** `mcp/telemetry.py:34` holds a *module-level*
+   `ThreadPoolExecutor` (`_UMAMI_POOL`). Module-level pools are a classic source of this exact
+   error. It is on the MCP surface rather than the CLI path, so it is unlikely to be implicated
+   here — but it is the same anti-pattern and worth auditing.
+
+#### Relationship to G1
+
+Both G1 (silent wedge) and G2 are executor-lifecycle failures, and it is tempting to call them
+one bug. **The evidence does not support that yet:** G1 showed a live pid at 0 % CPU with no
+exception, G2 raised at submit time and exited 1. They may share a root cause in executor
+management or may be independent. Worth investigating together; not worth assuming.
+
+#### Operational verdict
+
+**Safe to continue.** The failure is neither load-driven nor state-corrupting, and 12 of 15
+episodes landed clean. Expect it to recur occasionally; `skip_existing` makes every retry free.
+Smaller windows (15) already bound the loss per occurrence.
+
 ---
 
 ## D. LiteLLM prod gateway (Option-A / ADR-142 follow-ups)
@@ -179,10 +334,14 @@ insight-node confidence scores.
 | `[DONE]` | 1 | D1 (residual code TODO still open) |
 | `[INFO]` | 2 | C3, part of B1 |
 | `[WITHDRAWN]` | 1 | B2 |
-| `[OPEN]` | 10 | A1, A2, B1(docs), C1, C2, D2, D3, D4, D5, E1, F1qa |
+| `[OPEN]` | 12 | A1, A2, B1(docs), C1, C2, **C4**, D2, D3, D4, D5, E1, F1qa, **G1** |
 
-**Highest-value OPEN:** D3 / D4 / D5 (gateway durability + correctness), A1 (label bug),
+**Highest-value OPEN:** **G1** (jobs wedge silently and report healthy — an unattended batch
+can lose hours with no signal), **C4** (per-feed counts under-report, which silently breaks any
+"top up each feed to N" automation), then D3 / D4 / D5 (gateway durability), A1 (label bug),
 C1 (skip mislabel breaks EXIT gates).
+
+**D2 can be closed** — verified unused, see the cost analysis below.
 
 ### Found during the 2026-08-12 homelab session, not in the original F1–F15
 
@@ -396,6 +555,65 @@ NOT verified:
   grants `tag:prod:4001` to `autogroup:admin` only, not `tag:homelab-host`) and
   `/api/corpus/runs` is `404`. Credentials do not help; the packets never arrive. Fixing it
   means adding `4001` to the homelab grant, exactly as `443` was added above.
+
+### Cost analysis (2026-08-12) — the $25 cap does not protect the real bill
+
+Obtained after the `tag:prod:4001` grant landed. In the end the numbers came not from the
+gateway API but from **VictoriaMetrics via the homelab start page** (`/vm/api/v1/query`),
+which already scrapes both the pipeline and the gateway — no gateway master key needed.
+
+| Metric | Value |
+| --- | --- |
+| `podcast_pipeline_run_cost_usd_total` | **$45.40** (counter created ~17 h before reading) |
+| `litellm_key_spend_usd{key_alias="podcast-prod"}` | $3.156 |
+| `litellm_key_max_budget_usd` | $25 |
+| `litellm_key_budget_burn_ratio` | 0.126 |
+| `openrouter_vertical_usd{vertical="podcast",window="total"}` | $1.379 |
+
+**Cash exposure is small; the large number is modeled cost.** The $45.40 is what the pipeline
+*models* the work as costing at list price. Per the operator (2026-08-12), **transcription runs
+on a separate Deepgram free allowance**, so that ~$42 is not billed. Actual cash spend is the
+**$3.156 LiteLLM key against its $25 cap — 12.6 % burn**, which is the figure that matters and
+is comfortably within budget.
+
+> **Correction.** This section originally concluded the $25 cap "does not protect the real
+> bill" and projected $46–81 of unplanned spend on the remaining push, and the batch was
+> paused on that basis. **That was wrong** — it assumed `podcast_pipeline_run_cost_usd_total`
+> represented cash outlay. It does not, given the free Deepgram allowance. The lesson: a
+> pipeline's *modeled* cost metric and its *billed* cost are different quantities, and the gap
+> between them is whatever sits on free tiers or committed capacity. Check the billing
+> arrangement before escalating on a cost metric.
+
+**Per-episode modeled cost: $0.17 – $0.30 all-in**, of which roughly $0.012–0.02 is LLM (the
+part that is actually billed). The spread is real uncertainty — the counter was created ~17 h
+before the reading and the episode count inside that window is somewhere between 152 and 262.
+
+**Implication for the +271 push:** roughly **$3–5 in real LLM spend**, taking the LiteLLM key
+from 12.6 % to an estimated ~25–33 % of its $25 cap. No budget risk.
+
+**Residual worth knowing (not a blocker):** a free allowance still has a **quota**. 271 more
+episodes will consume some of it, and nothing in this telemetry shows how much headroom
+remains — the Deepgram-side limit is not scraped. Worth surfacing on the ops card if
+transcription volume keeps growing, since exhausting the allowance converts ~93 % of modeled
+cost into real cost overnight.
+
+**Measurement caveats:**
+
+- `increase(podcast_pipeline_run_cost_usd_total[1h])` and `[2h]` return **0** while a job is
+  actively running. The counter increments at run **completion**, so in-flight work is
+  invisible and the $45.40 excludes the job running at the time of reading.
+- The counter is a `_total` and will reset on api restart; treat it as "since last restart",
+  not lifetime.
+
+**Side finding — D2 is verified and safe to close.** The orphan key `proj-podcast-prod` shows
+spend `$0.00000088` and burn ratio `0.0000000353`. It is genuinely unused; `/key/delete` is
+safe.
+
+**Side finding — ADR-142 routing is probably correct but not proven.**
+`litellm_key_spend_usd` carries only `box="prod"` series for podcast keys, with no homelab
+series. But `box` label values are `dgx / mini / prod`, so the absence of a `mini` podcast
+series may mean the exporter does not cover mini's keys rather than that homelab spend is
+zero. Suggestive, not conclusive — D5's proposed deploy post-check is still worth building.
 
 ### Offsets used
 
