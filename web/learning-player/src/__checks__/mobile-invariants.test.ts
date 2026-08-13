@@ -177,4 +177,19 @@ describe('native-shell invariants (guardrail #1310)', () => {
       /mainBottomPadding[\s\S]{0,200}player\.currentSlug/,
     )
   })
+
+  it('a phone shows exactly ONE navigation system (#1594 follow-up)', () => {
+    // The bottom tab bar shipped without hiding the header icon links, so mobile carried both at
+    // once: Search twice, Library and Profile at the top AND bottom of the same screen. Two navs
+    // read as two designs stacked, and they spend the scarcest space on a phone twice over.
+    const app = components['../App.vue'] ?? ''
+    expect(app, 'App.vue must exist').not.toBe('')
+
+    // The icon-link group is desktop-only...
+    expect(app, 'the header icon links must be hidden below sm').toMatch(
+      /class="hidden items-center gap-1\.5 sm:flex"/,
+    )
+    // ...and the tab bar is mobile-only, so the two never coexist.
+    expect(components['../components/BottomNav.vue'] ?? '').toContain('sm:hidden')
+  })
 })

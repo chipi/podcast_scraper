@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * Library hub (this session): the Saved tab shows per-kind sections (Episodes, Insights) instead of
@@ -26,7 +26,6 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
 test('favouriting an episode + an insight fills the Saved per-kind sections', async ({
   page,
 }, testInfo) => {
-  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'library-fill', testInfo)
 
   // Favourite the episode from its player screen (the heart). Guarded: only ever ADD.

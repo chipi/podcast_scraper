@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { routeLoadableAudio } from './helpers'
+import { navTo } from './helpers'
 
 /**
  * Audio survives navigation (#1587) — the property the whole change exists for.
@@ -14,7 +14,6 @@ import { routeLoadableAudio } from './helpers'
 test('playback continues across navigation, and the mini-player offers the way back', async ({
   page,
 }) => {
-  await routeLoadableAudio(page) // before the first navigation — the fixture MP3 is undecodable
 
   // Reach the episode via its show page — date-independent, same route the other specs use.
   await page.goto('/podcast/p05')
@@ -37,9 +36,9 @@ test('playback continues across navigation, and the mini-player offers the way b
   // Navigate away IN-APP. Must be a router navigation, not page.goto — a full reload tears down
   // the whole SPA and no amount of store ownership survives that. Client-side navigation is the
   // case that was broken: the view unmounted and took the <audio> element with it.
-  // The HEADER nav, not the bottom bar: the bottom bar is sm:hidden, so clicking it fails on
-  // desktop-chrome. Same dual-viewport trap `openTranscript` exists for.
-  await page.locator('header').getByRole('link', { name: 'Search' }).click()
+  // Whichever nav this viewport actually shows — the bottom bar is mobile-only and the header icon
+  // links are desktop-only, so either hard-coded choice runs on one project and fails on the other.
+  await navTo(page, 'search')
   await expect(page).toHaveURL(/\/search/)
   await expect(page.getByTestId('mini-player')).toBeVisible()
 
@@ -60,7 +59,6 @@ test('playback continues across navigation, and the mini-player offers the way b
 })
 
 test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
-  await routeLoadableAudio(page)
 
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
@@ -71,7 +69,7 @@ test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
     })
     .toBeGreaterThan(0.2)
 
-  await page.locator('header').getByRole('link', { name: 'Browse' }).click()
+  await navTo(page, 'catalog')
   const toggle = page.getByTestId('mini-player-toggle')
   await expect(toggle).toBeVisible()
 
@@ -98,7 +96,6 @@ test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
  * another element intercepts the pointer, which is precisely what an overlapping fixed bar does.
  */
 test('the last item on a page stays reachable while audio is playing', async ({ page }) => {
-  await routeLoadableAudio(page)
 
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
@@ -110,7 +107,7 @@ test('the last item on a page stays reachable while audio is playing', async ({ 
     .toBeGreaterThan(0.2)
 
   // Somewhere with a long list, and the mini-player up.
-  await page.locator('header').getByRole('link', { name: 'Browse' }).click()
+  await navTo(page, 'catalog')
   await expect(page.getByTestId('mini-player')).toBeVisible()
 
   // Scoped to <main>: the mini-player itself contains an /episode/ link (it is the way back), so an

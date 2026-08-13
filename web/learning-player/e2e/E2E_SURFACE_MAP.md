@@ -26,12 +26,26 @@ the **real API** over the **committed validation corpus**
 discover ranking, capture, consolidation), and fixtures live in the corpus, not in per-spec route
 handlers.
 
-> **No mocks — with exactly one exception, and it is temporary.**
-> [`routeLoadableAudio`](helpers.ts) route-fulfills `**/audio-source` with a synthetic silent WAV,
-> because the committed fixture ships a data-URL MP3 that headless Chromium cannot decode; without
-> it the player flips to `audioError` and the transport panel (which hosts `transcript-toggle`)
-> never renders. **Call it before the first navigation** in any spec that plays audio or asserts on
-> the transport panel.
+> **The audio mock is gone (#1618).** `routeLoadableAudio` route-fulfilled `**/audio-source` with a
+> synthetic WAV because the fixture's `data:audio/mpeg` URI was an ID3 header with no audio frames,
+> which no browser can decode. Eight specs depended on it, so every transport assertion in this
+> suite was really testing the stub. The fixture now carries genuinely decodable audio (MPEG-2
+> Layer III, 22.05 kHz, 8 kbps, 45 s — see `scripts/tools/make_silent_mp3.py`), the helper is
+> deleted, and `fixture-audio.spec.ts` asserts the corpus audio decodes in a real browser so this
+> cannot silently regress.
+>
+> **Remaining mocks — 5 sites in 3 specs, all DATA-shape, none audio.** These fulfil API responses
+> to reach states the committed corpus cannot produce, and each is a coverage gap in the *fixture*,
+> not a deliberate design:
+>
+> | Spec | What it fakes | Why the corpus can't do it |
+> | --- | --- | --- |
+> | `perspectives.spec.ts` | per-speaker insights past the preview cap | no speaker has >2 insights on one topic |
+> | `entity-signals.spec.ts` | topic + corpus-enrichment payloads | signal fields absent from the fixture |
+> | `search-listener-features.spec.ts` | search + entity-search responses | result shapes the corpus can't reach |
+>
+> Closing these means enriching the corpus generator, not editing the specs. Tracked as the
+> remainder of #1618.
 >
 > Eight specs depend on it: `consolidation`, `transcript`, `transcript-toggle`,
 > `transcript-paragraphs`, `capture`, `library-saved`, `full-listen`, `mobile-invariants`.
@@ -274,8 +288,8 @@ Shared by every data-backed Home section (#1591). See UXS-012's state contract f
 - [`openTranscript(page)`](helpers.ts) — reveals the transcript on mobile, no-ops on desktop. Use it
   rather than clicking `transcript-toggle` directly, or the spec passes on one project and fails on
   the other.
-- [`routeLoadableAudio(page)`](helpers.ts) — the one sanctioned mock; see the exception note at the
-  top. Call **before** the first navigation.
+- Audio needs no setup: the fixture is directly playable (#1618). Any spec may play audio and
+  assert on the transport panel with no interception at all.
 
 ## Corpus anchors
 

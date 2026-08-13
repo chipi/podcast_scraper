@@ -109,6 +109,20 @@ async function onSignOut(): Promise<void> {
       </RouterLink>
       <nav class="text-sm flex items-center gap-1.5">
         <TierSwitch />
+        <!--
+          Icon links are DESKTOP-only (#1594 follow-up).
+
+          The bottom tab bar shipped without hiding these, so a phone carried two navigation systems
+          at once: Search appeared twice, and Library/Profile were reachable from both the top and
+          the bottom of the same screen. Two navs is worse than either one — it makes the app feel
+          like two designs stacked, and it wastes the scarcest space on a phone.
+
+          Browse lives only here, and that is fine: it is a corpus index, not a daily destination
+          (the reason it did not take a tab), and Home carries a "Browse all →" link plus the
+          catalogue link in the empty shows state. The auth buttons below stay visible at every
+          width — signing in is not a tab.
+        -->
+        <span class="hidden items-center gap-1.5 sm:flex">
         <NavIconLink :to="{ name: 'catalog' }" :label="t('nav.browse')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
@@ -135,9 +149,12 @@ async function onSignOut(): Promise<void> {
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>
           </NavIconLink>
+        </template>
+        </span>
+        <template v-if="auth.isAuthenticated">
           <button
             type="button"
-            class="ml-1 shrink-0 whitespace-nowrap rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground transition hover:bg-overlay"
+            class="shrink-0 whitespace-nowrap rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground transition hover:bg-overlay"
             @click="onSignOut"
           >
             {{ t('auth.signOut') }}
