@@ -209,6 +209,7 @@ All views colour topics by **storyline** (theme cluster) — same-cluster topics
 | Capture | `aria-label` `capture.markMoment` → `capture.marked` |
 | Sync controls | **Hidden** (`SHOW_SYNC_CONTROL=false`) pending a better sync fix — the `player.syncEarlier`/`syncLater`/`syncReset` UI is off; the offset machinery still applies any stored value. |
 | Summary region | `role="region"` `player.summaryRegion` |
+| Insights entry | `data-testid="player-open-insights"` — a LABELLED control ("✦ N insights"), not the old `💡 N` chip (#1595) |
 
 ### Queue ([QueueView](../src/views/QueueView.vue))
 
@@ -223,6 +224,33 @@ All views colour topics by **storyline** (theme cluster) — same-cluster topics
 | Dev user list | `data-testid="dev-user-list"`, per-user `dev-user-{hint}` |
 | Custom subject | `data-testid="dev-custom-input"` + `dev-custom-submit` |
 | Sign in | `data-testid="signin-button"` |
+
+### Knowledge panel ([KnowledgePanel](../src/components/KnowledgePanel.vue))
+
+| Element | Hook |
+| ------- | ---- |
+| Insights list | `data-testid="kp-insights"`, fold control `kp-insights-show-all` |
+| Save an insight | `aria-label` "Save to highlights" — the ONE save per insight since #1593; the `.lp-fav` heart is no longer on insight rows |
+
+### Section states ([SectionStatus](../src/components/SectionStatus.vue))
+
+Shared by every data-backed Home section (#1591). See UXS-012's state contract for when each shows.
+
+| Element | Hook |
+| ------- | ---- |
+| Loading skeleton | `data-testid="section-loading"` (`aria-busy="true"`) |
+| Error + retry | `data-testid="section-error"` (`role="status"`), button `section-retry` |
+
+> **Empty is NOT this component's job.** Whether an empty section hides or renders depends on
+> *why* it is empty — hide when the system is empty, render (with the action) when the user is.
+> The caller owns that; see UXS-012.
+
+### Your Week first run ([YourWeek](../src/components/YourWeek.vue))
+
+| Element | Hook |
+| ------- | ---- |
+| First-run rows | `data-testid="yourweek-firstrun"`, one `li` per digest section |
+| Compact/full toggle | `data-testid="yourweek-toggle"` — **absent** when there is no content to expand |
 
 ### PWA ([PwaUpdateToast](../src/components/PwaUpdateToast.vue))
 

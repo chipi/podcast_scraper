@@ -141,6 +141,38 @@ describe('E2E surface map stays true to the app', () => {
     ).toEqual([])
   })
 
+  it('documents every testid the e2e specs actually depend on', () => {
+    // The three checks above run map → code. That direction alone has a hole, and I fell into it
+    // within hours of writing them: five new contract selectors (section-*, player-open-insights,
+    // yourweek-firstrun) were added to the app and the specs without reaching the map.
+    //
+    // Asserting that EVERY testid in src/ is documented would be noisy — not every testid is a
+    // contract. But one an e2e spec selects on demonstrably is: that is the definition of a
+    // selector the suite depends on, and the map exists to let the suite be rebuilt.
+    const specSrc = Object.values(
+      import.meta.glob('../../e2e/*.spec.ts', { query: '?raw', import: 'default', eager: true }),
+    ).join('\n') as string
+
+    const used = new Set<string>()
+    for (const m of specSrc.matchAll(/getByTestId\(\s*['"`]([a-z0-9-]+)['"`]/g)) used.add(m[1])
+    for (const m of specSrc.matchAll(/\[data-testid="([a-z0-9-]+)"\]/g)) used.add(m[1])
+
+    // The map documents dynamic ids as templates — `momentum-rail-{kind}` covers
+    // `momentum-rail-topic`. Honour that rather than forcing every concrete value to be listed,
+    // which would be the noisy version of this check.
+    const templatePrefixes = [...surfaceMap.matchAll(/`([a-z0-9-]+)-\{[a-z]+\}`/g)].map((m) => m[1])
+    const documented = (id: string): boolean =>
+      surfaceMap.includes(id) || templatePrefixes.some((p) => id.startsWith(`${p}-`))
+
+    const undocumented = [...used].filter((id) => !documented(id)).sort()
+    expect(
+      undocumented,
+      `An e2e spec selects on these data-testid(s), but the map does not document them. The map is ` +
+        `the baseline the suite is reconstructed from, so a selector a spec depends on must appear ` +
+        `in it — otherwise the rebuilt spec cannot be written.`,
+    ).toEqual([])
+  })
+
   it('has no stale entries in its own allowlist', () => {
     // Guards the ratchet: once an issue lands, its entry must go. A KNOWN_GAP that no longer
     // describes a real violation means someone fixed the app but left the exemption behind, which
