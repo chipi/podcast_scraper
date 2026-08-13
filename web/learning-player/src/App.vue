@@ -1,20 +1,24 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
 import BottomNav from './components/BottomNav.vue'
+import MiniPlayer from './components/MiniPlayer.vue'
 import NavIconLink from './components/NavIconLink.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import TierSwitch from './components/TierSwitch.vue'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
+import { usePlayerStore } from './stores/player'
+import { getAudioSource } from './services/api'
 import { useFavoritesStore } from './stores/favorites'
 import { initNativeAuth } from './services/native'
 
 const { t } = useI18n()
 const auth = useAuthStore()
 const queue = useQueueStore()
+const player = usePlayerStore()
 const favorites = useFavoritesStore()
 const router = useRouter()
 
@@ -24,6 +28,29 @@ async function hydrateUser(): Promise<void> {
     await favorites.ensureLoaded()
   }
 }
+
+/**
+ * Queue-advance lives in the shell, not the store or the view (#1587).
+ *
+ * The store must not import the queue or the API — it would couple playback state to data fetching.
+ * The view cannot own it any more, because audio outlives the view. The shell is mounted for the
+ * whole session, so it is the right place. Resolving the URL is async while `ended` is sync, so the
+ * next episode's source is prefetched as soon as the current one loads.
+ */
+let nextUp: { slug: string; url: string; title?: string | null } | null = null
+watch(
+  () => player.currentSlug,
+  async (slug) => {
+    nextUp = null
+    if (!slug) return
+    const next = queue.nextAfter(slug)
+    if (!next) return
+    const src = await getAudioSource(next).catch(() => null)
+    if (src?.url) nextUp = { slug: next, url: src.url }
+  },
+  { immediate: true },
+)
+player.setAdvanceResolver(() => nextUp)
 
 onMounted(async () => {
   // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE
@@ -115,6 +142,7 @@ async function onSignOut(): Promise<void> {
       <RouterView />
     </main>
 
+    <MiniPlayer />
     <BottomNav />
 
     <PwaUpdateToast />

@@ -3,13 +3,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
 import { usePlayerStore } from './player'
 
-/** Minimal fake <audio> — the store only touches these props/methods. */
+/**
+ * Minimal fake <audio>. The store CONSTRUCTS its own element now (#1587), so the constructor is
+ * stubbed rather than an element being handed in — that inversion is the whole point of the change:
+ * the element's lifetime is the store's, not a view's.
+ */
 function fakeAudio(over: Partial<HTMLAudioElement> = {}) {
+  const listeners: Record<string, ((e?: unknown) => void)[]> = {}
   return {
     paused: true,
     currentTime: 0,
     duration: 0,
     playbackRate: 1,
+    src: '',
+    preload: '',
+    style: {} as CSSStyleDeclaration,
+    setAttribute: vi.fn(),
     play: vi.fn(function (this: { paused: boolean }) {
       this.paused = false
       return Promise.resolve()
@@ -17,25 +26,92 @@ function fakeAudio(over: Partial<HTMLAudioElement> = {}) {
     pause: vi.fn(function (this: { paused: boolean }) {
       this.paused = true
     }),
+    removeAttribute: vi.fn(),
+    addEventListener: vi.fn((k: string, h: () => void) => {
+      ;(listeners[k] ??= []).push(h)
+    }),
+    /** Test helper: fire a listener the store attached. */
+    __emit: (k: string) => listeners[k]?.forEach((h) => h()),
     ...over,
-  } as unknown as HTMLAudioElement
+  } as unknown as HTMLAudioElement & { __emit: (k: string) => void }
+}
+
+/** Install the fake as the global Audio constructor and return the instance the store will build. */
+function stubAudio(over: Partial<HTMLAudioElement> = {}) {
+  const el = fakeAudio(over)
+  // Must be constructible — the store does `new Audio()`. An arrow function is not.
+  vi.stubGlobal(
+    'Audio',
+    vi.fn(function (this: unknown) {
+      return el
+    }),
+  )
+  // The store appends the element to <body> so it stays inspectable (full-listen.spec and the
+  // tier-3 walk both use document.querySelector('audio')). This fake is not a real Node, so the
+  // append is neutralised here rather than weakened in the store.
+  vi.spyOn(document.body, 'appendChild').mockImplementation((n) => n)
+  return el
+}
+
+/** Load an episode so the store constructs + wires its element. */
+function loaded(p: ReturnType<typeof usePlayerStore>, el: HTMLAudioElement) {
+  p.load({ slug: 'ep-1', url: 'https://x/a.mp3', title: 'An Episode' })
+  return el
 }
 
 describe('player store', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('bind() applies the current rate to the element', () => {
+  it('load() builds an element, applies the rate, and records the episode', () => {
+    const el = stubAudio()
     const p = usePlayerStore()
     p.setRate(1.5)
-    const el = fakeAudio()
-    p.bind(el)
+    loaded(p, el)
     expect(el.playbackRate).toBe(1.5)
+    expect(el.src).toBe('https://x/a.mp3')
+    expect(p.currentSlug).toBe('ep-1')
+    expect(p.currentTitle).toBe('An Episode')
+  })
+
+  it('re-loading the SAME episode does not restart it (#1587)', () => {
+    // Returning to the player page mid-listen must not reset playback — that would replace one
+    // annoyance with a worse one.
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.onDurationChange()
+    ;(el as unknown as { currentTime: number }).currentTime = 42
+    p.onTimeUpdate()
+    expect(p.currentTime).toBe(42)
+
+    p.load({ slug: 'ep-1', url: 'https://x/a.mp3' })
+    expect(p.currentTime).toBe(42)
+  })
+
+  it('the element outlives any view — one element across episodes', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    const first = p.el
+    p.load({ slug: 'ep-2', url: 'https://x/b.mp3' })
+    expect(p.el).toBe(first)
+    expect(globalThis.Audio).toHaveBeenCalledTimes(1)
+  })
+
+  it('clear() stops and forgets the episode', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.clear()
+    expect(el.pause).toHaveBeenCalled()
+    expect(p.currentSlug).toBeNull()
+    expect(p.playing).toBe(false)
   })
 
   it('play/pause + timeupdate + durationchange sinks reflect element state', () => {
     const p = usePlayerStore()
-    const el = fakeAudio({ currentTime: 42, duration: 100 })
-    p.bind(el)
+    const el = stubAudio({ currentTime: 42, duration: 100 })
+    loaded(p, el)
     p.onPlay()
     expect(p.playing).toBe(true)
     p.onPause()
@@ -48,8 +124,8 @@ describe('player store', () => {
 
   it('toggle() plays when paused and pauses when playing', () => {
     const p = usePlayerStore()
-    const el = fakeAudio({ paused: true })
-    p.bind(el)
+    const el = stubAudio({ paused: true })
+    loaded(p, el)
     p.toggle()
     expect(el.play).toHaveBeenCalledOnce()
     expect(el.paused).toBe(false)
@@ -60,8 +136,8 @@ describe('player store', () => {
 
   it('seek() clamps to [0, duration]; skip() is relative', () => {
     const p = usePlayerStore()
-    const el = fakeAudio({ currentTime: 50, duration: 100 })
-    p.bind(el)
+    const el = stubAudio({ currentTime: 50, duration: 100 })
+    loaded(p, el)
     p.onDurationChange()
     p.seek(-5)
     expect(el.currentTime).toBe(0)
@@ -78,8 +154,8 @@ describe('player store', () => {
 
   it('cycleRate() advances through PLAYBACK_RATES and applies to the element', () => {
     const p = usePlayerStore()
-    const el = fakeAudio()
-    p.bind(el)
+    const el = stubAudio()
+    loaded(p, el)
     p.setRate(PLAYBACK_RATES[0])
     p.cycleRate()
     expect(p.rate).toBe(PLAYBACK_RATES[1])
@@ -92,8 +168,8 @@ describe('player store', () => {
 
   it('onError sets audioError; resetForLoad clears transient state', () => {
     const p = usePlayerStore()
-    const el = fakeAudio({ currentTime: 30, duration: 60 })
-    p.bind(el)
+    const el = stubAudio({ currentTime: 30, duration: 60 })
+    loaded(p, el)
     p.onPlay()
     p.onTimeUpdate()
     p.onDurationChange()
@@ -139,7 +215,7 @@ describe('player store — MediaSession (#1308)', () => {
 
   it('reflects playbackState + positionState from element events', () => {
     const p = usePlayerStore()
-    p.bind(fakeAudio({ currentTime: 10, duration: 120 }))
+    loaded(p, stubAudio({ currentTime: 10, duration: 120 }))
     p.onPlay()
     expect(ms.playbackState).toBe('playing')
     p.onPause()

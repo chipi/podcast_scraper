@@ -95,11 +95,6 @@ function writeRemoteOffset(slug: string, value: number | null): void {
   void userPrefs.set(AUDIO_SYNC_OFFSETS_PREF_KEY, next)
 }
 
-async function onEnded(): Promise<void> {
-  playing.value = false
-  const next = queue.nextAfter(props.slug)
-  if (next) await router.push({ name: 'player', params: { slug: next } })
-}
 
 const episode = ref<EpisodeDetail | null>(null)
 const segments = ref<Segment[]>([])
@@ -141,8 +136,8 @@ function openInsight(insightId: string): void {
 // queue-advance, transcript sync-offset) stays here and drives the store.
 const player = usePlayerStore()
 const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
-const audioEl = ref<HTMLAudioElement | null>(null)
-watch(audioEl, (el) => player.bind(el), { immediate: true })
+// No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
+// and resume still happen here — they are episode/route concerns — but through the store's element.
 
 // Manual sync-nudge UI is HIDDEN for now (not deleted): a better synchronization fix is coming,
 // so the listener-facing nudge control is temporarily off. The offset machinery below still
@@ -254,6 +249,14 @@ async function load(slug: string): Promise<void> {
     episode.value = detail
     segments.value = segs?.segments ?? []
     audioUrl.value = audio?.url ?? null
+    if (audio?.url) {
+      player.load({
+        slug: props.slug,
+        url: audio.url,
+        title: episode.value?.title ?? null,
+        artwork: artwork.value ?? null,
+      })
+    }
     insights.value = ins?.insights ?? []
     relatedEpisodes.value = related?.items ?? []
     topics.value = ents?.topics ?? []
@@ -272,10 +275,9 @@ async function load(slug: string): Promise<void> {
   }
 }
 
-function onLoadedMetadata(): void {
-  const el = audioEl.value
+function applyStartPosition(): void {
+  const el = player.el
   if (!el) return
-  player.onDurationChange()
   // A ?t= deep-link (jump-to-moment from search) wins over the saved resume position.
   const deepLink = Number(route.query.t)
   if (Number.isFinite(deepLink) && deepLink > 0) {
@@ -287,12 +289,27 @@ function onLoadedMetadata(): void {
   el.playbackRate = rate.value
 }
 
+// Duration lands asynchronously after `load()`. Apply the deep-link / resume position exactly once
+// per episode, the first time a real duration appears — the view no longer receives the element's
+// loadedmetadata event, since the element is not in this template any more.
+let startApplied: string | null = null
+watch(
+  () => [player.currentSlug, duration.value] as const,
+  ([slug, d]) => {
+    if (!slug || !d || startApplied === slug) return
+    startApplied = slug
+    applyStartPosition()
+  },
+  { immediate: true },
+)
+
 function persist(): void {
   if (props.slug) void putPlayback(props.slug, currentTime.value)
 }
 
+watch(currentTime, () => onTimeUpdate())
+
 function onTimeUpdate(): void {
-  player.onTimeUpdate()
   const now = Date.now()
   if (now - lastSaved > 10_000) {
     lastSaved = now
@@ -534,18 +551,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <audio
-          ref="audioEl"
-          :src="audioUrl ?? undefined"
-          preload="metadata"
-          class="hidden"
-          @loadedmetadata="onLoadedMetadata"
-          @timeupdate="onTimeUpdate"
-          @play="player.onPlay"
-          @pause="player.onPause"
-          @ended="onEnded"
-          @error="player.onError"
-        />
 
         <!-- Mobile: the controls float (sticky) at the top so they stay reachable while the
              transcript scrolls underneath. The wrapper carries an opaque page background + a
