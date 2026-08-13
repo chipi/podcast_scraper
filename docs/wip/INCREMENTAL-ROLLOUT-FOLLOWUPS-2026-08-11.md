@@ -493,6 +493,76 @@ if (2) is never enabled. **The status quo — caching enabled, writing to a path
 on every run — is the worst of the three options**: it pays the disk-write cost of caching and
 gets none of the benefit.
 
+### H2 — the enrichment layer has never run on the corpus — `[OPEN, HIGH]`
+
+**Found 2026-08-13** during a pre-expansion data-model audit. This is the most consequential
+finding of the audit, because **the entire rationale for growing the corpus is to give the
+enrichers enough material to produce visible value** — and they are not running at all.
+
+#### Evidence
+
+`config/profiles/cloud_balanced.yaml:188` declares `enrichment.enabled: true` with **nine**
+enrichers configured (the seven deterministic ones plus `topic_similarity` and
+`topic_consensus`). Against 501 episodes:
+
+| Probe | Result |
+| --- | --- |
+| `GET /api/corpus/enrichments` | **1** envelope: `topic_cooccurrence_corpus` only |
+| `GET /api/corpus/theme-clusters` | `404 — topic_theme_clusters.json not found under corpus enrichments/` |
+| `GET /api/corpus/episode/enrichments/{id}` × all 7 deterministic ids | **404 on every one** — "enrichment envelope not found" |
+| `/api/health` | `enriched_search_available: false` |
+
+So eight of nine enrichers have produced nothing, ever.
+
+#### Root cause — it is not a failure, it was never invoked
+
+`enrich` is a **separate main-CLI subcommand** (`cli.py:3848`), and `workflow/orchestration.py`
+never calls it — no reference to `run_enrichment`, `EnricherRegistry`, or
+`register_deterministic_enrichers` exists in the pipeline path.
+
+Every one of the 31 ingestion jobs this session ran `command_type=full_incremental_pipeline`,
+which covers transcription → summary → GI → KG → index. **Enrichment is a different job type**
+(`server/jobs.py:42`, `COMMAND_ENRICHMENT = "corpus_enrichment"`) that nothing in the ingestion
+path triggers. The single existing `topic_cooccurrence_corpus.json` presumably came from a
+manual run at some point.
+
+#### And it cannot currently be triggered from the operator API
+
+`POST /api/jobs/enrichment` exists in the repo (`server/routes/enrichment.py:5`,
+`submit_enrichment_job`) and is mounted behind the same `jobs_api` gate as the pipeline routes
+(`app.py:558`) — that gate is **on**, since pipeline jobs work. But on prod:
+
+```
+GET /api/jobs/enrichment (with operator key)  ->  404
+```
+
+Most likely the deployed image predates that route (prod reports `code_version 2.7.0.dev0`).
+**Unverified** — I did not compare the deployed commit against the repo. That check is the
+first step for whoever picks this up.
+
+#### Why this matters more than it looks
+
+- **The expansion premise is currently unfunded.** `docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md`
+  argues for topic overlap so `topic_perspectives`, disagreement and `guest_coappearance` get
+  multiple speakers per topic. None of those enrichers have ever produced an artifact. Growing
+  from 180 → 501 episodes has not moved them, because they never ran.
+- **`topic_similarity` is configured but absent**, so the "measure overlap rather than assume it"
+  prerequisite in the onboarding doc cannot be satisfied today.
+- It also explains the earlier observation (recorded during the +50 batch) that only one
+  enrichment artifact existed. At the time it was flagged as "may be per-episode sidecars,
+  undetermined". It is now determined: they are absent.
+
+#### Suggested next steps
+
+1. Compare the deployed image's commit against the repo to confirm whether
+   `POST /api/jobs/enrichment` simply needs a deploy.
+2. If so, deploy and run one `corpus_enrichment` job over the existing corpus — no
+   re-transcription, no re-download, so it should be cheap relative to ingestion.
+3. Re-run the §5i calibration afterwards. Every threshold in that section was derived from a
+   corpus with **no enrichment layer**, so the numbers describe GI/KG output only.
+4. Only then judge whether corpus growth is producing enricher value — the question the
+   expansion was meant to answer.
+
 ---
 
 ## E. Deploy
