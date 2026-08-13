@@ -264,27 +264,141 @@ for. What it would take:
 
 ---
 
+## 5d. Domain axis — coverage breadth (decided 2026-08-13)
+
+**Operator decision:** the corpus must also span **biotech, culture, history, and
+politics/daily news** — not just geography. "I need not only biodiversity. I need also
+diversity on topics and coverage."
+
+### Name the tension honestly
+
+This is a **second objective**, not a refinement of the first.
+
+| Objective | Wants | Optimal shape |
+| --- | --- | --- |
+| **Enricher value** (§2) | topic **overlap** | many shows, few topics |
+| **Coverage breadth** (§5d) | topic **spread** | many topics, few shows each |
+
+For a fixed slot budget they compete directly. A single biotech show is an **island**: no other
+speaker in the corpus discusses CRISPR pricing, so it produces zero perspective cards, zero
+co-appearance edges, and zero disagreement pairs. It adds searchable content and nothing else.
+
+### The resolution: add domains in clusters, never singletons
+
+**Minimum two shows per new domain, ideally three.** Three biotech shows covering the same
+month's developments give cross-speaker perspectives *within* biotech — spread across domains,
+overlap inside each. This is the only way to satisfy both objectives at once, and it means the
+unit of expansion is a **domain cluster**, not a feed.
+
+Corollary: adding four domains at 3 shows each consumes ~12 slots on its own. The domain axis
+is therefore not a garnish on the geographic plan — it is comparable in size, and §6 is
+re-cut accordingly.
+
+### Operator's named picks — tech (all US, Class A)
+
+Requested explicitly. All three deepen the existing AI/tech cluster, so they carry overlap
+value as well as being wanted.
+
+| Show | Note |
+| --- | --- |
+| **a16z Podcast** (Andreessen Horowitz) | frequently multi-guest → co-appearance edges; overlaps AI + investing clusters |
+| **Lenny's Podcast** (Lenny's Newsletter) | product/growth; guests are operators rather than investors — a different speaker population on the same topics |
+| **The Pragmatic Engineer** (Gergely Orosz) | engineering practice; complements Latent Space's AI-engineering angle |
+
+### Candidates by domain
+
+> **Unverified**, same as §5 and §5b — no RSS resolved, no activity check, no licensing review.
+
+**Biotech / life sciences**
+
+| Show | Note |
+| --- | --- |
+| **Ground Truths** (Eric Topol) | medicine × AI — bridges into the existing AI cluster rather than islanding |
+| **Bio Eats World** (a16z bio) | biotech venture; shares the a16z house with the pick above |
+| **The Long Run** (Timmerman Report) | biotech industry, long-form interviews |
+| **The Readout LOUD** (STAT) | biotech news cadence — the "daily" of this domain |
+
+**History**
+
+| Show | Note |
+| --- | --- |
+| **The Rest Is History** | two hosts who argue on record — see the double-win below |
+| **Empire** (Dalrymple & Anand) | two-host dialogic; colonial history, strong non-US framing |
+| **Fall of Civilizations** | long-form narrative, single voice |
+| **History Extra** (BBC) | interview cadence, broad coverage |
+
+**Politics / daily news**
+
+| Show | Note |
+| --- | --- |
+| **The Rest Is Politics** (Campbell & Stewart) | explicitly built on two people who disagree — the closest thing to a debate format outside §5 Tier 1 |
+| **Today in Focus** (Guardian) | daily; non-US editorial lens on shared stories with The Daily |
+| **FT News Briefing** | daily markets/politics; overlaps Unhedged and The Journal directly |
+| **Pod Save America** | US partisan perspective — a genuinely different prior from the existing press-institution shows |
+
+**Culture**
+
+| Show | Note |
+| --- | --- |
+| **The New Yorker Radio Hour** | culture + politics interviews |
+| **The Rest Is Entertainment** | two-host, media/culture industry mechanics |
+| **Switched on Pop** | music analysis; two hosts, highly consistent format |
+| **Articles of Interest** | design/fashion narrative |
+
+### The double-win worth prioritising
+
+Several history/politics candidates are **two-host shows whose hosts openly disagree** — *The
+Rest Is History*, *The Rest Is Politics*, *Empire*, *The Rest Is Entertainment*. These satisfy
+the domain axis **and** the §3 disagreement gap simultaneously, which no other candidate group
+does.
+
+That materially weakens my earlier sequencing argument. I recommended geographic-before-debate
+because debate's payoff is deferred behind a dark enricher (#1144). But these shows are not
+*only* debate feeds — they carry domain coverage that pays off immediately regardless of
+whether #1144 ever lights up. **The "The Rest Is…" family and Empire should therefore be in the
+first batch**, not deferred with the formal-debate group.
+
+---
+
 ## 6. Recommended shape of the next batch
 
-Target is **+10 to +20 feeds**. Two axes now compete for those slots: the **format axis**
-(§5 — debate/panel shows that unlock #1144) and the **geographic axis** (§5b — global
-perspective coverage). Both are legitimate; they want different feeds.
+**Three** axes now compete for slots, not two: the **format axis** (§5 — debate/panel, unlocks
+#1144), the **geographic axis** (§5b — global perspective), and the **domain axis** (§5d —
+biotech / culture / history / politics). All three are operator-endorsed.
 
-Proposed split of ~16 feeds, weighted toward what unlocks something currently impossible:
+**The slot budget no longer fits.** With a minimum of 2–3 shows per new domain (§5d), four new
+domains alone consume ~10–12 slots. Adding that to 6–8 geographic and 4–5 format lands at
+20–25 feeds, above the original +10 to +20. Two honest options: raise the ceiling, or run this
+as **two batches**. The cut below assumes two batches.
 
-| Group | Slots | Rationale |
+### Batch A — ~14 feeds, everything that pays off immediately
+
+| Group | Slots | Picks |
 | --- | --- | --- |
-| **Tier 1 — debate/panel** (§5) | 4–5 | The only feeds that unlock a *dark* enricher (#1144). Nothing else produces recorded opposition. |
-| **Geographic Class A** (§5b) | 6–8 | Corrects a corpus that is 9-for-9 US-produced. Prioritise shows overlapping existing topics: ChinaTalk, The Flip, Explaining Brazil, The Seen and the Unseen, Crossing Borders, Analyse Asia. |
-| **Tier 2 — cluster deepening** (§5) | 2–3 | Odd Lots and Dwarkesh give the most overlap per feed. |
-| **Tier 3 — back-catalog** (§5) | 0 new feeds | Extend 2–3 *existing* feeds backward instead. Cheaper per unit of temporal signal than any new feed. |
-| **Tier 4 — taste** (§5) | 0–2 | Editorial preference, not enricher payoff. |
+| **Operator picks — tech** (§5d) | 3 | a16z Podcast, Lenny's Podcast, The Pragmatic Engineer |
+| **Dialogic domain shows** (§5d) | 3 | The Rest Is History, The Rest Is Politics, Empire — the double-win: domain coverage *and* recorded disagreement |
+| **Geographic Class A** (§5b) | 5 | ChinaTalk, The Flip, Explaining Brazil, The Seen and the Unseen, Crossing Borders |
+| **Biotech cluster** (§5d) | 3 | Ground Truths, Bio Eats World, The Readout LOUD — three so the domain is not an island |
 
-**Sequencing recommendation:** do the **geographic Class A group first**, not the debate group.
-Reason: the debate shows depend on an enricher (#1144) that is scale-gated and still dark, so
-their payoff is deferred and unmeasurable today. The geographic feeds pay off immediately
-through `topic_perspectives`, which is live — and they simultaneously fix a bias that gets
-harder to correct the larger the US-only corpus grows.
+Everything in Batch A either deepens an existing cluster, corrects the US-only bias, or lands a
+domain as a viable cluster. Nothing here depends on a dark enricher.
+
+### Batch B — ~10 feeds, after Batch A is measured
+
+| Group | Slots | Picks |
+| --- | --- | --- |
+| **Formal debate** (§5 Tier 1) | 3–4 | Open to Debate, Intelligence Squared, The Argument, Machine Learning Street Talk |
+| **Culture cluster** (§5d) | 3 | New Yorker Radio Hour, The Rest Is Entertainment, Switched on Pop |
+| **Remaining geographic** (§5b) | 2–3 | Analyse Asia, Sinica, Afrobility, China Global South |
+| **Cluster deepening** (§5) | 2 | Odd Lots, Dwarkesh |
+| **Back-catalog** (§5 Tier 3) | 0 new | Extend existing feeds backward — cheapest temporal signal per unit |
+
+**Revised sequencing.** My earlier recommendation was geographic-before-debate, on the grounds
+that debate's payoff sits behind a scale-gated dark enricher. §5d changes that in one respect:
+the **two-host dialogic shows** (The Rest Is…, Empire) carry domain coverage that pays off
+immediately *regardless* of whether #1144 ever lights up, so they belong in Batch A. **Formal**
+debate shows — whose only value is the dark enricher — stay in Batch B. The distinction is
+whether the feed is useful if #1144 never ships.
 
 **Before ingesting any of them**, two cheap prerequisites:
 
