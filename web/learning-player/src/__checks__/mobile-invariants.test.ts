@@ -158,6 +158,23 @@ describe('native-shell invariants (guardrail #1310)', () => {
 
     // A fixed bar covers page content unless the scroll container reserves room for it. Without
     // this, the last item of every list is unreachable on a phone — the classic bottom-nav bug.
-    expect(components['../App.vue'] ?? '', 'App.vue main must reserve space for the fixed bottom nav').toMatch(/pb-24[^"]*sm:pb-6|sm:pb-6[^"]*pb-24/)
+    //
+    // This used to assert the literal strings `pb-24` and `sm:pb-6`, which is precisely why the
+    // geometry could be wrong while the check stayed green: 96px of mobile padding against a ~52px
+    // tab bar PLUS a ~62px mini-player, and 24px on desktop against that same mini-player. The
+    // classes were present and the content was still covered. Assert the two properties that
+    // actually matter instead — the reservation accounts for the safe-area inset, and it RESPONDS
+    // to whether the mini-player is on screen rather than being a constant.
+    const app = components['../App.vue'] ?? ''
+    expect(app, 'App.vue must exist').not.toBe('')
+    expect(app, 'main must reserve space for the fixed bars').toMatch(
+      /:class="mainBottomPadding"/,
+    )
+    expect(app, 'the reservation must clear the home indicator').toMatch(
+      /mainBottomPadding[\s\S]{0,400}safe-area-inset-bottom/,
+    )
+    expect(app, 'the reservation must depend on whether the mini-player is showing').toMatch(
+      /mainBottomPadding[\s\S]{0,200}player\.currentSlug/,
+    )
   })
 })

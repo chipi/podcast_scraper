@@ -139,7 +139,8 @@
     "signInToQueue": "Sign in to add to your queue",
     "signInToSave": "Sign in to save this",
     "signInToCapture": "Sign in to mark this moment",
-    "signInToFollow": "Sign in to follow"
+    "signInToFollow": "Sign in to follow",
+    "signInToSearchMine": "Sign in to search your own corpus"
   },
   "catalog": {
     "heading": "All episodes",

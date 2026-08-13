@@ -25,11 +25,28 @@ async function seedFeedId(request: APIRequestContext): Promise<string> {
   return seed.feed_id
 }
 
-test('the follow button is absent when signed out', async ({ page }) => {
+test('signed out, the follow button is a sign-in teaser rather than absent (#1590)', async ({
+  page,
+}) => {
+  // This asserted the button was ABSENT. The show page is the primary follow surface, so hiding it
+  // there hid the capability from every visitor deciding whether an account is worth making —
+  // the defect #1590 exists to fix. It renders; the tap defers to sign-in and comes back here.
   const feedId = await seedFeedId(page.request)
   await page.goto(`/podcast/${encodeURIComponent(feedId)}`)
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible() // show page rendered
-  await expect(page.getByTestId('follow-show')).toHaveCount(0)
+
+  const follow = page.getByTestId('follow-show')
+  await expect(follow).toBeVisible()
+  await expect(follow).toHaveAttribute('aria-label', 'Sign in to follow')
+  // Nothing is toggled, so claiming a pressed state would be a lie to assistive tech.
+  await expect(follow).not.toHaveAttribute('aria-pressed', /.*/)
+
+  await follow.click()
+  await expect(page).toHaveURL(new RegExp(`/login\\?redirect=.*${encodeURIComponent(feedId)}`))
+
+  // And the library really is untouched — no optimistic write leaked past the gate.
+  const lib = await page.request.get('/api/app/library')
+  expect(lib.status()).toBe(401)
 })
 
 test('following a show from the show page lands in the library and surfaces Your Week', async ({

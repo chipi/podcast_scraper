@@ -85,3 +85,86 @@ test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
     .poll(async () => page.evaluate(() => document.querySelector('audio')?.paused ?? true))
     .toBe(false)
 })
+
+/**
+ * The bars must not eat page content (#1594 + #1587).
+ *
+ * Both are `position: fixed`, so they cover the end of every page unless `main` reserves room. It
+ * shipped reserving a CONSTANT 96px on mobile and 24px on desktop, against a tab bar plus a
+ * mini-player — so the last card of any list sat underneath the transport whenever something was
+ * playing. The unit check asserted the padding CLASSES existed, which is exactly why nobody saw it.
+ *
+ * Clickability is the assertion, because that is the actual harm: Playwright's click fails if
+ * another element intercepts the pointer, which is precisely what an overlapping fixed bar does.
+ */
+test('the last item on a page stays reachable while audio is playing', async ({ page }) => {
+  await routeLoadableAudio(page)
+
+  await page.goto('/podcast/p05')
+  await page.getByText('Index Investing Without the Myths').first().click()
+  await page.getByRole('button', { name: 'Play', exact: true }).first().click()
+  await expect
+    .poll(async () => page.evaluate(() => document.querySelector('audio')?.currentTime ?? 0), {
+      timeout: 15_000,
+    })
+    .toBeGreaterThan(0.2)
+
+  // Somewhere with a long list, and the mini-player up.
+  await page.locator('header').getByRole('link', { name: 'Browse' }).click()
+  await expect(page.getByTestId('mini-player')).toBeVisible()
+
+  // Scoped to <main>: the mini-player itself contains an /episode/ link (it is the way back), so an
+  // unscoped selector measures the bar against itself and reports a 51px overlap that is really the
+  // bar's own height. Cost me a round of chasing a fix for a bug the selector invented.
+  const cards = page.locator('main a[href^="/episode/"]')
+  await expect(cards.first()).toBeVisible()
+  const last = cards.last()
+
+  // Wait for the list to actually render before scrolling — scrolling an unpopulated page is a
+  // no-op, which silently turns this whole assertion into a tautology.
+  await expect.poll(async () => cards.count()).toBeGreaterThan(5)
+  await expect
+    .poll(async () =>
+      page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+    )
+    .toBeGreaterThan(200)
+
+  // Scroll to the true bottom: the reservation only has to hold at the end of the document, which
+  // is exactly where a too-small padding stops being enough. Repeat until it stops moving — the
+  // page keeps growing as artwork loads, so a single scrollTo lands short of the real bottom and
+  // every measurement below it is off by that remainder.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const before = window.scrollY
+          window.scrollTo(0, document.documentElement.scrollHeight)
+          return window.scrollY - before
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(0)
+  expect(await page.evaluate(() => window.scrollY), 'the page must have scrolled').toBeGreaterThan(0)
+
+  // Geometry, not a trial click: a trial click only probes the element's CENTRE, so a bar covering
+  // the bottom half of the last card passes it. (Verified — the trial-click version of this test
+  // passed against the known-broken pb-24 padding.) Compare edges instead.
+  const barBox = await page.getByTestId('mini-player').boundingBox()
+  expect(barBox, 'mini-player must be on screen for this assertion to mean anything').not.toBeNull()
+  await expect(last).toBeVisible()
+
+  // Measure main's CONTENT box, not the last card. The last card is not flush against the end of
+  // the content — there is spacing after it — so a card-based assertion passes with a padding value
+  // that genuinely occludes content. (Verified: the card version passed against the known-broken
+  // pb-24.) Where the reserved space ends is the property that actually has to hold.
+  const contentBottom = await page.evaluate(() => {
+    const m = document.querySelector('main') as HTMLElement
+    const rect = m.getBoundingClientRect()
+    return rect.bottom - parseFloat(getComputedStyle(m).paddingBottom)
+  })
+
+  expect(
+    contentBottom,
+    'main must reserve enough bottom padding that its content ends above the mini-player',
+  ).toBeLessThanOrEqual(barBox!.y)
+})

@@ -265,9 +265,26 @@ describe('KnowledgePanel', () => {
     const save = w.find('[aria-label="Save to highlights"]')
     expect(save.exists()).toBe(true)
     await save.trigger('click')
+    await flushPromises() // the gate resolves the session before acting (#1590)
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'insight', source_insight_id: 'i1', start_ms: 12000 }),
     )
+  })
+
+  it('offers the insight save to signed-out visitors as a teaser (#1590)', async () => {
+    // It used to be `v-if="auth.isAuthenticated"`. Saving an insight is the learning loop's payoff;
+    // hiding it left signed-out readers with no evidence the product does this at all.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    const create = vi.spyOn(api, 'createHighlight')
+    const w = mountPanel()
+    await flushPromises()
+
+    const save = w.find('[aria-label="Sign in to mark this moment"]')
+    expect(save.exists()).toBe(true)
+    await save.trigger('click')
+    await flushPromises()
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('offers exactly ONE save per insight (#1593)', async () => {

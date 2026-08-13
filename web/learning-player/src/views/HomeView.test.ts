@@ -250,4 +250,36 @@ describe('HomeView interests card (3.5)', () => {
     expect(nav.text()).toContain('Browse topics')
     expect(nav.text()).toContain('Browse people')
   })
+
+  it('resolves trending-show artwork from the catalogue, not from your follows (#1585 regression)', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    // #1585 repurposed `shows` from "the whole catalogue" to "shows you follow" and left the
+    // trending rail reading it. Trending shows are mostly ones you DON'T follow, so their artwork
+    // silently fell back to a generated gradient — a valid render, so no test noticed.
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      { feed_id: 'p01', title: 'Acquired', artwork_url: 'https://x/art.png', image_url: null, description: null, episode_count: 3 },
+    ])
+    // The rail joins artwork by entity_id → feed_id against the catalogue it is handed.
+    vi.spyOn(api, 'getTrending').mockResolvedValue([
+      {
+        entity_id: 'p01',
+        kind: 'show',
+        label: 'Acquired',
+        velocity: 2,
+        volume: 5,
+        heating_up: true,
+        total: 5,
+        series: [1, 2, 3],
+      },
+    ])
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    // Signed out, with zero follows: the art must still resolve.
+    expect(w.html()).toContain('https://x/art.png')
+  })
 })

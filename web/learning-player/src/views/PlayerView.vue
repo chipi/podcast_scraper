@@ -68,7 +68,7 @@ function goBack(): void {
 }
 const queue = useQueueStore()
 const auth = useAuthStore()
-const { gated } = useSignInGate()
+const { isGated, gated } = useSignInGate()
 const capture = useCaptureStore()
 const userPrefs = useUserPreferencesStore()
 
@@ -209,7 +209,12 @@ const speakingNow = computed(() =>
 async function load(slug: string): Promise<void> {
   loading.value = true
   notFound.value = false
-  player.resetForLoad() // clear playback state for the new episode (playing/time/duration/error)
+  // Only for a DIFFERENT episode. Returning to the one already playing (tapping the mini-player)
+  // must not touch transport state: the store's load() no-ops for the same slug, so nothing would
+  // restore what we wiped — the element keeps playing while the UI shows Play at 0:00, the first
+  // tap of Play pauses, and stopBackgroundAudio() kills the Android keep-alive service mid-listen,
+  // which is exactly what #1310 exists to prevent. Left over from when the view owned the element.
+  if (player.currentSlug !== slug) player.resetForLoad()
   transcriptOpen.value = false // new episode → transcript starts closed (opt-in per episode)
   segments.value = []
   audioUrl.value = null
@@ -299,6 +304,11 @@ watch(
   () => [player.currentSlug, duration.value] as const,
   ([slug, d]) => {
     if (!slug || !d || startApplied === slug) return
+    // The loaded episode must be THIS view's episode. Deep-linking to Y with ?t= while X is still
+    // playing fires this immediately against X — seeking the wrong episode to Y's timestamp, an
+    // audible jump in something the user is still listening to. The element outlives the view now,
+    // so "whatever is loaded" and "what this page is about" are no longer the same thing.
+    if (slug !== props.slug) return
     startApplied = slug
     applyStartPosition()
   },
@@ -358,16 +368,19 @@ function announceCapture(message: string): void {
 }
 
 /** One-tap "mark this moment" at the current content-time, tagged with who's speaking. */
-async function markMoment(): Promise<void> {
-  const speaker = activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
-  await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
-  momentFlash.value = true
-  announceCapture(t('capture.marked'))
-  if (flashTimer) clearTimeout(flashTimer)
-  flashTimer = setTimeout(() => {
-    momentFlash.value = false
-  }, 1500)
-}
+/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
+const markMoment = () =>
+  gated(async () => {
+    const speaker =
+      activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
+    await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
+    momentFlash.value = true
+    announceCapture(t('capture.marked'))
+    if (flashTimer) clearTimeout(flashTimer)
+    flashTimer = setTimeout(() => {
+      momentFlash.value = false
+    }, 1500)
+  })()
 
 /**
  * Capture is auth-gated, so a signed-out tap routes to sign-in (#1590).
@@ -443,13 +456,13 @@ onBeforeUnmount(() => {
           </RouterLink>
           <span v-else />
           <div class="flex shrink-0 items-center gap-2">
-            <!-- Mark this moment (P2 capture; auth-gated). Brief "saved" flash on tap. -->
+            <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
+                 this is the cheapest entry to the learning loop, so hiding it hid the loop. -->
             <button
-              v-if="auth.isAuthenticated"
               type="button"
               class="rounded-full p-1 text-xl transition"
               :class="momentFlash ? 'text-accent' : 'text-muted hover:text-accent'"
-              :aria-label="momentFlash ? t('capture.marked') : t('capture.markMoment')"
+              :aria-label="isGated ? t('auth.signInToCapture') : momentFlash ? t('capture.marked') : t('capture.markMoment')"
               :title="momentFlash ? t('capture.marked') : t('capture.markMoment')"
               @click="markMoment"
             >

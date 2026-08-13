@@ -112,7 +112,7 @@ describe('PlayerView', () => {
     expect(w.text()).toContain('The Episode') // title masthead
   })
 
-  it('shows the mark-moment control only when signed in and captures on tap (P2)', async () => {
+  it('offers mark-moment to everyone as a teaser, and captures on tap once signed in (#1590)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
     vi.spyOn(api, 'getNotes').mockResolvedValue([])
     const created: Highlight = {
@@ -122,15 +122,22 @@ describe('PlayerView', () => {
     }
     const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(created)
     const w = await mountPlayer('ep-1')
-    // signed out → no capture affordance
+    // Signed out the control RENDERS — it used to be hidden, which hid the cheapest entry to the
+    // learning loop from exactly the visitors deciding whether to sign up (#1590). It reads as a
+    // teaser, and it does not claim a saved state.
+    expect(w.find('[aria-label="Sign in to mark this moment"]').exists()).toBe(true)
     expect(w.find('[aria-label="Mark this moment"]').exists()).toBe(false)
-    // sign in → the control appears (auth-gated)
+    expect(create).not.toHaveBeenCalled()
+
+    // Signed in → same control, real action.
     const auth = useAuthStore()
     auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
     await flushPromises()
     const mark = w.find('[aria-label="Mark this moment"]')
     expect(mark.exists()).toBe(true)
     await mark.trigger('click')
+    await flushPromises()
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'moment', episode_slug: 'ep-1' }),
     )

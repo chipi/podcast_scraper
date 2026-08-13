@@ -23,7 +23,12 @@ export function useSignInGate() {
   const router = useRouter()
   const route = useRoute()
 
-  /** True when the visitor is signed out, i.e. the control is a teaser rather than a live action. */
+  /**
+   * True when the visitor is signed out, i.e. the control is a teaser rather than a live action.
+   *
+   * Drives labels only. `gated()` re-checks after resolving the session, so a label that renders
+   * "Sign in to…" for the instant before hydration completes still performs the real action.
+   */
   const isGated = computed(() => !auth.isAuthenticated)
 
   /**
@@ -34,11 +39,18 @@ export function useSignInGate() {
    */
   function gated(action: () => void | Promise<void>) {
     return (): void => {
-      if (auth.isAuthenticated) {
-        void action()
-        return
-      }
-      void router.push({ name: 'login', query: { redirect: route.fullPath } })
+      void (async () => {
+        // Resolve the session BEFORE deciding. `isAuthenticated` is false until App.vue's onMounted
+        // refresh lands, so a tap in that window sent a signed-in user to the login page — their
+        // own session, thrown away because they were quick. `ensureLoaded()` is a no-op once the
+        // session is known, so the common path stays synchronous in effect.
+        await auth.ensureLoaded().catch(() => {})
+        if (auth.isAuthenticated) {
+          await action()
+          return
+        }
+        await router.push({ name: 'login', query: { redirect: route.fullPath } })
+      })()
     }
   }
 

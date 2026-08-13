@@ -183,3 +183,80 @@ that makes the suite trustworthy; do not optimise the volume recreation away.**
   the sentence, not necessarily every control it described.
 - The 105-violation figure in the first capture was one run's node count, not 105 distinct defects
   — it is 2 violations across many nodes. Recorded here so the number is not misread later.
+
+## H. Fourth pass — the fable-5 review, and a correction to section G
+
+### H0. CORRECTION: G1's claim that all four controls were gated was FALSE
+
+G1 states "Fixed: all four gated". That was true for `ShowTile` and `TranscriptList` only. On
+`PodcastView` and `KnowledgePanel` I wired `gated()` and the `isGated` labels onto controls that
+were still `v-if="auth.isAuthenticated"` — so my fix was dead code behind a hidden element, and the
+control stayed invisible to signed-out visitors. I wrote the fix, wrote it down as done, and did not
+check that the element rendered. The advisor found it by reading the templates.
+
+This is the same defect class G described, committed *inside the fix for it*, and then reported as
+complete. The reporting failure is the worse half: a false "done" is worse than an open gap, because
+nobody looks again.
+
+### H1. What the review found that I had missed (all confirmed by reading the code)
+
+| # | Defect | Where | Status |
+| --- | --- | --- | --- |
+| S1 | 4 more ungated/hidden controls (2 of them my "fixed" ones) + scope toggle | `PodcastView`, `KnowledgePanel` ×2, `PlayerView`, `SearchView` | fixed |
+| S2 | `resetForLoad()` stomps transport state when returning to the playing episode | `PlayerView.vue` load() | fixed |
+| S2b | start-position watcher seeks whatever is LOADED, not this view's episode | `PlayerView.vue` | fixed |
+| S3 | auto-advance carried no title/artwork → mini-player stuck on "Loading…", lock screen shows the previous episode | `App.vue` → `player.load()` | fixed |
+| S4 | next-up frozen at episode start → "Play next" and every mid-listen queue edit ignored; URL fetched hours before use | `App.vue` | fixed (resolve at `ended`) |
+| S5 | `pb-24 sm:pb-6` under-reserves: content occluded by 18.5px mobile / 38.5px desktop while playing | `App.vue` | fixed |
+| S6 | #1585 repurposed `shows` to followed-only; trending rail still joined artwork from it → art lost for signed-out users and unfollowed shows | `HomeView.vue` | fixed |
+
+Plus one defect I introduced *while* fixing S1: gating on `auth.isAuthenticated` before the session
+resolves sent a signed-in user who tapped quickly to the login page. Caught by `follow-show.spec`.
+`useSignInGate` now awaits `ensureLoaded()` before deciding.
+
+### H2. The guards were the problem, not just the code
+
+`auth-gate.test.ts` was **file-level** — any file containing the string `useSignInGate` passed. Two
+of the four defects lived in files that passed for that reason. It also had an incomplete write list
+(`queue.playNext`, `capture.captureMoment` absent) and a hidden-control check that pinned one
+historical regex in one file. Rewritten: per-call-site, with the write list asserted complete
+against the store source, and the hidden-control rule expressed as a class.
+
+`mobile-invariants` asserted the literal strings `pb-24` / `sm:pb-6`. The classes were present and
+the geometry was wrong — a string check cannot see arithmetic.
+
+### H3. Two of my own tests gave false confidence before I caught them
+
+Worth recording because both looked fine:
+
+1. The occlusion test first used `click({ trial: true })`. It passed against the known-broken
+   padding — a trial click probes the element's CENTRE, so a bar covering the bottom half passes.
+2. Rewritten geometrically, it then measured `a[href^="/episode/"]` **unscoped** — and the
+   mini-player itself contains an `/episode/` link, so it compared the bar against itself and
+   invented a 51px "overlap" that was the bar's own height. I nearly "fixed" a bug that did not
+   exist.
+
+Both were only caught by mutation-testing the assertion against the original defect. **A test that
+has never failed against the bug it describes is not evidence.** Every guard added in this branch
+has now been mutation-tested; the two that could not be made to fail were rewritten until they did.
+
+### Not covered / still open after this pass
+
+- **S9 accessibility (advisor, unfixed):** the KnowledgePanel mobile sheet has no `role="dialog"`,
+  no focus trap, no Escape handling, and opening it drops focus to `<body>`; `PlayerView` and
+  `KnowledgePanel` ignore reduced-motion where `TranscriptList` honours it; `MiniPlayer`'s progress
+  bar animates with no `motion-reduce` variant; `BottomNav` sets no `aria-current` on `player`,
+  `podcast` or `catalog` routes, where users spend most of their time.
+- **S8 (advisor, unfixed):** capture announces "Saved" to screen readers unconditionally — the
+  store swallows failures, so a failed POST still announces success. `KnowledgePanel` announces
+  nothing at all. The `announceCapture` primitive is applied at 1 of 3 call sites.
+- **S7 (advisor, unfixed):** `HomeView`'s own followed-shows and Continue sections do not use
+  `useSectionState`, so an outage there still renders as "you follow nothing" — #1591's defect, in
+  the sections #1585 built.
+- **Mobile shows two nav systems:** the header nav has no `sm:hidden`, so it stacks with the tab
+  bar, duplicating Search.
+- **Spotify core-loop gaps (advisor, ranked):** no one-tap play from any card/row/tile; player state
+  is memory-only so a reload loses the mini-player; end-of-queue is silence; lock-screen next/prev
+  navigates without calling `play()`; no offline (architectural, per bridge-never-rehost).
+- `make docs` (strict mkdocs) still unrun — no mkdocs and no pip in the repo `.venv` here.
+- The gate guard still cannot catch a component that imports the gate and calls the store anyway.

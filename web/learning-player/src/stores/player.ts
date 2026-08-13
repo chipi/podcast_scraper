@@ -4,6 +4,20 @@ import { PLAYBACK_RATES } from '../player/transcriptSync'
 import { startBackgroundAudio, stopBackgroundAudio } from '../services/native'
 
 /**
+ * What it takes to start playing something: the identity, the source, and enough to say what it is.
+ *
+ * Title and artwork are optional in the type but effectively required in practice — every surface
+ * that shows "now playing" (mini-player, lock screen, headphones, car) reads them from the store,
+ * and auto-advance runs with no view mounted to supply them later.
+ */
+export interface NextUp {
+  slug: string
+  url: string
+  title?: string | null
+  artwork?: string | null
+}
+
+/**
  * Player store — the single source of truth for audio playback state + transport (#1307).
  *
  * Playback used to live as local refs in PlayerView; MediaSession (#1308), a notification, and the
@@ -70,7 +84,7 @@ export const usePlayerStore = defineStore('player', () => {
    * player page mid-listen does NOT restart playback — the bug that would otherwise replace one
    * annoyance with a worse one.
    */
-  function load(opts: { slug: string; url: string; title?: string | null; artwork?: string | null }): void {
+  function load(opts: NextUp): void {
     const audio = ensureElement()
     if (currentSlug.value === opts.slug && audio.src) {
       currentTitle.value = opts.title ?? currentTitle.value
@@ -83,6 +97,13 @@ export const usePlayerStore = defineStore('player', () => {
     currentArtwork.value = opts.artwork ?? null
     audio.src = opts.url
     audio.playbackRate = rate.value
+    // Every path into load() owns the now-playing identity, including auto-advance, which happens
+    // with no view mounted. Without this the lock screen, headphones and car display keep showing
+    // the PREVIOUS episode for the whole of the next one. PlayerView still calls setMetadata with
+    // richer data (artist/album) when it is mounted; this is the floor, not the ceiling.
+    if (opts.title) {
+      setMetadata({ title: opts.title, artworkUrl: opts.artwork ?? undefined })
+    }
   }
 
   /** Stop and forget the current episode (sign-out, or an unplayable source). */
@@ -126,17 +147,28 @@ export const usePlayerStore = defineStore('player', () => {
    * be a worse interruption than the one #1587 set out to remove. The mini-player reflects the
    * change; tapping it is how you follow along.
    */
-  const advanceResolvers: { next?: () => { slug: string; url: string; title?: string | null } | null } = {}
-  function onEnded(): void {
+  const advanceResolvers: { next?: () => Promise<NextUp | null> } = {}
+  /**
+   * The resolver is ASYNC and is called at `ended`, not at load.
+   *
+   * An earlier version resolved the next episode when the current one *started* and cached it. That
+   * froze the answer for the whole episode: "Play next", a reorder, or anything else the user did
+   * while listening — which is when every such input happens — was ignored, and an empty queue at
+   * start meant silence at the end even after the user queued something. It also meant the audio
+   * URL was fetched an hour or two before use, so a signed origin URL could expire before playback.
+   *
+   * Resolving on demand costs a short gap between tracks, which every streaming player has.
+   */
+  async function onEnded(): Promise<void> {
     playing.value = false
     void stopBackgroundAudio()
-    const next = advanceResolvers.next?.()
+    const next = await advanceResolvers.next?.()
     if (!next) return
-    load({ slug: next.slug, url: next.url, title: next.title })
+    load(next)
     void el.value?.play()
   }
   /** The app shell supplies this; the store must not import the queue or the API itself. */
-  function setAdvanceResolver(fn: (() => { slug: string; url: string; title?: string | null } | null) | undefined): void {
+  function setAdvanceResolver(fn: (() => Promise<NextUp | null>) | undefined): void {
     advanceResolvers.next = fn
   }
   /** New episode loading — clear transient state (source swap happens in the view). */

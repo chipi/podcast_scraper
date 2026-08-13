@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
@@ -39,6 +39,7 @@ describe('useSignInGate (#1590)', () => {
     push.mockClear()
 
     w.vm.gated(action)()
+    await flushPromises()
 
     expect(action).toHaveBeenCalledOnce()
     expect(push).not.toHaveBeenCalled()
@@ -51,6 +52,7 @@ describe('useSignInGate (#1590)', () => {
     const push = vi.spyOn(router, 'push')
 
     w.vm.gated(action)()
+    await flushPromises()
 
     expect(action).not.toHaveBeenCalled()
     expect(push).toHaveBeenCalledWith({ name: 'login', query: { redirect: '/' } })
@@ -64,10 +66,34 @@ describe('useSignInGate (#1590)', () => {
     const push = vi.spyOn(router, 'push')
 
     w.vm.gated(vi.fn())()
+    await flushPromises()
 
     expect(push).toHaveBeenCalledWith({
       name: 'login',
       query: { redirect: '/episode/ep-1?t=1830' },
     })
+  })
+
+  it('waits for the session to resolve before deciding (a fast tap is not a signed-out tap)', async () => {
+    // `isAuthenticated` is false until App.vue's onMounted refresh lands. Without awaiting that, a
+    // user who taps in the first moments after load is sent to sign in — discarding the session
+    // they already had. Caught by follow-show.spec, which signs in and then clicks immediately.
+    const auth = useAuthStore()
+    auth.loaded = false
+    const refresh = vi.spyOn(auth, 'refresh').mockImplementation(async () => {
+      auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+      auth.loaded = true
+    })
+    const push = vi.spyOn(router, 'push')
+    const action = vi.fn()
+    const w = await mountAt('/')
+    push.mockClear()
+
+    w.vm.gated(action)()
+    await flushPromises()
+
+    expect(refresh).toHaveBeenCalled()
+    expect(action).toHaveBeenCalledOnce()
+    expect(push).not.toHaveBeenCalled()
   })
 })

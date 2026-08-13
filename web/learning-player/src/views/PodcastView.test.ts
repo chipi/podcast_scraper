@@ -18,6 +18,8 @@ const router = createRouter({
     { path: '/', name: 'catalog', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: PodcastView },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    // Gated controls route here when signed out (#1590).
+    { path: '/login', name: 'login', component: { template: '<div/>' } },
   ],
 })
 
@@ -69,10 +71,22 @@ async function mountView(signedIn = true) {
 }
 
 describe('PodcastView — follow show', () => {
-  it('is hidden when signed out (feed subscriptions are per-user)', async () => {
+  it('renders signed out as a sign-in teaser, and routes there on tap (#1590)', async () => {
+    // This test previously asserted the button was HIDDEN. The show page is the PRIMARY follow
+    // surface, so hiding it there hid the capability from every signed-out visitor — the exact
+    // defect #1590 exists to fix. It renders; the tap defers to sign-in with a redirect back.
     vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    const post = vi.spyOn(api, 'followShow')
     const w = await mountView(false)
-    expect(w.find('[data-testid="follow-show"]').exists()).toBe(false)
+
+    const btn = w.get('[data-testid="follow-show"]')
+    expect(btn.attributes('aria-label')).toBe('Sign in to follow')
+    // Nothing is toggled, so claiming a pressed state would be a lie to assistive tech.
+    expect(btn.attributes('aria-pressed')).toBeUndefined()
+
+    await btn.trigger('click')
+    await flushPromises()
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('follows the show: POSTs the feed id and flips to Following', async () => {

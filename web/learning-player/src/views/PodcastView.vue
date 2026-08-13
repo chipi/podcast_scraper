@@ -133,9 +133,10 @@ watch(() => props.feedId, reset)
           {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
         </button>
 
-        <!-- Follow → feed subscription; its unheard episodes surface in Your Week. -->
+        <!-- Follow → feed subscription; its unheard episodes surface in Your Week. Rendered for
+             signed-out visitors too (#1590) — the tap routes to sign-in. This is the primary follow
+             surface, so hiding it hid the capability from everyone deciding whether to sign up. -->
         <button
-          v-if="auth.isAuthenticated"
           type="button"
           data-testid="follow-show"
           class="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"

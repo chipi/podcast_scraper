@@ -17,6 +17,8 @@ function makeRouter() {
     routes: [
       { path: '/search', name: 'search', component: SearchView },
       { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+      // Gated controls route here when signed out (#1590).
+      { path: '/login', name: 'login', component: { template: '<div/>' } },
       // #1261-9: EntityCardBody now renders an "Open in page" RouterLink to
       // these routes when open in overlay mode — the router must resolve
       // them or the mount silently drops the tree with a runtime error.
@@ -102,10 +104,31 @@ describe('SearchView', () => {
     expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 
-  it('hides the Recall scope toggle when signed out', async () => {
+  it('shows the Recall scope toggle signed out, as a sign-in teaser (#1590)', async () => {
+    // This test previously asserted the toggle was HIDDEN. Searching your own corpus is a
+    // differentiator neither Spotify nor Apple Podcasts has, and hiding it hid it from exactly the
+    // visitors deciding whether an account is worth making. "all" still works; "mine" defers.
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'x', error: null, results: [] })
     const { w } = await mountAt('x')
-    expect(w.find('[role="tablist"]').exists()).toBe(false)
+    expect(w.find('[role="tablist"]').exists()).toBe(true)
+    const mine = w.findAll('[role="tab"]')[1]
+    expect(mine.attributes('aria-label')).toBe('Sign in to search your own corpus')
+  })
+
+  it('signed-out: choosing "My corpus" routes to sign-in instead of searching (#1590)', async () => {
+    const search = vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'x',
+      error: null,
+      results: [],
+    })
+    const { w, router } = await mountAt('x')
+    search.mockClear()
+
+    await w.findAll('[role="tab"]')[1].trigger('click')
+    await flushPromises()
+
+    expect(search).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('login')
   })
 
   it('signed-in: My corpus scope searches scope=mine and shows a recall-specific empty message', async () => {

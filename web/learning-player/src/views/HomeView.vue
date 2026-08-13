@@ -112,12 +112,15 @@ const resumeArt = episodeArtwork
  * the corpus still renders — from its stored title — rather than vanishing.
  */
 async function loadFollowedShows(): Promise<void> {
-  if (!auth.isAuthenticated) return
-  const [cat] = await Promise.all([
-    getPodcasts().catch(() => [] as Podcast[]),
-    library.ensureLoaded().catch(() => {}),
-  ])
+  // The catalogue loads for EVERYONE, not just signed-in users. It is public corpus metadata, and
+  // more than one surface joins against it — most importantly TrendingShowsRail, which resolves the
+  // artwork for trending shows the user does not follow. #1585 narrowed `shows` from "the whole
+  // catalogue" to "shows you follow" without re-auditing the rail still reading it, so every
+  // signed-out visitor, and every unfollowed show, silently lost its cover art to the generated
+  // gradient fallback. Nothing failed, because the fallback is a valid render.
+  const cat = await getPodcasts().catch(() => [] as Podcast[])
   catalogue.value = cat
+  if (auth.isAuthenticated) await library.ensureLoaded().catch(() => {})
 }
 
 /**
@@ -390,7 +393,9 @@ onMounted(async () => {
 
     <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
-    <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="shows" />
+    <!-- The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
+         mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
+    <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="catalogue" />
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">

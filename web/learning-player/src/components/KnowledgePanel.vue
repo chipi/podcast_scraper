@@ -246,9 +246,8 @@ const queue = useQueueStore()
 const epArt = episodeArtwork
 
 // Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
-function playNext(slug: string): void {
-  void queue.playNext(slug, props.slug)
-}
+/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
+const playNext = (slug: string) => gated(() => queue.playNext(slug, props.slug))()
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {
@@ -422,13 +421,13 @@ watch(
                 >
                   ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
                 </button>
-                <!-- Save this insight to the personal highlights corpus (P2; auth-gated). -->
+                <!-- Save this insight to the personal highlights corpus (P2). Auth-gated means
+                     deferred, not hidden (#1590): it renders signed-out and routes to sign-in. -->
                 <button
-                  v-if="auth.isAuthenticated"
                   type="button"
                   class="rounded-full p-0.5 transition"
                   :class="savedInsightIds.has(ins.id) ? 'text-accent' : 'text-muted hover:text-accent'"
-                  :aria-pressed="savedInsightIds.has(ins.id)"
+                  :aria-pressed="isGated ? undefined : savedInsightIds.has(ins.id)"
                   :aria-label="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
                   :title="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
                   @click="captureInsight(ins)"
@@ -487,14 +486,14 @@ watch(
                 <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
               </span>
             </RouterLink>
-            <!-- Play next: queue this peer right after the current episode (RFC-099 §4). -->
+            <!-- Play next: queue this peer right after the current episode (RFC-099 §4). Renders
+                 signed-out and routes to sign-in (#1590). -->
             <button
-              v-if="auth.isAuthenticated"
               type="button"
               class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
               :class="queue.has(r.slug) ? 'text-accent' : 'text-muted'"
-              :aria-label="t('queue.playNext')"
-              :title="t('queue.playNext')"
+              :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
+              :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
               @click="playNext(r.slug)"
             >
               <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">

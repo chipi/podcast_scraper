@@ -239,4 +239,64 @@ describe('player store — MediaSession (#1308)', () => {
     expect(next).toHaveBeenCalledOnce()
     expect(prev).toHaveBeenCalledOnce()
   })
+
+  // --- auto-advance (#1587), rebuilt after the fable-5 review ---
+
+  /** onEnded is async now (it awaits the resolver), so let its microtasks drain. */
+  const settle = async () => {
+    for (let i = 0; i < 4; i++) await Promise.resolve()
+  }
+
+  it('resolves what plays next AT the end, not when the episode started', async () => {
+    // The first version cached the answer at load. That ignored every input made while listening —
+    // "Play next", a reorder, a first queue item — and mid-listen is when all of them happen.
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+
+    let answer: { slug: string; url: string; title: string } | null = null
+    p.setAdvanceResolver(async () => answer)
+
+    // Queued only AFTER playback started — the case that used to end in silence.
+    answer = { slug: 'b', url: 'https://x/b.mp3', title: 'B' }
+    el.__emit('ended')
+    await settle()
+
+    expect(p.currentSlug).toBe('b')
+    expect(el.src).toBe('https://x/b.mp3')
+  })
+
+  it('carries the next title and artwork, so the mini-player is not stuck on "Loading…"', async () => {
+    // Auto-advance happens with NO view mounted, so nothing else can supply these. Without them the
+    // mini-player renders its loading fallback for the whole episode and the lock screen keeps
+    // showing the previous one.
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => ({
+      slug: 'b',
+      url: 'https://x/b.mp3',
+      title: 'Episode B',
+      artwork: 'https://x/b.png',
+    }))
+
+    el.__emit('ended')
+    await settle()
+
+    expect(p.currentTitle).toBe('Episode B')
+    expect(p.currentArtwork).toBe('https://x/b.png')
+  })
+
+  it('stops cleanly when nothing is queued', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => null)
+
+    el.__emit('ended')
+    await settle()
+
+    expect(p.currentSlug).toBe('ep-1')
+    expect(p.playing).toBe(false)
+  })
 })

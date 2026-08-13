@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
@@ -11,7 +11,9 @@ import TierSwitch from './components/TierSwitch.vue'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
-import { getAudioSource } from './services/api'
+import { getAudioSource, getEpisode } from './services/api'
+import { episodeArtwork } from './utils/episode'
+import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { initNativeAuth } from './services/native'
 
@@ -34,23 +36,36 @@ async function hydrateUser(): Promise<void> {
  *
  * The store must not import the queue or the API — it would couple playback state to data fetching.
  * The view cannot own it any more, because audio outlives the view. The shell is mounted for the
- * whole session, so it is the right place. Resolving the URL is async while `ended` is sync, so the
- * next episode's source is prefetched as soon as the current one loads.
+ * whole session, so it is the right place.
+ *
+ * Resolved ON DEMAND at `ended`, not cached at load. The first version answered "what plays next?"
+ * when the current episode started and never asked again, so "Play next", a reorder, or a first
+ * queue item added mid-listen all had no effect — and mid-listen is when every one of those inputs
+ * happens. It also fetched the audio URL an hour before using it, which a signed origin URL may not
+ * survive.
+ *
+ * Metadata comes along for the ride because auto-advance runs with no view mounted: without a title
+ * and artwork here, the mini-player reads "Loading…" for the whole episode and the lock screen
+ * keeps showing the previous one.
  */
-let nextUp: { slug: string; url: string; title?: string | null } | null = null
-watch(
-  () => player.currentSlug,
-  async (slug) => {
-    nextUp = null
-    if (!slug) return
-    const next = queue.nextAfter(slug)
-    if (!next) return
-    const src = await getAudioSource(next).catch(() => null)
-    if (src?.url) nextUp = { slug: next, url: src.url }
-  },
-  { immediate: true },
-)
-player.setAdvanceResolver(() => nextUp)
+async function resolveNextUp(): Promise<NextUp | null> {
+  const slug = player.currentSlug
+  if (!slug) return null
+  const next = queue.nextAfter(slug)
+  if (!next) return null
+  const [src, detail] = await Promise.all([
+    getAudioSource(next).catch(() => null),
+    getEpisode(next).catch(() => null),
+  ])
+  if (!src?.url) return null
+  return {
+    slug: next,
+    url: src.url,
+    title: detail?.title ?? null,
+    artwork: detail ? (episodeArtwork(detail) ?? null) : null,
+  }
+}
+player.setAdvanceResolver(resolveNextUp)
 
 onMounted(async () => {
   // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE
@@ -64,6 +79,16 @@ onMounted(async () => {
   await auth.refresh()
   await hydrateUser()
 })
+
+/**
+ * Reserve exactly what is on screen: the tab bar (mobile only) plus the mini-player (only when
+ * something is loaded), plus the home-indicator inset.
+ */
+const mainBottomPadding = computed(() =>
+  player.currentSlug
+    ? 'pb-[calc(7.25rem+env(safe-area-inset-bottom))] sm:pb-[calc(5rem+env(safe-area-inset-bottom))]'
+    : 'pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-6',
+)
 
 async function onSignOut(): Promise<void> {
   await auth.logout()
@@ -136,9 +161,25 @@ async function onSignOut(): Promise<void> {
       </div>
     </header>
 
-    <!-- pb-24 on mobile clears the fixed bottom nav (#1594); sm:pb-6 restores the desktop rhythm
-         where the bar is hidden. -->
-    <main id="main" tabindex="-1" class="mx-auto max-w-6xl px-5 pt-6 pb-24 outline-none sm:pb-6">
+    <!--
+      Bottom padding is COMPUTED, not a constant.
+
+      It shipped as `pb-24 sm:pb-6` — 96px on mobile against a tab bar (~52px) plus a mini-player
+      (~62px) = ~114px before safe-area insets, and 24px on desktop against a 62px mini-player. So
+      the last card on every page sat under the transport whenever anything was playing, on both
+      viewports. The string check in mobile-invariants.test.ts asserted the classes existed, which
+      is exactly what made it invisible: the classes were present and the geometry was wrong.
+
+      `scroll-padding-bottom` matches, so keyboard-tabbing to the last element scrolls it clear of
+      the bars instead of underneath them.
+    -->
+    <main
+      id="main"
+      tabindex="-1"
+      class="mx-auto max-w-6xl px-5 pt-6 outline-none"
+      :class="mainBottomPadding"
+      :style="{ scrollPaddingBottom: '8rem' }"
+    >
       <RouterView />
     </main>
 
