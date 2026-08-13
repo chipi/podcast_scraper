@@ -1,0 +1,46 @@
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+/**
+ * Per-user actions for signed-out visitors (#1590).
+ *
+ * Every auth-gated affordance used to render `v-if="auth.isAuthenticated"`, so a signed-out listener
+ * sitting in the player saw **no evidence that capture, queue, favourites or follows existed at
+ * all**. The capabilities that differentiate this product were invisible to exactly the people who
+ * had not yet decided to sign up, and the only prompts were the two header buttons.
+ *
+ * Hiding is also the wrong shape of honesty: the control is not unavailable, it is *deferred*. So
+ * show it, and let the tap explain the requirement — routing to sign-in with a redirect back to
+ * where they were, so the action they wanted is one step away rather than lost.
+ *
+ * Usage:
+ *   const { gated, isGated } = useSignInGate()
+ *   <button :aria-label="isGated ? t('auth.signInTo', {...}) : t('queue.add')" @click="gated(doIt)">
+ */
+export function useSignInGate() {
+  const auth = useAuthStore()
+  const router = useRouter()
+  const route = useRoute()
+
+  /** True when the visitor is signed out, i.e. the control is a teaser rather than a live action. */
+  const isGated = computed(() => !auth.isAuthenticated)
+
+  /**
+   * Run `action` when signed in; otherwise send them to sign-in with a redirect back here.
+   *
+   * Returns a handler, so it composes directly with `@click`. The redirect uses `fullPath` so query
+   * and hash survive — landing back on a search result or a timestamped episode, not just the route.
+   */
+  function gated(action: () => void | Promise<void>) {
+    return (): void => {
+      if (auth.isAuthenticated) {
+        void action()
+        return
+      }
+      void router.push({ name: 'login', query: { redirect: route.fullPath } })
+    }
+  }
+
+  return { isGated, gated }
+}

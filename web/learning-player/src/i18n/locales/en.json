@@ -126,7 +126,11 @@
     "signupTitle": "Create your account",
     "signupTagline": "Start turning every episode you hear into a knowledge corpus that's yours.",
     "haveAccount": "Already have an account?",
-    "newHere": "New here?"
+    "newHere": "New here?",
+    "signInToQueue": "Sign in to add to your queue",
+    "signInToSave": "Sign in to save this",
+    "signInToCapture": "Sign in to mark this moment",
+    "signInToFollow": "Sign in to follow"
   },
   "catalog": {
     "heading": "All episodes",
