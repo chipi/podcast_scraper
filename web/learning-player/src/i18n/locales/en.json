@@ -340,7 +340,9 @@
     "savedLine": "Line saved — tap to remove",
     "saveInsight": "Save to highlights",
     "savedInsight": "Saved to highlights — tap to remove",
-    "savedHighlight": "Highlight saved"
+    "savedHighlight": "Highlight saved",
+    "saveFailed": "Couldn't save that — check your connection and try again",
+    "removed": "Removed from highlights"
   },
   "fav": {
     "add": "Save to favorites",

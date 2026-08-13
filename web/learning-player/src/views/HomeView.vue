@@ -50,9 +50,20 @@ const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 const whatsNew = useSectionState<EpisodeSummary[]>([])
 const latest = computed(() => whatsNew.data.value)
 const catalogue = ref<Podcast[]>([])
+/**
+ * Following and Continue get the same contract as every other section (#1591, S7).
+ *
+ * These two were the last holdouts on `.catch(() => [])`, and they are the two most personal
+ * sections on the page — so a library outage rendered "follow something to get started" to a user
+ * who follows thirty shows, and a playback outage silently swapped the resume hero for the discover
+ * hero. An outage that looks like a new account is the exact defect #1591 exists to kill; I fixed
+ * it in the sections around these and not in these.
+ */
+const followsSection = useSectionState<null>(null)
+const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([])
 const recSection = useSectionState<EpisodeSummary[]>([])
 const recommended = computed(() => recSection.data.value)
-const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
+const continueItems = computed(() => continueSection.data.value)
 const query = ref('')
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
@@ -118,9 +129,16 @@ async function loadFollowedShows(): Promise<void> {
   // catalogue" to "shows you follow" without re-auditing the rail still reading it, so every
   // signed-out visitor, and every unfollowed show, silently lost its cover art to the generated
   // gradient fallback. Nothing failed, because the fallback is a valid render.
-  const cat = await getPodcasts().catch(() => [] as Podcast[])
-  catalogue.value = cat
-  if (auth.isAuthenticated) await library.ensureLoaded().catch(() => {})
+  await followsSection.load(async () => {
+    // Both halves must succeed for "you follow nothing" to be a truthful render: the catalogue
+    // supplies artwork, the library supplies the follows themselves.
+    const [cat] = await Promise.all([
+      getPodcasts(),
+      auth.isAuthenticated ? library.ensureLoaded() : Promise.resolve(),
+    ])
+    catalogue.value = cat
+    return null
+  })
 }
 
 /**
@@ -189,26 +207,49 @@ onMounted(async () => {
   void loadFollowedShows()
 
   if (auth.isAuthenticated || !auth.loaded) {
-    const positions = await getPlaybackList().catch(() => [])
-    const inProgress = positions.filter((p) => p.position_seconds > 1).slice(0, 6)
-    const hydrated = await Promise.all(
-      inProgress.map((p) =>
-        getEpisode(p.slug)
-          .then((detail) => ({ detail, position: p.position_seconds }))
-          .catch(() => null),
-      ),
-    )
-    continueItems.value = hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
+    await loadContinue()
     // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes).
     if (continueItems.value[0]) await loadRecommended()
+  } else {
+    continueSection.phase.value = 'ready' // signed out: nothing to resume is the truth, not a gap
   }
 })
+
+/** Extracted so the error state can offer a real retry rather than a dead end. */
+async function loadContinue(): Promise<void> {
+  await continueSection.load(async () => {
+      // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
+      // hero for the discover hero and drops Recommended, with no sign anything went wrong.
+      const positions = await getPlaybackList()
+      const inProgress = positions.filter((p) => p.position_seconds > 1).slice(0, 6)
+      const hydrated = await Promise.all(
+        inProgress.map((p) =>
+          getEpisode(p.slug)
+            .then((detail) => ({ detail, position: p.position_seconds }))
+            .catch(() => null), // one unreadable episode is not an outage
+        ),
+      )
+    return hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
+  })
+}
 </script>
 
 <template>
   <section>
     <!-- Adaptive hero -->
-    <div v-if="resumeState && resumeTop" class="relative overflow-hidden rounded-2xl border border-border">
+    <!-- The hero must not lie about your history. A failed playback fetch used to collapse to []
+         and silently swap the resume hero for the discover hero, so a user mid-episode was told to
+         start exploring and their place looked lost (#1591, S7). -->
+    <SectionStatus
+      v-if="auth.isAuthenticated && !continueSection.isReady.value"
+      :phase="continueSection.phase.value"
+      :rows="1"
+      @retry="loadContinue"
+    />
+    <div
+      v-else-if="resumeState && resumeTop"
+      class="relative overflow-hidden rounded-2xl border border-border"
+    >
       <img v-if="resumeArt(resumeTop.detail)" :src="resumeArt(resumeTop.detail)!" alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
       <div class="relative p-5">
         <span class="lp-kicker text-grounded">{{ t('home.continue') }}</span>
@@ -423,11 +464,17 @@ onMounted(async () => {
          learn the capability exists, and a section that silently vanishes can't teach it. -->
     <section v-if="auth.isAuthenticated" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
+      <!-- Loading/error BEFORE the empty state, or an outage renders "follow something to get
+           started" to someone who follows thirty shows (#1591). -->
+      <SectionStatus :phase="followsSection.phase.value" :rows="1" @retry="loadFollowedShows" />
       <!-- Empty state carries the ACTION, not a description of it. An empty section is worth
            rendering only when the user can do something about it — and then it has to actually
            offer the doing. Following is otherwise reachable only from a show page, so a prose
            nudge would send you off to find it. -->
-      <div v-if="!shows.length" class="rounded-xl border border-dashed border-border p-4">
+      <div
+        v-if="followsSection.isReady.value && !shows.length"
+        class="rounded-xl border border-dashed border-border p-4"
+      >
         <p class="text-sm text-muted">{{ t('home.showsEmpty') }}</p>
         <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
           <li v-for="p in suggestedShows" :key="p.feed_id">
@@ -441,7 +488,9 @@ onMounted(async () => {
           {{ t('home.showsBrowse') }}
         </RouterLink>
       </div>
-      <ul v-else class="grid grid-cols-3 gap-3 sm:grid-cols-4">
+      <!-- v-else-if, not v-else: during loading/error there is nothing truthful to show here, and
+           a bare v-else would render an empty grid under the skeleton. -->
+      <ul v-else-if="shows.length" class="grid grid-cols-3 gap-3 sm:grid-cols-4">
         <li v-for="p in visibleShows" :key="p.feed_id">
           <ShowTile :show="p" />
         </li>

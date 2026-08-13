@@ -192,4 +192,27 @@ describe('PlayerView', () => {
     const w = await mountPlayer('ep-1')
     expect(w.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
   })
+
+  it('announces a capture FAILURE rather than confirming a save that did not happen (S8)', async () => {
+    // The store swallows write failures, and this announced "Marked" unconditionally — so on a
+    // flaky connection a screen-reader user was told their highlight saved when nothing was
+    // stored. A false confirmation is worse than silence: it stops them retrying.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new Error('502'))
+
+    const w = await mountPlayer('ep-1')
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
+    await flushPromises()
+
+    await w.find('[aria-label="Mark this moment"]').trigger('click')
+    await flushPromises()
+
+    const live = w.find('[aria-live]')
+    expect(live.exists()).toBe(true)
+    expect(live.text()).toContain("Couldn't save that")
+    expect(live.text()).not.toContain('Marked')
+  })
 })

@@ -46,7 +46,19 @@ const props = withDefaults(
   }>(),
   { focusInsightId: null },
 )
-const emit = defineEmits<{ (e: 'seek', seconds: number): void; (e: 'close'): void }>()
+const emit = defineEmits<{
+  (e: 'seek', seconds: number): void
+  (e: 'close'): void
+  /**
+   * Announce a capture outcome through the parent's live region (S8).
+   *
+   * Saving an insight announced NOTHING — the bookmark filling was the only feedback, and on
+   * failure it does not fill, so a screen-reader user got silence either way. Emitting rather than
+   * adding a second `aria-live` region: two live regions on one page compete, and PlayerView
+   * already owns one.
+   */
+  (e: 'announce', message: string): void
+}>()
 
 const { t } = useI18n()
 
@@ -230,13 +242,18 @@ const capture = useCaptureStore()
 const savedInsightIds = computed(() => capture.savedInsightIds)
 /** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
 const captureInsight = (ins: Insight) =>
-  gated(() => {
+  gated(async () => {
     const secs = insightStartSeconds(ins)
-    void capture.captureInsight(props.slug, {
+    const saved = savedInsightIds.value.has(ins.id)
+    const ok = await capture.captureInsight(props.slug, {
       id: ins.id,
       text: ins.text,
       start_ms: secs != null ? Math.round(secs * 1000) : null,
     })
+    emit(
+      'announce',
+      ok ? t(saved ? 'capture.removed' : 'capture.savedInsight') : t('capture.saveFailed'),
+    )
   })()
 
 // --- related ("more like this") ---

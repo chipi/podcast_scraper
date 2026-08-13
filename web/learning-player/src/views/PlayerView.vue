@@ -373,7 +373,15 @@ const markMoment = () =>
   gated(async () => {
     const speaker =
       activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
-    await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
+    // Announce what ACTUALLY happened. The store swallows write failures, so this used to tell a
+    // screen-reader user "Marked" — and flash the confirmation — when the POST had failed and
+    // nothing was stored (S8). A confirmation of something that did not happen is worse than
+    // silence: it stops the user retrying.
+    const ok = await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
+    if (!ok) {
+      announceCapture(t('capture.saveFailed'))
+      return
+    }
     momentFlash.value = true
     announceCapture(t('capture.marked'))
     if (flashTimer) clearTimeout(flashTimer)
@@ -391,8 +399,8 @@ const markMoment = () =>
  */
 const onCaptureParagraph = (span: ParagraphSpan) =>
   gated(async () => {
-    await capture.captureSpan(props.slug, span)
-    announceCapture(t('capture.savedHighlight'))
+    const ok = await capture.captureSpan(props.slug, span)
+    announceCapture(ok ? t('capture.savedHighlight') : t('capture.saveFailed'))
   })()
 
 function ensureCaptureLoaded(): void {
@@ -726,6 +734,7 @@ onBeforeUnmount(() => {
           :active-insight-id="activeInsight?.id ?? null"
           :focus-insight-id="focusInsightId"
           @seek="seekContent"
+          @announce="announceCapture"
           @close="panelOpen = false"
         />
       </div>

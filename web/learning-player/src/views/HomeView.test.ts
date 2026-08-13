@@ -282,4 +282,46 @@ describe('HomeView interests card (3.5)', () => {
     // Signed out, with zero follows: the art must still resolve.
     expect(w.html()).toContain('https://x/art.png')
   })
+
+  // --- an outage must not look like a new account (#1591, S7) ---
+  //
+  // These were the last two sections on `.catch(() => [])`, and the two most personal on the page.
+  // #1591 fixed the sections around them and missed these.
+
+  it('a library outage says so instead of claiming you follow nothing', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    // The library itself succeeds and is EMPTY — so the only thing standing between the user and
+    // the "follow something" prompt is the catalogue fetch. Without this the test passes on an
+    // unmocked getLibrary rejecting, which is not the failure being described.
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockRejectedValue(new Error('502'))
+    signIn()
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    // The "follow something to get started" prompt would be a lie to someone with 30 follows.
+    expect(w.text()).not.toContain('Follow a show')
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+  })
+
+  it('a playback outage does not silently swap the resume hero for the discover hero', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('502'))
+    signIn()
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    // Telling a user mid-episode to go explore is how their place looks lost.
+    expect(w.text()).not.toContain("Find any moment you've heard.")
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+  })
 })

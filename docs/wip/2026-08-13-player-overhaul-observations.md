@@ -247,12 +247,12 @@ has now been mutation-tested; the two that could not be made to fail were rewrit
   `KnowledgePanel` ignore reduced-motion where `TranscriptList` honours it; `MiniPlayer`'s progress
   bar animates with no `motion-reduce` variant; `BottomNav` sets no `aria-current` on `player`,
   `podcast` or `catalog` routes, where users spend most of their time.
-- **S8 (advisor, unfixed):** capture announces "Saved" to screen readers unconditionally — the
-  store swallows failures, so a failed POST still announces success. `KnowledgePanel` announces
-  nothing at all. The `announceCapture` primitive is applied at 1 of 3 call sites.
-- **S7 (advisor, unfixed):** `HomeView`'s own followed-shows and Continue sections do not use
-  `useSectionState`, so an outage there still renders as "you follow nothing" — #1591's defect, in
-  the sections #1585 built.
+- ~~**S8**~~ **FIXED.** The three capture actions return success/failure (the throw is still
+  swallowed — callers use `void`). All three call sites announce the real outcome, and
+  `KnowledgePanel` emits to PlayerView's existing live region rather than adding a competing one.
+  Mutation-verified.
+- ~~**S7**~~ **FIXED.** Both sections now use `useSectionState` and render loading/error with retry.
+  Mutation-verified: restoring `.catch(() => [])` on either fails its test.
 - **Mobile shows two nav systems:** the header nav has no `sm:hidden`, so it stacks with the tab
   bar, duplicating Search.
 - **Spotify core-loop gaps (advisor, ranked):** no one-tap play from any card/row/tile; player state
@@ -260,3 +260,22 @@ has now been mutation-tested; the two that could not be made to fail were rewrit
   navigates without calling `play()`; no offline (architectural, per bridge-never-rehost).
 - `make docs` (strict mkdocs) still unrun — no mkdocs and no pip in the repo `.venv` here.
 - The gate guard still cannot catch a component that imports the gate and calls the store anyway.
+
+## I. S7 + S8 closed (2026-08-13)
+
+Both were mechanical once located; what is worth recording is a **third instance of a test that did
+not test what it claimed**, found by the same mutation discipline:
+
+The "library outage" test passed under mutation because `getLibrary` was unmocked, so
+`ensureLoaded()` rejected regardless of what I did to `getPodcasts()`. It asserted the right
+outcome for the wrong reason — a green test proving nothing about the line it named. Mocking the
+library to succeed-and-be-empty isolated the catalogue fetch, and the mutation then failed it
+(`expected '…' not to contain 'Follow a show'`).
+
+That is three self-inflicted false-confidence tests in two rounds (trial-click, unscoped selector,
+unmocked dependency). All three were green, plausible, and worthless. The only thing that caught
+any of them was running the test against the bug it describes.
+
+**Still open: S9** — dialog semantics and focus management for the KnowledgePanel mobile sheet,
+reduced-motion at 2 of 3 call sites, and `BottomNav` `aria-current` on nested routes. Being
+discussed with Marko before implementation.
