@@ -582,15 +582,54 @@ language, ad-read soup).
 **"Weak" — a judgement call, not an auto-stop:** in-band but thin. Record and decide; a show
 can be genuinely good and simply produce fewer, denser insights.
 
-### Phase 3 — deepen, per show
+### Phase 3 — the decision is depth, and it has TWO independent axes
 
-- **Strong** → straight to 10
-- **Acceptable but unproven** → 5, reassess, then 10
-- **Weak** → leave at 1, record, move on
-- **Catastrophic** → drop the feed, record the reason
+**Operator framing (2026-08-13), and it corrects an earlier error in this protocol.** A poor
+probe result is **not** a reason to drop a show. Onboarding is deliberately a pattern-finding
+exercise: *"how far can I get with what I have, and how much do I need to invest to up the
+game."* Shows are partly test material for the pipeline, not only content.
+
+The earlier version of this section said "catastrophic → drop the feed." **That was wrong.** It
+conflated two things that fail independently:
+
+| | Show clears the editorial bar | Show does not |
+| --- | --- | --- |
+| **Pipeline handles it well** | **DEEPEN** — 10, then 20/50 as warranted | **DROP** — the only legitimate reason to drop |
+| **Pipeline handles it badly** | **PARK at 1** — log the pipeline defect, revisit after the fix | DROP (editorial), and still log the defect |
+
+So the single decision per show is **continue ingesting, or park until the pipeline improves** —
+never "this show is bad because our cleaning stage is bad."
+
+**Bucket definitions:**
+
+- **DEEPEN** — content clears the bar and processing is clean. Go to 10; revisit for 20/50.
+- **PARK** — content clears the bar, processing does not (ad contamination, poor diarization,
+  thin insights on rich material). Stay at 1. **Record the defect in the rollout-followups
+  homework**, not here. Revisit when that defect is fixed.
+- **DROP** — content does not clear the editorial bar. The *only* content-driven exit.
+- **BLOCKED** — structurally not ingestible: over the 2-hour ceiling (§5h), non-English (§5c),
+  dead feed. Not a quality judgement at all.
+
+**Why this matters beyond bookkeeping:** parking a show because the cleaning stage mangles ad
+reads and dropping it as "low quality" produce the same corpus today, but opposite outcomes in
+three months. The first leaves a queue of good shows waiting on a known fix; the second
+silently discards them and hides the fix's value.
 
 Then loop to the next show. **One show at a time** — the pipeline runs one job anyway, and
 serial execution keeps each result attributable.
+
+### The probe is also a pipeline capability assessment
+
+Each show exercises a different weakness: heavy ad load (a16z, Lenny's, Pragmatic Engineer),
+long-form endurance (Dwarkesh, Ideas of India), non-US accents and names (ChinaTalk, Sinica,
+Ideas of India, Explaining Brazil), multi-speaker dialogic formats (The Rest Is History, Empire,
+Odd Lots), and dense technical vocabulary (Ground Truths, The Long Run, Complex Systems).
+
+Findings therefore land in **two** places, and confusing them loses information:
+
+- **This document** — content verdicts, buckets, depth decisions.
+- **`INCREMENTAL-ROLLOUT-FOLLOWUPS-2026-08-11.md`** — pipeline defects the probe exposes.
+  Those are reusable across every feed, including the nine existing ones.
 
 ### Ad-read contamination — an explicit check (added 2026-08-13)
 
