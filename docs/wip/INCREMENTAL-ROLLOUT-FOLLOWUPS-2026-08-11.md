@@ -393,10 +393,41 @@ at ~10 episodes each (~250 episodes). Enabling the archive first makes those rep
 enabling it after means another 250 one-shot episodes. The already-lost 454 cannot be
 recovered either way, which is precisely why the next 250 should not join them.
 
-**Not verified:** whether `audio_storage_backend: local` retains media anywhere on the box at
-all, or discards immediately after transcription. The recipe says discarded; I did not confirm
-against the code. If some local retention exists, a subset of recent episodes might still be
-archivable retroactively — worth ten minutes before writing the 454 off.
+### H1a — the local audio cache is written into an ephemeral container layer
+
+**Verified 2026-08-13**, resolving the open question above. The answer is more specific than
+the recipe's "media is discarded", and it makes the interim fix much cheaper.
+
+Caching is **on** and always has been — it is the `remote` archive that is off:
+
+| Setting | Value | Source |
+| --- | --- | --- |
+| `audio_cache_enabled` | `True` (default) | `config.py:3901` |
+| `audio_cache_in_corpus` | not set → `False` | absent from profile |
+| `DEFAULT_AUDIO_CACHE_DIR` | `.cache/audio` — **relative** | `config_constants.py:108` |
+| `PODCAST_SCRAPER_WORK_DIR` | `/app` | `compose/docker-compose.stack.yml` |
+| mounted volume | `corpus_data:/app/output` — **the only one** | same file |
+
+So the cache resolves to **`/app/.cache/audio`**, which is inside the container filesystem and
+**not** under the mounted corpus volume. Prod runs every job as `docker compose run --rm`.
+
+**Each job therefore downloads audio, caches it, and destroys the cache on exit.** The audio is
+not "discarded after transcription" so much as *cached into a directory that ceases to exist*.
+Nothing is recoverable retroactively; the ~454 episodes are confirmed lost.
+
+**Two fixes, and the cheap one needs no infrastructure at all:**
+
+1. **`audio_cache_in_corpus: true`** — one line. The cache moves to
+   `<corpus>/.podcast_scraper/audio-cache`, which IS on the mounted volume, so it survives the
+   container. Costs prod disk: ~50 MB/episode against 96.9 GB free, so the planned +250
+   episodes fit comfortably (~12 GB). **Zero cost, zero new infrastructure, available now.**
+2. **`audio_storage_backend: remote`** (H1) — the durable answer, offloads to a ~€3.20/month
+   Storage Box and does not consume prod disk.
+
+They are not mutually exclusive and (1) is a strictly better default than the status quo even
+if (2) is never enabled. **The status quo — caching enabled, writing to a path that is deleted
+on every run — is the worst of the three options**: it pays the disk-write cost of caching and
+gets none of the benefit.
 
 ---
 
