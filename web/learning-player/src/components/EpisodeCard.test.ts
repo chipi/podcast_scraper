@@ -151,6 +151,30 @@ describe('EpisodeCard', () => {
     expect(mountCard(makeEpisode()).html()).not.toContain('group-hover:opacity')
   })
 
+  it('caps how many bullets a card shows, and links out for the rest', async () => {
+    // Sized against production, not the fixtures: real bullets run ~207 chars median with 7.9 per
+    // episode (measured over 393 bullets, 2026-08-13), so rendering all of them would put ~1,600
+    // characters in a list card — the same "doesn't fit" failure as the old overlay, just opt-in.
+    const many = Array.from({ length: 9 }, (_, i) => `Grounded claim number ${i} about the topic.`)
+    const w = mountCard(makeEpisode({ summary_bullets: many, has_gi: true }))
+    await w.get('[aria-expanded]').trigger('click')
+
+    expect(w.findAll('li').length).toBe(4)
+    expect(w.text()).toContain('Grounded claim number 3')
+    expect(w.text()).not.toContain('Grounded claim number 4')
+    expect(w.text()).toContain('+5 more insights')
+  })
+
+  it('does not truncate the bullets it does show', async () => {
+    // The old overlay sliced prose mid-sentence. A bullet the user explicitly expanded must be
+    // readable end to end — length is bounded by the cap above, not by clamping each claim.
+    const long = 'A'.repeat(380) // production max
+    const w = mountCard(makeEpisode({ summary_bullets: [long], has_gi: true }))
+    await w.get('[aria-expanded]').trigger('click')
+    expect(w.get('li span:last-child').classes().join(' ')).not.toContain('line-clamp')
+    expect(w.text()).toContain(long)
+  })
+
   it('omits the insights affordance when there are no grounded bullets', () => {
     const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: false }))
     expect(w.find('[aria-expanded]').exists()).toBe(false)

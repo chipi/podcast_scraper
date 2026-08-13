@@ -43,6 +43,21 @@ const { t, locale } = useI18n()
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
 const bullets = computed(() => props.episode.summary_bullets ?? [])
+
+/**
+ * How many bullets the card shows when expanded, with the rest behind "Read full summary".
+ *
+ * Sized against PRODUCTION, not the fixtures — they differ enough to matter. Measured over 393
+ * bullets from 50 live episodes (2026-08-13): median **207 chars**, p75 241, max 380, and **7.9
+ * bullets per episode**. The synthetic corpora average 85 chars and 3 bullets, so anything sized
+ * against them is ~2.4x too small per bullet and less than half the count.
+ *
+ * All 7.9 unclamped would put ~1,600 characters inside a list card — the same "doesn't fit" problem
+ * the old whole-card overlay had, just opt-in. Four is roughly 20 lines on a phone: enough to be
+ * genuinely useful, bounded enough to stay a card.
+ */
+const CARD_BULLETS = 4
+const shownBullets = computed(() => bullets.value.slice(0, CARD_BULLETS))
 // Show the insights affordance only when there's grounded summary content to reveal.
 const hasInsights = computed(() => props.episode.has_gi && bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
@@ -139,21 +154,27 @@ const favItem = computed<FavoriteAdd>(() => ({
           :id="`insights-${episode.slug}`"
           class="mt-2 border-t border-border pt-2"
         >
-          <ul class="space-y-1.5">
+          <ul class="space-y-2">
             <li
-              v-for="(b, i) in bullets"
+              v-for="(b, i) in shownBullets"
               :key="i"
               class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
             >
               <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
-              <span class="line-clamp-3">{{ b }}</span>
+              <!-- No clamp. The user asked for these; truncating them mid-claim is the failure the
+                   old overlay made. Length is bounded by CARD_BULLETS instead. -->
+              <span>{{ b }}</span>
             </li>
           </ul>
           <RouterLink
             :to="{ name: 'player', params: { slug: episode.slug } }"
             class="mt-2 inline-block text-xs font-bold text-accent no-underline"
           >
-            {{ t('card.readFullSummary') }}
+            {{
+              bullets.length > shownBullets.length
+                ? t('card.moreInsights', { count: bullets.length - shownBullets.length })
+                : t('card.readFullSummary')
+            }}
           </RouterLink>
         </div>
       </div>
