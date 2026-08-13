@@ -346,10 +346,15 @@ watch(
           </span>
         </div>
         <div class="flex flex-wrap gap-1.5">
+          <!-- data-testid, not the colour class: specs used to select these with
+               `button.text-topic`, which couples the test suite to styling — a restyle would break
+               them for reasons unrelated to behaviour, and it was the cause of two flaky specs
+               (consolidation, perspectives). Flagged in #1612. -->
           <button
             v-for="tag in visibleTags"
             :key="tag.key"
             type="button"
+            :data-testid="tag.kind === 'topic' ? 'kp-topic-chip' : 'kp-person-chip'"
             class="rounded-full px-2.5 py-1 text-xs transition"
             :class="[
               tag.kind === 'topic' ? 'text-topic' : 'text-person',

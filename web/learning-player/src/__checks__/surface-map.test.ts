@@ -82,6 +82,12 @@ function componentTestids(): { exact: Set<string>; prefixes: string[] } {
   for (const m of allComponentSrc.matchAll(/data-testid\s*=\s*"([^"]+)"/g)) raw.add(m[1])
   for (const m of allComponentSrc.matchAll(/data-testid\s*=\s*'([^']+)'/g)) raw.add(m[1])
   for (const m of allComponentSrc.matchAll(/data-testid\s*=\s*`([^`]+)`/g)) raw.add(m[1])
+  // Bound expressions: `:data-testid="cond ? 'a-chip' : 'b-chip'"`. Pull every quoted literal out
+  // of the expression — otherwise a conditionally-named testid reads as nonexistent and the map
+  // row documenting it is reported as dead. (Found by this check failing on my own chips.)
+  for (const m of allComponentSrc.matchAll(/:data-testid\s*=\s*"([^"]+)"/g)) {
+    for (const lit of m[1].matchAll(/'([a-z0-9-]+)'/g)) raw.add(lit[1])
+  }
 
   const exact = new Set<string>()
   const prefixes: string[] = []

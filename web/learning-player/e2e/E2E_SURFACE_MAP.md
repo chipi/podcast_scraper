@@ -230,6 +230,7 @@ All views colour topics by **storyline** (theme cluster) — same-cluster topics
 | Element | Hook |
 | ------- | ---- |
 | Insights list | `data-testid="kp-insights"`, fold control `kp-insights-show-all` |
+| Entity chips | `data-testid="kp-topic-chip"` / `kp-person-chip` → opens the entity card in-panel |
 | Save an insight | `aria-label` "Save to highlights" — the ONE save per insight since #1593; the `.lp-fav` heart is no longer on insight rows |
 
 ### Section states ([SectionStatus](../src/components/SectionStatus.vue))
@@ -290,7 +291,7 @@ look like product bugs:
 | "Machine Learning" in `es-similar` | entity-signals similarity row |
 | "10 perspectives" | perspectives count assertion |
 
-> **Selector hygiene.** `consolidation.spec.ts` opens Insights-panel entity chips via the CSS classes
-> `button.text-topic` / `button.text-person` — a **styling-coupled selector** that breaks on any
-> restyle. Those chips should get real `data-testid`s; until then, treat those class names as an
-> unintentional contract.
+> **Selector hygiene.** Fixed: the Insights-panel entity chips were selected via the CSS classes
+> `button.text-topic` / `button.text-person` — a styling-coupled selector that would break on any
+> restyle, and the cause of two flaky specs. They now carry `kp-topic-chip` / `kp-person-chip`.
+> Do not reintroduce class-based selectors for behaviour.

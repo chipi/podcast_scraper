@@ -316,6 +316,10 @@ docs/wip/search-v3/eval/latest.json
 # test setup (offline, cached MiniLM) — not committed, to avoid a binary lance blob +
 # lance-format-version coupling. See tests/integration/test_mcp_pivot_chain_e2e.py.
 tests/fixtures/app-validation-corpus/v3/search/lance_index/
+# Sidecar of the same index build (incremental-skip fingerprints). The rule above covered only the
+# lance_index/ dir, so this artifact showed up as untracked the first time the index was built
+# locally — see docs/wip/2026-08-13-e2e-on-intel-mac.md.
+tests/fixtures/app-validation-corpus/v3/search/episode_fingerprints.json
 tests/fixtures/app-validation-corpus/v3/search/metadata.json
 
 # Upgrade migration lock (runtime, never committed)
