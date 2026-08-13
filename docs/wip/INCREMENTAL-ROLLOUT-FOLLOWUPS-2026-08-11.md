@@ -637,6 +637,59 @@ series. But `box` label values are `dgx / mini / prod`, so the absence of a `min
 series may mean the exporter does not cover mini's keys rather than that homelab spend is
 zero. Suggestive, not conclusive — D5's proposed deploy post-check is still worth building.
 
+### Pass-3 halt — upstream LLM credit exhausted (2026-08-13 02:12Z)
+
+```
+job_id:       8645ecd0-9a96-4235-9f81-13cc70ed65c6   (The Journal, offset 48)
+status:       failed        exit_code: 1
+duration:     25 seconds    corpus unchanged at 434
+error_reason: podcast_scraper.exceptions.ProviderRuntimeError:
+              [LiteLLMProvider/SpeakerDetection] OpenAI speaker detection failed: unknown:
+              no budget/credit left on this key — this is NOT retryable, so the run is
+              hard-stopping (the resilience fuse for money/access, same as the call-count fuse)
+```
+
+**This is NOT the LiteLLM virtual-key cap.** Measured at the time of failure:
+
+| Metric | Value |
+| --- | --- |
+| `litellm_key_spend_usd{key_alias="podcast-prod"}` | **$5.42** |
+| `litellm_key_max_budget_usd` | $25 |
+| `litellm_key_budget_burn_ratio` | **0.217** (21.7 %) |
+| `podcast_pipeline_run_cost_usd_total` | $91.05 (modelled) |
+
+The virtual key had **79 % of its budget remaining**. The message is the **upstream
+provider's** credit relayed through the gateway. Every LiteLLM stage in `cloud_balanced` uses
+the alias `podcast-flash-0731` (`litellm_summary_model`, `litellm_speaker_model`,
+`litellm_insight_model` — profile lines 78, 257, 258), so whatever that alias maps to upstream
+is what ran dry.
+
+**Hypothesis, not verified — a shared-account bystander risk.** OpenRouter spend by vertical
+at the time:
+
+| vertical | total |
+| --- | --- |
+| `pi` | **$72.75** |
+| `gateway` | $11.53 |
+| `opencode` | $6.35 |
+| `podcast` | $1.38 (looks stale) |
+
+If those verticals share one prepaid OpenRouter account, the podcast pipeline can be starved
+by an unrelated workload. **Unverified:** no credit/balance metric exists in VictoriaMetrics,
+and the prod gateway admin API needs a master key. This is inference from spend, not a reading
+of the balance.
+
+**Follow-up worth opening:** export an upstream **credit/balance remaining** metric. Every
+budget signal we have today measures *spend*, and none measures *headroom* — so the first
+notice of exhaustion is a hard job failure. That is the same absence-vs-presence blind spot
+G1 exposed, in the money domain rather than the progress domain.
+
+**The fuse behaved correctly, and this is worth recording as a positive.** The run hard-stopped
+in **25 seconds** with a precise, correctly-classified-as-non-retryable error, no wedge, no
+silence, no orphaned thread, and no partial state — corpus verified at `434/434` with GI and KG,
+`with_neither: 0`. Contrast G1's 4 h 15 m of silence on the same day. When the error taxonomy
+is right and the stop is deliberate, the machinery works.
+
 ### Offsets used
 
 The handover's **fixed** offsets, not live-derived ones — `discover10.py` needs SSH, which
