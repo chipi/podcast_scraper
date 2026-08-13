@@ -622,9 +622,69 @@ first step for whoever picks this up.
 4. Only then judge whether corpus growth is producing enricher value — the question the
    expansion was meant to answer.
 
----
+### H3 — post-ingest passes are architecturally inconsistent — `[OPEN, medium — architectural review]`
 
-## E. Deploy
+**Operator observation, 2026-08-13:** *"I already don't like how we do enrichment differently
+than indexing. They should both be [invoked] in similar manners."*
+
+Correct, and the divergence is structural rather than stylistic. Both are post-ingest passes
+over the same corpus root, initiated from the same function (`_finalize_pipeline`), a few lines
+apart — yet they differ on almost every axis that matters operationally.
+
+| Axis | Indexing | Enrichment |
+| --- | --- | --- |
+| Invocation | direct in-process call — `maybe_index_corpus(...)` (`orchestration.py:1720`) | detached subprocess spawn — `_maybe_spawn_enrichment_after_pipeline(...)` (`:1756`) |
+| Blocking | **yes** — pipeline waits | **no** — fire-and-forget |
+| Timed | `pipeline_metrics.vector_index_seconds` (`:1726`) | not timed, absent from run metrics |
+| Failure visibility | surfaces in the run | **WARNING log only**, pipeline "succeeds" regardless |
+| Config surface | scalar `vector_search: true` | nested dict `enrichment.enabled` |
+| Disabled path | — | **silent `return`** (`:1786`) |
+| Job identity | part of `full_incremental_pipeline` | separate `command_type=corpus_enrichment` |
+| Sibling passes | edges + topic clusters run inline alongside it | — |
+
+#### Consequences, not just inelegance
+
+1. **`status: succeeded` means different things for different passes.** A job reporting success
+   guarantees the corpus was indexed. It guarantees **nothing** about enrichment, which may
+   have never started, started and died, or still be running. The job record cannot express
+   partial completion of its own post-processing.
+2. **Enrichment failure is unobservable by design.** Indexing failure is a run failure;
+   enrichment failure is a WARNING in a log nobody greps. That is precisely how H2 went
+   unnoticed across 501 episodes.
+3. **Concurrency hazard, unexamined.** The enrichment spawn is detached and the pipeline
+   returns immediately. When jobs are chained back-to-back — as this session did, 31 times —
+   the next ingestion run can begin while the previous run's enrichment is still writing to the
+   **same corpus root**. Nothing observed suggests this bit us, but nothing prevents it either.
+   **Unverified:** whether the jobs registry's slot logic serialises `corpus_enrichment` against
+   `full_incremental_pipeline`.
+4. **Two config idioms for one concept.** `vector_search` is a scalar; `enrichment` is a dict
+   whose truthiness is probed with `getattr(...) or {}`. Adding a third pass would face a
+   coin-flip on which pattern to copy.
+
+#### The design question to answer
+
+**Should post-ingest passes be a uniform, declared pipeline stage set — each blocking, timed,
+individually reported in the run summary, and individually able to fail the run — or should
+they all be detached, self-registering jobs that the pipeline merely triggers?**
+
+Both are defensible. What is not defensible is one of each, chosen implicitly.
+
+Arguments for **uniform in-process stages**: honest `succeeded` semantics, one config idiom,
+failures visible where the work happened, no corpus-write concurrency, per-stage timings for
+free.
+
+Arguments for **uniform detached jobs**: ingestion latency stays independent of enrichment
+cost, enrichment can be re-run standalone without re-ingesting (already true today via
+`corpus_enrichment`), and a slow ML enricher cannot stall the ingest loop.
+
+**My read, offered as input rather than a decision:** the detached model is right for
+*expensive, independently re-runnable* work and the in-process model is right for work the
+corpus is *incomplete without*. The current split has it backwards on the observability axis —
+the pass we can least afford to lose silently is the one with no failure surface.
+
+Related: G1/G2 (supervision), D6 (headroom vs spend), H2 (the enrichment gap this surfaced).
+All four share one root pattern — **the system reports what happened and stays silent about
+what did not.**
 
 ### E1 (= F5) — `deploy-all-prod.yml` unvalidated — `[OPEN, low]`
 
