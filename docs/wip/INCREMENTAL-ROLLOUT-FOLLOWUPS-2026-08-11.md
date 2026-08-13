@@ -263,6 +263,70 @@ management or may be independent. Worth investigating together; not worth assumi
 episodes landed clean. Expect it to recur occasionally; `skip_existing` makes every retry free.
 Smaller windows (15) already bound the loss per occurrence.
 
+### G3 — progress signals are episode-granular, so "no progress" is unreadable — `[OPEN, medium]`
+
+**Found 2026-08-13** when a client-side stall detector fired a **false positive** on a healthy
+Hard Fork run.
+
+The detector's rule was *"`catalog_episode_count` flat for 30 min while `status=running`"*. The
+rule was satisfied and the inference was wrong: the corpus counter only increments when an
+**episode completes**, and Hard Fork's median episode is 79 min (max 113). One long episode
+plus transcription and enrichment trivially exceeds a 30-minute gap while everything is fine.
+
+**What actually distinguished this from the G1 wedge was host CPU** — 15.5 % sustained over an
+hour (working) versus 2.5 % (wedged). That is a machine-level metric that knows nothing about
+episodes, and having to reach for it is the same "correlate three unrelated systems" problem
+G1 exposed.
+
+| | G1 (real wedge) | G3 (false positive) |
+| --- | --- | --- |
+| `status` | `running` | `running` |
+| corpus growth | flat 4 h 15 m | flat ~30 min |
+| **prod CPU** | **2.5 %** | **15.5 %** |
+| outcome | cancelled by hand | succeeded normally |
+
+**The generalisable point:** with progress measured only at episode completion, *any*
+threshold is wrong. Too tight and long-form feeds cry wolf; too loose and a real wedge runs for
+an hour before anyone notices. The signal is lumpy at exactly the granularity that matters.
+
+**Fixes, in order of correctness:**
+
+1. **Sub-episode progress watermark** (RFC-117 §4.2 / ADR-150 D7). "Episode 9 of 10,
+   transcribing, last movement 40 s ago" would never have fired here and would have caught G1
+   within minutes. This is the actual answer.
+2. **Feed-aware thresholds** — now cheap, since §5h of the onboarding doc measured median and
+   max episode duration for every candidate feed. A threshold of ~2× a feed's median is
+   defensible where a flat 30 min is not.
+3. **Interim mitigation applied 2026-08-13:** threshold raised to ~45 min and prod CPU is now
+   reported *inside* the warning, so an alert states whether it is idle-stuck or busy-slow
+   rather than leaving an operator to correlate by hand. This is a workaround, not a fix — CPU
+   is a proxy for a signal the job should be emitting itself.
+
+---
+
+## G-notes. Operational observations (2026-08-12/13)
+
+Smaller learnings from driving ~320 episodes through the operator API. Not defects; things the
+next person will otherwise rediscover.
+
+- **`GET /api/jobs/subprocess-log` and `/api/jobs/{id}/log` exist.** I initially tried to read a
+  failed job's log through `/api/corpus/text-file`, which rejects `.log` ("Only .txt, .md,
+  .vtt, .srt, and .json are allowed"), and concluded logs were unreachable. They are not —
+  there are two purpose-built endpoints. **Use those for job diagnosis.**
+- **Handle an empty API response explicitly in any watcher.** A poll where both the status and
+  corpus calls failed produced `status=` and `corpus=` empty. Treating empty as "unchanged"
+  would have read as healthy — the same silence-as-health failure as G1. An explicit
+  `no-response` state surfaced it instead; the next poll recovered, confirming a transient blip.
+- **Per-feed window yield varies enormously and is stable per feed.** From 15-episode windows:
+  The Journal returned +8, +7, +7, +7 across four consecutive windows, while NVIDIA, Hard Fork
+  and No Priors regularly returned +13/+14. This is B1's discovery lag interacting with a
+  corpus whose episodes are not a contiguous newest-N block. Practical consequence: **plan
+  windows by measured yield per feed, not by deficit** — The Journal needs roughly double the
+  windows of NVIDIA for the same gain.
+- **The corpus feeds endpoint lags the catalog** (C4). Compute offsets from
+  `catalog_episode_count` plus the per-feed table only after a run settles, or offsets will be
+  planned against stale counts.
+
 ---
 
 ## D. LiteLLM prod gateway (Option-A / ADR-142 follow-ups)
