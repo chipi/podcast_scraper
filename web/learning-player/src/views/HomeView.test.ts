@@ -85,6 +85,57 @@ describe('HomeView (discover state, signed out)', () => {
   })
 })
 
+describe('HomeView distinguishes empty from broken (#1591)', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+  })
+
+  it('renders an error with a retry when the fetch fails', async () => {
+    // The defect: every section did `.catch(() => [])` and then hid itself when empty, so a total
+    // API outage rendered the same page as a brand-new account — a hero, a search box, two chips.
+    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('boom'))
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+    // The section header still renders — it is what tells you this content exists at all.
+    expect(w.text()).toContain("What's new")
+  })
+
+  it('retry re-fetches and recovers', async () => {
+    // No error state anywhere in the app previously offered a retry: the only move was a reload.
+    const spy = vi.spyOn(api, 'getDiscover').mockRejectedValueOnce(new Error('boom'))
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+
+    spy.mockResolvedValueOnce({
+      items: [ep('a-1', 'Recovered Ep')], page: 1, page_size: 8, total: 1, has_more: false,
+    })
+    await w.get('[data-testid="section-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+    expect(w.text()).toContain('Recovered Ep')
+  })
+
+  it('a successful-but-empty load still hides the section', async () => {
+    // Hide when the SYSTEM is empty — there is no action the user can take, so an empty shell is
+    // noise. Contrast "Your shows", which is empty because of a user action not yet taken.
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+    expect(w.text()).not.toContain("What's new")
+  })
+})
+
 describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () => {
   const catalogue = [
     { feed_id: 'showa', title: 'Show A', artwork_url: null, image_url: null, episode_count: 2 } as Podcast,

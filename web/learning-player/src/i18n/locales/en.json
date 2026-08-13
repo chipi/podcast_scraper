@@ -442,5 +442,10 @@
   },
   "status": {
     "pending": "Pending"
+  },
+  "section": {
+    "loading": "Loading…",
+    "error": "Couldn’t load this right now.",
+    "retry": "Try again"
   }
 }

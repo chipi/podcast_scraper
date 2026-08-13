@@ -22,12 +22,14 @@ import { formatDuration } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
+import { useSectionState } from '../composables/useSectionState'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import QueueButton from '../components/QueueButton.vue'
+import SectionStatus from '../components/SectionStatus.vue'
 import ShowTile from '../components/ShowTile.vue'
 import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
@@ -45,7 +47,8 @@ const userPrefs = useUserPreferencesStore()
 // localStorage remains the fast-path fallback until the server responds.
 const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 
-const latest = ref<EpisodeSummary[]>([])
+const whatsNew = useSectionState<EpisodeSummary[]>([])
+const latest = computed(() => whatsNew.data.value)
 const catalogue = ref<Podcast[]>([])
 const recommended = ref<EpisodeSummary[]>([])
 const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
@@ -74,7 +77,16 @@ function dismissInterests(): void {
 async function onInterestsSaved(): Promise<void> {
   dismissInterests()
   // Re-pull discovery so a personalized order (when the flag is on) takes effect immediately.
-  latest.value = (await getDiscover(8).catch(() => null))?.items ?? latest.value
+  await loadWhatsNew()
+}
+
+/**
+ * What's New load (#1591). Failure is NOT collapsed into emptiness — that collapse is why a total
+ * API outage rendered the same page as a brand-new account. A rejection lands in the error phase,
+ * which renders a message and a retry.
+ */
+function loadWhatsNew(): Promise<void> {
+  return whatsNew.load(async () => (await getDiscover(8)).items)
 }
 
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
@@ -158,7 +170,7 @@ onMounted(async () => {
   // on the next Home mount.
   const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
   if (remote === true) interestsDismissed.value = true
-  latest.value = (await getDiscover(8).catch(() => null))?.items ?? []
+  await loadWhatsNew()
   // "Your shows" means the shows you follow. UXS-014:102 decided this ("we don't show the whole
   // corpus as 'your shows'") and gated it on subscriptions being user-curated — which they now are,
   // since follow-show shipped. The corpus catalogue lives in Browse. Artwork/titles still come from
@@ -259,8 +271,12 @@ onMounted(async () => {
          signed-out or nothing's due. Compact/full is a synced per-user preference. -->
     <YourWeek />
 
-    <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll -->
-    <section v-if="wnFeatured" class="mt-7">
+    <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
+         Renders while loading and on error too (#1591): the section header is the thing that tells
+         you this content exists, so hiding it on failure made an outage indistinguishable from a
+         cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
+         there is no action the user can take. -->
+    <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7">
       <div class="mb-3 flex items-baseline justify-between">
         <h2 class="lp-section">{{ t('home.whatsNew') }}</h2>
         <RouterLink :to="{ name: 'catalog' }" class="text-sm font-bold text-accent no-underline">
@@ -268,6 +284,9 @@ onMounted(async () => {
         </RouterLink>
       </div>
 
+      <SectionStatus :phase="whatsNew.phase.value" :rows="3" @retry="loadWhatsNew" />
+
+      <template v-if="wnFeatured">
       <!-- Featured #01 -->
       <div class="relative">
       <!-- Queue toggle in the artwork's upper-right (same over-image treatment as the player hero);
@@ -326,6 +345,7 @@ onMounted(async () => {
           <QueueButton :slug="ep.slug" class="mr-1" />
         </li>
       </ul>
+      </template>
     </section>
 
     <!-- #1261-9: browse-all entry points — otherwise the standalone
