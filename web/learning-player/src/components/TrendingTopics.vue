@@ -2,11 +2,23 @@
 /**
  * Trending topics (Plan B #4 — temporal_velocity on Home). Topics "heating up"
  * across the corpus: last month running >= 1.5x their 6-month average, with a
- * floor on total mentions to cut sample noise. Three views the operator can flip
- * between to decide what to keep: Sparklines (shape), Over time (stacked stream),
- * Momentum (velocity-vs-volume map). Reads the shared, memoized
- * /api/app/corpus/enrichment; hides when nothing is rising. Chips/points open the
+ * floor on total mentions to cut sample noise. Reads the shared, memoized
+ * /api/app/corpus/enrichment; hides when nothing is rising. Chips open the
  * topic entity card (whose Signals show the same momentum).
+ *
+ * ## One view, not four (#1589)
+ *
+ * This shipped with a four-way view switcher — Pills / Sparklines / Over time / Momentum — whose
+ * own comment said it existed "so the operator can flip between to decide what to keep". That
+ * decision was never made, so an internal A/B lab reached users: four ways to read the same data,
+ * a control nobody outside the team could interpret, and three components' worth of maintenance.
+ *
+ * Sparklines won. It is the only view that shows BOTH the current level and the shape that earned
+ * the "trending" label, which is the question the section exists to answer; the stream and momentum
+ * views answered analyst questions on a consumer surface, and pills dropped the trend entirely.
+ *
+ * If a second view is ever wanted, add it deliberately with a reason — not as an unresolved
+ * experiment.
  */
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -15,10 +27,7 @@ import { getCorpusEnrichment } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { THEME_NEUTRAL, THEME_PALETTE, type RisingTopic, type TopicTheme } from './trending'
-import TrendingChips from './TrendingChips.vue'
 import TrendingSparkChips from './TrendingSparkChips.vue'
-import TrendingStream from './TrendingStream.vue'
-import TrendingMomentum from './TrendingMomentum.vue'
 
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
 const { t } = useI18n()
@@ -86,17 +95,6 @@ void getCorpusEnrichment()
     topics.value = []
   })
 
-type View = 'chips' | 'sparks' | 'stream' | 'momentum'
-// Default to the redesigned Sparklines (storyline colour + grouped + collapsible) — the richest,
-// most legible view of what's rising.
-const view = ref<View>('sparks')
-const VIEWS: Array<{ key: View; label: string }> = [
-  { key: 'chips', label: 'trendViewChips' },
-  { key: 'sparks', label: 'trendViewSparks' },
-  { key: 'stream', label: 'trendViewStream' },
-  { key: 'momentum', label: 'trendViewMomentum' },
-]
-
 const hasAny = computed(() => topics.value.length > 0)
 </script>
 
@@ -104,39 +102,8 @@ const hasAny = computed(() => topics.value.length > 0)
   <section v-if="hasAny" class="mt-7" data-testid="home-trending">
     <h2 class="lp-section">{{ t('home.trending') }}</h2>
     <p class="mb-2 text-sm text-muted">{{ t('home.trendingHint') }}</p>
-    <div
-      role="tablist"
-      :aria-label="t('home.trendViewLabel')"
-      class="mb-3 inline-flex flex-wrap gap-0.5 rounded-full border border-border p-0.5 text-xs"
-    >
-      <button
-        v-for="opt in VIEWS"
-        :key="opt.key"
-        type="button"
-        role="tab"
-        :aria-selected="view === opt.key"
-        :data-testid="`trend-view-${opt.key}`"
-        class="rounded-full px-2.5 py-0.5 font-semibold transition"
-        :class="view === opt.key ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
-        @click="view = opt.key"
-      >
-        {{ t(`home.${opt.label}`) }}
-      </button>
-    </div>
 
-    <TrendingChips
-      v-if="view === 'chips'"
-      :topics="topics"
-      :topic-theme="topicTheme"
-      :neutral-color="THEME_NEUTRAL"
-      :followed-ids="followedIds"
-      :can-follow="canFollow"
-      :theme-member-ids="themeMemberIds"
-      @open="emit('open', $event)"
-      @follow="onFollow"
-    />
     <TrendingSparkChips
-      v-else-if="view === 'sparks'"
       :topics="topics"
       :topic-theme="topicTheme"
       :neutral-color="THEME_NEUTRAL"
@@ -144,22 +111,6 @@ const hasAny = computed(() => topics.value.length > 0)
       :can-follow="canFollow"
       @open="emit('open', $event)"
       @follow="onFollow"
-    />
-    <TrendingStream
-      v-else-if="view === 'stream'"
-      :topics="topics"
-      :months="months"
-      :topic-theme="topicTheme"
-      :neutral-color="THEME_NEUTRAL"
-      @open="emit('open', $event)"
-    />
-    <TrendingMomentum
-      v-else
-      :topics="topics"
-      :topic-theme="topicTheme"
-      :neutral-color="THEME_NEUTRAL"
-      :theme-member-ids="themeMemberIds"
-      @open="emit('open', $event)"
     />
   </section>
 </template>

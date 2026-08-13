@@ -87,39 +87,16 @@ describe('TrendingTopics container', () => {
     expect(first.text()).toBe('✓')
   })
 
-  it('switches to the Pills view with a chip per rising topic', async () => {
+  it('offers exactly one view — the A/B switcher is gone (#1589)', async () => {
+    // This section shipped with a four-way view switcher whose own comment admitted it existed so
+    // "the operator can flip between to decide what to keep". That decision was never made, so an
+    // internal experiment reached users. Sparklines won; the control and the other three views are
+    // deleted. A reintroduced switcher fails here.
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    await w.get('[data-testid="trend-view-chips"]').trigger('click')
-    const chips = w.findAll('[data-testid="trend-chip"]')
-    expect(chips).toHaveLength(2)
-    expect(chips[0].text()).toContain('foreign policy')
-    expect(chips[0].text()).toContain('4×')
-  })
-
-  it('switches to the Over-time (stream) view with one band per rising topic', async () => {
-    withVelocity()
-    const w = mountIt()
-    await flushPromises()
-    await w.get('[data-testid="trend-view-stream"]').trigger('click')
-    expect(w.find('[data-testid="trend-stream"]').exists()).toBe(true)
-    expect(w.findAll('[data-testid="trend-stream-band"]')).toHaveLength(2)
-    // A legend chip opens the topic card.
-    await w.findAll('[data-testid="trend-stream-legend"]')[0].trigger('click')
-    expect(w.emitted('open')).toBeTruthy()
-  })
-
-  it('switches to the Momentum view with one point per rising topic', async () => {
-    withVelocity()
-    const w = mountIt()
-    await flushPromises()
-    await w.get('[data-testid="trend-view-momentum"]').trigger('click')
-    expect(w.find('[data-testid="trend-momentum"]').exists()).toBe(true)
-    const pts = w.findAll('[data-testid="trend-momentum-point"]')
-    expect(pts).toHaveLength(2)
-    await pts[0].trigger('click')
-    expect(w.emitted('open')![0]).toEqual(['topic:policy'])
+    expect(w.find('[role="tablist"]').exists()).toBe(false)
+    expect(w.findAll('[data-testid="trend-spark-row"]')).toHaveLength(2)
   })
 
   it('renders nothing when no topic is rising', async () => {

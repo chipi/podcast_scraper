@@ -8,6 +8,7 @@
  * vertical space is precious) with an expand toggle. Emits `open` with the entity.
  */
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { getTrending } from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -15,6 +16,8 @@ import { useInterestsStore } from '../stores/interests'
 import type { TrendingEntity } from '../services/types'
 import Sparkline from './Sparkline.vue'
 import { trendArrow, trendColor, trendDirection } from './trending'
+
+const { t } = useI18n()
 
 const props = withDefaults(
   defineProps<{ kind: string; title: string; scope?: 'corpus' | 'mine'; limit?: number }>(),
@@ -111,7 +114,7 @@ function titleOf(e: TrendingEntity): string {
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
-      {{ expanded ? 'Show less' : `Show ${hiddenCount} more` }}
+      {{ expanded ? t('home.showLess') : t('home.showMore', { count: hiddenCount }) }}
     </button>
   </section>
 </template>

@@ -104,7 +104,7 @@ signed out.
 | ------- | -------------- | ------------- | ---------- |
 | **App shell / nav** | Header brand → home; `<nav>` NavIconLink **Browse** / **Library** / **Profile**; **Sign in** / **Sign up** when signed out | Every page | `smoke.spec.ts` (+ implicit in all) |
 | **Home** | Adaptive hero — signed-in with in-progress history: **"Continue listening"**; otherwise kicker **"Ask across every episode"** + title **"Find any moment you've heard."**; search bar (`#home-search`); dismissible **set-your-interests** card → picker; **What's new** (featured `01` + ranked rows `02–06`); **Trending topics**; **Storylines**; **Recommended**; **"Your shows"** — the shows the signed-in user FOLLOWS (`getLibrary()`, capped at 11 + a "See all" tile to Library). Absent when signed out; renders an explanatory empty state rather than self-hiding when a signed-in user follows nothing. | `goto('/')` | `home-search.spec.ts`, `smoke.spec.ts`, `full-listen.spec.ts` (entry) |
-| **Trending topics** | Corpus "heating up" (`temporal_velocity`) — views **Pills / Sparklines (default) / Over time / Momentum** (`trend-view-*`), all coloured by **storyline** (theme cluster); Sparklines groups by storyline + collapses to top 5 (`trend-spark-expand`); chips open the topic card + one-tap follow | Home, below What's new | ⚠️ **none** — see [gaps](#coverage-gaps) |
+| **Trending topics** | Corpus "heating up" (`temporal_velocity`) as **sparkline rows** — coloured by **storyline** (theme cluster), grouped by storyline, collapsed to top 5 (`trend-spark-expand`); rows open the topic card + one-tap follow. The four-way view switcher was removed in #1589 (it was an unresolved operator A/B lab). | Home, below What's new | ⚠️ **none** — see [gaps](#coverage-gaps) |
 | **Storylines** | Theme clusters (topics discussed together) as a browsable rail; chip opens the anchor topic card, `＋`/`✓` follows the `thc:` cluster | Home, below Trending | ⚠️ **none** — see [gaps](#coverage-gaps) |
 | **Momentum rail (RFC-103)** | Read-time "Trending now" (`GET /api/app/trending`, EWMA momentum anchored to `APP_TRENDING_NOW`) — generic per-kind chips: label + weekly sparkline + `↑` velocity + follow (interest-token kinds). `momentum-rail-{kind}`, `momentum-chip`, `momentum-follow`. Wired for `kind=topic` (opens topic card) | Home, below Storylines | `trending.spec.ts` |
 | **EntityCard (person/topic)** | Overlay (from Search/Home) or inline (from Insights) card: **Follow**, **Your corpus** scope (all/mine), cluster identity (**Theme** + **Similar**), theme members, **Follow storyline**, **Perspectives**, **Signals**, related people/topics; re-entrant back stack | Trending/Storyline chip, Search entity hit, KnowledgePanel | `perspectives.spec.ts` (Perspectives), `entity-signals.spec.ts` (Signals) |
@@ -138,7 +138,7 @@ so the gap is visible, not silently "covered":
 | **Storylines rail** | `home-storylines`, `storyline-chip`, `storyline-follow` | New (option B). Unit-tested (`Storylines.test.ts`); **no e2e**. |
 | **EntityCard Follow-storyline** | `ec-follow-storyline` | New (option A). Unit-tested (`EntityCardBody.test.ts`); **no e2e**. |
 | **Interests picker (UI)** | `interests-topics`, `interests-storylines` | Unit-tested (`InterestsPicker.test.ts`). e2e drives the **API** only, never the modal. |
-| **Trending topics** | `home-trending`, `trend-chip`, `trend-chip-follow`, `trend-view-*`, `trend-stream*`, `trend-momentum*`, `trend-spark*` | Unit-tested; **no e2e**. |
+| **Trending topics** | `home-trending`, `trend-spark*` | Unit-tested; **no e2e**. |
 | **Momentum rail (RFC-103)** | `momentum-rail-{kind}`, `momentum-chip`, `momentum-follow`; `GET /api/app/trending` (server pins `APP_TRENDING_NOW=2026-07-20`) | Unit-tested (`MomentumRail.test.ts`) **+ e2e** (`trending.spec.ts`). Operator global view is on the gi-kg-viewer Dashboard (`TrendingGlobal.vue` → `GET /api/corpus/trending`). |
 | **Catalog (Browse)** | — | No dedicated spec. |
 | **Profile** | `stats.*` (roles) | No dedicated spec; picker entry point unexercised e2e. |
@@ -168,13 +168,9 @@ on **roles / accessible names / RouterLinks**; reusable widgets carry `data-test
 
 | Element | Hook |
 | ------- | ---- |
-| View tabs | `data-testid="trend-view-{chips\|sparks\|stream\|momentum}"` (`role="tab"`); **default = `sparks`** |
-| Pills chip / follow | `data-testid="trend-chip"` / `trend-chip-follow` (`aria-pressed`) |
 | Sparklines | `data-testid="trend-sparks"`, `trend-spark-row`, `trend-spark-follow`, `trend-spark-expand` (collapsed to top 5 + "Show N more") |
 
 All views colour topics by **storyline** (theme cluster) — same-cluster topics share a hue, unclustered use a neutral hue; the Sparklines view groups by storyline (hottest cluster first).
-| Over-time stream | `data-testid="trend-stream"`, `trend-stream-band`, `trend-stream-legend` |
-| Momentum map | `data-testid="trend-momentum"`, `trend-momentum-point` |
 
 ### Storylines ([Storylines](../src/components/Storylines.vue))
 
