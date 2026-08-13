@@ -500,7 +500,7 @@ it — the rule from §5d, applied to itself.
 | 8 | Empire: World History | history, dialogic, UK | 399 | 08-12 | `https://feeds.megaphone.fm/empirepodcast` |
 | 9 | ChinaTalk | geo: China, tech policy | 555 | 08-10 | `https://feeds.megaphone.fm/CHTAL4990341033` |
 | 10 | **Sinica Podcast** | geo: China *(promoted — China pair)* | 557 | 08-10 | `https://rss.art19.com/sinica` |
-| 11 | The Seen and the Unseen | geo: India, econ/policy | 117 | 08-10 | `https://rss.libsyn.com/shows/91647/destinations/458496.xml` |
+| 11 | **Ideas of India** *(replaces The Seen and the Unseen — see §5h)* | geo: India, econ/policy | 170 | 08-12 | `https://rss.libsyn.com/shows/288629/destinations/2249435.xml` |
 | 12 | Odd Lots | finance, dialogic | 1193 | 08-10 | `https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss` |
 | 13 | EconTalk | economics | 1062 | 08-10 | `https://feeds.simplecast.com/wgl4xEgL` |
 | 14 | Ground Truths (Topol) | biotech, medicine×AI | 93 | 08-04 | `https://api.substack.com/feed/podcast/587835/s/119690.rss` |
@@ -510,14 +510,14 @@ it — the rule from §5d, applied to itself.
 
 | # | Show | Domain | Items | Newest | RSS |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Acquired | business/tech history | 216 | 08-09 | `https://feeds.transistor.fm/acquired` |
+| 1 | **Capitalisn't** *(replaces Acquired — see §5h)* | political economy | 248 | 08-06 | `https://feeds.simplecast.com/XytPkydI` |
 | 2 | The Peter Attia Drive | medicine/longevity | 451 | 08-10 | `https://rss.libsyn.com/shows/121729/destinations/713489.xml` |
 | 3 | In Moscow's Shadows (Galeotti) | geo: Russia — *the one that clears* | 280 | 08-09 | `https://rss.buzzsprout.com/1026985.rss` |
-| 4 | Ideas of India | geo: India *(India pair)* | 170 | 08-12 | `https://rss.libsyn.com/shows/288629/destinations/2249435.xml` |
+| 4 | **The Rest Is Politics: Leading** *(the durable half of that franchise)* | politics, long-form interviews | 207 | — | `https://feeds.megaphone.fm/GLT9029505120` |
 | 5 | Explaining Brazil | geo: Brazil | 393 | 08-10 | `https://rss.beehiiv.com/podcasts/019fb9ea-ace8-7470-a622-111dd3c715f1.xml` |
 | 6 | Latin America in Focus | geo: LatAm *(LatAm pair)* | 241 | 07-30 | `https://feeds.simplecast.com/_DUdLkxj` |
 | 7 | Macro Musings | monetary economics | 562 | 08-10 | `https://rss.libsyn.com/shows/138806/destinations/865793.xml` |
-| 8 | Complex Systems (patio11) | financial infrastructure | 101 | 08-13 | `https://feeds.transistor.fm/complex-systems-with-patrick-mckenzie-pati` |
+| 8 | Complex Systems (patio11) | financial infrastructure | 101 | 08-13 | `https://feeds.transistor.fm/complex-systems-with-patrick-mckenzie-patio11` |
 | 9 | Past Present Future (Runciman) | history of ideas | 331 | 08-12 | `https://feeds.megaphone.fm/ARML2708405200` |
 | 10 | Machine Learning Street Talk | AI, contested | 258 | 08-10 | `https://anchor.fm/s/1e4a0eac/podcast/rss` |
 
@@ -609,6 +609,82 @@ These are exactly why the 1-episode phase exists. Long episodes cost several tim
 Per show, appended to this document as the loop runs: episode count ingested, insight and KG
 counts, modelled cost, the verdict, and — when a show is dropped — **the specific reason**.
 A dropped show with no recorded reason will be re-proposed by someone in six months.
+
+---
+
+## 5h. Episode-duration ceiling — 2 hours (decided 2026-08-13)
+
+**Operator rule:** maximum acceptable episode length is about **two hours**. This is why Lex
+Fridman and similar shows were never on the list.
+
+Rationale beyond cost: a 4-hour episode is one row in the corpus regardless of length, so it
+dilutes per-episode signal density, dominates transcription time and spend, and is the item
+most likely to trip the **$10 per-run soft cap on its own**.
+
+Measured from `<itunes:duration>` over the newest 12 episodes of every candidate — median
+matters more than max, so one long special doesn't disqualify a show and a consistently-long
+show can't hide behind one short episode.
+
+### Disqualified
+
+| Show | Median | Max | Was |
+| --- | --- | --- | --- |
+| **The Seen and the Unseen** | **271 min (4.5 h)** | 342 min | Batch A #11 |
+| **Acquired** | **238 min (4.0 h)** | 291 min | Batch B #1 |
+| **Fall of Civilizations** | **204 min (3.4 h)** | 329 min | bench |
+
+Note both Batch-A/B casualties were *strong* editorial picks — Acquired was one of the
+reviewer's four "omissions I'd call errors". The duration rule overrides editorial merit,
+which is the point of having it as a hard rule rather than a preference.
+
+### Replacements
+
+| Slot | Out | In | Why |
+| --- | --- | --- | --- |
+| A #11 | The Seen and the Unseen | **Ideas of India** (median 93 min) | promoted from B; keeps India covered within the ceiling |
+| B #1 | Acquired | **Capitalisn't** (median 49 min) | political economy, strengthens the economics cluster |
+| B #4 | Ideas of India *(promoted)* | **The Rest Is Politics: Leading** (median 69 min) | the durable half of that franchise — long-form interviews rather than weekly commentary |
+
+### Full measurements (newest 12 episodes, minutes)
+
+| Show | Median | Max | Verdict |
+| --- | --- | --- | --- |
+| The Flip | 12 | 16 | OK |
+| Nature Podcast | 17 | 32 | OK |
+| Explaining Brazil | 31 | 52 | OK |
+| Latin America in Focus | 34 | 37 | OK |
+| Switched on Pop / The Rest Is Entertainment | 37 | 50–58 | OK |
+| In Moscow's Shadows | 44 | 61 | OK |
+| Empire | 46 | 57 | OK |
+| The a16z Show · Capitalisn't | 49 | 65–81 | OK |
+| Odd Lots | 50 | 67 | OK |
+| In Our Time · Ground Truths | 54 | 58–64 | OK |
+| Conversations with Tyler | 55 | 61 | OK |
+| Macro Musings · Past Present Future | 58 | 68–72 | OK |
+| The Peter Attia Drive | 59 | 145 | occasional >2 h |
+| ChinaTalk | 68 | 120 | occasional >2 h |
+| The Long Run · The Rest Is Politics: Leading | 69 | 78 | OK |
+| EconTalk | 70 | 89 | OK |
+| The Rest Is History | 72 | 82 | OK |
+| Sinica | 76 | 114 | OK |
+| 80,000 Hours | 78 | 168 | occasional >2 h |
+| Machine Learning Street Talk | 79 | 113 | OK |
+| The Pragmatic Engineer | 85 | 171 | occasional >2 h |
+| Dwarkesh Podcast | 87 | 157 | occasional >2 h |
+| Lenny's Podcast | 92 | 99 | OK |
+| Ideas of India | 93 | 114 | OK |
+
+### Unresolved: the ceiling can only be applied at feed level
+
+Five retained shows publish the **occasional** episode over two hours — Peter Attia (max 145),
+ChinaTalk (120), 80,000 Hours (168), The Pragmatic Engineer (171), Dwarkesh (157). Their
+medians are well inside the limit, so they stay.
+
+But **`POST /api/jobs` has no duration filter**, so a long episode inside an otherwise-short
+feed will be ingested. The rule is enforceable when *choosing feeds*, not when selecting
+episodes. If per-episode enforcement is wanted, that is a pipeline feature request (skip or
+flag episodes whose `itunes:duration` exceeds a configured maximum) — not something the
+current API can express.
 
 ---
 
