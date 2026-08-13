@@ -269,6 +269,23 @@ describe('KnowledgePanel', () => {
       expect.objectContaining({ kind: 'insight', source_insight_id: 'i1', start_ms: 12000 }),
     )
   })
+
+  it('offers exactly ONE save per insight (#1593)', async () => {
+    // An insight used to carry a bookmark (→ Highlights) AND a heart (→ Saved › Insights): same
+    // text, two icons, two destinations, two places to look for it later. The heart is gone.
+    // Highlights is the destination — it carries colours, notes and export.
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    const w = mountPanel()
+    await flushPromises()
+
+    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(true)
+    // The favourite heart is `.lp-fav` — the one shared affordance, and it must not be on an
+    // insight row any more.
+    expect(w.find('.lp-fav').exists()).toBe(false)
+  })
 })
 
 describe('KnowledgePanel — #1191 route-and-tag surfacing', () => {

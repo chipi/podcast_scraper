@@ -17,7 +17,6 @@ import type {
   EpisodeDetail,
   EpisodeSummary,
   Entity,
-  FavoriteAdd,
   Insight,
   SearchHit,
   Topic,
@@ -31,19 +30,7 @@ import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
 import EntityCardBody from './EntityCardBody.vue'
 import EpisodeDensity from './EpisodeDensity.vue'
-import FavoriteButton from './FavoriteButton.vue'
 
-function favInsight(ins: Insight): FavoriteAdd {
-  const secs = insightStartSeconds(ins)
-  return {
-    kind: 'insight',
-    ref: `${props.slug}#${ins.id}`,
-    label: ins.text,
-    sublabel: props.episode.title,
-    slug: props.slug,
-    start_ms: secs != null ? Math.round(secs * 1000) : undefined,
-  }
-}
 
 const props = withDefaults(
   defineProps<{
@@ -441,7 +428,12 @@ watch(
                     <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
                   </svg>
                 </button>
-                <FavoriteButton :item="favInsight(ins)" />
+                <!-- #1593: the heart used to sit here too, saving the SAME insight to a SECOND
+                     list (Library › Saved › Insights) while the bookmark above saved it to
+                     Highlights. Same text, two icons, two destinations, two places to look for it
+                     later. One save, one destination — and Highlights is the richer one: it carries
+                     colours, notes and export. Existing insight-favourites stay readable in Library;
+                     this only stops NEW ones being written. -->
               </span>
             </div>
             <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
