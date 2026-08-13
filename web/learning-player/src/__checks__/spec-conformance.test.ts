@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -87,6 +89,35 @@ describe('UXS-014 pattern rules that can be executed', () => {
       offenders,
       'UXS-014:70 says a show name wraps rather than truncating. Fix the component, or amend the ' +
         'spec and add it to KNOWN_VIOLATIONS with the reason.',
+    ).toEqual([])
+  })
+})
+
+describe('WCAG contrast cannot depend on scroll position', () => {
+  /**
+   * A fixed bar that overlays page content must be OPAQUE.
+   *
+   * The bottom nav shipped as `bg-canvas/95 backdrop-blur`. axe composites text against what is
+   * actually behind an element, so with a tinted storyline chip scrolled underneath, both the
+   * active label (`text-accent`) and the inactive labels (`text-muted`) measured 4.28:1 — under the
+   * 4.5:1 AA floor. Conformance became a function of what the user had scrolled to, which surfaced
+   * as an INTERMITTENT e2e failure: the kind that gets retried away rather than fixed.
+   *
+   * Scrims (`bg-black/40` behind a modal) are exempt: translucency is their purpose and they carry
+   * no text of their own.
+   */
+  const BARS = ['BottomNav.vue', 'MiniPlayer.vue']
+
+  it.each(BARS)('%s paints an opaque background', (name) => {
+    const text = readFileSync(join(__dirname, '..', 'components', name), 'utf8')
+    const bar = text.split('<template>')[1] ?? ''
+    const translucent = bar.match(/class="[^"]*fixed[^"]*"/g)?.filter(
+      (c) => /bg-[a-z-]+\/\d+/.test(c) || c.includes('backdrop-blur'),
+    )
+    expect(
+      translucent ?? [],
+      `${name} overlays page content, so a translucent background makes its text contrast depend ` +
+        `on what is scrolled behind it. Use an opaque token.`,
     ).toEqual([])
   })
 })

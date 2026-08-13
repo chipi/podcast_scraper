@@ -19,6 +19,17 @@
  * `pb-[env(safe-area-inset-bottom)]` clears the iOS home indicator. When the global mini-player
  * (#1587) lands it sits directly ABOVE this bar, so both must be accounted for in the page's bottom
  * padding — `mobile-invariants.test.ts` pins that the two never overlap the sticky transport.
+ *
+ * ## The background is OPAQUE, deliberately
+ *
+ * This shipped as `bg-canvas/95 backdrop-blur`, which looked better and quietly broke WCAG: axe
+ * composites text against whatever is actually behind the bar, so with a tinted storyline chip
+ * scrolled underneath, both the active label (`text-accent`, 4.28:1) and the inactive labels
+ * (`text-muted`, 4.28:1) fell under the 4.5:1 AA floor. Contrast became a function of scroll
+ * position, which is why it surfaced as an intermittent e2e failure rather than a steady one.
+ *
+ * A fixed bar over arbitrary content cannot be translucent and also guarantee contrast. Opacity is
+ * the fix at cause; `spec-conformance.test.ts` pins it so the frosted look cannot come back.
  */
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -53,7 +64,7 @@ const isActive = (name: string): boolean => route.name === name
 
 <template>
   <nav
-    class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-canvas/95 backdrop-blur sm:hidden"
+    class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-canvas sm:hidden"
     :aria-label="t('nav.primary')"
     data-testid="bottom-nav"
   >

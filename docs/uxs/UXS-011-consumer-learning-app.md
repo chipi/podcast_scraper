@@ -261,8 +261,25 @@ values and the extraction algorithm are open until promoted.
 ## Capture & Consolidation surfaces (P2 + P3 — shipped)
 
 The "Remember" half of the app (PRD-040 Capture, PRD-041 Consolidation). All affordances below are
-**auth-gated** — signed-out users see the app exactly as before (no capture controls, no scope
-toggles). Everything is grounded (slug + timestamp) and extractive (**no request-time LLM**).
+**auth-gated**, and since #1590 "gated" means *deferred, not hidden*: the control **renders for
+signed-out visitors** and its tap routes to sign-in with a redirect back to where they were.
+
+> **Amended 2026-08-13 (#1590).** This paragraph previously read "signed-out users see the app
+> exactly as before (no capture controls, no scope toggles)". That was the shipped behaviour and it
+> was wrong: it hid the capabilities that differentiate this product from precisely the visitors who
+> had not yet decided to sign up, and the only prompts left were the two header buttons. Hiding is
+> also the wrong shape of honesty — the control is not unavailable, it is deferred.
+>
+> The rule now: **a gated control renders, states its requirement in its accessible name
+> (`auth.signInTo*`), claims no toggle state (`aria-pressed` is omitted, since nothing is toggled),
+> and routes to sign-in on tap.** It must never call the API — the stores swallow write failures, so
+> an ungated click flips optimistically, takes a 401, and silently reverts, which reads to the user
+> as their own action failing.
+>
+> Enforced by `src/__checks__/auth-gate.test.ts`, which fails on any component performing a per-user
+> write without the gate. That guard exists because I wired two call sites and missed four.
+
+Everything is grounded (slug + timestamp) and extractive (**no request-time LLM**).
 
 ### Capture affordances (inline actions, never overlays)
 

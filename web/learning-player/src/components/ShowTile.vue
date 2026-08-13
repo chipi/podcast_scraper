@@ -18,6 +18,7 @@ import { RouterLink } from 'vue-router'
 import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import { useLibraryStore } from '../stores/library'
+import { useSignInGate } from '../composables/useSignInGate'
 
 const props = withDefaults(
   defineProps<{
@@ -36,17 +37,25 @@ const props = withDefaults(
 
 const { t } = useI18n()
 const library = useLibraryStore()
+const { isGated, gated } = useSignInGate()
 const following = computed(() => library.has(props.show.feed_id))
 const busy = ref(false)
 
-async function toggleFollow(): Promise<void> {
+/**
+ * Signed-out follows must route to sign-in, not call the API (#1590).
+ *
+ * The store swallows failures and reverts optimistically, so an ungated click here flipped the
+ * button, fired a 401, and flipped back — a control that appears to work for one frame and then
+ * silently undoes itself, which is worse than the hidden control #1590 replaced.
+ */
+const toggleFollow = gated(async () => {
   busy.value = true
   try {
     await library.toggle(props.show.feed_id, { title: props.show.title })
   } finally {
     busy.value = false
   }
-}
+})
 
 const art = (): string | null => showArtwork(props.show)
 </script>
@@ -71,8 +80,8 @@ const art = (): string | null => showArtwork(props.show)
       type="button"
       class="absolute right-1.5 top-1.5 inline-flex h-7 items-center gap-1 rounded-full px-2 text-[0.65rem] font-bold shadow-lg backdrop-blur transition disabled:opacity-60"
       :class="following ? 'bg-accent text-accent-foreground' : 'bg-canvas/80 text-canvas-foreground hover:bg-canvas'"
-      :aria-pressed="following"
-      :aria-label="following ? t('podcast.following') : t('podcast.follow')"
+      :aria-pressed="isGated ? undefined : following"
+      :aria-label="isGated ? t('auth.signInToFollow') : following ? t('podcast.following') : t('podcast.follow')"
       :disabled="busy"
       @click.prevent.stop="toggleFollow"
     >

@@ -26,6 +26,7 @@ import { hitStartSeconds, insightStartSeconds } from '../player/insights'
 import { speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
+import { useSignInGate } from '../composables/useSignInGate'
 import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
 import EntityCardBody from './EntityCardBody.vue'
@@ -227,17 +228,20 @@ async function runSearch(): Promise<void> {
 // --- capture (P2, PRD-040): save a grounded insight to the personal highlights corpus ---
 const capture = useCaptureStore()
 const savedInsightIds = computed(() => capture.savedInsightIds)
-function captureInsight(ins: Insight): void {
-  const secs = insightStartSeconds(ins)
-  void capture.captureInsight(props.slug, {
-    id: ins.id,
-    text: ins.text,
-    start_ms: secs != null ? Math.round(secs * 1000) : null,
-  })
-}
+/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
+const captureInsight = (ins: Insight) =>
+  gated(() => {
+    const secs = insightStartSeconds(ins)
+    void capture.captureInsight(props.slug, {
+      id: ins.id,
+      text: ins.text,
+      start_ms: secs != null ? Math.round(secs * 1000) : null,
+    })
+  })()
 
 // --- related ("more like this") ---
 const auth = useAuthStore()
+const { isGated, gated } = useSignInGate()
 const queue = useQueueStore()
 const epArt = episodeArtwork
 
@@ -425,8 +429,8 @@ watch(
                   class="rounded-full p-0.5 transition"
                   :class="savedInsightIds.has(ins.id) ? 'text-accent' : 'text-muted hover:text-accent'"
                   :aria-pressed="savedInsightIds.has(ins.id)"
-                  :aria-label="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
-                  :title="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  :aria-label="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  :title="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
                   @click="captureInsight(ins)"
                 >
                   <svg viewBox="0 0 24 24" :fill="savedInsightIds.has(ins.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">

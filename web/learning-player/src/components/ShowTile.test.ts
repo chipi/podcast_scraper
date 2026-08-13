@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import * as api from '../services/api'
 import type { Podcast } from '../services/types'
+import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
 import ShowTile from './ShowTile.vue'
 
@@ -15,6 +16,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
+    { path: '/login', name: 'login', component: { template: '<div/>' } },
   ],
 })
 
@@ -30,6 +32,10 @@ function show(title: string | null, feedId = 'f1'): Podcast {
     description: null,
     episode_count: 3,
   }
+}
+
+function signIn(): void {
+  useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
 }
 
 function mountTile(p: Podcast, props: { lines?: 1 | 2; followable?: boolean } = {}) {
@@ -89,6 +95,7 @@ describe('ShowTile', () => {
   })
 
   it('follows without navigating away from the page it is on', async () => {
+    signIn()
     const post = vi.spyOn(api, 'followShow').mockResolvedValue([
       { feed_id: 'p03', feed_url: null, title: 'Acquired', added_at: 1 },
     ])
@@ -104,11 +111,39 @@ describe('ShowTile', () => {
   })
 
   it('reflects an existing follow', () => {
+    signIn()
     const lib = useLibraryStore()
     lib.items = [{ feed_id: 'p03', feed_url: null, title: 'Acquired', added_at: 1 }]
     lib.loaded = true
     const w = mountTile(show('Acquired', 'p03'), { followable: true })
     expect(w.get('[aria-pressed]').attributes('aria-pressed')).toBe('true')
     expect(w.text()).toContain('Following')
+  })
+
+  // --- the sign-in gate (#1590) ---
+  //
+  // Signed out, the store's optimistic toggle would flip the button, take a 401, and flip back —
+  // the control appears to work for one frame and then silently undoes itself. Worse than the
+  // hidden control #1590 replaced, because it looks like a failure of the user's own action.
+
+  it('offers the follow control to signed-out visitors, as a sign-in teaser', () => {
+    const w = mountTile(show('Acquired', 'p03'), { followable: true })
+    const btn = w.get('button')
+    expect(btn.attributes('aria-label')).toBe('Sign in to follow')
+    // No aria-pressed: nothing is toggled, so claiming a pressed state would be a lie to AT.
+    expect(btn.attributes('aria-pressed')).toBeUndefined()
+  })
+
+  it('routes a signed-out follow to sign-in instead of calling the API', async () => {
+    const post = vi.spyOn(api, 'followShow')
+    await router.push('/podcast/p03')
+    const w = mountTile(show('Acquired', 'p03'), { followable: true })
+
+    await w.get('button').trigger('click')
+    await flushPromises()
+
+    expect(post).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/podcast/p03')
   })
 })

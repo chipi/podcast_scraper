@@ -114,3 +114,72 @@ should have been.
   `rgba(255,255,255,.2)` hairlines, which have no token to use instead. Narrowed to *chromatic*
   literals only — a brand colour is never greyscale, so the Ember glow it exists to catch still
   fails it. A noisy guard gets deleted, and then guards nothing.
+
+## G. Self-assessment findings (third pass, after Wave 5)
+
+Two real defects, both mine, both invisible to the suite until I went looking. Neither was found by
+a test failing — which is the point worth keeping.
+
+### G1. #1590 was half-wired: four ungated controls
+
+I added four sign-in teaser strings and wired two (`signInToQueue`, `signInToSave`). The other two
+(`signInToCapture`, `signInToFollow`) sat unused in `en.json` — I found them by hunting orphaned
+i18n keys, not by noticing the behaviour. Four controls performed per-user writes with no gate:
+
+| Control | Site | Signed-out behaviour before the fix |
+| --- | --- | --- |
+| Follow (tile) | `ShowTile.vue` | optimistic flip → 401 → silent revert |
+| Follow (show page) | `PodcastView.vue` | same |
+| Capture insight | `KnowledgePanel.vue` | POST 401, nothing announced |
+| Capture highlight | transcript → `PlayerView.vue` | POST 401, nothing announced |
+
+The stores swallow write failures, so the visible result is a control that appears to work for one
+frame then undoes itself — **worse than the hidden control #1590 replaced**, because it reads as the
+user's own action failing rather than as a requirement to sign in.
+
+Worse, `PlayerView` passed `:can-capture="auth.isAuthenticated"`, so signed-out visitors saw **no
+capture affordance at all** on the transcript — the exact defect #1590 exists to fix, on the
+differentiator's most important surface. My #1590 pass simply never looked there.
+
+Fixed: all four gated; capture always renders with a `gated` prop driving the label; new
+`src/__checks__/auth-gate.test.ts` fails on any component doing a per-user write without the gate.
+Guard mutation-tested (removing the gate from ShowTile → `expected [ 'ShowTile.vue' ] to equal []`).
+`UXS-011` amended — it still specified the pre-#1590 behaviour ("no capture controls" signed out).
+
+### G2. The bottom nav broke WCAG AA, intermittently, by design
+
+`BottomNav` shipped as `bg-canvas/95 backdrop-blur`. axe composites text against what is *actually*
+behind an element, so with a tinted storyline chip scrolled underneath, both the active label
+(`text-accent`) and the inactive labels (`text-muted`) measured **4.28:1** against the 4.5:1 AA
+floor. Contrast was a function of scroll position.
+
+That is why it surfaced as a **flaky** e2e failure (3 of 5 runs) rather than a steady one — and
+flaky failures are the ones that get retried away instead of fixed. `MiniPlayer` had the identical
+defect (`bg-elevated/95`), uncaught only because no axe scan lands on it.
+
+Fixed: both bars opaque. Pinned by a new case in `spec-conformance.test.ts` (also mutation-tested).
+Modal scrims (`bg-black/40`) are exempt and documented as such — translucency is their purpose and
+they carry no text. Verified 6/6 clean runs where it previously failed 3/5.
+
+### G3. The e2e harness is not hermetic across runs
+
+Re-running the suite against a surviving `lp-e2e-appdata` volume produces failures that look exactly
+like code regressions: `follow-show.spec` expects `aria-pressed="false"` on a show a previous run
+already followed, and retries 34 times before failing. I lost time treating this as a regression
+from my own change.
+
+Fixed by `e2e/run-local-stack.sh`, which recreates the volume every run. **This is the mechanism
+that makes the suite trustworthy; do not optimise the volume recreation away.**
+
+### Not covered / still open after this pass
+
+- The gate guard is **source-level** (does the file import `useSignInGate`), not behavioural. It
+  cannot catch a component that imports the gate and then calls the store directly anyway.
+- Only `ShowTile` and `TranscriptList` gained behavioural gated-path tests. `PodcastView` and
+  `KnowledgePanel` are covered by the source guard only.
+- No axe scan covers `MiniPlayer` — its contrast fix is asserted by the source guard, not measured.
+- I have not re-audited the OTHER auth-gated surfaces (scope toggles, consolidation) for the same
+  hide-vs-defer defect. `UXS-011` mentions "scope toggles" in the same retracted sentence; I fixed
+  the sentence, not necessarily every control it described.
+- The 105-violation figure in the first capture was one run's node count, not 105 distinct defects
+  — it is 2 violations across many nodes. Recorded here so the number is not misread later.

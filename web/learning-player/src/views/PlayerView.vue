@@ -16,6 +16,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { usePlayerStore } from '../stores/player'
 import { useQueueStore } from '../stores/queue'
 import { useAuthStore } from '../stores/auth'
+import { useSignInGate } from '../composables/useSignInGate'
 import { useCaptureStore } from '../stores/capture'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
@@ -67,6 +68,7 @@ function goBack(): void {
 }
 const queue = useQueueStore()
 const auth = useAuthStore()
+const { gated } = useSignInGate()
 const capture = useCaptureStore()
 const userPrefs = useUserPreferencesStore()
 
@@ -367,10 +369,18 @@ async function markMoment(): Promise<void> {
   }, 1500)
 }
 
-async function onCaptureParagraph(span: ParagraphSpan): Promise<void> {
-  await capture.captureSpan(props.slug, span)
-  announceCapture(t('capture.savedHighlight'))
-}
+/**
+ * Capture is auth-gated, so a signed-out tap routes to sign-in (#1590).
+ *
+ * #1592 made this control permanently visible on touch — before that it was hover-only, so a
+ * signed-out visitor could barely reach it. Now they can, and an ungated tap would POST a 401 and
+ * announce nothing: the highlight appears to vanish.
+ */
+const onCaptureParagraph = (span: ParagraphSpan) =>
+  gated(async () => {
+    await capture.captureSpan(props.slug, span)
+    announceCapture(t('capture.savedHighlight'))
+  })()
 
 function ensureCaptureLoaded(): void {
   if (auth.isAuthenticated) void capture.ensureLoaded()
@@ -653,7 +663,8 @@ onBeforeUnmount(() => {
             :segments="segments"
             :active-index="activeIndex"
             :grounded="groundedSpans"
-            :can-capture="auth.isAuthenticated"
+            :can-capture="true"
+            :gated="!auth.isAuthenticated"
             :saved-segment-ids="savedSegmentIds"
             class="min-h-0 lg:flex-1"
             @seek="seekContent"

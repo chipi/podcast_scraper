@@ -8,6 +8,10 @@
  *
  * Hidden on the player page itself (the full transport is right there) and whenever nothing is
  * loaded. On mobile it sits directly ABOVE the bottom tab bar; on desktop it pins to the bottom.
+ *
+ * Opaque background, same reason as BottomNav: a translucent fixed bar composites its text against
+ * whatever is scrolled behind it, so its contrast ratio — and therefore WCAG conformance — varies
+ * with page content. Pinned by `spec-conformance.test.ts`.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,7 +36,7 @@ const progress = computed(() =>
   <div
     v-if="visible"
     data-testid="mini-player"
-    class="fixed inset-x-0 bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-40 border-t border-border bg-elevated/95 backdrop-blur sm:bottom-0 sm:pb-[env(safe-area-inset-bottom)]"
+    class="fixed inset-x-0 bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-40 border-t border-border bg-elevated sm:bottom-0 sm:pb-[env(safe-area-inset-bottom)]"
   >
     <!-- Progress as a hairline along the top edge: present without competing with the tab bar. -->
     <div class="h-0.5 w-full bg-overlay">

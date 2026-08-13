@@ -14,6 +14,7 @@ import ShowActivityChart from '../components/ShowActivityChart.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
+import { useSignInGate } from '../composables/useSignInGate'
 import { showArtwork } from '../utils/episode'
 import type { EpisodeSummary, Podcast } from '../services/types'
 
@@ -41,6 +42,7 @@ async function loadShow(): Promise<void> {
 // follows" section of Your Week. Distinct from the interest tokens followed on entity cards.
 const auth = useAuthStore()
 const library = useLibraryStore()
+const { isGated, gated } = useSignInGate()
 // Auth may resolve after this mounts, so load follow-state on the transition, not just onMounted.
 watch(
   () => auth.isAuthenticated,
@@ -52,14 +54,15 @@ watch(
 
 const following = computed(() => library.has(props.feedId))
 const togglingFollow = ref(false)
-async function toggleFollow(): Promise<void> {
+/** Signed-out follows route to sign-in rather than firing a 401 the store silently reverts (#1590). */
+const toggleFollow = gated(async () => {
   togglingFollow.value = true
   try {
     await library.toggle(props.feedId, { title: show.value?.title ?? episodes.value[0]?.podcast_title })
   } finally {
     togglingFollow.value = false
   }
-}
+})
 
 async function loadMore(): Promise<void> {
   loading.value = true
@@ -139,9 +142,10 @@ watch(() => props.feedId, reset)
           :class="
             following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'
           "
-          :aria-pressed="following"
+          :aria-pressed="isGated ? undefined : following"
           :disabled="togglingFollow"
-          :title="t('podcast.followHint')"
+          :title="isGated ? t('auth.signInToFollow') : t('podcast.followHint')"
+          :aria-label="isGated ? t('auth.signInToFollow') : undefined"
           @click="toggleFollow"
         >
           <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>

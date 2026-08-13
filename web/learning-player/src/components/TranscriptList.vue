@@ -32,12 +32,17 @@ const props = withDefaults(
     activeIndex: number
     /** segmentIndex → grounded insight whose quote lands here (highlight + tap-to-reveal). */
     grounded?: Record<number, GroundedSpan>
-    /** Show the per-paragraph "save highlight" affordance (auth-gated; off → transcript unchanged). */
+    /** Show the per-paragraph "save highlight" affordance (off → transcript unchanged). */
     canCapture?: boolean
+    /**
+     * The affordance is a sign-in teaser rather than a live action (#1590) — it still renders and
+     * still emits; the parent owns the gate because the parent owns the API call. Label only.
+     */
+    gated?: boolean
     /** Segment ids already captured (drives the saved state of the paragraph's save control). */
     savedSegmentIds?: Set<string>
   }>(),
-  { grounded: () => ({}), canCapture: false, savedSegmentIds: () => new Set<string>() },
+  { grounded: () => ({}), canCapture: false, gated: false, savedSegmentIds: () => new Set<string>() },
 )
 const emit = defineEmits<{
   (e: 'seek', start: number): void
@@ -45,6 +50,7 @@ const emit = defineEmits<{
   (e: 'capture', span: ParagraphSpan): void
 }>()
 const { t } = useI18n()
+
 
 function onSegmentClick(i: number, seg: Segment): void {
   emit('seek', seg.start)
@@ -206,9 +212,9 @@ watch(
           type="button"
           class="absolute right-0 top-1 rounded-full p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           :class="paraSaved(para) ? 'text-accent opacity-100' : 'text-muted hover:text-accent'"
-          :aria-pressed="paraSaved(para)"
-          :aria-label="paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
-          :title="paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
+          :aria-label="gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
+          :title="gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
+          :aria-pressed="gated ? undefined : paraSaved(para)"
           @click="onCaptureParagraph(pi, para)"
         >
           <svg viewBox="0 0 24 24" :fill="paraSaved(para) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
