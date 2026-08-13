@@ -244,13 +244,13 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 
 ## Tunable parameters (optional)
 
-| Parameter                        | Current value                                | Status                                | Notes                                                              |
-| -------------------------------- | -------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------ |
-| Display font family              | Inter 800, tight                             | Open                                  | Upgrade to a licensed grotesque considered; must cover i18n glyphs |
-| `brand-default` accent ("Ember") | `#FF6A3D`                                    | Open                                  | Brand colour pending; used only when no show colour                |
-| Per-show accent derivation       | NOT BUILT — accent is the brand constant      | Retracted (#1598)                     | `setShowAccent()` has zero call sites; restore this row with the wiring, not before |
-| Token names                      | `canvas`, `surface`, `accent`, domain tokens | Frozen                                | API — do not rename                                                |
-| Dark-only (MVP)                  | dark baseline                                | Open                                  | Light theme is a post-MVP fast-follow                              |
+| Parameter                        | Current value                                | Status            | Notes                                                                               |
+| -------------------------------- | -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
+| Display font family              | Inter 800, tight                             | Open              | Upgrade to a licensed grotesque considered; must cover i18n glyphs                  |
+| `brand-default` accent ("Ember") | `#FF6A3D`                                    | Open              | Brand colour pending; used only when no show colour                                 |
+| Per-show accent derivation       | NOT BUILT — accent is the brand constant     | Retracted (#1598) | `setShowAccent()` has zero call sites; restore this row with the wiring, not before |
+| Token names                      | `canvas`, `surface`, `accent`, domain tokens | Frozen            | API — do not rename                                                                 |
+| Dark-only (MVP)                  | dark baseline                                | Open              | Light theme is a post-MVP fast-follow                                               |
 
 ### How to experiment
 

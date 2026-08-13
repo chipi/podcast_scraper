@@ -126,6 +126,7 @@ prevent: it makes the reader go and find the control it is telling them about.
 **Known gap:** user-empty states currently render indefinitely, so someone who deliberately follows
 nothing sees the prompt forever. The intended fix is to stop after the first success (first follow,
 first capture), which needs a per-user preference flag. Not yet built.
+
 - **Search result active/jump:** the `▶ mm:ss` uses `--lp-accent`; focus ring per UXS-011.
 
 ## Components
