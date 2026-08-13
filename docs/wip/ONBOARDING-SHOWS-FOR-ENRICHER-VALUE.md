@@ -360,6 +360,101 @@ first batch**, not deferred with the formal-debate group.
 
 ---
 
+## 5e. VERIFIED feed registry (2026-08-13)
+
+Every candidate below was resolved through the **iTunes Search API** (authoritative `feedUrl`)
+and then **fetched and parsed** — HTTP status, channel title, `<item>` count, newest `pubDate`.
+This supersedes the "unverified" warnings in §5, §5b and §5d for the shows listed here.
+
+> Item counts use `content.count("<item>")`, **not** `grep -c`, which counts lines and
+> catastrophically undercounts minified feeds — the error that produced a false "dead feed"
+> report on 2026-08-12 (withdrawn B2).
+
+### Verification killed two candidates and corrected four names
+
+| Candidate | Finding |
+| --- | --- |
+| **Crossing Borders** | **DEAD** — newest episode `01 Aug 2023`, three years stale. Was in my Batch A geographic group. |
+| **Overheard at National Geographic** | **DEAD** — newest `11 Jul 2023`. Was my NatGeo/adventure pick. |
+| a16z Podcast | renamed → **The a16z Show** |
+| Bio Eats World | renamed → **Raising Health** |
+| Analyse Asia | renamed → **Analyse Podcast** |
+| The Rest Is Politics | first resolution returned the **US spinoff**; the main UK show is a different feed |
+
+Two of fifteen Batch-A picks were dead on arrival, and one would have ingested the wrong show.
+That is the argument for resolving before planning, not after.
+
+### Batch A — 15 feeds
+
+Everything alive, currently publishing, and paying off without depending on a dark enricher.
+
+| # | Show | Domain | Items | Newest | RSS |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **The a16z Show** | tech/VC | 657 | 2026-08-12 | `https://feeds.simplecast.com/JGE3yC0V` |
+| 2 | **Lenny's Podcast** | tech/product | 356 | 2026-08-09 | `https://api.substack.com/feed/podcast/10845.rss` |
+| 3 | **The Pragmatic Engineer** | tech/eng | 71 | 2026-08-12 | `https://api.substack.com/feed/podcast/458709.rss` |
+| 4 | **The Rest Is History** | history · dialogic · UK | 714 | 2026-08-12 | `https://feeds.megaphone.fm/GLT4787413333` |
+| 5 | **The Rest Is Politics** | politics · dialogic · UK | 597 | 2026-08-12 | `https://feeds.megaphone.fm/GLT9190936013` |
+| 6 | **Empire: World History** | history · dialogic · UK | 399 | 2026-08-12 | `https://feeds.megaphone.fm/empirepodcast` |
+| 7 | **ChinaTalk** | geo: China · tech policy | 555 | 2026-08-10 | `https://feeds.megaphone.fm/CHTAL4990341033` |
+| 8 | **Explaining Brazil** | geo: Brazil · politics/econ | 393 | 2026-08-10 | `https://rss.beehiiv.com/podcasts/019fb9ea-ace8-7470-a622-111dd3c715f1.xml` |
+| 9 | **The Seen and the Unseen** | geo: India · econ/policy | 117 | 2026-08-10 | `https://rss.libsyn.com/shows/91647/destinations/458496.xml` |
+| 10 | **Ground Truths** (Topol) | biotech · medicine×AI | 93 | 2026-08-04 | `https://api.substack.com/feed/podcast/587835/s/119690.rss` |
+| 11 | **The Readout Loud** (STAT) | biotech news | 416 | 2026-07-30 | `https://feeds.megaphone.fm/thereadoutloud` |
+| 12 | **Odd Lots** (Bloomberg) | finance · dialogic | 1193 | 2026-08-10 | `https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss` |
+| 13 | **EconTalk** | economics · deep back-catalog | 1062 | 2026-08-10 | `https://feeds.simplecast.com/wgl4xEgL` |
+| 14 | **The Explorers Podcast** | adventure/exploration | 265 | 2026-08-11 | `https://feeds.megaphone.fm/ADL4434397541` |
+| 15 | **Outside Podcast** | adventure/outdoors | 471 | 2026-08-12 | `https://feeds.megaphone.fm/POM5001301518` |
+
+**Composition:** 6 of 15 are non-US-produced. Worth noting because it broadens the §5b
+argument — geographic diversity is not only a Global South question. The three Goalhanger
+shows are British, so they simultaneously serve the history/politics domains, the dialogic
+format gap, and the US-monoculture correction. That triple duty is why they earn Batch A slots
+over additional Global South feeds.
+
+**Domain clusters honoured:** biotech 2, adventure 2, finance/economy 2 — none is a singleton
+island. Finance and economy additionally land on **existing** overlap (Unhedged, Invest Like
+the Best, Planet Money, The Journal), so they are the highest-overlap additions in the batch.
+
+### Batch B — 10 feeds
+
+| # | Show | Domain | Items | Newest | RSS |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **Open to Debate** | formal debate | 472 | 2026-08-07 | `https://feeds.megaphone.fm/PNP1207584390` |
+| 2 | **Intelligence Squared** | formal debate · UK | 938 | 2026-08-11 | `https://feeds.megaphone.fm/NSR6363847171` |
+| 3 | **Machine Learning Street Talk** | AI · contested | 258 | 2026-08-10 | `https://anchor.fm/s/1e4a0eac/podcast/rss` |
+| 4 | **The New Yorker Radio Hour** | culture | 1055 | 2026-08-11 | `https://feeds.simplecast.com/TRuO_SRo` |
+| 5 | **Switched on Pop** | culture/music | 548 | 2026-08-11 | `https://feeds.megaphone.fm/switchedonpop` |
+| 6 | **The Rest Is Entertainment** | culture · dialogic · UK | 296 | 2026-08-12 | `https://feeds.megaphone.fm/GLT2052042801` |
+| 7 | **Sinica Podcast** | geo: China · society | 557 | 2026-08-10 | `https://rss.art19.com/sinica` |
+| 8 | **The Flip** | geo: Africa · tech | 101 | 2026-07-30 | `https://anchor.fm/s/114238e48/podcast/rss` |
+| 9 | **The Long Run** (Timmerman) | biotech industry | 205 | 2026-08-11 | `https://feeds.soundcloud.com/users/soundcloud:users:317770704/sounds.rss` |
+| 10 | **Dwarkesh Podcast** | cluster deepening | 136 | 2026-08-11 | `https://apple.dwarkesh-podcast.workers.dev/feed.rss` |
+
+### Verified bench — resolved and live, not yet slotted
+
+Available for Batch C or as substitutes.
+
+| Show | Domain | Items | Newest | RSS |
+| --- | --- | --- | --- | --- |
+| Nature Podcast | science | 917 | 2026-08-12 | `https://feeds.acast.com/public/shows/0185cea5-9e3b-4b82-a887-26f91f92765f` |
+| Ideas of India | geo: India | 170 | 2026-08-12 | `https://rss.libsyn.com/shows/288629/destinations/2249435.xml` |
+| Masters in Business | finance | 797 | 2026-08-12 | `https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/4e4cd910-40a1-4619-a5f3-ae2b0012ffff/...` |
+| The Compound and Friends | finance · panel | 596 | 2026-08-11 | `https://feeds.megaphone.fm/TCP4771071679` |
+| Analyse Podcast | geo: SE Asia | 535 | 2026-08-06 | `https://anchor.fm/s/10a88303c/podcast/rss` |
+| Latin America in Focus | geo: LatAm | 241 | 2026-07-30 | `https://feeds.simplecast.com/_DUdLkxj` |
+| Tooth &amp; Claw | nature/adventure | 209 | 2026-08-03 | `https://feeds.megaphone.fm/QCD9705695442` |
+| Raising Health (ex-Bio Eats World) | biotech | 202 | 2026-07-06 | `https://feeds.simplecast.com/BXDamaKF` |
+| Armchair Explorer | adventure | 207 | 2026-07-06 | `https://feeds.captivate.fm/armchairexplorer/` |
+
+### Still NOT verified for any of these
+
+Licensing / bridge constraints, episode-length cost profile, and whether the show's topics
+*actually* overlap the corpus (that needs `topic_similarity` output, not my reading of a show
+description). Ingesting is safe; the overlap claim is still an assumption.
+
+---
+
 ## 6. Recommended shape of the next batch
 
 **Three** axes now compete for slots, not two: the **format axis** (§5 — debate/panel, unlocks
