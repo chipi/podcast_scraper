@@ -111,14 +111,35 @@ describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () 
     expect(w.text()).not.toContain('Show A')
   })
 
-  it('teaches the capability instead of vanishing when you follow nothing', async () => {
+  it('offers the action, not just a description of it, when you follow nothing', async () => {
     vi.spyOn(api, 'getLibrary').mockResolvedValue([])
     signIn()
     const w = mount(HomeView, { global: { plugins: [i18n, router] } })
     await flushPromises()
-    // A section that silently self-hides can't tell a new user the feature exists.
+    // A section that silently self-hides can't tell a new user the feature exists — but an empty
+    // state that only *describes* following is barely better, since it sends you off to a show page
+    // to find the control. Suggested shows carry the follow control itself.
     expect(w.text()).toContain('Your shows')
     expect(w.text()).toContain('Follow a show')
+    expect(w.findAll('[aria-pressed]').length).toBeGreaterThan(0)
+  })
+
+  it('following from the empty state moves the show into the grid, in place', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    vi.spyOn(api, 'followShow').mockResolvedValue([
+      { feed_id: 'showa', feed_url: null, title: 'Show A', added_at: 1 },
+    ])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).toContain('Follow a show') // empty state
+
+    await w.get('[aria-pressed]').trigger('click')
+    await flushPromises()
+
+    // The whole point of putting the control here: no navigation, no reload.
+    expect(w.text()).not.toContain('Follow a show')
+    expect(w.text()).toContain('Show A')
   })
 
   it('still renders a followed feed that is absent from the catalogue', async () => {

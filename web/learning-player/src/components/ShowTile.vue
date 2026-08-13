@@ -12,18 +12,41 @@
  * how the four drifted call sites happened: wherever a component owned the tile it was correct,
  * wherever markup was hand-rolled inline it drifted.
  */
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
+import { useLibraryStore } from '../stores/library'
 
 const props = withDefaults(
   defineProps<{
     show: Podcast
     /** Lines the label box reserves. 2 suits the grid; 1 suits a dense rail. */
     lines?: 1 | 2
+    /**
+     * Render a follow toggle over the artwork. Used where following IS the point of showing the
+     * tile — e.g. the empty "Your shows" state, where the user must be able to complete the action
+     * in place rather than be sent somewhere else to do it.
+     */
+    followable?: boolean
   }>(),
-  { lines: 2 },
+  { lines: 2, followable: false },
 )
+
+const { t } = useI18n()
+const library = useLibraryStore()
+const following = computed(() => library.has(props.show.feed_id))
+const busy = ref(false)
+
+async function toggleFollow(): Promise<void> {
+  busy.value = true
+  try {
+    await library.toggle(props.show.feed_id, { title: props.show.title })
+  } finally {
+    busy.value = false
+  }
+}
 
 const art = (): string | null => showArtwork(props.show)
 </script>
@@ -31,7 +54,7 @@ const art = (): string | null => showArtwork(props.show)
 <template>
   <RouterLink
     :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
-    class="block no-underline text-canvas-foreground"
+    class="relative block no-underline text-canvas-foreground"
   >
     <img
       v-if="art()"
@@ -41,6 +64,21 @@ const art = (): string | null => showArtwork(props.show)
       class="aspect-square w-full rounded-xl bg-elevated object-cover"
     />
     <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
+    <!-- `.prevent.stop` so following does not also navigate to the show page: the whole tile is a
+         link, and the point of this control is to complete the action without leaving Home. -->
+    <button
+      v-if="followable"
+      type="button"
+      class="absolute right-1.5 top-1.5 inline-flex h-7 items-center gap-1 rounded-full px-2 text-[0.65rem] font-bold shadow-lg backdrop-blur transition disabled:opacity-60"
+      :class="following ? 'bg-accent text-accent-foreground' : 'bg-canvas/80 text-canvas-foreground hover:bg-canvas'"
+      :aria-pressed="following"
+      :aria-label="following ? t('podcast.following') : t('podcast.follow')"
+      :disabled="busy"
+      @click.prevent.stop="toggleFollow"
+    >
+      <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+      {{ following ? t('podcast.following') : t('podcast.follow') }}
+    </button>
     <div
       class="mt-1 text-xs font-bold leading-tight"
       :class="lines === 2 ? 'line-clamp-2 min-h-[2.25rem]' : 'truncate'"

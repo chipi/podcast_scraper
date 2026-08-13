@@ -46,7 +46,7 @@ const userPrefs = useUserPreferencesStore()
 const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 
 const latest = ref<EpisodeSummary[]>([])
-const shows = ref<Podcast[]>([])
+const catalogue = ref<Podcast[]>([])
 const recommended = ref<EpisodeSummary[]>([])
 const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
 const query = ref('')
@@ -92,16 +92,25 @@ const resumeArt = episodeArtwork
  * the corpus still renders — from its stored title — rather than vanishing.
  */
 async function loadFollowedShows(): Promise<void> {
-  if (!auth.isAuthenticated) {
-    shows.value = []
-    return
-  }
-  const [catalogue] = await Promise.all([
+  if (!auth.isAuthenticated) return
+  const [cat] = await Promise.all([
     getPodcasts().catch(() => [] as Podcast[]),
     library.ensureLoaded().catch(() => {}),
   ])
-  const byId = new Map(catalogue.map((p) => [p.feed_id, p]))
-  shows.value = library.items.map(
+  catalogue.value = cat
+}
+
+/**
+ * Derived, not assigned, so following a show from the empty state moves it into the grid instantly
+ * — the action completes where it was offered, with no reload and no navigation.
+ *
+ * A followed feed that has left the corpus still renders from its stored title rather than
+ * silently vanishing.
+ */
+const shows = computed<Podcast[]>(() => {
+  if (!auth.isAuthenticated) return []
+  const byId = new Map(catalogue.value.map((p) => [p.feed_id, p]))
+  return library.items.map(
     (i) =>
       byId.get(i.feed_id) ?? {
         feed_id: i.feed_id,
@@ -112,7 +121,16 @@ async function loadFollowedShows(): Promise<void> {
         episode_count: 0,
       },
   )
-}
+})
+
+/**
+ * What the empty state offers. Following is only discoverable today from a show page, so an empty
+ * "Your shows" that merely *describes* following makes the user go find it. These tiles carry the
+ * follow control itself, so the section teaches the capability and completes it in one place.
+ */
+const suggestedShows = computed<Podcast[]>(() =>
+  catalogue.value.filter((p) => !library.has(p.feed_id)).slice(0, 6),
+)
 
 /**
  * Home caps the shows grid and links out for the rest (#1584). Unbounded, this section grows without
@@ -374,12 +392,21 @@ onMounted(async () => {
          learn the capability exists, and a section that silently vanishes can't teach it. -->
     <section v-if="auth.isAuthenticated" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
-      <div
-        v-if="!shows.length"
-        class="rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted"
-      >
-        {{ t('home.showsEmpty') }}
-        <RouterLink :to="{ name: 'catalog' }" class="ml-1 font-bold text-accent no-underline">
+      <!-- Empty state carries the ACTION, not a description of it. An empty section is worth
+           rendering only when the user can do something about it — and then it has to actually
+           offer the doing. Following is otherwise reachable only from a show page, so a prose
+           nudge would send you off to find it. -->
+      <div v-if="!shows.length" class="rounded-xl border border-dashed border-border p-4">
+        <p class="text-sm text-muted">{{ t('home.showsEmpty') }}</p>
+        <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+          <li v-for="p in suggestedShows" :key="p.feed_id">
+            <ShowTile :show="p" followable />
+          </li>
+        </ul>
+        <RouterLink
+          :to="{ name: 'catalog' }"
+          class="mt-3 inline-block text-xs font-bold text-accent no-underline"
+        >
           {{ t('home.showsBrowse') }}
         </RouterLink>
       </div>

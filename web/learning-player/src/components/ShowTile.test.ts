@@ -1,9 +1,15 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import en from '../i18n/locales/en.json'
+import * as api from '../services/api'
 import type { Podcast } from '../services/types'
+import { useLibraryStore } from '../stores/library'
 import ShowTile from './ShowTile.vue'
 
+const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
@@ -11,6 +17,9 @@ const router = createRouter({
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
   ],
 })
+
+beforeEach(() => setActivePinia(createPinia()))
+afterEach(() => vi.restoreAllMocks())
 
 function show(title: string | null, feedId = 'f1'): Podcast {
   return {
@@ -23,10 +32,10 @@ function show(title: string | null, feedId = 'f1'): Podcast {
   }
 }
 
-function mountTile(p: Podcast, lines?: 1 | 2) {
+function mountTile(p: Podcast, props: { lines?: 1 | 2; followable?: boolean } = {}) {
   return mount(ShowTile, {
-    props: lines ? { show: p, lines } : { show: p },
-    global: { plugins: [router] },
+    props: { show: p, ...props },
+    global: { plugins: [router, i18n] },
   })
 }
 
@@ -60,12 +69,46 @@ describe('ShowTile', () => {
   })
 
   it('single-line variant truncates instead of clamping', () => {
-    const label = mountTile(show('Conversations with Tyler'), 1).get('div.mt-1')
+    const label = mountTile(show('Conversations with Tyler'), { lines: 1 }).get('div.mt-1')
     expect(label.classes()).toContain('truncate')
     expect(label.classes()).not.toContain('line-clamp-2')
   })
 
   it('links to the show page', () => {
     expect(mountTile(show('Acquired', 'p03')).get('a').attributes('href')).toBe('/podcast/p03')
+  })
+
+  // --- follow control (#1585) ---
+  //
+  // The empty "Your shows" state renders these so a user can complete the action where it is
+  // offered. Following is otherwise reachable only from a show page, so a tile that merely linked
+  // there would describe the action instead of providing it.
+
+  it('has no follow control unless asked', () => {
+    expect(mountTile(show('Acquired')).find('[aria-pressed]').exists()).toBe(false)
+  })
+
+  it('follows without navigating away from the page it is on', async () => {
+    const post = vi.spyOn(api, 'followShow').mockResolvedValue([
+      { feed_id: 'p03', feed_url: null, title: 'Acquired', added_at: 1 },
+    ])
+    const w = mountTile(show('Acquired', 'p03'), { followable: true })
+    const btn = w.get('[aria-pressed]')
+    expect(btn.attributes('aria-pressed')).toBe('false')
+
+    await btn.trigger('click')
+    await flushPromises()
+
+    expect(post).toHaveBeenCalledWith('p03', { title: 'Acquired' })
+    expect(w.get('[aria-pressed]').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('reflects an existing follow', () => {
+    const lib = useLibraryStore()
+    lib.items = [{ feed_id: 'p03', feed_url: null, title: 'Acquired', added_at: 1 }]
+    lib.loaded = true
+    const w = mountTile(show('Acquired', 'p03'), { followable: true })
+    expect(w.get('[aria-pressed]').attributes('aria-pressed')).toBe('true')
+    expect(w.text()).toContain('Following')
   })
 })
