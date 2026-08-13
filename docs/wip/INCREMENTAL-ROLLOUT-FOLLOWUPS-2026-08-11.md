@@ -634,6 +634,73 @@ Both point the same way: **a deploy-lag problem, not a design problem.** The sin
 deployed image's commit against the repo, then check whether the container's
 `config/profiles/cloud_balanced.yaml` contains the `enrichment:` block.
 
+#### ROOT CAUSE FOUND 2026-08-13 — both earlier theories were wrong
+
+Two hypotheses above are **disproved**, and the real cause is a silent empty-set failure.
+
+**Disproved 1 — "the chain is not wired."** It is; see the correction above.
+
+**Disproved 2 — "prod predates the code, needs a deploy."** It does not. Both
+`routes/enrichment.py` and `_maybe_spawn_enrichment_after_pipeline` were added in commit
+`32ffb9b9` (2026-06-28). The last prod deploy shipped `1c6b3de7` (2026-08-11), and
+`git merge-base --is-ancestor 32ffb9b9 1c6b3de7` confirms the enrichment code **was** in the
+deployed image — six weeks before this audit.
+
+**Also disproved — "`POST /api/jobs/enrichment` 404s on prod."** It does not. The route is
+`@router.post("/jobs/enrichment")` and my probe used **GET**, which matched
+`GET /api/jobs/{job_id}` with `job_id="enrichment"` and correctly returned 404 for a
+nonexistent job. A path collision in my test, not a missing endpoint. `GET /api/enrichment/status`,
+`/health` and `/run-summary` all return **200**.
+
+##### The actual cause
+
+`GET /api/enrichment/run-summary` on prod:
+
+```json
+{"run_id":"c9f3cd96-…","started_at":"2026-08-10T15:13:00Z","finished_at":"2026-08-10T15:13:00Z",
+ "duration_ms":3,"per_enricher":{},"profile":null,"status":"ok"}
+```
+
+The last enrichment run **took 3 milliseconds, ran zero enrichers, had `profile: null`, and
+reported `ok`.** It resolved an empty enricher set and succeeded at doing nothing.
+
+The mechanism is in the spawner (`orchestration.py:1791`):
+
+```python
+profile = getattr(cfg, "profile", None) or block.get("profile")
+if profile:
+    argv += ["--profile", str(profile)]
+```
+
+Both operands are always `None`:
+
+- **`getattr(cfg, "profile", None)`** — `Config` has **no `profile` field**, and the loader
+  explicitly strips the key. `config.py:4170-4173`:
+  ```python
+  # The YAML itself may declare ``profile:`` (the registry opt-in).
+  # That meta-key must not leak into the merged dict — Config has
+  # ``extra="forbid"`` and has no ``profile`` field.
+  profile_dict.pop("profile", None)
+  ```
+- **`block.get("profile")`** — the `enrichment:` block in `cloud_balanced.yaml` has no
+  `profile:` key.
+
+So `--profile` is **never passed**, the enricher set resolves empty, and the run no-ops.
+
+Note the API path differs: `build_enrichment_argv` (`server/jobs.py:454`) also omits
+`--profile` but **does** pass `--config <operator_yaml>`, and that YAML *does* contain
+`profile: cloud_balanced`. The post-pipeline spawner passes neither `--config` nor a resolvable
+`--profile`. Whether `--config` is sufficient is under test (job `ef9f8f9c`).
+
+##### Why it hid for so long
+
+Every signal pointed away from the cause: no errors (it genuinely succeeded), no logs (nothing
+ran to log), `status: ok` (technically true), correct-looking config (`enabled: true`, nine
+enrichers listed), and correct-looking code (chain present, called, sensibly gated).
+
+**An empty enricher set must be a loud warning, not a 3 ms `ok`.** That single line would have
+made this visible on day one.
+
 #### A defect regardless of which explanation holds
 
 **The gate returns silently.** An operator cannot distinguish "enrichment disabled by config"
