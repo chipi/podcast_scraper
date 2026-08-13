@@ -50,7 +50,8 @@ const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 const whatsNew = useSectionState<EpisodeSummary[]>([])
 const latest = computed(() => whatsNew.data.value)
 const catalogue = ref<Podcast[]>([])
-const recommended = ref<EpisodeSummary[]>([])
+const recSection = useSectionState<EpisodeSummary[]>([])
+const recommended = computed(() => recSection.data.value)
 const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
 const query = ref('')
 
@@ -87,6 +88,13 @@ async function onInterestsSaved(): Promise<void> {
  */
 function loadWhatsNew(): Promise<void> {
   return whatsNew.load(async () => (await getDiscover(8)).items)
+}
+
+/** #1591 — Recommended, same contract: a rejection is an error phase, not an empty list. */
+function loadRecommended(): Promise<void> {
+  const top = continueItems.value[0]
+  if (!top) return Promise.resolve()
+  return recSection.load(async () => (await getRelated(top.detail.slug)).items)
 }
 
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
@@ -189,10 +197,7 @@ onMounted(async () => {
     )
     continueItems.value = hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
     // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes).
-    if (continueItems.value[0]) {
-      recommended.value =
-        (await getRelated(continueItems.value[0].detail.slug).catch(() => null))?.items ?? []
-    }
+    if (continueItems.value[0]) await loadRecommended()
   }
 })
 </script>
@@ -388,8 +393,9 @@ onMounted(async () => {
     <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="shows" />
 
     <!-- Recommended — no-scroll responsive grid -->
-    <section v-if="recommended.length" class="mt-7">
+    <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
+      <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative">
           <QueueButton :slug="ep.slug" class="absolute right-2 top-2 z-10 bg-canvas/70 backdrop-blur" />

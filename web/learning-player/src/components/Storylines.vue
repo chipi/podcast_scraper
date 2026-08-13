@@ -6,7 +6,9 @@
  * cluster (thc:…) to your interests — the same store the entity-card + trending follows use, so a
  * storyline re-ranks discovery. Reads /api/app/theme-clusters; hides when the corpus has none.
  */
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useSectionState } from '../composables/useSectionState'
+import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { getStorylines } from '../services/api'
@@ -29,16 +31,21 @@ function onFollow(id: string): void {
   void interests.toggle(id)
 }
 
-const storylines = ref<Storyline[]>([])
-void getStorylines(12)
-  .then((s) => (storylines.value = s))
-  .catch(() => (storylines.value = []))
+const section = useSectionState<Storyline[]>([])
+const storylines = computed(() => section.data.value)
+/** #1591 — a rejection lands in the error phase instead of collapsing into empty. */
+function load(): Promise<void> {
+  return section.load(() => getStorylines(12))
+}
+void load()
 const hasAny = computed(() => storylines.value.length > 0)
 </script>
 
 <template>
-  <section v-if="hasAny" class="mt-7" data-testid="home-storylines">
+  <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="home-storylines">
     <h2 class="lp-section">{{ t('home.storylines') }}</h2>
+    <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
+    <template v-if="hasAny">
     <p class="mb-2 text-sm text-muted">{{ t('home.storylinesHint') }}</p>
     <div class="flex flex-wrap gap-1.5">
       <div
@@ -75,5 +82,6 @@ const hasAny = computed(() => storylines.value.length > 0)
         >{{ isFollowed(s.id) ? '✓' : '＋' }}</button>
       </div>
     </div>
+    </template>
   </section>
 </template>

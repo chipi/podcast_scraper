@@ -8,6 +8,8 @@
  * vertical space is precious) with an expand toggle. Emits `open` with the entity.
  */
 import { computed, ref } from 'vue'
+import { useSectionState } from '../composables/useSectionState'
+import SectionStatus from './SectionStatus.vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { getTrending } from '../services/api'
@@ -42,10 +44,13 @@ function onFollow(id: string): void {
   void interests.toggle(id)
 }
 
-const items = ref<TrendingEntity[]>([])
-void getTrending(props.kind, props.scope, props.limit)
-  .then((rows) => (items.value = rows))
-  .catch(() => (items.value = []))
+// #1591 — a rejection lands in the error phase rather than collapsing into empty.
+const section = useSectionState<TrendingEntity[]>([])
+function load(): Promise<void> {
+  return section.load(() => getTrending(props.kind, props.scope, props.limit))
+}
+void load()
+const items = computed(() => section.data.value)
 const hasAny = computed(() => items.value.length > 0)
 
 const COLLAPSED = 5
@@ -64,9 +69,10 @@ function titleOf(e: TrendingEntity): string {
 </script>
 
 <template>
-  <section v-if="hasAny" class="mt-7" :data-testid="`momentum-rail-${kind}`">
+  <section v-if="hasAny || !section.isReady.value" class="mt-7" :data-testid="`momentum-rail-${kind}`">
     <h2 class="lp-section mb-2">{{ title }}</h2>
-    <ul class="flex flex-col">
+    <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
+    <ul v-if="hasAny" class="flex flex-col">
       <li
         v-for="e in visible"
         :key="e.entity_id"

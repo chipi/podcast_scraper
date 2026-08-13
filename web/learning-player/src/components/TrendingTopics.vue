@@ -21,6 +21,8 @@
  * experiment.
  */
 import { computed, ref } from 'vue'
+import { useSectionState } from '../composables/useSectionState'
+import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { getCorpusEnrichment } from '../services/api'
@@ -57,8 +59,17 @@ const themeMemberIds = ref<Set<string>>(new Set())
 // distinct hue so related trending topics read as a group; unclustered topics fall back to neutral.
 const topicTheme = ref<Record<string, TopicTheme>>({})
 
-void getCorpusEnrichment()
-  .then((s) => {
+const section = useSectionState<null>(null)
+function load(): Promise<void> {
+  return section.load(async () => {
+    applyEnrichment(await getCorpusEnrichment())
+    return null
+  })
+}
+void load()
+
+function applyEnrichment(s: Awaited<ReturnType<typeof getCorpusEnrichment>>): void {
+  {
     const tv = s.temporal_velocity
     const rows = tv?.topics ?? []
     const clusters = s.topic_theme_clusters?.clusters ?? []
@@ -90,17 +101,17 @@ void getCorpusEnrichment()
         total: x.total ?? 0,
         series: axis.map((m) => x.monthly_counts?.[m] ?? 0),
       }))
-  })
-  .catch(() => {
-    topics.value = []
-  })
+  }
+}
 
 const hasAny = computed(() => topics.value.length > 0)
 </script>
 
 <template>
-  <section v-if="hasAny" class="mt-7" data-testid="home-trending">
+  <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="home-trending">
     <h2 class="lp-section">{{ t('home.trending') }}</h2>
+    <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
+    <template v-if="hasAny">
     <p class="mb-2 text-sm text-muted">{{ t('home.trendingHint') }}</p>
 
     <TrendingSparkChips
@@ -112,5 +123,6 @@ const hasAny = computed(() => topics.value.length > 0)
       @open="emit('open', $event)"
       @follow="onFollow"
     />
+    </template>
   </section>
 </template>
