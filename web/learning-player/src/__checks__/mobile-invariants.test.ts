@@ -146,4 +146,18 @@ describe('native-shell invariants (guardrail #1310)', () => {
     // Telemetry follows the tier (Sentry), Umami stays prod (unified) — main switches Sentry by tier.
     expect(mainSrc).toMatch(/nativeDevTier/)
   })
+
+  it('the bottom nav clears the home indicator and does not trap page content (#1594)', () => {
+    const nav = components['../components/BottomNav.vue'] ?? ''
+    expect(nav, 'BottomNav.vue must exist').not.toBe('')
+
+    // Fixed to the bottom, so it MUST respect the iOS home indicator or the last tab sits under it.
+    expect(nav).toContain('safe-area-inset-bottom')
+    // Mobile only — the desktop header nav already covers those widths.
+    expect(nav).toContain('sm:hidden')
+
+    // A fixed bar covers page content unless the scroll container reserves room for it. Without
+    // this, the last item of every list is unreachable on a phone — the classic bottom-nav bug.
+    expect(components['../App.vue'] ?? '', 'App.vue main must reserve space for the fixed bottom nav').toMatch(/pb-24[^"]*sm:pb-6|sm:pb-6[^"]*pb-24/)
+  })
 })

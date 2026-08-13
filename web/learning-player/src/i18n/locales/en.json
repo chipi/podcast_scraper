@@ -7,7 +7,9 @@
     "catalog": "Catalog",
     "browse": "Browse",
     "search": "Search",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "home": "Home",
+    "primary": "Primary"
   },
   "pwa": {
     "updateAvailable": {

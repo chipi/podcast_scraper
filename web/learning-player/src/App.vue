@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
+import BottomNav from './components/BottomNav.vue'
 import NavIconLink from './components/NavIconLink.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import TierSwitch from './components/TierSwitch.vue'
@@ -108,9 +109,13 @@ async function onSignOut(): Promise<void> {
       </div>
     </header>
 
-    <main id="main" tabindex="-1" class="mx-auto max-w-6xl px-5 py-6 outline-none">
+    <!-- pb-24 on mobile clears the fixed bottom nav (#1594); sm:pb-6 restores the desktop rhythm
+         where the bar is hidden. -->
+    <main id="main" tabindex="-1" class="mx-auto max-w-6xl px-5 pt-6 pb-24 outline-none sm:pb-6">
       <RouterView />
     </main>
+
+    <BottomNav />
 
     <PwaUpdateToast />
   </div>
