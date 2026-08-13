@@ -673,7 +673,7 @@ onBeforeUnmount(() => {
     </p>
     <template v-else>
       <p v-if="!shell.hasCorpusPath" class="text-sm text-muted">
-        Set <strong>Corpus path</strong> in the left panel (same as List files).
+        Set <strong>Corpus path</strong> in the status bar below (same as List files).
       </p>
       <div v-else class="flex min-h-0 flex-1 flex-col gap-2">
         <LibraryFilterBar

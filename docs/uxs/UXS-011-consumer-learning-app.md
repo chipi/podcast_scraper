@@ -89,10 +89,21 @@ Use **semantic names** in code (CSS custom properties / Tailwind theme keys). No
 components except in the single token layer (`web/learning-player/src/styles/tokens.css`). Every surface token has a
 matching `-foreground` so contrast is validated at the token level.
 
-The **accent is per-show adaptive**: `--accent` is a runtime variable set from the episode/show
-artwork (with a brand default — "Ember"). Components reference `--accent`; they never hard-code the
-show colour. A guardrail clamps the derived accent to a minimum contrast against `surface` (see
-Accessibility).
+The accent is a **single brand constant** — "Ember" (`--lp-brand-default`). Components reference
+`--accent` and never hard-code the colour, so the indirection is real and useful, but nothing varies
+it at runtime today.
+
+> **NOT SHIPPED — per-show adaptive accent (#1598).** This section previously described `--accent`
+> as derived per show from artwork and contrast-clamped, and the tunables table below marked the
+> mechanism **Frozen**. It does not run. `setShowAccent()` exists in `src/theme/theme.ts` with
+> **zero call sites** — its own docstring says "a real contrast-clamp + artwork extraction lands
+> with the Player surface (#1083); this is the wiring seam", and #1083 never landed the wiring.
+> No test references it.
+>
+> Retracted rather than implemented, deliberately: a defining principle of the design system
+> documented as shipped-and-frozen while absent is worse than an acknowledged gap, because
+> everything reasoning from this spec — including future design work — reasons from a false premise.
+> If it is built later, restore this text **with** the call site.
 
 ### Surface tokens
 
@@ -231,7 +242,7 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 | -------------------------------- | -------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------ |
 | Display font family              | Inter 800, tight                             | Open                                  | Upgrade to a licensed grotesque considered; must cover i18n glyphs |
 | `brand-default` accent ("Ember") | `#FF6A3D`                                    | Open                                  | Brand colour pending; used only when no show colour                |
-| Per-show accent derivation       | from artwork, contrast-clamped               | Frozen (mechanism) / Open (algorithm) | The *clamp contract* is frozen; the extraction algorithm is open   |
+| Per-show accent derivation       | NOT BUILT — accent is the brand constant      | Retracted (#1598)                     | `setShowAccent()` has zero call sites; restore this row with the wiring, not before |
 | Token names                      | `canvas`, `surface`, `accent`, domain tokens | Frozen                                | API — do not rename                                                |
 | Dark-only (MVP)                  | dark baseline                                | Open                                  | Light theme is a post-MVP fast-follow                              |
 
@@ -317,7 +328,7 @@ Direction C. These are design aids (WIP), not shipped assets.
 
 - [ ] New UI uses semantic tokens only (no one-off hex in components; single token layer)
 - [ ] Every surface uses its matching `-foreground` for text
-- [ ] Per-show `--accent` is contrast-clamped; falls back to `brand-default` when it fails AA
+- [x] `--accent` is the brand constant. *(The per-show contrast-clamp criterion was retracted in #1598 — it described unbuilt behaviour.)*
 - [ ] Intent tokens for UI feedback; domain tokens (`grounded`/`topic`/`person`/`insight`) for
       knowledge-layer identity only
 - [ ] Dark baseline matches this spec; token names allow a future light theme without renames

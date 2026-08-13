@@ -888,7 +888,7 @@ onBeforeUnmount(() => {
       Upgrade the viewer API process; <strong>Library</strong> may still work if the catalog is available.
     </p>
     <p v-else-if="!shell.hasCorpusPath" class="text-sm text-muted">
-      Set <strong>Corpus path</strong> in the left panel (same as List files).
+      Set <strong>Corpus path</strong> in the status bar below (same as List files).
     </p>
     <p v-else-if="loading && !digest" class="text-sm text-muted">
       Loading digest…
