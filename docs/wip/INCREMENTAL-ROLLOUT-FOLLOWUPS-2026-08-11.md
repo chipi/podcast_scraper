@@ -300,6 +300,50 @@ The prod gateway never had the app key until this session; the app "worked" only
 homelab. Add a `deploy-prod` post-check asserting the pipeline's key authenticates against
 the **configured** `litellm_api_base`.
 
+### D6 — every budget signal measures spend; none measures headroom — `[OPEN, high]`
+
+**Found 2026-08-13** when pass-3 hard-stopped on exhausted upstream credit.
+
+Every cost signal in the estate is **cumulative outflow**:
+
+| Metric | Measures |
+| --- | --- |
+| `litellm_key_spend_usd` | spent |
+| `litellm_key_max_budget_usd` | a *configured* ceiling, not a live balance |
+| `litellm_key_budget_burn_ratio` | spent ÷ configured ceiling |
+| `openrouter_vertical_usd` | spent, by vertical |
+| `podcast_pipeline_run_cost_usd_total` | spent, modelled |
+
+**Nothing exports remaining credit at the upstream provider.** The consequence is that the
+first notice of exhaustion is a **hard job failure in production**. There is no threshold to
+alert on, no burn-down to watch, and no way to answer "can this batch finish?" before starting
+it.
+
+Note that `litellm_key_budget_burn_ratio` *looks* like a headroom metric and is not — it is
+headroom against a **locally configured cap**, which is exactly why it read a comfortable
+21.7 % at the moment the pipeline could not make a single call.
+
+**This is the same defect class as G1, in the money domain.** G1 was invisible because every
+detection signal was exception-triggered and nothing was absence-triggered. This is invisible
+because every cost signal is presence-triggered (what was spent) and nothing measures the
+absence (what remains). Both produce the same operator experience: the system is fine, the
+system is fine, the system is dead.
+
+**Proposed fix:**
+
+1. Export `upstream_credit_remaining_usd{provider=...}` from whatever collector already talks
+   to the provider billing API — the `openrouter-spend.sh` collector is the obvious host, since
+   it already authenticates there.
+2. Alert on **projected exhaustion**, not on a fixed floor: `remaining / burn_rate < 24h`.
+   A fixed floor is wrong when one vertical can consume the balance at an unrelated rate.
+3. Surface it on the ops card next to the spend figure D3 already covers. Spend without
+   headroom is half a picture.
+
+**Related risk (unverified):** verticals appear to share one prepaid account —
+`pi` had consumed $72.75 against `podcast`'s $1.38 at the time of failure. If that is one
+balance, any workload can starve any other, and a per-vertical spend cap does not prevent it.
+Worth confirming before relying on per-vertical budgets as isolation.
+
 ---
 
 ## E. Deploy
@@ -356,12 +400,20 @@ insight-node confidence scores.
 | `[DONE]` | 1 | D1 (residual code TODO still open) |
 | `[INFO]` | 2 | C3, part of B1 |
 | `[WITHDRAWN]` | 1 | B2 |
-| `[OPEN]` | 12 | A1, A2, B1(docs), C1, C2, **C4**, D2, D3, D4, D5, E1, F1qa, **G1** |
+| `[OPEN]` | 13 | A1, A2, B1(docs), C1, C2, **C4**, D2, D3, D4, D5, **D6**, E1, F1qa, **G1**, **G2** |
 
 **Highest-value OPEN:** **G1** (jobs wedge silently and report healthy — an unattended batch
-can lose hours with no signal), **C4** (per-feed counts under-report, which silently breaks any
-"top up each feed to N" automation), then D3 / D4 / D5 (gateway durability), A1 (label bug),
-C1 (skip mislabel breaks EXIT gates).
+can lose hours with no signal), **D6** (no headroom metric anywhere — the first notice of
+credit exhaustion is a production failure), **C4** (per-feed counts under-report, which
+silently breaks any "top up each feed to N" automation), then D3 / D4 / D5 (gateway
+durability), A1 (label bug), C1 (skip mislabel breaks EXIT gates).
+
+> **The recurring shape.** G1 and D6 are the same defect in different domains. Every *detection*
+> signal is exception-triggered, so a process that stops working invisibly looks healthy. Every
+> *cost* signal is spend-triggered, so an account about to run dry looks healthy. In both cases
+> the estate measures what happened and never measures what remains. That is the generalisable
+> lesson of 2026-08-12/13, and it is worth applying as a review question to any new signal:
+> **does this tell me a thing occurred, or does it tell me how much room is left?**
 
 **D2 can be closed** — verified unused, see the cost analysis below.
 
