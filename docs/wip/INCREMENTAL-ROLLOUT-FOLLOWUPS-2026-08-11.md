@@ -329,6 +329,69 @@ next person will otherwise rediscover.
 
 ---
 
+## G-opt. Window sizing — the unit is audio-minutes, not episodes (2026-08-13)
+
+Measured while deepening the new feeds. Two findings that change how batches should be sized.
+
+### Real cost, measured
+
+Over a window where the corpus went **434 → 519** (+85 episodes):
+
+| Metric | Delta | Per episode |
+| --- | --- | --- |
+| `podcast_pipeline_run_cost_usd_total` (modelled) | $91.05 → $113.26 = **+$22.21** | **$0.26** |
+| `litellm_key_spend_usd{podcast-prod}` (real) | $5.42 → $7.44 = **+$2.02** | **$0.024** |
+
+Real LLM cost is ~2.4 cents/episode; the ~11× gap is Deepgram transcription on a free
+allowance (see D6 / H1 for why the modelled figure still matters — the **cap is enforced on the
+modelled number**).
+
+### Finding 1 — the cap binds on audio minutes, so episode count is the wrong unit
+
+`cost_soft_cap_usd_per_run` is checked against modelled cost, which is dominated by
+transcription minutes. So a 15-episode window means completely different things per feed:
+
+| Feed | Median episode | ~Episodes per safe window |
+| --- | --- | --- |
+| The a16z Show | 49 min | **~28** |
+| Dwarkesh / The Pragmatic Engineer | 85–87 min | ~16 |
+| Lenny's / Ideas of India | 92–93 min | ~15 |
+| Latent Space *(measured: 15 eps = $5.64)* | ~75 min | ~18 |
+
+Working rule: **target ~1,400 audio-minutes per job** (≈$7 modelled, leaving margin under the
+$10 cap). Compute it as `window = 1400 / median_minutes`, using the per-feed medians measured
+in §5h of the onboarding doc.
+
+Using a flat episode count instead means long-form feeds risk tripping the cap (which is what
+caused **both** the G1 wedge and the G2 crash) while short-form feeds run needlessly small jobs.
+
+### Finding 2 — every job pays a FULL-CORPUS finalize pass, so fewer, larger windows win
+
+From the pipeline logs, one line per job:
+
+```
+enrich-edges: episodes=501 HAS_EPISODE=9  MENTIONS=0 SPOKEN_BY=6
+enrich-edges: episodes=492 HAS_EPISODE=8  MENTIONS=0 SPOKEN_BY=39
+enrich-edges: episodes=484 HAS_EPISODE=11 MENTIONS=0 SPOKEN_BY=62
+```
+
+The edge-derivation pass walks the **entire corpus** on every job, regardless of how many
+episodes that job added. So splitting 50 episodes into 5×10 pays **five** full-corpus walks
+where 2×25 pays two — and that overhead grows with corpus size, so the argument for larger
+windows strengthens as the corpus does.
+
+**Combined guidance:** the largest window that stays under the cost cap, sized by audio-minutes.
+For a 50-episode target that is roughly 2×25 for short-form feeds and 3×16 for long-form —
+not a flat 4×15.
+
+**Counter-consideration, stated for balance:** larger windows increase blast radius. A wedge or
+crash loses the whole in-flight window (G1 lost 4 unfinished episodes of 36; G2 lost 3 of 15).
+With `skip_existing` making retries free the loss is time, not data — but on an unattended run
+the G3 detection lag applies, so a very large window can idle longer before anyone notices.
+Bounded windows remain the right call until the sub-episode watermark (RFC-117 §4.2) exists.
+
+---
+
 ## D. LiteLLM prod gateway (Option-A / ADR-142 follow-ups)
 
 ### D1 (= F7) — podcast-prod key had no budget cap — `[DONE]`
