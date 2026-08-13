@@ -40,7 +40,11 @@ const progress = computed(() =>
   >
     <!-- Progress as a hairline along the top edge: present without competing with the tab bar. -->
     <div class="h-0.5 w-full bg-overlay">
-      <div class="h-full bg-accent transition-[width] duration-500" :style="{ width: `${progress}%` }" />
+      <!-- motion-reduce drops the animation for users who asked software to stop moving. -->
+      <div
+        class="h-full bg-accent transition-[width] duration-500 motion-reduce:transition-none"
+        :style="{ width: `${progress}%` }"
+      />
     </div>
 
     <div class="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2">

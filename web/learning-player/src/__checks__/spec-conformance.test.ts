@@ -121,3 +121,27 @@ describe('WCAG contrast cannot depend on scroll position', () => {
     ).toEqual([])
   })
 })
+
+describe('reduced motion is honoured at every call site (S9)', () => {
+  /**
+   * `prefers-reduced-motion` is an accessibility setting — for users with vestibular disorders or
+   * migraine triggers, an unexpected smooth scroll can cause actual nausea.
+   *
+   * The check existed inline in TranscriptList and nowhere else, so four other call sites animated
+   * regardless. The advisor found three of them; this guard found a fourth (CardRail) that nobody
+   * had looked at. That is the point: a literal `behavior: 'smooth'` IS the missed call site, so
+   * make the literal the thing that fails.
+   */
+  it("no component hard-codes behavior: 'smooth'", () => {
+    const offenders = Object.entries(components)
+      .filter(([path]) => !path.includes('utils/motion'))
+      .filter(([, text]) => /behavior:\s*'smooth'/.test(text ?? ''))
+      .map(([path]) => path)
+
+    expect(
+      offenders,
+      `Use scrollBehavior() from utils/motion instead — it returns 'auto' when the user has asked ` +
+        `for reduced motion. A hard-coded 'smooth' animates regardless of that setting.`,
+    ).toEqual([])
+  })
+})

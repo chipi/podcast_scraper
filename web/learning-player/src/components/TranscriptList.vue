@@ -9,6 +9,7 @@
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { scrollBehavior } from '../utils/motion'
 import type { Segment } from '../services/types'
 import type { GroundedSpan } from '../player/insights'
 import { quoteHighlight } from '../player/insights'
@@ -137,11 +138,6 @@ const items = ref<HTMLElement[]>([])
 let userScrolling = false
 let idleTimer: ReturnType<typeof setTimeout> | undefined
 
-const reduceMotion =
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
 function onUserScroll(): void {
   userScrolling = true
   if (idleTimer) clearTimeout(idleTimer)
@@ -156,7 +152,7 @@ watch(
     if (idx < 0 || userScrolling) return
     await nextTick()
     items.value[idx]?.scrollIntoView?.({
-      behavior: reduceMotion ? 'auto' : 'smooth',
+      behavior: scrollBehavior(),
       block: 'center',
     })
   },

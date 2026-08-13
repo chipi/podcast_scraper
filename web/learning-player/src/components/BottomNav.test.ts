@@ -18,6 +18,8 @@ const router = createRouter({
     { path: '/profile', name: 'profile', component: stub },
     { path: '/login', name: 'login', component: stub },
     { path: '/episode/:slug', name: 'player', component: stub },
+    { path: '/catalog', name: 'catalog', component: stub },
+    { path: '/podcast/:feedId', name: 'podcast', component: stub },
   ],
 })
 
@@ -80,6 +82,32 @@ describe('BottomNav (#1594)', () => {
     const w = await mountNav()
     for (const link of w.findAll('[data-testid^="bottom-nav-"]')) {
       expect(link.classes().join(' ')).toContain('min-h-[3rem]')
+    }
+  })
+
+  // --- wayfinding on nested routes (S9) ---
+  //
+  // Exact-name matching left the bar blank on player, podcast and catalog — the routes users spend
+  // most of their time on, so it went dark exactly when orientation matters most.
+
+  it('lights up Search on Browse and on a show page — both are discovery', async () => {
+    for (const path of ['/catalog', '/podcast/p03']) {
+      const w = await mountNav({ at: path })
+      expect(
+        w.get('[data-testid="bottom-nav-search"]').attributes('aria-current'),
+        `${path} should light up Search`,
+      ).toBe('page')
+      expect(w.get('[data-testid="bottom-nav-home"]').attributes('aria-current')).toBeUndefined()
+    }
+  })
+
+  it('lights up NOTHING on the player — no tab may claim a path the user might not have taken', async () => {
+    const w = await mountNav({ at: '/episode/ep-1' })
+    for (const name of ['home', 'search', 'library', 'profile']) {
+      expect(
+        w.get(`[data-testid="bottom-nav-${name}"]`).attributes('aria-current'),
+        `${name} must not claim the player route`,
+      ).toBeUndefined()
     }
   })
 })

@@ -17,6 +17,7 @@ import { usePlayerStore } from '../stores/player'
 import { useQueueStore } from '../stores/queue'
 import { useAuthStore } from '../stores/auth'
 import { useSignInGate } from '../composables/useSignInGate'
+import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
@@ -108,6 +109,56 @@ const persons = ref<Entity[]>([])
 // when this one ends. Silent no-op on error/empty; endpoint already existed.
 const relatedEpisodes = ref<EpisodeSummary[]>([])
 const panelOpen = ref(false)
+const panelDialog = ref<HTMLDialogElement | null>(null)
+const insightsOpener = ref<HTMLButtonElement | null>(null)
+
+/**
+ * Drive the dialog's MODE from the viewport (S9).
+ *
+ * `showModal()` gives the mobile sheet what it needs — top layer, focus trap, Escape, inert
+ * background. At lg the same panel is a docked rail beside the player, where trapping focus would
+ * be wrong: nothing is covered, and the user must be able to Tab back to the transcript.
+ */
+const DESKTOP_QUERY = '(min-width: 1024px)'
+const isDesktop = ref(
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(DESKTOP_QUERY).matches
+    : false,
+)
+
+function syncPanelDialog(): void {
+  const d = panelDialog.value
+  if (!d) return
+  if (!panelOpen.value) {
+    if (d.open) d.close()
+    return
+  }
+  // Re-opening in the other mode requires a close first: showModal() on an already-open dialog
+  // throws InvalidStateError.
+  if (d.open) d.close()
+  if (isDesktop.value) d.show()
+  else d.showModal()
+}
+
+watch([panelOpen, isDesktop], () => void nextTick(syncPanelDialog))
+
+/**
+ * Close came from anywhere — the ✕, Escape, or a backdrop tap. Restore focus to the control that
+ * opened it: the opener is `v-if="!panelOpen"`, so it does not exist at the moment the browser
+ * would restore focus itself, and focus would otherwise land on <body> and lose the user's place.
+ */
+function onPanelClose(): void {
+  panelOpen.value = false
+  void nextTick(() => insightsOpener.value?.focus())
+}
+
+/**
+ * A modal dialog fills the screen, so a tap on the ::backdrop lands on the dialog element itself —
+ * the inner container stops anything inside it from reaching here.
+ */
+function onPanelBackdropClick(e: MouseEvent): void {
+  if (e.target === panelDialog.value) panelOpen.value = false
+}
 const focusInsightId = ref<string | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
@@ -339,7 +390,7 @@ function toggleTranscript(): void {
   transcriptOpen.value = !transcriptOpen.value
   if (transcriptOpen.value) {
     void nextTick(() =>
-      transcriptEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      transcriptEl.value?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }),
     )
   }
 }
@@ -424,9 +475,28 @@ onMounted(() => {
 })
 watch(() => props.slug, (s) => load(s))
 watch(() => auth.isAuthenticated, ensureCaptureLoaded)
+/**
+ * Track the breakpoint live: a phone rotating into landscape, or a desktop window dragged across
+ * 1024px, must switch the panel between modal sheet and docked rail. Reading matchMedia once at
+ * setup would strand it in whichever mode the page happened to load in.
+ */
+let desktopMql: MediaQueryList | null = null
+const onDesktopChange = (e: MediaQueryListEvent): void => {
+  isDesktop.value = e.matches
+}
+onMounted(() => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+  desktopMql = window.matchMedia(DESKTOP_QUERY)
+  isDesktop.value = desktopMql.matches
+  desktopMql.addEventListener('change', onDesktopChange)
+})
+
 onBeforeUnmount(() => {
   persist()
   if (flashTimer) clearTimeout(flashTimer)
+  desktopMql?.removeEventListener('change', onDesktopChange)
+  // A dialog left open while its view unmounts keeps the top layer and the inert background.
+  if (panelDialog.value?.open) panelDialog.value.close()
 })
 </script>
 
@@ -529,6 +599,7 @@ onBeforeUnmount(() => {
                    on the page, styled like a statistic, for the product's central feature. -->
               <button
                 v-if="!panelOpen && insights.length"
+                ref="insightsOpener"
                 type="button"
                 data-testid="player-open-insights"
                 class="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
@@ -720,10 +791,38 @@ onBeforeUnmount(() => {
         </section>
       </div>
 
-      <!-- Knowledge Panel: persistent rail on desktop, overlay sheet on mobile. -->
+      <!--
+        Knowledge Panel: persistent rail on desktop, MODAL sheet on mobile.
+
+        A native <dialog>, so the browser supplies focus trapping, Escape-to-close, an inert
+        background and the correct accessibility tree. Hand-rolling those is ~60 lines of code whose
+        bugs are silent and land on keyboard and screen-reader users; this shipped as a plain <div>
+        that covered the screen without declaring itself a dialog, so Tab walked into the hidden page
+        behind it and Escape did nothing.
+
+        ONE element, two modes — `showModal()` on mobile, `show()` (non-modal, in normal flow) at lg.
+        Rendering the panel twice would be simpler markup and would double every request it makes on
+        mount, so the mode switch lives in script instead.
+
+        The dialog element itself carries only the UA-style reset and positioning; the visual
+        container stays an inner div, because `border-0` and `border-t` on one element resolve by
+        stylesheet order rather than attribute order.
+
+        The explicit height is not decoration: the UA stylesheet sets `height: fit-content` on
+        <dialog>, which beats a top/bottom stretch, so the sheet sized itself to its content and ran
+        off the bottom of the screen — entity-card controls ended up unclickable at "outside of the
+        viewport". A plain <div> had no such rule, which is why this only appeared on conversion.
+      -->
+      <dialog
+        ref="panelDialog"
+        data-testid="knowledge-panel"
+        :aria-label="t('kp.title')"
+        class="m-0 h-[calc(100dvh-2rem)] max-h-none max-w-none border-0 bg-transparent p-0 text-canvas-foreground backdrop:bg-black/50 fixed inset-x-0 bottom-0 top-8 z-40 w-full lg:static lg:top-auto lg:z-auto lg:h-auto lg:w-auto lg:backdrop:bg-transparent"
+        @close="onPanelClose"
+        @click="onPanelBackdropClick"
+      >
       <div
-        v-if="panelOpen"
-        class="fixed inset-x-0 bottom-0 top-8 z-40 overflow-hidden rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] lg:static lg:top-auto lg:z-auto lg:mt-0 lg:max-h-[70dvh] lg:rounded-2xl lg:border lg:pb-0"
+        class="h-full overflow-hidden rounded-t-2xl border-t border-border bg-canvas pb-[env(safe-area-inset-bottom)] lg:max-h-[70dvh] lg:rounded-2xl lg:border lg:pb-0"
       >
         <KnowledgePanel
           :episode="episode"
@@ -738,12 +837,7 @@ onBeforeUnmount(() => {
           @close="panelOpen = false"
         />
       </div>
-      <!-- Mobile backdrop -->
-      <div
-        v-if="panelOpen"
-        class="fixed inset-0 z-30 bg-black/50 lg:hidden"
-        @click="panelOpen = false"
-      />
+      </dialog>
     </div>
   </section>
 </template>

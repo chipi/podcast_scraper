@@ -27,6 +27,7 @@ import { speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useSignInGate } from '../composables/useSignInGate'
+import { scrollBehavior } from '../utils/motion'
 import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
 import EntityCardBody from './EntityCardBody.vue'
@@ -208,7 +209,7 @@ watch(
     // rAF so the panel (and on mobile, its open transition) has laid out before we centre —
     // scrollIntoView walks every scroll ancestor, bringing the claim into the viewport too.
     requestAnimationFrame(() => {
-      insightEls.value[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      insightEls.value[id]?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
     })
   },
 )

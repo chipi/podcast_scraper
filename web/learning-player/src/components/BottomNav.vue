@@ -58,8 +58,29 @@ function target(name: string): { name: string; query?: Record<string, string> } 
   return { name }
 }
 
-/** Highlight by the route the tab OWNS, not the resolved target, so a gated tab still reads active. */
-const isActive = (name: string): boolean => route.name === name
+/**
+ * Which routes each tab OWNS — not just the route it links to.
+ *
+ * Highlighting only on an exact name match meant no tab was active on `player`, `podcast` or
+ * `catalog` — the three routes users spend most of their time on. The bar went blank exactly when
+ * it was most needed for orientation, which is the opposite of what a tab bar is for.
+ *
+ * Browse and show pages belong to **Search**: both are discovery surfaces, and Search is where you
+ * go to find something specific in the corpus.
+ *
+ * The player owns NOTHING, deliberately. You can reach an episode from any tab, so lighting one up
+ * would assert a path the user may not have taken — and a wrong "you are here" is worse than none.
+ */
+const OWNED_ROUTES: Record<string, readonly string[]> = {
+  home: ['home'],
+  search: ['search', 'catalog', 'podcast'],
+  library: ['library'],
+  profile: ['profile'],
+}
+
+/** Highlight by the routes the tab OWNS, not the resolved target, so a gated tab still reads active. */
+const isActive = (name: string): boolean =>
+  OWNED_ROUTES[name]?.includes(String(route.name)) ?? false
 </script>
 
 <template>
