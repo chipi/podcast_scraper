@@ -592,17 +592,58 @@ can be genuinely good and simply produce fewer, denser insights.
 Then loop to the next show. **One show at a time** — the pipeline runs one job anyway, and
 serial execution keeps each result attributable.
 
+### Ad-read contamination — an explicit check (added 2026-08-13)
+
+**Operator concern, and it is the sharpest first test available.** The a16z Show, Lenny's
+Podcast and The Pragmatic Engineer are all heavy on sponsor reads, pre-roll, mid-roll and long
+branded intros. Those are not neutral: sponsor copy is fluent, confident, specific-sounding
+prose, which is exactly the shape the summariser and insight extractor reward. Left uncleaned
+it becomes summary bullets and grounded "insights" about a project-management SaaS.
+
+The pipeline has a cleaning stage (`llm_cleaning_cost_usd` is a tracked per-stage cost), so the
+probe answers empirically whether that stage strips ad content on real ad-heavy feeds.
+
+**Add to the Phase-2 assessment, per episode:**
+
+| Check | PASS | FAIL |
+| --- | --- | --- |
+| Sponsor copy in `summary_bullets` | none | any bullet describing a sponsor/product plug |
+| Sponsor entities in KG | none | brand nodes that are advertisers, not subjects |
+| Insights derived from ad reads | none | any |
+| Host boilerplate ("subscribe", "rate us", "our sponsor") | absent | present in summary or insights |
+
+**A failure here is not a reason to drop the show** — it is a reason to fix the cleaning stage,
+because it would affect every ad-supported feed in the corpus including existing ones. Record
+it as a pipeline defect, not a content verdict.
+
 ### Cost and duration outliers to smoke FIRST
 
 These are exactly why the 1-episode phase exists. Long episodes cost several times a typical
 40-minute one, and the per-run soft cap is **$10** (§ cost analysis in the rollout followups):
 
-| Show | Risk |
-| --- | --- |
-| **The Seen and the Unseen** | 4–8 hour episodes — the most expensive item per episode on the list, and the likeliest to approach the per-run cap on its own |
-| **Acquired** | 3–4 hour deep-dives |
-| **In Our Time** | short (~50 min) but a 1102-episode archive — cap the backfill, not the probe |
-| **Odd Lots / EconTalk / a16z** | large archives with dated back-catalog; probe newest only |
+### Probe group 1 — the five to smoke first (decided 2026-08-13)
+
+Chosen to stress the two things most likely to go wrong, not to be representative:
+
+| # | Show | Median | Why first |
+| --- | --- | --- | --- |
+| 1 | **The a16z Show** | 49 min | **heavy ad load** — sponsor reads, branded intros |
+| 2 | **Lenny's Podcast** | 92 min | **heavy ad load** + long |
+| 3 | **The Pragmatic Engineer** | 85 min | **heavy ad load** + longest tail (max 171 min) |
+| 4 | **Dwarkesh Podcast** | 87 min | longest median retained (max 157 min) |
+| 5 | **Ideas of India** | 93 min | longest median in the batch |
+
+Shows 1–3 are the ad-contamination test; 3–5 are the duration/cost test; the overlap is
+deliberate. If the cleaning stage handles a16z and Lenny's, it will handle almost anything else
+on the list.
+
+Note the two shows originally slated as duration outliers — The Seen and the Unseen (271 min)
+and Acquired (238 min) — were **disqualified entirely** by the 2-hour ceiling (§5h), so they
+are not probed at all.
+
+Remaining backfill caution for later phases: **In Our Time** (1102 episodes), **Odd Lots**
+(1193), **EconTalk** (1062) and **The a16z Show** (657) carry large, partly-dated archives —
+probe newest only and cap depth rather than ingesting the back-catalog.
 
 ### What gets recorded, and where
 
