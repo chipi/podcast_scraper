@@ -455,6 +455,96 @@ description). Ingesting is safe; the overlap claim is still an assumption.
 
 ---
 
+## 5f. FINAL LIST after editorial review (2026-08-13) — supersedes §5e
+
+An independent content review was run against the operator's stated bar: *boutique, best of the
+best; a mediocre show actively degrades the product because low-signal episodes inject noise
+into every downstream summary, insight and graph edge.* Calibration standard: the operator's
+three tech picks.
+
+**All feeds below verified live** (iTunes resolve → fetch → parse). Ingest at **10 episodes
+each** as a probe; depth is earned, not assumed.
+
+### What the review changed
+
+| Verdict | Shows |
+| --- | --- |
+| **Cut — failed the bar** | The Explorers Podcast, Outside Podcast (narrative/experiential; mines as anecdote, not insight), The Readout Loud (thin news-cadence) |
+| **Cut — press-tour / repackaged discourse** | Intelligence Squared (book-tour vehicle at scale), Open to Debate (performed positions, not discovered insight), New Yorker Radio Hour (house-organ promotion), Masters in Business, The Compound and Friends, Raising Health (VC content marketing) |
+| **Cut — dead or unusable on verification** | Crossing Borders (2023), Overheard at National Geographic (2023), **Afrobility (Jun 2025, 14 months dormant)**, **The Studies Show (5 items — wrong match or unusable feed)** |
+| **Promoted to A** | Dwarkesh Podcast, Sinica, The Long Run |
+| **Added — the category I had missed** | Conversations with Tyler, In Our Time, Acquired |
+| **Swapped** | The Rest Is Politics main feed → its *Leading* sub-feed (long-form interviews with heads of state are durable; weekly news commentary is not) |
+
+**The review's central correction:** the list under-weighted *preparation-heavy interview
+shows* — the highest insight-per-hour sources that exist. Conversations with Tyler, Dwarkesh,
+In Our Time and Acquired were either missing or mis-slotted.
+
+**Adventure was dropped as a domain, not filled.** The genre's ceiling sits below the bar —
+survival stories and gear talk mine as anecdote. The "National Geographic" intent is served
+instead through science/natural-world (In Our Time's science episodes, Nature Podcast) and
+exploration-as-history (Fall of Civilizations). Filling a domain badly is worse than not having
+it — the rule from §5d, applied to itself.
+
+### BATCH A — 15 feeds, probe at 10 episodes each
+
+| # | Show | Domain | Items | Newest | RSS |
+| --- | --- | --- | --- | --- | --- |
+| 1 | The a16z Show | tech/VC *(operator)* | 657 | 08-12 | `https://feeds.simplecast.com/JGE3yC0V` |
+| 2 | Lenny's Podcast | tech/product *(operator)* | 356 | 08-09 | `https://api.substack.com/feed/podcast/10845.rss` |
+| 3 | The Pragmatic Engineer | tech/eng *(operator)* | 71 | 08-12 | `https://api.substack.com/feed/podcast/458709.rss` |
+| 4 | **Conversations with Tyler** | ideas/econ — *the biggest omission* | 297 | 08-12 | `https://rss.libsyn.com/shows/137081/destinations/850607.xml` |
+| 5 | **Dwarkesh Podcast** | AI/ideas *(promoted from B)* | 136 | 08-11 | `https://apple.dwarkesh-podcast.workers.dev/feed.rss` |
+| 6 | **In Our Time** (BBC) | history/science/philosophy | 1102 | 08-07 | `https://podcasts.files.bbci.co.uk/b006qykl.rss` |
+| 7 | The Rest Is History | history, dialogic, UK | 714 | 08-12 | `https://feeds.megaphone.fm/GLT4787413333` |
+| 8 | Empire: World History | history, dialogic, UK | 399 | 08-12 | `https://feeds.megaphone.fm/empirepodcast` |
+| 9 | ChinaTalk | geo: China, tech policy | 555 | 08-10 | `https://feeds.megaphone.fm/CHTAL4990341033` |
+| 10 | **Sinica Podcast** | geo: China *(promoted — China pair)* | 557 | 08-10 | `https://rss.art19.com/sinica` |
+| 11 | The Seen and the Unseen | geo: India, econ/policy | 117 | 08-10 | `https://rss.libsyn.com/shows/91647/destinations/458496.xml` |
+| 12 | Odd Lots | finance, dialogic | 1193 | 08-10 | `https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss` |
+| 13 | EconTalk | economics | 1062 | 08-10 | `https://feeds.simplecast.com/wgl4xEgL` |
+| 14 | Ground Truths (Topol) | biotech, medicine×AI | 93 | 08-04 | `https://api.substack.com/feed/podcast/587835/s/119690.rss` |
+| 15 | **The Long Run** (Timmerman) | biotech *(promoted — replaces Readout Loud)* | 205 | 08-11 | `https://feeds.soundcloud.com/users/soundcloud:users:317770704/sounds.rss` |
+
+### BATCH B — 10 feeds
+
+| # | Show | Domain | Items | Newest | RSS |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Acquired | business/tech history | 216 | 08-09 | `https://feeds.transistor.fm/acquired` |
+| 2 | The Peter Attia Drive | medicine/longevity | 451 | 08-10 | `https://rss.libsyn.com/shows/121729/destinations/713489.xml` |
+| 3 | In Moscow's Shadows (Galeotti) | geo: Russia — *the one that clears* | 280 | 08-09 | `https://rss.buzzsprout.com/1026985.rss` |
+| 4 | Ideas of India | geo: India *(India pair)* | 170 | 08-12 | `https://rss.libsyn.com/shows/288629/destinations/2249435.xml` |
+| 5 | Explaining Brazil | geo: Brazil | 393 | 08-10 | `https://rss.beehiiv.com/podcasts/019fb9ea-ace8-7470-a622-111dd3c715f1.xml` |
+| 6 | Latin America in Focus | geo: LatAm *(LatAm pair)* | 241 | 07-30 | `https://feeds.simplecast.com/_DUdLkxj` |
+| 7 | Macro Musings | monetary economics | 562 | 08-10 | `https://rss.libsyn.com/shows/138806/destinations/865793.xml` |
+| 8 | Complex Systems (patio11) | financial infrastructure | 101 | 08-13 | `https://feeds.transistor.fm/complex-systems-with-patrick-mckenzie-pati` |
+| 9 | Past Present Future (Runciman) | history of ideas | 331 | 08-12 | `https://feeds.megaphone.fm/ARML2708405200` |
+| 10 | Machine Learning Street Talk | AI, contested | 258 | 08-10 | `https://anchor.fm/s/1e4a0eac/podcast/rss` |
+
+### Bench — verified live, unslotted
+
+Capitalisn't (248, 08-06) · 80,000 Hours (347, 08-11) · Nature Podcast (917, 08-12) · Switched on Pop (548, 08-11) · The Rest Is Entertainment (296, 08-12) · The Flip (101, 07-30) · Fall of Civilizations (22, 07-31 — tiny but wholly durable) · The Rest Is Politics: *Leading* (207, resolved not yet fetch-verified) · The Life Scientific (356, **05-26 — BBC hiatus, re-check before use**)
+
+### Open problems in this list
+
+1. **Africa is now a singleton.** Afrobility was the intended pair for The Flip and is 14 months
+   dormant. Africa currently has one viable feed, violating the §5d clustering rule. Needs
+   either another verified African show or a conscious decision to accept the singleton.
+2. **Russia is a singleton by design** — In Moscow's Shadows is the only show that clears. The
+   review's recommendation is to *not* force a second mediocre Russia show, and instead treat
+   geopolitics (ChinaTalk, Sinica, Explaining Brazil, Moscow's Shadows) as one domain where
+   cross-speaker comparison happens at the regional-analysis level.
+3. **Backfill caps needed on high-volume archives.** Odd Lots (1193), In Our Time (1102),
+   EconTalk (1062) and The a16z Show (657) all carry large back-catalogs whose older material is
+   dated. The a16z feed additionally carries a decade of thesis marketing. Cap the probe at the
+   newest N rather than ingesting depth.
+4. **The bar applies retroactively to the existing corpus.** The review flags The Daily, Planet
+   Money and The Journal as news-cadence and the NVIDIA AI Podcast as vendor marketing — four of
+   the nine current feeds sit below the standard now being applied to new ones. Not acted on;
+   recorded because silence would imply they passed.
+
+---
+
 ## 6. Recommended shape of the next batch
 
 **Three** axes now compete for slots, not two: the **format axis** (§5 — debate/panel, unlocks
