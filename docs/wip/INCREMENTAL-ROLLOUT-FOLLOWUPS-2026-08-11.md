@@ -514,17 +514,76 @@ enrichers configured (the seven deterministic ones plus `topic_similarity` and
 
 So eight of nine enrichers have produced nothing, ever.
 
-#### Root cause — it is not a failure, it was never invoked
+#### Root cause — CORRECTED 2026-08-13
 
-`enrich` is a **separate main-CLI subcommand** (`cli.py:3848`), and `workflow/orchestration.py`
-never calls it — no reference to `run_enrichment`, `EnricherRegistry`, or
-`register_deterministic_enrichers` exists in the pipeline path.
+> **My first diagnosis here was wrong.** I wrote that "orchestration.py never calls it", based
+> on a grep for `run_enrichment` / `EnricherRegistry` / `register_deterministic_enrichers`.
+> **The ingest → enrich chain does exist.** The grep missed it because the function spawns a
+> subprocess rather than calling the registry directly. Correction below; the original claim is
+> struck rather than deleted so the reasoning error stays visible.
 
-Every one of the 31 ingestion jobs this session ran `command_type=full_incremental_pipeline`,
-which covers transcription → summary → GI → KG → index. **Enrichment is a different job type**
-(`server/jobs.py:42`, `COMMAND_ENRICHMENT = "corpus_enrichment"`) that nothing in the ingestion
-path triggers. The single existing `topic_cooccurrence_corpus.json` presumably came from a
-manual run at some point.
+`orchestration.py:1756` calls `_maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)`
+at the end of `_finalize_pipeline`, immediately after the edge / index / cluster passes. Its
+docstring (line 1766) describes exactly the intended behaviour:
+
+> *"This is the automatic ingest → enrich chain: when the pipeline finalizes and
+> `enrichment.enabled` is set, enrichment runs over the just-ingested corpus."*
+
+It spawns `python -m podcast_scraper.cli enrich --output-dir <corpus>` as a **detached
+subprocess**, deliberately not blocking the pipeline.
+
+**So the wiring is correct and present. The question is why it produces nothing.**
+
+Gate (`orchestration.py:1785-1787`):
+
+```python
+block = getattr(cfg, "enrichment", None) or {}
+if not (isinstance(block, dict) and block.get("enabled")):
+    return          # <-- SILENT
+```
+
+`Config` does declare the field (`config.py:1173`,
+`enrichment: dict = Field(default_factory=dict, alias="enrichment")`), and
+`cloud_balanced.yaml:188` sets `enrichment.enabled: true`. On paper the gate should pass.
+
+**Decisive evidence — the enrichment layer has never logged anything.** Searching VictoriaLogs
+across the last 24 h of `{job="podcast-pipeline"}` for `enrich` returns *only* `enrich-edges`
+lines (a different pass — relational edge derivation):
+
+```
+enrich-edges: episodes=501 HAS_EPISODE=9 MENTIONS=0 SPOKEN_BY=6
+enrich-edges: episodes=492 ...        (one per job, 31 of them)
+```
+
+No "spawning enrichment", no enrichment warning, no enrichment error — nothing. Combined with
+the fact that the gate's early return is **silent**, the two candidate explanations are:
+
+1. **`cfg.enrichment` is empty at runtime on prod.** The profile is baked into the deployed
+   image, so if that image predates the `enrichment:` block in `cloud_balanced.yaml`, the gate
+   returns early every time.
+2. **The deployed image predates `_maybe_spawn_enrichment_after_pipeline` itself** — consistent
+   with `POST /api/jobs/enrichment` also returning 404 on prod while existing in the repo.
+
+Both point the same way: **a deploy-lag problem, not a design problem.** The single existing
+`topic_cooccurrence_corpus.json` presumably came from a manual run.
+
+**Verification step for whoever picks this up (I could not run it — no SSH):** compare the
+deployed image's commit against the repo, then check whether the container's
+`config/profiles/cloud_balanced.yaml` contains the `enrichment:` block.
+
+#### A defect regardless of which explanation holds
+
+**The gate returns silently.** An operator cannot distinguish "enrichment disabled by config"
+from "enrichment code not deployed" from "enrichment ran and failed" — all three produce
+identical output: nothing. One `logger.info` on the disabled path and one on the spawn path
+would have made this a five-minute diagnosis instead of a multi-step audit. Same
+absence-vs-presence blind spot as G1 and D6, now in the enrichment layer.
+
+#### Unrelated observation from the same logs
+
+Every `enrich-edges` line reports **`MENTIONS=0`** across all 31 jobs, while `HAS_EPISODE` and
+`SPOKEN_BY` are non-zero. A relational edge type that is *always* zero over 501 episodes is
+suspicious. Not investigated.
 
 #### And it cannot currently be triggered from the operator API
 
