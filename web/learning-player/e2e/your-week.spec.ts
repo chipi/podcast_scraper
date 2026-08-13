@@ -6,8 +6,8 @@ import { signInIsolated } from './helpers'
  * corpus (tests/fixtures/app-validation-corpus/v3), NO mocks.
  *
  * Coverage:
- *  - hidden contract: signed-out, and a fresh signed-in user with no activity → the section must
- *    not render (no empty shell, no error);
+ *  - signed-out → absent entirely (the digest is per-user; there is nothing to teach an anonymous
+ *    visitor). Signed-in with nothing due → a FIRST-RUN state, not a hidden section (#1591);
  *  - populated render: seed real per-user state via the REAL API (follow a show — the same
  *    add_subscription the tier-3 backend test seeds), then the "new in your follows" rollup renders
  *    deterministically (no date/heard/spaced-repetition dependence — it only needs an unheard,
@@ -20,13 +20,25 @@ test('Your Week is absent when signed out', async ({ page }) => {
   await expect(page.getByTestId('your-week')).toHaveCount(0)
 })
 
-test('Your Week stays hidden for a fresh signed-in user with no activity', async ({
+test('Your Week teaches a fresh signed-in user instead of hiding (#1591)', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'your-week-empty', testInfo) // asserts signed-in (Sign out visible)
   await page.goto('/')
-  // No captures, heard episodes, or follows yet → nothing due → the section must not render.
-  await expect(page.getByTestId('your-week')).toHaveCount(0)
+
+  // REVERSED contract. This previously asserted the section must NOT render when nothing is due.
+  // Hiding meant the user most in need of learning that a weekly digest exists — a brand-new one —
+  // got no hint of it, and an API outage was indistinguishable from a quiet week. See UXS-012.
+  const yourWeek = page.getByTestId('your-week')
+  await expect(yourWeek).toBeVisible()
+  await expect(yourWeek.getByTestId('yourweek-firstrun')).toBeVisible()
+
+  // One row per digest section, each saying what will appear there and how to earn it.
+  await expect(yourWeek.getByTestId('yourweek-firstrun').locator('li')).toHaveCount(3)
+  await expect(yourWeek.getByText('New in your follows')).toBeVisible()
+
+  // Nothing to expand yet, so no compact/full toggle.
+  await expect(yourWeek.getByTestId('yourweek-toggle')).toHaveCount(0)
 })
 
 test('Your Week renders the follows rollup after the user follows a show', async ({

@@ -13,7 +13,12 @@ import YourWeek from './YourWeek.vue'
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
-  routes: [{ path: '/episode/:slug', name: 'player', component: { template: '<div/>' } }],
+  routes: [
+    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    // The first-run state links here (#1591). Without the route, RouterLink throws during setup
+    // and takes the whole block down — which is how this surfaced.
+    { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
+  ],
 })
 
 const EMPTY: YourWeekResponse = { sections: [], period_label: '', generated_at: '' }
@@ -85,8 +90,34 @@ describe('YourWeek section', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('is hidden when signed in but nothing is due', async () => {
+  it('renders a first-run state when signed in with nothing due (#1591)', async () => {
+    // Reverses the old self-hiding contract, deliberately. Hiding meant a brand-new user — the
+    // person most in need of learning a weekly digest exists — got no hint of it at all, and an
+    // API outage was indistinguishable from a quiet week.
     const { wrapper } = mountIt({ signedIn: true, resp: EMPTY })
+    await flushPromises()
+    expect(wrapper.find('section').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="yourweek-firstrun"]').exists()).toBe(true)
+    // Three rows, one per digest section, each saying what will appear there.
+    expect(wrapper.findAll('[data-testid="yourweek-firstrun"] li')).toHaveLength(3)
+    // No compact/full toggle: there is nothing to expand yet.
+    expect(wrapper.find('[data-testid="yourweek-toggle"]').exists()).toBe(false)
+  })
+
+  it('the follows row is actionable; the other two are not (#1591)', async () => {
+    // new_in_follows is USER-empty — blank because you follow nothing, which you can fix — so it
+    // links. revisit and trending are SYSTEM-empty: they fill as you listen, nothing to click.
+    const { wrapper } = mountIt({ signedIn: true, resp: EMPTY })
+    await flushPromises()
+    const rows = wrapper.findAll('[data-testid="yourweek-firstrun"] li')
+    expect(rows[0].find('a').exists()).toBe(true)
+    expect(rows[1].find('a').exists()).toBe(false)
+    expect(rows[2].find('a').exists()).toBe(false)
+  })
+
+  it('stays hidden when signed out', async () => {
+    // Unchanged: the digest is per-user, so there is nothing to teach an anonymous visitor here.
+    const { wrapper } = mountIt({ signedIn: false, resp: EMPTY })
     await flushPromises()
     expect(wrapper.find('section').exists()).toBe(false)
   })

@@ -55,7 +55,13 @@
     "storylineFollow": "Follow the {label} storyline",
     "storylineFollowing": "Following the {label} storyline",
     "showMore": "Show {count} more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "yourWeekFirstRun": {
+      "new_in_follows": "New episodes from shows you follow will land here.",
+      "revisit": "Moments you capture come back here to review, spaced out over time.",
+      "trending_in_your_corpus": "Once you've listened to a few episodes, what's heating up across them shows here."
+    },
+    "yourWeekFindShows": "Find shows →"
   },
   "rail": {
     "prev": "Scroll left",
