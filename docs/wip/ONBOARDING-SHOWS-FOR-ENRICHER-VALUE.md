@@ -768,6 +768,93 @@ current API can express.
 
 ---
 
+## 5i. Threshold calibration against the existing nine (2026-08-13)
+
+Read-only exercise proposed by the operator: apply the §5g buckets to the **existing** feeds
+first, to calibrate the thresholds before judging new shows by them. No ingestion, no cost.
+Sample: **4 episodes per feed, 36 total.**
+
+Content verdicts are moot here — those nine stay regardless — so this measures the **pipeline
+axis** only.
+
+### Results
+
+| Feed | bullets/ep | KG nodes/ep | GI↔KG linked | unlinked GI | ad markers |
+| --- | --- | --- | --- | --- | --- |
+| Invest Like the Best | 11.8 | 25.0 | 16.8 | 0.0 | 0/4 |
+| NVIDIA AI Podcast | 8.8 | 22.8 | 15.8 | 0.0 | 0/4 |
+| Hard Fork | 8.2 | 25.2 | **20.8** | 0.2 | 0/4 |
+| The Daily | 8.2 | 22.5 | **11.8** | 0.0 | 0/4 |
+| No Priors | 8.0 | 24.5 | 15.5 | 0.2 | 0/4 |
+| The Journal. | 8.0 | 21.5 | 13.8 | 0.5 | 0/4 |
+| Unhedged | 8.0 | 23.2 | 15.5 | 0.0 | 0/4 |
+| Latent Space | 8.0 | 25.0 | 18.0 | 0.0 | 0/4 |
+| Planet Money | 7.2 | 22.8 | 16.5 | 0.5 | 0/4 |
+
+### Finding 1 — ad cleaning works; **0 of 36** episodes contaminated
+
+No sponsor copy, promo codes, or host boilerplate reached any summary — including on the
+ad-heavy feeds (Hard Fork, No Priors, The Journal). The cleaning stage handles ad-supported
+content.
+
+**Consequence for the probe:** the a16z / Lenny's / Pragmatic Engineer group becomes a
+*confirmation* test rather than a discovery test. Still worth running — those three are heavier
+on ads than anything here — but the prior is now "this works" rather than "unknown".
+
+### Finding 2 — the §5g thresholds were decoration
+
+Observed spread is far tighter than the bands I inherited from batch-1:
+
+| Metric | Observed | My §5g band | Verdict |
+| --- | --- | --- | --- |
+| KG nodes/ep | 21.5 – 25.2 | 20–29 | passes everything |
+| GI↔KG linked | 11.8 – 20.8 | `> 0` | passes everything |
+| bullets/ep | 7.2 – 11.8 | (unstated) | — |
+
+A gate nothing can fail is not a gate.
+
+### Finding 3 — a prediction of mine, refuted
+
+I predicted format-dependence: that **The Daily** (~25-min news) would produce markedly thinner
+output than **Latent Space** (~90-min technical long-form), and therefore that thresholds would
+need to be per-format.
+
+**Wrong.** The Daily 8.2 bullets / 22.5 KG; Latent Space 8.0 / 25.0. Near-identical.
+
+The likely mechanism matters more than the miss: **summary bullet count is a property of the
+prompt, not of the episode.** The summariser targets a roughly fixed count regardless of input
+length or richness. So bullets/ep measures the pipeline's configuration, not the content — and
+grading new shows on it would have been grading a constant.
+
+### Revised, evidence-based thresholds
+
+Replaces the §5g bands. Derived from the observed distribution, not inherited.
+
+| Signal | INVESTIGATE below/above | Rationale |
+| --- | --- | --- |
+| KG nodes/ep | **< 18** | observed floor 21.5; 18 is a real outlier |
+| GI↔KG linked (`both`) | **< 8** | observed floor 11.8 — **the most discriminating signal**, ~2× spread |
+| unlinked GI (`gi_only`) | **> 2** | observed max 0.5; a rise means GI is producing content the graph cannot corroborate |
+| any ad marker in summary | **any** | observed 0/36 — a single hit is a **pipeline defect**, not a content verdict |
+| bullets/ep | *not a gate* | pipeline constant; record for interest only |
+
+**`bridge_partition.both` is promoted to the primary quality signal.** It has the widest real
+spread (11.8 → 20.8) and it measures something meaningful: how much extracted insight is
+corroborated by graph structure.
+
+### Caveats
+
+- **36 episodes, 4 per feed.** Sufficient to show the bands are too wide and that ads are clean;
+  **not** sufficient for confident per-feed rankings. Hard Fork's 20.8 vs The Daily's 11.8 is
+  suggestive, not established.
+- Sampling took the **newest** episodes per feed, so this reflects current pipeline behaviour,
+  not the whole corpus (which spans several pipeline versions).
+- Ad detection is **string-matching** on summary text. It cannot detect a sponsor segment that
+  was summarised into neutral prose without trigger phrases. A clean result is good evidence,
+  not proof.
+
+---
+
 ## 6. Recommended shape of the next batch
 
 **Three** axes now compete for slots, not two: the **format axis** (§5 — debate/panel, unlocks
