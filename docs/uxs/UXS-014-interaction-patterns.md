@@ -67,8 +67,23 @@ hand-rolled on each page. Adding a one-off `class="text-muted …"` for one of t
 When a new recurring treatment appears, add one class and reuse it — do not copy styles between
 pages.
 
-**Show names never truncate.** A podcast/show name is never `truncate`d to an ellipsis — when it's
-too long it **wraps to the next line**. (Episode titles may still clamp; show names do not.)
+**Show names never truncate — where the layout has room.** In a full-width row, a list item, or a
+header, a podcast/show name **wraps to the next line** rather than ellipsising. (Episode titles may
+still clamp; show names do not.)
+
+> **Scoped #1604.** The rule as originally written was unqualified, and it is **incompatible with
+> uniform grid rows**: in a fixed-width tile, a name that wraps freely makes the row as tall as its
+> longest member, which is the exact defect #1584 was filed to fix. Something has to bound the
+> label.
+>
+> So the rule now holds where width is elastic, and in **fixed-width grid or rail tiles** a show
+> name may clamp — but only with a **reserved height** (so rows stay uniform) and a `title`
+> attribute (so the full name stays reachable). See `ShowTile.vue`.
+>
+> This is recorded because I broke the rule before scoping it: #1584 added `truncate` to
+> Recommended's show kicker to stop it wrapping and undoing the reserved height, resolving the
+> conflict silently in the code. That is the behaviour the drift audit exists to prevent, so the
+> conflict is written down here instead.
 
 ## Drill-in navigation
 

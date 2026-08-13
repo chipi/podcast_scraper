@@ -93,3 +93,24 @@ Reviewing my own 20 commits rather than the codebase. Three real gaps, all now f
 **The lesson worth keeping:** a one-directional check catches yesterday's drift but not today's. E2
 happened because the guard could only see selectors that *were* in the map, never the ones that
 should have been.
+
+## F. Self-assessment findings (second pass)
+
+- **F1. I broke a spec rule while fixing a different one, and resolved it silently.** #1584 added
+  `truncate` to Recommended's show kicker so a long name could not wrap and undo the reserved
+  height. `UXS-014:70` says show names never truncate. The two requirements are genuinely
+  incompatible in a fixed-width tile — something must bound the label — but I resolved that conflict
+  **in the code, with no note**, which is exactly the behaviour the drift audit condemns. The rule is
+  now scoped in the spec, with the conflict recorded.
+- **F2. A spec claim was simply false and I had been reading past it.** `UXS-011:90` says every
+  surface token has a matching `-foreground`; `elevated` and `overlay` do not. I quoted that section
+  twice while working #1598 without noticing. Corrected in the spec.
+- **F3. An executable check that cannot run is worse than no check.** My token-pair assertion could
+  not read `tokens.css` under vitest (`?raw` yields empty in this setup, in both import and glob
+  form). Rather than leave a skipped or contorted test, the finding moved to the spec where it is
+  a statement of fact instead of a broken guard. **Only convert a criterion when the check is
+  genuinely cheap** — a fragile one erodes trust in the whole file.
+- **F4. The first colour check was too broad.** It flagged `rgba(0,0,0,.5)` scrims and
+  `rgba(255,255,255,.2)` hairlines, which have no token to use instead. Narrowed to *chromatic*
+  literals only — a brand colour is never greyscale, so the Ember glow it exists to catch still
+  fails it. A noisy guard gets deleted, and then guards nothing.

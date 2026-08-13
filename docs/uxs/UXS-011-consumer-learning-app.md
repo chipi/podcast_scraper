@@ -89,6 +89,12 @@ Use **semantic names** in code (CSS custom properties / Tailwind theme keys). No
 components except in the single token layer (`web/learning-player/src/styles/tokens.css`). Every surface token has a
 matching `-foreground` so contrast is validated at the token level.
 
+> **Not universally true (#1604).** `canvas` and `surface` have `-foreground` pairs; **`elevated`
+> and `overlay` do not** — they are backgrounds for text that inherits from `canvas`. The prose
+> above overclaims, and the token table below never listed pairs for them either. Corrected here
+> rather than pretending: a claim that contrast is "validated at the token level" is only as true
+> as the pairs that exist.
+
 The accent is a **single brand constant** — "Ember" (`--lp-brand-default`). Components reference
 `--accent` and never hard-code the colour, so the indirection is real and useful, but nothing varies
 it at runtime today.
@@ -327,7 +333,7 @@ Direction C. These are design aids (WIP), not shipped assets.
 ## Acceptance criteria (for issues / review)
 
 - [ ] New UI uses semantic tokens only (no one-off hex in components; single token layer)
-- [ ] Every surface uses its matching `-foreground` for text
+- [ ] Every surface that HAS a `-foreground` uses it for text (`canvas`, `surface`; `elevated` and `overlay` inherit — see the token section)
 - [x] `--accent` is the brand constant. *(The per-show contrast-clamp criterion was retracted in #1598 — it described unbuilt behaviour.)*
 - [ ] Intent tokens for UI feedback; domain tokens (`grounded`/`topic`/`person`/`insight`) for
       knowledge-layer identity only
