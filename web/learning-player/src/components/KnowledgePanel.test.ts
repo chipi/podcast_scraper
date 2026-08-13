@@ -146,8 +146,8 @@ describe('KnowledgePanel', () => {
       { id: 'topic:ml', label: 'ml', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
     ]
     const w = mountPanel({ topics, persons: [] })
-    // Dominant semantic-cluster label surfaces as the "Similar ·" lead-in
-    // (renamed from "Theme ·" — "Theme" is now reserved for co-occurrence clusters).
+    // Dominant SEMANTIC cluster surfaces as "Similar ·"; co-occurrence clusters are "Storyline ·"
+    // (#1603 — one consumer word, matching Home's "Storylines" rail).
     expect(w.text()).toContain('Similar · machine learning')
     // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
     const chips = w.findAll('button').filter((b) => ['ai', 'ml', 'zulu'].includes(b.text()))
@@ -157,7 +157,7 @@ describe('KnowledgePanel', () => {
     expect(chips[2].classes()).not.toContain('ring-topic')
   })
 
-  it('marks theme-cluster topics with a "Theme ·" lead-in and theme ring (co-occurrence)', () => {
+  it('marks co-occurrence topics with a "Storyline ·" lead-in and theme ring', () => {
     const topics: Topic[] = [
       {
         id: 'topic:oil',
@@ -183,7 +183,7 @@ describe('KnowledgePanel', () => {
     ]
     const w = mountPanel({ topics, persons: [] })
     // Dominant theme (co-occurrence) surfaces as the "Theme ·" lead-in — distinct from "Similar ·".
-    expect(w.text()).toContain('Theme · sanctions')
+    expect(w.text()).toContain('Storyline · sanctions')
     // Theme-member chips carry the teal fill (lp-theme-chip); the non-member does not.
     const oil = w.findAll('button').find((b) => b.text() === 'oil')!
     const zulu = w.findAll('button').find((b) => b.text() === 'zulu')!

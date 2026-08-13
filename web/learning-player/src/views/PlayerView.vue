@@ -475,6 +475,19 @@ onBeforeUnmount(() => {
               </div>
               <!-- Per-episode reach (UXS-014): listeners · opens · insights, with a tiny opens-over-time
                    sparkline. The insights score opens the Knowledge panel. -->
+              <!-- Insights: the reason to choose this over a normal podcast app, so it is a
+                   LABELLED control, not a 💡 emoji tucked into the stats cluster next to
+                   listener/open counts (#1595). It used to read "💡 3" — the least legible control
+                   on the page, styled like a statistic, for the product's central feature. -->
+              <button
+                v-if="!panelOpen && insights.length"
+                type="button"
+                data-testid="player-open-insights"
+                class="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
+                @click="panelOpen = true"
+              >
+                ✦ {{ t('card.insightCount', { count: insights.length }, insights.length) }}
+              </button>
               <div
                 v-if="!panelOpen"
                 class="shrink-0 rounded-xl bg-canvas/80 px-3 py-2 text-right backdrop-blur"
@@ -495,12 +508,6 @@ onBeforeUnmount(() => {
                     :aria-label="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                     :title="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                   >▶ {{ compact(stats.opens) }}</span>
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 text-accent transition hover:opacity-80"
-                    :aria-label="t('kp.insights')"
-                    @click="panelOpen = true"
-                  >💡 {{ insights.length }}</button>
                 </div>
                 <Sparkline
                   v-if="stats && statsSeries.some((n) => n > 0)"

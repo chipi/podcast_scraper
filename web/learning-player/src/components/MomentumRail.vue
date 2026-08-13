@@ -70,7 +70,10 @@ function titleOf(e: TrendingEntity): string {
 
 <template>
   <section v-if="hasAny || !section.isReady.value" class="mt-7" :data-testid="`momentum-rail-${kind}`">
-    <h2 class="lp-section mb-2">{{ title }}</h2>
+    <h2 class="lp-section">{{ title }}</h2>
+    <!-- #1595: the × metric was explained only in a `title` attribute, which does not exist on
+         touch — so on the primary platform this rail showed an undecoded number. -->
+    <p v-if="hasAny" class="mb-2 text-xs text-muted">{{ t('home.momentumHint') }}</p>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
     <ul v-if="hasAny" class="flex flex-col">
       <li

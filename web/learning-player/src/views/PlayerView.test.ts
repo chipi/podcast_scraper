@@ -95,7 +95,8 @@ describe('PlayerView', () => {
     // compact(): 1200 → "1.2k", 3400 → "3.4k".
     expect(w.text()).toContain('1.2k') // listeners
     expect(w.text()).toContain('3.4k') // opens
-    expect(w.text()).toContain('💡 6') // insights count from getInsights
+    // #1595 — insights moved OUT of the stats cluster into a labelled first-class control.
+    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('6 insights') // insights count from getInsights
   })
 
   it('compacts large counts without a decimal at/above 10k', async () => {

@@ -161,8 +161,10 @@ describe('EntityCardBody — Follow control', () => {
     )
     const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
     await flushPromises()
-    // "Theme ·" identity line — distinct from the semantic "Similar ·".
-    expect(w.text()).toContain('Theme · sanctions')
+    // "Storyline ·" identity line — distinct from the semantic "Similar ·" (#1603).
+    // These were swapped relative to UXS-013 and the word "Theme" existed in no spec at all;
+    // Home already said "Storylines", so the card and panel were the outliers.
+    expect(w.text()).toContain('Storyline · sanctions')
     const themeMembers = w.find('[data-testid="ec-theme-members"]')
     expect(themeMembers.exists()).toBe(true)
     expect(themeMembers.text()).toContain('oil')

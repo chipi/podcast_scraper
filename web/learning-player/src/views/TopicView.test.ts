@@ -86,8 +86,8 @@ describe('TopicView (#1261-6)', () => {
 
   it('renders the sibling-topics chip section from the topic card payload', async () => {
     const { w } = await mountTopic()
-    // "3 topics in this cluster" — current + 2 siblings.
-    expect(w.text()).toContain('3 topics in this cluster')
+    // "3 similar topics" — current + 2 siblings (#1603 vocabulary).
+    expect(w.text()).toContain('3 similar topics')
     expect(w.text()).toContain('AGI')
     expect(w.text()).toContain('Alignment')
   })

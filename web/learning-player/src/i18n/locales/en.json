@@ -44,7 +44,7 @@
     "seeAllShows": "See all {count} →",
     "resume": "Resume",
     "trending": "Trending topics",
-    "trendingHint": "Heating up across the library lately",
+    "trendingHint": "Heating up lately — “2×” means twice its usual rate of mentions",
     "trendingChip": "{topic} — trending at {factor}× its recent average",
     "storylines": "Storylines",
     "storylinesHint": "Topics that keep coming up together",
@@ -61,7 +61,8 @@
       "revisit": "Moments you capture come back here to review, spaced out over time.",
       "trending_in_your_corpus": "Once you've listened to a few episodes, what's heating up across them shows here."
     },
-    "yourWeekFindShows": "Find shows →"
+    "yourWeekFindShows": "Find shows →",
+    "momentumHint": "“↑ 2×” means twice its usual rate lately"
   },
   "rail": {
     "prev": "Scroll left",
@@ -213,7 +214,7 @@
     "noResults": "No grounded passages found.",
     "summary": "Summary",
     "tags": "Topics & People",
-    "theme": "Theme · {cluster}",
+    "theme": "Storyline · {cluster}",
     "similar": "Similar · {cluster}",
     "groundedHint": "Grounded — sourced to a moment in the audio",
     "insights": "Insights",
@@ -251,7 +252,7 @@
     "scopeAll": "All",
     "scopeMine": "My corpus",
     "clusterSize": "{count} topic | {count} topics",
-    "singleTopic": "Standalone topic — not part of a cluster",
+    "singleTopic": "Not part of a storyline yet",
     "person": "Person",
     "topic": "Topic",
     "roleHost": "Host",
@@ -268,8 +269,8 @@
     "showEpisodeCount": "{count} episode | {count} episodes",
     "personOtherEpisodes": "Also appears in {count} episode | Also appears in {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
-    "clusterMembers": "{count} topic in this cluster | {count} topics in this cluster",
-    "themeMembers": "{count} topic in this theme | {count} topics in this theme",
+    "clusterMembers": "{count} similar topic | {count} similar topics",
+    "themeMembers": "{count} topic in this storyline | {count} topics in this storyline",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
