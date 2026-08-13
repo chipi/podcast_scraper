@@ -346,6 +346,60 @@ Worth confirming before relying on per-vertical budgets as isolation.
 
 ---
 
+## H. Data retention and reprocessability
+
+### H1 — the audio archive is built, documented, and switched off — `[OPEN, high]`
+
+**Found 2026-08-13** while checking prod disk headroom ahead of the next ingestion batch.
+
+`docs/recipes/prod-audio-archive.md` (#1199) is a complete runbook: Hetzner Storage Box over
+rclone/SFTP, `archive pull` for laptop recovery, and a reprocess flow that reads audio from the
+archive instead of re-fetching feeds. `infra/terraform/storage_box.tf` implements the
+provisioning. The feature is finished.
+
+**It has never been enabled.** Verified:
+
+| Where | State |
+| --- | --- |
+| `config/profiles/cloud_balanced.yaml` | `audio_storage_backend` **not set** |
+| box `viewer_operator.yaml` | **not set** |
+| `infra/terraform/storage_box.tf:12` | `count = var.audio_storage_box_type != "" ? 1 : 0` — defaults to empty, so **provisions nothing** |
+
+Combined with the recipe's own statement — *"Prod stores no audio by default: episodes are
+transcribed, then the media is discarded"* — the consequence is:
+
+> **The source audio for every episode in the corpus is gone.** At the time of writing that is
+> ~454 episodes, none of them reprocessable from archive.
+
+**Why that matters more than it sounds.** Reprocessing is a first-class activity here —
+ADR-149 governs a whole reprocess methodology, and the corpus has already moved v2.1→v2.5.
+Every future model upgrade (better ASR, new diarization, a revised GI/KG schema) currently
+requires **re-downloading audio from the live feed**, which the recipe itself says fails when:
+
+- an episode rolls off the publisher's feed window (already observed — The Seen and the Unseen
+  serves 117 items against 454 published), or
+- a dynamic-ad feed re-encodes the file, so the re-downloaded audio is not the audio that
+  produced the existing transcript.
+
+So the corpus is quietly accumulating episodes that can never be re-derived, only re-scraped
+if lucky.
+
+**Cost of fixing:** a `bx11` Storage Box is 1 TB at roughly €3.20/month. The work is one
+`tofu apply`, one GitHub secret (`PROD_RCLONE_STORAGEBOX_PASS`), and three profile lines. It is
+among the cheapest items on this entire list.
+
+**Recommended timing — before the next batch, not after.** The planned expansion adds ~25 shows
+at ~10 episodes each (~250 episodes). Enabling the archive first makes those reprocessable;
+enabling it after means another 250 one-shot episodes. The already-lost 454 cannot be
+recovered either way, which is precisely why the next 250 should not join them.
+
+**Not verified:** whether `audio_storage_backend: local` retains media anywhere on the box at
+all, or discards immediately after transcription. The recipe says discarded; I did not confirm
+against the code. If some local retention exists, a subset of recent episodes might still be
+archivable retroactively — worth ten minutes before writing the 454 off.
+
+---
+
 ## E. Deploy
 
 ### E1 (= F5) — `deploy-all-prod.yml` unvalidated — `[OPEN, low]`
