@@ -545,6 +545,73 @@ Capitalisn't (248, 08-06) · 80,000 Hours (347, 08-11) · Nature Podcast (917, 0
 
 ---
 
+## 5g. Onboarding protocol — smoke → assess → deepen (decided 2026-08-13)
+
+**Operator decision.** The existing nine feeds are **not** re-litigated — they stay, for
+reasons outside the enricher-value model. §5f's retroactive flag is recorded but **not
+actionable**.
+
+New shows are onboarded by a three-phase loop, one show at a time. The ordering matters:
+**one episode is a far cheaper failure detector than ten**, and several Batch A shows are
+cost outliers where a bad first result would otherwise be discovered ten episodes deep.
+
+### Phase 1 — smoke, 1 episode per show
+
+`max_episodes=1`, `episode_order=newest`, `skip_existing=true`, all 15 Batch A shows.
+Roughly 15 episodes total — minutes each, negligible spend — and it exercises the
+transcription path, the enrichers, and the cost profile on real content from each publisher.
+
+### Phase 2 — assess, before any depth
+
+Per episode, from the API (no SSH needed):
+
+| Check | Source | PASS | INVESTIGATE | FAIL |
+| --- | --- | --- | --- | --- |
+| Job outcome | `GET /api/jobs/{id}` | `succeeded` | — | `failed` / `stale` |
+| Artifacts complete | `/api/corpus/coverage` | GI **and** KG present | — | either missing |
+| Insight count | index `doc_type=insight` | 6–31 (batch-1 band) | < 6 | 0 |
+| KG nodes | `kg_entity` + `kg_topic` | ~20–29 | < 15 | 0 |
+| GI↔KG bridging | `bridge_partition` in episode detail | `both` > 0 | `both == 0` | — |
+| Summary substance | `summary_bullets` | specifics: names, numbers, mechanisms | generic/vague | empty |
+| Cost | `podcast_pipeline_run_cost_usd_total` delta | ≲ $0.30/ep | > $0.50/ep | approaches the $10/run cap |
+
+**"Catastrophic" — stop the show, move on, record why:** job fails twice, zero insights,
+missing artifacts, or a transcript that is obviously wrong (untranscribed music, wrong
+language, ad-read soup).
+
+**"Weak" — a judgement call, not an auto-stop:** in-band but thin. Record and decide; a show
+can be genuinely good and simply produce fewer, denser insights.
+
+### Phase 3 — deepen, per show
+
+- **Strong** → straight to 10
+- **Acceptable but unproven** → 5, reassess, then 10
+- **Weak** → leave at 1, record, move on
+- **Catastrophic** → drop the feed, record the reason
+
+Then loop to the next show. **One show at a time** — the pipeline runs one job anyway, and
+serial execution keeps each result attributable.
+
+### Cost and duration outliers to smoke FIRST
+
+These are exactly why the 1-episode phase exists. Long episodes cost several times a typical
+40-minute one, and the per-run soft cap is **$10** (§ cost analysis in the rollout followups):
+
+| Show | Risk |
+| --- | --- |
+| **The Seen and the Unseen** | 4–8 hour episodes — the most expensive item per episode on the list, and the likeliest to approach the per-run cap on its own |
+| **Acquired** | 3–4 hour deep-dives |
+| **In Our Time** | short (~50 min) but a 1102-episode archive — cap the backfill, not the probe |
+| **Odd Lots / EconTalk / a16z** | large archives with dated back-catalog; probe newest only |
+
+### What gets recorded, and where
+
+Per show, appended to this document as the loop runs: episode count ingested, insight and KG
+counts, modelled cost, the verdict, and — when a show is dropped — **the specific reason**.
+A dropped show with no recorded reason will be re-proposed by someone in six months.
+
+---
+
 ## 6. Recommended shape of the next batch
 
 **Three** axes now compete for slots, not two: the **format axis** (§5 — debate/panel, unlocks
