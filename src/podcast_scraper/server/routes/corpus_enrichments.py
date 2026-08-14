@@ -97,21 +97,35 @@ def list_corpus_enrichments(
     if not enrichments_dir.is_dir():
         return {"enrichments": []}
 
-    # Which enrichers the most recent run actually produced. None when no run summary exists,
-    # which is reported as "unknown" rather than silently assumed fresh.
-    latest_run_ids = _latest_run_enricher_ids(enrichments_dir)
-
-    items: list[dict[str, Any]] = []
-    for envelope_path in sorted(enrichments_dir.glob("*.json")):
-        # Skip the executor's own bookkeeping outputs.
-        if envelope_path.name in ("run_summary.json",):
-            continue
+    # One directory walk, read fully before anything is decided.
+    #
+    # The run summary is taken from this SAME glob rather than by joining
+    # ``enrichments_dir / "run_summary.json"``. ``enrichments_dir`` derives from the ``path``
+    # query parameter, so that join is a path-traversal sink — CodeQL flagged it high severity
+    # and was right. Sourcing it from the glob removes the sink instead of sanitising it, costs
+    # one fewer directory read, and matches how every other file here is reached.
+    #
+    # Two passes and not one: ``produced_by_latest_run`` needs the summary for EVERY row, and
+    # ``run_summary.json`` sorts in the middle of the listing — deciding as we went would leave
+    # alphabetically-earlier enrichers marked "unknown" purely because of their name.
+    envelopes: list[tuple[Path, dict[str, Any]]] = []
+    latest_run_ids: set[str] | None = None
+    for json_path in sorted(enrichments_dir.glob("*.json")):
         try:
-            parsed = json.loads(envelope_path.read_text(encoding="utf-8"))
+            parsed = json.loads(json_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
         if not isinstance(parsed, dict):
             continue
+        if json_path.name == "run_summary.json":
+            # The executor's own bookkeeping output — not an envelope, but it is what records
+            # which enrichers the last run produced.
+            latest_run_ids = _enricher_ids_from_summary(parsed)
+            continue
+        envelopes.append((json_path, parsed))
+
+    items: list[dict[str, Any]] = []
+    for envelope_path, parsed in envelopes:
         enricher_id = parsed.get("enricher_id") or envelope_path.stem
         items.append(
             {
@@ -131,26 +145,19 @@ def list_corpus_enrichments(
     return {"enrichments": items}
 
 
-def _latest_run_enricher_ids(enrichments_dir: Path) -> set[str] | None:
-    """Enricher ids present in the last run summary; None when it cannot be read.
+def _enricher_ids_from_summary(summary: dict[str, Any]) -> set[str] | None:
+    """Enricher ids recorded in an already-parsed run summary; None when it says nothing.
+
+    Takes the PARSED payload, not a path. The caller reads it from the directory glob it is
+    already walking, so no path is constructed from the user-supplied ``path`` parameter — the
+    traversal sink is absent rather than sanitised.
 
     None is deliberately distinct from an empty set: "we do not know what the last run did"
-    must not render as "the last run produced nothing".
-
-    The read goes through ``safe_fixed_file_under_root`` rather than a bare
-    ``enrichments_dir / "run_summary.json"``. ``enrichments_dir`` derives from the ``path``
-    query parameter, so joining onto it unchecked is a path-traversal sink — CodeQL flagged
-    exactly this line as high severity, correctly. The surrounding listing code reads via
-    ``glob``, which is already constrained to the directory; this direct join was not.
+    must not render as "the last run produced nothing", or every artifact on a corpus that
+    predates run summaries would be badged stale — noise that trains an operator to ignore the
+    badge, which is worse than not having one.
     """
-    safe_summary = safe_fixed_file_under_root(enrichments_dir, "run_summary.json")
-    if not safe_summary:
-        return None
-    try:
-        summary = json.loads(Path(safe_summary).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    per_enricher = summary.get("per_enricher") if isinstance(summary, dict) else None
+    per_enricher = summary.get("per_enricher")
     if not isinstance(per_enricher, dict):
         return None
     return set(per_enricher)

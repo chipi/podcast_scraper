@@ -1373,8 +1373,10 @@ ports timed out rather than refusing, including `:22`, the documented signature 
 incoming grant" (`policy.hujson:194`).
 
 Diagnosis evidence: `:8099` answered (HTTP 404 — TCP connects) while `:443`, `:80`, `:22`
-and `:8000` all returned `curl (28) Operation timed out`, from `100.87.33.61` to
-`100.124.111.115`.
+and `:8000` all returned `curl (28) Operation timed out`, from the homelab host's tailnet
+address to the prod host's (`<HOMELAB_TS_IP>` → `<PROD_TS_IP>`; the literal CGNAT addresses
+are operator identifiers and are not committed — see CONTRIBUTING.md § "No operator
+identifiers in the repo").
 
 Change: `"dst": ["tag:prod:8099"]` → `["tag:prod:443,8099"]`, committed as `fd337a17` and
 pushed directly to `main` (branch protection bypassed, at operator direction), which

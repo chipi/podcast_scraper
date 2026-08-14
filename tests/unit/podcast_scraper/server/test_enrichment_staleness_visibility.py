@@ -11,70 +11,62 @@ reported while its VALIDITY is not.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any, Dict
 
 import pytest
 
-from podcast_scraper.server.routes.corpus_enrichments import _latest_run_enricher_ids
+from podcast_scraper.server.routes.corpus_enrichments import _enricher_ids_from_summary
 
 pytestmark = [pytest.mark.unit]
 
 
-def _write_summary(enrichments: Path, per_enricher: Dict[str, Any]) -> None:
-    enrichments.mkdir(parents=True, exist_ok=True)
-    (enrichments / "run_summary.json").write_text(
-        json.dumps({"status": "ok", "per_enricher": per_enricher}), encoding="utf-8"
-    )
+def _summary(per_enricher: Dict[str, Any]) -> Dict[str, Any]:
+    return {"status": "ok", "per_enricher": per_enricher}
 
 
-class TestLatestRunEnricherIds:
-    def test_reads_the_ids_the_last_run_produced(self, tmp_path: Path) -> None:
-        _write_summary(tmp_path, {"insight_density": {}, "guest_coappearance": {}})
-        assert _latest_run_enricher_ids(tmp_path) == {"insight_density", "guest_coappearance"}
+class TestEnricherIdsFromSummary:
+    def test_reads_the_ids_the_last_run_produced(self) -> None:
+        ids = _enricher_ids_from_summary(
+            _summary({"insight_density": {}, "guest_coappearance": {}})
+        )
+        assert ids == {"insight_density", "guest_coappearance"}
 
-    def test_missing_summary_is_unknown_not_empty(self, tmp_path: Path) -> None:
+    def test_a_summary_without_per_enricher_is_unknown_not_empty(self) -> None:
         """None means "we cannot say"; an empty set would claim the last run produced nothing.
 
-        Rendering "unknown" as "stale" would flag every artifact on a corpus that predates run
+        Rendering "unknown" as "stale" would badge every artifact on a corpus that predates run
         summaries — noise that trains an operator to ignore the badge, which is worse than not
         having one.
         """
-        tmp_path.mkdir(parents=True, exist_ok=True)
-        assert _latest_run_enricher_ids(tmp_path) is None
+        assert _enricher_ids_from_summary({"status": "ok"}) is None
 
-    def test_malformed_summary_is_unknown(self, tmp_path: Path) -> None:
-        tmp_path.mkdir(parents=True, exist_ok=True)
-        (tmp_path / "run_summary.json").write_text("{not json", encoding="utf-8")
-        assert _latest_run_enricher_ids(tmp_path) is None
+    def test_a_malformed_per_enricher_is_unknown(self) -> None:
+        assert _enricher_ids_from_summary({"per_enricher": ["not", "a", "dict"]}) is None
+        assert _enricher_ids_from_summary({"per_enricher": None}) is None
 
-    def test_summary_without_per_enricher_is_unknown(self, tmp_path: Path) -> None:
-        tmp_path.mkdir(parents=True, exist_ok=True)
-        (tmp_path / "run_summary.json").write_text(json.dumps({"status": "ok"}), encoding="utf-8")
-        assert _latest_run_enricher_ids(tmp_path) is None
+    def test_an_empty_per_enricher_is_a_real_empty_set(self) -> None:
+        """Distinct from None: the run reported, and it produced nothing."""
+        assert _enricher_ids_from_summary(_summary({})) == set()
 
-    def test_an_enricher_that_did_not_run_is_absent_from_the_set(self, tmp_path: Path) -> None:
+    def test_an_enricher_that_did_not_run_is_absent_from_the_set(self) -> None:
         """The real case: topic_cooccurrence_corpus was disabled but its artifact remained."""
-        _write_summary(tmp_path, {"insight_density": {}, "insight_sentiment": {}})
-        ids = _latest_run_enricher_ids(tmp_path)
+        ids = _enricher_ids_from_summary(_summary({"insight_density": {}, "insight_sentiment": {}}))
         assert ids is not None
         assert "topic_cooccurrence_corpus" not in ids
 
-    def test_it_reads_only_the_summary_directly_under_the_given_root(self, tmp_path: Path) -> None:
-        """``enrichments_dir`` derives from the ``path`` query parameter, so joining onto it is
-        a path-traversal sink — CodeQL flagged the original bare
-        ``enrichments_dir / "run_summary.json"`` as high severity, correctly.
+    def test_it_takes_a_payload_and_never_a_path(self) -> None:
+        """Regression guard for the CodeQL finding.
 
-        The read now goes through ``safe_fixed_file_under_root``. A run summary sitting beside
-        the root must never be picked up.
+        The first version of this helper took ``enrichments_dir`` and joined
+        ``/ "run_summary.json"`` onto it. ``enrichments_dir`` derives from the ``path`` query
+        parameter, making that join a path-traversal sink — CodeQL flagged it high severity and
+        was right. The caller now sources the payload from the directory glob it is already
+        walking, so no path is constructed here at all.
+
+        Keeping this signature payload-only is what prevents the sink from coming back.
         """
-        _write_summary(tmp_path / "neighbour", {"leaked_enricher": {}})
+        import inspect
 
-        corpus = tmp_path / "corpus" / "enrichments"
-        corpus.mkdir(parents=True, exist_ok=True)
-        assert _latest_run_enricher_ids(corpus) is None
-
-        # ...and once a real one exists under the root, that is what is read.
-        _write_summary(corpus, {"insight_density": {}})
-        assert _latest_run_enricher_ids(corpus) == {"insight_density"}
+        params = inspect.signature(_enricher_ids_from_summary).parameters
+        assert list(params) == ["summary"]
+        assert params["summary"].annotation in ("dict[str, Any]", Dict[str, Any])
