@@ -602,26 +602,43 @@ These are the ones this document is for. Known so far:
 
 Add to this table when a migration stalls on missing data rather than on assertions.
 
-### B1. The search index is a *precondition*, not a category
+### B1. The search index — RESOLVED, and what it did and did not unblock
 
-Distinct from the rows above, and worth separating because no corpus edit fixes it: several specs
-are blocked because the **query-embedding stack cannot run on this machine**, not because the data
-is missing. `/api/search` answers `embed_failed` without `sentence_transformers`, and the repo's
-`torch>=2.11` floor has no macOS x86_64 wheel.
+**Status 2026-08-14: resolved.** The index runs in a linux/amd64 container built from
+`docker/api/Dockerfile` (tag `podcast-api:e2e-local`; nothing in the repo builds that tag, so build
+it by hand). `/api/index/stats` reports **848 vectors** across `transcript`/`insight`/`quote`/
+`kg_topic`/`kg_entity`/`episode_title`/`summary`, and `/api/search` returns real ranked hits.
 
-What that transitively blocks, beyond the obvious `search-*.spec.ts` files:
+Two things worth keeping, because both were initially mis-attributed to the dead index:
 
-- **`digest.topics` — the topic bands are search output, not fixture data.** `corpus_digest.py` runs
-  each configured digest query through `run_corpus_search`, so a dead index yields `topics: []` with
-  `topics_unavailable_reason: null` (it looks like "nothing configured", which is misleading). That
-  blocks most of `digest.spec.ts` and `dashboard.spec.ts`'s FR6.1 briefing cards.
-- **`person-landing.spec.ts` entirely** — its only shipped entry point is clicking the
-  `lifted.speaker` link on a search hit.
-- **`library.spec.ts`'s "why this episode" snippet**, which needs an active search context.
+**1. Topic bands are NOT a search problem — they are a corpus-content gap.** `corpus_digest.py`
+runs each configured digest query through `run_corpus_search`, so an absent index does empty
+`digest.topics`. But with search fully working, `topics` is **still `[]`**.
+`load_digest_topics()` falls back to `DEFAULT_DIGEST_TOPICS` (so topics *are* configured) and every
+band returns `None` — the fixture's content matches none of the default editorial queries within
+the window. Note the failure is silent in a misleading way: `topics_unavailable_reason` stays
+`null`, which reads as "nothing configured". This is a genuine v4 requirement: **the corpus must
+contain episodes that answer the default digest topic queries**, or the fixture must ship its own
+`digest_topics` config.
 
-These are **not** v4 fixture requirements. They need a linux/amd64 container (the corpus already
-carries a built `search/lance_index`), and they will migrate without any corpus change once one is
-available.
+**2. No result carries a `lifted` block.** A *compound* result is a `segment` hit whose payload
+carries a non-null `lifted` (the insight the chunk was lifted into, plus its speaker/topic).
+Measured across five queries — `systems thinking`, `risk management`, `Dr. Elena Fischer`,
+`lifelong learning`, `expert interviews` — **50 of 50 results returned `"lifted": null`**.
+
+That single gap blocks more than it looks like:
+
+| Blocked surface | Why |
+| --- | --- |
+| `search-fr1.spec.ts` compound badge + lifted entity links | the badge and links only render on a compound row |
+| `person-landing.spec.ts` — **the whole file** | its only shipped entry point is clicking the `lifted.speaker` link on a search hit |
+
+So a working index did **not** unblock `person-landing`, contrary to the earlier note here. **v4
+must produce lifted/compound results** — segment chunks that resolve to an insight with an
+attributed speaker.
+
+What the index *did* unblock: the tier/evidence surfaces of `search-fr1.spec.ts` (migrated), and
+`library.spec.ts`'s "why this episode" snippet, which needs only an active search context.
 
 ### C. Fault injection — **permanently mocked, and correctly so**
 
