@@ -701,6 +701,40 @@ enrichers listed), and correct-looking code (chain present, called, sensibly gat
 **An empty enricher set must be a loud warning, not a 3 ms `ok`.** That single line would have
 made this visible on day one.
 
+##### Test 1 result (2026-08-14) — `--config` does NOT carry the profile
+
+`POST /api/jobs/enrichment` with an empty body, which routes through
+`build_enrichment_argv` and passes `--config /app/output/viewer_operator.yaml`:
+
+```json
+{"run_id":"73c6969d-…","started_at":"2026-08-14T03:46:18Z","finished_at":"2026-08-14T03:46:18Z",
+ "duration_ms":3,"per_enricher":{},"profile":null,"status":"ok"}
+```
+
+Identical to the 2026-08-10 run. **3 ms, zero enrichers, `profile: null`, `ok`.** Corpus
+enrichment artifacts unchanged at 1.
+
+This is significant because the operator YAML passed via `--config` contains **both**:
+
+- `profile: cloud_balanced`, and
+- (via the profile) an explicit `enrichment.enrichers` block naming nine enrichers.
+
+**Neither was used.** So the enricher set is resolved *only* from `--profile`, and no other
+source supplies it — not the config's own `enrichment.enrichers` dict, not the operator YAML's
+`profile:` key.
+
+That rules out the cheap fix ("make the spawner pass `--config`") and points at set resolution
+itself. **The fix must make the enricher set resolvable without an explicit `--profile` flag** —
+either by honouring `enrichment.enrichers` from config, or by resolving the profile name that
+the config loader already knows and currently discards.
+
+##### Test 2 in flight — explicit `--only`
+
+`submit_enrichment_job` accepts an `only` list which becomes `--only id1,id2,…`, naming
+enrichers directly and bypassing profile resolution. Job `6d9d9c6f` submitted with all seven
+deterministic enrichers. If it runs them, the corpus can be enriched today via the API while
+the code fix is scheduled; if it also no-ops, the defect is deeper than argument passing.
+
 #### A defect regardless of which explanation holds
 
 **The gate returns silently.** An operator cannot distinguish "enrichment disabled by config"
