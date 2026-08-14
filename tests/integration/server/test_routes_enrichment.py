@@ -231,18 +231,25 @@ def test_get_run_summary_returns_no_run_for_fresh_corpus(app: FastAPI, corpus: P
 
 
 def test_get_run_summary_returns_payload_after_executor_run(app: FastAPI, corpus: Path) -> None:
-    """Run the executor in-process so the run_summary file exists,
-    then query the route."""
+    """Run the executor in-process so the run_summary file exists, then query the route.
+
+    Uses a REAL enricher: an empty configured set now raises rather than reporting success
+    (#1648). This test is about the route serving the summary file, not about the no-op path,
+    and an empty set was only ever incidental here.
+    """
     import asyncio
 
+    from podcast_scraper.enrichment.enrichers import register_deterministic_enrichers
     from podcast_scraper.enrichment.executor import EnrichmentExecutor
     from podcast_scraper.enrichment.protocol import EnricherSet
     from podcast_scraper.enrichment.registry import EnricherRegistry
 
+    registry = EnricherRegistry()
+    register_deterministic_enrichers(registry)
     executor = EnrichmentExecutor(
         corpus_root=corpus,
-        registry=EnricherRegistry(),
-        enricher_set=EnricherSet(),
+        registry=registry,
+        enricher_set=EnricherSet(enabled_enrichers=["insight_density"]),
     )
     asyncio.run(executor.run())
 

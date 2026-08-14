@@ -329,6 +329,7 @@ nav:
       - ADR-148 In-place re-roll for invalid structured responses: adr/ADR-148-structured-response-in-place-reroll-before-fallover.md
       - ADR-149 Corpus reprocess methodology: adr/ADR-149-corpus-reprocess-methodology.md
       - ADR-150 Supervision bounds and absence-detection: adr/ADR-150-supervision-bounds-and-absence-detection.md
+      - ADR-151 Stage outcomes over stage timings: adr/ADR-151-stage-outcomes-over-stage-timings.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
