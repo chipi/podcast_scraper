@@ -910,6 +910,108 @@ Related: G1/G2 (supervision), D6 (headroom vs spend), H2 (the enrichment gap thi
 All four share one root pattern — **the system reports what happened and stays silent about
 what did not.**
 
+### H6 — enrichment has **no incrementality**: every run reprocesses the whole corpus — `[OPEN, HIGH]`
+
+**Raised 2026-08-14.** This is the same defect class that #1549 fixed for **indexing**, still
+present in **enrichment**. Indexing was made incremental; enrichment never was.
+
+#### The contrast, in one pair of log lines
+
+Indexing, from the live Pragmatic Engineer job at 07:00:37Z:
+
+```
+reindex complete: IndexRunStats(episodes_scanned=662, episodes_skipped_unchanged=646,
+                                episodes_reindexed=16, vectors_upserted=1551, errors=[])
+```
+
+646 skipped, 16 done. Enrichment has no equivalent, because it has no skip path at all.
+
+#### Verified: there is no staleness check anywhere
+
+| Location | What it does |
+| --- | --- |
+| `enrichment/cli.py:315` | `discover_episode_bundles(corpus_root)` — walks **every** episode bundle in the corpus |
+| `executor.py:231-235` | Phase 1 (episode-scope) is handed the **full** bundle list |
+| `executor.py:434` | `for bundle in bundles:` — **unconditional**; no mtime, hash, `computed_at`, or "output exists" test |
+| `executor.py:251-264` | Phase 2 (corpus-scope) receives `all_bundles=episode_bundles` — all 662 |
+| `enrichment/paths.py:126-128` | The only `is_file()` checks are for **input** siblings (`.gi/.kg/.bridge`), never for existing output |
+
+The only filters in the executor are `--skip`, `--only`, and health auto-disable gating
+(`executor.py:778-798`). All of them select **enrichers**, never **episodes**.
+
+#### So what actually gets enriched when a pipeline job finishes
+
+**Everything. Always.** Not the newly-ingested window.
+
+| Enricher scope | Enrichers | What it processes | Is full-corpus correct? |
+| --- | --- | --- | --- |
+| **Episode** | `insight_density`, `insight_sentiment` | All 662 bundles; each sidecar rewritten | **No** — pure waste. Episode X's density depends only on X. If X is unchanged and the enricher version is unchanged, the output cannot change. |
+| **Corpus** | `guest_coappearance`, `temporal_velocity` | All 662, by design | **Yes** — co-appearance and velocity are defined over the whole corpus. Recomputation is inherent, though the *inputs* could be cached. |
+
+So half the work is correct-by-necessity and half is redundant. And because the spawn fires
+at the end of **every** pipeline job, ingesting 16 episodes triggers a 662-episode enrichment
+pass — the exact "nonstop firing for everything" shape #1549 removed from indexing.
+
+#### Why it has not hurt yet, and why it is about to
+
+It has been invisible because the pass was a **3 ms no-op** — reprocessing nothing costs
+nothing. Now that the operator block is populated (S6) the passes do real work, so the cost
+becomes real at exactly the moment the corpus is largest.
+
+The cost is **CPU and wall-clock, not dollars** — all four enabled enrichers are
+deterministic and local (VADER sentiment, timestamp arithmetic, graph walks); no LLM calls.
+But it compounds with a second problem: `_loaders._read_json` has **no cache**, so each
+corpus enricher re-reads all 662 KG files independently and `temporal_velocity` reads them
+**twice**, at concurrency 4, contending on the GIL for JSON parsing.
+
+This is why `expected_duration_s` had to be raised to 300 in S6 — the manifests declare 30 s,
+which is a **hard `wait_for` cap**, not a hint. Timeouts are non-retryable and count toward
+`auto_disable_threshold=5`, so a slow full-corpus pass could quarantine the enrichers.
+
+#### The fix has its inputs already persisted
+
+The envelope already carries `computed_at`, `enricher_version` and `schema_version`
+(`enrichment/envelope.py:38,55,81-91`). A correct staleness key is therefore available with no
+new bookkeeping:
+
+> recompute episode E for enricher X **iff** E's source artifacts changed, **or**
+> `enricher_version` / `schema_version` differ from the stored envelope.
+
+That mirrors #1549's `episodes_skipped_unchanged` semantics. Corpus-scope enrichers keep
+recomputing wholesale — that is correct — but should share one cached KG read per run.
+
+Suggested, not scheduled:
+1. Episode-scope skip path keyed on the envelope fields above.
+2. Per-run KG/GI read cache shared across corpus enrichers.
+3. Emit an `EnrichmentRunStats` line mirroring `IndexRunStats` — `episodes_enriched` /
+   `episodes_skipped_unchanged` — so this is observable rather than inferred. The absence of
+   that line is why nobody noticed.
+
+---
+
+### H7 — enrichment auto-spawn bypasses the job queue entirely — `[OPEN, medium — architectural]`
+
+**Raised 2026-08-14.** Concrete input to H3.
+
+`_maybe_spawn_enrichment_after_pipeline` (`orchestration.py:1762`) ends every pipeline run by
+launching a **detached `Popen`** (`orchestration.py:1793-1799`), not a queued job. Consequences:
+
+- It never appears in `GET /api/jobs`, so it cannot be listed, cancelled, or waited on.
+- It is **not serialised** against the job queue — it runs concurrently with whatever the
+  queue promotes next.
+- Its argv omits `--config`, so the child falls back to `<corpus_root>/viewer_operator.yaml`
+  via `_resolve_config_path` (`enrichment/cli.py:218-234`).
+- Output goes to `.viewer/enrichment_pipeline_spawn.log`.
+
+**This is why the no-op was invisible for the corpus's entire life: there was no job row to
+look at.** The `03:46:18Z` three-millisecond run-summary was one of these spawns, not an
+operator-queued job — which is why job records and enrichment runs never lined up.
+
+Compare indexing, which runs **in-process** inside the pipeline. Same lifecycle stage, two
+completely different execution models, one observable and one not.
+
+---
+
 ### H5 — topic co-occurrence is structurally incapable of producing connections — `[OPEN, HIGH]`
 
 **Raised 2026-08-14.** Measured on the live corpus. This is the answer to "what does
