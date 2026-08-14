@@ -352,25 +352,25 @@ def _canonicalize_persons(*docs: dict[str, Any]) -> None:
 # the lexicographically-greatest run_* per feed dir).
 _RUN_TAG = "run_20260101_000000"
 
-# Placeholder enclosure for ``content.media_url`` so the audio-source route has something
-# to return. It is an ID3 header with NO audio frames — **no browser can decode it**.
+# ``content.media_url`` points at the mock podcast host, RELATIVE — the same convention the RSS
+# fixtures use for their enclosure URLs (``url="/audio/p01_e01_fast.mp3"``), so the origin is
+# supplied by whoever serves the feed and no host or port is baked into 36 committed files.
 #
-# The previous comment here claimed "the player never decodes it in e2e", which was true only
-# because the consumer Playwright suite substitutes a synthetic WAV over the audio-source
-# response to compensate. That reads as justification and is really a description of the
-# workaround; an agent took it at face value in 2026-08 and hand-built an MP3 encoder rather
-# than looking for the audio that already exists.
+# Behind it is REAL fixture audio: ``tests/fixtures/audio/<FIXTURES_VERSION>/<episode_id>.mp3``,
+# one file per episode in this corpus. Served by ``make serve-e2e-mock`` (loopback :18765, which
+# resolves the fixture version itself) or the ``docker/mock-feeds`` nginx sidecar on the compose
+# network; the browser suites reach it through the app's ``/audio`` proxy.
 #
-# REAL audio for every episode in this corpus lives in ``tests/fixtures/audio/<FIXTURES_VERSION>/``
-# (currently ``v3/``), served as ``/audio/<episode_id>.mp3`` by ``make serve-e2e-mock`` (loopback
-# :18765) or the ``docker/mock-feeds`` nginx sidecar on the compose network. Pointing media_url at
-# one of those — instead of this placeholder — is issue #1618.
-_SILENT_MP3_DATA_URI = (
-    "data:audio/mpeg;base64,"
-    "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA"
-    "//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRv"
-    "BA"
-)
+# This was previously a 146-byte data URI holding an ID3 header with NO audio frames — undecodable
+# by any browser — and the consumer e2e suite substituted a synthetic WAV over the audio-source
+# response to compensate. Both are gone (#1618). Do not reintroduce a placeholder here: the audio
+# exists, and a fixture that cannot be played is a fixture that hides bugs.
+
+
+def _media_url(episode_id: str) -> str:
+    """Relative enclosure URL for an episode, served by the mock podcast host."""
+    return f"/audio/{episode_id}.mp3"
+
 
 # Cross-show umbrella topics so ``search/topic_clusters.json`` has multi-member
 # clusters (the interests picker only surfaces multi-member clusters; singletons
@@ -1190,7 +1190,7 @@ def main() -> int:
                     "transcript_source": "synthetic-app-validation-corpus",
                     "speakers": roster,
                     "diarization_num_speakers": len(roster),
-                    "media_url": _SILENT_MP3_DATA_URI,
+                    "media_url": _media_url(ep_label),
                     "media_type": "audio/mpeg",
                     "media_id": f"sha256:{slug(ep_label)}",
                 },

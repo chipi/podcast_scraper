@@ -11,6 +11,11 @@
 # Usage:  e2e/run-local-stack.sh [playwright args...]
 #         e2e/run-local-stack.sh --project=mobile-chrome e2e/follow-show.spec.ts
 #
+# Only the API needs Docker here, and only because the two-tier search index globalSetup builds
+# requires the [search] extras (lancedb / sentence-transformers / torch), which have no macOS
+# x86_64 wheels. Everything else runs natively: the app's runtime deps are in the venv, and
+# Playwright starts the mock podcast host itself (webServer), exactly as it does in CI.
+#
 # Requires the API image built once:  see docs/wip/2026-08-13-e2e-on-intel-mac.md
 set -euo pipefail
 

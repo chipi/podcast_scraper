@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openTranscript, routeLoadableAudio } from './helpers'
+import { openTranscript } from './helpers'
 
 /**
  * Guardrail (#1312) — runtime mobile invariants a real browser can prove that the static source
@@ -10,8 +10,8 @@ import { openTranscript, routeLoadableAudio } from './helpers'
  * against regression under CI (make test-app-e2e). If one fails, a change re-broke a mobile
  * invariant — fix the change, don't weaken the check.
  *
- * routeLoadableAudio: headless can't decode the fixture audio, so the transport panel would fall
- * back to the audio-error message. A playable WAV renders the real controls — matching a device.
+ * The fixture audio is real and decodable (#1618) — the corpus points at the mock podcast
+ * host, so the transport panel renders with no interception anywhere in this suite.
  */
 
 // Newest fixture episode — same one transcript.spec / capture.spec / full-listen use.
@@ -25,7 +25,6 @@ test.describe('mobile invariants (guardrail #1312)', () => {
     // inert), so "stays pinned on scroll" is not a desktop behaviour.
     test.skip(testInfo.project.name !== 'mobile-chrome', 'sticky controls are a mobile behaviour')
 
-    await routeLoadableAudio(page)
     await page.goto('/podcast/p05')
     await page.getByText(EPISODE_TITLE).first().click()
     await page.getByRole('heading', { name: new RegExp(EPISODE_TITLE) }).waitFor()
@@ -53,7 +52,6 @@ test.describe('mobile invariants (guardrail #1312)', () => {
   test('MediaSession metadata is set on load and playbackState tracks play/pause', async ({
     page,
   }) => {
-    await routeLoadableAudio(page)
     await page.goto('/podcast/p05')
     await page.getByText(EPISODE_TITLE).first().click()
     await page.getByRole('heading', { name: new RegExp(EPISODE_TITLE) }).waitFor()

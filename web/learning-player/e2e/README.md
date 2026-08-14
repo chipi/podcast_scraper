@@ -39,21 +39,17 @@ tears down the SPA and stops audio, so it cannot test client-side routing at all
 | `signInIsolated(page, who, testInfo)` | A stable per-(test, project) user id, so parallel specs never share state |
 | `navTo(page, dest)` | Viewport-agnostic in-app navigation |
 | `openTranscript(page)` | The transcript toggle differs by viewport |
-| `routeLoadableAudio(page)` | The one sanctioned mock — see below |
 
 ## Mocks — the exceptions, and why they exist
 
 The suite's contract is **no mocks**: the Playwright `webServer` boots a real API over
-`tests/fixtures/app-validation-corpus/v3`, so specs exercise the actual server. Current exceptions:
+`tests/fixtures/app-validation-corpus/v3` plus the mock podcast host serving the real fixture audio,
+so specs exercise the actual server. The audio stub is gone (#1618). Remaining exceptions:
 
-- **`routeLoadableAudio`** — the corpus's `content.media_url` is a placeholder data URI no browser
-  can decode, so transport specs substitute a synthetic WAV. Tracked by
-  [#1618](https://github.com/chipi/podcast_scraper/issues/1618). The fix is to serve the **real
-  fixture audio** (`tests/fixtures/audio/v3/`, one file per episode, via the mock podcast host) —
-  not to generate audio.
 - **5 data-shape stubs** in `perspectives`, `entity-signals` and `search-listener-features`, for
   states the corpus cannot produce (no speaker has >2 insights on one topic, etc). Each is a fixture
-  gap; closing them means enriching the corpus generator.
+  gap, recorded in [`CORPUS-V4-FIXTURE-LADDER.md`](../../../docs/wip/CORPUS-V4-FIXTURE-LADDER.md)
+  (#1189) so corpus v4 can retire them.
 
 Do not add a sixth. If you need a state the corpus lacks, extend the corpus — a per-spec stub is
 invisible to every other spec and hides the gap.

@@ -188,5 +188,5 @@ the READMEs will be rewritten many times; the guarantee that their pointers are 
 ## Related
 
 - [Testing Strategy](TESTING_STRATEGY.md) · [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)
-- [`tests/README.md`](../../tests/README.md), [`web/README.md`](../../web/README.md) — the pattern applied
-- [`tests/fixtures/audio/README.md`](../../tests/fixtures/audio/README.md) — the incident's subject, documented
+- [`tests/README.md`](https://github.com/chipi/podcast_scraper/blob/main/tests/README.md), [`web/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/README.md) — the pattern applied
+- [`tests/fixtures/audio/README.md`](https://github.com/chipi/podcast_scraper/blob/main/tests/fixtures/audio/README.md) — the incident's subject, documented

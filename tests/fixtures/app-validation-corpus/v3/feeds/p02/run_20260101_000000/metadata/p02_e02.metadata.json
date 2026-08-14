@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p02-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p02_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -39,11 +39,11 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being\u2026",
-      "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
+      "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being…",
+      "Before we get into it — Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
       "Yeah, exactly. And it ties into what we're covering today."
     ],
-    "raw_text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being\u2026",
+    "raw_text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being…",
     "title": "Staff-Engineer Communication Patterns"
   }
 }

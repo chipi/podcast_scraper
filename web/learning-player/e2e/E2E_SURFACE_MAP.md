@@ -46,29 +46,17 @@ Nothing in this suite is invented per-spec. Everything has a home, and all of it
 > and hand-built an MP3 encoder to synthesise some. `tests/fixtures/audio/v3/` had real audio for
 > all 36 episodes, one directory up. Read `tests/fixtures/README.md` — its title is the answer.
 
-### Known gap: the audio the player actually loads
+### Audio: real files, no interception
 
-The corpus's `content.media_url` is a **placeholder data URI that no browser can decode**, so specs
-that touch the transport call `routeLoadableAudio(page)` to substitute a synthetic WAV. That is the
-one sanctioned mock in this suite and it is tracked for removal in
-[#1618](https://github.com/chipi/podcast_scraper/issues/1618) — the fix is to point `media_url` at
-the mock host above, not to generate new audio.
+`content.media_url` is a **relative** `/audio/<episode_id>.mp3` — the same convention the RSS
+fixtures use — and the app's `/audio` proxy forwards it to the mock podcast host, which serves the
+real fixture audio from `tests/fixtures/audio/<FIXTURES_VERSION>/`. Playwright starts that host as a
+`webServer` alongside the API.
 
-> **No mocks — with exactly one exception, and it is temporary.**
-> [`routeLoadableAudio`](helpers.ts) route-fulfills `**/audio-source` with a synthetic silent WAV,
-> because the committed fixture ships a data-URL MP3 that headless Chromium cannot decode; without
-> it the player flips to `audioError` and the transport panel (which hosts `transcript-toggle`)
-> never renders. **Call it before the first navigation** in any spec that plays audio or asserts on
-> the transport panel.
->
-> Eight specs depend on it: `consolidation`, `transcript`, `transcript-toggle`,
-> `transcript-paragraphs`, `capture`, `library-saved`, `full-listen`, `mobile-invariants`.
->
-> The consequence is that **no spec exercises the real `/audio-source` contract**. The fix is at the
-> cause — a decodable WAV in the fixture, then delete the helper:
-> [#1618](https://github.com/chipi/podcast_scraper/issues/1618). Do not add further exceptions; if
-> one is unavoidable, document it here, because an undocumented mock makes every rule on this page
-> untrustworthy.
+It used to be an undecodable data URI with a route stub (`routeLoadableAudio`) substituting a
+synthetic WAV, so every transport assertion tested the stub rather than the player (#1618). Both are
+gone. `fixture-audio.spec.ts` asserts the corpus audio decodes in a real browser, so this cannot
+regress quietly.
 
 ## Setup invariants
 
@@ -302,8 +290,8 @@ Shared by every data-backed Home section (#1591). See UXS-012's state contract f
 - [`openTranscript(page)`](helpers.ts) — reveals the transcript on mobile, no-ops on desktop. Use it
   rather than clicking `transcript-toggle` directly, or the spec passes on one project and fails on
   the other.
-- [`routeLoadableAudio(page)`](helpers.ts) — the one sanctioned mock; see the exception note at the
-  top. Call **before** the first navigation.
+- Audio needs no setup: the corpus points at the mock podcast host and Playwright starts it (#1618).
+  Any spec may play audio and assert on the transport with no interception at all.
 
 ## Corpus anchors
 

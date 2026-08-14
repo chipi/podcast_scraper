@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p07-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p07_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -39,11 +39,11 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to The Long View \u2014 Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
-      "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking.",
+      "Welcome back to The Long View — Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
+      "Before we get into it — Dr. Elena Fisher was on last week talking about systems thinking.",
       "Yeah, exactly. And it ties into what we're covering today."
     ],
-    "raw_text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
+    "raw_text": "Welcome back to The Long View — Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
     "title": "Severe Garbles: A Macro Discussion"
   }
 }
