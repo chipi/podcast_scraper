@@ -36,11 +36,24 @@ investigation notes**, not contracts. `HANDOFF_MATRIX.md` and `E2E_SURFACE_MAP.m
 
 ## Mocks — the architecture, and where it is going
 
-Most specs here **route-mock the API** (`page.route('**/api/…')`) — **37 of 68 spec files, 243
+This suite's `webServer` has only ever run **Vite alone**, with no backend behind it, so fulfilling
+payloads per spec was the only option available — at its peak, **37 of 68 spec files and 243
 interceptions**, plus four shared helpers that mock on their behalf (`helpers.ts`,
-`dashboardApiMocks.ts`, `handoff/_handoff-helpers.ts`, `handoff-production/_helpers.ts`). That was
-not a shortcut: this suite's `webServer` has only ever run **Vite alone**, with no backend behind
-it, so fulfilling payloads per spec was the only option available.
+`dashboardApiMocks.ts`, `handoff/_handoff-helpers.ts`, `handoff-production/_helpers.ts`).
+
+**Current state (#1619, 2026-08-15): 25 files / 169 interceptions, and 23 spec files run against a
+live backend.** Every one of the 36 files that ever mocked now carries a written reason at its top
+saying either that it migrated, or precisely what blocks it — measured, not assumed. The remaining
+mocks fall into four kinds:
+
+| kind | meaning | examples |
+| --- | --- | --- |
+| **B — needs a v4 fixture** | the corpus cannot produce the state | topic bands, lifted/compound results, cross-show topics, `runs: []` |
+| **C — permanently mocked** | a healthy backend cannot produce it on demand | 404s, `no_index`, an index rebuild, an empty search result set |
+| **state matrix** | one control seen in several states at once | three-state run counters, >15 feeds, an episode published today |
+| **by design** | a constructed fixture is the better test | graph topologies, the handoff matrix's fixed graph |
+
+`docs/wip/CORPUS-V4-FIXTURE-LADDER.md` §B is the authority on what v4 must add.
 
 It is no longer necessary. The **same fixture-bootstrapped API the consumer suite uses** serves
 every endpoint this app calls — `/api/corpus/*`, `/api/search`, `/api/index/stats`, `/api/artifacts`.
@@ -56,6 +69,14 @@ Migration is [#1619](https://github.com/chipi/podcast_scraper/issues/1619), spec
 **not mechanical**: each mock encodes an assumed backend state, so moving one means either the
 fixture produces that state or the assertion changes. A bulk find-and-replace would leave 243 green
 tests asserting nothing.
+
+That is not hypothetical — migrating found real defects the mocks were hiding. `helpers.ts`'s
+`resetUserPreferences` had **never** worked against a real server (it PUT `{}` where the endpoint
+requires `{ preferences: {} }`, → 422); the corpus-path hint turned out to render in two dialogs,
+making the old locator a latent strict-mode violation; and several specs asserted properties that
+were true only because a stub made them so — `search-rail-in-episode` "proved" the server scopes
+retrieval using a mock that refused to return anything unscoped, and `auth-roles` tested the role
+gate against a role the test itself wrote.
 
 (If you find a smaller number quoted elsewhere — "31 files / 202" appears in the #1619 commit —
 that came from a regex that only matched string-literal first arguments and missed calls taking a
