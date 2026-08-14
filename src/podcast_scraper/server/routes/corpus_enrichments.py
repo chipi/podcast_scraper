@@ -82,14 +82,25 @@ def list_corpus_enrichments(
 ) -> dict[str, Any]:
     """List every corpus-scope envelope present under ``enrichments/``.
 
-    Compact catalog — returns ``{enricher_id, file, size_bytes,
-    schema_version, enricher_version}`` per envelope. The viewer uses
+    Compact catalog — returns ``{enricher_id, file, size_bytes, schema_version,
+    enricher_version, computed_at, produced_by_latest_run}`` per envelope. The viewer uses
     this to render availability badges before a drill-down click.
+
+    ``produced_by_latest_run`` exists because presence on disk is not freshness (#1650). A
+    DISABLED enricher's output stays in the directory forever and was indistinguishable from
+    one produced seconds ago: ``topic_cooccurrence_corpus.json`` was listed here for days
+    after that enricher stopped running, still 1.5 MB, still looking live. Silent staleness is
+    the same failure mode that let a 3 ms enrichment no-op pass for a working pass.
     """
     root = _resolve_corpus(request, path)
     enrichments_dir = root / "enrichments"
     if not enrichments_dir.is_dir():
         return {"enrichments": []}
+
+    # Which enrichers the most recent run actually produced. None when no run summary exists,
+    # which is reported as "unknown" rather than silently assumed fresh.
+    latest_run_ids = _latest_run_enricher_ids(enrichments_dir)
+
     items: list[dict[str, Any]] = []
     for envelope_path in sorted(enrichments_dir.glob("*.json")):
         # Skip the executor's own bookkeeping outputs.
@@ -101,16 +112,40 @@ def list_corpus_enrichments(
             continue
         if not isinstance(parsed, dict):
             continue
+        enricher_id = parsed.get("enricher_id") or envelope_path.stem
         items.append(
             {
-                "enricher_id": parsed.get("enricher_id") or envelope_path.stem,
+                "enricher_id": enricher_id,
                 "enricher_version": parsed.get("enricher_version"),
                 "schema_version": parsed.get("schema_version"),
                 "file": envelope_path.name,
                 "size_bytes": envelope_path.stat().st_size,
+                # When this artifact was computed — the field that makes staleness legible.
+                "computed_at": parsed.get("computed_at"),
+                # True / False / None (unknown: no run summary to compare against).
+                "produced_by_latest_run": (
+                    None if latest_run_ids is None else enricher_id in latest_run_ids
+                ),
             }
         )
     return {"enrichments": items}
+
+
+def _latest_run_enricher_ids(enrichments_dir: Path) -> set[str] | None:
+    """Enricher ids present in the last run summary; None when it cannot be read.
+
+    None is deliberately distinct from an empty set: "we do not know what the last run did"
+    must not render as "the last run produced nothing".
+    """
+    summary_path = enrichments_dir / "run_summary.json"
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    per_enricher = summary.get("per_enricher") if isinstance(summary, dict) else None
+    if not isinstance(per_enricher, dict):
+        return None
+    return set(per_enricher)
 
 
 @router.get("/corpus/enrichments/{enricher_id}")

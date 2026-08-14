@@ -849,12 +849,24 @@ def publish_calendar_date_for_artifact_listing(
     return dt.date().isoformat()
 
 
+#: Hard ceiling for one catalog page. Matches the ``le=1000`` the route declares, so a
+#: caller asking for 1000 gets 1000 (#1654). It was 200 while the route advertised 1000 and
+#: the docstring said "limit raised from 200 → 1000" — a caller requesting the full set got a
+#: silently truncated page with no error and no indication the cap had been applied. Any
+#: reduction here must be reflected in the route's ``le=`` or the two drift apart again.
+MAX_CATALOG_PAGE_SIZE = 1000
+
+
 def slice_page(
     rows: list[CatalogEpisodeRow], offset: int, limit: int
 ) -> tuple[list[CatalogEpisodeRow], Optional[str]]:
-    """Return page slice and next_cursor when more rows exist."""
+    """Return page slice and next_cursor when more rows exist.
+
+    ``limit`` is honoured up to :data:`MAX_CATALOG_PAGE_SIZE`. Silently reducing a documented
+    limit is worse than rejecting it: the caller believes it has the whole set.
+    """
     off = max(0, offset)
-    lim = max(1, min(200, limit))
+    lim = max(1, min(MAX_CATALOG_PAGE_SIZE, limit))
     chunk = rows[off : off + lim]
     next_off = off + lim
     next_cur = encode_catalog_cursor(next_off) if next_off < len(rows) else None
