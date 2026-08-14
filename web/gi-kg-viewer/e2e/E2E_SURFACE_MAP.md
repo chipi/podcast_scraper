@@ -107,8 +107,9 @@ action on `graphNavigation` + `artifacts`) that **every** UI entry point calls:
 Until that exists, E2E must assume **regressions are multi-path**: a fix for Digest does not
 prove Library or Dashboard.
 
-**Deeper code walk (entry points, stores, failure modes, refactor order):**
-[docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md](../../../docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md).
+**Deeper code walk (entry points, stores, failure modes, refactor order):** was
+`docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`, deleted since #770 — the surviving reference is
+[HANDOFF_MATRIX.md](HANDOFF_MATRIX.md) plus the `handoff/` specs.
 
 ### How agents and humans should validate (this repo’s contract)
 
