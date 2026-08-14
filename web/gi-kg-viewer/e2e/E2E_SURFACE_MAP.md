@@ -13,6 +13,22 @@ and feature UXS files ([UXS-002](../../../docs/uxs/UXS-002-corpus-digest.md) Dig
 [UXS-006](../../../docs/uxs/UXS-006-dashboard.md) Dashboard) -- and
 [RFC-062](../../../docs/rfc/RFC-062-gi-kg-viewer-v2.md) (technical design); it does not replace them.
 
+## Where the data comes from
+
+This suite is still mostly route-mocked ([#1619](https://github.com/chipi/podcast_scraper/issues/1619)),
+but it does not have to be: the **same fixture-bootstrapped API the consumer suite uses** serves every
+endpoint this app calls (`/api/corpus/*`, `/api/search`, `/api/index/stats`, `/api/artifacts`).
+
+| What | Where |
+| --- | --- |
+| Corpus the API boots against | [`tests/fixtures/app-validation-corpus/v3`](../../../tests/fixtures/app-validation-corpus/README.md) |
+| Fixture trees (audio / transcripts are **versioned**) | [`tests/fixtures/README.md`](../../../tests/fixtures/README.md) — check [`FIXTURES_VERSION`](../../../tests/fixtures/FIXTURES_VERSION) |
+| Mock podcast host | [`make serve-e2e-mock`](../../../docs/guides/E2E_TESTING_GUIDE.md) (loopback) · [`docker/mock-feeds/`](../../../docker/mock-feeds/README.md) (compose) |
+| Run this suite against the real backend | [`e2e/run-local-stack.sh`](run-local-stack.sh) — starts the API on `:8012` and points Vite's `/api` proxy at it |
+| The whole picture | [`docs/guides/E2E_TESTING_GUIDE.md`](../../../docs/guides/E2E_TESTING_GUIDE.md) |
+
+> This suite runs on **Firefox**, not Chromium — `npx playwright install firefox` before the first run.
+
 **Related:** [ADR-066](../../../docs/adr/ADR-066-playwright-for-ui-e2e-testing.md). Tracked in
 [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509).
 

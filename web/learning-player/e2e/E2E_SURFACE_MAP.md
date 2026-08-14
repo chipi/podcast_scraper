@@ -26,6 +26,34 @@ the **real API** over the **committed validation corpus**
 discover ranking, capture, consolidation), and fixtures live in the corpus, not in per-spec route
 handlers.
 
+## Where the data comes from — read this before changing any fixture
+
+Nothing in this suite is invented per-spec. Everything has a home, and all of it lives in the
+**Python half of the repo**, which is why it is easy to miss from in here:
+
+| What | Where | Notes |
+| --- | --- | --- |
+| Corpus (episodes, transcripts, GI/KG, search index) | [`tests/fixtures/app-validation-corpus/v3`](../../../tests/fixtures/app-validation-corpus/README.md) | Committed, deterministic, schema-current. The API boots against this. |
+| **Episode audio** | `tests/fixtures/audio/<FIXTURES_VERSION>/` — currently **`v3`** | One `.mp3` per episode id, covering every episode in the corpus. **Check [`tests/fixtures/FIXTURES_VERSION`](../../../tests/fixtures/FIXTURES_VERSION) first** — the folder is versioned. |
+| RSS / transcript fixtures | `tests/fixtures/{rss,transcripts}/` | Same versioning rule for `transcripts/`. |
+| Mock podcast host (host loopback) | [`make serve-e2e-mock`](../../../docs/guides/E2E_TESTING_GUIDE.md) → `127.0.0.1:18765` | Serves `/audio/<episode_id>.mp3`, RSS and transcripts. Simulates a real podcast host. |
+| Mock podcast host (compose network) | [`docker/mock-feeds/`](../../../docker/mock-feeds/README.md) | Nginx sidecar, same fixtures, for `make stack-test-*`. |
+| The whole picture | [`docs/guides/E2E_TESTING_GUIDE.md`](../../../docs/guides/E2E_TESTING_GUIDE.md), [`tests/fixtures/README.md`](../../../tests/fixtures/README.md) | Start here when something looks absent. |
+
+> **If you conclude a fixture "doesn't exist", you are probably in the wrong tree.** Every asset
+> this app plays or renders already exists somewhere above. Incident 2026-08-13: an agent searched
+> only `tests/fixtures/app-validation-corpus/v3`, found no `.mp3`, concluded the repo had no audio,
+> and hand-built an MP3 encoder to synthesise some. `tests/fixtures/audio/v3/` had real audio for
+> all 36 episodes, one directory up. Read `tests/fixtures/README.md` — its title is the answer.
+
+### Known gap: the audio the player actually loads
+
+The corpus's `content.media_url` is a **placeholder data URI that no browser can decode**, so specs
+that touch the transport call `routeLoadableAudio(page)` to substitute a synthetic WAV. That is the
+one sanctioned mock in this suite and it is tracked for removal in
+[#1618](https://github.com/chipi/podcast_scraper/issues/1618) — the fix is to point `media_url` at
+the mock host above, not to generate new audio.
+
 > **No mocks — with exactly one exception, and it is temporary.**
 > [`routeLoadableAudio`](helpers.ts) route-fulfills `**/audio-source` with a synthetic silent WAV,
 > because the committed fixture ships a data-URL MP3 that headless Chromium cannot decode; without

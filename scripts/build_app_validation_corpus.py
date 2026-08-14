@@ -352,9 +352,19 @@ def _canonicalize_persons(*docs: dict[str, Any]) -> None:
 # the lexicographically-greatest run_* per feed dir).
 _RUN_TAG = "run_20260101_000000"
 
-# A tiny silent MP3 (data URI) so ``content.media_url`` is a real, directly-playable
-# enclosure for the audio-source route — no network, no rehosting. (ID3-less 1-frame
-# MPEG is enough for the contract; the player never decodes it in e2e.)
+# Placeholder enclosure for ``content.media_url`` so the audio-source route has something
+# to return. It is an ID3 header with NO audio frames — **no browser can decode it**.
+#
+# The previous comment here claimed "the player never decodes it in e2e", which was true only
+# because the consumer Playwright suite substitutes a synthetic WAV over the audio-source
+# response to compensate. That reads as justification and is really a description of the
+# workaround; an agent took it at face value in 2026-08 and hand-built an MP3 encoder rather
+# than looking for the audio that already exists.
+#
+# REAL audio for every episode in this corpus lives in ``tests/fixtures/audio/<FIXTURES_VERSION>/``
+# (currently ``v3/``), served as ``/audio/<episode_id>.mp3`` by ``make serve-e2e-mock`` (loopback
+# :18765) or the ``docker/mock-feeds`` nginx sidecar on the compose network. Pointing media_url at
+# one of those — instead of this placeholder — is issue #1618.
 _SILENT_MP3_DATA_URI = (
     "data:audio/mpeg;base64,"
     "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA"

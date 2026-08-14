@@ -13,6 +13,27 @@ data of the current shape.
   episode ids, and fixed dates → re-running yields a byte-identical tree.
 - **Versioned:** laid out under `v3/`, matching `tests/fixtures/FIXTURES_VERSION` (`v3`).
 
+## Media / audio — NOT in this tree
+
+This corpus carries every artifact **except the audio bytes**. That split is deliberate (audio is
+large and shared across fixture consumers), and it is the single most confusing thing about this
+directory — so, explicitly:
+
+| | Where | Note |
+| --- | --- | --- |
+| Episode audio | `../audio/<FIXTURES_VERSION>/<episode_id>.mp3` — currently `../audio/v3/` | One file per episode id, covering **all** episodes in this corpus. Versioned: **check [`../FIXTURES_VERSION`](../FIXTURES_VERSION) first.** |
+| How it reaches a client | `make serve-e2e-mock` (loopback `:18765`, serves `/audio/<episode_id>.mp3`) or the [`docker/mock-feeds/`](../../../docker/mock-feeds/README.md) nginx sidecar on the compose network | Both simulate a real podcast host: RSS + episodes + audio. |
+| Everything about the fixture trees | [`../README.md`](../README.md) | Its title — *Offline Podcast Fixtures (RSS + Transcripts + Audio)* — is the map. |
+
+**`content.media_url` in this corpus is currently a placeholder data URI that no browser can
+decode.** It is not a real enclosure and it is not the audio above; the consumer Playwright suite
+works around it with a route stub. Rewiring it to the mock host is
+[#1618](https://github.com/chipi/podcast_scraper/issues/1618).
+
+> Do not synthesise audio for this corpus. It already exists in `../audio/v3/`. An agent that
+> searched only inside `v3/` on 2026-08-13 concluded otherwise and hand-built an MP3 encoder before
+> being stopped — the reason this section exists.
+
 ## Schema — current, not loose (changed in the realignment)
 
 Unlike the older loose synthetic shape, `v3` emits the **current** artifact schemas:
