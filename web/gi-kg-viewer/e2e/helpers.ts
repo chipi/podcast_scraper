@@ -41,12 +41,35 @@ const MOCK_ROLE_USER = (role: MockRole) => ({
 /** Host-rooted `/api/` only — must NOT match viewer's own `/src/api/*.ts` module URLs. */
 const MOCK_API_FALLBACK = /^https?:\/\/[^/]+\/api\//
 
-export async function mockSignIn(page: Page, role: MockRole): Promise<void> {
+/**
+ * Sign in as `role`, and — unless told otherwise — stub the ENTIRE API surface.
+ *
+ * The `liveApi` opt-out is the migration path for #1619. This suite's Playwright `webServer` has
+ * only ever run Vite, with no backend behind it, so `mockSignIn` installs a catch-all that answers
+ * every `/api/**` request with `{}` and each spec overrides the handful it cares about. That is why
+ * 59 of 68 spec files "mock": they are not mocking a few endpoints, they are running against no
+ * server at all.
+ *
+ * It no longer has to be that way — the same fixture-bootstrapped API the consumer suite uses
+ * serves every endpoint this app calls. Pass `{ liveApi: true }` to let requests through to it
+ * (`e2e/run-local-stack.sh` starts it), then delete that spec's own `page.route` overrides. The
+ * default stays stubbed so the migration can proceed one spec at a time; when few remain, flip it.
+ *
+ * Auth itself stays stubbed either way: role-based access is what these specs exercise, and
+ * driving a real OAuth round-trip per test would be slower and prove nothing about the viewer.
+ */
+export async function mockSignIn(
+  page: Page,
+  role: MockRole,
+  opts: { liveApi?: boolean } = {},
+): Promise<void> {
   /* Fallback FIRST (least specific). Playwright routes are LIFO so any
    * per-test ``page.route(...)`` set up after this call wins. */
-  await page.route(MOCK_API_FALLBACK, (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  )
+  if (!opts.liveApi) {
+    await page.route(MOCK_API_FALLBACK, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+    )
+  }
   /* Auth gate: enabled=true + the role's user. The App.vue gate reads
    * ``auth.enabled`` and ``auth.canUseViewer``/``auth.isAdmin`` to pick
    * between LoginView / NoAccessView / shell (see App.vue:611-696). */

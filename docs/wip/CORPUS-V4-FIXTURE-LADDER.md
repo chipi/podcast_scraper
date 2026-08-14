@@ -557,3 +557,51 @@ test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
     removed text per range — which a fixture can assert against.
   Ties into #1188 (mid-roll house ads) and the RFC-#1385 content-quality/ad-load work (which needs
   reliable excision for the spoken-ad metric).
+
+---
+
+## Browser-suite mocks that v4 fixtures should retire (#1619, added 2026-08-14)
+
+The operator viewer's Playwright suite has never had a backend: its `webServer` runs Vite alone, so
+`mockSignIn` installs a **catch-all route answering every `/api/**` request with `{}`**, and each
+spec overrides the endpoints it cares about. **59 of 68 spec files** call it. That is the real shape
+of "the viewer suite is mocked" — not a few stubbed endpoints, but no server at all, with 242
+per-endpoint overrides layered on top.
+
+It no longer has to be that way: the same fixture-bootstrapped API the consumer suite uses serves
+every endpoint this app calls. `mockSignIn(page, role, { liveApi: true })` opts a spec out of the
+catch-all, and `web/gi-kg-viewer/e2e/run-local-stack.sh` starts the backend.
+
+Migration is spec-by-spec because each mock encodes an assumed backend state. Sorting what is left
+into three kinds matters, because only one of them is a fixture problem:
+
+### A. Satisfiable today — just migrate
+
+The endpoint exists and the corpus has the data; the spec's assertions are written against a
+hand-authored payload and need rewriting against real output. Most of the 242 are here — the
+endpoints `/api/corpus/{feeds,runs/summary,episodes,topic-clusters}`, `/api/artifacts`,
+`/api/search`, `/api/index/stats` all return 200 with real data from the committed corpus.
+
+Prefer asserting **structure and provenance** over exact strings: `corpus-version-warning.spec.ts`
+now reads the warning from `/api/health` and asserts the banner carries *the server's own text*,
+which survives a reworded message while still failing on a missing banner.
+
+### B. Corpus states v3 cannot produce — **v4 fixture requirements**
+
+These are the ones this document is for. Known so far:
+
+| Needed state | Wanted by | Why v3 cannot |
+| --- | --- | --- |
+| A speaker with **>2 insights on one topic** | consumer `perspectives.spec.ts` (per-speaker show-more cap) | no speaker exceeds 2 on any topic, so the preview cap is unreachable |
+| Topic + corpus-enrichment **signal fields** | consumer `entity-signals.spec.ts` | fields absent from the fixture enrichments |
+| Search/entity-search **result shapes** | consumer `search-listener-features.spec.ts` | corpus cannot reach those result shapes |
+| A corpus stamped with an **outdated `produced_by`** | viewer version-warning paths | v3 carries no stamp at all — it happens to trigger the "no stamp" warning, but the "below minimum" branch has no fixture |
+
+Add to this table when a migration stalls on missing data rather than on assertions.
+
+### C. Fault injection — **permanently mocked, and correctly so**
+
+A real backend serving a real corpus will not return 404, 500, or a timeout on demand. Specs that
+exercise error handling (`handoff/failure.spec.ts` fulfils a 404 for `corpus/episodes/detail`) must
+keep their mocks. **No fixture version fixes these, and v4 should not try.** They are not debt; they
+are the right tool. Mark them so nobody re-opens them as migration work.
