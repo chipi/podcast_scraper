@@ -735,6 +735,66 @@ enrichers directly and bypassing profile resolution. Job `6d9d9c6f` submitted wi
 deterministic enrichers. If it runs them, the corpus can be enriched today via the API while
 the code fix is scheduled; if it also no-ops, the defect is deeper than argument passing.
 
+#### THE FIX — restore the designed profile route (operator decision, 2026-08-14)
+
+**Decision: fix it the designed way, not with a workaround.** The `--only` escape hatch stays a
+diagnostic, not the solution.
+
+##### The design intent is already documented
+
+`config/profiles/cloud_balanced.yaml:182-187` states it plainly:
+
+> *"The Python matrix at `src/podcast_scraper/enrichment/profile_sets.py` is the source of
+> truth; this block reflects the 'cloud_balanced' row so operators can discover the active set
+> without reading code."*
+
+So the intended chain is **profile name → `profile_sets.enricher_set_for_profile()` → enricher
+set**. The `enrichment.enrichers` block in the YAML is explicitly *advisory documentation*, not
+config — which is why honouring it (my earlier suggestion) would have contradicted the design
+rather than restoring it.
+
+##### The single break
+
+The profile **name** never reaches the enrichment invocation. Three places drop it:
+
+| Site | What happens |
+| --- | --- |
+| `config.py:4173` | `profile_dict.pop("profile", None)` — the loader knows the name and **discards** it, because `Config` has `extra="forbid"` and no `profile` field |
+| `orchestration.py:1791` | `getattr(cfg, "profile", None) or block.get("profile")` — both operands therefore always `None`, so `--profile` is never passed |
+| `server/jobs.py:454` | `build_enrichment_argv` passes `--config` but never `--profile` |
+
+Everything downstream is correct: `profile_sets.py` has the matrix, the enrichers are
+registered, the CLI accepts `--profile`, the chain is called. **Only the name is missing.**
+
+##### Recommended fix
+
+1. **Preserve the resolved profile name on `Config`.** Add a real field (e.g.
+   `resolved_profile: Optional[str]`) populated at load time where the meta-key is currently
+   popped. A distinct name avoids colliding with the YAML's `profile:` opt-in key and keeps
+   `extra="forbid"` intact.
+   *Bonus:* this is also **provenance**. ADR-149's reproducibility rules care which profile
+   produced a corpus, and today that is not recorded anywhere on the config object — the same
+   class of gap as A1.
+2. **Pass it through both invocation paths** — `orchestration.py:1791` (post-pipeline spawn) and
+   `build_enrichment_argv` (API path), so automatic and manual runs behave identically.
+3. **Make an empty enricher set loud.** Non-negotiable regardless of the above: a run resolving
+   zero enrichers must `logger.warning` (or fail) rather than report `status: ok` in 3 ms. This
+   is the defect that let a total no-op hide for six weeks across 651 episodes.
+4. **Log the resolved set at start** — "enrichment: profile=cloud_balanced, enrichers=[…9 ids]".
+   One line, and this becomes self-diagnosing forever.
+
+##### Tests to write alongside
+
+- `resolved_profile` survives config load for a profile-based run, and is `None` when no profile
+  is used.
+- Both invocation paths emit `--profile` when a profile is resolved.
+- An empty enricher set produces a warning and a non-`ok` status.
+- End-to-end: a run with `profile: cloud_balanced` produces `per_enricher` with nine entries and
+  `duration_ms` greater than a threshold that a no-op cannot pass.
+
+That last assertion matters more than it looks: **the existing behaviour would pass any test
+that only checks `status == "ok"`.**
+
 #### A defect regardless of which explanation holds
 
 **The gate returns silently.** An operator cannot distinguish "enrichment disabled by config"
