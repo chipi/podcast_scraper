@@ -961,16 +961,34 @@ two topics each appearing once and co-occurring once, lift = N/(1×1) = N. The r
 values are 105/2, 105/3, 105/4, 105/6. Every value in the column is the signature of a
 degenerate count, not a signal.
 
-#### Root cause: topic granularity, not corpus size
+#### Root cause: topic granularity
 
 Topics are minted per-episode and are hyper-specific. Real examples from the graph:
 `2008 champions league final`, `48-team format`, `penalty kicker predictability`,
 `goalkeeper strategy`. Corpus-level co-occurrence keys on **exact topic id**, so it can only
-fire when the same id recurs in a different episode. With ids this specific, that essentially
-never happens.
+fire when the same id recurs in a different episode. With ids this specific, that rarely
+happens.
 
-**Growing the corpus will not fix this.** 662 episodes produce more unique topic ids, not more
-shared ones. The enricher is structurally incapable of producing value on this input.
+##### Correction, 2026-08-14 — "this does not improve with volume" was over-claimed
+
+An earlier revision of this entry asserted *"growing the corpus will not fix this — 662
+episodes produce more unique topic ids, not more shared ones."* **That claim was too strong
+and the data contradicts it.** The topic-cluster artifact is built on the current 662-episode
+corpus and carries `episode_ids` per topic, which measures recurrence directly:
+
+| Corpus size | Topics appearing in ≥2 episodes |
+| --- | --- |
+| 105 episodes (co-occurrence artifact) | 28 / 955 — **2.93 %** |
+| 662 episodes (clustered topics) | 138 / 616 — **22.4 %** |
+
+Recurrence improves substantially with scale. The granularity problem is real, but it is a
+*severity* problem, not an absolute ceiling.
+
+**Bias that must be stated:** cluster members are by construction topics that *had*
+near-duplicates, so 22.4 % is an upper bound on the corpus-wide recurrence rate, not the rate
+itself. It is sufficient to refute "never recurs"; it is not sufficient to establish the true
+corpus-wide figure. Measuring that needs the full topic population, which is not reachable
+from the API today.
 
 #### The other mechanism already solves it
 
@@ -988,11 +1006,49 @@ Clustering **normalises near-duplicate topic labels** — precisely the operatio
 needs and does not have. The two passes are solving halves of the same problem and are not
 connected to each other.
 
-#### Recommendation
+#### Recommendation — and what it is worth, measured
 
 **Feed co-occurrence the clustered topic ids rather than raw topic ids.** `us-china ai
 competition` appearing across three shows is a real, valuable connection; `us-china ai race`
 and `ai competition with china` counted as unrelated strings is why it currently is not one.
+
+The gain is not a projection. Re-keying was simulated against the live cluster artifact:
+
+| Unit | Spans ≥2 episodes |
+| --- | --- |
+| Raw topic id | 138 / 616 — 22.4 % |
+| **Cluster id** | **219 / 269 — 81.4 %** |
+
+And the headline number, the one the enricher exists to produce:
+
+| Keying | Pairs backed by ≥2 episodes |
+| --- | --- |
+| Raw topic ids (today, 105 eps) | **1** |
+| Cluster ids (simulated, 662 eps) | **102** |
+
+Widest-reach clusters give a sense of what those connections are: `open source ai models`
+(23 episodes), `agentic ai` (21), `ai job displacement` (18), `enterprise ai adoption` (17),
+`ai in education` (15), `ai regulation` (12), `prediction markets` (10).
+
+#### Cross-feed connections already exist — and are now measurable
+
+The metric that matters most for readers — a link between two *shows*, i.e. knowledge no
+single-show listener reaches — was previously recorded as unmeasurable. It is measurable via
+the cluster artifact, whose members carry `episode_ids` that join to feeds:
+
+**166 of 269 clusters (61.7 %) span ≥2 feeds.**
+
+| Feeds | Cluster | Sample feeds |
+| --- | --- | --- |
+| 8 | ai job displacement | Hard Fork, Invest Like the Best, No Priors, Planet Money |
+| 8 | ai in education | Hard Fork, Invest Like the Best, NVIDIA AI, No Priors |
+| 7 | enterprise ai adoption | Invest Like the Best, Latent Space, Lenny's, NVIDIA AI |
+| 6 | agentic coding | Hard Fork, Latent Space, Lenny's, NVIDIA AI |
+| 5 | ai productivity gains | Hard Fork, No Priors, The Journal., The a16z Show |
+
+So the cross-show knowledge graph the corpus is meant to produce **already exists** — it is
+built by the post-index clustering pass and is simply not exposed through the enrichment
+layer. That is the H3 realignment stated in one sentence.
 
 This makes H5 concrete input to **H3** (post-ingest passes are architecturally inconsistent).
 H3 was filed on the observation that indexing and enrichment are *invoked* differently; H5
