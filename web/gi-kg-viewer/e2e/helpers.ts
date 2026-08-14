@@ -361,11 +361,16 @@ export async function waitForFsmState(
  * in ``test.beforeEach`` after ``mockSignIn`` so the server-side
  * per-user prefs start clean.
  *
- * Uses PUT (replace) with an empty object rather than DELETE — the
+ * Uses PUT (replace) with an empty preference map rather than DELETE — the
  * server API doesn't expose DELETE (PUT is idempotent + safe).
+ *
+ * #1619: the body must be ``{ preferences: {} }``, not ``{}``. The bare object was rejected with
+ * **422 `body.preferences: Field required`** — this helper had never run against a real server,
+ * because every spec that called it was mocked, so the wrong shape went unnoticed. That is the
+ * class of defect the migration exists to find.
  */
 export async function resetUserPreferences(page: Page): Promise<void> {
-  const resp = await page.request.put('/api/app/preferences', { data: {} })
+  const resp = await page.request.put('/api/app/preferences', { data: { preferences: {} } })
   if (!resp.ok() && resp.status() !== 401) {
     // 401 = not signed in (caller may reset before sign-in for a clean
     // starting state; that's fine). Any other non-2xx is a real bug.
