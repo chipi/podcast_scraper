@@ -174,6 +174,38 @@ export async function liveFirstEpisode(
   return first
 }
 
+/** One row of `GET /api/corpus/digest` — the fields migrated specs assert on. */
+export type LiveDigestRow = {
+  feed_id: string
+  feed_display_title: string
+  episode_id: string
+  episode_title: string
+  summary_preview: string | null
+  publish_date: string | null
+  cil_digest_topics: {
+    topic_id: string
+    label: string
+    in_topic_cluster: boolean
+    topic_cluster_compound_id: string | null
+  }[]
+}
+
+/**
+ * The Digest's "Recent" rows, as the server assembles them.
+ *
+ * Note the distinction that matters for #1619: `rows` is catalogue data and is populated, while
+ * `topics` (the retrieval-grounded topic bands) is a separate, search-driven field the v3 corpus
+ * leaves empty. Specs about rows can migrate; specs about bands cannot.
+ */
+export async function liveDigestRows(page: Page): Promise<LiveDigestRow[]> {
+  const resp = await page.request.get('/api/corpus/digest')
+  if (!resp.ok()) throw new Error(`liveDigestRows: /api/corpus/digest returned ${resp.status()}`)
+  const body = (await resp.json()) as { rows?: LiveDigestRow[] }
+  const rows = body.rows ?? []
+  if (rows.length === 0) throw new Error('liveDigestRows: the live digest has no rows')
+  return rows
+}
+
 /**
  * Sign in as an ISOLATED mock identity, unique per (spec, project).
  * Same shape as ``web/learning-player/e2e/helpers.ts::signInIsolated`` —
