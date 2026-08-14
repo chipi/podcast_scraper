@@ -599,8 +599,31 @@ These are the ones this document is for. Known so far:
 | **Per-run `run.json` records**, multi-feed and multi-day | viewer `pipeline.spec.ts` (all four UXS-006 §6 panels) | v3 ships only `enrichments/run_summary.json`, so `/api/corpus/runs/summary` returns `{"runs": []}` and every panel correctly renders nothing |
 | **>15 feeds** | viewer `library.spec.ts` feed-filter search | the control renders only above a 15-feed threshold; v3 ships 9 |
 | An episode with **no nearest neighbours** | viewer `library.spec.ts` similar-empty branch | against a real index every episode has peers, so `items: []` is unreachable |
+| Run counters in **three states** — positive, explicit `0`, legacy `null` | viewer `dashboard-pipeline-metrics-mocks.spec.ts` | one committed run cannot be all three at once |
+| **Lifted / compound results** — a segment chunk resolving to an insight with an attributed speaker | `search-fr1` compound badge, **all of** `person-landing.spec.ts` | 50 of 50 results across five queries return `"lifted": null` |
+| Search results carrying **speaker/topic subject metadata**, ≥2 surfaceable by one query | `search-operator-compare.spec.ts` (the whole Compare operator) | no `speaker_name` / `topic_label` on any result; ≤1 `kg_entity`/`kg_topic` per query across four probes |
+| A **consensus pair with named speakers** | `search-operator-bar` consensus assertions | pairs exist, but `person_a_label` / `person_b_label` / `cosine_similarity` are all `null` |
+| Corpus content that **answers the default digest topic queries** (or a corpus-local `digest_topics` config) | `digest.spec.ts` topic bands, `dashboard.spec.ts` FR6.1 | `DEFAULT_DIGEST_TOPICS` is configured, but every band resolves to `None` — and reports `topics_unavailable_reason: null`, which reads as "nothing configured" |
+| A topic **discussed on more than one show**, and topics with real **adjacency** | `topic-entity-view.spec.ts` FR4.2 cross-show + #1055 related topics | `/api/relational/cross-show` → 0 shows and `/api/relational/related-topics` → 0 topics, for every topic probed (`who-said` and `topic-entities` DO return 9–10 each) |
+| **Topic timeline** episodes | `search-to-graph-mocks.spec.ts` inline timeline | `/api/topics/{id}/timeline` answers 200 with `episodes: []` for every corpus topic |
+| **Audio inside the corpus tree** | `transcript-viewer-dialog.spec.ts` player half | no `*.mp3` anywhere under `app-validation-corpus/v3`; `/api/corpus/media` → 400. Real MP3s exist at `tests/fixtures/audio/v3/`, but outside the corpus root the endpoint resolves against |
+| A **recently-published** episode | `digest.spec.ts` recency dot | needs `publish_date == today`; committed dates cannot be |
+| A topic cluster whose members span **an episode outside the loaded artifact** | `sibling-merge-cluster-mocks.spec.ts` | the merge under test needs a sibling that is genuinely off-slice before and on-slice after |
 
 Add to this table when a migration stalls on missing data rather than on assertions.
+
+### B0. The shape of what's left (2026-08-14)
+
+Worth stating plainly, because it recurs: almost every remaining blocker is the **same gap wearing
+different clothes** — the corpus has no *attributed, cross-linked speech*. No lifted blocks, no
+speaker names on search results, no named consensus pairs, no cross-show topics, no topic
+adjacency. Fixing that one property in v4 unblocks `person-landing` entirely, the Compare
+operator, the compound-card surfaces, and both TEV relational tests.
+
+The second recurring shape is **state matrices** — a control that must be seen in three states at
+once (run counters), or above a threshold a single corpus is either over or under (15 feeds, an
+undated episode, an episode published today). Those are not corpus-content problems and should not
+be solved by growing the corpus; they want either a second small fixture or to stay stubbed.
 
 ### B1. The search index — RESOLVED, and what it did and did not unblock
 
