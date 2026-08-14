@@ -13,6 +13,7 @@ vision for where the system is heading.
 | [Corpus artifacts and viewer surfaces](CORPUS_ARTIFACTS_AND_SURFACES.md) | Pipeline artifact inventory, API route dependencies, viewer tab map (#797) |
 | [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) | Quality constraints — performance, security, reliability, observability, maintainability, scalability |
 | [Testing Strategy](TESTING_STRATEGY.md) | Test pyramid, patterns, decision criteria, CI integration |
+| [Agent-navigable codebases](AGENT_NAVIGABLE_CODEBASE.md) | Why the repo is documented and governed as it is — routing over restating, guarding pointers, and how to apply it to another project |
 | [Tech Debt](TECH_DEBT.md) | Recognised technical debt -- current coping strategy, options, and triggers to revisit |
 
 **HTTP / viewer:** Not a separate architecture doc — the FastAPI surface, `/api/*` (including Corpus Library, Corpus Digest, semantic search, and index management endpoints), and OpenAPI **`/docs`** are specified in the [Server Guide](../guides/SERVER_GUIDE.md) (see also [Architecture — Ways to run](ARCHITECTURE.md#ways-to-run-and-deploy)).

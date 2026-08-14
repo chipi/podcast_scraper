@@ -113,6 +113,7 @@ nav:
       - architecture/ARCHITECTURE.md
       - Non-Functional Requirements: architecture/NON_FUNCTIONAL_REQUIREMENTS.md
       - Testing Strategy: architecture/TESTING_STRATEGY.md
+      - Agent-navigable codebases: architecture/AGENT_NAVIGABLE_CODEBASE.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
       - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
       - DGX serving (bridge to homelab): architecture/DGX_SERVING.md
