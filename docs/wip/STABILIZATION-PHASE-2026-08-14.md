@@ -96,11 +96,61 @@ bypasses profile resolution by naming enrichers explicitly. Its value is proving
 executor and the enrichers themselves work. Do not read a green result from it as evidence
 that S1 is fixed — those are different code paths.
 
-### S3 — per-episode quality audit — `[TODO]`
+### S3 — per-episode quality audit — `[DONE 2026-08-14 — exit criterion 3 met]`
 
-Sample across feeds and measure what the pipeline actually produces. Prior tooling for
-this shape of question exists from the onboarding calibration work. Attention on ad/sponsor
-copy leaking into summaries, since several of the 14 feeds are ad-supported.
+62 episodes sampled across **all 14 feeds** (5 per feed where available), reading
+`/api/corpus/episodes/detail`.
+
+**Result: the per-episode layer is healthy.** This is the layer the ingestion pause exists
+to protect, and it turns out not to need protecting.
+
+| Feed | n | bullets/ep | median bullet chars | KG nodes/ep | GI↔KG bridged | unlinked GI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Invest Like the Best | 5 | 10.2 | 186 | 24.8 | 18.6 | 0.2 |
+| Lenny's Podcast | 5 | 11.0 | 201 | 15.4 | 12.2 | 0.0 |
+| Latent Space | 5 | 9.2 | 191 | 22.6 | 14.6 | 0.6 |
+| The a16z Show | 5 | 8.8 | 188 | 25.4 | 14.8 | 0.0 |
+| The Pragmatic Engineer | 5 | 8.4 | 227 | 12.6 | 10.0 | 0.0 |
+| Hard Fork | 5 | 8.0 | 228 | 21.2 | 16.6 | 0.0 |
+| No Priors | 5 | 8.0 | 206 | 22.6 | 15.2 | 0.4 |
+| The Daily | 5 | 8.0 | 195 | 22.2 | 12.6 | 0.0 |
+| Unhedged | 5 | 8.0 | 191 | 20.6 | 13.4 | 0.0 |
+| The Journal. | 5 | 8.0 | 180 | 18.4 | 14.0 | 0.2 |
+| NVIDIA AI Podcast | 5 | 8.0 | 184 | 20.0 | 13.4 | 0.0 |
+| Planet Money | 5 | 6.0 | 170 | 22.8 | 12.6 | 0.8 |
+| Dwarkesh / Ideas of India | 1 each | 8.0 | ~206 | 18–26 | 11–14 | 0–1 |
+
+Corpus-wide totals across the 62:
+
+| Check | Result |
+| --- | --- |
+| Ad / sponsor copy in summaries | **1 / 62** — Lenny's Podcast, matched `use code` |
+| Empty summary | 1 / 62 |
+| Zero `cil_digest_topics` | **0 / 62** (exactly 5 topics per episode everywhere) |
+| Missing `bridge_partition` | **0 / 62** |
+
+Full GI/KG coverage independently confirmed via `/api/corpus/coverage`: `with_gi=662`,
+`with_kg=662`, `with_both=662`, `with_neither=0`.
+
+**Reading:** unlinked GI (`gi_only`) is 0.0–0.8 per episode against 10–18 bridged — the
+GI↔KG join is doing its job. Ad contamination at 1.6 % is low for a corpus where most feeds
+are ad-supported. Summary substance (6–11 bullets, 170–228 chars each) is consistent across
+very different show formats.
+
+**Conclusion that matters for sequencing:** the defect surface is entirely in the
+**corpus-level enrichment layer**, not in per-episode artifacts. The pause was justified on
+the theory that a per-episode defect would be baked into every episode ingested before it was
+found — that theory tested clean, which lowers the risk of resuming ingestion.
+
+#### Not covered
+
+- **Semantic correctness.** This audit measures structure and contamination, not whether
+  insights are *true* or faithful to the transcript. That remains F1qa, untouched.
+- **Sampling.** 5 episodes per feed, evenly stepped — not a random sample, and not powered to
+  find rare defects. A 1-in-62 finding rate means anything rarer than ~2 % is invisible here.
+- **The 2 episodes missing `summary_short`** (index shows 660 of 662) were not identified
+  individually.
+- The single empty-summary episode was counted but not diagnosed.
 
 ### S4 — homework items worth doing in this window — `[TODO]`
 
