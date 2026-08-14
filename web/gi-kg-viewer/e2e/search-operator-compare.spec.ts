@@ -22,6 +22,30 @@ import {
  * The E2E surface map — [E2E_SURFACE_MAP.md](E2E_SURFACE_MAP.md) — is the
  * canonical selector contract; the new testids referenced here are
  * documented under the "Search v3 Compare (§S8)" block of that file.
+ *
+ * #1619 category B — stays mocked. The search index is live and working; this is a corpus gap.
+ *
+ * The Compare chip is gated on **≥ 2 comparable subjects in one hit set**, and the v3 corpus
+ * cannot produce that. Measured against the live index on 2026-08-14:
+ *
+ * * results carry **no** ``speaker_name`` and **no** ``topic_label`` metadata at all, so the
+ *   subject-discovery walk over visible hits finds nothing to offer on those axes;
+ * * the only comparable subjects are ``kg_entity`` / ``kg_topic`` rows, and across four probes
+ *   (``Dr. Elena Fischer``, ``people``, ``guests and hosts``, ``risk``) **no query returned more
+ *   than one** — usually zero. One subject cannot fill two picker slots.
+ *
+ * So the enabled-chip, picker, run, and both alias-hint (KL2 persons / KL3 topics) tests have no
+ * reachable starting state, and the packs they assert on never get requested. ``/api/search/compare``
+ * itself DOES answer for real (POST, returns two rendered briefing packs against this corpus), so
+ * once a hit set can offer two subjects, most of this file migrates without touching the compare
+ * assertions.
+ *
+ * Two tests here would stay mocked regardless of the corpus: the ``grounded=false`` muting branch
+ * (an ungrounded pack is a state a healthy backend will not produce on demand) and the compare
+ * **server error** surface — category C, same family as a 404.
+ *
+ * v4 requirement recorded in docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B: search results must carry
+ * speaker/topic subject metadata, and a single query must be able to surface two of them.
  */
 test.describe('Search — Compare operator (§S8)', () => {
   test.beforeEach(async ({ page }) => {
