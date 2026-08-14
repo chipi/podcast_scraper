@@ -596,8 +596,32 @@ These are the ones this document is for. Known so far:
 | Topic + corpus-enrichment **signal fields** | consumer `entity-signals.spec.ts` | fields absent from the fixture enrichments |
 | Search/entity-search **result shapes** | consumer `search-listener-features.spec.ts` | corpus cannot reach those result shapes |
 | A corpus stamped with an **outdated `produced_by`** | viewer version-warning paths | v3 carries no stamp at all — it happens to trigger the "no stamp" warning, but the "below minimum" branch has no fixture |
+| **Per-run `run.json` records**, multi-feed and multi-day | viewer `pipeline.spec.ts` (all four UXS-006 §6 panels) | v3 ships only `enrichments/run_summary.json`, so `/api/corpus/runs/summary` returns `{"runs": []}` and every panel correctly renders nothing |
+| **>15 feeds** | viewer `library.spec.ts` feed-filter search | the control renders only above a 15-feed threshold; v3 ships 9 |
+| An episode with **no nearest neighbours** | viewer `library.spec.ts` similar-empty branch | against a real index every episode has peers, so `items: []` is unreachable |
 
 Add to this table when a migration stalls on missing data rather than on assertions.
+
+### B1. The search index is a *precondition*, not a category
+
+Distinct from the rows above, and worth separating because no corpus edit fixes it: several specs
+are blocked because the **query-embedding stack cannot run on this machine**, not because the data
+is missing. `/api/search` answers `embed_failed` without `sentence_transformers`, and the repo's
+`torch>=2.11` floor has no macOS x86_64 wheel.
+
+What that transitively blocks, beyond the obvious `search-*.spec.ts` files:
+
+- **`digest.topics` — the topic bands are search output, not fixture data.** `corpus_digest.py` runs
+  each configured digest query through `run_corpus_search`, so a dead index yields `topics: []` with
+  `topics_unavailable_reason: null` (it looks like "nothing configured", which is misleading). That
+  blocks most of `digest.spec.ts` and `dashboard.spec.ts`'s FR6.1 briefing cards.
+- **`person-landing.spec.ts` entirely** — its only shipped entry point is clicking the
+  `lifted.speaker` link on a search hit.
+- **`library.spec.ts`'s "why this episode" snippet**, which needs an active search context.
+
+These are **not** v4 fixture requirements. They need a linux/amd64 container (the corpus already
+carries a built `search/lance_index`), and they will migrate without any corpus change once one is
+available.
 
 ### C. Fault injection — **permanently mocked, and correctly so**
 

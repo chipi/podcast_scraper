@@ -33,6 +33,15 @@
  *   - Person node views only render for a ``person:``-prefixed id (the GI
  *     speaker_id convention) — NodeDetail's off-slice ``inferredKindFromId``
  *     keys on it so a focused speaker renders even outside the graph slice.
+ *
+ * #1619 — NOT migrated: blocked on the search index, not on assertions.
+ *
+ * Every test here enters through ``gotoPersonLanding``, which runs a query and clicks the
+ * ``lifted.speaker`` link on a search hit. There is no other shipped entry point (the
+ * ``rail-search-in-person`` launcher of Search v3 §S6 has not landed), so a live ``/api/search``
+ * is a precondition for the whole file. The relational routes it also stubs
+ * (``/api/relational/{positions,topics,co-speakers}``) DO serve real data and can be migrated in
+ * the same pass, once the entry path works. See docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
  */
 
 import { expect, test } from '@playwright/test'
