@@ -86,6 +86,95 @@ export async function mockSignIn(
 export const SHELL_HEADING_RE = /Podcast Intelligence Platform/i
 
 /**
+ * The corpus root **as the server resolved it** — for `{ liveApi: true }` specs.
+ *
+ * Never hardcode a corpus path in a migrated spec: it is the repo-relative
+ * `tests/fixtures/app-validation-corpus/v3` when the API runs natively, and `/corpus` when it
+ * runs from the container `e2e/run-local-stack.sh` starts (which bind-mounts the same corpus
+ * there). Asking the server keeps a spec correct under both.
+ */
+export async function liveCorpusRoot(page: Page): Promise<string> {
+  const resp = await page.request.get('/api/corpus/feeds')
+  if (!resp.ok()) throw new Error(`liveCorpusRoot: /api/corpus/feeds returned ${resp.status()}`)
+  const body = (await resp.json()) as { path?: string }
+  if (!body.path) throw new Error('liveCorpusRoot: /api/corpus/feeds returned no `path`')
+  return body.path
+}
+
+/**
+ * A real per-run `.../metadata` directory inside the live corpus, discovered from the API.
+ *
+ * The run directory is named for the run that produced it (`run_20260101_000000` in the v3
+ * fixture), so it is derived from an artifact's `relative_path` rather than spelled out — a
+ * rebuilt corpus renames it and a hardcoded spec would silently stop exercising the hint.
+ */
+export async function liveFeedMetadataDir(page: Page): Promise<string> {
+  const root = await liveCorpusRoot(page)
+  const resp = await page.request.get(`/api/artifacts?path=${encodeURIComponent(root)}`)
+  if (!resp.ok()) throw new Error(`liveFeedMetadataDir: /api/artifacts returned ${resp.status()}`)
+  const body = (await resp.json()) as { artifacts?: { relative_path?: string }[] }
+  const rel = (body.artifacts ?? []).find((a) => a.relative_path?.includes('/metadata/'))
+    ?.relative_path
+  if (!rel) throw new Error('liveFeedMetadataDir: no artifact under a `metadata/` directory')
+  return `${root}/${rel.slice(0, rel.lastIndexOf('/'))}`
+}
+
+/** One entry of `GET /api/corpus/feeds` — the fields migrated specs assert on. */
+export type LiveFeed = {
+  feed_id: string
+  display_title: string
+  episode_count: number
+}
+
+/** One entry of `GET /api/corpus/episodes` — the fields migrated specs assert on. */
+export type LiveEpisode = {
+  metadata_relative_path: string
+  feed_id: string
+  feed_display_title: string
+  episode_id: string
+  episode_title: string
+  summary_title: string | null
+  summary_preview: string | null
+  summary_bullets_preview: string[] | null
+  publish_date: string | null
+}
+
+/**
+ * The live corpus's feed catalogue, as the server lists it.
+ *
+ * Migrated specs pick a subject from here instead of naming `Mock Show`, so a re-recorded corpus
+ * changes the data under the test without changing the test.
+ */
+export async function liveFeeds(page: Page): Promise<LiveFeed[]> {
+  const resp = await page.request.get('/api/corpus/feeds')
+  if (!resp.ok()) throw new Error(`liveFeeds: /api/corpus/feeds returned ${resp.status()}`)
+  const body = (await resp.json()) as { feeds?: LiveFeed[] }
+  const feeds = body.feeds ?? []
+  if (feeds.length === 0) throw new Error('liveFeeds: the live corpus lists no feeds')
+  return feeds
+}
+
+/**
+ * The first episode the live Library lists, optionally scoped to one feed.
+ *
+ * Ordering is the server's (newest first), so this is "whatever the Library shows first" — the
+ * same row a user would click.
+ */
+export async function liveFirstEpisode(
+  page: Page,
+  opts: { feedId?: string } = {},
+): Promise<LiveEpisode> {
+  const q = new URLSearchParams({ limit: '1' })
+  if (opts.feedId) q.set('feed_id', opts.feedId)
+  const resp = await page.request.get(`/api/corpus/episodes?${q.toString()}`)
+  if (!resp.ok()) throw new Error(`liveFirstEpisode: /api/corpus/episodes returned ${resp.status()}`)
+  const body = (await resp.json()) as { items?: LiveEpisode[] }
+  const first = (body.items ?? [])[0]
+  if (!first) throw new Error('liveFirstEpisode: the live corpus lists no episodes')
+  return first
+}
+
+/**
  * Sign in as an ISOLATED mock identity, unique per (spec, project).
  * Same shape as ``web/learning-player/e2e/helpers.ts::signInIsolated`` —
  * the player and viewer tier-3 walks share this pattern.
