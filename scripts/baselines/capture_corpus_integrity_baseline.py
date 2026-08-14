@@ -30,11 +30,15 @@ rest alone.
 
 Usage
 -----
-    PODCAST_OPERATOR_KEY=... python scripts/baselines/capture_corpus_integrity_baseline.py \
-        --out data/baselines/corpus-integrity-2026-08-14.json
+    PODCAST_OPERATOR_KEY=...  \
+    PODCAST_BASE_URL=https://prod-podcast.<TAILNET>.ts.net \
+        python scripts/baselines/capture_corpus_integrity_baseline.py \
+            --out data/baselines/corpus-integrity-2026-08-14.json
 
-``--base-url`` defaults to the tailnet operator host. ``--limit`` caps the episode count for
-a smoke run; omit it for the real baseline.
+The operator host comes from ``PODCAST_BASE_URL`` or ``--base-url`` and has **no default**:
+operator identifiers are never committed to this repo (CONTRIBUTING.md § "No operator
+identifiers in the repo"), and a wrong-but-plausible default would be worse than an explicit
+error. ``--limit`` caps the episode count for a smoke run; omit it for the real baseline.
 """
 
 from __future__ import annotations
@@ -49,7 +53,10 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-DEFAULT_BASE_URL = "https://prod-podcast.tail6d0ed4.ts.net"
+# Placeholder only — never a real host. The operator FQDN is supplied at run time via
+# PODCAST_BASE_URL / --base-url and is deliberately absent from the repo (deny-list gate in
+# .github/workflows/secret-scan.yml).
+BASE_URL_PLACEHOLDER = "https://prod-podcast.<TAILNET>.ts.net"
 # _check_episode_size_skip compares the media Content-Length against this (rss/downloader.py).
 # Recorded here so the baseline is self-describing about the threshold under test.
 OPENAI_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024
@@ -229,7 +236,11 @@ def capture(client: OperatorClient, limit: Optional[int], workers: int) -> Dict[
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--base-url", default=os.environ.get("PODCAST_BASE_URL", DEFAULT_BASE_URL))
+    parser.add_argument(
+        "--base-url",
+        default=os.environ.get("PODCAST_BASE_URL", ""),
+        help=f"Operator API base URL, e.g. {BASE_URL_PLACEHOLDER} (or set PODCAST_BASE_URL).",
+    )
     parser.add_argument("--out", required=True, help="Path to write the baseline JSON.")
     parser.add_argument("--limit", type=int, default=None, help="Cap episodes (smoke runs).")
     parser.add_argument("--workers", type=int, default=8)
@@ -241,6 +252,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     key = os.environ.get("PODCAST_OPERATOR_KEY", "")
     if not key:
         print("PODCAST_OPERATOR_KEY is not set", file=sys.stderr)
+        return 2
+    if not args.base_url:
+        # No fallback host on purpose: a plausible-looking default would either fail
+        # confusingly for someone else's deployment, or silently point at the wrong corpus.
+        print(
+            "operator base URL is not set — pass --base-url or set PODCAST_BASE_URL "
+            f"(e.g. {BASE_URL_PLACEHOLDER})",
+            file=sys.stderr,
+        )
         return 2
 
     client = OperatorClient(args.base_url, key)

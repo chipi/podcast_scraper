@@ -60,3 +60,21 @@ class TestLatestRunEnricherIds:
         ids = _latest_run_enricher_ids(tmp_path)
         assert ids is not None
         assert "topic_cooccurrence_corpus" not in ids
+
+    def test_it_reads_only_the_summary_directly_under_the_given_root(self, tmp_path: Path) -> None:
+        """``enrichments_dir`` derives from the ``path`` query parameter, so joining onto it is
+        a path-traversal sink — CodeQL flagged the original bare
+        ``enrichments_dir / "run_summary.json"`` as high severity, correctly.
+
+        The read now goes through ``safe_fixed_file_under_root``. A run summary sitting beside
+        the root must never be picked up.
+        """
+        _write_summary(tmp_path / "neighbour", {"leaked_enricher": {}})
+
+        corpus = tmp_path / "corpus" / "enrichments"
+        corpus.mkdir(parents=True, exist_ok=True)
+        assert _latest_run_enricher_ids(corpus) is None
+
+        # ...and once a real one exists under the root, that is what is read.
+        _write_summary(corpus, {"insight_density": {}})
+        assert _latest_run_enricher_ids(corpus) == {"insight_density"}

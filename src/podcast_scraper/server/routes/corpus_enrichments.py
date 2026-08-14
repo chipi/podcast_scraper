@@ -136,10 +136,18 @@ def _latest_run_enricher_ids(enrichments_dir: Path) -> set[str] | None:
 
     None is deliberately distinct from an empty set: "we do not know what the last run did"
     must not render as "the last run produced nothing".
+
+    The read goes through ``safe_fixed_file_under_root`` rather than a bare
+    ``enrichments_dir / "run_summary.json"``. ``enrichments_dir`` derives from the ``path``
+    query parameter, so joining onto it unchecked is a path-traversal sink — CodeQL flagged
+    exactly this line as high severity, correctly. The surrounding listing code reads via
+    ``glob``, which is already constrained to the directory; this direct join was not.
     """
-    summary_path = enrichments_dir / "run_summary.json"
+    safe_summary = safe_fixed_file_under_root(enrichments_dir, "run_summary.json")
+    if not safe_summary:
+        return None
     try:
-        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        summary = json.loads(Path(safe_summary).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
     per_enricher = summary.get("per_enricher") if isinstance(summary, dict) else None
