@@ -993,19 +993,52 @@ Suggested, not scheduled:
 
 **Raised 2026-08-14.** Concrete input to H3.
 
-`_maybe_spawn_enrichment_after_pipeline` (`orchestration.py:1762`) ends every pipeline run by
-launching a **detached `Popen`** (`orchestration.py:1793-1799`), not a queued job. Consequences:
+`_maybe_spawn_enrichment_after_pipeline` (`orchestration.py:1762`) is supposed to end every
+pipeline run by launching `enrich` as a detached `Popen` (`orchestration.py:1793-1799`). Its
+docstring (`:1772-1775`) claims the child "tracks itself via the shared jobs registry
+(``command_type=corpus_enrichment``) so the viewer Dashboard's 'Pipeline runs' strip surfaces
+it automatically."
 
-- It never appears in `GET /api/jobs`, so it cannot be listed, cancelled, or waited on.
-- It is **not serialised** against the job queue — it runs concurrently with whatever the
-  queue promotes next.
-- Its argv omits `--config`, so the child falls back to `<corpus_root>/viewer_operator.yaml`
-  via `_resolve_config_path` (`enrichment/cli.py:218-234`).
-- Output goes to `.viewer/enrichment_pipeline_spawn.log`.
+#### Correction 2026-08-14 — the evidence says the auto-chain produces nothing at all
 
-**This is why the no-op was invisible for the corpus's entire life: there was no job row to
-look at.** The `03:46:18Z` three-millisecond run-summary was one of these spawns, not an
-operator-queued job — which is why job records and enrichment runs never lined up.
+An earlier revision of this entry asserted the spawn fires but is invisible to `/api/jobs`,
+and that the `03:46:18Z` no-op was one of these spawns. **Both claims were wrong.** The jobs
+registry holds **exactly three** `corpus_enrichment` records across its entire history:
+
+```
+810cb997  succeeded  created 2026-08-10T15:12:53Z  started 15:12:53Z  ended 15:13:01Z  exit=0
+ef9f8f9c  succeeded  created 2026-08-13T20:01:22Z  started 2026-08-14T03:46:11Z  ended 03:46:19Z  exit=0
+6d9d9c6f  cancelled  created 2026-08-14T03:47:31Z  (held deliberately)
+```
+
+Both runs that happened map to **explicitly queued** jobs — `ef9f8f9c` waited 7¾ hours in the
+queue before promotion, which is queue behaviour, not spawn behaviour. The registry contains
+dozens of `full_incremental_pipeline` records and **not one** of them produced an
+accompanying `corpus_enrichment` record.
+
+Directly observed: pipeline job `1ebba1af` finalized at ~08:05Z on 2026-08-14 and produced
+**neither a job record nor an enrichment run** — `/api/enrichment/status` and
+`/api/enrichment/run-summary` both stayed on the 03:46:18Z baseline well past any plausible
+child startup.
+
+**Corrected conclusion: the ingest → enrich auto-chain has never produced a run.** Every
+enrichment run this corpus has ever had came from an operator-queued job. That is a more
+serious finding than "invisible": the documented automatic behaviour does not happen.
+
+**Not determined:** whether the spawn never fires (gate, exception before `Popen`) or fires
+and the child dies before writing its first event. `orchestration.py:1786` gates on
+`cfg.enrichment.enabled`, which `config/profiles/cloud_balanced.yaml:188-189` sets to `true`
+and `config.py:1173` carries — so on a code reading it *should* fire. Distinguishing the two
+requires `.viewer/enrichment_pipeline_spawn.log`, which `GET /api/corpus/text-file` refuses
+with HTTP 400 for that path. Resolving this needs either a text-file route that serves
+`.viewer/`, or a log line in the pipeline at the spawn site.
+
+Also true regardless of which: the spawn's argv omits `--config`, so the child falls back to
+`<corpus_root>/viewer_operator.yaml` via `_resolve_config_path` (`enrichment/cli.py:218-234`).
+
+Compare indexing, which runs **in-process** inside the pipeline and reports
+`IndexRunStats(...)` into the job log. Same lifecycle stage, two execution models — one
+observable and working, one neither.
 
 Compare indexing, which runs **in-process** inside the pipeline. Same lifecycle stage, two
 completely different execution models, one observable and one not.
