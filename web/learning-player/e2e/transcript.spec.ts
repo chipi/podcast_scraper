@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { openTranscript } from './helpers'
+import { openTranscript, routeLoadableAudio } from './helpers'
 
 /**
  * The test that would have caught the transcript_file_path bug — REAL API over the COMMITTED
@@ -14,6 +14,7 @@ import { openTranscript } from './helpers'
  * insights drawn from the diarized transcript.
  */
 test('home → player renders the transcript + insights (no mocks)', async ({ page }) => {
+  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await page.goto('/')
   await expect(page.getByText('Learning Player')).toBeVisible()
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { navTo } from './helpers'
+import { navTo, routeLoadableAudio } from './helpers'
 
 /**
  * Audio survives navigation (#1587) — the property the whole change exists for.
@@ -14,6 +14,7 @@ import { navTo } from './helpers'
 test('playback continues across navigation, and the mini-player offers the way back', async ({
   page,
 }) => {
+  await routeLoadableAudio(page)
 
   // Reach the episode via its show page — date-independent, same route the other specs use.
   await page.goto('/podcast/p05')
@@ -59,6 +60,7 @@ test('playback continues across navigation, and the mini-player offers the way b
 })
 
 test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
+  await routeLoadableAudio(page)
 
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
@@ -96,6 +98,7 @@ test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
  * another element intercepts the pointer, which is precisely what an overlapping fixed bar does.
  */
 test('the last item on a page stays reachable while audio is playing', async ({ page }) => {
+  await routeLoadableAudio(page)
 
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()

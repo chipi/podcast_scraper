@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openTranscript, signInIsolated } from './helpers'
+import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
 
 /**
  * P3 Consolidation end-to-end — REAL API over the COMMITTED validation corpus (now carrying RFC-088
@@ -10,6 +10,7 @@ import { openTranscript, signInIsolated } from './helpers'
 test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox', async ({
   page,
 }, testInfo) => {
+  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'consolidation', testInfo)
 
   // Open an episode and capture its slug from the URL.
