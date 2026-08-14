@@ -42,7 +42,12 @@ dependencies = [
 
 [project.optional-dependencies]
 # Canonical extras (no separate [gemini] / [openai] extras):
-#   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API), text eval metrics; no torch/transformers
+#   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API), text eval metrics.
+#               No transformers, and no DIRECT torch — but it does pin the RFC-058 diarization
+#               stack (pyannote.audio / torchaudio / torchcodec) to stay aligned with [ml], and
+#               those pull torch transitively. The old "no torch/transformers" claim here was
+#               wrong on the torch half (#1657). Those three are marker-excluded on macOS
+#               x86_64, where torch>=2.8 has no wheels; every other platform is unchanged.
 #   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, lancedb,
 #               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
@@ -264,13 +269,21 @@ dev = [
   # Diarization stack pins (RFC-058) — lazy-imported; keeps CI/dev venv aligned with [ml].
   # Must mirror the [ml] pin: pyannote 3.x is import-broken under torchaudio>=2.9
   # (AudioMetaData removed), which is exactly why [ml] moved to 4.x (#901).
-  "pyannote.audio>=4.0.7,<5.0",
-  "torchaudio",
+  #
+  # Environment marker (#1657): pyannote.audio 4.x requires torch>=2.8, and PyTorch stopped
+  # publishing macOS x86_64 wheels after 2.2.2 — so on an Intel Mac the whole `.[dev]` install
+  # fails to resolve ("No matching distribution found for torch>=2.8.0") and NO dev tooling
+  # lands, not even pytest. The marker excludes only that platform. Linux CI (x86_64) and
+  # Apple Silicon (arm64) resolve exactly as before, so the CI venv is unchanged.
+  # These are lazy-imported and their tests carry the `diarization` marker, so a venv without
+  # them still runs the full unit suite — which is what `make test-unit-no-ml` exists for.
+  "pyannote.audio>=4.0.7,<5.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "torchaudio; sys_platform != 'darwin' or platform_machine != 'x86_64'",
   # Must ALSO mirror the [ml] torchcodec cap: it is transitive via torchaudio/pyannote, and
   # 0.15.0 is the native-teardown-SIGSEGV build (see [ml] note). CI installs `.[dev]` (not
   # `.[ml]`), so without this line the resolver pulls torchcodec 0.15.0 and a worker segfaults
   # mid-run once 0.15.0 is available on the index (test-unit xdist INTERNALERROR, #1355).
-  "torchcodec<0.15",
+  "torchcodec<0.15; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
 # Documentation - see docs/requirements.txt
 

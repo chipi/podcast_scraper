@@ -27,8 +27,6 @@ parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
 
-import pytest
-
 from podcast_scraper.workflow import episode_processor
 
 
@@ -74,10 +72,13 @@ class TestMarkEpisodeSkippedExisting(unittest.TestCase):
 
     def test_increments_the_skipped_counter(self):
         metrics = Mock()
-        with patch(
-            "podcast_scraper.workflow.helpers.get_episode_id_from_episode",
-            return_value=("ep-1", None),
-        ), patch("podcast_scraper.workflow.helpers.update_metric_safely") as bump:
+        with (
+            patch(
+                "podcast_scraper.workflow.helpers.get_episode_id_from_episode",
+                return_value=("ep-1", None),
+            ),
+            patch("podcast_scraper.workflow.helpers.update_metric_safely") as bump,
+        ):
             episode_processor._mark_episode_skipped_existing(
                 self.episode, self.cfg, metrics, "already there"
             )
@@ -131,13 +132,16 @@ class TestMarkEpisodeSkippedExisting(unittest.TestCase):
     def test_reason_is_redacted(self):
         """Reasons embed filesystem paths; they go through the redactor like other logs."""
         metrics = Mock()
-        with patch(
-            "podcast_scraper.workflow.helpers.get_episode_id_from_episode",
-            return_value=("ep-1", None),
-        ), patch(
-            "podcast_scraper.workflow.episode_processor.redact_for_log",
-            return_value="<redacted>",
-        ) as redactor:
+        with (
+            patch(
+                "podcast_scraper.workflow.helpers.get_episode_id_from_episode",
+                return_value=("ep-1", None),
+            ),
+            patch(
+                "podcast_scraper.workflow.episode_processor.redact_for_log",
+                return_value="<redacted>",
+            ) as redactor,
+        ):
             episode_processor._mark_episode_skipped_existing(
                 self.episode, self.cfg, metrics, "secret/path.txt"
             )

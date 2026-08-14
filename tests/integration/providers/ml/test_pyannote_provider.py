@@ -1,4 +1,20 @@
-"""Unit tests for pyannote diarization provider."""
+"""Integration tests for the pyannote diarization provider (pyannote model mocked).
+
+Moved out of ``tests/unit/`` (#1657). Every test here constructs
+``PyAnnoteDiarizationProvider``, whose ``__init__`` calls ``_resolve_device`` →
+``import torch`` (``pyannote_provider.py:85`` raises ``ProviderDependencyError`` without it).
+``torch`` is not in ``[dev]``, which is the only extra CI installs for ``test-unit``, so per
+``.ai-coding-guidelines.md`` ("Any test that needs FastAPI, httpx, torch, spaCy, lancedb,
+etc. belongs in tests/integration/") this file was in the wrong tier.
+
+It passed only because ``[dev]`` pinned the RFC-058 diarization stack, which pulls torch
+transitively — so the tier violation was invisible until torch became unresolvable on a
+platform (macOS x86_64 has no torch wheels above 2.2.2). ``pytest.importorskip`` is not the
+fix: rule U1 bans it in unit tests precisely because it turns a misplaced test into a silent
+CI skip.
+
+The pyannote *model* stays mocked here — real ML belongs in ``tests/e2e/``.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +27,7 @@ from podcast_scraper.providers.ml.diarization.pyannote_provider import (
     PyAnnoteDiarizationProvider,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.integration, pytest.mark.diarization]
 
 
 def test_resolve_device_coerces_mps_to_cpu() -> None:

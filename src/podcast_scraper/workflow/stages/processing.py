@@ -10,7 +10,7 @@ import logging
 import os
 import threading
 import time
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import as_completed, Future, ThreadPoolExecutor
 from typing import Any, Callable, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
@@ -714,30 +714,76 @@ def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
     )
 
 
+class EpisodeSizeSkip(NamedTuple):
+    """Advisory about the media file's size relative to the transcription upload limit.
+
+    ``skip_speaker_detection`` is retained at ``False`` (#1646). It used to be set ``True`` for
+    any episode whose audio exceeded 25 MB, which disabled speaker detection — a stage that
+    reads the episode TITLE and DESCRIPTION and never opens the media file. The field stays so
+    callers keep a stable shape and so the ledger can still record a caller-requested skip, but
+    the size gate no longer sets it.
+    """
+
+    skip_speaker_detection: bool
+    skip_episode: bool
+    reason: Optional[str] = None
+    detail: Optional[Dict[str, Any]] = None
+    # Advisory only: the media exceeds the transcription upload limit, so chunking will run.
+    # Kept separate from the skip flags precisely so it can never gate an unrelated stage again.
+    media_oversize: bool = False
+
+
+_NO_SIZE_SKIP = EpisodeSizeSkip(False, False)
+
+
 def _check_episode_size_skip(
     cfg: config.Config,
     episode: Episode,  # type: ignore[valid-type]
-) -> tuple[bool, bool]:
-    """Check file size for API limits. Returns (skip_speaker_detection, skip_episode)."""
+) -> EpisodeSizeSkip:
+    """Report whether the media exceeds the transcription upload limit. Advisory only.
+
+    **#1646 — what changed and why.** This gate used to return
+    ``skip_speaker_detection=True`` for any episode over ``OPENAI_MAX_FILE_SIZE_BYTES``
+    (25 MB). Three things were wrong with that, and they compounded:
+
+    1. **Wrong stage.** The limit is an upload cap for *transcription*. What it disabled was
+       *speaker detection* — ``detect_speaker_names(episode_title=…, episode_description=…)``,
+       which reads text metadata and never touches the audio. The size of the MP3 is
+       irrelevant to it.
+    2. **Wrong provider.** ``deepgram`` was added to the provider tuple in f846c502
+       (2026-06-05) and inherited a cap that belongs to OpenAI Whisper. Deepgram has no 25 MB
+       limit, and ``cloud_balanced`` transcribes with Deepgram.
+    3. **Dead premise.** The guard came from #327 — *"skip speaker detection when
+       transcription will be skipped due to file size limits"*. Transcription is no longer
+       skipped: this function returns ``skip_episode=False`` on every path and the pipeline
+       chunks after preprocess instead. Only the speaker-detection half of that decision was
+       still firing, long after the condition it depended on stopped being true.
+
+    Measured cost before the fix: 488 of 678 episodes (72 %) had speaker detection skipped;
+    2,112 of 8,952 insights (23.6 %) became unsurfaceable; 82 episodes lost every insight.
+
+    The size probe itself is kept — an operator wants to know chunking is coming (#557) — but
+    it is now advisory and gates nothing.
+    """
     if (
         cfg.dry_run
         or not cfg.transcribe_missing
         or cfg.transcription_provider not in ("openai", "gemini", "mistral", "deepgram")
         or not episode.media_url
     ):
-        return False, False
+        return _NO_SIZE_SKIP
     resp = http_head(episode.media_url, cfg.user_agent, cfg.timeout)
     if not resp:
-        return False, False
+        return _NO_SIZE_SKIP
     content_length = resp.headers.get("Content-Length")
     if not content_length:
-        return False, False
+        return _NO_SIZE_SKIP
     try:
         file_size_bytes = int(content_length)
     except (ValueError, TypeError):
-        return False, False
+        return _NO_SIZE_SKIP
     if file_size_bytes <= OPENAI_MAX_FILE_SIZE_BYTES:
-        return False, False
+        return _NO_SIZE_SKIP
     file_size_mb = file_size_bytes / BYTES_PER_MB
     provider_labels = {
         "openai": "OpenAI",
@@ -746,23 +792,29 @@ def _check_episode_size_skip(
         "deepgram": "Deepgram",
     }
     provider_name = provider_labels.get(cfg.transcription_provider, cfg.transcription_provider)
-    if not episode.transcript_urls:
-        logger.info(
-            "[%d] Audio file size (%.1f MB) exceeds %s API limit (25 MB) "
-            "and no transcript URLs available; will attempt chunking after preprocess.",
-            episode.idx,
-            file_size_mb,
-            provider_name,
-        )
-        return True, False
+    detail: Dict[str, Any] = {
+        "media_bytes": file_size_bytes,
+        "limit_bytes": OPENAI_MAX_FILE_SIZE_BYTES,
+        "transcription_provider": cfg.transcription_provider,
+        "has_transcript_urls": bool(episode.transcript_urls),
+    }
+    # Advisory only (#1646). Says what it observed and what will happen to TRANSCRIPTION —
+    # and no longer disables an unrelated stage. Speaker detection runs regardless of how big
+    # the audio is, because it never reads the audio.
     logger.info(
-        "[%d] Skipping speaker detection: Audio file size (%.1f MB) exceeds %s API limit "
-        "(25 MB), but transcript URLs available.",
+        "[%d] Media is %.1f MB, over the %s upload limit (25 MB); transcription will chunk "
+        "after preprocess. Speaker detection is unaffected (it reads title + description).",
         episode.idx,
         file_size_mb,
         provider_name,
     )
-    return True, False
+    return EpisodeSizeSkip(
+        skip_speaker_detection=False,
+        skip_episode=False,
+        reason=None,
+        detail=detail,
+        media_oversize=True,
+    )
 
 
 def _get_speaker_detector(
@@ -815,14 +867,42 @@ def _detect_speakers_for_episode(
     host_detection_result: HostDetectionResult,
     pipeline_metrics: metrics.Metrics,
     skip_speaker_detection: bool = False,
+    skip_reason: Optional[str] = None,
+    skip_detail: Optional[Dict[str, Any]] = None,
 ) -> Optional[DetectedSpeakers]:
-    """Run speaker detection for one episode; return corroborated guests + every stated name."""
+    """Run speaker detection for one episode; return corroborated guests + every stated name.
+
+    Every exit path records a stage outcome (#1647). Before that, three of these returns were
+    silent and left no trace anywhere — no timing, no log, no error — so an episode whose
+    speakers were never detected looked exactly like one that had none to detect. That is the
+    ambiguity that let #1646 run unnoticed across 72 % of the corpus.
+    """
+
+    def _record(outcome: str, reason: Optional[str] = None, **kwargs: Any) -> None:
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_stage_outcome(
+                "speaker_detection", episode.idx, outcome, reason=reason, **kwargs
+            )
+
     if not cfg.auto_speakers:
         if cfg.screenplay_speaker_names and len(cfg.screenplay_speaker_names) > 1:
+            _record("skipped", "auto_speakers_disabled_using_configured_names")
             return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
+        _record("skipped", "auto_speakers_disabled")
         return None
     logger.debug("Episode %d: %s", episode.idx, episode.title)
+    # One check, not two: this condition was tested again below with an identical body, so the
+    # second test was unreachable. Collapsed while adding the ledger (#1647).
     if skip_speaker_detection:
+        # WARNING, not silence: the caller decided to skip, and the consequence is that no
+        # voice on this episode can be named. See #1646 for what that costs downstream.
+        logger.warning(
+            "[%s] Speaker detection SKIPPED (%s) — no voice on this episode can be named, "
+            "so its insights will be marked unsurfaceable.",
+            episode.idx,
+            skip_reason or "reason not recorded",
+        )
+        _record("skipped", skip_reason or "skip_requested_by_caller", detail=skip_detail)
         return None
     if cfg.dry_run:
         episode_description = extract_episode_description(episode.item) or ""
@@ -836,13 +916,23 @@ def _detect_speakers_for_episode(
             episode.title,
             desc_preview,
         )
-        return None
-    if skip_speaker_detection:
+        _record("skipped", "dry_run")
         return None
     episode_description = extract_episode_description(episode.item)
     extract_names_start = time.time()
     speaker_detector = _get_speaker_detector(host_detection_result, cfg)
     if not speaker_detector:
+        logger.warning(
+            "[%s] Speaker detection SKIPPED — no speaker detector could be constructed "
+            "(provider=%s).",
+            episode.idx,
+            getattr(cfg, "speaker_detector_provider", None),
+        )
+        _record(
+            "skipped",
+            "no_speaker_detector_available",
+            detail={"speaker_detector_provider": getattr(cfg, "speaker_detector_provider", None)},
+        )
         return None
     cached_hosts = host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
     combined_hosts = set(cfg.known_hosts) | cached_hosts if cfg.known_hosts else cached_hosts
@@ -866,14 +956,21 @@ def _detect_speakers_for_episode(
                 known_hosts=combined_hosts,
             )
         )
+    elapsed = time.time() - extract_names_start
     if pipeline_metrics is not None:
-        pipeline_metrics.record_extract_names_time(time.time() - extract_names_start, episode.idx)
+        pipeline_metrics.record_extract_names_time(elapsed, episode.idx)
     if (
         not detection_succeeded
         and cfg.screenplay_speaker_names
         and len(cfg.screenplay_speaker_names) >= 2
     ):
+        # The detector ran and came back empty; configured names are standing in for it.
+        _record("degraded", "detection_failed_using_configured_names", duration_seconds=elapsed)
         return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
+    if not detection_succeeded:
+        # Ran, produced nothing, and nothing stood in for it. Distinct from "skipped": the
+        # call happened. Conflating the two is what made #1646 unreadable from the outside.
+        _record("failed", "detection_returned_no_names", duration_seconds=elapsed)
     if detection_succeeded:
         flat_speakers: List[str] = []
         for entry in detected_speakers or []:
@@ -888,15 +985,26 @@ def _detect_speakers_for_episode(
         # But keep the PROPOSAL as well. A rejected name is still a name the metadata stated, and
         # the roster needs to know it existed — otherwise a guest we could not place is filed as a
         # person nobody could have named.
-        return DetectedSpeakers(
-            guests=corroborate_guests(
-                proposed,
-                episode_title=episode.title,
-                episode_description=episode_description,
-                known_hosts=host_strings | combined_hosts,
-            ),
-            stated=proposed,
+        corroborated = corroborate_guests(
+            proposed,
+            episode_title=episode.title,
+            episode_description=episode_description,
+            known_hosts=host_strings | combined_hosts,
         )
+        # Counts, not names: the ledger is a health signal, and a name list would make every
+        # episode's record unbounded. `proposed` vs `corroborated` is the useful delta — a
+        # detector proposing names that never survive corroboration is a distinct failure
+        # from one that proposes nothing.
+        _record(
+            "ran",
+            duration_seconds=elapsed,
+            detail={
+                "proposed_count": len(proposed),
+                "corroborated_count": len(corroborated),
+                "known_host_count": len(host_strings | combined_hosts),
+            },
+        )
+        return DetectedSpeakers(guests=corroborated, stated=proposed)
     return None
 
 
@@ -932,8 +1040,8 @@ def prepare_episode_download_args(
     """
     download_args = []
     for episode in episodes:
-        skip_speaker_detection, skip_episode = _check_episode_size_skip(cfg, episode)
-        if skip_episode:
+        size_skip = _check_episode_size_skip(cfg, episode)
+        if size_skip.skip_episode:
             if pipeline_metrics is not None:
                 from ..helpers import update_metric_safely
 
@@ -965,7 +1073,9 @@ def prepare_episode_download_args(
             cfg,
             host_detection_result,
             pipeline_metrics,
-            skip_speaker_detection=skip_speaker_detection,
+            skip_speaker_detection=size_skip.skip_speaker_detection,
+            skip_reason=size_skip.reason,
+            skip_detail=size_skip.detail,
         )
         download_args.append(
             (
@@ -1565,7 +1675,9 @@ def process_processing_jobs_concurrent(  # noqa: C901
         # exact hang the bounds above exist to break. Shutdown mode is chosen in `finally`.
         executor = ThreadPoolExecutor(max_workers=max_workers)
         try:
-            futures = {}
+            # Future -> episode idx, so a submit failure can report how many are still
+            # in flight (see ``_try_submit``) without holding the jobs themselves.
+            futures: Dict[Future, int] = {}
 
             def _try_submit(job: Any) -> bool:
                 """Submit one job, tolerating a pool that can no longer accept work.

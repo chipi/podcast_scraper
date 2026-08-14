@@ -610,6 +610,21 @@ class Config(BaseModel):
         - API Reference: https://chipi.github.io/podcast_scraper/api/configuration/
     """
 
+    profile: Optional[str] = Field(
+        default=None,
+        description=(
+            "The deployment profile this Config was resolved from (cloud_balanced, local, …). "
+            "Set by ``_resolve_profile`` after merging; not something a caller supplies as a "
+            "field (pass ``profile=`` to the constructor and it is consumed as the meta-key, "
+            "then written back here). "
+            "#1648: this field did not exist, so the profile NAME was popped during resolution "
+            "and lost. ``orchestration.py`` reads ``getattr(cfg, 'profile', None)`` to decide "
+            "which enricher set to run and to pass ``--profile`` across the enrichment "
+            "subprocess boundary; with no field it always saw None, resolved an EMPTY enricher "
+            "set, and reported success. Every enrichment run in the corpus's life was a 3 ms "
+            "no-op because of this one missing field."
+        ),
+    )
     rss_url: Optional[str] = Field(default=None, alias="rss")
     rss_urls: Optional[List[RssFeedEntry]] = Field(
         default=None,
@@ -4178,6 +4193,13 @@ class Config(BaseModel):
                 "Profile '%s' not found in registry or config/profiles/; ignoring",
                 profile_name,
             )
+            # Keep the NAME even though nothing resolved from it (#1648). This is the case an
+            # operator most needs to debug — they named a profile and nothing happened — and
+            # dropping it here reproduces the original defect in miniature. Downstream,
+            # ``enricher_set_for_profile`` will return the empty set for an unknown name and
+            # the executor now raises on that, so the mistake surfaces instead of no-opping.
+            data = dict(data)
+            data["profile"] = profile_name
             return cls._merge_audio_preprocessing_preset(data)
 
         # Merge derived-run-context < registry < YAML < explicit data.
@@ -4185,6 +4207,17 @@ class Config(BaseModel):
         merged.update(registry_settings)
         merged.update(profile_dict)
         merged.update(data)  # explicit fields win
+        # Write the resolved profile NAME back as a real field (#1648).
+        #
+        # It was popped from ``data`` above and popped again from ``profile_dict`` (Config is
+        # ``extra="forbid"``, so the meta-key could not be passed through as-is) — and then it
+        # was simply gone. Downstream, ``orchestration.py`` needs it twice: to choose the
+        # enricher set, and to put ``--profile`` on the argv of the enrichment child process,
+        # which is the only way the name crosses that boundary. Both silently got None.
+        #
+        # Set AFTER the updates so it reflects what was actually resolved, not what some layer
+        # happened to carry.
+        merged["profile"] = profile_name
 
         # ADR-122: the failure STRATEGY defaults from the *effective* run context (serve ->
         # failover, reprocess -> hold) but is a first-class, overridable knob. If no layer set it

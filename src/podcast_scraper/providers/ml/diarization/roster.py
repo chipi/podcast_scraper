@@ -2105,6 +2105,7 @@ def build_speaker_diagnostics(
     metadata_named: Sequence[str] = (),
     show_centric: bool = False,
     profile: LabelingProfile = DEFAULT_LABELING_PROFILE,
+    detection_ran: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Per-episode speaker-resolution diagnostics — *what we tried, what we resolved, and why
     each voice that stayed raw failed*. Written as a sidecar so an operator can see why a
@@ -2112,6 +2113,11 @@ def build_speaker_diagnostics(
 
     ``show_centric`` marks feeds where the host is deliberately unnamed (news desks): an unnamed
     host is then flagged ``expected`` (rendered "Host"), not a detection failure.
+
+    ``detection_ran`` says whether the speaker-detection stage executed (#1647). It changes how
+    an unnamed voice is read: "nobody in the episode says who they are" is only a legitimate
+    finding if we looked. ``None`` means the caller did not say, and is treated as "assume we
+    looked" so existing behaviour is unchanged.
     """
     talk = _talk_time(diarization)
     per_voice_intro = _self_intros_by_voice(
@@ -2246,12 +2252,25 @@ def build_speaker_diagnostics(
             # The share that is OUR failure — a nameable voice (`unknown`) we missed. This is the
             # alarm basis; `unidentified` tape does not count (ADR-139 / Pattern B).
             "unattributed_defect_share": round(defect_share, 4),
+            # Did the speaker-detection stage run at all? (#1647) Without this the two rows
+            # below are unreadable: zero named voices means something different when we looked
+            # and found nobody than when we never looked.
+            "detection_stage_ran": detection_ran,
             # naming-4 alarms on the DEFECT share; the legacy profile alarms on TOTAL unattributed
             # (the pre-Pattern-B behaviour). Threshold + basis both come from the profile (ADR-140).
-            "unattributed_alarm": (
-                defect_share if profile.alarm_on_defect_share else unattributed_share
-            )
-            >= profile.unattributed_alarm_threshold,
+            #
+            # PLUS an unconditional trip (#1646/#1647): nothing named AND detection never ran.
+            # The share-based basis cannot catch that case — it deliberately excludes
+            # ``unidentified`` talk as "tape nobody names, not our failure" (ADR-139), which is
+            # correct ONLY when detection actually looked. On an episode where the stage was
+            # skipped, every voice degrades to ``unidentified`` and the defect share falls to
+            # 0.0, so the alarm read FALSE on episodes that lost 100 % of their insights. That
+            # is exactly what happened across 72 % of the corpus under #1646.
+            "unattributed_alarm": bool(
+                (defect_share if profile.alarm_on_defect_share else unattributed_share)
+                >= profile.unattributed_alarm_threshold
+                or (named == 0 and detection_ran is False and roster.num_speakers > 0)
+            ),
             # Which labeling profile produced this episode (reprocess key + A/B provenance).
             "labeling_profile": profile.version,
             # Names the metadata stated and we could not place. When the alarm fires, this is

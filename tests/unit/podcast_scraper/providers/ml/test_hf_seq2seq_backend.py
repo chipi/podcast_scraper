@@ -132,33 +132,11 @@ class TestLoadFallbacksToRepoIdWhenNoSnapshot:
         assert kwargs["low_cpu_mem_usage"] is False
 
 
-class TestGenerateWiresGenerationConfig:
-    """Verify generate() feeds ``model.generate(**inputs, generation_config=gen_cfg)``
-    and returns the decoded string stripped."""
-
-    def test_generate_call_shape(self):
-        b = HFSeq2SeqBackend("facebook/bart-base", device="cpu")
-        # Simulate a loaded backend with mocked model + tokenizer.
-        fake_tokenizer = mock.MagicMock()
-        fake_tokenizer.return_value = {"input_ids": mock.Mock(), "attention_mask": mock.Mock()}
-        for v in fake_tokenizer.return_value.values():
-            v.to = mock.Mock(return_value=v)
-        fake_tokenizer.decode = mock.Mock(return_value="  a summary  ")
-        fake_model = mock.MagicMock()
-        fake_model.config.max_position_embeddings = 1024
-        fake_model.parameters = mock.Mock(return_value=iter([mock.Mock(device="cpu")]))
-        fake_model.generate = mock.Mock(return_value=[[1, 2, 3]])
-        b.model = fake_model
-        b.tokenizer = fake_tokenizer
-        b._loaded = True
-
-        gen_cfg = mock.Mock()
-        result = b.generate("input text", gen_cfg)
-
-        assert result == "a summary"
-        fake_model.generate.assert_called_once()
-        _, kwargs = fake_model.generate.call_args
-        assert kwargs["generation_config"] is gen_cfg
+# ``TestGenerateWiresGenerationConfig`` moved to
+# ``tests/integration/providers/ml/test_hf_seq2seq_backend_generate.py`` (#1657): it exercises
+# the real ``generate()`` body, which imports torch, and torch is not in ``[dev]`` — the only
+# extra CI installs for ``test-unit``. Everything remaining in this file mocks at the
+# ``transformers.*`` seam and needs no ML stack, which is why only that one class moved.
 
 
 class TestSnapshotLoadWithFamilyClass:

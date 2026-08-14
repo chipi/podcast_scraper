@@ -1,6 +1,16 @@
 # Stabilization phase — 2026-08-14
 
-**Status:** OPEN — ingestion deliberately paused.
+> **Superseded as a plan — kept as evidence.** All work items from this phase are now tracked
+> in **[epic #1657 — corpus integrity](https://github.com/chipi/podcast_scraper/issues/1657)**
+> and its child issues. This document remains the *measured record* behind them: the S3
+> per-episode audit, the S6 leverage decision and its two gates, and the S7 verdict on the
+> first real enrichment run. Read it for evidence, not for what to do next.
+>
+> The root cause found after S7 — speaker detection silently skipped for every episode over
+> 25 MB — is **#1646**, and it is why the S3 audit came back clean while the corpus was
+> already damaged: S3 measured structure and never opened a GI file.
+
+**Status:** OPEN — ingestion deliberately paused. Planning moved to #1657 on 2026-08-14.
 
 A hold on corpus growth to fix what we found while growing it. Ingestion resumes only
 when the exit criteria below are met.
@@ -10,6 +20,12 @@ correctness does not depend on when it runs. Per-episode artifacts are not.** Su
 insights and KG nodes are minted at ingest time by whatever the pipeline is that day. If
 a per-episode defect exists, every episode ingested before it is found carries it. So the
 pause protects the per-episode layer, not the enrichment layer.
+
+**That rationale has been vindicated, not retired.** S3 audited the per-episode layer and
+found it healthy — but S3 measured *structure* (bullet counts, KG density, GI↔KG bridging)
+and never opened a GI file. The verdict below did, and found a per-episode defect of exactly
+the shape the pause exists to catch: episodes ingested on 2026-08-12/13 carry insights that
+no surface will ever show. The pause stays.
 
 ---
 
@@ -53,24 +69,31 @@ In Our Time 54m→15.
 Ingestion resumes when **all** of these hold. Each must be evidenced by a command and its
 output, not by assertion.
 
-1. **Enrichment produces data on the real corpus.** A named, non-empty enricher set runs,
-   and `GET /api/corpus/enrichments` shows artifacts for it. (H2)
-2. **An empty enricher set cannot silently succeed.** The no-op path is loud — the failure
-   mode that hid this for the corpus's entire life is closed, with a test.
-3. **The per-episode layer has been audited** on a sample spanning several feeds: summary
-   substance, insight/KG density, GI↔KG bridging, and ad/sponsor contamination. Findings
-   filed in the homework doc.
-4. **No unexplained job failure** in the current queue. `failed_total` is understood
-   line-by-line, not just counted.
+| # | Criterion | Status 2026-08-14 13:00Z |
+| --- | --- | --- |
+| 1 | **Enrichment produces data on the real corpus.** A named, non-empty enricher set runs, and `GET /api/corpus/enrichments` shows artifacts for it. (H2) | **MET** — by the operator-block route, **not** the royal route |
+| 2 | **An empty enricher set cannot silently succeed.** The no-op path is loud, with a test. | **NOT MET** — no code exists |
+| 3 | **The per-episode layer has been audited** on a sample spanning several feeds. | **MET but insufficient** — S3 measured structure, not attribution; see criterion 5 |
+| 4 | **No unexplained job failure** in the current queue, understood line-by-line. | **PARTIAL** — 1 of 7 explained |
+| 5 | **Insight attribution loss is diagnosed and bounded.** *(added 2026-08-14)* The share of GI insights dropped as `surfaceable: false` is understood at cause, the affected runs are enumerated, and the loss rate on newly ingested episodes is back to the ≤2 % baseline observed before 2026-08-12. | **NOT MET** |
 
 Explicitly **not** exit criteria: H1 (audio archive) is blocked on operator-supplied
 secrets and must not gate the phase; H4 is recorded-only by operator decision.
+
+**H1 is confirmed non-blocking for the attribution work.** Transcripts are retained with
+working diarization — the Latent Space episode that lost 100 % of its insights has a
+96 KB transcript with 4 distinct `SPEAKER_NN` labels across 120 turns. Re-deriving
+attribution needs the transcript and an LLM pass, not the discarded audio.
 
 ---
 
 ## Work items
 
-### S1 — fix enrichment the royal route — `[IN PROGRESS]`
+### S1 — fix enrichment the royal route — `[NOT STARTED — now P1.3]`
+
+Status corrected 2026-08-14: this was marked `[IN PROGRESS]`, but no code was ever written
+(`git log --since=2026-08-13 -- src/ tests/` returns nothing). Confirmed still live in prod —
+`run_id=6b7159ef` reports `profile: null`.
 
 Homework **H2**. Advisor engaged on the design. Working hypothesis of the causal chain:
 
@@ -89,12 +112,16 @@ Constraints on the fix:
   attribute alone does not survive that.
 - Royal route only — no shim, no hardcoded profile.
 
-### S2 — verify enrichment on the real corpus — `[BLOCKED on S1]`
+### S2 — verify enrichment on the real corpus — `[DONE 2026-08-14 — superseded by S7]`
 
 The queued `6d9d9c6f` (`--only <7 deterministic>`) is a *diagnostic*, not the fix: it
 bypasses profile resolution by naming enrichers explicitly. Its value is proving the
 executor and the enrichers themselves work. Do not read a green result from it as evidence
 that S1 is fixed — those are different code paths.
+
+It was cancelled and never ran. `d08408f0` did the verification instead, via the operator
+`enrichment.enrichers:` block — a third route, and the same caveat applies with full force:
+**`6b7159ef` succeeding is not evidence that S1 is fixed.** Findings in S7 below.
 
 ### S3 — per-episode quality audit — `[DONE 2026-08-14 — exit criterion 3 met]`
 
@@ -152,7 +179,12 @@ found — that theory tested clean, which lowers the risk of resuming ingestion.
   individually.
 - The single empty-summary episode was counted but not diagnosed.
 
-### S4 — homework items worth doing in this window — `[TODO]`
+### S4 — homework items worth doing in this window — `[SUPERSEDED by "Revised priorities"]`
+
+Kept for the reasoning; the ordering below is no longer current. **D6 moved up to P1.4**
+(a dry key is the leading suspect for the attribution loss, and Phase 2 spends budget
+re-deriving). **H3 moved down to Phase 3.** H1 stays operator-blocked but is confirmed
+**not** a blocker for the attribution fix — transcripts are retained with working diarization.
 
 | Item | Why now |
 | --- | --- |
@@ -251,10 +283,188 @@ co-appearance community centred on it.
   `enrichment.enrichers:` block in the corpus `viewer_operator.yaml`. Both produce the
   observed `profile: null` + empty `per_enricher`.
 - Why the 2026-08-08 run covered exactly ~12 episodes × 9 feeds.
-- Whether `insight_sentiment`'s sidecars exist on disk. `enrichments_available` lists only
-  `insight_density`, which reads as a reporting-layer gap rather than an enricher failure —
-  untraced either way.
+- ~~Whether `insight_sentiment`'s sidecars exist on disk.~~ **CLOSED 2026-08-14** — they do.
+  `GET /api/corpus/episode/enrichments/insight_sentiment` returns 200 with a real payload for
+  an episode whose `enrichments_available` lists only `insight_density`. Confirmed
+  reporting-layer gap, not an enricher failure.
 - Corpus-wide named-person ratio (see Gate B caveat).
+
+---
+
+## S7 — verdict on the first real enrichment run (2026-08-14)
+
+Job `d08408f0` ran unattended at 10:16:52Z–10:17:08Z (exit 0, `run_id=6b7159ef`,
+`duration_ms=6905`, 678 bundles). It is the first run in the corpus's life to produce
+enrichment data. **Verdict: the enrichers do what they were designed to do; two of the four
+produce output with little product value; and the data exposed a per-episode defect upstream
+of enrichment entirely.**
+
+Note `profile: null` in both `/api/enrichment/run-summary` and `/api/enrichment/status`.
+The enricher set came from the `enrichment.enrichers:` block in the corpus
+`viewer_operator.yaml`, **not** from profile resolution. **S1 is still unfixed** — criterion 1
+is met by workaround.
+
+### Per-enricher
+
+| Enricher | Verdict | Evidence |
+| --- | --- | --- |
+| `insight_sentiment` | **Sound — keep** | Sample `total_insights` sums to **497**, exactly the surfaceable Insight count in the same episodes' GI. No drift. Polarity pos 243 / neu 84 / neg 170 |
+| `insight_density` | **Sound — keep** | Sample sums to **470** = 497 surfaceable − 27 with no `SUPPORTED_BY` edge to a timed Quote (`insight_density.py:108`). Fully explained |
+| `temporal_velocity` | **Ship `content_series` only; suppress the scalar** | `velocity_last_over_6mo` over 5,918 topics: **5,632 = 0.0, 256 = exactly 6.0**, 30 anything else. `content_series` is real: `person:donald-trump` 34 weeks / 80 mentions |
+| `guest_coappearance` | **Revisit the ENABLE decision** | 277 pairs, **267 (96.4 %) have `episode_count: 1`**. All **6 communities are single-show host groups**; **zero** cross-show communities |
+| `topic_cooccurrence_corpus` | **Stale artifact served as live** | Listed by `/api/corpus/enrichments` (1.5 MB) but absent from `6b7159ef`'s `per_enricher`. It is the 2026-08-10 output; nothing in the API says so |
+
+Both `insight_*` enrichers expose a field named `total_insights` that counts different
+things (470 vs 497 over the same episodes). Correct, but it invites a false comparison.
+
+`guest_coappearance` was ENABLE'd on Gate B, which passed on the **top 50 of 847** persons.
+The full artifact contradicts the inference drawn from that sample: it rediscovers "who hosts
+what" (Roose+Newton, Martin+Armstrong, Barbaro+Kitroeff, Guo+Gil) and surfaces no cross-show
+structure at all. `person:brandon` — a bare first name — is a live person id.
+
+`temporal_velocity` also carries the unfixed granularity problem: **5,621 of 5,918 topics
+(95 %) appear in exactly one episode**, which is what inflates the artifact to 43 MB on disk
+/ 23.5 MB per GET.
+
+### The defect the data exposed — insight attribution loss
+
+Across 48 sampled episodes (every 14th of 678, newest-first), GI produced **645 Insight
+nodes**; **148 (22.9 %) were dropped as `surfaceable: false`**, 132 of them carrying
+`speaker_voice_type: "unidentified"`. **Nine of 48 episodes (18.75 %) have insights but zero
+surfaceable ones** — they contribute nothing to any surface.
+
+The filter is correct and deliberate (`_loaders.py:95-113`): an unattributed stance has
+nobody holding it. The failure is upstream. On the Latent Space episode GI extracted **29
+insights and named Person nodes (Sarah Sachs, Simon Last)**, then attributed all 29 to
+`SPEAKER_00 / unidentified`. The people were found; the insights were never bound to them.
+On the a16z episode the only Person node is `person:andreessen-horowitz` — an organisation,
+the same org-as-person defect S6 flagged.
+
+**It is per-run damage, not a feed property and not a permanent defect.** The same feed is
+clean on one day and lossy on another:
+
+| Feed | 08-05 | 08-11 | 08-12 | 08-13 |
+| --- | --- | --- | --- | --- |
+| The Daily | 0 % | 0 % | **20 %** | 0 % |
+| No Priors | 3 % | 0 % | **22.6 %** | 0 % |
+| Hard Fork | 0 % | — | **13.5 %** | 0 % |
+| NVIDIA AI Podcast | — | — | **66.7 %** | 0 % |
+| Unhedged | — | 0 % | 0 % | **70 %** |
+| Planet Money | — | — | 20 % | **57.1 %** |
+| Latent Space | — | — | — | **100 %** |
+| Lenny's / Invest Like the Best | — | — | 0 % *(ILTB)* | 0 % *(Lenny's)* |
+
+Corpus-wide by ingest day: 08-05 **1.7 %**, 08-11 **0 %**, 08-12 **20.0 %**, 08-13 **35.7 %**.
+Some runs on the bad days are clean, so the unit of damage is the **run**, not the day.
+
+**Leading hypothesis, not yet verified:** speaker detection degraded softly during the
+08-12/08-13 bulk ingestion. Two jobs failed loudly in that window — `97180b23` (08-12,
+`RuntimeError: cannot schedule new futures after interpreter shutdown`) and `8645ecd0`
+(08-13, `ProviderRuntimeError … OpenAI speaker detection failed: no budget/credit left on
+this key`) — and the episodes that *succeeded* alongside them may carry the silent version of
+the same failure. If so this is a T7-shaped bug: the run reports success while the cause goes
+unreported.
+
+### Also observed
+
+- **The Pragmatic Engineer produced 2 insights across 2 episodes** where Hard Fork averages
+  20/episode. A different failure, undiagnosed — and that is the feed we just ingested 16
+  more of.
+- `GET /api/corpus/episodes` caps its page at 200 rows regardless of `limit` (declared
+  `le=1000`, `corpus_library.py:327`); pagination is by `next_cursor`, and `offset` is
+  silently ignored.
+
+### Not covered by this verdict
+
+- **Semantic correctness** — untouched. Counts and linkage only; never whether an insight is
+  true or a sentiment label matches its text. Still F1qa.
+- **Sample is 48 of 678**, systematic (every 14th, newest-first), not random. Per-feed and
+  per-day cells are 1–6 episodes; the percentages above are indicative, not estimates.
+  Latent Space's 100 % rests on **2 episodes**.
+- **Why attribution fails per run** — the hypothesis above is unverified. The speaker
+  detection and diarization stages have not been read.
+- **`guest_coappearance` correctness** — its *value* was judged, not whether its pair
+  counting is right.
+- The 6 unexplained job failures remain unread.
+- Corpus-wide surfaceable ratio; the effect of the 23.5 MB payload on any client.
+
+---
+
+## Revised priorities (2026-08-14) — `[SUPERSEDED by #1657]`
+
+> This section was the first cut at re-ordering the work. It has been **replaced by the nine
+> slices in [#1657](https://github.com/chipi/podcast_scraper/issues/1657)**, which carry the
+> full homework inventory, the definition of done, and the deploy/repair sequence. The phases
+> below are kept because their *reasoning* is still the reasoning — P0.1 is what found #1646 —
+> but the slices in the epic are what gets executed.
+
+**The reordering principle** (unchanged, and now the epic's): an enrichment layer computing
+correctly over inputs that are 23 % destroyed is not a working system. Attribution outranks
+everything, including S1.
+
+**What P0.1 found:** `_check_episode_size_skip` (`workflow/stages/processing.py:717-765`)
+skips speaker detection for any episode whose audio exceeds 25 MB — an OpenAI Whisper upload
+limit, applied while transcribing with Deepgram, to a stage that reads only the episode title
+and description. 488 of 678 episodes (72 %). Full analysis in #1646.
+
+### Phase 0 — diagnose before scoping *(nothing below is scopeable until this lands)*
+
+| | Item | Output |
+| --- | --- | --- |
+| P0.1 | **Diagnose the attribution loss at cause.** Read the speaker-detection / diarization → GI binding path. Answer: why does a run with 4 clean `SPEAKER_NN` labels and named Person nodes bind zero insights to a person? | A named cause, not a correlation |
+| P0.2 | **Enumerate the blast radius.** Every run and episode in the corpus with `surfaceable` loss above the ≤2 % baseline. Not a sample — the full 678 | A re-derivation work-list |
+| P0.3 | **Read the 6 unexplained job failures** (`/api/jobs/{id}/log`). Confirm or kill the "soft degradation alongside the loud failures" hypothesis | Criterion 4 closed |
+| P0.4 | **Freeze today's numbers as a checked-in baseline** — per-feed/per-run surfaceable ratio, the four enrichers' record counts, the 48-episode sample | The comparison the Phase 2 re-run is measured against |
+
+P0.4 is not bookkeeping. Without a baseline captured **before** any fix, the validation
+re-run has nothing to compare to and "it looks better" becomes the acceptance test.
+
+### Phase 1 — fix, each with unit + integration + client coverage
+
+| | Item | Why here |
+| --- | --- | --- |
+| P1.1 | **The attribution fix** — scope set by P0.1 | The defect that destroys 23 % of the corpus's insights |
+| P1.2 | **Loud empty-enricher-set** (exit criterion 2) | Small, and it is what makes every later "the fix worked" claim verifiable |
+| P1.3 | **S1 — the profile royal route** | Now that criterion 1 is met by workaround, this is correctness-of-route, not availability-of-data |
+| P1.4 | **D6 — budget headroom signal** | Promoted to Phase 1: a key running dry is the leading suspect for P0.1, and Phase 2 spends LLM budget re-deriving. Fixing without it risks reproducing the defect during validation |
+| P1.5 | **`temporal_velocity`: suppress the scalar, expose `content_series`** | Ship-blocking for anything consuming "trending" |
+| P1.6 | **`guest_coappearance`: revisit ENABLE** | Decide on the full artifact, not the top-50 sample |
+| P1.7 | **Stale-artifact honesty** — `/api/corpus/enrichments` must distinguish "produced by the last run" from "left over from 2026-08-10" | Silent staleness is how the 3 ms no-op stayed invisible for a month |
+
+"Client" coverage means the consumer surface, not just the API: an enricher whose output no
+client reads is not validated by a green test.
+
+### Phase 2 — validate by re-running
+
+| | Item |
+| --- | --- |
+| P2.1 | Re-derive attribution for the P0.2 work-list (transcripts are retained; no audio needed) |
+| P2.2 | **Full-corpus enrichment re-run** over all 678, compared against the P0.4 baseline |
+| P2.3 | Only then: resume ingestion — re-queue the six cancelled windows verbatim |
+
+### Phase 3 — deferred until Phases 0–2 close
+
+H6 (incrementality — but see the design note below), H3 (post-ingest passes),
+H7 (auto-spawn), the 43 MB artifact size, the 200-row page cap, H1 (still operator-blocked).
+
+H6 is **downgraded on evidence**: the doc warned about a 30 s `wait_for` cap, but the real
+678-episode pass took **6.9 s**. It is waste, not a timeout risk.
+
+### Design note — incrementality must not block re-validation
+
+Enrichment should be incremental *and* must keep a full-corpus re-run. Two constraints that
+are easy to get wrong:
+
+1. **The staleness key must include the input, not just the enricher.** `envelope.py` already
+   persists `computed_at`, `enricher_version` and `schema_version`. Keying on those alone is a
+   trap: fix speaker attribution upstream, re-run enrichment, and every episode is "unchanged
+   at the same enricher version" — all 678 skipped, the fix invisible. The key must be
+   `f(input GI identity, enricher_version, schema_version)` so an upstream fix invalidates
+   downstream work **without anyone remembering to force it**.
+2. **`--force` / `--all` is the override, not the mechanism.** If correctness depends on an
+   operator passing a flag, it will be wrong the first time someone forgets. The flag exists
+   for Phase 2 and for re-running at an unchanged version — not to compensate for a key that
+   does not notice its inputs changed.
 
 ---
 
@@ -263,3 +473,14 @@ co-appearance community centred on it.
 - **07:00Z** — six new-feed windows cancelled; phase opened; advisor engaged on S1.
 - **07:30Z** — enrichment job `6d9d9c6f` cancelled so it could not auto-fire before fixes.
 - **08:00Z** — leverage decision recorded; Gates A and B executed, both PASS.
+- **08:18Z** — enrichment job `d08408f0` queued explicitly (the auto-chain does not fire, H7).
+- **10:16–10:17Z** — `d08408f0` ran unattended, exit 0. First enrichment data in the corpus's
+  life: `insight_sentiment` 6840 records, `insight_density` 6187, `temporal_velocity` 5918,
+  `guest_coappearance` 277. All four `circuit_state: closed`.
+- **10:29Z** — S3 filed; session ended; machine restarted.
+- **~12:00Z** — corpus confirmed at **678 episodes** (the two Pragmatic Engineer tail windows
+  landed), `with_both=678`, `with_neither=0`. Queue idle: 71 succeeded / 15 cancelled /
+  7 failed, nothing running or queued.
+- **~13:00Z** — S7 verdict filed. Attribution loss found (22.9 % of GI insights dropped,
+  per-run not per-feed). Phase re-scoped; exit criterion 5 added; priorities reordered into
+  Phases 0–3.

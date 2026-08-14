@@ -92,7 +92,7 @@ api**. Each layer is watched by a dumber, more reliable one.
 
 Alert on progress *age*, not on episode-completion timing:
 
-```
+```promql
 podcast_job_running == 1 and (time() - podcast_job_last_progress_timestamp_seconds) > 1800
 ```
 

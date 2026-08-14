@@ -14,8 +14,6 @@ readers and on-disk manifests keep working.
 import os
 import sys
 import unittest
-from pathlib import Path
-from unittest.mock import patch
 
 PACKAGE_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,8 +21,6 @@ PACKAGE_ROOT = os.path.dirname(
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-
-import pytest
 
 from podcast_scraper.workflow.run_manifest import RunManifest
 

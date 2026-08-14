@@ -45,6 +45,16 @@ class ConfigSchemaError(ValueError):
     """Raised when the enrichment YAML block fails JSON Schema validation."""
 
 
+class EnrichmentConfigurationError(ValueError):
+    """Raised when enrichment is asked to run but is configured to do nothing (#1648).
+
+    Distinct from :class:`ConfigSchemaError`: the YAML may be perfectly valid and still
+    resolve to zero enrichers — which is what happened for the entire life of the corpus,
+    reported as ``status: ok`` in 3 ms. A run with nothing to run is misconfigured, and
+    saying so out loud is the whole point of this class.
+    """
+
+
 def load_schema() -> dict[str, Any]:
     """Load and return the JSON Schema dict.
 

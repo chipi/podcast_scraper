@@ -224,6 +224,16 @@ class Metrics:
     extract_names_time_by_episode: Dict[int, float] = field(default_factory=dict)
     summarize_time_by_episode: Dict[int, float] = field(default_factory=dict)
     cleaning_time_by_episode: Dict[int, float] = field(default_factory=dict)
+    # Per-episode stage OUTCOMES (#1647). The ``*_time_by_episode`` dicts above record
+    # duration and nothing else, so a stage that was skipped, a stage that failed and was
+    # swallowed, and a stage that was never configured all collapse to the same absence —
+    # which is how #1646 stayed invisible across 72% of the corpus. An outcome is recorded
+    # unconditionally, including for the paths that record no duration.
+    # Shape: {episode_idx: {stage_name: {"outcome", "reason", "detail", "duration_seconds"}}}
+    stage_outcomes_by_episode: Dict[int, Dict[str, Dict[str, Any]]] = field(default_factory=dict)
+    _stage_outcome_lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False
+    )
     gi_times: List[float] = field(default_factory=list)  # GIL artifact generation times per episode
     kg_times: List[float] = field(default_factory=list)  # KG artifact generation times per episode
     # Wall time for maybe_index_corpus; 0 if skipped or disabled
@@ -711,6 +721,53 @@ class Metrics:
     def record_extract_names_time(self, duration: float, episode_idx: int) -> None:
         """Record time spent extracting speaker names for an episode (by episode.idx)."""
         self.extract_names_time_by_episode[episode_idx] = duration
+
+    def record_stage_outcome(
+        self,
+        stage: str,
+        episode_idx: int,
+        outcome: str,
+        *,
+        reason: Optional[str] = None,
+        detail: Optional[Dict[str, Any]] = None,
+        duration_seconds: Optional[float] = None,
+    ) -> None:
+        """Record WHAT HAPPENED to one stage for one episode (#1647).
+
+        ``outcome`` is one of ``ran`` / ``skipped`` / ``failed`` / ``degraded``. Unlike the
+        ``record_*_time`` methods this must be called on every path — especially the ones
+        that return early and record no duration, because their silence is the defect.
+
+        ``reason`` is a stable machine-readable slug (``media_over_size_limit``), not prose,
+        so a report can group by it. ``detail`` carries the deciding inputs
+        (``{"media_bytes": 42871040, "limit_bytes": 26214400}``) so an operator can see *why*
+        without re-deriving it from logs that may not exist.
+
+        Thread-safe: episodes are processed on a pool, and two workers can land on different
+        stages of different episodes at the same time.
+        """
+        record: Dict[str, Any] = {"outcome": outcome}
+        if reason is not None:
+            record["reason"] = reason
+        if detail is not None:
+            record["detail"] = detail
+        if duration_seconds is not None:
+            record["duration_seconds"] = duration_seconds
+        with self._stage_outcome_lock:
+            self.stage_outcomes_by_episode.setdefault(episode_idx, {})[stage] = record
+
+    def stage_did_run(self, stage: str, episode_idx: int) -> Optional[bool]:
+        """True/False if the ledger knows whether *stage* ran for this episode; None if not.
+
+        The three states are all meaningful and must not be collapsed (#1647):
+        True = it ran (possibly degraded), False = it was skipped or failed before doing work,
+        None = nothing was recorded, so we genuinely do not know. Callers use None to preserve
+        pre-ledger behaviour rather than to assume the worst.
+        """
+        record = self.stage_outcomes_by_episode.get(episode_idx, {}).get(stage)
+        if not record:
+            return None
+        return record.get("outcome") in ("ran", "degraded")
 
     def record_summarize_time(self, duration: float, episode_idx: int) -> None:
         """Record time spent generating summary for an episode (by episode.idx)."""

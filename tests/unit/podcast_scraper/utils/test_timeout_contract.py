@@ -15,7 +15,6 @@ import os
 import sys
 import time
 import unittest
-from pathlib import Path
 
 PACKAGE_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,8 +22,6 @@ PACKAGE_ROOT = os.path.dirname(
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-
-import pytest
 
 from podcast_scraper.utils import timeout as timeout_mod
 

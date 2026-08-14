@@ -326,6 +326,15 @@ def download_media_for_transcription(
         if cfg.skip_existing
         else episode.idx
     )
+    # Whether speaker detection ran for this episode, read from the stage ledger rather than
+    # threaded through the positional download-args tuple (#1647). ``detected_speaker_names``
+    # cannot answer it — empty means both "ran, found nobody" and "never ran" — and the roster
+    # needs the difference to tell an accepted unnamed voice from an unmeasured one.
+    detection_ran = (
+        pipeline_metrics.stage_did_run("speaker_detection", episode.idx)
+        if pipeline_metrics is not None and hasattr(pipeline_metrics, "stage_did_run")
+        else None
+    )
     final_out_path = filesystem.build_whisper_output_path(
         skip_idx, episode.title_safe, run_suffix, effective_output_dir
     )
@@ -341,6 +350,7 @@ def download_media_for_transcription(
             temp_media="",
             detected_speaker_names=speaker_names_copy,
             metadata_named=list(metadata_named) if metadata_named else None,
+            speaker_detection_ran=detection_ran,
             episode=episode,
         )
     # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so an
@@ -400,6 +410,7 @@ def download_media_for_transcription(
                 ep_title_safe=episode.title_safe,
                 temp_media="",  # Empty since we're reusing existing transcript
                 detected_speaker_names=speaker_names_copy,
+                speaker_detection_ran=detection_ran,
                 episode=episode,
             )
         else:
@@ -468,6 +479,7 @@ def download_media_for_transcription(
         temp_media=temp_media,
         detected_speaker_names=speaker_names_copy,
         metadata_named=list(metadata_named) if metadata_named else None,
+        speaker_detection_ran=detection_ran,
         episode=episode,
         media_download_elapsed=dl_elapsed,
     )
@@ -2002,6 +2014,7 @@ def _relabel_existing_transcript(
         # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
         episode_title=job.ep_title,
         episode_description=getattr(job.episode, "description", None),
+        detection_ran=getattr(job, "speaker_detection_ran", None),
     )
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
@@ -2094,6 +2107,7 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
             metadata_named=job.metadata_named,
             precomputed_diarization=diar,
             feed_hosts=job.feed_hosts,
+            detection_ran=getattr(job, "speaker_detection_ran", None),
         )
     except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
         logger.warning(

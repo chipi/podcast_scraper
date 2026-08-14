@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHE
 from urllib.parse import urlparse
 
 import yaml
-from pydantic import BaseModel, computed_field, Field, field_serializer
+from pydantic import BaseModel, computed_field, Field, field_serializer, ValidationError
 
 from .. import config, config_constants, models
 from ..speaker_detectors.hosts import looks_like_publisher
@@ -518,7 +518,13 @@ class ContentMetadata(BaseModel):
 
 @dataclass
 class EpisodeStageTimings:
-    """Per-episode stage timings for performance analysis (Issue #379)."""
+    """Per-episode stage timings for performance analysis (Issue #379).
+
+    These record DURATION only. ``None`` here is ambiguous by construction — it means
+    "no duration was recorded", which covers a stage that was skipped, one that failed and
+    was swallowed, and one that was never configured. Read ``ProcessingMetadata.stage_ledger``
+    for what actually happened; that is the field with the answer (#1647).
+    """
 
     download_media_time: Optional[float] = None  # Media download time in seconds
     transcribe_time: Optional[float] = None  # Transcription time in seconds
@@ -526,6 +532,34 @@ class EpisodeStageTimings:
     cleaning_time: Optional[float] = None  # Transcript clean before summarize (seconds)
     summarize_time: Optional[float] = None  # Summarization time in seconds
     total_processing_time: Optional[float] = None  # Total processing time in seconds
+
+
+class StageOutcome(BaseModel):
+    """What happened to one pipeline stage for one episode (#1647).
+
+    The pipeline used to record only timings, so "skipped" was indistinguishable from
+    "never ran" — an ambiguity that hid #1646 (speaker detection silently skipped for every
+    episode over 25 MB) across 72 % of the corpus. Every stage now states its outcome
+    explicitly, and ``None`` stops being a legal way to say "nothing happened".
+    """
+
+    outcome: Literal["ran", "skipped", "failed", "degraded"] = Field(
+        description="ran = completed; skipped = deliberately not run; failed = raised; "
+        "degraded = produced output via a fallback path."
+    )
+    reason: Optional[str] = Field(
+        default=None,
+        description="Stable machine-readable slug for grouping (e.g. 'media_over_size_limit'). "
+        "Not prose — prose belongs in the log line.",
+    )
+    detail: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The deciding inputs, so the decision is auditable without the logs "
+        "(e.g. {'media_bytes': 42871040, 'limit_bytes': 26214400}).",
+    )
+    duration_seconds: Optional[float] = Field(
+        default=None, description="Wall time when the stage actually ran."
+    )
 
 
 class SummaryMetadata(BaseModel):
@@ -580,6 +614,9 @@ class ProcessingMetadata(BaseModel):
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
     stage_timings: Optional[EpisodeStageTimings] = None  # Per-episode stage timings (Issue #379)
+    # Per-stage outcomes (#1647). Answers "did this stage run?", which ``stage_timings``
+    # cannot: a null timing there is ambiguous between skipped / failed / never-configured.
+    stage_ledger: Optional[Dict[str, StageOutcome]] = None
 
     @field_serializer("processing_timestamp")
     def serialize_processing_timestamp(self, value: datetime) -> str:
@@ -2265,6 +2302,44 @@ def _extract_episode_stage_timings(
     return None
 
 
+def _extract_episode_stage_ledger(
+    pipeline_metrics: Any, episode_idx: Optional[int]
+) -> Optional[Dict[str, StageOutcome]]:
+    """Build the per-episode stage ledger from recorded outcomes (#1647).
+
+    Unlike ``_extract_episode_stage_timings`` this is not gated on "did anything take time" —
+    a stage that took no time because it was SKIPPED is precisely what needs recording.
+    Returns None only when nothing was recorded at all, which itself means the run predates
+    the ledger rather than that every stage ran.
+    """
+    if pipeline_metrics is None or episode_idx is None:
+        return None
+
+    outcomes = getattr(pipeline_metrics, "stage_outcomes_by_episode", None)
+    if not isinstance(outcomes, dict):
+        return None
+    episode_outcomes = outcomes.get(episode_idx)
+    if not isinstance(episode_outcomes, dict) or not episode_outcomes:
+        return None
+
+    ledger: Dict[str, StageOutcome] = {}
+    for stage, record in episode_outcomes.items():
+        if not isinstance(record, dict) or "outcome" not in record:
+            continue
+        try:
+            ledger[str(stage)] = StageOutcome(**record)
+        except ValidationError:
+            # A malformed record must not cost us the whole ledger — the other stages'
+            # outcomes are still the signal we came for.
+            logger.warning(
+                "Discarding malformed stage-ledger record for stage %r (episode %s): %r",
+                stage,
+                episode_idx,
+                record,
+            )
+    return ledger or None
+
+
 def _build_processing_metadata(
     cfg: config.Config,
     output_dir: str,
@@ -2327,6 +2402,12 @@ def _build_processing_metadata(
         if episode_idx is not None
         else None
     )
+    # ... and what actually HAPPENED to each stage (#1647), which the timings cannot say.
+    stage_ledger = (
+        _extract_episode_stage_ledger(pipeline_metrics, episode_idx)
+        if episode_idx is not None
+        else None
+    )
 
     return ProcessingMetadata(
         processing_timestamp=datetime.now(),
@@ -2335,6 +2416,7 @@ def _build_processing_metadata(
         config_snapshot=config_snapshot,
         schema_version=SCHEMA_VERSION,
         stage_timings=stage_timings,
+        stage_ledger=stage_ledger,
     )
 
 

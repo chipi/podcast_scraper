@@ -21,7 +21,6 @@ import threading
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
 
 PACKAGE_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -33,8 +32,6 @@ if PROJECT_ROOT not in sys.path:
 parent_tests_dir = Path(__file__).parent.parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
-
-import pytest
 
 from podcast_scraper.workflow.stages import processing
 

@@ -73,6 +73,15 @@ KNOWN_NETWORKS: frozenset[str] = frozenset(
         "the wall street journal",
         "financial times",
         "pushkin industries",
+        # Firms that publish a show under their own brand. Same shape as the news publishers
+        # above — two real-looking tokens, no generic org marker — so nothing else catches
+        # them. Added from OBSERVED corpus damage (#1652), not speculation:
+        # ``person:andreessen-horowitz`` was the corpus's TOP-RANKED Person (54 episodes,
+        # 723 insights), and on one a16z episode it was the only "person" present while the
+        # actual speakers went unresolved. Whole-name match only — the first-token check
+        # cannot fire on "andreessen", so a real person like Marc Andreessen is untouched.
+        "andreessen horowitz",
+        "a16z",
     }
 )
 
@@ -121,9 +130,62 @@ def is_network_or_org_author(name: str) -> bool:
         return True
     if has_org_markers(n):
         return True
+    # A known network/publisher in an author tag is the PUBLISHER, not a host — and multi-token
+    # brands ("Andreessen Horowitz", "The New York Times") carry no generic org marker and are
+    # not mononyms, so nothing else here rejects them (#1652). This check was already applied
+    # to self-introductions and to host/guest metadata via ``looks_like_publisher``; the RSS
+    # author path was the one place that skipped it, which is how ``person:andreessen-horowitz``
+    # became the corpus's top-ranked Person.
+    if is_known_network(n):
+        return True
     if len(n.split()) < 2:  # mononym ("Colossus", "NPR") — not a "First Last" host name
         return True
     return False
+
+
+# Name suffixes that legitimately follow a comma. Without these, "Martin Luther King, Jr."
+# splits into a person and the orphan token "Jr.".
+_NAME_SUFFIXES = frozenset(
+    {"jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "phd", "ph.d.", "md", "m.d.", "esq", "esq."}
+)
+
+# Comma, semicolon, ampersand, or a standalone "and" — the separators RSS author tags actually
+# use. Word-bounded so "Alexander" is not cut at its "and".
+_AUTHOR_SEPARATORS = re.compile(r"\s*(?:,|;|&|\band\b)\s*", re.IGNORECASE)
+
+
+def split_author_names(author: str) -> list[str]:
+    """Split one RSS author tag into individual person names (#1652).
+
+    Publishers routinely put a whole cast in a single ``<itunes:author>``:
+    ``"Brandon Anderson, RJ Honicky, and Latent.Space"``. Kept whole, that string can never
+    match a diarized voice — the roster compares per name — so the known-hosts fallback silently
+    does nothing for every multi-author feed.
+
+    Deliberately conservative, because a bad split INVENTS a person, which is worse than
+    failing to find one:
+
+    - name suffixes are re-attached (``"Martin Luther King, Jr."`` stays one name);
+    - fragments that are not plausible names are dropped by the caller's
+      :func:`is_network_or_org_author` check, which already rejects mononyms — so an
+      over-eager split degrades to "no host", the safe direction (#876), never to a fake one;
+    - a tag with no separator is returned unchanged.
+    """
+    text = (author or "").strip()
+    if not text:
+        return []
+
+    parts = [part.strip() for part in _AUTHOR_SEPARATORS.split(text)]
+    merged: list[str] = []
+    for part in parts:
+        if not part:
+            continue
+        if merged and part.lower().rstrip(".") in {s.rstrip(".") for s in _NAME_SUFFIXES}:
+            # "Jr." belongs to the name before it, not to a new person.
+            merged[-1] = f"{merged[-1]}, {part}"
+            continue
+        merged.append(part)
+    return merged
 
 
 def looks_like_publisher(name: str) -> bool:
@@ -852,15 +914,23 @@ def detect_hosts_from_feed(
                 author_clean = author.strip()
                 if "<" in author_clean and ">" in author_clean:
                     author_clean = author_clean.split("<")[0].strip()
-                if author_clean:
-                    if is_network_or_org_author(author_clean):
+                # One RSS author tag routinely names SEVERAL people (#1652). Latent Space ships
+                # ``"Brandon Anderson, RJ Honicky, and Latent.Space"`` in a single
+                # ``<itunes:author>``. Kept whole it can never match a voice — the roster
+                # compares per-name — so the known-hosts fallback was inert for every
+                # multi-author feed. That is the fallback that would otherwise have limited
+                # #1646's damage on exactly those shows.
+                for candidate in split_author_names(author_clean):
+                    if not candidate:
+                        continue
+                    if is_network_or_org_author(candidate):
                         logger.debug(
                             "RSS author '%s' looks like a network/organisation, not a host; "
                             "treating as publisher metadata rather than host",
-                            author_clean,
+                            candidate,
                         )
                     else:
-                        hosts.add(author_clean)
+                        hosts.add(candidate)
         if hosts:
             logger.debug(
                 "Detected hosts from RSS author tags (author/itunes:author/itunes:owner): %s",
