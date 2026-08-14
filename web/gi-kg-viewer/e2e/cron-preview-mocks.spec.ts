@@ -4,6 +4,12 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helper
 /**
  * #709 — live cron preview + validation under the Job Configuration editor.
  * A valid schedule shows a next-run preview; a bad cron is flagged before save.
+ *
+ * #1619 — still mocked: **needs the corpus pre-seeded with a deliberately invalid schedule.**
+ *
+ * The point of the test is a `cron: nope` entry being flagged before save. A committed fixture
+ * would have to ship a broken operator YAML on purpose, and writing one at test time dirties the
+ * tracked corpus. See e2e/README.md §"The operator plane writes into the corpus".
  */
 function matchExactApiPath(path: string): (url: URL) => boolean {
   return (url: URL) => url.pathname.replace(/\/$/, '') === path

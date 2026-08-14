@@ -8,6 +8,17 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helper
  * packaged overrides example (no `profile:` line) when the file is missing or whitespace-only.
  * Operators pick **Profile** in the UI + Save (CLI-style `--profile` + `--config`). If no
  * starter ships in the environment, `content` stays empty until a `PUT`.
+ *
+ * #1619 — still mocked: **write path against a tracked fixture**, and this file is the clearest
+ * case. The paragraph above already names the mechanism: a live `GET /api/operator-config`
+ * *creates* `viewer_operator.yaml` in the corpus directory, and the Save flow under test then
+ * `PUT`s it back. `.gitignore:82` force-includes `tests/fixtures/app-validation-corpus/**`, so
+ * every run would leave the tracked fixture dirty. Verified 2026-08-14 — a single GET against the
+ * live API was enough to produce an untracked `viewer_operator.yaml`.
+ *
+ * See e2e/README.md §"The operator plane writes into the corpus". Resolving this is a decision
+ * about fixture isolation (serve from a copy, or stop tracking server-generated files), not a
+ * rewrite of these assertions.
  */
 
 /** Match only the viewer backend path (avoid globs that also match Vite /src/api/feedsApi.ts). */

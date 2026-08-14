@@ -5,6 +5,13 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helper
  * #694 — per-feed override drill-in. Configuring a feed sets structured override
  * fields (e.g. `max_episodes`) on that entry only; other feeds round-trip
  * unchanged, and the result persists via `PUT /api/feeds`.
+ *
+ * #1619 — still mocked: **write path against a tracked fixture.**
+ *
+ * The assertion is precisely that a `PUT /api/feeds` persists — so running it live rewrites
+ * `feeds.spec.yaml` inside the corpus, which `.gitignore:82` force-includes. The v3 corpus also
+ * ships no feed spec entries (`GET /api/feeds` → `feeds: []`), so the round-trip subjects would
+ * have to be created first. See e2e/README.md §"The operator plane writes into the corpus".
  */
 function matchExactApiPath(path: string): (url: URL) => boolean {
   return (url: URL) => url.pathname.replace(/\/$/, '') === path

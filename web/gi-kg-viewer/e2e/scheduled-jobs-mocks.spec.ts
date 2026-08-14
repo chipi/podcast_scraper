@@ -5,6 +5,13 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helper
  * #709 — Scheduled section under Configuration. Renders `GET /api/scheduled-jobs`
  * and disables a job by rewriting `enabled:` in the operator YAML via
  * `PUT /api/operator-config`; the row's next-run then shows "—".
+ *
+ * #1619 — still mocked: **write path against a tracked fixture.**
+ *
+ * The live server would serve this, but the test needs the corpus pre-seeded with a
+ * `viewer_operator.yaml` carrying two named schedules, and the toggle then `PUT`s a rewritten YAML
+ * back into that corpus. `.gitignore:82` force-includes the fixture corpus, so running this live
+ * leaves the tracked tree dirty. See e2e/README.md §"The operator plane writes into the corpus".
  */
 function matchExactApiPath(path: string): (url: URL) => boolean {
   return (url: URL) => url.pathname.replace(/\/$/, '') === path

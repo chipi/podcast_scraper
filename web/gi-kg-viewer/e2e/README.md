@@ -64,6 +64,39 @@ variable or a `RegExp`. The counts above are `\b(page|context)\.route\(` over `e
 **Do not add new route mocks.** Point the spec at the real backend, and extend the corpus if it
 cannot express what you need.
 
+### Migrating a spec: the two sign-in modes
+
+`mockSignIn(page, role, { liveApi: true })` skips the catch-all so requests reach the backend. It
+is enough for every **corpus read** (`/api/corpus/*`, `/api/artifacts`, `/api/relational/*`).
+
+It is **not** enough for the operator plane. `/api/feeds`, `/api/operator-config`, `/api/jobs`,
+`/api/scheduled-jobs`, `/api/index/rebuild` and `/api/enrichment/*` need two more things:
+
+1. The server must be started with `PODCAST_SERVE_ENABLE_FEEDS_API=1`,
+   `PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API=1`, `PODCAST_SERVE_ENABLE_JOBS_API=1`, or the routes
+   are **not mounted at all** — `run-local-stack.sh` does not set them today.
+2. `OperatorWriteGuard` requires a **real admin session cookie**. `mockSignIn` only stubs
+   `/api/app/auth/status` inside the browser, so it does not satisfy the guard and every operator
+   request 403s. Use `signInAsAdmin(page)`, which drives the real mock-OAuth round trip.
+
+Read helpers exist so migrated specs assert against what the server actually holds rather than a
+hand-copied payload: `liveCorpusRoot`, `liveFeeds`, `liveFirstEpisode`, `liveFeedMetadataDir`.
+**Never hardcode a corpus path** — it is the repo-relative fixture when the API is served natively
+and `/corpus` under `run-local-stack.sh`.
+
+### The operator plane writes into the corpus — mind the tracked fixture
+
+`GET /api/operator-config` **creates** `viewer_operator.yaml` in the corpus directory when it is
+missing, and enabling the jobs API creates `.viewer/jobs.jsonl.lock`. `.gitignore:82` deliberately
+force-includes `tests/fixtures/app-validation-corpus/**`, so a live operator spec run leaves the
+tracked fixture dirty. Serve from a **copy** of the corpus when running these locally.
+
+That, not assertion effort, is why the remaining operator specs are still mocked: each either
+mutates state (`PUT /api/feeds`, `PUT /api/operator-config`), needs the corpus pre-seeded with a
+particular `viewer_operator.yaml`, needs per-test server env (`PODCAST_AVAILABLE_PROFILES`), or —
+for the two rebuild cards — would trigger a **real** index / topic-cluster rebuild, which an e2e
+test must not do. Each file records which of those applies at its top.
+
 ## The surface map is enforced
 
 `src/__checks__/surface-map.test.ts` fails the **unit** suite when routes or `data-testid`s drift

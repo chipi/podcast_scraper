@@ -7,6 +7,14 @@ const LOG_TEXT = 'pipeline step 1 starting\npipeline step 2 running\nlast line o
 /**
  * #695 — in-app log viewer modal. Replaces the per-row "open log in new tab"
  * download links with a modal that tails the log, refreshes, and copies.
+ *
+ * #1619 — still mocked: **needs a completed pipeline job with a log to tail.**
+ *
+ * A freshly-served corpus answers `GET /api/jobs` with `jobs: []`, so there is no row to open a
+ * log for. Producing one means actually running a CLI pipeline job against the corpus — well
+ * outside what an e2e test should do — and the test counts tail calls to prove Refresh re-fetches,
+ * which needs a log whose contents it controls. Recorded in
+ * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
  */
 test.describe('Pipeline job log viewer (#695)', () => {
   test.beforeEach(async ({ page }) => {
