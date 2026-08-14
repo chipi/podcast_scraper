@@ -116,6 +116,100 @@ Advisor / reviewer passes on whatever S1 changes before it merges.
 
 ---
 
+## S6 — enrichment leverage decision (2026-08-14)
+
+Operator direction: do not spend the 662-episode run confirming breakage. Decide
+enable / disable / fix per enricher first, so the run demonstrates improvement.
+
+### Verdict
+
+**The leverage is operational, not algorithmic.** The cross-show value the product promises
+already exists — `search/topic_clusters.json` has 166/269 clusters spanning ≥2 feeds — while
+every enrichment run since 2026-08-08 has been a 3 ms no-op and 557 of 662 episodes have no
+enrichment at all. Getting the *structurally sound* enrichers to cover 662/662 beats
+repairing the starved ones.
+
+Re-keying co-occurrence, which earlier looked like the headline fix, was **measured and
+rejected**: the alias map covers only 24.2 % of distinct topic ids, and canonicalising lifts
+recurrence from 4.24 % to 7.80 % — still 92.2 % singletons. See H5.
+
+### Decision table
+
+| Enricher | Decision | Effort | Justification |
+| --- | --- | --- | --- |
+| `insight_sentiment` | **ENABLE** | S | No cross-episode keying; structurally immune to the granularity problem |
+| `insight_density` | **ENABLE** | S | Gate A passed 105/105 |
+| `guest_coappearance` | **ENABLE** | S | Person ids converge where topic ids don't; Gate B passed |
+| `temporal_velocity` | **FIX (config) then ENABLE** | S | `window_months: 24` so the window covers 2025-02 onward; consume `content_series`, **not** the `velocity` scalar |
+| `topic_cooccurrence_corpus` | **DISABLE** | — | 1 of 4,216 pairs backed by ≥2 episodes; starved by input, not buggy |
+| `topic_theme_clusters` | **DISABLE for now** | M | Emits ≤1 cluster at current gating; needs canonical ids, not knob changes |
+| `grounding_rate` | **DISABLE** | — | Tautological — always 1.0 |
+
+### Pre-run gates — both executed, both PASS
+
+**Gate A — `insight_density` timing.** Threshold fixed in advance: PASS ≥ 0.9, FAIL < 0.5.
+
+```
+episodes flagged insight_density=True: 105
+read ok: 105   errors: {}
+has_timing TRUE : 105 / 105 (100.0%)
+```
+
+Sample payload is real, not the fallback: `{"has_timing": true, "duration_seconds": 3213.0,
+"counts": {"early": 9, "mid": 8, "late": 16, "unknown": 0}, "total_insights": 33}`.
+
+**Gate B — `guest_coappearance` viability.** Threshold: named ratio ≥ 0.5 AND ≥ 20 persons in
+≥2 episodes. Result: **847 total persons**; of the top 50, **50/50 named (100 %)** and **20 in
+≥2 episodes**.
+
+**Caveat that must not be dropped:** the 100 % named ratio is measured over the **top 50 of
+847**, ranked by insight count — a population biased toward well-resolved speakers. The
+corpus-wide named ratio is **not** measured, and `/api/corpus/persons/top` caps `limit` at 50
+(`corpus_persons.py:177`), so it cannot be measured through that route.
+
+**Tempering the value claim:** the recurring names are overwhelmingly *hosts* — Katie Martin
++ Robert Armstrong (Unhedged), Kevin Roose + Casey Newton (Hard Fork), Sarah Guo + Elad Gil
+(No Priors), Ryan Knutson + Jessica Mendoza (The Journal.). So the enricher will largely
+rediscover "who hosts what". The genuinely valuable cross-show signal is thin at the top:
+**Sam Altman (2 episodes)** and **Ben Horowitz (3)** are the only clear cross-show guests in
+the top 50. Real, but modest.
+
+**Data-quality observation:** `person:andreessen-horowitz` — an *organisation* — is the
+top-ranked Person with 54 episodes and 723 insights. Org-as-person will distort any
+co-appearance community centred on it.
+
+### What NOT to do
+
+- **Do not lower `min_pair_episode_count` to 1.** Every pair qualifies, `involved` exceeds
+  `_MAX_LINKAGE_TOPICS = 400`, average-linkage degrades to all-singletons, singletons are
+  dropped at output — `cluster_count: 0` with `status: ok`. Output-shaped silence.
+- **Do not patch `grounding_rate`'s ratio.** Any denominator reachable through `SUPPORTED_BY`
+  *is* the numerator. A real rate needs upstream attribution of ungrounded insights to
+  speakers — a different feature.
+- **Do not lower the 0.75 clustering threshold as a quick win.** Correction to an earlier
+  assumption recorded here: **it is not a config knob.** `model_registry.py:1676-1680` states
+  no Config field exposes it; it is a function default in `search/topic_clusters.py`. False
+  merges land precisely on the product's core claim, so any sweep belongs offline with a
+  manual false-merge spot-check.
+- **Do not read the `temporal_velocity` scalar as "trending."** For singleton topics it is a
+  two-valued function {0.0, 6.0} and nothing normalises by episodes-per-month, so it ranks by
+  "published recently" against a backfill-shaped denominator.
+
+### Still unresolved
+
+- Which leg of the no-op is live in prod — missing `--profile` at spawn vs no
+  `enrichment.enrichers:` block in the corpus `viewer_operator.yaml`. Both produce the
+  observed `profile: null` + empty `per_enricher`.
+- Why the 2026-08-08 run covered exactly ~12 episodes × 9 feeds.
+- Whether `insight_sentiment`'s sidecars exist on disk. `enrichments_available` lists only
+  `insight_density`, which reads as a reporting-layer gap rather than an enricher failure —
+  untraced either way.
+- Corpus-wide named-person ratio (see Gate B caveat).
+
+---
+
 ## Log
 
 - **07:00Z** — six new-feed windows cancelled; phase opened; advisor engaged on S1.
+- **07:30Z** — enrichment job `6d9d9c6f` cancelled so it could not auto-fire before fixes.
+- **08:00Z** — leverage decision recorded; Gates A and B executed, both PASS.
