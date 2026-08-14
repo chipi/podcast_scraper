@@ -910,6 +910,107 @@ Related: G1/G2 (supervision), D6 (headroom vs spend), H2 (the enrichment gap thi
 All four share one root pattern — **the system reports what happened and stays silent about
 what did not.**
 
+### H5 — topic co-occurrence is structurally incapable of producing connections — `[OPEN, HIGH]`
+
+**Raised 2026-08-14.** Measured on the live corpus. This is the answer to "what does
+enrichment actually buy us", and the answer today is: **almost nothing, for a fixable reason.**
+
+#### First, a correction to H2
+
+H2 said the enrichment layer "has never run on the corpus." **That was wrong.** Evidence
+from `/api/enrichment/health`: run `c41d9fe5` on **2026-08-08T21:29:35Z** executed three
+enrichers — `insight_density`, `insight_sentiment`, `topic_cooccurrence_corpus` — all with
+`last_status: ok`, and it left a real 1,570,365-byte artifact.
+
+The accurate statement is narrower and more useful: **enrichment ran once, then every run
+since has been a silent no-op.** The most recent (`/api/enrichment/run-summary`) is the
+signature of that:
+
+```json
+{"duration_ms": 3, "per_enricher": {}, "profile": null, "status": "ok"}
+```
+
+Three milliseconds, zero enrichers, reported `ok`. The four remaining deterministic
+enrichers — `topic_theme_clusters`, `temporal_velocity`, `grounding_rate`,
+`guest_coappearance` — have **no health record at all** and have never run.
+
+#### The artifact is stale
+
+`topic_cooccurrence_corpus` was computed over **`episode_count: 105`**. The corpus is now
+**662**. It reflects 16 % of current content.
+
+#### The artifact is also near-empty of signal — and staleness is not why
+
+This is the part that matters. Of 4,216 topic pairs in the graph:
+
+| Measure | Value |
+| --- | --- |
+| Distinct topics | 955 |
+| Topics appearing in **exactly one** episode | **927 (97.07 %)** |
+| Topics appearing in ≥2 episodes | 28 (2.93 %) |
+| Pairs backed by ≥2 episodes | **1 of 4,216 (0.02 %)** |
+
+The single genuine cross-episode connection in the entire graph is
+`enterprise ai adoption ↔ inference optimization`. Everything else is a pair of topics that
+appeared together in **one** episode — which is not a discovered connection, it is a
+restatement of that episode's own topic list.
+
+The `lift` column confirms it arithmetically. Only **7 distinct lift values** exist across
+4,216 pairs, and 3,703 of them (88 %) share `lift = 105.0` — exactly `episode_count`. For
+two topics each appearing once and co-occurring once, lift = N/(1×1) = N. The remaining
+values are 105/2, 105/3, 105/4, 105/6. Every value in the column is the signature of a
+degenerate count, not a signal.
+
+#### Root cause: topic granularity, not corpus size
+
+Topics are minted per-episode and are hyper-specific. Real examples from the graph:
+`2008 champions league final`, `48-team format`, `penalty kicker predictability`,
+`goalkeeper strategy`. Corpus-level co-occurrence keys on **exact topic id**, so it can only
+fire when the same id recurs in a different episode. With ids this specific, that essentially
+never happens.
+
+**Growing the corpus will not fix this.** 662 episodes produce more unique topic ids, not more
+shared ones. The enricher is structurally incapable of producing value on this input.
+
+#### The other mechanism already solves it
+
+`topic_theme_clusters` — produced by the **separate post-index pass**, not the enricher —
+yields **269 clusters, all with ≥2 members**, and they are genuine semantic groupings:
+
+| Members | Cluster | Sample members |
+| --- | --- | --- |
+| 9 | open source ai models | `open source ai`, `open source ai ecosystem`, `open source ai models` |
+| 7 | agentic coding | `agentic coding`, `agentic coding and developer`, `agentic engineering` |
+| 7 | ai job displacement | `ai and job displacement`, `ai employment displacement` |
+| 4 | us-china ai competition | `ai competition with china`, `us-china ai race` |
+
+Clustering **normalises near-duplicate topic labels** — precisely the operation co-occurrence
+needs and does not have. The two passes are solving halves of the same problem and are not
+connected to each other.
+
+#### Recommendation
+
+**Feed co-occurrence the clustered topic ids rather than raw topic ids.** `us-china ai
+competition` appearing across three shows is a real, valuable connection; `us-china ai race`
+and `ai competition with china` counted as unrelated strings is why it currently is not one.
+
+This makes H5 concrete input to **H3** (post-ingest passes are architecturally inconsistent).
+H3 was filed on the observation that indexing and enrichment are *invoked* differently; H5
+shows the inconsistency is deeper than invocation — the passes run in an order and on inputs
+that prevent one from using the other's output. Ordering and data flow belong in the same
+realignment.
+
+#### Not verified
+
+- Whether cross-**feed** connections would emerge after re-keying on clusters. Not measurable
+  today: `cil_digest_topics` is empty on episode rows and the list endpoint's `topics` field
+  carries insight sentences, not topic ids, so topic→feed mapping could not be built from the
+  API. Needs a different data path.
+- Whether `insight_density` / `insight_sentiment` output is any good — they ran on 2026-08-08
+  but their episode-scope output was not inspected.
+
+---
+
 ### H4 — no near-duplicate detection: republished episodes ingest as new — `[OPEN, medium — latent]`
 
 **Raised 2026-08-14.** Operator decision: **record now, do not implement.** Not currently
