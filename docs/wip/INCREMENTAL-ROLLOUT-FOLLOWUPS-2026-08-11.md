@@ -910,6 +910,81 @@ Related: G1/G2 (supervision), D6 (headroom vs spend), H2 (the enrichment gap thi
 All four share one root pattern — **the system reports what happened and stays silent about
 what did not.**
 
+### H4 — no near-duplicate detection: republished episodes ingest as new — `[OPEN, medium — latent]`
+
+**Raised 2026-08-14.** Operator decision: **record now, do not implement.** Not currently
+causing harm; written up because the mechanism is confirmed and the harm scales with exactly
+the thing we are about to do — deeper back-catalog ingestion.
+
+#### The mechanism, verified
+
+`skip_existing` is corpus-wide and keyed on the **stable episode GUID**. A republished episode
+carries a **new GUID**, so the pipeline treats it as genuinely new. Confirmed against the live
+In Our Time feed:
+
+```
+"Archive: Coffee"     guid = urn:bbc:podcast:p0nx0z4j
+"Coffee"  (original)  guid = urn:bbc:podcast:m000c4x1    <- same feed, different guid
+```
+
+Both sit in the same feed. Ingest a window covering both and the corpus gets two episodes of
+near-identical audio — duplicated insights, duplicated KG nodes, two topic-cluster members
+where there is really one, and a co-occurrence edge weight inflated by a repeat. Nothing in the
+pipeline detects this.
+
+#### Measured reality: it has NOT happened yet
+
+Scanned all **656 episodes across 14 feeds** (`/api/corpus/episodes`, full pagination):
+
+| Metric | Result |
+| --- | --- |
+| Exact-title duplicates | **0** |
+| Normalised-title duplicates (after stripping `Archive:` / `From the Archive:` / `Best of` / `Replay` / `Encore` / `Revisited` prefixes and `(Rerun)`-style suffixes) | **0** |
+| Episodes carrying a replay marker | **1** |
+
+The single marked episode is **The a16z Show — "From the Archive: Can Anyone Catch NVIDIA? |
+The Future of Chips and I…"**. Its original is **not** in the corpus, so no duplicate pair
+exists today. Per-feed breakdown was zero across all fourteen.
+
+#### Why it hasn't bitten, and the condition under which it will
+
+Because ingestion is **shallow relative to archive size**. The risk is a function of depth:
+
+| Feed | Feed items | Ingested | Depth |
+| --- | --- | --- | --- |
+| The a16z Show | 657 | 61 | 9 % |
+| In Our Time | 1103 | 0 → 30 queued | 3 % |
+| Odd Lots | 1193 | 0 → 50 queued | 4 % |
+
+At single-digit depth a re-release and its original rarely both fall inside the ingested
+window. Push a feed toward 100+ episodes and they will. **The corpus is currently clean by
+accident of shallowness, not by design.**
+
+Note the queued In Our Time pass will not create a pair either: its two `Archive:` items sit in
+the *recent* window while their originals are deep in the archive. A later deepening pass is
+where this surfaces.
+
+#### Why title matching is not the fix
+
+The detection above found the a16z case only because the publisher **labelled** it. Most
+re-releases are not labelled — a show can republish under a fresh title, as "Bonus", or with no
+marker at all. A real check needs content-level similarity. The corpus already computes
+embeddings per episode, so cosine similarity over `summary_short` or transcript vectors would
+catch unlabelled duplicates that titles never will.
+
+#### Suggested approach (not scheduled)
+
+1. **Detect, don't block.** Flag candidate pairs above a similarity threshold and report them.
+   Auto-dedup risks deleting a genuine follow-up episode on the same subject — a show revisiting
+   a topic a year later is *not* a duplicate.
+2. **Reuse the existing embedding index** rather than adding machinery; the vectors are there.
+3. **Surface it in `corpus_completeness`** alongside the GI/KG coverage checks, so it is part of
+   the same "is the corpus healthy" answer rather than a separate tool nobody runs.
+
+Recorded with measurements so the next person inherits the evidence rather than the hunch.
+
+---
+
 ### E1 (= F5) — `deploy-all-prod.yml` unvalidated — `[OPEN, low]`
 
 The one-trigger orchestrator has never been dispatched. Needs
