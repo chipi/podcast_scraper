@@ -2,7 +2,7 @@
 
 **GitHub:** [Issue #477](https://github.com/chipi/podcast_scraper/issues/477)
 
-**Process / thresholds:** [docs/wip/issue-477-llm-bundle-experiment-plan.md](../../../docs/wip/issue-477-llm-bundle-experiment-plan.md)
+**Process / thresholds:** `docs/wip/issue-477-llm-bundle-experiment-plan.md` (deleted)
 
 This folder holds **experiment YAMLs** for measuring summarization quality (paragraph and
 bullets) on `gpt-4o` smoke. All references use the **active Sonnet 4.6 silvers**.

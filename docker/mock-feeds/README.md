@@ -24,7 +24,7 @@ during the test.
 
 ## Why this isn't done with `make serve-e2e-mock`
 
-[`scripts/run_e2e_mock_server.py`](../../scripts/run_e2e_mock_server.py)
+[`scripts/run_e2e_mock_server.py`](../../scripts/tools/run_e2e_mock_server.py)
 serves similar fixtures over HTTP for the **pytest** end-to-end suite
 (host loopback). Stack-test runs the pipeline inside Docker, so the
 mock host has to be on the **compose network** — not the developer's

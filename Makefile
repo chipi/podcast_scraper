@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: profiles-materialize profiles-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -583,7 +583,7 @@ quality: complexity deadcode docstrings spelling
 docs:
 	$(PYTHON) -m mkdocs build --strict
 
-docs-check: lint-markdown-docs spelling-docs docs
+docs-check: lint-markdown-docs check-doc-structure spelling-docs docs
 	@echo ""
 	@echo "✓ Documentation validation complete (linting + spelling + build)"
 
@@ -608,6 +608,13 @@ check-test-policy:
 	# Run this when: adding/moving tests, before commit, or debugging CI skip issues
 	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
 	$(PYTHON) scripts/tools/check_self_hosted_runner_allowlist.py
+
+check-doc-structure:
+	# Enforce the documentation STRUCTURE: required READMEs exist at the tree roots people land in,
+	# none of them are stubs, and every relative markdown link in the repo resolves.
+	# Complements ``lint-markdown`` (style/format) — this one is about pointers being true.
+	# Run this when: adding/moving/renaming any doc or directory, or before commit.
+	$(PYTHON) scripts/tools/check_doc_structure.py
 
 profile-drift-check:
 	# #907 Option B: every config/profiles/*.yaml that declares a `profile:` field
@@ -2373,7 +2380,7 @@ ci: cleanup-processes
 # Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
 # The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
-_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
+_ci_body: format-check lint lint-markdown check-doc-structure type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
 	# Final gate is ``stack-test-ml-ci`` (build → up → seed → Playwright →
 	# always-teardown). ml pipeline only — ~5-10 min, no API keys, no cloud
 	# cost. Cloud-thin variant (``stack-test-cloud-thin``) is a separate
@@ -2389,6 +2396,7 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] format-check ==="; $(MAKE) format-check; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-doc-structure ==="; $(MAKE) check-doc-structure; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
