@@ -223,9 +223,17 @@ function searchLibrary(): void {
       >
         {{ t('ec.openInPage') }} ›
       </RouterLink>
-      <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard. -->
+      <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard.
+           Gated on auth ALONE, deliberately — NOT on `label`. The switcher is chrome that belongs
+           to the open card, not content derived from the payload, and keying it on `label` made it
+           destroy itself: `load()` nulls person/topic before awaiting, so `label` goes empty on
+           every scope change and the tablist unmounted the instant it was clicked. It came back
+           only if the new payload happened to carry a label — and scoping to "My corpus" on an
+           entity you have not heard is *honest-empty by design*, so it did not. The control you
+           needed to get back to "All" was the one that disappeared, leaving the card a dead end
+           until you closed and reopened it. -->
       <div
-        v-if="auth.isAuthenticated && label"
+        v-if="auth.isAuthenticated"
         role="tablist"
         :aria-label="t('ec.scopeLabel')"
         class="mt-2 inline-flex gap-1 rounded-full border border-border p-0.5 text-xs"
