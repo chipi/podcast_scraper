@@ -34,7 +34,9 @@
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
     "title": "Frame & Light",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.svg",
+    "image_url": "http://localhost/images/p04.svg"
   },
   "schema_version": "1",
   "summary": {

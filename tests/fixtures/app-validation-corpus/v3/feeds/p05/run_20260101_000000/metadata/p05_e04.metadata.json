@@ -34,7 +34,9 @@
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.svg",
+    "image_url": "http://localhost/images/p05.svg"
   },
   "schema_version": "1",
   "summary": {

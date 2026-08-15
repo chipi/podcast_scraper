@@ -34,7 +34,9 @@
     "description": "Recurring guests from other shows revisit their positions.",
     "feed_id": "p09",
     "title": "Cross-Show",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.svg",
+    "image_url": "http://localhost/images/p09.svg"
   },
   "schema_version": "1",
   "summary": {

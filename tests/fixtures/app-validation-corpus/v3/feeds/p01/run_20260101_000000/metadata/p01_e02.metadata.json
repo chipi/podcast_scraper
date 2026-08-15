@@ -34,7 +34,9 @@
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "p01",
     "title": "Singletrack Sessions",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.svg",
+    "image_url": "http://localhost/images/p01.svg"
   },
   "schema_version": "1",
   "summary": {

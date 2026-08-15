@@ -29,7 +29,9 @@
     "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
     "feed_id": "p07",
     "title": "The Long View",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p07.svg",
+    "image_url": "http://localhost/images/p07.svg"
   },
   "schema_version": "1",
   "summary": {
