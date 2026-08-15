@@ -607,7 +607,14 @@ def build_enrichment_argv(
 def _matching_queued_enrichment(
     jobs: list[dict[str, Any]], argv: list[str]
 ) -> dict[str, Any] | None:
-    """An already-queued enrichment row whose stored argv is identical, if any."""
+    """An already-queued enrichment row whose stored argv is identical, if any.
+
+    Compares the stored argv verbatim, which includes the builder's ``sys.executable``. The
+    case this exists for — N per-feed pipeline runs each enqueueing a follow-up — always
+    comes from the same image, so the interpreter path matches and they coalesce. A row
+    enqueued from a *different* interpreter (host CLI vs container) will not match one from
+    the container, and is left as a separate job rather than silently folded into it.
+    """
     wanted = argv_summary(argv)
     for j in jobs:
         if (

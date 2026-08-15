@@ -209,7 +209,8 @@ def docker_job_alive(job_id: str) -> bool | None:
     if not shutil.which("docker"):
         return None
     try:
-        proc = subprocess.run(  # noqa: S603 — fixed argv, job_id is a registry UUID
+        # Fixed argv, no shell; job_id is a registry UUID, never operator input.
+        proc = subprocess.run(
             ["docker", "ps", "--quiet", "--filter", f"label={JOB_ID_LABEL}={job_id}"],
             capture_output=True,
             text=True,
@@ -240,7 +241,8 @@ def docker_stop_job(job_id: str) -> bool:
     if not shutil.which("docker"):
         return False
     try:
-        listed = subprocess.run(  # noqa: S603 — fixed argv, job_id is a registry UUID
+        # Fixed argv, no shell; job_id is a registry UUID, never operator input.
+        listed = subprocess.run(
             ["docker", "ps", "--quiet", "--filter", f"label={JOB_ID_LABEL}={job_id}"],
             capture_output=True,
             text=True,
@@ -250,7 +252,8 @@ def docker_stop_job(job_id: str) -> bool:
         ids = [line.strip() for line in (listed.stdout or "").splitlines() if line.strip()]
         if listed.returncode != 0 or not ids:
             return False
-        stopped = subprocess.run(  # noqa: S603 — ids come from docker itself
+        # Fixed argv, no shell; the container ids come from docker's own output.
+        stopped = subprocess.run(
             ["docker", "stop", *ids],
             capture_output=True,
             text=True,
