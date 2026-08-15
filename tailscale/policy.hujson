@@ -177,10 +177,14 @@
     //   root-absolute assets that 404 under a stripped /path subpath:
     //     :8443 Langfuse   :8444 Umami   :8445 GlitchTip   :10000 LiteLLM admin UI
     //   (:8443 here is independent of tag:prod:8443 = orrery on the VPS.)
+    //   :9443 = TEMPORARY — Caddy reverse-proxy migration (agentic-ai-homelab
+    //           docs/wip/mac-mini-headless-server.md). Parallel TLS-passthrough
+    //           port to validate each service through Caddy over the tailnet,
+    //           service-by-service, before the final :443 flip. REMOVE at cutover.
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,4001,8090,8428,8443,8444,8445,8888,9428,10000,10428"]
+      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,4001,8090,8428,8443,8444,8445,8888,9428,9443,10000,10428"]
     },
     {
       // prod (the box) also reaches Umami :3001 — it proxies public analytics
