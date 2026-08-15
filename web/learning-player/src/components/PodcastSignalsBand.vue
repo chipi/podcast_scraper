@@ -13,8 +13,6 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPodcastSignals } from '../services/api'
 import type { PodcastSignals } from '../services/types'
-import type { RisingTopic } from './trending'
-import TrendingMomentum from './TrendingMomentum.vue'
 
 const props = defineProps<{ feedId: string }>()
 const emit = defineEmits<{ (e: 'open', payload: { kind: 'topic' | 'person'; id: string }): void }>()
@@ -41,16 +39,35 @@ const topics = computed(() => signals.value?.top_topics ?? [])
 const trending = computed(() => signals.value?.trending_topics ?? [])
 const people = computed(() => signals.value?.key_people ?? [])
 
-// The show's topics as a momentum bubble cloud — size = velocity (how hot the topic is;
-// falls back to 1× when the corpus has no velocity for it), reusing the Home component.
-const bubbleTopics = computed<RisingTopic[]>(() =>
-  topics.value.map((t) => ({
-    id: t.topic_id,
-    label: t.label,
-    v: t.velocity ?? 1,
-    total: t.episode_count,
-    series: [],
-  })),
+/**
+ * Coverage, not momentum.
+ *
+ * This band used to open with a bubble cloud sized by `velocity`. That was removed because the
+ * number was answering a different question than the band asks. `velocity` on this endpoint is
+ * computed corpus-wide (keyed by topic id, with no feed filter), so a topic scores the same on
+ * every show that mentions it. The measured effect: the three topics common to ALL shows drew the
+ * biggest bubbles, while each show's distinguishing topic — the one that actually says what the
+ * show is about — scored 0.0 and rendered as a tiny unlabelled dot. The encoding was inverted
+ * against the band's own title. (It also drew an ↑ on values below 1.0, which `trending.ts`
+ * classifies as *cooling*.)
+ *
+ * What the payload can honestly support is coverage: how many of the show's episodes a topic
+ * appears in. When every top topic appears in every episode, the true claim is consistency —
+ * "this show is reliably about X" — which is a strength, not a fake trend.
+ */
+const episodeTotal = computed(() => signals.value?.episode_count ?? 0)
+
+/** True when every listed topic appears in every episode — then we can claim it outright. */
+const coversEveryEpisode = computed(
+  () =>
+    episodeTotal.value > 0 &&
+    topics.value.length > 0 &&
+    topics.value.every((t) => t.episode_count === episodeTotal.value),
+)
+
+/** Episodes the most-covered topic appears in — used when coverage is uneven. */
+const topicCoverageMax = computed(() =>
+  topics.value.reduce((max, t) => Math.max(max, t.episode_count ?? 0), 0),
 )
 const hasAny = computed(
   () =>
@@ -68,14 +85,6 @@ const hasAny = computed(
     data-testid="podcast-signals"
   >
     <h2 class="lp-section mb-3">{{ t('podcast.about') }}</h2>
-
-    <!-- A momentum bubble of the show's topics (the "little chart") — bigger = hotter. -->
-    <div v-if="bubbleTopics.length >= 3" class="mb-3" data-testid="ps-bubbles">
-      <TrendingMomentum
-        :topics="bubbleTopics"
-        @open="emit('open', { kind: 'topic', id: $event })"
-      />
-    </div>
 
     <div v-if="themes.length" class="mb-3">
       <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigThemes') }}</h3>
@@ -95,7 +104,20 @@ const hasAny = computed(
     </div>
 
     <div v-if="topics.length" class="mb-3">
-      <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigTopics') }}</h3>
+      <!--
+        The heading states what the data supports. When every topic appears in every episode the
+        claim is consistency; when coverage is uneven we say how far it reaches rather than
+        implying uniformity; otherwise it stays the plain "Topics" label.
+      -->
+      <h3 class="lp-kicker mb-1.5" data-testid="ps-topics-heading">
+        <template v-if="coversEveryEpisode">
+          {{ t('podcast.sigCoverageAll') }}
+        </template>
+        <template v-else-if="topicCoverageMax > 1 && episodeTotal > 0">
+          {{ t('podcast.sigCoverageMost', { count: topicCoverageMax, total: episodeTotal }) }}
+        </template>
+        <template v-else>{{ t('podcast.sigTopics') }}</template>
+      </h3>
       <div class="flex flex-wrap gap-1.5">
         <button
           v-for="tp in topics"

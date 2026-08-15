@@ -176,6 +176,8 @@
     "activity": "Activity",
     "sigThemes": "Themes",
     "sigTopics": "Topics",
+    "sigCoverageAll": "Every episode covers",
+    "sigCoverageMost": "Covered across {count} of {total} episodes",
     "sigTrending": "Trending here",
     "sigPeople": "Key people"
   },
