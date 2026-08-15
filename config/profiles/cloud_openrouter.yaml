@@ -66,7 +66,7 @@ gi_insight_source: provider
 # Tuning loop iter-1 (#1356): deepseek fills the insight cap far less selectively than Gemini
 # (9x more insights, 5x more quotes) — rein in via a tighter per-pass cap, stricter value gate,
 # and more aggressive dedup. gi_max_insights is the per-pass FLOOR scaled by episode length.
-gi_max_insights: 50
+gi_max_insights: 12
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
