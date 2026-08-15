@@ -293,16 +293,13 @@ test.describe('Corpus Library tab', () => {
     await page.getByRole('button', { name: episodeRowName(ep) }).click()
     const related = page.getByTestId('episode-related-insights')
     await expect(related).toBeVisible()
-    /* Generous budget for the ROWS specifically.
+    /* Standard budget: the widened one was a mitigation for an APP bug, now fixed at cause.
      *
-     * The section renders as soon as the rail opens, then fills in. The endpoint itself is not the
-     * bottleneck — measured directly at 50–150ms for 20 results — so the wait is on the rail's own
-     * load sequencing, which occasionally exceeded 20s on a busy machine and produced "element(s)
-     * not found" with the data sitting right there on the server. Worth a look as a possible
-     * app-side race; widening the budget here is the test-side mitigation, not a diagnosis. */
-    await expect(related.getByTestId('episode-related-insights-row').first()).toBeVisible({
-      timeout: 45_000,
-    })
+     * `loadRelatedInsights` bailed to an empty list when `corpusPath`/`healthStatus` were not ready,
+     * and the watcher keyed on `episode_id` alone — so the bail was permanent and the request was
+     * never made. This assertion is the regression guard: it failed with the server returning 20
+     * results in ~50ms. See EpisodeDetailPanel.vue. */
+    await expect(related.getByTestId('episode-related-insights-row').first()).toBeVisible()
     await expect(related).toContainText(results[0]!.text.slice(0, 40))
   })
 
