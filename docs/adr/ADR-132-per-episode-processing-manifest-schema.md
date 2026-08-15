@@ -151,10 +151,11 @@ a sidecar carry" must be answerable from this document rather than by reading a 
 ```json
 "stage_ledger": {
   "speaker_detection": {
-    "outcome": "skipped",
-    "reason": "media_over_size_limit_no_transcript_urls",
-    "detail": {"media_bytes": 42871040, "limit_bytes": 26214400},
-    "duration_seconds": null
+    "outcome": "ran",
+    "reason": null,
+    "detail": {"published_media_bytes": 95900000, "limit_bytes": 26214400,
+               "limit_applies_to": "uploaded_audio_after_preprocessing"},
+    "duration_seconds": 1.6
   }
 }
 ```

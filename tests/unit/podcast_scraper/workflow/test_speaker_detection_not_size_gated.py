@@ -18,6 +18,7 @@ implementation. Any future re-coupling — a new provider added to a size tuple,
 
 from __future__ import annotations
 
+import logging
 from typing import Any, List
 from unittest.mock import MagicMock
 
@@ -112,8 +113,10 @@ def test_under_the_limit_is_unremarkable(monkeypatch) -> None:
     assert result.media_oversize is False
 
 
-def test_the_size_probe_still_happens_so_operators_learn_chunking_is_coming(monkeypatch) -> None:
-    """#557's real purpose survives: report the upload-limit breach, gate nothing."""
+def test_the_size_probe_still_happens_so_operators_see_a_large_published_file(
+    monkeypatch,
+) -> None:
+    """#557's real purpose survives: report the large published file, gate nothing."""
     calls: List[Any] = []
 
     def _spy(*args: Any, **kwargs: Any):
@@ -125,4 +128,49 @@ def test_the_size_probe_still_happens_so_operators_learn_chunking_is_coming(monk
     monkeypatch.setattr(processing, "http_head", _spy)
     result = _size_skip(_Cfg(), _Episode())
     assert len(calls) == 1
-    assert result.detail is not None and result.detail["media_bytes"] == 80 * MB
+    assert result.detail is not None and result.detail["published_media_bytes"] == 80 * MB
+
+
+class TestItReportsThePublishedSizeNotTheUploadedSize:
+    """#1646 error 4 — the probe HEADs the publisher's URL, but the 25 MB cap applies to what
+    is UPLOADED, and preprocessing runs in between (~90 % smaller, measured 91.5 MB → 9.1 MB).
+
+    The old wording promised "transcription will chunk after preprocess". That was false in the
+    normal case: nothing chunks, because the preprocessed file is far under the cap. A log line
+    and a ledger entry that assert something untrue about every large episode are exactly the
+    kind of confident-but-wrong signal this epic exists to remove.
+    """
+
+    def test_the_detail_key_names_the_published_file(self, monkeypatch) -> None:
+        monkeypatch.setattr(processing, "http_head", _head(80 * MB))
+        result = _size_skip(_Cfg(preprocessing_enabled=True), _Episode())
+        assert "published_media_bytes" in result.detail
+        # The bare name invited exactly the confusion this fixes.
+        assert "media_bytes" not in result.detail
+
+    def test_the_detail_says_where_the_limit_actually_applies(self, monkeypatch) -> None:
+        monkeypatch.setattr(processing, "http_head", _head(80 * MB))
+        result = _size_skip(_Cfg(preprocessing_enabled=True), _Episode())
+        assert result.detail["limit_applies_to"] == "uploaded_audio_after_preprocessing"
+        assert result.detail["preprocessing_enabled"] is True
+
+    def test_it_no_longer_claims_chunking(self, monkeypatch, caplog) -> None:
+        monkeypatch.setattr(processing, "http_head", _head(80 * MB))
+        with caplog.at_level(logging.INFO):
+            _size_skip(_Cfg(preprocessing_enabled=True), _Episode())
+        text = caplog.text.lower()
+        assert "will chunk" not in text, "the probe cannot know the uploaded size"
+        assert "preprocessing runs before upload" in text
+
+    def test_it_warns_when_preprocessing_is_off(self, monkeypatch, caplog) -> None:
+        """With preprocessing disabled the published size IS the uploaded size, so the breach
+        is real — and that is the one case worth raising the level for."""
+        monkeypatch.setattr(processing, "http_head", _head(80 * MB))
+        with caplog.at_level(logging.INFO):
+            result = _size_skip(_Cfg(preprocessing_enabled=False), _Episode())
+        assert "disabled" in caplog.text.lower()
+        assert any(r.levelname == "WARNING" for r in caplog.records)
+        assert result.detail["preprocessing_enabled"] is False
+        # Still advisory: even a genuine breach must not disable an unrelated stage.
+        assert result.skip_speaker_detection is False
+        assert result.skip_episode is False

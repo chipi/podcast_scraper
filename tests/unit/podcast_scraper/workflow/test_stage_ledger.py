@@ -184,7 +184,7 @@ class TestSizeGateCarriesItsReason:
         # The observation is still recorded, just decoupled from the skip decision.
         assert result.media_oversize is True
         assert result.detail is not None
-        assert result.detail["media_bytes"] == 40 * 1024 * 1024
+        assert result.detail["published_media_bytes"] == 40 * 1024 * 1024
         assert result.detail["limit_bytes"] == 25 * 1024 * 1024
 
     def test_under_the_limit_is_not_a_skip(self, monkeypatch) -> None:

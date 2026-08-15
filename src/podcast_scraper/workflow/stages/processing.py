@@ -728,8 +728,10 @@ class EpisodeSizeSkip(NamedTuple):
     skip_episode: bool
     reason: Optional[str] = None
     detail: Optional[Dict[str, Any]] = None
-    # Advisory only: the media exceeds the transcription upload limit, so chunking will run.
-    # Kept separate from the skip flags precisely so it can never gate an unrelated stage again.
+    # Advisory only: the PUBLISHED media exceeds the upload limit. This says nothing about
+    # whether the *uploaded* file will, because preprocessing runs in between and typically
+    # reduces the file by ~90 %. Kept separate from the skip flags precisely so it can never
+    # gate an unrelated stage again.
     media_oversize: bool = False
 
 
@@ -755,15 +757,28 @@ def _check_episode_size_skip(
        limit, and ``cloud_balanced`` transcribes with Deepgram.
     3. **Dead premise.** The guard came from #327 — *"skip speaker detection when
        transcription will be skipped due to file size limits"*. Transcription is no longer
-       skipped: this function returns ``skip_episode=False`` on every path and the pipeline
-       chunks after preprocess instead. Only the speaker-detection half of that decision was
-       still firing, long after the condition it depended on stopped being true.
+       skipped: this function returns ``skip_episode=False`` on every path. Only the
+       speaker-detection half of that decision was still firing, long after the condition it
+       depended on stopped being true.
+    4. **Wrong file.** This is the one that makes the other three worse, and it was missed in
+       the first pass at #1646. The measurement is an HTTP ``HEAD`` on ``episode.media_url``
+       — the size of the file the *publisher* serves. The 25 MB cap applies to what gets
+       *uploaded*, and between those two points the pipeline preprocesses the audio (mono,
+       16 kHz, silence-stripped, and for the API providers a bitrate ladder that steps down
+       until the file is under ``_PREPROCESSING_API_REENCODE_TARGET_BYTES``). Measured on the
+       acceptance corpus that is a consistent **~90 % reduction**: 91.5 MB → 9.1 MB,
+       105.6 MB → 10.6 MB. So episodes were being judged against a cap using a number taken
+       before the step that makes the number irrelevant — the uploaded files were never near
+       the limit.
 
     Measured cost before the fix: 488 of 678 episodes (72 %) had speaker detection skipped;
     2,112 of 8,952 insights (23.6 %) became unsurfaceable; 82 episodes lost every insight.
+    Given (4), essentially none of those episodes were ever too large to transcribe — the
+    transcription they were "protected" from would have succeeded.
 
-    The size probe itself is kept — an operator wants to know chunking is coming (#557) — but
-    it is now advisory and gates nothing.
+    The probe is kept because an operator still wants to see that a published file is large
+    (#557), but it is advisory, it gates nothing, and it must not claim anything about the
+    uploaded size — that is only knowable after preprocessing has run.
     """
     if (
         cfg.dry_run
@@ -792,22 +807,42 @@ def _check_episode_size_skip(
         "deepgram": "Deepgram",
     }
     provider_name = provider_labels.get(cfg.transcription_provider, cfg.transcription_provider)
+    preprocessing_on = bool(getattr(cfg, "preprocessing_enabled", False))
     detail: Dict[str, Any] = {
-        "media_bytes": file_size_bytes,
+        # Named ``published_media_bytes``, not ``media_bytes``: this is the publisher's file,
+        # NOT the file that gets uploaded. Conflating the two is what made the old ledger
+        # entry misleading about every large episode.
+        "published_media_bytes": file_size_bytes,
         "limit_bytes": OPENAI_MAX_FILE_SIZE_BYTES,
+        "limit_applies_to": "uploaded_audio_after_preprocessing",
+        "preprocessing_enabled": preprocessing_on,
         "transcription_provider": cfg.transcription_provider,
         "has_transcript_urls": bool(episode.transcript_urls),
     }
-    # Advisory only (#1646). Says what it observed and what will happen to TRANSCRIPTION —
-    # and no longer disables an unrelated stage. Speaker detection runs regardless of how big
-    # the audio is, because it never reads the audio.
-    logger.info(
-        "[%d] Media is %.1f MB, over the %s upload limit (25 MB); transcription will chunk "
-        "after preprocess. Speaker detection is unaffected (it reads title + description).",
-        episode.idx,
-        file_size_mb,
-        provider_name,
-    )
+    # Advisory only (#1646). Reports what it actually measured — the PUBLISHED size — and
+    # does not predict the uploaded size, which is only known after preprocessing. The
+    # previous wording claimed "transcription will chunk after preprocess"; that was false in
+    # the normal case, because preprocessing puts the file well under the cap and nothing
+    # chunks. Speaker detection is unaffected either way: it never reads the audio.
+    if preprocessing_on:
+        logger.info(
+            "[%d] Published media is %.1f MB, over the %s upload limit (25 MB). Preprocessing "
+            "runs before upload and normally brings it well under; the cap applies to the "
+            "preprocessed file, not this one. Speaker detection is unaffected (title + "
+            "description).",
+            episode.idx,
+            file_size_mb,
+            provider_name,
+        )
+    else:
+        logger.warning(
+            "[%d] Published media is %.1f MB, over the %s upload limit (25 MB), and "
+            "preprocessing is DISABLED — the upload may genuinely exceed the cap. Speaker "
+            "detection is unaffected (title + description).",
+            episode.idx,
+            file_size_mb,
+            provider_name,
+        )
     return EpisodeSizeSkip(
         skip_speaker_detection=False,
         skip_episode=False,

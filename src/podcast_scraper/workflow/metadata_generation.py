@@ -555,7 +555,8 @@ class StageOutcome(BaseModel):
     detail: Optional[Dict[str, Any]] = Field(
         default=None,
         description="The deciding inputs, so the decision is auditable without the logs "
-        "(e.g. {'media_bytes': 42871040, 'limit_bytes': 26214400}).",
+        "(e.g. {'published_media_bytes': 95900000, 'limit_bytes': 26214400}). Size keys name "
+        "the PUBLISHED file; the upload cap applies after preprocessing (~90% smaller).",
     )
     duration_seconds: Optional[float] = Field(
         default=None, description="Wall time when the stage actually ran."

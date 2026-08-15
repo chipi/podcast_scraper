@@ -47,12 +47,21 @@ can be fully covered and substantially unusable at the same time.
 
 ```json
 "speaker_detection": {
-  "outcome": "skipped",
-  "reason": "media_over_size_limit_no_transcript_urls",
-  "detail": {"media_bytes": 42871040, "limit_bytes": 26214400,
+  "outcome": "ran",
+  "reason": null,
+  "detail": {"published_media_bytes": 95900000, "limit_bytes": 26214400,
+             "limit_applies_to": "uploaded_audio_after_preprocessing",
+             "preprocessing_enabled": true,
              "transcription_provider": "deepgram", "has_transcript_urls": false}
 }
 ```
+
+**Why the size key is `published_media_bytes` and not `media_bytes`.** The probe HEADs the
+publisher's URL, but the 25 MB cap applies to the file that is **uploaded** — and audio
+preprocessing runs in between, cutting ~90 % (measured: 91.5 MB → 9.1 MB). A bare
+`media_bytes` invited exactly the misreading that a large published file meant a rejected
+upload. It never did; the uploaded files were nowhere near the cap. `limit_applies_to`
+records that explicitly so a future reader cannot repeat the inference.
 
 Four outcomes, chosen so the distinctions that matter survive:
 

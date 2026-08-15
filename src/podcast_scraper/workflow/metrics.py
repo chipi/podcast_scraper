@@ -740,8 +740,10 @@ class Metrics:
 
         ``reason`` is a stable machine-readable slug (``media_over_size_limit``), not prose,
         so a report can group by it. ``detail`` carries the deciding inputs
-        (``{"media_bytes": 42871040, "limit_bytes": 26214400}``) so an operator can see *why*
-        without re-deriving it from logs that may not exist.
+        (``{"published_media_bytes": 95900000, "limit_bytes": 26214400}``) so an operator can
+        see *why* without re-deriving it from logs that may not exist. Note the key names the
+        **published** file: the upload cap applies after preprocessing, which typically cuts
+        ~90 %, so this number is not the uploaded size (#1646 error 4).
 
         Thread-safe: episodes are processed on a pool, and two workers can land on different
         stages of different episodes at the same time.
