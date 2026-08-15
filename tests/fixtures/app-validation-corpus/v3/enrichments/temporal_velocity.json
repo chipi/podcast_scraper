@@ -104,6 +104,17 @@
           }
         },
         {
+          "person_id": "person:renee-montagne-park",
+          "person_label": "renee montagne park",
+          "total": 4,
+          "weekly_counts": {
+            "2025-W11": 1,
+            "2025-W17": 1,
+            "2025-W36": 1,
+            "2026-W02": 1
+          }
+        },
+        {
           "person_id": "person:rina",
           "person_label": "rina",
           "total": 4,
@@ -126,6 +137,17 @@
           }
         },
         {
+          "person_id": "person:skanda-amarnath",
+          "person_label": "skanda amarnath",
+          "total": 4,
+          "weekly_counts": {
+            "2025-W15": 1,
+            "2025-W38": 1,
+            "2025-W52": 1,
+            "2026-W02": 1
+          }
+        },
+        {
           "person_id": "person:priya-nair",
           "person_label": "priya nair",
           "total": 3,
@@ -133,16 +155,6 @@
             "2024-W10": 1,
             "2024-W35": 1,
             "2024-W52": 1
-          }
-        },
-        {
-          "person_id": "person:renee-montagne-park",
-          "person_label": "renee montagne park",
-          "total": 3,
-          "weekly_counts": {
-            "2025-W11": 1,
-            "2025-W36": 1,
-            "2026-W02": 1
           }
         },
         {
@@ -164,12 +176,39 @@
           }
         },
         {
-          "person_id": "person:skanda-amarnath",
-          "person_label": "skanda amarnath",
+          "person_id": "person:hanna-crebo-rediker",
+          "person_label": "hanna crebo rediker",
           "total": 2,
           "weekly_counts": {
-            "2025-W52": 1,
-            "2026-W02": 1
+            "2024-W37": 1,
+            "2025-W01": 1
+          }
+        },
+        {
+          "person_id": "person:marco-silva",
+          "person_label": "marco silva",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W18": 1,
+            "2025-W28": 1
+          }
+        },
+        {
+          "person_id": "person:scott-bessent",
+          "person_label": "scott bessent",
+          "total": 2,
+          "weekly_counts": {
+            "2025-W09": 1,
+            "2025-W27": 1
+          }
+        },
+        {
+          "person_id": "person:sophie-laurent",
+          "person_label": "sophie laurent",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W14": 1,
+            "2024-W51": 1
           }
         },
         {
@@ -181,24 +220,8 @@
           }
         },
         {
-          "person_id": "person:hanna-crebo-rediker",
-          "person_label": "hanna crebo rediker",
-          "total": 1,
-          "weekly_counts": {
-            "2024-W37": 1
-          }
-        },
-        {
-          "person_id": "person:hanna-krebohticker",
-          "person_label": "hanna krebohticker",
-          "total": 1,
-          "weekly_counts": {
-            "2025-W01": 1
-          }
-        },
-        {
-          "person_id": "person:joll-wisenthal",
-          "person_label": "joll wisenthal",
+          "person_id": "person:jonas-weisenthal",
+          "person_label": "jonas weisenthal",
           "total": 1,
           "weekly_counts": {
             "2024-W16": 1
@@ -213,96 +236,24 @@
           }
         },
         {
-          "person_id": "person:marco-silva",
-          "person_label": "marco silva",
-          "total": 1,
-          "weekly_counts": {
-            "2025-W28": 1
-          }
-        },
-        {
-          "person_id": "person:marco-sylva",
-          "person_label": "marco sylva",
-          "total": 1,
-          "weekly_counts": {
-            "2024-W18": 1
-          }
-        },
-        {
-          "person_id": "person:noah-bryer",
-          "person_label": "noah bryer",
+          "person_id": "person:noah-brier",
+          "person_label": "noah brier",
           "total": 1,
           "weekly_counts": {
             "2024-W31": 1
           }
         },
         {
-          "person_id": "person:renee-montague-park",
-          "person_label": "renee montague park",
-          "total": 1,
-          "weekly_counts": {
-            "2025-W17": 1
-          }
-        },
-        {
-          "person_id": "person:rich-clarida",
-          "person_label": "rich clarida",
+          "person_id": "person:richard-clarida",
+          "person_label": "richard clarida",
           "total": 1,
           "weekly_counts": {
             "2024-W43": 1
           }
         },
         {
-          "person_id": "person:scott-bessent",
-          "person_label": "scott bessent",
-          "total": 1,
-          "weekly_counts": {
-            "2025-W27": 1
-          }
-        },
-        {
-          "person_id": "person:scott-bessett",
-          "person_label": "scott bessett",
-          "total": 1,
-          "weekly_counts": {
-            "2025-W09": 1
-          }
-        },
-        {
-          "person_id": "person:skanda-amarnauth",
-          "person_label": "skanda amarnauth",
-          "total": 1,
-          "weekly_counts": {
-            "2025-W38": 1
-          }
-        },
-        {
-          "person_id": "person:skanda-eminas",
-          "person_label": "skanda eminas",
-          "total": 1,
-          "weekly_counts": {
-            "2025-W15": 1
-          }
-        },
-        {
-          "person_id": "person:sophie-laurent",
-          "person_label": "sophie laurent",
-          "total": 1,
-          "weekly_counts": {
-            "2024-W51": 1
-          }
-        },
-        {
-          "person_id": "person:sophie-lorenz",
-          "person_label": "sophie lorenz",
-          "total": 1,
-          "weekly_counts": {
-            "2024-W14": 1
-          }
-        },
-        {
-          "person_id": "person:tarek-hassan",
-          "person_label": "tarek hassan",
+          "person_id": "person:tariq-hassan",
+          "person_label": "tariq hassan",
           "total": 1,
           "weekly_counts": {
             "2024-W40": 1

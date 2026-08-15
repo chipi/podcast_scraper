@@ -34,15 +34,13 @@
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "p01",
     "title": "Singletrack Sessions",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p01.svg",
-    "image_url": "http://localhost/images/p01.svg"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here.",
-      "Thanks, Maya. Excited for this one — trail building is something I've been thinking about a lot.",
+      "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot.",
       "Take me through the decision. How does RockShox fit into this picture?"
     ],
     "raw_text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here.",

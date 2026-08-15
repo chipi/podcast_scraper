@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:360c28233ec933cc",
-      "to": "person:scott-bessett",
+      "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:13f87beb607add86",
-      "to": "person:scott-bessett",
+      "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:859a389940dcde54",
-      "to": "person:scott-bessett",
+      "to": "person:scott-bessent",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:scott-bessett",
+      "id": "person:scott-bessent",
       "properties": {
-        "name": "Scott Bessett"
+        "name": "Scott Bessent"
       },
       "type": "Person"
     },

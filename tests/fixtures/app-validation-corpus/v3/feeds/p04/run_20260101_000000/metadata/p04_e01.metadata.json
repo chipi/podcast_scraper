@@ -34,15 +34,13 @@
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
     "title": "Frame & Light",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p04.svg",
-    "image_url": "http://localhost/images/p04.svg"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
-      "Thanks, Leo. Excited for this one — underwater imaging is something I've been thinking about a lot.",
+      "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
       "Let's start there. What's the structural angle most listeners don't have access to?"
     ],
     "raw_text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",

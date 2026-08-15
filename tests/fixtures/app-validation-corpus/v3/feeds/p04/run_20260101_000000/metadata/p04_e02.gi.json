@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:7202ffabafd4777c",
-      "to": "person:tarek-hassan",
+      "to": "person:tariq-hassan",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:45cbdce869fe2bb0",
-      "to": "person:tarek-hassan",
+      "to": "person:tariq-hassan",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:28764c321ca4022e",
-      "to": "person:tarek-hassan",
+      "to": "person:tariq-hassan",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:tarek-hassan",
+      "id": "person:tariq-hassan",
       "properties": {
-        "name": "Tarek Hassan"
+        "name": "Tariq Hassan"
       },
       "type": "Person"
     },

@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-2a703b6f57d9020f",
-      "to": "person:marco-sylva",
+      "to": "person:marco-silva",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:marco-sylva",
+      "id": "person:marco-silva",
       "properties": {
-        "name": "Marco Sylva",
+        "name": "Marco Silva",
         "role": "guest"
       },
       "type": "Person"

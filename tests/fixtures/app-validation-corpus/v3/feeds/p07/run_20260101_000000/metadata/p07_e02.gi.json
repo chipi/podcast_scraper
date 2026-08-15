@@ -52,7 +52,7 @@
     },
     {
       "from": "quote:577d35051297ce30",
-      "to": "person:skanda-eminas",
+      "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
@@ -82,7 +82,7 @@
     },
     {
       "from": "quote:ccc2125737ad5614",
-      "to": "person:skanda-eminas",
+      "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
@@ -107,7 +107,7 @@
     },
     {
       "from": "insight:cecf25e240f24083",
-      "to": "person:skanda-eminas",
+      "to": "person:skanda-amarnath",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -213,9 +213,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:skanda-eminas",
+      "id": "person:skanda-amarnath",
       "properties": {
-        "name": "Skanda Eminas"
+        "name": "Skanda Amarnath"
       },
       "type": "Person"
     },

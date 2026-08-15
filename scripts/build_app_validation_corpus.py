@@ -130,17 +130,43 @@ def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
     return pd if isinstance(pd, str) else None
 
 
-def _canonicalize_persons_in(doc: dict[str, Any]) -> None:
-    """Rewrite one artifact's ``person:speaker-NN`` ids to name-based ids, in place."""
+def _canonicalize_persons_in(
+    doc: dict[str, Any], name_variants: dict[str, str] | None = None
+) -> None:
+    """Rewrite one artifact's ``person:speaker-NN`` ids to name-based ids, in place.
+
+    ``name_variants`` maps an ASR-garbled spelling to the guest's canonical name (built from the
+    ground-truth manifest, which authors both). Applying it here is what stops one guest arriving
+    in the app as several people: the fixtures deliberately mis-hear names — "Skanda Amarnath" also
+    appears as "Skanda Amarnauth" and "Skanda Eminas" — so without it the KG carries a separate
+    ``person:`` node per spelling and the show page lists the same guest three times.
+
+    This is the corpus-build analogue of what diarization does for real audio: the roster resolves
+    a voice to ONE person, and the knowledge graph records that person. It is deliberately NOT a
+    similarity match — every mapping here is authored ground truth. ``name_canonicalization.py``
+    documents why the heuristic version is unsafe (#876: a wrong name is worse than a garble left
+    alone), which is exactly why this reads the manifest instead of guessing.
+
+    The garbled spellings stay in the transcript BODY. That is the real-world signal, and the
+    review-candidate tooling exists to surface it; only the resolved ENTITY is canonical.
+    """
+    variants = name_variants or {}
     idmap: dict[str, str] = {}
     for n in doc.get("nodes", []):
         if n.get("type") != "Person":
             continue
         name = str((n.get("properties") or {}).get("name") or "").strip()
         if name:
-            new_id = f"person:{slug(name)}"
+            canonical = variants.get(name.casefold(), name)
+            new_id = f"person:{slug(canonical)}"
             idmap[str(n.get("id"))] = new_id
             n["id"] = new_id
+            # Carry the canonical spelling on the node too, so every consumer (cards, signals,
+            # search facets) shows one name rather than whichever variant it happened to read.
+            if canonical != name:
+                n.setdefault("properties", {})["name"] = canonical
+                if (n.get("properties") or {}).get("label"):
+                    n["properties"]["label"] = canonical
     for e in doc.get("edges", []):
         if e.get("from") in idmap:
             e["from"] = idmap[e["from"]]
@@ -335,7 +361,52 @@ def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
             node.setdefault("properties", {})["grounded"] = False
 
 
-def _canonicalize_persons(*docs: dict[str, Any]) -> None:
+def _load_name_variants(manifest_path: Path) -> dict[str, str]:
+    """``garbled spelling (casefolded) -> canonical name``, from the ground-truth manifest.
+
+    The manifest authors both sides of every mis-hearing per guest: ``garble_variants`` (ordinary
+    ASR wobble), ``severe_garble`` (the surname is unrecognisable), and ``nickname_variants``
+    ("Rich Clarida" for "Richard Clarida"). All three name the SAME person, so all three collapse.
+
+    ``alias_invention`` is deliberately EXCLUDED. That field is a different authored failure mode —
+    the recogniser inventing a plausible but wrong name — and folding it away would erase the very
+    case it exists to represent.
+
+    A variant claimed by two different canonical names would make the mapping ambiguous; that never
+    happens in the authored data, and this raises rather than silently picking one.
+    """
+    out: dict[str, str] = {}
+    if not manifest_path.is_file():
+        return out
+    try:
+        doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return out
+    for pod in doc.get("podcasts", []):
+        for g in pod.get("guests", []) or []:
+            canonical = str(g.get("canonical_name") or "").strip()
+            if not canonical:
+                continue
+            variants = list(g.get("garble_variants") or [])
+            variants.extend(g.get("nickname_variants") or [])
+            if g.get("severe_garble"):
+                variants.append(str(g["severe_garble"]))
+            for v in variants:
+                key = str(v or "").strip().casefold()
+                if not key or key == canonical.casefold():
+                    continue
+                if out.get(key, canonical) != canonical:
+                    raise ValueError(
+                        f"variant {v!r} maps to both {out[key]!r} and {canonical!r} — "
+                        "the manifest is ambiguous, refusing to guess"
+                    )
+                out[key] = canonical
+    return out
+
+
+def _canonicalize_persons(
+    *docs: dict[str, Any], name_variants: dict[str, str] | None = None
+) -> None:
     """Canonicalize Person ids across artifacts so cross-episode enrichers work.
 
     The deterministic builder assigns raw diarization ids (``person:speaker-02``)
@@ -343,9 +414,12 @@ def _canonicalize_persons(*docs: dict[str, Any]) -> None:
     grounding_rate — which filter speaker-NN by design) see no signal. Mapping
     each Person to ``person:<name-slug>`` makes the same guest identical across
     episodes and canonical for the enrichers (#1148 corpus evolution).
+
+    ``name_variants`` additionally folds a guest's mis-heard spellings onto their canonical name,
+    so one guest is one person across the corpus rather than one per garble.
     """
     for doc in docs:
-        _canonicalize_persons_in(doc)
+        _canonicalize_persons_in(doc, name_variants)
 
 
 # Stable, sortable run tag per show (single run per feed — the catalog keeps only
@@ -996,6 +1070,8 @@ def main() -> int:
     # publish dates (#1148 varied 2024→now schedule).
     gt_dir = args.transcripts_dir.parent.parent / "ground-truth" / version / "ground_truth"
     pod_guests = _load_pod_guests(gt_dir.parent / "manifest.json")  # key→name for claim injection
+    # garbled spelling → canonical name, so one guest is one Person across the corpus (#obs-9).
+    name_variants = _load_name_variants(gt_dir.parent / "manifest.json")
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
     # topic_id → publish months (YYYY-MM) of the episodes it appears in. The
@@ -1088,7 +1164,7 @@ def main() -> int:
             # #1148: canonicalize Person ids (speaker-NN → name-slug) so the
             # cross-episode enrichers (guest_coappearance / grounding_rate) work,
             # and stamp the Episode publish_date so temporal_velocity sees it.
-            _canonicalize_persons(gi, kg)
+            _canonicalize_persons(gi, kg, name_variants=name_variants)
             _stamp_publish_date(publish + "T12:00:00", gi, kg)
             _vary_grounding(gi, ep_label, gt_dir)  # #1148: real grounding variation
             # #1148: surface the authored claims (perspectives + opposition) the

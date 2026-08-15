@@ -34,16 +34,14 @@
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
     "title": "Frame & Light",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p04.svg",
-    "image_url": "http://localhost/images/p04.svg"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here.",
       "Walk me through a concrete example. What's something you used to believe about this that you've revised?",
-      "Here's how I think about it. On location, the first decision is always: am I shaping the existing light? We've seen this play out at teams using Adobe. Once you internalize that, the rest of the de…"
+      "Here's how I think about it. On location, the first decision is always: am I shaping the existing light? We've seen this play out at teams using Adobe. Once you internalize that, the rest of the de\u2026"
     ],
     "raw_text": "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here.",
     "title": "Lighting Decisions That Save a Shoot"

@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-35f04bce441bf827",
-      "to": "person:joll-wisenthal",
+      "to": "person:jonas-weisenthal",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:joll-wisenthal",
+      "id": "person:jonas-weisenthal",
       "properties": {
-        "name": "Joll Wisenthal",
+        "name": "Jonas Weisenthal",
         "role": "guest"
       },
       "type": "Person"

@@ -34,16 +34,14 @@
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
     "title": "Public Hour",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p08.svg",
-    "image_url": "http://localhost/images/p08.svg"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here.",
       "Thanks, A. correspondent. Great to be back.",
-      "Before we get into it — Renee was on last week walking through public-radio voice conventions."
+      "Before we get into it \u2014 Renee was on last week walking through public-radio voice conventions."
     ],
     "raw_text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here.",
     "title": "Pronunciation as a Reliability Signal"
