@@ -359,6 +359,39 @@ def _init_api_otel() -> None:
         pass
 
 
+async def _start_queue_sweeper_guarded(app: FastAPI) -> "asyncio.Task | None":
+    """Start job-queue housekeeping (#1653); never let its failure block API startup.
+
+    Deliberately NOT hung off the feed-sweep scheduler: that one only registers when
+    ``scheduled_jobs:`` is present in the operator YAML, and the queue must keep moving on
+    every deployment, configured or not. Without it, promotion is edge-triggered on another
+    job finishing, so a row left ``running`` by a killed container holds a concurrency slot
+    forever and everything behind it waits on an event that can no longer happen.
+
+    Lives at module level rather than inside ``create_app``'s lifespan so the guard branches
+    do not count against that function's complexity budget.
+    """
+    try:
+        from podcast_scraper.server.queue_sweeper import start_queue_sweeper
+
+        return await start_queue_sweeper(app)
+    except Exception as exc:
+        logger.warning("job queue: sweeper failed to start (%s); queue is edge-driven", exc)
+        return None
+
+
+async def _stop_queue_sweeper_guarded(task: "asyncio.Task | None") -> None:
+    """Cancel the sweeper on shutdown; a failure here must not mask the real shutdown path."""
+    if task is None:
+        return
+    try:
+        from podcast_scraper.server.queue_sweeper import stop_queue_sweeper
+
+        await stop_queue_sweeper(task)
+    except Exception as exc:  # pragma: no cover - shutdown must not raise
+        logger.warning("job queue: sweeper shutdown failed (%s)", exc)
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -409,26 +442,11 @@ def create_app(
                 scheduler.start()
             except Exception as exc:
                 logger.warning("scheduler startup failed: %s", exc)
-        # Job-queue housekeeping (#1653). Deliberately NOT hung off the feed-sweep scheduler
-        # above: that one only registers when ``scheduled_jobs:`` is present in the operator
-        # YAML, and the queue must keep moving on every deployment, configured or not.
-        # Without this, promotion is edge-triggered on another job finishing and a row left
-        # ``running`` by a killed container holds a concurrency slot forever.
-        sweeper_task = None
-        try:
-            from podcast_scraper.server.queue_sweeper import (
-                start_queue_sweeper,
-                stop_queue_sweeper,
-            )
-
-            sweeper_task = await start_queue_sweeper(app)
-        except Exception as exc:
-            logger.warning("job queue: sweeper failed to start (%s); queue is edge-driven", exc)
+        sweeper_task = await _start_queue_sweeper_guarded(app)
         try:
             yield
         finally:
-            with contextlib.suppress(Exception):
-                await stop_queue_sweeper(sweeper_task)
+            await _stop_queue_sweeper_guarded(sweeper_task)
             scheduler = getattr(app.state, "scheduler", None)
             if scheduler is not None:
                 with contextlib.suppress(Exception):
