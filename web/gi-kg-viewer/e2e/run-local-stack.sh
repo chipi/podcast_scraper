@@ -109,6 +109,31 @@ for cap in feeds_api operator_config_api jobs_api; do
   esac
 done
 
+# ── Wait for SEARCH to be ready, not just for the port to answer ──────────────────────────────
+#
+# `/api/health` returns the moment uvicorn binds, but the app cannot serve its main feature yet:
+# the embedding model loads on first use — ~40 s on a cold container here, ~5 s once warm. The
+# server now warms it at startup on a background thread, so this is a race rather than a permanent
+# state, but a spec that queries immediately blocks on the SAME model singleton the warmup holds
+# and burns its 30 s budget waiting. That is exactly what failed `workspace.spec.ts` at its first
+# result assertion, and it read as an app bug rather than a not-ready backend.
+#
+# So gate on the capability the suite actually needs: issue one real query and wait until it comes
+# back without an error field. A corpus with no index (or no `[search]` extras) can never satisfy
+# that, so this gives up and continues rather than stalling the run — the specs that need search
+# will report it themselves.
+printf 'waiting for search to warm'
+for _ in $(seq 1 90); do
+  probe="$(curl -sf "http://127.0.0.1:$PORT/api/search?q=warm&top_k=1" 2>/dev/null || true)"
+  if [ -n "$probe" ]; then
+    case "$probe" in
+      *'"error":null'*) echo " — ready"; break ;;
+      *'"error":"'*)    echo " — unavailable (continuing; search specs will report it)"; break ;;
+    esac
+  fi
+  printf '.'; sleep 2
+done
+
 # ── Default to ONE Playwright worker ──────────────────────────────────────────────────────────
 #
 # The API is single-process: `podcast_scraper.cli serve` calls `uvicorn.run()` with no `--workers`,

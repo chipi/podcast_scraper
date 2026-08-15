@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 from typing import AsyncIterator, cast
@@ -430,12 +431,44 @@ def create_app(
     init_sentry("api")
     _init_api_otel()
 
+    def _warm_search(root: object) -> None:
+        """Pay the search cold-start ONCE, at boot, off the request path.
+
+        The embedding model loads lazily on the first query, and the LanceDB tables open with
+        it — measured at ~39 s for that first request on a cold container (a warm one is ~4 s).
+        Whoever searched first wore all of it: an e2e run's opening query blew a 30 s budget,
+        and in production it is the first real user after every deploy or restart.
+
+        Runs ONE genuine `hybrid_candidates` call rather than reaching for the loader directly.
+        The model id is the one recorded in the index meta, and the singleton is keyed on the
+        resolved id + device + cache folder — reconstructing that here would be a second copy of
+        the resolution rules, free to drift and warm a model the query path never asks for. A
+        real search cannot mis-key, because it IS the query path.
+
+        Best-effort by construction: no index, no `[search]` extras, or no cached model all raise
+        and are swallowed. It never downloads (`allow_download=False` lives in the search path)
+        and it never blocks startup — the caller runs it on a daemon thread. Set
+        ``PODCAST_SERVE_WARM_SEARCH=0`` to skip it.
+        """
+        try:
+            from podcast_scraper.search.hybrid_search import hybrid_candidates
+
+            hybrid_candidates(root, "warm", top_k=1)  # type: ignore[arg-type]
+            logger.info("search warmup complete")
+        except Exception as exc:  # noqa: BLE001 - warmup is advisory; the query path re-reports
+            logger.debug("search warmup skipped: %s", exc)
+
     @contextlib.asynccontextmanager
     async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Pin the event loop so the cron scheduler (running on a daemon
         # thread) can hand spawn callbacks back to FastAPI via
         # ``asyncio.run_coroutine_threadsafe``.
         app.state.event_loop = asyncio.get_running_loop()
+        root = getattr(app.state, "output_dir", None)
+        if root is not None and os.environ.get("PODCAST_SERVE_WARM_SEARCH", "1") != "0":
+            threading.Thread(
+                target=_warm_search, args=(root,), name="search-warmup", daemon=True
+            ).start()
         scheduler = getattr(app.state, "scheduler", None)
         if scheduler is not None:
             try:
