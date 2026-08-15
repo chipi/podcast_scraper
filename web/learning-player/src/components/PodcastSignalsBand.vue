@@ -69,6 +69,54 @@ const coversEveryEpisode = computed(
 const topicCoverageMax = computed(() =>
   topics.value.reduce((max, t) => Math.max(max, t.episode_count ?? 0), 0),
 )
+
+/**
+ * Distinctiveness, which is what the band's title actually asks.
+ *
+ * Coverage alone can't answer "what this show's about": in the validation corpus every show
+ * covers "expert interviews" in all four of its episodes, so it ties with the one topic that
+ * identifies the show, and the tie breaks alphabetically — one show's signature topic sorted
+ * dead last. `lift` (the topic's share of THIS show over its share of the whole corpus, computed
+ * server-side in `feed_signals`) breaks that tie on meaning instead: corpus-wide wallpaper lands
+ * at 1.0, a signature topic well above it.
+ *
+ * A topic must clear BOTH gates to be called distinctive:
+ *  - `lift >= MIN_LIFT` — meaningfully above the corpus base rate, not noise. Same bar the
+ *    trending gate uses for velocity (`_trending_topics(min_velocity=1.5)`).
+ *  - present in ≥2 of the show's episodes — one passing mention on a short show can score a high
+ *    lift while saying nothing about the show. Same "regulars, not one-offs" rule as
+ *    `_recurring_guests`.
+ *
+ * Topics with an unknown lift (`null` — no corpus base rate) are never promoted; they fall
+ * through to the plain list rather than being guessed at.
+ */
+const MIN_LIFT = 1.5
+const MIN_EPISODES_FOR_DISTINCTIVE = 2
+
+const byLiftDesc = (a: { lift: number | null }, b: { lift: number | null }) =>
+  (b.lift ?? 0) - (a.lift ?? 0)
+
+const distinctiveTopics = computed(() =>
+  topics.value
+    .filter(
+      (t) =>
+        (t.lift ?? 0) >= MIN_LIFT && (t.episode_count ?? 0) >= MIN_EPISODES_FOR_DISTINCTIVE,
+    )
+    .slice()
+    .sort(byLiftDesc),
+)
+
+/** Everything else, still most-covered-first (the order the server returns). */
+const otherTopics = computed(() => {
+  const promoted = new Set(distinctiveTopics.value.map((t) => t.topic_id))
+  return topics.value.filter((t) => !promoted.has(t.topic_id))
+})
+
+/** "9" not "9.0", "1.8" as-is — the multiplier in the chip's hover explanation. */
+function formatLift(lift: number | null): string {
+  if (lift === null) return ''
+  return Number.isInteger(lift) ? String(lift) : lift.toFixed(1)
+}
 const hasAny = computed(
   () =>
     themes.value.length > 0 ||
@@ -103,14 +151,39 @@ const hasAny = computed(
       </div>
     </div>
 
-    <div v-if="topics.length" class="mb-3">
+    <!--
+      What sets this show apart, ahead of what it merely covers. These chips carry the accent
+      because they are the answer to the section's title; the rest is context.
+    -->
+    <div v-if="distinctiveTopics.length" class="mb-3">
+      <h3 class="lp-kicker mb-1.5" data-testid="ps-distinctive-heading">
+        {{ t('podcast.sigDistinctive') }}
+      </h3>
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          v-for="tp in distinctiveTopics"
+          :key="tp.topic_id"
+          type="button"
+          data-testid="ps-distinctive-topic"
+          :title="t('podcast.sigDistinctiveHint', { factor: formatLift(tp.lift) })"
+          class="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-surface-foreground transition hover:bg-accent/20"
+          @click="emit('open', { kind: 'topic', id: tp.topic_id })"
+        >
+          {{ tp.label }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="otherTopics.length" class="mb-3">
       <!--
-        The heading states what the data supports. When every topic appears in every episode the
-        claim is consistency; when coverage is uneven we say how far it reaches rather than
-        implying uniformity; otherwise it stays the plain "Topics" label.
+        The heading states what the data supports. Once the distinctive topics are split out this
+        group is the remainder, so it says so plainly; otherwise the coverage claim stands — when
+        every topic appears in every episode the claim is consistency, when coverage is uneven we
+        say how far it reaches rather than implying uniformity.
       -->
       <h3 class="lp-kicker mb-1.5" data-testid="ps-topics-heading">
-        <template v-if="coversEveryEpisode">
+        <template v-if="distinctiveTopics.length">{{ t('podcast.sigAlsoCovers') }}</template>
+        <template v-else-if="coversEveryEpisode">
           {{ t('podcast.sigCoverageAll') }}
         </template>
         <template v-else-if="topicCoverageMax > 1 && episodeTotal > 0">
@@ -120,7 +193,7 @@ const hasAny = computed(
       </h3>
       <div class="flex flex-wrap gap-1.5">
         <button
-          v-for="tp in topics"
+          v-for="tp in otherTopics"
           :key="tp.topic_id"
           type="button"
           data-testid="ps-topic"

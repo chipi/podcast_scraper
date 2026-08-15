@@ -166,7 +166,7 @@ so the gap is visible, not silently "covered":
 | **PWA update toast** | `pwa-update-*` | **No e2e at all.** `pwa.spec.ts` covers manifest / icons / SW-registration / `__buildInfo` only — it never references a `pwa-update-*` selector. |
 | **EntityCard theme members** | `ec-theme-members` | Unit-tested (`EntityCardBody.test.ts`); **no e2e**. |
 | **Trending shows rail** | `trending-shows-rail`, `trending-show-card` | Unit-tested; **no e2e**. |
-| **Podcast signals band** | `podcast-signals`, `ps-topics-heading`, `ps-theme`, `ps-topic`, `ps-trending`, `ps-person` | Unit-tested; **no e2e**. `ps-bubbles` retired — the momentum bubble cloud was removed because its `velocity` is corpus-wide, not show-scoped, so it sized topics by a number that did not answer the band's own question. `ps-topics-heading` replaces it with a coverage claim. |
+| **Podcast signals band** | `podcast-signals`, `ps-distinctive-heading`, `ps-distinctive-topic`, `ps-topics-heading`, `ps-theme`, `ps-topic`, `ps-trending`, `ps-person` | Unit-tested (`PodcastSignalsBand.test.ts`); **no e2e**. `ps-bubbles` retired — the momentum bubble cloud was removed because its `velocity` is corpus-wide, not show-scoped, so it sized topics by a number that did not answer the band's own question. Topics now split: `ps-distinctive-topic` carries the ones with `lift` above the corpus base rate (what sets the show apart), `ps-topic` the remainder — so a show's signature topic can no longer lose an alphabetical tiebreak to wallpaper every show covers. |
 | **Topic conversation arc** | `topic-conversation-arc`, `tca-bars`, `tca-bar-*` | Unit-tested; **no e2e**. |
 | **Show activity chart** | `show-activity`, `show-activity-bar-*` | Unit-tested; **no e2e**. |
 

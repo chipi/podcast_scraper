@@ -157,6 +157,108 @@ def test_corpus_feed_signals_top_k_caps_results(tmp_path: Path) -> None:
     assert len(r.json()["top_topics"]) == 2
 
 
+def test_corpus_feed_signals_topic_lift_separates_signature_from_wallpaper(
+    tmp_path: Path,
+) -> None:
+    """Lift ranks a show's *distinguishing* topic above one every show covers.
+
+    Both topics are in 2/2 of showx's episodes, so raw coverage cannot tell them apart — which
+    is exactly the failure this metric fixes. ``topic:common`` is in all 4 corpus episodes
+    (base rate 1.0 → lift 1.0: it says nothing about this show); ``topic:niche`` is in only
+    showx's 2 (base rate 0.5 → lift 2.0).
+    """
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    for stem in ("x1", "x2"):
+        _write_ep_with_kg(
+            meta,
+            stem,
+            feed_id="showx",
+            episode_id=stem,
+            nodes=[
+                _kg_node("topic:common", "Topic", "Common"),
+                _kg_node("topic:niche", "Topic", "Niche"),
+            ],
+        )
+    for stem in ("y1", "y2"):
+        _write_ep_with_kg(
+            meta,
+            stem,
+            feed_id="showy",
+            episode_id=stem,
+            nodes=[_kg_node("topic:common", "Topic", "Common")],
+        )
+    # The base rate comes off the co-occurrence envelope's per-topic document frequency.
+    _write_enrichment(
+        tmp_path,
+        "topic_cooccurrence_corpus",
+        {
+            "episode_count": 4,
+            "pairs": [
+                {
+                    "topic_a_id": "topic:common",
+                    "topic_b_id": "topic:niche",
+                    "topic_a_episode_count": 4,
+                    "topic_b_episode_count": 2,
+                    "episode_count": 2,
+                }
+            ],
+        },
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/feed-signals", params={"path": str(tmp_path), "feed_id": "showx"})
+    assert r.status_code == 200, r.text
+    topics = {t["topic_id"]: t for t in r.json()["top_topics"]}
+
+    assert topics["topic:common"]["episode_count"] == topics["topic:niche"]["episode_count"] == 2
+    assert topics["topic:common"]["corpus_episode_count"] == 4
+    assert topics["topic:common"]["corpus_episode_total"] == 4
+    assert topics["topic:common"]["lift"] == 1.0  # corpus-wide wallpaper
+    assert topics["topic:niche"]["corpus_episode_count"] == 2
+    assert topics["topic:niche"]["lift"] == 2.0  # twice the corpus base rate
+
+
+def test_corpus_feed_signals_lift_is_none_without_a_base_rate(tmp_path: Path) -> None:
+    """No co-occurrence envelope (or a topic missing from it) ⇒ unknown lift, never a guess."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    _write_ep_with_kg(
+        meta,
+        "x1",
+        feed_id="showx",
+        episode_id="x1",
+        nodes=[_kg_node("topic:ai", "Topic", "AI"), _kg_node("topic:solo", "Topic", "Solo")],
+    )
+    # Envelope present but covers only topic:ai — a topic that never co-occurs has no pair row.
+    _write_enrichment(
+        tmp_path,
+        "topic_cooccurrence_corpus",
+        {
+            "episode_count": 1,
+            "pairs": [
+                {
+                    "topic_a_id": "topic:ai",
+                    "topic_b_id": "topic:ai",
+                    "topic_a_episode_count": 1,
+                    "topic_b_episode_count": 1,
+                    "episode_count": 1,
+                }
+            ],
+        },
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/feed-signals", params={"path": str(tmp_path), "feed_id": "showx"})
+    assert r.status_code == 200, r.text
+    topics = {t["topic_id"]: t for t in r.json()["top_topics"]}
+    assert topics["topic:ai"]["lift"] == 1.0
+    assert topics["topic:solo"]["lift"] is None
+    assert topics["topic:solo"]["corpus_episode_count"] is None
+
+
 def test_corpus_feed_signals_unknown_feed_is_empty(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir()

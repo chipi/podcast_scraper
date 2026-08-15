@@ -4,7 +4,8 @@ Counts the Topic + Person nodes across a feed's per-episode KGs (a per-episode K
 carries only that episode's entities, so counting nodes = "mentions in that episode"),
 then projects corpus-scope enrichment onto the show's entities: recurring guests
 (≥2 episodes), dominant themes (``topic_theme_clusters``), trending topics
-(``temporal_velocity``, gated on total ≥ 3), and a pooled grounding score
+(``temporal_velocity``, gated on total ≥ 3), per-topic distinctiveness against the
+corpus base rate (``topic_cooccurrence_corpus``), and a pooled grounding score
 (``grounding_rate``). Every enrichment fold is best-effort — absent envelopes yield
 empty/None. The operator route (``/api/corpus/feed-signals``) returns the full result;
 the consumer route (``/api/app/podcasts/{feed_id}/signals``) projects a listener-shaped
@@ -211,6 +212,63 @@ def _trending_topics(
     return out[:top_k]
 
 
+def _topic_base_rate_map(root: str) -> tuple[dict[str, int], int]:
+    """``(topic_id → episodes in the WHOLE corpus, corpus episode total)``.
+
+    Read off the ``topic_cooccurrence_corpus`` envelope, which already carries a document
+    frequency per topic (``topic_{a,b}_episode_count``, the enricher's ``topic_df``) plus the
+    corpus episode total it divided by. Reusing it keeps this route's cost flat: computing the
+    base rate here would mean scanning every episode KG in the corpus, where today we scan only
+    the show's.
+
+    Coverage caveat: the envelope stores frequencies on *pairs*, so a topic that never shares an
+    episode with another topic has no entry. That yields no base rate for it, which callers
+    surface as an unknown lift rather than a fabricated one.
+    """
+    data = _read_enrichment_data(root, "topic_cooccurrence_corpus")
+    if not data:
+        return {}, 0
+    total = data.get("episode_count")
+    if not isinstance(total, int) or total <= 0:
+        return {}, 0
+    df: dict[str, int] = {}
+    for p in data.get("pairs") or []:
+        if not isinstance(p, dict):
+            continue
+        for id_key, count_key in (
+            ("topic_a_id", "topic_a_episode_count"),
+            ("topic_b_id", "topic_b_episode_count"),
+        ):
+            tid = str(p.get(id_key) or "")
+            cnt = p.get(count_key)
+            if tid and isinstance(cnt, int) and 0 < cnt <= total:
+                df.setdefault(tid, cnt)
+    return df, total
+
+
+def _topic_lift(
+    show_eps: int, topic_eps: int, corpus_df: int | None, corpus_eps: int
+) -> float | None:
+    """How over-represented a topic is on this show versus the corpus, or None if unknowable.
+
+    ``lift = (topic's share of THIS show's episodes) / (its share of ALL episodes)``. 1.0 means
+    the show talks about it exactly as much as the corpus does — i.e. it says nothing about this
+    show in particular; above 1.0 means the show is unusually focused on it. This is what
+    separates a distinguishing topic from wallpaper: in the validation corpus every show covers
+    "expert interviews" in all four of its episodes, so raw coverage ranks it level with the one
+    topic that actually identifies the show.
+
+    Same shape as the pair lift in ``topic_cooccurrence_corpus`` (observed / expected-under-
+    independence), with "appears on this show" substituted for "co-occurs with topic B".
+    """
+    if not show_eps or not corpus_eps or not corpus_df:
+        return None
+    base_share = corpus_df / corpus_eps
+    if base_share <= 0:
+        return None
+    return round((topic_eps / show_eps) / base_share, 2)
+
+
 def _show_grounding(root: str, show_person_ids: set[str]) -> FeedGroundingSummary | None:
     """Pooled quote-backing rate across the show's people (grounding_rate)."""
     data = _read_enrichment_data(root, "grounding_rate")
@@ -262,12 +320,19 @@ def compute_feed_signals(
 
     root_s = str(root)
     vel = _topic_velocity_map(root_s)
+    corpus_df, corpus_eps = _topic_base_rate_map(root_s)
+    # Selection stays "most-covered first" — that is what "top topics" means, and the operator
+    # Show rail depends on it. Lift rides along as a field so a consumer can rank by
+    # distinctiveness without changing what the operator sees.
     top_topics = [
         FeedSignalTopic(
             topic_id=tid,
             label=label,
             episode_count=len(eps),
             velocity=(round(vel[tid][0], 2) if tid in vel else None),
+            corpus_episode_count=corpus_df.get(tid),
+            corpus_episode_total=(corpus_eps or None),
+            lift=_topic_lift(scanned, len(eps), corpus_df.get(tid), corpus_eps),
         )
         for tid, (label, eps) in sorted(
             topic_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])

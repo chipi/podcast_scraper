@@ -174,6 +174,16 @@ export interface PodcastSignals {
     label: string
     episode_count: number
     velocity: number | null
+    /** Episodes in the whole corpus that mention the topic; null if unknown. */
+    corpus_episode_count: number | null
+    /** Episodes in the whole corpus — the denominator behind `lift`. */
+    corpus_episode_total: number | null
+    /**
+     * Distinctiveness: the topic's share of this show's episodes over its share of the corpus.
+     * 1.0 = exactly the corpus base rate (says nothing about this show in particular); >1 = the
+     * show is unusually focused on it. null when the corpus base rate is unavailable.
+     */
+    lift: number | null
   }>
   key_people: Array<{ person_id: string; name: string; episode_count: number }>
   recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>

@@ -1912,6 +1912,25 @@ class FeedSignalTopic(BaseModel):
         default=None,
         description="Corpus temporal_velocity for this topic (for bubble sizing); None if unknown.",
     )
+    corpus_episode_count: int | None = Field(
+        default=None,
+        ge=1,
+        description="Episodes in the WHOLE corpus that mention the topic; None if unknown.",
+    )
+    corpus_episode_total: int | None = Field(
+        default=None,
+        ge=1,
+        description="Episodes in the whole corpus — the denominator behind `lift`.",
+    )
+    lift: float | None = Field(
+        default=None,
+        description=(
+            "Distinctiveness: the topic's share of this show's episodes over its share of the "
+            "corpus. 1.0 = exactly the corpus base rate (says nothing about this show in "
+            "particular); >1 = the show is unusually focused on it. None when the corpus base "
+            "rate is unavailable."
+        ),
+    )
 
 
 class FeedSignalPerson(BaseModel):

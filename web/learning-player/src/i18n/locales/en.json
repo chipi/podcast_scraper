@@ -178,6 +178,9 @@
     "sigTopics": "Topics",
     "sigCoverageAll": "Every episode covers",
     "sigCoverageMost": "Covered across {count} of {total} episodes",
+    "sigDistinctive": "Distinctive to this show",
+    "sigDistinctiveHint": "Covered {factor}× more here than across the library",
+    "sigAlsoCovers": "Also covers",
     "sigTrending": "Trending here",
     "sigPeople": "Key people"
   },
