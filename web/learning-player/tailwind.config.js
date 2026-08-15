@@ -22,8 +22,22 @@ export default {
         muted: 'var(--lp-muted)',
         disabled: 'var(--lp-disabled)',
         link: 'var(--lp-link)',
-        // Per-show adaptive accent (contrast-clamped; falls back to brand "Ember").
-        accent: 'var(--lp-accent)',
+        /*
+         * Per-show adaptive accent (contrast-clamped; falls back to brand "Ember").
+         *
+         * Routed through `color-mix` so the slash-opacity utilities actually work. A bare
+         * `var(--lp-accent)` cannot carry an alpha in Tailwind v3: the token holds a colour
+         * literal, not the space-separated channels `rgb(… / <alpha-value>)` needs, so
+         * `bg-accent/70` emitted an invalid value and computed to **transparent**. That silently
+         * blanked every accent-with-opacity mark in the app — `ShowActivityChart` rendered 15
+         * correctly-sized bars nobody could see, and `EpisodeDensity` did the same.
+         *
+         * Tailwind substitutes `1` for `<alpha-value>` on non-opacity utilities, so plain
+         * `bg-accent` stays exactly as before. `color-mix` is already a baseline assumption here
+         * (see PlayerControls.vue), and this keeps `--lp-accent` a plain colour, so `tokens.css`,
+         * `style.css` and `setShowAccent` are untouched.
+         */
+        accent: 'color-mix(in srgb, var(--lp-accent) calc(<alpha-value> * 100%), transparent)',
         'accent-foreground': 'var(--lp-accent-foreground)',
         'brand-default': 'var(--lp-brand-default)',
         success: 'var(--lp-success)',
