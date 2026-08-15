@@ -54,12 +54,17 @@ test.describe('Dashboard — Pipeline jobs card', () => {
     await tablist.getByRole('tab', { name: 'Pipeline' }).click()
 
     const card = page.getByTestId('pipeline-jobs-card')
-    await expect(card).toBeVisible({ timeout: 15_000 })
-    /* Scoped to the card, and allowed to wait: the Pipeline tab renders the *runs* empty state
-     * ("No pipeline runs found…") immediately, while the jobs card fills in once `/api/jobs`
-     * resolves. A page-wide `getByText` raced that and failed on first attempt / passed on retry. */
+    await expect(card).toBeVisible({ timeout: 30_000 })
+    /* Scoped to the card, and given a generous budget.
+     *
+     * Two things are being waited on. The Pipeline tab renders the *runs* empty state ("No
+     * pipeline runs found…") immediately while the jobs card fills in once `/api/jobs` resolves —
+     * so a page-wide `getByText` raced it. And the API serves this on a SINGLE worker, where a
+     * concurrent spec's live search (query embedding + LanceDB) holds it for seconds, so under
+     * `--workers=2` this request can sit in the queue well past a 15s budget. Measured alone the
+     * whole test takes ~10s; the wait is for contention, not for a defect. */
     await expect(card).toContainText('No jobs yet. Run queues a CLI pipeline for this corpus.', {
-      timeout: 15_000,
+      timeout: 60_000,
     })
   })
 })

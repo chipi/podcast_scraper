@@ -67,10 +67,30 @@ export async function cyIdExists(page: Page, id: string): Promise<boolean> {
  * Caller must invoke once at the start of `test.beforeEach` or at the start of
  * the test body, *before* any user actions.
  */
+/**
+ * Console errors that are the ENVIRONMENT failing, not the app (#1619).
+ *
+ * `index.html` pulls Inter + JetBrains Mono from `fonts.googleapis.com` / `fonts.gstatic.com`.
+ * When that CDN is slow or unreachable — routine on a loaded machine, and permanent in a genuinely
+ * offline runner — Firefox logs `downloadable font: download failed (font-family: "Inter" …)` as a
+ * console **error**, and every handoff row asserting "no console errors" fails on it. Observed as
+ * intermittent flakes and, on a 20-minute contended run, as two hard failures
+ * (`handoff/repeat-click` H3.2 and `handoff-production/lifecycle` P7.2).
+ *
+ * That IS a real defect — but in the app's dependency on an external font CDN, not in the handoff
+ * FSM these specs exist to test. Filtering keeps the assertion meaning what it is meant to mean.
+ * The underlying dependency is the thing to fix: a suite that is meant to run offline should
+ * self-host these fonts or drop them, which is an app change and is left as a decision.
+ *
+ * Deliberately narrow — matches the font-download message only, so any genuine app error still
+ * fails the row.
+ */
+const ENVIRONMENTAL_CONSOLE_ERROR = /downloadable font: download failed/i
+
 export function captureConsoleErrors(page: Page): { errors: string[] } {
   const ref = { errors: [] as string[] }
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
+    if (msg.type() === 'error' && !ENVIRONMENTAL_CONSOLE_ERROR.test(msg.text())) {
       ref.errors.push(msg.text())
     }
   })

@@ -31,8 +31,17 @@ export default defineConfig({
     ['html', { open: 'never', outputFolder: 'playwright-report' }],
     ['json', { outputFile: path.join(__dirname, 'e2e-results.json') }],
   ],
-  timeout: 60_000,
-  expect: { timeout: 15_000 },
+  // #1619 — raised from 60s/15s when the suite moved onto a real backend.
+  //
+  // A mocked `/api/search` returned instantly; a live one runs a query embedding plus a LanceDB
+  // search, and the Tier-2 walks issue several per test. On a contended machine (the container
+  // runtime alone is a VM at ~190% CPU) that pushed `search-production/rail-launch` and the
+  // dashboard Intelligence tab past the old 60s cap — as TIMEOUTS, not wrong assertions, which is
+  // the tell that the budget was the problem rather than the specs.
+  //
+  // These are ceilings, not waits: a healthy run does not get near them.
+  timeout: 120_000,
+  expect: { timeout: 20_000 },
   use: {
     /* Dedicated port so local `npm run dev` on 5173 does not collide with E2E. */
     baseURL: 'http://127.0.0.1:5174',

@@ -105,6 +105,23 @@ hand-copied payload: `liveCorpusRoot`, `liveFeeds`, `liveFirstEpisode`, `liveFee
 **Never hardcode a corpus path** — it is the repo-relative fixture when the API is served natively
 and `/corpus` under `run-local-stack.sh`.
 
+### Specs that mutate shared server state must be serial
+
+Four specs now write through the operator API — `status-bar-feeds-operator-mocks`,
+`feed-overrides-mocks` (both rewrite `feeds.spec.yaml`), `scheduled-jobs-mocks` and
+`cron-preview-mocks` (both rewrite `viewer_operator.yaml`). They seed their own starting state and
+read the result back, which is what makes them real persistence tests — but it means they share one
+mutable corpus.
+
+Each carries `test.describe.configure({ mode: 'serial' })`, because `playwright.config.ts` sets
+`fullyParallel: true` and tests inside one file would otherwise seed over each other.
+
+**Known residual risk:** that is per-file. Playwright has no cross-file mutex, so two of these
+files can still run concurrently in different workers and clash on the same YAML. It has not been
+observed in a full run, and the window is a few seconds per test — but it is real. If it ever
+flakes, the fix is a dedicated Playwright project pinned to `workers: 1` for these four, not a
+retry.
+
 ### The operator plane writes into the corpus — mind the tracked fixture
 
 `GET /api/operator-config` **creates** `viewer_operator.yaml` in the corpus directory when it is
