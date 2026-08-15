@@ -138,7 +138,7 @@ generate_gi: true
 gi_insight_source: provider
 # Generate broadly and let the GATE trim: the cap is not a quality control, it is a truncation.
 # Prod ran 12 while every eval ran 50, so the comparison measured a pipeline production never runs.
-gi_max_insights: 12
+gi_max_insights: 50
 gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
