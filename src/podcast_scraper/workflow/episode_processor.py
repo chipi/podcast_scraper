@@ -740,6 +740,7 @@ def _write_processing_manifest(
     effective_output_dir: str,
     asr_elapsed: Optional[float] = None,
     asr_call_metrics: Any = None,
+    pipeline_metrics: Any = None,
 ) -> None:
     """RFC-109 / ADR-132: write the per-episode processing manifest's ASR/diarization/naming blocks.
 
@@ -786,9 +787,14 @@ def _write_processing_manifest(
             model=(result.get("model_used") or getattr(cfg, "dgx_whisper_model", None)),
             method_version=pm.METHOD_VERSIONS["asr"],
             duration_s=asr_elapsed,
-            # 0.0/None for local ASR (DGX/whisper); real USD for cloud ASR (OpenAI/Deepgram),
-            # populated by apply_estimated_cost_if_missing before this write.
-            cost_usd=asr_cost,
+            # 0.0 when a LOCAL engine ran (DGX/whisper — measured, and genuinely free); real USD
+            # for cloud ASR (OpenAI/Deepgram) from apply_estimated_cost_if_missing; None only
+            # when nobody measured it. See ``measured_or_unmeasured``.
+            cost_usd=pm.measured_or_unmeasured(
+                asr_cost,
+                getattr(cfg, "transcription_provider", None),
+                pm.LOCAL_TRANSCRIPTION_PROVIDERS,
+            ),
             metrics={"speech_coverage": cov, "speech_audio_ratio": sar},
             failover=failover or None,
         )
@@ -819,9 +825,13 @@ def _write_processing_manifest(
                 or getattr(cfg, "diarization_model", None)
             ),
             method_version=pm.METHOD_VERSIONS["diarization"],
-            # None for local diarizers (pyannote/DGX); real USD for cloud (Deepgram/Gemini), which
-            # populate DiarizationResult.cost_usd -> result["diarization_cost_usd"].
-            cost_usd=result.get("diarization_cost_usd"),
+            # 0.0 for local diarizers (pyannote/DGX — measured, and genuinely free); real USD for
+            # cloud (Deepgram/Gemini) via DiarizationResult.cost_usd; None only when unmeasured.
+            cost_usd=pm.measured_or_unmeasured(
+                result.get("diarization_cost_usd"),
+                getattr(cfg, "diarization_provider", None),
+                pm.LOCAL_DIARIZATION_PROVIDERS,
+            ),
             metrics={"num_speakers": num_spk, "speech_seconds": speech_s},
         )
         pm.update_stage(
@@ -850,9 +860,17 @@ def _write_processing_manifest(
             name_flags.append("guest_in_title_not_placed")
         if not host_named and not summary.get("show_centric"):
             name_flags.append("empty_host_anchor")
+        # Naming is NOT free by definition: cloud_balanced sets speaker_detector_provider:
+        # litellm, so voice resolution is a real LLM call. An EpisodeCostProbe exposes this
+        # episode's share (0.0 when only the deterministic path ran — measured, and honestly
+        # free). A plain Metrics object has no such attribute, and then the cost is genuinely
+        # unmeasured, which must stay null rather than become a fabricated zero.
+        naming_cost = getattr(pipeline_metrics, "speaker_detection_cost_usd", None)
+        naming_cost = None if naming_cost is None else float(naming_cost)
         naming = pm.stage_block(
             ran=True,
             method_version=pm.METHOD_VERSIONS["naming"],
+            cost_usd=naming_cost,
             metrics={
                 "num_speakers": summary.get("num_speakers"),
                 "named": summary.get("named"),
@@ -2221,7 +2239,9 @@ def _rediarize_existing_transcript(
     # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is
     # invisible in diarization_* metrics and the manifest keeps the old versions.
     _record_episode_diarization(pipeline_metrics, result)
-    _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
+    _write_processing_manifest(
+        result, cfg, job, rel_path, effective_output_dir, pipeline_metrics=pipeline_metrics
+    )
     logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
 
@@ -2682,6 +2702,7 @@ def transcribe_media_to_text(
             effective_output_dir,
             asr_elapsed=tc_elapsed,
             asr_call_metrics=call_metrics,
+            pipeline_metrics=pipeline_metrics,
         )
 
         return True, rel_path, bytes_downloaded

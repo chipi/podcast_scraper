@@ -441,7 +441,42 @@ def _detect_hosts_from_feed(
         feed_description=feed.description,  # show blurb usually names the host (#1169)
         feed_authors=feed.authors if feed.authors else None,
     )
-    return cast(set[str], feed_hosts)
+    return _sanitize_detected_hosts(cast("set[str]", feed_hosts))
+
+
+def _sanitize_detected_hosts(names: set[str]) -> set[str]:
+    """Put a provider's host names through the same filter the deterministic path uses.
+
+    The deterministic branch above splits multi-person strings (``split_author_names``) and
+    rejects organisations (``is_network_or_org_author``). The provider branch did neither, and
+    an LLM asked "who hosts this show?" answers in prose: on *The a16z Show* it returned the
+    single string ``"Erik Torenberg, Ben Horowitz, Travis Kalanick"``, which became one
+    ``Person`` node — ``person:erik-torenberg-ben-horowitz-travis-kalanick``, a human being who
+    does not exist, anchoring the roster for the whole episode.
+
+    A composite is worse than no host at all. It can never match a diarized voice (the roster
+    compares per name), so it silently disables the known-hosts anchor *and* pollutes the graph
+    with a fake entity that cross-episode queries will happily join on.
+
+    Same conservative contract as ``split_author_names``: an over-eager split degrades to "no
+    host", which is the safe direction (#876), never to an invented person.
+    """
+    from ...speaker_detectors.hosts import is_network_or_org_author, split_author_names
+
+    out: set[str] = set()
+    for raw in names or set():
+        for candidate in split_author_names(str(raw or "")):
+            candidate = candidate.strip()
+            if not candidate or is_network_or_org_author(candidate):
+                continue
+            out.add(candidate)
+    if out != set(names or set()):
+        logger.info(
+            "host detection: provider names %s normalised to %s (split + org-filtered)",
+            sorted(names or set()),
+            sorted(out),
+        )
+    return out
 
 
 def _validate_hosts_with_first_episode(

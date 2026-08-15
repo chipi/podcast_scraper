@@ -407,6 +407,20 @@ def hosts_from_feed_statement(
                 clean = _clean_stated_name(raw)
                 if len(clean.split()) < 2 or has_org_markers(clean):
                     continue
+                # A publisher/platform is never the host, even inside a host phrase (#1652
+                # applied this to RSS author tags; the statement path was the last place that
+                # skipped it). Real case from the #1657 acceptance run: The a16z Show's episode
+                # blurb runs two sentences together with no full stop —
+                # "...Listen to the a16z Show on Spotify Listen to the a16z Show on Apple
+                # Podcasts Follow our host:" — so "Spotify Listen" is a capitalised run across
+                # the sentence boundary, and the NOUN "host" 45 chars later satisfied the
+                # presenting-verb pattern. Rejecting known platforms kills it at the name.
+                if is_known_network(clean):
+                    logger.debug(
+                        "host statement named '%s', which is a platform/publisher, not a host",
+                        clean,
+                    )
+                    continue
                 # In the DESCRIPTION, a capitalised run that echoes the show's own name is the show,
                 # not a person: "At Planet Money, we explore...". In the TITLE it is the opposite —
                 # that is where the host lives ("Invest Like the Best with Patrick O'Shaughnessy"),

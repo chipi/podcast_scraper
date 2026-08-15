@@ -83,13 +83,41 @@ class EpisodeCostProbe:
     hooks the recorder methods every provider funnels cost through, not any one provider.
     """
 
-    __slots__ = ("_inner", "summary_cost_usd", "gi_cost_usd", "kg_cost_usd")
+    __slots__ = (
+        "_inner",
+        "summary_cost_usd",
+        "gi_cost_usd",
+        "kg_cost_usd",
+        "speaker_detection_cost_usd",
+    )
 
     def __init__(self, inner: Any) -> None:
         object.__setattr__(self, "_inner", inner)
         object.__setattr__(self, "summary_cost_usd", 0.0)
         object.__setattr__(self, "gi_cost_usd", 0.0)
         object.__setattr__(self, "kg_cost_usd", 0.0)
+        object.__setattr__(self, "speaker_detection_cost_usd", 0.0)
+
+    def record_llm_speaker_detection_call(
+        self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
+    ) -> Any:
+        """Accumulate this episode's speaker-detection cost, then forward to the real recorder.
+
+        Added after the #1657 acceptance run showed ``naming.cost_usd: null`` on every episode
+        while ``llm_speaker_detection_cost_usd`` was accruing at run level. Speaker naming is
+        NOT always free — ``speaker_detector_provider: litellm`` in ``cloud_balanced`` resolves
+        voices with a real LLM call — so the manifest was under-reporting every episode's true
+        cost by exactly that amount, and ``cost_usd_total`` inherited the gap.
+        """
+        if cost_usd:
+            object.__setattr__(
+                self,
+                "speaker_detection_cost_usd",
+                self.speaker_detection_cost_usd + float(cost_usd),
+            )
+        return self._inner.record_llm_speaker_detection_call(
+            input_tokens, output_tokens, cost_usd=cost_usd
+        )
 
     def record_llm_summarization_call(
         self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
@@ -203,6 +231,37 @@ def stage_block(
     if warnings:
         block["warnings"] = list(warnings)
     return block
+
+
+#: Transcription providers that run on hardware we own — no invoice, so a measured zero.
+LOCAL_TRANSCRIPTION_PROVIDERS = frozenset(
+    {"whisper", "local", "tailnet_dgx_whisper", "dgx", "moss", "faster_whisper"}
+)
+#: Diarization providers that run locally — same reasoning.
+LOCAL_DIARIZATION_PROVIDERS = frozenset({"local", "pyannote", "tailnet_dgx", "dgx", "moss"})
+
+
+def measured_or_unmeasured(
+    measured: Optional[float], provider: Optional[str], local_providers: "frozenset[str]"
+) -> Optional[float]:
+    """Resolve a stage's ``cost_usd`` under one rule, applied identically everywhere.
+
+    **``0.0`` means measured and free. ``None`` means nobody measured it.** They are different
+    facts and the manifest must not blur them — a fabricated zero on an uninstrumented stage is
+    how a cost roll-up silently under-reports, and a ``null`` on a stage that genuinely cost
+    nothing reads as "we don't know" when we do.
+
+    Before this, the same situation produced different answers: a locally-diarized episode
+    recorded ``diarization.cost_usd: 0.0`` while ``naming.cost_usd`` was ``null``, though both
+    ran locally and both were free. ADR-132 had specified ``None`` for local diarization; the
+    code did the opposite. The rule below is the corrected intent — measured-and-free wins,
+    because it carries information, and the ``null`` that remains then means something.
+    """
+    if measured is not None:
+        return float(measured)
+    if (provider or "").strip().lower() in local_providers:
+        return 0.0
+    return None
 
 
 def _sum_cost(stages: Mapping[str, Any]) -> float:
