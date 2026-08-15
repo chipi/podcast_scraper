@@ -119,6 +119,33 @@ export async function liveFeedMetadataDir(page: Page): Promise<string> {
   return `${root}/${rel.slice(0, rel.lastIndexOf('/'))}`
 }
 
+/**
+ * Guard for specs that WRITE to the one corpus the stack serves (#1619).
+ *
+ * `status-bar-feeds-operator-mocks`, `feed-overrides-mocks`, `scheduled-jobs-mocks` and
+ * `cron-preview-mocks` each rewrite `feeds.spec.yaml` / `viewer_operator.yaml` through the operator
+ * API. `test.describe.configure({ mode: 'serial' })` keeps tests inside one file from seeding over
+ * each other, but Playwright has no cross-FILE mutex — two of these files running in different
+ * workers would corrupt each other's fixture silently, and the failure would look like a flaky
+ * assertion rather than a collision.
+ *
+ * `e2e/run-local-stack.sh` defaults to `--workers=1`, which makes the collision impossible. This
+ * turns the remaining case — someone overriding it — into an immediate, explicit failure instead
+ * of a mysterious one.
+ *
+ * Call once at the top of such a spec's `beforeEach`.
+ */
+export function requireSerialCorpusAccess(testInfo: TestInfo): void {
+  const workers = testInfo.config.workers
+  if (workers > 1) {
+    throw new Error(
+      `${testInfo.titlePath[0] ?? 'this spec'} writes to the shared corpus and cannot run with ` +
+        `${workers} workers — two write-path specs in different workers overwrite each other's ` +
+        `seeded state. Re-run with --workers=1 (the default in e2e/run-local-stack.sh).`,
+    )
+  }
+}
+
 /** One entry of `GET /api/corpus/feeds` — the fields migrated specs assert on. */
 export type LiveFeed = {
   feed_id: string

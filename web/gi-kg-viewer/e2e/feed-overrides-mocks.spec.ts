@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   liveCorpusRoot,
+  requireSerialCorpusAccess,
   SHELL_HEADING_RE,
   signInAsAdmin,
   statusBarCorpusPathInput,
@@ -44,7 +45,10 @@ async function readFeeds(page: Page, corpusPath: string): Promise<unknown[]> {
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Per-feed override editor (#694)', () => {
-  test('Configure sets max_episodes on one feed and persists via PUT', async ({ page }) => {
+  test('Configure sets max_episodes on one feed and persists via PUT', async ({
+    page,
+  }, testInfo) => {
+    requireSerialCorpusAccess(testInfo)
     await signInAsAdmin(page)
 
     await page.goto('/')

@@ -48,7 +48,7 @@ mocks fall into four kinds:
 
 | kind | meaning | examples |
 | --- | --- | --- |
-| **B — needs a v4 fixture** | the corpus cannot produce the state | topic bands, lifted/compound results, cross-show topics, `runs: []` |
+| **B — corpus cannot produce it** | **Permanent.** A v4 corpus is NOT planned (decided 2026-08-15), so these are mocked for good — the ladder keeps the requirements only as a record | topic bands, lifted/compound results, cross-show topics, `runs: []` |
 | **C — permanently mocked** | a healthy backend cannot produce it on demand | 404s, `no_index`, an index rebuild, an empty search result set |
 | **state matrix** | one control seen in several states at once | three-state run counters, >15 feeds, an episode published today |
 | **by design** | a constructed fixture is the better test | graph topologies, the handoff matrix's fixed graph |

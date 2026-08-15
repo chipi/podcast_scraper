@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   liveCorpusRoot,
+  requireSerialCorpusAccess,
   SHELL_HEADING_RE,
   signInAsAdmin,
   statusBarCorpusPathInput,
@@ -80,6 +81,10 @@ async function readOperatorConfig(page: Page, corpusPath: string): Promise<strin
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Status bar — Feeds + Operator configuration', () => {
+  test.beforeEach(async ({}, testInfo) => {
+    requireSerialCorpusAccess(testInfo)
+  })
+
   test('opens Feeds tab without calling operator-config when only feeds is opened', async ({
     page,
   }) => {

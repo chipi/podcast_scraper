@@ -586,9 +586,17 @@ Prefer asserting **structure and provenance** over exact strings: `corpus-versio
 now reads the warning from `/api/health` and asserts the banner carries *the server's own text*,
 which survives a reworded message while still failing on a missing banner.
 
-### B. Corpus states v3 cannot produce — **v4 fixture requirements**
+### B. Corpus states v3 cannot produce
 
-These are the ones this document is for. Known so far:
+> **DECISION 2026-08-15: a v4 corpus is NOT planned.** Everything in this section is therefore
+> **permanently mocked**, not "pending a fixture". The rows below stay as the record of *why* each
+> mock exists and what it would take to remove it — but nobody should read them as scheduled work,
+> and no spec should be left half-migrated in anticipation of v4 arriving.
+>
+> Practical consequence: category B and category C are now the same operational status (mocked for
+> good) and differ only in the reason. If v4 is ever revisited, this table is the requirements list.
+
+The requirements, kept for the record:
 
 | Needed state | Wanted by | Why v3 cannot |
 | --- | --- | --- |

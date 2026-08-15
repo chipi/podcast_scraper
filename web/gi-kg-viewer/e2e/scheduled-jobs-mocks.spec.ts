@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   liveCorpusRoot,
+  requireSerialCorpusAccess,
   SHELL_HEADING_RE,
   signInAsAdmin,
   statusBarCorpusPathInput,
@@ -58,7 +59,10 @@ async function readOperatorConfig(page: Page, corpusPath: string): Promise<strin
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Scheduled jobs section (#709)', () => {
-  test('lists schedules and disabling one persists via operator-config PUT', async ({ page }) => {
+  test('lists schedules and disabling one persists via operator-config PUT', async ({
+    page,
+  }, testInfo) => {
+    requireSerialCorpusAccess(testInfo)
     await signInAsAdmin(page)
 
     await page.goto('/')
