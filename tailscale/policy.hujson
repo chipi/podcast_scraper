@@ -16,6 +16,10 @@
   //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml / drill-e2e
   //   tag:dgx-llm-host → operator DGX Spark (RFC-089); Ollama + embedding shim
   //   tag:homelab-host → homelab Mac mini; self-hosted observability (ADR-0005)
+  //   tag:homelab-svc  → per-service Caddy tailnet nodes on the mini: each obs
+  //                      service is its own node <name>.ts.net with its own
+  //                      Tailscale cert (caddy-tailscale; agentic-ai-homelab
+  //                      docs/wip/mac-mini-headless-server.md)
   //
   // tag:prod / tag:dr-drill are SELF-OWNED (list the tag as its own owner) so the
   // TS_INFRA_OAUTH client — which is bound to BOTH tags — can mint a per-server auth
@@ -32,7 +36,8 @@
     "tag:dr-drill":     ["autogroup:admin", "tag:dr-drill"],
     "tag:gha-deployer": ["autogroup:admin"],
     "tag:dgx-llm-host": ["autogroup:admin"],
-    "tag:homelab-host": ["autogroup:admin"]
+    "tag:homelab-host": ["autogroup:admin"],
+    "tag:homelab-svc":  ["autogroup:admin"]
   },
 
   // Implicit-deny for everything else; only listed traffic is permitted.
@@ -185,6 +190,16 @@
       "action": "accept",
       "src":    ["autogroup:admin"],
       "dst":    ["tag:homelab-host:22,443,3000,3001,4000,4001,8090,8428,8443,8444,8445,8888,9428,9443,10000,10428"]
+    },
+    // Per-service Caddy tailnet nodes (tag:homelab-svc): each obs service is its own
+    // node <name>.tail6d0ed4.ts.net serving its own Tailscale cert (caddy-tailscale).
+    // Admin devices reach them over HTTPS. Durable successor to the port/path serve
+    // grants on tag:homelab-host above — those get trimmed once every service has
+    // moved to its own node. (agentic-ai-homelab docs/wip/mac-mini-headless-server.md)
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:homelab-svc:443"]
     },
     {
       // prod (the box) also reaches Umami :3001 — it proxies public analytics
