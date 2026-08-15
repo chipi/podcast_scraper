@@ -77,15 +77,10 @@ test.describe('Search — result-set operator bar (#1234)', () => {
     /* The old fixture included one hit with no `publish_date` so the "undated" notice rendered.
      * Every result the live corpus returns is dated, so that branch is unreachable here — assert
      * it is absent rather than deleting the coverage silently. A v4 corpus with an undated
-     * artifact would flip this. */
-    const resp = await page.request.get(
-      `/api/search?q=${encodeURIComponent(QUERY)}&top_k=10`,
-    )
-    const { results } = (await resp.json()) as {
-      results: { metadata?: { publish_date?: string | null } }[]
-    }
-    const undated = results.filter((r) => !r.metadata?.publish_date).length
-    expect(undated).toBe(0)
+     * artifact would flip this.
+     *
+     * Asserted from the DOM alone, deliberately: confirming it via a second `/api/search` cost an
+     * extra query embedding on a single-worker backend for a fact the panel already shows. */
     await expect(page.getByTestId('operator-timeline-undated')).toHaveCount(0)
 
     // Second click toggles the panel off; chip returns to unpressed.

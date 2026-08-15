@@ -1,6 +1,25 @@
 import { createPinia } from 'pinia'
 import * as Sentry from '@sentry/vue'
 import { createApp } from 'vue'
+/**
+ * Self-hosted webfonts (#1619). These used to be `<link>`s to fonts.googleapis.com in
+ * `index.html`, which made the app depend on a third-party CDN at runtime: with no internet there
+ * were no fonts, every operator's browser announced itself to Google on each load, and the render
+ * was blocked on a cross-origin round trip. In the offline e2e suite a slow CDN surfaced as
+ * `downloadable font: download failed` on the console, failing every handoff row that asserts zero
+ * console errors.
+ *
+ * Bundled via @fontsource, so the woff2 files ship with the app and the exact font version is
+ * pinned in the lockfile — Google republishing a face cannot silently change our typography.
+ * Latin subsets only, and only the weights `style.css` asks for, matching the old query string:
+ * Inter 400/500/600/700 and JetBrains Mono 400/500. Both are OFL, so redistribution is fine.
+ */
+import '@fontsource/inter/latin-400.css'
+import '@fontsource/inter/latin-500.css'
+import '@fontsource/inter/latin-600.css'
+import '@fontsource/inter/latin-700.css'
+import '@fontsource/jetbrains-mono/latin-400.css'
+import '@fontsource/jetbrains-mono/latin-500.css'
 import './style.css'
 import App from './App.vue'
 import { applyPreset } from './theme/theme'

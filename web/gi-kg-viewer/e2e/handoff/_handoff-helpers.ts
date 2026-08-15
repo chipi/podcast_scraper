@@ -68,29 +68,20 @@ export async function cyIdExists(page: Page, id: string): Promise<boolean> {
  * the test body, *before* any user actions.
  */
 /**
- * Console errors that are the ENVIRONMENT failing, not the app (#1619).
+ * NOTE (#1619): this deliberately does NOT filter anything.
  *
- * `index.html` pulls Inter + JetBrains Mono from `fonts.googleapis.com` / `fonts.gstatic.com`.
- * When that CDN is slow or unreachable — routine on a loaded machine, and permanent in a genuinely
- * offline runner — Firefox logs `downloadable font: download failed (font-family: "Inter" …)` as a
- * console **error**, and every handoff row asserting "no console errors" fails on it. Observed as
- * intermittent flakes and, on a 20-minute contended run, as two hard failures
- * (`handoff/repeat-click` H3.2 and `handoff-production/lifecycle` P7.2).
+ * A `downloadable font: download failed` filter briefly lived here, because `index.html` pulled
+ * Inter + JetBrains Mono from Google Fonts and a slow CDN turned into a console error — costing two
+ * hard failures on one contended run. The fonts are now **self-hosted** (bundled via @fontsource,
+ * see `src/main.ts`), so the cause is gone and the filter went with it.
  *
- * That IS a real defect — but in the app's dependency on an external font CDN, not in the handoff
- * FSM these specs exist to test. Filtering keeps the assertion meaning what it is meant to mean.
- * The underlying dependency is the thing to fix: a suite that is meant to run offline should
- * self-host these fonts or drop them, which is an app change and is left as a decision.
- *
- * Deliberately narrow — matches the font-download message only, so any genuine app error still
- * fails the row.
+ * Keep it that way: an allowlist here hides exactly the class of defect these rows exist to catch.
+ * If a console error starts appearing, fix the source rather than adding a pattern.
  */
-const ENVIRONMENTAL_CONSOLE_ERROR = /downloadable font: download failed/i
-
 export function captureConsoleErrors(page: Page): { errors: string[] } {
   const ref = { errors: [] as string[] }
   page.on('console', (msg) => {
-    if (msg.type() === 'error' && !ENVIRONMENTAL_CONSOLE_ERROR.test(msg.text())) {
+    if (msg.type() === 'error') {
       ref.errors.push(msg.text())
     }
   })

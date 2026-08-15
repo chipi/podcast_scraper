@@ -109,4 +109,20 @@ for cap in feeds_api operator_config_api jobs_api; do
   esac
 done
 
-VITE_API_TARGET="http://127.0.0.1:$PORT" npx playwright test "$@"
+# ── Default to ONE Playwright worker ──────────────────────────────────────────────────────────
+#
+# The API is single-process: `podcast_scraper.cli serve` calls `uvicorn.run()` with no `--workers`,
+# and the CLI exposes no flag for it. A live `/api/search` is a query embedding plus a LanceDB
+# search — seconds of CPU that hold that one process — so a second browser worker mostly just
+# queues behind the first and makes wall-clock, and therefore timeouts, non-deterministic. That was
+# the entire source of the flakes on this suite: every failure was a TIMEOUT, with the same test
+# passing in ~10s alone and taking 45s+ under contention.
+#
+# Browser-side parallelism buys little against a serial backend, and costs determinism. Pass
+# `--workers=N` explicitly to override (CI sets its own via playwright.config.ts).
+case " $* " in
+  *" --workers"*) WORKER_ARGS=() ;;
+  *) WORKER_ARGS=(--workers=1) ;;
+esac
+
+VITE_API_TARGET="http://127.0.0.1:$PORT" npx playwright test "${WORKER_ARGS[@]}" "$@"
