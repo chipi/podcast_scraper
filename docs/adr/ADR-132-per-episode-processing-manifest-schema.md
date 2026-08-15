@@ -140,6 +140,43 @@ A flat, corpus-queryable list of the weak-signal conditions each stage emits: `a
 `asr_failover`, `unnamed_dominant_voice`, `guest_in_title_not_placed`, `empty_host_anchor`,
 `gi_all_gated`. The vocabulary is closed (registered in one place) so the ledger can `GROUP BY` them.
 
+## Amendment 2026-08-15 — `stage_ledger` and `input_fingerprint` (#1647, #1649)
+
+Two additive fields landed with epic #1657. Both are recorded here because "which fields does
+a sidecar carry" must be answerable from this document rather than by reading a corpus.
+
+**`processing.stage_ledger`** — per-stage outcome, defined in
+[ADR-151](ADR-151-stage-outcomes-over-stage-timings.md). Shape:
+
+```json
+"stage_ledger": {
+  "speaker_detection": {
+    "outcome": "skipped",
+    "reason": "media_over_size_limit_no_transcript_urls",
+    "detail": {"media_bytes": 42871040, "limit_bytes": 26214400},
+    "duration_seconds": null
+  }
+}
+```
+
+`outcome` ∈ `ran | skipped | failed | degraded`. `reason` is a stable slug so a report can
+`GROUP BY` it, matching the closed-vocabulary rule the `qa_flags` list already follows.
+`stage_timings` is retained unchanged: it answers "how long", and it never answered "did it
+happen" — which is exactly how #1646 stayed invisible across 72 % of the corpus.
+
+**`input_fingerprint`** on the enrichment envelope (not this manifest) — a content hash of an
+episode's GI/KG, used as the enrichment staleness key (#1649). Recorded here only so the
+cross-artifact picture is in one place; the envelope owns its own shape.
+
+**`schema_version` deliberately unchanged at `1.0.0`.** Both additions are additive optional
+fields, and the invariant below says the version moves only on a breaking migration. The cost
+of that choice is explicit: a reader cannot tell "this corpus predates the ledger" from the
+version alone and must probe for the field — which is what
+`scripts/tools/corpus_quality_report.py` does, counting ledger-less episodes as *unknown*
+rather than assuming they ran. If that probing becomes load-bearing for more consumers, bump
+to `1.1.0` and let readers gate on the version instead; it is a one-line change and this
+paragraph is the reason it was not made now.
+
 ## Invariants
 
 - **Additive, versioned evolution.** New fields are added under `metrics`; the top-level shape and

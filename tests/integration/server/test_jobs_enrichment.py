@@ -108,6 +108,48 @@ def test_pipeline_and_enrichment_jobs_share_registry(tmp_path: Path) -> None:
     assert ids[enrich_rec["job_id"]] == COMMAND_ENRICHMENT
 
 
+class TestQueuedEnrichmentCoalescing:
+    """An identical enrichment pass that is already waiting is not enqueued twice (#1653).
+
+    Enrichment reads the whole corpus as it finds it, so two queued passes with the same argv
+    cannot produce two different results — the second only repeats the first's work at full
+    cost. This became reachable when the post-pipeline chain started enqueueing instead of
+    spawning: a reprocess driven as N per-feed pipeline jobs would otherwise line up N
+    identical corpus-wide enrichment passes to run back to back.
+    """
+
+    def test_a_duplicate_enqueue_returns_the_waiting_job(self, tmp_path: Path) -> None:
+        # ``force_queued`` is how the post-pipeline chain enqueues, i.e. exactly the caller
+        # that can fire N times during one reprocess.
+        first = enqueue_enrichment_job(tmp_path, profile="cloud_balanced", force_queued=True)
+        second = enqueue_enrichment_job(tmp_path, profile="cloud_balanced", force_queued=True)
+        assert first["status"] == STATUS_QUEUED
+        assert second["job_id"] == first["job_id"]
+        rows = [r for r in list_jobs_snapshot(tmp_path) if r["command_type"] == COMMAND_ENRICHMENT]
+        assert len(rows) == 1, rows
+
+    def test_a_different_pass_is_still_enqueued(self, tmp_path: Path) -> None:
+        """Coalescing keys on the argv, so a genuinely different run must not be swallowed."""
+        first = enqueue_enrichment_job(tmp_path, profile="cloud_balanced", force_queued=True)
+        second = enqueue_enrichment_job(tmp_path, profile="cloud_thin", force_queued=True)
+        third = enqueue_enrichment_job(
+            tmp_path, profile="cloud_balanced", force=True, force_queued=True
+        )
+        assert len({first["job_id"], second["job_id"], third["job_id"]}) == 3
+
+    def test_a_running_pass_does_not_absorb_a_follow_up(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A running job is already reading files; work that arrives after it genuinely needs
+        to run again afterwards, so only *queued* rows coalesce."""
+        monkeypatch.setenv("PODCAST_VIEWER_MAX_PIPELINE_JOBS", "1")
+        running = enqueue_enrichment_job(tmp_path, profile="cloud_balanced")
+        queued = enqueue_enrichment_job(tmp_path, profile="cloud_balanced")
+        assert running["status"] == STATUS_RUNNING
+        assert queued["status"] == STATUS_QUEUED
+        assert queued["job_id"] != running["job_id"]
+
+
 def test_enqueue_enrichment_job_queues_when_running_at_cap(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

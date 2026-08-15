@@ -1785,20 +1785,7 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     block = getattr(cfg, "enrichment", None) or {}
     if not (isinstance(block, dict) and block.get("enabled")):
         return
-    import subprocess
-    import sys as _sys
-
     profile = getattr(cfg, "profile", None) or block.get("profile")
-    argv: list[str] = [
-        _sys.executable,
-        "-m",
-        "podcast_scraper.cli",
-        "enrich",
-        "--output-dir",
-        str(effective_output_dir),
-    ]
-    if profile:
-        argv += ["--profile", str(profile)]
     # Auto-pass --with-ml when the resolved enricher set includes any
     # enricher that needs an injected provider (manifest.provider_requirement
     # declared). Two detection paths:
@@ -1839,31 +1826,71 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
                     break
         except (ImportError, ValueError):
             profile_needs_ml = False
-    if operator_has_provider or profile_needs_ml:
-        argv += ["--with-ml"]
-    log_path = os.path.join(effective_output_dir, ".viewer", "enrichment_pipeline_spawn.log")
+    needs_ml = bool(operator_has_provider or profile_needs_ml)
+    # ENQUEUE, do not spawn (#1653).
+    #
+    # This used to be a detached ``subprocess.Popen``. Everything about that was invisible:
+    # no row in ``GET /api/jobs``, so it could not be listed, cancelled, or reconciled; not
+    # serialised against ``max_concurrent_jobs``, so it could run alongside an ingest; and its
+    # argv omitted ``--config``, so the child silently fell back to a different operator YAML
+    # than the caller was using. The docstring above claimed it "tracks itself via the shared
+    # jobs registry" — it never did, which is why the registry holds only operator-queued
+    # ``corpus_enrichment`` rows and the documented auto-chain has produced zero runs (H7).
+    #
+    # It matters more now than it did: before #1648 the child resolved an EMPTY enricher set
+    # and did 3 ms of nothing, so a stray spawn was harmless. With the profile finally reaching
+    # the child, the same code path does a full corpus pass — unqueued and uncancellable, and
+    # potentially concurrent with the very repair that is rewriting its inputs.
+    #
+    # The registry is a lock-guarded JSONL under ``<corpus>/.viewer/`` shared by every
+    # container, so this process can enqueue even though only the API server may spawn. It
+    # lands as QUEUED for exactly that reason (``force_queued``): RUNNING is a promise that a
+    # process was started, and this process cannot keep it. The API server drains the queue
+    # when a job finishes — including when THIS pipeline job finishes — so the chain still
+    # fires, just visibly and in order.
     try:
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        # Detached process: stdin closed, stdout/stderr go to a log file
-        # under .viewer/ so operators can `tail -f` if they want. The
-        # parent doesn't wait — Popen returns immediately.
-        # codeql[py/clear-text-logging-sensitive-data] — argv has no secrets
-        log_fh = open(log_path, "ab")
-        subprocess.Popen(  # noqa: S603 — argv is a fixed shape from the codebase
-            argv,
-            stdin=subprocess.DEVNULL,
-            stdout=log_fh,
-            stderr=subprocess.STDOUT,
-            close_fds=True,
-            start_new_session=True,  # detach so SIGINT to parent doesn't kill it
+        from podcast_scraper.server.jobs import enqueue_enrichment_job
+
+        operator_yaml = _operator_yaml_for_enrichment(cfg, effective_output_dir)
+        rec = enqueue_enrichment_job(
+            Path(effective_output_dir),
+            corpus_only=False,
+            operator_yaml=operator_yaml,
+            profile=str(profile) if profile else None,
+            with_ml=needs_ml,
+            force_queued=True,
         )
         logger.info(
-            "enrichment: spawned background pass; argv=%s log=%s",
-            argv,
-            log_path,
+            "enrichment: enqueued corpus_enrichment job %s (queued; the API server promotes "
+            "it when a slot frees). profile=%s config=%s",
+            rec.get("job_id"),
+            profile,
+            operator_yaml,
         )
-    except OSError as exc:
-        logger.warning("enrichment: background spawn failed (%s); pipeline returns normally", exc)
+    except (ImportError, OSError, ValueError) as exc:
+        # Never break the pipeline over the follow-up pass — but say so at WARNING, because a
+        # silent failure here is precisely what hid the old spawn for months.
+        logger.warning(
+            "enrichment: could not enqueue the follow-up pass (%s); the pipeline returns "
+            "normally and enrichment must be queued manually",
+            exc,
+        )
+
+
+def _operator_yaml_for_enrichment(cfg: config.Config, effective_output_dir: str) -> Optional[Path]:
+    """Operator YAML the enrichment child should read, or None to let it use its default.
+
+    Passing this closes the ``--config`` gap: the old spawn omitted it entirely, so the child
+    fell back to ``<corpus>/viewer_operator.yaml`` regardless of what the parent was running
+    with. Silent divergence between the two is unreadable from the outside.
+    """
+    explicit = getattr(cfg, "config_path", None)
+    if explicit:
+        candidate = Path(str(explicit))
+        if candidate.is_file():
+            return candidate
+    default = Path(effective_output_dir) / "viewer_operator.yaml"
+    return default if default.is_file() else None
 
 
 def _corpus_finalize_dir_for(cfg: config.Config, effective_output_dir: str) -> str:

@@ -409,9 +409,26 @@ def create_app(
                 scheduler.start()
             except Exception as exc:
                 logger.warning("scheduler startup failed: %s", exc)
+        # Job-queue housekeeping (#1653). Deliberately NOT hung off the feed-sweep scheduler
+        # above: that one only registers when ``scheduled_jobs:`` is present in the operator
+        # YAML, and the queue must keep moving on every deployment, configured or not.
+        # Without this, promotion is edge-triggered on another job finishing and a row left
+        # ``running`` by a killed container holds a concurrency slot forever.
+        sweeper_task = None
+        try:
+            from podcast_scraper.server.queue_sweeper import (
+                start_queue_sweeper,
+                stop_queue_sweeper,
+            )
+
+            sweeper_task = await start_queue_sweeper(app)
+        except Exception as exc:
+            logger.warning("job queue: sweeper failed to start (%s); queue is edge-driven", exc)
         try:
             yield
         finally:
+            with contextlib.suppress(Exception):
+                await stop_queue_sweeper(sweeper_task)
             scheduler = getattr(app.state, "scheduler", None)
             if scheduler is not None:
                 with contextlib.suppress(Exception):
