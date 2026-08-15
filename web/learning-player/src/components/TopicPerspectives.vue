@@ -18,20 +18,41 @@ const emit = defineEmits<{ (e: 'open', payload: { kind: 'person' | 'topic'; id: 
 const { t } = useI18n()
 
 const perspectives = ref<TopicPerspective[]>([])
-watch(
-  () => [props.id, props.scope] as const,
-  () => {
-    perspectives.value = []
-    void getTopicPerspectives(props.id, props.scope)
-      .then((r) => {
-        perspectives.value = r.perspectives
-      })
-      .catch(() => {
-        perspectives.value = []
-      })
-  },
-  { immediate: true },
-)
+/**
+ * Did the fetch fail? Distinct from "this topic has no perspectives".
+ *
+ * The old code caught every failure into an empty array, and the section is `v-if`'d on being
+ * non-empty — so a failed request rendered as the section simply NOT EXISTING, indistinguishable
+ * from a topic nobody discussed, with no retry and no way for the reader to tell. `serve` is a
+ * single process, so one concurrent search is enough to make this request time out; the reader
+ * then sees a topic card that quietly claims nobody had a perspective on it. A wrong answer
+ * presented as a confident one.
+ */
+const failed = ref(false)
+/** Guards against a slow reply for a topic the reader has already navigated away from. */
+let requestSeq = 0
+
+async function load(): Promise<void> {
+  const mine = ++requestSeq
+  perspectives.value = []
+  failed.value = false
+  // One retry before giving up: the failure this exists for is a transient timeout under load,
+  // and re-asking costs one request where the alternative is silently withholding real content.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const r = await getTopicPerspectives(props.id, props.scope)
+      if (mine !== requestSeq) return
+      perspectives.value = r.perspectives
+      return
+    } catch {
+      if (mine !== requestSeq) return
+      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 600))
+    }
+  }
+  if (mine === requestSeq) failed.value = true
+}
+
+watch(() => [props.id, props.scope] as const, () => void load(), { immediate: true })
 
 // Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle.
 const PREVIEW = 3
@@ -45,7 +66,23 @@ function toggle(personId: string): void {
 </script>
 
 <template>
-  <section v-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
+  <!-- A failed load says so and offers a retry, rather than vanishing and letting the card imply
+       nobody spoke on this topic. Genuinely-empty still renders nothing, as before. -->
+  <section v-if="failed" class="mb-4" data-testid="topic-perspectives-error">
+    <p class="text-sm text-muted">
+      {{ t('section.error') }}
+      <button
+        type="button"
+        class="ml-1 font-bold text-accent underline"
+        data-testid="topic-perspectives-retry"
+        @click="load()"
+      >
+        {{ t('section.retry') }}
+      </button>
+    </p>
+  </section>
+
+  <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
     <h3 class="lp-section mb-2">
       {{ t('ec.perspectives', perspectives.length, { named: { count: perspectives.length } }) }}
     </h3>
