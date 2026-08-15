@@ -40,16 +40,26 @@ test.describe('Dashboard — Pipeline jobs card', () => {
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
+    /* Enter COMMITS the corpus path — `fill` alone leaves it uncommitted, and the dashboard's
+     * dependent fetches (including `/api/jobs`) never fire, so the card sits on "Loading…"
+     * forever with no request on the wire. Same pattern as `pipeline.spec.ts`'s
+     * `navigateToPipelineTab`. */
+    const corpusPath = await liveCorpusRoot(page)
+    await statusBarCorpusPathInput(page).fill(corpusPath)
+    await statusBarCorpusPathInput(page).press('Enter')
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
 
     const tablist = page.getByRole('tablist', { name: 'Dashboard tabs' })
     await expect(tablist).toBeVisible({ timeout: 15_000 })
     await tablist.getByRole('tab', { name: 'Pipeline' }).click()
 
-    await expect(page.getByTestId('pipeline-jobs-card')).toBeVisible({ timeout: 15_000 })
-    await expect(
-      page.getByText('No jobs yet. Run queues a CLI pipeline for this corpus.'),
-    ).toBeVisible()
+    const card = page.getByTestId('pipeline-jobs-card')
+    await expect(card).toBeVisible({ timeout: 15_000 })
+    /* Scoped to the card, and allowed to wait: the Pipeline tab renders the *runs* empty state
+     * ("No pipeline runs found…") immediately, while the jobs card fills in once `/api/jobs`
+     * resolves. A page-wide `getByText` raced that and failed on first attempt / passed on retry. */
+    await expect(card).toContainText('No jobs yet. Run queues a CLI pipeline for this corpus.', {
+      timeout: 15_000,
+    })
   })
 })

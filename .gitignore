@@ -325,3 +325,10 @@ tests/fixtures/app-validation-corpus/v3/search/metadata.json
 # Upgrade migration lock (runtime, never committed)
 tests/fixtures/**/upgrade_ledger.json.lock
 scripts/eval/rolling_cache_*.json
+
+# Disposable corpus copy the viewer e2e stack serves from (#1619). The operator plane WRITES into
+# whatever corpus it is given — `GET /api/operator-config` creates `viewer_operator.yaml`, the jobs
+# API creates `.viewer/jobs.jsonl.lock` — so `e2e/run-local-stack.sh` copies the fixture here and
+# mounts the copy, leaving the tracked corpus (force-included at line 82) pristine. Re-seeded on
+# every run; safe to delete.
+web/gi-kg-viewer/.e2e-corpus/

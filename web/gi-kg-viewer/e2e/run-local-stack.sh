@@ -12,24 +12,70 @@
 #   * Vite proxies /api to VITE_API_TARGET, so pointing it at the container is one env var.
 #
 # Usage:  e2e/run-local-stack.sh [playwright args...]
+#
+# Requires the image, which NO make target used to build. Build it with:
+#   make e2e-api-image          # -> podcast-api:e2e-local
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-CORPUS="$REPO_ROOT/tests/fixtures/app-validation-corpus/v3"
+CORPUS_SRC="$REPO_ROOT/tests/fixtures/app-validation-corpus/v3"
 IMAGE="${E2E_API_IMAGE:-podcast-api:e2e-local}"
 CONTAINER=viewer-e2e-api
 VOLUME=viewer-e2e-appdata
 PORT=8012
 
+# ── The corpus is served from a COPY, never from the tracked fixture ──────────────────────────
+#
+# The operator plane WRITES into whatever corpus directory it is given: `GET /api/operator-config`
+# *creates* `viewer_operator.yaml` when it is missing, and enabling the jobs API creates
+# `.viewer/jobs.jsonl.lock`. `.gitignore` deliberately force-includes
+# `tests/fixtures/app-validation-corpus/**`, so mounting the fixture directly leaves a dirty
+# tracked tree after every run — and worse, a second run starts from a corpus the first one
+# mutated, so "fresh corpus" assertions quietly stop being fresh.
+#
+# Copying is cheap (~6 MB) and makes each run hermetic. Override the location with
+# E2E_CORPUS_WORKDIR if the default is inconvenient (it must be a path your container runtime can
+# bind-mount — on Colima only paths under $HOME are visible inside the VM, so a $TMPDIR path
+# silently mounts as an EMPTY directory).
+WORKDIR="${E2E_CORPUS_WORKDIR:-$REPO_ROOT/web/gi-kg-viewer/.e2e-corpus}"
+CORPUS="$WORKDIR/v3"
+
 cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
 trap cleanup EXIT INT TERM
 
-[ -d "$CORPUS" ] || { echo "missing fixture corpus: $CORPUS" >&2; exit 1; }
+[ -d "$CORPUS_SRC" ] || { echo "missing fixture corpus: $CORPUS_SRC" >&2; exit 1; }
+
+echo "seeding a disposable corpus copy at $CORPUS"
+rm -rf "$WORKDIR"
+mkdir -p "$WORKDIR"
+cp -R "$CORPUS_SRC" "$CORPUS"
+# The container runs as a non-root uid (PODCAST_UID=1000 in docker/api/Dockerfile) while the copy is
+# owned by whoever ran this script, so the operator plane cannot create the files it needs inside
+# the mount. Symptom if you skip this: `GET /api/jobs` → 500 with
+# `PermissionError: '/corpus/.viewer/jobs.jsonl.lock'`, and the Dashboard jobs card sits on
+# "Loading…" forever — which reads as a hung frontend, not a permissions problem.
+# Safe to blanket-chmod: this tree is a throwaway copy, re-seeded above on every run.
+chmod -R a+rwX "$CORPUS"
 
 cleanup
 docker volume rm "$VOLUME" >/dev/null 2>&1 || true
 docker volume create "$VOLUME" >/dev/null
 
+# ── Env the suite actually needs ───────────────────────────────────────────────────────────────
+#
+# The five vars after APP_DATA_DIR are not optional extras; without them whole surfaces are
+# unreachable and the specs fail in ways that look like app bugs:
+#
+#   APP_SIGNUP_MODE=open                        `/api/app/auth/login?as=…` 403s, so `signInIsolated`
+#                                               cannot create a session and anything reading
+#                                               `/api/app/preferences` gets 401.
+#   APP_ADMIN_EMAILS=ada-admin@e2e.local        `signInAsAdmin` lands in `creator`, so admin-only
+#                                               surfaces never render.
+#   PODCAST_SERVE_ENABLE_FEEDS_API              /api/feeds is NOT MOUNTED without it (404, not 403).
+#   PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API    likewise /api/operator-config.
+#   PODCAST_SERVE_ENABLE_JOBS_API               likewise /api/jobs + /api/scheduled-jobs.
+#
+# Mounting them is safe here because the corpus is a throwaway copy (see above).
 docker run -d --name "$CONTAINER" \
   -p "127.0.0.1:$PORT:$PORT" \
   -v "$CORPUS:/corpus" \
@@ -37,6 +83,11 @@ docker run -d --name "$CONTAINER" \
   -e APP_OAUTH_PROVIDER=mock \
   -e APP_SESSION_SECRET=e2e-secret \
   -e APP_DATA_DIR=/appdata \
+  -e APP_SIGNUP_MODE=open \
+  -e APP_ADMIN_EMAILS=ada-admin@e2e.local \
+  -e PODCAST_SERVE_ENABLE_FEEDS_API=1 \
+  -e PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API=1 \
+  -e PODCAST_SERVE_ENABLE_JOBS_API=1 \
   -e HF_HUB_OFFLINE=1 \
   -e TRANSFORMERS_OFFLINE=1 \
   --entrypoint python "$IMAGE" \
@@ -48,5 +99,14 @@ for _ in $(seq 1 120); do
   printf '.'; sleep 1
 done
 curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null || { echo; docker logs "$CONTAINER" | tail -30; exit 1; }
+
+# Fail loudly rather than let specs mis-report a missing capability as an app bug.
+health="$(curl -sf "http://127.0.0.1:$PORT/api/health")"
+for cap in feeds_api operator_config_api jobs_api; do
+  case "$health" in
+    *"\"$cap\":true"*) ;;
+    *) echo "api is up but $cap is false — the PODCAST_SERVE_ENABLE_* env did not take" >&2; exit 1 ;;
+  esac
+done
 
 VITE_API_TARGET="http://127.0.0.1:$PORT" npx playwright test "$@"
