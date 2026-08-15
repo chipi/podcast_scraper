@@ -137,3 +137,49 @@ describe('PodcastView — follow show', () => {
     expect(w.find('[data-testid="follow-show"]').attributes('aria-pressed')).toBe('false')
   })
 })
+
+describe('PodcastView — show title while loading', () => {
+  it('never paints the raw feed id as the show name', async () => {
+    // The heading used to fall straight through to `feedId`, so the page showed "feed-1" — an
+    // internal identifier presented to a listener as the name of the show — for as long as the
+    // lookup took. A slow API made that the first thing you read.
+    let resolveShows: (v: Podcast[]) => void = () => {}
+    vi.spyOn(api, 'getPodcasts').mockReturnValue(
+      new Promise<Podcast[]>((r) => {
+        resolveShows = r
+      }),
+    )
+    vi.spyOn(api, 'listPodcastEpisodes').mockReturnValue(new Promise(() => {}) as never)
+
+    const w = mount(PodcastView, {
+      props: { feedId: FEED },
+      global: {
+        plugins: [i18n, router],
+        stubs: { PodcastSignalsBand: true, ShowActivityChart: true, EpisodeCard: true },
+      },
+    })
+    await flushPromises()
+
+    expect(w.get('h1').text()).not.toContain(FEED)
+    expect(w.find('[data-testid="podcast-title-skeleton"]').exists()).toBe(true)
+
+    resolveShows([show()])
+    await flushPromises()
+
+    expect(w.get('h1').text()).toBe('The Show')
+    expect(w.find('[data-testid="podcast-title-skeleton"]').exists()).toBe(false)
+  })
+
+  it('falls back to the feed id only once we know no name is coming', async () => {
+    // A genuinely unknown show still needs SOMETHING in the heading — but only after the lookup
+    // has actually come back empty, not while it is in flight.
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'listPodcastEpisodes').mockResolvedValue({
+      items: [], page: 1, page_size: 20, total: 0, has_more: false,
+    })
+    const w = await mountView()
+
+    expect(w.get('h1').text()).toBe(FEED)
+    expect(w.find('[data-testid="podcast-title-skeleton"]').exists()).toBe(false)
+  })
+})

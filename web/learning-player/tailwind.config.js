@@ -7,47 +7,52 @@
  *
  * @type {import('tailwindcss').Config}
  */
+/**
+ * Bridge one `--lp-*` token into a Tailwind colour that can carry an alpha.
+ *
+ * Tailwind v3 builds slash-opacity by substituting `<alpha-value>` into the colour, which only
+ * works for a channel triple (`rgb(… / <alpha-value>)`). Our tokens hold colour LITERALS, so a
+ * bare `var(--lp-x)` produces an invalid value for `bg-x/80` that computes to **transparent** —
+ * silently, with no build warning. `bg-accent/70` blanked the activity chart that way, and
+ * `bg-canvas/80` was erasing the legibility scrim behind the player's "Insight now" card, leaving
+ * white text directly on artwork.
+ *
+ * Routing every token through `color-mix` fixes the whole class of bug rather than one token at a
+ * time. Tailwind substitutes `1` for `<alpha-value>` on non-opacity utilities, so plain `bg-canvas`
+ * is unchanged. `color-mix` is already a baseline assumption here (see PlayerControls.vue).
+ */
+const alphaToken = (name) =>
+  `color-mix(in srgb, var(--lp-${name}) calc(<alpha-value> * 100%), transparent)`
+
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        canvas: 'var(--lp-canvas)',
-        'canvas-foreground': 'var(--lp-canvas-foreground)',
-        surface: 'var(--lp-surface)',
-        'surface-foreground': 'var(--lp-surface-foreground)',
-        elevated: 'var(--lp-elevated)',
-        overlay: 'var(--lp-overlay)',
-        border: 'var(--lp-border)',
-        muted: 'var(--lp-muted)',
-        disabled: 'var(--lp-disabled)',
-        link: 'var(--lp-link)',
-        /*
-         * Per-show adaptive accent (contrast-clamped; falls back to brand "Ember").
-         *
-         * Routed through `color-mix` so the slash-opacity utilities actually work. A bare
-         * `var(--lp-accent)` cannot carry an alpha in Tailwind v3: the token holds a colour
-         * literal, not the space-separated channels `rgb(… / <alpha-value>)` needs, so
-         * `bg-accent/70` emitted an invalid value and computed to **transparent**. That silently
-         * blanked every accent-with-opacity mark in the app — `ShowActivityChart` rendered 15
-         * correctly-sized bars nobody could see, and `EpisodeDensity` did the same.
-         *
-         * Tailwind substitutes `1` for `<alpha-value>` on non-opacity utilities, so plain
-         * `bg-accent` stays exactly as before. `color-mix` is already a baseline assumption here
-         * (see PlayerControls.vue), and this keeps `--lp-accent` a plain colour, so `tokens.css`,
-         * `style.css` and `setShowAccent` are untouched.
-         */
-        accent: 'color-mix(in srgb, var(--lp-accent) calc(<alpha-value> * 100%), transparent)',
-        'accent-foreground': 'var(--lp-accent-foreground)',
-        'brand-default': 'var(--lp-brand-default)',
-        success: 'var(--lp-success)',
-        warning: 'var(--lp-warning)',
-        danger: 'var(--lp-danger)',
+        canvas: alphaToken('canvas'),
+        'canvas-foreground': alphaToken('canvas-foreground'),
+        surface: alphaToken('surface'),
+        'surface-foreground': alphaToken('surface-foreground'),
+        elevated: alphaToken('elevated'),
+        overlay: alphaToken('overlay'),
+        border: alphaToken('border'),
+        muted: alphaToken('muted'),
+        disabled: alphaToken('disabled'),
+        link: alphaToken('link'),
+        // Per-show adaptive accent (contrast-clamped; falls back to brand "Ember"). Keeping
+        // `--lp-accent` a plain colour means `tokens.css`, `style.css` and `setShowAccent` are
+        // untouched by the alpha bridge above.
+        accent: alphaToken('accent'),
+        'accent-foreground': alphaToken('accent-foreground'),
+        'brand-default': alphaToken('brand-default'),
+        success: alphaToken('success'),
+        warning: alphaToken('warning'),
+        danger: alphaToken('danger'),
         // Knowledge-layer domain tokens (provenance cues — separate from UI intents).
-        grounded: 'var(--lp-grounded)',
-        topic: 'var(--lp-topic)',
-        person: 'var(--lp-person)',
-        theme: 'var(--lp-theme)',
+        grounded: alphaToken('grounded'),
+        topic: alphaToken('topic'),
+        person: alphaToken('person'),
+        theme: alphaToken('theme'),
       },
       fontFamily: {
         display: 'var(--lp-font-display)',

@@ -33,10 +33,27 @@ const descExpanded = ref(false)
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
 const showArt = showArtwork
+/**
+ * Has the show lookup finished? Drives the title fallback.
+ *
+ * The heading used to fall straight through to the raw `feedId`, so the page painted "p05" as its
+ * title for as long as the lookup took — an internal identifier presented to a listener as the name
+ * of the show. It is only an acceptable last resort once we KNOW no name is coming.
+ */
+const showResolved = ref(false)
 async function loadShow(): Promise<void> {
-  const all = await getPodcasts().catch(() => [] as Podcast[])
-  show.value = all.find((p) => p.feed_id === props.feedId) ?? null
+  try {
+    const all = await getPodcasts().catch(() => [] as Podcast[])
+    show.value = all.find((p) => p.feed_id === props.feedId) ?? null
+  } finally {
+    showResolved.value = true
+  }
 }
+
+/** The show's name, or null while we are still finding out (never the raw feed id mid-flight). */
+const showTitle = computed(
+  () => show.value?.title ?? episodes.value[0]?.podcast_title ?? (showResolved.value ? props.feedId : null),
+)
 
 // Follow this show → a feed subscription (/api/app/library), which is what fills the "new in your
 // follows" section of Your Week. Distinct from the interest tokens followed on entity cards.
@@ -112,7 +129,15 @@ watch(() => props.feedId, reset)
       />
       <div class="min-w-0 flex-1">
         <h1 class="font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-          {{ show?.title ?? episodes[0]?.podcast_title ?? feedId }}
+          <template v-if="showTitle">{{ showTitle }}</template>
+          <!-- Placeholder, not the feed id: same height as the real heading so nothing jumps when
+               the name lands. `aria-hidden` keeps a screen reader from announcing a shimmer bar. -->
+          <span
+            v-else
+            class="block h-7 w-2/3 animate-pulse rounded bg-elevated sm:h-9"
+            aria-hidden="true"
+            data-testid="podcast-title-skeleton"
+          />
         </h1>
         <p v-if="total" class="mt-1 text-sm text-muted">
           {{ t('podcast.episodeCount', { count: total }, total) }}

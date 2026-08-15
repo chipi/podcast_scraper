@@ -591,8 +591,20 @@ onBeforeUnmount(() => {
           />
           <div class="absolute inset-0 flex flex-col justify-between">
             <!-- Top: live intelligence (left) + Ask/Insights pull-out actions (right) -->
-            <div class="flex items-start justify-between gap-2 p-3">
-              <div class="min-w-0">
+            <!--
+              Three things compete for this row: the live insight, the Insights opener, and the
+              reach stats. Both controls are `shrink-0`, so on a phone they took 236px of 348px and
+              the insight card was left with **48px of text width** — three characters a line, with
+              the rigid siblings running over the label. The product's headline feature, squeezed
+              to nothing by a listener count.
+
+              So the controls are grouped and stay pinned top-right, and the insight takes a
+              full-width line of its own beneath them on mobile (`basis-full`), going back inline
+              from `sm` where there is room for all three. `order` is visual only — DOM order keeps
+              the insight first, so it is still what a screen reader reaches first.
+            -->
+            <div class="flex flex-wrap items-start justify-between gap-2 p-3">
+              <div class="order-2 min-w-0 basis-full sm:order-1 sm:basis-auto sm:flex-1">
                 <div
                   v-if="activeInsight"
                   class="rounded-xl bg-canvas/80 px-3 py-2 backdrop-blur"
@@ -608,6 +620,9 @@ onBeforeUnmount(() => {
                   <span class="text-sm font-semibold">{{ speakingNow }}</span>
                 </div>
               </div>
+              <!-- Controls group — kept together and pinned right so wrapping the insight below
+                   does not scatter them. -->
+              <div class="order-1 ml-auto flex shrink-0 items-start gap-2 sm:order-2 sm:ml-0">
               <!-- Per-episode reach (UXS-014): listeners · opens · insights, with a tiny opens-over-time
                    sparkline. The insights score opens the Knowledge panel. -->
               <!-- Insights: the reason to choose this over a normal podcast app, so it is a
@@ -652,6 +667,7 @@ onBeforeUnmount(() => {
                   :height="22"
                   class="mt-1.5 block text-accent"
                 />
+              </div>
               </div>
             </div>
 
