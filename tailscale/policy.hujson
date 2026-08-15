@@ -201,7 +201,7 @@
     // moved to its own node. (agentic-ai-homelab docs/wip/mac-mini-headless-server.md)
     {
       "action": "accept",
-      "src":    ["autogroup:admin", "tag:dgx-llm-host"],
+      "src":    ["autogroup:admin", "tag:dgx-llm-host", "tag:prod"],
       "dst":    ["tag:homelab-svc:443"]
     },
     {
