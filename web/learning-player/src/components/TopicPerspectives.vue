@@ -6,9 +6,11 @@
  * none. Speaker names tap through to their person card (the same `open` contract
  * the card's other people rows use).
  */
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import SectionStatus from './SectionStatus.vue'
+import { useSectionState } from '../composables/useSectionState'
 import { getTopicPerspectives } from '../services/api'
 import type { TopicPerspective } from '../services/types'
 
@@ -17,39 +19,38 @@ const emit = defineEmits<{ (e: 'open', payload: { kind: 'person' | 'topic'; id: 
 
 const { t } = useI18n()
 
-const perspectives = ref<TopicPerspective[]>([])
 /**
- * Did the fetch fail? Distinct from "this topic has no perspectives".
+ * `useSectionState` rather than a hand-rolled try/catch, because this is #1591's defect exactly:
+ * a fetch failure caught into an empty array, on a section that hides when empty — so an outage,
+ * a timeout and "nobody discussed this topic" all rendered identically. #1591 fixed that for the
+ * Home sections; the topic card's sections were never migrated, and this is one of them.
  *
- * The old code caught every failure into an empty array, and the section is `v-if`'d on being
- * non-empty — so a failed request rendered as the section simply NOT EXISTING, indistinguishable
- * from a topic nobody discussed, with no retry and no way for the reader to tell. `serve` is a
- * single process, so one concurrent search is enough to make this request time out; the reader
- * then sees a topic card that quietly claims nobody had a perspective on it. A wrong answer
- * presented as a confident one.
+ * The trigger is ordinary: `serve` is a single process, so one concurrent search can time this
+ * request out, and the card then quietly asserts that no guest had a perspective.
  */
-const failed = ref(false)
+const section = useSectionState<TopicPerspective[]>([])
+const perspectives = computed(() => section.data.value)
 /** Guards against a slow reply for a topic the reader has already navigated away from. */
-let requestSeq = 0
+const requestSeq = ref(0)
 
 async function load(): Promise<void> {
-  const mine = ++requestSeq
-  perspectives.value = []
-  failed.value = false
-  // One retry before giving up: the failure this exists for is a transient timeout under load,
-  // and re-asking costs one request where the alternative is silently withholding real content.
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const r = await getTopicPerspectives(props.id, props.scope)
-      if (mine !== requestSeq) return
-      perspectives.value = r.perspectives
-      return
-    } catch {
-      if (mine !== requestSeq) return
-      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 600))
+  const mine = requestSeq.value + 1
+  requestSeq.value = mine
+  await section.load(async () => {
+    // One retry inside the fetcher, so `useSectionState`'s phase contract is untouched. The
+    // failure this guards against is a transient timeout, and re-asking costs one request where
+    // the alternative is showing an error over content that was actually available.
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const r = await getTopicPerspectives(props.id, props.scope)
+        if (mine !== requestSeq.value) throw new Error('superseded')
+        return r.perspectives
+      } catch (err) {
+        if (mine !== requestSeq.value || attempt >= 1) throw err
+        await new Promise((resolve) => setTimeout(resolve, 600))
+      }
     }
-  }
-  if (mine === requestSeq) failed.value = true
+  })
 }
 
 watch(() => [props.id, props.scope] as const, () => void load(), { immediate: true })
@@ -66,21 +67,11 @@ function toggle(personId: string): void {
 </script>
 
 <template>
-  <!-- A failed load says so and offers a retry, rather than vanishing and letting the card imply
-       nobody spoke on this topic. Genuinely-empty still renders nothing, as before. -->
-  <section v-if="failed" class="mb-4" data-testid="topic-perspectives-error">
-    <p class="text-sm text-muted">
-      {{ t('section.error') }}
-      <button
-        type="button"
-        class="ml-1 font-bold text-accent underline"
-        data-testid="topic-perspectives-retry"
-        @click="load()"
-      >
-        {{ t('section.retry') }}
-      </button>
-    </p>
-  </section>
+  <!-- Error says so and offers a retry, via the shared control so every section fails the same
+       way. Genuinely-empty still renders nothing — that distinction is the whole point (#1591:
+       "hide when the SYSTEM is empty"). No skeleton here: this sits inside an already-loading
+       card, so a second shimmer would be noise. -->
+  <SectionStatus v-if="section.isError.value" :phase="section.phase.value" @retry="load()" />
 
   <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
     <h3 class="lp-section mb-2">

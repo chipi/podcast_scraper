@@ -127,3 +127,40 @@ describe('PodcastSignalsBand — distinctiveness', () => {
     expect(w.get('[data-testid="ps-topics-heading"]').text()).toBe(en.podcast.sigCoverageAll)
   })
 })
+
+describe('PodcastSignalsBand — a failed load must not delete the band', () => {
+  it('keeps the band with a retry when signals fail', async () => {
+    // The band used to catch into null and hide, so an API failure removed a whole titled
+    // section of the show page — indistinguishable from a show with nothing to say (#1591).
+    vi.spyOn(api, 'getPodcastSignals').mockRejectedValue(new Error('down'))
+    const w = mount(PodcastSignalsBand, { props: { feedId: 'p01' }, global: { plugins: [i18n] } })
+    await flushPromises()
+
+    expect(w.find('[data-testid="podcast-signals-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+    expect(w.text()).toContain(en.podcast.about)
+  })
+
+  it('recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getPodcastSignals').mockRejectedValue(new Error('down'))
+    const w = mount(PodcastSignalsBand, { props: { feedId: 'p01' }, global: { plugins: [i18n] } })
+    await flushPromises()
+
+    spy.mockResolvedValue(
+      signals({ top_topics: [topic({ topic_id: 't:a', label: 'alpha' })] }),
+    )
+    await w.find('[data-testid="section-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="podcast-signals"]').exists()).toBe(true)
+    expect(w.find('[data-testid="podcast-signals-error"]').exists()).toBe(false)
+  })
+
+  it('a show with genuinely no signals still renders nothing', async () => {
+    vi.spyOn(api, 'getPodcastSignals').mockResolvedValue(signals())
+    const w = mount(PodcastSignalsBand, { props: { feedId: 'p01' }, global: { plugins: [i18n] } })
+    await flushPromises()
+    expect(w.find('[data-testid="podcast-signals"]').exists()).toBe(false)
+    expect(w.find('[data-testid="podcast-signals-error"]').exists()).toBe(false)
+  })
+})

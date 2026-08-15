@@ -11,6 +11,8 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import SectionStatus from './SectionStatus.vue'
+import { useSectionState } from '../composables/useSectionState'
 import { getPodcastSignals } from '../services/api'
 import type { PodcastSignals } from '../services/types'
 
@@ -18,21 +20,27 @@ const props = defineProps<{ feedId: string }>()
 const emit = defineEmits<{ (e: 'open', payload: { kind: 'topic' | 'person'; id: string }): void }>()
 const { t } = useI18n()
 
-const signals = ref<PodcastSignals | null>(null)
-watch(
-  () => props.feedId,
-  () => {
-    signals.value = null
-    void getPodcastSignals(props.feedId, 10)
-      .then((s) => {
-        signals.value = s
-      })
-      .catch(() => {
-        signals.value = null
-      })
-  },
-  { immediate: true },
-)
+/**
+ * `useSectionState` so a failed signals call does not hide the whole band as if the show had
+ * nothing to say about itself. This is #1591's defect — caught into null, hidden when empty — and
+ * here it removed an entire titled section from the show page, silently.
+ */
+const section = useSectionState<PodcastSignals | null>(null)
+const signals = computed(() => section.data.value)
+/** Drops a slow reply for a show the reader has already navigated away from. */
+const requestSeq = ref(0)
+
+async function load(): Promise<void> {
+  const mine = requestSeq.value + 1
+  requestSeq.value = mine
+  await section.load(async () => {
+    const s = await getPodcastSignals(props.feedId, 10)
+    if (mine !== requestSeq.value) throw new Error('superseded')
+    return s
+  })
+}
+
+watch(() => props.feedId, () => void load(), { immediate: true })
 
 const themes = computed(() => signals.value?.dominant_themes ?? [])
 const topics = computed(() => signals.value?.top_topics ?? [])
@@ -127,8 +135,21 @@ const hasAny = computed(
 </script>
 
 <template>
+  <!-- A failed signals call keeps the band, titled, with a retry — rather than deleting a whole
+       section of the show page and leaving the reader to assume the show has nothing to say about
+       itself. A show that genuinely has no signals still renders nothing (#1591: hide when the
+       SYSTEM is empty). -->
   <section
-    v-if="hasAny"
+    v-if="section.isError.value"
+    class="mb-6 rounded-2xl border border-border bg-surface p-4"
+    data-testid="podcast-signals-error"
+  >
+    <h2 class="lp-section mb-3">{{ t('podcast.about') }}</h2>
+    <SectionStatus :phase="section.phase.value" @retry="load()" />
+  </section>
+
+  <section
+    v-else-if="hasAny"
     class="mb-6 rounded-2xl border border-border bg-surface p-4"
     data-testid="podcast-signals"
   >

@@ -8,6 +8,8 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import SectionStatus from './SectionStatus.vue'
+import { useSectionState } from '../composables/useSectionState'
 import { getEpisodeEnrichment } from '../services/api'
 
 const props = defineProps<{ slug: string }>()
@@ -17,30 +19,37 @@ const { t } = useI18n()
 const SEGMENTS = ['early', 'mid', 'late'] as const
 type Seg = (typeof SEGMENTS)[number]
 
-const density = ref<{ early: number; mid: number; late: number; durationSeconds: number } | null>(null)
+type Density = { early: number; mid: number; late: number; durationSeconds: number }
 
-watch(
-  () => props.slug,
-  () => {
-    density.value = null
-    void getEpisodeEnrichment(props.slug)
-      .then((s) => {
-        const d = s.insight_density
-        const c = d?.counts
-        if (!c) return
-        const early = c.early ?? 0
-        const mid = c.mid ?? 0
-        const late = c.late ?? 0
-        if (early + mid + late > 0) {
-          density.value = { early, mid, late, durationSeconds: d?.duration_seconds ?? 0 }
-        }
-      })
-      .catch(() => {
-        density.value = null
-      })
-  },
-  { immediate: true },
-)
+/**
+ * `useSectionState` so "the enrichment call failed" is not rendered identically to "this episode
+ * has no insight density" — #1591's defect, which was fixed for the Home sections and never
+ * carried to the Knowledge Panel's.
+ */
+const section = useSectionState<Density | null>(null)
+const density = computed(() => section.data.value)
+/** Drops a slow reply for an episode the reader has already left. */
+const requestSeq = ref(0)
+
+async function load(): Promise<void> {
+  const mine = requestSeq.value + 1
+  requestSeq.value = mine
+  await section.load(async () => {
+    const s = await getEpisodeEnrichment(props.slug)
+    if (mine !== requestSeq.value) throw new Error('superseded')
+    const d = s.insight_density
+    const c = d?.counts
+    if (!c) return null
+    const early = c.early ?? 0
+    const mid = c.mid ?? 0
+    const late = c.late ?? 0
+    // No marked insights is a real, successful answer — a ready empty, never an error.
+    if (early + mid + late === 0) return null
+    return { early, mid, late, durationSeconds: d?.duration_seconds ?? 0 }
+  })
+}
+
+watch(() => props.slug, () => void load(), { immediate: true })
 
 const max = computed(() =>
   density.value ? Math.max(density.value.early, density.value.mid, density.value.late, 1) : 1,
@@ -64,7 +73,14 @@ function seekTo(seg: Seg): void {
 </script>
 
 <template>
-  <div v-if="density" class="mb-3 rounded-xl border border-border p-3" data-testid="episode-density">
+  <!-- A failed enrichment call says so; an episode with no marked insights still renders nothing. -->
+  <SectionStatus v-if="section.isError.value" :phase="section.phase.value" @retry="load()" />
+
+  <div
+    v-else-if="density"
+    class="mb-3 rounded-xl border border-border p-3"
+    data-testid="episode-density"
+  >
     <p class="lp-kicker mb-2">{{ t('kp.density') }}</p>
     <div class="flex items-end gap-2">
       <button

@@ -128,7 +128,7 @@ describe('TopicPerspectives — a failed load must not look like an empty topic'
     await flushPromises()
 
     expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(true)
-    expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
     expect(w.text()).toContain('Jack Clark')
   })
 
@@ -136,12 +136,12 @@ describe('TopicPerspectives — a failed load must not look like an empty topic'
     vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new Error('down'))
     const w = mountIt('topic:ai')
     await vi.waitFor(
-      () => expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(true),
+      () => expect(w.find('[data-testid="section-error"]').exists()).toBe(true),
       { timeout: 3000 },
     )
     // The reader is told it failed rather than being shown a confident, silent nothing.
     expect(w.text()).toContain(en.section.error)
-    expect(w.find('[data-testid="topic-perspectives-retry"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
     expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
   })
 
@@ -149,17 +149,17 @@ describe('TopicPerspectives — a failed load must not look like an empty topic'
     const spy = vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new Error('down'))
     const w = mountIt('topic:ai')
     await vi.waitFor(
-      () => expect(w.find('[data-testid="topic-perspectives-retry"]').exists()).toBe(true),
+      () => expect(w.find('[data-testid="section-retry"]').exists()).toBe(true),
       { timeout: 3000 },
     )
 
     spy.mockResolvedValue(RESP)
-    await w.find('[data-testid="topic-perspectives-retry"]').trigger('click')
+    await w.find('[data-testid="section-retry"]').trigger('click')
     await vi.waitFor(
       () => expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(true),
       { timeout: 3000 },
     )
-    expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
   })
 
   it('a genuinely empty topic still renders nothing at all', async () => {
@@ -169,6 +169,6 @@ describe('TopicPerspectives — a failed load must not look like an empty topic'
     const w = mountIt('topic:quiet')
     await flushPromises()
     expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
-    expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
   })
 })
