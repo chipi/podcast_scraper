@@ -193,12 +193,15 @@
     },
     // Per-service Caddy tailnet nodes (tag:homelab-svc): each obs service is its own
     // node <name>.tail6d0ed4.ts.net serving its own Tailscale cert (caddy-tailscale).
-    // Admin devices reach them over HTTPS. Durable successor to the port/path serve
+    // Admin devices reach them over HTTPS (dashboards). tag:dgx-llm-host pushes
+    // telemetry over TLS to vm./vlogs. — the durable successor to plaintext pushes at
+    // tag:homelab-host:8428/9428. (The grant also gives DGX netmap visibility, so
+    // MagicDNS resolves the node names.) Durable successor to the port/path serve
     // grants on tag:homelab-host above — those get trimmed once every service has
     // moved to its own node. (agentic-ai-homelab docs/wip/mac-mini-headless-server.md)
     {
       "action": "accept",
-      "src":    ["autogroup:admin"],
+      "src":    ["autogroup:admin", "tag:dgx-llm-host"],
       "dst":    ["tag:homelab-svc:443"]
     },
     {
