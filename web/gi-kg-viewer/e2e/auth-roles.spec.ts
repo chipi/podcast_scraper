@@ -40,7 +40,18 @@ test.describe('viewer auth + roles', () => {
   test('anonymous → login landing', async ({ page }) => {
     // No sign-in at all: the real gate sees no session.
     await page.goto('/')
-    await expect(page.getByTestId('login-button')).toBeVisible()
+
+    /* `LoginView` branches on the OAuth provider: `login-button` is the REAL-provider control,
+     * while the mock provider renders the dev sign-in form. The e2e stack runs
+     * `APP_OAUTH_PROVIDER=mock`, so `login-button` is the wrong branch here — the old mocked
+     * version asserted it and passed only because the catch-all `{}` left the app unable to see
+     * that a dev provider was configured. Migrating surfaced that the test had been checking a
+     * branch this environment never renders. */
+    await expect(page.getByTestId('dev-custom-input')).toBeVisible()
+    await expect(page.getByTestId('dev-custom-submit')).toBeVisible()
+    await expect(page.getByTestId('login-button')).toHaveCount(0)
+
+    // Either way, the gate holds: no shell for an anonymous visitor.
     await expect(page.getByTestId('main-tab-digest')).toHaveCount(0)
   })
 

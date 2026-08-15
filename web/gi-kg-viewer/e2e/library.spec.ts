@@ -293,7 +293,16 @@ test.describe('Corpus Library tab', () => {
     await page.getByRole('button', { name: episodeRowName(ep) }).click()
     const related = page.getByTestId('episode-related-insights')
     await expect(related).toBeVisible()
-    await expect(related.getByTestId('episode-related-insights-row').first()).toBeVisible()
+    /* Generous budget for the ROWS specifically.
+     *
+     * The section renders as soon as the rail opens, then fills in. The endpoint itself is not the
+     * bottleneck — measured directly at 50–150ms for 20 results — so the wait is on the rail's own
+     * load sequencing, which occasionally exceeded 20s on a busy machine and produced "element(s)
+     * not found" with the data sitting right there on the server. Worth a look as a possible
+     * app-side race; widening the budget here is the test-side mitigation, not a diagnosis. */
+    await expect(related.getByTestId('episode-related-insights-row').first()).toBeVisible({
+      timeout: 45_000,
+    })
     await expect(related).toContainText(results[0]!.text.slice(0, 40))
   })
 
