@@ -294,15 +294,33 @@ async function load(slug: string): Promise<void> {
   // slug. Reading is synchronous; server value wins.
   const remote = readRemoteOffset(slug)
   if (remote !== null) syncOffset.value = remote
+  // "More like this" is a secondary rail at the bottom of the page, and it is by far the slowest
+  // call on this route: /related embeds the episode text and searches the vector index, measured at
+  // ~12 s warm against the fixture corpus (~46 s cold, while MiniLM loads). Inside the Promise.all
+  // below it gated EVERYTHING on that — `loading` stayed true, the episode body did not render, and
+  // `audioUrl` was not set, so the player could not even begin buffering until the peer rail was
+  // ready. A rail nobody has scrolled to yet was holding up playback.
+  //
+  // Fire it alongside instead, exactly like the reach stats above: the page renders from the six
+  // calls it actually needs, and the rail fills in when it arrives (it is `v-if`'d on being
+  // non-empty, so there is nothing to lay out until then). The slug guard drops a late response
+  // for an episode the user has already navigated away from — `relatedEpisodes` was reset above,
+  // and without the check a slow reply would repopulate the previous episode's peers.
+  getRelated(slug, 6)
+    .then((r) => {
+      if (props.slug === slug) relatedEpisodes.value = r.items
+    })
+    .catch(() => {
+      if (props.slug === slug) relatedEpisodes.value = []
+    })
   try {
-    const [detail, segs, audio, playback, ins, ents, related] = await Promise.all([
+    const [detail, segs, audio, playback, ins, ents] = await Promise.all([
       getEpisode(slug),
       getSegments(slug).catch(() => null),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
       getInsights(slug).catch(() => null),
       getEntities(slug).catch(() => null),
-      getRelated(slug, 6).catch(() => null),
     ])
     episode.value = detail
     segments.value = segs?.segments ?? []
@@ -316,7 +334,6 @@ async function load(slug: string): Promise<void> {
       })
     }
     insights.value = ins?.insights ?? []
-    relatedEpisodes.value = related?.items ?? []
     topics.value = ents?.topics ?? []
     persons.value = ents?.persons ?? []
     resumeSeconds = playback?.position_seconds ?? 0

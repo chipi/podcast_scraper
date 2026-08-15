@@ -57,7 +57,7 @@ router = APIRouter(tags=["app"])
 
 
 @router.get("/clusters", response_model=AppInterestClustersResponse)
-async def top_clusters(
+def top_clusters(
     request: Request,
     limit: int = Query(default=12, ge=1, le=50, description="Max clusters (by prevalence)."),
 ) -> AppInterestClustersResponse:
@@ -68,7 +68,7 @@ async def top_clusters(
 
 
 @router.get("/theme-clusters", response_model=AppStorylinesResponse)
-async def top_storylines(
+def top_storylines(
     request: Request,
     limit: int = Query(default=12, ge=1, le=50, description="Max storylines (by member count)."),
 ) -> AppStorylinesResponse:
@@ -84,7 +84,7 @@ async def top_storylines(
 
 
 @router.get("/trending", response_model=AppTrendingResponse)
-async def app_trending(
+def app_trending(
     request: Request,
     kind: str = Query(default="topic", description=f"One of {_TRENDING_KINDS}."),
     scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
@@ -121,7 +121,7 @@ async def app_trending(
 
 
 @router.get("/discover", response_model=AppEpisodesResponse)
-async def discover(
+def discover(
     request: Request,
     limit: int = Query(default=8, ge=1, le=50, description="Episodes to return."),
     user: User | None = Depends(get_optional_user),
@@ -174,7 +174,7 @@ async def discover(
 
 
 @router.get("/ranking-config")
-async def get_ranking_config(
+def get_ranking_config(
     request: Request, _admin: User = Depends(get_admin_user)
 ) -> dict[str, Any]:
     """The active discovery ranking-signal config (admin only) — the #11 'manage in one place'."""
