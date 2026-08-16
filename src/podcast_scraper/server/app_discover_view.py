@@ -14,6 +14,7 @@ caller so the per-episode KG loads stay cheap.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -126,29 +127,115 @@ def _episode_features(
     return clusters, topic_ids, {p.id for p in persons}
 
 
+#: Sidecar doc types that carry an interest token (`source_id`) for an episode.
+_KG_DOC_TYPES = ("kg_topic", "kg_entity")
+
 #: How many candidates enter ranking, as a multiple of the requested page size.
 DISCOVER_POOL_MULTIPLE = 4
 
+#: Cache for :func:`interest_episode_index`, keyed by the sidecar's (path, mtime, size).
+_INTEREST_INDEX_CACHE: dict[str, tuple[tuple[float, int], dict[str, set[str]]]] = {}
+
+
+def interest_episode_index(root: Path) -> dict[str, set[str]]:
+    """``interest token -> {metadata_relative_path}`` for every episode carrying it.
+
+    Read from ``search/metadata.json``, the sidecar the two-tier indexer already writes: its
+    ``kg_topic`` / ``kg_entity`` rows carry ``source_id`` (``topic:…`` / ``person:…`` — the SAME id
+    space interests live in) alongside ``source_metadata_relative_path``. So the mapping the pool
+    needs is one JSON parse, not a KG load per episode.
+
+    Cached on the file's (mtime, size): the corpus is rewritten out-of-band by the pipeline rather
+    than mutated in place, and everything else in this path re-reads per request, so a stale index
+    would be a real bug rather than a stale cache. Returns ``{}`` when the sidecar is missing —
+    a corpus without a search index simply falls back to the recency window.
+
+    Only ``topic:`` and ``person:`` tokens appear. Cluster tokens (``tc:`` / ``thc:``) are absent
+    by design: they are corpus-wide umbrellas (#1669), so they match essentially everything and
+    would make the interest leg of the pool meaningless.
+    """
+    path = root / "search" / "metadata.json"
+    try:
+        stat = path.stat()
+    except OSError:
+        return {}
+    key = str(path)
+    stamp = (stat.st_mtime, stat.st_size)
+    cached = _INTEREST_INDEX_CACHE.get(key)
+    if cached is not None and cached[0] == stamp:
+        return cached[1]
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    index: dict[str, set[str]] = {}
+    if isinstance(raw, dict):
+        for entry in raw.values():
+            if not isinstance(entry, dict) or entry.get("doc_type") not in _KG_DOC_TYPES:
+                continue
+            token = entry.get("source_id")
+            relpath = entry.get("source_metadata_relative_path")
+            if isinstance(token, str) and isinstance(relpath, str):
+                index.setdefault(token, set()).add(relpath)
+    _INTEREST_INDEX_CACHE[key] = (stamp, index)
+    return index
+
 
 def build_discover_pool(
-    rows: Sequence[CatalogEpisodeRow], *, limit: int
+    rows: Sequence[CatalogEpisodeRow],
+    *,
+    limit: int,
+    interests: Iterable[str] = (),
+    root: Path | None = None,
 ) -> Sequence[CatalogEpisodeRow]:
-    """The candidate set ``rank_discover`` scores: the newest ``4 * limit`` episodes.
+    """The candidate set ``rank_discover`` scores: the newest ``4 * limit`` episodes, UNION the
+    newest ``4 * limit`` that match an interest.
 
     Ranking is not free — ``_episode_features`` loads one KG artifact per candidate — so the pool
-    is bounded. That bound is a REAL PRODUCT POLICY, not an implementation detail: an episode
-    outside the window cannot be surfaced however well it matches, so at corpus scale discovery is
-    "the newest N, re-ranked" rather than "the best match in the corpus".
+    must be bounded. What that bound *excludes* is a product decision, not an implementation
+    detail, and a pure recency window got it wrong: recency is a proxy for relevance that fails
+    exactly where personalisation matters most. On a large corpus a user who follows scuba, whose
+    best episodes are four years old on a feed that stopped publishing, would match none of the
+    newest 32 — so discovery would silently return no personalisation at all while the telemetry
+    still recorded the feed as ``personalized``.
 
-    It lives here rather than inline in the route because the offline eval ranked the FULL catalog
-    while the route ranked this slice — so the eval scored a system production never runs. On a
-    36-episode fixture ``4 * 10 >= 36`` and the two coincide by accident; at scale they diverge,
-    and a niche interest matching a handful of older episodes would match none of the newest 40
-    while telemetry still recorded the feed as ``personalized``.
+    So the pool is a union of two bounded legs:
 
-    Callers must share this function, so that whatever the policy is, the eval measures it.
+    * **recency** — the newest ``4 * limit``, so a brand-new or interest-less user still gets a
+      sensible feed and fresh episodes are never starved out;
+    * **relevance** — the newest ``4 * limit`` episodes carrying a followed ``topic:`` / ``person:``
+      token, found through :func:`interest_episode_index` (one cached JSON read, no KG loads), so
+      an old-but-matching episode can reach the ranker at all.
+
+    Ranking still decides the final order; this only decides what is allowed to compete. Falls back
+    to the recency leg alone when there are no interests or no search sidecar, which is exactly the
+    previous behaviour.
+
+    Both the route and the offline eval must call this. They diverged once — the eval ranked the
+    FULL catalog while production ranked a slice — so the eval scored a system that never ran.
     """
-    return rows[: max(limit * DISCOVER_POOL_MULTIPLE, limit)]
+    window_size = max(limit * DISCOVER_POOL_MULTIPLE, limit)
+    window = list(rows[:window_size])
+    tokens = {str(t) for t in interests if str(t)}
+    if not tokens or root is None:
+        return window
+
+    index = interest_episode_index(root)
+    if not index:
+        return window
+    matching: set[str] = set()
+    for token in tokens:
+        matching |= index.get(token, set())
+    if not matching:
+        return window
+
+    in_window = {r.metadata_relative_path for r in window}
+    extra = [
+        r
+        for r in rows[window_size:]
+        if r.metadata_relative_path in matching and r.metadata_relative_path not in in_window
+    ][:window_size]
+    return [*window, *extra]
 
 
 def rank_discover(

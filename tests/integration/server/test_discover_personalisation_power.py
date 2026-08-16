@@ -49,6 +49,7 @@ from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
 from podcast_scraper.server.app_discover_view import (
     _episode_features,
     build_discover_pool,
+    interest_episode_index,
     rank_discover,
 )
 from podcast_scraper.server.app_slugs import slug_for_row
@@ -233,3 +234,71 @@ class TestPoolPolicyIsExplicit:
             "the eval stopped using the shared pool policy — it is again scoring a system "
             "production does not run"
         )
+
+
+class TestPoolIsInterestAware:
+    """An old-but-matching episode must be able to reach the ranker at all.
+
+    Recency is a proxy for relevance that fails exactly where personalisation matters: a user who
+    follows scuba, whose best episodes are four years old on a feed that stopped publishing, would
+    match none of the newest 4*limit. With a recency-only pool that user got NO personalisation,
+    silently, while telemetry still recorded the feed as `personalized`.
+
+    The pool is now recency UNION interest-matching, both legs bounded. These tests use a small
+    limit to force the situation the 36-episode fixture otherwise hides.
+    """
+
+    def test_index_maps_tokens_to_episodes(self) -> None:
+        index = interest_episode_index(CORPUS)
+        assert index, "no interest index — is search/metadata.json missing?"
+        # Same id space as interests, and coverage matches an independent count.
+        assert len(index["topic:personal-finance"]) == 4
+        assert len(index["topic:expert-interviews"]) == 36
+        assert all(t.startswith(("topic:", "person:")) for t in index)
+
+    def test_a_matching_episode_outside_the_window_joins_the_pool(self, rows) -> None:
+        topic = "topic:personal-finance"
+        index = interest_episode_index(CORPUS)
+        matching = index[topic]
+
+        recency_only = build_discover_pool(rows, limit=1)
+        in_window = sum(1 for r in recency_only if r.metadata_relative_path in matching)
+
+        union = build_discover_pool(rows, limit=1, interests=[topic], root=CORPUS)
+        in_union = sum(1 for r in union if r.metadata_relative_path in matching)
+
+        assert in_union >= in_window
+        assert in_union == len(matching), (
+            f"the union pool carries {in_union}/{len(matching)} matching episodes — an interest's "
+            "episodes are still being starved out by recency"
+        )
+
+    def test_the_union_actually_changes_what_is_surfaced(self, rows) -> None:
+        topic = "topic:personal-finance"
+        bounded = [s.slug for s in rank_discover(CORPUS, [topic], build_discover_pool(rows, limit=1), limit=3)]
+        union = [
+            s.slug
+            for s in rank_discover(
+                CORPUS, [topic], build_discover_pool(rows, limit=1, interests=[topic], root=CORPUS), limit=3
+            )
+        ]
+        assert any(s.startswith("p05") for s in union), union
+        assert union != bounded or all(s.startswith("p05") for s in bounded)
+
+    def test_both_legs_stay_bounded(self, rows) -> None:
+        """Cost control: the union is at most two windows, never the whole catalog."""
+        union = build_discover_pool(rows, limit=2, interests=["topic:expert-interviews"], root=CORPUS)
+        assert len(union) <= 2 * 8
+        assert len(union) < len(rows), "the pool grew to the entire corpus"
+
+    def test_no_interests_is_unchanged(self, rows) -> None:
+        assert list(build_discover_pool(rows, limit=3, interests=[], root=CORPUS)) == list(
+            build_discover_pool(rows, limit=3)
+        )
+
+    def test_missing_search_sidecar_falls_back_to_recency(self, rows, tmp_path) -> None:
+        """A corpus without a search index must still serve a feed, not error."""
+        assert interest_episode_index(tmp_path) == {}
+        assert list(
+            build_discover_pool(rows, limit=3, interests=["topic:personal-finance"], root=tmp_path)
+        ) == list(build_discover_pool(rows, limit=3))

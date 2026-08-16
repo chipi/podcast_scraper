@@ -155,8 +155,10 @@ def discover(
     rows = build_catalog_rows_cumulative(root)
     rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)
     # Shared with the offline eval — see build_discover_pool. Inlining the slice here is what let
-    # the eval score the full catalog while production scored this window.
-    pool = build_discover_pool(rows, limit=limit)
+    # the eval score the full catalog while production scored this window. `interests` + `root`
+    # let the pool include older episodes that MATCH, so a niche follow is not starved out by
+    # recency on a large corpus.
+    pool = build_discover_pool(rows, limit=limit, interests=interests, root=root)
     items = rank_discover(root, interests, pool, limit=limit, config=config)
 
     # #11 telemetry: log what the feed showed (slugs in rank order) + the effective variant, so

@@ -131,9 +131,14 @@ def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k
         # well it matches. On this 36-episode corpus the two coincide (4*10 >= 36), which is
         # exactly why the divergence went unnoticed — at scale this eval would have kept reporting
         # a healthy uplift for a feed that had quietly stopped personalising.
-        pool = build_discover_pool(rows, limit=k)
-        personalized = rank_discover(corpus, interests, pool, limit=k)
-        recency = rank_discover(corpus, [], pool, limit=k)
+        # Each arm gets the pool the ROUTE would build for it — the personalized arm's pool
+        # includes interest-matching episodes outside the recency window, the recency arm's does
+        # not. Scoring both against one shared pool would understate personalization exactly where
+        # the union was introduced to help.
+        p_pool = build_discover_pool(rows, limit=k, interests=interests, root=corpus)
+        r_pool = build_discover_pool(rows, limit=k)
+        personalized = rank_discover(corpus, interests, p_pool, limit=k)
+        recency = rank_discover(corpus, [], r_pool, limit=k)
     p_shows = [_show_of(s.slug) for s in personalized]
     r_shows = [_show_of(s.slug) for s in recency]
     row = {
