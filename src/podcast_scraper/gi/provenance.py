@@ -61,9 +61,9 @@ def resolve_gil_artifact_model_version(
     There is one source of insights — the provider — so the model identifier is the provider's,
     or ``"unknown"`` when it cannot be determined.
 
-    This used to take a ``gi_insight_source`` argument and return the literal ``"stub"`` when it
+    This used to take a ``gi_insight_source`` argument and return a fixed placeholder label when it
     was anything other than ``"provider"``. That stamped a fake lineage onto real artifacts: the
-    field defaulted to ``"stub"``, so an episode could carry ``model_version: "stub"`` in its
+    field defaulted to that placeholder, so an episode could carry a fabricated lineage in its
     provenance while the corpus counted it as processed (#1657). Both the argument and that
     return value are gone.
 

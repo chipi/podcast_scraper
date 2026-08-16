@@ -3344,7 +3344,7 @@ class Config(BaseModel):
         ),
     )
 
-    kg_extraction_source: Literal["stub", "provider"] = Field(
+    kg_extraction_source: Literal["metadata_only", "provider"] = Field(
         default="provider",
         alias="kg_extraction_source",
         description=(
@@ -3353,7 +3353,10 @@ class Config(BaseModel):
             "transcript directly (see kg_extraction_provider; default uses "
             "summary_provider; ML providers no-op). This is the production code "
             "path. "
-            "'stub' = episode + pipeline hosts/guests only (no summary topics). "
+            "'metadata_only' = episode + pipeline hosts/guests only, no LLM call and no "
+            "summary topics. This is a REAL reduced mode that emits real nodes — it was called "
+            "renamed in #1657, because the old name kept being mistaken for the fabricated GI "
+            "placeholder it has nothing to do with. "
             "The legacy 'summary_bullets' option was removed in #1034 (per the "
             "#1033 audit) — it routed extraction through name-stripped summary "
             "bullets and was empirically lossy. CI guard: "

@@ -68,7 +68,7 @@ _ProviderT = TypeVar("_ProviderT")
 #: Eight LLM calls protected, eight unprotected, and nothing anywhere said so. When the
 #: OpenRouter account went over its weekly limit every one of those failed outright while
 #: summarisation quietly failed over and survived — which is how ``generate_insights`` came to
-#: write stub artifacts across production episodes, and how a prod speaker-detection job died
+#: write placeholder artifacts across production episodes, and how a prod speaker-detection job died
 #: with "no budget/credit left on this key" instead of failing over to native DeepSeek.
 #:
 #: An allowlist puts the burden on whoever adds the NEXT LLM method to remember this file. A

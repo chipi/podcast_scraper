@@ -93,7 +93,10 @@ def kg_should_replace_topics_from_bullets(kg: Dict[str, Any]) -> bool:
     """True when KG topic nodes were bullet-derived or look like fenced JSON."""
     ext = kg.get("extraction") or {}
     mv = str(ext.get("model_version") or "").strip()
-    if mv in ("summary_bullets", "stub"):
+    # "stub" is the pre-#1657 name for "metadata_only" and still appears in artifacts already
+    # on disk, so both are recognised — dropping the old one would silently stop re-deriving
+    # every KG written before the rename.
+    if mv in ("summary_bullets", "metadata_only", "stub"):
         return True
     if mv.startswith("provider:summary_bullets:"):
         return True

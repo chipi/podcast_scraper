@@ -133,7 +133,9 @@ class Metrics:
     kg_topic_nodes_total: int = 0  # Sum of Topic nodes across kg.json written this run
     kg_entity_nodes_total: int = 0  # Sum of Entity nodes across kg.json
     kg_episode_nodes_total: int = 0  # Sum of Episode nodes (typically == kg_artifacts_generated)
-    kg_extractions_stub: int = 0  # Artifacts whose extraction.model_version is stub-like
+    kg_extractions_no_llm: int = (
+        0  # Artifacts extracted without an LLM (metadata_only / topic_labels)
+    )
     kg_extractions_provider: int = 0  # model_version startswith provider:
     gi_evidence_stack_completed: int = 0  # GIL artifacts that completed evidence QA+NLI path
     gi_evidence_extract_quotes_calls: int = 0  # extract_quotes calls on provider path
@@ -846,7 +848,7 @@ class Metrics:
         if mv.startswith("provider:"):
             self.kg_extractions_provider += 1
         else:
-            self.kg_extractions_stub += 1
+            self.kg_extractions_no_llm += 1
         for n in payload.get("nodes") or []:
             t = n.get("type")
             if t == "Topic":
@@ -1603,7 +1605,7 @@ class Metrics:
             "kg_topic_nodes_total": self.kg_topic_nodes_total,
             "kg_entity_nodes_total": self.kg_entity_nodes_total,
             "kg_episode_nodes_total": self.kg_episode_nodes_total,
-            "kg_extractions_stub": self.kg_extractions_stub,
+            "kg_extractions_no_llm": self.kg_extractions_no_llm,
             "kg_extractions_provider": self.kg_extractions_provider,
             "kg_avg_topics_per_artifact": (
                 round(self.kg_topic_nodes_total / self.kg_artifacts_generated, 2)

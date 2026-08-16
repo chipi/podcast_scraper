@@ -23,8 +23,9 @@
       "required": ["model_version", "extracted_at", "transcript_ref"],
       "properties": {
         "model_version": {
-          "description": "Extraction tier: `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/corpus/ontology.md § Provenance.",
+          "description": "Extraction tier: `metadata_only` (episode + pipeline hosts/guests, no LLM), verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/corpus/ontology.md § Provenance. `stub` is the pre-#1657 name for `metadata_only` and is accepted for artifacts written before the rename.",
           "oneOf": [
+            { "const": "metadata_only" },
             { "const": "stub" },
             { "const": "summary_bullets" },
             { "type": "string", "pattern": "^provider:.+" }

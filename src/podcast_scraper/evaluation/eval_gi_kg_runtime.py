@@ -50,10 +50,10 @@ def runtime_config_for_knowledge_graph_eval(params: Optional[Dict[str, Any]]) ->
         Validated ``Config`` with summaries disabled and KG enabled.
     """
     p = params or {}
-    raw = p.get("kg_extraction_source", "stub")
-    if raw not in ("stub", "provider"):
-        raw = "stub"
-    source = cast(Literal["stub", "provider"], raw)
+    raw = p.get("kg_extraction_source", "metadata_only")
+    if raw not in ("metadata_only", "provider"):
+        raw = "metadata_only"
+    source = cast(Literal["metadata_only", "provider"], raw)
     payload: Dict[str, Any] = {
         "rss": "",
         "generate_metadata": True,
@@ -172,9 +172,9 @@ def merge_eval_task_into_summarizer_config(
         return base.model_copy(update=updates)
     if task == _TASK_KG:
         raw_kg = p.get("kg_extraction_source", "provider")
-        if raw_kg not in ("stub", "provider"):
+        if raw_kg not in ("metadata_only", "provider"):
             raw_kg = "provider"
-        kg_src = cast(Literal["stub", "provider"], raw_kg)
+        kg_src = cast(Literal["metadata_only", "provider"], raw_kg)
         updates_kg: Dict[str, Any] = {
             "generate_kg": True,
             "generate_gi": False,

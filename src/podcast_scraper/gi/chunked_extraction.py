@@ -147,8 +147,8 @@ def _as_insight_list(got: Any) -> List[Any]:
     grounding as if a model had said it. Wrong in the worst direction: not a visible failure,
     but a plausible-looking artifact built from a dict's key names.
 
-    Anything that is not a list/tuple returns empty, which the caller reports as a stub
-    fallback with a reason rather than inventing content from the container.
+    Anything that is not a list/tuple returns empty, which the caller reports as an empty
+    extraction with a reason rather than inventing content from the container.
     """
     if isinstance(got, (list, tuple)):
         return list(got)

@@ -149,7 +149,7 @@ def _should_disable_thinking_for_model(model: str) -> bool:
 
 # 2.5-pro requires thinking (budget 0 is rejected), and thinking shares the max_output_tokens
 # budget with the content — a small-budget call (chunked-GI insights) truncates the CONTENT
-# (finish_reason=MAX_TOKENS -> guardrail rejects the chunk -> stub fallback). Give pro a modest,
+# (finish_reason=MAX_TOKENS -> guardrail rejects the chunk -> no insights). Give pro a modest,
 # bounded thinking budget and add that headroom on top of the requested output tokens so content
 # always fits, keeping pro comparable to the other (reasoning-off) bake-off models (#1356).
 _GEMINI_PRO_THINKING_BUDGET = 1024
@@ -1886,7 +1886,7 @@ class GeminiProvider:
         """Generate a list of short insight statements from transcript (GIL).
 
         Uses gemini/insight_extraction/v2 prompt; parses response as one insight per line.
-        Returns empty list on failure so GIL can fall back to stub.
+        Returns empty list on failure; the episode then honestly has no insights.
         """
         if not self._summarization_initialized:
             logger.warning("Gemini summarization not initialized for generate_insights")
@@ -2002,7 +2002,7 @@ class GeminiProvider:
                 _emit_gi_cost(triggered_guardrail=True)
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
-                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                # whole-batch loss — 40 good insights discarded because the 41st was clipped.
                 salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
                 if salvaged is None:
                     raise

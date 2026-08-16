@@ -110,7 +110,7 @@ class TestKGArtifactIntegration:
     def test_build_artifact_empty_transcript_produces_stub(self):
         """Empty transcript with stub source → valid artifact with Episode node."""
         cfg = MagicMock()
-        cfg.kg_extraction_source = "stub"
+        cfg.kg_extraction_source = "metadata_only"
         cfg.kg_max_topics = 10
         cfg.kg_max_entities = 15
         cfg.kg_merge_pipeline_entities = True

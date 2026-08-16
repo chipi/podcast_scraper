@@ -1297,10 +1297,11 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--kg-extraction-source",
-        choices=["stub", "provider"],
+        choices=["metadata_only", "provider"],
         default=None,
         dest="kg_extraction_source",
-        help="KG extraction source: provider (LLM JSON) or stub. "
+        help="KG extraction source: provider (LLM JSON) or metadata_only "
+        "(episode + pipeline hosts/guests, no LLM). "
         "Default: provider. See KNOWLEDGE_GRAPH_GUIDE.md.",
     )
     parser.add_argument(

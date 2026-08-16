@@ -1,4 +1,4 @@
-"""Integration: subprocess smoke for ``scripts/eval/experiment/run_experiment.py`` (GI/KG eval_stub)."""
+"""Integration: subprocess smoke for ``scripts/eval/experiment/run_experiment.py`` (GI/KG eval_offline)."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> N
                 f"id: {run_id}",
                 "task: grounded_insights",
                 "backend:",
-                "  type: eval_stub",
+                "  type: eval_offline",
                 "data:",
                 "  dataset_id: integration_gi_kg_stub_v1",
                 "  max_episodes: 1",
@@ -124,13 +124,13 @@ def test_run_experiment_kg_stub_dry_run_writes_predictions(tmp_path: Path) -> No
                 f"id: {run_id}",
                 "task: knowledge_graph",
                 "backend:",
-                "  type: eval_stub",
+                "  type: eval_offline",
                 "data:",
                 "  dataset_id: integration_gi_kg_stub_v1",
                 "  max_episodes: 1",
                 "preprocessing_profile: cleaning_v3",
                 "params:",
-                "  kg_extraction_source: stub",
+                "  kg_extraction_source: metadata_only",
                 "",
             ]
         ),

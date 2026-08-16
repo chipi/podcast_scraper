@@ -36,8 +36,8 @@ from podcast_scraper.evaluation.kg_scorer import (
 from podcast_scraper.evaluation.scorer import score_run
 
 
-def test_eval_stub_rejected_for_summarization_task() -> None:
-    """eval_stub backend is only valid for grounded_insights / knowledge_graph."""
+def test_eval_offline_rejected_for_summarization_task() -> None:
+    """eval_offline backend is only valid for grounded_insights / knowledge_graph."""
     with pytest.raises(ValidationError):
         ExperimentConfig(
             id="bad_stub_summarization",
@@ -274,27 +274,27 @@ def test_runtime_config_gi_has_gil_enabled() -> None:
 
 
 def test_runtime_config_kg_has_kg_enabled() -> None:
-    cfg = runtime_config_for_knowledge_graph_eval({"kg_extraction_source": "stub"})
+    cfg = runtime_config_for_knowledge_graph_eval({"kg_extraction_source": "metadata_only"})
     assert cfg.generate_kg is True
     assert cfg.generate_gi is False
 
 
 def test_load_experiment_config_gil_stub_yaml() -> None:
-    path = Path("data/eval/configs/gil_eval_stub_curated_5feeds_smoke_v1.yaml")
+    path = Path("data/eval/configs/gil_eval_offline_curated_5feeds_smoke_v1.yaml")
     if not path.exists():
         pytest.skip("eval config yaml not present")
     loaded = load_experiment_config(path)
     assert loaded.task == "grounded_insights"
-    assert loaded.backend.type == "eval_stub"
+    assert loaded.backend.type == "eval_offline"
 
 
 def test_load_experiment_config_kg_stub_yaml() -> None:
-    path = Path("data/eval/configs/kg_eval_stub_curated_5feeds_smoke_v1.yaml")
+    path = Path("data/eval/configs/kg_eval_offline_curated_5feeds_smoke_v1.yaml")
     if not path.exists():
         pytest.skip("eval config yaml not present")
     loaded = load_experiment_config(path)
     assert loaded.task == "knowledge_graph"
-    assert loaded.backend.type == "eval_stub"
+    assert loaded.backend.type == "eval_offline"
 
 
 def test_compute_gil_prediction_stats() -> None:

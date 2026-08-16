@@ -659,7 +659,7 @@ For **transcript-only** evaluation on a materialized dataset (no RSS run), use *
 configs and runs—one task per YAML:
 
 - **`task: grounded_insights`** — GI extraction + evidence grounding. Supports all backends:
-  `eval_stub` (skip inference), `openai`, `gemini`, `anthropic`, `deepseek`, `mistral`,
+  `eval_offline` (skip inference), `openai`, `gemini`, `anthropic`, `deepseek`, `mistral`,
   `grok`, `ollama`. With LLM backends, the evidence stack (QA + NLI) auto-aligns to the
   summary provider for quote extraction and entailment scoring.
   Sample: `data/eval/configs/gil_gemini_benchmark_v2_provider.yaml`.

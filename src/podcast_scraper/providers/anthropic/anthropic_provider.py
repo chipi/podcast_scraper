@@ -1620,7 +1620,7 @@ class AnthropicProvider:
         """Generate a list of short insight statements from transcript (GIL).
 
         Uses anthropic/insight_extraction/v2 prompt; parses response as one insight per line.
-        Returns empty list on failure so GIL can fall back to stub.
+        Returns empty list on failure; the episode then honestly has no insights.
         """
         if not self._summarization_initialized:
             logger.warning("Anthropic summarization not initialized for generate_insights")
@@ -1733,7 +1733,7 @@ class AnthropicProvider:
                 _emit_gi_cost(triggered_guardrail=True)
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
-                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                # whole-batch loss — 40 good insights discarded because the 41st was clipped.
                 salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
                 if salvaged is None:
                     raise

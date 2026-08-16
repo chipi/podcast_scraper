@@ -4134,7 +4134,7 @@ def generate_episode_metadata(  # noqa: C901
                 from ..gi.provenance import resolve_gil_artifact_model_version
 
                 # The provider IS the source. ``gi_insight_source`` used to gate this and
-                # defaulted to "stub", so a config that never reached the field produced
+                # defaulted to the placeholder, so a config that never reached the field produced
                 # placeholder insights for the whole run (#1657). The gate is gone: if there is
                 # a provider it is used, and if there is not, the episode honestly has no
                 # insights.

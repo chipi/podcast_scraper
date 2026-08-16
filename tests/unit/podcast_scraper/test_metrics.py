@@ -467,7 +467,7 @@ class TestFinish(unittest.TestCase):
             "kg_topic_nodes_total",
             "kg_entity_nodes_total",
             "kg_episode_nodes_total",
-            "kg_extractions_stub",
+            "kg_extractions_no_llm",
             "kg_extractions_provider",
             "kg_avg_topics_per_artifact",
             "kg_avg_entities_per_artifact",

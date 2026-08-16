@@ -4,7 +4,7 @@ Builds a valid gi.json with Episode, Insight(s), Quote(s), and SUPPORTED_BY edge
 When cfg is provided and gi_require_grounding is True, uses the evidence stack
 via ``quote_extraction_provider`` / ``entailment_provider`` (from callers or
 ``create_gil_evidence_providers(cfg, summary_provider=...)``). Insight texts come
-from insight_texts, insight_provider.generate_insights(), or stub.
+from insight_texts or insight_provider.generate_insights().
 
 When transcript_segments are provided (from transcription with word/segment
 timestamps), Quote nodes get precise timestamp_start_ms and timestamp_end_ms
@@ -461,22 +461,24 @@ def _maybe_prefetch_bundled_candidates(
     return out if any_success else None
 
 
-def _record_stub_fallback(pipeline_metrics: Optional[Any], exc: Exception) -> None:
-    """#701: surface evidence-stack stub fallback at WARNING + metrics.
+def _record_degraded_artifact(pipeline_metrics: Optional[Any], exc: Exception) -> None:
+    """#701: surface an evidence-stack failure at WARNING + metrics.
 
-    Originally a ``logger.debug`` call which masked silent stub-degradation
-    in normal logs. cloud_thin produced 1-stub gi.json across 9 real-feed
-    episodes for weeks because ``_rank_about_edges_for_insights`` raised
-    ImportError on ``sentence-transformers`` (in [ml]/[search] only) and
-    the debug log never surfaced the failure. Promote to WARNING + flip a
-    metrics counter so ops dashboards see stub fallback in real time.
+    The insights survive; their EVIDENCE does not, so the artifact ships with insights that
+    carry no quotes. That is a real degradation and it used to be a ``logger.debug`` call, which
+    masked it in normal logs: cloud_thin shipped degraded gi.json across 9 real-feed episodes
+    for weeks because ``_rank_about_edges_for_insights`` raised ImportError on
+    ``sentence-transformers`` (in [ml]/[search] only) and nothing surfaced it.
+
+    Renamed in #1657. It has nothing to do with the fabricated
+    placeholder insight that was deleted there — this path never invents content — but sharing
+    the shared name made "have we removed the placeholders?" unanswerable by reading the code.
     """
-    if pipeline_metrics is not None and hasattr(
-        pipeline_metrics, "gi_artifact_stub_fallback_count"
-    ):
-        pipeline_metrics.gi_artifact_stub_fallback_count += 1
+    if pipeline_metrics is not None and hasattr(pipeline_metrics, "gi_artifact_degraded_count"):
+        pipeline_metrics.gi_artifact_degraded_count += 1
     logger.warning(
-        "GIL evidence stack (provider path) failed, falling back to " "stub/degraded artifact: %s",
+        "GIL evidence stack (provider path) failed; shipping a DEGRADED artifact whose "
+        "insights carry no quotes: %s",
         exc,
         exc_info=True,
     )
@@ -491,7 +493,7 @@ def _no_insights(
 ) -> List[Tuple[str, str]]:
     """Return NO insights, loudly, and say which path got us here.
 
-    This used to return one fabricated insight — the literal string "Summary insight (stub)." —
+    This used to return one fabricated placeholder insight —
     so that an episode whose extraction failed still looked like an episode with a finding. It
     reached production episodes, where nothing downstream could tell the placeholder from real
     content. The placeholder is gone: an empty list is the truthful answer, and every caller
@@ -501,7 +503,7 @@ def _no_insights(
     ``generate_insights``, a non-list return, nothing parseable in the return, dedup collapsing
     to zero, and the provider raising — and before #1657 only the last logged anything at all
     (at ``debug``). #701 had already diagnosed this shape one path over ("cloud_thin produced
-    1-stub gi.json across 9 real-feed episodes for weeks") and fixed it with a WARNING plus a
+    degraded gi.json across 9 real-feed episodes for weeks") and fixed it with a WARNING plus a
     counter; that fix never reached the path deciding whether an episode has any insights.
 
     Empty is not automatically a failure — a provider can legitimately find nothing in a short
@@ -530,7 +532,7 @@ def _apply_gi_insight_filters(
 ) -> List[Tuple[str, str]]:
     """#652 Part B — run ad + dialogue filters on (text, type) specs.
 
-    Source-agnostic (prefilled / provider / stub).
+    Source-agnostic (prefilled / provider).
     Conservative thresholds live in ``gi.filters``. Extracted helper so
     ``build_artifact`` stays under the cyclomatic-complexity budget.
     """
@@ -565,7 +567,7 @@ def _rank_about_edges_for_insights(
     don't have the embedding library — without this guard the
     ``ImportError`` bubbles through ``_artifact_from_multi_insight``, gets
     swallowed by ``build_artifact``'s outer ``except Exception`` (line ~783),
-    and silently degrades the whole episode to a 1-stub-insight artifact.
+    and silently degrades the whole episode to a single placeholder insight.
     Returning empty edges keeps the rest of the artifact (insights + quotes)
     intact at the cost of no insight→topic ABOUT edges.
     """
@@ -1314,8 +1316,8 @@ def _build_empty_artifact(
 ) -> Dict[str, Any]:
     """The artifact for an episode that produced NO insights: an Episode node and nothing else.
 
-    This replaces ``_build_stub_artifact``, which invented one Insight reading "Summary insight
-    (stub)." plus a Quote sliced out of the transcript head by byte offset, joined by a
+    This replaces the placeholder builder, which invented one Insight plus a Quote sliced out
+    of the transcript head by byte offset, joined by a
     SUPPORTED_BY edge. None of it was extracted from anything. It existed because the GI
     pipeline was written before any provider was wired up and needed *something* to emit; the
     placeholder then outlived its reason by a long way and reached production episodes, where a
@@ -1419,7 +1421,7 @@ def _resolve_insight_specs(
     """Resolve (insight text, insight_type) pairs for GIL.
 
     Order: use insight_texts if non-empty (type ``unknown``); else provider
-    ``generate_insights`` (strings or dicts with ``text`` / ``insight_type``); else stub.
+    ``generate_insights`` (strings or dicts with ``text`` / ``insight_type``); else nothing.
     """
     max_insights = config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
     if cfg is not None:
@@ -1446,7 +1448,8 @@ def _resolve_insight_specs(
             return [(t, _classify_when_unknown(t, k)) for t, k in resolved]
 
     # There is ONE source of insights: the provider. ``gi_insight_source`` used to select
-    # between "provider" and "stub", and defaulted to "stub" — so any run whose config did not
+    # between a real provider and a fabricated placeholder, and defaulted to the placeholder —
+    # so any run whose config did not
     # reach that field emitted placeholders for the whole run, silently and by design. The knob
     # is gone; whether an episode gets insights is answered by ``generate_gi``, and whether it
     # HAS any is answered by what the provider returned.
@@ -1478,7 +1481,7 @@ def _resolve_insight_specs(
         if not resolved_specs:
             # The provider answered, but nothing in the answer parsed as an insight. That is
             # a provider/contract failure, not an episode with nothing to say — and it used
-            # to fall through to the stub without even a debug line.
+            # to fall through and return nothing without even a debug line.
             return _no_insights(
                 "no_parseable_insights_from_provider", pipeline_metrics, items=len(out)
             )
@@ -1516,7 +1519,7 @@ def _resolve_insight_specs(
         if not resolved_specs:
             # Dedup collapsed everything. Reaching zero from a non-empty list means every
             # insight was judged a restatement of the first — worth a signal, not a silent
-            # stub, because it is also the shape a degenerate embedding model produces.
+            # silently, because it is also the shape a degenerate embedding model produces.
             return _no_insights("all_insights_deduped_away", pipeline_metrics)
 
         # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
@@ -1532,9 +1535,9 @@ def _resolve_insight_specs(
         return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
     except Exception as e:
         # WAS ``logger.debug``. That is the whole of #9: a provider failure here produced a
-        # one-insight stub artifact that looked like a finished episode, and the only trace
+        # one-insight placeholder artifact that looked like a finished episode, and the only trace
         # was a debug line nobody runs at. #701 fixed exactly this anti-pattern for the
-        # evidence-stack path and gave it ``_record_stub_fallback``; this sibling path — the
+        # evidence-stack path and gave it a recorder; this sibling path — the
         # one that decides whether there are any insights AT ALL — kept the debug call.
         return _no_insights("generate_insights_raised", pipeline_metrics, exc=e)
 
@@ -1570,7 +1573,7 @@ def build_artifact(
 
     Insight texts come from insight_texts (e.g. summary bullets), from
     insight_provider.generate_insights(), or
-    a single stub. For each insight, provider-based QA + NLI finds grounded
+    nothing at all. For each insight, provider-based QA + NLI finds grounded
     quotes; artifact has one Insight node per insight and their
     Quote nodes + SUPPORTED_BY edges.
 
@@ -1777,7 +1780,7 @@ def build_artifact(
         except GILGroundingUnsatisfiedError:
             raise
         except Exception as e:
-            _record_stub_fallback(pipeline_metrics, e)
+            _record_degraded_artifact(pipeline_metrics, e)
 
     # No insights at all — the provider had nothing to give back, so the artifact says so.
     # This used to test for the placeholder's literal text, which meant the "empty" case could
