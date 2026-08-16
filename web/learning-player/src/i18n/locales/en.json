@@ -50,7 +50,7 @@
     "trendingChip": "{topic} — trending at {factor}× its recent average",
     "storylines": "Storylines",
     "storylinesHint": "Topics that keep coming up together",
-    "trendingNow": "Trending now",
+    "risingNow": "Rising now",
     "trendingShows": "Trending shows",
     "storylineSize": "· {count} topic | · {count} topics",
     "storylineOpen": "Open the {label} storyline ({count} topics)",

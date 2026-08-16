@@ -438,7 +438,7 @@ async function loadContinue(): Promise<void> {
     <!-- Momentum (RFC-103): read-time "trending now" topics — velocity anchored to today. -->
     <MomentumRail
       kind="topic"
-      :title="t('home.trendingNow')"
+      :title="t('home.risingNow')"
       @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
     />
 
