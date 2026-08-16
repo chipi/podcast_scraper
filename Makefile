@@ -662,7 +662,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1215,6 +1215,67 @@ corpus-gi-integrity-check:
 index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
+
+# Same build, in a container — for hosts where the [search] extra CANNOT be installed.
+#
+# torch and lancedb publish no macOS x86_64 wheels ("no wheels with a matching platform tag
+# (macosx_15_0_x86_64)"), so on an Intel Mac the target above cannot run at all and every search
+# returns `no_index`. The same wheels DO exist for manylinux_2_28_x86_64 — which is what the local
+# Docker VM runs — so the index builds fine one layer down.
+#
+# Bind mounts are not usable: Colima mounts the host read-only, so the corpus is staged into a
+# named volume, indexed there, and copied back out. The REPO's src is mounted and put on
+# PYTHONPATH so the index is built by the working tree's code, not whatever the image baked in.
+#
+# Deleting episode_fingerprints.json alongside lance_index is NOT optional: the indexer skips
+# episodes whose fingerprint is unchanged, so leaving it behind yields a SILENTLY EMPTY index
+# ("episodes=36 segments=0 insights=0 aux=0") that still exits 0. The per-tier counts are checked
+# below rather than trusted.
+#
+#   make index-two-tier-docker CORPUS_DIR=tests/fixtures/app-validation-corpus/v3
+INDEX_DOCKER_IMAGE ?= podcast-scraper-stack-pipeline-llm:latest
+index-two-tier-docker:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	test -d "$${CORPUS_DIR}" || (echo "CORPUS_DIR does not exist: $${CORPUS_DIR}"; exit 1); \
+	set -e; \
+	VOL=podcast-index-$$$$; CT=podcast-index-ct-$$$$; LOG=/tmp/podcast-index-$$$$.log; \
+	trap 'docker rm -f $$CT >/dev/null 2>&1 || true; docker volume rm $$VOL >/dev/null 2>&1 || true' EXIT INT TERM; \
+	docker volume create $$VOL >/dev/null; \
+	docker run -d --name $$CT --user root -v $$VOL:/w -v "$(CURDIR)":/repo:ro \
+		--entrypoint sleep $(INDEX_DOCKER_IMAGE) 7200 >/dev/null; \
+	docker exec $$CT sh -c 'mkdir -p /w/corpus'; \
+	docker cp "$${CORPUS_DIR}/." $$CT:/w/corpus; \
+	echo "--> dropping stale index + fingerprint sidecar (else the rebuild indexes nothing)"; \
+	docker exec $$CT sh -c 'rm -rf /w/corpus/search/lance_index /w/corpus/search/episode_fingerprints.json /w/corpus/search/metadata.json'; \
+	echo "--> building index in $(INDEX_DOCKER_IMAGE) (detached; polling)"; \
+	docker exec -d $$CT sh -c 'PYTHONPATH=/repo/src python -u -m podcast_scraper.cli index-two-tier --output-dir /w/corpus --allow-download > /w/idx.log 2>&1; echo "rc=$$?" >> /w/idx.log; echo BUILD_DONE >> /w/idx.log'; \
+	i=0; \
+	while [ $$i -lt 120 ]; do \
+		docker cp $$CT:/w/idx.log $$LOG 2>/dev/null || true; \
+		if grep -q "^BUILD_DONE" $$LOG 2>/dev/null; then break; fi; \
+		i=$$((i+1)); sleep 10; \
+	done; \
+	grep -q "^BUILD_DONE" $$LOG 2>/dev/null || (echo "index build did not finish in 20min; log:"; cat $$LOG 2>/dev/null; exit 1); \
+	grep -q "^rc=0" $$LOG || (echo "index build FAILED; log:"; cat $$LOG; exit 1); \
+	grep -E "Two-tier index built" $$LOG || (echo "no index summary line; log:"; cat $$LOG; exit 1); \
+	grep -E "Two-tier index built" $$LOG | grep -qE "segments=[1-9]" \
+		|| (echo "EMPTY INDEX — segments=0. Was the fingerprint sidecar left in place?"; exit 1); \
+	echo "--> copying index back to $${CORPUS_DIR}/search/"; \
+	if [ -e "$${CORPUS_DIR}/search/lance_index" ] && ! rm -rf "$${CORPUS_DIR}/search/lance_index" 2>/dev/null; then \
+		echo ""; \
+		echo "CANNOT REPLACE the existing index — it is not writable by $$(id -un):"; \
+		ls -ld "$${CORPUS_DIR}/search/lance_index"; \
+		echo ""; \
+		echo "The index BUILT fine; only the copy-back is blocked. Have its owner remove it:"; \
+		echo "    rm -rf $(CURDIR)/$${CORPUS_DIR}/search/lance_index"; \
+		echo "then re-run this target. (lance_index is gitignored, so nothing is lost.)"; \
+		exit 1; \
+	fi; \
+	rm -f "$${CORPUS_DIR}/search/episode_fingerprints.json" 2>/dev/null || true; \
+	docker cp $$CT:/w/corpus/search/lance_index "$${CORPUS_DIR}/search/lance_index"; \
+	docker cp $$CT:/w/corpus/search/episode_fingerprints.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
+	docker cp $$CT:/w/corpus/search/metadata.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
+	echo "index written to $${CORPUS_DIR}/search/lance_index"
 
 # Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
 # so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters

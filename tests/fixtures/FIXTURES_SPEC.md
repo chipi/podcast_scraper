@@ -203,6 +203,32 @@ is unreliable on short fixture transcripts, where an ad block is a large fractio
 or pin `transcript_cleaning_strategy: pattern` (deterministic, and per the guard's own message it
 "cannot do this") for corpus generation.
 
+### 11. The search index must be rebuilt whenever summaries change
+
+`search/lance_index` is derived from the corpus — the two-tier indexer ingests `summary` and
+`summary_short` — so regenerating summaries without rebuilding it leaves search answering from the
+old text. It is **gitignored** (`.gitignore:307`), so it is a local artifact, never committed, and
+every checkout builds its own.
+
+`make index-two-tier` cannot run on macOS x86_64: torch and lancedb publish no wheels for that
+platform (`uv pip install lancedb` → "no wheels with a matching platform tag
+(macosx_15_0_x86_64)"), which is why search returns `no_index` there. The same wheels exist for
+`manylinux_2_28_x86_64`, so **`make index-two-tier-docker`** builds it one layer down, in the
+container, against the repo's own `src/` rather than the image's baked copy.
+
+Two traps that target now guards:
+
+* **Delete `episode_fingerprints.json` with the index.** The indexer skips episodes whose
+  fingerprint is unchanged, so leaving the sidecar behind yields a silently EMPTY index —
+  `episodes=36 segments=0 insights=0 aux=0` — that still exits 0. This has happened once already.
+  Always read the per-tier counts; a healthy rebuild of this corpus prints
+  `episodes=36 segments=131 insights=124 aux=716`.
+* **Colima mounts the host read-only**, so the corpus is staged into a named volume and copied
+  back, not bind-mounted.
+
+**v4 requirement:** whatever regenerates summaries must rebuild the index in the same step, and
+that step must assert non-zero per-tier counts rather than trusting the exit code.
+
 ---
 
 ## Podcasts (v3)
