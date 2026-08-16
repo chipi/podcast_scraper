@@ -648,37 +648,68 @@ onBeforeUnmount(() => {
                   <span class="text-sm font-semibold">{{ speakingNow }}</span>
                 </div>
               </div>
-              <!-- Controls group — kept together and pinned right so wrapping the insight below
-                   does not scatter them. -->
-              <div class="order-1 ml-auto flex shrink-0 items-start gap-2 sm:order-2 sm:ml-0">
+              <!--
+                ONE control cluster, pinned right, in one row: Summary, Insights, reach.
+
+                These were scattered — Insights mid-top, reach top-right, Summary alone at the
+                bottom of the artwork — so three unrelated-looking chrome elements sat on three
+                edges of the picture. Together they read as one toolbar and leave the rest of the
+                artwork alone.
+
+                Compactness comes from the padding, the type scale and a much smaller sparkline,
+                NOT from shortening the Insights label. That control reads "N insights" on purpose:
+                #1595 replaced "💡 3", which was "the least legible control on the page, styled
+                like a statistic, for the product's central feature". Returning it to a bare count
+                to save 40px would undo that for the sake of tidiness.
+              -->
+              <div class="order-1 ml-auto flex shrink-0 items-center gap-1.5 sm:order-2 sm:ml-0">
               <!-- Per-episode reach (UXS-014): listeners · opens · insights, with a tiny opens-over-time
                    sparkline. The insights score opens the Knowledge panel. -->
               <!-- Insights: the reason to choose this over a normal podcast app, so it is a
                    LABELLED control, not a 💡 emoji tucked into the stats cluster next to
                    listener/open counts (#1595). It used to read "💡 3" — the least legible control
                    on the page, styled like a statistic, for the product's central feature. -->
+              <!-- Summary — sits WITH the other controls now, not alone at the foot of the art. -->
+              <button
+                v-if="summaryText && !panelOpen"
+                type="button"
+                data-testid="player-open-summary"
+                :title="t('player.summaryOpenHint')"
+                :aria-label="t('player.summaryOpenHint')"
+                class="inline-flex shrink-0 items-center gap-1 rounded-full bg-canvas/55 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas/80"
+                @click="summaryOpen = true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3" aria-hidden="true">
+                  <path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" />
+                </svg>
+                {{ t('player.summaryOpen') }}
+              </button>
               <button
                 v-if="!panelOpen && insights.length"
                 ref="insightsOpener"
                 type="button"
                 data-testid="player-open-insights"
-                class="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
+                class="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
                 @click="panelOpen = true"
               >
                 ✦ {{ t('card.insightCount', { count: insights.length }, insights.length) }}
               </button>
+              <!-- Reach: a quieter scrim than the actions beside it — it is context, not a control
+                   you act on, so it should not compete with them for the eye. The sparkline drops
+                   from 116px to 44px; at this size it reads as a shape, which is all it ever
+                   communicated. -->
               <div
                 v-if="!panelOpen"
-                class="shrink-0 rounded-xl bg-canvas/80 px-3 py-2 text-right backdrop-blur"
+                class="flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/40 px-2.5 py-1 backdrop-blur"
               >
-                <div class="flex items-center justify-end gap-3 text-xs font-bold leading-none">
+                <div class="flex items-center gap-2 text-[11px] font-bold leading-none">
                   <span
                     v-if="stats && stats.listeners > 0"
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
                     :title="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
                     {{ compact(stats.listeners) }}
                   </span>
                   <span
@@ -691,43 +722,17 @@ onBeforeUnmount(() => {
                 <Sparkline
                   v-if="stats && statsSeries.some((n) => n > 0)"
                   :values="statsSeries"
-                  :width="116"
-                  :height="22"
-                  class="mt-1.5 block text-accent"
+                  :width="44"
+                  :height="14"
+                  class="block text-accent"
                 />
               </div>
               </div>
             </div>
 
-            <!--
-              Bottom: an explicit way IN to the summary, not the summary itself.
-
-              This used to be the full summary laid over a gradient — hover-revealed on desktop and
-              permanently on for touch, which is most of the time. That meant the artwork was
-              covered by default on phones, and the text was clipped to the hero's fixed square, so
-              a real summary ended in an ellipsis and could not be finished. Prose the reader cannot
-              reach the end of, sitting on top of the picture, is worse than both a clean picture
-              and a readable summary.
-
-              So: the artwork stays clean, and this is a labelled control that opens the summary in
-              a dialog where it can be read in full and scrolled. Explicit, dismissible, and it
-              cannot truncate.
-            -->
-            <div v-if="summaryText" class="flex justify-start p-3">
-              <button
-                type="button"
-                data-testid="player-open-summary"
-                :title="t('player.summaryOpenHint')"
-                :aria-label="t('player.summaryOpenHint')"
-                class="inline-flex items-center gap-1.5 rounded-full bg-canvas/80 px-3 py-1.5 text-xs font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas"
-                @click="summaryOpen = true"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true">
-                  <path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" />
-                </svg>
-                {{ t('player.summaryOpen') }}
-              </button>
-            </div>
+            <!-- Nothing at the foot of the artwork: the Summary control moved up into the toolbar
+                 with Insights and reach, so the lower two-thirds of the picture stays picture. -->
+            <span />
           </div>
         </div>
 
