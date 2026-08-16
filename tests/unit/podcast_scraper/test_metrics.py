@@ -395,6 +395,10 @@ class TestFinish(unittest.TestCase):
             "episodes_scraped_total",
             "episodes_skipped_total",
             "errors_total",
+            # Episodes that blew the summarization deadline but still COMPLETED. Deliberately
+            # NOT folded into errors_total: they succeeded, and counting them as errors is what
+            # made two fully-processed feeds read as failures (#1657 acceptance item 4).
+            "summarization_deadline_overruns",
             "bytes_downloaded_total",
             # #1129/#1130 gap 5: both keys must be present while the alias is
             # still supported.

@@ -104,6 +104,10 @@ class Metrics:
     episodes_scraped_total: int = 0
     episodes_skipped_total: int = 0
     errors_total: int = 0
+    # Episodes whose metadata generation blew the summarization deadline but still COMPLETED.
+    # Counted separately from errors_total on purpose: these episodes succeeded, and folding
+    # them into the error count is what made two fully-processed feeds read as failures.
+    summarization_deadline_overruns: int = 0
     bytes_downloaded_total: int = 0
 
     # Processing statistics
@@ -1564,6 +1568,7 @@ class Metrics:
             "episodes_scraped_total": self.episodes_scraped_total,
             "episodes_skipped_total": self.episodes_skipped_total,
             "errors_total": self.errors_total,
+            "summarization_deadline_overruns": self.summarization_deadline_overruns,
             "bytes_downloaded_total": self.bytes_downloaded_total,
             # #1129/#1130 gap 5: forward-compatible canonical name for the retry-event
             # counter. Backed today by the same urllib3-based downloader as

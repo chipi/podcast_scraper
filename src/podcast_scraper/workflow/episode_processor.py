@@ -1926,24 +1926,45 @@ def _transcribe_with_segments_maybe_chunked(
     from . import sniff_gate as _sniff_gate
 
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
-        with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
-            if _sniff_gate.is_enabled(cfg):
-                return _sniff_gate.transcribe_with_sniff_gate(
-                    media_path=path,
-                    cfg=cfg,
-                    provider=transcription_provider,
-                    pipeline_metrics=pipeline_metrics,
-                    episode_duration_seconds=episode_duration_seconds,
-                    call_metrics=call_metrics,
-                )
-            result, elapsed = transcription_provider.transcribe_with_segments(
-                path,
-                language=cfg.language,
-                pipeline_metrics=pipeline_metrics,
-                episode_duration_seconds=episode_duration_seconds,
-                call_metrics=call_metrics,
+        # The completed result is stashed BEFORE leaving the ``with`` block, and returned from
+        # outside it. ``timeout_context`` raises from ``__exit__`` — after the block has already
+        # finished — so a ``return`` written inside the block has its value evaluated and then
+        # discarded by that exception. The transcript existed and was thrown away: the episode
+        # died of a deadline it had already met. Stashing first means an overrun costs a loud
+        # log line instead of the work.
+        done: Dict[str, Tuple[Dict[str, Any], float]] = {}
+        try:
+            with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
+                if _sniff_gate.is_enabled(cfg):
+                    done["r"] = _sniff_gate.transcribe_with_sniff_gate(
+                        media_path=path,
+                        cfg=cfg,
+                        provider=transcription_provider,
+                        pipeline_metrics=pipeline_metrics,
+                        episode_duration_seconds=episode_duration_seconds,
+                        call_metrics=call_metrics,
+                    )
+                else:
+                    result, elapsed = transcription_provider.transcribe_with_segments(
+                        path,
+                        language=cfg.language,
+                        pipeline_metrics=pipeline_metrics,
+                        episode_duration_seconds=episode_duration_seconds,
+                        call_metrics=call_metrics,
+                    )
+                    done["r"] = (result, elapsed)
+        except TimeoutError:
+            if "r" not in done:
+                # Nothing was produced — the deadline is not why, but there is no result to
+                # keep, so the caller's failure handling is correct here.
+                raise
+            logger.error(
+                "[%s] Transcription OVERRAN its %ss deadline but COMPLETED; keeping the "
+                "transcript rather than discarding finished work.",
+                job.idx,
+                cfg.transcription_timeout,
             )
-            return (result, elapsed)
+        return done["r"]
 
     chunker = AudioChunker(
         # Per-provider byte cap minus 1 MiB headroom (multipart/form overhead),

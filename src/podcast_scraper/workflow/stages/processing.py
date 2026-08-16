@@ -965,6 +965,114 @@ class DetectedSpeakers(NamedTuple):
     stated: List[str]
 
 
+def _record_processing_incident(
+    cfg: config.Config,
+    job: Any,
+    effective_output_dir: str,
+    *,
+    category: str,
+    message: str,
+    exception_type: str,
+    stage: str,
+) -> None:
+    """Append one episode-scoped row to ``corpus_incidents.jsonl``.
+
+    Neither notable outcome of the metadata stage used to leave a durable trace. The
+    acceptance run's two slowest episodes produced not a single row, so the batch rollup
+    reported zero incidents for feeds that had each spent over 20 minutes past budget; and the
+    genuine-failure path recorded a status inside the run's own metrics and nothing else. In
+    both cases the ERROR log is in-flight only and survives into no artifact, so the corpus
+    summary read clean.
+
+    Best-effort by construction: an incident write must never change the fate of the episode
+    it is describing.
+    """
+    try:
+        from ...utils.corpus_incidents import append_corpus_incident
+        from ..helpers import get_episode_id_from_episode
+
+        path = (getattr(cfg, "incident_log_path", None) or "").strip()
+        if not path:
+            path = os.path.join(effective_output_dir, "corpus_incidents.jsonl")
+        episode = getattr(job, "episode", None)
+        episode_id = None
+        if episode is not None:
+            # Its own guard: id resolution reads the RSS item and can raise on a malformed
+            # feed. An incident WITHOUT an id is still worth having — losing the whole row
+            # because the label could not be computed is how these went unrecorded in the
+            # first place.
+            try:
+                episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+            except Exception:
+                logger.debug("could not resolve episode id for incident", exc_info=True)
+        append_corpus_incident(
+            path,
+            scope="episode",
+            category=category,  # type: ignore[arg-type]
+            message=message,
+            exception_type=exception_type,
+            stage=stage,
+            feed_url=getattr(cfg, "rss_url", None),
+            episode_id=episode_id,
+            episode_idx=int(getattr(episode, "idx", 0) or 0),
+        )
+    except Exception:  # pragma: no cover - observability must never fail the episode
+        logger.debug("could not record processing incident", exc_info=True)
+
+
+def _record_summarization_overrun_incident(
+    cfg: config.Config,
+    job: Any,
+    effective_output_dir: str,
+    exc: BaseException,
+) -> None:
+    """An episode whose metadata generation blew its deadline but still finished.
+
+    ``soft`` rather than ``policy``: a policy row means a documented, by-design skip (an API
+    audio limit), whereas this is an anomaly worth chasing — the episode succeeded, but at a
+    cost that says the budget or the workload needs attention.
+    """
+    _record_processing_incident(
+        cfg,
+        job,
+        effective_output_dir,
+        category="soft",
+        message=(
+            "Metadata generation exceeded its summarization deadline but COMPLETED; "
+            "results kept (episode is not a failure)"
+        ),
+        exception_type="DeadlineExceededButCompleted",
+        stage="summarization",
+    )
+
+
+def _record_metadata_failure_incident(
+    cfg: config.Config,
+    job: Any,
+    effective_output_dir: str,
+    exc: BaseException,
+) -> None:
+    """An episode whose metadata generation genuinely raised.
+
+    This path recorded ``status=failed`` and nothing else. The status is real, but it lives
+    only inside the run's own metrics — it never reached ``corpus_incidents.jsonl``, so the
+    batch rollup counted zero incidents and the feed still reported ``ok: true``. An operator
+    reading the corpus summary saw a clean run with one fewer episode and no reason given,
+    which is the same silence that made the deadline bug take a full investigation to find.
+
+    ``hard``: nothing about an unexpected exception is by design.
+    """
+    _record_processing_incident(
+        cfg,
+        job,
+        effective_output_dir,
+        category="hard",
+        message=f"Metadata generation failed: {format_exception_for_log(exc)}",
+        exception_type=type(exc).__name__,
+        stage="metadata",
+    )
+
+
 def _record_naming_cost(pipeline_metrics: Any, cost_probe: Any, episode_idx: int) -> None:
     """Attribute the probe's captured naming cost to this episode.
 
@@ -2095,25 +2203,59 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 )
             return True
         except SummarizationTimeoutError as exc:
-            update_metric_safely(pipeline_metrics, "errors_total", 1)
+            # OVERRAN, not failed — and the difference is provable, not a judgement call.
+            #
+            # ``timeout_context`` observes; it cannot interrupt (see its docstring, and
+            # tests/unit/podcast_scraper/utils/test_timeout_contract.py which pins that). It
+            # raises ONLY after the wrapped block has already returned normally, so reaching
+            # this handler means ``call_generate_metadata`` COMPLETED. If the work itself had
+            # raised, control would be in the generic ``except Exception`` below instead. The
+            # only other producer of this exception class, ``with_timeout``, has no callers.
+            #
+            # Marking the episode failed here was therefore untrue, and it was expensive. On the
+            # acceptance run the two episodes whose GI exceeded 1200s — Dwarkesh (1529s) and
+            # Latent Space (1209s) — were recorded ``failed @ summarization`` while their
+            # artifacts were complete and valid on disk (summary schema_status=valid, 114 and 54
+            # insights, 26 KG nodes each). ``_pipeline_return_episode_count`` then counted zero
+            # ok episodes, so both feeds reported ``episodes_processed: 0`` with ``ok: true``,
+            # and no incident was written anywhere. Two fully-processed episodes read as a
+            # silent no-op. Every other feed in the run — the longest at 970s — was fine.
+            #
+            # Same shape as #1647: a signal that means "finished, but notable" was routed into
+            # the word reserved for "did not finish". The overrun is real and stays loud (ERROR
+            # log + an incident row so it appears in the batch rollup); what changes is that it
+            # no longer erases a successful episode.
+            update_metric_safely(pipeline_metrics, "summarization_deadline_overruns", 1)
             logger.error(
-                "[%s] Summarization timeout after %ss: %s",
+                "[%s] Summarization OVERRAN its %ss deadline but COMPLETED; keeping the "
+                "episode's results. This is a performance signal, not a failure: %s",
                 job.episode.idx,
                 getattr(cfg, "summarization_timeout", 1200),
                 format_exception_for_log(exc),
             )
+            _record_summarization_overrun_incident(cfg, job, effective_output_dir, exc)
             if pipeline_metrics is not None:
                 from ..helpers import get_episode_id_from_episode
 
                 episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
                 pipeline_metrics.update_episode_status(
                     episode_id=episode_id,
-                    status="failed",
-                    stage="summarization",
-                    error_type="TimeoutError",
-                    error_message=redact_for_log(str(exc), max_len=500),
+                    status="ok",
+                    stage="metadata_written",
                 )
-            return False
+                try:
+                    pipeline_metrics.record_stage_outcome(
+                        "summarization",
+                        job.episode.idx,
+                        "degraded",
+                        reason="deadline_exceeded_but_completed",
+                        detail={
+                            "deadline_seconds": getattr(cfg, "summarization_timeout", 1200),
+                        },
+                    )
+                except Exception:
+                    logger.debug("[%s] could not record summarization overrun", job.episode.idx)
+            return True
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
             logger.error(
@@ -2121,6 +2263,12 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 job.episode.idx,
                 format_exception_for_log(exc),
             )
+            # A real failure, and until now it was recorded ONLY as an episode status inside
+            # the run's own metrics. It never reached corpus_incidents.jsonl, so the batch
+            # rollup counted zero incidents while the feed reported ok:true with one fewer
+            # episode and no reason given — the same silence that made the deadline bug above
+            # take a full investigation to find (#1657 acceptance item 4).
+            _record_metadata_failure_incident(cfg, job, effective_output_dir, exc)
             # Record per-episode failure for run index (Issue #429)
             if pipeline_metrics is not None:
                 from ..helpers import get_episode_id_from_episode
