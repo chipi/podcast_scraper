@@ -47,6 +47,7 @@ import pytest
 
 from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
 from podcast_scraper.server.app_discover_view import _episode_features, rank_discover
+from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
@@ -120,7 +121,19 @@ class TestRankerDiscriminates:
         )
 
     def test_no_interests_is_recency(self, rows) -> None:
-        assert feed(rows, []) == [r.episode_id and s for r, s in zip(rows[:10], feed(rows, []))]
+        """Empty interests must be a byte-identical recency passthrough.
+
+        This is the shipped default for every user while APP_PERSONALIZED_RANKING is off, so it is
+        the one property a scoring refactor must not disturb. (The first version of this assertion
+        was `r.episode_id and s`, which evaluates to `s` — it compared the feed to itself and could
+        never fail. Caught in review.)
+        """
+        got = feed(rows, [])
+        expected = [slug_for_row(r) for r in rows[: len(got)]]
+        assert got == expected, (
+            "no-interest discovery is no longer plain recency order — this is the signed-out / "
+            "flag-off default path"
+        )
 
     def test_following_something_changes_the_feed(self, rows) -> None:
         assert feed(rows, ["topic:personal-finance"]) != feed(rows, []), (

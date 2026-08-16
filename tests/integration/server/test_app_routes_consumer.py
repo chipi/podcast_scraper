@@ -692,9 +692,16 @@ def test_derived_interests_rank_corpus_entities(tmp_path: Path) -> None:
     items = client.get("/api/app/interests/derived").json()["items"]
     by_token = {i["token"]: i for i in items}
     # jane-doe occurs in both captured episodes → count 2, ranked first.
-    assert by_token["person:person:jane-doe"]["count"] == 2
-    assert items[0]["token"] == "person:person:jane-doe"
-    assert "topic:topic:ai" in by_token
+    #
+    # These previously asserted "person:person:jane-doe" / "topic:topic:ai" — the double-prefixed
+    # tokens derive_interest_signals emitted because the KG ids it is handed already carry their
+    # prefix. That encoded the defect as the contract. A derived token is supposed to be a USABLE
+    # interest token; a doubled one matches nothing the ranker compares against and nothing
+    # POST /interests/{token} can act on.
+    assert by_token["person:jane-doe"]["count"] == 2
+    assert items[0]["token"] == "person:jane-doe"
+    assert "topic:ai" in by_token
+    assert not [t for t in by_token if t.startswith(("person:person:", "topic:topic:"))]
 
 
 def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Path) -> None:

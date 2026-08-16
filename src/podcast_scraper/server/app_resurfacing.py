@@ -77,6 +77,14 @@ def derive_interest_signals(
     ``{token, kind, label, count}`` — ``person:<id>`` / ``topic:<id>`` — by descending occurrence,
     so the same guest/topic across several heard episodes ranks highest. These are *implicit*
     signals, surfaced alongside (never overwriting) the user's explicit follows.
+
+    The token MUST be usable as an interest token, i.e. live in the same id space the ranker
+    matches against (``app_discover_view._episode_features``) and that ``POST /interests/{token}``
+    stores. Both real callers pass ids straight from ``entities_from_kg``, which already carry
+    their ``person:`` / ``topic:`` prefix — so blindly prepending ``kind`` produced
+    ``topic:topic:systems-thinking`` / ``person:person:sam``, tokens that can never match anything.
+    Prefixing is therefore conditional. (This hid because the unit tests passed made-up ids like
+    ``p:jane`` / ``t:ai``, a shape no caller produces; those cases still behave as before.)
     """
     counts: Counter[tuple[str, str]] = Counter()
     labels: dict[tuple[str, str], str] = {}
@@ -88,7 +96,18 @@ def derive_interest_signals(
         labels.setdefault(key, label or str(ent_id))
     ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
     return [
-        {"token": f"{kind}:{ent_id}", "kind": kind, "label": labels[(kind, ent_id)], "count": n}
+        {
+            "token": _interest_token(kind, ent_id),
+            "kind": kind,
+            "label": labels[(kind, ent_id)],
+            "count": n,
+        }
         for (kind, ent_id), n in ranked
         if n >= min_count
     ]
+
+
+def _interest_token(kind: str, ent_id: str) -> str:
+    """``kind:id``, without doubling a prefix the id already carries."""
+    prefix = f"{kind}:"
+    return ent_id if ent_id.startswith(prefix) else f"{prefix}{ent_id}"
