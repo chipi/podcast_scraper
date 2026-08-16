@@ -184,11 +184,26 @@ def _lexical_duplicates(texts: List[str], threshold: float) -> List[str]:
     """Keep the first of any group of insights that say the same thing in the same words.
 
     Runs ALWAYS, because it needs nothing but the standard library. The embedding deduper it
-    backs up lives in ``sentence-transformers``, which is in the ``[ml]`` and ``[search]``
-    extras — NOT ``[llm]``, the extra the production pipeline image is built with. So on the
-    image production actually runs, dedup did not run at all: every episode logged "insight
-    dedup unavailable (ModuleNotFoundError); keeping all N" and shipped whatever the model
-    emitted. A feature that only works on an image nobody deploys is not a feature.
+    backs up lives in ``sentence-transformers``, an optional dependency, and every environment
+    that lacks it used to get NO dedup at all: the call logged "insight dedup unavailable
+    (ModuleNotFoundError); keeping all N" and shipped whatever the model emitted.
+
+    WHERE THAT ACTUALLY BITES — corrected 2026-08-16, having first written the wrong thing
+    here. The original note claimed ``sentence-transformers`` is absent from ``[llm]``, "the
+    extra the production pipeline image is built with", and concluded dedup never ran in
+    production. That is false. ``docker/pipeline/Dockerfile`` installs
+    ``.[llm,search,sentry,langfuse]`` for the llm variant, ``[search]`` pins
+    ``sentence-transformers>=5.6.0``, and the runtime stage copies the whole site-packages tree
+    across — so the production image HAS the embedding tier.
+
+    The observation behind the wrong claim was real but local: the acceptance run executed FROM
+    SOURCE on a macOS x86_64 box where torch/lancedb publish no wheels, so the ML extras cannot
+    install there at all. A true statement about one dev machine was generalised into a false
+    one about production.
+
+    The lexical tier is still worth having on its own terms — it needs no wheel, no model and no
+    network, so it is the only tier that runs everywhere, including that dev box and any
+    air-gapped or minimal deployment. It is a floor, not a replacement.
 
     Two passes, cheapest first:
 

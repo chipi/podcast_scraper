@@ -1,20 +1,35 @@
-"""Insight dedup must work on the image production actually runs (#1657 follow-up).
+"""Insight dedup must work where ``sentence-transformers`` is absent (#1657 follow-up).
 
 THE DEFECT
 ``dedupe`` was embedding-only: it imported ``sentence_transformers``, and on ImportError logged
-a WARNING and returned every input unchanged. That module lives in the ``[ml]`` and ``[search]``
-extras — NOT ``[llm]``, which is what the production pipeline image is built with. So in
-production the deduper never ran. Every episode of the acceptance run logged::
+a WARNING and returned every input unchanged. So in any environment without that optional
+dependency, no dedup happened at all::
 
     insight dedup unavailable (ModuleNotFoundError); keeping all 24
 
 The redundancy it was written to remove was real and measured — 18 gemini episodes emitted 21.6
 insights of which only 14.1 were distinct, 35 % restatement, including one claim emitted
-verbatim twice. The fix shipped and could not execute.
+verbatim twice.
+
+WHICH ENVIRONMENTS — corrected 2026-08-16, after this file first said the wrong thing
+This docstring originally claimed ``sentence-transformers`` is not in ``[llm]`` and therefore
+"in production the deduper never ran". FALSE. ``docker/pipeline/Dockerfile`` builds the llm
+variant with ``.[llm,search,sentry,langfuse]``; ``[search]`` pins
+``sentence-transformers>=5.6.0``; the runtime stage copies the whole site-packages tree. The
+production image has the embedding tier.
+
+The log line above is real, but it came from running FROM SOURCE on a macOS x86_64 dev box,
+where torch and lancedb publish no wheels and the ML extras cannot install. One machine's truth
+was written up as production's.
+
+So the defect is narrower than first stated — and still worth fixing: a dedup feature that
+silently no-ops wherever an optional heavy dependency is missing is a feature with a hole in it,
+and the hole is invisible (a debug line) rather than loud.
 
 THE FIX
-A lexical tier that needs nothing but the standard library, so it runs everywhere, with the
-embedding tier kept as an optional recall upgrade where the module exists.
+A lexical tier that needs nothing but the standard library, so it runs everywhere — including
+that dev box and any air-gapped or minimal deployment — with the embedding tier kept as an
+optional recall upgrade where the module exists. A floor, not a replacement.
 
 WHY THE BAR IS AT 0.90
 It is bounded on both sides by measurement over all 14 episodes of the 2026-08-16 acceptance
@@ -267,8 +282,16 @@ class TestTheContract:
 class TestAgainstTheRealCorpus:
     """The corpora are undeduped ground truth: anything removed must be a REAL duplicate.
 
-    These corpora were produced by the [llm] image, so dedup never ran on them — exactly what a
+    These corpora were produced by a FROM-SOURCE run on a macOS x86_64 box, where torch and
+    lancedb publish no wheels, so ``sentence-transformers`` could not be installed and no
+    embedding dedup ran on them. They are undeduped ground truth — exactly what a
     false-positive test needs.
+
+    (This said "produced by the [llm] image" until 2026-08-16. Wrong: that image installs
+    ``[search]``, which carries ``sentence-transformers``. The undeduped property these tests
+    depend on is real, but it comes from the dev box's missing wheels, not from the image's
+    extras. Stated correctly here because the property is load-bearing — if these corpora HAD
+    been deduped already, every assertion below would be measuring nothing.)
 
     This class used to assert that NOTHING was ever removed, on the stated premise that "every
     insight in the corpora is distinct". Measuring all 14,539 pairs falsified that premise: the
