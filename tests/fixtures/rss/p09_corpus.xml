@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Cross-Show</title>
+    <link>http://localhost/</link>
+    <description>Recurring guests from other shows revisit their positions.</description>
+    <language>en-us</language>
+
+    <itunes:author>Alex Morgan</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p09_cover.svg"/>
+
+    <item>
+      <title>Systems Thinking, Two Years Later</title>
+      <guid isPermaLink="false">p09_e01</guid>
+      <pubDate>Mon, 12 May 2025 00:00:00 +0000</pubDate>
+      <description>A grounded overview of biohacking in 2025: why it moved from fringe experimentation toward measurement, fundamentals, and systems thinking—and where it still goes wrong.</description>
+      <enclosure url="/audio/p09_e01.mp3" length="1712004" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:03:34</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Macro Without the Theatrics</title>
+      <guid isPermaLink="false">p09_e02</guid>
+      <pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate>
+      <description>A practical framework for 2025: how sleep and metabolism interact, what wearables and glucose data can (and cannot) tell you, and how to integrate measurement without obsession.</description>
+      <enclosure url="/audio/p09_e02.mp3" length="1696749" type="audio/mpeg"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:03:32</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>When the Severe Garble Bites</title>
+      <guid isPermaLink="false">p09_e03</guid>
+      <pubDate>Wed, 07 Jan 2026 00:00:00 +0000</pubDate>
+      <description>A sober look at what biohacking cannot solve: biological constraints, ethical trade-offs, inequality risks, and how the next decade may normalize—rather than sensationalize—human optimization.</description>
+      <enclosure url="/audio/p09_e03.mp3" length="1696958" type="audio/mpeg"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:03:32</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Risk Is a Systems Property</title>
+      <guid isPermaLink="false">p09_e04</guid>
+      <pubDate>Thu, 16 Jul 2026 00:00:00 +0000</pubDate>
+      <description>Sam talks with Dr. Elena Fischer: Risk Is a Systems Property.</description>
+      <enclosure url="/audio/p09_e04.mp3" length="1734365" type="audio/mpeg"/>
+      <itunes:episode>4</itunes:episode>
+      <itunes:duration>00:03:37</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

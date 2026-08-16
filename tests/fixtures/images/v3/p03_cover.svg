@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Below the Surface">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#8A5BD6"/>
-      <stop offset="55%" stop-color="#8A5BD6" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="#1B1145"/>
+      <stop offset="0%" stop-color="#C2417A"/>
+      <stop offset="55%" stop-color="#C2417A" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#3A1250"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.72" cy="0.22" r="0.75">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30"/>
@@ -15,7 +15,7 @@
     </linearGradient>
   </defs>
 
-  <rect width="600" height="600" fill="#1B1145"/>
+  <rect width="600" height="600" fill="#3A1250"/>
   <rect width="600" height="600" fill="url(#bg)"/>
   <rect width="600" height="600" fill="url(#glow)"/>
 

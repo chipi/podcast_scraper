@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Practical Systems">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#5B8C3A"/>
-      <stop offset="55%" stop-color="#5B8C3A" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="#12331F"/>
+      <stop offset="0%" stop-color="#3B6FE0"/>
+      <stop offset="55%" stop-color="#3B6FE0" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#101C4A"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.72" cy="0.22" r="0.75">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30"/>
@@ -15,7 +15,7 @@
     </linearGradient>
   </defs>
 
-  <rect width="600" height="600" fill="#12331F"/>
+  <rect width="600" height="600" fill="#101C4A"/>
   <rect width="600" height="600" fill="url(#bg)"/>
   <rect width="600" height="600" fill="url(#glow)"/>
 
