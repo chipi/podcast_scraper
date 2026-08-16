@@ -5,17 +5,18 @@ backend becomes unreachable, the pipeline must fall back to a cloud provider
 rather than degrade silently. This module implements that contract for every
 LLM-touching provider method on a single wrapped instance.
 
-Wrapped methods:
+Wrapped methods: EVERY callable on the provider except an explicit exemption list
+(``_NEVER_WRAPPED`` — lifecycle/introspection, plus transcription, which carries its own
+RFC-106 ladder). That includes summarization, GI insight generation, GI evidence (quotes and
+entailment), KG extraction, transcript cleaning, insight classification, speaker and host
+detection, and anything added later.
 
-- Summarization: ``summarize``, ``summarize_bundled``,
-  ``summarize_mega_bundled``, ``summarize_extraction_bundled``.
-- GI evidence: ``extract_quotes``, ``extract_quotes_bundled``,
-  ``score_entailment``, ``score_entailment_bundled``. The same wrapped
-  instance backs all three roles (summary / quote / entailment) when their
-  provider config is the same; without this coverage, ``__getattr__`` would
-  forward the GI methods to the broken primary and silently lose the
-  evidence stack (insights with ``gi_require_grounding: true`` would all
-  drop out).
+This was previously an allowlist of eight method names, which meant a provider could be
+"wrapped with failover" and still have none on ``generate_insights``, ``detect_speakers``,
+``extract_kg_graph``, ``clean_transcript``, ``classify_insights``, ``detect_hosts``,
+``analyze_patterns`` or ``complete_text`` — ``__getattr__`` forwarded them straight to the
+broken primary. Half the LLM surface was unprotected and nothing said so. The rule is inverted
+now: failover is the default and opting out is explicit.
 
 Wrapping is opt-in via the failover ladder in the profile/config. RFC-106 (#1198): the source of
 truth is the registry-emitted ``summary_fallback_providers`` (an ordered chain); the legacy
@@ -40,25 +41,56 @@ The wrapper is transparent to callers: pass-through of non-protocol attributes
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Sequence, Union
+from typing import Any, Callable, cast, Dict, List, Optional, Sequence, TypeVar, Union
 
 from .. import config
 from .base import SummarizationProvider
 
 logger = logging.getLogger(__name__)
 
+#: The wrapper is provider-shaped, not summarization-shaped: it wraps whatever provider it is
+#: given and returns something with the same interface. Typed as a TypeVar so a wrapped speaker
+#: detector still type-checks as a speaker detector — the class name is historical (it began as
+#: a summary-only feature) but the capability is generic, and the types now say so.
+_ProviderT = TypeVar("_ProviderT")
 
-_WRAPPED_METHODS = (
-    # Summarization
-    "summarize",
-    "summarize_bundled",
-    "summarize_mega_bundled",
-    "summarize_extraction_bundled",
-    # GI evidence (quotes + entailment, staged + bundled)
-    "extract_quotes",
-    "extract_quotes_bundled",
-    "score_entailment",
-    "score_entailment_bundled",
+
+#: Methods that must NOT be failed over. Everything else on the provider is wrapped.
+#:
+#: THIS USED TO BE THE OTHER WAY AROUND — an allowlist of eight method names — and that is a
+#: defect that cannot be seen by reading the list, only by reading what is missing from it.
+#: ``__getattr__`` forwarded every unlisted method straight to the primary, so a provider that
+#: was "wrapped with failover" still had NO failover on:
+#:
+#:     generate_insights   classify_insights   clean_transcript   extract_kg_graph
+#:     detect_speakers     detect_hosts        analyze_patterns   complete_text
+#:
+#: Eight LLM calls protected, eight unprotected, and nothing anywhere said so. When the
+#: OpenRouter account went over its weekly limit every one of those failed outright while
+#: summarisation quietly failed over and survived — which is how ``generate_insights`` came to
+#: write stub artifacts across production episodes, and how a prod speaker-detection job died
+#: with "no budget/credit left on this key" instead of failing over to native DeepSeek.
+#:
+#: An allowlist puts the burden on whoever adds the NEXT LLM method to remember this file. A
+#: denylist puts the burden on whoever adds a method that must not fail over — a much rarer and
+#: much more obvious thing to notice. Failover is now the default; opting out is explicit.
+_NEVER_WRAPPED = frozenset(
+    {
+        # Lifecycle and introspection: no LLM call is made, and wrapping them would construct a
+        # whole fallback provider just to answer a question about the primary.
+        "initialize",
+        "cleanup",
+        "warmup",
+        "clear_cache",
+        "is_initialized",
+        "get_capabilities",
+        "get_pricing",
+        # Transcription carries its OWN RFC-106 ladder (``transcription_fallback_providers``,
+        # applied in transcription/factory.py). Wrapping it here would stack two independent
+        # ladders on one call and fail over twice by different rules.
+        "transcribe",
+        "transcribe_with_segments",
+    }
 )
 
 
@@ -91,7 +123,7 @@ class FallbackAwareSummarizationProvider:
 
     def __init__(
         self,
-        primary: SummarizationProvider,
+        primary: Any,
         fallback_provider_names: Union[str, Sequence[str]],
         cfg: config.Config,
     ) -> None:
@@ -131,12 +163,18 @@ class FallbackAwareSummarizationProvider:
             warmup_fn(timeout_s=timeout_s)
 
     def __getattr__(self, name: str) -> Any:
-        if name in _WRAPPED_METHODS:
-            primary_fn = getattr(self._primary, name, None)
-            if primary_fn is None:
-                raise AttributeError(name)
-            return self._wrap_call(name, primary_fn)
-        return getattr(self._primary, name)
+        """Forward to the primary, wrapping every LLM call in the failover chain.
+
+        Default-wrap, not default-forward. Attributes the wrapper does not itself define land
+        here, and anything callable that is not explicitly exempt gets the chain — so a provider
+        method added tomorrow is protected without anyone editing this file.
+        """
+        attr = getattr(self._primary, name)
+        if name.startswith("_") or name in _NEVER_WRAPPED or not callable(attr):
+            # Data attributes (``cleaning_processor``, ``call_metrics``) and the exempt
+            # lifecycle/transcription methods pass through untouched, as before.
+            return attr
+        return self._wrap_call(name, attr)
 
     def _wrap_call(self, method_name: str, primary_fn: Callable[..., Any]) -> Callable[..., Any]:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -148,7 +186,7 @@ class FallbackAwareSummarizationProvider:
                 # apply is_infra_failure — a DGX-down summary retries on cloud regardless).
                 for fb_name in self._fallback_names:
                     logger.warning(
-                        "Primary summarization provider failed on %s; trying fallback tier '%s'. "
+                        "Primary provider failed on %s(); trying fallback tier '%s'. "
                         "Primary error: %s",
                         method_name,
                         fb_name,
@@ -208,15 +246,23 @@ class FallbackAwareSummarizationProvider:
                 logger.debug("Failed to record fallback metric: %s", exc)
 
 
-def _summary_fallback_chain(cfg: config.Config) -> List[str]:
+def _summary_fallback_chain(cfg: config.Config, primary_name: Optional[str] = None) -> List[str]:
     """The ordered LLM/summary failover ladder for ``cfg`` (RFC-106 / #1198).
 
     Prefers the registry-emitted ``summary_fallback_providers`` (the source of truth). Falls back to
     the legacy ``degradation_policy.fallback_provider_on_failure`` (RFC-089) as a one-element chain
     for profiles that predate the registry chain. Any tier equal to the primary is dropped — there
     is no point failing over to the provider that just failed.
+
+    ``primary_name`` names the provider being wrapped. It defaults to ``cfg.summary_provider``
+    because this ladder began as a summary-only feature, but the wrapper now protects the speaker
+    detector too, and that stage's primary is ``speaker_detector_provider``. Passing the real
+    primary is what makes "drop the tier that just failed" mean the right thing for each stage.
+    Read with ``getattr``: a config (or a test double) need not carry every provider field.
     """
-    primary_name = str(cfg.summary_provider or "").strip().lower()
+    if primary_name is None:
+        primary_name = str(getattr(cfg, "summary_provider", None) or "")
+    primary_name = str(primary_name or "").strip().lower()
     chain = [
         str(p).strip().lower()
         for p in (getattr(cfg, "summary_fallback_providers", None) or [])
@@ -231,9 +277,10 @@ def _summary_fallback_chain(cfg: config.Config) -> List[str]:
 
 
 def wrap_with_fallback_if_configured(
-    primary: SummarizationProvider,
+    primary: _ProviderT,
     cfg: config.Config,
-) -> SummarizationProvider:
+    primary_name: Optional[str] = None,
+) -> _ProviderT:
     """Wrap ``primary`` in ``FallbackAwareSummarizationProvider`` if the config declares an LLM
     failover ladder (registry-emitted ``summary_fallback_providers`` or the legacy
     ``degradation_policy.fallback_provider_on_failure``).
@@ -252,7 +299,7 @@ def wrap_with_fallback_if_configured(
     availability-first fallover. The strategy is a standalone knob defaulted by run context
     (reprocess -> hold) and overridable per profile.
     """
-    chain = _summary_fallback_chain(cfg)
+    chain = _summary_fallback_chain(cfg, primary_name)
     if not chain:
         return primary
     from ..providers.resilience import FailureStrategy, resolve_failure_strategy
@@ -262,8 +309,15 @@ def wrap_with_fallback_if_configured(
             "ADR-122 HOLD strategy: NOT wrapping summary provider '%s' in cross-LLM fallover "
             "(chain %s suppressed) — the chosen model is the only model; consistency over "
             "availability",
-            str(cfg.summary_provider or "").strip().lower(),
+            # getattr, not attribute access: this wrapper is now applied to the speaker detector
+            # too, and is reachable with config objects (and test doubles) that carry no
+            # ``summary_provider``. A log line must not be the thing that fails a run.
+            str(getattr(cfg, "summary_provider", None) or "").strip().lower(),
             chain,
         )
         return primary
-    return FallbackAwareSummarizationProvider(primary, chain, cfg)
+    # The wrapper is a transparent proxy: every attribute it does not define forwards to the
+    # primary, so it satisfies the primary's interface structurally without inheriting it. mypy
+    # cannot express "same duck as the input", hence the cast — the TypeVar is what keeps the
+    # CALLER correctly typed (a wrapped speaker detector stays a speaker detector).
+    return cast("_ProviderT", FallbackAwareSummarizationProvider(primary, chain, cfg))
