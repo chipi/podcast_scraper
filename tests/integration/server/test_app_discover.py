@@ -404,3 +404,67 @@ def test_corpus_trending_operator_global_view(
     assert body["as_of_week"].startswith("2026-W")
     assert "topic" in body["kinds"] and "episode" in body["kinds"]  # every kind present
     assert body["kinds"]["topic"][0]["entity_id"] == "topic:ai"
+
+
+# --- #11 telemetry: impressions and clicks must be labelled by the SAME rule -------------------
+#
+# They were not. The impression used `personalized and interests`; the click used the
+# personalized_ranking flag alone. A flag-on user with NO interests therefore logged `recency`
+# impressions and `personalized` clicks, so any CTR-by-variant comparison over
+# ranking_events.jsonl was wrong before an experiment could start. The click now reads back the
+# variant of the feed that produced it (app_ranking_telemetry.last_impression_variant).
+
+
+def _variants(tmp_path: Path) -> tuple[list[str], list[str]]:
+    events = app_ranking_telemetry.read_events(tmp_path / "appdata", _user_id(tmp_path))
+    imps = [e["variant"] for e in events if e["kind"] == "impression"]
+    clicks = [e["variant"] for e in events if e["kind"] == "click"]
+    return imps, clicks
+
+
+def test_click_variant_matches_impression_when_flag_on_but_no_interests(tmp_path: Path) -> None:
+    """The regression case: personalisation enabled, user has followed nothing."""
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, [])  # no interests
+    client.get("/api/app/discover?limit=3")
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
+    imps, clicks = _variants(tmp_path)
+    assert imps and clicks
+    assert imps[-1] == "recency", imps
+    assert clicks[-1] == imps[-1], (
+        f"click logged variant={clicks[-1]!r} against impression variant={imps[-1]!r} — "
+        "the two sides are labelled by different rules, which corrupts CTR-by-variant analysis"
+    )
+
+
+def test_click_variant_matches_impression_when_personalized(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    client.get("/api/app/discover?limit=3")
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 1})
+    imps, clicks = _variants(tmp_path)
+    assert imps[-1] == "personalized"
+    assert clicks[-1] == imps[-1]
+
+
+def test_click_variant_matches_impression_when_flag_off(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=False)
+    _sign_in(client, tmp_path, ["topic:ai"])  # interests exist but the flag gates them
+    client.get("/api/app/discover?limit=3")
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
+    imps, clicks = _variants(tmp_path)
+    assert imps[-1] == "recency"
+    assert clicks[-1] == imps[-1]
+
+
+def test_click_without_a_preceding_impression_still_logs(tmp_path: Path) -> None:
+    """Deep link or cleared log: fall back to the flag rather than dropping the event."""
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
+    _imps, clicks = _variants(tmp_path)
+    assert clicks == ["personalized"], clicks

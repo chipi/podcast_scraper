@@ -215,7 +215,15 @@ async def discover_click(
     """
     data_dir = getattr(request.app.state, "app_data_dir", None)
     if user is not None and data_dir is not None:
-        variant = (
+        # The variant of the feed that PRODUCED this click, read back off the impression log
+        # rather than recomputed. Recomputing used only the personalized_ranking flag, while the
+        # impression side also required the user to actually have interests — so a flag-on user
+        # with no interests logged `recency` impressions and `personalized` clicks, corrupting any
+        # CTR-by-variant comparison before an experiment could start. The impression variant also
+        # depends on DERIVED interests, which cost real KG loads to recompute; this beacon must
+        # stay cheap. Falling back to the flag keeps a click loggable when no impression precedes
+        # it (deep link, cleared log).
+        variant = app_ranking_telemetry.last_impression_variant(Path(data_dir), user.user_id) or (
             "personalized"
             if bool(getattr(request.app.state, "personalized_ranking", False))
             else "recency"
