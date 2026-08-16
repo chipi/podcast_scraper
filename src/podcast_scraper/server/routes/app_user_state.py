@@ -201,7 +201,10 @@ async def put_favorite(
 ) -> AppFavoritesResponse:
     """Save an item (idempotent on kind+ref); returns the updated favorites."""
     # Stamp added_at (momentum engagement source, RFC-103) — the save's timestamp, so saves can be
-    # bucketed into a weekly momentum series. Preserves a client-supplied added_at if present.
+    # bucketed into a weekly momentum series. Always server-minted: FavoriteAdd has no added_at
+    # field, so model_dump can never carry one (this comment used to claim it preserved a
+    # client-supplied value). The store keeps the ORIGINAL added_at when this kind+ref is already
+    # saved, so a re-save neither reorders the list nor counts as a second engagement.
     item = {"added_at": int(time.time()), **body.model_dump(exclude_none=True)}
     app_user_state.add_favorite(_data_dir(request), user.user_id, item)
     return _favorites(request, user)

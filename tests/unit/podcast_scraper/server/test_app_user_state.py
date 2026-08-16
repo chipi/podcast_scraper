@@ -316,3 +316,35 @@ def test_set_interests_is_locked_like_every_other_writer_of_this_file(tmp_path: 
     assert held == [True, True, True], held
     # And the lock is genuinely released each time — a follow-up write must not time out.
     assert st.get_interests(tmp_path, UID) == ["person:jane"]
+
+
+def test_resaving_a_favorite_keeps_its_place_and_its_original_added_at(tmp_path: Path) -> None:
+    """"Idempotent on kind+ref" has to mean the list is unchanged, not just un-duplicated.
+
+    Re-saving used to remove the row and append the new one, so the item jumped to the end and got
+    a fresh added_at (the route always stamps time.time()). The user saw their favorites reorder
+    after an action that changed nothing, and RFC-103's weekly momentum series counted the re-save
+    as a second engagement.
+    """
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "a", "added_at": 100})
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "b", "added_at": 200})
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "c", "added_at": 300})
+
+    favs = st.add_favorite(
+        tmp_path, UID, {"kind": "episode", "ref": "a", "label": "renamed", "added_at": 999}
+    )
+    assert [f["ref"] for f in favs] == ["a", "b", "c"]  # position held
+    first = next(f for f in favs if f["ref"] == "a")
+    assert first["added_at"] == 100, "a re-save is the same save, not a new one"
+    assert first["label"] == "renamed"  # everything else DOES update
+
+
+def test_resubscribing_keeps_its_place_and_its_original_added_at(tmp_path: Path) -> None:
+    st.add_subscription(tmp_path, UID, {"feed_id": "f1", "added_at": 100})
+    st.add_subscription(tmp_path, UID, {"feed_id": "f2", "added_at": 200})
+    library = st.add_subscription(
+        tmp_path, UID, {"feed_id": "f1", "title": "Renamed", "added_at": 999}
+    )
+    assert [x["feed_id"] for x in library] == ["f1", "f2"]
+    f1 = next(x for x in library if x["feed_id"] == "f1")
+    assert f1["added_at"] == 100 and f1["title"] == "Renamed"

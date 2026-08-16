@@ -8,6 +8,7 @@ overlay only; shared corpus artifacts are never touched here.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -247,6 +248,28 @@ def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
     return clean
 
 
+def _upsert_in_place(
+    rows: list[dict[str, Any]], item: dict[str, Any], matches: "Callable[[dict[str, Any]], bool]"
+) -> None:
+    """Replace the first row ``matches`` selects, KEEPING its slot and its ``added_at``.
+
+    "Idempotent on kind+ref" was only half-true: re-saving removed the row and appended the new one,
+    so the item jumped to the end of the list and got a fresh ``added_at`` — the route always stamps
+    ``time.time()``. Two consequences, both wrong: re-saving something reordered the user's list for
+    no reason they took, and (RFC-103) each re-save read as a fresh save in the weekly momentum
+    series, inflating engagement with an action that changed nothing.
+
+    ``added_at`` is when the thing was FIRST saved. A re-save is the same save. Contrast
+    :func:`add_interest`, which has always got this right — stable position, event only on a new
+    follow.
+    """
+    for i, row in enumerate(rows):
+        if matches(row):
+            rows[i] = {**item, "added_at": row.get("added_at", item.get("added_at"))}
+            return
+    rows.append(item)
+
+
 # --- favorites (polymorphic "saved things": episodes, insights, … keyed by kind+ref) ---
 
 
@@ -268,12 +291,8 @@ def add_favorite(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dic
     """
     kind, ref = item.get("kind"), item.get("ref")
     with _user_lock(data_dir, user_id, "favorites"):
-        favorites = [
-            x
-            for x in _rows_for_update(data_dir, user_id, "favorites")
-            if (x.get("kind"), x.get("ref")) != (kind, ref)
-        ]
-        favorites.append(item)
+        favorites = _rows_for_update(data_dir, user_id, "favorites")
+        _upsert_in_place(favorites, item, lambda x: (x.get("kind"), x.get("ref")) == (kind, ref))
         _write(data_dir, user_id, "favorites", favorites)
         return get_favorites(data_dir, user_id)
 
@@ -385,10 +404,8 @@ def add_subscription(data_dir: Path, user_id: str, item: dict[str, Any]) -> list
     """
     feed_id = item.get("feed_id")
     with _user_lock(data_dir, user_id, "library"):
-        library = [
-            x for x in _rows_for_update(data_dir, user_id, "library") if x.get("feed_id") != feed_id
-        ]
-        library.append(item)
+        library = _rows_for_update(data_dir, user_id, "library")
+        _upsert_in_place(library, item, lambda x: x.get("feed_id") == feed_id)
         _write(data_dir, user_id, "library", library)
         return get_library(data_dir, user_id)
 
