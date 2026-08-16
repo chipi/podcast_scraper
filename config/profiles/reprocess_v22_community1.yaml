@@ -84,6 +84,12 @@ auto_speakers: true
 # #697 circuit breaker. Do not swap without re-running the harness at the
 # target operating point.
 summary_provider: gemini
+# Cross-vendor failover tier. These reprocess profiles are what re-derive an EXISTING corpus,
+# so an LLM outage mid-run does not merely lose new work — it can overwrite good artifacts with
+# degraded ones. Not registry-governed (no `profile:` preset here), so the ladder is set
+# directly; the registry-governed cloud profiles get the same tier via `make
+# profiles-materialize`.
+summary_fallback_providers: [deepseek]
 gemini_summary_model: gemini-2.5-flash-lite
 preprocessing_enabled: true
 
