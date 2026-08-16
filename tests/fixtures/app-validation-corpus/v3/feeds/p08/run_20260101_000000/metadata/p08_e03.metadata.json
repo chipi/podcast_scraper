@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 187,
     "episode_id": "ep-b3570c1ceb5eca41",
     "published_date": "2025-09-02T00:00:00",
     "title": "The Desk That Never Sleeps"
@@ -41,11 +41,13 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-      "Thanks, A. correspondent. Great to be back.",
-      "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
+      "A newsroom is a reliability system with a deadline — a framing that clarifies which tradeoffs matter most in journalism.",
+      "Trust is the only asset a public broadcaster actually owns; ignoring it forces rebuilding from scratch a year later.",
+      "The second-order effects of reliability failures are the part most people miss, since they compound beyond the initial incident.",
+      "Reliability tradeoffs crosscut everything in journalism, making it the central lens for evaluating editorial decisions.",
+      "The practical takeaway is to pick one idea from the discussion and run it for two weeks, with the rest being iteration."
     ],
-    "raw_text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-    "title": "The Desk That Never Sleeps"
+    "raw_text": "A newsroom is a reliability system with a deadline — a framing that clarifies which tradeoffs matter most in journalism. Trust is the only asset a public broadcaster actually owns; ignoring it forces rebuilding from scratch a year later.",
+    "title": "Journalism as a Reliability System"
   }
 }

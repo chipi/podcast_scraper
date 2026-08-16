@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 251,
     "episode_id": "ep-16ff698c1bd21087",
     "published_date": "2025-07-03T00:00:00",
     "title": "The Risk Panel: Diversify or Concentrate?"
@@ -41,11 +41,15 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Long Horizon Notes. Today is a debate — one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun…",
-      "Thanks, Nora. Happy to be the boring one today.",
-      "And I'll be the reckless one, apparently."
+      "Diversification is framed as the closest thing to a free lunch for individual investors — it removes the single biggest way people ruin themselves, one position going to zero at the worst possible time.",
+      "Risk management for individuals is mostly behavioral; diversification makes sitting still survivable when a holding gets cut in half, rather than relying on the math being easy.",
+      "Concentration with deep understanding beats diversification — spreading across 100 names means owning things you can't actually judge, which is ignorance evenly distributed rather than safety.",
+      "A portfolio is a system of correlated bets; a handful of deeply understood positions is more robust than 100 you don't because you can see how they move together, whereas diversification hides correlation until it's the only thing that matters.",
+      "The honest question isn't diversify or not — it's whether your edge survives contact with your own behavior; if it does, concentration compounds it, and if it doesn't, no amount of diversification saves you.",
+      "Account data shows concentrated retail accounts had far fatter tails, supporting the claim that concentration is how retail investors blow themselves up.",
+      "The disagreement sharpens to a real tradeoff: diversification is the only real risk control versus an edge that won't survive your own behavior — the record shows the opposite for anyone who does the work."
     ],
-    "raw_text": "Welcome back to Long Horizon Notes. Today is a debate — one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun…",
-    "title": "The Risk Panel: Diversify or Concentrate?"
+    "raw_text": "Diversification is framed as the closest thing to a free lunch for individual investors — it removes the single biggest way people ruin themselves, one position going to zero at the worst possible time. Risk management for individuals is mostly behavioral; diversification makes sitting still survivable when a holding gets cut in half, rather than relying on the math being easy.",
+    "title": "Diversification vs. Concentration: A Debate on Risk and Behavior"
   }
 }

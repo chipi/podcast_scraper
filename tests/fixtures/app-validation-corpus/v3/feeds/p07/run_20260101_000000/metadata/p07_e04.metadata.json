@@ -20,7 +20,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 77,
     "episode_id": "ep-362f5d463b877d2c",
     "published_date": "2025-12-24T00:00:00",
     "title": "Macro as Risk Management"
@@ -36,11 +36,11 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you.",
-      "You describe macro as risk management. Unpack that.",
-      "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change — and the regime change you can name in advance is the one you can position for. The rest is just…"
+      "Macro is risk management at scale; the job is mostly not being on the wrong side of a regime change, and a regime change you can name in advance is one you can position for.",
+      "The economy is a system, not a set of levers — pulling one lever moves three others, so treating correlated parts as independent causes misses in backtests.",
+      "A macro book and a power grid are both systems of correlated risk; systems thinking and risk management are one discipline, just with different vocabulary."
     ],
-    "raw_text": "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you.",
-    "title": "Macro as Risk Management"
+    "raw_text": "Macro is risk management at scale; the job is mostly not being on the wrong side of a regime change, and a regime change you can name in advance is one you can position for. The economy is a system, not a set of levers — pulling one lever moves three others, so treating correlated parts as independent causes misses in backtests.",
+    "title": "Macro as Risk Management: Systems Thinking at Scale"
   }
 }

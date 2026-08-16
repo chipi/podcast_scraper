@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 212,
     "episode_id": "ep-919c77e84ad37664",
     "published_date": "2026-01-07T00:00:00",
     "title": "When the Severe Garble Bites"
@@ -41,11 +41,14 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Cross-Show. Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist. Skanda Amarnath, thanks for being here.",
-      "Before we get into it — Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Labor markets are where macro stops being abstract — risk is a household-level variable rather than a portfolio-level one.",
+      "Ignoring the household-level nature of labor market risk leads to rebuilding systems from scratch a year later, as observed across teams using Bloomberg.",
+      "Systems thinking is where the conversation gets interesting because the tradeoffs around it crosscut everything covered in the discussion.",
+      "A concrete example of systems thinking involves walking through how risk management and labor markets intersect.",
+      "The failure mode of ignoring labor market dynamics is having to rebuild from scratch a year later — a costly iteration cycle.",
+      "The practical takeaway is to pick one of the covered ideas and run it for two weeks, with the rest being iteration."
     ],
-    "raw_text": "Welcome back to Cross-Show. Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist. Skanda Amarnath, thanks for being here.",
-    "title": "When the Severe Garble Bites"
+    "raw_text": "Labor markets are where macro stops being abstract — risk is a household-level variable rather than a portfolio-level one. Ignoring the household-level nature of labor market risk leads to rebuilding systems from scratch a year later, as observed across teams using Bloomberg.",
+    "title": "Labor Markets and Risk Management"
   }
 }
