@@ -1228,6 +1228,62 @@ def _preprocessing_reencode_mp3_until_target(
     return working_path, final_kbps, total_preprocess_elapsed
 
 
+def _record_preprocessing_outcome(
+    pipeline_metrics: Any,
+    job_idx: int,
+    outcome: str,
+    *,
+    reason: Optional[str] = None,
+    detail: Optional[Dict[str, Any]] = None,
+    duration_seconds: Optional[float] = None,
+) -> None:
+    """Write one ``audio_preprocessing`` row to the stage ledger (#1647).
+
+    Guarded and best-effort: ``pipeline_metrics`` is duck-typed across callers, and an
+    observability write must never be the thing that kills an episode. Lives here rather than
+    inline at the three call sites so ``_preprocess_audio_if_needed`` keeps its complexity
+    budget — the branches belong to reporting, not to the preprocessing decision.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, "record_stage_outcome"):
+        return
+    try:
+        pipeline_metrics.record_stage_outcome(
+            "audio_preprocessing",
+            job_idx,
+            outcome,
+            reason=reason,
+            detail=detail,
+            duration_seconds=duration_seconds,
+        )
+    except Exception:  # pragma: no cover - reporting must not break the pipeline
+        logger.debug("[%s] could not record audio_preprocessing outcome", job_idx)
+
+
+def _record_preprocessing_degraded(
+    pipeline_metrics: Any, job_idx: int, temp_media: str, elapsed: Optional[float]
+) -> None:
+    """Ledger row for "transcribing from UNPREPROCESSED audio" (#1647 / #558).
+
+    ``degraded``, not ``failed``: transcription still proceeds, just from worse input — no
+    mono/16 kHz/loudness normalisation, and a file that may genuinely exceed the 25 MB upload
+    cap. The size of what actually went to the provider is the number an operator needs when
+    asking why an episode cost more or scored worse.
+    """
+    detail: Dict[str, Any] = {"fallback": "original_audio"}
+    try:
+        detail["media_bytes"] = os.path.getsize(temp_media)
+    except OSError:
+        pass
+    _record_preprocessing_outcome(
+        pipeline_metrics,
+        job_idx,
+        "degraded",
+        reason="preprocessing_failed_using_original_audio",
+        detail=detail,
+        duration_seconds=elapsed,
+    )
+
+
 def _preprocess_audio_if_needed(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1339,6 +1395,21 @@ def _preprocess_audio_if_needed(
                 )
                 # Record metrics for cached file
                 pipeline_metrics.record_preprocessing_size_reduction(original_size, cached_size)
+                # A cache HIT still means this episode was transcribed from preprocessed audio,
+                # so the ledger must say ``ran`` here too — otherwise every cached episode reads
+                # as "preprocessing never happened", which is the same silence the fresh path
+                # had. ``cache_hit`` in the detail keeps the two distinguishable without
+                # inventing a fifth outcome.
+                _record_preprocessing_outcome(
+                    pipeline_metrics,
+                    job.idx,
+                    "ran",
+                    detail={
+                        "original_bytes": original_size,
+                        "preprocessed_bytes": cached_size,
+                        "cache_hit": True,
+                    },
+                )
             except OSError:
                 pass
     else:
@@ -1411,6 +1482,19 @@ def _preprocess_audio_if_needed(
                     pipeline_metrics.record_preprocessing_size_reduction(
                         original_size, preprocessed_size
                     )
+                    # Record the SUCCESS too, not only the degradation below. A ledger that
+                    # speaks up only when something goes wrong cannot distinguish "ran fine"
+                    # from "never ran" — the exact ambiguity that let #1646 hide.
+                    _record_preprocessing_outcome(
+                        pipeline_metrics,
+                        job.idx,
+                        "ran",
+                        detail={
+                            "original_bytes": original_size,
+                            "preprocessed_bytes": preprocessed_size,
+                        },
+                        duration_seconds=preprocessing_wall_elapsed,
+                    )
             except OSError:
                 logger.debug(
                     "[%s] Audio preprocessing: completed in %.2fs (size unknown)",
@@ -1441,6 +1525,15 @@ def _preprocess_audio_if_needed(
             if pipeline_metrics is not None:
                 pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
                 pipeline_metrics.record_preprocessing_cache_hit_flag(False)
+                # #1647: the episode is now being transcribed from UNPREPROCESSED audio — no
+                # mono/16 kHz/loudness normalisation, and a file that may genuinely exceed the
+                # 25 MB upload cap. Before this the only trace was a WARNING and a corpus
+                # incident, so the ledger — the artifact built to answer "what actually happened
+                # to this episode" — showed nothing, and a degraded episode was indistinguishable
+                # from a clean one. `degraded`, not `failed`: transcription still proceeds.
+                _record_preprocessing_degraded(
+                    pipeline_metrics, job.idx, temp_media, preprocessing_wall_elapsed
+                )
             # Clean up failed preprocessed file if it exists
             if os.path.exists(preprocessed_path):
                 try:
