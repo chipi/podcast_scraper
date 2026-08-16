@@ -46,9 +46,9 @@
     "seeAllShows": "See all {count} →",
     "resume": "Resume",
     "trending": "Trending topics",
-    "trendingHint": "Heating up lately — “2×” means twice its usual rate of mentions",
-    "trendingQuiet": "Nothing is running above its usual rate right now.",
-    "trendingChip": "{topic} — trending at {factor}× its recent average",
+    "trendingHint": "Last month vs its own 6-month average — “2×” means twice that average",
+    "trendingQuiet": "No topic is running above its own 6-month average right now.",
+    "trendingChip": "{topic} — {factor}× its own 6-month average",
     "storylines": "Storylines",
     "storylinesHint": "Topics that keep coming up together",
     "risingNow": "Rising now",
@@ -65,7 +65,7 @@
       "trending_in_your_corpus": "Once you've listened to a few episodes, what's heating up across them shows here."
     },
     "yourWeekFindShows": "Find shows →",
-    "momentumHint": "“↑ 2×” means twice its usual rate lately"
+    "momentumHint": "Momentum right now — “↑ 2×” means twice as often as in recent weeks"
   },
   "rail": {
     "prev": "Scroll left",

@@ -47,6 +47,30 @@ describe('the learning differentiator stays legible', () => {
     expect(momentumSrc).toContain("t('home.momentumHint')")
   })
 
+  it('does not describe the two momentum measures with the same words (#1668)', () => {
+    // Home carries two independent measures and both are deliberately kept — "Rising now" is a
+    // read-time EWMA against recent weeks, "Trending topics" is last month against its own
+    // 6-month average. They legitimately disagree: on the validation corpus systems thinking
+    // reads 1.78x on one and 0.86 on the other.
+    //
+    // That is only confusing because both used to be explained with the SAME phrase, "its usual
+    // rate" — so the page said "twice its usual rate" directly above "nothing is above its usual
+    // rate", which is a flat contradiction no reader can resolve. Each hint must name its own
+    // comparison window.
+    const usualRate = /usual rate/i
+    expect(en.home.momentumHint).not.toMatch(usualRate)
+    expect(en.home.trendingHint).not.toMatch(usualRate)
+    expect(en.home.trendingQuiet).not.toMatch(usualRate)
+
+    // Each names the window it compares against.
+    expect(en.home.trendingHint).toMatch(/6-month/i)
+    expect(en.home.trendingQuiet).toMatch(/6-month/i)
+    expect(en.home.momentumHint).toMatch(/recent weeks|right now/i)
+
+    // And the quiet state must not read as a claim about the other rail's metric.
+    expect(en.home.trendingQuiet).not.toMatch(/^nothing is (rising|trending)\b/i)
+  })
+
   it('puts synthesis before search on the entity card (#1595)', () => {
     // The card exists for perspectives/consensus/arc. A full-width accent "Search every episode"
     // button above all of it made the most prominent control the one that navigates AWAY.
