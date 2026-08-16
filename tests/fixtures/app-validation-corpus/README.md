@@ -1,16 +1,29 @@
 # App validation corpus (`v3`) — full-fidelity synthetic corpus
 
-A **committed, deterministically-synthesized** corpus that is **schema-current and
-full-fidelity** — built to be swappable for a real corpus: fire the app (and the MCP server,
-and the search/graph capabilities) against it and everything works, offline, with no pipeline
-and no ML. It began as the consumer Learning Player e2e fixture and was realigned (RFC-097) so
-every read surface — player, viewer, `GET /api/*`, the MCP tools, search, graph — has real
-data of the current shape.
+A **committed** corpus that is **schema-current and full-fidelity** — built to be swappable for a
+real corpus: fire the app (and the MCP server, and the search/graph capabilities) against it and
+everything works, offline, with no pipeline and no ML **to read it**. It began as the consumer
+Learning Player e2e fixture and was realigned (RFC-097) so every read surface — player, viewer,
+`GET /api/*`, the MCP tools, search, graph — has real data of the current shape.
+
+> **Reading needs nothing; regenerating summaries needs a model.** Until 2026-08-16 this file said
+> the corpus was built "with no pipeline and no ML", full stop. That was true of the *build* — and
+> is exactly why every committed `summary.raw_text` was the transcript's opening greeting
+> ("Welcome back to Singletrack Sessions. Today we're talking about…") rather than a summary, so
+> the fixture exercised none of the summarization the product actually runs. Summaries and episode
+> durations now come from a **real pipeline run** (Deepgram nova-3 ASR + the LiteLLM gateway for
+> summary/GI/KG) and are committed as data. Consumers are unaffected: still no pipeline, no ML, no
+> network. See `--pipeline-run` in `scripts/build_app_validation_corpus.py`.
 
 - **What it is:** 9 shows × 4 episodes (`p01`–`p09`), each `ready` with a transcript, GI
   insights, KG topics/people, **diarization diagnostics**, and per-episode + corpus-scope
-  enrichments. Constructed from checked-in text fixtures with sorted keys, stable content-hash
-  episode ids, and fixed dates → re-running yields a byte-identical tree.
+  enrichments. Sorted keys, stable content-hash episode ids and fixed dates, so a rebuild from the
+  same inputs yields the same tree.
+- **Summaries:** 35 of 36 are real pipeline output. **`p01_e02` is a known exception** and keeps a
+  synthesized stand-in: its transcript was authored in nearly the summarization prompt's own
+  style-example wording, so a faithful summary of it is indistinguishable from a copied one and the
+  #1386 poison guard correctly drops it. Accepted for v3, tracked for v4 in
+  [#1671](https://github.com/chipi/podcast_scraper/issues/1671) and `FIXTURES_SPEC.md` v4 #8.
 - **Versioned:** laid out under `v3/`, matching `tests/fixtures/FIXTURES_VERSION` (`v3`).
 
 ## Media / audio — NOT in this tree

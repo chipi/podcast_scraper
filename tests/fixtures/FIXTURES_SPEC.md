@@ -196,14 +196,25 @@ Half of this is already fixed: the guard no longer rejects on two-word vocabular
 contiguous run lifted from an example (`_looks_copied_from_example`), so an episode may share an
 example's subject without being treated as a copy.
 
-**v4 requirement — a fixture rule, not a prompt workaround:** authored transcripts MUST NOT put
-the summarization prompt's style-example sentences into a speaker's mouth. Reword `p01_e02`'s
-recurring line. The three example subjects (riding/braking, architecture tradeoffs, diving
-rehearsal) are all corpus show topics, so this needs checking at generation time — a fixture that
-quotes the prompt makes correct output indistinguishable from copied output for every model.
+**ACCEPTED GAP in v3 — deliberately not fixed.** `p01_e02` keeps a synthesized stand-in summary;
+the other 35 of 36 episodes carry real pipeline output. Reworking a v3 transcript means
+regenerating its TTS audio too, which is not worth doing for one episode when v4 will regenerate
+everything anyway. Do not "fix" this by loosening the runtime guard — the guard is correct, and the
+half of it that was wrong (rejecting on two-word vocabulary) is already fixed.
 
-Separately worth raising upstream, but NOT a fixture decision: the shipped biking example is a
-poor choice for a product that ingests podcasts, since cycling podcasts plainly exist.
+**v4 requirement — a fixture rule, not a prompt workaround.** Tracked as
+[#1671](https://github.com/chipi/podcast_scraper/issues/1671):
+
+1. Authored transcripts MUST NOT put a prompt style-example sentence into a speaker's mouth, and
+   generation should REFUSE to emit one — sharing the runtime guard's threshold, so a fixture
+   cannot be authored into a state the pipeline will reject.
+2. Assert summaries are *genuine*, not merely present. The same check catches the defect this
+   corpus shipped with until 2026-08-16, when every `summary.raw_text` was the transcript's
+   opening greeting: no summary may be a prefix of its transcript, a near-copy of a style example,
+   or a restatement of the episode title.
+3. The three example subjects (riding/braking, architecture tradeoffs, diving rehearsal) are all
+   corpus show topics. Whether the production prompts should use less collision-prone subjects is
+   a separate call — noted in #1671, not decided here.
 
 ### 9. Episode duration was hardcoded to 1800 (fixed 2026-08-16)
 
