@@ -138,6 +138,28 @@ def dedupe(texts: List[str], threshold: float) -> List[str]:
     return kept
 
 
+def _as_insight_list(got: Any) -> List[Any]:
+    """Accept a provider's return only if it is actually a sequence of insights.
+
+    This was ``list(got or [])``, and ``list()`` on a mapping yields its KEYS. A provider that
+    answered ``{"insights": [...]}`` — the shape half of them use — was therefore silently
+    turned into the single insight ``"insights"``, which then flowed through classification and
+    grounding as if a model had said it. Wrong in the worst direction: not a visible failure,
+    but a plausible-looking artifact built from a dict's key names.
+
+    Anything that is not a list/tuple returns empty, which the caller reports as a stub
+    fallback with a reason rather than inventing content from the container.
+    """
+    if isinstance(got, (list, tuple)):
+        return list(got)
+    if got:
+        logger.warning(
+            "insight provider returned %s, not a list of insights; treating as no insights",
+            type(got).__name__,
+        )
+    return []
+
+
 def generate_chunked(
     generate: Any,
     text: str,
@@ -155,7 +177,7 @@ def generate_chunked(
     """
     n = plan_chunks(text, chunk_chars)
     if n == 1:
-        return list(
+        return _as_insight_list(
             generate(
                 text=text,
                 episode_title=episode_title,
@@ -163,7 +185,6 @@ def generate_chunked(
                 params=None,
                 pipeline_metrics=pipeline_metrics,
             )
-            or []
         )
 
     merged: List[Any] = []
@@ -181,7 +202,8 @@ def generate_chunked(
                 "insight chunk %d/%d failed (%s); continuing", idx + 1, n, type(exc).__name__
             )
             continue
-        merged.extend(got or [])
+        # Same guard as the unchunked path: a mapping here would extend `merged` with its keys.
+        merged.extend(_as_insight_list(got))
 
     if not merged:
         logger.warning("chunked extraction produced nothing; falling back to a single pass")

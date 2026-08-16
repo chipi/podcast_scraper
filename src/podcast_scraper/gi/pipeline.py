@@ -485,6 +485,50 @@ def _record_stub_fallback(pipeline_metrics: Optional[Any], exc: Exception) -> No
     )
 
 
+def _stub_insight_specs(
+    reason: str,
+    pipeline_metrics: Optional[Any] = None,
+    *,
+    exc: Optional[BaseException] = None,
+    **detail: Any,
+) -> List[Tuple[str, str]]:
+    """Fall back to the one-line stub insight, LOUDLY, and say which path got us here.
+
+    #9 of the #1657 acceptance: 112 of 678 production episodes (16.5 %) hold exactly one
+    insight, and that insight is the literal string ``"Summary insight (stub)."``. They are not
+    thin episodes — they are episodes where insight generation failed and nobody was told.
+
+    Every branch that lands here used to be silent. The exception path logged at ``debug``; the
+    rest (no provider, a provider without ``generate_insights``, a non-list return, nothing
+    parseable in the return, dedup collapsing to zero) logged nothing at all and simply fell off
+    the end of the function into the stub return.
+
+    #701 diagnosed this exact anti-pattern one path over — "cloud_thin produced 1-stub gi.json
+    across 9 real-feed episodes for weeks" — and fixed it by promoting the debug call to WARNING
+    plus a metrics counter. That fix was applied to the evidence-stack path only. This is the
+    same treatment for the path that decides whether an episode has any insights at all, with
+    the reason attached so the next occurrence does not need a bisect to explain.
+    """
+    if pipeline_metrics is not None and hasattr(
+        pipeline_metrics, "gi_artifact_stub_fallback_count"
+    ):
+        try:
+            pipeline_metrics.gi_artifact_stub_fallback_count += 1
+        except Exception:  # noqa: BLE001 - metrics must never break extraction
+            pass
+    extra = "".join(f" {k}={v!r}" for k, v in sorted(detail.items()))
+    logger.warning(
+        "GI insight generation fell back to the STUB insight (reason=%s%s). This episode will "
+        "carry exactly one placeholder insight, not real content — treat it as a failed episode, "
+        "not a quiet one.%s",
+        reason,
+        extra,
+        f" cause: {exc!r}" if exc is not None else "",
+        exc_info=exc is not None,
+    )
+    return [(_STUB_INSIGHT_TEXT, "unknown")]
+
+
 def _apply_gi_insight_filters(
     insight_specs: List[Tuple[str, str]], pipeline_metrics: Optional[Any]
 ) -> List[Tuple[str, str]]:
@@ -1321,14 +1365,29 @@ def _build_stub_artifact(
             "properties": {
                 "text": _STUB_INSIGHT_TEXT,
                 "episode_id": episode_id,
-                "grounded": True,
+                # A PLACEHOLDER MUST NOT DRESS AS A FINDING.
+                #
+                # This node used to claim grounded=True, tier=3 (CORE) and
+                # routing_tag="surface", salience 1.0 — the exact profile of the best insight
+                # an episode can produce. The text is the literal string "Summary insight
+                # (stub).". So on the 112 of 678 production episodes (16.5 %) that reached this
+                # path, a placeholder was ranked first and shown to readers as a grounded,
+                # core-tier insight. Nothing grounded it: the quote below is a raw slice of the
+                # transcript head, chosen by offset, not because it supports the claim — there
+                # is no claim.
+                #
+                # FILLER routes to "drop" through the standard rule in `_apply_routing`
+                # (tier <= TIER_FILLER), so this now flows to the same place any other
+                # worthless insight does, instead of to the top of the page. The episode reads
+                # as having no insights, which is true, and the WARNING from
+                # `_stub_insight_specs` is what says why.
+                "grounded": False,
                 "insight_type": "unknown",
                 # RFC-097 chunk 9 (ADR-101): required in v3.0 strict.
                 "position_hint": 0.5,
-                # ADR-135/#1191: the single stub insight — CORE tier, ranked first.
-                "tier": 3,
-                "routing_tag": "surface",
-                "salience": 1.0,
+                "tier": 0,
+                "routing_tag": "drop",
+                "salience": 0.0,
                 "rank": 0,
             },
         },
@@ -1453,80 +1512,96 @@ def _resolve_insight_specs(
     if cfg is not None:
         source = getattr(cfg, "gi_insight_source", "stub")
 
-    if source == "provider" and insight_provider is not None:
+    if source == "provider":
+        if insight_provider is None:
+            return _stub_insight_specs("no_insight_provider", pipeline_metrics)
         gen = getattr(insight_provider, "generate_insights", None)
-        if callable(gen):
-            try:
-                from .chunked_extraction import generate_chunked
+        if not callable(gen):
+            return _stub_insight_specs("provider_has_no_generate_insights", pipeline_metrics)
+        try:
+            from .chunked_extraction import generate_chunked
 
-                out = generate_chunked(
-                    gen,
-                    transcript_text or "",
-                    episode_title=episode_title,
-                    max_insights=max_insights,
-                    chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
-                    dedupe_threshold=float(
-                        getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75
-                    ),
-                    pipeline_metrics=pipeline_metrics,
+            out = generate_chunked(
+                gen,
+                transcript_text or "",
+                episode_title=episode_title,
+                max_insights=max_insights,
+                chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+                dedupe_threshold=float(getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75),
+                pipeline_metrics=pipeline_metrics,
+            )
+            if not isinstance(out, list):
+                return _stub_insight_specs("provider_returned_non_list", pipeline_metrics)
+
+            resolved_specs: List[Tuple[str, str]] = []
+            for item in out:
+                p = _parse_insight_item(item)
+                if p:
+                    resolved_specs.append(p)
+            if not resolved_specs:
+                # The provider answered, but nothing in the answer parsed as an insight. That is
+                # a provider/contract failure, not an episode with nothing to say — and it used
+                # to fall through to the stub without even a debug line.
+                return _stub_insight_specs(
+                    "no_parseable_insights_from_provider", pipeline_metrics, items=len(out)
                 )
-                if isinstance(out, list):
-                    resolved_specs: List[Tuple[str, str]] = []
-                    for item in out:
-                        p = _parse_insight_item(item)
-                        if p:
-                            resolved_specs.append(p)
-                    # The cap is per PASS, not per episode. Truncating the merged list to
-                    # gi_max_insights would clip a 3-pass extraction (56 insights) straight back to
-                    # 50 and silently erase the whole gain of chunking.
-                    from .chunked_extraction import plan_chunks
+            # The cap is per PASS, not per episode. Truncating the merged list to
+            # gi_max_insights would clip a 3-pass extraction (56 insights) straight back to
+            # 50 and silently erase the whole gain of chunking.
+            from .chunked_extraction import plan_chunks
 
-                    passes = plan_chunks(
-                        transcript_text or "",
-                        int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
-                    )
-                    resolved_specs = resolved_specs[: max_insights * passes]
+            passes = plan_chunks(
+                transcript_text or "",
+                int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+            )
+            resolved_specs = resolved_specs[: max_insights * passes]
 
-                    # THE SAME CLAIM, TWICE, IS NOT TWO INSIGHTS.
-                    #
-                    # `dedupe()` existed but only ever ran inside the CHUNKED path, and a normal
-                    # episode does not chunk — so on the path production actually takes there was no
-                    # deduplication at all. Measured on 18 episodes, gemini emitted 21.6 surfaceable
-                    # insights per episode of which only 14.1 were distinct: **35% redundancy**, and
-                    # not the subtle kind —
-                    #
-                    #   sim 1.00  "Paul Tudor Jones believes the greatest challenge in the coming
-                    #              years will be finding significance..."   (emitted verbatim twice)
-                    #   sim 0.96  "...the most important thing for young people to focus on is
-                    #              communication..." / "...for young people is to focus on..."
-                    #
-                    # The value gate cannot catch this: it grades each insight in ISOLATION, so both
-                    # copies score the same and both survive. An episode holds a finite amount of
-                    # knowledge, and emitting it twice does not create more.
-                    #
-                    # Deduped here, BEFORE grounding, so we do not pay QA+NLI to ground a duplicate.
-                    resolved_specs = _dedupe_insight_specs(resolved_specs, cfg, pipeline_metrics)
+            # THE SAME CLAIM, TWICE, IS NOT TWO INSIGHTS.
+            #
+            # `dedupe()` existed but only ever ran inside the CHUNKED path, and a normal
+            # episode does not chunk — so on the path production actually takes there was no
+            # deduplication at all. Measured on 18 episodes, gemini emitted 21.6 surfaceable
+            # insights per episode of which only 14.1 were distinct: **35% redundancy**, and
+            # not the subtle kind —
+            #
+            #   sim 1.00  "Paul Tudor Jones believes the greatest challenge in the coming
+            #              years will be finding significance..."   (emitted verbatim twice)
+            #   sim 0.96  "...the most important thing for young people to focus on is
+            #              communication..." / "...for young people is to focus on..."
+            #
+            # The value gate cannot catch this: it grades each insight in ISOLATION, so both
+            # copies score the same and both survive. An episode holds a finite amount of
+            # knowledge, and emitting it twice does not create more.
+            #
+            # Deduped here, BEFORE grounding, so we do not pay QA+NLI to ground a duplicate.
+            resolved_specs = _dedupe_insight_specs(resolved_specs, cfg, pipeline_metrics)
 
-                    if resolved_specs:
-                        # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
-                        # grounding, so the quotes did not exist yet — it graded a bare sentence
-                        # while its own rubric asked for "a position a NAMED PERSON took", "a
-                        # disagreement BETWEEN SPEAKERS" and "an AD read", none of which it could
-                        # see. It now runs in `build_artifact`, after the evidence exists
-                        # (ADR-110's lesson, one layer up).
-                        #
-                        # RFC-097 v3.0 chunk-5: classify any unknown-typed specs (providers
-                        # returning ``List[str]`` flow in as ``"unknown"``; structured dict items
-                        # keep their provider-supplied type).
-                        return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
-            except Exception as e:
-                logger.debug(
-                    "generate_insights failed, falling back to stub: %s",
-                    e,
-                    exc_info=True,
-                )
+            if not resolved_specs:
+                # Dedup collapsed everything. Reaching zero from a non-empty list means every
+                # insight was judged a restatement of the first — worth a signal, not a silent
+                # stub, because it is also the shape a degenerate embedding model produces.
+                return _stub_insight_specs("all_insights_deduped_away", pipeline_metrics)
 
-    # Stub fallback — genuinely no signal; ``"unknown"`` is correct here.
+            # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
+            # grounding, so the quotes did not exist yet — it graded a bare sentence
+            # while its own rubric asked for "a position a NAMED PERSON took", "a
+            # disagreement BETWEEN SPEAKERS" and "an AD read", none of which it could
+            # see. It now runs in `build_artifact`, after the evidence exists
+            # (ADR-110's lesson, one layer up).
+            #
+            # RFC-097 v3.0 chunk-5: classify any unknown-typed specs (providers
+            # returning ``List[str]`` flow in as ``"unknown"``; structured dict items
+            # keep their provider-supplied type).
+            return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
+        except Exception as e:
+            # WAS ``logger.debug``. That is the whole of #9: a provider failure here produced a
+            # one-insight stub artifact that looked like a finished episode, and the only trace
+            # was a debug line nobody runs at. #701 fixed exactly this anti-pattern for the
+            # evidence-stack path and gave it ``_record_stub_fallback``; this sibling path — the
+            # one that decides whether there are any insights AT ALL — kept the debug call.
+            return _stub_insight_specs("generate_insights_raised", pipeline_metrics, exc=e)
+
+    # Genuinely configured for the stub source: not a failure, and not worth a warning.
     return [(_STUB_INSIGHT_TEXT, "unknown")]
 
 

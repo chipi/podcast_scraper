@@ -63,7 +63,9 @@ class TestGILLoad:
         out = build_inspect_output(artifact, "Some transcript.")
         assert out.episode_id == "ep:1"
         assert len(out.insights) == 1
-        assert out.insights[0].grounded is True
+        # Stub artifacts are ungrounded and now say so (#1657 item 9) — the property is
+        # incidental here; this test is about build_inspect_output's shape.
+        assert out.insights[0].grounded is False
         assert out.stats["insight_count"] == 1
         assert out.stats["quote_count"] >= 1
 

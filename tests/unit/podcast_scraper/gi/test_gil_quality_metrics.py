@@ -59,7 +59,15 @@ class TestGilQualityMetrics:
         assert any("avg_insights" in f for f in failures)
 
     def test_enforce_passes_with_relaxed_thresholds(self, tmp_path):
-        """Lowering density thresholds passes on stub."""
+        """Lowering density thresholds passes on stub.
+
+        ``min_grounded_insight_rate`` is 0.0 rather than 0.5 because the stub insight is now
+        honestly ungrounded (#1657 item 9): it claimed ``grounded=True`` while its evidence was
+        a transcript slice chosen by offset, for a placeholder that makes no claim. A stub
+        artifact therefore has a grounded rate of exactly 0, and any positive threshold on it
+        is a threshold on a lie. The sibling test above still pins that a stub FAILS the PRD
+        defaults, which is the property that matters.
+        """
         (tmp_path / "metadata").mkdir()
         p = tmp_path / "metadata" / "ep1.gi.json"
         art = build_artifact("ep:1", "Hello transcript body here.", prompt_version="v1")
@@ -70,8 +78,24 @@ class TestGilQualityMetrics:
             min_avg_insights=0.5,
             min_avg_quotes=0.5,
             min_extraction_coverage=0.5,
-            min_grounded_insight_rate=0.5,
+            min_grounded_insight_rate=0.0,
             min_quote_validity_rate=0.5,
         )
         assert ok is True
         assert failures == []
+
+    def test_a_stub_artifact_scores_zero_grounded(self, tmp_path):
+        """State it directly, so the threshold change above is not mistaken for a loosening.
+
+        The rate went to zero because the artifact stopped claiming to be grounded, not because
+        the metric got weaker.
+        """
+        (tmp_path / "metadata").mkdir()
+        p = tmp_path / "metadata" / "ep1.gi.json"
+        write_artifact(
+            p,
+            build_artifact("ep:1", "Hello transcript body here.", prompt_version="v1"),
+            validate=True,
+        )
+        m = compute_gil_quality_metrics([tmp_path])
+        assert m.grounded_insight_rate() == 0.0

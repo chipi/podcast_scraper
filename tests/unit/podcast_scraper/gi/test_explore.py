@@ -173,12 +173,17 @@ class TestExploreCollectAndOutput:
         insights, _ = collect_insights(loaded, topic=None, limit=10)
         assert len(insights) == 1
         assert insights[0].episode_id == "ep:1"
-        assert insights[0].grounded is True
+        # The stub insight is ungrounded, and says so. It used to claim grounded=True while
+        # its "evidence" was a slice of the transcript head picked by offset — there is no
+        # claim for a quote to support (#1657 item 9). This test builds a stub artifact only
+        # as a fixture for collect_insights; the flag is incidental to what it checks.
+        assert insights[0].grounded is False
 
     def test_collect_insights_grounded_only(self, tmp_path):
         """grounded_only filters ungrounded."""
         artifact = build_artifact("ep:1", "Text.", prompt_version="v1")
-        # Stub has grounded=True; force ungrounded by editing
+        # The stub is already ungrounded (#1657 item 9); set it explicitly anyway so this test
+        # states the input it filters on rather than depending on the stub's defaults.
         for n in artifact["nodes"]:
             if n.get("type") == "Insight":
                 n["properties"]["grounded"] = False
