@@ -424,46 +424,94 @@ def remove_highlight(data_dir: Path, user_id: str, highlight_id: str) -> list[di
 
 
 def reanchor_highlight(highlight: dict[str, Any], segments: list[dict[str, Any]]) -> dict[str, Any]:
-    """Re-resolve a highlight's positional fields against a fresh transcript by its time anchor.
+    """Re-resolve a highlight's positional fields against a fresh transcript.
 
-    ``segments`` are the new transcript segments, each ``{segment_id, start_ms, end_ms, char_start,
-    char_end}``. The highlight's ``start_ms``/``end_ms`` are the stable anchor; this recomputes
-    ``segment_ids``/``char_start``/``char_end`` from the segments that overlap that time window and
-    sets ``anchor_status`` to ``"anchored"``. If nothing overlaps (transcript shifted out from under
-    it) the positional fields are left untouched and ``anchor_status`` becomes ``"drifted"`` — the
-    highlight is never dropped. ``insight`` highlights (anchored by ``source_insight_id``, not time)
-    pass through unchanged. Returns a NEW dict; the input is not mutated.
+    ``segments`` are the player's transcript contract (``segments_view.to_contract_segments``):
+    ``{id, start, end, text}`` with **start/end in SECONDS**. That is the only segment shape this
+    codebase produces, and naming the units here matters — an earlier signature asked for
+    ``{segment_id, start_ms, end_ms, char_start, char_end}``, which nothing produced: the pipeline
+    carries seconds and TRANSCRIPT-GLOBAL char offsets, while the client stores offsets relative to
+    the first touched segment. Feeding one into the other silently rewrites offsets between two
+    coordinate systems that share a field name.
+
+    How an anchor is re-established, and why in this order:
+
+    1. **Time selects the candidates.** ``start_ms``/``end_ms`` survive a re-scrape; segment ids do
+       not (``to_contract_segments`` mints ``seg_{index}`` from list position, so inserting one
+       segment renumbers every later id).
+    2. **``quote_text`` decides whether they are RIGHT.** Time alone is not enough: if the audio
+       timeline moved — an ad removed, an adfree segment file substituted whose own docstring warns
+       it runs "minutes shorter" — the overlapping segment is simply the wrong passage, and
+       stamping it ``anchored`` would be a confident lie. So the quote must actually be found in
+       the candidates' text.
+    3. **Finding the quote also recomputes the offsets**, in the client's coordinate system
+       (relative to the first candidate segment), which is what makes them correct rather than
+       merely present.
+
+    A highlight is NEVER dropped. Unresolvable → ``anchor_status="drifted"`` with the stored
+    positional fields left untouched, so a later re-anchor can recover it if the text returns.
+    ``insight`` highlights are anchored by ``source_insight_id`` rather than time and pass through.
+    Returns a NEW dict; the input is not mutated.
     """
     result = dict(highlight)
     if highlight.get("kind") == "insight":
         return result
     start_ms = highlight.get("start_ms")
-    end_ms = highlight.get("end_ms")
     if start_ms is None:
         result["anchor_status"] = "drifted"
         return result
+    end_ms = highlight.get("end_ms")
     # A moment is a point; a span is a window. Treat end as start for point overlap.
     lo = int(start_ms)
     hi = int(end_ms) if end_ms is not None else lo
-    overlapping = [
-        s
-        for s in segments
-        if isinstance(s, dict)
-        and s.get("start_ms") is not None
-        and s.get("end_ms") is not None
-        and int(s["start_ms"]) <= hi
-        and int(s["end_ms"]) >= lo
-    ]
+    if hi < lo:  # an inverted window would make the overlap test near-vacuous
+        lo, hi = hi, lo
+
+    # Overlap is STRICT for a span, matching the client's own selection maths
+    # (transcriptCapture.ts: `r.start < sub.char_end && r.end > sub.char_start`). A `<=`/`>=` test
+    # pulls in every segment the window merely TOUCHES: a 5s-9s span against 0-5s / 5-9s / 9-20s
+    # matched all three, so a highlight of one sentence claimed the whole neighbourhood.
+    #
+    # A moment is a point, where strict comparison would match nothing at a boundary, so it uses
+    # the half-open convention instead — the segment that CONTAINS the instant.
+    is_point = lo == hi
+    overlapping: list[dict[str, Any]] = []
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        start = seg.get("start")
+        end = seg.get("end")
+        if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+            continue
+        seg_lo = int(start * 1000)
+        seg_hi = int(end * 1000)
+        hit = (seg_lo <= lo < seg_hi) if is_point else (seg_lo < hi and seg_hi > lo)
+        if hit:
+            overlapping.append(seg)
     if not overlapping:
         result["anchor_status"] = "drifted"
         return result
-    result["segment_ids"] = [str(s["segment_id"]) for s in overlapping if s.get("segment_id")]
-    char_starts = [int(s["char_start"]) for s in overlapping if s.get("char_start") is not None]
-    char_ends = [int(s["char_end"]) for s in overlapping if s.get("char_end") is not None]
-    if char_starts:
-        result["char_start"] = min(char_starts)
-    if char_ends:
-        result["char_end"] = max(char_ends)
+
+    quote = str(highlight.get("quote_text") or "").strip()
+    if not quote:
+        # A `moment` carries no quote — there is nothing to verify against, so time is all we have.
+        # Say so honestly in the status rather than claiming a verified anchor.
+        result["segment_ids"] = [str(s.get("id")) for s in overlapping if s.get("id")]
+        result["anchor_status"] = "time_only"
+        return result
+
+    # Search the candidates' concatenated text, joined exactly as the client concatenates the
+    # rendered transcript, so a recovered offset means the same thing on both sides.
+    joined = "".join(str(s.get("text") or "") for s in overlapping)
+    found = joined.find(quote)
+    if found < 0:
+        # The window exists but no longer contains the quote — the timeline moved under it.
+        result["anchor_status"] = "drifted"
+        return result
+
+    result["segment_ids"] = [str(s.get("id")) for s in overlapping if s.get("id")]
+    result["char_start"] = found
+    result["char_end"] = found + len(quote)
     result["anchor_status"] = "anchored"
     return result
 

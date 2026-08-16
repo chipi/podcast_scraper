@@ -22,8 +22,15 @@ from podcast_scraper.server.app_capture_export import (
     HighlightLine,
     render_highlights_markdown,
 )
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_corpus_access import (
+    corpus_root_or_503,
+    safe_relpath_under_corpus_root,
+)
 from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.segments_view import (
+    segments_relpaths_for_transcript,
+    to_contract_segments,
+)
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -62,12 +69,85 @@ def _corpus_root_opt(request: Request) -> Path | None:
 # --- highlights ---------------------------------------------------------------
 
 
+
+
+def _contract_segments(root: Path, slug: str) -> list[dict] | None:
+    """The player transcript contract for one episode, or None when unavailable.
+
+    Mirrors GET /episodes/{slug}/segments, but never raises: re-anchoring is a best-effort read
+    over the shared corpus and must not turn a working /highlights into a 500 because one
+    episode's transcript is missing or unreadable.
+    """
+    import json
+
+    from podcast_scraper.server.app_content_source import (
+        transcript_corpus_relpath,
+        transcript_relpath,
+    )
+    from podcast_scraper.server.app_corpus_access import load_json_artifact
+
+    row = resolve_slug(root, slug)
+    if row is None:
+        return None
+    try:
+        doc = load_json_artifact(root, row.metadata_relative_path) or {}
+        content = doc.get("content") if isinstance(doc, dict) else None
+        transcript_rel = transcript_relpath(content if isinstance(content, dict) else {})
+        if transcript_rel is None:
+            return None
+        corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
+        for candidate in segments_relpaths_for_transcript(corpus_rel):
+            safe = safe_relpath_under_corpus_root(root, candidate)
+            if not safe:
+                continue
+            path = root / safe
+            if path.is_file():
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                return [seg.model_dump() for seg in to_contract_segments(raw)]
+    except (OSError, ValueError, KeyError, AttributeError) as exc:
+        logger.debug("re-anchor: segments unavailable for %s: %s", slug, exc)
+    return None
+
+
+def _reanchored(root: Path, rows: list[dict]) -> list[dict]:
+    """Re-anchor every highlight against the CURRENT transcript (RFC-098: computed on read).
+
+    Segment ids are positional — to_contract_segments mints ``seg_{index}`` from list position — so
+    a re-scrape that inserts or drops a segment renumbers every later id. Serving the stored ids
+    unchanged made the client highlight the WRONG paragraph as saved, silently, and the drift badge
+    it renders could never appear because nothing ever set ``anchor_status``.
+
+    Read-time, not persisted: the anchor is derived from whatever the transcript says right now, so
+    there is no write amplification and a transcript that gets fixed re-anchors on the next read.
+    One segments load per DISTINCT episode, not per highlight.
+    """
+    by_slug: dict[str, list[dict]] = {}
+    for row in rows:
+        by_slug.setdefault(str(row.get("episode_slug") or ""), []).append(row)
+    out: list[dict] = []
+    for slug, group in by_slug.items():
+        segments = _contract_segments(root, slug) if slug else None
+        if segments is None:
+            out.extend(group)  # nothing to re-anchor against; serve what we stored
+            continue
+        out.extend(app_user_state.reanchor_highlight(row, segments) for row in group)
+    # Preserve the store's newest-last ordering rather than the grouping order.
+    order = {id(r): i for i, r in enumerate(rows)}
+    by_id = {str(r.get("id")): r for r in rows}
+    return sorted(out, key=lambda r: order.get(id(by_id.get(str(r.get("id")))), 0))
+
 @router.get("/highlights", response_model=HighlightsResponse)
 async def list_highlights(
     request: Request, episode: str | None = None, user: User = Depends(get_current_user)
 ) -> HighlightsResponse:
-    """The user's highlights, optionally scoped to one episode (``?episode=<slug>``)."""
+    """The user's highlights, optionally scoped to one episode (``?episode=<slug>``).
+
+    Re-anchored against the current transcript on the way out (RFC-098 / PRD-040 FR3.1a).
+    """
     rows = app_user_state.get_highlights(_data_dir(request), user.user_id, episode)
+    root = _corpus_root_opt(request)
+    if root is not None and rows:
+        rows = _reanchored(root, rows)
     return HighlightsResponse(items=[Highlight(**r) for r in rows])
 
 

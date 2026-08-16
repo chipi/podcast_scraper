@@ -715,3 +715,119 @@ def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Pat
     )
     body = client.get("/api/app/highlights/export.md").text
     assert "ghost-ep-404" in body  # heading is the slug; no title resolved
+
+
+# --- re-anchoring actually runs (RFC-098 / PRD-040 FR3.1a) --------------------------------------
+#
+# reanchor_highlight existed but had NO production caller: list_highlights returned stored rows
+# verbatim, so anchor_status was never set, the client's drift badge could never appear, and after
+# a re-scrape the stored segment_ids — which are POSITIONAL (seg_{index}) — made the transcript
+# highlight the wrong paragraph as saved.
+
+
+def _write_segments(root: Path, stem: str, segments: list[dict]) -> None:
+    (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    (root / "transcripts" / f"{stem}.segments.json").write_text(
+        json.dumps(segments), encoding="utf-8"
+    )
+
+
+_QUOTE = "the part worth keeping"
+
+
+def _seg(start: float, end: float, text: str) -> dict:
+    return {"start": start, "end": end, "text": text}
+
+
+def _capture_span(client: TestClient, slug: str) -> str:
+    resp = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 5_000,
+            "end_ms": 9_000,
+            "quote_text": _QUOTE,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
+
+
+def test_highlights_are_reanchored_against_the_current_transcript(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Intro chatter. "), _seg(5.0, 9.0, _QUOTE), _seg(9.0, 20.0, " Outro.")],
+    )
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+
+    item = client.get("/api/app/highlights").json()["items"][0]
+    assert item["anchor_status"] == "anchored"
+    assert item["segment_ids"] == ["seg_0001"]
+
+
+def test_a_shifted_transcript_reanchors_to_the_new_segment_ids(tmp_path: Path) -> None:
+    """An ad inserted at the head renumbers every later segment; the quote is still there."""
+    _corpus(tmp_path)
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Intro chatter. "), _seg(5.0, 9.0, _QUOTE), _seg(9.0, 20.0, " Outro.")],
+    )
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+    before = client.get("/api/app/highlights").json()["items"][0]["segment_ids"]
+
+    # Re-scrape: a sponsor read is now segment 0, so the quote lives at a different INDEX while
+    # keeping its timestamps.
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [
+            _seg(0.0, 2.0, "A word from our sponsor. "),
+            _seg(2.0, 5.0, "Intro chatter. "),
+            _seg(5.0, 9.0, _QUOTE),
+            _seg(9.0, 20.0, " Outro."),
+        ],
+    )
+    after = client.get("/api/app/highlights").json()["items"][0]
+    assert after["anchor_status"] == "anchored"
+    assert after["segment_ids"] == ["seg_0002"], after["segment_ids"]
+    assert after["segment_ids"] != before, "the stored (stale) ids were served unchanged"
+
+
+def test_a_transcript_that_lost_the_quote_is_marked_drifted_not_mis_anchored(
+    tmp_path: Path,
+) -> None:
+    """The window still exists but the passage moved — "anchored" must not be claimed."""
+    _corpus(tmp_path)
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Intro chatter. "), _seg(5.0, 9.0, _QUOTE), _seg(9.0, 20.0, " Outro.")],
+    )
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Totally new intro. "), _seg(5.0, 9.0, "An unrelated advert. ")],
+    )
+    item = client.get("/api/app/highlights").json()["items"][0]
+    assert item["anchor_status"] == "drifted"
+    assert item["quote_text"] == _QUOTE  # never dropped
+    assert item["id"]  # still returned
+
+
+def test_reanchoring_survives_a_corpus_without_segments(tmp_path: Path) -> None:
+    """No segments file → serve what we stored, never a 500."""
+    _corpus(tmp_path)  # no segments written
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+    resp = client.get("/api/app/highlights")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["quote_text"] == _QUOTE

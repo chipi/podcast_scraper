@@ -102,41 +102,82 @@ def test_highlights_non_list_payload_is_empty(tmp_path: Path) -> None:
 # --- re-anchor (pure) ---------------------------------------------------------
 
 
-def _seg(sid: str, start_ms: int, end_ms: int, char_start: int, char_end: int) -> dict:
-    return {
-        "segment_id": sid,
-        "start_ms": start_ms,
-        "end_ms": end_ms,
-        "char_start": char_start,
-        "char_end": char_end,
-    }
+# The PLAYER TRANSCRIPT CONTRACT — {id, start, end, text} with start/end in SECONDS
+# (segments_view.to_contract_segments). The previous fixtures here used
+# {segment_id, start_ms, end_ms, char_start, char_end}, a shape nothing in the codebase produces,
+# so these tests validated the function against an imaginary contract while production never called
+# it at all.
+def _seg(sid: str, start_s: float, end_s: float, text: str) -> dict:
+    return {"id": sid, "start": start_s, "end": end_s, "text": text}
 
 
 def _segments() -> list[dict]:
     return [
-        _seg("n1", 0, 5_000, 0, 40),
-        _seg("n2", 5_000, 12_000, 40, 95),
-        _seg("n3", 12_000, 20_000, 95, 150),
+        _seg("n1", 0.0, 5.0, "Opening chatter before the good part. "),
+        _seg("n2", 5.0, 12.0, "the stable anchor is the timestamp"),
+        _seg("n3", 12.0, 20.0, " and the rest of the discussion follows."),
     ]
 
 
-def test_reanchor_span_recomputes_positional_fields_from_overlap(tmp_path: Path) -> None:
-    # span window 10_000–14_000 overlaps n2 (5k–12k) and n3 (12k–20k)
+def test_reanchor_span_finds_the_quote_and_recomputes_offsets(tmp_path: Path) -> None:
+    """Time picks the candidates; the QUOTE decides whether they are the right ones."""
     out = st.reanchor_highlight(_span(), _segments())
     assert out["anchor_status"] == "anchored"
-    assert out["segment_ids"] == ["n2", "n3"]
-    assert out["char_start"] == 40  # min of overlapping
-    assert out["char_end"] == 150  # max of overlapping
-    # the input is not mutated; timestamps + quote survive as the anchor
+    assert out["segment_ids"] == ["n2", "n3"]  # window 10s-14s overlaps n2 and n3
+    # Offsets are recomputed from where the quote actually is, in the client's coordinate
+    # system (relative to the first candidate segment) — not widened to segment boundaries.
+    joined = "the stable anchor is the timestamp and the rest of the discussion follows."
+    assert joined[out["char_start"] : out["char_end"]] == "the stable anchor is the timestamp"
+    # The anchor itself survives untouched.
     assert out["start_ms"] == 10_000 and out["end_ms"] == 14_000
     assert out["quote_text"] == "the stable anchor is the timestamp"
 
 
-def test_reanchor_moment_point_overlap(tmp_path: Path) -> None:
+def test_reanchor_marks_drift_when_the_timeline_moved_under_the_quote(tmp_path: Path) -> None:
+    """The window still exists but no longer contains the quote — the passage moved.
+
+    This is the case time-only matching gets WRONG: it would stamp "anchored" on whatever text now
+    happens to sit at those timestamps. On an adfree segment file (minutes shorter by its own
+    docstring) that is a different passage entirely.
+    """
+    moved = [
+        _seg("n1", 0.0, 5.0, "Completely different opening. "),
+        _seg("n2", 5.0, 12.0, "An advert for a mattress company. "),
+        _seg("n3", 12.0, 20.0, "And now something unrelated."),
+    ]
+    out = st.reanchor_highlight(_span(), moved)
+    assert out["anchor_status"] == "drifted", (
+        "the quote is absent from the new text, so this anchor was not earned"
+    )
+    assert out["quote_text"] == "the stable anchor is the timestamp"  # never dropped
+
+
+def test_reanchor_moment_without_a_quote_is_time_only(tmp_path: Path) -> None:
+    """A bare moment has nothing to verify against — say so rather than claim verification."""
     moment = _span({"id": "m1", "kind": "moment", "start_ms": 6_000, "end_ms": None})
+    moment.pop("quote_text", None)
     out = st.reanchor_highlight(moment, _segments())
+    assert out["anchor_status"] == "time_only"
+    assert out["segment_ids"] == ["n2"]  # 6s falls inside n2 only
+
+
+def test_reanchor_is_idempotent(tmp_path: Path) -> None:
+    once = st.reanchor_highlight(_span(), _segments())
+    twice = st.reanchor_highlight(once, _segments())
+    assert once == twice
+
+
+def test_reanchor_recovers_a_drifted_highlight_when_the_text_returns(tmp_path: Path) -> None:
+    gone = st.reanchor_highlight(_span(), [_seg("x", 0.0, 1.0, "nothing here")])
+    assert gone["anchor_status"] == "drifted"
+    back = st.reanchor_highlight(gone, _segments())
+    assert back["anchor_status"] == "anchored"
+
+
+def test_reanchor_handles_an_inverted_window(tmp_path: Path) -> None:
+    weird = _span({"start_ms": 14_000, "end_ms": 10_000})
+    out = st.reanchor_highlight(weird, _segments())
     assert out["anchor_status"] == "anchored"
-    assert out["segment_ids"] == ["n2"]  # 6_000 falls inside n2 only
 
 
 def test_reanchor_drift_keeps_positional_fields_and_never_drops(tmp_path: Path) -> None:
