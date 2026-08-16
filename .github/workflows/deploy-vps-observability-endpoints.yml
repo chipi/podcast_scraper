@@ -98,15 +98,21 @@ jobs:
       - name: Apply endpoints override + recreate alloy
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
           SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
 
-          # Load the repo-tracked, non-secret endpoints (constant path so shellcheck can follow it).
+          # Load node subdomains + paths (repo-tracked, non-secret; constant path for shellcheck).
           set -a; . infra/observability/vps-observability.endpoints.env; set +a
-          [ -n "${REMOTE_WRITE_URL:-}" ] && [ -n "${LOGS_WRITE_URL:-}" ] \
-            || { echo "::error::endpoints file missing REMOTE_WRITE_URL/LOGS_WRITE_URL"; exit 1; }
+          # Derive the tailnet suffix from the operator var (never committed) — everything after
+          # the first label of the canonical FQDN (e.g. HOST.<TAILNET>.ts.net -> <TAILNET>.ts.net).
+          TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          [ -n "${METRICS_NODE:-}" ] && [ -n "${LOGS_NODE:-}" ] && [ -n "${TAILNET_DOMAIN:-}" ] \
+            || { echo "::error::missing METRICS_NODE/LOGS_NODE or PROD_TAILNET_FQDN"; exit 1; }
+          REMOTE_WRITE_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}${METRICS_PATH}"
+          LOGS_WRITE_URL="https://${LOGS_NODE}.${TAILNET_DOMAIN}${LOGS_PATH}"
           echo "REMOTE_WRITE_URL=$REMOTE_WRITE_URL"
           echo "LOGS_WRITE_URL=$LOGS_WRITE_URL"
           echo "target=$SSH_TARGET"
@@ -137,11 +143,18 @@ jobs:
         if: ${{ inputs.dry_run == false }}
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          set -a; . infra/observability/vps-observability.endpoints.env; set +a
+          # Derive tailnet suffix + prod instance label from the operator var (never committed):
+          #   HOST.<TAILNET>.ts.net -> INSTANCE=HOST, TAILNET_DOMAIN=<TAILNET>.ts.net
+          TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          INSTANCE="${PROD_TAILNET_FQDN%%.*}"
+          VM_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}"
           sleep 30
           echo "--- alloy logs: no remote_write/TLS errors ---"
           "${SSH[@]}" "$SSH_TARGET" 'docker logs --since 60s alloy 2>&1 | grep -iE "x509|tls handshake|connection refused|context deadline|401|403|remote write.*error" || echo "(clean)"'
-          echo "--- metrics fresh on vm.tail6d0ed4 ---"
-          "${SSH[@]}" "$SSH_TARGET" 'curl -s --max-time 15 "https://vm.tail6d0ed4.ts.net/api/v1/query?query=up%7Binstance%3D%22prod-podcast%22%7D" | grep -oE "\"result\":\[.+\]" | head -c 120; echo'
+          echo "--- metrics fresh for instance=$INSTANCE on the TLS metrics node ---"
+          "${SSH[@]}" "$SSH_TARGET" "curl -s --max-time 15 \"${VM_URL}/api/v1/query?query=up%7Binstance%3D%22${INSTANCE}%22%7D\" | grep -oE '\"result\":\[.+\]' | head -c 120; echo"
