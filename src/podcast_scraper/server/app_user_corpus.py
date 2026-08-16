@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -138,12 +139,52 @@ def derive_interests(
         return []
     rows_by_slug = {slug_for_row(r): r for r in build_catalog_rows_cumulative(root)}
     counts: Counter[str] = Counter()
-    for slug in sorted(slugs)[:max_episodes]:
+    for slug in _most_recently_engaged(data_dir, user_id, slugs, max_episodes):
         row = rows_by_slug.get(slug)
         if row is not None:
             counts.update(_episode_interest_tokens(root, row))
     ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
     return [token for token, _count in ranked[:k]]
+
+
+def _most_recently_engaged(
+    data_dir: Path, user_id: str, slugs: set[str], limit: int
+) -> list[str]:
+    """The ``limit`` episodes the user engaged with MOST RECENTLY, newest first.
+
+    Derivation has to be bounded — it costs one KG load per episode — but *which* episodes get
+    dropped decides whether the interest profile keeps up with the user. It used to be
+    ``sorted(slugs)[:limit]``, i.e. lexicographic, and slugs are ``{feed-slug}-{hash}`` — so the
+    sort grouped by SHOW. Past ``limit`` episodes, derivation only ever read the alphabetically
+    first shows, and new listening stopped moving the profile at all: it froze, permanently, biased
+    by how the feed ids happen to be spelled. Exactly backwards for a signal meant to track what
+    someone is into lately.
+
+    Recency comes from the same records the episode set is built from — playback ``updated_at``,
+    highlight/note ``created_at``. An episode with no timestamp sorts last but is still eligible,
+    so a corpus without engagement metadata degrades to "some bounded subset" rather than none.
+    Ties break on the slug so the result stays deterministic.
+    """
+    recency: dict[str, int] = {}
+
+    def _bump(slug: str, ts: Any) -> None:
+        if not slug or slug not in slugs:
+            return
+        try:
+            value = int(ts)
+        except (TypeError, ValueError):
+            return
+        if value > recency.get(slug, 0):
+            recency[slug] = value
+
+    for row in app_user_state.list_playback(data_dir, user_id):
+        _bump(str(row.get("slug") or ""), row.get("updated_at"))
+    for highlight in app_user_state.get_highlights(data_dir, user_id):
+        _bump(str(highlight.get("episode_slug") or ""), highlight.get("created_at"))
+    for note in app_user_state.get_notes(data_dir, user_id, target="episode"):
+        _bump(str(note.get("target_id") or ""), note.get("created_at"))
+
+    return sorted(slugs, key=lambda s: (-recency.get(s, 0), s))[:limit]
 
 
 def _episode_interest_tokens(root: Path, row: CatalogEpisodeRow) -> list[str]:

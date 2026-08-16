@@ -302,3 +302,101 @@ class TestPoolIsInterestAware:
         assert list(
             build_discover_pool(rows, limit=3, interests=["topic:personal-finance"], root=tmp_path)
         ) == list(build_discover_pool(rows, limit=3))
+
+
+class TestDerivationTracksRecentListening:
+    """`derive_interests` is bounded to 40 episodes — the bound must drop the OLDEST, not the
+    alphabetically-latest.
+
+    Slugs are ``{feed-slug}-{hash}``, so the old ``sorted(slugs)[:max_episodes]`` grouped by SHOW.
+    Past 40 episodes a heavy listener's derived profile froze on whichever shows happen to be
+    spelled early, and nothing they played afterwards could ever move it. That is a silent,
+    permanent personalisation failure — the profile keeps being *used*, it just stops being *true*.
+    """
+
+    OLD_SHOW = "aaa-legacy-show"
+    NEW_SHOW = "zzz-new-obsession"
+
+    def _persona(
+        self, monkeypatch, tmp_path: Path, *, old_episodes: int = 40, new_episodes: int = 5
+    ):
+        """N old episodes on an alphabetically-early show + M recent ones on a late-sorting show."""
+        from podcast_scraper.server import app_user_corpus as uc
+        from podcast_scraper.server import app_user_state
+
+        uid = "u_0123456789abcdef01234567"
+        old = [f"{self.OLD_SHOW}-{i:04d}" for i in range(old_episodes)]
+        new = [f"{self.NEW_SHOW}-{i:04d}" for i in range(new_episodes)]
+
+        # Real per-user writes: the recency signal has to survive the actual store round-trip.
+        for n, slug in enumerate(old):
+            app_user_state.set_playback(tmp_path, uid, slug, 900.0, 1_700_000_000 + n)
+        for n, slug in enumerate(new):
+            app_user_state.set_playback(tmp_path, uid, slug, 900.0, 1_800_000_000 + n)
+
+        monkeypatch.setattr(uc, "slug_durations", lambda root: {s: 1800.0 for s in old + new})
+        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: old + new)
+        monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
+        monkeypatch.setattr(
+            uc,
+            "_episode_interest_tokens",
+            lambda root, row: (
+                ["topic:fresh"] if str(row).startswith(self.NEW_SHOW) else ["topic:legacy"]
+            ),
+        )
+        return uc, tmp_path, uid
+
+    def test_new_listening_still_moves_the_profile(self, monkeypatch, tmp_path) -> None:
+        uc, data_dir, uid = self._persona(monkeypatch, tmp_path)
+        got = uc.derive_interests(data_dir, data_dir, uid, k=8)
+        # The regression: with lexicographic selection this is ["topic:legacy"] and the five
+        # episodes the user actually just listened to are invisible.
+        assert "topic:fresh" in got, got
+
+    def test_the_bound_still_holds(self, monkeypatch, tmp_path) -> None:
+        """Recency ordering must not smuggle in more than `max_episodes` KG loads."""
+        uc, data_dir, uid = self._persona(monkeypatch, tmp_path)
+        seen: list[str] = []
+        monkeypatch.setattr(
+            uc,
+            "_episode_interest_tokens",
+            lambda root, row: (seen.append(str(row)) or ["topic:x"]),
+        )
+        uc.derive_interests(data_dir, data_dir, uid, k=8, max_episodes=12)
+        assert len(seen) == 12, len(seen)
+        assert all(s.startswith(self.NEW_SHOW) for s in seen[:5]), seen[:5]
+
+    def test_episodes_without_a_recency_signal_are_last_but_eligible(
+        self, monkeypatch, tmp_path
+    ) -> None:
+        """A saved-insight-only episode carries no timestamp `_most_recently_engaged` can read.
+
+        `_captured_slugs` puts it in the episode set via `get_favorites`, but favorites are not one
+        of the three recency sources — so it scores 0. It must still be *eligible* (a corpus with
+        no engagement metadata degrades to a bounded subset, not to nothing), just ranked last.
+        """
+        from podcast_scraper.server import app_user_state
+
+        captured = "mmm-saved-insight-0001"
+        uc, data_dir, uid = self._persona(
+            monkeypatch, tmp_path, old_episodes=0, new_episodes=2
+        )
+        app_user_state.add_favorite(
+            data_dir, uid, {"kind": "insight", "ref": "ins-1", "slug": captured}
+        )
+        heard = [f"{self.NEW_SHOW}-{i:04d}" for i in range(2)]
+        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: heard + [captured])
+        monkeypatch.setattr(
+            uc,
+            "_episode_interest_tokens",
+            lambda root, row: (["topic:captured"] if row == captured else ["topic:fresh"]),
+        )
+        # Room for all three: the signal-less episode is reached.
+        assert "topic:captured" in uc.derive_interests(data_dir, data_dir, uid, k=8)
+        # Room for two: the timestamped ones win, and it is the one dropped.
+        assert uc.derive_interests(data_dir, data_dir, uid, k=8, max_episodes=2) == ["topic:fresh"]
+
+    def test_derivation_is_deterministic(self, monkeypatch, tmp_path) -> None:
+        uc, data_dir, uid = self._persona(monkeypatch, tmp_path)
+        first = uc.derive_interests(data_dir, data_dir, uid, k=8)
+        assert all(uc.derive_interests(data_dir, data_dir, uid, k=8) == first for _ in range(3))
