@@ -4567,38 +4567,18 @@ def generate_episode_metadata(  # noqa: C901
     # KG's noun-phrase topic labels so the bridge can merge them by exact ID.
     if bridge_gi_payload is not None and bridge_kg_payload is not None:
         try:
-            from ..gi.pipeline import _dedupe_topic_node_specs
+            # Extracted to ``gi.topic_alignment`` so the corpus repair (``gi.repair``), which
+            # rebuilds artifacts OUTSIDE this function, applies the identical alignment. A
+            # second copy of these lines would drift the first time either changed, and the
+            # symptom would be an episode whose topics silently stop merging in the bridge.
+            from ..gi.topic_alignment import align_gi_topics_with_kg
 
-            kg_topic_labels = [
-                n.get("properties", {}).get("label", "")
-                for n in (bridge_kg_payload.get("nodes") or [])
-                if n.get("type") == "Topic" and n.get("properties", {}).get("label")
-            ]
-            if kg_topic_labels:
-                # Remove old GI topic nodes + ABOUT edges
-                gi_nodes = bridge_gi_payload.get("nodes") or []
-                gi_edges = bridge_gi_payload.get("edges") or []
-                new_nodes = [n for n in gi_nodes if n.get("type") != "Topic"]
-                new_edges = [e for e in gi_edges if e.get("type") != "ABOUT"]
-
-                # Add KG-derived topic nodes
-                topic_specs = _dedupe_topic_node_specs(kg_topic_labels)
-                for tid, label in topic_specs:
-                    new_nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
-
-                # Reconnect ABOUT edges from Insights to KG topics
-                insight_ids = [n["id"] for n in new_nodes if n.get("type") == "Insight"]
-                topic_ids = [tid for tid, _ in topic_specs]
-                for iid in insight_ids:
-                    for tid in topic_ids:
-                        new_edges.append({"type": "ABOUT", "from": iid, "to": tid})
-
-                bridge_gi_payload["nodes"] = new_nodes
-                bridge_gi_payload["edges"] = new_edges
+            aligned_count = align_gi_topics_with_kg(bridge_gi_payload, bridge_kg_payload)
+            if aligned_count:
                 logger.info(
                     "[%s] Aligned %d GI topic nodes with KG labels for CIL bridge",
                     episode.idx if hasattr(episode, "idx") else episode_id,
-                    len(topic_specs),
+                    aligned_count,
                 )
                 # #653 Part D follow-up: gi.json was written at build time (line ~4061) with the
                 # staged-mode bullet-derived Topic nodes. bridge_gi_payload IS that same payload

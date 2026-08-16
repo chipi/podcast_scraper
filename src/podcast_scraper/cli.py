@@ -3737,6 +3737,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         ee_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_enrich_edges_argv(ee_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "gi-repair":
+        gr_argv = list(argv[1:]) if len(argv) > 1 else []
+        return _parse_gi_repair_argv(gr_argv)
+
     if argv and len(argv) > 0 and argv[0] == "cluster-corpus-topics":
         from .search.cli_handlers import parse_cluster_corpus_topics_argv
 
@@ -4646,6 +4650,66 @@ def _validate_python_version() -> None:
         sys.exit(1)
 
 
+def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:
+    """``gi-repair`` — re-derive placeholder GI artifacts in place (#1655)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast-scraper gi-repair",
+        description=(
+            "Re-derive GI for episodes carrying a pre-#1657 placeholder insight, rewriting the "
+            "SAME gi.json path. Corpus-driven and standalone: no RSS fetch, no new run dir. "
+            "A per-episode failure leaves that placeholder intact and exits non-zero."
+        ),
+    )
+    parser.add_argument("--output-dir", required=True, help="Corpus parent path")
+    parser.add_argument("--config", default=None, help="Profile/config providing the GI providers")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List what would be repaired and write nothing.",
+    )
+    parser.add_argument(
+        "--audit-file",
+        default=None,
+        help="JSONL audit trail (default: <output-dir>/gi_repair_report.jsonl)",
+    )
+    args = parser.parse_args(argv)
+    args.command = "gi-repair"
+    return args
+
+
+def _run_gi_repair_cli(args: argparse.Namespace, log: logging.Logger) -> int:
+    """Run the repair and return the process exit code (0 only when every episode succeeded)."""
+    from pathlib import Path as _Path
+
+    from .gi.repair import repair_placeholder_artifacts
+
+    corpus_root = _Path(args.output_dir).expanduser()
+    if not corpus_root.is_dir():
+        print(f"Error: --output-dir is not a directory: {corpus_root}", file=sys.stderr)
+        return 2
+
+    cfg = None
+    if getattr(args, "config", None):
+        raw = config.load_config_file(args.config)
+        data = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}))
+        data.setdefault("rss_url", "https://example.invalid/feed.xml")
+        cfg = config.Config(**data)
+
+    audit = _Path(args.audit_file) if args.audit_file else corpus_root / "gi_repair_report.jsonl"
+
+    report = repair_placeholder_artifacts(
+        corpus_root,
+        cfg,
+        dry_run=bool(args.dry_run),
+        audit_path=None if args.dry_run else audit,
+    )
+    print(report.format())
+    if not args.dry_run:
+        print(f"\naudit trail: {audit}")
+    log.info("gi-repair finished: %d repaired, %d failed", len(report.repaired), len(report.failed))
+    return 0 if report.ok else 1
+
+
 def _validate_ffmpeg() -> None:
     """Validate ffmpeg is available at startup (Issue #379).
 
@@ -4903,6 +4967,9 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_enrich_edges_cli
 
         return run_enrich_edges_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "gi-repair":
+        return _run_gi_repair_cli(args, log)
 
     if hasattr(args, "command") and args.command == "cluster-corpus-topics":
         from .search.cli_handlers import run_cluster_corpus_topics_cli
