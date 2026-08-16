@@ -299,8 +299,13 @@ def get_interests(data_dir: Path, user_id: str) -> list[str]:
     return [str(x) for x in data] if isinstance(data, list) else []
 
 
-def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[str]:
-    """Replace the user's interests; return the stored list (de-duplicated, order preserved)."""
+def _write_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[str]:
+    """De-duplicate (order preserved, blanks dropped) and write. CALLER MUST HOLD THE LOCK.
+
+    Split out so the lock is taken in exactly one place per call path. ``_user_lock`` mints a fresh
+    ``FileLock`` each call and is not a singleton, so a nested acquire from a mutator that already
+    holds the lock would block until timeout rather than re-enter.
+    """
     seen: set[str] = set()
     clean: list[str] = []
     for x in cluster_ids:
@@ -312,6 +317,20 @@ def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[
     return clean
 
 
+def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[str]:
+    """Replace the user's interests; return the stored list (de-duplicated, order preserved).
+
+    Locked, unlike the queue's equally-replacing ``set_queue``, and the difference matters: this
+    file also has read-modify-write writers. ``add_interest`` reads under the lock, so an unlocked
+    PUT /interests landing between that read and its write was not last-write-wins — ``add_interest``
+    then persisted a list derived from the PRE-PUT state and the replacement vanished silently.
+    Symptom: saving the interest picker in one tab while following a person from an entity card in
+    another, and watching the picker save revert.
+    """
+    with _user_lock(data_dir, user_id, "interests"):
+        return _write_interests(data_dir, user_id, cluster_ids)
+
+
 def add_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
     """Follow one interest token (cluster ``tc:``, topic ``topic:`` or person ``person:``).
 
@@ -320,7 +339,7 @@ def add_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
     RFC-103 the interest list is the source of truth the momentum history is derived against.
     """
     with _user_lock(data_dir, user_id, "interests"):
-        return set_interests(
+        return _write_interests(
             data_dir, user_id, [*_strings_for_update(data_dir, user_id, "interests"), token]
         )
 
@@ -328,7 +347,7 @@ def add_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
 def remove_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
     """Unfollow one interest token (no-op if absent); return the remaining list."""
     with _user_lock(data_dir, user_id, "interests"):
-        return set_interests(
+        return _write_interests(
             data_dir,
             user_id,
             [x for x in _strings_for_update(data_dir, user_id, "interests") if x != token],

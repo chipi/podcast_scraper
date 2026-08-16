@@ -374,6 +374,31 @@ def test_playback_list_and_queue_through_routes(tmp_path: Path) -> None:
     assert client.put("/api/app/queue", json={"items": ["a"]}).json()["items"] == ["a"]
 
 
+def test_infinite_position_is_rejected_instead_of_poisoning_every_later_read(
+    tmp_path: Path,
+) -> None:
+    """``Infinity`` is a bare JSON token Python's parser accepts, and ``ge=0`` is true of ``inf``.
+
+    Stored, it made the response layer un-renderable: Starlette's ``JSONResponse.render`` uses
+    ``allow_nan=False``, so GET /playback 500ed on EVERY record, and /me/stats 500ed on a
+    ``listening_seconds`` that summed to ``inf``. Both stayed broken until that one record was
+    overwritten — a user could brick two of their own endpoints with a single request.
+    """
+    client = _authed(tmp_path)
+    client.put("/api/app/playback/ep", json={"position_seconds": 12.0})
+
+    bad = client.put(
+        "/api/app/playback/ep",
+        content=b'{"position_seconds": Infinity}',
+        headers={"content-type": "application/json"},
+    )
+    assert bad.status_code == 422, bad.text
+
+    # The good record is intact and both endpoints still render.
+    assert client.get("/api/app/playback").json()["items"][0]["position_seconds"] == 12.0
+    assert client.get("/api/app/me/stats").status_code == 200
+
+
 def test_library_add_list_remove_through_routes(tmp_path: Path) -> None:
     client = _authed(tmp_path)
     client.post("/api/app/library", json={"feed_id": "f1", "title": "One"})

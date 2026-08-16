@@ -986,7 +986,14 @@ class PlaybackPosition(BaseModel):
 class PlaybackUpdate(BaseModel):
     """Body for PUT /api/app/playback/{slug}."""
 
-    position_seconds: float = Field(ge=0, description="Playback position in seconds.")
+    #: ``allow_inf_nan=False`` is load-bearing, not defensive tidiness. ``ge=0`` is satisfied by
+    #: ``inf``, and Python's ``json.loads`` accepts the bare ``Infinity`` token, so an authed user
+    #: could store ``inf`` — after which Starlette's ``JSONResponse.render`` (``allow_nan=False``)
+    #: raised on every subsequent read, 500ing GET /playback and GET /me/stats (whose
+    #: ``listening_seconds`` sums to ``inf``) until that one record happened to be overwritten.
+    position_seconds: float = Field(
+        ge=0, allow_inf_nan=False, description="Playback position in seconds."
+    )
 
 
 class PlaybackListResponse(BaseModel):

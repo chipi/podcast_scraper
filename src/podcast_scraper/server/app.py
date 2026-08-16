@@ -5,13 +5,15 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import os
 import threading
 import time
 from pathlib import Path
-from typing import AsyncIterator, cast
+from typing import Any, AsyncIterator, cast
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -393,6 +395,23 @@ async def _stop_queue_sweeper_guarded(task: "asyncio.Task | None") -> None:
         logger.warning("job queue: sweeper shutdown failed (%s)", exc)
 
 
+def _json_safe(value: Any) -> Any:
+    """Recursively replace non-finite floats with their repr so the value can be serialised.
+
+    ``inf`` / ``-inf`` / ``nan`` are Python floats with no JSON spelling (RFC 8259 has no literal
+    for them), and Starlette renders with ``allow_nan=False``. Anywhere one reaches a response body
+    it does not produce a wrong number — it produces a ``ValueError`` and a 500. Used on the
+    validation-error path, where the offending value is echoed back to the caller by design.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return repr(value)  # 'inf' / '-inf' / 'nan' — legible, and a string always serialises
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -493,6 +512,18 @@ def create_app(
         exc: CorpusPathRequestError,
     ) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_errors(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        """FastAPI's default 422, but with a body that can actually be serialised.
+
+        The default handler echoes the offending value back as ``input``. Starlette renders with
+        ``allow_nan=False``, so a request carrying ``Infinity`` or ``NaN`` — non-standard tokens
+        Python's ``json.loads`` accepts and RFC 8259 does not — made the 422 itself unrenderable:
+        rejecting the value correctly, then 500ing while saying so. The rejection is the point, so
+        the report has to survive being written.
+        """
+        return JSONResponse(status_code=422, content={"detail": _json_safe(exc.errors())})
 
     # CORS origins: default to the local Vue dev-server ports, but let prod pin
     # the real public hostname(s) via PODCAST_SERVE_CORS_ORIGINS (comma-separated)

@@ -275,3 +275,44 @@ def test_a_mutation_does_not_purge_rows_the_getter_filters_out(
     mutate(tmp_path)
     raw = json.loads(st._state_path(tmp_path, UID, name).read_text(encoding="utf-8"))
     assert any(survivor_key in row for row in raw), raw
+
+
+def test_set_interests_is_locked_like_every_other_writer_of_this_file(tmp_path: Path) -> None:
+    """An unlocked replace over a file that ALSO has read-modify-write writers is not last-write-wins.
+
+    add_interest reads under the lock; a PUT /interests landing between that read and its write used
+    to make add_interest persist a list derived from the PRE-PUT state, silently discarding the
+    replacement. Asserted by observing the lock is held at the moment of the write, which is
+    deterministic — unlike trying to schedule the actual interleaving.
+    """
+    from filelock import FileLock, Timeout
+
+    held: list[bool] = []
+    real_write = st._write
+
+    def spy(data_dir: Path, user_id: str, name: str, obj: object) -> None:
+        if name == "interests":
+            # A SECOND lock object on the same file. flock is per file descriptor, so acquiring it
+            # fails exactly when the writer holds the lock. `is_locked` would not do: that is
+            # per-instance state, and a freshly minted instance always reports False.
+            path = st._state_path(data_dir, user_id, name).with_name(f".{name}.lock")
+            probe = FileLock(str(path))
+            try:
+                probe.acquire(timeout=0.01)
+                probe.release()
+                held.append(False)
+            except Timeout:
+                held.append(True)
+        real_write(data_dir, user_id, name, obj)
+
+    st._write = spy  # type: ignore[assignment]
+    try:
+        st.set_interests(tmp_path, UID, ["topic:ai"])
+        st.add_interest(tmp_path, UID, "person:jane")
+        st.remove_interest(tmp_path, UID, "topic:ai")
+    finally:
+        st._write = real_write  # type: ignore[assignment]
+
+    assert held == [True, True, True], held
+    # And the lock is genuinely released each time — a follow-up write must not time out.
+    assert st.get_interests(tmp_path, UID) == ["person:jane"]
