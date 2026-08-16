@@ -48,10 +48,19 @@ const hasAny = computed(() => storylines.value.length > 0)
     <template v-if="hasAny">
     <p class="mb-2 text-sm text-muted">{{ t('home.storylinesHint') }}</p>
     <div class="flex flex-wrap gap-1.5">
+      <!--
+        No 50% cap on phones. The cap existed to fit two chips per row, but a chip also carries its
+        "· N topics" count and a follow control, and those are `shrink-0` — so the label got
+        whatever was left. Measured at 390px: "Managing risk across domains" needed 204px and was
+        given 61px, rendering as "Manag…". A chip whose label is 30% visible is not a chip.
+
+        A storyline's label is the only thing that identifies it, so it gets the row it needs and
+        wraps to the next line when there is no room. Two-up returns from `sm`, where labels fit.
+      -->
       <div
         v-for="s in storylines"
         :key="s.id"
-        class="lp-theme-chip inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full text-sm text-surface-foreground transition sm:max-w-none"
+        class="lp-theme-chip inline-flex min-w-0 max-w-full items-center rounded-full text-sm text-surface-foreground transition sm:max-w-none"
         data-testid="storyline-chip"
       >
         <button
