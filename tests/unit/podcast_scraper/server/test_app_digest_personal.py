@@ -230,3 +230,96 @@ def test_is_due_slot_weekly(tmp_path: Path) -> None:
     assert app_digest_personal._is_due_slot(comms, 10**9) is True
     comms["digest"]["hour"] = (when.hour + 1) % 24
     assert app_digest_personal._is_due_slot(comms, 10**9) is False
+
+
+# --- pacing pause applies to resurfacing, not just to one tab (found in review) ----------------
+#
+# RFC-101 §5 calls frequency/pause/dismiss "per-user settings" on spaced resurfacing. Only
+# GET /resurfacing passed `paused` to select_due, so a user who paused pacing still had their
+# captures resurfaced through Your Week, the digest email and the push nudge — three surfaces
+# ignoring the setting the UI presents as switching it off. The separate comms.digest.paused
+# consent gate governs whether the EMAIL is sent; this governs whether resurfacing CONTENT exists.
+
+
+def _pause(data_dir: Path, uid: str, paused: bool) -> None:
+    from podcast_scraper.server import app_user_state
+
+    app_user_state.set_resurfacing_settings(data_dir, uid, paused=paused)
+
+
+def test_paused_pacing_suppresses_the_revisit_section(tmp_path: Path) -> None:
+    uid = _user(tmp_path)
+    _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
+
+    assert app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9) is not None
+
+    _pause(tmp_path, uid, True)
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    kinds = [s["kind"] for s in (payload or {}).get("sections", [])]
+    assert "revisit" not in kinds, (
+        f"pacing is paused but the digest still carries a revisit section: {kinds}"
+    )
+
+
+def test_unpausing_restores_the_revisit_section(tmp_path: Path) -> None:
+    uid = _user(tmp_path)
+    _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
+    _pause(tmp_path, uid, True)
+    assert app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9) is None
+
+    _pause(tmp_path, uid, False)
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    assert payload is not None
+    assert [s["kind"] for s in payload["sections"]] == ["revisit"]
+
+
+def test_paused_pacing_also_suppresses_auto_picks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Auto-picks ARE resurfacing — GI editor's-picks standing in for captures the user lacks."""
+    from podcast_scraper.server import app_auto_picks
+
+    monkeypatch.setattr(
+        app_auto_picks,
+        "auto_pick_items",
+        lambda *a, **k: [{"source": "auto", "graph_refs": _REFS, "deep_link": "/player/x?t=0"}],
+    )
+    uid = _user(tmp_path)
+    assert app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9) is not None
+
+    _pause(tmp_path, uid, True)
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    kinds = [s["kind"] for s in (payload or {}).get("sections", [])]
+    assert "revisit" not in kinds, "paused pacing still topped the digest up with auto-picks"
+
+
+def test_push_nudge_selects_the_revisit_section_by_kind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """sections[0] is not necessarily revisit — it is only appended when non-empty.
+
+    A push-enabled user with no due captures but a non-empty new_in_follows used to get a
+    "resurface-nudge.v1" whose highlight_count counted NEW EPISODES and whose lead was not a
+    highlight.
+    """
+    from podcast_scraper.server import app_digest_sections
+
+    monkeypatch.setattr(
+        app_digest_sections,
+        "new_in_follows_items",
+        lambda *a, **k: [{"source": "follow", "graph_refs": _REFS, "deep_link": "/player/y?t=0"}],
+    )
+    monkeypatch.setattr(app_digest_sections, "trending_items", lambda *a, **k: [])
+    uid = _user(tmp_path)  # no highlights at all → no revisit section
+    # Push must be fully enabled, or this asserts nothing: enqueue_push_for_user returns [] on
+    # consent long before it reaches the section selection.
+    app_comms_store.set_comms(tmp_path, uid, push={"enabled": True})
+    _add_push_sub(tmp_path, uid)
+
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    assert payload is not None
+    assert payload["sections"][0]["kind"] == "new_in_follows"
+
+    # With no revisit content there is nothing to nudge about, so no envelope is enqueued —
+    # rather than a "resurface-nudge" built from follow items.
+    assert app_digest_personal.enqueue_push_for_user(_ROOT, tmp_path, uid, now=10**9) == []
