@@ -685,7 +685,7 @@ services:
       # Errors -> self-hosted GlitchTip. moss app.py prefers GLITCHTIP_DSN over the
       # env_file's legacy SENTRY_DSN (Cloud); set GLITCHTIP_DSN in the operator .env
       # (tailnet-only). It inits sentry + scrubs secrets (before_send).
-      - SENTRY_ENVIRONMENT=prod
+      - SENTRY_ENVIRONMENT=production
     volumes:
       - /opt/llm-models:/opt/llm-models
     deploy:
