@@ -296,6 +296,14 @@ COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scrap
 # airgapped_thin`` etc. on disk inside the container.
 COPY --chown=podcast:podcast config/profiles/ /app/config/profiles/
 COPY --chown=podcast:podcast config/pricing_assumptions.yaml /app/config/pricing_assumptions.yaml
+# The model allowlist, at the path ``known_models._resolve_path`` checks FIRST (cwd is /app, so
+# this is the cwd-relative ``config/known_models.yaml``). Its absence here is why the image
+# logged "known_models.yaml not found; model allowlist validation is DISABLED": all three
+# resolution paths missed — this one was never copied, and the wheel-bundled fallback was not in
+# the wheel either (pyproject package-data listed data files one by one and omitted it). The
+# wheel now carries it, so this line is the belt to that braces — and it is also what lets an
+# operator mount their own allowlist over it, the same way pricing_assumptions.yaml works.
+COPY --chown=podcast:podcast config/known_models.yaml /app/config/known_models.yaml
 COPY --chown=podcast:podcast docker/pipeline/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/pipeline/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
