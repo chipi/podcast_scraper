@@ -17,6 +17,12 @@
 # preset. This file's whole purpose is to carry a different alias than the preset pins, so it
 # stays opted out rather than being force-fitted into the registry.
 #
+# Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. It pins an environment alias, not a
+# researched model choice, so there is nothing for the registry to govern: promoting it would mean
+# claiming `homelab-flash-0731` is a distinct model rather than the same upstream behind a
+# different key. The enricher tier IS registered (profile_sets.py, on cloud_balanced's branch),
+# because that is a real policy the profile must not silently diverge from.
+#
 # Usage:
 #   podcast-scraper --config config/profiles/homelab_balanced.yaml \
 #     --rss <feed_url> --output-dir <output>
@@ -95,22 +101,55 @@ kg_max_topics: 10
 kg_max_entities: 15
 
 # ---------------------------------------------------------------------------
-# Vector search + enrichment — OFF, and this is the one real behavioural delta.
+# Vector search — the one real behavioural delta from cloud_balanced.
 # ---------------------------------------------------------------------------
-# cloud_balanced sets `vector_search: true` with `vector_embedding_provider: sentence_transformers`,
-# and its enricher set runs topic_similarity / topic_consensus on all-MiniLM-L6-v2. All of that is
-# the [search] extra — torch, transformers, sentence-transformers, lancedb — which has no macOS
-# x86_64 wheels since torch dropped them, so it cannot be installed on this host at all.
+# cloud_balanced sets `vector_search: true` with `vector_embedding_provider: sentence_transformers`.
+# That is the [search] extra — torch, transformers, sentence-transformers, lancedb — and torch
+# publishes no macOS x86_64 wheels, so on an Intel Mac it cannot be installed at all
+# ("no wheels with a matching platform tag (macosx_15_0_x86_64)"). Left on, the vector pass fails
+# INSIDE the run, after the LLM stages have already been paid for.
 #
-# Turning these OFF rather than leaving them on-and-failing is deliberate: they are corpus-level
-# derived layers, not episode content. Nothing here feeds summary / GI / KG text. The Lance index
-# is built separately by `cli index-two-tier`, and the enricher sidecars by the corpus builder, so
-# the artifacts this profile is for — summaries, insights, knowledge graph — are unaffected.
-#
-# To run WITH them, use the podcast-scraper-stack-pipeline-llm image instead of a host venv.
+# It is off here because it is a derived layer, not episode content: nothing in it feeds summary /
+# GI / KG text, which is what this profile exists to produce. The search index is built separately
+# and out-of-band by `make index-two-tier-docker`, which runs in a container where those wheels do
+# exist. Turn this back on when running the profile somewhere [search] installs.
 vector_search: false
+
+# ---------------------------------------------------------------------------
+# Enrichment — mirrors cloud_balanced exactly. Do not trim it to suit a host.
+# ---------------------------------------------------------------------------
+# This block is the operator-facing MIRROR of the Python matrix in
+# src/podcast_scraper/enrichment/profile_sets.py (the source of truth), and
+# test_yaml_enrichment_block_matches_python_matrix asserts the two agree. homelab_balanced is
+# registered on cloud_balanced's branch there, so it must declare cloud_balanced's set.
+#
+# An earlier version of this file set `enabled: false` because topic_similarity / topic_consensus
+# need all-MiniLM-L6-v2 and this host cannot install it. That was the wrong lever: it made the
+# profile quietly MEAN something different from the profile it claims to mirror, and the drift test
+# caught it. Where a profile can run is a property of the host, not of the profile.
+#
+# The pipeline spawns enrichment as a BACKGROUND job after the run
+# (_maybe_spawn_enrichment_after_pipeline) and does not wait on it, so on a host without the ML
+# extra the run still completes — the enrichment job is what fails, loudly and separately. To
+# produce the sidecars, run `make enrich CORPUS=<corpus> WITH_ML=1` in a container.
 enrichment:
-  enabled: false
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
 
 llm_circuit_breaker_enabled: true
 

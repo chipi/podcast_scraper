@@ -1465,6 +1465,22 @@ def main() -> int:
     # --- corpus-scope enrichment envelopes (RFC-088) ------------------------
     corpus_enrich_dir = out / "enrichments"
     corpus_enrich_dir.mkdir(parents=True, exist_ok=True)
+    # THIS DIRECTORY HAS TWO WRITERS. Everything below authors FOUR files — temporal_velocity,
+    # topic_theme_clusters, topic_similarity, topic_consensus. The enrichment FRAMEWORK
+    # (`cli enrich`) produces those four plus grounding_rate, guest_coappearance,
+    # topic_cooccurrence_corpus and its own run.jsonl / run_summary.json, and the builder never
+    # runs it.
+    #
+    # So: write INTO this directory, never replace it. Overwriting the four is fine and is what
+    # happens on a normal rebuild; wiping the directory first silently drops the five the builder
+    # cannot recreate, and nothing downstream errors on a missing enrichment — the surfaces just
+    # render empty. tests/unit/scripts/test_app_corpus_enrichment_complete.py guards this.
+    #
+    # The four are authored rather than taken from the framework for two measured reasons, not
+    # convenience: the real topic_theme_clusters enricher finds ZERO clusters in a corpus this
+    # small (so Storylines would render empty), and the real temporal_velocity embeds a wall-clock
+    # `now` and derives velocity from it (so the fixture would stop being deterministic). See
+    # FIXTURES_SPEC.md "12. enrichments/ has two writers" — v4 has to settle this properly.
 
     # temporal_velocity — the consumer Trending surface (GET /api/app/corpus/enrichment)
     # reads ``data.topics[]`` with ``window_months`` + per-topic ``monthly_counts`` /

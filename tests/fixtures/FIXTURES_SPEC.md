@@ -242,6 +242,51 @@ alone; check whether the corpus is on a writable filesystem first.
 **v4 requirement:** whatever regenerates summaries must rebuild the index in the same step, and
 that step must assert non-zero per-tier counts rather than trusting the exit code.
 
+### 12. `enrichments/` has two writers, and they disagree
+
+Nobody owns the enrichment directory:
+
+* `build_app_validation_corpus.py` authors **four** files itself — `temporal_velocity`,
+  `topic_theme_clusters`, `topic_similarity`, `topic_consensus`.
+* The enrichment **framework** (`cli enrich`) produces **nine**, including those four plus
+  `grounding_rate`, `guest_coappearance`, `topic_cooccurrence_corpus` and the executor's own
+  `run.jsonl` / `run_summary.json`, and 36+36 per-episode `insight_density` /
+  `insight_sentiment` sidecars.
+
+A normal rebuild is safe: the builder overwrites its four and leaves the rest untouched (verified
+by seeding a corpus with all nine and rebuilding — all nine survived). The dangerous operation is
+a rebuild that REPLACES the directory instead of writing into it; the five framework-only files
+then vanish and nothing complains, because no consumer errors on a missing enrichment — the
+surfaces just render empty. That happened once during the pipeline migration.
+`tests/unit/scripts/test_app_corpus_enrichment_complete.py` now guards it.
+
+Where the two writers disagree, measured on the 2026-08-16 corpus:
+
+| file | builder | framework |
+|---|---|---|
+| `grounding_rate` | *(not written)* | 5063 B |
+| `guest_coappearance` | *(not written)* | 6599 B |
+| `topic_cooccurrence_corpus` | *(not written)* | 8605 B |
+| `temporal_velocity` | 20547 B | 29420 B |
+| `topic_similarity` | 7609 B, `top_k: 5` | 12507 B, `top_k: 7` |
+| `topic_consensus` | 8715 B | 2289 B |
+| `topic_theme_clusters` | **`cluster_count: 1`** | **`cluster_count: 0`** |
+
+Two of those differences are substantive, and both explain why the builder authors its own:
+
+* **`topic_theme_clusters`** — the real enricher finds NO theme clusters in this corpus. The
+  Storylines rail's only chip ("Managing risk across domains", 3 members) exists solely because the
+  builder authors it. Swap in the framework's output and Storylines renders empty.
+* **`temporal_velocity`** — the framework's payload embeds `now: <wall-clock timestamp>` and
+  derives velocity relative to it, so committing it makes the corpus non-deterministic and
+  time-dependent. The builder's version is derived from the authored publish dates instead.
+
+**v4 decision required — do not leave this implicit.** Either (a) accept the authored four as
+deliberate fixture curation and say so in the builder, keeping the framework for the other five;
+or (b) run the framework for everything and accept an empty Storylines rail plus a timestamped
+`temporal_velocity`; or (c) grow the corpus until the real enricher finds a theme cluster on its
+own, which is the only option that makes the fixture behave like production without fabricating.
+
 ---
 
 ## Podcasts (v3)
