@@ -34,16 +34,18 @@
     "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
     "feed_id": "p07",
     "title": "The Long View",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p07.svg",
+    "image_url": "http://localhost/images/p07.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to The Long View \u2014 Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, than\u2026",
-      "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot.",
+      "Welcome back to The Long View — Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, than…",
+      "Thanks, Alex Morgan. Excited for this one — sustainability and systems thinking is something I've been thinking about a lot.",
       "That's a useful framing. Where do systems thinking and sustainability intersect?"
     ],
-    "raw_text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, than\u2026",
+    "raw_text": "Welcome back to The Long View — Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, than…",
     "title": "What Sustainability Really Means"
   }
 }

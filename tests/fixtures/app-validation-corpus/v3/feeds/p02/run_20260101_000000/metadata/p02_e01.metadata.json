@@ -34,13 +34,15 @@
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
     "title": "Practical Systems",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.svg",
+    "image_url": "http://localhost/images/p02.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
-      "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
+      "Thanks, Ethan. Excited for this one — incident response and on-call design is something I've been thinking about a lot.",
       "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring."
     ],
     "raw_text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",

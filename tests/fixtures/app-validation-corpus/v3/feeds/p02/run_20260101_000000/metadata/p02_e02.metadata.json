@@ -34,16 +34,18 @@
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
     "title": "Practical Systems",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.svg",
+    "image_url": "http://localhost/images/p02.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being\u2026",
-      "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
+      "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being…",
+      "Before we get into it — Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
       "Yeah, exactly. And it ties into what we're covering today."
     ],
-    "raw_text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being\u2026",
+    "raw_text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being…",
     "title": "Staff-Engineer Communication Patterns"
   }
 }

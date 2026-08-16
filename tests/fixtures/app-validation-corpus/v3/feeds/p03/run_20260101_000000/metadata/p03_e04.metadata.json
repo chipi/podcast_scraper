@@ -29,14 +29,16 @@
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
     "title": "Below the Surface",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.svg",
+    "image_url": "http://localhost/images/p03.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
       "New divers think planning is paperwork. You call it survival.",
-      "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all f\u2026"
+      "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat — so we name them all f…"
     ],
     "raw_text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
     "title": "Plan the Dive, Manage the Risk"

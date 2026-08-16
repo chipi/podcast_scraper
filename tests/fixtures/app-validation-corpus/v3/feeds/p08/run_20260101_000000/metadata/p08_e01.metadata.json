@@ -34,13 +34,15 @@
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
     "title": "Public Hour",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.svg",
+    "image_url": "http://localhost/images/p08.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-      "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot.",
+      "Thanks, A. correspondent. Excited for this one — public-radio reporting is something I've been thinking about a lot.",
       "I want to dig into that. What's something you used to believe about this that you've revised?"
     ],
     "raw_text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",

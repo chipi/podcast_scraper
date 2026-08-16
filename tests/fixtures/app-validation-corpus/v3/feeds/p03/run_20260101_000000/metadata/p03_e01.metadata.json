@@ -34,13 +34,15 @@
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
     "title": "Below the Surface",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.svg",
+    "image_url": "http://localhost/images/p03.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
-      "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
+      "Thanks, Rina. Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot.",
       "What does the failure mode look like? What's something you used to believe about this that you've revised?"
     ],
     "raw_text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",

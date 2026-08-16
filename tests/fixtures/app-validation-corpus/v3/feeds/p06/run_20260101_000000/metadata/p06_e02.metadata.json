@@ -34,7 +34,9 @@
     "description": "Dialogue-heavy, meandering long-form interviews.",
     "feed_id": "p06",
     "title": "The Drift",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.svg",
+    "image_url": "http://localhost/images/p06.svg"
   },
   "schema_version": "1",
   "summary": {

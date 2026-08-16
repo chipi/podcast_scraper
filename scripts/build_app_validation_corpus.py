@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import sys
 from datetime import datetime
@@ -1042,6 +1043,34 @@ def _speaker_diagnostics(
     }
 
 
+def _apply_cover_art(corpus: Path) -> str:
+    """Generate the show covers and point the metadata at them (see the call site for why here).
+
+    Loaded by path rather than imported: both files are top-level scripts, not a package, so there
+    is no import path that works from an arbitrary CWD. Failure is reported and non-fatal — a
+    corpus without pictures is still a usable corpus, and this must not turn a successful build
+    into a failed one.
+    """
+    script = Path(__file__).resolve().parent / "build_corpus_artwork.py"
+    if not script.is_file():
+        return "skipped (build_corpus_artwork.py not found)"
+    try:
+        spec = importlib.util.spec_from_file_location("_corpus_artwork", script)
+        if spec is None or spec.loader is None:
+            return "skipped (could not load build_corpus_artwork.py)"
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        argv = sys.argv
+        try:
+            sys.argv = ["build_corpus_artwork.py", "--corpus", str(corpus)]
+            rc = mod.main()
+        finally:
+            sys.argv = argv
+        return "written + metadata patched" if rc == 0 else f"FAILED (exit {rc})"
+    except Exception as exc:  # noqa: BLE001 - never fail the corpus build over artwork
+        return f"FAILED ({exc})"
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -1407,9 +1436,19 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    # Cover art LAST, because it patches the metadata this builder just wrote.
+    #
+    # Without this the two steps silently fight: the artwork script sets each feed block's
+    # `image_url` / `image_local_relpath`, and a later regeneration rewrites those files from
+    # scratch and drops them. The covers stay on disk, nothing references them, and every artwork
+    # surface in the app — catalog rows, Home rails, the show header, Your Week — falls back to a
+    # blank tile. That is a silent failure: the corpus looks complete, and the apps look unfinished
+    # for a reason that has nothing to do with the apps. It happened exactly once, in review.
+    art_patched = _apply_cover_art(out)
     total_size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
     print(f"\napp validation corpus written to {out}")
     print(f"  shows: {len(shows)}  episodes: {len(episode_index)}  clusters: {len(clusters)}")
+    print(f"  cover art: {art_patched}")
     print(f"  total size: {total_size / 1024:.1f} KB")
     return 0
 

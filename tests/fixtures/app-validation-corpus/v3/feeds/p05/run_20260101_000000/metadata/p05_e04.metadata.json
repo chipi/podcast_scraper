@@ -34,16 +34,18 @@
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.svg",
+    "image_url": "http://localhost/images/p05.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun\u2026",
+      "Welcome back to Long Horizon Notes. Today is a debate — one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun…",
       "Thanks, Nora. Happy to be the boring one today.",
       "And I'll be the reckless one, apparently."
     ],
-    "raw_text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun\u2026",
+    "raw_text": "Welcome back to Long Horizon Notes. Today is a debate — one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun…",
     "title": "The Risk Panel: Diversify or Concentrate?"
   }
 }
