@@ -31,6 +31,7 @@ import { insightScrubberMarkers } from '../player/insightMarkers'
 import { activeSegmentIndex } from '../player/transcriptSync'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
+  ApiError,
   getAudioSource,
   getEntities,
   getEpisode,
@@ -161,6 +162,10 @@ function onPanelBackdropClick(e: MouseEvent): void {
 const focusInsightId = ref<string | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
+/** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */
+const loadFailed = ref(false)
+/** The transcript artifact is unreadable, as opposed to not written yet. */
+const transcriptBroken = ref(false)
 
 /**
  * The episode summary, opened on request rather than laid over the artwork.
@@ -287,6 +292,8 @@ const speakingNow = computed(() =>
 async function load(slug: string): Promise<void> {
   loading.value = true
   notFound.value = false
+  loadFailed.value = false
+  transcriptBroken.value = false
   // Only for a DIFFERENT episode. Returning to the one already playing (tapping the mini-player)
   // must not touch transport state: the store's load() no-ops for the same slug, so nothing would
   // restore what we wiped — the element keeps playing while the UI shows Play at 0:00, the first
@@ -343,7 +350,13 @@ async function load(slug: string): Promise<void> {
   try {
     const [detail, segs, audio, playback, ins, ents] = await Promise.all([
       getEpisode(slug),
-      getSegments(slug).catch(() => null),
+      // A 404 means "no transcript yet"; anything else means the artifact is BROKEN (the route
+      // 500s on an unreadable segments file). Collapsing both into null told the user "Transcript
+      // pending" forever for a file that will never fix itself, and nobody is prompted to look.
+      getSegments(slug).catch((err: unknown) => {
+        transcriptBroken.value = !(err instanceof ApiError && err.status === 404)
+        return null
+      }),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
       getInsights(slug).catch(() => null),
@@ -370,8 +383,11 @@ async function load(slug: string): Promise<void> {
       artist: detail.podcast_title ?? undefined,
       artworkUrl: episodeArtwork(detail) ?? undefined,
     })
-  } catch {
-    notFound.value = true
+  } catch (err: unknown) {
+    // "Not found" has to MEAN not found. Any failure used to land here, so a dropped connection
+    // told the user an episode that exists does not — and no reload prompt with it.
+    if (err instanceof ApiError && err.status === 404) notFound.value = true
+    else loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -540,6 +556,12 @@ onBeforeUnmount(() => {
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
+    <p v-else-if="loadFailed" class="mt-4 text-danger">
+      {{ t('player.loadFailed') }}
+      <button type="button" class="ml-2 underline" data-testid="player-retry" @click="load(props.slug)">
+        {{ t('player.retry') }}
+      </button>
+    </p>
 
     <div
       v-else-if="episode"
@@ -833,8 +855,13 @@ onBeforeUnmount(() => {
             @insight="openInsight"
             @capture="onCaptureParagraph"
           />
-          <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
-            {{ t('player.transcriptPending') }}
+          <p
+            v-else
+            data-testid="player-transcript-empty"
+            class="rounded-2xl border border-border bg-surface p-4"
+            :class="transcriptBroken ? 'text-danger' : 'text-muted'"
+          >
+            {{ transcriptBroken ? t('player.transcriptBroken') : t('player.transcriptPending') }}
           </p>
         </div>
 

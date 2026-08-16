@@ -6,6 +6,7 @@ Contract (PRD-036 / RFC-098): ``{id, start, end, text, speaker?}`` per segment, 
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from podcast_scraper.graph_id_utils import is_bare_speaker_label
@@ -65,7 +66,21 @@ def _segment_speaker(raw: dict[str, Any]) -> str | None:
 
 
 def to_contract_segments(raw_segments: Any) -> list[TranscriptSegment]:
-    """Map a raw Whisper segment list to contract segments; skip malformed entries."""
+    """Map a raw Whisper segment list to contract segments; skip malformed entries.
+
+    The output is SORTED BY START. The client's ``activeSegmentIndex`` is a binary search whose
+    comment says "the contract guarantees this" — and nothing enforced it, so an out-of-order
+    artifact did not fail, it returned a plausible WRONG segment: highlight-follow tracked the wrong
+    paragraph and tap-to-seek jumped to the wrong moment, silently. A guarantee the contract asserts
+    is the contract's job to keep. Sorting is stable, so equal starts keep their file order and the
+    positional ``seg_NNNN`` ids stay in the order the transcript wrote them.
+
+    Non-finite times are dropped alongside the other malformed entries. ``json.loads`` accepts the
+    non-standard ``NaN`` / ``Infinity`` tokens, and one of them anywhere in the list makes the whole
+    response body unserialisable (Starlette renders with ``allow_nan=False``) — which the player
+    then reports as "Transcript pending", so a single bad number reads to the user as a missing
+    transcript, forever.
+    """
     out: list[TranscriptSegment] = []
     if not isinstance(raw_segments, list):
         return out
@@ -76,6 +91,8 @@ def to_contract_segments(raw_segments: Any) -> list[TranscriptSegment]:
             start = float(raw["start"])
             end = float(raw["end"])
         except (KeyError, TypeError, ValueError):
+            continue
+        if not (math.isfinite(start) and math.isfinite(end)):
             continue
         text = raw.get("text")
         if not isinstance(text, str):
@@ -91,4 +108,5 @@ def to_contract_segments(raw_segments: Any) -> list[TranscriptSegment]:
                 speaker=_segment_speaker(raw),
             )
         )
+    out.sort(key=lambda s: s.start)
     return out

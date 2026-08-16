@@ -281,3 +281,49 @@ describe('PlayerView — the summary is opened, not laid over the artwork', () =
     expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
   })
 })
+
+describe('a failure must not be reported as an absence (Player #6)', () => {
+  it('says "not found" only for an actual 404', async () => {
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(404, 'nope'))
+    const w = await mountPlayer()
+    expect(w.text()).toContain(en.player.notFound)
+    expect(w.find('[data-testid="player-retry"]').exists()).toBe(false)
+  })
+
+  it('offers a retry when the load failed for any other reason', async () => {
+    // A dropped connection used to tell the user an episode that exists does not — a dead end, with
+    // no reload prompt, for something that would work on the next tap.
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = await mountPlayer()
+    expect(w.text()).not.toContain(en.player.notFound)
+    expect(w.text()).toContain(en.player.loadFailed)
+    expect(w.find('[data-testid="player-retry"]').exists()).toBe(true)
+  })
+
+  it('a retry actually re-requests the episode', async () => {
+    const get = vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = await mountPlayer()
+    get.mockResolvedValue(detail())
+    await w.find('[data-testid="player-retry"]').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('The Episode')
+    expect(w.text()).not.toContain(en.player.loadFailed)
+  })
+
+  it('an absent transcript is "pending"; an unreadable one says so', async () => {
+    // The route 500s on a segments file it cannot read. Collapsing that into the same "Transcript
+    // pending — audio still plays" as a not-yet-written transcript meant a permanently broken
+    // artifact read as "coming soon" forever, and nothing ever prompted anyone to look at it.
+    vi.spyOn(api, 'getSegments').mockRejectedValue(new api.ApiError(404, 'no transcript'))
+    let w = await mountPlayer()
+    expect(w.find('[data-testid="player-transcript-empty"]').text()).toBe(
+      en.player.transcriptPending,
+    )
+
+    vi.spyOn(api, 'getSegments').mockRejectedValue(new api.ApiError(500, 'unreadable'))
+    w = await mountPlayer()
+    expect(w.find('[data-testid="player-transcript-empty"]').text()).toBe(
+      en.player.transcriptBroken,
+    )
+  })
+})
