@@ -226,6 +226,19 @@ Two traps that target now guards:
 * **Colima mounts the host read-only**, so the corpus is staged into a named volume and copied
   back, not bind-mounted.
 
+Serving it has the same constraint, and it fails in a misleading way. Bind-mounting the corpus
+read-only into an API container makes every search report `no_index`, with a lance error naming a
+file that is not missing:
+
+    WARN lance_index::scalar::inverted::index] loading legacy FTS index
+    hybrid_search retrieve failed (lance error: Not found:
+      /corpus/search/lance_index/segments.lance/_indices/<uuid>/tokens.lance); reporting no_index
+
+The index is intact — the identical directory answers all queries when staged into a volume
+first. Lance needs write access to open its FTS index, and a read-only mount denies it. So: copy
+the corpus into a volume to serve it, and never conclude "the index is broken" from `no_index`
+alone; check whether the corpus is on a writable filesystem first.
+
 **v4 requirement:** whatever regenerates summaries must rebuild the index in the same step, and
 that step must assert non-zero per-tier counts rather than trusting the exit code.
 
