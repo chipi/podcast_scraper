@@ -1184,6 +1184,18 @@ corpus-placeholder-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.corpus import check_corpus_for_placeholders; ok, report = check_corpus_for_placeholders(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
+# THE repair exit criterion (#1655). Asserts, per EPISODE, that declared GI actually exists:
+# artifact resolves + parses, is not a pre-#1657 placeholder, and no episode_id resolves to more
+# than one gi.json (the supersede hazard — corpus_metadata_index keeps the OLDEST, search keeps
+# the NEWEST, so duplicates mean two subsystems disagree on the canonical artifact).
+#
+# Use this, NOT corpus-placeholder-check, to decide whether a repair worked.
+# corpus-placeholder-check only asks "is the bad string absent?", which passes on a corpus whose
+# artifacts were deleted and never regenerated — proven 2026-08-16. CORPUS_DIR required.
+corpus-gi-integrity-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.integrity import check_corpus_gi_integrity; ok, report = check_corpus_gi_integrity(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:

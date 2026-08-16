@@ -1,0 +1,219 @@
+"""Corpus GI integrity: does every episode that claims insights actually have them?
+
+WHY THIS EXISTS SEPARATELY FROM ``check_corpus_for_placeholders``
+The placeholder gate asks "does the string 'Summary insight (stub).' appear anywhere?". That is a
+NEGATIVE assertion over the files that happen to exist, and it was proven useless as a repair
+exit criterion on 2026-08-16: after deleting a placeholder artifact and failing to regenerate it,
+the gate reported ``VERDICT: PASS`` for a corpus where that episode had NO GI at all. An operator
+whose "repair" is ``rm`` gets a green light and a corpus with holes — a worse outcome than the
+defect the gate was built to catch.
+
+So this module asserts the POSITIVE, keyed on episodes rather than on artifacts found by glob:
+
+  1. every episode whose metadata declares a ``grounded_insights`` block must have an artifact
+     that resolves, loads, and is not a placeholder;
+  2. no episode_id may resolve to more than one ``gi.json`` — that catches the supersede failure
+     mode, where a pipeline re-run writes a second artifact into a fresh ``run_<ts>/`` dir and
+     leaves the old one on disk. It matters beyond tidiness: ``_scan_corpus_metadata_index`` is
+     first-writer-wins (keeps the OLDER entry) while search's ``merged_episode_gi_paths`` takes
+     the NEWEST, so duplicates mean two subsystems disagree about which artifact is canonical;
+  3. zero-insight artifacts are LEGAL after #1657 — "nothing extracted means nothing returned" —
+     so they must not fail, but they are counted and listed. 112 placeholders quietly becoming
+     112 empty artifacts would satisfy a naive gate while having re-derived nothing, and that
+     number being visible is what prevents declaring victory over an empty corpus.
+
+Deliberately no schema validation here beyond "it parses and has the shape we read": this gate
+runs before and after a repair on a production corpus and must not fail for reasons unrelated to
+the repair.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from .corpus import is_legacy_placeholder_artifact
+
+logger = logging.getLogger(__name__)
+
+
+def _load_json(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def _episode_id_of(meta: Dict[str, Any]) -> str:
+    episode = meta.get("episode")
+    if isinstance(episode, dict):
+        eid = episode.get("episode_id")
+        if isinstance(eid, str) and eid.strip():
+            return eid.strip()
+    eid = meta.get("episode_id")
+    return eid.strip() if isinstance(eid, str) and eid.strip() else ""
+
+
+def assess_gi_integrity(corpus_root: Path) -> Dict[str, Any]:
+    """Walk every ``*.metadata.json`` and check the GI it claims actually exists.
+
+    Metadata-first, not artifact-first: an episode that lost its artifact is invisible to any
+    scan that starts from ``rglob("*.gi.json")``, and that invisibility is exactly the hole this
+    module closes.
+    """
+    metadata_paths = sorted(corpus_root.rglob("*.metadata.json"))
+
+    unreadable_metadata: List[str] = []
+    no_gi_block: List[str] = []
+    missing_artifact: List[Dict[str, str]] = []
+    unreadable_artifact: List[Dict[str, str]] = []
+    placeholders: List[Dict[str, str]] = []
+    empty_artifacts: List[Dict[str, str]] = []
+    healthy: List[Dict[str, Any]] = []
+    by_episode: Dict[str, List[str]] = defaultdict(list)
+
+    for meta_path in metadata_paths:
+        meta = _load_json(meta_path)
+        if meta is None:
+            unreadable_metadata.append(str(meta_path))
+            continue
+
+        episode_id = _episode_id_of(meta)
+        gi_block = meta.get("grounded_insights")
+        if not isinstance(gi_block, dict) or not gi_block.get("artifact_path"):
+            # GI was never enabled for this episode, or the run predates the block. Not a
+            # failure: the corpus legitimately contains episodes without insights.
+            no_gi_block.append(episode_id or str(meta_path))
+            continue
+
+        # artifact_path is recorded relative to the RUN dir (metadata/<name>.gi.json), and the
+        # metadata itself lives in <run>/metadata/, so resolve against the run dir.
+        artifact = (meta_path.parent.parent / str(gi_block["artifact_path"])).resolve()
+        entry = {"episode_id": episode_id, "path": str(artifact), "metadata": str(meta_path)}
+
+        if not artifact.is_file():
+            missing_artifact.append(entry)
+            continue
+
+        by_episode[episode_id or str(artifact)].append(str(artifact))
+
+        doc = _load_json(artifact)
+        if doc is None:
+            unreadable_artifact.append(entry)
+            continue
+
+        if is_legacy_placeholder_artifact(doc):
+            placeholders.append(entry)
+            continue
+
+        insights = [
+            n
+            for n in (doc.get("nodes") or [])
+            if isinstance(n, dict) and n.get("type") == "Insight"
+        ]
+        if not insights:
+            empty_artifacts.append(entry)
+        else:
+            healthy.append({**entry, "insight_count": len(insights)})
+
+    duplicates = {eid: paths for eid, paths in by_episode.items() if len(paths) > 1}
+
+    return {
+        "metadata_scanned": len(metadata_paths),
+        "unreadable_metadata": unreadable_metadata,
+        "episodes_without_gi_block": no_gi_block,
+        "missing_artifact": missing_artifact,
+        "unreadable_artifact": unreadable_artifact,
+        "legacy_placeholders": placeholders,
+        "empty_artifacts": empty_artifacts,
+        "healthy": healthy,
+        "duplicate_episode_ids": duplicates,
+    }
+
+
+def check_corpus_gi_integrity(corpus_root: Path) -> Tuple[bool, str]:
+    """``(ok, formatted_report)`` — the repair's real exit criterion.
+
+    FAILS on: a surviving legacy placeholder, a declared-but-missing artifact, an unreadable
+    artifact, or one episode_id resolving to several artifacts.
+
+    PASSES (but reports) on: episodes with no GI block at all, and artifacts with zero insights —
+    both legal states. They appear in the NOT-COVERED section so a "clean" verdict cannot hide
+    them.
+    """
+    r = assess_gi_integrity(corpus_root)
+
+    hard_failures = (
+        len(r["legacy_placeholders"])
+        + len(r["missing_artifact"])
+        + len(r["unreadable_artifact"])
+        + len(r["duplicate_episode_ids"])
+    )
+    ok = hard_failures == 0
+
+    lines = [
+        f"Corpus: {corpus_root}",
+        f"  metadata files scanned      : {r['metadata_scanned']}",
+        f"  episodes with healthy GI    : {len(r['healthy'])}",
+        "",
+        "  HARD FAILURES",
+        f"    legacy placeholders       : {len(r['legacy_placeholders'])}",
+        f"    declared but MISSING      : {len(r['missing_artifact'])}",
+        f"    unreadable artifact       : {len(r['unreadable_artifact'])}",
+        f"    duplicate episode_id      : {len(r['duplicate_episode_ids'])}",
+    ]
+
+    def _list(title: str, entries: List[Dict[str, str]]) -> None:
+        if not entries:
+            return
+        lines.append("")
+        lines.append(f"  {title}")
+        for e in entries:
+            lines.append(f"    {e.get('episode_id') or '(no episode_id)'}  {e['path']}")
+
+    _list("Placeholders — re-derive these:", r["legacy_placeholders"])
+    _list("Missing artifacts — metadata claims GI that is not on disk:", r["missing_artifact"])
+    _list("Unreadable artifacts:", r["unreadable_artifact"])
+
+    if r["duplicate_episode_ids"]:
+        lines.append("")
+        lines.append("  Duplicate episode_id -> several artifacts (supersede hazard;")
+        lines.append("  corpus_metadata_index keeps the OLDEST, search keeps the NEWEST):")
+        for eid, paths in r["duplicate_episode_ids"].items():
+            lines.append(f"    {eid}")
+            for p in paths:
+                lines.append(f"      {p}")
+
+    # Equal-weight NOT-COVERED section: silence on these would read as "no gaps".
+    lines.append("")
+    lines.append("  NOT COVERED BY THIS VERDICT (legal states, reported so they cannot hide)")
+    lines.append(
+        f"    zero-insight artifacts    : {len(r['empty_artifacts'])}  "
+        "(legal post-#1657 — but a repair that produces these instead of real insights has "
+        "re-derived NOTHING)"
+    )
+    for e in r["empty_artifacts"]:
+        lines.append(f"      {e.get('episode_id') or '(no episode_id)'}  {e['path']}")
+    lines.append(
+        f"    episodes with no GI block : {len(r['episodes_without_gi_block'])} "
+        "(GI never ran for them)"
+    )
+    lines.append(f"    unreadable metadata       : {len(r['unreadable_metadata'])}")
+    for p in r["unreadable_metadata"]:
+        lines.append(f"      {p}")
+
+    lines.append("")
+    lines.append(f"VERDICT: {'PASS' if ok else 'FAIL'}")
+    if ok and r["metadata_scanned"] == 0:
+        lines.append("  NOTE: zero metadata files scanned — check CORPUS_DIR points at a corpus.")
+    elif ok and not r["healthy"]:
+        lines.append(
+            "  NOTE: no episode has healthy GI. Passing on an empty result is not a clean bill."
+        )
+
+    return ok, "\n".join(lines)
