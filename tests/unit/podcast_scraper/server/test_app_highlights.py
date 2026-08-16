@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from podcast_scraper.server import app_user_state as st
 
 UID = "u_test"
@@ -212,3 +214,105 @@ def test_notes_malformed_and_non_list_payloads(tmp_path: Path) -> None:
     assert st.get_notes(tmp_path, UID) == []
     st._write(tmp_path, UID, "notes", json.dumps("nope"))  # a JSON string, not a list
     assert st.get_notes(tmp_path, UID) == []
+
+
+# --- data-loss guards (found in review, 2026-08-16) --------------------------------------------
+#
+# Every mutator here persists what it just read. Two consequences the store used to have, both
+# violating this module's own "NEVER drops a highlight" promise:
+#
+#   1. _read answered ANY read error with the empty default, so one unreadable highlights.json
+#      plus one new capture replaced the user's entire history with a single row.
+#   2. get_highlights filters rows missing a field the response model needs; mutators wrote that
+#      filtered list back, so a row from another schema version was purged as a side effect of
+#      changing an unrelated row.
+#
+# The invariant both tests defend: mutating row X must not rewrite any other row.
+
+
+class TestMutationsNeverDestroyOtherRows:
+    def test_corrupt_file_is_not_overwritten_by_a_new_capture(self, tmp_path) -> None:
+        user_dir = tmp_path / "users" / "u1"
+        user_dir.mkdir(parents=True)
+        corrupt = user_dir / "highlights.json"
+        corrupt.write_text('[{"id": "h_old", "episode_slug"', encoding="utf-8")  # truncated JSON
+
+        with pytest.raises(st.UserStateUnreadable):
+            st.add_highlight(
+                tmp_path,
+                "u1",
+                {"id": "h_new", "episode_slug": "ep1", "kind": "moment", "created_at": 1},
+            )
+        # The damaged bytes are still there — a human can recover them.
+        assert corrupt.read_text(encoding="utf-8").startswith('[{"id": "h_old"')
+
+    def test_absent_file_still_reads_as_empty(self, tmp_path) -> None:
+        """Absent is not the same as unreadable: a first capture must work."""
+        got = st.add_highlight(
+            tmp_path, "u1", {"id": "h1", "episode_slug": "ep1", "kind": "moment", "created_at": 1}
+        )
+        assert [h["id"] for h in got] == ["h1"]
+
+    def test_a_row_the_reader_cannot_render_survives_an_unrelated_add(self, tmp_path) -> None:
+        user_dir = tmp_path / "users" / "u1"
+        user_dir.mkdir(parents=True)
+        # Missing created_at → get_highlights filters it out, but it is still the user's data.
+        (user_dir / "highlights.json").write_text(
+            json.dumps([{"id": "h_legacy", "episode_slug": "ep1", "kind": "moment"}]),
+            encoding="utf-8",
+        )
+
+        st.add_highlight(
+            tmp_path, "u1", {"id": "h_new", "episode_slug": "ep2", "kind": "moment", "created_at": 9}
+        )
+
+        on_disk = json.loads((user_dir / "highlights.json").read_text(encoding="utf-8"))
+        assert {r["id"] for r in on_disk} == {"h_legacy", "h_new"}, (
+            "adding a highlight deleted a row it merely could not render"
+        )
+        # The API view still hides it, which is the correct display behaviour.
+        assert [h["id"] for h in st.get_highlights(tmp_path, "u1")] == ["h_new"]
+
+    def test_unrenderable_row_survives_remove_of_another(self, tmp_path) -> None:
+        user_dir = tmp_path / "users" / "u1"
+        user_dir.mkdir(parents=True)
+        (user_dir / "highlights.json").write_text(
+            json.dumps(
+                [
+                    {"id": "h_legacy", "episode_slug": "ep1", "kind": "moment"},
+                    {"id": "h_ok", "episode_slug": "ep2", "kind": "moment", "created_at": 3},
+                ]
+            ),
+            encoding="utf-8",
+        )
+        st.remove_highlight(tmp_path, "u1", "h_ok")
+        on_disk = json.loads((user_dir / "highlights.json").read_text(encoding="utf-8"))
+        assert [r["id"] for r in on_disk] == ["h_legacy"]
+
+    def test_unrenderable_row_survives_update_of_another(self, tmp_path) -> None:
+        user_dir = tmp_path / "users" / "u1"
+        user_dir.mkdir(parents=True)
+        (user_dir / "highlights.json").write_text(
+            json.dumps(
+                [
+                    {"id": "h_legacy", "episode_slug": "ep1", "kind": "moment"},
+                    {"id": "h_ok", "episode_slug": "ep2", "kind": "moment", "created_at": 3},
+                ]
+            ),
+            encoding="utf-8",
+        )
+        st.update_highlight(tmp_path, "u1", "h_ok", {"color": "amber"})
+        on_disk = json.loads((user_dir / "highlights.json").read_text(encoding="utf-8"))
+        assert {r["id"] for r in on_disk} == {"h_legacy", "h_ok"}
+        assert [r for r in on_disk if r["id"] == "h_ok"][0]["color"] == "amber"
+
+    def test_notes_get_the_same_protection(self, tmp_path) -> None:
+        user_dir = tmp_path / "users" / "u1"
+        user_dir.mkdir(parents=True)
+        (user_dir / "notes.json").write_text("{not json", encoding="utf-8")
+        with pytest.raises(st.UserStateUnreadable):
+            st.add_note(
+                tmp_path,
+                "u1",
+                {"id": "n1", "target": "highlight", "target_id": "h1", "text": "x"},
+            )

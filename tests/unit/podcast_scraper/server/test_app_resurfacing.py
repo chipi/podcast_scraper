@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from podcast_scraper.server.app_resurfacing import (
     DAY,
     derive_interest_signals,
@@ -124,3 +128,60 @@ class TestDerivedTokensAreUsableInterestTokens:
         assert got[0]["kind"] == "topic"
         assert got[0]["label"] == "long form"
         assert got[0]["count"] == 1
+
+
+# --- the dict-shaped sibling of the highlights wipe (found in review, 2026-08-16) --------------
+#
+# mark_surfaced read resurfacing.json through a non-strict read, so an unreadable-but-present file
+# answered {} and the write then persisted a single-key mapping — erasing every other highlight's
+# {count, last_surfaced}. That is not cosmetic: counts reset to 0 and last_seen falls back to
+# created_at, so the user's entire history floods back in as due at once.
+
+
+class TestMarkSurfacedNeverWipesTheLadder:
+    def test_corrupt_state_file_is_not_overwritten(self, tmp_path) -> None:
+        from podcast_scraper.server import app_user_state as st
+
+        user_dir = tmp_path / "users" / "u1"
+        user_dir.mkdir(parents=True)
+        state = user_dir / "resurfacing.json"
+        state.write_text('{"h_old": {"count": 3,', encoding="utf-8")  # truncated
+
+        with pytest.raises(st.UserStateUnreadable):
+            st.mark_surfaced(tmp_path, "u1", "h_new", 1_800_000_000)
+        assert state.read_text(encoding="utf-8").startswith('{"h_old"')
+
+    def test_other_highlights_keep_their_schedule(self, tmp_path) -> None:
+        from podcast_scraper.server import app_user_state as st
+
+        st.mark_surfaced(tmp_path, "u1", "h_a", 1_800_000_000)
+        st.mark_surfaced(tmp_path, "u1", "h_b", 1_800_000_100)
+        st.mark_surfaced(tmp_path, "u1", "h_a", 1_800_000_200)
+
+        state = st.get_resurfacing_state(tmp_path, "u1")
+        assert set(state) == {"h_a", "h_b"}
+        assert state["h_a"]["count"] == 2
+        assert state["h_b"]["count"] == 1, "marking one highlight disturbed another's count"
+
+    def test_absent_state_file_still_allows_a_first_mark(self, tmp_path) -> None:
+        from podcast_scraper.server import app_user_state as st
+
+        rec = st.mark_surfaced(tmp_path, "u1", "h_a", 1_800_000_000)
+        assert rec == {"last_surfaced": 1_800_000_000, "count": 1}
+
+    def test_a_corrupt_count_does_not_crash_or_go_negative(self, tmp_path) -> None:
+        """A hand-edited count must not reach ladder[negative] and silently pick the wrong rung."""
+        from podcast_scraper.server import app_user_state as st
+
+        user_dir = tmp_path / "users" / "u1"
+        user_dir.mkdir(parents=True)
+        (user_dir / "resurfacing.json").write_text(
+            json.dumps({"h_a": {"count": "not-a-number", "last_surfaced": 1}}), encoding="utf-8"
+        )
+        rec = st.mark_surfaced(tmp_path, "u1", "h_a", 1_800_000_000)
+        assert rec["count"] == 1
+
+        (user_dir / "resurfacing.json").write_text(
+            json.dumps({"h_b": {"count": -5, "last_surfaced": 1}}), encoding="utf-8"
+        )
+        assert st.mark_surfaced(tmp_path, "u1", "h_b", 1_800_000_000)["count"] == 1

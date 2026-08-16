@@ -33,14 +33,62 @@ def _user_lock(data_dir: Path, user_id: str, name: str) -> FileLock:
     return FileLock(str(path.with_name(f".{name}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
-def _read(data_dir: Path, user_id: str, name: str, default: Any) -> Any:
+class UserStateUnreadable(RuntimeError):
+    """A state file exists but could not be read or parsed.
+
+    Raised only on the read-modify-WRITE path. Readers stay lenient: rendering an empty library
+    because a file is briefly unreadable is recoverable and destroys nothing. Overwriting it is
+    not — every mutator here persists what it just read, so answering a read error with the empty
+    default meant one bad read plus one new capture replaced the user's entire history with a
+    single row. "Absent" and "unreadable" must not be the same answer to a writer.
+    """
+
+
+def _read(data_dir: Path, user_id: str, name: str, default: Any, *, strict: bool = False) -> Any:
+    """Parsed state, or ``default``. With ``strict``, an unreadable EXISTING file raises."""
     path = _state_path(data_dir, user_id, name)
     if not path.is_file():
-        return default
+        return default  # genuinely absent — the empty default is the truth
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        if strict:
+            raise UserStateUnreadable(f"{name}.json is unreadable for user {user_id}") from exc
         return default
+
+
+def _rows_for_update(data_dir: Path, user_id: str, name: str) -> list[dict[str, Any]]:
+    """The RAW rows of a list-shaped state file, for read-modify-write.
+
+    Two differences from the public getters, both deliberate:
+
+    * unreadable raises (see :class:`UserStateUnreadable`) instead of silently yielding ``[]``;
+    * rows the getters filter out — missing a field a response model requires, or written by a
+      different schema version — are KEPT. The getters drop them so the API can still render; a
+      mutator that wrote that filtered list back would delete them permanently, as a side effect of
+      changing an unrelated row. Dropping on read is a display decision; persisting the drop is
+      data loss.
+
+    The invariant every caller must preserve: mutating row X must not rewrite any other row.
+    """
+    data = _read(data_dir, user_id, name, [], strict=True)
+    if not isinstance(data, list):
+        return []
+    return [x for x in data if isinstance(x, dict)]
+
+
+def _mapping_for_update(data_dir: Path, user_id: str, name: str) -> dict[str, Any]:
+    """The RAW mapping of a dict-shaped state file, for read-modify-write.
+
+    The dict-shaped sibling of :func:`_rows_for_update`, and it exists for the same reason: an
+    unreadable ``resurfacing.json`` used to read as ``{}``, so marking ONE highlight surfaced
+    persisted a single-key mapping and erased every other highlight's ``{count, last_surfaced}``.
+    Losing that is not cosmetic — every count resets to 0 and ``last_seen`` falls back to
+    ``created_at``, so the user's whole history floods back in as due at once and the schedule
+    they built is gone.
+    """
+    data = _read(data_dir, user_id, name, {}, strict=True)
+    return data if isinstance(data, dict) else {}
 
 
 def _write(data_dir: Path, user_id: str, name: str, obj: Any) -> None:
@@ -331,10 +379,13 @@ def add_highlight(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[di
     """Add/replace a highlight (idempotent on ``id``); appended newest-last."""
     hid = item.get("id")
     with _user_lock(data_dir, user_id, "highlights"):
-        highlights = [x for x in get_highlights(data_dir, user_id) if x.get("id") != hid]
-        highlights.append(item)
-        _write(data_dir, user_id, "highlights", highlights)
-        return highlights
+        # Raw rows, not get_highlights(): that filters for the response model, and writing the
+        # filtered list back would delete a row of a different schema version as a side effect of
+        # adding an unrelated one.
+        rows = [x for x in _rows_for_update(data_dir, user_id, "highlights") if x.get("id") != hid]
+        rows.append(item)
+        _write(data_dir, user_id, "highlights", rows)
+        return get_highlights(data_dir, user_id)
 
 
 def update_highlight(
@@ -346,9 +397,9 @@ def update_highlight(
     ``episode_slug`` and ``created_at`` are immutable and cannot be overwritten via ``fields``.
     """
     with _user_lock(data_dir, user_id, "highlights"):
-        highlights = get_highlights(data_dir, user_id)
+        rows = _rows_for_update(data_dir, user_id, "highlights")
         updated: dict[str, Any] | None = None
-        for rec in highlights:
+        for rec in rows:
             if rec.get("id") == highlight_id:
                 rec.update(
                     {k: v for k, v in fields.items() if k not in _IMMUTABLE_HIGHLIGHT_FIELDS}
@@ -356,16 +407,20 @@ def update_highlight(
                 updated = rec
                 break
         if updated is not None:
-            _write(data_dir, user_id, "highlights", highlights)
+            _write(data_dir, user_id, "highlights", rows)
         return updated
 
 
 def remove_highlight(data_dir: Path, user_id: str, highlight_id: str) -> list[dict[str, Any]]:
     """Remove a highlight by ``id`` (no-op if absent); return the remaining list."""
     with _user_lock(data_dir, user_id, "highlights"):
-        highlights = [x for x in get_highlights(data_dir, user_id) if x.get("id") != highlight_id]
-        _write(data_dir, user_id, "highlights", highlights)
-        return highlights
+        rows = [
+            x
+            for x in _rows_for_update(data_dir, user_id, "highlights")
+            if x.get("id") != highlight_id
+        ]
+        _write(data_dir, user_id, "highlights", rows)
+        return get_highlights(data_dir, user_id)
 
 
 def reanchor_highlight(highlight: dict[str, Any], segments: list[dict[str, Any]]) -> dict[str, Any]:
@@ -447,10 +502,12 @@ def add_note(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[st
     """Add/replace a note (idempotent on ``id``); appended newest-last."""
     nid = item.get("id")
     with _user_lock(data_dir, user_id, "notes"):
-        notes = [x for x in get_notes(data_dir, user_id) if x.get("id") != nid]
-        notes.append(item)
-        _write(data_dir, user_id, "notes", notes)
-        return notes
+        # Raw rows, not get_notes() — same reason as add_highlight: the getter filters for the
+        # response model, and persisting that filtered list deletes rows it merely could not render.
+        rows = [x for x in _rows_for_update(data_dir, user_id, "notes") if x.get("id") != nid]
+        rows.append(item)
+        _write(data_dir, user_id, "notes", rows)
+        return get_notes(data_dir, user_id)
 
 
 def update_note(
@@ -458,25 +515,25 @@ def update_note(
 ) -> dict[str, Any] | None:
     """Edit a note's ``text`` by ``id`` (no-op if absent); return the updated record."""
     with _user_lock(data_dir, user_id, "notes"):
-        notes = get_notes(data_dir, user_id)
+        rows = _rows_for_update(data_dir, user_id, "notes")
         updated: dict[str, Any] | None = None
-        for rec in notes:
+        for rec in rows:
             if rec.get("id") == note_id:
                 rec["text"] = text
                 rec["updated_at"] = updated_at
                 updated = rec
                 break
         if updated is not None:
-            _write(data_dir, user_id, "notes", notes)
+            _write(data_dir, user_id, "notes", rows)
         return updated
 
 
 def remove_note(data_dir: Path, user_id: str, note_id: str) -> list[dict[str, Any]]:
     """Remove a note by ``id`` (no-op if absent); return the remaining list."""
     with _user_lock(data_dir, user_id, "notes"):
-        notes = [x for x in get_notes(data_dir, user_id) if x.get("id") != note_id]
-        _write(data_dir, user_id, "notes", notes)
-        return notes
+        rows = [x for x in _rows_for_update(data_dir, user_id, "notes") if x.get("id") != note_id]
+        _write(data_dir, user_id, "notes", rows)
+        return get_notes(data_dir, user_id)
 
 
 # --- resurfacing state (P3 #1123): per-highlight {last_surfaced, count} + pacing settings ---
@@ -496,10 +553,17 @@ def get_resurfacing_state(data_dir: Path, user_id: str) -> dict[str, Any]:
 def mark_surfaced(data_dir: Path, user_id: str, highlight_id: str, ts: int) -> dict[str, Any]:
     """Record that a highlight was just surfaced (bumps ``count``, sets ``last_surfaced``)."""
     with _user_lock(data_dir, user_id, "resurfacing"):
-        data = get_resurfacing_state(data_dir, user_id)
+        # Strict read: an unreadable file must not be answered with {} and then persisted as a
+        # single-key mapping — that erases every other highlight's schedule.
+        data = _mapping_for_update(data_dir, user_id, "resurfacing")
         prev = data.get(highlight_id)
-        count = int(prev.get("count", 0)) + 1 if isinstance(prev, dict) else 1
-        rec = {"last_surfaced": int(ts), "count": count}
+        # A hand-edited or corrupt count must not crash the route or, worse, index the ladder
+        # negatively and silently pick the wrong rung.
+        try:
+            previous_count = int(prev.get("count", 0)) if isinstance(prev, dict) else 0
+        except (TypeError, ValueError):
+            previous_count = 0
+        rec = {"last_surfaced": int(ts), "count": max(previous_count, 0) + 1}
         data[highlight_id] = rec
         _write(data_dir, user_id, "resurfacing", data)
         return rec
