@@ -1009,23 +1009,41 @@ def _detect_speakers_for_episode(
     import inspect
 
     sig = inspect.signature(speaker_detector.detect_speakers)
-    if "pipeline_metrics" in sig.parameters:
-        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
-            speaker_detector.detect_speakers(
-                episode_title=episode.title,
-                episode_description=episode_description,
-                known_hosts=combined_hosts,
-                pipeline_metrics=pipeline_metrics,
+    # A raising detector previously recorded NOTHING — no ledger entry at all — so an episode
+    # whose speaker detection blew up was indistinguishable from one where it never ran. That
+    # silence is the #1646 shape, and it is also why ``failed`` ended up being (mis)used for the
+    # empty-result path below: there was no real failure path competing for the word.
+    #
+    # Control flow is deliberately unchanged: record, then re-raise.
+    try:
+        if "pipeline_metrics" in sig.parameters:
+            detected_speakers, detected_hosts_set, detection_succeeded, _ = (
+                speaker_detector.detect_speakers(
+                    episode_title=episode.title,
+                    episode_description=episode_description,
+                    known_hosts=combined_hosts,
+                    pipeline_metrics=pipeline_metrics,
+                )
             )
-        )
-    else:
-        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
-            speaker_detector.detect_speakers(
-                episode_title=episode.title,
-                episode_description=episode_description,
-                known_hosts=combined_hosts,
+        else:
+            detected_speakers, detected_hosts_set, detection_succeeded, _ = (
+                speaker_detector.detect_speakers(
+                    episode_title=episode.title,
+                    episode_description=episode_description,
+                    known_hosts=combined_hosts,
+                )
             )
+    except Exception as exc:
+        _record(
+            "failed",
+            "detector_raised",
+            detail={
+                "exception": type(exc).__name__,
+                "speaker_detector_provider": getattr(cfg, "speaker_detector_provider", None),
+            },
+            duration_seconds=time.time() - extract_names_start,
         )
+        raise
     elapsed = time.time() - extract_names_start
     if pipeline_metrics is not None:
         pipeline_metrics.record_extract_names_time(elapsed, episode.idx)
@@ -1038,9 +1056,20 @@ def _detect_speakers_for_episode(
         _record("degraded", "detection_failed_using_configured_names", duration_seconds=elapsed)
         return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
     if not detection_succeeded:
-        # Ran, produced nothing, and nothing stood in for it. Distinct from "skipped": the
-        # call happened. Conflating the two is what made #1646 unreadable from the outside.
-        _record("failed", "detection_returned_no_names", duration_seconds=elapsed)
+        # RAN, not failed. ``detection_succeeded`` is ``bool(hosts or guests)``
+        # (speaker_detectors/detection.py) — an EMPTINESS flag, not an error flag. Nothing
+        # raised: the detector read the metadata and correctly found no names, which on a feed
+        # that states no hosts is the designed outcome (#876 — NER on a description returns the
+        # people an episode is ABOUT, so guessing is what put an advertiser's name on a show).
+        #
+        # Recording that as ``failed`` was a lie with two costs. A corpus report grouping by
+        # outcome showed every host-less show as a permanent failure with nothing to fix; and
+        # ``stage_did_run`` returns ``outcome in ("ran","degraded")``, so ``failed`` told the
+        # roster the stage never ran — losing exactly the distinction between an UNMEASURED
+        # voice and one measured as unnameable that #1647 exists to preserve.
+        #
+        # ``failed`` is reserved for a genuine exception, recorded by the caller's except path.
+        _record("ran", "no_names_found_in_metadata", duration_seconds=elapsed)
     if detection_succeeded:
         flat_speakers: List[str] = []
         for entry in detected_speakers or []:

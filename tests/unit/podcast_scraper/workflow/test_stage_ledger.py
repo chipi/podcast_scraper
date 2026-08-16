@@ -273,8 +273,18 @@ class TestDetectSpeakersRecordsEveryExit:
         assert record["detail"]["corroborated_count"] == 1
         assert record["duration_seconds"] is not None
 
-    def test_detector_returning_nothing_is_failed_not_skipped(self, monkeypatch) -> None:
-        """'Ran and found nothing' and 'never ran' are different facts about the episode."""
+    def test_detector_returning_nothing_is_ran_not_skipped(self, monkeypatch) -> None:
+        """'Ran and found nothing' and 'never ran' are different facts about the episode.
+
+        That intent is unchanged; the OUTCOME that expresses it was wrong. This asserted
+        ``failed``, but ``detection_succeeded`` is ``bool(hosts or guests)`` — emptiness, not
+        error — so nothing had failed. The real corpus showed the cost: Planet Money, whose feed
+        states no hosts, recorded ``failed`` on a stage that had completed correctly, and
+        ``stage_did_run`` then told the roster it never ran at all (#1657 acceptance).
+
+        ``failed`` now means the detector raised; see
+        ``test_speaker_detection_outcome_truthfulness.py``.
+        """
         detector = MagicMock()
         detector.detect_speakers.return_value = ([], set(), False, False)
         monkeypatch.setattr(processing, "_get_speaker_detector", lambda *a, **k: detector)
@@ -284,8 +294,11 @@ class TestDetectSpeakersRecordsEveryExit:
         self._run(_Cfg(), m)
 
         record = _ledger_for(m)["speaker_detection"]
-        assert record["outcome"] == "failed"
-        assert record["reason"] == "detection_returned_no_names"
+        assert record["outcome"] == "ran"
+        assert record["reason"] == "no_names_found_in_metadata"
+        # The distinction the original test existed to protect, stated directly.
+        assert record["outcome"] != "skipped"
+        assert record["duration_seconds"] is not None
 
     def test_fallback_to_configured_names_is_degraded_not_ran(self, monkeypatch) -> None:
         detector = MagicMock()
