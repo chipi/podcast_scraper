@@ -19,6 +19,7 @@ from typing import Any
 
 from filelock import FileLock
 
+from podcast_scraper.server.app_user_state import UserStateUnreadable
 from podcast_scraper.server.app_user_store import _is_safe_user_id
 from podcast_scraper.server.atomic_write import atomic_write_text
 
@@ -37,15 +38,27 @@ def _lock(data_dir: Path, user_id: str) -> FileLock:
     return FileLock(str(path.with_name(f".{_FILE_NAME}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
-def _read(data_dir: Path, user_id: str) -> dict[str, Any]:
+def _read(data_dir: Path, user_id: str, *, strict: bool = False) -> dict[str, Any]:
+    """The user's collections doc, or the empty doc. With ``strict``, an unusable EXISTING file raises.
+
+    Readers stay lenient — a browsable UI over a temporarily bad file beats a 500. Writers must not
+    be: every mutator here persists what it just read, so answering a bad read with the empty doc
+    meant creating one collection replaced every collection AND every membership the user had. See
+    :class:`podcast_scraper.server.app_user_state.UserStateUnreadable` for the same rule stated for
+    the per-user state files.
+    """
     path = _path(data_dir, user_id)
     if not path.is_file():
-        return {"collections": [], "items": {}}
+        return {"collections": [], "items": {}}  # genuinely absent — the empty doc is the truth
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        if strict:
+            raise UserStateUnreadable(f"collections.json is unreadable for user {user_id}") from exc
         return {"collections": [], "items": {}}
     if not isinstance(doc, dict):
+        if strict:
+            raise UserStateUnreadable(f"collections.json is not a mapping for user {user_id}")
         return {"collections": [], "items": {}}
     doc.setdefault("collections", [])
     doc.setdefault("items", {})
@@ -80,7 +93,7 @@ def create_collection(data_dir: Path, user_id: str, name: str) -> dict[str, Any]
     if not clean or len(clean) > _MAX_NAME_LEN:
         raise ValueError("collection name must be 1..%d chars" % _MAX_NAME_LEN)
     with _lock(data_dir, user_id):
-        doc = _read(data_dir, user_id)
+        doc = _read(data_dir, user_id, strict=True)
         collection = {
             "id": f"col_{uuid.uuid4().hex[:12]}",
             "name": clean,
@@ -96,7 +109,7 @@ def delete_collection(data_dir: Path, user_id: str, collection_id: str) -> bool:
     if not _is_safe_user_id(user_id):
         return False
     with _lock(data_dir, user_id):
-        doc = _read(data_dir, user_id)
+        doc = _read(data_dir, user_id, strict=True)
         before = len(doc["collections"])
         doc["collections"] = [c for c in doc["collections"] if c.get("id") != collection_id]
         doc["items"].pop(collection_id, None)
@@ -118,7 +131,7 @@ def add_item(data_dir: Path, user_id: str, collection_id: str, highlight_id: str
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
     with _lock(data_dir, user_id):
-        doc = _read(data_dir, user_id)
+        doc = _read(data_dir, user_id, strict=True)
         if not _collection_exists(doc, collection_id):
             raise KeyError(collection_id)
         members = doc["items"].setdefault(collection_id, [])
@@ -133,7 +146,7 @@ def remove_item(data_dir: Path, user_id: str, collection_id: str, highlight_id: 
     if not _is_safe_user_id(user_id):
         return []
     with _lock(data_dir, user_id):
-        doc = _read(data_dir, user_id)
+        doc = _read(data_dir, user_id, strict=True)
         if not _collection_exists(doc, collection_id):
             return []  # don't persist a ghost membership entry for an unknown collection
         members = [h for h in doc["items"].get(collection_id, []) if h != highlight_id]

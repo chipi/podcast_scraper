@@ -153,15 +153,21 @@ def test_read_corrupt_json_falls_back_to_default(tmp_path: Path) -> None:
     assert st.get_interests(tmp_path, UID) == []
 
 
-def test_playback_helpers_tolerate_non_dict_payload(tmp_path: Path) -> None:
-    # playback.json holding a JSON list (not the expected dict) → defensive resets.
+def test_playback_readers_tolerate_non_dict_payload_but_the_writer_refuses(tmp_path: Path) -> None:
+    """READING a wrong-shaped playback.json degrades; WRITING over it must not.
+
+    This test used to assert "set_playback rebuilds a fresh dict over the bad payload" — it pinned
+    the data loss. Rebuilding is indistinguishable from wiping: the file is either hand-corrupted or
+    written by a schema version this build does not know, and overwriting destroys it either way.
+    """
     _write_raw(tmp_path, "playback", json.dumps([1, 2, 3]))
     assert st.get_playback(tmp_path, UID, "ep") is None
-    assert st.list_playback(tmp_path, UID) == []  # non-dict → empty list
-    # set_playback rebuilds a fresh dict over the bad payload.
-    rec = st.set_playback(tmp_path, UID, "ep", 9.0, 1000)
-    assert rec["position_seconds"] == 9.0
-    assert st.get_playback(tmp_path, UID, "ep") is not None
+    assert st.list_playback(tmp_path, UID) == []  # non-dict → empty list, for display only
+
+    before = st._state_path(tmp_path, UID, "playback").read_text(encoding="utf-8")
+    with pytest.raises(st.UserStateUnreadable):
+        st.set_playback(tmp_path, UID, "ep", 9.0, 1000)
+    assert st._state_path(tmp_path, UID, "playback").read_text(encoding="utf-8") == before
 
 
 def test_list_playback_skips_non_dict_records(tmp_path: Path) -> None:
@@ -188,3 +194,84 @@ def test_get_queue_non_list_payload_is_empty(tmp_path: Path) -> None:
 def test_get_library_non_list_payload_is_empty(tmp_path: Path) -> None:
     _write_raw(tmp_path, "library", json.dumps("nope"))
     assert st.get_library(tmp_path, UID) == []
+
+
+# --- the wipe class: a mutator must never persist over a file it could not read -----------------
+#
+# Every mutator in this module is a read-modify-write. When the read answered a corrupt or
+# unrecognised file with the empty default, the write that followed replaced the user's entire
+# history with whatever single row was being added. One bad byte plus one ordinary interaction
+# (saving a position, following a show, creating a collection) was total, silent, permanent loss.
+#
+# The rule these tests pin: absent is safe to default; unreadable and unrecognised are not. Readers
+# stay lenient — they only decide what renders — and each of those is covered separately above.
+
+_MUTATORS = [
+    # (state file, bad payload, callable that mutates it)
+    ("playback", "{not json", lambda d: st.set_playback(d, UID, "ep", 9.0, 1000)),
+    ("playback", json.dumps([1, 2, 3]), lambda d: st.set_playback(d, UID, "ep", 9.0, 1000)),
+    ("favorites", "{not json", lambda d: st.add_favorite(d, UID, {"kind": "episode", "ref": "e"})),
+    ("favorites", json.dumps({"kind": "episode"}), lambda d: st.remove_favorite(d, UID, "k", "r")),
+    ("library", "]]bad", lambda d: st.add_subscription(d, UID, {"feed_id": "f1"})),
+    ("library", json.dumps("nope"), lambda d: st.remove_subscription(d, UID, "f1")),
+    ("interests", "{not json", lambda d: st.add_interest(d, UID, "topic:ai")),
+    ("interests", json.dumps({"a": 1}), lambda d: st.remove_interest(d, UID, "topic:ai")),
+    ("highlights", "{not json", lambda d: st.add_note(d, UID, {"id": "n1"})),
+    ("resurfacing", "{not json", lambda d: st.mark_surfaced(d, UID, "h1", 1000)),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "payload", "mutate"),
+    _MUTATORS,
+    ids=[f"{n}-{i}" for i, (n, _p, _m) in enumerate(_MUTATORS)],
+)
+def test_mutating_over_an_unreadable_file_raises_and_changes_nothing(
+    tmp_path: Path, name: str, payload: str, mutate
+) -> None:
+    target = name if name != "highlights" else "notes"  # add_note writes notes.json
+    _write_raw(tmp_path, target, payload)
+    before = st._state_path(tmp_path, UID, target).read_text(encoding="utf-8")
+    with pytest.raises(st.UserStateUnreadable):
+        mutate(tmp_path)
+    assert st._state_path(tmp_path, UID, target).read_text(encoding="utf-8") == before
+
+
+def test_absent_file_is_still_safe_to_default(tmp_path: Path) -> None:
+    """The other half of the rule: a file that was never written must NOT raise."""
+    assert st.set_playback(tmp_path, UID, "ep", 1.0, 1)["position_seconds"] == 1.0
+    assert st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "e"})
+    assert st.add_subscription(tmp_path, UID, {"feed_id": "f1"})
+    assert st.add_interest(tmp_path, UID, "topic:ai") == ["topic:ai"]
+
+
+@pytest.mark.parametrize(
+    ("name", "seed", "mutate", "survivor_key"),
+    [
+        (
+            "favorites",
+            [{"kind": "episode", "ref": "keep"}, {"schema_v2_only": "row"}],
+            lambda d: st.add_favorite(d, UID, {"kind": "insight", "ref": "new"}),
+            "schema_v2_only",
+        ),
+        (
+            "library",
+            [{"feed_id": "keep"}, {"schema_v2_only": "row"}],
+            lambda d: st.add_subscription(d, UID, {"feed_id": "new"}),
+            "schema_v2_only",
+        ),
+    ],
+)
+def test_a_mutation_does_not_purge_rows_the_getter_filters_out(
+    tmp_path: Path, name: str, seed, mutate, survivor_key: str
+) -> None:
+    """Dropping an unrenderable row on READ is a display decision; persisting the drop is data loss.
+
+    The getters filter rows missing the fields their response model needs. Mutators used to read
+    THROUGH those getters and write the filtered list back, so adding one favorite permanently
+    deleted every row a different schema version had written.
+    """
+    _write_raw(tmp_path, name, json.dumps(seed))
+    mutate(tmp_path)
+    raw = json.loads(st._state_path(tmp_path, UID, name).read_text(encoding="utf-8"))
+    assert any(survivor_key in row for row in raw), raw

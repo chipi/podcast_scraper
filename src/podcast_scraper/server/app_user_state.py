@@ -70,11 +70,29 @@ def _rows_for_update(data_dir: Path, user_id: str, name: str) -> list[dict[str, 
       data loss.
 
     The invariant every caller must preserve: mutating row X must not rewrite any other row.
+
+    A payload that parses but is the WRONG SHAPE (a dict where the rows should be) raises too. It
+    is either hand-corruption or a schema version this build does not understand, and in both cases
+    "reset it to empty and write" destroys exactly as much as answering a parse error did. Absent,
+    unreadable and unrecognised must not be the same answer to a writer — only the first is safe.
     """
     data = _read(data_dir, user_id, name, [], strict=True)
     if not isinstance(data, list):
-        return []
+        raise UserStateUnreadable(f"{name}.json is not a list for user {user_id}")
     return [x for x in data if isinstance(x, dict)]
+
+
+def _strings_for_update(data_dir: Path, user_id: str, name: str) -> list[str]:
+    """The RAW entries of a list-of-strings state file (``interests``), for read-modify-write.
+
+    :func:`_rows_for_update`'s sibling for the one state file whose rows are bare strings rather
+    than objects, with the same two guarantees: unreadable or wrong-shaped raises instead of
+    yielding ``[]``, and nothing is dropped on the way to the writer.
+    """
+    data = _read(data_dir, user_id, name, [], strict=True)
+    if not isinstance(data, list):
+        raise UserStateUnreadable(f"{name}.json is not a list for user {user_id}")
+    return [str(x) for x in data]
 
 
 def _mapping_for_update(data_dir: Path, user_id: str, name: str) -> dict[str, Any]:
@@ -86,9 +104,13 @@ def _mapping_for_update(data_dir: Path, user_id: str, name: str) -> dict[str, An
     Losing that is not cosmetic — every count resets to 0 and ``last_seen`` falls back to
     ``created_at``, so the user's whole history floods back in as due at once and the schedule
     they built is gone.
+
+    Wrong-shaped-but-parseable raises for the same reason it does in :func:`_rows_for_update`.
     """
     data = _read(data_dir, user_id, name, {}, strict=True)
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        raise UserStateUnreadable(f"{name}.json is not a mapping for user {user_id}")
+    return data
 
 
 def _write(data_dir: Path, user_id: str, name: str, obj: Any) -> None:
@@ -110,11 +132,15 @@ def get_playback(data_dir: Path, user_id: str, slug: str) -> dict[str, Any] | No
 def set_playback(
     data_dir: Path, user_id: str, slug: str, position_seconds: float, updated_at: int
 ) -> dict[str, Any]:
-    """Save the playback position for an episode; return the stored record."""
+    """Save the playback position for an episode; return the stored record.
+
+    Reads strictly (:func:`_mapping_for_update`): this is the highest-frequency writer in the whole
+    subsystem — clients save position continuously while audio plays — so it has the shortest window
+    between "playback.json goes bad" and "playback.json gets overwritten". Resetting to ``{}`` here
+    would drop every other episode's resume point on the next position save.
+    """
     with _user_lock(data_dir, user_id, "playback"):
-        data = _read(data_dir, user_id, "playback", {})
-        if not isinstance(data, dict):
-            data = {}
+        data = _mapping_for_update(data_dir, user_id, "playback")
         rec = {"position_seconds": position_seconds, "updated_at": updated_at}
         data[slug] = rec
         _write(data_dir, user_id, "playback", data)
@@ -233,17 +259,23 @@ def get_favorites(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
 
 
 def add_favorite(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
-    """Add/replace a favorite (idempotent on ``kind``+``ref``); appended newest-last."""
+    """Add/replace a favorite (idempotent on ``kind``+``ref``); appended newest-last.
+
+    Raw rows, not :func:`get_favorites`: that getter both swallows an unreadable file AND drops rows
+    missing ``kind``/``ref``, so reading through it meant one bad read wiped the list and one ordinary
+    save silently purged any row a different schema version wrote. Returns the getter view, so the
+    API still sees only rows it can render.
+    """
     kind, ref = item.get("kind"), item.get("ref")
     with _user_lock(data_dir, user_id, "favorites"):
         favorites = [
             x
-            for x in get_favorites(data_dir, user_id)
+            for x in _rows_for_update(data_dir, user_id, "favorites")
             if (x.get("kind"), x.get("ref")) != (kind, ref)
         ]
         favorites.append(item)
         _write(data_dir, user_id, "favorites", favorites)
-        return favorites
+        return get_favorites(data_dir, user_id)
 
 
 def remove_favorite(data_dir: Path, user_id: str, kind: str, ref: str) -> list[dict[str, Any]]:
@@ -251,11 +283,11 @@ def remove_favorite(data_dir: Path, user_id: str, kind: str, ref: str) -> list[d
     with _user_lock(data_dir, user_id, "favorites"):
         favorites = [
             x
-            for x in get_favorites(data_dir, user_id)
+            for x in _rows_for_update(data_dir, user_id, "favorites")
             if (x.get("kind"), x.get("ref")) != (kind, ref)
         ]
         _write(data_dir, user_id, "favorites", favorites)
-        return favorites
+        return get_favorites(data_dir, user_id)
 
 
 # --- interests (personalized discovery; ordered list of cluster ids) ---
@@ -281,16 +313,25 @@ def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[
 
 
 def add_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
-    """Follow one interest token (cluster ``tc:``, topic ``topic:`` or person ``person:``)."""
+    """Follow one interest token (cluster ``tc:``, topic ``topic:`` or person ``person:``).
+
+    Reads strictly: ``get_interests`` answers an unreadable file with ``[]``, so following one topic
+    over a bad ``interests.json`` replaced the user's whole profile with that single token — and per
+    RFC-103 the interest list is the source of truth the momentum history is derived against.
+    """
     with _user_lock(data_dir, user_id, "interests"):
-        return set_interests(data_dir, user_id, [*get_interests(data_dir, user_id), token])
+        return set_interests(
+            data_dir, user_id, [*_strings_for_update(data_dir, user_id, "interests"), token]
+        )
 
 
 def remove_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
     """Unfollow one interest token (no-op if absent); return the remaining list."""
     with _user_lock(data_dir, user_id, "interests"):
         return set_interests(
-            data_dir, user_id, [x for x in get_interests(data_dir, user_id) if x != token]
+            data_dir,
+            user_id,
+            [x for x in _strings_for_update(data_dir, user_id, "interests") if x != token],
         )
 
 
@@ -318,21 +359,29 @@ def get_library(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
 
 
 def add_subscription(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
-    """Add/replace a subscription by ``feed_id`` (idempotent on feed_id)."""
+    """Add/replace a subscription by ``feed_id`` (idempotent on feed_id).
+
+    Raw rows for the same reason as :func:`add_favorite` — an unreadable ``library.json`` read as
+    ``[]``, so one follow replaced every subscription the user had with that single show.
+    """
     feed_id = item.get("feed_id")
     with _user_lock(data_dir, user_id, "library"):
-        library = [x for x in get_library(data_dir, user_id) if x.get("feed_id") != feed_id]
+        library = [
+            x for x in _rows_for_update(data_dir, user_id, "library") if x.get("feed_id") != feed_id
+        ]
         library.append(item)
         _write(data_dir, user_id, "library", library)
-        return library
+        return get_library(data_dir, user_id)
 
 
 def remove_subscription(data_dir: Path, user_id: str, feed_id: str) -> list[dict[str, Any]]:
     """Remove a subscription by ``feed_id`` (no-op if absent); return the remaining list."""
     with _user_lock(data_dir, user_id, "library"):
-        library = [x for x in get_library(data_dir, user_id) if x.get("feed_id") != feed_id]
+        library = [
+            x for x in _rows_for_update(data_dir, user_id, "library") if x.get("feed_id") != feed_id
+        ]
         _write(data_dir, user_id, "library", library)
-        return library
+        return get_library(data_dir, user_id)
 
 
 # --- highlights (P2 Capture, PRD-040 / RFC-098 §7: "mark this moment" + transcript spans) ---
