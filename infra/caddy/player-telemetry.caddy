@@ -10,11 +10,13 @@
 # is public by design (it ships in the JS bundle), so exposing ingest leaks nothing; abuse
 # is handled by the fail2ban caddy-access jail (T-11) + GlitchTip per-project quotas.
 #
-# UPSTREAM: GlitchTip runs on **homelab** (tailnet), addressed via the caddy service env
-# var GLITCHTIP_UPSTREAM (injected by apply-edge, same as CADDY_BIND_ADDRS) — keeps the
-# tailnet IP out of the repo. Same upstream as orrery's telemetry ingest (in the orrery repo).
+# UPSTREAM (Level 3 #1665): GlitchTip runs on **homelab**, now reached over the tailnet via its
+# per-service caddy-tailscale TLS node (glitchtip.<TAILNET>, real cert) instead of the raw
+# homelab:8090 port. __TAILNET__ is sed'd to the tailnet suffix by deploy-config.yml (never
+# hardcoded here — deny-list gate). Requires the prod→tag:homelab-svc:443 ACL grant (#1665, merged).
 #
-# Rollback: `rm /etc/caddy/sites/player-telemetry.caddy && sudo systemctl restart caddy`.
+# Rollback: revert this file to `reverse_proxy {$GLITCHTIP_UPSTREAM}` + `sudo systemctl restart
+# caddy` (the raw :8090 stays open until the Level 3 cleanup, so revert is lossless).
 telemetry.player.example.com {
 	import hardened
 	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
@@ -25,7 +27,12 @@ telemetry.player.example.com {
 	# + OPTIONS preflight work without extra Caddy config.
 	@ingest path_regexp ^/api/[0-9]+/(envelope|store|security)/?$
 	handle @ingest {
-		reverse_proxy {$GLITCHTIP_UPSTREAM}
+		# The node matches STRICTLY on Host and silently drops a foreign Host (empty 200 →
+		# telemetry lost), so header_up Host to the node name is REQUIRED — reverse_proxy
+		# forwards the incoming public Host by default.
+		reverse_proxy https://glitchtip.__TAILNET__ {
+			header_up Host glitchtip.__TAILNET__
+		}
 	}
 
 	# Everything else (dashboard, login, admin, the rest of the API) is NOT public.
