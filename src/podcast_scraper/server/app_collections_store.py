@@ -71,14 +71,35 @@ def _write(data_dir: Path, user_id: str, doc: dict[str, Any]) -> None:
     atomic_write_text(path, json.dumps(doc, ensure_ascii=False, indent=2))
 
 
-def list_collections(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
-    """Collections with their current item counts (newest-first)."""
+def list_collections(
+    data_dir: Path, user_id: str, *, live_item_ids: set[str] | None = None
+) -> list[dict[str, Any]]:
+    """Collections with their current item counts (newest-first).
+
+    ``live_item_ids`` is the set of highlight ids that still exist. Pass it and ``count`` counts
+    only members that can actually render; omit it and ``count`` is the raw membership length.
+
+    It has to be passed in rather than read here: membership is a plain id list and this store
+    deliberately knows nothing about the capture store. But the raw length is a LIE the moment a
+    highlight is deleted — deleting a highlight touches only ``highlights.json``, so the id stays
+    in every collection that held it. The detail view already drops ids it cannot hydrate, and
+    ``CollectionDetail`` carries both numbers in one response, so the badge said 5 while 3 cards
+    rendered. Counting at read time (rather than cascading a delete across three stores) matches
+    how the rest of this codebase handles derived truth.
+    """
     if not _is_safe_user_id(user_id):
         return []
     doc = _read(data_dir, user_id)
     items = doc["items"]
+
+    def _count(cid: str) -> int:
+        members = items.get(cid, [])
+        if live_item_ids is None:
+            return len(members)
+        return sum(1 for h in members if h in live_item_ids)
+
     out = [
-        {**c, "count": len(items.get(c["id"], []))}
+        {**c, "count": _count(c["id"])}
         for c in doc["collections"]
         if isinstance(c, dict) and c.get("id")
     ]
