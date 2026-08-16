@@ -936,33 +936,41 @@ onBeforeUnmount(() => {
         <!-- Content only while open. A <dialog> renders its children regardless, so without this
              the whole summary sits in the DOM (and in the accessibility tree) behind a closed
              dialog — the thing this change exists to stop. -->
-        <div v-if="summaryOpen" class="flex max-h-[80dvh] flex-col">
-          <div class="flex items-baseline justify-between gap-3 border-b border-border px-5 py-4">
-            <h2 class="lp-section">{{ t('player.summaryRegion') }}</h2>
+        <!--
+          No title bar. "Episode summary" over a rule, above the episode's own headline, was two
+          headings and a border spent saying what the content already says — real estate on a
+          phone, where the dialog is capped at 80dvh and every row costs prose.
+
+          The close sits on the headline's line instead, and that row is `sticky` inside the
+          scroller: dropping the bar must not put the only way out at the top of text the reader
+          has scrolled past. `aria-label` on the <dialog> still names the region for assistive
+          tech, so removing the visible <h2> costs nothing there.
+        -->
+        <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
+          <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
+            <p
+              v-if="episode?.summary_title && episode.summary_text"
+              class="min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
+            >
+              {{ episode.summary_title }}
+            </p>
+            <span v-else class="min-w-0" />
             <button
               type="button"
               data-testid="episode-summary-close"
               :aria-label="t('player.summaryClose')"
-              class="shrink-0 rounded-full px-2 py-1 text-sm text-muted transition hover:text-canvas-foreground"
+              class="-mr-1 -mt-1 shrink-0 rounded-full px-2 py-1 text-sm text-muted transition hover:text-canvas-foreground"
               @click="summaryOpen = false"
             >
               ✕
             </button>
           </div>
-          <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            <p
-              v-if="episode?.summary_title && episode.summary_text"
-              class="mb-3 font-display text-lg font-bold leading-snug tracking-tight"
-            >
-              {{ episode.summary_title }}
-            </p>
-            <p
-              class="whitespace-pre-line border-l-2 border-accent pl-4 text-sm leading-relaxed text-canvas-foreground"
-              data-testid="episode-summary-text"
-            >
-              {{ summaryText }}
-            </p>
-          </div>
+          <p
+            class="whitespace-pre-line border-l-2 border-accent pl-4 text-sm leading-relaxed text-canvas-foreground"
+            data-testid="episode-summary-text"
+          >
+            {{ summaryText }}
+          </p>
         </div>
       </dialog>
     </div>
