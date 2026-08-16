@@ -17,7 +17,6 @@ silently, being too loose costs a few minutes of noticing.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest

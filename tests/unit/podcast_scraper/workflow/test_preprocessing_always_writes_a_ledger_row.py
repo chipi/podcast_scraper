@@ -127,23 +127,54 @@ def test_an_empty_media_path_is_reported_too(metrics):
     assert _only_row(metrics)["reason"] == "media_file_missing"
 
 
-def test_missing_ffmpeg_is_degraded_not_silent(metrics, media_file, monkeypatch):
-    """THE expensive one: every episode on this host transcribes from full-size raw audio."""
+def test_missing_ffmpeg_is_fatal_and_still_recorded(metrics, media_file, monkeypatch):
+    """THE expensive one — and per #26 it stops the run rather than degrading it.
+
+    Every episode on such a host would transcribe from full-size raw audio: more expensive,
+    worse quality, some rejected by the provider's upload cap. That is a deployment fault
+    affecting all episodes identically, not a per-episode wobble to absorb, so it raises.
+
+    The ledger row must still be written BEFORE the raise, or the run dies and the episode's own
+    record says nothing about why.
+    """
+    from podcast_scraper.preprocessing.audio.factory import FFmpegUnavailableError
+
     monkeypatch.setattr(
         "podcast_scraper.preprocessing.audio.ffmpeg_processor._check_ffmpeg_available",
         lambda: False,
     )
 
-    out = _preprocess_audio_if_needed(_Job(), _cfg(preprocessing_enabled=True), media_file, metrics)
+    with pytest.raises(FFmpegUnavailableError):
+        _preprocess_audio_if_needed(_Job(), _cfg(preprocessing_enabled=True), media_file, metrics)
 
     row = _only_row(metrics)
-    assert row["outcome"] == "degraded", (
-        "ffmpeg missing is not a clean skip — the audio really did go to the provider "
-        "unnormalised and oversized"
-    )
+    assert row["outcome"] == "failed", "a missing dependency is a failure, not a degradation"
     assert row["reason"] == "ffmpeg_unavailable"
-    assert (row["detail"] or {}).get("fallback") == "original_audio"
-    assert out == media_file
+    assert (row["detail"] or {}).get("fatal") is True
+
+
+def test_a_broken_metrics_backend_does_not_swallow_the_ffmpeg_failure(media_file, monkeypatch):
+    """The raise must survive a failing ledger write — yelling matters more than recording it."""
+    from podcast_scraper.preprocessing.audio.factory import FFmpegUnavailableError
+
+    monkeypatch.setattr(
+        "podcast_scraper.preprocessing.audio.ffmpeg_processor._check_ffmpeg_available",
+        lambda: False,
+    )
+
+    class _Exploding:
+        def record_stage_outcome(self, *a, **k):
+            raise RuntimeError("metrics backend down")
+
+        def __getattr__(self, name):
+            if name.startswith("record_"):
+                return lambda *a, **k: None
+            raise AttributeError(name)
+
+    with pytest.raises(FFmpegUnavailableError):
+        _preprocess_audio_if_needed(
+            _Job(), _cfg(preprocessing_enabled=True), media_file, _Exploding()
+        )
 
 
 def test_the_row_is_attributed_to_the_right_episode(metrics, media_file):
@@ -194,12 +225,17 @@ def _function_node(name: str) -> ast.FunctionDef:
     raise AssertionError(f"{name} not found in {SOURCE_PATH}")
 
 
-#: Both halves of the decision. The guard clauses live in the helper, the real work in the main
-#: function; an exit added to EITHER can skip the ledger, so the guard counts both.
-GUARDED_FUNCTIONS = (FUNCTION_NAME, "_preprocessing_cannot_run")
+#: Every function that can end preprocessing. The guard clauses and the preprocessor build were
+#: split out of the main function for its complexity budget, but an exit added to ANY of them
+#: can skip the ledger just as easily, so the guard counts all three together.
+GUARDED_FUNCTIONS = (
+    FUNCTION_NAME,
+    "_preprocessing_cannot_run",
+    "_build_preprocessor_or_report",
+)
 
 #: Exit paths this file drives behaviourally, above. Bump ONLY together with a new test.
-COVERED_EXIT_COUNT = 6
+COVERED_EXIT_COUNT = 7
 
 
 def test_no_new_exit_path_escapes_this_files_coverage():

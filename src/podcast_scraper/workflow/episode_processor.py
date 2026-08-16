@@ -1342,6 +1342,57 @@ def _preprocessing_cannot_run(
     return False
 
 
+def _build_preprocessor_or_report(
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    pipeline_metrics: Any,
+) -> Any:
+    """Construct the audio preprocessor, writing a ledger row if it cannot be built.
+
+    Missing ffmpeg propagates as ``FFmpegUnavailableError`` — #26, decided: yell, do not
+    degrade. The operator asked for preprocessing and the host cannot do it, which is a
+    deployment fault affecting EVERY episode identically, not a per-episode quality wobble to
+    absorb. Continuing would produce a whole corpus that has to be redone, under one WARNING
+    line nobody reads.
+
+    The ledger row is written BEFORE re-raising, so the episode's own record names the cause
+    instead of the run simply dying with nothing in the artifact.
+
+    Extracted from ``_preprocess_audio_if_needed`` for its complexity budget, like
+    ``_preprocessing_cannot_run`` and ``_record_preprocessing_outcome`` before it.
+    """
+    from podcast_scraper.preprocessing.audio.factory import (
+        FFmpegUnavailableError,
+        create_audio_preprocessor,
+    )
+
+    try:
+        preprocessor = create_audio_preprocessor(cfg)
+    except FFmpegUnavailableError:
+        _record_preprocessing_outcome(
+            pipeline_metrics,
+            job.idx,
+            "failed",
+            reason="ffmpeg_unavailable",
+            detail={"fatal": True},
+        )
+        raise
+
+    # `cfg.preprocessing_enabled` is known true by the time this is called, and the factory now
+    # raises on missing ffmpeg, so None is unreachable. Kept as a belt-and-braces guard rather
+    # than an assert: if a future factory change reintroduces a None path, transcription should
+    # carry on with the original audio rather than crash on a NoneType.
+    if preprocessor is None:  # pragma: no cover - unreachable via the factory's contract
+        _record_preprocessing_outcome(
+            pipeline_metrics,
+            job.idx,
+            "degraded",
+            reason="preprocessor_unavailable",
+            detail={"fallback": "original_audio"},
+        )
+    return preprocessor
+
+
 def _preprocess_audio_if_needed(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1370,7 +1421,6 @@ def _preprocess_audio_if_needed(
     from podcast_scraper.preprocessing.audio import cache as preprocessing_cache
     from podcast_scraper.preprocessing.audio.factory import (
         build_ffmpeg_preprocessor_with_bitrate,
-        create_audio_preprocessor,
         mp3_bitrates_to_probe_for_cache,
         resolve_preprocessing_mp3_bitrate_kbps,
     )
@@ -1388,21 +1438,8 @@ def _preprocess_audio_if_needed(
         original_size = 0
         logger.debug("[%s] Audio preprocessing: starting (size unknown)", job.idx)
 
-    audio_preprocessor = create_audio_preprocessor(cfg)
-    if not audio_preprocessor:
-        # `cfg.preprocessing_enabled` is already known true here, so the factory returning None
-        # leaves exactly one cause: ffmpeg is not on PATH. The operator asked for preprocessing
-        # and the box cannot do it — every episode on this host transcribes from unnormalised,
-        # full-size audio, which costs more and scores worse. It was previously a single WARNING
-        # line at factory level, invisible in the per-episode record. See task #26 for whether
-        # this should escalate to a hard failure rather than a degraded row.
-        _record_preprocessing_outcome(
-            pipeline_metrics,
-            job.idx,
-            "degraded",
-            reason="ffmpeg_unavailable",
-            detail={"fallback": "original_audio"},
-        )
+    audio_preprocessor = _build_preprocessor_or_report(cfg, job, pipeline_metrics)
+    if audio_preprocessor is None:  # pragma: no cover - unreachable via the factory's contract
         return media_for_transcription
 
     # Record preprocessing attempt (regardless of cache hit/miss)
