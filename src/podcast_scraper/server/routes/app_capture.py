@@ -187,7 +187,25 @@ def _episode_titles(request: Request, slugs: set[str]) -> dict[str, tuple[str | 
     return out
 
 
-@router.get("/highlights/export.md", response_class=PlainTextResponse)
+class MarkdownResponse(PlainTextResponse):
+    """A text response that DOCUMENTS the media type it actually sends.
+
+    The handler below overrides ``media_type`` to ``text/markdown``, but a plain
+    ``response_class=PlainTextResponse`` still advertises ``text/plain`` in the OpenAPI schema —
+    so the published contract described something the endpoint never returns. Declaring it on the
+    response class keeps the two in step, instead of the schema and the wire drifting apart.
+    """
+
+    media_type = "text/markdown; charset=utf-8"
+
+
+@router.get(
+    "/highlights/export.md",
+    response_class=MarkdownResponse,
+    responses={
+        200: {"description": "All of the user's highlights, grouped by episode, as Markdown."}
+    },
+)
 async def export_highlights_markdown(
     request: Request, user: User = Depends(get_current_user)
 ) -> PlainTextResponse:

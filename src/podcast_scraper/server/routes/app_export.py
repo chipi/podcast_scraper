@@ -26,7 +26,26 @@ def _data_dir(request: Request) -> Path:
     return Path(request.app.state.app_data_dir)
 
 
-@router.get("/export")
+@router.get(
+    "/export",
+    # This returns a zip, and without saying so the generated schema claims application/json —
+    # FastAPI's default for a handler annotated `-> Response`. Nothing in this repo breaks on it
+    # (the web client reads the body as a blob), but /docs then shows a JSON example for a zip, and
+    # a client generated from the spec would call .json() on zip bytes and fail at runtime against
+    # a server that is behaving correctly.
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"application/zip": {}},
+            "description": (
+                "Zip archive of the vault: the changed `closelistening/…` notes plus a "
+                "`manifest.json` listing `written` and `removed` paths. The `X-Export-*` headers "
+                "carry the cursor and counts so a client can summarise without unzipping."
+            ),
+        },
+        400: {"description": "Unsupported `format` (only `obsidian` is supported)."},
+    },
+)
 async def export_vault(
     request: Request,
     format: str = Query(default="obsidian"),

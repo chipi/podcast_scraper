@@ -132,10 +132,13 @@ async function share(h: Highlight): Promise<void> {
 const OBSIDIAN_CURSOR_KEY = 'obsidian_export_cursor'
 const exportingObsidian = ref(false)
 const obsidianMsg = ref('')
+/** True after a SUCCESSFUL export — gates the "what to do with the zip" line (not shown on error). */
+const obsidianDone = ref(false)
 
 async function doObsidianExport(): Promise<void> {
   exportingObsidian.value = true
   obsidianMsg.value = ''
+  obsidianDone.value = false
   try {
     const since = Number(localStorage.getItem(OBSIDIAN_CURSOR_KEY) ?? '0') || 0
     const r = await exportObsidian(since)
@@ -144,6 +147,7 @@ async function doObsidianExport(): Promise<void> {
       r.mode === 'incremental'
         ? t('highlights.obsidianDelta', { written: r.written, removed: r.removed })
         : t('highlights.obsidianFull', { written: r.written })
+    obsidianDone.value = true
   } catch {
     obsidianMsg.value = t('highlights.obsidianError')
   } finally {
@@ -191,7 +195,13 @@ onMounted(async () => {
         @click="doObsidianExport"
       >{{ t('highlights.exportObsidian') }}</button>
     </div>
-    <p v-if="obsidianMsg" class="mb-3 text-xs text-muted">{{ obsidianMsg }}</p>
+    <p v-if="obsidianMsg" class="mb-1 text-xs text-muted">{{ obsidianMsg }}</p>
+    <!--
+      Obsidian has no import format to target — a vault IS a folder of Markdown files, so the only
+      way in is to put the folder there. Without saying so, the export ends at "here is a zip" and
+      the user has to go and find out what to do with it, which is exactly what happened in review.
+    -->
+    <p v-if="obsidianDone" class="mb-3 text-xs text-muted">{{ t('highlights.obsidianNext') }}</p>
 
     <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
     <div v-if="capture.count" class="mb-4 flex items-center gap-2">

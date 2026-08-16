@@ -423,6 +423,7 @@
     "obsidianFull": "Exported {written} notes to a vault zip.",
     "obsidianDelta": "Exported {written} changed, {removed} removed since last time.",
     "obsidianError": "Export failed — try again.",
+    "obsidianNext": "Unzip it, then move the “closelistening” folder into your Obsidian vault folder — a vault is just a folder of files, so the notes show up next time you open it.",
     "share": "Share as card",
     "moment": "Marked moment",
     "span": "Transcript",
