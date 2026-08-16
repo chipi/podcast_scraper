@@ -50,11 +50,24 @@ const rangeLabel = computed(() => {
       <h3 class="lp-kicker">{{ t('podcast.activity') }}</h3>
       <span class="text-[10px] text-muted">{{ rangeLabel }}</span>
     </div>
+    <!--
+      Two things the old single-colour bar got wrong.
+
+      It was `bg-accent/70` — the same accent as the ACTIVITY label directly above it, so the chart
+      read as decoration attached to its own heading rather than as data.
+
+      And every bar was that colour INCLUDING months with no episodes, which still render a 4px
+      stub so the month keeps its place on the axis. A short accent bar reads as "a little
+      activity"; the truthful answer is none. Published months now carry the `topic` token and
+      silent months a muted baseline tick, so the shape of a show's cadence — the gaps as much as
+      the bursts — is legible at a glance.
+    -->
     <div class="flex items-end gap-px" style="height: 44px">
       <div
         v-for="b in bars"
         :key="b.key"
-        class="min-w-[3px] flex-1 rounded-sm bg-accent/70"
+        class="min-w-[3px] flex-1 rounded-sm"
+        :class="b.count > 0 ? 'bg-topic/80' : 'bg-muted/25'"
         :style="{ height: Math.round((b.count / maxCount) * 40) + 4 + 'px' }"
         :title="`${b.key} · ${b.count}`"
         :data-testid="`show-activity-bar-${b.key}`"

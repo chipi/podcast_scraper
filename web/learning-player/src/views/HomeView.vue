@@ -303,16 +303,26 @@ async function loadContinue(): Promise<void> {
         <span class="block font-bold">{{ t('interests.cardTitle') }}</span>
         <span class="block text-sm text-muted">{{ t('interests.cardBody') }}</span>
       </span>
-      <button
-        type="button"
-        class="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
-        @click="pickerOpen = true"
-      >
-        {{ t('interests.cardCta') }}
-      </button>
-      <button type="button" class="shrink-0 text-sm text-muted" @click="dismissInterests">
-        {{ t('interests.dismiss') }}
-      </button>
+      <!--
+        The two controls are ONE stacked group, not two siblings of the text.
+        Side by side they were both `shrink-0` on the same row, so together they claimed the width
+        the copy needed: on a 390px screen the title wrapped to two lines and the body to four, in a
+        card whose whole job is a one-line ask. Stacking "Not now" under the primary button returns
+        that width to the left column and puts the dismiss where it reads as secondary — beneath the
+        action it declines, rather than competing beside it.
+      -->
+      <span class="flex shrink-0 flex-col items-stretch gap-1.5">
+        <button
+          type="button"
+          class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+          @click="pickerOpen = true"
+        >
+          {{ t('interests.cardCta') }}
+        </button>
+        <button type="button" class="text-sm text-muted" @click="dismissInterests">
+          {{ t('interests.dismiss') }}
+        </button>
+      </span>
     </section>
 
     <!-- Your Week — the personal digest, in-app (#1412). The highlight of the page: the first
