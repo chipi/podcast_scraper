@@ -300,3 +300,111 @@ describe('player store — MediaSession (#1308)', () => {
     expect(p.playing).toBe(false)
   })
 })
+
+describe('position persistence', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  /** Drive `timeupdate` at a given element time, past the throttle window. */
+  function tick(p: ReturnType<typeof usePlayerStore>, el: HTMLAudioElement, at: number) {
+    ;(el as unknown as { currentTime: number }).currentTime = at
+    vi.advanceTimersByTime(11_000)
+    ;(el as unknown as { __emit: (k: string) => void }).__emit('timeupdate')
+  }
+
+  it('writes the slug and the time that belong to the SAME episode', () => {
+    // The bug this replaces: PlayerView paired ITS route's slug with the STORE's currentTime. When
+    // an episode auto-advanced while the user sat on the player page, every save for the new
+    // episode landed on the old episode's record — every 10s, for the whole episode.
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const saves: [string, number][] = []
+    p.setPositionPersister((slug, seconds) => saves.push([slug, seconds]))
+
+    loaded(p, el)
+    tick(p, el, 30)
+    // Auto-advance: the element is now playing a DIFFERENT episode, with no navigation.
+    p.load({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' })
+    tick(p, el, 7)
+
+    expect(saves).toContainEqual(['ep-1', 30])
+    expect(saves).toContainEqual(['ep-2', 7])
+    // The pair that used to be written: ep-1's record carrying ep-2's timeline.
+    expect(saves.filter(([slug, s]) => slug === 'ep-1' && s === 7)).toEqual([])
+    vi.useRealTimers()
+  })
+
+  it('flushes the outgoing episode before its identity is overwritten', () => {
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const saves: [string, number][] = []
+    p.setPositionPersister((slug, seconds) => saves.push([slug, seconds]))
+
+    loaded(p, el)
+    tick(p, el, 30)
+    ;(el as unknown as { currentTime: number }).currentTime = 44 // 14s further, inside the window
+    p.load({ slug: 'ep-2', url: 'https://x/b.mp3' })
+
+    expect(saves).toContainEqual(['ep-1', 44]) // not lost to the throttle
+    vi.useRealTimers()
+  })
+
+  it('saves with no view mounted — the store is the only thing that has to be alive', () => {
+    // Persistence used to live in PlayerView, so listening via the mini-player (the entire point of
+    // #1587) recorded nothing at all: an hour from Home left the resume point untouched.
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const saves: [string, number][] = []
+    p.setPositionPersister((slug, seconds) => saves.push([slug, seconds]))
+
+    loaded(p, el)
+    tick(p, el, 120)
+
+    expect(saves).toEqual([['ep-1', 120]])
+    vi.useRealTimers()
+  })
+
+  it('flushes on pause, without waiting for the throttle window', () => {
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const saves: [string, number][] = []
+    p.setPositionPersister((slug, seconds) => saves.push([slug, seconds]))
+
+    loaded(p, el)
+    tick(p, el, 30)
+    ;(el as unknown as { currentTime: number }).currentTime = 33
+    el.__emit('pause')
+
+    expect(saves).toContainEqual(['ep-1', 33])
+    vi.useRealTimers()
+  })
+
+  it('throttles the timeupdate firehose', () => {
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const saves: [string, number][] = []
+    p.setPositionPersister((slug, seconds) => saves.push([slug, seconds]))
+
+    loaded(p, el)
+    for (let i = 1; i <= 20; i += 1) {
+      ;(el as unknown as { currentTime: number }).currentTime = i
+      vi.advanceTimersByTime(250) // ~4 timeupdates a second, as a real element fires
+      el.__emit('timeupdate')
+    }
+    expect(saves.length).toBeLessThanOrEqual(1)
+    vi.useRealTimers()
+  })
+
+  it('is inert until the shell supplies a writer', () => {
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    expect(() => tick(p, el, 30)).not.toThrow()
+    vi.useRealTimers()
+  })
+})

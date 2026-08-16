@@ -40,7 +40,6 @@ import {
   getRelated,
   getSegments,
   logListen,
-  putPlayback,
 } from '../services/api'
 import type {
   EpisodeDetail,
@@ -212,9 +211,10 @@ function openInsight(insightId: string): void {
 }
 
 // Playback state + transport live in the player store (single source of truth for the UI,
-// MediaSession, and native controls — #1307). The <audio> element is still rendered by this view
-// and registered into the store via bind(); view-specific glue (deep-link/resume, persistence,
-// queue-advance, transcript sync-offset) stays here and drives the store.
+// MediaSession, and native controls — #1307). What is left here is genuinely view-shaped:
+// deep-link/resume seeking and the transcript sync-offset. Queue-advance and position PERSISTENCE
+// both moved out, for the same reason: they must keep working when no player view is mounted, and
+// persistence additionally has to pair the slug and the time from one object (see the store).
 const player = usePlayerStore()
 const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
 // No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
@@ -254,7 +254,6 @@ function resetSync(): void {
 }
 
 let resumeSeconds = 0
-let lastSaved = 0
 
 // Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
 const contentTime = computed(() => currentTime.value - syncOffset.value)
@@ -411,20 +410,6 @@ watch(
   { immediate: true },
 )
 
-function persist(): void {
-  if (props.slug) void putPlayback(props.slug, currentTime.value)
-}
-
-watch(currentTime, () => onTimeUpdate())
-
-function onTimeUpdate(): void {
-  const now = Date.now()
-  if (now - lastSaved > 10_000) {
-    lastSaved = now
-    persist()
-  }
-}
-
 // Transcript is OPTIONAL and closed by default (mobile): pressing play should NOT jump the
 // listener into the transcript. A Show/Hide toggle reveals it; opening scrolls it into view.
 // (Desktop keeps the transcript visible as the side column — see the template's lg: classes.)
@@ -537,7 +522,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  persist()
+  // No persist() here any more: the store saves on pause, on episode switch, on pagehide and on a
+  // 10s cadence, keyed on what is actually PLAYING. Saving from here paired this page's slug with
+  // the store's time, which is exactly the pair that could disagree.
   if (flashTimer) clearTimeout(flashTimer)
   desktopMql?.removeEventListener('change', onDesktopChange)
   // A dialog left open while its view unmounts keeps the top layer and the inert background.

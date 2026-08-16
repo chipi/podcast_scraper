@@ -11,7 +11,7 @@ import TierSwitch from './components/TierSwitch.vue'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
-import { getAudioSource, getEpisode } from './services/api'
+import { getAudioSource, getEpisode, putPlayback } from './services/api'
 import { episodeArtwork } from './utils/episode'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
@@ -66,6 +66,18 @@ async function resolveNextUp(): Promise<NextUp | null> {
   }
 }
 player.setAdvanceResolver(resolveNextUp)
+
+/**
+ * Position persistence is wired here for the same reason queue-advance is: the store must not
+ * import the API, and the view cannot own it because audio outlives the view.
+ *
+ * The store decides WHEN and for WHICH episode (it holds both halves of that pair); the shell only
+ * supplies the writer. A rejected save is swallowed — a lost position is a small, self-correcting
+ * annoyance, and a signed-out user 401s on every tick.
+ */
+player.setPositionPersister((slug, seconds) => {
+  void putPlayback(slug, seconds).catch(() => {})
+})
 
 onMounted(async () => {
   // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE

@@ -76,6 +76,10 @@ export const usePlayerStore = defineStore('player', () => {
     audio.addEventListener('ended', onEnded)
     el.value = audio
     wireMediaHandlers() // headphone / BT transport works as soon as an element exists
+    // Closing the tab is not an unmount: onBeforeUnmount fires on SPA navigation only, so a tab
+    // closed mid-episode dropped everything since the last throttled save. `pagehide` is the event
+    // that actually covers tab close, back/forward cache and mobile app-switch.
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', savePosition)
     return audio
   }
 
@@ -91,6 +95,9 @@ export const usePlayerStore = defineStore('player', () => {
       currentArtwork.value = opts.artwork ?? currentArtwork.value
       return
     }
+    // Flush the OUTGOING episode before its identity is overwritten — otherwise up to a full
+    // throttle window of the episode the user just left is lost, every single switch.
+    savePosition()
     resetForLoad()
     currentSlug.value = opts.slug
     currentTitle.value = opts.title ?? null
@@ -126,10 +133,14 @@ export const usePlayerStore = defineStore('player', () => {
     playing.value = false
     setPlaybackState('paused')
     void stopBackgroundAudio()
+    // Pausing is the clearest "I am done for now" signal there is; not flushing here meant losing
+    // up to the whole throttle window at the exact moment the position matters most.
+    savePosition()
   }
   function onTimeUpdate(): void {
     currentTime.value = el.value?.currentTime ?? 0
     syncPositionState()
+    maybeSavePosition()
   }
   function onDurationChange(): void {
     duration.value = el.value?.duration || 0
@@ -170,6 +181,56 @@ export const usePlayerStore = defineStore('player', () => {
   /** The app shell supplies this; the store must not import the queue or the API itself. */
   function setAdvanceResolver(fn: (() => Promise<NextUp | null>) | undefined): void {
     advanceResolvers.next = fn
+  }
+
+  // --- playback position persistence ------------------------------------------------------------
+  //
+  // This belongs to the store because the invariant is about the store's own state: a position
+  // write must take the slug and the time from the SAME object. PlayerView used to own it and paired
+  // `props.slug` (the page) with the store's `currentTime` (whatever is actually playing) — two
+  // things that stopped being the same the moment the element outlived the view. Two ways they
+  // diverged, both silent:
+  //
+  //   * Auto-advance while sitting on the player page. Episode X ends on /player/X, `onEnded` loads
+  //     and plays queue-next Y WITHOUT navigating (deliberately — see onEnded). The view stayed
+  //     mounted with props.slug === X, so every position save for Y was written onto X's record,
+  //     every 10s, for the whole of Y. Opening X later "resumed" at a point in a different episode.
+  //   * Switching episodes. props.slug changes immediately on tap while the old episode keeps
+  //     playing through the awaits before `load()` swaps the source; any save in that window put the
+  //     old episode's time on the new slug.
+  //
+  // Moving it here also fixes the other half: persistence used to exist ONLY while PlayerView was
+  // mounted, so listening via the mini-player — the entire point of #1587 — saved nothing at all.
+  // An hour of listening from Home left the resume point where the player page had last seen it.
+  //
+  // The store still must not import the API (same rule as the advance resolver), so the shell
+  // supplies the writer.
+  const SAVE_INTERVAL_MS = 10_000
+  const persisters: { save?: (slug: string, seconds: number) => void } = {}
+  let lastSavedAt = 0
+
+  /** The shell supplies this; without it every save below is a no-op (tests, signed-out). */
+  function setPositionPersister(fn: ((slug: string, seconds: number) => void) | undefined): void {
+    persisters.save = fn
+    lastSavedAt = 0
+  }
+
+  /** Write the CURRENT episode's position now. Slug and time are read together, on purpose.
+   *
+   * Time comes off the ELEMENT rather than the mirrored ref: the ref only moves on `timeupdate`
+   * (~4/s), so a flush triggered by pause or pagehide would otherwise write a slightly stale
+   * position — at the two moments the position matters most.
+   */
+  function savePosition(): void {
+    const slug = currentSlug.value
+    if (!slug || !persisters.save) return
+    lastSavedAt = Date.now()
+    persisters.save(slug, el.value?.currentTime ?? currentTime.value)
+  }
+
+  /** Throttled save for the `timeupdate` firehose (~4/s). */
+  function maybeSavePosition(): void {
+    if (Date.now() - lastSavedAt > SAVE_INTERVAL_MS) savePosition()
   }
   /** New episode loading — clear transient state (source swap happens in the view). */
   function resetForLoad(): void {
@@ -286,6 +347,8 @@ export const usePlayerStore = defineStore('player', () => {
     load,
     clear,
     setAdvanceResolver,
+    setPositionPersister,
+    savePosition,
     onPlay,
     onPause,
     onTimeUpdate,

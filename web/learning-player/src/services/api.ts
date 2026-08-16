@@ -459,11 +459,16 @@ export async function getPlayback(slug: string): Promise<PlaybackPosition | null
   }
 }
 
-/** Persist the playback position (auth-gated); silently no-ops when signed out (401). */
+/** Persist the playback position (auth-gated); silently no-ops when signed out (401).
+ *
+ * `keepalive` so the save fired from `pagehide` actually leaves the machine: a normal fetch is
+ * cancelled when the document goes away, which is precisely the case that save exists for.
+ */
 export async function putPlayback(slug: string, positionSeconds: number): Promise<void> {
   const resp = await apiFetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
     method: 'PUT',
     credentials: 'include',
+    keepalive: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ position_seconds: positionSeconds }),
   })
