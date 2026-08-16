@@ -125,23 +125,42 @@ _WORD_RE = re.compile(r"[a-z0-9']+")
 #: embedding cosine puts a genuine paraphrase around 0.85-0.95, while term-frequency cosine puts
 #: the SAME pair far lower because it only sees shared words.
 #:
-#: Set at 0.99 — effectively "the same content words, in any order" — after a lower bar was
-#: measured deleting real knowledge. At 0.85 these two merged:
+#: Set at 0.90, MEASURED over all 14 episodes of the 2026-08-16 acceptance corpus (14,539
+#: surviving insight pairs). The earlier 0.99 came from short episodes only, where no pair
+#: scored above 0.60; long episodes have maximal chunk overlap and tell a different story.
+#:
+#: The whole distribution, so the choice can be re-argued rather than trusted:
+#:
+#:     [0.95, 0.99)   4 pairs   ALL duplicates   verb swaps: "says"/"argues"/"claims"
+#:     [0.90, 0.95)   1 pair    duplicate        "was right" vs "was justified"
+#:     [0.85, 0.90)   0 pairs
+#:     [0.70, 0.85)   1 pair    duplicate        full paraphrase, cos 0.7108
+#:     [0.00, 0.70)   14,533 pairs
+#:
+#: Every pair in [0.85, 0.99) was a genuine duplicate — 5 of 5, no false positives. Below them
+#: is a wide EMPTY gap: the next pair down is 0.7108. A bar anywhere in 0.72-0.93 separates the
+#: two populations on this corpus; 0.90 sits inside that gap with ~0.037 of margin above and
+#: ~0.23 below, so it is not balanced on a single observation.
+#:
+#: The antonym case that justified 0.99 survives the change, which is why 0.90 and not lower:
 #:
 #:     "Kalanick believes regulation will SLOW autonomous vehicle deployment."
 #:     "Kalanick believes regulation will ACCELERATE autonomous vehicle deployment."
 #:
-#: Six shared tokens, one different, cosine 0.857 — and that one word is the entire claim. A
-#: bag of words cannot see polarity, so any threshold loose enough to catch a paraphrase is also
-#: loose enough to merge a statement with its opposite. Since dropping a distinct insight
-#: destroys knowledge while keeping a duplicate merely repeats it, the bar goes where the false
-#: positives stop, not where recall is highest.
+#: Six shared tokens, one different, cosine 0.857 — below this bar, so it is still NOT merged.
+#: A bag of words cannot see polarity, and that example is synthetic; the five duplicates are
+#: real. Keeping the bar above 0.857 honours the polarity risk without paying for it with
+#: measured recall.
 #:
-#: What this still catches — the shapes actually observed in the wild: a claim emitted verbatim
-#: twice, the same sentence with different punctuation or case, and the same words reordered.
-#: What it deliberately misses: a restatement in genuinely different vocabulary. That is the
-#: embedding tier's job, and its absence is a recall gap, not a correctness one.
-DEFAULT_LEXICAL_DEDUPE_THRESHOLD = 0.99
+#: WHAT THIS STILL MISSES, quantified rather than waved at: duplicates continue below the gap —
+#: the 0.7108 pair above, and a 0.6390 pair ("the value of rich data grows combinatorially, not
+#: linearly or exponentially" vs "the value of rich telemetry data goes up combinatorially, not
+#: linearly or even exponentially") are the same claim in different words. Catching those means
+#: reaching into a band holding 14,533 mostly-distinct pairs, which no bag-of-words threshold
+#: can do safely. That is the embedding tier's job and the honest ceiling of this method: a
+#: recall gap, not a correctness one. Since dropping a distinct insight destroys knowledge while
+#: keeping a duplicate merely repeats it, the bar stays where the false positives stop.
+DEFAULT_LEXICAL_DEDUPE_THRESHOLD = 0.90
 
 
 def _content_tokens(text: str) -> List[str]:

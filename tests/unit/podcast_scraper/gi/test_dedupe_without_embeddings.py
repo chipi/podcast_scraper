@@ -16,12 +16,25 @@ THE FIX
 A lexical tier that needs nothing but the standard library, so it runs everywhere, with the
 embedding tier kept as an optional recall upgrade where the module exists.
 
-WHY THE BAR IS AT 0.99
-An earlier 0.85 was measured merging a claim with its OPPOSITE (see
-``TestItNeverMergesOpposites``). A bag of words cannot see polarity, so any threshold loose
-enough to catch a paraphrase is loose enough to merge a statement with its negation. Dropping a
-distinct insight destroys knowledge; keeping a duplicate merely repeats it. The threshold goes
-where the false positives stop.
+WHY THE BAR IS AT 0.90
+It is bounded on both sides by measurement over all 14 episodes of the 2026-08-16 acceptance
+corpus (14,539 surviving pairs):
+
+  - Not lower, because at 0.85 a claim merged with its OPPOSITE — cosine 0.857, one differing
+    word carrying the whole claim (``TestItNeverMergesOpposites``). A bag of words cannot see
+    polarity.
+  - Not higher, because the lowest REAL duplicate measured scores 0.9375 ("was right" vs "was
+    justified"). The original 0.99 was set on short episodes where no pair exceeded 0.60, and
+    it missed all 5 duplicates the long episodes produced. That is what reopened #27.
+
+Between those populations sits an empty gap — nothing scored between 0.7108 and 0.9375 — so
+0.90 is not balanced on a single observation.
+
+Duplicates DO continue below the gap (a full paraphrase at 0.6390), and this method cannot
+reach them without sweeping in the 14,533 mostly-distinct pairs below 0.70. That is the honest
+ceiling of a bag-of-words method and the embedding tier's job. Dropping a distinct insight
+destroys knowledge; keeping a duplicate merely repeats it, so the bar stays where the false
+positives stop.
 """
 
 from __future__ import annotations
@@ -174,10 +187,72 @@ class TestTheContract:
         same = "One claim."
         assert dedupe([same, same], 1.0) == [same]
 
-    def test_the_default_bar_is_strict(self) -> None:
-        assert DEFAULT_LEXICAL_DEDUPE_THRESHOLD >= 0.95, (
-            "a looser lexical bar was measured merging a claim with its opposite; see "
-            "TestItNeverMergesOpposites"
+    def test_the_default_bar_sits_in_the_measured_gap(self) -> None:
+        """The bar is bounded on BOTH sides by measurement, not by caution in one direction.
+
+        Lower bound 0.86: the synthetic antonym pair scores 0.857 and must stay unmerged, since
+        a bag of words cannot see polarity (see TestItNeverMergesOpposites).
+
+        Upper bound 0.93: the lowest REAL duplicate measured across the 14-episode acceptance
+        corpus scores 0.9375 ("was right" vs "was justified"). A bar above that misses it, which
+        is the regression that reopened #27 after the original 0.99 was set on short episodes
+        where no pair scored above 0.60.
+
+        Nothing was observed between 0.7108 and 0.9375, so the gap is wide and this is not a
+        threshold balanced on one data point.
+        """
+        assert 0.86 <= DEFAULT_LEXICAL_DEDUPE_THRESHOLD <= 0.93, (
+            f"threshold {DEFAULT_LEXICAL_DEDUPE_THRESHOLD} is outside the measured gap "
+            f"[0.86, 0.93]: below it merges a claim with its opposite (0.857), above it misses "
+            f"a real duplicate (0.9375)"
+        )
+
+    def test_the_verb_swap_duplicates_from_the_acceptance_run_are_caught(self) -> None:
+        """The five real duplicates that reopened #27. Verbatim from the corpus.
+
+        Four are pure verb swaps on an otherwise identical sentence; the fifth swaps one
+        adjective. All five survived the 0.99 bar and are the reason it moved.
+        """
+        says_argues = [
+            "Ryan Greenblatt argues that ML research is less deep than math, so there is less "
+            "reliance on individual deep experts combining insights, making it more amenable "
+            "to AI automation.",
+            "Ryan Greenblatt says that ML research is less deep than math, so there is less "
+            "reliance on individual deep experts combining insights, making it more amenable "
+            "to AI automation.",
+        ]
+        assert len(_dedupe(says_argues)) == 1, "a verb swap is not a new claim"
+
+        right_justified = [
+            "Charity Majors argues that the industry's past skepticism about AI was right, but "
+            "that the current evidence from harnesses and tooling shows the direction is clear.",
+            "Charity Majors argues that the industry's past skepticism about AI was justified, "
+            "but that the current evidence from harnesses and tooling shows the direction is "
+            "clear.",
+        ]
+        assert (
+            len(_dedupe(right_justified)) == 1
+        ), "cos 0.9375 — the lowest real duplicate measured, and the one the 0.99 bar missed"
+
+    def test_the_paraphrase_tier_is_still_missed_and_that_is_known(self) -> None:
+        """Honesty test: the lexical ceiling is documented, so it must be OBSERVED, not claimed.
+
+        This pair IS a duplicate (cos 0.6390, from the same acceptance corpus) and this method
+        cannot catch it — reaching that low would sweep in 14,533 mostly-distinct pairs. If a
+        future change makes this pass, the threshold moved into dangerous territory and the
+        docstring on DEFAULT_LEXICAL_DEDUPE_THRESHOLD is now wrong.
+        """
+        paraphrase = [
+            "Charity Majors argues that for a company's own code, telemetry should be a product "
+            "decision, and the value of rich data grows combinatorially, not linearly or "
+            "exponentially, because adding a new field makes every other field more valuable.",
+            "Charity Majors says that the value of rich telemetry data goes up combinatorially, "
+            "not linearly or even exponentially, because adding a new bit of data to a wide "
+            "event or trace makes that new data more valuable.",
+        ]
+        assert len(_dedupe(paraphrase)) == 2, (
+            "if this now merges, the bar dropped into the distinct-claim population — verify "
+            "against the full corpus before accepting it"
         )
 
     def test_empty_and_whitespace_texts_do_not_collapse_together(self) -> None:
@@ -190,11 +265,32 @@ class TestTheContract:
 
 
 class TestAgainstTheRealCorpus:
-    """Every insight in the corpora is distinct. Dropping ANY of them is a false positive.
+    """The corpora are undeduped ground truth: anything removed must be a REAL duplicate.
 
-    These corpora were produced by the [llm] image, so dedup never ran on them — they are
-    undeduped ground truth, which is exactly what a false-positive test needs.
+    These corpora were produced by the [llm] image, so dedup never ran on them — exactly what a
+    false-positive test needs.
+
+    This class used to assert that NOTHING was ever removed, on the stated premise that "every
+    insight in the corpora is distinct". Measuring all 14,539 pairs falsified that premise: the
+    corpus holds 5 genuine duplicates (four verb swaps — "says"/"argues"/"claims" — and one
+    adjective swap), which is what reopened #27. The old assertion passed only because the 0.99
+    bar was too high to catch them; it was measuring the threshold's blindness, not the
+    corpus's cleanliness.
+
+    So the guarantee is now stated precisely instead of absolutely: removals are allowed, but
+    ONLY of pairs that a human read and confirmed. Any removal beyond that list is a false
+    positive and fails — which is the property that actually protects knowledge.
     """
+
+    #: Content-word fragments unique to the 5 confirmed duplicate pairs. Anything else removed
+    #: is unreviewed and must fail.
+    _CONFIRMED_DUPLICATE_MARKERS = (
+        "past skepticism about ai was justified",
+        "ml research is less deep than math",
+        "babies first new theory",
+        "ai r&d tasks can be made verifiable",
+        "ai r&d has properties similar to mathematics",
+    )
 
     def _insight_texts(self) -> List[List[str]]:
         import glob
@@ -220,14 +316,40 @@ class TestAgainstTheRealCorpus:
                     out.append(texts)
         return out
 
-    def test_no_real_insight_is_removed(self) -> None:
+    def test_only_confirmed_duplicates_are_removed(self) -> None:
+        """No DISTINCT insight is deleted. Removals are allowed only for reviewed duplicates."""
         episodes = self._insight_texts()
         if not episodes:
             pytest.skip("no local corpus available on this machine")
-        removed = []
+
+        unreviewed = []
         for texts in episodes:
             kept = _dedupe(texts)
-            if len(kept) != len(texts):
-                dropped = [t for t in texts if t not in kept]
-                removed.extend(dropped)
-        assert not removed, f"{len(removed)} distinct insight(s) deleted, e.g. {removed[:2]}"
+            for dropped in (t for t in texts if t not in kept):
+                low = dropped.lower()
+                if not any(m in low for m in self._CONFIRMED_DUPLICATE_MARKERS):
+                    unreviewed.append(dropped)
+
+        assert not unreviewed, (
+            f"{len(unreviewed)} insight(s) removed that nobody confirmed are duplicates — "
+            f"a false positive destroys knowledge, so read these and either add them to "
+            f"_CONFIRMED_DUPLICATE_MARKERS or raise the threshold: {unreviewed[:2]}"
+        )
+
+    def test_the_known_duplicates_are_actually_caught(self) -> None:
+        """The other direction: the bar must still be low enough to earn its keep.
+
+        Without this, raising the threshold back to 0.99 would make the test above pass
+        trivially — zero removals, zero unreviewed — and silently restore the #27 regression.
+        """
+        episodes = self._insight_texts()
+        if not episodes:
+            pytest.skip("no local corpus available on this machine")
+
+        removed_count = sum(len(texts) - len(_dedupe(texts)) for texts in episodes)
+
+        assert removed_count >= 5, (
+            f"only {removed_count} duplicate(s) removed across the corpus; 5 were measured and "
+            f"confirmed by reading them. A higher threshold misses real duplicates — that is "
+            f"the regression #27 was reopened for."
+        )

@@ -2,6 +2,13 @@
 .build/
 podcast_scraper.egg-info/
 .wily/
+# setuptools/wheel output. `pip wheel .` and `python -m build` drop these at the repo
+# root; they were untracked-but-not-ignored, so `git status` listed them and `git add -A`
+# would have committed a build tree. The web bundles land in web/*/dist/, which the
+# leading-slash rules below do not cover, hence the unanchored `dist/`.
+build/
+dist/
+*.egg-info/
 
 # LanceDB search index + topic_clusters.json built at CI step 0 for the synthetic
 # validation corpus (GH #774). Binary, embedding-model-hash-keyed — would

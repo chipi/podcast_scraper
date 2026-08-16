@@ -2474,7 +2474,31 @@ class OpenAICompatibleProvider:
         try:
             parsed = parse_bundled_extract_response(content, expected_count=len(insight_texts))
         except BundleExtractParseError as exc:
-            logger.debug("OpenAI extract_quotes_bundled parse failed: %s", exc)
+            # WARNING, not debug. This is the evidence stack: when it fails, insights lose their
+            # grounding quotes, and under `gi_require_grounding: true` an ungrounded insight can
+            # be dropped outright. Four failures in ~11 episodes in the 2026-08-16 acceptance run
+            # produced nothing at INFO — the only trace was the failover wrapper reporting
+            # "Primary error: invalid JSON", with no way to tell a budget cutoff from bad JSON.
+            finish_reason = None
+            try:
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
+            except Exception:  # pragma: no cover - diagnostics must not mask the parse failure
+                pass
+            logger.warning(
+                "extract_quotes_bundled parse FAILED: %s | finish_reason=%s "
+                "output_tokens=%s/%s insights=%s. %s",
+                exc,
+                finish_reason,
+                out_tok,
+                max_out,
+                len(insight_texts),
+                (
+                    "finish_reason and the truncation diagnosis agree -> raise the output "
+                    "budget for this call"
+                    if exc.truncation_suspected
+                    else "not budget-shaped -> suspect the prompt or the model, not max_tokens"
+                ),
+            )
             raise
 
         out: Dict[int, List[Any]] = {}

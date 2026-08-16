@@ -114,6 +114,54 @@ def summarize_legacy_placeholder_artifacts(corpus_root: Path) -> Dict[str, Any]:
     }
 
 
+def check_corpus_for_placeholders(corpus_root: Path) -> Tuple[bool, str]:
+    """``(ok, formatted_report)`` — ``ok`` is False when ANY legacy placeholder survives.
+
+    The operator-facing entrypoint for the repair of #1655. Without it the detection above was
+    reachable only from its own unit test, so "are there still placeholders in the corpus?" —
+    the exit criterion for the repair — could not be answered with shipped code. Detection that
+    only its own test calls is not tooling.
+
+    Shaped after ``corpus_completeness.check_corpus``: same ``(ok, report)`` contract, same
+    VERDICT line, so the Make target stays a one-liner and the two gates read alike.
+
+    Non-zero exit on any find is deliberate. This is meant to run twice — before the repair to
+    size the work, and after it to prove the work landed — and the second run is the one whose
+    failure must be impossible to miss.
+    """
+    summary = summarize_legacy_placeholder_artifacts(corpus_root)
+    count = int(summary["legacy_placeholders"])
+    total = int(summary["artifacts_total"])
+
+    lines = [
+        f"Corpus: {corpus_root}",
+        f"  gi.json artifacts scanned : {total}",
+        f"  legacy placeholders found : {count}",
+        f"  share                     : {summary['legacy_placeholder_share']:.2%}",
+    ]
+
+    if count:
+        lines.append("")
+        lines.append("  Episodes needing re-derivation:")
+        # Full list, not a head -20. This IS the work-list an operator acts on; a truncated
+        # one silently under-reports the repair and there is no second place to get it.
+        for path, episode_id in find_legacy_placeholder_artifacts(corpus_root):
+            lines.append(f"    {episode_id or '(no episode_id)'}  {path}")
+
+    lines.append("")
+    lines.append(f"VERDICT: {'PASS' if count == 0 else 'FAIL'}")
+    if count == 0 and total:
+        lines.append(
+            "  No pre-#1657 placeholders remain. Per the note on "
+            "LEGACY_PLACEHOLDER_INSIGHT_TEXT, the detection code in this module can now be "
+            "deleted."
+        )
+    elif count == 0:
+        lines.append("  NOTE: zero artifacts scanned — check CORPUS_DIR points at a real corpus.")
+
+    return count == 0, "\n".join(lines)
+
+
 def export_ndjson(
     loaded: List[Tuple[Path, Dict[str, Any]]],
     *,

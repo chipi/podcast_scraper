@@ -1165,6 +1165,15 @@ corpus-completeness-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
+# Repair gate for #1655: list every episode still carrying a pre-#1657 placeholder insight
+# ("Summary insight (stub).") instead of real GI. Non-zero exit if ANY remain. Run it TWICE —
+# before the repair to size the work-list, and after to prove the repair landed. Those episodes
+# are invisible to any check that only asks "does this episode have GI?", so an append-mode
+# re-run skips them forever; this is the only thing that names them. CORPUS_DIR required.
+corpus-placeholder-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.corpus import check_corpus_for_placeholders; ok, report = check_corpus_for_placeholders(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:
