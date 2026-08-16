@@ -131,6 +131,57 @@ def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
     return pd if isinstance(pd, str) else None
 
 
+def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
+    """Episode guid -> the REAL pipeline's summary + measured duration, from a pipeline run tree.
+
+    Why (2026-08-16): this corpus used to synthesize its own "summary" as
+    ``excerpts["insights"][0]`` — the transcript's opening line — so every committed summary was
+    the episode's greeting ("Welcome back to Singletrack Sessions…") rather than a summary, and the
+    fixture exercised none of the summarization the product actually runs.
+
+    The pipeline writes ``<root>/feeds/<feed>/run_<stamp>/metadata/*.metadata.json`` with
+    ``episode.guid`` set to the corpus label (``p01_e04``), so its output keys straight onto this
+    builder's episodes. When a run is supplied, its summaries are used verbatim — real LLM output,
+    committed as data, so consumers stay offline and deterministic while regeneration needs a model.
+
+    Only summaries and durations are taken. Grounded insights and the knowledge graph still come
+    from ``build_gi`` / ``build_kg``, whose shapes the app's readers depend on; moving those onto
+    pipeline output is separate work and is NOT done here.
+
+    Missing episodes are simply absent from the map — the caller falls back and says so. That
+    matters: the summarization guard drops summaries that copy the prompt's style examples, which
+    genuinely fires on the mountain-biking show (the prompt's own style example is a sentence about
+    braking), so a run can legitimately come back with fewer summaries than episodes.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    if not run_root.is_dir():
+        return out
+    for meta_path in sorted(run_root.rglob("*.metadata.json")):
+        try:
+            doc = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        episode = doc.get("episode") or {}
+        guid = str(episode.get("guid") or episode.get("episode_id") or "").strip()
+        if not guid:
+            continue
+        summary = doc.get("summary") or {}
+        # staged mode populates short_summary and leaves raw_text null; the app's
+        # _summary_body_text reads raw_text then falls back to short_summary, so mirror that
+        # order here rather than committing a null body.
+        body = summary.get("raw_text") or summary.get("short_summary")
+        bullets = [str(b).strip() for b in (summary.get("bullets") or []) if str(b).strip()]
+        if not body and not bullets:
+            continue  # summary dropped (poisoned / unusable) — leave it to the fallback
+        out[guid] = {
+            "title": (summary.get("title") or "").strip() or None,
+            "bullets": bullets,
+            "raw_text": body,
+            "duration_seconds": episode.get("duration_seconds"),
+        }
+    return out
+
+
 def _canonicalize_persons_in(
     doc: dict[str, Any], name_variants: dict[str, str] | None = None
 ) -> None:
@@ -1083,6 +1134,16 @@ def main() -> int:
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
     p.add_argument("--max-feeds", type=int, default=9)
     p.add_argument("--max-episodes-per-feed", type=int, default=4)
+    p.add_argument(
+        "--pipeline-run",
+        type=Path,
+        default=None,
+        help=(
+            "Root of a real pipeline run (the --output-dir it was given). Its summaries and "
+            "measured durations are used instead of the synthesized stand-in, keyed on "
+            "episode.guid. Without this the corpus's 'summary' is the transcript's opening line."
+        ),
+    )
     args = p.parse_args()
 
     if not args.rss_dir.is_dir():
@@ -1102,6 +1163,10 @@ def main() -> int:
     # garbled spelling → canonical name, so one guest is one Person across the corpus (#obs-9).
     name_variants = _load_name_variants(gt_dir.parent / "manifest.json")
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
+    # Real pipeline summaries, keyed by episode label; empty when --pipeline-run is not given.
+    pipeline_outputs = _load_pipeline_outputs(args.pipeline_run) if args.pipeline_run else {}
+    summaries_from_pipeline: list[str] = []
+    summaries_synthesized: list[str] = []
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
     # topic_id → publish months (YYYY-MM) of the episodes it appears in. The
     # temporal_velocity signal is authored from the corpus's OWN date axis (not
@@ -1269,8 +1334,26 @@ def main() -> int:
 
             # Consumer-shaped metadata (the nested schema corpus_catalog reads:
             # feed/episode/summary/content). Includes content.media_url for audio.
-            bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
-            summary_body = excerpts["insights"][0] if excerpts["insights"] else episode_title
+            # Real pipeline summary when a run was supplied; otherwise the legacy synthesized
+            # stand-in. The stand-in is the transcript's opening line — a greeting, not a summary —
+            # so its use is counted and reported at the end of the build rather than passing
+            # silently for "we ran the pipeline".
+            pipeline_summary = pipeline_outputs.get(ep_label)
+            duration_seconds = 1800
+            if pipeline_summary:
+                bullets = pipeline_summary["bullets"] or [
+                    f"Key point {n + 1}" for n in range(3)
+                ]
+                summary_body = pipeline_summary["raw_text"] or episode_title
+                summary_title = pipeline_summary["title"] or episode_title
+                if isinstance(pipeline_summary.get("duration_seconds"), (int, float)):
+                    duration_seconds = int(pipeline_summary["duration_seconds"])
+                summaries_from_pipeline.append(ep_label)
+            else:
+                bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
+                summary_body = excerpts["insights"][0] if excerpts["insights"] else episode_title
+                summary_title = episode_title
+                summaries_synthesized.append(ep_label)
             metadata_doc = {
                 "schema_version": "1",
                 "feed": {
@@ -1283,10 +1366,12 @@ def main() -> int:
                     "episode_id": episode_id,
                     "title": episode_title,
                     "published_date": publish + "T00:00:00",
-                    "duration_seconds": 1800,
+                    # Measured off the audio by the pipeline when available. The old hardcoded
+                    # 1800 was wrong for every episode — the fixtures run from 82s to ~32min.
+                    "duration_seconds": duration_seconds,
                 },
                 "summary": {
-                    "title": episode_title,
+                    "title": summary_title,
                     "bullets": bullets,
                     "raw_text": summary_body,
                 },
@@ -1450,6 +1535,26 @@ def main() -> int:
     print(f"  shows: {len(shows)}  episodes: {len(episode_index)}  clusters: {len(clusters)}")
     print(f"  cover art: {art_patched}")
     print(f"  total size: {total_size / 1024:.1f} KB")
+
+    # State plainly where the summaries came from. A corpus built with --pipeline-run that
+    # quietly fell back for half its episodes would still claim "we ran the pipeline", and the
+    # synthesized stand-in is a greeting, not a summary — so the gap is reported, never implied.
+    total_summaries = len(summaries_from_pipeline) + len(summaries_synthesized)
+    print(f"\n  summaries — real pipeline: {len(summaries_from_pipeline)}/{total_summaries}")
+    if summaries_synthesized:
+        print(
+            f"  summaries — SYNTHESIZED STAND-IN (transcript opening line, NOT a summary): "
+            f"{len(summaries_synthesized)}/{total_summaries}"
+        )
+        for ep_label in summaries_synthesized:
+            print(f"      {ep_label}")
+        if pipeline_outputs:
+            print(
+                "    ^ these episodes had no usable summary in the supplied pipeline run "
+                "(dropped by a quality guard, or not processed)."
+            )
+        else:
+            print("    ^ no --pipeline-run was supplied, so every summary is the stand-in.")
     return 0
 
 

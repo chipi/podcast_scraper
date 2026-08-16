@@ -138,6 +138,71 @@ survive because `corpus_catalog._summary_body_text` reads `raw_text` then falls 
 `llm_pipeline_mode: staged`, or is it a gap that happens to be masked by the fallback?
 Resolve before v4 is generated, because the corpus will bake in whichever answer is true.
 
+### 7. The feeds did not describe the corpus (fixed 2026-08-16, keep it fixed)
+
+`build_app_validation_corpus.py` builds episodes from `transcripts/<ver>/` and reads RSS only for
+feed-level metadata, so nothing ever checked that the feeds listed the corpus's episodes:
+
+    corpus:         9 shows x 4 episodes = 36
+    RSS advertised: p01-p05: 3 each, p06: 6, p07: 1, p08: 1, p09: 3 = 26
+
+A pipeline run can only process what a feed advertises, so p07 and p08 would have produced ONE
+episode each — the corpus was not buildable by the pipeline that is supposed to build it.
+
+Fixed by `scripts/build_corpus_feeds.py`, which generates one feed per show (`pNN_corpus.xml`,
+slugs `corpus_p01..corpus_p09`, served with `--corpus`) listing every episode that has both a
+transcript and audio — 40 across 9 shows. The pre-existing `rss/*.xml` are deliberately NOT
+rewritten: they are an e2e test surface with fixed shapes.
+
+**v4 requirement:** whatever generates episodes must also generate the feed that advertises them.
+A feed and a corpus that disagree is the defect; one generator, one source.
+
+### 8. The summarization prompt's style example collides with p01's subject
+
+The bullets prompt (`prompts/shared/summarization/system_bullets_v1.j2`) carries this style example:
+
+> "Speed gains come from braking earlier and smoother rather than taking bigger risks — a
+> counterintuitive but reliable principle for riders at any level."
+
+`p01` is *Singletrack Sessions*, a mountain-biking show, and `p01_e02` is "Enduro Skills Without
+the Hype" — about braking technique. The prompt tells the model "if any of their subject matter —
+riding, braking … — appears in your output, you have failed", and `_reject_if_prompt_examples_leaked`
+(#1386) drops any summary containing `"braking earlier"`.
+
+On this run the model genuinely copied it — output "Speed comes from braking earlier and smoother
+rather than taking bigger risks — a counterintuitive but reliable principle observed across three
+different teams" against the example's "…for riders at any level" — so the guard was RIGHT and
+`p01_e02` has no summary. But the collision means a *legitimate* summary of a braking episode is
+indistinguishable from a copied one, and it will keep costing this show its summary.
+
+**v4 requirement:** decide one of — (a) style examples whose subject matter appears in no corpus
+show, (b) a guard that matches near-verbatim whole sentences rather than two-word fragments, or
+(c) accept that p01 episodes about braking will lose summaries. Do not leave it undecided; it
+silently costs episodes.
+
+### 9. Episode duration was hardcoded to 1800 (fixed 2026-08-16)
+
+Every episode in the corpus claimed `"duration_seconds": 1800`. Real durations run from **82s**
+(`p01_e04`) to ~32 minutes — verified three ways (generated feed `00:01:22`, ffmpeg
+`00:01:22.18`, pipeline `82`). The builder now takes the pipeline's measured value.
+
+**v4 requirement:** never hardcode a measurable property of a fixture. Anything that can be read
+off the media should be.
+
+### 10. LLM transcript cleaning can destroy the transcript
+
+Twice in the 36-episode run:
+
+    CLEANING DESTROYED THE TRANSCRIPT: 3353 chars -> 419 (12.5%). A cleaner removes ads, not the
+    episode. Falling back to the RAW transcript.
+
+The guard caught it and fell back, so no episode was lost — but on this model the LLM cleaning pass
+is unreliable on short fixture transcripts, where an ad block is a large fraction of the text.
+
+**v4 requirement:** either make fixture episodes long enough that ad removal is a small fraction,
+or pin `transcript_cleaning_strategy: pattern` (deterministic, and per the guard's own message it
+"cannot do this") for corpus generation.
+
 ---
 
 ## Podcasts (v3)
