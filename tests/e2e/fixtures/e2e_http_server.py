@@ -51,7 +51,15 @@ def _read_fixture_version() -> str:
 
 
 _FIXTURE_VERSION = _read_fixture_version()
-_VERSIONED_SUBDIRS: frozenset[str] = frozenset({"audio", "transcripts"})
+_VERSIONED_SUBDIRS: frozenset[str] = frozenset({"audio", "transcripts", "images"})
+
+# Extension each versioned subdir is allowed to serve (defense in depth: a request for
+# /audio/x.svg or /images/x.mp3 is rejected before any path is built).
+_SUBDIR_EXTENSIONS: dict[str, str] = {
+    "audio": ".mp3",
+    "transcripts": ".txt",
+    "images": ".svg",
+}
 
 
 def _anthropic_system_text(system: Any) -> str:
@@ -879,6 +887,32 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 file_path,
                 content_type="audio/mpeg",
                 support_range=True,
+                head_only=head_only,
+            )
+            return
+
+        # Route 2b: Direct flat URLs for show cover art
+        # /images/p01_cover.svg -> images/<version>/p01_cover.svg
+        #
+        # Every feed fixture carries <itunes:image href="/images/pNN_cover.svg">, but until
+        # 2026-08-16 nothing served that prefix, so a real pipeline run 404'd on artwork for
+        # every show and the corpus only got pictures from a post-hoc patch step
+        # (scripts/build_corpus_artwork.py). Serving them here is what lets the pipeline
+        # acquire artwork the way it does in production: from the feed.
+        if path.startswith("/images/"):
+            filename = path.split("/")[-1]  # Extract "p01_cover.svg"
+            validation_result = self._validate_and_sanitize_filename("images", filename)
+            if validation_result is None:
+                self.send_error(403, "Path traversal not allowed")
+                return
+            validated_subdir, validated_filename = validation_result
+            file_path = self._get_safe_fixture_path(validated_subdir, validated_filename)
+            if file_path is None:
+                self.send_error(404, "File not found")
+                return
+            self._serve_file(
+                file_path,
+                content_type="image/svg+xml",
                 head_only=head_only,
             )
             return
@@ -2041,7 +2075,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if "/" in subdir or "\\" in subdir or ".." in subdir or subdir.strip() != subdir:
             return None
         # Only allow known safe subdirs
-        if subdir not in ("audio", "transcripts"):
+        if subdir not in _VERSIONED_SUBDIRS:
             return None
 
         # Reject empty filenames
@@ -2070,14 +2104,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # Optional: Validate extension matches subdir (defense in depth)
         # This helps ensure we're serving the right type of file
-        if subdir == "audio":
-            if not filename.endswith(".mp3"):
-                return None
-        elif subdir == "transcripts":
-            if not filename.endswith(".txt"):
-                return None
-        else:
+        expected_extension = _SUBDIR_EXTENSIONS.get(subdir)
+        if expected_extension is None:
             # This should never happen due to validation above, but defensive check
+            return None
+        if not filename.endswith(expected_extension):
             return None
 
         # Return sanitized values (these have passed all validation checks)
@@ -2194,7 +2225,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return None
         if "/" in validated_subdir or "\\" in validated_subdir or ".." in validated_subdir:
             return None
-        if validated_subdir not in ("audio", "transcripts"):
+        if validated_subdir not in _VERSIONED_SUBDIRS:
             return None
 
         # Build base directory using validated subdir + fixture version segment.

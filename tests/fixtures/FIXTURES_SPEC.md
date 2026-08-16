@@ -31,8 +31,112 @@ unversioned — only the filesystem layout carries the version segment.
   (per-episode ground-truth sidecars). Adds `#fixture-v3:` failure-mode
   annotations, cross-show guests, and the enriched reality-check sidecars.
 
+- **v4** (**not started** — this is the specification, gathered as defects are
+  found). Everything under "Known defects to fix in v4" below is a REQUIREMENT
+  for the next regeneration, not a wishlist. Each entry states what is wrong in
+  v3, how it was found, and what v4 must do instead.
+
 Tests that must pin to a specific version pass `version=` explicitly to
 `fixtures_dir()`; everything else picks up the current default.
+
+---
+
+## Known defects to fix in v4
+
+Found 2026-08-16 by running the REAL pipeline (`config/profiles/homelab_balanced.yaml`
+— Deepgram ASR + LiteLLM gateway summary/GI/KG) over the v3 fixtures for the first
+time, instead of synthesizing corpus content offline. Running the actual pipeline is
+what surfaced all of these; none were visible from the corpus builder's own output.
+
+### 1. Guest name disagrees between the feed and the transcript
+
+`p01_e03`'s RSS title says **"Noah Prins"**; the transcript says **"Noah Bryer"**.
+The pipeline caught this itself and raised `quality_flags: ["guest_in_title_not_placed"]`
+with `"unbound_names": ["Noah Prins"]` — i.e. a guest named in the title never appears
+in the conversation, so the speaker never gets bound to a person.
+
+**v4 requirement:** the guest name in the RSS title, the transcript, and the
+ground-truth sidecar must be generated from ONE source. A name that appears in a
+title must be a speaker in that episode. This should be asserted at generation time,
+not discovered by the pipeline.
+
+### 2. Cover art was advertised but never existed (fixed 2026-08-16, keep it fixed)
+
+Every feed carried `<itunes:image href="/images/pNN_cover.jpg">`, no such file was
+ever produced, and the E2E mock server had no `/images/` route — so a real pipeline
+run 404'd on artwork for every show:
+
+    Failed to fetch http://127.0.0.1:18765/images/p01_cover.jpg: 404 File not found
+
+The corpus only had pictures because `scripts/build_corpus_artwork.py` wrote them
+into a *built* corpus and patched the metadata afterwards. That post-hoc repair is
+why the corpus silently lost every image once: a rebuild regenerated metadata and
+there was no feed-side source to restore from.
+
+Now fixed: `scripts/build_fixture_cover_art.py` renders art from the FEEDS into
+`tests/fixtures/images/<version>/`, and the mock server serves `/images/`. Artwork
+now arrives the way it does in production — over HTTP, during the run.
+
+**v4 requirement:** keep artwork feed-sourced. Do not reintroduce a post-hoc metadata
+patch as the only source of images. Extension is `.svg` (no Pillow dependency, and a
+committed fixture that is text reviews as a readable diff).
+
+### 3. Summaries in the committed corpus were never pipeline output
+
+`scripts/build_app_validation_corpus.py` set `summary_body = excerpts["insights"][0]`,
+which is the transcript's opening line — so every committed summary was the episode's
+greeting ("Welcome back to Singletrack Sessions. Today we're talking about…") rather
+than a summary. The corpus README described this as building "offline, with no pipeline
+and no ML", so the fixture and the product were never exercising the same code.
+
+For contrast, the same episode through the real pipeline:
+
+> Chain wear is the single best leading indicator of how soon cassettes will need
+> replacing… Most mystery creaks are solved by cleaning contact surfaces and
+> retorquing to spec rather than replacing parts.
+
+**v4 requirement:** summaries, insights and KG in the committed corpus must be REAL
+pipeline output, committed as data. Regeneration needs an LLM; consumers do not —
+they read the committed artifacts, so tests stay fast, deterministic and offline.
+Never hand-author summary text.
+
+### 4. ASR round-trip is measurable — use it as a quality gate
+
+v3 audio is TTS generated FROM the authored transcripts, so re-transcribing round-trips
+the loop and every difference is ASR error. Measured on `p01_e03`, Deepgram nova-3
+against `transcripts/v3`: **94.84% word-level similarity (~5.2% WER proxy)**. Errors
+concentrate in proper nouns and jargon — `bryer→breyer`, `spoke wrench→spokanewrench`,
+`lorent→laurent`, `re torquing→retorking`.
+
+**v4 requirement:** make this a checked number, not an observation. Pick names and
+product nouns that survive TTS→ASR, or accept the drift deliberately and record the
+expected similarity per episode so a regression in ASR or audio generation is visible.
+
+Note when comparing: `transcripts/v1` is a much longer earlier generation (5066 words
+vs v3's 1008 for `p01_e03`). Comparing ASR output against the wrong version measures
+the version gap, not ASR error.
+
+### 5. Insight dedupe cannot run on macOS x86_64
+
+`gi_insight_dedupe_threshold` needs `sentence-transformers`/`torch`, and torch dropped
+macOS x86_64 wheels, so on an Intel Mac the pipeline logs
+`insight dedup unavailable (ModuleNotFoundError); keeping all 10` and every near-duplicate
+insight survives. This is a HOST limitation, not a config choice — dedupe runs normally
+in the `podcast-scraper-stack-pipeline-llm` image or on Linux/ARM.
+
+**v4 requirement:** generate the corpus where dedupe can actually run, or record in the
+corpus manifest that dedupe was skipped, so nobody reads an undeduped insight list as
+the pipeline's real output.
+
+### 6. `summary.raw_text` is null in staged mode
+
+The real run populated `short_summary` and `bullets` but left `raw_text: null`. Consumers
+survive because `corpus_catalog._summary_body_text` reads `raw_text` then falls back to
+`short_summary`, matching production's `summary_schema.py`.
+
+**Open question for v4 — not yet decided:** is a null `raw_text` correct for
+`llm_pipeline_mode: staged`, or is it a gap that happens to be masked by the fallback?
+Resolve before v4 is generated, because the corpus will bake in whichever answer is true.
 
 ---
 
