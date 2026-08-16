@@ -5,14 +5,27 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getMyStats, getTopClusters, getUserInterests } from '../services/api'
-import type { InterestCluster, UserStats } from '../services/types'
+import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
+import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
+import { disablePush, enablePush } from '../composables/usePushSubscription'
 import { useAuthStore } from '../stores/auth'
+import { useUserPreferencesStore } from '../stores/userPreferences'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
+import ConnectedAgents from '../components/ConnectedAgents.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const userPrefs = useUserPreferencesStore()
+
+// How "Your Week" lays out on the home page — a synced per-user preference, shared with the inline
+// "Show more / Show less" toggle on the home section (#1412). Independent of the email toggle below.
+const YOUR_WEEK_LAYOUT_KEY = 'lp.yourweek.layout'
+const yourWeekLayout = ref<'compact' | 'full'>('compact')
+function setYourWeekLayout(v: 'compact' | 'full'): void {
+  yourWeekLayout.value = v
+  void userPrefs.set(YOUR_WEEK_LAYOUT_KEY, v)
+}
 
 const interests = ref<string[]>([])
 const clusters = ref<InterestCluster[]>([])
@@ -37,19 +50,54 @@ const interestLabels = computed(() => {
   }))
 })
 
+// Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges.
+const comms = ref<CommsSettings | null>(null)
+
 async function load(): Promise<void> {
-  const [ints, tops, st] = await Promise.all([
+  const [ints, tops, st, cm] = await Promise.all([
     getUserInterests().catch(() => [] as string[]),
     getTopClusters(50).catch(() => [] as InterestCluster[]),
     getMyStats().catch(() => null),
+    getComms().catch(() => null),
   ])
   interests.value = ints
   clusters.value = tops
   stats.value = st
+  comms.value = cm
+  await userPrefs.hydrate()
+  const layoutPref = userPrefs.get<string>(YOUR_WEEK_LAYOUT_KEY)
+  if (layoutPref === 'full' || layoutPref === 'compact') yourWeekLayout.value = layoutPref
 }
 
 function onSaved(ids: string[]): void {
   interests.value = ids
+}
+
+// Persist a whole section (server fills defaults on unset fields, so never send a partial).
+async function saveDigest(): Promise<void> {
+  if (comms.value) comms.value = await putComms({ digest: comms.value.digest })
+}
+
+// Push needs a real browser subscription, not just a flag. Enabling registers the subscription
+// (which enables the channel server-side); if the browser can't, revert the toggle. Disabling
+// unregisters + clears the flag.
+async function onPushToggle(): Promise<void> {
+  if (!comms.value) return
+  if (comms.value.push.enabled) {
+    // enablePush registers the subscription (which enables the channel server-side). If the browser
+    // can't (false) OR the register POST throws, revert the toggle so the UI never claims "on"
+    // without a real subscription.
+    let ok = false
+    try {
+      ok = await enablePush()
+    } catch {
+      ok = false
+    }
+    if (!ok) comms.value = await putComms({ push: { enabled: false } })
+  } else {
+    await disablePush()
+    comms.value = await putComms({ push: { enabled: false } })
+  }
 }
 
 onMounted(load)
@@ -77,6 +125,78 @@ onMounted(load)
         >{{ i.label }}</span>
       </div>
       <p v-else class="text-sm text-muted">{{ t('profile.noInterests') }}</p>
+    </section>
+
+    <!-- Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges. -->
+    <section v-if="comms" class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-1">{{ t('profile.notifications') }}</h2>
+      <p class="mb-3 text-sm text-muted">{{ t('profile.notificationsHelp') }}</p>
+
+      <!-- How Your Week lays out on your home — the in-app view is the primary surface. -->
+      <div class="flex items-center justify-between gap-3 py-2">
+        <span class="text-sm font-medium">{{ t('profile.yourWeekLayout') }}</span>
+        <div class="flex overflow-hidden rounded-full border border-border">
+          <button
+            type="button"
+            class="px-3 py-1 text-sm font-semibold"
+            :class="yourWeekLayout === 'compact' ? 'bg-accent text-accent-foreground' : 'text-muted'"
+            @click="setYourWeekLayout('compact')"
+          >
+            {{ t('profile.yourWeekCompact') }}
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1 text-sm font-semibold"
+            :class="yourWeekLayout === 'full' ? 'bg-accent text-accent-foreground' : 'text-muted'"
+            @click="setYourWeekLayout('full')"
+          >
+            {{ t('profile.yourWeekFull') }}
+          </button>
+        </div>
+      </div>
+      <p class="mb-1 text-xs text-muted">{{ t('profile.yourWeekLayoutHelp') }}</p>
+
+      <!-- The email edge: Your Week in your inbox for when you don't open the app. -->
+      <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
+        <span class="text-sm font-medium">{{ t('profile.digestEmail') }}</span>
+        <input
+          v-model="comms.digest.enabled"
+          type="checkbox"
+          class="h-5 w-5"
+          @change="saveDigest"
+        />
+      </label>
+
+      <template v-if="comms.digest.enabled">
+        <label class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm text-muted">{{ t('profile.cadence') }}</span>
+          <select
+            v-model="comms.digest.cadence"
+            class="rounded-lg border border-border bg-overlay px-2 py-1 text-sm"
+            @change="saveDigest"
+          >
+            <option value="weekly">{{ t('profile.cadenceWeekly') }}</option>
+            <option value="daily">{{ t('profile.cadenceDaily') }}</option>
+          </select>
+        </label>
+        <label class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm text-muted">{{ t('profile.pauseDigest') }}</span>
+          <input
+            v-model="comms.digest.paused"
+            type="checkbox"
+            class="h-5 w-5"
+            @change="saveDigest"
+          />
+        </label>
+        <p v-if="!comms.email_verified" class="mt-1 text-xs text-muted">
+          {{ t('profile.emailUnverified') }}
+        </p>
+      </template>
+
+      <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
+        <span class="text-sm font-medium">{{ t('profile.pushNudges') }}</span>
+        <input v-model="comms.push.enabled" type="checkbox" class="h-5 w-5" @change="onPushToggle" />
+      </label>
     </section>
 
     <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
@@ -114,6 +234,9 @@ onMounted(load)
       </template>
       <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
     </section>
+
+    <!-- Connected agents (RFC-112 §5) — only for users with the mcp_access entitlement. -->
+    <ConnectedAgents v-if="auth.user?.mcp_access" />
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
   </section>

@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import signal
 import sys
 import uuid
@@ -100,6 +101,88 @@ def stale_after_seconds() -> int:
 # disk space is bounded. 0 disables the cap entirely.
 _LOG_MAX_BYTES_DEFAULT = 50 * 1024 * 1024
 
+# Docker pull-progress lines emitted during ``docker compose run`` image pulls
+# consume the capped log window and can truncate the real pipeline error away.
+# These lines are layer-digest / status chatter that has no diagnostic value.
+# Tight match: only the docker-compose pull verbs, not generic log lines that
+# happen to contain those words.
+_DOCKER_PULL_RE = re.compile(
+    rb"^(?:"
+    rb"Pulling\s+"  # Pulling from … / Pulling fs layer …
+    rb"|Waiting\b"
+    rb"|Downloading\b"
+    rb"|Extracting\b"
+    rb"|Verifying Checksum\b"
+    rb"|Download complete\b"
+    rb"|Pull complete\b"
+    rb"|Already exists\b"
+    rb"|Pulling fs layer\b"
+    rb"|[0-9a-f]{12}:\s+"  # layer-digest prefix lines
+    rb")",
+    re.IGNORECASE,
+)
+
+_ERROR_REASON_MAX_LEN = 300
+
+
+def _parse_error_reason_from_log(log_path: Path) -> str | None:
+    """Scan the captured log for a human-readable failure cause.
+
+    Priority order (first match wins):
+      1. A line containing "API key required" or "required" from a config
+         validator — these are the missing-secret messages.
+      2. The final line of a ``Traceback`` block (the exception class + message).
+      3. The last line starting with ``ERROR``/``Error:``/``CRITICAL``.
+
+    Returns None when the log is absent, empty, or yields nothing parseable.
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    if not text.strip():
+        return None
+
+    lines = text.splitlines()
+
+    # Priority 1: config-validation error (key-required messages).
+    for line in lines:
+        ls = line.strip()
+        if "API key required" in ls or (
+            "required" in ls.lower()
+            and ("key" in ls.lower() or "provider" in ls.lower())
+            and len(ls) < 400
+        ):
+            return ls[:_ERROR_REASON_MAX_LEN]
+
+    # Priority 2: last traceback final line (exception type + message).
+    last_exc: str | None = None
+    in_tb = False
+    for line in lines:
+        ls = line.rstrip()
+        if ls.strip() == "Traceback (most recent call last):":
+            in_tb = True
+            continue
+        if in_tb:
+            # Indented continuation lines are the traceback frames.
+            if ls.startswith(" ") or ls.startswith("\t"):
+                continue
+            # A non-indented line after a traceback = the exception line.
+            if ls:
+                last_exc = ls.strip()
+            in_tb = False
+
+    if last_exc:
+        return last_exc[:_ERROR_REASON_MAX_LEN]
+
+    # Priority 3: last ERROR/CRITICAL line.
+    for line in reversed(lines):
+        ls = line.strip()
+        if ls.startswith(("ERROR", "Error:", "CRITICAL")):
+            return ls[:_ERROR_REASON_MAX_LEN]
+
+    return None
+
 
 def job_log_max_bytes() -> int:
     """Max bytes a single job may write to its ``.viewer/jobs/*.log``.
@@ -132,12 +215,50 @@ async def _pump_subprocess_to_log(
     subprocess stream (so the child does not block on a full pipe) but not
     written. A truncation marker is emitted to the log the first time the
     cap is hit.
+
+    Docker pull-progress lines (layer digests, "Pulling", "Waiting", …) are
+    dropped before the byte counter advances — they consume the cap without
+    adding diagnostic value, causing real pipeline errors to be truncated away.
     """
     log_abs.parent.mkdir(parents=True, exist_ok=True)
     written = 0
     truncated = False
     # ``max_bytes == 0`` disables the cap (operators who want unlimited logs).
     uncapped = max_bytes <= 0
+    # Line-buffer: carry the trailing partial line across chunk boundaries so
+    # the pull-progress filter sees complete lines, not split prefixes.
+    buf = b""
+
+    def _emit(data: bytes) -> None:
+        """Write data respecting the cap; emits truncation marker once."""
+        nonlocal written, truncated
+        if _DOCKER_PULL_RE.match(data):
+            return
+        if uncapped:
+            out.write(data)
+            return
+        if written >= max_bytes:
+            return
+        remaining = max_bytes - written
+        if len(data) <= remaining:
+            out.write(data)
+            written += len(data)
+        else:
+            out.write(data[:remaining])
+            written = max_bytes
+            if not truncated:
+                marker = (
+                    f"\n[LOG TRUNCATED at {max_bytes} bytes "
+                    "(set PODCAST_JOB_LOG_MAX_BYTES=0 to disable)]\n"
+                ).encode("utf-8")
+                out.write(marker)
+                truncated = True
+                logger.warning(
+                    "job log truncated job=%s after %d bytes",
+                    job_id,
+                    max_bytes,
+                )
+
     with open(log_abs, "wb") as out:
         while True:
             try:
@@ -148,32 +269,18 @@ async def _pump_subprocess_to_log(
                 logger.warning("log pump read failed job=%s: %s", job_id, exc)
                 break
             if not chunk:
+                # EOF: flush any trailing partial line (process wrote without newline).
+                if buf:
+                    _emit(buf)
+                    buf = b""
                 break
-            if uncapped:
-                out.write(chunk)
-                continue
-            if written >= max_bytes:
-                # Already truncated; drain silently to unblock the subprocess.
-                continue
-            remaining = max_bytes - written
-            if len(chunk) <= remaining:
-                out.write(chunk)
-                written += len(chunk)
-            else:
-                out.write(chunk[:remaining])
-                written = max_bytes
-                if not truncated:
-                    marker = (
-                        f"\n[LOG TRUNCATED at {max_bytes} bytes "
-                        "(set PODCAST_JOB_LOG_MAX_BYTES=0 to disable)]\n"
-                    ).encode("utf-8")
-                    out.write(marker)
-                    truncated = True
-                    logger.warning(
-                        "job log truncated job=%s after %d bytes",
-                        job_id,
-                        max_bytes,
-                    )
+            buf += chunk
+            # Emit complete lines; hold the trailing partial line in buf.
+            while b"\n" in buf:
+                nl = buf.index(b"\n")
+                line = buf[: nl + 1]
+                buf = buf[nl + 1 :]
+                _emit(line)
             out.flush()
 
 
@@ -188,8 +295,30 @@ def pid_alive(pid: int | None) -> bool:
     return True
 
 
-def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
+def build_pipeline_argv(
+    corpus_root: Path,
+    operator_yaml: Path,
+    *,
+    run_id: str | None = None,
+    feed_url: str | None = None,
+    skip_existing: bool = False,
+    append: bool = False,
+    max_episodes: int | None = None,
+    episode_offset: int | None = None,
+    episode_order: str | None = None,
+) -> list[str]:
     """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
+
+    When *run_id* is given it is passed as ``--run-id`` so the pipeline's self-generated run id ==
+    the Jobs API job_id — a single join key across the Jobs API and observability (podcast_obs
+    correlate --run-id), instead of scraping ``[run=…]`` from the log tail (P1.6). The docker exec
+    path preserves the CLI-flag tail, so the flag flows through both local and docker modes.
+
+    When *feed_url* is given the run is scoped to that ONE feed as a single-feed corpus-layout run
+    (``--rss <url> --single-feed-uses-corpus-layout``) instead of the whole ``--feeds-spec`` batch —
+    the cautious per-feed incremental add (P1.4). The incremental knobs (skip_existing / append /
+    max_episodes / episode_offset / episode_order) apply only in this scoped mode. Whole-batch is
+    unchanged when *feed_url* is None.
 
     Profile resolution order:
 
@@ -208,6 +337,8 @@ def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
 
     exe = sys.executable
     argv: list[str] = [exe, "-m", "podcast_scraper.cli", "--output-dir", str(corpus_root)]
+    if run_id:
+        argv.extend(["--run-id", str(run_id)])
     try:
         op_text = operator_yaml.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -221,9 +352,29 @@ def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
     if pn:
         argv.extend(["--profile", pn])
     argv.extend(["--config", str(operator_yaml)])
-    spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
-    if spec.is_file():
-        argv.extend(["--feeds-spec", str(spec.resolve())])
+    if feed_url:
+        # Scoped per-feed incremental add: just this feed into the shared corpus, corpus layout.
+        # The URL MUST be the positional ``rss`` arg — that is what populates ``config.rss_url``
+        # (the single-feed scraping stage reads it). ``--rss`` binds to ``rss_extra`` (the plural
+        # multi-feed list), which leaves ``config.rss_url`` None and the run dies at the scraping
+        # stage with "RSS URL is required". A single ``rss_extra`` entry does NOT trigger the
+        # multi-feed loop that would otherwise set rss_url per feed.
+        argv.extend([str(feed_url), "--single-feed-uses-corpus-layout"])
+        if skip_existing:
+            argv.append("--skip-existing")
+        if append:
+            argv.append("--append")
+        if max_episodes is not None:
+            argv.extend(["--max-episodes", str(int(max_episodes))])
+        if episode_offset is not None:
+            argv.extend(["--episode-offset", str(int(episode_offset))])
+        if episode_order:
+            argv.extend(["--episode-order", str(episode_order)])
+    else:
+        spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
+        if spec.is_file():
+            argv.extend(["--feeds-spec", str(spec.resolve())])
     return argv
 
 
@@ -390,13 +541,36 @@ def enqueue_enrichment_job(
     return with_jobs_locked_mutate(corpus_root, fn)
 
 
-def enqueue_pipeline_job(corpus_root: Path, operator_yaml: Path) -> dict[str, Any]:
-    """Append a new job; promote to *running* immediately when under the concurrency cap."""
+def enqueue_pipeline_job(
+    corpus_root: Path,
+    operator_yaml: Path,
+    *,
+    feed_url: str | None = None,
+    skip_existing: bool = False,
+    append: bool = False,
+    max_episodes: int | None = None,
+    episode_offset: int | None = None,
+    episode_order: str | None = None,
+) -> dict[str, Any]:
+    """Append a new job; promote to *running* immediately when under the concurrency cap.
+
+    When *feed_url* is given the run is scoped to that one feed (P1.4) — see build_pipeline_argv.
+    """
 
     def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
         job_id = str(uuid.uuid4())
         log_relpath = f".viewer/jobs/{job_id}.log"
-        argv = build_pipeline_argv(corpus_root, operator_yaml)
+        argv = build_pipeline_argv(
+            corpus_root,
+            operator_yaml,
+            run_id=job_id,
+            feed_url=feed_url,
+            skip_existing=skip_existing,
+            append=append,
+            max_episodes=max_episodes,
+            episode_offset=episode_offset,
+            episode_order=episode_order,
+        )
         cap = max_concurrent_jobs()
         if _running_count(jobs) < cap:
             rec = _new_job_record(
@@ -577,7 +751,16 @@ async def _finalize_job(
     *,
     exit_code: int | None,
     cancelled: bool,
-) -> None:
+) -> str | None:
+    """Finalize the job registry row and return the log_relpath on failure (else None).
+
+    The returned relpath is used by the caller (monitor_subprocess) to parse
+    the job log for a human-readable error_reason AFTER the pump finishes
+    draining — the file is not fully written until after the pump task completes,
+    so parsing cannot happen inside this function.
+    """
+    log_relpath_holder: list[str] = []
+
     def fn(jobs: list[dict[str, Any]]) -> None:
         for j in jobs:
             if str(j.get("job_id")) != job_id:
@@ -597,8 +780,98 @@ async def _finalize_job(
             else:
                 j["status"] = STATUS_FAILED
                 j["error_reason"] = j.get("error_reason") or f"exit_code_{code}"
+                lr = j.get("log_relpath")
+                if lr:
+                    log_relpath_holder.append(str(lr))
 
     await asyncio.to_thread(with_jobs_locked_mutate, corpus_root, fn)
+    return log_relpath_holder[0] if log_relpath_holder else None
+
+
+def _patch_error_reason_from_log(corpus_root: Path, job_id: str, log_relpath: str) -> None:
+    """Replace the placeholder ``exit_code_N`` error_reason with a parsed cause.
+
+    Called (in a thread) after the log pump finishes so the file is complete.
+    No-op when parsing yields nothing — the exit_code_N fallback stays.
+    """
+    log_abs = corpus_root / log_relpath
+    parsed = _parse_error_reason_from_log(log_abs)
+    if not parsed:
+        return
+
+    def fn(jobs: list[dict[str, Any]]) -> None:
+        for j in jobs:
+            if str(j.get("job_id")) != job_id:
+                continue
+            # Only overwrite the auto-generated ``exit_code_N`` placeholder;
+            # leave any reason set by reconcile / spawn-failed / cancel as-is.
+            current = j.get("error_reason") or ""
+            if current.startswith("exit_code_"):
+                j["error_reason"] = parsed
+
+    with_jobs_locked_mutate(corpus_root, fn)
+
+
+async def monitor_subprocess(
+    app: Any,
+    corpus_root: Path,
+    job_id: str,
+    proc: asyncio.subprocess.Process,
+) -> None:
+    """Wait for the child, drain the log pump, finalize registry, then try
+    to promote queued work.
+
+    ``_ps_log_fp`` (legacy file-handle path, used by the Docker factory) and
+    ``_ps_log_pump`` (default PIPE+pump path, #666 review #10) are mutually
+    exclusive; whichever is present is cleaned up in the finally block.
+    """
+    log_fp = getattr(proc, "_ps_log_fp", None)
+    log_pump = getattr(proc, "_ps_log_pump", None)
+    failed_log_relpath: str | None = None
+    try:
+        try:
+            code = await proc.wait()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("job wait failed job=%s: %s", job_id, exc)
+            code = -1
+        rec = await asyncio.to_thread(get_job, corpus_root, job_id)
+        cancelled = bool(rec and rec.get("cancel_requested"))
+        failed_log_relpath = await _finalize_job(
+            corpus_root, job_id, exit_code=code, cancelled=cancelled
+        )
+        await drain_queue_async(app, corpus_root)
+    finally:
+        # #666 review #10: wait for the pump task to finish draining stdout
+        # AFTER the child exited — otherwise the last buffered chunks are
+        # lost. The pump owns the file handle internally and closes it.
+        if log_pump is not None:
+            try:
+                await log_pump
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("job log pump task failed job=%s: %s", job_id, exc)
+        # #666 review #11: log cleanup failures instead of silently
+        # swallowing them — disk-full / readonly-fs conditions leave the
+        # operator with no signal that pipeline output was truncated.
+        if log_fp is not None:
+            try:
+                log_fp.close()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("job log close failed job=%s: %s", job_id, exc)
+
+    # Parse the fully-written log for a human-readable failure cause, then
+    # fire the downstream webhook/prometheus notification with the final state.
+    # Both run after the finally block so the log file is guaranteed complete.
+    if failed_log_relpath:
+        try:
+            await asyncio.to_thread(
+                _patch_error_reason_from_log, corpus_root, job_id, failed_log_relpath
+            )
+        except Exception:
+            logger.exception("error_reason log parse failed job=%s", job_id)
 
     # Fire-and-forget downstream notification. No-op when
     # PODCAST_JOB_WEBHOOK_URL is unset (default). Failures are logged
@@ -620,54 +893,6 @@ async def _finalize_job(
         from podcast_scraper.server.job_webhook import emit_job_state_change
 
         await emit_job_state_change(rec_after)
-
-
-async def monitor_subprocess(
-    app: Any,
-    corpus_root: Path,
-    job_id: str,
-    proc: asyncio.subprocess.Process,
-) -> None:
-    """Wait for the child, drain the log pump, finalize registry, then try
-    to promote queued work.
-
-    ``_ps_log_fp`` (legacy file-handle path, used by the Docker factory) and
-    ``_ps_log_pump`` (default PIPE+pump path, #666 review #10) are mutually
-    exclusive; whichever is present is cleaned up in the finally block.
-    """
-    log_fp = getattr(proc, "_ps_log_fp", None)
-    log_pump = getattr(proc, "_ps_log_pump", None)
-    try:
-        try:
-            code = await proc.wait()
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.exception("job wait failed job=%s: %s", job_id, exc)
-            code = -1
-        rec = await asyncio.to_thread(get_job, corpus_root, job_id)
-        cancelled = bool(rec and rec.get("cancel_requested"))
-        await _finalize_job(corpus_root, job_id, exit_code=code, cancelled=cancelled)
-        await drain_queue_async(app, corpus_root)
-    finally:
-        # #666 review #10: wait for the pump task to finish draining stdout
-        # AFTER the child exited — otherwise the last buffered chunks are
-        # lost. The pump owns the file handle internally and closes it.
-        if log_pump is not None:
-            try:
-                await log_pump
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("job log pump task failed job=%s: %s", job_id, exc)
-        # #666 review #11: log cleanup failures instead of silently
-        # swallowing them — disk-full / readonly-fs conditions leave the
-        # operator with no signal that pipeline output was truncated.
-        if log_fp is not None:
-            try:
-                log_fp.close()
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("job log close failed job=%s: %s", job_id, exc)
 
 
 def argv_from_record(job: dict[str, Any]) -> list[str] | None:
@@ -705,7 +930,7 @@ async def start_job_if_running_record(
     # Source of truth = the row's stored (command-typed) argv; rebuild only for
     # a legacy row that predates argv persistence. This is what lets an
     # enrichment (or any non-pipeline) job spawn its own CLI, not the pipeline.
-    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml)
+    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml, run_id=job_id)
     log_abs = corpus_root / str(job.get("log_relpath", f".viewer/jobs/{job_id}.log"))
     try:
         proc = await spawn_pipeline_subprocess(app, corpus_root, job_id, argv, log_abs)

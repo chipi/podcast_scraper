@@ -30,7 +30,7 @@ Current state: containers have **zero** hardening (no `cap_drop`/`security_opt`/
       *by design*, for job-spawn).
 - [ ] **T-01b** Public consumer surfaces (podcast player API, public gi/kg read) run as a
       **separate least-privilege service**: no `docker.sock`, no write-scope provider keys
-      (D6 = no request-time LLM, so none needed). Confirms `SERVER-SIDE-GAP-ANALYSIS.md`.
+      (D6 = no request-time LLM, so none needed).
 - [ ] **T-01c** For job-mode Docker access, replace the raw RW `docker.sock` mount with a
       **`docker-socket-proxy`** allowlisting only the compose calls the api makes.
       *Verify:* api can still spawn `pipeline-llm`; proxy denies `container delete`/`exec`.

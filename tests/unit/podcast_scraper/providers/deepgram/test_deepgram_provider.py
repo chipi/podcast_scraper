@@ -170,6 +170,38 @@ class TestDeepgramTranscriptionProvider:
         mock_create_client.assert_called_once_with("dg-test-key", base_url=None)
 
     @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_transcribe_logs_provider_and_model(self, mock_create_client, caplog) -> None:
+        """D9: cloud transcription announces provider+model so an operator watching a run can tell
+        WHICH engine ran (the 2026-08-11 'did Deepgram even run?' confusion — cloud was silent)."""
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}]}
+        }
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test-key",
+            deepgram_model="nova-3",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        provider.initialize()
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+            caplog.at_level("INFO", logger="podcast_scraper.providers.deepgram.deepgram_provider"),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            provider.transcribe_with_segments("/tmp/ep.mp3", language="en")
+
+        assert any(
+            "Deepgram" in r.message and "nova-3" in r.message for r in caplog.records
+        ), "transcription must log the provider + model (D9)"
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
     def test_initialize_passes_api_base_override(self, mock_create_client) -> None:
         """deepgram_api_base (self-hosted / mock server) is forwarded to the client."""
         mock_create_client.return_value = MagicMock()
@@ -363,6 +395,9 @@ class TestDeepgramCost:
         provider = _provider_with_mock_client(mock_client)
         call_metrics = MagicMock()
         call_metrics.estimated_cost = None
+        # Mirror the real ProviderCallMetrics default so the #1523 record-once latch doesn't
+        # short-circuit on a bare MagicMock's truthy auto-attribute.
+        call_metrics.pipeline_transcription_recorded = False
         pipeline_metrics = MagicMock()
         with (
             patch("builtins.open", create=True) as mock_open,
@@ -571,3 +606,44 @@ class TestCreateDeepgramClient:
 
         # The hosted client must NEVER be constructed when a base was configured.
         fake_deepgram.DeepgramClient.assert_not_called()
+
+    def test_no_base_url_uses_generous_write_timeout(self) -> None:
+        """BUG 4: the deepgram-sdk httpx client defaults to a 60s timeout for the WHOLE
+        request (connect + write/upload + read) unless overridden at construction. A
+        ~40-60MB episode upload on a throttled connection blew through that default
+        ("write operation timed out", 4 retries exhausted). Pin the generous override so a
+        future refactor can't silently drop it."""
+        from podcast_scraper import config_constants
+
+        fake_deepgram = types.ModuleType("deepgram")
+        fake_client = MagicMock(return_value="HOSTED_CLIENT")
+        fake_deepgram.DeepgramClient = fake_client  # type: ignore[attr-defined]
+
+        with patch.dict(sys.modules, {"deepgram": fake_deepgram}):
+            _create_deepgram_client("dg-key")
+
+        fake_client.assert_called_once_with(
+            api_key="dg-key", timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS
+        )
+
+    def test_base_url_override_uses_generous_write_timeout(self) -> None:
+        """Same generous timeout applies on the base_url (self-hosted / mock server) path."""
+        from podcast_scraper import config_constants
+
+        fake_deepgram = types.ModuleType("deepgram")
+        fake_client = MagicMock(return_value="HOSTED_CLIENT")
+        fake_deepgram.DeepgramClient = fake_client  # type: ignore[attr-defined]
+        fake_env_mod = types.ModuleType("deepgram.environment")
+        fake_env_cls = MagicMock(return_value="FAKE_ENV")
+        fake_env_mod.DeepgramClientEnvironment = fake_env_cls  # type: ignore[attr-defined]
+
+        with patch.dict(
+            sys.modules, {"deepgram": fake_deepgram, "deepgram.environment": fake_env_mod}
+        ):
+            _create_deepgram_client("dg-key", base_url="http://self-hosted:8080")
+
+        fake_client.assert_called_once_with(
+            api_key="dg-key",
+            environment="FAKE_ENV",
+            timeout=config_constants.DEEPGRAM_SDK_TIMEOUT_SECONDS,
+        )

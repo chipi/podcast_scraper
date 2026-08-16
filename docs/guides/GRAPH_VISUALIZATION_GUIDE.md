@@ -8,8 +8,7 @@ you care about; the sections are deliberately independent.
 
 **What this is not:**
 
-- Not the *design proposal*. The proposals live in `docs/rfc/RFC-080-graph-visualization-extensions.md`
-  and older tier notes in `docs/wip/graph-v3/SUMMARY.md`.
+- Not the *design proposal*. The proposals live in `docs/rfc/RFC-080-graph-visualization-extensions.md`.
 - Not the *implementation spec*. That's `docs/architecture/VIEWER_GRAPH_SPEC.md` —
   handoff orchestrator, camera modes, matrix contracts, gesture overlay.
 - Not the *knowledge-graph model*. `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md`
@@ -88,8 +87,7 @@ same function.
 **Gate:** always on. No user override; shape *is* type.
 
 **Live-verify status:** Speaker + Quote emit 0 in prod-v2; code-verified
-only. Speaker/Quote shape live-verify pending on a corpus that emits them
-(tracked in `docs/wip/graph-v3/SUMMARY.md` §Not done).
+only. Speaker/Quote shape live-verify pending on a corpus that emits them.
 
 ---
 
@@ -849,8 +847,7 @@ arc responses (`cil_queries._attach_sentiment`). Sentiment surfaces as an
 graph-canvas lens. A per-Insight tint on a graph node would fire only in
 the fine-grained view where a per-Topic sentiment histogram is the
 actually-useful signal, so it would ship as a new corpus-scope enricher
-(`insight_sentiment_corpus`), not a viewer patch. See
-`docs/wip/graph-v3/SUMMARY.md` §Not done for the closure rationale.
+(`insight_sentiment_corpus`), not a viewer patch.
 
 ---
 
@@ -922,12 +919,8 @@ main and in `ci-ui-full` locally.
 
 **Change history:**
 
-- `docs/wip/graph-v3/SUMMARY.md` — tier-by-tier chronology of the visual
-  iteration (A/B/C/D → Tier 8 + gaps).
-- `docs/wip/graph-v3/HARDEN-FOLLOWUPS-2026-07-17.md` — the HD1–HD20 harden
-  pass audit + fixes.
-- `docs/wip/graph-v3/REPRODUCIBILITY.md` — running the enrichers end-to-end
-  against a corpus to reproduce the on-screen state.
+- The HD1–HD20 harden pass audit + fixes (WIP doc, now removed; open items tracked in issue #1219).
+- Running the enrichers end-to-end against a corpus to reproduce the on-screen state (WIP doc, now removed).
 
 **Related consumer surface:**
 

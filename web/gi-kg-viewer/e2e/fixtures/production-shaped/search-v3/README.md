@@ -1,6 +1,6 @@
 # production-shaped/search-v3/ — search-v3-specific mock content
 
-**Owner:** Search v3 arc (epic #1229 · plan `docs/wip/SEARCH-V3-IMPLEMENTATION-PLAN.md`)
+**Owner:** Search v3 arc (epic #1229 · RFC-107-search-v3-query-workspace)
 **Consumed by:** Tier-2 Playwright specs under `web/gi-kg-viewer/e2e/search-production/*.spec.ts` (specs land in slices S2–S8).
 **Sibling of:** `../search/results-by-query.json` (basic per-query hit responses; predates Search v3).
 

@@ -6,8 +6,12 @@ provider limits (DeepSeek [1, 8192], OpenAI per-model output caps).
 
 from __future__ import annotations
 
-# Rough output token budget: cleaned text ~85% of words, plus buffer
-_CLEANING_WORD_FACTOR = 0.85 * 1.3
+# Output token budget for cleaning. Cleaning is light editing of a screenplay (drop ads/filler,
+# keep speaker labels + nearly all dialogue), so the emitted text is ~the FULL input, not a shrunk
+# fraction. Undershooting truncates the output (finish_reason=length) and the guardrail discards it
+# — cleaning then silently no-ops on the raw transcript. Budget for the full input (~1.3 tok/word)
+# plus headroom; the per-provider cap still bounds this against API 400s.
+_CLEANING_WORD_FACTOR = 1.6
 
 
 def estimate_cleaning_output_tokens(word_count: int) -> int:
@@ -23,6 +27,10 @@ def clamp_cleaning_max_tokens(estimated: int, cap: int) -> int:
 # Provider-specific output caps for cleaning calls (conservative; avoids 400s)
 OPENAI_CLEANING_MAX_TOKENS = 4096
 DEEPSEEK_CLEANING_MAX_TOKENS = 8192
+# Qwen3 family (open weights / hosted) comfortably emits 8192 output tokens for cleaning.
+QWEN_CLEANING_MAX_TOKENS = 8192
+# Groq's hosted catalog (Llama/gpt-oss/Qwen3/R1-distill) comfortably emits 8192 output tokens.
+GROQ_CLEANING_MAX_TOKENS = 8192
 ANTHROPIC_CLEANING_MAX_TOKENS = 8192
 MISTRAL_CLEANING_MAX_TOKENS = 8192
 GROK_CLEANING_MAX_TOKENS = 8192

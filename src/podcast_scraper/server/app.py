@@ -28,15 +28,21 @@ from podcast_scraper.server.routes import (
     app_artwork,
     app_auth,
     app_capture,
+    app_collections,
+    app_comms,
     app_consolidation,
+    app_corpus,
     app_discover,
     app_enrichment,
     app_episodes,
+    app_export,
     app_graph_events,
+    app_mcp,
     app_relational,
     app_search,
     app_user_preferences,
     app_user_state,
+    app_your_week,
     artifacts,
     cil,
     corpus_binary,
@@ -47,6 +53,7 @@ from podcast_scraper.server.routes import (
     corpus_media,
     corpus_metrics,
     corpus_persons,
+    corpus_rollback,
     corpus_text_file,
     corpus_theme_clusters,
     corpus_topic_clusters,
@@ -58,8 +65,11 @@ from podcast_scraper.server.routes import (
     health,
     index_rebuild,
     index_stats,
+    internal_mcp,
+    internal_outbox,
     jobs,
     llm_gateway,
+    mcp_oauth,
     operator_config,
     ops,
     query_activity,
@@ -120,6 +130,15 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # default so explicit-only stays the baseline until the derived signal is tuned.
     app.state.derived_interests = _env_truthy("APP_DERIVED_INTERESTS")
     app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
+    # Shared token for the internal outbox seam (#1415, RFC-110 §2) — the infra delivery worker
+    # authenticates with it over the tailnet. Empty → the /internal/outbox endpoints 503 (disabled).
+    app.state.internal_outbox_token = os.environ.get("INTERNAL_OUTBOX_TOKEN", "")
+    # Public VAPID key for Web Push (RFC-110 §6). The private half lives with the infra worker; the
+    # browser needs this public half to subscribe. Empty → GET /api/app/push/vapid-key 503s.
+    app.state.vapid_public_key = os.environ.get("APP_VAPID_PUBLIC_KEY", "")
+    # Shared token for the internal MCP verify seam (RFC-112 §4, #1471) — the MCP server process
+    # authenticates with it over the tailnet. Empty → /internal/mcp/verify 503 (disabled).
+    app.state.internal_mcp_token = os.environ.get("INTERNAL_MCP_TOKEN", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
     )
@@ -158,6 +177,10 @@ _OPERATOR_READ_ROUTES = (
     cil,
     ops,
     llm_gateway,
+    # Destructive operator rollback (DELETE runs/episodes) — tailnet operator plane only, gated by
+    # the OperatorWriteGuard middleware (X-Operator-Key / admin session) + a typed confirm token.
+    # Deliberately NOT in _OPERATOR_PUBLIC_READ_ROUTES (mutates) and NOT mounted on the player.
+    corpus_rollback,
 )
 # RFC-108: the CURATED subset of operator-read routers safe for the PUBLIC operator
 # surface (operator.closelistening.app). This is ``_OPERATOR_READ_ROUTES`` MINUS the ones
@@ -205,6 +228,13 @@ _APP_ROUTES = (
     app_user_state,
     app_user_preferences,
     app_capture,
+    app_collections,
+    app_comms,
+    app_your_week,
+    app_corpus,
+    app_export,
+    app_mcp,
+    mcp_oauth,
     app_enrichment,
     app_consolidation,
 )
@@ -232,6 +262,12 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
             app.include_router(module.router, prefix="/api")
     for module in _APP_ROUTES:
         app.include_router(module.router, prefix="/api/app")
+    # The internal delivery-outbox seam (#1415) — service-to-service, token-gated, tailnet-only.
+    app.include_router(internal_outbox.router, prefix="/internal")
+    # The internal MCP verify seam (#1471) — service-to-service, token-gated, tailnet-only.
+    app.include_router(internal_mcp.router, prefix="/internal")
+    # MCP OAuth 2.1 authorization-server metadata at the app ROOT (RFC 8414 discovery, #1471).
+    app.include_router(mcp_oauth.wellknown_router)
 
 
 class _AccessLogMiddleware:

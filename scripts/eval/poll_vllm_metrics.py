@@ -20,11 +20,11 @@ urllib, parses Prometheus format, and reports:
 Usage:
 
     PYTHONPATH=. .venv/bin/python scripts/eval/poll_vllm_metrics.py \\
-        --base-url http://dgx-llm-1.tail6d0ed4.ts.net:8003 \\
+        --base-url http://your-dgx.tailnet.ts.net:8003 \\
         --interval 5 \\
         --model qwen3_5_35b \\
         --label phase2c_gi_round3_v1 \\
-        >> docs/wip/EVAL_1016_metrics/vllm_kv_metrics.log
+        >> .test_outputs/eval/EVAL_1016_metrics/vllm_kv_metrics.log
 
 Exit on Ctrl-C; the loop is robust to transient HTTP errors (logs and
 continues). Run this in a separate terminal / background process while an
@@ -140,7 +140,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--base-url",
-        default="http://dgx-llm-1.tail6d0ed4.ts.net:8003",
+        default="http://your-dgx.tailnet.ts.net:8003",
         help="vLLM base URL (without /v1)",
     )
     p.add_argument("--interval", type=int, default=5, help="Poll interval in seconds")

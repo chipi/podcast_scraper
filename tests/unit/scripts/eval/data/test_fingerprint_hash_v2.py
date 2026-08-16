@@ -16,6 +16,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests._fixtures import TEST_DGX_VLLM_BASE_URL
+
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
@@ -155,7 +157,7 @@ def test_hash_differs_on_backing_model_id_change(
     _mocks(mock_get_model_details, mock_get_provider_lib_info)
     cfg = _cfg()
     # Patch the cfg's base_url so backing_model_id capture path runs
-    cfg.backend.base_url = "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+    cfg.backend.base_url = TEST_DGX_VLLM_BASE_URL
     mock_probe.return_value = "Qwen/Qwen3.5-35B-A3B"
     fp_qwen = _gen(cfg)
     mock_probe.return_value = "mistralai/Magistral-Small-2509"

@@ -18,7 +18,7 @@ convention). Resume mode skips episodes whose ``timing_<stem>.json`` is
 already present.
 
 The skip-deep gate that this script measured was REJECTED for the
-intelligence-extraction goal (see docs/wip/1046-WHISPER-MULTI-MODEL-DESIGN.md
+intelligence-extraction goal (see the multi-model design, issue #1046,
 § 13). This script is preserved for future measurement passes of the same
 shape (e.g. dual-pass reconciliation cost vs gain).
 """

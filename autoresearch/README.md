@@ -326,7 +326,7 @@ at evaluation time.
 ### Rolling notes → v3 fixtures (#921)
 
 Each #907 child appends failure-mode learnings to
-[`docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`](../docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md).
+[`docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`](../docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md).
 The v3 fixtures rebuild (#921) pulls from there so v3 simulates real-prod
 defects directly in the fixture corpus instead of relying on prod
 encounters.

@@ -39,6 +39,11 @@ on:
         description: "Image :sha-<7> tag to deploy (blank = newest sha-<7> published to GHCR)"
         required: false
         default: ""
+      config_from_main:
+        description: "Config-only: reset the box to origin/main (compose/secrets overlay) while keeping the pinned image — no image rebuild. Use for secret/overlay changes."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   actions: read
@@ -143,8 +148,17 @@ jobs:
             exit 1
           fi
           echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "git_ref=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "::notice::Deploying image tag sha-$SHA_SHORT (source: ${SRC}, git reset target: $SHA_SHORT)"
+          # config_from_main: emit an EMPTY git_ref so deploy.sh resets the box to origin/main
+          # (picks up the compose/secrets overlay) while PODCAST_IMAGE_TAG stays pinned to the
+          # resolved image sha — a config-only deploy with no image rebuild. deploy.sh's
+          # git==image guard is skipped when git_ref is empty (it takes the origin/main branch).
+          if [ "${{ inputs.config_from_main }}" = "true" ]; then
+            echo "git_ref=" >> "$GITHUB_OUTPUT"
+            echo "::notice::CONFIG-ONLY deploy: box resets to origin/main; image pinned sha-$SHA_SHORT (no rebuild)"
+          else
+            echo "git_ref=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deploying image tag sha-$SHA_SHORT (source: ${SRC}, git reset target: $SHA_SHORT)"
+          fi
 
       - name: Validate GHCR image manifest exists (pre-SSH)
         if: steps.preflight.outputs.skip != 'true'
@@ -212,10 +226,15 @@ jobs:
           PROD_MISTRAL_API_KEY:         ${{ secrets.PROD_MISTRAL_API_KEY }}
           PROD_DEEPSEEK_API_KEY:        ${{ secrets.PROD_DEEPSEEK_API_KEY }}
           PROD_GROK_API_KEY:            ${{ secrets.PROD_GROK_API_KEY }}
+          PROD_DEEPGRAM_API_KEY:        ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          # LiteLLM gateway virtual key (proj-podcast-prod) -> LITELLM_API_KEY in-container.
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
           # Sentry DSNs (one per project)
           PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
           PROD_SENTRY_DSN_VIEWER:       ${{ secrets.PROD_SENTRY_DSN_VIEWER }}
+          # Operator write-API key (app_operator_guard.py) — X-Operator-Key for headless automation.
+          PROD_APP_OPERATOR_API_KEY:    ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
           # (Grafana Cloud retired — o11y is self-hosted homelab VictoriaMetrics/VictoriaLogs
           # via the /opt/vps-observability Alloy container; nothing staged into .env here.)
           # Optional outbound webhook
@@ -235,6 +254,11 @@ jobs:
             printf '%s=%s\n' PODCAST_ENV                 prod
             printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
             printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
+            # Nested ``docker compose run pipeline-llm`` file list for the jobs API.
+            # MUST include vps-prod so spawned cloud_balanced runs get the ``homelab``
+            # extra_hosts (LiteLLM gateway + o11y DNS) + OTEL export; prod.yml's default
+            # is stack+prod (codespace-shaped) and omits it.
+            printf '%s=%s\n' PODCAST_DOCKER_COMPOSE_FILES compose/docker-compose.stack.yml,compose/docker-compose.prod.yml,compose/docker-compose.vps-prod.yml
             # OTEL traces endpoint (ADR-119). vps-prod overlay flips the exporter
             # to otlp; the endpoint is the self-hosted VictoriaTraces OTLP ingest on
             # homelab, addressed by its Tailscale MagicDNS name (resolved in-container
@@ -257,8 +281,13 @@ jobs:
               printf '%s=%s\n' MISTRAL_API_KEY    "$PROD_MISTRAL_API_KEY"
               printf '%s=%s\n' DEEPSEEK_API_KEY   "$PROD_DEEPSEEK_API_KEY"
               printf '%s=%s\n' GROK_API_KEY       "$PROD_GROK_API_KEY"
+              printf '%s=%s\n' DEEPGRAM_API_KEY   "$PROD_DEEPGRAM_API_KEY"
+              printf '%s=%s\n' LITELLM_API_KEY    "$LITELLM_PROJ_PODCAST_PROD_KEY"
               printf '%s=%s\n' PODCAST_SENTRY_DSN_API      "$PROD_SENTRY_DSN_API"
               printf '%s=%s\n' PODCAST_SENTRY_DSN_PIPELINE "$PROD_SENTRY_DSN_PIPELINE"
+              # Write-grant credential — same VIA_FILES treatment as the provider keys: on disk
+              # only when the tmpfs overlay is OFF; delivered as a tmpfs file when it is ON.
+              printf '%s=%s\n' APP_OPERATOR_API_KEY "$PROD_APP_OPERATOR_API_KEY"
             fi
             # Viewer DSN is a build-time FRONTEND var (baked into the viewer image),
             # not a runtime container secret — always keep it in .env.
@@ -294,8 +323,11 @@ jobs:
           PROD_MISTRAL_API_KEY:     ${{ secrets.PROD_MISTRAL_API_KEY }}
           PROD_DEEPSEEK_API_KEY:    ${{ secrets.PROD_DEEPSEEK_API_KEY }}
           PROD_GROK_API_KEY:        ${{ secrets.PROD_GROK_API_KEY }}
+          PROD_DEEPGRAM_API_KEY:    ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
           PROD_SENTRY_DSN_API:      ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE: ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          PROD_APP_OPERATOR_API_KEY: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm secstage.XXXXXX)
@@ -307,8 +339,11 @@ jobs:
           printf '%s' "$PROD_MISTRAL_API_KEY"     > "$STAGE/mistral_api_key"
           printf '%s' "$PROD_DEEPSEEK_API_KEY"    > "$STAGE/deepseek_api_key"
           printf '%s' "$PROD_GROK_API_KEY"        > "$STAGE/grok_api_key"
+          printf '%s' "$PROD_DEEPGRAM_API_KEY"    > "$STAGE/deepgram_api_key"
+          printf '%s' "$LITELLM_PROJ_PODCAST_PROD_KEY" > "$STAGE/litellm_api_key"
           printf '%s' "$PROD_SENTRY_DSN_API"      > "$STAGE/podcast_sentry_dsn_api"
           printf '%s' "$PROD_SENTRY_DSN_PIPELINE" > "$STAGE/podcast_sentry_dsn_pipeline"
+          printf '%s' "$PROD_APP_OPERATOR_API_KEY" > "$STAGE/app_operator_api_key"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \

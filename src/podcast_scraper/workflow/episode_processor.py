@@ -29,6 +29,7 @@ from ..utils import filesystem
 from ..utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ..utils.corpus_incidents import append_corpus_incident
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
+from . import run_index
 
 logger = logging.getLogger(__name__)
 
@@ -317,8 +318,16 @@ def download_media_for_transcription(
     Returns:
         TranscriptionJob object or None if skipped/failed
     """
+    # Skip-existing must key on the STABLE guid, not the run-local idx (which shifts when the feed
+    # grows → silent reprocess + duplicates). Resolve the on-disk idx by guid for the existence
+    # check; a genuinely new episode falls back to its run-local idx (its real output path).
+    skip_idx = (
+        run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
+        if cfg.skip_existing
+        else episode.idx
+    )
     final_out_path = filesystem.build_whisper_output_path(
-        episode.idx, episode.title_safe, run_suffix, effective_output_dir
+        skip_idx, episode.title_safe, run_suffix, effective_output_dir
     )
     # pipeline_stage=relabel_only reuses the on-disk transcript + diarization and re-runs
     # only the speaker-name resolution — no audio is needed. Return a no-download job so
@@ -334,7 +343,21 @@ def download_media_for_transcription(
             metadata_named=list(metadata_named) if metadata_named else None,
             episode=episode,
         )
-    if cfg.skip_existing and os.path.exists(final_out_path):
+    # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so an
+    # already-processed episode's transcript is in a PRIOR run dir — NOT final_out_path (this run's
+    # OUTPUT path). Resolve presence corpus-wide by stable guid; else skip-existing scoped to the
+    # empty run dir silently re-transcribes it (the Step-1 NO-GO, 2026-08-11).
+    _corpus_layout = bool(getattr(cfg, "single_feed_uses_corpus_layout", False))
+    if cfg.skip_existing and _corpus_layout and cfg.output_dir:
+        _existing_transcript = run_index.existing_transcript_path_in_corpus(
+            episode, str(cfg.output_dir)
+        )
+    elif cfg.skip_existing and os.path.exists(final_out_path):
+        _existing_transcript = final_out_path
+    else:
+        _existing_transcript = None
+
+    if cfg.skip_existing and _existing_transcript is not None:
         if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
             # #925: a scoped reprocess (--reprocess-source) forces matching episodes
             # (e.g. whisper_transcription) back through download+transcribe so diarization
@@ -346,25 +369,26 @@ def download_media_for_transcription(
                 "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
                 episode.idx,
                 cfg.reprocess_source,
-                final_out_path,
+                _existing_transcript,
             )
             # Fall through: schedule download/transcribe.
-        elif _should_retranscribe_for_gi_segments(cfg, final_out_path):
+        elif _should_retranscribe_for_gi_segments(cfg, _existing_transcript):
             logger.info(
                 "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
                 "sidecar for GI quote timestamps and segment-backed speaker_id when segments "
                 "carry speaker labels (backfill_transcript_segments + generate_gi): %s",
                 episode.idx,
-                final_out_path,
+                _existing_transcript,
             )
             # Fall through: do not return — schedule download/transcribe to populate sidecar (#542).
-        # If generate_summaries is enabled, still return a job so transcript path can be used
-        # for summarization (even though we won't re-transcribe)
-        elif cfg.generate_summaries:
+        # If generate_summaries is enabled, still return a job so transcript path can be used for
+        # summarization (even though we won't re-transcribe). NOT in corpus-layout: there the
+        # episode is already fully processed in a prior run — reusing re-summarizes; skip instead.
+        elif cfg.generate_summaries and not _corpus_layout:
             logger.debug(
                 "[%s] Transcript exists, but will use for summarization: %s",
                 episode.idx,
-                final_out_path,
+                _existing_transcript,
             )
             # Return a job with empty temp_media since we won't download/transcribe
             # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
@@ -384,7 +408,7 @@ def download_media_for_transcription(
                 "[%s] %stranscript already exists; skipping (--skip-existing): %s",
                 episode.idx,
                 prefix,
-                final_out_path,
+                _existing_transcript,
             )
             return None
 
@@ -624,6 +648,27 @@ def _save_speaker_diagnostics_file(
         logger.warning("Could not save speaker diagnostics %s: %s", diag_path, e)
 
 
+def _attach_speech_audio_ratio(
+    result: Any, media_for_transcription: str, episode_duration_seconds: Optional[float]
+) -> None:
+    """Attach the speech_audio_ratio METRIC (not a gate) to ``result`` in place.
+
+    ``Σ(transcript segments) / total audio`` — the fraction of runtime that is actual audio content
+    vs music/silence/dead-air. Computed ALWAYS (independent of any coverage gate) and surfaced
+    in the ASR provenance + manifest so every episode records how much of its runtime is signal.
+    raw ADR-123 coverage value repurposed as an observability metric after that gate was retired in
+    favour of the speech-normalized ADR-131 one.
+    """
+    if not isinstance(result, dict):
+        return
+    from ..providers.resilience.fallback import _segment_coverage
+
+    dur = int(episode_duration_seconds) if episode_duration_seconds is not None else None
+    sar = _segment_coverage(result, media_for_transcription, dur)
+    if sar is not None:
+        result["speech_audio_ratio"] = round(sar, 3)
+
+
 def _save_asr_provenance_file(
     result: Optional[Dict[str, Any]],
     cfg: config.Config,
@@ -642,7 +687,8 @@ def _save_asr_provenance_file(
         return
     cov = result.get("asr_speech_coverage")
     failover = result.get("speech_coverage_failover")
-    if cov is None and not failover:
+    sar = result.get("speech_audio_ratio")
+    if cov is None and not failover and sar is None:
         return
     provenance: Dict[str, Any] = {
         "model": (
@@ -651,6 +697,8 @@ def _save_asr_provenance_file(
             or getattr(cfg, "transcription_provider", None)
         ),
         "speech_coverage": cov,
+        # Σ(segments)/total-audio content signal — always present, gate or not (see caller).
+        "speech_audio_ratio": sar,
         "failed_over": bool(failover),
     }
     if failover:
@@ -697,7 +745,10 @@ def _write_processing_manifest(
     # --- ASR: actual model + speech coverage + failover (ADR-131 provenance) ---
     cov = result.get("asr_speech_coverage")
     failover = result.get("speech_coverage_failover")
-    if cov is not None or failover:
+    sar = result.get("speech_audio_ratio")
+    # The metric alone is enough to record the ASR stage — so the block is present on every episode
+    # (not only the rare failover / speech-gate run), closing the "no asr stage in manifest" gap.
+    if cov is not None or failover or sar is not None:
         asr_flags: List[str] = []
         if failover:
             asr_flags.append("asr_failover")
@@ -720,7 +771,7 @@ def _write_processing_manifest(
             # 0.0/None for local ASR (DGX/whisper); real USD for cloud ASR (OpenAI/Deepgram),
             # populated by apply_estimated_cost_if_missing before this write.
             cost_usd=asr_cost,
-            metrics={"speech_coverage": cov},
+            metrics={"speech_coverage": cov, "speech_audio_ratio": sar},
             failover=failover or None,
         )
         pm.update_stage(
@@ -741,6 +792,14 @@ def _write_processing_manifest(
         diar = pm.stage_block(
             ran=True,
             method=getattr(cfg, "diarization_provider", None),
+            # ADR-132 provenance: the ACTUAL served model (from the DiarizationResult), falling back
+            # to the configured field for the provider — so the diar block records WHICH model, not
+            # just the method. Previously absent (the diar block carried method but no model).
+            model=(
+                result.get("diarization_model_name")
+                or getattr(cfg, "dgx_diarize_model", None)
+                or getattr(cfg, "diarization_model", None)
+            ),
             method_version=pm.METHOD_VERSIONS["diarization"],
             # None for local diarizers (pyannote/DGX); real USD for cloud (Deepgram/Gemini), which
             # populate DiarizationResult.cost_usd -> result["diarization_cost_usd"].
@@ -1483,6 +1542,7 @@ def _record_transcription_metrics(
     pipeline_metrics.record_transcribe_time(tc_elapsed, job.idx)
     from podcast_scraper.utils.provider_metrics import (
         apply_estimated_cost_if_missing,
+        record_transcription_cost_to_pipeline,
         transcription_model_for_cfg,
     )
 
@@ -1496,6 +1556,12 @@ def _record_transcription_metrics(
         capability="transcription",
         model=transcription_model_for_cfg(cfg),
         audio_minutes=audio_min,
+    )
+    # #1523: backstop — record this call's transcription cost onto the run-level metrics so it
+    # reaches the manifest cost_rollup. No-op (via the call_metrics latch) when the provider already
+    # self-recorded; covers every path where it didn't (duration unknown, deepgram audio<=0 bail).
+    record_transcription_cost_to_pipeline(
+        pipeline_metrics, call_metrics, audio_min, getattr(call_metrics, "estimated_cost", None)
     )
     # Update episode status: transcribed (Issue #391)
     if _job_has_episode_for_metrics(job):
@@ -1639,7 +1705,7 @@ def _resolve_episode_duration_seconds(job) -> Optional[int]:
 # context truncates episodes past ~30 min, so it chunks by duration through the same
 # AudioChunker path (#1174/#1177). The duration governor lives in
 # ``transcription_max_chunk_duration_seconds``; the byte cap is set high for it.
-_API_CHUNKING_PROVIDERS = frozenset({"openai", "gemini", "mistral", "deepgram", "moss"})
+_API_CHUNKING_PROVIDERS = frozenset({"openai", "groq", "gemini", "mistral", "deepgram", "moss"})
 
 
 def _transcription_provider_supports_chunking(cfg: config.Config) -> bool:
@@ -1669,7 +1735,7 @@ def _transcribe_with_segments_maybe_chunked(
     # episodes whose NER density meets the gate threshold. Disabled by
     # default; activation gated on cfg.dgx_whisper_sniff_model being set
     # AND the active provider being tailnet_dgx_whisper. See
-    # src/podcast_scraper/workflow/sniff_gate.py + docs/wip/1046-WHISPER-MULTI-MODEL-DESIGN.md.
+    # src/podcast_scraper/workflow/sniff_gate.py + issue #1046.
     from . import sniff_gate as _sniff_gate
 
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
@@ -2194,14 +2260,21 @@ def _maybe_speech_coverage_failover(
         transcription_model_for_cfg,
     )
 
-    # Disable both gates on the failover pass so it cannot recurse into another re-transcription.
-    fo_cfg = cfg.model_copy(
-        update={
-            "dgx_whisper_model": fo_model,
-            "transcription_coverage_min": 0.0,
-            "transcription_speech_coverage_min": 0.0,
-        }
-    )
+    # Route the failover to the configured provider — parity with the ADR-123 raw gate's factory
+    # logic (#1273): 'moss' re-transcribes on the DGX MOSS service (:8004) with moss_model, not the
+    # speaches whisper service, so the MOSS model id is never sent to a server that cannot serve it.
+    # None (default) keeps the historical whisper-on-whisper swap via dgx_whisper_model. Both gates
+    # are disabled on the failover pass so it cannot recurse into another re-transcription.
+    cov_provider = getattr(cfg, "transcription_coverage_failover_provider", None)
+    model_field = "moss_model" if cov_provider == "moss" else "dgx_whisper_model"
+    fo_updates: Dict[str, Any] = {
+        model_field: fo_model,
+        "transcription_coverage_min": 0.0,
+        "transcription_speech_coverage_min": 0.0,
+    }
+    if cov_provider:
+        fo_updates["transcription_provider"] = cov_provider
+    fo_cfg = cfg.model_copy(update=fo_updates)
     fo_provider = create_transcription_provider(fo_cfg)
     fo_call_metrics = ProviderCallMetrics()
     fo_result, _ = _transcribe_with_segments_maybe_chunked(
@@ -2500,6 +2573,7 @@ def transcribe_media_to_text(
             # pass — route it through the single role authority (no-op otherwise). Guard + failure
             # handling live in the helper so this stays one branch.
             result = _apply_native_speaker_roster(result, cfg, job)
+        _attach_speech_audio_ratio(result, media_for_transcription, episode_duration_seconds)
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )
@@ -2708,9 +2782,26 @@ def _check_existing_transcript(
         )
         return False
 
+    # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so the episode's
+    # transcript lives in a PRIOR run dir, not effective_output_dir. Resolve presence corpus-wide by
+    # stable guid (all feeds/runs) — else skip-existing scoped to the empty run dir silently
+    # re-transcribes an already-present episode (the Step-1 NO-GO, 2026-08-11).
+    if getattr(cfg, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
+        present = run_index.episode_metadata_rel_in_corpus(episode, str(cfg.output_dir))
+        if present:
+            prefix = "[dry-run] " if cfg.dry_run else ""
+            logger.info(
+                "    %salready present in corpus, skipping (--skip-existing): %s", prefix, present
+            )
+            return True
+        return False
+
     run_tag = f"_{run_suffix}" if run_suffix else ""
+    # Key on the STABLE guid, not the run-local idx (which shifts when the feed grows → silent
+    # reprocess + duplicates). New episodes fall back to their run-local idx.
+    skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
     base_name = (
-        f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
+        f"{skip_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
     )
     transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
     existing_matches = list(Path(transcripts_dir).glob(f"{base_name}*"))
@@ -2814,11 +2905,14 @@ def process_transcript_download(
     # so summaries can be generated even when transcript exists
     if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
         if cfg.generate_summaries:
-            # Find existing transcript file to return its path for summarization
-            # Transcripts are now in the transcripts/ subdirectory
+            # Find existing transcript file to return its path for summarization.
+            # Resolve the on-disk idx by STABLE guid — episode.idx shifts when the feed grows, so
+            # rebuilding the glob from it would miss the transcript and silently skip summarization
+            # for an already-present episode (the same P0.1 drift, one branch missed; Fable-5 #2).
             run_tag = f"_{run_suffix}" if run_suffix else ""
+            skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
             base_name = (
-                f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
+                f"{skip_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
                 f"- {episode.title_safe}{run_tag}"
             )
             transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)

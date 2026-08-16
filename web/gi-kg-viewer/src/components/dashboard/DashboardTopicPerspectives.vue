@@ -27,7 +27,9 @@ watch(
     loading.value = true
     fetchTopicPerspectiveLeaders(root, 10)
       .then((r) => {
-        topics.value = r.topics
+        // Guard against a body without ``topics`` — otherwise topics.value becomes undefined and the
+        // template's ``!topics.length`` throws during render, blanking the whole Intelligence tab.
+        topics.value = r.topics ?? []
       })
       .catch(() => {
         // Distinguish a load failure from a genuinely empty corpus — otherwise a 503

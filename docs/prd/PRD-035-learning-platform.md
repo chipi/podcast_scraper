@@ -17,9 +17,9 @@
   - `docs/rfc/RFC-090-hybrid-corpus-search.md` — hybrid semantic + keyword retrieval
   - `docs/rfc/RFC-097-unified-kg-gi-ontology-v2.md` — v2 ontology
 - **Related analysis**:
-  - `docs/wip/MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` — server-side multi-user lift + sequencing
+  - `docs/rfc/RFC-107-search-v3-query-workspace.md` — server-side multi-user lift + sequencing
 
-> **Note on numbering**: the player drafts in `docs/wip/player/` (PRD-027 discovery,
+> **Note on numbering**: the player drafts (WIP scratch docs, since removed; PRD-027 discovery,
 > PRD-029 catalog, PRD-030 player) reuse numbers already taken by live viewer PRDs in
 > `docs/prd/`. This platform initiative takes a clean block, PRD-035–041. Those drafts
 > are superseded by the child PRDs above and will be folded in, not promoted as-is.
@@ -194,8 +194,7 @@ P0 de-risks everything downstream by locking the data contract and identity befo
 Player; Capture; Consolidation), plus Epic 3 (Knowledge + Personalization, PRD-043) and Home — which
 shipped *outside* the original P0–P3 map. Deferred to a later cycle: consumer self-serve
 scrape-on-demand (#1069), a real persistence layer (per-user state is plain files today), voice control,
-and the enriched-search LLM answer panel (UXS-008, still Draft). The full delivered-vs-deferred ledger
-lives in the platform gap analysis (`docs/wip/player/LEARNING-PLATFORM-GAP-ANALYSIS-2026-07.md`).
+and the enriched-search LLM answer panel (UXS-008, still Draft).
 
 ---
 
@@ -281,7 +280,7 @@ no premature infrastructure.
 
 - `docs/prd/PRD-027-platform-discovery.md`, `PRD-029-platform-catalog.md`,
   `PRD-030-platform-player.md` — superseded drafts, folded into PRD-037/038/039.
-- `docs/wip/MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` — server-side multi-user lift + sequencing.
+- `docs/rfc/RFC-107-search-v3-query-workspace.md` — server-side multi-user lift + sequencing.
 - `docs/guides/GIL_KG_CIL_CROSS_LAYER.md`, `docs/api/HTTP_API.md` — intelligence layer + API surface.
 
 ## Release Checklist

@@ -57,13 +57,19 @@ class TestOpenAIRoutingPrecedence:
     def test_profile_base_url_wins_over_ambient_env(
         self, _dummy_provider_keys: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A profile's explicit openai_api_base must beat a stale OPENAI_API_BASE env var — else a
-        DGX profile silently routes to real OpenAI."""
+        """A DGX profile must route to the DGX, never a stale ambient env. ADR-147 moved the DGX
+        routing off openai onto vllm_api_base (which has NO env fallback), so a stale
+        OPENAI_API_BASE cannot leak into the DGX path — the profile's DGX base wins by design."""
         monkeypatch.setenv("OPENAI_API_BASE", "https://api.openai.com/v1")
         cfg = Config.model_validate(
-            {"profile": "prod_dgx_balanced", "generate_gi": True, "generate_metadata": True}
+            {
+                "profile": "prod_dgx_full",
+                "generate_gi": True,
+                "generate_metadata": True,
+            }
         )
-        assert "dgx" in (cfg.openai_api_base or ""), cfg.openai_api_base
+        assert cfg.summary_provider == "vllm"
+        assert "dgx" in (cfg.vllm_api_base or ""), cfg.vllm_api_base
 
     def test_env_base_url_is_fallback_when_unset(
         self, _dummy_provider_keys: None, monkeypatch: pytest.MonkeyPatch

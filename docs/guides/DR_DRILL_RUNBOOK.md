@@ -171,7 +171,9 @@ On **`/srv/podcast-scraper/.env`** (modes **`600`**), typical values include:
 
 Alloy remote-write: if **`REMOTE_WRITE_URL`** or **`LOGS_WRITE_URL`** are unset or placeholder values,
 Alloy will not ship metrics or logs; that is expected for isolated drills unless the drill VPS is on the
-tailnet and can reach homelab (`http://homelab:8428`, `http://homelab:9428`).
+tailnet and can reach the caddy-tailscale TLS telemetry nodes (`https://vm.<tailnet>.ts.net/api/v1/write`,
+`https://vlogs.<tailnet>.ts.net/insert/loki/api/v1/push` — Level 3, #1665; the raw `homelab:8428/:9428`
+backend ports are no longer the prod ingest path).
 
 ---
 

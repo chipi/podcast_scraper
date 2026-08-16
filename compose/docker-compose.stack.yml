@@ -76,6 +76,10 @@ services:
       retries: 3
       start_period: 120s
     environment:
+      # Unbuffered stdout/stderr so tracebacks + progress surface in captured logs rather
+      # than being lost on a crash (a spawned pipeline run exited 1 with an empty log
+      # because Python buffered its output). Also on api for parity across services.
+      PYTHONUNBUFFERED: "1"
       # Provider keys: empty defaults (set in repo-root ``.env`` for Compose substitution only).
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -83,6 +87,11 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # Deepgram (cloud_balanced transcription) + LiteLLM gateway key. Present so the
+      # api process env carries them for the nested ``docker compose run pipeline-llm``
+      # (spawned by the jobs API) to inherit; no-op for the api itself unless set.
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
       # Error tracking (Sentry SDK -> GlitchTip self-hosted, ADR-119 "errors" signal).
       # No-op unless set. Point at the GlitchTip DSN in the prod .env (tailnet-only,
       # http://…@dgx-llm-1:8090/N). init_sentry("api") scrubs secrets via before_send.
@@ -139,12 +148,19 @@ services:
       - corpus_data:/app/output
     environment:
       PODCAST_SCRAPER_WORK_DIR: /app
+      # Unbuffered so a crash surfaces its traceback in the captured job log instead of an
+      # empty log — the cloud_balanced Step-0 run exited 1 with zero diagnostics otherwise.
+      PYTHONUNBUFFERED: "1"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # Deepgram (cloud_balanced transcription) + LiteLLM gateway key. Symmetric with
+      # ``pipeline-llm`` so either image can run cloud_balanced. No-op unless set.
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
       # Sentry SDK — init at the CLI entrypoint, gated on this DSN being
       # set. Default empty (no-op). When set in Codespaces / VPS env, the
       # spawned ``docker compose run pipeline ...`` subprocess inherits
@@ -179,12 +195,22 @@ services:
       - corpus_data:/app/output
     environment:
       PODCAST_SCRAPER_WORK_DIR: /app
+      # Unbuffered so a crash surfaces its traceback in the captured job log instead of an
+      # empty log — the cloud_balanced Step-0 run exited 1 with zero diagnostics otherwise.
+      PYTHONUNBUFFERED: "1"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # cloud_balanced runs on this image: Deepgram transcription + LiteLLM gateway.
+      # The jobs API spawns ``docker compose run pipeline-llm`` and these interpolate
+      # from the inherited api env (shim-exported /run/secrets). Without these lines
+      # Compose does NOT forward the keys and cloud_balanced dies at Config validation
+      # ("Deepgram API key required") — the exact bug this block fixes.
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
       # Mirror of the ``pipeline`` service's Sentry env. cloud_thin
       # pre-prod runs use this image, so DSN propagation must be
       # symmetric. See RFC-081 §Layer 2, issue #681.

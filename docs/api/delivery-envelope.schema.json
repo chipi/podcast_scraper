@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://closelistening.app/schemas/delivery-envelope-v1.json",
+  "title": "DeliveryEnvelope",
+  "description": "The app<->infra delivery seam (RFC-110 / ADR-145). The app (learning-player server) produces envelopes into an outbox; the infra delivery service (issue #1412) drains, renders, and delivers them. Channel-agnostic, idempotent. The payload is fully pre-assembled and EXTRACTIVE (D6: no request-time LLM) and MUST carry the graph (graph_refs), never a flat clip.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "user_id",
+    "channel",
+    "template",
+    "recipient",
+    "consent_snapshot",
+    "payload",
+    "expires_at",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Idempotency key, app-generated. The delivery service MUST dedupe on this."
+    },
+    "user_id": {
+      "type": "string",
+      "pattern": "^u_[0-9a-f]{24}$",
+      "description": "Platform user id (app_user_store)."
+    },
+    "channel": { "enum": ["email", "push"] },
+    "template": { "enum": ["your-week-digest.v1", "resurface-nudge.v1"] },
+    "recipient": { "$ref": "#/$defs/recipient" },
+    "consent_snapshot": { "$ref": "#/$defs/consentSnapshot" },
+    "payload": { "type": "object" },
+    "not_before": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Do not deliver before this instant (cadence pacing)."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "TTL (required) — the delivery service MUST NOT deliver after this instant, so a homelab-down window does not flush stale digests on recovery. The assembler sets it to not_before + one cadence period. Seam v1.1 (2026-08-04)."
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "channel": { "const": "email" } } },
+      "then": {
+        "properties": {
+          "recipient": { "required": ["email", "email_verified"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "channel": { "const": "push" } } },
+      "then": {
+        "properties": {
+          "recipient": { "required": ["push_subscription"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "template": { "const": "your-week-digest.v1" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/digestPayload" } } }
+    },
+    {
+      "if": { "properties": { "template": { "const": "resurface-nudge.v1" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/nudgePayload" } } }
+    }
+  ],
+  "$defs": {
+    "recipient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "email_verified": { "type": "boolean" },
+        "push_subscription": {
+          "type": "object",
+          "description": "W3C PushSubscription JSON (endpoint + keys). Opaque to the app.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "consentSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_enabled", "cadence", "unsubscribe_ref"],
+      "properties": {
+        "digest_enabled": { "type": "boolean" },
+        "cadence": { "enum": ["weekly", "daily"] },
+        "unsubscribe_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque, rotatable. The delivery service embeds this in the one-click unsubscribe link."
+        }
+      }
+    },
+    "graphRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A canonical KG reference (mirrors the shipped AppEntityRef). This is how a surface 'carries the graph'.",
+      "required": ["id", "kind", "label"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(person|topic):[a-z0-9][a-z0-9-]*$",
+          "description": "Canonical id, e.g. person:satya-nadella / topic:ai-safety."
+        },
+        "kind": { "enum": ["person", "topic"] },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "digestItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One resurfaced/highlighted moment. MUST carry graph_refs + a deep_link (moat rule).",
+      "$comment": "additionalProperties:false is load-bearing: it walls off the in-app-only fields the GET /api/app/your-week route adds for card rendering (image_url artwork backdrop, and a backfilled episode_title for topic-centric trending items). Those are route-local enrichments — the assembler MUST NOT write them into the envelope (they would fail validation here), and the delivery worker renders from graph_refs, not from artwork.",
+      "required": ["episode_slug", "deep_link", "graph_refs"],
+      "properties": {
+        "quote": { "type": "string" },
+        "episode_slug": { "type": "string", "minLength": 1 },
+        "episode_title": { "type": "string" },
+        "t_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "graph_refs": {
+          "type": "array",
+          "minItems": 1,
+          "description": "MUST be non-empty — an item carries the graph, never a flat clip (moat rule).",
+          "items": { "$ref": "#/$defs/graphRef" }
+        },
+        "deep_link": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative in-app link with jump-to-moment, e.g. /player/{slug}?t={sec}."
+        },
+        "source": {
+          "enum": ["user", "auto"],
+          "description": "'user' = the user captured it; 'auto' = GI editor's-pick (FR3). Renderers MUST distinguish them."
+        }
+      }
+    },
+    "digestSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "items"],
+      "properties": {
+        "kind": { "enum": ["revisit", "new_in_follows", "trending_in_your_corpus"] },
+        "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/digestItem" } }
+      }
+    },
+    "digestPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sections"],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/digestSection" }
+        }
+      }
+    },
+    "nudgePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["highlight_count", "lead"],
+      "properties": {
+        "highlight_count": { "type": "integer", "minimum": 1 },
+        "lead": { "$ref": "#/$defs/digestItem" }
+      }
+    }
+  }
+}

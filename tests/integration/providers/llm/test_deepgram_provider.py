@@ -160,6 +160,9 @@ class TestDeepgramRealShapeParse:
         pipeline_metrics = MagicMock()
         call_metrics = MagicMock()
         call_metrics.estimated_cost = None
+        # Mirror the real ProviderCallMetrics default so the #1523 record-once latch doesn't
+        # short-circuit on a bare MagicMock's truthy auto-attribute (same fix as the unit test).
+        call_metrics.pipeline_transcription_recorded = False
         _transcribe(
             provider,
             _REAL_SHAPE_RESPONSE,

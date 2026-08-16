@@ -10,7 +10,7 @@ Need the short version for daily ops? Use
 [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md).
 **Optional DGX Whisper primary (cost optimization):** [DGX_RUNBOOK](DGX_RUNBOOK.md) and profile
 `cloud_with_dgx_primary` per [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md).
-**All-DGX hot path (zero cloud LLM spend):** profile `prod_dgx_full_with_fallback` (#923) —
+**All-DGX hot path (zero cloud LLM spend):** profile `prod_dgx_full` (#923) —
 adds Ollama qwen3.5:35b on DGX for summary/GI/KG with Gemini as the cloud fallback.
 **Operator-gated until #996 closes** — see § Provider model selection — DGX vs cloud per stage.
 
@@ -332,6 +332,16 @@ and permissions. No SSH, no manual `.env` editing.
 Repo Settings → Secrets → Actions → New repository secret. Stage these
 15 secrets with prod values from each provider's dashboard:
 
+> **⚠ GitHub environment-scope override — set/rotate at the `prod` scope.** `deploy-prod.yml`,
+> `deploy-config.yml`, and `infra-apply.yml` run with `environment: prod`. GitHub precedence:
+> **an environment-scoped secret overrides a repo-level secret of the same name — silently.** If a
+> `PROD_*` secret exists under *both* Repo Settings → Secrets *and* Settings → Environments →
+> **prod** → Secrets, the environment value wins. To set or **rotate** these, prefer
+> `gh secret set <NAME> --env prod` (or the prod Environment page); if you touched the repo-level
+> page, verify the `prod` environment isn't shadowing it. (2026-08-16: a repo-level
+> `PROD_SENTRY_DSN_API`/`_PIPELINE` update was ignored because stale values lived in the `prod`
+> environment scope — cost a wasted deploy.)
+
 | Secret name | Purpose | Source |
 | --- | --- | --- |
 | `PROD_OPENAI_API_KEY` | LLM (OpenAI) | platform.openai.com → API keys |
@@ -340,10 +350,11 @@ Repo Settings → Secrets → Actions → New repository secret. Stage these
 | `PROD_MISTRAL_API_KEY` | LLM (Mistral) | console.mistral.ai → API keys |
 | `PROD_DEEPSEEK_API_KEY` | LLM (DeepSeek) | platform.deepseek.com → API keys |
 | `PROD_GROK_API_KEY` | LLM (Grok) | console.x.ai → API keys |
-| `PROD_SENTRY_DSN_API` | Error DSN (api project) | homelab **GlitchTip** (`http://homelab:8090`) → project → Client Keys (DSN) |
-| `PROD_SENTRY_DSN_PIPELINE` | Error DSN (pipeline project) | homelab **GlitchTip** (`http://homelab:8090`) → project → Client Keys (DSN) |
+| `PROD_SENTRY_DSN_API` | Error DSN (api project) | homelab **GlitchTip** admin UI (`http://homelab:8090`) → project → Client Keys (DSN). The DSN's own ingest host is the TLS node `https://glitchtip.<tailnet>.ts.net` (Level 3, #1665), not `:8090` |
+| `PROD_SENTRY_DSN_PIPELINE` | Error DSN (pipeline project) | homelab **GlitchTip** admin UI (`http://homelab:8090`) → project → Client Keys (DSN); ingest via the `glitchtip.<tailnet>.ts.net` TLS node |
 | `PROD_SENTRY_DSN_VIEWER` | Error DSN (viewer SPA — baked into Vite bundle) | homelab **GlitchTip** → project → Client Keys (DSN) |
 | `PROD_JOB_WEBHOOK_URL` | Outbound pipeline-completion webhook (optional) | your config |
+| `PROD_APP_OPERATOR_API_KEY` | Operator HTTP write-API key (`X-Operator-Key` header for corpus rollback, job enqueue, feeds `PUT`) | generate a random token, e.g. `openssl rand -hex 32`; empty = no key (tailnet reads open, writes require admin session) |
 
 > **Grafana Cloud retired (2026-07-27).** The `PROD_GRAFANA_CLOUD_*` secrets are **removed** —
 > observability is fully self-hosted on homelab (VictoriaMetrics `:8428` + VictoriaLogs `:9428`
@@ -694,7 +705,15 @@ make restore-corpus-prod          # newest-compatible snapshot-prod-* → corpus
 See [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
 
 ```bash
-# Verify
+# 1. Pre-cutover completeness gate — must exit 0 (VERDICT: PASS) before restarting the stack
+#    (#1494 / #1497; validates gi.json coverage, topic_clusters.json, and manifest integrity)
+make corpus-completeness-check CORPUS_DIR=/srv/podcast-scraper/corpus
+
+# 2. If topic_clusters.json is missing or empty, rebuild it before the restart:
+docker compose exec -T api python -m podcast_scraper.cli topic-clusters \
+    --output-dir /app/output --threshold 0.75
+
+# 3. Verify
 ls -la corpus/feeds/ | head
 find corpus -name '*.gi.json' | wc -l
 docker compose -f compose/docker-compose.stack.yml \
@@ -1296,7 +1315,7 @@ OAuth client** (that theory burned hours on 2026-08-03; the client was always
 fine — see ADR-143). Diagnose in 10 seconds with a mint probe:
 
 ```bash
-TAILNET=tail6d0ed4.ts.net
+TAILNET=<TAILNET>.ts.net
 TOK=$(curl -fsS https://api.tailscale.com/api/v2/oauth/token \
   -d client_id=$TS_INFRA_OAUTH_CLIENT_ID -d client_secret=$TS_INFRA_OAUTH_SECRET | jq -r .access_token)
 curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $TOK" \
@@ -1402,14 +1421,14 @@ time, then the pipeline crashes on first provider call with
 
 | Var | Where to get it | Notes |
 | --- | --- | --- |
-| `REMOTE_WRITE_URL` | Fixed: `http://homelab:8428/api/v1/write` | Alloy ships metrics to homelab VictoriaMetrics `:8428` |
-| `LOGS_WRITE_URL` | Fixed: `http://homelab:9428/insert/loki/api/v1/push` | Alloy ships logs to homelab VictoriaLogs `:9428` (Loki-compatible push endpoint) |
-| `PODCAST_SENTRY_DSN_API` | homelab **GlitchTip** (`http://homelab:8090`) → api project → Settings → Client Keys (DSN) | Sentry-SDK-compatible DSN; error ingest via `telemetry.closelistening.app` edge |
+| `REMOTE_WRITE_URL` | Fixed: `https://vm.<tailnet>.ts.net/api/v1/write` (Level 3, #1665) | Alloy ships metrics via the caddy-tailscale TLS node → homelab VictoriaMetrics `:8428`. GitOps'd by `deploy-vps-observability-endpoints.yml` (suffix from `vars.PROD_TAILNET_FQDN`); a bare `docker compose up` in `/opt/vps-observability` reverts to the raw `.env` value |
+| `LOGS_WRITE_URL` | Fixed: `https://vlogs.<tailnet>.ts.net/insert/loki/api/v1/push` (Level 3, #1665) | Alloy ships logs via the TLS node → homelab VictoriaLogs `:9428` (Loki-compatible push endpoint) |
+| `PODCAST_SENTRY_DSN_API` | homelab **GlitchTip** admin UI (`http://homelab:8090`) → api project → Settings → Client Keys (DSN) | Sentry-SDK-compatible DSN; ingest host is the `glitchtip.<tailnet>.ts.net` TLS node (browser errors also via the `telemetry.closelistening.app` edge) |
 | `PODCAST_SENTRY_DSN_PIPELINE` | homelab **GlitchTip** → pipeline project → Client Keys (DSN) | Different project from api so issues stay separable |
 
 > **Grafana Cloud vars removed (retired 2026-07-27):** `GRAFANA_CLOUD_PROM_URL`, `GRAFANA_CLOUD_LOKI_URL`,
 > `GRAFANA_CLOUD_PROM_USER`, `GRAFANA_CLOUD_LOKI_USER`, `GRAFANA_CLOUD_API_KEY` are no longer used.
-> Observability is fully self-hosted on homelab (Mac mini, tailnet `homelab`, 100.87.33.61).
+> Observability is fully self-hosted on homelab (Mac mini, tailnet `homelab`, `<HOMELAB_IP>`).
 > Remove these vars from any existing `.env` or GHA secrets to avoid confusion.
 >
 > **Operator note:** if your existing prod VPS is already running and Grafana
@@ -1464,10 +1483,10 @@ cloud account required. Datasources are pre-configured:
 - **VictoriaLogs** → `:9428` (LogsQL; used for log queries in Explore)
 - **VictoriaTraces** → `:10428` (Tempo-compatible)
 
-Alloy on the VPS ships to homelab over the tailnet using:
+Alloy on the VPS ships to homelab over the tailnet via the caddy-tailscale TLS nodes (Level 3, #1665):
 
-- `REMOTE_WRITE_URL=http://homelab:8428/api/v1/write` (metrics)
-- `LOGS_WRITE_URL=http://homelab:9428/insert/loki/api/v1/push` (logs)
+- `REMOTE_WRITE_URL=https://vm.<tailnet>.ts.net/api/v1/write` (metrics → VictoriaMetrics `:8428`)
+- `LOGS_WRITE_URL=https://vlogs.<tailnet>.ts.net/insert/loki/api/v1/push` (logs → VictoriaLogs `:9428`)
 
 After recreating the `alloy` container (see [Operator hot-fix
 workflow](#operator-hot-fix-workflow)), verify within 2 min:
@@ -1930,9 +1949,12 @@ line as alive (`compose/docker-compose.stack.yml`). If you still see
 
 In order of likelihood:
 
-1. `REMOTE_WRITE_URL` or `LOGS_WRITE_URL` not set or wrong in `.env` —
-   must be `http://homelab:8428/api/v1/write` and
-   `http://homelab:9428/insert/loki/api/v1/push` respectively.
+1. `REMOTE_WRITE_URL` or `LOGS_WRITE_URL` not set or wrong (compose
+   `environment:` override from `deploy-vps-observability-endpoints.yml`, or the box `.env`) —
+   must be `https://vm.<tailnet>.ts.net/api/v1/write` and
+   `https://vlogs.<tailnet>.ts.net/insert/loki/api/v1/push` respectively (Level 3, #1665).
+   Note: a HUMAN running a bare `docker compose up -d alloy` in `/opt/vps-observability`
+   reverts to the raw `homelab:8428/:9428` values in the root `.env` — re-run the workflow to restore.
 2. Homelab not reachable — confirm the VPS is on the tailnet and can
    reach the Mac mini: `tailscale ping homelab` from the VPS.
 3. Alloy container exited — check `docker ps` and `docker logs compose-alloy-1`.
@@ -1998,7 +2020,7 @@ ssh -o IdentitiesOnly=yes -i ~/.ssh/<operator-private-key> \
   deploy@prod-podcast-1.<tailnet> 'echo ok'
 ```
 
-Replace `<tailnet>` with your MagicDNS suffix (for example `tail6d0ed4.ts.net`).
+Replace `<tailnet>` with your MagicDNS suffix (for example `<TAILNET>.ts.net`).
 If this fails but `tailscale status` shows prod as active, you are using the
 wrong private key file for `deploy@`.
 
@@ -2088,8 +2110,9 @@ glance. Knowing about them saves debugging time.
 - **Direct shell `docker compose` MUST use `--env-file`** because the
   project dir resolves to `compose/`, not `/srv/podcast-scraper/`.
   Systemd-spawned compose is unaffected (different env-loading path).
-- **Alloy remote-write uses two separate env vars.** `REMOTE_WRITE_URL` for metrics (`:8428`),
-  `LOGS_WRITE_URL` for logs (`:9428`). A single var does not cover both.
+- **Alloy remote-write uses two separate env vars.** `REMOTE_WRITE_URL` for metrics,
+  `LOGS_WRITE_URL` for logs — both now the caddy-tailscale TLS nodes (`vm.`/`vlogs.<tailnet>.ts.net`,
+  Level 3 #1665), fronting homelab VictoriaMetrics `:8428` / VictoriaLogs `:9428`. A single var does not cover both.
   (Historical: Grafana Cloud previously required separate PROM_USER / LOKI_USER — retired 2026-07-27.)
 - **Viewer image is published once per main push** and used by BOTH
   codespace preprod AND the prod VPS. `PODCAST_ENV` is injected at

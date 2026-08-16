@@ -94,7 +94,7 @@ Reasoning:
 - **No DeepSeek-R1 distill is a contender.** Range 0.195-0.226 RougeL; reasoning-tuned, not summary-shaped.
 - **Sonnet-mimicry caveat applies.** Per [#932](https://github.com/chipi/podcast_scraper/issues/932) (G-Eval finale tier), RougeL measures lexical proximity to Sonnet 4.6's writing style, not summary quality itself. Relative ordering is informative; absolute scores are noisy.
 
-**Implication for #923 prod profile**: keep `ollama_summary_model: "qwen3.5:35b"` in `prod_dgx_full_with_fallback` **for now**. Re-evaluate qwen3.6:latest as the champion once:
+**Implication for #923 prod profile**: keep `ollama_summary_model: "qwen3.5:35b"` in `prod_dgx_full` **for now**. Re-evaluate qwen3.6:latest as the champion once:
 
 1. #933 prod-curated tier validates the quality edge on real podcasts.
 2. #932 G-Eval finale confirms it on faithfulness/coverage/coherence/fluency (the coverage delta is worth a closer look).
@@ -356,9 +356,8 @@ differently-but-well — Opus silver lets the metric breathe.
 - [#939 — Silver upgrade to Opus 4.7](https://github.com/chipi/podcast_scraper/issues/939) — Phase 0 of next batch (this addendum)
 - [SILVER_OPUS47_GENERATION_2026_06](SILVER_OPUS47_GENERATION_2026_06.md) — generation report for the new silver
 - [EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06](EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06.md) — the prior DGX validation pass
-- `docs/wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md` — dependency map
-  across the open work (removed 2026-06-24; #907 + children all closed)
-- [docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md](../../wip/AUTORESEARCH_LEARNINGS_FOR_V3.md) — failure-mode catalogue
+- Original autoresearch next-phase-dependencies map (WIP doc, removed 2026-06-24; #907 + children all closed)
+- [RFC-116 fixture corpus](../../rfc/RFC-116-autoresearch-driven-fixture-corpus.md) — failure-mode catalogue
 
 ### Tuned prompt addendum — hermes3:8b (#937, 2026-06-09)
 

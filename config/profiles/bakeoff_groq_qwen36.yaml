@@ -1,0 +1,111 @@
+# Bake-off profile: NATIVE Groq provider (ADR-147) talking DIRECT to api.groq.com, serving
+# Qwen3.6-27b on Groq's LPU cloud. This is the GROQ-HOSTED arm of the qwen3.6-27b comparison —
+# sibling of bakeoff_litellm_qwen36 (SAME model, routed via the homelab LiteLLM gateway -> OpenRouter
+# instead). Same v2.4 pipeline/quality; the ONLY variable is the LLM host/route: Groq direct here.
+# The point of the arm: qwen3.6-27b quality is fixed, so this isolates Groq's price + latency vs the
+# OpenRouter route and vs the finale cloud winner (deepseek-v4-flash, bakeoff_deepseek_native_flash).
+#
+# NOTE (groq vs grok): this is `groq` — Groq's LPU cloud (keys gsk_...), NOT `grok` (xAI).
+#
+# Reasoning is OFF (the fair match to the other arms, which normalize reasoning off). qwen3.6-27b is
+# a reasoning model on Groq; groq_extra_body: {reasoning_effort: none} disables the thinking block
+# (the shape Groq's own qwen3/gpt-oss docs use). Without it GroqProvider warns loudly at init and
+# JSON-extraction stages can truncate to empty content (finish_reason=length).
+
+# LLM bake-off arm: transcription stays LOCAL whisper over FROZEN transcripts (enrich_only), so the
+# Groq transcription cost/quality is NOT entangled with the LLM measurement. The whisper-large-v3-
+# turbo transcription eval is a SEPARATE run (transcription_provider: groq) — see the handover doc.
+transcription:
+  primary: whisper
+diarize: false
+screenplay: true
+
+# --- LLM stages: ALL via the NATIVE groq provider, direct to api.groq.com ---
+summary_provider: groq
+speaker_detector_provider: groq
+quote_extraction_provider: groq
+entailment_provider: groq
+kg_extraction_provider: groq
+auto_speakers: true
+llm_pipeline_mode: staged
+
+# groq_api_base omitted -> defaults to https://api.groq.com/openai/v1 (direct, no gateway).
+# Key from GROQ_API_KEY env. To route this same arm through the LiteLLM gateway instead, set
+# groq_api_base: http://homelab:4001/v1 and the models to the groq-* gateway aliases.
+groq_summary_model: qwen/qwen3.6-27b
+groq_speaker_model: qwen/qwen3.6-27b
+groq_cleaning_model: qwen/qwen3.6-27b
+groq_insight_model: qwen/qwen3.6-27b
+groq_temperature: 0.3
+# Reasoning OFF — the fair match. reasoning_effort:none zeroes the thinking block on Groq's qwen3.
+groq_extra_body:
+  reasoning_effort: none
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+
+summarization_timeout: 600
+transcription_timeout: 300
+
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+# --- GI / KG (identical finale-tuned knobs to bakeoff_deepseek_native_flash — only the route
+# differs, so quality deltas are attributable to the model, not the config) ---
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gil_evidence_match_summary_provider: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+ner_model: en_core_web_trf
+
+# Corpus-enrichment layer (required top-level block; operators read the YAML to see what's active).
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
+
+# registry status: yaml-only — research bake-off arm, fully specified inline; intentionally
+# NOT a _PROFILE_PRESETS entry (no self-referential `profile:` key, to opt out of registry-drift
+# checking, per the drift test design for experiment configs).

@@ -18,10 +18,10 @@ services:
       # there's no parallel URL set to drift. Defaults target the homelab tailnet IP; if you put
       # this container on the Victoria stack's docker network, swap to container names for one hop
       # less (e.g. http://victorialogs:9428).
-      PODCAST_LOGS_PUSH_URL: ${PODCAST_LOGS_PUSH_URL:-http://100.87.33.61:9428/insert/jsonline}
-      PODCAST_METRICS_PUSH_URL: ${PODCAST_METRICS_PUSH_URL:-http://100.87.33.61:8428/api/v1/import/prometheus}
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://100.87.33.61:10428/insert/opentelemetry/v1/traces}
-      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://100.87.33.61:4000}
+      PODCAST_LOGS_PUSH_URL: ${PODCAST_LOGS_PUSH_URL:-http://<HOMELAB_IP>:9428/insert/jsonline}
+      PODCAST_METRICS_PUSH_URL: ${PODCAST_METRICS_PUSH_URL:-http://<HOMELAB_IP>:8428/api/v1/import/prometheus}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://<HOMELAB_IP>:10428/insert/opentelemetry/v1/traces}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://<HOMELAB_IP>:4000}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       # Errors: text is token-free (VictoriaLogs). SENTRY_AUTH_TOKEN adds the GlitchTip issue-link
@@ -31,7 +31,7 @@ services:
       PODCAST_OBS_SENTRY_ORG: ${PODCAST_OBS_SENTRY_ORG:-homelab}
       PODCAST_OBS_SENTRY_PROJECTS: ${PODCAST_OBS_SENTRY_PROJECTS:-podcast,player}
       # Umami user-action analytics on the operator surface. Optional (per-env website id).
-      PODCAST_OBS_UMAMI_URL: ${PODCAST_OBS_UMAMI_URL:-http://100.87.33.61:3001}
+      PODCAST_OBS_UMAMI_URL: ${PODCAST_OBS_UMAMI_URL:-http://<HOMELAB_IP>:3001}
       PODCAST_OBS_UMAMI_WEBSITE_ID: ${PODCAST_OBS_UMAMI_WEBSITE_ID:-}
       PODCAST_OBS_UMAMI_TOKEN: ${PODCAST_OBS_UMAMI_TOKEN:-}
       # The deployed API (health/version/runs/enrichment tools) — the prod tailnet name.

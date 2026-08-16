@@ -319,6 +319,22 @@ def test_the_judge_is_never_the_defendant(name: str) -> None:
     )
 
 
+@pytest.mark.parametrize("provider", ["openai", "deepseek", "litellm", "qwen", "vllm", "groq"])
+def test_value_gate_runs_for_every_hosted_llm_sibling(provider: str) -> None:
+    """The gate is membership-gated on ``_LLM_PROVIDERS``; a summary provider missing from that set
+    SILENTLY fails open — no grading, no error. The entire v2.5 finale ran via ``litellm`` and its
+    ``gi_value_gate_enabled: true`` was a NO-OP because ``litellm`` (and the ``qwen`` ADR-147 sibling)
+    were absent here, while ``deepseek`` was present — so a native-deepseek arm graded and its
+    gateway twin did not, making their insight counts and cost non-comparable. Guard every real LLM
+    sibling so a new provider can never re-disable this quality stage by omission.
+    """
+    enabled, _ = resolve_value_gate(provider)
+    assert enabled, (
+        f"value gate silently disabled for summary_provider={provider!r}: it is not in "
+        f"_LLM_PROVIDERS, so gi_value_gate_enabled becomes a no-op for every run that uses it."
+    )
+
+
 # ---------------------------------------------------------------------------------------------
 # 5. PROVENANCE — a registered value must say which eval justified it.
 # ---------------------------------------------------------------------------------------------

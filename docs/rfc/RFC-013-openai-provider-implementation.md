@@ -1433,7 +1433,7 @@ def test_custom_provider_protocol():
 
 The following documentation should be created during Stages 1-5 to support Stage 6 (OpenAI implementation):
 
-### 1. Testing Strategy Document (`docs/wip/TESTING_STRATEGY_MODULARIZATION.md`)
+### 1. Testing Strategy Document (WIP doc, since removed)
 
 **Purpose:** Provide concrete examples and patterns for testing providers
 

@@ -206,17 +206,22 @@ def test_discover_episode_bundles_multi_feed_layout(tmp_path: Path) -> None:
         assert b.bridge_path is not None and b.bridge_path.is_file()
 
 
-def test_discover_episode_bundles_latest_run_per_feed(tmp_path: Path) -> None:
-    """When a feed has multiple ``run_*`` dirs only the latest contributes bundles."""
+def test_discover_episode_bundles_reprocess_supersedes_older_run(tmp_path: Path) -> None:
+    """Multiple ``run_*`` dirs, SAME episode reprocessed → only the newest run's bundle.
+
+    Identity dedup by ``(feed_id, episode_id)``: a reprocess (same guid) supersedes its older
+    "trophy" run. Distinct episodes scattered across runs are instead unioned (see the
+    ``corpus_scope`` discovery tests) — enrichment now covers every distinct episode.
+    """
     feed = tmp_path / "feeds" / "rss_feed_x"
     older = feed / "run_20260101-000000" / "metadata"
     newer = feed / "run_20260601-000000" / "metadata"
-    _write_episode(older, "0001 - stale", guid="guid-OLD")
-    _write_episode(newer, "0001 - fresh", guid="guid-NEW")
+    _write_episode(older, "0001 - stale", guid="guid-SAME")
+    _write_episode(newer, "0001 - fresh", guid="guid-SAME")
 
     bundles = discover_episode_bundles(tmp_path)
     assert len(bundles) == 1
-    assert bundles[0].episode_id == "guid-NEW"
+    assert bundles[0].episode_id == "guid-SAME"
     assert "run_20260601-000000" in bundles[0].metadata_path.parts
 
 

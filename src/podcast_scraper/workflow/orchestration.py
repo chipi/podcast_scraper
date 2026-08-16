@@ -1692,6 +1692,11 @@ def _finalize_pipeline(
     # don't ship — without this guard the finalize step crashes with
     # ``ModuleNotFoundError: numpy`` despite the rest of the pipeline
     # succeeding cleanly.
+    # Incremental corpus integration: the edge-derivation / index / clusters / enrichment passes
+    # must target the shared CORPUS ROOT for ``--single-feed-uses-corpus-layout`` adds, else they
+    # build a throwaway run-local index and the episode never weaves into the corpus. See
+    # ``_corpus_finalize_dir_for``.
+    _corpus_finalize_dir = _corpus_finalize_dir_for(cfg, effective_output_dir)
     _vidx_t0 = time.perf_counter()
     if getattr(cfg, "vector_search", True):
         from podcast_scraper.search.indexer import maybe_index_corpus
@@ -1702,9 +1707,19 @@ def _finalize_pipeline(
             stage="vector_indexing",
             episode_total=len(episodes),
         )
-        maybe_index_corpus(effective_output_dir, cfg)
+        # Derive relational edges (HAS_EPISODE / MENTIONS / SPOKEN_BY) into each gi.json inline so a
+        # fresh add is COMPLETE with no manual enrich-edges CLI pass — the edges went stale on every
+        # add before this. Run it BEFORE the index build so the LanceDB index reflects the freshly
+        # derived edges in the same run (harden #4). Errors are surfaced (logged + a metric flag +
+        # the completeness gate catches missing edges), never fire-and-forget. Under the
+        # vector_search guard because the edge walker imports search.indexer (numpy) — the
+        # incremental-add profile cloud_balanced ships it; cloud_thin does not and skips indexing.
+        _finalize_enrich_edges(_corpus_finalize_dir, pipeline_metrics)
+        # Incremental upsert (skips unchanged episodes) — NOT a full rebuild. Adding one
+        # episode stats the corpus and upserts only the new vectors.
+        maybe_index_corpus(_corpus_finalize_dir, cfg)
         _maybe_build_topic_clusters_after_index(
-            effective_output_dir,
+            _corpus_finalize_dir,
             pipeline_metrics,
             threshold=getattr(cfg, "topic_cluster_threshold", None),
         )
@@ -1738,7 +1753,7 @@ def _finalize_pipeline(
     # for enrichment to finish, so its existing wall-clock is unaffected;
     # the enrichment job tracks itself via the shared jobs registry +
     # JSONL + run_summary. Gated on cfg.enrichment.enabled (default off).
-    _maybe_spawn_enrichment_after_pipeline(cfg, effective_output_dir)
+    _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
@@ -1849,6 +1864,52 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
         )
     except OSError as exc:
         logger.warning("enrichment: background spawn failed (%s); pipeline returns normally", exc)
+
+
+def _corpus_finalize_dir_for(cfg: config.Config, effective_output_dir: str) -> str:
+    """Directory the corpus-integration finalize (edges / index / clusters / enrichment) targets.
+
+    For ``--single-feed-uses-corpus-layout`` runs the pipeline writes into
+    ``<corpus>/feeds/<slug>/run_<id>/`` (``effective_output_dir``), but the integration passes must
+    target the shared CORPUS ROOT so an incremental add weaves into the corpus rather than building
+    a throwaway run-local index that search never reads. Returns the corpus root when it resolves,
+    else the run's own output dir — all non-corpus-layout runs (legacy single-feed, and each
+    multi-feed per-feed step, which defers corpus integration to ``finalize_multi_feed_batch``)
+    keep their existing scope.
+    """
+    if getattr(cfg, "single_feed_uses_corpus_layout", False):
+        from podcast_scraper.workflow.corpus_operations import (
+            corpus_parent_for_manifest_stamp_from_cfg,
+        )
+
+        root = corpus_parent_for_manifest_stamp_from_cfg(cfg)
+        if root:
+            return root
+    return effective_output_dir
+
+
+def _finalize_enrich_edges(output_dir: str, pipeline_metrics: Any) -> None:
+    """Run the idempotent enrich-edges pass inline (HAS_EPISODE / MENTIONS / SPOKEN_BY → gi.json).
+
+    Surfaced, not fire-and-forget: sets ``pipeline_metrics.edges_enriched`` and logs at ERROR on
+    failure so a broken pass is visible (and the completeness gate flags the missing edges) rather
+    than silently leaving a fresh add without its relational edges.
+    """
+    from argparse import Namespace
+
+    from podcast_scraper.search.cli_handlers import run_enrich_edges_cli
+
+    args = Namespace(output_dir=output_dir, no_speaker=False, use_ner=False, retro_audit=False)
+    try:
+        rc = run_enrich_edges_cli(args, logger)
+        pipeline_metrics.edges_enriched = rc == 0
+        if rc != 0:
+            logger.error(
+                "enrich-edges returned non-zero (%s); relational edges may be incomplete", rc
+            )
+    except Exception as exc:  # noqa: BLE001 — surface the failure, don't crash a completed ingest
+        pipeline_metrics.edges_enriched = False
+        logger.error("enrich-edges failed inline: %s", format_exception_for_log(exc))
 
 
 def _maybe_build_topic_clusters_after_index(

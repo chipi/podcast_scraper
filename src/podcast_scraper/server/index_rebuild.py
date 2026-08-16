@@ -42,6 +42,13 @@ class CorpusRebuildGate:
             return self._running, self._last_error
 
 
+# Guards first-use creation of per-corpus gates. Without it two concurrent first-use callers (e.g. a
+# rollback DELETE and a POST /api/index/rebuild for the same corpus) could each mint a DIFFERENT
+# gate, both try_begin() succeed, and two rebuild=True runs hit one LanceDB dir — the double-rebuild
+# the 409 exists to prevent (Fable-5 review finding #5).
+_GATES_LOCK = threading.Lock()
+
+
 def _gates_map(app: FastAPI) -> Dict[str, CorpusRebuildGate]:
     raw = getattr(app.state, "index_rebuild_gates", None)
     if raw is None:
@@ -51,12 +58,13 @@ def _gates_map(app: FastAPI) -> Dict[str, CorpusRebuildGate]:
 
 
 def gate_for_corpus(app: FastAPI, corpus_resolved: Path) -> CorpusRebuildGate:
-    """Return the mutex gate for a corpus path, creating it on first use."""
+    """Return the mutex gate for a corpus path, creating it on first use (thread-safe)."""
     key = os.path.normpath(os.path.realpath(str(corpus_resolved)))
-    gates = _gates_map(app)
-    if key not in gates:
-        gates[key] = CorpusRebuildGate()
-    return gates[key]
+    with _GATES_LOCK:
+        gates = _gates_map(app)
+        if key not in gates:
+            gates[key] = CorpusRebuildGate()
+        return gates[key]
 
 
 def rebuild_status_snapshot(app: FastAPI, corpus_resolved: Path) -> Tuple[bool, str | None]:

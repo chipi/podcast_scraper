@@ -49,8 +49,8 @@ from podcast_scraper.enrichment.protocol import (
 #
 # Simpler than MCL and deterministic: threshold + union-find. Enough
 # structure to see "the crypto crowd" / "the FT columnists" clusters on
-# real corpora; MCL / label-propagation are queued in
-# ``docs/wip/super-theme-signal-comparison.md`` as future signal experiments.
+# real corpora; MCL / label-propagation are queued as a future super-theme
+# signal experiment.
 #
 # Singleton persons (no qualifying co-appearance edge) don't get a
 # community_id — they render at the default plumbing tint.

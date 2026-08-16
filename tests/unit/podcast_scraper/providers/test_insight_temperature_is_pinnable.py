@@ -41,8 +41,7 @@ GI_PROFILES = [
     "cloud_with_dgx_primary",
     "eval_default",
     "preprod_local_whisper",
-    "prod_dgx_balanced",
-    "prod_dgx_full_with_fallback",
+    "prod_dgx_full",
 ]
 
 

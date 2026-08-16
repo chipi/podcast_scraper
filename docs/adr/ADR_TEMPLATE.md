@@ -44,3 +44,7 @@
 
 - [RFC-XXX: Related RFC](../rfc/index.md)
 - [PRD-XXX: Related PRD](../prd/index.md)
+
+<!-- NEVER reference a docs/wip/ note from an ADR (here or in the body). WIP is ephemeral and gets
+     deleted — promote the substance inline or cite the shipped code / commit / issue instead.
+     See AGENTS.md → "Committed WIP docs". -->

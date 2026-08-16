@@ -1053,6 +1053,112 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.metadata_generation.time.time")
     @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_reroll_recovers_transient_invalid_schema(
+        self, mock_clean, mock_time
+    ):
+        """ADR-148: a transient invalid structured summary (p04) recovers via ONE in-place
+        re-roll on the SAME provider — the episode is NOT failed and NO fallover is needed.
+
+        First `summarize` returns truncated JSON that looks like the structured-summary
+        contract but fails strict parse (`parse_summary_output` → success=False); the re-roll
+        returns valid JSON. Rule #34 (repro before fix) at the real wiring layer."""
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+
+        time_values = iter([0.0, 1.0, 2.0, 3.0, 4.0])
+        mock_time.side_effect = lambda: next(time_values, 5.0)
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        # 1st: truncated structured-JSON (the p04 shape); 2nd: valid JSON summary.
+        mock_provider.summarize.side_effect = [
+            {"summary": '{"title": "T", "bullets": [', "metadata": {}},
+            {
+                "summary": '{"title": "T", "bullets": ["a real recovered bullet"]}',
+                "metadata": {},
+            },
+        ]
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        result, _ = metadata._generate_episode_summary(
+            transcript_file_path="transcript.txt",
+            output_dir=self.temp_dir,
+            cfg=self.cfg,
+            episode_idx=1,
+            summary_provider=mock_provider,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(mock_provider.summarize.call_count, 2)  # one in-place re-roll
+        self.assertIn("a real recovered bullet", result.bullets)
+
+    @patch("podcast_scraper.workflow.metadata_generation.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_reroll_bounded_then_recoverable(self, mock_clean, mock_time):
+        """ADR-148 + #1496: a PERSISTENTLY invalid structured summary re-rolls exactly ONCE
+        (bounded), then raises RecoverableSummarizationError — so the caller drops only the summary
+        and keeps the episode (transcript / GI / KG), instead of the whole episode failing as an
+        'unexpected error'. The re-roll still does not storm the LLM-call budget (one retry)."""
+        from podcast_scraper.exceptions import RecoverableSummarizationError
+
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+
+        time_values = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+        mock_time.side_effect = lambda: next(time_values, 6.0)
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        # Always truncated — never recovers.
+        mock_provider.summarize.return_value = {
+            "summary": '{"title": "T", "bullets": [',
+            "metadata": {},
+        }
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        with self.assertRaises(RecoverableSummarizationError) as context:
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.temp_dir,
+                cfg=self.cfg,
+                episode_idx=1,
+                summary_provider=mock_provider,
+            )
+
+        self.assertEqual(mock_provider.summarize.call_count, 2)  # original + one bounded re-roll
+        self.assertIn("Summary schema parsing failed", str(context.exception))
+
+    @patch("podcast_scraper.workflow.metadata_generation.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_guardrail_violation_recoverable(self, mock_clean, mock_time):
+        """#1409: a terminal GuardrailViolation (finish_reason_length) from the provider degrades to
+        RecoverableSummarizationError (keep the episode) instead of dropping it as 'unexpected'."""
+        from podcast_scraper.exceptions import RecoverableSummarizationError
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+        time_values = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+        mock_time.side_effect = lambda: next(time_values, 6.0)
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        mock_provider.summarize.side_effect = GuardrailViolation(
+            "litellm", "finish_reason_length", "truncated"
+        )
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        with self.assertRaises(RecoverableSummarizationError):
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.temp_dir,
+                cfg=self.cfg,
+                episode_idx=1,
+                summary_provider=mock_provider,
+            )
+
+    @patch("podcast_scraper.workflow.metadata_generation.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
     def test_generate_episode_summary_provider_exception(self, mock_clean, mock_time):
         """Test provider exception raises RuntimeError when generate_summaries=True (fail-fast)."""
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")
@@ -2518,6 +2624,41 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
                 "ollama_model",
                 "ollama_cleaning_model",
             ),
+            # ADR-147 siblings (#1524): the gateway-routed / DGX-local LLM providers must record
+            # their stage model in the sidecar too — cloud_balanced summarises via litellm.
+            (
+                "vllm",
+                {
+                    "summary_provider": "vllm",
+                    "vllm_summary_model": "qwen3-vllm-test",
+                    "vllm_cleaning_model": "vllm-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "vllm_model",
+                "vllm_cleaning_model",
+            ),
+            (
+                "litellm",
+                {
+                    "summary_provider": "litellm",
+                    "litellm_summary_model": "podcast-flash-test",
+                    "litellm_cleaning_model": "litellm-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "litellm_model",
+                "litellm_cleaning_model",
+            ),
+            (
+                "qwen",
+                {
+                    "summary_provider": "qwen",
+                    "qwen_summary_model": "qwen3-native-test",
+                    "qwen_cleaning_model": "qwen-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "qwen_model",
+                "qwen_cleaning_model",
+            ),
         )
         for name, kwargs, model_key, cleaning_key in cases:
             with self.subTest(provider=name):
@@ -2528,6 +2669,30 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
                 self.assertIn(model_key, result)
                 self.assertIn(cleaning_key, result)
                 self.assertTrue(str(result[cleaning_key]).endswith("-test"))
+
+    def test_speaker_detection_records_adr147_sibling_models(self):
+        """#1524: litellm/vllm/qwen speaker detectors record their model in the sidecar.
+
+        cloud_balanced runs ``speaker_detector_provider: litellm``; before #1524 the sidecar
+        recorded only the provider name, never which model resolved the speakers.
+        """
+        cases = (
+            ("vllm", {"vllm_speaker_model": "qwen3-vllm-spk"}, "vllm_model", "qwen3-vllm-spk"),
+            (
+                "litellm",
+                {"litellm_speaker_model": "homelab-flash-spk"},
+                "litellm_model",
+                "homelab-flash-spk",
+            ),
+            ("qwen", {"qwen_speaker_model": "qwen3-native-spk"}, "qwen_model", "qwen3-native-spk"),
+        )
+        for name, kwargs, model_key, expected in cases:
+            with self.subTest(provider=name):
+                cfg = create_test_config(speaker_detector_provider=name, **kwargs)
+                result = metadata._build_speaker_detection_provider_info(cfg)
+                self.assertIsNotNone(result)
+                self.assertEqual(result["provider"], name)
+                self.assertEqual(result[model_key], expected)
 
     def test_openai_includes_cleaning_model_when_llm_strategy(self):
         """transcript_cleaning_strategy=llm also attaches cleaning model ids."""
@@ -2960,6 +3125,46 @@ class TestExtractEpisodeStageTimings(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertIsNone(result.download_media_time)
         self.assertEqual(result.transcribe_time, 2.0)
+
+
+@pytest.mark.unit
+class TestSummaryContentFailureRecoverable(unittest.TestCase):
+    """#1386/#1409/#1480: terminal CONTENT failures degrade to no-summary, not episode-drop."""
+
+    def test_reject_poisoned_summary_raises_recoverable(self):
+        from podcast_scraper.exceptions import RecoverableSummarizationError
+
+        with self.assertRaises(RecoverableSummarizationError):
+            metadata._reject_if_prompt_examples_leaked(
+                3, "Ep", ["Speed gains come from braking earlier and smoother"]
+            )
+
+    def test_clean_summary_not_rejected(self):
+        # No prompt-example fragment → no raise (returns None).
+        self.assertIsNone(
+            metadata._reject_if_prompt_examples_leaked(
+                3, "Real title", ["A bullet about the guest"]
+            )
+        )
+
+    def test_guardrail_violation_is_recoverable(self):
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
+        reason = metadata._recoverable_summary_content_reason(
+            GuardrailViolation("litellm", "finish_reason_length", "truncated…")
+        )
+        self.assertIsNotNone(reason)
+
+    def test_data_inspection_failed_is_recoverable(self):
+        reason = metadata._recoverable_summary_content_reason(
+            Exception("Error code: 400 - {'error': {'code': 'data_inspection_failed'}}")
+        )
+        self.assertIsNotNone(reason)
+
+    def test_generic_provider_error_stays_hard(self):
+        self.assertIsNone(
+            metadata._recoverable_summary_content_reason(Exception("connection reset by peer"))
+        )
 
 
 @pytest.mark.unit

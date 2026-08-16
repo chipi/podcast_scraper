@@ -1,72 +1,325 @@
 # Onboarding more shows/episodes to unlock enricher value
 
-Living notes (started 2026-07-06). **Goal:** grow the **eval** corpus (`prod-v2`, ~100 real
-episodes today) with more real shows so the enrichers we just built produce *visible value*.
-This is about **real content for eval**, distinct from the deterministic **test** fixtures →
-see `docs/wip/CORPUS-EVOLUTION-FOR-COMPLEX-ENRICHERS.md`.
+Living notes (started 2026-07-06, consolidated 2026-08-12).
 
-> **Why now:** this session shipped `topic_perspectives` (#1146, live) and reframed
-> disagreement (#1144) as *scale-gated*. Both get richer strictly with more/better real
-> content — perspectives deepen per topic; disagreement + prediction-tracking only *appear*
-> at scale + time span. More shows is the lever.
+**Goal:** grow the **eval** corpus with more real shows so the enrichers we built produce
+*visible value*. This is about **real content for eval**, distinct from deterministic **test**
+fixtures.
+
+> **Note (2026-08-12):** this doc previously pointed at
+> `docs/wip/CORPUS-EVOLUTION-FOR-COMPLEX-ENRICHERS.md` for the test-fixture side. **That file
+> does not exist** anywhere in the repo — it was either never written or deleted, and the
+> reference here was the only mention of it. The nearest live documents are
+> [ENRICHER-HARDENING-ROADMAP.md](ENRICHER-HARDENING-ROADMAP.md) and
+> [CONTENT_EVOLUTION_BLUEPRINT.md](../architecture/CONTENT_EVOLUTION_BLUEPRINT.md) — but note
+> the latter is about pluggable content types and transports (podcast/news/social,
+> RSS/scrape/filesystem), **not** feed selection. Neither replaces the missing doc.
+
+> **Why this matters:** `topic_perspectives` (#1146) is live and disagreement (#1144) is
+> *scale-gated*. Both get richer strictly with more and better real content — perspectives
+> deepen per topic; disagreement and prediction-tracking only *appear* at scale and time span.
+> More shows is the lever.
 
 ---
 
-## Value model — what each enricher wants from new content
+## 1. Current corpus — verified live, 2026-08-12
 
-| Enricher / feature | What richer content unlocks | Show/episode selection signal |
+Pulled from `GET /api/corpus/feeds?path=/app/output` on the prod box mid-batch, so counts
+move. **9 feeds**, not the ~10 previously recorded here.
+
+| Show | Episodes | RSS | Cluster |
+| --- | --- | --- | --- |
+| No Priors | 27 | `feeds.megaphone.fm/nopriors` | AI / tech |
+| Planet Money | 28 | `feeds.npr.org/510289/podcast.xml` | Economics |
+| The Journal. | 26 | `video-api.wsj.com/podcast/rss/wsj/the-journal` | Business news |
+| NVIDIA AI Podcast | 26 | `feeds.megaphone.fm/nvidiaaipodcast` | AI / tech |
+| The Daily | 21 | `feeds.simplecast.com/54nAGcIl` | General news |
+| Invest Like the Best | 19 | `feeds.megaphone.fm/investlikethebest` | Investing |
+| Hard Fork | 17 | `feeds.simplecast.com/l2i9YnTd` | AI / tech |
+| Unhedged | 17 | `feeds.acast.com/public/shows/6478a825654260001190a7cb` | Markets |
+| Latent Space | 13 | `rss.flightcast.com/vgnxzgiwwzwke85ym53fjnzu.xml` | AI engineering |
+
+**Correction to earlier notes:** this doc previously listed **Odd Lots** as part of prod-v2.
+It is **not** in the corpus — **Unhedged** is. Odd Lots remains a strong candidate (see §5).
+
+### Cluster distribution
+
+| Cluster | Shows | Episodes (approx) |
 | --- | --- | --- |
-| `topic_perspectives` (#1146) | More distinct speakers per topic → deeper perspective cards; more topics clear the dashboard's ≥2-speaker bar | **Overlap:** new shows that discuss topics *existing* shows already cover (same topic, new voices) |
-| disagreement / prediction (#1144) | The signal that's ~absent today: cross-person opposition + "who called it" | **Debate/panel/dialogue** shows; **recurring contested topics** covered **over time** |
-| `guest_coappearance` | Real co-appearance edges | **Multi-guest** episodes (2+ named guests) |
-| `temporal_velocity` | Meaningful "heating up" trends | Episodes **spread across months**, not a single snapshot |
-| `topic_similarity` (#1105) | Denser, more reliable neighbour clusters | Broad but **thematically clustered** topic coverage |
-
-**The highest-leverage single lever = topic OVERLAP across shows.** Every cross-person enricher
-(perspectives, disagreement, co-appearance) needs multiple speakers on the *same* topic. Adding
-shows that re-cover existing topics compounds value across all of them at once; adding
-disconnected niche shows does not.
+| AI / tech | 4 — No Priors, NVIDIA AI, Hard Fork, Latent Space | ~83 |
+| Markets / investing / econ | 3 — Planet Money, Invest Like the Best, Unhedged | ~64 |
+| General & business news | 2 — The Journal, The Daily | ~47 |
 
 ---
 
-## How onboarding works (mechanics — to confirm/expand)
+## 2. Value model — what each enricher wants from new content
+
+| Enricher / feature | What richer content unlocks | Selection signal |
+| --- | --- | --- |
+| `topic_perspectives` (#1146) | More distinct speakers per topic → deeper perspective cards; more topics clear the dashboard's ≥2-speaker bar | **Overlap:** new shows covering topics existing shows already cover |
+| disagreement / prediction (#1144) | The signal ~absent today: cross-person opposition + "who called it" | **Debate / panel / dialogue** shows; recurring contested topics **over time** |
+| `guest_coappearance` | Real co-appearance edges | **Multi-guest** episodes (2+ named guests) |
+| `temporal_velocity` | Meaningful "heating up" trends | Episodes **spread across months** |
+| `topic_similarity` (#1105) | Denser, more reliable neighbour clusters | Broad but **thematically clustered** coverage |
+
+### The selection rule
+
+**The highest-leverage single lever is topic OVERLAP across shows.** Every cross-person
+enricher — perspectives, disagreement, co-appearance — needs multiple speakers on the *same*
+topic. Shows that re-cover existing topics compound value across all of them at once.
+Disconnected niche shows do not.
+
+---
+
+## 3. Gap analysis of the current 9
+
+1. **No dialogic or debate format at all.** Every show is interview, monologue, or
+   co-host explainer. #1144 needs *opposition* — two people who actually disagree on a
+   recorded topic. Nothing in the corpus reliably produces it. **This is the largest gap and
+   the one that unlocks a currently-dark enricher.**
+2. **Thin multi-guest coverage.** Most shows are host + one guest, which produces few
+   `guest_coappearance` edges.
+3. **Narrow time span.** The corpus skews to recent months (publish histogram is dominated by
+   2026-05 → 2026-08). `temporal_velocity` and prediction-tracking both need a longer baseline.
+4. **AI/tech is the densest cluster** — good news, since it's where overlap already exists and
+   new AI shows pay off immediately across perspectives + similarity.
+
+---
+
+## 4. Onboarding mechanics
 
 - Corpus = pipeline output over a set of RSS feeds (`feeds.spec.yaml` in the corpus root).
 - Onboard = add feed(s) to the spec → run the pipeline → enrichers run per the profile.
-- prod-v2 today: 100 episodes across ~10 shows (No Priors, Odd Lots, The Journal, Hard Fork,
-  NVIDIA AI, The Daily, Unhedged, Invest Like the Best, Planet Money, Latent Space).
-
 - Reprocessing existing transcripts is cheaper than re-scraping (transcripts are ours to keep;
-  audio is bridge-only) — relevant when we re-run enrichers over a grown corpus.
-
-*(Confirm the exact onboarding commands + whether it's incremental or full-rebuild.)*
+  audio is bridge-only) — relevant when re-running enrichers over a grown corpus.
+- Via the operator API, a feed is added with `POST /api/jobs` using `feed=<rss>`,
+  `skip_existing=true`, `max_episodes=N`, `episode_order=newest`, `episode_offset=M`.
 
 ---
 
-## Candidate directions (rank by enricher payoff, not novelty)
+## 5. Candidate expansion set (target: +10 to +20 feeds)
 
-1. **Deepen existing topics first** — more AI / markets / policy shows (the topics prod-v2
-   already clusters on) → immediate perspective-card + co-appearance payoff.
+Ranked by **enricher payoff**, not novelty. Grouped by what each group unlocks.
 
-2. **Add genuinely dialogic shows** — debates, panels, "X vs Y" formats — the only reliable
-   source of *opposition* (the #1144 gap) short of decade-scale.
+> **RSS URLs are deliberately omitted.** I have not resolved or verified feed URLs for any
+> candidate below, and inventing them would produce jobs that fail at fetch. Resolve and
+> verify each before adding to `feeds.spec.yaml`.
 
-3. **Add a time dimension** — back-catalog episodes of existing shows so recurring topics get a
-   real timeline (velocity + prediction-tracking).
+### Tier 1 — closes the disagreement gap (#1144)
 
-4. **Multi-guest formats** — for co-appearance.
+The only group that unlocks a currently-dark enricher. Highest value per feed.
 
-## Open questions
+| Show | Why | Format |
+| --- | --- | --- |
+| **Open to Debate** (fmr. Intelligence Squared US) | Formal, motion-based debate. Two sides, same topic, explicit opposition. The single best structural fit for #1144. | Debate |
+| **Intelligence Squared** (UK) | Same format, different topic mix and speaker pool. | Debate |
+| **The Argument** (NYT) | Explicitly built around disagreement between recurring voices. | Debate |
+| **Machine Learning Street Talk** | Genuinely contested AI takes, multi-host, guests pushed back on. Overlaps the densest existing cluster *and* is dialogic — rare combination. | Panel / dialogic |
+| **The Compound and Friends** | Multi-guest markets panel; hosts disagree on record. Overlaps the finance cluster. | Panel |
 
-- Target size for a "next" eval corpus (v2 → 500? 1000 episodes)? At what point does #1144's
-  disagreement signal become *measurable* (the scale gate)?
+### Tier 2 — deepens existing topic clusters (perspectives + similarity)
 
-- Curated vs broad ingest — do we hand-pick for topic overlap, or ingest widely and let the
-  enrichers find the density?
+New voices on topics the corpus already covers. Immediate `topic_perspectives` payoff.
 
-- Licensing / bridge constraints on new feeds (audio never rehosted; transcripts + derivatives
-  are ours — `[[project_transcript_vs_audio_hosting]]`).
+| Show | Cluster it deepens | Note |
+| --- | --- | --- |
+| **Dwarkesh Podcast** | AI / tech | Long-form, high-signal, unusually deep guests |
+| **Odd Lots** (Bloomberg) | Markets | Two hosts + guest; was mis-recorded as already present |
+| **Conversations with Tyler** | Cross-cluster | Contrarian, spans econ / tech / policy — bridges clusters |
+| **a16z Podcast** | AI / tech + markets | Frequently multi-guest |
+| **The TWIML AI Podcast** | AI / tech | Practitioner-level, complements NVIDIA AI |
+| **Masters in Business** (Ritholtz) | Investing | Long-running; deepens Invest Like the Best overlap |
+| **The Cognitive Revolution** | AI / tech | High cadence — useful for velocity |
 
-- Cost: transcription + ML enrichment per episode — budget a growth step before committing.
+### Tier 3 — adds the time dimension (velocity + prediction tracking)
 
-*(Notes doc — extend freely.)*
+| Show | Why |
+| --- | --- |
+| **EconTalk** | Runs since 2006. Deep back-catalog on recurring contested econ topics — the cheapest route to a real timeline. |
+| **Planet Money back-catalog** | Already onboarded; pull *older* episodes rather than a new feed. |
+| **The Journal / The Daily back-catalog** | Same — extend existing feeds backward instead of widening. |
+
+### Tier 4 — diversity and quality, weaker overlap
+
+Add only after Tiers 1–3; they broaden the corpus but compound less.
+
+| Show | Cluster |
+| --- | --- |
+| **Sean Carroll's Mindscape** | Science / philosophy |
+| **The Ezra Klein Show** | Policy / ideas |
+| **Search Engine** | Narrative / general |
+| **Acquired** | Business history — very long episodes, cost note below |
+| **Lex Fridman** | Cross-cluster — very long episodes, cost note below |
+
+---
+
+## 5b. Geographic axis — global coverage (decided 2026-08-12)
+
+**Decision:** expand geographically, **English-language only** for now. Native-language feeds
+are blocked (see §5c) and tracked separately.
+
+### Why this is not in tension with the overlap rule
+
+The instinct is that geographic spread means less topic overlap, and therefore less enricher
+payoff. The opposite is true if shows are chosen correctly. A Nigerian, Brazilian, or Indian
+show discussing **AI regulation**, **dollar strength**, or **chip export controls** is the
+*same topic* with a maximally different vantage point — which is exactly what
+`topic_perspectives` wants, and the nearest thing to genuine opposition short of a formal
+debate format.
+
+So the selection rule sharpens to: **same topics, different continents.**
+
+This also corrects the corpus's real bias. All 9 current feeds are US-produced and heavily
+NY/SF financial-tech press. Every "perspective" the corpus can currently surface is drawn
+from one media culture.
+
+### Produced *in-region* vs produced *about-region*
+
+A distinction worth enforcing, because it determines whether we get real perspective diversity
+or the same editorial lens pointed elsewhere:
+
+| Class | Meaning | Perspective value |
+| --- | --- | --- |
+| **A — in-region** | Editorially owned and produced in the region | **High** — genuinely different priors |
+| **B — about-region** | Western outlet covering the region (BBC World Service, FT, Economist) | Moderate — better sourcing, same editorial lens |
+
+**Prefer Class A.** Class B is a useful supplement and much easier to source, but a corpus
+built only from Class B would produce the *appearance* of global coverage while still
+reflecting a single viewpoint — the exact failure mode this axis exists to avoid.
+
+### Candidates by region — all English-language
+
+> **Unverified.** Names below come from domain knowledge. No RSS URL resolved, no check that
+> the show is still active, no licensing review. Treat as a research list, not a work order.
+
+**Asia**
+
+| Show | Class | Overlap with existing clusters |
+| --- | --- | --- |
+| **ChinaTalk** | A/B | China tech + AI policy, chip controls — strong overlap with the AI cluster |
+| **Sinica Podcast** | A | China politics/society, long-running |
+| **The Seen and the Unseen** (India) | A | Long-form econ/policy; unusually deep |
+| **Grand Tamasha** (India) | B | Indian politics |
+| **Analyse Asia** (Singapore) | A | SE Asia tech + business |
+| **China Global South Podcast** | A | China–Africa/LatAm relations — bridges two regions |
+
+**Africa**
+
+| Show | Class | Overlap |
+| --- | --- | --- |
+| **The Flip** | A | African tech/startups — direct overlap with the AI/tech + investing clusters |
+| **Afrobility** | A | African business/tech deep dives |
+| **Africa Daily** (BBC WS) | B | Broad daily coverage |
+| **TechCabal** (Nigeria) | A | Nigerian tech ecosystem |
+
+**South America**
+
+| Show | Class | Overlap |
+| --- | --- | --- |
+| **Explaining Brazil** (The Brazilian Report) | A | Brazilian politics + economy — overlaps markets cluster |
+| **Crossing Borders** | A | LatAm startups/VC — overlaps investing cluster |
+| **Latin America in Focus** (AS/COA) | B | Regional politics/economics |
+
+**Russia / Eurasia**
+
+| Show | Class | Overlap |
+| --- | --- | --- |
+| **The Naked Pravda** (Meduza) | A* | Russian politics from Russian journalists |
+| **The Eurasian Knot** | B | Russia/Eurasia scholarship |
+| **Talk Eastern Europe** | A/B | Regional politics |
+
+**\* Caveat worth stating plainly:** independent Russian-language media operates largely in
+exile (Meduza is based in Riga). "In-region" is doing loose work here, and English-language
+Russian media skews heavily toward the emigre/opposition perspective. A corpus using only
+these sources will not represent mainstream domestic Russian discourse. That may be
+acceptable, or even desirable — but it should be a **conscious** choice, not an artifact of
+what happens to be available in English. This is the region where the English-only constraint
+costs the most.
+
+---
+
+## 5c. Native-language support — blocked, scoped
+
+**Status: BLOCKED.** Cannot be done through the operator API today.
+
+Evidence:
+
+- `config.py:1167` — `language: str = Field(default=DEFAULT_LANGUAGE, alias="language")`.
+  A **single global scalar** on `Config`, not a per-feed field.
+- `config.py:550` — documented as "Language code for transcription (e.g. `en`, `fr`, `de`)".
+- `docs/api/HTTP_API.md` — `POST /api/jobs` exposes **no `language` parameter**.
+- The prod box runs every job from one `viewer_operator.yaml` (visible in job argv).
+
+So a non-English feed would transcribe under whatever global language the box is configured
+for. What it would take:
+
+1. Per-feed `language` on the feed spec, plumbed through `run_pipeline`.
+2. A `language` parameter on `POST /api/jobs`.
+3. **Open question, not investigated:** whether the enrichers and `topic_similarity` link
+   concepts *across* languages. If topic clustering is embedding-based on English text, a
+   Russian-language episode may form its own island and contribute **nothing** to
+   cross-speaker perspective signal — which would defeat the entire purpose. **This should be
+   answered before any of the above work is scheduled**, since it may make native-language
+   ingestion worthless for enricher value regardless of pipeline support.
+
+---
+
+## 6. Recommended shape of the next batch
+
+Target is **+10 to +20 feeds**. Two axes now compete for those slots: the **format axis**
+(§5 — debate/panel shows that unlock #1144) and the **geographic axis** (§5b — global
+perspective coverage). Both are legitimate; they want different feeds.
+
+Proposed split of ~16 feeds, weighted toward what unlocks something currently impossible:
+
+| Group | Slots | Rationale |
+| --- | --- | --- |
+| **Tier 1 — debate/panel** (§5) | 4–5 | The only feeds that unlock a *dark* enricher (#1144). Nothing else produces recorded opposition. |
+| **Geographic Class A** (§5b) | 6–8 | Corrects a corpus that is 9-for-9 US-produced. Prioritise shows overlapping existing topics: ChinaTalk, The Flip, Explaining Brazil, The Seen and the Unseen, Crossing Borders, Analyse Asia. |
+| **Tier 2 — cluster deepening** (§5) | 2–3 | Odd Lots and Dwarkesh give the most overlap per feed. |
+| **Tier 3 — back-catalog** (§5) | 0 new feeds | Extend 2–3 *existing* feeds backward instead. Cheaper per unit of temporal signal than any new feed. |
+| **Tier 4 — taste** (§5) | 0–2 | Editorial preference, not enricher payoff. |
+
+**Sequencing recommendation:** do the **geographic Class A group first**, not the debate group.
+Reason: the debate shows depend on an enricher (#1144) that is scale-gated and still dark, so
+their payoff is deferred and unmeasurable today. The geographic feeds pay off immediately
+through `topic_perspectives`, which is live — and they simultaneously fix a bias that gets
+harder to correct the larger the US-only corpus grows.
+
+**Before ingesting any of them**, two cheap prerequisites:
+
+1. **Resolve and verify every RSS URL.** Nothing in §5 or §5b has a verified feed.
+2. **Run the actual topic clusters** over the current corpus so "overlap" is measured rather
+   than assumed. The cluster column in §1 is my reading of show descriptions, not
+   `topic_similarity` output.
+
+---
+
+## 7. Open decisions — none of these are settled
+
+- **Target corpus size.** v2 → 500? 1000 episodes? And at what point does #1144's disagreement
+  signal become *measurable*? Nobody has defined the scale gate numerically.
+- **Curated vs broad ingest.** Hand-pick for topic overlap, or ingest widely and let the
+  enrichers find density? The value model argues for curation; cost may argue otherwise.
+- **Licensing / bridge constraints** on new feeds — audio is never rehosted; transcripts and
+  derivatives are ours. Needs a per-feed check, especially for the debate shows.
+- **Cost.** Transcription + ML enrichment per episode. Budget the growth step before
+  committing — note that Acquired and Lex Fridman episodes run 3–4 hours and cost several
+  times a typical 40-minute episode.
+- **Episodes per new feed.** The current batch uses 10/feed. For Tier-1 debate shows, more
+  episodes per feed may matter more than more feeds, since opposition signal needs recurring
+  topics.
+
+---
+
+## 8. Verification status of this document
+
+- **Verified:** the 9-feed table in §1 — pulled live from the corpus API on 2026-08-12.
+- **Verified:** the missing `CORPUS-EVOLUTION-FOR-COMPLEX-ENRICHERS.md` reference — searched
+  the whole repo, one hit, which was this doc's own pointer.
+- **NOT verified:** every candidate show in §5. Names are from domain knowledge, not from
+  checking a feed. No RSS URL has been resolved, no licensing checked, no episode-length or
+  cost estimate measured, and no check made for whether a show is still active.
+- **NOT verified:** the cluster assignments in §1 are my reading of each show's description
+  field, not output from `topic_similarity`. Running the actual topic clusters over the corpus
+  would give a real overlap map and should precede final selection.

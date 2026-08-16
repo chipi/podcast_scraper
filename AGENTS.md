@@ -16,6 +16,9 @@ Detail manuals (load on demand by any agent):
 
 - `.ai-coding-guidelines-quick.md` — 90-line quick reference
 - `.ai-coding-guidelines.md` — deep reference manual (~2,500 lines)
+- **`docs/guides/PROD_VALIDATION_QUICKREF.md` — did something to prod (deploy, corpus
+  swap, restart)? Validate it in ~2 min: copy-paste API + observability probes, mostly
+  NO SSH. READ THIS FIRST instead of spelunking runbooks / SSHing around.**
 - `docs/guides/*` — topic-specific guides (TESTING_GUIDE, ENGINEERING_PROCESS,
   POLYGLOT_REPO_GUIDE, AGENT_BROWSER_LOOP_GUIDE, SERVER_GUIDE, …)
 
@@ -796,6 +799,18 @@ installs `[ml]` / `[search]`).
 - **Committed WIP docs** (`docs/wip/`): analysis/plans meant to be shared or shipped
   with a PR (tracked, listed in `WIP_README.md`). Promote a journal note here when it
   needs to travel with the code. NEVER `docs/analysis/` or `docs/plan/`.
+  - **One-way references only. A permanent artifact must NEVER point into `docs/wip/`.**
+    WIP docs are ephemeral — they get deleted once the work lands — so any ADR / RFC / PRD /
+    release note / guide / `docs/api/` doc, and any code / test / README / comment / docstring
+    that cites a `docs/wip/…` path becomes a dangling reference the moment the WIP doc is
+    cleaned up. This is exactly the pollution the 2026-08-02 hygiene pass had to unwind.
+    - **Allowed:** a WIP doc referencing another WIP doc (a WIP set travels together); a WIP
+      doc referencing a permanent artifact (that's the promotion target).
+    - **Instead of citing WIP from a permanent artifact:** put the substance *inline* in the
+      permanent doc, or cite the durable source — the shipped code, a commit hash, an issue/PR
+      number, or the ADR/RFC/PRD that superseded the WIP note. If the WIP content is important
+      enough for a permanent doc to lean on it, **promote it** (into the ADR/RFC/PRD/guide) —
+      don't link it. A permanent doc must stand on its own after every WIP doc is deleted.
 
 ---
 

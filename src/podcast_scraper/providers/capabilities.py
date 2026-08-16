@@ -37,7 +37,7 @@ def gi_segment_timing_expected_for_transcription_provider(provider_name: str) ->
         True for whisper and openai; False otherwise (including unknown strings).
     """
     n = (provider_name or "").strip().lower()
-    return n in ("whisper", "openai", "deepgram")
+    return n in ("whisper", "openai", "groq", "deepgram")
 
 
 @dataclass(frozen=True)
@@ -171,7 +171,13 @@ def _infer_capabilities(provider: Any) -> ProviderCapabilities:
     # Determine JSON mode support
     # Providers that use OpenAI SDK typically support JSON mode
     supports_json = False
-    if provider_type in ("OpenAIProvider", "GrokProvider", "DeepSeekProvider", "OllamaProvider"):
+    if provider_type in (
+        "OpenAIProvider",
+        "GrokProvider",
+        "DeepSeekProvider",
+        "OllamaProvider",
+        "GroqProvider",
+    ):
         supports_json = True
     elif provider_type == "GeminiProvider":
         # Gemini supports JSON mode via response_schema

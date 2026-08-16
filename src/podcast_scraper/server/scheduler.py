@@ -46,7 +46,10 @@ SCHEDULED_JOBS_KEY = "scheduled_jobs"
 # enrichment run schedulable exactly like ingestion (#1069 consistency).
 JOB_KIND_PIPELINE = "pipeline"
 JOB_KIND_ENRICHMENT = "enrichment"
-_VALID_JOB_KINDS = frozenset({JOB_KIND_PIPELINE, JOB_KIND_ENRICHMENT})
+# ``digest`` fires the per-user "Your Week" digest enqueue (#1415) — enqueues DeliveryEnvelopes to
+# the outbox for the infra worker to deliver; extractive, no pipeline job. Idempotent per period.
+JOB_KIND_DIGEST = "digest"
+_VALID_JOB_KINDS = frozenset({JOB_KIND_PIPELINE, JOB_KIND_ENRICHMENT, JOB_KIND_DIGEST})
 
 
 class ScheduledJobConfig(BaseModel):
@@ -415,6 +418,18 @@ def make_app_spawn_callback(app: Any) -> Any:
     def _spawn(
         name: str, corpus_root: Path, operator_yaml: Path, kind: str = JOB_KIND_PIPELINE
     ) -> None:
+        # The digest kind (#1415) doesn't spawn a pipeline job — it enqueues per-user delivery
+        # envelopes to the outbox (extractive, idempotent per period). No event loop / post_submit.
+        if kind == JOB_KIND_DIGEST:
+            from podcast_scraper.server import app_digest_personal
+
+            data_dir = getattr(app.state, "app_data_dir", None)
+            if data_dir is None:
+                logger.warning("scheduler: digest %r fired but app_data_dir unset; skipping", name)
+                return
+            ids = app_digest_personal.enqueue_due_digests(corpus_root, Path(data_dir))
+            logger.info("scheduler: digest %r enqueued %d envelope(s)", name, len(ids))
+            return
         loop: Optional[asyncio.AbstractEventLoop] = getattr(app.state, "event_loop", None)
         if loop is None or not loop.is_running():
             logger.warning("scheduler: event loop unavailable when firing %r; skipping", name)

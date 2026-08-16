@@ -114,6 +114,7 @@ def validate_and_normalize_output_dir(path: str) -> str:
     if not path or not path.strip():
         raise ValueError("Output directory path cannot be empty")
 
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     path_obj = Path(path).expanduser()
     try:
         resolved = path_obj.resolve()
@@ -230,6 +231,7 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
         "mistral": ("ms", "mistral_summary_model", "mistral-small-latest"),
         "grok": ("gk", "grok_summary_model", "grok-3-mini"),
         "ollama": ("ol", "ollama_summary_model", "qwen3.5:9b"),
+        "groq": ("gq", "groq_summary_model", "llama-3.3-70b-versatile"),
     }
     if cfg.generate_summaries:
         if cfg.summary_provider in ("transformers", "local"):

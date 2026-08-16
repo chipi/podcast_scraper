@@ -30,8 +30,8 @@ export type GraphLoadMode = 'topDown' | 'everything'
  *
  * All tier-8 sub-tiers shipped (8-1 mount / 8-2 expand / 8-3 search /
  * 8-4 filter / 8-5 opt-in flag / 8-6 ego re-scope; see
- * docs/wip/graph-v3-tier-8-top-down-load-design.md and the graph-v3
- * SUMMARY.md § "Tier 8"). The design gates the default-flip on operator
+ * docs/guides/GRAPH_VISUALIZATION_GUIDE.md § "Tier 8"). The design gates the
+ * default-flip on operator
  * UAT against a real corpus after 8-2 stabilises — the flip itself is
  * one line here. Until the operator signs off, existing users' first
  * impression stays as-is; anyone can opt in via the Load-mode chip. */

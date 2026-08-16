@@ -42,6 +42,13 @@ def _derive_tier_from_yaml(data: dict) -> str:
     # Local in-process Whisper (not OpenAI whisper-1 API).
     if str(data.get("transcription_provider", "")).lower() == "whisper":
         return "ml"
+    # spaCy NER pre-pass (#1545): a profile that sets ``ner_model`` runs spaCy NER before KG
+    # extraction unless ``kg_extraction_use_ner_prepass`` is explicitly False. spaCy ships ONLY in
+    # [ml] — NOT in [search] (torch is not spaCy) — so declaring ner_model requires the ml tier.
+    # Otherwise the pre-pass silently load-fails on a spaCy-less image and KG entity recall degrades
+    # to the v4 baseline with only a per-episode warning (the #1545 silent-degrade class).
+    if data.get("ner_model") and data.get("kg_extraction_use_ner_prepass") is not False:
+        return "ml"
     return "llm"
 
 
@@ -75,7 +82,8 @@ def main() -> int:
             failures.append(
                 f"{path.name}: derived minimum tier={derived} expected>={expected} "
                 f"(speaker={data.get('speaker_detector_provider')!r} "
-                f"vector_search={data.get('vector_search')!r})"
+                f"vector_search={data.get('vector_search')!r} "
+                f"ner_model={data.get('ner_model')!r})"
             )
 
     if failures:

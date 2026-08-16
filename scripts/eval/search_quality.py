@@ -29,7 +29,7 @@ Usage:
     python scripts/eval/search_quality.py \\
         --corpus tests/fixtures/viewer-validation-corpus/v3 \\
         --queries tests/fixtures/viewer-validation-corpus/v3/search-queries.json \\
-        --out docs/wip/search-v3/eval/S0-baseline.json \\
+        --out data/eval/search-v3/eval/S0-baseline.json \\
         --top-k 10
 
 Exit 0 always (this is a report, not a gate). Regression thresholds land later
@@ -326,7 +326,7 @@ def main() -> int:
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path("docs/wip/search-v3/eval/latest.json"),
+        default=Path("data/eval/search-v3/eval/latest.json"),
     )
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument(

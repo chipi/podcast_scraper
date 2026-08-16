@@ -9,7 +9,7 @@ Two shipped:
 
 * :class:`NliEmbeddingConsensusScorer` — the production composite: embedding cosine
   (the *shared-question* gate) + max NLI contradiction over both directions (the
-  *direction* gate). Real-corpus eval (docs/wip/ADR-108-REAL-CORPUS-EVAL-2026-07.md)
+  *direction* gate). Real-corpus eval (docs/adr/ADR-108-nli-disagreement-enrichers-gated-dark.md)
   showed symmetric NLI *entailment* has ~0 recall for genuine agreement, while
   embedding proximity recalls it and contradiction filters the similar-but-opposite
   pairs → precision ~0.91 on prod-v2. Both models are CPU-local (no LLM).

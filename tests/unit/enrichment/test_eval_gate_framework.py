@@ -242,7 +242,7 @@ def test_gate_specs_from_manifests_projects_gate_only() -> None:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("profile", ["cloud_thin", "cloud_quality", "prod_dgx_balanced"])
+@pytest.mark.parametrize("profile", ["cloud_thin", "cloud_quality", "prod_dgx_full"])
 def test_profile_sets_gate_is_data_driven(profile: str) -> None:
     # topic_consensus cleared its eval (precision 0.91 on prod-v2, ADR-108 composite) → admitted.
     # A gated candidate with no passing eval would be excluded — membership is data-driven.

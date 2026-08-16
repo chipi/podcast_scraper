@@ -11,9 +11,12 @@ everything is as useless as one that flags nothing.
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List
 
-from podcast_scraper.gi.invariants import check_artifact_invariants
+import pytest
+
+from podcast_scraper.gi.invariants import check_artifact_invariants, log_artifact_invariants
 
 TRANSCRIPT = (
     "Kevin Roose: OpenAI announced a loosened partnership with Microsoft this week, "
@@ -135,3 +138,89 @@ def test_a_quote_whose_offset_points_elsewhere_is_caught() -> None:
 def test_no_insights_is_not_a_wiring_violation() -> None:
     """An episode that yields nothing is a content outcome, not a disconnected wire."""
     assert check_artifact_invariants(_artifact([], [], []), TRANSCRIPT, TURNS) == []
+
+
+# BUG 3: "attribution produced NOTHING" is ambiguous by design — the message names two causes
+# (see invariants.py check 3's docstring). ``log_artifact_invariants`` is the layer that resolves
+# the ambiguity into a severity, using whether ``turns`` (named turns actually read off the
+# transcript) is empty as the signal: empty -> nothing to attribute against -> a valid anonymised
+# transcript, not a bug. Non-empty -> named turns existed and attribution still produced zero -> the
+# real attribution-never-ran regression this invariant exists to catch.
+def _zero_speaker_artifact() -> Dict[str, Any]:
+    return _artifact(
+        [_insight("i1", None)],
+        [_quote("q1", QUOTE_TEXT, TRANSCRIPT.index(QUOTE_TEXT))],
+        [{"type": "SUPPORTED_BY", "from": "i1", "to": "q1"}],
+    )
+
+
+@pytest.mark.parametrize(
+    "turns,expected_level,expect_error_marker",
+    [
+        # SPEAKER_NN-only transcript: build_unverified_named_turns finds no marker that "looks
+        # like a person" (single-token labels are rejected), so turns is empty — anonymised, not a
+        # bug. WARNING, not ERROR.
+        pytest.param([], logging.WARNING, False, id="anonymised-empty-turns"),
+        pytest.param(None, logging.WARNING, False, id="anonymised-turns-not-passed"),
+        # Named turns WERE available (real names read off the transcript) and attribution still
+        # produced zero speakers -> the genuine attribution-never-ran bug. ERROR.
+        pytest.param(TURNS, logging.ERROR, True, id="named-turns-present-still-zero-attributed"),
+    ],
+)
+def test_attribution_empty_severity_pinned_by_turns(
+    caplog: pytest.LogCaptureFixture, turns, expected_level, expect_error_marker
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="podcast_scraper.gi.invariants"):
+        violations = log_artifact_invariants(_zero_speaker_artifact(), TRANSCRIPT, turns)
+
+    # Violation is still reported in the return value either way — only the log severity changes.
+    assert any("attribution produced NOTHING" in v for v in violations)
+
+    matching = [r for r in caplog.records if "attribution produced NOTHING" in r.getMessage()]
+    assert len(matching) == 1
+    assert matching[0].levelno == expected_level
+    if expect_error_marker:
+        assert "GI INVARIANT VIOLATED" in matching[0].getMessage()
+    else:
+        assert "GI INVARIANT VIOLATED" not in matching[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    "n_insights, expected_level, expect_error_marker",
+    [
+        # Few insights + 0 quotes: a transient grounding-call failure (APIConnectionError on quote
+        # extraction) or a legitimately weak episode — NOT the disconnection signature. The pipeline
+        # already warned + set gi_grounding_degraded. WARNING, not ERROR.
+        pytest.param(1, logging.WARNING, False, id="one-insight-transient-or-weak"),
+        pytest.param(4, logging.WARNING, False, id="below-disconnect-threshold"),
+        # The whole insight set ungrounded = the 513-insights-zero-quotes disconnection signature.
+        pytest.param(5, logging.ERROR, True, id="at-threshold-disconnection"),
+        pytest.param(20, logging.ERROR, True, id="many-insights-disconnection"),
+    ],
+)
+def test_grounding_empty_severity_pinned_by_insight_count(
+    caplog: pytest.LogCaptureFixture, n_insights, expected_level, expect_error_marker
+) -> None:
+    """Grounding 0-quotes severity: WARNING for the transient/weak signature (few insights),
+    ERROR only for the many-insights structural disconnection. A transient API failure on a
+    1-insight episode must not log a misleading 'grounder disconnected' ERROR (2026-08-08)."""
+    artifact = _artifact([_insight(f"i{i}", None) for i in range(n_insights)], [], [])
+    with caplog.at_level(logging.WARNING, logger="podcast_scraper.gi.invariants"):
+        violations = log_artifact_invariants(artifact, TRANSCRIPT, TURNS)
+
+    assert any("grounding produced NOTHING" in v for v in violations)
+    matching = [r for r in caplog.records if "grounding produced NOTHING" in r.getMessage()]
+    assert len(matching) == 1
+    assert matching[0].levelno == expected_level
+    if expect_error_marker:
+        assert "GI INVARIANT VIOLATED" in matching[0].getMessage()
+    else:
+        assert "GI INVARIANT VIOLATED" not in matching[0].getMessage()
+
+
+def test_anonymised_transcript_run_continues_no_raise() -> None:
+    """A genuinely anonymised transcript must not raise — the episode already paid for
+    transcription and should still emit what it has."""
+    violations = log_artifact_invariants(_zero_speaker_artifact(), TRANSCRIPT, [])
+    assert violations  # still reported structurally...
+    # ...but nothing raised getting here, and the artifact is still usable.

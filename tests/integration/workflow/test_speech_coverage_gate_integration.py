@@ -39,7 +39,7 @@ def _job():
     return TranscriptionJob(idx=1, ep_title="t", ep_title_safe="t", temp_media="", episode=None)
 
 
-def _diarized(diar_segments, transcript_segments):
+def _diarized(diar_segments, transcript_segments, cfg=None):
     """Run the REAL apply_diarization_to_result to get a result carrying diarization_speech_seconds."""
     provider = MagicMock()
     provider.diarize.return_value = DiarizationResult(
@@ -50,7 +50,7 @@ def _diarized(diar_segments, transcript_segments):
         "segments": transcript_segments,
     }
     with patch(f"{_PIPELINE}.create_diarization_provider", return_value=provider):
-        return apply_diarization_to_result(base, "/tmp/a.wav", _cfg(), ["Guest"])
+        return apply_diarization_to_result(base, "/tmp/a.wav", cfg or _cfg(), ["Guest"])
 
 
 def test_music_heavy_episode_does_not_failover() -> None:
@@ -115,3 +115,77 @@ def test_long_episode_speech_drop_failovers() -> None:
         )
     assert out["speech_coverage_failover"]["primary_speech_coverage"] == 0.4
     assert "large-v3" in out["model_used"]
+
+
+def test_speech_gate_failover_routes_to_moss_provider() -> None:
+    """The speech gate's failover must honor ``transcription_coverage_failover_provider='moss'`` —
+    re-transcribe on the MOSS service (transcription_provider='moss' + moss_model), NOT send the MOSS
+    model id to the speaches whisper endpoint. Parity with the ADR-123 raw-gate factory routing so
+    switching profiles from the raw gate to the speech gate does not silently break MOSS failover.
+    """
+    cfg = podcast_config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        hf_token="hf-test",
+        dgx_whisper_model="turbo",
+        transcription_speech_coverage_min=0.85,
+        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        transcription_coverage_failover_provider="moss",
+    )
+    # 400s transcribed of 1000s speech -> 0.40 < 0.85 -> failover fires.
+    diar = [DiarizationSegment(0.0, 1000.0, "SPEAKER_01")]
+    trans = [{"start": 0.0, "end": 400.0, "text": "short " * 20}]
+    result = _diarized(diar, trans, cfg)
+    assert result["diarization_speech_seconds"] == 1000.0
+
+    fo_enriched = {
+        "segments": [{"start": 0.0, "end": 980.0, "text": "recovered"}],
+        "text": "recovered",
+        "diarization_speech_seconds": 1000.0,
+        "model_used": None,
+    }
+    captured: dict = {}
+
+    def _capture(fo_cfg):
+        captured["provider"] = fo_cfg.transcription_provider
+        captured["moss_model"] = fo_cfg.moss_model
+        captured["dgx_whisper_model"] = fo_cfg.dgx_whisper_model
+        return MagicMock()
+
+    with (
+        patch(f"{_PIPELINE}.apply_diarization_to_result", return_value=fo_enriched),
+        patch.object(
+            episode_processor,
+            "_transcribe_with_segments_maybe_chunked",
+            return_value=(dict(fo_enriched), 1.0),
+        ),
+        patch(
+            "podcast_scraper.transcription.factory.create_transcription_provider",
+            side_effect=_capture,
+        ),
+    ):
+        episode_processor._maybe_speech_coverage_failover(
+            result, "/tmp/a.wav", cfg, _job(), "/out", None, 1200.0
+        )
+    # Routed to the MOSS provider with the MOSS model — never to the whisper endpoint.
+    assert captured["provider"] == "moss"
+    assert captured["moss_model"] == "OpenMOSS-Team/MOSS-Transcribe-Diarize"
+    # dgx_whisper_model must NOT have been overwritten with the MOSS id (that would hit speaches).
+    assert captured["dgx_whisper_model"] == "turbo"
+
+
+def test_asr_provenance_records_speech_audio_ratio_without_gate(tmp_path) -> None:
+    """speech_audio_ratio is a METRIC, not a gate: it is written to .asr.json for EVERY episode,
+    including when no coverage gate ran (no speech_coverage, no failover). Guards the retirement of
+    the raw ADR-123 gate into an observability signal."""
+    import json
+
+    cfg = _cfg()
+    (tmp_path / "t.txt").write_text("x", encoding="utf-8")
+    result = {"speech_audio_ratio": 0.713, "model_used": "turbo"}  # no gate fields at all
+    episode_processor._save_asr_provenance_file(result, cfg, "t.txt", str(tmp_path))
+    prov = json.loads((tmp_path / "t.asr.json").read_text(encoding="utf-8"))
+    assert prov["speech_audio_ratio"] == 0.713
+    assert prov["speech_coverage"] is None  # gate did not run
+    assert prov["failed_over"] is False

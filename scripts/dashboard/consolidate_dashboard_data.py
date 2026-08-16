@@ -3,8 +3,6 @@
 
 The unified dashboard prefers this file (single fetch). Individual latest-*.json and
 history-*.jsonl remain for workflows, append scripts, and legacy dashboard fallback.
-
-See docs/wip/METRICS_DOCS_AND_DASHBOARD_V2.md.
 """
 
 from __future__ import annotations

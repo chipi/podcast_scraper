@@ -15,7 +15,9 @@ from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adja
 from podcast_scraper.search.corpus_scope import (
     discover_all_metadata_files,
     discover_metadata_files,
+    feed_dir_and_run_segment_from_relpath,
     normalize_feed_id,
+    run_recency_epoch,
 )
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import (
@@ -438,26 +440,21 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
             )
         )
 
-    # Dedupe: prefer the row whose path has the lexicographically-greatest
-    # run_<...> segment. Tiebreak by path (stable).
-    def _run_segment(path: str) -> str:
-        for part in path.split("/"):
-            if part.startswith("run_"):
-                return part
-        return ""
+    # Dedupe by (feed_id, episode_id) with the SHARED central recency rule — newest run wins,
+    # newest = run-folder timestamp (mtime fallback for run_append_*). Converges with
+    # build_catalog_rows()/discover_metadata_files() so the library and the index can never
+    # diverge, and drops the old lexicographic-run-segment tiebreak (which mis-ordered both
+    # run_append_* — always sorts after run_<ts> — and counter suffixes run_X_10 < run_X_2).
+    def _recency(row: CatalogEpisodeRow) -> tuple[float, str, str]:
+        rel = row.metadata_relative_path
+        _fd, run_seg = feed_dir_and_run_segment_from_relpath(rel)
+        return (run_recency_epoch(root / rel, run_seg or ""), run_seg or "", rel)
 
     deduped: dict[tuple[str, Optional[str]], CatalogEpisodeRow] = {}
     for row in all_rows:
         key = (row.feed_id, row.episode_id)
         existing = deduped.get(key)
-        if existing is None:
-            deduped[key] = row
-            continue
-        new_run = _run_segment(row.metadata_relative_path)
-        old_run = _run_segment(existing.metadata_relative_path)
-        if new_run > old_run or (
-            new_run == old_run and row.metadata_relative_path > existing.metadata_relative_path
-        ):
+        if existing is None or _recency(row) > _recency(existing):
             deduped[key] = row
 
     rows = list(deduped.values())

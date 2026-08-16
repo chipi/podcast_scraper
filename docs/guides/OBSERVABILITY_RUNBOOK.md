@@ -16,7 +16,7 @@ actually live *today*, how to debug prod when something breaks, and what's missi
 ## 30-second orientation
 
 Four signals, one join key. Everything lands on the **homelab** box (Mac mini, tailnet
-name `homelab` = `100.87.33.61`), reached over Tailscale.
+name `homelab` = `<HOMELAB_IP>`), reached over Tailscale.
 
 | Signal | App emits | Ships via | Backend (on `homelab`) | Grafana datasource |
 | --- | --- | --- | --- | --- |
@@ -28,20 +28,27 @@ name `homelab` = `100.87.33.61`), reached over Tailscale.
 **Join key = `trace_id`** (one request) and **`run_id`** (one pipeline run). Pivot between
 signals on these. Grafana `http://homelab:3000`.
 
-## Live topology (verified 2026-07-24)
+## Live topology (verified 2026-07-24; Level-3 TLS ingest 2026-08-16, #1665)
+
+Prod ingest now traverses per-service **caddy-tailscale TLS nodes** (real certs); the raw homelab
+ports are the backend/query surface behind them.
 
 ```text
-VPS (prod-podcast, tailnet)                      homelab (Mac mini, 100.87.33.61)
-  operator api  ─ /metrics ───┐                    ┌── VictoriaMetrics :8428
-  (compose-api-1)             │  VPS node Alloy     │
-  player  api   ─ /metrics ───┼─ (/opt/vps-        ─┼── VictoriaLogs    :9428
-  pipeline      ─ stdout  ────┤   observability)    │
-  viewer        ─ stdout  ────┘  scrape + docker    └── VictoriaTraces  :10428
-  operator/player api ─ OTLP ──────────────────────────▶  (traces, direct, not via Alloy)
-  api (server) ─ Sentry DSN ───────────────────────────▶  GlitchTip :8090
+VPS (prod-podcast, tailnet)                 TLS nodes (caddy-tailscale)    homelab (Mac mini, <HOMELAB_IP>)
+  operator api  ─ /metrics ───┐                                            ┌── VictoriaMetrics :8428
+  (compose-api-1)             │  VPS node Alloy   vm.<tailnet> ───────────►─┤
+  player  api   ─ /metrics ───┼─ (/opt/vps-      vlogs.<tailnet> ─────────►─┼── VictoriaLogs    :9428
+  pipeline      ─ stdout  ────┤   observability)                            │
+  viewer        ─ stdout  ────┘  scrape + docker                           └── VictoriaTraces  :10428
+  operator/player api ─ OTLP ──────────────────────────────────────────────▶  (traces, direct, not via Alloy)
+  api (server) ─ Sentry DSN ──────────────────► glitchtip.<tailnet> ───────▶  GlitchTip :8090
   browser (player/operator) ─ Sentry ─▶ public ingest edge (telemetry.<domain>) ─▶ GlitchTip
-                                                     Grafana :3000  (dashboards + Explore)
+                                                                            Grafana :3000  (dashboards + Explore)
 ```
+
+> Traces (`:10428`) still go direct (no TLS node yet). The metrics/logs ingest URLs live in the
+> Alloy `REMOTE_WRITE_URL`/`LOGS_WRITE_URL` (GitOps'd by `deploy-vps-observability-endpoints.yml`);
+> the GlitchTip/Umami ingest is the player Caddy vhosts (`__TAILNET__` sed'd by `deploy-config.yml`).
 
 - **Collectors:** the **VPS node Alloy** (ADR-121, `/opt/vps-observability/`, config
   `base.alloy` + per-app drop-ins) ships VPS container logs + scrapes `/metrics`. A
@@ -162,7 +169,7 @@ curl -sG http://homelab:9428/select/logsql/query \
 - Errors: `src/podcast_scraper/utils/sentry_init.py` (`before_send` stamps `trace_id`).
 - Log shipping drop-ins: `infra/observability/{podcast,player,orrery}.alloy` (dropped into
   the VPS Alloy `config.d/` by `infra/deploy/deploy.sh` + `deploy-player.sh`).
-- Correlation plan: `docs/wip/observability-correlation-id-enhancement.md`.
+- Correlation plan: see [`OBSERVABILITY_ARCHITECTURE.md`](OBSERVABILITY_ARCHITECTURE.md).
 
 **Homelab repo (`agentic-ai-homelab`):**
 

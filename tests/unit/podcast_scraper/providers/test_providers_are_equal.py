@@ -46,10 +46,17 @@ CAPABILITIES = [
 
 PROMPTS = Path("src/podcast_scraper/prompts")
 SRC = Path("src/podcast_scraper/providers")
+# ADR-147: the shared OpenAI-compatible transport base. Thin siblings (deepseek/vllm/litellm/qwen)
+# inherit the capability methods from here instead of redefining them, so a provider's own
+# ``*_provider.py`` may legitimately hold only its overrides. Resolving capabilities against the
+# provider file ALONE would falsely report "deepseek cannot summarize" the moment it became a thin
+# sibling — so the scan folds in the base's methods for any provider that subclasses it.
+_BASE_FILE = SRC / "openai" / "openai_provider.py"
+_BASE_MARKER = "OpenAICompatibleProvider"
 
 
-def _functions(provider: str) -> dict:
-    src = (SRC / provider / f"{provider}_provider.py").read_text()
+def _funcs_in(path: Path) -> dict:
+    src = path.read_text()
     tree = ast.parse(src)
     return {
         n.name: (ast.get_source_segment(src, n) or "")
@@ -58,11 +65,48 @@ def _functions(provider: str) -> dict:
     }
 
 
-def _nodes(provider: str) -> dict:
-    """The AST node for each method — walked directly, never re-parsed from a source slice."""
-    src = (SRC / provider / f"{provider}_provider.py").read_text()
+def _nodes_in(path: Path) -> dict:
+    src = path.read_text()
     tree = ast.parse(src)
     return {n.name: (n, src) for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+
+
+def _is_thin_sibling(provider: str, src: str) -> bool:
+    """A provider that inherits the capability methods from the shared base (ADR-147).
+
+    Detected by a real base-class EDGE, not a substring: a provider that merely *mentions*
+    ``OpenAICompatibleProvider`` in a docstring/comment must not be mistaken for a subclass of it.
+    """
+    if provider == "openai":
+        return False
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                if isinstance(base, ast.Name) and base.id == _BASE_MARKER:
+                    return True
+                if isinstance(base, ast.Attribute) and base.attr == _BASE_MARKER:
+                    return True
+    return False
+
+
+def _functions(provider: str) -> dict:
+    path = SRC / provider / f"{provider}_provider.py"
+    own = _funcs_in(path)
+    if _is_thin_sibling(provider, path.read_text()):
+        # Own overrides win; the base fills in every inherited capability method.
+        return {**_funcs_in(_BASE_FILE), **own}
+    return own
+
+
+def _nodes(provider: str) -> dict:
+    """The AST node for each method — walked directly, never re-parsed from a source slice.
+
+    For a thin sibling the inherited methods come from the shared base file (ADR-147)."""
+    path = SRC / provider / f"{provider}_provider.py"
+    own = _nodes_in(path)
+    if _is_thin_sibling(provider, path.read_text()):
+        return {**_nodes_in(_BASE_FILE), **own}
+    return own
 
 
 @pytest.mark.parametrize("provider", LLM_PROVIDERS)
@@ -88,7 +132,12 @@ def test_every_provider_honors_its_api_base(provider: str) -> None:
     than fall through to production.
     """
     src = (SRC / provider / f"{provider}_provider.py").read_text()
-    assert f"{provider}_api_base" in src, (
+    # Direct literal read, OR the ADR-147 parameterized form: the OpenAI-compatible base
+    # (OpenAICompatibleProvider) reads its base via getattr(cfg, f"{self._CONFIG_NS}_api_base"),
+    # which honors <provider>_api_base for the provider's own namespace (openai -> openai_api_base,
+    # vllm -> vllm_api_base). Still fails loud for any provider that reads NO api_base at all.
+    honors_base = f"{provider}_api_base" in src or ("_CONFIG_NS" in src and "_api_base" in src)
+    assert honors_base, (
         f"{provider} never reads {provider}_api_base — the CI mock / self-hosted base is "
         f"ignored, so the client silently hits the real hosted API (the Deepgram trap)."
     )
@@ -162,3 +211,29 @@ def test_no_prompt_is_BURIED_IN_CODE(provider: str, method: str) -> None:
     assert (
         not buried
     ), f"{provider}.{method} still builds {buried} as a literal instead of rendering a template"
+
+
+@pytest.mark.parametrize("provider", ["litellm", "vllm", "qwen", "groq"])
+def test_thin_sibling_prompts_reuse_a_parity_covered_namespace(provider: str) -> None:
+    """ADR-147 thin siblings (litellm/vllm/qwen/groq) ship no ``prompts/<provider>/`` dir — they
+    REUSE another provider's prompt namespace (openai's). Fine, but it must be EXPLICIT, not luck:
+    their summary + speaker prompt-name defaults must resolve to a namespace this suite actually
+    checks (a member of ``LLM_PROVIDERS``). Otherwise a sibling could silently run an unvetted
+    prompt with no parity guard — how ``qwen`` slipped past the finale (not in ``LLM_PROVIDERS``,
+    covered only because its defaults happen to point at ``openai/``).
+    """
+    from podcast_scraper.config import Config
+
+    for field in (
+        f"{provider}_summary_system_prompt",
+        f"{provider}_summary_user_prompt",
+        f"{provider}_speaker_user_prompt",
+    ):
+        default = Config.model_fields[field].default
+        if not default:  # e.g. a speaker_system_prompt that defaults None — nothing to cover
+            continue
+        namespace = str(default).split("/", 1)[0]
+        assert namespace in LLM_PROVIDERS, (
+            f"{field} = {default!r}; namespace {namespace!r} not in LLM_PROVIDERS, so "
+            f"{provider}'s prompt is not covered by the cross-provider parity guard."
+        )

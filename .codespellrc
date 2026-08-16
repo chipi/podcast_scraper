@@ -1,7 +1,10 @@
 [codespell]
 skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
-ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations
+ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot
 # canonicalizations: legitimate plural (a count of host-identity canonicalization steps, RFC-109); codespell false-positives -izations plurals
+# covert: real word ("a covert vLLM shim" — hidden/disguised, ADR-147); not a typo of "convert"
+# disjointness: real word ("vendor disjointness" — the state of being disjoint, ADR-149/JUDGING.md); not a typo
+# mot: local variable name (max_output_tokens abbrev, gemini_provider.py); not a typo of "not"
 # fo: placeholder; rouge: metric name; Exting: transcript artifact pattern in preprocessing (literal, not typo of "Existing")
 # pres: deliberate title abbreviation ("Pres"/"Gov") in the political-title token set (hosts.py); not a typo of "press"
 # UE: macOS kernel uninterruptible wait process state (RFC-074)

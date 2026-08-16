@@ -83,3 +83,84 @@ def test_parse_mcp_argv_requires_corpus() -> None:
     assert args.corpus == "/some/dir"
     with pytest.raises(SystemExit):
         parse_mcp_argv([])
+
+
+# --- RFC-112 slice 2: transport selection + auth-wrapped HTTP app ---
+
+
+def test_parse_mcp_argv_transport_defaults_stdio() -> None:
+    args = parse_mcp_argv(["--corpus", "/d"])
+    assert args.transport == "stdio"
+
+
+def test_parse_mcp_argv_http_flags() -> None:
+    # A test string asserting CLI parse — no actual bind (the container binds 0.0.0.0 by design,
+    # loopback-published on the host). nosec per the repo convention for legitimate 0.0.0.0.
+    args = parse_mcp_argv(
+        ["--corpus", "/d", "--transport", "http", "--host", "0.0.0.0", "--port", "9"]  # nosec B104
+    )
+    assert args.transport == "http" and args.host == "0.0.0.0" and args.port == 9  # nosec B104
+
+
+def test_run_server_rejects_unknown_transport(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import pytest
+
+    from podcast_scraper.mcp.server import run_server
+
+    with pytest.raises(ValueError):
+        run_server(tmp_path, transport="carrier-pigeon")
+
+
+def test_run_server_stdio_dispatches(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from podcast_scraper.mcp import server as srv
+
+    called: dict = {}
+    monkeypatch.setattr(srv, "run_stdio", lambda c: called.setdefault("corpus", c))
+    srv.run_server(tmp_path, transport="stdio")
+    assert called["corpus"] == tmp_path
+
+
+def test_build_http_app_is_auth_wrapped(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from podcast_scraper.mcp.auth import McpAuthMiddleware
+    from podcast_scraper.mcp.server import build_http_app
+
+    app = build_http_app(tmp_path)
+    assert isinstance(app, McpAuthMiddleware)  # the HTTP transport is gated
+
+
+def test_transport_security_admits_public_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: behind the edge the forwarded Host is the public name, not loopback.
+
+    FastMCP auto-enables DNS-rebind protection with loopback-only ``allowed_hosts`` when the
+    default ``host`` is 127.0.0.1, so the deployed server 421'd every request under
+    ``Host: mcp.closelistening.app``. ``_transport_security`` must derive the public host from
+    ``APP_MCP_RESOURCE_URL`` and admit it while still rejecting arbitrary hosts.
+    """
+    from mcp.server.transport_security import TransportSecurityMiddleware
+
+    from podcast_scraper.mcp.server import _transport_security
+
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", "https://mcp.closelistening.app")
+    monkeypatch.delenv("APP_MCP_ALLOWED_HOSTS", raising=False)
+    monkeypatch.delenv("APP_MCP_ALLOWED_ORIGINS", raising=False)
+
+    mw = TransportSecurityMiddleware(_transport_security())
+    assert mw._validate_host("mcp.closelistening.app") is True  # the public edge host
+    assert mw._validate_host("127.0.0.1:8000") is True  # container healthcheck still works
+    assert mw._validate_host("evil.example.com") is False  # protection intact
+
+
+def test_transport_security_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``APP_MCP_ALLOWED_HOSTS`` adds hosts even when no resource URL is set."""
+    from mcp.server.transport_security import TransportSecurityMiddleware
+
+    from podcast_scraper.mcp.server import _transport_security
+
+    monkeypatch.delenv("APP_MCP_RESOURCE_URL", raising=False)
+    monkeypatch.setenv("APP_MCP_ALLOWED_HOSTS", "mcp.example.test, alt.example.test")
+    monkeypatch.delenv("APP_MCP_ALLOWED_ORIGINS", raising=False)
+
+    mw = TransportSecurityMiddleware(_transport_security())
+    assert mw._validate_host("mcp.example.test") is True
+    assert mw._validate_host("alt.example.test") is True
+    assert mw._validate_host("127.0.0.1:8000") is True

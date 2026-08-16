@@ -85,30 +85,29 @@ export function topicClustersSchemaWarning(doc: TopicClustersDocument): string |
  */
 export async function fetchTopicClustersFromApi(corpusPath: string): Promise<TopicClustersFetchResult> {
   const url = `/api/corpus/topic-clusters${corpusQuery(corpusPath)}`
-  try {
-    const res = await dedupeInFlight(url, () =>
-      fetchWithTimeout(url, undefined, { timeoutDetail: 'corpus/topic-clusters' }),
-    )
-    if (res.status === 404) {
-      return { status: 'missing' }
-    }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      return {
-        status: 'error',
-        message: text.trim() || `HTTP ${res.status} topic-clusters`,
+  // Parse INSIDE the dedup so concurrent callers (e.g. TopicLandscape + the dashboard status card)
+  // share the parsed RESULT, not a single-read Response — reading res.json() twice on a shared
+  // Response empties the body for the second caller (the bug the status-card self-fetch exposed).
+  return dedupeInFlight(url, async () => {
+    try {
+      const res = await fetchWithTimeout(url, undefined, { timeoutDetail: 'corpus/topic-clusters' })
+      if (res.status === 404) {
+        return { status: 'missing' }
       }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        return { status: 'error', message: text.trim() || `HTTP ${res.status} topic-clusters` }
+      }
+      const document = (await res.json()) as TopicClustersDocument
+      const schemaWarning = topicClustersSchemaWarning(document)
+      if (import.meta.env.DEV && schemaWarning) {
+        console.warn(`[corpusTopicClustersApi] ${schemaWarning}`)
+      }
+      return { status: 'ok', document, schemaWarning }
+    } catch (e) {
+      return { status: 'error', message: e instanceof Error ? e.message : String(e) }
     }
-    const document = (await res.json()) as TopicClustersDocument
-    const schemaWarning = topicClustersSchemaWarning(document)
-    if (import.meta.env.DEV && schemaWarning) {
-      console.warn(`[corpusTopicClustersApi] ${schemaWarning}`)
-    }
-    return { status: 'ok', document, schemaWarning }
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    return { status: 'error', message }
-  }
+  })
 }
 
 /**
@@ -120,23 +119,24 @@ export async function fetchThemeClustersFromApi(
   corpusPath: string,
 ): Promise<TopicClustersFetchResult> {
   const url = `/api/corpus/theme-clusters${corpusQuery(corpusPath)}`
-  try {
-    const res = await dedupeInFlight(url, () =>
-      fetchWithTimeout(url, undefined, { timeoutDetail: 'corpus/theme-clusters' }),
-    )
-    if (res.status === 404) {
-      return { status: 'missing' }
+  // Parse inside the dedup (see fetchTopicClustersFromApi) so concurrent callers share the parsed
+  // result, not a single-read Response.
+  return dedupeInFlight(url, async () => {
+    try {
+      const res = await fetchWithTimeout(url, undefined, { timeoutDetail: 'corpus/theme-clusters' })
+      if (res.status === 404) {
+        return { status: 'missing' }
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        return { status: 'error', message: text.trim() || `HTTP ${res.status} theme-clusters` }
+      }
+      const document = (await res.json()) as TopicClustersDocument
+      return { status: 'ok', document }
+    } catch (e) {
+      return { status: 'error', message: e instanceof Error ? e.message : String(e) }
     }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      return { status: 'error', message: text.trim() || `HTTP ${res.status} theme-clusters` }
-    }
-    const document = (await res.json()) as TopicClustersDocument
-    return { status: 'ok', document }
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    return { status: 'error', message }
-  }
+  })
 }
 
 /**
@@ -154,4 +154,29 @@ export async function fetchTopicClustersDocument(
     return null
   }
   throw new Error(r.message)
+}
+
+export interface TopicClustersRebuildAccepted {
+  accepted: boolean
+  corpus_path: string
+}
+
+/**
+ * Trigger a server-side rebuild of ``search/topic_clusters.json`` (operator surface;
+ * requires viewer access). 202 = accepted; poll ``fetchTopicClustersFromApi`` for completion.
+ * Removes the CLI/SSH-only path that made the task-#14 cutover smoke go red.
+ */
+export async function postTopicClustersRebuild(
+  corpusPath: string,
+): Promise<TopicClustersRebuildAccepted> {
+  const url = `/api/corpus/topic-clusters/rebuild${corpusQuery(corpusPath)}`
+  const res = await fetchWithTimeout(
+    url,
+    { method: 'POST' },
+    { timeoutDetail: 'corpus/topic-clusters/rebuild' },
+  )
+  if (!res.ok) {
+    throw new Error(`topic-clusters rebuild failed: HTTP ${res.status}`)
+  }
+  return (await res.json()) as TopicClustersRebuildAccepted
 }

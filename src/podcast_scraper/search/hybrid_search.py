@@ -135,6 +135,12 @@ def _to_search_result(result: ScoredResult) -> SearchResult:
     # insight rows indexed at LANCE_SCHEMA_VERSION ≥ 3.
     if payload.get("insight_type"):
         metadata["insight_type"] = payload["insight_type"]
+    # Carry the grounded flag on insight hits (#1505/#19). The two-tier indexer stores it on the
+    # insight row as ``derived`` (bool(meta["grounded"])); without mapping it back here the
+    # ``grounded_only`` filter reads a missing ``grounded`` on every insight and drops them ALL —
+    # so ``grounded_only=true`` returned zero insights even though the index has 1000+ grounded.
+    if result.source_tier == "insight":
+        metadata["grounded"] = bool(payload.get("derived"))
     return SearchResult(doc_id=str(result.doc_id), score=float(result.score), metadata=metadata)
 
 

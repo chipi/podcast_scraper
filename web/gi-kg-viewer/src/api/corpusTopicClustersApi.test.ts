@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchTopicClustersDocument,
   fetchTopicClustersFromApi,
+  postTopicClustersRebuild,
   topicClustersSchemaWarning,
 } from './corpusTopicClustersApi'
 
@@ -108,6 +109,25 @@ describe('corpusTopicClustersApi', () => {
     it('throws on other non-OK responses', async () => {
       mockFetchJson(false, {}, 'bad', 500)
       await expect(fetchTopicClustersDocument('/x')).rejects.toThrow('bad')
+    })
+  })
+
+  describe('postTopicClustersRebuild', () => {
+    it('POSTs /api/corpus/topic-clusters/rebuild with trimmed path and returns the envelope', async () => {
+      mockFetchJson(true, { accepted: true, corpus_path: '/corpus/root' }, '', 202)
+      await expect(postTopicClustersRebuild('  /corpus/root  ')).resolves.toEqual({
+        accepted: true,
+        corpus_path: '/corpus/root',
+      })
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/corpus/topic-clusters/rebuild?path=%2Fcorpus%2Froot',
+        expect.objectContaining({ method: 'POST', signal: expect.any(AbortSignal) }),
+      )
+    })
+
+    it('throws on a non-OK response (e.g. 409 rebuild already running)', async () => {
+      mockFetchJson(false, {}, '', 409)
+      await expect(postTopicClustersRebuild('/x')).rejects.toThrow('HTTP 409')
     })
   })
 

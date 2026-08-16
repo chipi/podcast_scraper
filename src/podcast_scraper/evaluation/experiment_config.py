@@ -209,7 +209,7 @@ class GrokBackendConfig(BaseModel):
 
     type: Literal["grok"] = "grok"
     model: str = Field(
-        description="Grok model name, e.g. 'grok-2'.",
+        description="Grok model name, e.g. 'grok-4.3'.",
     )
 
 

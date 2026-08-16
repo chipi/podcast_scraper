@@ -62,12 +62,12 @@ class TestRegistryLayering:
         flattened AFTER the explicit-data merge — masking the precedence
         signal we want to assert.
         """
-        # cloud_balanced registry default for summary is gemini-2.5-flash-lite;
-        # override to a different gemini model to exercise the precedence path.
+        # cloud_balanced's registry default summary provider is ``litellm`` (the gateway,
+        # #1527 single-pass); explicit ``summary_provider`` in the data must still win over it.
         cfg = Config.model_validate(
             {
                 "profile": "cloud_balanced",
-                "summary_provider": "openai",  # override registry's 'gemini'
+                "summary_provider": "openai",  # override the registry default provider
             }
         )
         assert cfg.summary_provider == "openai"
@@ -143,8 +143,16 @@ class TestProfilePresets:
         s = resolve_profile_to_settings("eval_default", dgx_tailnet_host="h")
         assert s["dgx_diarize_model"] == "pyannote/speaker-diarization-community-1"
         assert "diarization_model" not in s and "deepgram_diarization_model" not in s
-        # cloud_balanced -> standalone Deepgram pass
+        # cloud_balanced -> RFC-111 (#1482): single-pass Deepgram self-diarizes (diarize:false,
+        # no_diarization backend), so it no longer carries a diarization model at all.
         s = resolve_profile_to_settings("cloud_balanced", dgx_tailnet_host="h")
+        assert (
+            "diarization_model" not in s
+            and "dgx_diarize_model" not in s
+            and "deepgram_diarization_model" not in s
+        )
+        # cloud_thin -> standalone Deepgram diarization pass (still on deepgram_diarization_nova3)
+        s = resolve_profile_to_settings("cloud_thin", dgx_tailnet_host="h")
         assert s["deepgram_diarization_model"] == "nova-3-general"
         assert "diarization_model" not in s and "dgx_diarize_model" not in s
 

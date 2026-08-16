@@ -61,7 +61,7 @@ async def corpus_topic_clusters(
                 "available": False,
             },
         )
-    # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
         return JSONResponse(
             status_code=404,

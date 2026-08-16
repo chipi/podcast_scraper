@@ -12,6 +12,10 @@
 #   APP_SESSION_SECRET              (secret) session signing key
 #   APP_OAUTH_GOOGLE_CLIENT_ID      Google OAuth client id
 #   APP_OAUTH_GOOGLE_CLIENT_SECRET  (secret) Google OAuth client secret
+# Optional (remote MCP, RFC-112 — unset = MCP off, mcp vhost skipped):
+#   INTERNAL_MCP_TOKEN             (secret) shared secret gating the verify seam + mcp service
+#   APP_MCP_ALLOWED_ORIGINS        optional browser Origin allow-list (claude.ai is server-side)
+#   (APP_MCP_ISSUER_URL / APP_MCP_RESOURCE_URL are derived from PLAYER_DOMAIN)
 #
 # Exit: 0 ok / 1 compose up failed / 2 vhost/reload failed / 3 health failed
 set -euo pipefail
@@ -44,10 +48,21 @@ else
     echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
     echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS:-}"
     echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS:-}"
+    echo "APP_ADMIN_EMAILS=${APP_ADMIN_EMAILS:-}"
     # OTEL traces (ADR-119). Default OFF for a manual run; set both to enable.
     echo "OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-none}"
     echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}"
     echo "PLAYER_PORT=8092"
+    # Remote MCP (RFC-112). INTERNAL_MCP_TOKEN gates the internal verify seam AND the `mcp`
+    # service; EMPTY = the whole MCP surface stays inert (verify 503 → every connect 401), which
+    # is the safe default. Set it (GH secret PLAYER_INTERNAL_MCP_TOKEN) to turn MCP on. Issuer +
+    # resource are DERIVED from the domain (no secret): the AS is the apex, the resource the mcp
+    # subdomain.
+    echo "INTERNAL_MCP_TOKEN=${INTERNAL_MCP_TOKEN:-}"
+    echo "APP_MCP_ISSUER_URL=https://${PLAYER_DOMAIN}"
+    echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
+    echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS:-}"
+    echo "MCP_PORT=8009"
   } >"$PLAYER_ENV"
 fi
 chmod 600 "$PLAYER_ENV"
@@ -75,6 +90,22 @@ if [ -n "$HL_IP" ]; then
   echo "[$(date -u +%FT%TZ)] resolved homelab tailnet IP for OTEL traces: $HL_IP"
 else
   echo "WARN: could not resolve 'homelab' tailnet IP; player OTEL traces will not reach VictoriaTraces" >&2
+fi
+
+# Delivery seam (#1412 / ADR-145): the homelab delivery worker polls this player-api's
+# /internal/outbox/* over the tailnet (token-gated). Publish the low-privilege player-api on
+# the BOX'S OWN tailnet IP so the worker can reach it — tailnet-only, NOT the public edge.
+# Resolve fresh (never hardcoded); loopback default = no exposure if it can't resolve.
+BOX_IP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+if [ -n "$BOX_IP" ]; then
+  if grep -qE '^PLAYER_OUTBOX_LISTEN=' "$PLAYER_ENV"; then
+    sed -i "s#^PLAYER_OUTBOX_LISTEN=.*#PLAYER_OUTBOX_LISTEN=$BOX_IP#" "$PLAYER_ENV"
+  else
+    echo "PLAYER_OUTBOX_LISTEN=$BOX_IP" >>"$PLAYER_ENV"
+  fi
+  echo "[$(date -u +%FT%TZ)] published player-api outbox on tailnet IP ${BOX_IP}:8099 (worker → /internal/outbox/*)"
+else
+  echo "WARN: could not resolve the box tailnet IP; player-api outbox stays loopback-only (delivery worker cannot reach it)" >&2
 fi
 
 # Pin the api image to a CURRENT sha — NEVER the literal :main tag. CI stopped updating
@@ -136,16 +167,43 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
 #   player.caddy            -> ${PLAYER_DOMAIN}             SPA + app-only api (coming-soon gated)
 #   player-telemetry.caddy  -> telemetry.${PLAYER_DOMAIN}  GlitchTip ingest (browser error SDK)
 #   player-analytics.caddy  -> analytics.${PLAYER_DOMAIN}  Umami tracking
+# The `mcp` vhost is included ONLY when MCP is enabled (INTERNAL_MCP_TOKEN set) — otherwise the
+# mcp container isn't serving and publishing a public vhost to a dead upstream is pointless.
 PLAYER_VHOSTS=(player player-telemetry player-analytics)
+if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
+  PLAYER_VHOSTS+=(mcp)
+  echo "[$(date -u +%FT%TZ)] MCP enabled — installing mcp.${PLAYER_DOMAIN} vhost"
+else
+  echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp vhost"
+fi
+# Tailnet suffix for the player-telemetry/analytics vhosts' __TAILNET__ upstream (Level 3 #1665):
+# everything after the first label of the canonical FQDN (HOST.<TAILNET>.ts.net -> <TAILNET>.ts.net).
+# Passed inline by deploy-player.yml (SSH does not inherit the runner env). deploy-config.yml does the
+# same sed; this path is the FULL player deploy, so it must substitute it too or it clobbers the live
+# TLS vhosts with a literal __TAILNET__ (syntactically valid -> `caddy adapt` passes -> silent break).
+# `:-` keeps this safe under `set -u` when run by hand without the var; the guard then explains.
+TAILNET_SUFFIX="${PROD_TAILNET_FQDN:-}"
+TAILNET_SUFFIX="${TAILNET_SUFFIX#*.}"
+case "$TAILNET_SUFFIX" in
+  *.*) : ;;
+  *) echo "ERROR: TAILNET_SUFFIX='${TAILNET_SUFFIX}' (from PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN:-<unset>}') has no dot — expected HOST.<TAILNET>.ts.net; refusing to ship broken telemetry vhosts" >&2; exit 1 ;;
+esac
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
-  # Two substitutions: the shared `player.example.com` placeholder -> real domain (all
-  # three vhosts), and the __PREVIEW_COOKIE__ placeholder -> the gate cookie secret (only
-  # player.caddy carries it; a no-op for the other two). Different sed delimiters so
-  # neither value's characters can clash with the delimiter.
+  # Three substitutions: the shared `player.example.com` placeholder -> real domain (all vhosts),
+  # __PREVIEW_COOKIE__ -> the gate cookie secret (only player.caddy carries it), and __TAILNET__ ->
+  # the tailnet suffix (only player-telemetry/analytics carry it). No-op where a placeholder is
+  # absent. Different sed delimiters so neither value's characters can clash with the delimiter.
   sed -e "s/player\.example\.com/${PLAYER_DOMAIN}/g" \
       -e "s|__PREVIEW_COOKIE__|${PLAYER_PREVIEW_COOKIE}|g" \
+      -e "s|__TAILNET__|${TAILNET_SUFFIX}|g" \
       "infra/caddy/${v}.caddy" >"/etc/caddy/sites/${v}.caddy"
+  # Fail loud if any templating placeholder survived — a new __TOKEN__ in a .caddy file without a
+  # matching sed rule would otherwise ship the literal to prod (caddy adapt may still pass on it).
+  if grep -nE '__[A-Z0-9_]+__' "/etc/caddy/sites/${v}.caddy"; then
+    echo "ERROR: unsubstituted placeholder in ${v}.caddy (see match above) — add a sed rule in deploy-player.sh" >&2
+    rm -f "/etc/caddy/sites/${v}.caddy"; exit 1
+  fi
   # umask 077 makes the `>` land 0600/deploy-owned; the `caddy` user (User=caddy) cannot
   # read a 0600 file -> import "permission denied" -> restart fails (prod incident
   # 2026-07-23). Match the 0644 sibling vhosts so the caddy user can read the drop-in.
@@ -222,4 +280,30 @@ if [ "${PLAYER_SECRETS_VIA_FILES:-}" = "1" ]; then
   fi
   echo "[$(date -u +%FT%TZ)] secrets: verified /run/secrets present + non-empty in player-api"
 fi
+# MCP reachability (RFC-112) — NON-fatal. When enabled, confirm the mcp container answers the
+# public RFC 9728 discovery doc (200) and that its bearer gate is live (a token-less MCP POST → 401).
+# A failure here does not fail the player deploy; it only flags that the MCP surface needs a look.
+if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
+  echo "[$(date -u +%FT%TZ)] MCP reachability check (in-container :8009)..."
+  meta=$("${COMPOSE[@]}" exec -T mcp curl -fsS \
+    http://127.0.0.1:8009/.well-known/oauth-protected-resource 2>/dev/null || echo "")
+  disc=$([ -n "$meta" ] && echo 200 || echo 000)
+  gate=$("${COMPOSE[@]}" exec -T mcp curl -sS -o /dev/null -w '%{http_code}' \
+    -X POST http://127.0.0.1:8009/mcp 2>/dev/null || echo 000)
+  # Consistency: the discovery `resource` must equal APP_MCP_RESOURCE_URL and its
+  # authorization_servers must point at the apex issuer — the wiring most likely to drift and the
+  # exact drift that would silently defeat aud-binding (review M2). Best-effort grep, non-fatal.
+  want_res="https://mcp.${PLAYER_DOMAIN}"
+  want_iss="https://${PLAYER_DOMAIN}"
+  consistent=no
+  if echo "$meta" | grep -q "\"$want_res\"" && echo "$meta" | grep -q "\"$want_iss\""; then
+    consistent=yes
+  fi
+  if [ "$disc" = "200" ] && [ "$gate" = "401" ] && [ "$consistent" = "yes" ]; then
+    echo "[$(date -u +%FT%TZ)] MCP up: discovery 200, gate 401, metadata consistent — https://${want_res#https://}"
+  else
+    echo "WARN: MCP surface not fully verified (discovery=$disc, token-less gate=$gate, metadata-consistent=$consistent; want 200/401/yes). Check the mcp container + APP_MCP_ISSUER_URL/APP_MCP_RESOURCE_URL match ${want_iss} / ${want_res}." >&2
+  fi
+fi
+
 echo "[$(date -u +%FT%TZ)] player-public up + healthy; vhost live for https://${PLAYER_DOMAIN}"

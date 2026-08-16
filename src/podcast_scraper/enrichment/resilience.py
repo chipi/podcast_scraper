@@ -21,7 +21,7 @@ Adds enrichment-specific machinery the existing utils don't cover:
 State outcomes flow to ``EnricherResult.status`` — the executor never sees
 raised exceptions out of an enricher's ``enrich()``.
 
-See ``docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md``
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``
 §Resilience model.
 """
 

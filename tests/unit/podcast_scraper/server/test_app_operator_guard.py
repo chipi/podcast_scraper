@@ -16,6 +16,8 @@ def test_is_operator_write_matches_mutating_operator_routes() -> None:
     assert is_operator_write("POST", "/api/jobs/abc/cancel")
     assert is_operator_write("POST", "/api/jobs/reconcile")
     assert is_operator_write("POST", "/api/index/rebuild")
+    assert is_operator_write("DELETE", "/api/corpus/runs/R1")
+    assert is_operator_write("DELETE", "/api/corpus/episodes/ep-1")
 
 
 def test_is_operator_write_ignores_reads_and_consumer_and_unrelated() -> None:
@@ -24,6 +26,7 @@ def test_is_operator_write_ignores_reads_and_consumer_and_unrelated() -> None:
     assert not is_operator_write("POST", "/api/app/library")  # consumer surface
     assert not is_operator_write("GET", "/api/health")
     assert not is_operator_write("PUT", "/api/feedsX")  # not an exact/prefix match
+    assert not is_operator_write("GET", "/api/corpus/episodes")
 
 
 def test_append_audit_writes_jsonl(tmp_path: Path) -> None:

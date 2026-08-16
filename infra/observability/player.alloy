@@ -18,7 +18,7 @@ discovery.relabel "player" {
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(player-api-.*|player-learning-app-.*)"
+		regex         = "/(player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*)"
 		action        = "keep"
 	}
 
@@ -29,11 +29,30 @@ discovery.relabel "player" {
 		replacement   = "api"
 	}
 
+	// Remote MCP surface (#1505): ship its per-tool structured log line
+	// (`mcp tool call tool=… user=… ok=… duration_ms=…`) so it's queryable in
+	// VictoriaLogs alongside traces. surface=mcp mirrors the api/app split.
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-mcp-.*"
+		target_label  = "surface"
+		replacement   = "mcp"
+	}
+
 	rule {
 		source_labels = ["__meta_docker_container_name"]
 		regex         = "/player-learning-app-.*"
 		target_label  = "surface"
 		replacement   = "app"
+	}
+
+	// The digest scheduler sidecar (#1412): ship its per-cycle `tick`/`cycle error` lines so the
+	// homelab dead-man can alert if it stops (network:none → logs are its only liveness signal out).
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-digest-scheduler-.*"
+		target_label  = "surface"
+		replacement   = "scheduler"
 	}
 
 	rule {
@@ -72,5 +91,65 @@ loki.process "player_denoise" {
 	}
 	stage.structured_metadata {
 		values = {trace_id = ""}
+	}
+}
+
+// ---------- Remote MCP metrics (#1505) ----------
+// The MCP serves its per-tool Prometheus registry (mcp_tool_calls_total /
+// mcp_tool_duration_seconds) UNGATED on :8009/metrics — see infra/caddy/mcp.caddy:
+// it is deliberately NOT public; Alloy scrapes it HOST-INTERNALLY over the docker
+// network. The container binds 0.0.0.0:8009 (the host mapping is loopback-only), so
+// scrape the container's docker-network IP directly.
+discovery.relabel "player_mcp_metrics" {
+	targets = discovery.docker.app.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-mcp-.*"
+		action        = "keep"
+	}
+
+	// One target per (container, exposed port); keep only :8009 so we don't scrape
+	// the same registry twice under different port labels.
+	rule {
+		source_labels = ["__meta_docker_port_private"]
+		regex         = "8009"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_network_ip"]
+		regex         = "(.+)"
+		target_label  = "__address__"
+		replacement   = "$1:8009"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+		replacement   = "$1"
+	}
+
+	rule {
+		target_label = "surface"
+		replacement  = "mcp"
+	}
+}
+
+prometheus.scrape "player_mcp" {
+	targets         = discovery.relabel.player_mcp_metrics.output
+	forward_to      = [prometheus.remote_write.player_mcp_sink.receiver]
+	job_name        = "player_mcp"
+	metrics_path    = "/metrics"
+	scrape_interval = "30s"
+}
+
+// Ship to the same homelab VictoriaMetrics the box's base Alloy uses (REMOTE_WRITE_URL,
+// e.g. http://homelab:8428/api/v1/write). Self-contained so this drop-in doesn't depend
+// on a base component name.
+prometheus.remote_write "player_mcp_sink" {
+	endpoint {
+		url = sys.env("REMOTE_WRITE_URL")
 	}
 }

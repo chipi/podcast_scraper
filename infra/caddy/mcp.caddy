@@ -1,0 +1,40 @@
+# Remote MCP resource-server vhost (RFC-112 / ADR-114). Deploy (deploy-player.sh) seds the real
+# player domain in and drops this into /etc/caddy/sites/mcp.caddy, then restarts caddy.
+#
+# WHY: an external AI agent (claude.ai custom connector, Claude Code, Cursor) reaches the platform's
+# ONE remote MCP server here, over the public edge, and authenticates as a platform user with their
+# OWN bring-your-own model (D6-safe). The MCP container (127.0.0.1:8009) enforces bearer auth
+# IN-PROCESS — it verifies every token against the app's tailnet-only /internal/mcp/verify and 401s
+# otherwise — so this vhost has **no coming-soon gate**: the auth IS the gate. Unlike the player
+# apex, there is no browser app + no cookie flow here; it is a machine-to-machine API surface.
+#
+# It also serves the PUBLIC RFC 9728 discovery doc /.well-known/oauth-protected-resource (the MCP
+# middleware answers it un-authenticated) so a cold client can walk resource → authorization server.
+#
+# The authorization server itself (DCR / authorize / token / RFC 8414 metadata) lives on the player
+# APEX (https://<domain>/api/app/mcp/oauth/* + /.well-known/oauth-authorization-server), reachable
+# through player.caddy's OAuth gate-exemption. This vhost is only the RESOURCE.
+#
+# Rollback: `rm /etc/caddy/sites/mcp.caddy && sudo systemctl restart caddy`.
+mcp.player.example.com {
+	import hardened
+	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
+	tls info@player.example.com
+
+	# ONLY the MCP endpoint + the public RFC 9728 discovery doc are exposed. Everything else —
+	# notably /metrics (the o11y Prometheus registry, served UNGATED on :8009) — must NOT be public:
+	# Alloy scrapes :8009/metrics HOST-INTERNALLY over the docker network, never through this edge
+	# (advisor review H1, #1505). A bare `reverse_proxy` forwarded ALL paths incl. /metrics.
+	@mcp path /mcp /mcp/* /.well-known/*
+	handle @mcp {
+		# Streamable HTTP responses can stream (chunked / SSE), so disable response buffering
+		# (flush_interval -1) — otherwise a long tool call would buffer.
+		reverse_proxy 127.0.0.1:8009 {
+			flush_interval -1
+		}
+	}
+	# Default-deny everything else on this public surface (no /metrics, no stray paths).
+	handle {
+		respond "Not Found" 404
+	}
+}

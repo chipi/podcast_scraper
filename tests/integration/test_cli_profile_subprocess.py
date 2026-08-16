@@ -74,8 +74,11 @@ def _run_cli(profile: str, output_dir: Path) -> subprocess.CompletedProcess:
         # summary=on:<provider> and metadata=<format>. If the profile loaded
         # correctly the markers all appear.
         (
+            # #1527 single-pass cloud_balanced: summary + speaker route through the LiteLLM
+            # gateway (homelab:4001 -> OpenRouter deepseek-v4-flash), so the provider marker is
+            # ``litellm`` (was ``gemini`` before the gateway consolidation).
             "cloud_balanced",
-            ["summary=on:gemini", "metadata=on:json"],
+            ["summary=on:litellm", "metadata=on:json"],
         ),
         (
             "cloud_quality",
@@ -115,5 +118,6 @@ def test_profile_loads_before_rss_fetch_failure(tmp_path: Path) -> None:
     combined = (result.stdout or "") + (result.stderr or "")
     # "config: rss=" is the first startup log line; proves args parsed.
     assert "config: rss=" in combined, combined[-800:]
-    # Profile-specific provider name should appear in the config summary.
-    assert "gemini" in combined.lower(), combined[-800:]
+    # Profile-specific provider name should appear in the config summary. cloud_balanced routes
+    # summary through the LiteLLM gateway (#1527), so the marker is ``litellm``.
+    assert "litellm" in combined.lower(), combined[-800:]

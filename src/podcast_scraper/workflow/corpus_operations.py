@@ -614,4 +614,22 @@ def finalize_multi_feed_batch(
     )
     if not run_index_in_subprocess(corpus_parent, idx_cfg):
         logger.warning("Parent corpus vector index did not complete (non-fatal)")
+    else:
+        # Re-derive corpus topic clusters off the freshly-built parent index so an incremental
+        # multi-feed add joins the semantic clusters. The index build alone does NOT rebuild
+        # ``search/topic_clusters.json``, and per-feed runs skip clustering (they have no per-feed
+        # index), so without this the corpus clusters go stale on every multi-feed add. Mirrors the
+        # single-feed finalize and ``POST /api/index/rebuild``. Non-fatal, like the index.
+        try:
+            from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+
+            cl_kwargs: Dict[str, Any] = {}
+            thr = getattr(template_cfg, "topic_cluster_threshold", None)
+            if thr is not None:
+                cl_kwargs["threshold"] = thr
+            build_topic_clusters_for_corpus(corpus_parent, **cl_kwargs)
+        except Exception as exc:  # noqa: BLE001 — clusters are non-fatal like the index build
+            logger.warning(
+                "Parent corpus topic-clusters rebuild did not complete (non-fatal): %s", exc
+            )
     return summary_doc

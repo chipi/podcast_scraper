@@ -55,6 +55,22 @@ QUALITY_RULES = (
 )
 
 
+def _maybe_transcript_first(
+    system: str, user: str, transcript: str, *, cache_transcript_prefix: bool
+) -> Tuple[str, str]:
+    """RFC-115: when enabled, move the (already-truncated) transcript to the leading system block so
+    it prefix-caches. Done here — not at the provider — because the builder holds the exact embedded
+    (truncated) string. Only the AUTO-CACHE providers pass the flag: caching a single mega-bundle
+    call is free-and-helps-reprocessing for them, but a net LOSS for anthropic (cache-write premium)
+    and gemini (storage rent) since a lone call is never re-read within the cache window."""
+    if not cache_transcript_prefix:
+        return system, user
+    from ..providers.common.transcript_cache import relocate_transcript
+
+    block, sys_prompt, user_prompt = relocate_transcript(transcript, system, user, enabled=True)
+    return (block + sys_prompt, user_prompt) if block is not None else (system, user)
+
+
 def build_megabundle_prompt(
     transcript: str,
     *,
@@ -63,6 +79,7 @@ def build_megabundle_prompt(
     num_topics: int = DEFAULT_MEGA_BUNDLE_TOPICS,
     max_entities: int = DEFAULT_MEGA_BUNDLE_ENTITIES_MAX,
     max_transcript_chars: int = 25_000,
+    cache_transcript_prefix: bool = False,
 ) -> Tuple[str, str]:
     """Return (system_prompt, user_prompt) for a mega-bundle request.
 
@@ -124,7 +141,9 @@ def build_megabundle_prompt(
         "---\n\n"
         "Output ONLY the JSON object."
     )
-    return system, user
+    return _maybe_transcript_first(
+        system, user, transcript, cache_transcript_prefix=cache_transcript_prefix
+    )
 
 
 def build_extraction_bundle_prompt(
@@ -135,6 +154,7 @@ def build_extraction_bundle_prompt(
     num_topics: int = DEFAULT_MEGA_BUNDLE_TOPICS,
     max_entities: int = DEFAULT_MEGA_BUNDLE_ENTITIES_MAX,
     max_transcript_chars: int = 25_000,
+    cache_transcript_prefix: bool = False,
 ) -> Tuple[str, str]:
     """Build the extraction-only half of a 2-call pipeline (#643 extraction_bundled).
 
@@ -176,4 +196,6 @@ def build_extraction_bundle_prompt(
         "---\n\n"
         "Output ONLY the JSON object."
     )
-    return system, user
+    return _maybe_transcript_first(
+        system, user, transcript, cache_transcript_prefix=cache_transcript_prefix
+    )

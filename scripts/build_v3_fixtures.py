@@ -4,7 +4,7 @@
 This generator extends the v2 fixture model
 (``scripts/eval/data/generate_v2_transcripts.py``) with explicit knobs for the
 **failure-mode catalogue** harvested from the autoresearch programme
-(`docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md` + `docs/wip/PROD_RUN_ANALYSIS_100EP.md`):
+(`docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md` + `docs/guides/eval-reports/EVAL_FIXTURES_V3.md`):
 
 * ASR garble class (Whisper-style speaker-name corruption — Bessent → Bessett,
   Weisenthal → Wassenthal, Geithner → Geidner, Hobart → Burne/Byrne Hobart).

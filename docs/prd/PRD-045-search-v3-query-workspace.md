@@ -4,7 +4,7 @@
 - **Authors**: Marko
 - **Target Release**: v2.8
 - **Parent PRD**: [PRD-031](PRD-031-search.md) (Search product surface), [PRD-033](PRD-033-search-powered-surfaces.md) (Search-powered surfaces)
-- **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), [RFC-093](../rfc/RFC-093-litm-context-packs.md) (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/wip/USERPREFS-1.md`, shipped)
+- **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), [RFC-093](../rfc/RFC-093-litm-context-packs.md) (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`, shipped)
 - **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies [UXS-008](../uxs/UXS-008-enriched-search.md); shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
 - **Related RFC**: [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) (technical design)
 - **Related ADRs**: [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (`topic_consensus` activated, `stance_*` retired), [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
@@ -160,7 +160,7 @@ Every rail launcher publishes the pre-filled scope to `activeSearchContext` (RFC
 - **FR11.1** New scripts `scripts/dev/capture-search-perf.{sh,mjs}` mirroring `capture-graph-lcp.{sh,mjs}`:
   - **API surface** — an HTTP capturer that records p50/p95/p99 for `/api/search`, `/api/app/search`, `/api/corpus/search` per intent class + per top_k, over the query set from FR10.
   - **UI surface** — Chrome DevTools/CDP trace of: Workspace-open (TTI), cmd-K-open latency, filter-apply, result-set operator ("Cluster", "Show on graph"), enriched-answer paint.
-- **FR11.2** Median-of-3 (same fair-comparison rule as GRAPH_PERF_TRACE_RUNBOOK); outputs `.metrics.json` + gzipped trace per label; committed under `docs/wip/search-v3/traces/`.
+- **FR11.2** Median-of-3 (same fair-comparison rule as GRAPH_PERF_TRACE_RUNBOOK); outputs `.metrics.json` + gzipped trace per label; committed under `docs/guides/perf-traces/`.
 - **FR11.3** Baseline against `main` captured on branch tip **before** slice 1; re-captured per slice; deltas reported in each PR body.
 - **FR11.4** After baseline, a **deep-review pass** (backend + frontend) surfaces optimization candidates — issues opened, not silently applied.
 
@@ -226,4 +226,4 @@ Slices missing any of these get rejected at review, not deferred.
 - [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md) — perf-capture template (mirrored)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current normative operator-facing enrichment config surface (RFC-088 chunk 6)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes (independent of Search v3's `/api/search?enrich_results=`)
-- USERPREFS-1: `docs/wip/USERPREFS-1.md`
+- USERPREFS-1: `docs/rfc/RFC-107-search-v3-query-workspace.md`

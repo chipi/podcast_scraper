@@ -44,6 +44,7 @@ import yaml
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from podcast_scraper.config import GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS  # noqa: E402
 from podcast_scraper.providers.ml.model_registry import (  # noqa: E402
     _PROFILE_PRESETS,
     REGISTRY_GOVERNED_FIELDS,
@@ -105,6 +106,34 @@ def _stale_keys(name: str, data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[s
     return want, [k for k, v in want.items() if k not in data or data.get(k) != v]
 
 
+def _provider_consistency_issues(data: Dict[str, Any]) -> List[str]:
+    """Guardrail for the GIL-evidence providers, which materialize does NOT govern.
+
+    ``quote_extraction_provider`` / ``entailment_provider`` are hand-config, so a registry preset
+    provider swap (e.g. summary gemini -> litellm) governs ``summary_provider`` but leaves these two
+    pinned to the OLD vendor. The ``gil_evidence_match_summary_provider`` auto-coerce only promotes
+    summary -> quote/entail when BOTH are UNSET, so an explicit stale pin slips through silently and
+    the GIL evidence stack runs on the wrong provider (the 2026-08-08 cloud_balanced gemini leak).
+
+    Rule: when the summariser is an aligning LLM and match-to-summary is on (the default), the
+    evidence providers must be UNSET (let the coerce fire) or EQUAL to the summary provider.
+    """
+    summary = data.get("summary_provider")
+    if summary not in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS:
+        return []
+    if data.get("gil_evidence_match_summary_provider", True) is not True:
+        return []
+    issues: List[str] = []
+    for field in ("quote_extraction_provider", "entailment_provider"):
+        val = data.get(field)
+        if val is not None and val != summary:
+            issues.append(
+                f"{field}={val!r} but summary_provider={summary!r} — an LLM summariser must "
+                f"self-ground; unset {field} or set it to {summary!r}"
+            )
+    return issues
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Materialize profiles from the model registry.")
     ap.add_argument(
@@ -115,13 +144,21 @@ def main() -> int:
     args = ap.parse_args()
 
     stale: List[Tuple[str, List[str]]] = []
+    inconsistent: List[Tuple[str, List[str]]] = []
     checked = 0
     for path in sorted(PROFILE_DIR.glob("*.yaml")):
         text = path.read_text(encoding="utf-8")
         data = yaml.safe_load(text) or {}
+        if not isinstance(data, dict):
+            continue
+        # Provider-consistency guardrail runs on EVERY profile (bespoke ones drift too); it is not
+        # a registry-governed field, so materialize cannot auto-fix it — it can only report.
+        issues = _provider_consistency_issues(data)
+        if issues:
+            inconsistent.append((path.name, issues))
         # Only profiles naming a registry preset are governed. The rest are bespoke and are left
         # alone rather than silently rewritten into something they never claimed to be.
-        if not isinstance(data, dict) or data.get("profile") not in _PROFILE_PRESETS:
+        if data.get("profile") not in _PROFILE_PRESETS:
             continue
         checked += 1
         want, changed = _stale_keys(str(data["profile"]), data)
@@ -131,20 +168,30 @@ def main() -> int:
         if not args.check:
             path.write_text(_rewrite(text, want, data), encoding="utf-8")
 
-    if not stale:
+    rc = 0
+    if stale:
+        verb = "STALE" if args.check else "Materialized"
+        print(f"{verb}: {len(stale)} profile(s)\n")
+        for name, keys in stale:
+            print(f"  {name}")
+            for k in keys:
+                print(f"    - {k}")
+        if args.check:
+            print("\nRun `make profiles-materialize` to regenerate them from the registry.")
+            rc = 1
+    else:
         print(f"All {checked} registry-governed profiles match the registry.")
-        return 0
 
-    verb = "STALE" if args.check else "Materialized"
-    print(f"{verb}: {len(stale)} profile(s)\n")
-    for name, keys in stale:
-        print(f"  {name}")
-        for k in keys:
-            print(f"    - {k}")
-    if args.check:
-        print("\nRun `make profiles-materialize` to regenerate them from the registry.")
-        return 1
-    return 0
+    if inconsistent:
+        print(f"\nPROVIDER-CONSISTENCY: {len(inconsistent)} profile(s) with GIL-evidence drift\n")
+        for name, issues in inconsistent:
+            print(f"  {name}")
+            for i in issues:
+                print(f"    - {i}")
+        rc = 1  # a stale evidence pin runs the wrong provider — fail in both check and write modes
+    else:
+        print("Provider-consistency guardrail: all profiles OK.")
+    return rc
 
 
 if __name__ == "__main__":

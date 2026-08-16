@@ -191,12 +191,15 @@ def create_transcription_provider(  # noqa: C901
             "gemini",
             "mistral",
             "deepgram",
+            "groq",
             "tailnet_dgx_whisper",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
         provider_type_value = cast(
-            Literal["whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"],
+            Literal[
+                "whisper", "openai", "gemini", "mistral", "deepgram", "groq", "tailnet_dgx_whisper"
+            ],
             provider_type_str,
         )
         experiment_mode = True
@@ -272,6 +275,32 @@ def create_transcription_provider(  # noqa: C901
             provider = OpenAIProvider(cfg)
         else:
             provider = OpenAIProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
+    elif provider_type == "groq":
+        # Groq is dual-use like OpenAI: the same GroqProvider serves LLM stages AND
+        # OpenAI-compatible Whisper transcription (whisper-large-v3-turbo). No diarization on Groq.
+        from ..providers.groq.groq_provider import GroqProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be TranscriptionParams
+            assert isinstance(params, TranscriptionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for transcription (use alias)
+                transcription_provider="groq",
+                groq_transcription_model=(
+                    params.model_name if params.model_name else "whisper-large-v3-turbo"
+                ),
+                groq_api_key=os.getenv("GROQ_API_KEY"),  # Load from env
+            )
+            provider = GroqProvider(cfg)
+        else:
+            provider = GroqProvider(cfg)
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")

@@ -121,6 +121,11 @@ services:
       # secrets configured yet.
       PODCAST_METRICS_ENABLED: ${PODCAST_METRICS_ENABLED:-1}
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      # Operator write-API key (app_operator_guard.py). Headless automation presents it as
+      # X-Operator-Key to POST /api/jobs, PUT /api/feeds, DELETE /api/corpus/*. Empty default =
+      # no key (tailnet reads stay open; writes require an admin session). Under ADR-115 VIA_FILES
+      # the shim overrides this from /run/secrets/app_operator_api_key (tmpfs, never on disk).
+      APP_OPERATOR_API_KEY: ${APP_OPERATOR_API_KEY:-}
       PODCAST_JOB_WEBHOOK_URL: ${PODCAST_JOB_WEBHOOK_URL:-}
       PODCAST_ENV: ${PODCAST_ENV:-preprod}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
@@ -194,6 +199,13 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # cloud_balanced (the default profile) transcribes via Deepgram and routes LLM
+      # stages through the LiteLLM gateway. Under VIA_FILES the shim already exports
+      # these into the api env, but the passthrough must list them too so the non-VIA
+      # (codespace) path and the nested run's interpolation both see them. Their
+      # absence here was the cloud_balanced "Deepgram API key required" prod failure.
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
 
   pipeline-llm:

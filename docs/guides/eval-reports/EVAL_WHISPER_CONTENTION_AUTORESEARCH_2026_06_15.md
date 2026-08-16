@@ -226,7 +226,7 @@ windows) is correctly calibrated for either framing.
 `cloud_with_dgx_primary` profile stays. The operational rule covers
 the contention envelope. No profile change.
 
-The new `prod_dgx_full_with_fallback` profile (#923) is **still
+The new `prod_dgx_full` profile (#923) is **still
 gate-able**: this report's 20 % rate confirms the gating is warranted,
 NOT that the gating is unnecessary. The transcript + summary stages
 on that profile run sequentially per-episode, so they shouldn't
@@ -340,7 +340,7 @@ gpu-mode-swap.sh idle
   [homelab #1](https://github.com/chipi/agentic-ai-homelab/issues/1),
   [homelab #2](https://github.com/chipi/agentic-ai-homelab/issues/2),
   [homelab #3](https://github.com/chipi/agentic-ai-homelab/issues/3)
-- Profile that's gated on this rule: `config/profiles/prod_dgx_full_with_fallback.yaml` (#923)
+- Profile that's gated on this rule: `config/profiles/prod_dgx_full.yaml` (#923)
 - Resilience layer that catches hang + connection-reset modes: #956
 - Cross-repo profile-side observations: #927 / #931 synthesis
 

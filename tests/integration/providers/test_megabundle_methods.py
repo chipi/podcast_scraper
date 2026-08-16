@@ -41,11 +41,13 @@ def _mock_all_provider_sdks():
     ``None`` import guard without the real packages installed."""
     # anthropic / mistralai / google.genai are in the [llm] extra and may be
     # unavailable in the unit-test job. openai is a core dep so its SDK is
-    # imported lazily inside OpenAIProvider and needs no patch.
+    # imported lazily inside OpenAIProvider and needs no patch. DeepSeekProvider
+    # now shares that OpenAI-compatible base (ADR-147) — its SDK is likewise lazy,
+    # so it needs no module-level patch either (the old deepseek_provider.OpenAI
+    # symbol no longer exists post provider-consolidation, #1504).
     patches = [
         patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic", Mock()),
         patch("podcast_scraper.providers.mistral.mistral_provider.Mistral", Mock()),
-        patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI", Mock()),
         patch("podcast_scraper.providers.grok.grok_provider.OpenAI", Mock()),
         patch("podcast_scraper.providers.gemini.gemini_provider.genai", Mock()),
     ]

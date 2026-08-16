@@ -44,7 +44,7 @@ class TestLoadEmbeddingModelIntegration:
                     }
                 )
 
-            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+            def encode(self, texts, normalize_embeddings=True, batch_size=64, **kwargs):
                 return [[0.1, 0.2, 0.3] for _ in texts]
 
         return FakeST

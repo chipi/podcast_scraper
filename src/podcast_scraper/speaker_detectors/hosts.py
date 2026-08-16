@@ -395,6 +395,15 @@ _HOST_SPEECH_ACTS = [
         r"\bthis week on (?:the )?\w+",
     )
 ]
+# NOTE (#1228) — a "floor-managing" host act (a co-host who only self-introduces on a no-host feed
+# but directs the show, "Let's get into this week's news") was TRIED as a recall lever and REVERTED.
+# On the prod-v2 corpus (90 eps, `relabel_corpus.py --llm none`) the tightened, nameability-gated
+# pattern promoted ZERO voices, while the untightened form regressed real episodes (crowned an
+# anonymous voice a host on Latent Space; painted host "Natalie Kitroeff" onto guest Robert Pape on
+# The Daily — show-directing boilerplate like "we'll be right back" smears across diarization
+# clusters). Inert on real data + precision-dangerous ⇒ not worth the code path (#876). The
+# co-host-on-a-no-host-feed case stays the documented precision boundary (roster leaves the role
+# unknown rather than risk a wrong name); revisit only with the #1189 human-GT fixtures.
 _GUEST_SPEECH_ACTS = [
     re.compile(p, re.IGNORECASE)
     for p in (
@@ -547,6 +556,77 @@ _NOT_A_NAME_TOKEN = frozenset(
         "anyway",
         "look",
         "yeah",
+        # Turn-opener contractions (BUG 5): the ASR capitalises the first word of a turn, and a
+        # screenplay-line speaker-label reader that just grabs whatever precedes the colon can pick
+        # up the contraction itself as the "speaker" ("I'm: You'll never find a harder worker...").
+        # Listed in both straight-quote and curly-quote (’) spellings since transcript punctuation
+        # restoration can emit either, and neither ``looks_like_a_person_name`` nor
+        # ``is_publishable_speaker_name`` normalises the apostrophe before this lookup (``.strip()``
+        # only trims the ends of the token, not an internal one).
+        "i'm",
+        "i’m",
+        "i've",
+        "i’ve",
+        "i'll",
+        "i’ll",
+        "i'd",
+        "i’d",
+        "you're",
+        "you’re",
+        "you'll",
+        "you’ll",
+        "you've",
+        "you’ve",
+        "you'd",
+        "you’d",
+        "we're",
+        "we’re",
+        "we've",
+        "we’ve",
+        "we'll",
+        "we’ll",
+        "they're",
+        "they’re",
+        "they've",
+        "they’ve",
+        "it's",
+        "it’s",
+        "that's",
+        "that’s",
+        "there's",
+        "there’s",
+        "here's",
+        "here’s",
+        "let's",
+        "let’s",
+        "don't",
+        "don’t",
+        "doesn't",
+        "doesn’t",
+        "didn't",
+        "didn’t",
+        "can't",
+        "can’t",
+        "won't",
+        "won’t",
+        "wouldn't",
+        "wouldn’t",
+        "shouldn't",
+        "shouldn’t",
+        "couldn't",
+        "couldn’t",
+        "isn't",
+        "isn’t",
+        "aren't",
+        "aren’t",
+        "wasn't",
+        "wasn’t",
+        "weren't",
+        "weren’t",
+        "haven't",
+        "haven’t",
+        "hasn't",
+        "hasn’t",
     }
 )
 

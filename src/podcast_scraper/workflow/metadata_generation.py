@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import yaml
@@ -64,17 +64,53 @@ _PROMPT_EXAMPLE_FRAGMENTS: tuple[str, ...] = (
 )
 
 
-def _warn_if_prompt_examples_leaked(title: Optional[str], bullets: Optional[List[str]]) -> None:
-    """Log loudly when a summary contains the prompt's own few-shot examples."""
+def _reject_if_prompt_examples_leaked(
+    episode_idx: int, title: Optional[str], bullets: Optional[List[str]]
+) -> None:
+    """#1386: reject (not just log) a summary that copied the prompt's few-shot examples verbatim.
+
+    Detection alone shipped the fabricated summary with only an ERROR log — the "silent success with
+    fabricated content" this module warns is worse than a loud failure. So a poisoned summary is now
+    dropped: raise RecoverableSummarizationError so metadata generation continues without a summary
+    (the episode keeps its transcript / GI / KG) — the same terminal-but-graceful path as any other
+    unusable summary (#1496). The prompts are already hardened; this is the enforcement.
+    """
     haystack = " ".join([str(title or "")] + [str(b) for b in (bullets or [])]).lower()
     leaked = [f for f in _PROMPT_EXAMPLE_FRAGMENTS if f in haystack]
     if leaked:
         logger.error(
-            "SUMMARY POISONED: the model copied the prompt's style examples verbatim (%s). "
-            "This summary is about the example's subject, not the episode — treat it as "
+            "[%s] SUMMARY POISONED: the model copied the prompt's style examples verbatim (%s). "
+            "This summary is about the example's subject, not the episode — dropping it as "
             "fabricated. Check the summarization prompt for the model in use.",
+            episode_idx,
             ", ".join(repr(f) for f in leaked),
         )
+        raise RecoverableSummarizationError(
+            episode_idx=episode_idx,
+            reason=("summary poisoned — copied prompt example(s) verbatim: " + ", ".join(leaked)),
+        )
+
+
+def _recoverable_summary_content_reason(exc: BaseException) -> Optional[str]:
+    """#1409/#1480: reason string when a summary-provider error is a terminal CONTENT failure that
+    should degrade to no-summary (the episode keeps its transcript / GI / KG), or None when it is a
+    genuine provider break that must still hard-fail.
+
+    Recoverable content failures:
+      - GuardrailViolation (ADR-099) — e.g. finish_reason_length after the bounded re-rolls (#1409).
+      - provider content-inspection rejection — OpenAI 400 ``data_inspection_failed`` (#1480): the
+        provider refused THIS input, so a retry cannot help; the episode should not be lost over it.
+    """
+    try:
+        from ..providers.guardrails.exceptions import GuardrailViolation
+
+        if isinstance(exc, GuardrailViolation):
+            return f"guardrail violation (terminal content failure): {redact_for_log(str(exc))}"
+    except Exception:  # noqa: BLE001 - classification must never itself break the handler
+        pass
+    if "data_inspection_failed" in str(exc).lower():
+        return "provider content-inspection rejected the input (data_inspection_failed)"
+    return None
 
 
 # Cleaning strips ads, intros and meta-commentary. It removes a slice, never the episode. Below
@@ -1964,6 +2000,10 @@ def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str,
             provider_info["mistral_model"] = transcription_model
     elif cfg.transcription_provider == "deepgram":
         provider_info["deepgram_model"] = getattr(cfg, "deepgram_model", "nova-3")
+    elif cfg.transcription_provider == "groq":
+        provider_info["groq_model"] = getattr(
+            cfg, "groq_transcription_model", "whisper-large-v3-turbo"
+        )
 
     return provider_info
 
@@ -1993,6 +2033,14 @@ def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[
     elif cfg.speaker_detector_provider == "anthropic":
         speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-haiku-4-5")
         provider_info["anthropic_model"] = speaker_model
+    elif cfg.speaker_detector_provider == "groq":
+        provider_info["groq_model"] = getattr(cfg, "groq_speaker_model", "llama-3.3-70b-versatile")
+    elif cfg.speaker_detector_provider == "vllm":
+        provider_info["vllm_model"] = cfg.vllm_speaker_model
+    elif cfg.speaker_detector_provider == "litellm":
+        provider_info["litellm_model"] = cfg.litellm_speaker_model
+    elif cfg.speaker_detector_provider == "qwen":
+        provider_info["qwen_model"] = cfg.qwen_speaker_model
 
     return provider_info
 
@@ -2080,8 +2128,16 @@ def _append_external_llm_summary_models(provider_info: Dict[str, Any], cfg: conf
         provider_info["deepseek_model"] = cfg.deepseek_summary_model
     elif sp == "grok":
         provider_info["grok_model"] = cfg.grok_summary_model
+    elif sp == "groq":
+        provider_info["groq_model"] = cfg.groq_summary_model
     elif sp == "ollama":
         provider_info["ollama_model"] = cfg.ollama_summary_model
+    elif sp == "vllm":
+        provider_info["vllm_model"] = cfg.vllm_summary_model
+    elif sp == "litellm":
+        provider_info["litellm_model"] = cfg.litellm_summary_model
+    elif sp == "qwen":
+        provider_info["qwen_model"] = cfg.qwen_summary_model
 
 
 def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str, Any]]:
@@ -2131,8 +2187,16 @@ def _attach_llm_cleaning_models_to_summarization_info(
         provider_info["deepseek_cleaning_model"] = cfg.deepseek_cleaning_model
     elif sp == "grok":
         provider_info["grok_cleaning_model"] = cfg.grok_cleaning_model
+    elif sp == "groq":
+        provider_info["groq_cleaning_model"] = cfg.groq_cleaning_model
     elif sp == "ollama":
         provider_info["ollama_cleaning_model"] = cfg.ollama_cleaning_model
+    elif sp == "vllm":
+        provider_info["vllm_cleaning_model"] = cfg.vllm_cleaning_model
+    elif sp == "litellm":
+        provider_info["litellm_cleaning_model"] = cfg.litellm_cleaning_model
+    elif sp == "qwen":
+        provider_info["qwen_cleaning_model"] = cfg.qwen_cleaning_model
 
 
 def _extract_episode_stage_timings(
@@ -2406,6 +2470,14 @@ def _generate_episode_summary(  # noqa: C901
 
             result: Optional[Dict[str, Any]] = None
             pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
+            # ADR-148: a thunk that re-issues the SAME summary request on the SAME
+            # provider, set by whichever generation path produced `result`. Used for
+            # one bounded in-place re-roll when the downstream schema parse fails on a
+            # transient invalid response (vLLM is not bit-deterministic even at
+            # temperature 0). None ⇒ no path captured a re-callable summary call.
+            _resummarize: Optional[Callable[[], Optional[Dict[str, Any]]]] = None
+            # Imported once here (used by the mega_bundled + extraction_bundled branches below).
+            from ..providers.common.megabundle_parser import MegaBundleResult
 
             # mega_bundled / extraction_bundled (#643): single call returns
             # summary+bullets (mega only) PLUS insights+topics+entities. The
@@ -2417,7 +2489,6 @@ def _generate_episode_summary(  # noqa: C901
                 try:
                     logger.debug("[%s] mega_bundled single-call path", episode_idx)
                     from ..cleaning import PatternBasedCleaner
-                    from ..providers.common.megabundle_parser import MegaBundleResult
 
                     cleaning_started = time.perf_counter()
                     pattern_cleaned = PatternBasedCleaner().clean(
@@ -2428,26 +2499,32 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
-                    mega_result = mega_fn(
-                        pattern_cleaned,
-                        episode_title=None,
-                        episode_description=None,
-                        params=params,
-                        pipeline_metrics=pipeline_metrics,
-                        call_metrics=call_metrics,
-                    )
-                    if isinstance(mega_result, MegaBundleResult):
-                        summary_json = json.dumps(mega_result.to_summary_artifact())
-                        result = {
-                            "summary": summary_json,
+
+                    def _mega_call() -> Optional[Dict[str, Any]]:
+                        mr = mega_fn(
+                            pattern_cleaned,
+                            episode_title=None,
+                            episode_description=None,
+                            params=params,
+                            pipeline_metrics=pipeline_metrics,
+                            call_metrics=call_metrics,
+                        )
+                        if not isinstance(mr, MegaBundleResult):
+                            return None
+                        return {
+                            "summary": json.dumps(mr.to_summary_artifact()),
                             "summary_short": None,
                             "metadata": {
                                 "provider": getattr(cfg, "summary_provider", "unknown"),
                                 "bundled": True,
                                 "pipeline_mode": "mega_bundled",
-                                "prefilled_extraction": mega_result.to_extraction_partial(),
+                                "prefilled_extraction": mr.to_extraction_partial(),
                             },
                         }
+
+                    result = _mega_call()
+                    if result is not None:
+                        _resummarize = _mega_call
                     else:
                         # Provider returned something unexpected (not a MegaBundleResult
                         # instance). Contract violation — warn so ops notices, fall
@@ -2456,10 +2533,9 @@ def _generate_episode_summary(  # noqa: C901
                         if pipeline_metrics is not None:
                             pipeline_metrics.record_llm_bundled_fallback_to_staged()
                         logger.warning(
-                            "[%s] mega_bundled returned unexpected type %s "
+                            "[%s] mega_bundled returned unexpected type "
                             "(expected MegaBundleResult); falling back to staged",
                             episode_idx,
-                            type(mega_result).__name__,
                         )
                 except Exception as mega_exc:
                     if pipeline_metrics is not None:
@@ -2485,7 +2561,6 @@ def _generate_episode_summary(  # noqa: C901
             if pipeline_mode == "extraction_bundled" and callable(extr_fn):
                 try:
                     logger.debug("[%s] extraction_bundled single-call extraction", episode_idx)
-                    from ..providers.common.megabundle_parser import MegaBundleResult
 
                     extr_result = extr_fn(
                         transcript_text,
@@ -2534,7 +2609,7 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
-                    result = bundled_fn(
+                    _resummarize = lambda: bundled_fn(  # noqa: E731 - ADR-148 re-roll thunk
                         pattern_cleaned,
                         episode_title=None,
                         episode_description=None,
@@ -2542,6 +2617,7 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics=pipeline_metrics,
                         call_metrics=call_metrics,
                     )
+                    result = _resummarize()
                     cleaned_for_file = pattern_cleaned
                     if cfg.save_cleaned_transcript:
                         try:
@@ -2657,7 +2733,7 @@ def _generate_episode_summary(  # noqa: C901
                         )
 
                 # All providers must support call_metrics (no backward compatibility)
-                result = summary_provider.summarize(
+                _resummarize = lambda: summary_provider.summarize(  # noqa: E731 - ADR-148 thunk
                     text=cleaned_text,
                     episode_title=None,  # Not available in this context
                     episode_description=None,  # Not available in this context
@@ -2665,6 +2741,7 @@ def _generate_episode_summary(  # noqa: C901
                     pipeline_metrics=pipeline_metrics,
                     call_metrics=call_metrics,
                 )
+                result = _resummarize()
 
             # Finalize call metrics after provider call
             call_metrics.finalize()
@@ -2768,31 +2845,65 @@ def _generate_episode_summary(  # noqa: C901
 
             word_count = len(transcript_text.split())
 
-            # Parse summary using normalized schema (required, no legacy support)
-            # Try to get the full result text (may be JSON or plain text)
-            summary_text_for_parsing = short_summary
-            # Check if result has structured data we can parse
-            if isinstance(result, dict):
-                # Some providers may return JSON in a different field
-                if "summary_text" in result:
-                    summary_text_for_parsing = result["summary_text"]
-                elif "text" in result:
-                    summary_text_for_parsing = result["text"]
+            # Parse summary using normalized schema (required, no legacy support).
+            # A provider may carry the parseable text in a different field, so prefer
+            # result["summary_text"]/["text"] and fall back to the prose summary.
+            def _parse_summary(res: Any, prose_fallback: Any) -> Any:
+                text_for_parsing = prose_fallback
+                if isinstance(res, dict):
+                    if "summary_text" in res:
+                        text_for_parsing = res["summary_text"]
+                    elif "text" in res:
+                        text_for_parsing = res["text"]
+                return parse_summary_output(text_for_parsing, summary_provider, episode_title=None)
 
             # Parse using normalized schema - REQUIRED
-            parse_result = parse_summary_output(
-                summary_text_for_parsing, summary_provider, episode_title=None
-            )
+            parse_result = _parse_summary(result, short_summary)
 
-            # Require successful parsing - fail if schema parsing fails
-            if not parse_result.success or not parse_result.schema:
-                error_msg = (
-                    f"[{episode_idx}] Summary schema parsing failed. "
-                    f"Error: {parse_result.error or 'Unknown error'}. "
-                    "All summaries must use normalized schema format."
+            # ADR-148: one bounded in-place re-roll on a transient invalid structured
+            # summary before failing the episode. A healthy vLLM endpoint is not
+            # bit-deterministic even at temperature 0, so a re-roll is a genuinely
+            # different sample — the observed p04 reprocess failure passed the
+            # provider's own guardrail (triggered_guardrail=false) yet failed the
+            # stricter downstream schema, and re-running produced valid JSON. Output
+            # depends only on `result` (prefilled_extraction) and `parse_result`
+            # (schema), so re-updating those two is sufficient. The re-roll re-issues
+            # the same request on the same provider; it ticks the per-episode
+            # LLM-call fuse (bounded to one), then falls through to the hard fail.
+            if (not parse_result.success or not parse_result.schema) and _resummarize is not None:
+                logger.warning(
+                    "[%s] Summary schema parse failed — one in-place re-roll " "(ADR-148): %s",
+                    episode_idx,
+                    parse_result.error or "unknown",
                 )
-                logger.error("%s", redact_for_log(error_msg))
-                raise RuntimeError(redact_for_log(error_msg))
+                try:
+                    rerolled = _resummarize()
+                except Exception as reroll_exc:  # noqa: BLE001 - best-effort; keep original failure
+                    logger.warning(
+                        "[%s] Summary re-roll call failed; keeping original invalid "
+                        "response: %s",
+                        episode_idx,
+                        redact_for_log(str(reroll_exc)),
+                    )
+                else:
+                    if isinstance(rerolled, dict):
+                        result = rerolled
+                        call_metrics.finalize()
+                        parse_result = _parse_summary(result, result.get("summary"))
+
+            # Require successful parsing. #1496: after the bounded ADR-148 re-roll a still-invalid
+            # structured summary is a RECOVERABLE failure — continue WITHOUT the summary (the
+            # episode keeps its transcript / GI / KG) instead of dropping the whole episode as an
+            # "unexpected error". The re-roll fuse already bounds the retry to one; this is the
+            # graceful terminal fail, caught by the summary try/except at the caller.
+            if not parse_result.success or not parse_result.schema:
+                raise RecoverableSummarizationError(
+                    episode_idx=episode_idx,
+                    reason=(
+                        "Summary schema parsing failed after the ADR-148 re-roll: "
+                        f"{parse_result.error or 'Unknown error'}"
+                    ),
+                )
 
             schema = parse_result.schema
 
@@ -2824,7 +2935,7 @@ def _generate_episode_summary(  # noqa: C901
                     if isinstance(pe, dict):
                         prefilled_extraction = pe
 
-            _warn_if_prompt_examples_leaked(schema.title, schema.bullets)
+            _reject_if_prompt_examples_leaked(episode_idx, schema.title, schema.bullets)
 
             # Build SummaryMetadata with required schema fields
             return (
@@ -2860,6 +2971,13 @@ def _generate_episode_summary(  # noqa: C901
                     episode_idx=episode_idx,
                     reason=f"Tokenizer threading error: {redact_for_log(str(e))}",
                 ) from e
+            # #1409/#1480: a terminal CONTENT failure (guardrail truncation / provider
+            # content-inspection rejection) degrades to no-summary, keeping the episode.
+            _content_reason = _recoverable_summary_content_reason(e)
+            if _content_reason is not None:
+                raise RecoverableSummarizationError(
+                    episode_idx=episode_idx, reason=_content_reason
+                ) from e
             # For other provider errors, fail fast
             error_msg_full = (
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
@@ -2867,8 +2985,23 @@ def _generate_episode_summary(  # noqa: C901
             )
             logger.error("%s", redact_for_log(error_msg_full), exc_info=True)
             raise RuntimeError(redact_for_log(error_msg_full)) from e
+        except RecoverableSummarizationError:
+            # #1496: a recoverable summary failure raised in the try body (e.g. schema parse still
+            # invalid after the bounded ADR-148 re-roll) must propagate to the caller's summary
+            # try/except so the episode continues WITHOUT a summary — never re-wrapped as the hard
+            # RuntimeError below (which would drop the whole episode as an "unexpected error").
+            call_metrics.finalize()
+            raise
         except Exception as e:
             call_metrics.finalize()
+            # #1409/#1480: a terminal CONTENT failure (guardrail truncation / provider
+            # content-inspection rejection) degrades to no-summary, keeping the episode — rather
+            # than the hard RuntimeError below that drops the whole episode as "unexpected".
+            _content_reason = _recoverable_summary_content_reason(e)
+            if _content_reason is not None:
+                raise RecoverableSummarizationError(
+                    episode_idx=episode_idx, reason=_content_reason
+                ) from e
             # Fail fast - if summarization fails for a specific episode, raise exception
             error_msg = (
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
@@ -3664,6 +3797,15 @@ def generate_episode_metadata(  # noqa: C901
         detected_hosts, detected_guests
     )
 
+    # content.whisper_model must carry the ACTUAL transcription model when the transcript came from
+    # ASR. Callers thread None (summarization path) or the unused local cfg.whisper_model, so a DGX
+    # run recorded None. Resolve from the configured provider; leave it None for direct-download
+    # transcripts, where no ASR ran and a model name would be misleading.
+    if not whisper_model and transcript_source == "whisper_transcription":
+        from ..utils.provider_metrics import transcription_model_for_cfg
+
+        whisper_model = transcription_model_for_cfg(cfg) or None
+
     # Prepare IDs and base metadata objects
     feed_id, episode_id, transcript_infos, media_id = _prepare_metadata_ids(
         feed_url,
@@ -4377,6 +4519,20 @@ def generate_episode_metadata(  # noqa: C901
                     episode.idx if hasattr(episode, "idx") else episode_id,
                     len(topic_specs),
                 )
+                # #653 Part D follow-up: gi.json was written at build time (line ~4061) with the
+                # staged-mode bullet-derived Topic nodes. bridge_gi_payload IS that same payload
+                # object, now carrying KG canonical topics — re-persist gi.json so the on-disk
+                # artifact matches the bridge instead of keeping sentence-fragment topic labels.
+                try:
+                    from ..gi import write_artifact as _gi_write_artifact
+
+                    _gi_write_artifact(Path(gi_path), bridge_gi_payload, validate=True)
+                except Exception as _gi_rewrite_exc:
+                    logger.warning(
+                        "[%s] gi.json topic-alignment re-write failed (non-fatal): %s",
+                        episode.idx if hasattr(episode, "idx") else episode_id,
+                        _gi_rewrite_exc,
+                    )
         except Exception as align_exc:
             logger.warning(
                 "GI/KG topic alignment for bridge failed (non-fatal): %s",

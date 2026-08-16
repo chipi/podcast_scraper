@@ -14,20 +14,28 @@
 #   POST /api/send   — the event-collect endpoint the script POSTs to (+ CORS preflight)
 # Everything else (/, /login, the rest of /api, admin) → 404, not proxied.
 #
-# UPSTREAM: Umami runs on **homelab** (tailnet), addressed by its MagicDNS name `homelab`
-# (the box→homelab:3001 tailnet ACL grant must be live — tailscale/policy.hujson).
+# UPSTREAM (Level 3 #1665): Umami runs on **homelab**, now reached over the tailnet via its
+# per-service caddy-tailscale TLS node (umami.<TAILNET>, real cert) instead of the raw
+# homelab:3001 port. __TAILNET__ is sed'd to the tailnet suffix by deploy-config.yml (never
+# hardcoded here — deny-list gate). Requires the prod→tag:homelab-svc:443 ACL grant (#1665, merged).
 #
-# Rollback: `rm /etc/caddy/sites/player-analytics.caddy && sudo systemctl restart caddy`.
+# Rollback: revert this file to `reverse_proxy homelab:3001` + `sudo systemctl restart caddy`
+# (the raw :3001 stays open until the Level 3 cleanup, so revert is lossless).
 analytics.player.example.com {
 	import hardened
 	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
 	tls info@player.example.com
 
 	# Tracking-only surface — the script + the collect endpoint (any method, so the CORS
-	# OPTIONS preflight to /api/send is proxied and Umami answers it).
-	@track path /script.js /api/send
+	# OPTIONS preflight to /api/send is proxied and Umami answers it). Both slash forms of the
+	# collect path are matched so a client variant POSTing /api/send/ is not 404'd.
+	@track path /script.js /api/send /api/send/
 	handle @track {
-		reverse_proxy homelab:3001
+		# The node matches STRICTLY on Host and silently drops a foreign Host (empty 200 →
+		# events lost), so header_up Host to the node name is REQUIRED.
+		reverse_proxy https://umami.__TAILNET__ {
+			header_up Host umami.__TAILNET__
+		}
 	}
 
 	# Dashboard / login / rest of the API — NOT public. Refuse without revealing Umami.

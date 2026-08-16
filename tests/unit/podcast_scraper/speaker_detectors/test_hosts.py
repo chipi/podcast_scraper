@@ -156,6 +156,51 @@ def test_extract_self_introduced_host_still_accepts_a_real_mononym() -> None:
         ("Kalshi", True),
         ("Kevin", True),
         ("", False),
+        # BUG 5: turn-opener contractions the ASR capitalises at a turn boundary, then a
+        # screenplay-line reader grabs whatever precedes the colon as the "speaker"
+        # ("I'm: You'll never find a harder worker..."). Both apostrophe spellings (straight
+        # and the curly ’ punctuation-restoration can emit) must be rejected, in any case.
+        ("I'm", False),
+        ("I’m", False),  # curly apostrophe
+        ("i'm", False),  # lowercase — the gate does not require a capital for single tokens
+        ("I've", False),
+        ("I'll", False),
+        ("I'd", False),
+        ("You're", False),
+        ("You’re", False),
+        ("You'll", False),
+        ("You've", False),
+        ("You'd", False),
+        ("We're", False),
+        ("We've", False),
+        ("We'll", False),
+        ("They're", False),
+        ("They've", False),
+        ("It's", False),
+        ("It’s", False),
+        ("That's", False),
+        ("There's", False),
+        ("Here's", False),
+        ("Let's", False),
+        ("Don't", False),
+        ("Doesn't", False),
+        ("Didn't", False),
+        ("Can't", False),
+        ("Won't", False),
+        ("Wouldn't", False),
+        ("Shouldn't", False),
+        ("Couldn't", False),
+        ("Isn't", False),
+        ("Aren't", False),
+        ("Wasn't", False),
+        ("Weren't", False),
+        ("Haven't", False),
+        ("Hasn't", False),
+        # Real apostrophe-bearing surnames must still pass — the reject list is a closed set of
+        # known contractions, not a blanket "has an apostrophe" rule.
+        ("O'Brien", True),
+        ("D'Angelo", True),
+        ("Sarah Gonzales", True),
     ],
 )
 def test_is_publishable_speaker_name(name: str, publishable: bool) -> None:

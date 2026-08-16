@@ -8,9 +8,13 @@
 # Prereqs (stage once, like deploy-prod #714):
 #   secrets: TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET, PROD_SSH_PRIVATE_KEY, PLAYER_APP_SESSION_SECRET,
 #            PLAYER_GOOGLE_CLIENT_SECRET
+#            (optional, remote MCP RFC-112) PLAYER_INTERNAL_MCP_TOKEN — unset = MCP off
 #   vars:    PROD_TAILNET_FQDN, PLAYER_DOMAIN, PODCAST_CORPUS_VOLUME, PLAYER_GOOGLE_CLIENT_ID
+#            (optional) PLAYER_MCP_ALLOWED_ORIGINS
 # The Caddy edge + firewall 80/443 must already be live on the box, and DNS for
-# PLAYER_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md).
+# PLAYER_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md). When MCP is
+# enabled, add a DNS A record for mcp.<PLAYER_DOMAIN> → the VPS, and register the claude.ai
+# connector redirect at claude.ai (DCR is automatic; no manual client provisioning).
 
 name: Deploy player — PUBLIC surface
 
@@ -166,6 +170,12 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          # Delivery seam (#1412/#1415): shared token the infra worker presents on
+          # /internal/outbox/* (X-Internal-Token) — a runtime SECRET (tmpfs under Option A).
+          # APP_VAPID_PUBLIC_KEY is the PUBLIC half of the worker's VAPID key (served to the
+          # browser by /api/app/push/vapid-key) — not secret, always written to .env.player.
+          INTERNAL_OUTBOX_TOKEN: ${{ secrets.PLAYER_INTERNAL_OUTBOX_TOKEN }}
+          APP_VAPID_PUBLIC_KEY: ${{ secrets.PLAYER_APP_VAPID_PUBLIC_KEY }}
           # Player error DSNs → self-hosted GlitchTip project 5. SPLIT per surface (like the
           # operator's _API / _VIEWER) for flexibility: _WEB is the BROWSER DSN (dashless key,
           # via the public telemetry edge, baked into the bundle); _API is the BACKEND DSN
@@ -173,6 +183,10 @@ jobs:
           # (e.g. a distinct backend project, or the tailnet host for _API). Empty → no-op.
           PROD_SENTRY_DSN_PLAYER_WEB: ${{ secrets.PROD_SENTRY_DSN_PLAYER_WEB }}
           PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+          # MCP-surface backend DSN (#1505). Its own GlitchTip project (per-surface split);
+          # empty until the project + secret exist → GlitchTip no-op for the MCP, traces + logs
+          # still flow.
+          PROD_SENTRY_DSN_PLAYER_MCP: ${{ secrets.PROD_SENTRY_DSN_PLAYER_MCP }}
           # Umami website UUID (public — ships in the bundle; a var, not a secret).
           PLAYER_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
           # ADR-115 Option A: when '1', the RUNTIME secrets (client secret, session secret,
@@ -190,6 +204,17 @@ jobs:
           APP_SIGNUP_MODE: ${{ vars.PLAYER_SIGNUP_MODE }}
           APP_ALLOWED_EMAILS: ${{ vars.PLAYER_ALLOWED_EMAILS }}
           APP_ALLOWED_DOMAINS: ${{ vars.PLAYER_ALLOWED_DOMAINS }}
+          # Bootstrap admins (CSV of emails) — the accounts granted `admin` on login (gates the
+          # operator surfaces + `mcp_access` grants). Non-secret → GH var.
+          APP_ADMIN_EMAILS: ${{ vars.PLAYER_ADMIN_EMAILS }}
+          # Remote MCP (RFC-112). The shared secret that gates the internal verify seam + the mcp
+          # service. EMPTY (secret unset) = MCP stays inert (verify 503 → every connect 401) and the
+          # mcp vhost is skipped — a safe default. Set PLAYER_INTERNAL_MCP_TOKEN to turn MCP on.
+          # Issuer/resource URLs are derived from the domain host-side (deploy-player.sh); no secret.
+          INTERNAL_MCP_TOKEN: ${{ secrets.PLAYER_INTERNAL_MCP_TOKEN }}
+          # Optional browser DNS-rebind allow-list (claude.ai is server-side → no Origin, so empty
+          # is fine). e.g. "https://claude.ai".
+          APP_MCP_ALLOWED_ORIGINS: ${{ vars.PLAYER_MCP_ALLOWED_ORIGINS }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -207,22 +232,29 @@ jobs:
             echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
             echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS}"
             echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS}"
+            echo "APP_ADMIN_EMAILS=${APP_ADMIN_EMAILS}"
             # OTEL distributed tracing (ADR-119) → the SAME homelab VictoriaTraces OTLP
             # ingest the operator uses (deploy-prod.yml). Turns player API request spans on
             # so a user-triggered error on the player surface pivots to its trace. The
             # homelab tailnet IP for extra_hosts is resolved on the box by deploy-player.sh.
             echo "OTEL_TRACES_EXPORTER=otlp"
             echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://homelab:10428/insert/opentelemetry/v1/traces"
+            # Env-tag every span (api + mcp) so staging (laptop) and prod (VPS) split in Grafana —
+            # parity with the GlitchTip `environment` tag (#1505 staging↔prod separation).
+            echo "OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
             echo "APP_OAUTH_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+            # VAPID PUBLIC key — not secret (the browser fetches it); always written.
+            echo "APP_VAPID_PUBLIC_KEY=${APP_VAPID_PUBLIC_KEY}"
             # Runtime secrets (ADR-115 Option A): under PLAYER_SECRETS_VIA_FILES=1 these are
             # delivered as /run/secrets files + exported by the shim, so DROPPED from
             # .env.player (no secrets at rest on disk). Flag off = today's env behaviour.
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
               echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
+              echo "INTERNAL_OUTBOX_TOKEN=${INTERNAL_OUTBOX_TOKEN}"
             fi
             echo "PLAYER_PORT=8092"
             # Build-time BROWSER DSN for the player bundle (compose build-arg reads this from
@@ -240,11 +272,29 @@ jobs:
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER_API}"
             fi
+            # MCP-surface backend DSN (#1505). Falls back to the player API DSN so MCP errors land
+            # in the shared GlitchTip project tagged `component=mcp` + `environment` (no new project
+            # / UI needed) until a dedicated PROD_SENTRY_DSN_PLAYER_MCP is set to repoint it.
+            echo "PODCAST_SENTRY_DSN_MCP=${PROD_SENTRY_DSN_PLAYER_MCP:-${PROD_SENTRY_DSN_PLAYER_API}}"
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
             # Both empty -> the bundle's Umami injection stays a no-op.
             echo "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
             echo "VITE_UMAMI_SRC=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/script.js}"
+            # MCP server-side analytics (#1505): reuse the player Umami site — MCP events are named
+            # `mcp_tool:<tool>` (distinct from page views), POSTed to the public beacon collect API.
+            # A dedicated MCP site can be split later; env split comes from deployment.environment.
+            echo "PODCAST_MCP_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}"
+            echo "PODCAST_MCP_UMAMI_URL=${PLAYER_UMAMI_WEBSITE_ID:+https://analytics.${PLAYER_DOMAIN}/api/send}"
+            # Remote MCP (RFC-112). The shared verify-seam secret (empty → MCP inert + mcp vhost
+            # skipped by deploy-player.sh). Issuer = the player apex (hosts the OAuth AS); resource
+            # = the mcp subdomain (its own vhost). MCP_PORT is the loopback the Caddy mcp vhost
+            # proxies to. Origins guard is optional (claude.ai is server-side → sends no Origin).
+            echo "INTERNAL_MCP_TOKEN=${INTERNAL_MCP_TOKEN}"
+            echo "APP_MCP_ISSUER_URL=https://${PLAYER_DOMAIN}"
+            echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
+            echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS}"
+            echo "MCP_PORT=8009"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
@@ -268,6 +318,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+          INTERNAL_OUTBOX_TOKEN: ${{ secrets.PLAYER_INTERNAL_OUTBOX_TOKEN }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)
@@ -275,6 +326,9 @@ jobs:
           printf '%s' "$GOOGLE_CLIENT_SECRET"       > "$STAGE/app_oauth_google_client_secret"
           printf '%s' "$APP_SESSION_SECRET"         > "$STAGE/app_session_secret"
           printf '%s' "$PROD_SENTRY_DSN_PLAYER_API" > "$STAGE/podcast_sentry_dsn_api"
+          # Delivery seam shared token → /run/secrets/internal_outbox_token; the shim
+          # exports it as INTERNAL_OUTBOX_TOKEN (filename = lowercase of the env var).
+          printf '%s' "$INTERNAL_OUTBOX_TOKEN"       > "$STAGE/internal_outbox_token"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
@@ -298,10 +352,15 @@ jobs:
           # PODCAST_SECRETS_VIA_FILES to deploy.sh). Without this the script silently skips
           # the overlay while .env.player has dropped the secrets -> keyless container -> 503.
           VIA_FILES: ${{ vars.PLAYER_SECRETS_VIA_FILES }}
+          # Tailnet suffix for the player-telemetry/analytics vhosts' __TAILNET__ placeholder
+          # (Level 3 #1665). Same inline-forwarding rationale as VIA_FILES: SSH does not inherit
+          # the runner env, so it MUST be passed inline — otherwise deploy-player.sh ships the
+          # literal __TAILNET__ into the TLS-node reverse_proxy and telemetry/analytics ingest breaks.
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
+            "PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
 
       - name: External health probe (public player domain)
         if: steps.preflight.outputs.skip != 'true'

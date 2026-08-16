@@ -592,6 +592,10 @@ class Highlight(BaseModel):
     anchor_status: str | None = Field(
         default=None, description="'anchored' | 'drifted' after a re-anchor; None until re-scraped."
     )
+    graph_refs: list[AppEntityRef] = Field(
+        default_factory=list,
+        description="Canonical person/topic refs (#1419) — the highlight as a graph node.",
+    )
 
 
 class HighlightsResponse(BaseModel):
@@ -688,6 +692,287 @@ class DerivedInterestsResponse(BaseModel):
     """Ranked implicit interests (GET /api/app/interests/derived)."""
 
     items: list[DerivedInterest] = Field(default_factory=list)
+
+
+# --- Personal corpus — the unified definition (RFC-114 Phase 1, #1470) ---
+
+
+class CorpusSummary(BaseModel):
+    """GET /api/app/corpus — faceted membership counts + the current revision."""
+
+    revision: int = Field(ge=0, description="Current corpus revision (RFC-114 change-log counter).")
+    experienced_count: int = Field(ge=0, description="Heard ∪ highlights ∪ notes ∪ saved-insights.")
+    saved_count: int = Field(ge=0, description="Whole-episode favorites not in `experienced`.")
+    top_entities: list[DerivedInterest] = Field(
+        default_factory=list, description="Top person/topic in the experienced corpus."
+    )
+
+
+class CorpusFacetEpisodesResponse(BaseModel):
+    """GET /api/app/corpus/episodes?facet= — the episode slugs in a personal-corpus facet."""
+
+    facet: Literal["experienced", "saved"] = Field(description="Which membership facet.")
+    slugs: list[str] = Field(default_factory=list)
+
+
+class CorpusChangeEvent(BaseModel):
+    """One change-log entry — an add or a tombstone (removal)."""
+
+    seq: int = Field(ge=1, description="Monotonic revision at which this change happened.")
+    kind: Literal["added", "removed"] = Field(description="Membership add or removal (tombstone).")
+    facet: Literal["experienced", "saved"] = Field(description="Which facet changed.")
+    ref: str = Field(description="Episode slug the change concerns.")
+
+
+class CorpusChangesResponse(BaseModel):
+    """GET /api/app/corpus/changes?since= — the delta a consumer (export) applies."""
+
+    revision: int = Field(ge=0, description="Current revision after reconciling.")
+    since: int = Field(ge=0, description="The cursor the caller supplied.")
+    truncated: bool = Field(
+        description="True when `since` predates the retained log → do a full re-export."
+    )
+    events: list[CorpusChangeEvent] = Field(default_factory=list)
+
+
+class CorpusRankedEpisode(BaseModel):
+    """One experienced episode with its strength score (RFC-114 Phase 2)."""
+
+    slug: str = Field(description="Episode slug.")
+    strength: float = Field(ge=0.0, le=1.0, description="Corpus strength in [0,1] (within-user).")
+
+
+class CorpusRankedResponse(BaseModel):
+    """GET /api/app/corpus/ranked — experienced episodes, strongest first (RFC-114 Phase 2)."""
+
+    items: list[CorpusRankedEpisode] = Field(default_factory=list)
+
+
+# --- MCP personal-access tokens (RFC-112 slice 1, #1471) ---
+
+
+class McpTokenMeta(BaseModel):
+    """Token metadata — never the secret. (GET/DELETE /api/app/mcp/tokens)."""
+
+    id: str = Field(description="Opaque token id (for revocation).")
+    label: str = Field(description="User-chosen label (e.g. the agent name).")
+    created_at: int = Field(description="Unix time created.")
+    last_used_at: int | None = Field(default=None, description="Unix time last used, or null.")
+
+
+class McpTokensResponse(BaseModel):
+    """The user's MCP tokens (metadata only)."""
+
+    items: list[McpTokenMeta] = Field(default_factory=list)
+
+
+class McpTokenCreate(BaseModel):
+    """POST /api/app/mcp/tokens body."""
+
+    label: str = Field(min_length=1, max_length=120, description="A label for the token/agent.")
+
+
+class McpTokenCreated(BaseModel):
+    """The created token — the plaintext is shown ONCE and never returned again."""
+
+    token: str = Field(description="The secret bearer token. Copy it now; it is not stored.")
+    meta: McpTokenMeta
+
+
+class McpConnection(BaseModel):
+    """One connected OAuth client (a remembered consent) — GET /api/app/mcp/connections."""
+
+    client_id: str = Field(description="The OAuth client id.")
+    client_name: str = Field(description="The client's registered display name.")
+    scopes: list[str] = Field(default_factory=list, description="Scopes the user approved.")
+    connected_at: int = Field(description="Unix time the consent was (last) granted.")
+
+
+class McpConnectionsResponse(BaseModel):
+    """The user's connected OAuth agents (revocable)."""
+
+    items: list[McpConnection] = Field(default_factory=list)
+
+
+class McpConnectionConfig(BaseModel):
+    """Connector wiring for the 'Connected agents' UI (GET /api/app/mcp/config, RFC-112 §5)."""
+
+    connector_url: str | None = Field(
+        default=None, description="The remote MCP server URL to paste into a client, or null."
+    )
+    authorization_server: str | None = Field(
+        default=None, description="The OAuth issuer URL when OAuth is enabled, else null."
+    )
+    oauth_enabled: bool = Field(
+        default=False, description="Whether the per-user OAuth connector flow is configured."
+    )
+
+
+class McpVerifyBody(BaseModel):
+    """POST /internal/mcp/verify body — the MCP server presents a bearer token."""
+
+    token: str = Field(min_length=1, description="The presented MCP bearer token.")
+
+
+class McpVerifyResponse(BaseModel):
+    """The verified principal for a token, or an authenticated=false result."""
+
+    authenticated: bool = Field(description="Whether the token resolved to an entitled user.")
+    user_id: str | None = Field(default=None, description="The owning user id when authenticated.")
+    mcp_access: bool = Field(default=False, description="Whether that user holds the entitlement.")
+    scope: str | None = Field(
+        default=None, description="The granted scope (e.g. 'mcp:read') when authenticated."
+    )
+    aud: str | None = Field(
+        default=None,
+        description="Audience (RFC 8707) the OAuth token is bound to; empty/None for a PAT.",
+    )
+
+
+# --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
+
+
+class CommsDigest(BaseModel):
+    """The user's digest delivery settings (a section of GET/PUT /api/app/comms)."""
+
+    enabled: bool = Field(default=False, description="Send the periodic 'Your Week' digest.")
+    cadence: Literal["weekly", "daily"] = Field(default="weekly", description="How often.")
+    day_of_week: int = Field(default=6, ge=0, le=6, description="0=Mon … 6=Sun (weekly cadence).")
+    hour: int = Field(default=13, ge=0, le=23, description="Local send hour (0-23).")
+    paused: bool = Field(default=False, description="Temporarily pause without losing settings.")
+
+
+class CommsPush(BaseModel):
+    """The user's Web-Push nudge settings."""
+
+    enabled: bool = Field(default=False, description="Send Web-Push resurfacing nudges.")
+
+
+class CommsSettings(BaseModel):
+    """The user's full comms/consent state (GET /api/app/comms response)."""
+
+    digest: CommsDigest = Field(default_factory=CommsDigest)
+    push: CommsPush = Field(default_factory=CommsPush)
+    email_verified: bool = Field(
+        default=False, description="Identity-derived (OAuth); email delivery requires it."
+    )
+    unsubscribe_ref: str | None = Field(
+        default=None,
+        description="Opaque handle for the one-click unsubscribe link; minted on first save.",
+    )
+
+
+class CommsUpdate(BaseModel):
+    """PUT /api/app/comms body — send whichever section(s) changed (server-owned fields ignored)."""
+
+    digest: CommsDigest | None = Field(default=None)
+    push: CommsPush | None = Field(default=None)
+
+
+class YourWeekResponse(BaseModel):
+    """GET /api/app/your-week — the in-app view of the personal "Your Week" rollup.
+
+    The SAME payload the email digest assembles (revisit + new-in-follows + trending-in-your-
+    corpus), served synchronously and DECOUPLED from email consent: a user's own data is always
+    visible in-app; the digest email toggle only governs the outbound email edge. ``sections`` is
+    passed through verbatim from ``app_digest_personal.assemble_digest_payload`` — that assembler
+    is the single source of truth for item shape, so it is not re-modelled here.
+    """
+
+    sections: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Ordered rollup sections (kind + items); empty when nothing is due yet.",
+    )
+    period_label: str = Field(description="Human window label, e.g. 'Aug 1 – 7'.")
+    generated_at: str = Field(description="UTC ISO-8601 timestamp the rollup was assembled.")
+
+
+class PushSubscription(BaseModel):
+    """A W3C PushSubscription (POST /api/app/push/subscribe body). Stored opaquely."""
+
+    model_config = ConfigDict(extra="allow")
+
+    endpoint: str = Field(min_length=1, description="Push service endpoint URL (stable identity).")
+    keys: dict[str, str] = Field(default_factory=dict, description="{p256dh, auth} — opaque to us.")
+
+
+class PushUnsubscribeBody(BaseModel):
+    """DELETE /api/app/push/subscribe body."""
+
+    endpoint: str = Field(min_length=1, description="The subscription endpoint to remove.")
+
+
+class PushSubscriptionsResponse(BaseModel):
+    """Count only — endpoints are not echoed back."""
+
+    count: int = Field(ge=0, description="How many active subscriptions the user has.")
+
+
+class VapidKeyResponse(BaseModel):
+    """GET /api/app/push/vapid-key — the public VAPID key the browser needs to subscribe."""
+
+    key: str = Field(description="URL-safe base64 VAPID public key.")
+
+
+# --- Collections / boards — the curation layer (#1417, PRD-046 FR4 / RFC-111 §1) ---
+
+
+class Collection(BaseModel):
+    """A user collection (GET/POST /api/app/collections)."""
+
+    id: str = Field(description="Opaque collection id.")
+    name: str = Field(description="Display name.")
+    created_at: int = Field(description="Unix time created.")
+    count: int = Field(default=0, ge=0, description="Number of highlights in the collection.")
+
+
+class CollectionCreate(BaseModel):
+    """POST /api/app/collections body."""
+
+    name: str = Field(min_length=1, max_length=120, description="Collection name.")
+
+
+class CollectionsResponse(BaseModel):
+    """The user's collections (newest-first)."""
+
+    items: list[Collection] = Field(default_factory=list)
+
+
+class CollectionItemBody(BaseModel):
+    """POST /api/app/collections/{id}/items body."""
+
+    highlight_id: str = Field(min_length=1, description="Highlight to add.")
+
+
+class CollectionDetail(BaseModel):
+    """A collection with its resolved highlights (GET /api/app/collections/{id})."""
+
+    collection: Collection
+    highlights: list[Highlight] = Field(default_factory=list)
+
+
+# --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
+
+
+class OutboxPendingResponse(BaseModel):
+    """GET /internal/outbox/pending — envelopes for the worker to render + deliver."""
+
+    envelopes: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class OutboxStatusBody(BaseModel):
+    """POST /internal/outbox/{id}/status — the worker's terminal report for an envelope."""
+
+    status: Literal["delivered", "bounced", "complaint", "suppressed", "failed"] = Field(
+        description="Terminal status. `failed` is always-terminal (dead-letter)."
+    )
+    detail: str | None = Field(default=None, description="Optional human-readable detail.")
+
+
+class OutboxStatusResponse(BaseModel):
+    """The effective (stored) status after an idempotent write."""
+
+    status: str = Field(description="Stored status; 'unknown' for an unrecognized id.")
 
 
 class PlaybackPosition(BaseModel):

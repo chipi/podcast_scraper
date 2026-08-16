@@ -1,7 +1,7 @@
 {
   "captured_at": "2026-07-19T10:51:54.427Z",
   "label": "prod-v2-topdown-run1",
-  "target_url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "target_url": "http://127.0.0.1:5600/?path=/workspace/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
   "viewport": {
     "width": 1440,
     "height": 900,
@@ -30,7 +30,7 @@
     "finish_layout_pass_measures": {},
     "sanity": {
       "title": "Podcast Intelligence Platform",
-      "url": "http://127.0.0.1:5600/?path=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+      "url": "http://127.0.0.1:5600/?path=/workspace/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
       "hasCanvas": true,
       "cytoscapeCanvasCount": 3,
       "graphMountEl": true,
@@ -41,7 +41,7 @@
   },
   "trace_events_count": 171560,
   "trace_files": {
-    "raw": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/docs/wip/graph-v3/traces/prod-v2-topdown-run1.trace.json",
-    "gz": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/docs/wip/graph-v3/traces/prod-v2-topdown-run1.trace.json.gz"
+    "raw": "/workspace/Projects/podcast_scraper-FUTURE/docs/wip/graph-v3/traces/prod-v2-topdown-run1.trace.json",
+    "gz": "/workspace/Projects/podcast_scraper-FUTURE/docs/wip/graph-v3/traces/prod-v2-topdown-run1.trace.json.gz"
   }
 }

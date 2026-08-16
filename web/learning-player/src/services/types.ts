@@ -8,6 +8,37 @@ export interface Me {
   user_id: string
   email: string
   name: string
+  /** RFC-112: holds the MCP entitlement — gates the "Connected agents" UI. */
+  mcp_access?: boolean
+}
+
+/** One MCP personal-access token's metadata (GET /api/app/mcp/tokens — never the secret). */
+export interface McpTokenMeta {
+  id: string
+  label: string
+  created_at: number
+  last_used_at: number | null
+}
+
+/** The freshly-minted token — the plaintext is shown ONCE (POST /api/app/mcp/tokens). */
+export interface McpTokenCreated {
+  token: string
+  meta: McpTokenMeta
+}
+
+/** Connector wiring for the "Connected agents" section (GET /api/app/mcp/config). */
+export interface McpConnectionConfig {
+  connector_url: string | null
+  authorization_server: string | null
+  oauth_enabled: boolean
+}
+
+/** One connected OAuth agent (a remembered consent), revocable (GET /api/app/mcp/connections). */
+export interface McpConnection {
+  client_id: string
+  client_name: string
+  scopes: string[]
+  connected_at: number
 }
 
 export type EpisodeStatus = 'ready' | 'pending'
@@ -253,6 +284,9 @@ export interface Highlight {
   created_at: number
   /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
   anchor_status: string | null
+  /** Canonical person/topic refs (#1419) — the highlight as a graph node. Optional: absent on
+   *  pre-#1419 highlights and when the episode has no KG, so callers must guard (`?? []`). */
+  graph_refs?: EntityRef[]
 }
 
 /** Body for POST /api/app/highlights. */
@@ -322,6 +356,87 @@ export interface ResurfacingResponse {
 
 export interface ResurfacingSettings {
   paused: boolean
+}
+
+// --- Collections / boards — curation layer (PRD-046 FR4 / #1417) ---
+
+export interface Collection {
+  id: string
+  name: string
+  created_at: number
+  count: number
+}
+
+export interface CollectionDetail {
+  collection: Collection
+  highlights: Highlight[]
+}
+
+// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+
+export interface CommsDigest {
+  enabled: boolean
+  cadence: 'weekly' | 'daily'
+  day_of_week: number
+  hour: number
+  paused: boolean
+}
+
+export interface CommsPush {
+  enabled: boolean
+}
+
+export interface CommsSettings {
+  digest: CommsDigest
+  push: CommsPush
+  email_verified: boolean
+  unsubscribe_ref: string | null
+}
+
+/**
+ * PUT /api/app/comms body. Send the FULL section object you want to change — the server fills
+ * unset fields with defaults, so a partial `digest` would silently reset cadence/hour/etc.
+ */
+export interface CommsUpdate {
+  digest?: CommsDigest
+  push?: CommsPush
+}
+
+/** A graph entity referenced by a Your Week item (person/topic) — GET /api/app/your-week. */
+export interface YourWeekGraphRef {
+  id: string
+  kind: string
+  label: string
+}
+
+/** One item in a Your Week section. Shapes vary by section kind, so most fields are optional;
+ *  `episode_slug` + `episode_title` are always present, `quote`/`t_ms` only on `revisit`. */
+export interface YourWeekItem {
+  episode_slug: string
+  /** Route-backfilled from the catalog; absent only when a slug no longer resolves (card falls
+   *  back to the lead graph label). */
+  episode_title?: string
+  deep_link: string
+  quote?: string
+  t_ms?: number
+  graph_refs?: YourWeekGraphRef[]
+  source?: string
+  /** Episode/show artwork used as the card backdrop (in-app enrichment; absent → flat card). */
+  image_url?: string | null
+}
+
+export type YourWeekSectionKind = 'revisit' | 'new_in_follows' | 'trending_in_your_corpus'
+
+export interface YourWeekSection {
+  kind: YourWeekSectionKind
+  items: YourWeekItem[]
+}
+
+/** GET /api/app/your-week — the same rollup the email digest sends, decoupled from email consent. */
+export interface YourWeekResponse {
+  sections: YourWeekSection[]
+  period_label: string
+  generated_at: string
 }
 
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */

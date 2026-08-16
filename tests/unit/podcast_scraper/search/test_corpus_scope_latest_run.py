@@ -54,7 +54,12 @@ def test_latest_feed_run_allowed_relpaths_keeps_lexicographic_max() -> None:
     assert "feeds/pod/run_20260417-000000_b/metadata/1.metadata.json" in allowed
 
 
-def test_discover_metadata_files_keeps_only_latest_run(tmp_path: Path) -> None:
+def test_discover_metadata_files_reprocessed_episode_keeps_newest_run(tmp_path: Path) -> None:
+    """Same episode reprocessed into a newer run → newest run wins (supersession, no duplicate).
+
+    (The central rule unions across runs; a collision on ``(feed_id, episode_id)`` resolves to the
+    newest run — here the two docs share ``e1``/``f1`` so only the newer run survives.)
+    """
     doc = {
         "feed": {"feed_id": "f1", "title": "S"},
         "episode": {"episode_id": "e1", "title": "T", "published_date": "2024-01-01"},
@@ -85,11 +90,12 @@ def test_discover_metadata_files_keeps_only_latest_run(tmp_path: Path) -> None:
     assert paths[0].resolve() == new.resolve()
 
 
-def test_distinct_episodes_split_across_runs_undercounted_by_latest_only(tmp_path: Path) -> None:
-    """#877: two DIFFERENT episodes in two run dirs — latest-run sees 1, all-runs sees 2.
+def test_distinct_episodes_split_across_runs_all_included(tmp_path: Path) -> None:
+    """#877 / 94-vs-106 FIX: two DIFFERENT episodes scattered across run dirs — BOTH included.
 
-    This is the backup-under-capture mechanism: prod (append=false) scatters a feed's
-    episodes across run dirs, so the latest-run-only reader reports fewer than really exist.
+    prod (append=false) scatters a feed's episodes across timestamped run dirs (incremental add).
+    The central discovery rule now unions across all runs, so ``discover_metadata_files`` returns
+    every distinct episode — it no longer under-counts by dropping older runs.
     """
     _write_episode(tmp_path, "run_20260416-000000_old", "e1")
     _write_episode(tmp_path, "run_20260417-000000_new", "e2")
@@ -97,12 +103,15 @@ def test_distinct_episodes_split_across_runs_undercounted_by_latest_only(tmp_pat
     latest = discover_metadata_files(tmp_path)
     all_runs = discover_all_metadata_files(tmp_path)
 
-    assert len(latest) == 1  # only the newest run's episode
+    assert len(latest) == 2  # union across runs — both episodes
     assert len(all_runs) == 2  # both episodes are physically present
 
 
-def test_catalog_cumulative_counts_split_episodes_distinctly(tmp_path: Path) -> None:
-    """#877: the cumulative catalog reader (used by coverage/library) counts both episodes."""
+def test_catalog_latest_and_cumulative_converge_on_distinct_total(tmp_path: Path) -> None:
+    """#877 FIX: build_catalog_rows shares the central union+dedup rule, so it matches cumulative.
+
+    Both readers report the true distinct-episode total; the old latest-run-only undercount is gone.
+    """
     from podcast_scraper.server.corpus_catalog import (
         build_catalog_rows,
         build_catalog_rows_cumulative,
@@ -111,5 +120,5 @@ def test_catalog_cumulative_counts_split_episodes_distinctly(tmp_path: Path) -> 
     _write_episode(tmp_path, "run_20260416-000000_old", "e1")
     _write_episode(tmp_path, "run_20260417-000000_new", "e2")
 
-    assert len(build_catalog_rows(tmp_path)) == 1  # latest-run-only under-count
+    assert len(build_catalog_rows(tmp_path)) == 2  # converged on the true distinct total
     assert len(build_catalog_rows_cumulative(tmp_path)) == 2  # true distinct total

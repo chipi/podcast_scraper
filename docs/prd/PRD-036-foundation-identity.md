@@ -4,7 +4,7 @@
 - **Authors**: Marko
 - **Target Release**: v2.7 (Phase P0)
 - **Parent PRD**: `docs/prd/PRD-035-learning-platform.md`
-- **Related analysis**: `docs/wip/MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md`
+- **Related analysis**: `docs/rfc/RFC-107-search-v3-query-workspace.md`
 - **Related RFCs**: RFC-049, RFC-055, RFC-072, RFC-090, RFC-097 (intelligence the read API exposes)
 
 ---
@@ -168,5 +168,5 @@ label. Breaking this shape requires amending PRD-035 FR1.
 ## References
 
 - `docs/prd/PRD-035-learning-platform.md`
-- `docs/wip/MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md`
+- `docs/rfc/RFC-107-search-v3-query-workspace.md`
 - `docs/api/HTTP_API.md`, `docs/rfc/RFC-065-agent-observable-instrumentation.md`

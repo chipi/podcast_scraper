@@ -16,6 +16,36 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from podcast_scraper.providers.common.transcript_cache import (
+    TRANSCRIPT_BLOCK_HEADER,
+    TRANSCRIPT_BLOCK_SEPARATOR,
+)
+
+
+def _transcript_from_messages(messages: list) -> str:
+    """Reconstruct the transcript the model was given, regardless of RFC-115 layout.
+
+    With ``cache_transcript_prefix`` on (the default), the transcript is the leading block of the
+    SYSTEM message and the user message only carries a marker; with it off, the transcript is in the
+    user message. The mock reads the transcript so its fake summary reflects real content either way
+    — otherwise, under the transcript-first layout, it would "summarize" the marker and the e2e test
+    would silently stop exercising transcript flow.
+    """
+
+    def _content(role: str) -> str:
+        for m in messages:
+            if isinstance(m, dict) and m.get("role") == role:
+                c = m.get("content", "")
+                return c if isinstance(c, str) else ""
+        return ""
+
+    system = _content("system")
+    user = _content("user")
+    if system.startswith(TRANSCRIPT_BLOCK_HEADER):
+        body = system[len(TRANSCRIPT_BLOCK_HEADER) :]
+        return body.split(TRANSCRIPT_BLOCK_SEPARATOR, 1)[0].strip()
+    return str(user or system)
+
 
 class MockOpenAIClient:
     """Mock OpenAI client that returns realistic responses."""
@@ -98,8 +128,8 @@ def openai_mock():
         # Configure chat.completions.create for summarization
         def summarize_side_effect(*args, **kwargs):
             messages = kwargs.get("messages", [])
-            user_message = next((m for m in messages if m.get("role") == "user"), {})
-            text = user_message.get("content", "")
+            # RFC-115: read the transcript wherever it is (leading system block when flag on).
+            text = _transcript_from_messages(messages)
             return mock_client._create_summarization_response(text)
 
         mock_client.chat.completions.create.side_effect = summarize_side_effect

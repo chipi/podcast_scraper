@@ -1,0 +1,79 @@
+{
+  "schema_version": "1",
+  "id": "dgst_2026W31_u_2f9c1a7b4e6d0a3c5b8e1f2a",
+  "user_id": "u_2f9c1a7b4e6d0a3c5b8e1f2a",
+  "channel": "email",
+  "template": "your-week-digest.v1",
+  "recipient": {
+    "email": "listener@example.com",
+    "email_verified": true
+  },
+  "consent_snapshot": {
+    "digest_enabled": true,
+    "cadence": "weekly",
+    "unsubscribe_ref": "example-unsubscribe-ref"
+  },
+  "payload": {
+    "sections": [
+      {
+        "kind": "revisit",
+        "items": [
+          {
+            "quote": "The bottleneck was never compute; it was our willingness to throw away a working model.",
+            "episode_slug": "acquired-nvidia-the-machine-that-makes-the-machine",
+            "episode_title": "NVIDIA: The Machine That Makes the Machine",
+            "t_ms": 3921000,
+            "graph_refs": [
+              { "id": "person:jensen-huang", "kind": "person", "label": "Jensen Huang" },
+              { "id": "topic:scaling-laws", "kind": "topic", "label": "Scaling Laws" }
+            ],
+            "deep_link": "/player/acquired-nvidia-the-machine-that-makes-the-machine?t=3921",
+            "source": "user"
+          },
+          {
+            "quote": "Most alignment work is really about making disagreement legible before it becomes catastrophic.",
+            "episode_slug": "dwarkesh-paul-christiano-how-ai-could-go-wrong",
+            "episode_title": "Paul Christiano — How AI Could Go Wrong",
+            "t_ms": 1180000,
+            "graph_refs": [
+              { "id": "person:paul-christiano", "kind": "person", "label": "Paul Christiano" },
+              { "id": "topic:ai-safety", "kind": "topic", "label": "AI Safety" }
+            ],
+            "deep_link": "/player/dwarkesh-paul-christiano-how-ai-could-go-wrong?t=1180",
+            "source": "auto"
+          }
+        ]
+      },
+      {
+        "kind": "new_in_follows",
+        "items": [
+          {
+            "episode_slug": "acquired-tsmc-part-ii",
+            "episode_title": "TSMC (Part II)",
+            "t_ms": null,
+            "graph_refs": [
+              { "id": "topic:semiconductors", "kind": "topic", "label": "Semiconductors" }
+            ],
+            "deep_link": "/player/acquired-tsmc-part-ii"
+          }
+        ]
+      },
+      {
+        "kind": "trending_in_your_corpus",
+        "items": [
+          {
+            "episode_slug": "dwarkesh-paul-christiano-how-ai-could-go-wrong",
+            "t_ms": null,
+            "graph_refs": [
+              { "id": "topic:ai-safety", "kind": "topic", "label": "AI Safety" }
+            ],
+            "deep_link": "/topic/ai-safety?scope=mine"
+          }
+        ]
+      }
+    ]
+  },
+  "not_before": "2026-08-09T13:00:00Z",
+  "expires_at": "2026-08-16T13:00:00Z",
+  "created_at": "2026-08-04T09:12:44Z"
+}

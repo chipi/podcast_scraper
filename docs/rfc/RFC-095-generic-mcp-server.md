@@ -1,6 +1,6 @@
 # RFC-095: Generic MCP Server — Platform Capabilities as Agent Tools
 
-- **Status**: Completed (v2.7) — Epic #891 + slices #892 (skeleton + resolve + search) + #893 (relational tools wrapping RFC-094) + #894 (catalog + CIL) all closed 2026-06-06/07. Library-wrap architecture, stdio transport. HTTP/SSE transport remains an open question (OQ-1) — separate scope when remote-agent demand surfaces.
+- **Status**: Completed (v2.7) — Epic #891 + slices #892 (skeleton + resolve + search) + #893 (relational tools wrapping RFC-094) + #894 (catalog + CIL) all closed 2026-06-06/07. Library-wrap architecture, stdio transport. Remote HTTP transport + auth (OQ-1) shipped separately in [RFC-112](RFC-112-remote-mcp-transport-and-auth.md) (Streamable HTTP + OAuth 2.1 + PATs, 2026-08-06).
 - **Cross-surface refresh (2026-08)**: **38 tools** registered (the pre-refresh count had drifted to 22). The refresh added **referential parity** — every tool's output carries the canonical ids that are other tools' inputs, so an agent pivots search→graph→insight in one hop instead of the surfaces being islands — plus 16 tools across the surfaces with no MCP entry: pivot substrate (search-hit `pivot` handles, `insight_detail`), momentum (`corpus_trending`), graph perspectives (`ego_network`, `topic_clusters`, `topic_conversation_arc`, `topic_perspective_leaders`), GI (`explore_insights`, `episode_insights`, `compare_subjects`), speaker/enrichment (`episode_speaker_roster`, `corpus_enrichment_signals`, `episode_enrichment_signals`), operators (`cluster_search`, `consensus_search`), composite dossiers (`entity_dossier`, `episode_digest`). `build_server` split into per-family `_register_*` helpers.
 - **Updated**: 2026-08 (cross-surface refresh); 2026-06-20 (reconciled with shipped code; search layer is now LanceDB-first)
 - **v2 cross-reference (RFC-097, 2026-06-20)**: prerequisite — stable CIL IDs (RFC-072 + RFC-097) needed for stable tool schemas. MCP server design itself unchanged by v2; HTTP/SSE transport, MCP resources, QueryEnricher tool remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
@@ -68,9 +68,12 @@ tool inherits this for free because it calls `structured_corpus_search`.
 
 **What's NOT done (next-agent backlog)**
 
-- **OQ-1 — HTTP/SSE transport + auth** (remote / prod VPS). Still stdio-only.
-  The tool layer is transport-agnostic, so this is an adapter in `server.py`
-  plus auth, not a rewrite.
+- **OQ-1 — HTTP/SSE transport + auth** (remote / prod VPS) — **RESOLVED by
+  [RFC-112](RFC-112-remote-mcp-transport-and-auth.md)** (2026-08-06): Streamable HTTP
+  transport (`run_server(transport=http)`), an OAuth 2.1 authorization server + PATs, the
+  `mcp_access` entitlement, and an ASGI bearer-auth middleware verifying via the app's internal
+  seam. As predicted, the tool layer stayed transport-agnostic — it was an adapter in `server.py`
+  (`build_http_app`) plus auth, not a rewrite.
 - **OQ-2 — MCP resources** (uri-readable artifacts) in addition to tools. Not
   started.
 - **RFC-093 `corpus_briefing_pack` tool** — not yet registered (the §7 seam).
@@ -108,9 +111,10 @@ rather than the reason the layer exists.
 ### 1. Transport — stdio first
 
 v1 is a **stdio** MCP server (the dominant local-agent transport: Claude Desktop/Code, Cursor). No
-network, no auth surface, runs as a child process of the agent client. HTTP/SSE (remote / prod VPS)
-is a deferred slice (Open Questions OQ-1) — the tool layer is transport-agnostic, so adding it later
-is a thin adapter, not a rewrite.
+network, no auth surface, runs as a child process of the agent client. Remote HTTP (remote / prod VPS)
+was a deferred slice (OQ-1) and **shipped in [RFC-112](RFC-112-remote-mcp-transport-and-auth.md)**
+(Streamable HTTP + OAuth 2.1 + PATs) — confirming the prediction: the transport-agnostic tool layer
+made it a thin adapter (`build_http_app` + auth middleware), not a rewrite.
 
 ### 2. Architecture — library-wrap, not HTTP-proxy
 

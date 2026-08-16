@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 
@@ -8,6 +8,20 @@ const artifacts = useArtifactsStore()
 
 const showBlock = computed(
   () => Boolean(shell.healthStatus) && shell.hasCorpusPath,
+)
+
+// Fetch our own status so the card resolves to Loaded / Not built / Unavailable — and surfaces the
+// Rebuild button when missing — on the DASHBOARD, without waiting for a Graph-tab open (App.vue only
+// syncs topic-clusters once the graph is opened; the operator rebuild surface must not depend on
+// that). The #769 memo dedupes, so this is cheap when the graph path already fetched.
+watch(
+  () => [shell.corpusPath, shell.healthStatus] as const,
+  () => {
+    if (showBlock.value) {
+      void artifacts.syncTopicClustersForCurrentCorpus()
+    }
+  },
+  { immediate: true },
 )
 
 const statusLabel = computed((): string => {
@@ -90,6 +104,19 @@ const statusClass = computed((): string => {
     >
       {{ artifacts.topicClustersErrorDetail }}
     </p>
+    <button
+      v-if="
+        artifacts.topicClustersLoadState === 'missing' ||
+          artifacts.topicClustersLoadState === 'error'
+      "
+      type="button"
+      class="mt-1.5 rounded border border-border bg-overlay px-2 py-0.5 text-[10px] font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+      data-testid="topic-clusters-rebuild"
+      :disabled="artifacts.topicClustersRebuilding"
+      @click="artifacts.rebuildTopicClusters()"
+    >
+      {{ artifacts.topicClustersRebuilding ? 'Rebuilding…' : 'Rebuild' }}
+    </button>
     <p
       v-if="artifacts.topicClustersLoadState === 'local_files'"
       class="mt-1 leading-snug text-muted"

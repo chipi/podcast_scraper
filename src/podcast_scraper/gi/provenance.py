@@ -13,6 +13,7 @@ _SUMMARY_MODEL_ATTR_BY_PROVIDER: dict[str, str] = {
     "deepseek": "deepseek_summary_model",
     "grok": "grok_summary_model",
     "mistral": "mistral_summary_model",
+    "groq": "groq_summary_model",
 }
 
 

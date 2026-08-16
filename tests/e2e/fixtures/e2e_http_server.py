@@ -37,6 +37,10 @@ from urllib.parse import urlparse
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.providers.common.transcript_cache import (
+    TRANSCRIPT_BLOCK_HEADER,
+    TRANSCRIPT_BLOCK_SEPARATOR,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +82,19 @@ def _bundled_gil_json(text: str) -> Optional[str]:
     """
     if "Return JSON only." not in text:
         return None
-    if "Insights:" in text and "Transcript (excerpt):" in text:
+    if "Insights:" in text and ("Transcript (excerpt):" in text or TRANSCRIPT_BLOCK_HEADER in text):
         # extract_quotes_bundled -> {index: [verbatim transcript snippet]} so quotes ground.
-        transcript = text.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
+        # RFC-115: the transcript may be relocated to a leading cache block (in the system message)
+        # instead of the "Transcript (excerpt):" span in the user message. Read whichever carries
+        # it — callers pass system+user combined so the relocated block is visible here.
+        if TRANSCRIPT_BLOCK_HEADER in text:
+            transcript = (
+                text.split(TRANSCRIPT_BLOCK_HEADER, 1)[1]
+                .split(TRANSCRIPT_BLOCK_SEPARATOR, 1)[0]
+                .strip()
+            )
+        else:
+            transcript = text.split("Transcript (excerpt):")[1].split("Insights:")[0].strip()
         snippet = transcript[:60].strip() or "Evidence from transcript."
         block = text.split("Insights:")[1].split("Return JSON only.")[0]
         idxs = re.findall(r"^\s*(\d+):", block, re.MULTILINE) or ["0"]
@@ -416,6 +430,19 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/v1"
 
+    def groq_api_base(self) -> str:
+        """Get Groq API base URL (points to E2E server).
+
+        Groq is OpenAI-compatible AND dual-use (unlike deepseek/grok/qwen): the same base serves
+        BOTH chat and Whisper transcription, so it reuses the generic mock endpoints:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - /v1/audio/transcriptions for whisper-large-v3-turbo transcription
+
+        Returns:
+            Groq API base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
     def ollama_api_base(self) -> str:
         """Get Ollama API base URL (points to E2E server).
 
@@ -425,6 +452,44 @@ class E2EServerURLs:
 
         Returns:
             Ollama API base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def litellm_api_base(self) -> str:
+        """Get LiteLLM gateway base URL (points to E2E server).
+
+        The LiteLLM gateway (#1356) is OpenAI-compatible, so it reuses the same mock endpoints:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - Note: the gateway serves chat only (ASR stays on whisper).
+
+        Returns:
+            LiteLLM gateway base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def qwen_api_base(self) -> str:
+        """Get native Qwen provider base URL (points to E2E server).
+
+        The Qwen provider (ADR-147) is OpenAI-compatible, so it reuses the same mock endpoints as
+        openai/deepseek/litellm:
+        - /v1/chat/completions for chat (summary / speaker / GI / KG / grounding)
+        - Note: Qwen does NOT serve audio transcription (whisper/openai own it).
+
+        Returns:
+            Qwen API base URL (e.g., "http://127.0.0.1:18765/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def vllm_api_base(self) -> str:
+        """Get native vLLM provider base URL (points to E2E server).
+
+        vLLM (ADR-147) is OpenAI-compatible and, like ``litellm_api_base`` / ``qwen_api_base``,
+        has NO env-var fallback in :mod:`podcast_scraper.config` — the acceptance harness must
+        redirect the CONFIG field (``vllm_api_base``) or a fixture run would dial a real host.
+        Reuses the shared OpenAI-compatible mock endpoints (/v1/chat/completions).
+
+        Returns:
+            vLLM API base URL (e.g., "http://127.0.0.1:18765/v1")
         """
         return f"{self.base_url}/v1"
 
@@ -969,7 +1034,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # Determine response type: resolution, bundled GIL, speaker, GIL evidence, or summary
             resolution_json = _resolution_response_json(user_content)
-            bundled_json = _bundled_gil_json(user_content)
+            # RFC-115: pass system+user so a transcript relocated to the system block is visible.
+            bundled_json = _bundled_gil_json(f"{system_content}\n{user_content}")
             if resolution_json is not None:
                 response_data = {
                     "id": "chatcmpl-test-resolution",
@@ -1487,11 +1553,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "model": "pyannote/speaker-diarization-community-1",
             }
         else:  # /v1/models
+            # Shared by the DGX faster-whisper/pyannote probe AND the LiteLLM gateway
+            # served-alias verify (``_verify_served_model``). ``podcast-flash-0731`` is the chat
+            # alias the fast ``cloud_balanced`` profile pins for summary/speaker/insight (#1527,
+            # ``litellm_verify_served_model: true``); advertise it so the reachable mock passes
+            # verification instead of raising LiteLLMServedModelMismatch.
             body = {
                 "object": "list",
                 "data": [
                     {"id": "large-v3", "object": "model", "owned_by": "openai"},
                     {"id": "pyannote/speaker-diarization-community-1", "object": "model"},
+                    {"id": "podcast-flash-0731", "object": "model", "owned_by": "litellm"},
                 ],
             }
         response_json = json.dumps(body)
@@ -1695,9 +1767,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 user_content = str(user_content_raw)
             system = request_data.get("system", "")
+            # Anthropic `system` may be a str OR a list of content blocks (RFC-115 transcript
+            # cache_control relocates it into a system block). Normalize to text ONCE so every
+            # downstream check below is list-safe (#1504 made this path send list-shaped systems).
+            system_text = _anthropic_system_text(system)
 
             # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
-            bundled_json = _bundled_gil_json(user_content)
+            # RFC-115: include the system (may carry the relocated transcript cache block).
+            bundled_json = _bundled_gil_json(f"{system_text}\n{user_content}")
             if bundled_json is not None:
                 response_data = {
                     "id": "msg-test-bundled",
@@ -1744,7 +1821,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "stop_sequence": None,
                     "usage": {"input_tokens": 60, "output_tokens": 2},
                 }
-            elif "knowledge-graph fragment" in _anthropic_system_text(system).lower():
+            elif "knowledge-graph fragment" in system_text.lower():
                 # KG extract_kg_graph (system from build_kg_transcript_system_prompt)
                 kg_json = {
                     "topics": [{"label": "E2E mock topic"}],
@@ -1764,9 +1841,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 # Determine response type based on system prompt
                 # If system prompt contains "speaker" or "NER", it's speaker detection
                 is_speaker_detection = (
-                    "speaker" in system.lower()
-                    or "ner" in system.lower()
-                    or "name" in system.lower()
+                    "speaker" in system_text.lower()
+                    or "ner" in system_text.lower()
+                    or "name" in system_text.lower()
                 )
 
                 if is_speaker_detection:

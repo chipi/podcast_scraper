@@ -31,6 +31,10 @@ class ProviderCallMetrics:
     retries: int = 0  # Number of retries attempted
     rate_limit_sleep_sec: float = 0.0  # Time spent sleeping due to rate limits
     estimated_cost: Optional[float] = None  # Estimated cost in USD
+    # #1523: latched once this call's transcription cost has been recorded onto the run-level
+    # pipeline_metrics (by the provider's self-record OR the orchestration backstop) so the two
+    # never double-count. call_metrics is per-episode, so this is a per-call latch.
+    pipeline_transcription_recorded: bool = False
     _retry_count: int = field(default=0, init=False, repr=False)  # Internal retry counter
     _rate_limit_sleep_total: float = field(
         default=0.0, init=False, repr=False
@@ -52,7 +56,9 @@ class ProviderCallMetrics:
         through every :func:`retry_with_metrics` call site — they already call this. The per-model
         profile (retries/backoff, and the breaker's own threshold/cooldown) is resolved here from
         ``_provider_name`` + the summary model, so gemini-2.5-flash-lite backs off harder than a
-        heavier model WITHOUT any call-site changes.
+        heavier model WITHOUT any call-site changes. ``cfg``'s general ``llm_retry_*`` knobs then
+        override the resolved profile field-by-field when set (see ``resolve_resilience``), so a
+        prod profile can hold/retry for minutes through a gateway outage without a code change.
         """
         if cfg is None:
             return
@@ -61,7 +67,7 @@ class ProviderCallMetrics:
         from .llm_resilience import resolve_resilience
 
         model = getattr(cfg, f"{self._provider_name}_summary_model", None)
-        profile = resolve_resilience(self._provider_name, model)
+        profile = resolve_resilience(self._provider_name, model, cfg)
         self._resilience_profile = profile
 
         if not getattr(cfg, "llm_circuit_breaker_enabled", False):
@@ -137,8 +143,20 @@ def apply_estimated_cost_if_missing(
     prompt_tokens: Optional[int] = None,
     completion_tokens: Optional[int] = None,
     audio_minutes: Optional[float] = None,
+    _emit: bool = True,
 ) -> None:
-    """Populate ``estimated_cost`` from pricing YAML when providers omit it (#823)."""
+    """Populate ``estimated_cost`` from pricing YAML when providers omit it (#823).
+
+    ``_emit`` (BUG 2, internal): :func:`record_provider_call_cost` calls this to backfill a
+    missing cost, then ALWAYS emits its own ``llm_cost`` event once this returns. Recursing
+    back into ``record_provider_call_cost`` here (the pre-fix behaviour) therefore emitted a
+    SECOND, exact-duplicate event for the same call — 86 of 177 ``stage=summarization``
+    events in a 9-episode run were exact duplicates, some 4x, all traced to this recursion.
+    ``record_provider_call_cost`` passes ``_emit=False`` so this only sets the value; the
+    standalone callers (diarization/transcription cost backstops, which have no other emitter
+    for their call) keep the default ``True`` and are unaffected — same single emission as
+    before.
+    """
     if call_metrics.estimated_cost is not None:
         return
     if not provider_type or not model:
@@ -155,7 +173,9 @@ def apply_estimated_cost_if_missing(
             completion_tokens=completion_tokens,
             audio_minutes=audio_minutes,
         )
-        if cost is not None:
+        if cost is None:
+            return
+        if _emit:
             record_provider_call_cost(
                 call_metrics,
                 float(cost),
@@ -167,6 +187,8 @@ def apply_estimated_cost_if_missing(
                 completion_tokens=completion_tokens,
                 audio_minutes=audio_minutes,
             )
+        else:
+            call_metrics.set_cost(float(cost))
     except Exception:
         pass
 
@@ -183,6 +205,7 @@ def record_provider_call_cost(
     completion_tokens: Optional[int] = None,
     audio_minutes: Optional[float] = None,
     triggered_guardrail: bool = False,
+    response: Any = None,
 ) -> None:
     """Set per-call USD, backfill when null, and emit ``llm_cost_event`` (#823 / #804).
 
@@ -190,10 +213,32 @@ def record_provider_call_cost(
     ``llm_cost_event`` so cost-rollup can pivot on paid-but-rejected
     spend (the cloud provider charged us for a response that tripped a
     response-shape guardrail and got routed to a fallback).
+
+    ``response`` (RFC-115): the raw provider response, forwarded to ``emit_llm_cost_event`` which
+    extracts the normalised cache-read / cache-write token counts from its usage. Passing it makes
+    prefix-cache savings observable in the ``llm_cost`` telemetry; omitting it is the prior
+    behaviour (no cache-token fields), so every existing call site is unaffected.
     """
+    if cost is None and response is not None:
+        # Prefer the gateway/upstream REAL cost (OpenRouter ``usage.cost`` / LiteLLM
+        # ``_hidden_params['response_cost']``) over the local pricing-table estimate: the table
+        # misses aliased gateway model ids and prices the OR route at the vendor-DIRECT rate — 3-5x
+        # the real bill (2026-08 finale: deepseek-or telemetry $0.68 vs SpendLogs ~$0.20).
+        # Lazy import dodges the openai_provider <-> provider_metrics cycle.
+        try:
+            from podcast_scraper.providers.openai.openai_provider import _openai_response_cost_usd
+
+            cost = _openai_response_cost_usd(response)
+        except (
+            Exception
+        ):  # pragma: no cover — cost extraction is best-effort; table is the fallback
+            pass
     if cost is not None:
         call_metrics.set_cost(cost)
     else:
+        # BUG 2: _emit=False — this function emits the event itself below; letting the backfill
+        # recurse into record_provider_call_cost (the pre-fix behaviour) emitted a second,
+        # exact-duplicate event for the same call.
         apply_estimated_cost_if_missing(
             call_metrics,
             cfg=cfg,
@@ -203,6 +248,7 @@ def record_provider_call_cost(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             audio_minutes=audio_minutes,
+            _emit=False,
         )
     final = call_metrics.estimated_cost
     # NOT gated on cost>0 any more: a call with tokens but no known price (an unpriced model, or a
@@ -228,9 +274,36 @@ def record_provider_call_cost(
             completion_tokens=completion_tokens,
             run_id=run_id,
             triggered_guardrail=triggered_guardrail,
+            response=response,
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)
+
+
+def record_transcription_cost_to_pipeline(
+    pipeline_metrics: Any,
+    call_metrics: Optional[ProviderCallMetrics],
+    audio_minutes: Optional[float],
+    cost_usd: Optional[float],
+) -> None:
+    """Record a transcription call's cost onto the run-level metrics exactly once (#1523).
+
+    Transcription cost reaches the manifest ``cost_rollup`` only through
+    ``pipeline_metrics.llm_transcription_cost_usd``. Providers self-record when they can price the
+    call precisely (feed duration known); the orchestration backstop
+    (``_record_transcription_metrics``) records for every other path — a provider that couldn't
+    determine audio duration (deepgram's ``audio_minutes<=0`` bail), or one that never self-records.
+    Both route through here; the per-call ``call_metrics`` latch makes whichever fires first the
+    only one that counts, so the cost is neither dropped (the #1523 rollup-undercount) nor
+    double-counted.
+    """
+    if pipeline_metrics is None:
+        return
+    if call_metrics is not None and call_metrics.pipeline_transcription_recorded:
+        return
+    pipeline_metrics.record_llm_transcription_call(float(audio_minutes or 0.0), cost_usd=cost_usd)
+    if call_metrics is not None:
+        call_metrics.pipeline_transcription_recorded = True
 
 
 def transcription_model_for_cfg(cfg: Any) -> str:
@@ -243,6 +316,11 @@ def transcription_model_for_cfg(cfg: Any) -> str:
         "gemini": "gemini_transcription_model",
         "mistral": "mistral_transcription_model",
         "deepgram": "deepgram_model",
+        # DGX-served ASR: the real model lives in dgx_whisper_model / moss_model, NOT a
+        # ``<provider>_transcription_model`` field. Without these the resolver returned "" for a DGX
+        # run and callers fell back to the unused local ``whisper_model`` default (base.en).
+        "tailnet_dgx_whisper": "dgx_whisper_model",
+        "moss": "moss_model",
     }
     field = model_field_by_provider.get(provider, f"{provider}_transcription_model")
     model = getattr(cfg, field, None)
@@ -742,19 +820,26 @@ def apply_gil_evidence_llm_call_metrics(
     if prompt_tokens is not None and completion_tokens is not None:
         call_metrics.set_tokens(prompt_tokens, completion_tokens)
     # Compute and attach cost if the provider didn't already.
-    cost_event_emitted = False
+    # B4: emit the llm_cost event whenever TOKENS are present, NOT only when a price resolves. This
+    # path used to emit ONLY if calculate_provider_cost returned a value (a missing rate row — e.g.
+    # a litellm gateway alias or any unpriced model — returned None) OR the provider had set a
+    # positive response_cost. So quote/extraction + entailment token usage VANISHED from the event
+    # log for every unpriced route, and rolling_assess's token x price cost silently excluded the
+    # ENTIRE grounding stage for those runs. record_provider_call_cost is itself tokens-gated (uses
+    # the provider's response_cost when already set, else the pricing table, else $0 with tokens
+    # still recorded — see its docstring), so route every grounding call through it exactly once.
+    # Passing the existing estimated_cost preserves a provider that already priced its own call.
     if (
-        call_metrics.estimated_cost is None
-        and cfg is not None
+        cfg is not None
         and provider_type
         and model
         and prompt_tokens is not None
         and completion_tokens is not None
     ):
         try:
-            from podcast_scraper.workflow.helpers import calculate_provider_cost
-
-            cost = calculate_provider_cost(
+            record_provider_call_cost(
+                call_metrics,
+                call_metrics.estimated_cost,
                 cfg=cfg,
                 provider_type=provider_type,
                 capability="summarization",
@@ -762,44 +847,8 @@ def apply_gil_evidence_llm_call_metrics(
                 prompt_tokens=int(prompt_tokens),
                 completion_tokens=int(completion_tokens),
             )
-            if cost is not None:
-                record_provider_call_cost(
-                    call_metrics,
-                    cost,
-                    cfg=cfg,
-                    provider_type=provider_type,
-                    capability="summarization",
-                    model=model,
-                    prompt_tokens=int(prompt_tokens),
-                    completion_tokens=int(completion_tokens),
-                )
-                cost_event_emitted = True
-        except Exception:
-            # Pricing is best-effort at this layer — a missing rate row
-            # shouldn't fail a GIL evidence call.
-            pass
-    if (
-        not cost_event_emitted
-        and call_metrics.estimated_cost is not None
-        and call_metrics.estimated_cost > 0
-        and cfg is not None
-        and provider_type
-        and model
-    ):
-        try:
-            from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
-
-            emit_llm_cost_event(
-                cfg,
-                provider=provider_type,
-                stage="summarization",
-                model=model,
-                estimated_cost_usd=float(call_metrics.estimated_cost),
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-            )
         except Exception as exc:
-            logger.debug("llm_cost_event emission skipped: %s", exc)
+            logger.debug("gi evidence cost event emission skipped: %s", exc)
     call_metrics.finalize()
     if pipeline_metrics is None:
         return

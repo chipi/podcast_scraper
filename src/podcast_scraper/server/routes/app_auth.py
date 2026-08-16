@@ -118,6 +118,23 @@ def require_viewer_access(request: Request) -> User:
     return user
 
 
+def _safe_return_to(value: str | None) -> str | None:
+    """Open-redirect guard for the post-login ``return_to``.
+
+    Allow ONLY a same-origin *relative* path (single leading ``/``). Rejects protocol-relative
+    (``//host``), absolute URLs, backslashes, and CRLF so a poisoned ``return_to`` can't bounce
+    the post-login redirect off-site. Used by the MCP ``/authorize`` bounce (RFC-112): an
+    unauthenticated remote-client authorize is sent through Google sign-in and back here.
+    """
+    if not value or not isinstance(value, str):
+        return None
+    if not value.startswith("/") or value.startswith("//"):
+        return None
+    if "://" in value or "\\" in value or "\n" in value or "\r" in value:
+        return None
+    return value
+
+
 @router.get("/auth/login")
 async def app_auth_login(
     request: Request,
@@ -127,6 +144,10 @@ async def app_auth_login(
     ),
     platform: str | None = Query(
         default=None, description="'native' → callback returns a deep-link token, not a cookie."
+    ),
+    return_to: str | None = Query(
+        default=None,
+        description="Same-origin path to return to after login (open-redirect-guarded).",
     ),
 ) -> RedirectResponse:
     """Begin the OAuth flow: redirect to the provider with a CSRF state cookie.
@@ -154,6 +175,7 @@ async def app_auth_login(
                 "iat": int(time.time()),
                 "grant": grant or "",
                 "platform": "native" if platform == "native" else "",
+                "return_to": _safe_return_to(return_to) or "",
             },
             secret,
         ),
@@ -212,7 +234,10 @@ async def app_auth_callback(
         resp = RedirectResponse(deep_link, status_code=307)
         resp.delete_cookie(app_sessions.STATE_COOKIE)
         return resp
-    resp = RedirectResponse("/", status_code=307)
+    # Return to where login was initiated (e.g. the MCP /authorize consent, RFC-112) when a
+    # guarded same-origin return_to rode the state cookie; otherwise the player home.
+    dest = _safe_return_to(saved.get("return_to")) or "/"
+    resp = RedirectResponse(dest, status_code=307)
     resp.set_cookie(
         app_sessions.SESSION_COOKIE,
         token,
@@ -240,6 +265,7 @@ def _user_dict(user: User) -> dict[str, object]:
         "name": user.name,
         "role": user.role,
         "disabled": user.disabled,
+        "mcp_access": user.mcp_access,  # RFC-112: gates the MCP connection UI
     }
 
 

@@ -8,6 +8,10 @@
 
 import type {
   AudioSource,
+  Collection,
+  CollectionDetail,
+  CommsSettings,
+  CommsUpdate,
   CorpusEnrichmentSignals,
   EntitiesResponse,
   EntitySearchResponse,
@@ -23,6 +27,10 @@ import type {
   InsightsResponse,
   InterestCluster,
   ListEpisodesParams,
+  McpConnection,
+  McpConnectionConfig,
+  McpTokenCreated,
+  McpTokenMeta,
   Me,
   Note,
   NoteCreate,
@@ -41,6 +49,7 @@ import type {
   TopicPerspectivesResponse,
   TrendingEntity,
   UserStats,
+  YourWeekResponse,
 } from './types'
 import { resolveApiBase } from './tier'
 
@@ -619,6 +628,38 @@ export async function fetchHighlightsExport(): Promise<string> {
   return resp.text()
 }
 
+export interface ObsidianExportResult {
+  mode: 'full' | 'incremental'
+  revision: number
+  written: number
+  removed: number
+}
+
+/**
+ * Graph-aware Obsidian export (RFC-113 / #1472). Downloads the vault zip and returns the
+ * `X-Export-*` header metadata so the caller can persist the cursor (for the next incremental
+ * pull) and show a summary. `since` = the last revision the client applied (0 = full).
+ */
+export async function exportObsidian(since: number): Promise<ObsidianExportResult> {
+  const resp = await apiFetch(`${BASE}/export?format=obsidian&since=${since}`, {
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /export → ${resp.status}`)
+  const blob = await resp.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'closelistening-obsidian.zip'
+  a.click()
+  URL.revokeObjectURL(url)
+  return {
+    mode: (resp.headers.get('X-Export-Mode') as 'full' | 'incremental') ?? 'full',
+    revision: Number(resp.headers.get('X-Export-Revision') ?? '0'),
+    written: Number(resp.headers.get('X-Export-Written') ?? '0'),
+    removed: Number(resp.headers.get('X-Export-Removed') ?? '0'),
+  }
+}
+
 // --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
 
 /** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */
@@ -652,4 +693,189 @@ export async function putResurfacingSettings(paused: boolean): Promise<Resurfaci
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /resurfacing/settings → ${resp.status}`)
   return (await resp.json()) as ResurfacingSettings
+}
+
+// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+
+const COMMS_DEFAULTS: CommsSettings = {
+  digest: { enabled: false, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
+  push: { enabled: false },
+  email_verified: false,
+  unsubscribe_ref: null,
+}
+
+export async function getComms(): Promise<CommsSettings> {
+  try {
+    return await getJSON<CommsSettings>('/comms')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { ...COMMS_DEFAULTS }
+    throw err
+  }
+}
+
+/**
+ * The in-app "Your Week" rollup — the same content the email digest sends, served live and
+ * DECOUPLED from email consent (a user's own data). Returns empty sections when unauthenticated
+ * or nothing is due yet, so callers render-or-hide without special-casing 401.
+ */
+export async function getYourWeek(): Promise<YourWeekResponse> {
+  try {
+    return await getJSON<YourWeekResponse>('/your-week')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      return { sections: [], period_label: '', generated_at: '' }
+    }
+    throw err
+  }
+}
+
+export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
+  const resp = await apiFetch(`${BASE}/comms`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /comms → ${resp.status}`)
+  return (await resp.json()) as CommsSettings
+}
+
+/** The public VAPID key the browser needs to subscribe (throws 503 when push isn't configured). */
+export async function getVapidKey(): Promise<string> {
+  const resp = await getJSON<{ key: string }>('/push/vapid-key')
+  return resp.key
+}
+
+/** Register a browser push subscription (also enables the push channel server-side). */
+export async function subscribePush(subscription: unknown): Promise<{ count: number }> {
+  const resp = await apiFetch(`${BASE}/push/subscribe`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /push/subscribe → ${resp.status}`)
+  return (await resp.json()) as { count: number }
+}
+
+/** Remove a browser push subscription (disables the channel when the last one goes). */
+export async function unsubscribePush(endpoint: string): Promise<{ count: number }> {
+  const resp = await apiFetch(`${BASE}/push/subscribe`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /push/subscribe → ${resp.status}`)
+  return (await resp.json()) as { count: number }
+}
+
+// --- Collections / boards (PRD-046 FR4 / #1417) ---
+
+export async function getCollections(): Promise<Collection[]> {
+  try {
+    return (await getJSON<{ items: Collection[] }>('/collections')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+export async function getCollection(id: string): Promise<CollectionDetail> {
+  return getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
+}
+
+export async function createCollection(name: string): Promise<Collection> {
+  const resp = await apiFetch(`${BASE}/collections`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /collections → ${resp.status}`)
+  return (await resp.json()) as Collection
+}
+
+export async function deleteCollection(id: string): Promise<Collection[]> {
+  const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id} → ${resp.status}`)
+  return ((await resp.json()) as { items: Collection[] }).items
+}
+
+export async function addToCollection(id: string, highlightId: string): Promise<Collection> {
+  const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ highlight_id: highlightId }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /collections/${id}/items → ${resp.status}`)
+  return (await resp.json()) as Collection
+}
+
+export async function removeFromCollection(id: string, highlightId: string): Promise<Collection> {
+  const resp = await apiFetch(
+    `${BASE}/collections/${encodeURIComponent(id)}/items/${encodeURIComponent(highlightId)}`,
+    { method: 'DELETE', credentials: 'include' },
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id}/items → ${resp.status}`)
+  return (await resp.json()) as Collection
+}
+
+// --- MCP "Connected agents" (RFC-112 §5): connector config + personal-access tokens ---
+
+/** The connector wiring the Profile section shows (resource URL + OAuth status). mcp_access-gated. */
+export async function getMcpConfig(): Promise<McpConnectionConfig> {
+  const resp = await apiFetch(`${BASE}/mcp/config`, { credentials: 'include' })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/config → ${resp.status}`)
+  return (await resp.json()) as McpConnectionConfig
+}
+
+/** List the user's MCP tokens (metadata only — the secret is never returned after creation). */
+export async function getMcpTokens(): Promise<McpTokenMeta[]> {
+  const resp = await apiFetch(`${BASE}/mcp/tokens`, { credentials: 'include' })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/tokens → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpTokenMeta[]
+}
+
+/** Mint a token; the plaintext is returned ONCE (copy-then-forget). */
+export async function createMcpToken(label: string): Promise<McpTokenCreated> {
+  const resp = await apiFetch(`${BASE}/mcp/tokens`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /mcp/tokens → ${resp.status}`)
+  return (await resp.json()) as McpTokenCreated
+}
+
+/** Revoke a token by id; returns the remaining tokens. */
+export async function revokeMcpToken(id: string): Promise<McpTokenMeta[]> {
+  const resp = await apiFetch(`${BASE}/mcp/tokens/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /mcp/tokens/${id} → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpTokenMeta[]
+}
+
+/** List the OAuth agents (claude.ai etc.) the user has connected. */
+export async function getMcpConnections(): Promise<McpConnection[]> {
+  const resp = await apiFetch(`${BASE}/mcp/connections`, { credentials: 'include' })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/connections → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpConnection[]
+}
+
+/** Disconnect an OAuth agent (forget consent + drop its live tokens); returns the remaining. */
+export async function revokeMcpConnection(clientId: string): Promise<McpConnection[]> {
+  const resp = await apiFetch(`${BASE}/mcp/connections/${encodeURIComponent(clientId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /mcp/connections/${clientId} → ${resp.status}`)
+  return ((await resp.json()).items ?? []) as McpConnection[]
 }

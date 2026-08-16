@@ -20,9 +20,7 @@ timer, and stamps the dev-only `window.__GIKG_FSM__` hook for E2E inspection.
 
 ## Architectural decisions
 
-The plan that produced this module is at
-`/Users/markodragoljevic/.claude/plans/in-this-b-tanch-gentle-pillow.md`. The 13 locked
-design decisions and FSM specification live in that file.
+The 13 locked design decisions and FSM specification live in `graphHandoffFsm.ts` (§"FSM design specification").
 
 ## States (8 flat)
 

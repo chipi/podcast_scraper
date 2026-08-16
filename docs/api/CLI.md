@@ -258,8 +258,8 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 ### Control Options
 
 - `--dry-run` - Preview without writing files (includes LLM cost projection when API providers are configured)
-- `--skip-existing` - Skip episodes with existing output
-- `--append` - Resume into a **stable** `run_append_*` directory and skip episodes whose on-disk metadata already matches the RSS `episode_id` and required artifacts (GitHub #444). Incompatible with `--clean-output`. Unlike `--skip-existing` (path/exists heuristics in metadata generation), append skips **before** download using validated metadata + transcript (and optional summary / GI / KG files when those features are enabled).
+- `--skip-existing` - Skip episodes already present in the corpus, keyed on stable `episode_id` / GUID (not position, which shifts when the feed grows). Unlike `--append`, does not require pre-validated metadata completeness.
+- `--append` - Resume into a **stable** `run_append_*` directory and skip episodes whose on-disk metadata already matches the RSS `episode_id` and required artifacts (GitHub #444). Incompatible with `--clean-output`. Both `--append` and `--skip-existing` use GUID-keyed resolution; append additionally validates metadata completeness before download.
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
 - `--max-failures N` - Stop after N episode failures (Issue #379)
@@ -631,7 +631,7 @@ make quality-metrics-ci
 ```
 
 `compare-gil-runs` expects each path to be a **pipeline run root** with `metadata/*.gi.json`
-(see `docs/wip/gil-ml-vs-openai-outcome-benchmark.md`).
+(see the original GIL-ML-vs-OpenAI outcome benchmark, WIP doc now removed).
 
 ## Knowledge Graph (`kg`) subcommands
 
@@ -675,7 +675,7 @@ for the full flag list; below is the one-line intent per command.
 | `cluster-corpus-topics` | Corpus-scope topic clustering (theme discovery). | `--threshold`, `--min-episodes`, `--dry-run`. |
 | `corpus-cost` | Cost projection over an already-run corpus root. | Positional: `corpus_path` (parent of `feeds/`). Reads existing artifacts; no LLM calls. |
 | `index-two-tier` | Build the two-tier LanceDB search index (RFC-090). | `--lance-path`, `--embedding-model`, `--limit-episodes`. |
-| `mcp` | Run the generic MCP server over a corpus, stdio transport (PRD-034 / RFC-095). | Requires `.[dev,search]`. `--corpus` (positional-alt via flag). |
+| `mcp` | Run the generic MCP server over a corpus (PRD-034 / RFC-095). `--transport stdio` (default; local child process, no auth) or `--transport http` (remote Streamable HTTP, bearer-auth per RFC-112). | Requires `.[dev,search]` (or `[search]` + `mcp` in prod). `--corpus <dir>` (required). HTTP: `--host`/`--port` (default `127.0.0.1:8009`); needs `APP_MCP_VERIFY_URL` + `INTERNAL_MCP_TOKEN` env for the verify seam (+ `APP_MCP_ISSUER_URL`/`APP_MCP_RESOURCE_URL` for discovery). |
 | `verify-gil-chunk-offsets` | Compare GIL Quote char ranges to indexed transcript chunk metadata per episode (offset-alignment gate before search lift). | `--index-path`, `--min-overlap-rate`, `--strict`, `--max-samples`. |
 
 ## See Also

@@ -129,6 +129,38 @@ class TestExciseAdRegions:
         assert "WorkOS" not in cleaned
         assert "ramp.com slash" not in cleaned.lower()
 
+    def test_two_ad_blocks_in_head_both_excised_middle_kept(self):
+        """The exact bug this fix targets: TWO distinct ad blocks both inside the head window, with
+        real content between, whose first-to-last hit span exceeds MAX_AD_CLUSTER_SPAN. The old
+        single-span model saw 'scattered' hits and excised NOTHING (the observed "5 hits, 0 chars").
+        Per-cluster excision cuts BOTH blocks and keeps the content between them."""
+        # ~2200 chars of real content between the blocks: > CLUSTER_GAP (so they cluster apart) AND
+        # pushes the first-to-last hit span past MAX_AD_CLUSTER_SPAN (so the OLD code would bail).
+        middle = "This is real interview content about trail drainage and grade. " * 35
+        second_block = (
+            "This segment is sponsored by Squarespace. "
+            "Build your website at squarespace.com slash pod. Use code POD for 10 percent off. "
+        )
+        trailer = "And back to the conversation about bike suspension setup. " * 4
+        text = _PREROLL_AD_TEXT + middle + second_block + trailer
+        assert len(text) < 5000  # both blocks live in the head scan window
+        cleaned, _, meta = excise_ad_regions(text)
+        assert len(meta.excised_ranges) >= 2  # BOTH blocks cut (old code: 0)
+        assert "ramp.com slash" not in cleaned.lower()  # first block gone
+        assert "squarespace.com slash" not in cleaned.lower()  # second block gone
+        assert "real interview content about trail drainage" in cleaned  # middle survives
+
+    def test_excised_texts_records_what_was_cut(self):
+        """The ad-map carries the ACTUAL text removed per range (audit trail for chasing bad cuts),
+        one entry per excised range, each slicing back to its range in the source."""
+        text = _PREROLL_AD_TEXT + _CONTENT_BLOCK + _POSTROLL_AD_TEXT
+        _, _, meta = excise_ad_regions(text)
+        assert meta.excised_texts
+        assert len(meta.excised_texts) == len(meta.excised_ranges)
+        for (lo, hi), cut in zip(meta.excised_ranges, meta.excised_texts):
+            assert cut == text[lo:hi]
+        assert meta.to_dict()["excised_texts"] == meta.excised_texts
+
     def test_dry_run_returns_source_but_populates_metadata(self):
         text = _PREROLL_AD_TEXT + _CONTENT_BLOCK + _POSTROLL_AD_TEXT
         cleaned, _, meta = excise_ad_regions(text, dry_run=True)

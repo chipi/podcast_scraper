@@ -1,0 +1,71 @@
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Allowlist: paths excluded from scanning
+# ---------------------------------------------------------------------------
+[allowlist]
+description = "Repo-level allowlist: vendored paths and known false-positive patterns"
+
+paths = [
+    # Vendored / generated / large-binary trees — not user-authored secrets
+    '''^\.venv/''',
+    '''^node_modules/''',
+    '''^\.cache/''',
+    '''^\.test_outputs/''',
+    '''^test-results/''',
+    '''^htmlcov/''',
+    # Jupyter notebooks can embed model outputs with long base64 blobs
+    '''\.ipynb$''',
+    # Historical eval run artifacts — frozen, audited separately
+    '''^data/eval/runs/''',
+    # Eval baselines — frozen model fingerprint artifacts; real keys never stored here
+    '''^data/eval/baselines/''',
+    # Local backup files (.env.*.bak, .env.*.pre-*.bak) are never committed;
+    # they appear only in `gitleaks detect` full-tree scans, not in git/staged scans.
+    # CI uses `gitleaks git` which skips untracked files.
+    '''\.bak$''',
+]
+
+# Regexes matched against the full match string (not just one field).
+# These are known false positives that appear in legitimate config, docstrings,
+# and RFC prose.  IMPORTANT: keep these TIGHT.  None of these disable
+# `generic-api-key` globally; they allowlist specific textual shapes only.
+regexes = [
+    # LLM inference config — max_tokens / max_length / max_new_tokens are never secrets
+    '''max_(?:tokens|length|new_tokens)[=:\s,]+\d''',
+
+    # ML training hyperparameters — length_penalty, num_beams, etc.
+    '''length_penalty[=:\s]+[\d.]+''',
+
+    # Model weight / tokenizer revision hashes in eval fixtures and manifests.
+    # Deterministic SHA-1/SHA-256 digests, not API keys.
+    # Covers "model_revision", "tokenizer_revision", "hash:", "checksum:", etc.
+    '''(?:model_revision|tokenizer_revision|hash|checksum|fingerprint|sha256|md5)["\s:=]+[0-9a-f]{32,64}''',
+
+    # RFC and ADR prose that contains "API", "Key", "Secret" as English words in
+    # headings or stakeholder lines (e.g. "API, Infra/Delivery" or "API Key Mgmt")
+    '''(?i)(?:api|secret|token)[,/\s]\s*(?:infra|delivery|stakeholder|management|rotation)''',
+
+    # Placeholder / example shapes explicitly documented as non-values
+    '''(?:your[-_]?(?:api[-_]?)?key|changeme|placeholder|example|<redacted>|hf_xxx|sk-xxx)''',
+
+    # Internal compose-network service URLs — e.g. "api:8000/internal/mcp/verify"
+    # These are Docker service-name addresses, not tokens.
+    # The Secret field extracted by gitleaks for this shape is the path portion.
+    '''\d{4,5}/internal/''',
+
+    # Prose words that gitleaks extracts as "secrets" from stakeholder lines
+    # e.g. "API, Infra/Delivery" → extracted secret = "Infra/Delivery"
+    '''(?i)^(?:infra|delivery|server|consumer|stakeholder)[/,]''',
+
+    # Observability label strings — "api,instance=prod-podcast" style PromQL selectors
+    '''(?:job|instance|surface|app)=(?:[a-z][a-z0-9_-]+)''',
+
+    # Local dev bearer token documented in runbooks — "buddy-is-the-king" is the
+    # canonical vLLM dev placeholder, not a real credential.
+    '''buddy-is-the-king''',
+
+    # Shell variable references — ${VAR} or $VAR — never a raw secret
+    '''\$\{?[A-Z_][A-Z0-9_]+\}?''',
+]

@@ -533,7 +533,7 @@ trap (see [ADR-100 §A](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-p
 | Suite | Coverage |
 | --- | --- |
 | `tests/e2e/test_cloud_guardrails_e2e.py` | Each cloud provider's `summarize()` against an injected `200 OK + bad-shape` response from the mock server; asserts `GuardrailViolation` propagates raw (not wrapped). Empty content, thinking-prose, `finish_reason=length` per provider. |
-| `tests/e2e/test_cloud_resilience_e2e.py` | Each cloud provider's `summarize()` against an injected permanent 5xx; asserts `ProviderRuntimeError` surfaces with the right provider/stage tag. Baseline for the broader resilience matrix gap documented in `docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`. |
+| `tests/e2e/test_cloud_resilience_e2e.py` | Each cloud provider's `summarize()` against an injected permanent 5xx; asserts `ProviderRuntimeError` surfaces with the right provider/stage tag. Baseline for the broader resilience matrix gap documented in the original resilience-gap audit (retired WIP doc). |
 | `tests/e2e/test_tailnet_dgx_e2e.py` | Self-hosted whisper / diarize equivalents: 5xx → cloud-fallback, watchdog-hang → cloud-fallback, guardrail-violation → cloud-fallback. |
 | `tests/integration/podcast_scraper/test_e2e_mock_server_guardrail_injection.py` | The `inject_violation` / `_pop_injected_violation` / `clear_violations` class methods on the mock server itself, isolated from any provider. |
 | `tests/unit/podcast_scraper/providers/test_cloud_guardrails_wiring.py` | Per-provider wiring smoke-tests for `check_chat_response` at each call site, using fake SDK response objects. Catches a guardrail wired with the wrong `service=` label or wrong content path. |
@@ -774,7 +774,7 @@ LLM judging. See ``data/eval/README.md``.)
   via `PromptStore`. Unit tests mock `PromptStore`;
   integration/E2E tests use real templates.
 - **Test Organization**: See
-  the historical `docs/wip/PROVIDER_TEST_STRATEGY.md` (removed — consolidated into this doc) for detailed
+  the historical provider test-strategy WIP doc (removed — consolidated into this doc) for detailed
   test organization and separation.
 
 ### Test Organization

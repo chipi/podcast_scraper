@@ -316,3 +316,37 @@ class TestCostAttributionFlag:
         assert events[0]["triggered_guardrail"] is True
         assert events[0]["prompt_tokens"] == 100
         assert events[0]["completion_tokens"] == 50
+
+
+class TestExpectJsonFenceTolerance:
+    """Regression: the JSON guardrail must accept markdown-code-fenced JSON, matching every
+    downstream parser (utils.json_parsing, summary_schema, resolution). The 2026-08 finale saw
+    claude-haiku fence valid JSON in a ```json block on 2/9 episodes, cascading fence ->
+    json_parse_failed guardrail -> speaker/summary failure -> whole episode dropped.
+    """
+
+    def test_fenced_valid_json_does_not_raise(self):
+        fenced = '```json\n{"voices": {"SPEAKER_00": {"name": "Ada", "role": "host"}}}\n```'
+        guardrails.check_chat_response(fenced, service="anthropic", expect_json=True)  # no raise
+
+    def test_bare_json_fence_prefix_does_not_raise(self):
+        # The exact head that failed in the finale: a ```json fence with no language-less variant.
+        guardrails.check_chat_response(
+            '```json\n{"summary": "ok"}\n```', service="anthropic", expect_json=True
+        )  # no raise
+
+    def test_genuinely_malformed_json_still_fires(self):
+        # Fence-stripping must NOT turn the guardrail into a no-op: real garbage still violates.
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response(
+                "not json at all, just prose", service="anthropic", expect_json=True
+            )
+        assert exc_info.value.reason == guardrails.REASON_CHAT_BAD_JSON
+
+    def test_fenced_but_truncated_json_still_fires(self):
+        # A fenced-yet-incomplete object is still malformed after stripping — must violate.
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response(
+                '```json\n{"voices": {"SPEAKER_00": {"name":', service="anthropic", expect_json=True
+            )
+        assert exc_info.value.reason == guardrails.REASON_CHAT_BAD_JSON

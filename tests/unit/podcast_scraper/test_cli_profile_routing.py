@@ -42,38 +42,40 @@ def _fake_keys(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 CLOUD_BALANCED_EXPECTED = {
-    "transcription_provider": "openai",
-    "openai_transcription_model": "whisper-1",
+    "transcription_provider": "deepgram",
+    "deepgram_model": "nova-3",
     "audio_preprocessing_profile": "speech_optimal_v1",
-    # PR #700: speaker_detector_provider flipped from spacy → gemini so the
-    # profile runs on pipeline-llm (which ships [llm]+[search] but no
-    # spaCy / transformer NER models). Local-spaCy NER is still available
-    # by overriding speaker_detector_provider on the full pipeline-ml image.
-    "speaker_detector_provider": "gemini",
+    # RFC-111 (#1482): single-pass Deepgram ASR self-diarizes (diarize:false — no separate
+    # diarization pass / model), and speaker/summary/quote/entailment all moved onto litellm
+    # (podcast-flash-0731) so the same wrapped gateway provider backs every LLM role, letting the
+    # RFC-106 failover chain (summary_fallback_providers below) cover them together.
+    "speaker_detector_provider": "litellm",
     "auto_speakers": True,
-    "summary_provider": "gemini",
-    "gemini_summary_model": "gemini-2.5-flash-lite",
+    "summary_provider": "litellm",
+    "litellm_summary_model": "podcast-flash-0731",
     "preprocessing_enabled": True,
-    "llm_pipeline_mode": "mega_bundled",
+    "llm_pipeline_mode": "staged",
     "cloud_llm_structured_min_output_tokens": 4096,
     "generate_gi": True,
     "gi_insight_source": "provider",
-    # Generate broadly and let the GATE trim. The cap is a truncation, not a quality control — and
-    # prod ran 12 while every eval ran 50, so the comparison measured a pipeline prod never runs.
-    "gi_max_insights": 50,
+    # v25 finale GI: the gate does the trimming now, so the raw generation cap dropped from the old
+    # eval-parity 50 down to what production actually consumes.
+    "gi_max_insights": 12,
     "gi_require_grounding": True,
     # The GI quality gates. NOT ONE profile set any of these, so `gi_value_gate_enabled` fell back
     # to its default of False and the value gate — the judge that removes filler — never ran in
     # production at all. It ran only in evals.
     "gi_value_gate_enabled": True,
-    # PIN the judge, vendor-disjoint from the extractor: a model grading its own output is lenient
-    # (#939), and if each arm is filtered by a different strictness the counts are not comparable.
-    "gi_value_gate_provider": "anthropic",
-    "gi_value_gate_model": "claude-haiku-4-5-20251001",
-    "gi_value_gate_min_tier": 2,
+    # Judge routes through the SAME LiteLLM gateway (-> DeepSeek) as every other LLM role here:
+    # cloud_balanced has no Anthropic credential in prod and must not depend on one for the gate.
+    # Trade-off: same-vendor grading is more lenient than a vendor-disjoint judge (#939), accepted
+    # for provider consistency + single-vendor prod ops. Model stays PINNED (never inherit default).
+    "gi_value_gate_provider": "litellm",
+    "gi_value_gate_model": "podcast-flash-0731",
+    "gi_value_gate_min_tier": 3,
     # The same claim twice is not two insights. The judge grades each one ALONE and cannot see
     # redundancy — measured on the real corpus, 35% of one model's insights restated an earlier one.
-    "gi_insight_dedupe_threshold": 0.75,
+    "gi_insight_dedupe_threshold": 0.72,
     # PINNED, not defaulted. v3 (speech-act) LOST its A/B: route kappa 0.57 vs v2 0.67.
     "gi_insight_prompt_version": "v2",
     # #698 GIL evidence bundling — flipped to bundled defaults in PR #711.
@@ -83,8 +85,10 @@ CLOUD_BALANCED_EXPECTED = {
     # An LLM grounds with an LLM. The bundled modes above are an LLM-only path, and with the
     # provider left at its "transformers" default they did NOTHING — this profile asked for bundled
     # LLM grounding and quietly ground with local DeBERTa instead.
-    "quote_extraction_provider": "gemini",
-    "entailment_provider": "gemini",
+    "quote_extraction_provider": "litellm",
+    "entailment_provider": "litellm",
+    # RFC-111: diarize:false — Deepgram's single ASR pass self-diarizes, no separate model.
+    "diarize": False,
     "generate_kg": True,
     "kg_extraction_source": "provider",
     "kg_max_topics": 10,
@@ -189,7 +193,7 @@ class TestConfigFlagRouting:
     def test_config_preserves_llm_pipeline_mode(self, _fake_keys: None) -> None:
         """Previously dropped because _build_config payload omitted it."""
         cfg = _build_via_config("config/profiles/cloud_balanced.yaml")
-        assert cfg.llm_pipeline_mode == "mega_bundled"
+        assert cfg.llm_pipeline_mode == "staged"
 
     def test_config_preserves_audio_preprocessing_profile(self, _fake_keys: None) -> None:
         cfg = _build_via_config("config/profiles/cloud_balanced.yaml")

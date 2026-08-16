@@ -9,10 +9,58 @@ from __future__ import annotations
 
 import functools
 import logging
+import os
 from pathlib import Path
 from typing import Any, Callable, Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+# Loopback patterns are ALWAYS allowed so the container healthcheck (127.0.0.1) and local dev
+# keep working regardless of the public host config.
+_LOOPBACK_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*", "127.0.0.1", "localhost"]
+_LOOPBACK_ORIGINS = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"]
+
+
+def _transport_security() -> Any:
+    """SDK-level DNS-rebinding protection tuned for serving behind the public edge (RFC-112).
+
+    FastMCP defaults ``host`` to ``127.0.0.1`` and, seeing loopback, auto-enables DNS-rebind
+    protection whose ``allowed_hosts`` is loopback-only. Behind Caddy/Cloudflare the forwarded
+    ``Host`` is the public name (e.g. ``mcp.closelistening.app``), so every request would 421
+    ("Invalid Host header"). We keep protection ON but add the public host(s) — derived from
+    ``APP_MCP_RESOURCE_URL`` plus an explicit ``APP_MCP_ALLOWED_HOSTS`` override — alongside the
+    always-allowed loopback set. Origins fold in the same ``APP_MCP_ALLOWED_ORIGINS`` allow-list
+    the auth gate already honours. This is defence-in-depth: bearer-token auth + our own Origin
+    guard (:mod:`mcp.auth`) still run in front.
+    """
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    hosts = list(_LOOPBACK_HOSTS)
+    origins = list(_LOOPBACK_ORIGINS)
+
+    resource = os.environ.get("APP_MCP_RESOURCE_URL", "").strip()
+    if resource:
+        host = urlparse(resource).hostname
+        if host:
+            hosts += [host, f"{host}:*"]
+            origins += [f"https://{host}", f"https://{host}:*"]
+
+    for extra in os.environ.get("APP_MCP_ALLOWED_HOSTS", "").split(","):
+        extra = extra.strip()
+        if extra and extra not in hosts:
+            hosts.append(extra)
+
+    for origin in os.environ.get("APP_MCP_ALLOWED_ORIGINS", "").split(","):
+        origin = origin.strip()
+        if origin and origin not in origins:
+            origins.append(origin)
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=hosts,
+        allowed_origins=origins,
+    )
 
 
 def _safe(call: Callable[[], Any]) -> dict:
@@ -41,7 +89,14 @@ def _enveloped(fn: Callable[..., Any]) -> Callable[..., dict]:
 
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> dict:
-        return _safe(lambda: fn(*args, **kwargs))
+        # Per-tool observability (#1505): span + structured log + metric, best-effort. The tool
+        # NAME comes from the wrapped fn; user_id from the auth contextvar. Never breaks the call.
+        from .telemetry import observe_tool_call
+
+        with observe_tool_call(fn.__name__) as call:
+            result = _safe(lambda: fn(*args, **kwargs))
+            call.set_result(result)
+            return result
 
     return wrapper
 
@@ -72,7 +127,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     from mcp.server.fastmcp import FastMCP
 
     ctx = CorpusContext.from_path(corpus_dir)
-    server = FastMCP("podcast-scraper")
+    server = FastMCP("podcast-scraper", transport_security=_transport_security())
     _register_core(server, ctx)
     _register_relational(server, ctx)
     _register_cil(server, ctx)
@@ -594,3 +649,99 @@ def _register_composites(server: Any, ctx: CorpusContext) -> None:
 def run_stdio(corpus_dir: Path | str) -> None:
     """Build and run the MCP server over stdio (the default agent-client transport)."""
     build_server(corpus_dir).run()
+
+
+def build_http_app(corpus_dir: Path | str) -> Any:
+    """The Streamable-HTTP ASGI app for the corpus MCP, wrapped in the auth gate (RFC-112 slice 2).
+
+    Every HTTP connection must present a valid MCP bearer token (verified against the app's internal
+    endpoint) — see ``mcp.auth``. Returned as an ASGI app so it can be served by uvicorn behind the
+    shared edge, or exercised in tests without a live socket.
+    """
+    from .auth import McpAuthMiddleware
+
+    server = build_server(corpus_dir)
+    return McpAuthMiddleware(server.streamable_http_app())
+
+
+def run_server(
+    corpus_dir: Path | str,
+    *,
+    transport: str = "stdio",
+    host: str = "127.0.0.1",
+    port: int = 8009,
+) -> None:
+    """Run the corpus MCP over *transport*.
+
+    ``stdio`` (local, auth-free) or ``http`` (Streamable HTTP on ``host:port``, auth-gated per
+    RFC-112). The tool registry is identical across transports (RFC-095 transport-agnostic design).
+    """
+    if transport == "stdio":
+        run_stdio(corpus_dir)
+        return
+    if transport != "http":
+        raise ValueError(f"unsupported transport: {transport!r} (use 'stdio' or 'http')")
+    import uvicorn
+
+    # o11y parity with the api (#1505): OTel traces + GlitchTip errors + inbound request spans.
+    # All best-effort — telemetry never blocks the server from starting (ADR-120). No-ops unless
+    # the OTEL_*/PODCAST_SENTRY_DSN_MCP env is set (dev + tests stay silent).
+    try:
+        from podcast_scraper.utils.otel_init import init_otel
+
+        init_otel()
+    except Exception:  # noqa: BLE001 - never block serving on tracing
+        logger.debug("mcp otel init skipped", exc_info=True)
+    try:
+        from podcast_scraper.utils.sentry_init import init_sentry
+
+        init_sentry("mcp")
+    except Exception:  # noqa: BLE001 - never block serving on error reporting
+        logger.debug("mcp sentry init skipped", exc_info=True)
+
+    uvicorn.run(_instrument_asgi(_with_metrics(build_http_app(corpus_dir))), host=host, port=port)
+
+
+def _with_metrics(app: Any) -> Any:
+    """Serve Prometheus ``/metrics`` (the per-tool counters) UNGATED, delegating everything else.
+
+    Wrapped OUTSIDE the auth middleware so a scraper needs no bearer; the mcp binds loopback
+    (:8009, Caddy fronts ``/mcp`` publicly), so ``/metrics`` is internal-only. No-op if
+    prometheus_client isn't installed.
+    """
+    try:
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+    except Exception:  # noqa: BLE001 - no client → no /metrics endpoint
+        return app
+
+    async def _asgi(scope: dict, receive: Any, send: Any) -> None:
+        if scope.get("type") == "http" and scope.get("path") == "/metrics":
+            body = generate_latest()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [(b"content-type", CONTENT_TYPE_LATEST.encode())],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
+            return
+        await app(scope, receive, send)
+
+    return _asgi
+
+
+def _instrument_asgi(app: Any) -> Any:
+    """Wrap the ASGI app with OTel inbound-request spans (so every ``/mcp`` gets a ``trace_id``).
+
+    No-op if the OTel ASGI instrumentation isn't installed or tracing isn't configured. The tool
+    spans (:mod:`mcp.telemetry`) nest under these server spans, and the trace propagates onward to
+    the api's ``/internal/mcp/verify`` via the auto-instrumented outbound HTTP client.
+    """
+    try:
+        from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
+
+        return OpenTelemetryMiddleware(app)
+    except Exception:  # noqa: BLE001 - no ASGI instrumentor → serve un-instrumented
+        logger.debug("mcp ASGI instrumentation skipped", exc_info=True)
+        return app

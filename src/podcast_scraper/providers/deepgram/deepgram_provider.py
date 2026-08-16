@@ -108,6 +108,13 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
     SDK posts ``{production}/v1/listen``, so every environment URL is set to the
     given root. If the installed SDK lacks the environment override, fall back
     to the default hosted client and warn — the override is opt-in.
+
+    BUG 4: the SDK's httpx client defaults to a 60s timeout for the entire request
+    (connect + write/upload + read) unless ``timeout=`` is passed at construction
+    (``deepgram.base_client.BaseClient.__init__``). A ~40-60MB episode upload blew
+    through that on a throttled connection ("write operation timed out", 4 retries
+    exhausted) — pass ``DEEPGRAM_SDK_TIMEOUT_SECONDS`` so every call this client
+    makes gets generous headroom for the upload, not just the JSON response.
     """
     try:
         from deepgram import DeepgramClient
@@ -116,6 +123,8 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
             "deepgram-sdk is required for transcription_provider='deepgram'. "
             "Install with: pip install -e '.[llm]'"
         ) from exc
+    from ...config_constants import DEEPGRAM_SDK_TIMEOUT_SECONDS
+
     if base_url:
         try:
             from deepgram.environment import DeepgramClientEnvironment
@@ -132,7 +141,9 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
                 agent=base_url,
                 agent_rest=base_url,
             )
-            return DeepgramClient(api_key=api_key, environment=env)
+            return DeepgramClient(
+                api_key=api_key, environment=env, timeout=DEEPGRAM_SDK_TIMEOUT_SECONDS
+            )
         except Exception as exc:  # noqa: BLE001
             # A base was explicitly configured (self-hosted / on-prem / the CI mock
             # server). If the SDK can't honor it, FAIL LOUD — never silently fall
@@ -143,7 +154,7 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
                 f"Deepgram SDK ({format_exception_for_log(exc)}); refusing to fall back to "
                 "the hosted endpoint."
             ) from exc
-    return DeepgramClient(api_key=api_key)
+    return DeepgramClient(api_key=api_key, timeout=DEEPGRAM_SDK_TIMEOUT_SECONDS)
 
 
 class DeepgramTranscriptionProvider:
@@ -252,6 +263,11 @@ class DeepgramTranscriptionProvider:
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
+        # D9: announce the provider + model like the Whisper path does (ml_provider "transcribing
+        # with Whisper (...)"). Cloud providers were silent in the log, so an operator watching a
+        # run could not tell WHICH engine transcribed (the 2026-08-11 "did Deepgram run?" case).
+        logger.info("    transcribing with Deepgram (model=%s, diarize=on)...", self.model)
+
         # Own the call_metrics lifecycle like every sibling provider: instantiate
         # when the caller passes None so retry_with_metrics has somewhere to record
         # retries/backoff, and finalize() below so `retries`/`rate_limit_sleep_sec`
@@ -337,7 +353,10 @@ class DeepgramTranscriptionProvider:
         if audio_minutes <= 0:
             return
 
-        from ...utils.provider_metrics import record_provider_call_cost
+        from ...utils.provider_metrics import (
+            record_provider_call_cost,
+            record_transcription_cost_to_pipeline,
+        )
         from ...workflow.helpers import calculate_provider_cost
 
         cost = calculate_provider_cost(
@@ -357,6 +376,7 @@ class DeepgramTranscriptionProvider:
                 model=self.model,
                 audio_minutes=audio_minutes,
             )
-        if pipeline_metrics is not None:
-            estimated = getattr(call_metrics, "estimated_cost", cost) if call_metrics else cost
-            pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=estimated)
+        estimated = getattr(call_metrics, "estimated_cost", cost) if call_metrics else cost
+        record_transcription_cost_to_pipeline(
+            pipeline_metrics, call_metrics, audio_minutes, estimated
+        )

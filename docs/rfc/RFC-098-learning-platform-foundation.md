@@ -13,8 +13,6 @@
   - `docs/rfc/RFC-099-learning-platform-consumer-client.md` (client of this API)
   - `docs/rfc/RFC-100-audio-bridge-subsystem.md` (audio resolution)
   - `docs/rfc/RFC-101-personal-knowledge-corpus.md` (per-user projection)
-- **Related Documents**:
-  - `docs/wip/player/SERVER-SIDE-GAP-ANALYSIS.md` (gaps G1–G4, G6, G16, G17)
 
 ## Abstract
 
@@ -236,4 +234,3 @@ Part of the Learning Platform initiative (RFC-098–101):
 - **Related PRDs**: `docs/prd/PRD-035-learning-platform.md`, `docs/prd/PRD-036-foundation-identity.md`
 - **Related RFCs**: `docs/rfc/RFC-090-hybrid-retrieval.md`, `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md`
 - **Source Code**: `src/podcast_scraper/server/` (app.py, routes/, jobs.py)
-- **Analysis**: `docs/wip/player/SERVER-SIDE-GAP-ANALYSIS.md`

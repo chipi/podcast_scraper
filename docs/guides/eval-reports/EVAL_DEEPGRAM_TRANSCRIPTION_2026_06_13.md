@@ -23,7 +23,7 @@ strong on the accent-stress case (p04_e01: Daniel en-GB + Kathy fr-CA) —
 **4.49%** vs base.en's 5.25% vs tiny.en's 23.14%.
 
 This closes the missing-research-ref gap that blocked `cloud_quality`
-profile opt-in to the registry (per `docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md`).
+profile opt-in to the registry (per the original research-powered-registry plan, WIP doc now removed).
 
 ---
 

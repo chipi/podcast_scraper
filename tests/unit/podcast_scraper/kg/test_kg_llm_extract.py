@@ -75,7 +75,7 @@ class TestKgLlmExtract(unittest.TestCase):
 
     def test_transcript_system_prompt_nudges_short_stable_topic_labels(self) -> None:
         s = build_kg_transcript_system_prompt(5, 10)
-        self.assertIn("2–8 words", s)
+        self.assertIn("2–5 words", s)
         self.assertIn("noun-phrase", s)
         self.assertIn("description", s)
 

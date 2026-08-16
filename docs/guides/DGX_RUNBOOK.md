@@ -482,7 +482,7 @@ Uses `DGX_TAILNET_FQDN` and `resolve_dgx_tailnet_host.sh`; exits 0 with a warnin
 
 Three exporters on DGX ship metrics and logs to homelab VictoriaMetrics (`:8428`)
 and VictoriaLogs (`:9428`) via the existing Alloy pipeline. The DGX is the
-**source** of telemetry; the **backend** is the Mac mini (homelab, 100.87.33.61).
+**source** of telemetry; the **backend** is the Mac mini (homelab, `<HOMELAB_IP>`).
 
 > **Historical note:** DGX exporters previously fed Grafana Cloud Prometheus/Loki.
 > The backend was migrated to self-hosted homelab in 2026-07. The free-tier caps
@@ -524,7 +524,7 @@ existing Prometheus datasource — no new datasource setup needed.
 ### GlitchTip integration (#942)
 
 `infra/dgx/pyannote-server/app.py` initializes `sentry_sdk` when
-`SENTRY_DSN` is set in the operator's `/home/markodragoljevic/.env`.
+`SENTRY_DSN` is set in the operator's `~/.env`.
 No-op when unset. The DSN points at GlitchTip via `telemetry.closelistening.app`
 (homelab:8090 Sentry-compatible backend). Tags applied to every event:
 `service=pyannote-server`, `dgx_host=spark-2c14`, `gpu=GB10`, `environment=dgx-prod`.
@@ -536,7 +536,7 @@ verbatim — same DSN, same tags, same `before_send` filter.
 
 ### First-time operator steps
 
-1. Set `SENTRY_DSN` in `/home/markodragoljevic/.env` on DGX (pointing at
+1. Set `SENTRY_DSN` in `~/.env` on DGX (pointing at
    `telemetry.closelistening.app/<project-id>` from the GlitchTip project, or leave unset to skip).
 2. Push the Tailscale ACL change (Tailscale admin console — pull-request
    the JSON, merge, propagation is ~10s).
@@ -545,7 +545,7 @@ verbatim — same DSN, same tags, same `before_send` filter.
    exporters. The pyannote-server image is rebuilt with the new
    Sentry / Prometheus deps.
 4. Verify scrape from the pipeline VPS:
-   `curl http://dgx-llm-1.tail6d0ed4.ts.net:9400/metrics | head` (DCGM),
+   `curl http://your-dgx.tailnet.ts.net:9400/metrics | head` (DCGM),
    same for `:9100`, `:8080`, `:8001/metrics`.
 5. Import `config/grafana/dashboards/common/grafana-dashboard-dgx.json` into Grafana
    at **<http://homelab:3000>** (Dashboards → New → Import → upload JSON).
@@ -572,7 +572,7 @@ DGX service's lifespan — reporting to GlitchTip at homelab:8090
 
 | Service | Sentry init | Notes |
 | --- | --- | --- |
-| `pyannote-server` (`:8001`) | ✓ shipped (#942, commit 42a17b53) | Code in `infra/dgx/pyannote-server/{app.py,Dockerfile}`. Deployed + validated 2026-06-22 — see `docs/wip/942-PYANNOTE-SENTRY-APPLY.md`. Awaits operator-supplied `SENTRY_DSN`. |
+| `pyannote-server` (`:8001`) | ✓ shipped (#942, commit 42a17b53) | Code in `infra/dgx/pyannote-server/{app.py,Dockerfile}`. Deployed + validated 2026-06-22. Awaits operator-supplied `SENTRY_DSN`. |
 | `vllm-prod` (future) | ✓ planned | Same pattern lands when service ships. |
 | `speaches` (faster-whisper, `:8000`) | ✗ scope-cut | Client-side breadcrumbs sufficient; we don't control its source. |
 | `ollama` (`:11434`) | ✗ N/A | Go-based; separate logging surface. |

@@ -20,7 +20,7 @@
 - **Related Documents**:
   - `src/podcast_scraper/preprocessing/core.py` (current cleaning pipeline)
   - `src/podcast_scraper/cleaning/hybrid.py` (hybrid LLM trigger logic)
-  - `docs/wip/transcript-cleaning-cost-quality-eval-plan.md` (deleted — content absorbed into this RFC)
+  - Original transcript-cleaning cost/quality eval plan (WIP doc, deleted — content absorbed into this RFC)
 
 ## Abstract
 
@@ -30,7 +30,7 @@ This RFC proposes a multi-signal commercial detection system that combines text 
 
 **Architecture Alignment:** Builds on top of the existing cleaning pipeline (`clean_for_summarization()`) and hybrid cleaning strategy (`pattern` → `hybrid` → `llm`). Diarization signals are a future input to the pattern-based stage, not a replacement for the existing architecture.
 
-**Evaluation Alignment:** The cleaning cost/quality tradeoffs explored in Issue #477 (previously tracked in `docs/wip/transcript-cleaning-cost-quality-eval-plan.md`) are directly relevant. This RFC's Phase 1 improvements should be validated using the evolving eval tooling to measure cost, quality, and stability before/after — the eval infrastructure is being developed in parallel and the specific tooling will be determined as it matures.
+**Evaluation Alignment:** The cleaning cost/quality tradeoffs explored in Issue #477 (previously tracked in a WIP eval plan, now removed) are directly relevant. This RFC's Phase 1 improvements should be validated using the evolving eval tooling to measure cost, quality, and stability before/after — the eval infrastructure is being developed in parallel and the specific tooling will be determined as it matures.
 
 ## Problem Statement
 

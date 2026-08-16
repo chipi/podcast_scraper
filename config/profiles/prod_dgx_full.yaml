@@ -1,0 +1,101 @@
+profile: prod_dgx_full
+
+transcription:
+  primary: tailnet_dgx_whisper
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
+dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
+dgx_whisper_port: 8000
+
+screenplay: true
+diarize: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-community-1
+dgx_diarize_request_timeout_sec: 180.0
+
+audio_preprocessing_profile: speech_optimal_v1
+
+speaker_detector_provider: vllm
+auto_speakers: true
+
+summary_provider: vllm
+llm_pipeline_mode: staged
+degradation_policy:
+  continue_on_stage_failure: true
+
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 50
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
+
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 2
+gi_insight_dedupe_threshold: 0.75
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+quote_extraction_provider: vllm
+entailment_provider: vllm
+
+# --- registry-materialized (make profiles-materialize) — do not hand-edit ---
+transcription_provider: tailnet_dgx_whisper
+summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+gil_evidence_match_summary_provider: true
+transcription_fallback_providers: [tailnet_dgx_whisper, whisper]
+diarization_fallback_providers: [local]
+summary_fallback_providers: [ollama]
+resilience_run_context: serve
+resilience_failure_strategy: failover
+transcription_coverage_min: 0.0
+enforce_model_governance: false
+transcription_coverage_failover_model: null
+transcription_coverage_failover_provider: null
+vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+vllm_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
+vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+ner_model: en_core_web_trf
+ollama_summary_model: qwen3.5:35b
+ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
+transcription_speech_coverage_min: 0.0

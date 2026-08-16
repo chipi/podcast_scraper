@@ -277,7 +277,7 @@ Adding a **5th** judge would help marginally but the current 4-vendor panel (Ali
 ## Data
 
 - Ledger: `data/autoresearch_baselines/autoresearch-2026-W27.json` (12 candidates × 8 phases = 108 score entries + 96 wall-clock entries)
-- Cloud sanity: `docs/wip/CLOUD_SANITY_CHECK_2026-07-02.json`
+- Cloud sanity: raw sweep data (archived, not tracked as a permanent doc)
 - Sweep logs: `/tmp/mega_sweep2.log`, `/tmp/cloud_sanity.log`
 
 ---

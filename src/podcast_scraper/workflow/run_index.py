@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import yaml
+
 logger = logging.getLogger(__name__)
 
 
@@ -223,6 +225,204 @@ def _find_metadata_file(
     return None
 
 
+@dataclass(frozen=True)
+class CorpusMetadataEntry:
+    """One on-disk episode located by its STABLE identity (guid / episode_id), not feed order."""
+
+    metadata_rel: str  # path relative to the corpus output_dir
+    idx: int  # the NNNN prefix its transcript/metadata are stored under
+    guid: Optional[str]
+    episode_id: Optional[str]
+
+
+# realpath(output_dir) -> {"by_guid": {...}, "by_id": {...}}. Skip-existing/append run this per
+# episode; the corpus is stable within a run, so cache the scan. Keyed by realpath, and cleared by
+# reset_corpus_metadata_index_cache_for_tests() so a reused tmp path can't leak across tests (#22).
+_CORPUS_METADATA_INDEX_CACHE: Dict[str, Dict[str, Dict[str, CorpusMetadataEntry]]] = {}
+
+
+def invalidate_corpus_metadata_index_cache() -> None:
+    """Drop the cached corpus-metadata index so the next read re-scans from disk.
+
+    Production callers use this after MUTATING a corpus on disk (e.g. the rollback DELETE) to force
+    a fresh post-delete view. It clears the whole cache — fine because it is realpath-keyed and a
+    rebuild is cheap; targeted per-corpus invalidation is a future refinement (harden #3).
+    """
+    _CORPUS_METADATA_INDEX_CACHE.clear()
+
+
+def reset_corpus_metadata_index_cache_for_tests() -> None:
+    """Test-isolation alias for :func:`invalidate_corpus_metadata_index_cache`."""
+    invalidate_corpus_metadata_index_cache()
+
+
+def _leading_idx(name: str) -> Optional[int]:
+    digits = ""
+    for ch in name:
+        if ch.isdigit():
+            digits += ch
+        else:
+            break
+    return int(digits) if digits else None
+
+
+def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMetadataEntry]]:
+    """Scan the corpus once, mapping guid AND episode_id -> :class:`CorpusMetadataEntry`.
+
+    This is the drift-immune replacement for idx-derived filename lookups: the feed's enumerate
+    position shifts whenever a feed grows, so "already processed?" and the append metadata lookup
+    must resolve by the stable guid/episode_id instead (generalizes ``_on_disk_guid_index``).
+    """
+    root = Path(output_dir)
+    by_guid: Dict[str, CorpusMetadataEntry] = {}
+    by_id: Dict[str, CorpusMetadataEntry] = {}
+    # Works at BOTH the feed output dir (run_*/metadata) used by skip-existing during a run, AND
+    # the corpus root (feeds/<slug>/run_*/metadata) used by the rollback DELETE API.
+    for pattern in (
+        "metadata/*.metadata.*",
+        "run_*/metadata/*.metadata.*",
+        "feeds/*/metadata/*.metadata.*",
+        "feeds/*/run_*/metadata/*.metadata.*",
+    ):
+        # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
+        for meta_path in sorted(root.glob(pattern)):
+            if meta_path.name.startswith("._") or not meta_path.is_file():
+                continue  # macOS AppleDouble
+            try:
+                text = meta_path.read_text(encoding="utf-8")
+                data = (
+                    yaml.safe_load(text)
+                    if meta_path.suffix in (".yaml", ".yml")
+                    else json.loads(text)
+                )
+            except (OSError, json.JSONDecodeError, yaml.YAMLError):
+                continue
+            episode = data.get("episode", {}) if isinstance(data, dict) else {}
+            if not isinstance(episode, dict):
+                continue
+            idx = _leading_idx(meta_path.name)
+            if idx is None:
+                continue
+            entry = CorpusMetadataEntry(
+                metadata_rel=os.path.relpath(str(meta_path), output_dir),
+                idx=idx,
+                guid=(episode.get("guid") or None),
+                episode_id=(episode.get("episode_id") or None),
+            )
+            guid = episode.get("guid")
+            if isinstance(guid, str) and guid.strip():
+                g = guid.strip()
+                if g in by_guid:
+                    # First-writer-wins, but a duplicate guid on disk (re-published / re-added
+                    # episode) means callers that act on ONE entry (rollback episode delete) may
+                    # leave a copy behind — surface it rather than resolve silently.
+                    logger.warning(
+                        "corpus_metadata_index: duplicate guid %s (%s and %s); keeping first",
+                        g,
+                        by_guid[g].metadata_rel,
+                        entry.metadata_rel,
+                    )
+                else:
+                    by_guid[g] = entry
+            eid = episode.get("episode_id")
+            if isinstance(eid, str) and eid.strip():
+                e = eid.strip()
+                if e in by_id:
+                    logger.warning(
+                        "corpus_metadata_index: duplicate episode_id %s (%s and %s); keeping first",
+                        e,
+                        by_id[e].metadata_rel,
+                        entry.metadata_rel,
+                    )
+                else:
+                    by_id[e] = entry
+    return {"by_guid": by_guid, "by_id": by_id}
+
+
+def corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMetadataEntry]]:
+    """Cached :func:`_scan_corpus_metadata_index` (per realpath output_dir)."""
+    key = os.path.realpath(output_dir)
+    if key not in _CORPUS_METADATA_INDEX_CACHE:
+        _CORPUS_METADATA_INDEX_CACHE[key] = _scan_corpus_metadata_index(output_dir)
+    return _CORPUS_METADATA_INDEX_CACHE[key]
+
+
+def _episode_guid(episode: Any) -> Optional[str]:
+    item = getattr(episode, "item", None)
+    if item is None:
+        return None
+    try:
+        elem = item.find("guid")
+    except Exception:
+        return None
+    if elem is not None and getattr(elem, "text", None):
+        return str(elem.text).strip() or None
+    return None
+
+
+def resolve_ondisk_idx_for_episode(episode: Any, output_dir: str) -> int:
+    """The idx an episode's transcript/metadata are stored under on disk.
+
+    Resolves by STABLE guid so skip-existing survives feed growth (the run-local ``episode.idx``
+    shifts when a feed publishes between runs → silent reprocess + duplicates). Falls back to the
+    run-local idx when the guid is unknown (a genuinely new episode).
+    """
+    guid = _episode_guid(episode)
+    if guid:
+        entry = corpus_metadata_index(output_dir)["by_guid"].get(guid)
+        if entry is not None:
+            return entry.idx
+    return int(episode.idx)
+
+
+def episode_metadata_rel_in_corpus(episode: Any, corpus_root: str) -> Optional[str]:
+    """Return the metadata path (relative to *corpus_root*) if this episode already exists ANYWHERE
+    in the corpus (by STABLE guid), else ``None`` (D7).
+
+    Corpus-wide: ``corpus_metadata_index`` globs ``feeds/*/run_*/metadata/*`` across ALL runs, so an
+    episode processed under a PRIOR run dir is found even when the current run writes a fresh run
+    dir (``--single-feed-uses-corpus-layout``). Without this, skip-existing scoped to the fresh
+    (empty) run dir silently re-transcribes an already-present episode.
+    """
+    guid = _episode_guid(episode)
+    if not guid:
+        return None
+    entry = corpus_metadata_index(corpus_root)["by_guid"].get(guid)
+    if entry is None:
+        return None
+    if os.path.isfile(os.path.join(corpus_root, entry.metadata_rel)):
+        return entry.metadata_rel
+    return None
+
+
+def existing_transcript_path_in_corpus(episode: Any, corpus_root: str) -> Optional[str]:
+    """Absolute path to this episode's existing transcript (or its metadata, as a presence marker)
+    ANYWHERE in the corpus, else ``None`` (D7). Used by the corpus-layout skip-existing path so the
+    reuse/segment-backfill/skip sub-cases resolve against the real prior-run artifact.
+    """
+    meta_rel = episode_metadata_rel_in_corpus(episode, corpus_root)
+    if meta_rel is None:
+        return None
+    meta_abs = Path(corpus_root) / meta_rel
+    stem = meta_abs.name
+    base = stem
+    for suffix in (".metadata.json", ".metadata.yaml", ".metadata.yml"):
+        if stem.endswith(suffix):
+            base = stem[: -len(suffix)]
+            break
+    transcripts_dir = meta_abs.parent.parent / "transcripts"
+    if transcripts_dir.is_dir():
+        preferred = transcripts_dir / f"{base}.txt"
+        if preferred.is_file():
+            return str(preferred)
+        for candidate in sorted(transcripts_dir.glob(f"{base}.*")):
+            if candidate.is_file():
+                return str(candidate)
+    # Metadata present but no transcript file located → the metadata itself marks the episode as
+    # processed (skip-existing only needs presence; the path is used for logging).
+    return str(meta_abs)
+
+
 def find_episode_metadata_relative_path(
     episode: Any,
     effective_output_dir: str,
@@ -230,7 +430,8 @@ def find_episode_metadata_relative_path(
 ) -> Optional[str]:
     """Locate an episode metadata file under *effective_output_dir* if present.
 
-    Uses the same naming rules as :func:`create_run_index` (run suffix and title truncation).
+    Resolves by the STABLE guid first (drift-immune — the feed's enumerate position shifts when a
+    feed grows), then falls back to the idx-derived filename lookup for episodes with no guid.
 
     Args:
         episode: Episode model instance
@@ -241,6 +442,14 @@ def find_episode_metadata_relative_path(
         Path relative to *effective_output_dir*, or ``None`` if not found.
     """
     from ..utils import filesystem
+
+    guid = _episode_guid(episode)
+    if guid:
+        entry = corpus_metadata_index(effective_output_dir)["by_guid"].get(guid)
+        if entry is not None and os.path.isfile(
+            os.path.join(effective_output_dir, entry.metadata_rel)
+        ):
+            return entry.metadata_rel
 
     metadata_dir = os.path.join(effective_output_dir, filesystem.METADATA_SUBDIR)
     title_for_paths = filesystem.truncate_whisper_title(

@@ -37,8 +37,8 @@ The flow for any autoresearch finding that changes a default:
     run experiment → score → write eval report → MATERIALIZE here →
     REGENERATE profile YAML → behavior test
 
-See ``docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md`` for the vision /
-migration path, ``docs/adr/ADR-048-centralized-model-registry.md`` for the
+See RFC-044 for the vision / migration path,
+``docs/adr/ADR-048-centralized-model-registry.md`` for the
 amendment, and ``docs/guides/EXPERIMENT_GUIDE.md`` § Step 6 for the flow.
 """
 
@@ -735,8 +735,7 @@ class ModelRegistry:
 # ─────────────────────────────────────────────────────────────────────────────
 # Pipeline-stage registry — RFC-044 expansion beyond ML-only models.
 #
-# RFC-044 (and the WIP plan at `docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md`)
-# extends the model_registry concept from "just ML/HF models" to "canonical
+# RFC-044 extends the model_registry concept from "just ML/HF models" to "canonical
 # defaults for every pipeline stage with research provenance."
 #
 # Each StageOption below carries:
@@ -1002,6 +1001,47 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
 
 # Summary stage — local-DGX default holds per #928 + #958 Cell D.
 _SUMMARY_OPTIONS: Dict[str, StageOption] = {
+    # Cloud OpenRouter route via the homelab LiteLLM gateway — v2.5 finale CLOUD winner
+    # (deepseek-v4-flash beats qwen3.7-flash on all dims). Wire model = the ``podcast-flash-0731``
+    # gateway alias; ``_emit_summary_model`` now namespaces litellm/qwen (ADR-147 ext), so
+    # ``litellm_summary_model`` is registry-GOVERNED instead of hand-authored in the profile.
+    "cloud_or_deepseek_flash": StageOption(
+        stage="summary",
+        option_id="cloud_or_deepseek_flash",
+        provider="litellm",
+        model="podcast-flash-0731",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="v2.5 finale cloud winner — deepseek-v4-flash via OpenRouter (~$0.005/ep)",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
+    # RFC-111 (#1482) gateway-outage fallback tier: DIRECT to api.deepseek.com, bypassing the
+    # homelab:4001 LiteLLM gateway entirely. Root-caused 2026-08-07 — a gateway CONNECTION failure
+    # (APIConnectionError, not a model-side 503) exhausted the short retry window before the
+    # operator could react. Same model as the litellm-routed primary above (deepseek-v4-flash), just
+    # a different wire path, so a fallover doesn't also change WHICH model produced the output.
+    "deepseek_native_flash": StageOption(
+        stage="summary",
+        option_id="deepseek_native_flash",
+        provider="deepseek",
+        model="deepseek-v4-flash",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="Direct-DeepSeek fallback tier for a homelab gateway outage (RFC-111)",
+        measured_at="2026-08-07",
+        tier="fallback",
+    ),
+    # Native first-party Qwen (DashScope) — the v2.5 finale flash arm; cloud counterpart of the
+    # DGX-local qwen. Wire model ``qwen3.7-flash`` -> governed via ``qwen_summary_model`` (ADR-147).
+    "cloud_qwen_flash": StageOption(
+        stage="summary",
+        option_id="cloud_qwen_flash",
+        provider="qwen",
+        model="qwen3.7-flash",
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="v2.5 finale flash arm — qwen3.7-flash via DashScope",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     # Cloud cheap — current production default for cloud_balanced / cloud_thin /
     # cloud_with_dgx_primary's summary path.
     "gemini_flash_lite": StageOption(
@@ -1035,7 +1075,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
     "vllm_r1_distill_32b_with_prompt_fix": StageOption(
         stage="summary",
         option_id="vllm_r1_distill_32b_with_prompt_fix",
-        provider="openai",  # via the #960 first-class vLLM path
+        provider="vllm",  # DGX-local open model over the OpenAI-compatible API (ADR-147)
         model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
         endpoint="http://{dgx_tailnet_host}:8003/v1",
         extra_settings={
@@ -1082,7 +1122,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         model="qwen3.5:9b",
         endpoint="http://{dgx_tailnet_host}:11434/v1",
         extra_settings={"think": False, "bundled_mode_caveat": "fragile in bundled mode"},
-        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
+        research_ref="#113",
         headline_metric=(
             "Summary 0.529 bullets / 0.509 para (#928). #113 small-model "
             "standoff under #1035 NER pre-pass: KG topic 66% / entity 97% — "
@@ -1134,8 +1174,10 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
     "vllm_qwen3_5_35b_a3b": StageOption(
         stage="summary",
         option_id="vllm_qwen3_5_35b_a3b",
-        provider="openai",
-        model="autoresearch",  # served-model-name on the autoresearch slot
+        provider="vllm",
+        # Real HF id on the wire (ADR-147). Confirm it matches the homelab --served-model-name
+        # before a daily-driver swap; the B3 fail-closed check catches any drift.
+        model="Qwen/Qwen3.5-35B-A3B",
         endpoint="http://{dgx_tailnet_host}:8003/v1",
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
@@ -1148,7 +1190,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
                 "presence_penalty": 1.5,
             },
         },
-        research_ref="docs/wip/EVAL_1016_FINAL_REPORT_2026_06_17.md",
+        research_ref="#1016",
         headline_metric=(
             "ROUGE-1 vs Opus 59.4%, cosine 83.7% (cohort leader); GI 36%, KG 38% "
             "(KG cohort leader). 13.6s/ep. Δ S−O = +3.6 (Sonnet-mimicry — needs "
@@ -1175,15 +1217,15 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
     "vllm_moonlight_16b_a3b": StageOption(
         stage="summary",
         option_id="vllm_moonlight_16b_a3b",
-        provider="openai",
-        model="autoresearch",  # served-model-name on the autoresearch slot
+        provider="vllm",
+        model="moonshotai/Moonlight-16B-A3B-Instruct",  # real HF id on the wire (ADR-147)
         endpoint="http://{dgx_tailnet_host}:8003/v1",
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "compose_flag_required": "--trust-remote-code --max-model-len=8192",
             "vendor_sampling": "greedy (no vendor recommendation)",
         },
-        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
+        research_ref="#113",
         headline_metric=(
             "Summary ROUGE-1 vs Opus 57.5%, cosine 78.6% (#1016 R3). "
             "#113 under #1035 NER pre-pass: KG topic 54% (cohort floor), "
@@ -1211,12 +1253,11 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
     "vllm_qwen3_30b_a3b_nvfp4": StageOption(
         stage="summary",
         option_id="vllm_qwen3_30b_a3b_nvfp4",
-        provider="openai",
-        model="autoresearch",  # served-model-name on the autoresearch slot
+        provider="vllm",
+        model="NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",  # real HF id on the wire (ADR-147)
         endpoint="http://{dgx_tailnet_host}:8003/v1",
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
-            "underlying_hf_model": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",
             "chat_template_kwargs": {"enable_thinking": False},
             "vendor_sampling": {
                 "temperature": 0.7,
@@ -1225,7 +1266,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
                 "presence_penalty": 1.5,
             },
         },
-        research_ref="docs/wip/EVAL_1033_COHORT_RERUN_2026-06-19.md",
+        research_ref="#1033",
         headline_metric=(
             "Corrected-pipeline (#1033) cohort: GI avg_sim 0.595 (rank 2), "
             "KG topic cov 45% (rank 2), summary rouge1_f1 vs Opus 0.5407 "
@@ -1315,6 +1356,37 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 # Bundling (`bundled_ab`) is the cross-provider champion per #921
 # (EVAL_GIL_BUNDLING_2026_05). Grounding is treated as universal-on.
 _GI_OPTIONS: Dict[str, StageOption] = {
+    # v2.5 finale GI config — identical to ``provider_chunked_gated_v3`` EXCEPT three knobs the
+    # 2026-08 finale validated for the cloud flash summarisers (deepseek/qwen): max_insights 50->12
+    # (flash models saturate lower than gemini), dedupe 0.75->0.72, value_gate_min_tier 2->3
+    # (tighter gate for the cheaper models). All six finale bake-off arms ran these exact values.
+    "provider_chunked_gated_v25": StageOption(
+        stage="gi",
+        option_id="provider_chunked_gated_v25",
+        provider="provider",
+        extra_settings={
+            "max_insights": 12,
+            "require_grounding": True,
+            "evidence_quote_mode": "bundled",
+            "evidence_nli_mode": "bundled",
+            "insight_chunk_chars": 30000,
+            "insight_dedupe_threshold": 0.72,
+            "value_gate_enabled": True,
+            "value_gate_min_tier": 3,
+            "insight_temperature": 0.0,
+            "insight_prompt_version": "v2",
+            "qa_score_min": 0.3,
+            "nli_entailment_min": 0.5,
+            "evidence_match_summary_provider": True,
+        },
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric=(
+            "v2.5 finale cloud GI config (12/0.72/tier-3); all six bake-off arms beat the 2.4 "
+            "baseline (deepseek-native 9-0, +2.2 summary / +3.0 insights)"
+        ),
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     # SUPERSEDED by provider_chunked_gated_v3. Kept as history, not deleted: n=12 was never derived
     # from anything (the providers clamped to 10 anyway, so no run could honour it), and recording
     # WHY a value was abandoned is worth more than the value was.
@@ -1492,6 +1564,33 @@ _KG_OPTIONS: Dict[str, StageOption] = {
 # Cloud profiles route NER through Gemini instead of spaCy (the pipeline-llm
 # image doesn't ship spaCy models at all).
 _NER_OPTIONS: Dict[str, StageOption] = {
+    # Cloud OpenRouter / native-Qwen speaker detection: the LLM (via the summary provider) handles
+    # naming inline; spaCy ``en_core_web_trf`` is the entity model. ``speaker_detector_provider``
+    # follows the summariser (litellm/qwen). ``_emit_speaker_model`` only namespaces
+    # openai/vllm/ollama, so only ``speaker_detector_provider`` + ``ner_model`` are governed here
+    # (matches the cloud YAMLs; the naming LLM rides the same gateway/DashScope config).
+    "litellm_speaker_detector": StageOption(
+        stage="ner",
+        option_id="litellm_speaker_detector",
+        provider="litellm",
+        model="en_core_web_trf",
+        extra_settings={"speaker_llm_model": "podcast-flash-0731"},
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="cloud_openrouter speaker detection — LLM naming + spaCy trf NER",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
+    "qwen_speaker_detector": StageOption(
+        stage="ner",
+        option_id="qwen_speaker_detector",
+        provider="qwen",
+        model="en_core_web_trf",
+        extra_settings={"speaker_llm_model": "qwen3.7-flash"},
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="cloud_qwen speaker detection — LLM naming via DashScope + spaCy trf NER",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     "gemini_speaker_detector": StageOption(
         stage="ner",
         option_id="gemini_speaker_detector",
@@ -1508,13 +1607,37 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         stage="ner",
         option_id="ollama_speaker_detector",
         provider="ollama",
-        model="en_core_web_trf",  # the local entity stage still runs spaCy alongside
+        model="en_core_web_trf",  # spaCy ner_model (local entity stage runs alongside)
+        extra_settings={"speaker_llm_model": "qwen3.5:35b"},  # DGX-local ollama LLM for naming
         research_ref="docs/guides/eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md",
         headline_metric=(
             "speaker/host detection served by the same DGX-resident LLM, so an all-DGX profile "
             "needs no cloud call for it (#1169)"
         ),
         measured_at="2026-06-15",
+        tier="primary",
+    ),
+    "vllm_speaker_detector": StageOption(
+        stage="ner",
+        option_id="vllm_speaker_detector",
+        provider="vllm",
+        # `model` is the spaCy ner_model (the entity stage runs spaCy alongside, symmetric with
+        # ollama_speaker_detector); the LLM that does speaker NAMING is `speaker_llm_model` below,
+        # emitted to vllm_speaker_model. This split keeps ner_model a spaCy id, never a Qwen id.
+        model="en_core_web_trf",
+        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        extra_settings={
+            "api_key_env": "VLLM_API_KEY",
+            "chat_template_kwargs": {"enable_thinking": False},
+            "speaker_llm_model": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",  # real HF id (ADR-147)
+        },
+        research_ref="docs/adr/ADR-147-first-class-vllm-provider-real-model-ids.md",
+        headline_metric=(
+            "naming/NER served by the DGX-local vLLM model — an airgapped profile needs no cloud "
+            "call for it (ADR-147). The winning naming model is the bake-off's call; this is the "
+            "provider-symmetric representation + a sane default (the summary daily-driver)."
+        ),
+        measured_at="2026-08-02",
         tier="primary",
     ),
     "spacy_trf": StageOption(
@@ -1583,6 +1706,22 @@ _DIARIZATION_RESEARCH_REF = (
     "docs/guides/eval-reports/EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07.md"
 )
 _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
+    # Diarization OFF — for cloud production profiles that run ``diarize: false`` (speaker turns
+    # come from the LLM naming stage, not a diarizer pass). ``model=None`` so the resolver emits NO
+    # diarization model field (``diarization_model`` / ``deepgram_diarization_model`` /
+    # ``dgx_diarize_model`` all stay absent), which is what a ``diarize: false`` YAML wants. This is
+    # what lets a ProfilePreset model a non-diarizing profile at all — every prior preset was
+    # ``diarize: true`` and the schema had no way to say otherwise (2026-08-07).
+    "no_diarization": StageOption(
+        stage="diarization",
+        option_id="no_diarization",
+        provider="none",
+        model=None,
+        research_ref="docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md",
+        headline_metric="diarize:false posture — speaker turns via LLM naming, no diarizer pass",
+        measured_at="2026-08-07",
+        tier="primary",
+    ),
     "pyannote_diarization_community1": StageOption(
         stage="diarization",
         option_id="pyannote_diarization_community1",
@@ -1701,6 +1840,11 @@ class ProfilePreset:
     # presets (2026-07-22) and the yaml-only reprocess profiles all set the floor + failover model.
     # Non-turbo presets leave it OFF (0.0 / None).
     transcription_coverage_min: float = 0.0
+    # ADR-131 speech-normalized gate. When diarization runs, THIS is the active quality gate
+    # (denominator = diarizer speech, so music/ads/silence do not count as dropped speech); the raw
+    # transcription_coverage_min stays 0.0 (its Σsegments/total-audio value is emitted as the
+    # speech_audio_ratio METRIC, not a gate). Every diarizing preset sets this, not the raw floor.
+    transcription_speech_coverage_min: float = 0.0
     transcription_coverage_failover_model: Optional[str] = None
     transcription_coverage_failover_provider: Optional[str] = None  # #1273: 'moss' | None(=whisper)
     # ADR-124 (#1258) model governance: opt-in enforcement that every active model is
@@ -1719,6 +1863,9 @@ class ProfilePreset:
 # our judge assignment as model quality.
 #
 # The resolver therefore DERIVES the judge: first entry whose vendor differs from the summariser.
+# The cross-vendor judges for HOSTED (cloud) summarisers. DGX-local (vllm) is deliberately NOT
+# judged by these — a fully-airgapped DGX profile must consume nothing from the internet, so its
+# value gate self-grades with the same local model (see _LOCAL_ONLY_LLM below + ADR-147).
 _VALUE_GATE_JUDGES: Tuple[Tuple[str, str], ...] = (
     ("anthropic", "claude-haiku-4-5-20251001"),
     ("gemini", "gemini-2.5-flash-lite"),
@@ -1732,15 +1879,38 @@ _VALUE_GATE_JUDGES: Tuple[Tuple[str, str], ...] = (
 # such thing as a judge on that path. Enabling it would either crash or, far worse, reach for a
 # hosted judge: an `airgapped` profile making a network call is the one thing airgapped means it
 # cannot do, and a `dev` profile doing it would put real paid LLM calls into CI.
+# NB: ``litellm`` (gateway) and ``qwen`` (ADR-147 siblings) MUST be here or the value gate silently
+# fails-open on any litellm/qwen-routed run — ``_extractor_can_judge`` checks membership, so a stale
+# list disables an entire quality stage without erroring. The whole v2.5 finale ran via ``litellm``
+# and its ``gi_value_gate_enabled: true`` was a NO-OP because of exactly this omission. Both are
+# hosted (not local-only): litellm proxies cloud OpenRouter, qwen talks to the official DashScope
+# API — so both get a vendor-disjoint judge, not a local self-grade. ``groq`` (ADR-147 sibling) is
+# the same shape — a hosted cloud API, not local-only — so it MUST be here too or the same
+# fail-open bug repeats for a groq-routed run.
 _LLM_PROVIDERS: frozenset = frozenset(
-    {"anthropic", "deepseek", "gemini", "grok", "mistral", "ollama", "openai"}
+    {
+        "anthropic",
+        "deepseek",
+        "gemini",
+        "grok",
+        "groq",
+        "litellm",
+        "mistral",
+        "ollama",
+        "openai",
+        "qwen",
+        "vllm",
+    }
 )
 
-# LLMs that run locally. They CAN judge, but no INDEPENDENT judge is reachable from them — the only
-# model on the box is the one being graded. So the gate self-grades, which is lenient (#939) and
-# recorded here explicitly rather than being quietly true: an offline run still trims filler, but
-# its gate counts are not comparable with a cloud arm's.
-_LOCAL_ONLY_LLM: frozenset = frozenset({"ollama"})
+# LLMs on a fully-local / airgapped path. They get NO cloud judge — a DGX profile must consume
+# nothing from the internet (ADR-147), so the value gate self-grades with the same local model.
+# That is lenient (#939) and recorded here rather than being quietly true: the gate still trims
+# the clear filler, but less aggressively than a vendor-disjoint judge, and its counts are not
+# comparable with a cloud arm's. FUTURE (autoresearch evaluation point): serve a SECOND, distinct
+# local model on the DGX as the judge — vendor-disjoint AND still airgapped — and measure whether
+# the stricter local judge is worth the extra GPU residency.
+_LOCAL_ONLY_LLM: frozenset = frozenset({"ollama", "vllm"})
 
 
 def resolve_value_gate(summary_provider: str) -> Tuple[bool, Optional[Tuple[str, str]]]:
@@ -1784,6 +1954,27 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "transcription_provider",
     "summary_provider",
     "summary_model",
+    # ADR-147 B2: a vLLM profile reads the wire model + endpoint from vllm_summary_model /
+    # vllm_api_base, not the generic summary_model — so those are governed too, or the registry
+    # would not actually control what runs on the wire. (openai_api_base / openai_summary_model
+    # are intentionally NOT governed: cloud-openai profiles legitimately omit a base, and the
+    # stale DGX hand-authored block is cleaned out of the profiles directly.)
+    "vllm_summary_model",
+    "vllm_speaker_model",
+    "vllm_api_base",
+    # ollama is symmetric with vllm (ADR-147): its wire model + endpoint are governed too, whether
+    # ollama is the primary (experiment_dgx_only) or the airgapped summary fallback.
+    "ollama_summary_model",
+    "ollama_speaker_model",
+    "ollama_api_base",
+    # litellm (gateway alias) + qwen (DashScope) — the v2.5 cloud winners. Their summary wire model
+    # is namespaced ({litellm,qwen}_summary_model), so govern it here, not hand-authored in
+    # cloud_openrouter / cloud_qwen (2026-08). Speaker/cleaning wire models stay YAML-authored for
+    # now (a further ADR-147-style extension), like openai_* — only the summary model is promoted.
+    "litellm_summary_model",
+    "qwen_summary_model",
+    "litellm_speaker_model",
+    "qwen_speaker_model",
     "kg_extraction_source",
     "kg_max_topics",
     "kg_max_entities",
@@ -1808,6 +1999,7 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "resilience_failure_strategy",
     # ADR-123 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
+    "transcription_speech_coverage_min",
     "transcription_coverage_failover_model",
     "transcription_coverage_failover_provider",
     # ADR-124 (#1258): model-governance enforcement toggle.
@@ -1834,16 +2026,54 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
 
 # Profile presets — canonical compositions. Profile YAMLs are downstream views.
 _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
+    # Cloud production — v2.5 finale winners routed through the homelab LiteLLM gateway (OpenRouter)
+    # and native Qwen (DashScope). Both run diarize:false (speaker turns from LLM naming), so they
+    # use the ``no_diarization`` option, and the v2.5 GI config (``provider_chunked_gated_v25``).
+    # Same transcription/kg/clustering as cloud_balanced; only summary + speaker provider differ.
+    "cloud_openrouter": ProfilePreset(
+        name="cloud_openrouter",
+        transcription="openai_whisper_1",
+        summary="cloud_or_deepseek_flash",
+        kg="provider_n10_15",
+        ner="litellm_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v25",
+        diarization="no_diarization",
+        notes="Cloud prod: v2.5 finale winner (deepseek-v4-flash via OpenRouter); diarize:false.",
+    ),
+    "cloud_qwen": ProfilePreset(
+        name="cloud_qwen",
+        transcription="openai_whisper_1",
+        summary="cloud_qwen_flash",
+        kg="provider_n10_15",
+        ner="qwen_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v25",
+        diarization="no_diarization",
+        notes="Cloud production: v2.5 finale flash arm (native Qwen / DashScope); diarize:false.",
+    ),
     "cloud_balanced": ProfilePreset(
         name="cloud_balanced",
-        transcription="openai_whisper_1",
-        summary="gemini_flash_lite",
+        # Deepgram nova-3 self-diarizes on the transcription call (diarize=True is always on), so
+        # a SEPARATE diarization_provider=deepgram would re-POST the audio — a redundant 2nd billed
+        # pass. Instead use ``no_diarization`` (diarize:false): the ``_apply_native_speaker_roster``
+        # path reuses the transcription's own speaker clustering (precomputed_diarization,
+        # cost_usd=0.0, NO extra call), exactly like MOSS. Net: ONE Deepgram pass for ASR+speakers
+        # (~$0.0043/min). (2026-08-08: the earlier deepgram_diarization_nova3 wiring double-billed.)
+        transcription="deepgram_nova_3",
+        summary="cloud_or_deepseek_flash",
         kg="provider_n10_15",
-        ner="gemini_speaker_detector",
+        ner="litellm_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_chunked_gated_v3",
-        diarization="deepgram_diarization_nova3",
-        notes="Production cloud default. Best compound (quality × cost × latency).",
+        gi="provider_chunked_gated_v25",
+        diarization="no_diarization",
+        # RFC-111 (#1482): a homelab:4001 gateway CONNECTION outage must fail over to direct
+        # DeepSeek (same model, different wire path) rather than lose the whole LLM stack.
+        summary_fallback=("deepseek_native_flash",),
+        notes="Production cloud default: Deepgram nova-3 single-pass ASR+diarization (speakers "
+        "reused from the transcription, no 2nd call) + DeepSeek-v4-flash LLM (v2.5 finale cloud "
+        "winner, via the LiteLLM gateway). Needs DEEPGRAM_API_KEY + the homelab gateway reachable "
+        "(RFC-111: falls over to direct api.deepseek.com if the gateway connection itself fails).",
     ),
     "cloud_thin": ProfilePreset(
         name="cloud_thin",
@@ -1859,8 +2089,10 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        # turbo silently drops on long episodes -> ADR-123 coverage gate re-routes to large-v3.
-        transcription_coverage_min=0.85,
+        # turbo silently drops on long episodes -> ADR-131 speech-normalized gate re-routes. Uses
+        # the diarizer's speech duration as the denominator so music/ads/silence don't spuriously
+        # trip it (the raw Σsegments/total-audio value is emitted as the speech_audio_ratio metric).
+        transcription_speech_coverage_min=0.85,
         transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
         transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
         summary="gemini_flash_lite",
@@ -1934,30 +2166,31 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "(uncapped ceiling + chunking + value gate + temperature 0)."
         ),
     ),
-    "prod_dgx_full_with_fallback": ProfilePreset(
-        name="prod_dgx_full_with_fallback",
+    "prod_dgx_full": ProfilePreset(
+        name="prod_dgx_full",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
-        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
-        transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
+        # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
+        # ASR must be CONSTANT (always DGX whisper). A MOSS re-transcribe on a low-coverage episode
+        # swaps the transcript source mid-run and confounds a summary/GI/KG comparison. Fields left
+        # at defaults (speech_coverage_min=0.0, failover model/provider=None) → the ADR-131 gate
+        # returns early. The ASR speech_coverage METRIC is still recorded (separate from this gate).
         # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
-        ner="gemini_speaker_detector",  # sub-cent, better than spacy on names
+        ner="vllm_speaker_detector",  # ADR-147: naming on the DGX-local model, no cloud
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # RFC-106 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
-        # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
-        # summary -> cloud gemini (the cloud_balanced summary tier). All-DGX intent = exhaust the
-        # free/on-prem ladder before paying cloud.
+        # ADR-147: FULLY AIRGAPPED — every LLM stage + every fallback is DGX-local, zero internet.
+        # Transcription falls back DGX-whisper -> local in-process whisper (no cloud Whisper); the
+        # MOSS coverage failover above is also local. Summary falls back to DGX-local ollama;
+        # diarization to local pyannote (no cloud deepgram).
         transcription_fallback=(
             "tailnet_dgx_speaches_thread_b",
             "local_mps_large_v3",
-            "openai_whisper_1",
         ),
-        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
-        summary_fallback=("gemini_flash_lite",),
+        diarization_fallback=("pyannote_diarization_community1",),  # local only, no cloud
+        summary_fallback=("ollama_qwen35_35b",),
         notes=(
             "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
             "Gemini for the cheap speaker-detect, cloud Gemini as the summary "
@@ -1968,10 +2201,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "Wins 2 of 3 stages decisively (summary 59.4% R-1 vs Opus cohort "
             "leader, KG 38% cohort leader, GI 36% second). Cost: needs "
             "--reasoning-parser=qwen3 server flag; carries +3.6 Sonnet-mimicry "
-            "on summary so any prod judge panel must be cross-vendor. If "
-            "judge-bias concerns dominate (third-party leaderboards, customer-"
-            "facing audited rankings), use prod_dgx_balanced (Moonlight safe "
-            "pick) instead. "
+            "on summary so any prod judge panel must be cross-vendor. "
             "OPERATIONAL GATE: the #963 / #996 catastrophic-tail risk applies — "
             "do not run autoresearch sweeps on coder-next vLLM concurrent with a "
             "pipeline run on this profile. The transcription and summary stages "
@@ -1985,62 +2215,19 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "one-shot evals (manual compose swap)."
         ),
     ),
-    "prod_dgx_balanced": ProfilePreset(
-        name="prod_dgx_balanced",
-        transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
-        transcription_coverage_min=0.85,  # ADR-123: long-episode coverage drop -> large-v3
-        transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
-        transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
-        # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
-        summary="vllm_qwen3_30b_a3b_nvfp4",
-        kg="provider_n10_15",
-        ner="gemini_speaker_detector",
-        clustering="topic_clusters_default_0_75",
-        gi="provider_chunked_gated_v3",
-        diarization="tailnet_dgx_diarization_community1",
-        # RFC-106 (#1198): free tiers first, paid cloud last. MOSS -> DGX faster-whisper -> local
-        # in-process whisper -> cloud whisper; DGX pyannote -> local pyannote -> deepgram; DGX vLLM
-        # summary -> cloud gemini (the cloud_balanced summary tier).
-        transcription_fallback=(
-            "tailnet_dgx_speaches_thread_b",
-            "local_mps_large_v3",
-            "openai_whisper_1",
-        ),
-        diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
-        summary_fallback=("gemini_flash_lite",),
-        notes=(
-            "Prod variant of prod_dgx_full_with_fallback that swaps the summary "
-            "stage to vLLM-served Moonlight-16B-A3B (#1016 Round 3 safe pick). "
-            "Trade-off vs prod_dgx_full_with_fallback (Qwen3.5-35B-A3B top dog): "
-            "- 33% faster (9s/ep vs 13.6s/ep) "
-            "- half the resident memory (32 GB vs 67 GB) — DGX-contention friendly "
-            "- style-neutral (Δ S−O = 0.0) — no judge-vendor caveat "
-            "- ROUGE-1 -1.9pt vs the top-dog Qwen3.5 (57.5% vs 59.4%) "
-            "Pick this profile when (a) DGX is shared with other workloads, "
-            "(b) downstream judge vendor is unknown/Sonnet-heavy, or (c) "
-            "audit-clean ranking matters more than peak quality. Otherwise "
-            "use prod_dgx_full_with_fallback. "
-            "2026-06-19 UPDATE (#1022 Cell F): the autoresearch-slot model "
-            "behind this profile's summary stage has been swapped from "
-            "Moonlight-16B-A3B (bf16, 32 GB) to "
-            "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 (18 GB). Cell F dominates "
-            "Moonlight in 4 of 5 dimensions: loses summary rouge1 by 6% but "
-            "wins GI by 161%, KG by 45%, end-to-end speed by 5%, weight "
-            "footprint by 44%. Style-neutrality note: Cell F has not been "
-            "Δ S−O measured; if strict bias-clean ranking is essential, "
-            "manually swap to Moonlight via homelab compose for that run."
-        ),
-    ),
     "eval_default": ProfilePreset(
         name="eval_default",
         transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
-        ner="gemini_speaker_detector",
+        ner="vllm_speaker_detector",  # ADR-147: naming on the DGX-local model, no cloud
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
+        # ADR-147: airgapped local-only transcription fallback (ADR-096 requires a fallback for
+        # tailnet_dgx_whisper); local in-process whisper, no cloud.
+        transcription_fallback=("local_mps_large_v3",),
         notes=(
             "Internal autoresearch eval-loop default. Uses Moonlight-16B-A3B "
             "(#1016 Round 3 safe pick) as the summary stage because we're our "
@@ -2321,7 +2508,7 @@ def resolve_endpoint(
 # Cloud vendors a fallback tier can reach. A cloud vendor pointed at a DGX/local endpoint (e.g.
 # vLLM served over the openai protocol) is on-prem, not cloud — see _is_cloud_option.
 _CLOUD_FALLBACK_VENDORS: Final = frozenset(
-    {"openai", "gemini", "anthropic", "deepgram", "mistral", "deepseek", "grok", "cohere"}
+    {"openai", "gemini", "anthropic", "deepgram", "mistral", "deepseek", "grok", "cohere", "groq"}
 )
 
 
@@ -2366,6 +2553,15 @@ def _emit_fallback_chains(preset: ProfilePreset, settings: Dict[str, Any]) -> No
         if options:
             settings[key] = [opt.provider for opt in options]
 
+    # A DGX-local ollama SUMMARY fallback needs its wire config materialized too (governed), so a
+    # vllm-primary airgapped profile doesn't hand-author ollama_summary_model / ollama_api_base
+    # (ADR-147). Emit from the first ollama option in the summary-fallback ladder.
+    for oid in preset.summary_fallback:
+        opt = get_summary_option(oid)
+        if opt.provider == "ollama":
+            _emit_summary_model(opt, settings)
+            break
+
 
 def _emit_transcription_model(tx: StageOption, settings: Dict[str, Any]) -> None:
     """Route the transcription model to the backend's governed config field.
@@ -2376,6 +2572,54 @@ def _emit_transcription_model(tx: StageOption, settings: Dict[str, Any]) -> None
     """
     if tx.provider == "tailnet_dgx_whisper" and tx.model is not None:
         settings["dgx_whisper_model"] = tx.model
+
+
+def _endpoint_to_env_template(endpoint: str) -> str:
+    """Convert a StageOption endpoint's ``{dgx_tailnet_host}`` placeholder into the profile's
+    ``${DGX_TAILNET_HOST:-<default>}`` env-substitution form — host-portable and machine
+    independent, unlike ``resolve_endpoint`` which bakes the materializer-runner's env."""
+    return endpoint.replace("{dgx_tailnet_host}", "${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}")
+
+
+def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
+    """Route the summary model + endpoint to the backend's GOVERNED, provider-namespaced fields.
+
+    The provider-namespaced backends (openai, vllm, ollama, litellm, qwen, groq) read a
+    namespaced field (``{ns}_summary_model`` / ``{ns}_api_base``), NOT the generic ``summary_model``
+    / ``summary_endpoint`` — so those must be materialized for the registry to actually govern what
+    runs on the wire, rather than leaving it to a hand-authored profile block (ADR-147 B2). ``vllm``
+    and ``ollama`` are fully symmetric here — both DGX-local, self-describing serving stacks;
+    ``litellm`` (gateway alias) + ``qwen`` (DashScope) + ``groq`` join them so a cloud winner's
+    ``{litellm,qwen,groq}_summary_model`` is governed, not hand-authored. The endpoint is emitted in
+    ``${DGX_TAILNET_HOST}``-template form (``_endpoint_to_env_template``).
+    """
+    ns = sm.provider
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
+        return
+    if sm.model is not None:
+        settings[f"{ns}_summary_model"] = sm.model
+    if sm.endpoint:
+        settings[f"{ns}_api_base"] = _endpoint_to_env_template(sm.endpoint)
+
+
+def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
+    """Route the naming/NER model + endpoint to the OpenAI-compatible provider's namespaced fields.
+
+    The LLM speaker/naming model lives in ``extra_settings['speaker_llm_model']`` (NOT the generic
+    ``ner_model``, which is the spaCy entity model) and is routed to ``{ns}_speaker_model``. vllm,
+    openai and ollama are identical here — all three carry a spaCy id in ``model`` and the LLM tag
+    in ``speaker_llm_model`` — so a DGX naming stage materializes its real local model instead of
+    falling to a cloud/Config default (ADR-147). litellm/qwen/groq join them so a cloud winner's
+    ``{litellm,qwen,groq}_speaker_model`` is governed, not hand-authored.
+    """
+    ns = ner.provider
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
+        return
+    llm = (ner.extra_settings or {}).get("speaker_llm_model")
+    if isinstance(llm, str) and llm:
+        settings[f"{ns}_speaker_model"] = llm
+    if ner.endpoint:
+        settings[f"{ns}_api_base"] = _endpoint_to_env_template(ner.endpoint)
 
 
 def resolve_profile_to_settings(
@@ -2426,6 +2670,8 @@ def resolve_profile_to_settings(
         settings["summary_endpoint"] = resolved_sm_endpoint
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
+    # Route the wire model + endpoint to the provider-namespaced governed fields (ADR-147 B2).
+    _emit_summary_model(sm, settings)
 
     _emit_fallback_chains(preset, settings)
 
@@ -2437,6 +2683,7 @@ def resolve_profile_to_settings(
 
     # ADR-123 (#1258): quality-gate transcription-failover knobs, governed like the resilience ones.
     settings["transcription_coverage_min"] = preset.transcription_coverage_min
+    settings["transcription_speech_coverage_min"] = preset.transcription_speech_coverage_min
     settings["transcription_coverage_failover_model"] = preset.transcription_coverage_failover_model
     settings["transcription_coverage_failover_provider"] = (
         preset.transcription_coverage_failover_provider
@@ -2539,6 +2786,9 @@ def resolve_profile_to_settings(
     settings["speaker_detector_provider"] = ner.provider
     if ner.model is not None:
         settings["ner_model"] = ner.model
+    # Route the vllm/openai naming model + endpoint to the provider-namespaced governed fields
+    # (ADR-147): the LLM speaker path reads {ns}_speaker_model, not ner_model.
+    _emit_speaker_model(ner, settings)
 
     # Clustering: threshold flows through to runtime Config (#991). The same
     # value drives both ``topic_cluster_threshold`` and ``insight_cluster_threshold``

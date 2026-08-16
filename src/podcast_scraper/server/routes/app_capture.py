@@ -16,7 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
-from podcast_scraper.server import app_user_state
+from podcast_scraper.server import app_graph_refs, app_user_state
 from podcast_scraper.server.app_capture_export import (
     EpisodeHighlights,
     HighlightLine,
@@ -51,6 +51,14 @@ def _new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
 
 
+def _corpus_root_opt(request: Request) -> Path | None:
+    """The corpus root, or None when unavailable — capture must not fail on a missing corpus."""
+    try:
+        return corpus_root_or_503(request)
+    except HTTPException:
+        return None
+
+
 # --- highlights ---------------------------------------------------------------
 
 
@@ -67,10 +75,15 @@ async def list_highlights(
 async def create_highlight(
     request: Request, body: HighlightCreate, user: User = Depends(get_current_user)
 ) -> Highlight:
-    """Capture a highlight (span / moment / insight); mints id + created_at."""
+    """Capture a highlight (span / moment / insight); mints id + created_at + graph refs."""
     record = body.model_dump()
     record["id"] = _new_id("h")
     record["created_at"] = int(time.time())
+    # Resolve + persist the highlight's canonical graph refs at capture (#1419) so every outbound
+    # surface carries the graph. Best-effort: a missing/KG-less corpus just yields no refs.
+    root = _corpus_root_opt(request)
+    if root is not None:
+        record["graph_refs"] = app_graph_refs.refs_for_slug(root, str(record.get("episode_slug")))
     app_user_state.add_highlight(_data_dir(request), user.user_id, record)
     return Highlight(**record)
 

@@ -128,7 +128,7 @@ def _gemini_usage(usage: Any) -> TokenUsage:
 
 
 # OpenAI-compatible SDK is the transport for these providers.
-_OPENAI_COMPATIBLE = frozenset({"openai", "deepseek", "grok", "mistral"})
+_OPENAI_COMPATIBLE = frozenset({"openai", "deepseek", "grok", "mistral", "groq"})
 
 
 def extract_token_usage(provider: str, response: Any) -> TokenUsage:

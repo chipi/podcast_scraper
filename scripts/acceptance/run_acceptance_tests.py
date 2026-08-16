@@ -818,6 +818,17 @@ def modify_config_for_fixtures(
         os.environ["ANTHROPIC_API_BASE"] = e2e_server.urls.anthropic_api_base()
         os.environ["DEEPGRAM_API_BASE"] = e2e_server.urls.deepgram_api_base()
 
+        # Config-driven provider bases (NO env-var fallback in podcast_scraper.config): litellm,
+        # qwen, vllm. OpenAICompatibleProvider reads ``cfg.<ns>_api_base`` directly, so the
+        # env overrides above do NOT reach them — the CONFIG field must be rewritten or a fixture
+        # run dials the real host (the #1527 cloud_balanced -> homelab:4001 bug). Redirect all
+        # three to the OpenAI-compatible E2E mock. (Only litellm is used by the current fast
+        # matrix; qwen/vllm are covered pre-emptively so a future qwen/vllm acceptance profile
+        # can't reintroduce the bug. Guarded by test_fixture_provider_redirect.py.)
+        config_dict["litellm_api_base"] = e2e_server.urls.litellm_api_base()
+        config_dict["qwen_api_base"] = e2e_server.urls.qwen_api_base()
+        config_dict["vllm_api_base"] = e2e_server.urls.vllm_api_base()
+
         # Set dummy API keys (required for config validation, but won't be used with mocks)
         if "OPENAI_API_KEY" not in os.environ:
             os.environ["OPENAI_API_KEY"] = "sk-test-dummy-key-for-bulk-tests"

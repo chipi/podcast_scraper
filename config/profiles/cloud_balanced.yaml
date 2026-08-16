@@ -35,15 +35,16 @@ profile: cloud_balanced
 # voxtral-mini-latest is 6x cheaper with comparable WER (8.6% avg) but showed a
 # hallucination on 1/5 test eps — parked pending investigation of anti-loop
 # mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
-transcription_provider: openai
-openai_transcription_model: whisper-1
-# Diarization is a core pipeline stage (#913, 2026-06-15). Cloud
-# profiles route to Deepgram for the diarize pass — independent API call,
-# no [ml]/HF_TOKEN install on the pipeline host. Cost: ~$0.004/min for the
-# diarize call on top of OpenAI Whisper ($0.006/min) for transcription.
-diarize: true
-diarization_provider: deepgram
-deepgram_diarization_model: nova-3-general  # from registry: deepgram_diarization_nova3
+transcription_provider: deepgram
+deepgram_model: nova-3
+# Deepgram nova-3 self-diarizes on the transcription call (diarize=True is unconditional in the
+# transcription provider), tagging each segment with a ``speaker`` id. So we DO NOT run a separate
+# diarization pass (diarize:false) — a diarization_provider=deepgram would re-POST the whole audio, a
+# redundant SECOND billed pass. Instead the ``_apply_native_speaker_roster`` path reuses the
+# transcription's own speaker clustering (precomputed_diarization, cost_usd=0.0, no extra call),
+# exactly like MOSS. Net: ONE Deepgram audio pass for ASR + speakers (~$0.0043/min). screenplay
+# stays on because deepgram is a native-screenplay provider even with diarize:false.
+diarize: false
 screenplay: true
 
 # Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).
@@ -55,7 +56,7 @@ audio_preprocessing_profile: speech_optimal_v1
 # this profile run on the pipeline-llm image (which ships [llm] + minimum [search]
 # but no spaCy / transformer NER models). Switch to ``spacy`` + ``en_core_web_trf``
 # if running on the full ``pipeline`` (ml) image and you want offline NER.
-speaker_detector_provider: gemini
+speaker_detector_provider: litellm
 auto_speakers: true
 
 # Summarization
@@ -67,8 +68,54 @@ auto_speakers: true
 # 2026-05-24 prod operating point: ~15-20% Gemini 503 burst absorbed by
 # #697 circuit breaker. Do not swap without re-running the harness at the
 # target operating point.
-summary_provider: gemini
-gemini_summary_model: gemini-2.5-flash-lite
+summary_provider: litellm
+
+# LiteLLM gateway wiring (homelab:4001 -> OpenRouter deepseek-v4-flash), reasoning OFF — mirrors
+# cloud_openrouter. The governed model fields (litellm_*_model) are materialized near the file end.
+# NOTE: this profile now depends on the homelab LiteLLM gateway being reachable from the pipeline
+# host (tailnet) AND carrying the OpenRouter key. If the gateway is down, LLM stages fail.
+litellm_api_base: http://homelab:4001/v1
+litellm_insight_model: podcast-flash-0731
+litellm_temperature: 0.3
+litellm_extra_body:
+  reasoning:
+    enabled: false
+  provider:
+    order:
+      - novita
+      - deepinfra
+    allow_fallbacks: true
+litellm_verify_served_model: true
+
+# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient homelab:4001 ->
+# OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
+# exhausted retry_with_metrics' short default window (~12s: 4 tries, 0.9s->2s->4s) before the
+# operator could react, and the whole grounding pass for that insight was lost. Two layers, in
+# order:
+#   1. HOLD — retry the gateway itself for minutes before giving up. Config-driven (config.py
+#      llm_retry_*, resolved in utils/llm_resilience.py resolve_resilience) so only THIS profile
+#      pays the long window; the Field defaults (3 / 1.0s / 30.0s) are unchanged, so tests and
+#      every other profile keep today's short window.
+#   2. FAILOVER — if the gateway is still down after that, fail over to DIRECT DeepSeek (bypasses
+#      homelab:4001 entirely, hits api.deepseek.com), via the RFC-106 ordered failover chain
+#      (registry-governed ``summary_fallback_providers`` — see the ``deepseek_native_flash``
+#      StageOption + ``cloud_balanced.summary_fallback`` in model_registry.py; materialized into the
+#      registry block near the bottom of this file, not hand-authored here). The same wrapped
+#      provider backs summary + quote + entailment roles here since quote_extraction_provider /
+#      entailment_provider both already match summary_provider (litellm) above.
+llm_retry_max_retries: 12
+llm_retry_initial_delay_seconds: 2.0
+llm_retry_max_delay_seconds: 120.0
+
+# deepseek_summary_model / deepseek_extra_body are NOT registry-governed (only the litellm/qwen/
+# vllm/ollama summary wire models are — see REGISTRY_GOVERNED_FIELDS), so the fallback tier's model
+# + reasoning-off knob are hand-authored here, mirroring bakeoff_deepseek_native_flash.yaml.
+# deepseek_api_base omitted -> defaults to https://api.deepseek.com (direct, no gateway).
+# Key from DEEPSEEK_API_KEY env (auto-loaded by the deepseek_api_key field validator).
+deepseek_summary_model: deepseek-v4-flash
+deepseek_extra_body:
+  reasoning_effort: none
+
 preprocessing_enabled: true
 
 # Pipeline mode — mega_bundled (#646 real-episode validation):
@@ -80,7 +127,7 @@ preprocessing_enabled: true
 # vs staged ($0.00445/ep, 3 calls) → 72 % cheaper.
 # Gemini may occasionally return transient 503 UNAVAILABLE — retry_with_metrics
 # handles this with backoff but it can add a few seconds on a bad minute.
-llm_pipeline_mode: mega_bundled
+llm_pipeline_mode: staged
 
 # Output token floor for cloud LLM structured JSON (#645). Prevents truncated
 # JSON (Gemini returned empty strings on long transcripts below ~650 tokens).
@@ -91,7 +138,7 @@ generate_gi: true
 gi_insight_source: provider
 # Generate broadly and let the GATE trim: the cap is not a quality control, it is a truncation.
 # Prod ran 12 while every eval ran 50, so the comparison measured a pipeline production never runs.
-gi_max_insights: 50
+gi_max_insights: 12
 gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
@@ -162,14 +209,18 @@ enrichment:
 # gate — the judge that removes filler — therefore never ran in production at all; it ran only in
 # evals, which is how the eval and the product came to measure different pipelines.
 gi_value_gate_enabled: true
-# PIN the judge. A model grading its own output is lenient (#939), and if each arm is filtered by a
-# different strictness the surviving counts are not comparable. Vendor-disjoint from the extractor.
-gi_value_gate_provider: anthropic
-gi_value_gate_model: claude-haiku-4-5-20251001
-gi_value_gate_min_tier: 2
+# Route the value-gate judge through the SAME LiteLLM gateway (-> DeepSeek) as every other LLM stage
+# in this profile. cloud_balanced has no Anthropic dependency and must not introduce one just for
+# the gate. Trade-off, stated plainly: the judge now shares the extractor's vendor, so grading is
+# more lenient than a vendor-disjoint judge (#939) — provider consistency + single-vendor prod ops
+# are the deliberate win here. The model stays PINNED (never inherit the provider default — that
+# once 404'd and failed the gate open on a full run).
+gi_value_gate_provider: litellm
+gi_value_gate_model: podcast-flash-0731
+gi_value_gate_min_tier: 3
 # The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
 # redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
-gi_insight_dedupe_threshold: 0.75
+gi_insight_dedupe_threshold: 0.72
 # PINNED, not defaulted. v3 (the speech-act variant) LOST its A/B — route kappa 0.57 against
 # v2's 0.67 — and stays on disk only as the record of that measurement. Naming the winner
 # here means a future change of default cannot silently move this profile off it.
@@ -181,11 +232,15 @@ gi_insight_prompt_version: v2
 # An LLM grounds with an LLM. `gil_evidence_*_mode: bundled` above is an LLM-only path, and with
 # the provider left at its "transformers" default it did nothing — these profiles asked for bundled
 # LLM grounding and got local DeBERTa.
-quote_extraction_provider: gemini
-entailment_provider: gemini
+# Match the summary provider (litellm -> deepseek) so ALL LLM stages are on one provider — an LLM
+# summariser grounds with the same LLM. These are NOT registry-governed, so on a provider swap they
+# must be updated by hand (or left unset to let the gil_evidence_match_summary_provider auto-coerce
+# fire — it only promotes summary->quote/entail when BOTH are unset).
+quote_extraction_provider: litellm
+entailment_provider: litellm
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
-summary_model: gemini-2.5-flash-lite
+summary_model: podcast-flash-0731
 topic_cluster_threshold: 0.75
 insight_cluster_threshold: 0.75
 gi_insight_chunk_chars: 30000
@@ -198,3 +253,8 @@ transcription_coverage_min: 0.0
 enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
+transcription_speech_coverage_min: 0.0
+litellm_summary_model: podcast-flash-0731
+litellm_speaker_model: podcast-flash-0731
+ner_model: en_core_web_trf
+summary_fallback_providers: [deepseek]

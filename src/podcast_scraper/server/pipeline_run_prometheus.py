@@ -146,6 +146,24 @@ def _ensure_prom_hist() -> None:
         "podcast_pipeline_run_json_observed_total",
         "run.json files whose metrics were observed for Prometheus.",
     )
+    # Cost / volume series (P2.9) — Counters so PromQL can rate()/sum() spend + throughput over
+    # time. Incremented by each observed run.json's totals.
+    _PROM_STATE["run_cost_usd"] = Counter(
+        "podcast_pipeline_run_cost_usd_total",
+        "Per-feed run.json: total LLM + transcription cost (USD) summed across stages.",
+    )
+    _PROM_STATE["run_episodes"] = Counter(
+        "podcast_pipeline_run_episodes_total",
+        "Per-feed run.json: episodes scraped/processed.",
+    )
+    _PROM_STATE["run_gi_artifacts"] = Counter(
+        "podcast_pipeline_run_gi_artifacts_total",
+        "Per-feed run.json: GI artifacts generated.",
+    )
+    _PROM_STATE["run_kg_artifacts"] = Counter(
+        "podcast_pipeline_run_kg_artifacts_total",
+        "Per-feed run.json: KG artifacts generated.",
+    )
     _PROM_STATE["done"] = True
 
 
@@ -183,6 +201,21 @@ def _observe_metrics_mapping(metrics: Mapping[str, Any]) -> None:
     ctr = _PROM_STATE.get("run_json_hits")
     if ctr is not None:
         ctr.inc()
+
+    # Cost / volume Counters (P2.9). Cost = sum of the per-stage cost fields present in run.json.
+    from podcast_scraper.workflow.corpus_cost_aggregation import _STAGE_COST_FIELDS
+
+    cost = sum((_float_metric_block(metrics, k) or 0.0) for k in _STAGE_COST_FIELDS)
+    if cost > 0.0:
+        _PROM_STATE["run_cost_usd"].inc(cost)
+    for prom_key, json_key in (
+        ("run_episodes", "episodes_scraped_total"),
+        ("run_gi_artifacts", "gi_artifacts_generated"),
+        ("run_kg_artifacts", "kg_artifacts_generated"),
+    ):
+        val = _float_metric_block(metrics, json_key)
+        if val and val > 0.0:
+            _PROM_STATE[prom_key].inc(val)
 
 
 def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any]) -> None:

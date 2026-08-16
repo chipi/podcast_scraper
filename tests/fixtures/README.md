@@ -10,8 +10,7 @@
 >
 > Each **v3** episode has a co-located **ground-truth sidecar** `<name>.groundtruth.json`
 > (speaker count, `has_commercial`, `type`, `failure_modes`) — the source of truth for the
-> speaker / diarization eval. See [`transcripts/v3/README.md`](./transcripts/v3/README.md) and,
-> for the diarization tuning workflow, [`docs/wip/DIARIZATION-TUNING-EVAL.md`](../../docs/wip/DIARIZATION-TUNING-EVAL.md).
+> speaker / diarization eval. See [`transcripts/v3/README.md`](./transcripts/v3/README.md).
 
 This directory contains **synthetic podcast fixtures** used for **offline,
 deterministic end-to-end testing**.

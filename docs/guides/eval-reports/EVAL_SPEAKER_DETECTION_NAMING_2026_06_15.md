@@ -9,7 +9,7 @@ RSS `<description>` text in `tests/fixtures/rss/*.xml`).
 **Harness:** `scripts/eval/score/speaker_detection_naming_v1.py`
 **Backends compared:** `spacy` (NER baseline), `gemini` (default
 `gemini-2.5-flash-lite`, the configured `speaker_detector_provider` on
-`cloud_thin` / `cloud_balanced` / `prod_dgx_full_with_fallback` /
+`cloud_thin` / `cloud_balanced` / `prod_dgx_full` /
 `preprod_local_whisper`), `ollama` on DGX (`llama3.1:8b`, the
 `PROD_DEFAULT_OLLAMA_SPEAKER_MODEL` per `config_constants.py`).
 
@@ -113,7 +113,7 @@ change — it does not affect the routing decision in this report.
 | --- | --- | --- | --- |
 | `cloud_thin` | `gemini` | **Keep `gemini`** | 77% faithful, sub-1s/call, $0.001/ep. The asserted routing has backing. |
 | `cloud_balanced` | `gemini` | **Keep `gemini`** | Same as above. |
-| `prod_dgx_full_with_fallback` | `gemini` | **Keep `gemini`** | DGX is available, but Ollama-on-DGX is 133× slower than Gemini for this stage. Even at $0.001/ep × 100 ep = $0.10/run, the cloud cost is trivial vs the 2.2-hour latency tax. |
+| `prod_dgx_full` | `gemini` | **Keep `gemini`** | DGX is available, but Ollama-on-DGX is 133× slower than Gemini for this stage. Even at $0.001/ep × 100 ep = $0.10/run, the cloud cost is trivial vs the 2.2-hour latency tax. |
 | `preprod_local_whisper` | `gemini` | **Keep `gemini`** | Same. |
 | `cloud_quality` | `spacy` | **Migrate to `gemini`** | 4.5% vs 77% faithful = no contest. spaCy is essentially blind to guest names in RSS descriptions. |
 | `airgapped` / `dev` / `local` / `airgapped_thin` | `spacy` | **Keep `spacy`** | These profiles intentionally avoid cloud calls. spaCy is the only choice, and the host recovery (100%) is enough for the airgapped use case. |

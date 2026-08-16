@@ -33,7 +33,7 @@ in the `filteredArtifact` watcher, and Cytoscape never redrew. The
 asymmetry was load-bearing-wrong: every other entry point set `loadSource`
 synchronously at the click site; Library did not.
 
-The pre-fix audit (originally `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`) has
+The pre-fix audit (originally a WIP handoff-bug analysis) has
 been retired since the orchestrator shipped; its findings are summarised in the
 "Context" / "Decision" sections below and in
 [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md).
@@ -210,7 +210,7 @@ documented as such.
 
 ## References
 
-- Pre-fix audit (formerly `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`) — retired after the orchestrator shipped; findings preserved in this ADR and in [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)
+- Pre-fix audit (formerly a WIP handoff-bug analysis) — retired after the orchestrator shipped; findings preserved in this ADR and in [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)
 - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - [RFC-080: Graph visualization extensions](../rfc/RFC-080-graph-visualization-extensions.md)
 - [ADR-066: Playwright for UI E2E testing](ADR-066-playwright-for-ui-e2e-testing.md)

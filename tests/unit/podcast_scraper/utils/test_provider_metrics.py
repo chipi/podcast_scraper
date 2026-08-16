@@ -17,6 +17,7 @@ from podcast_scraper.utils.provider_metrics import (
     openai_compatible_chat_usage_tokens,
     ProviderCallMetrics,
     retry_with_metrics,
+    transcription_model_for_cfg,
 )
 
 
@@ -451,15 +452,16 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         )
         m = ProviderCallMetrics()
         pipe = Mock()
-        apply_gil_evidence_llm_call_metrics(
-            m,
-            pipe,
-            prompt_tokens=5000,
-            completion_tokens=200,
-            cfg=cfg,
-            provider_type="anthropic",
-            model="claude-haiku-4-5",
-        )
+        with patch("podcast_scraper.workflow.cost_monitoring.emit_llm_cost_event") as emit:
+            apply_gil_evidence_llm_call_metrics(
+                m,
+                pipe,
+                prompt_tokens=5000,
+                completion_tokens=200,
+                cfg=cfg,
+                provider_type="anthropic",
+                model="claude-haiku-4-5",
+            )
         # Cost computed + pushed into both call_metrics and pipeline_metrics.
         self.assertIsNotNone(m.estimated_cost)
         self.assertGreater(m.estimated_cost, 0.0)
@@ -468,6 +470,11 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         self.assertEqual(call.args, (5000, 200))
         self.assertIsNotNone(call.kwargs.get("cost_usd"))
         self.assertEqual(call.kwargs["cost_usd"], m.estimated_cost)
+        # BUG 2 repro: this call_metrics started with no cost, cfg/provider_type/model resolve a
+        # real price -> record_provider_call_cost's cost-missing backfill recursed into itself and
+        # emitted TWICE (a 9-episode real run logged 86 exact-duplicate stage=summarization events
+        # from exactly this path). One logical provider call must emit exactly one llm_cost event.
+        emit.assert_called_once()
 
     def test_apply_preserves_existing_call_metrics_cost(self):
         """If call_metrics.estimated_cost is already set, helper must not
@@ -487,6 +494,29 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         )
         self.assertEqual(m.estimated_cost, 0.0042)
         pipe.record_llm_gi_call.assert_called_once_with(10, 20, cost_usd=0.0042)
+
+    def test_grounding_emits_cost_event_even_when_unpriced(self):
+        """B4: an unpriced grounding call (missing rate row — a litellm gateway alias, or any model
+        with no YAML price) must STILL emit an llm_cost event carrying its tokens. Before this fix
+        the emit was gated on a price resolving, so quote-extraction + entailment token usage
+        vanished from the event log for every unpriced route and rolling_assess's token x price cost
+        silently excluded the entire grounding stage.
+        """
+        m = ProviderCallMetrics()
+        with patch("podcast_scraper.workflow.cost_monitoring.emit_llm_cost_event") as emit:
+            apply_gil_evidence_llm_call_metrics(
+                m,
+                Mock(),
+                prompt_tokens=3000,
+                completion_tokens=120,
+                cfg=Mock(),
+                provider_type="unpriced_vendor_xyz",
+                model="no-such-model",
+                stage="extract_quotes",
+            )
+        emit.assert_called_once()
+        self.assertEqual(emit.call_args.kwargs.get("prompt_tokens"), 3000)
+        self.assertEqual(emit.call_args.kwargs.get("completion_tokens"), 120)
 
     def test_merge_failure_pipeline_none(self):
         m = ProviderCallMetrics()
@@ -657,6 +687,104 @@ class TestRetryWithMetricsPerStageAttribution(unittest.TestCase):
         )
         cm.finalize()
         self.assertIn("other", pm.llm_retry_reasons)
+
+
+class TestSetBreakerConfigFromCfgResilienceProfile(unittest.TestCase):
+    """set_breaker_config_from_cfg's resolved _resilience_profile reflects cfg's llm_retry_*
+    knobs (RFC-111 gateway-outage follow-up, #1482): a prod cfg with a long hold window must
+    resolve to that window, and the default cfg must resolve to today's unchanged behaviour
+    (3 retries / 1.0s / 30.0s) — asserted on the RESOLVED values only, never wall-clock sleep.
+    """
+
+    def test_default_cfg_resolves_unchanged_profile(self):
+        from podcast_scraper import config as cfg_mod
+
+        cfg = cfg_mod.Config(
+            transcription_provider="whisper",
+            summary_provider="litellm",
+            transcribe_missing=False,
+            generate_summaries=True,
+        )
+        m = ProviderCallMetrics()
+        m.set_provider_name("litellm")
+        m.set_breaker_config_from_cfg(cfg)
+        profile = m._resilience_profile
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile.max_retries, 3)
+        self.assertEqual(profile.initial_delay, 1.0)
+        self.assertEqual(profile.max_delay, 30.0)
+
+    def test_prod_cfg_resolves_long_hold_window(self):
+        from podcast_scraper import config as cfg_mod
+
+        cfg = cfg_mod.Config(
+            transcription_provider="whisper",
+            summary_provider="litellm",
+            transcribe_missing=False,
+            generate_summaries=True,
+            llm_retry_max_retries=12,
+            llm_retry_initial_delay_seconds=2.0,
+            llm_retry_max_delay_seconds=120.0,
+        )
+        m = ProviderCallMetrics()
+        m.set_provider_name("litellm")
+        m.set_breaker_config_from_cfg(cfg)
+        profile = m._resilience_profile
+        self.assertEqual(profile.max_retries, 12)
+        self.assertEqual(profile.initial_delay, 2.0)
+        self.assertEqual(profile.max_delay, 120.0)
+
+    def test_resolved_profile_drives_retry_with_metrics_max_retries(self):
+        """End-to-end: the cfg-resolved profile is what retry_with_metrics actually uses (the
+        override mechanism the whole feature depends on, provider_metrics.py ~line 522)."""
+        func = Mock(side_effect=Exception("boom"))
+        from podcast_scraper import config as cfg_mod
+
+        cfg = cfg_mod.Config(
+            transcription_provider="whisper",
+            summary_provider="litellm",
+            transcribe_missing=False,
+            generate_summaries=True,
+            llm_retry_max_retries=1,
+            llm_retry_initial_delay_seconds=0.001,
+            llm_retry_max_delay_seconds=0.001,
+        )
+        m = ProviderCallMetrics()
+        m.set_provider_name("litellm")
+        m.set_breaker_config_from_cfg(cfg)
+        with patch("time.sleep"):
+            with self.assertRaises(Exception):
+                retry_with_metrics(func, max_retries=99, metrics=m)  # call-site value overridden
+        self.assertEqual(func.call_count, 2)  # initial + 1 retry (cfg-resolved), not 100
+
+
+class TestTranscriptionModelForCfg(unittest.TestCase):
+    """Resolver must name the ACTUAL model for DGX-served ASR, not fall through to the local
+    ``whisper_model`` default (base.en) — the bug that stamped base.en on every DGX run's manifest.
+    """
+
+    def test_dgx_whisper_resolves_dgx_whisper_model(self):
+        cfg = SimpleNamespace(
+            transcription_provider="tailnet_dgx_whisper",
+            dgx_whisper_model="deepdml/faster-whisper-large-v3-turbo-ct2",
+        )
+        self.assertEqual(
+            transcription_model_for_cfg(cfg), "deepdml/faster-whisper-large-v3-turbo-ct2"
+        )
+
+    def test_moss_resolves_moss_model(self):
+        cfg = SimpleNamespace(
+            transcription_provider="moss", moss_model="OpenMOSS-Team/MOSS-Transcribe-Diarize"
+        )
+        self.assertEqual(transcription_model_for_cfg(cfg), "OpenMOSS-Team/MOSS-Transcribe-Diarize")
+
+    def test_local_whisper_unchanged(self):
+        cfg = SimpleNamespace(transcription_provider="whisper", whisper_model="base.en")
+        self.assertEqual(transcription_model_for_cfg(cfg), "base.en")
+
+    def test_deepgram_unchanged(self):
+        cfg = SimpleNamespace(transcription_provider="deepgram", deepgram_model="nova-3")
+        self.assertEqual(transcription_model_for_cfg(cfg), "nova-3")
 
 
 if __name__ == "__main__":

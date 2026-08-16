@@ -29,6 +29,33 @@ model_list:
     litellm_params:
       model: openrouter/moonshotai/kimi-k2.6
       api_key: os.environ/OPENROUTER_API_KEY
+  # cloud_balanced's stable summary/speaker/insight alias (#1356). The pipeline pins
+  # ``podcast-flash-0731`` (litellm_verify_served_model=true) so the gateway MUST advertise it;
+  # routes to OpenRouter deepseek-v4-flash (app-level RFC-106 fallback to native DeepSeek handles
+  # gateway outages). Keep mirrored with the homelab sibling config.
+  - model_name: podcast-flash-0731
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-flash
+      api_key: os.environ/OPENROUTER_API_KEY
+  # Groq (ADR-147) — routed DIRECT to Groq's LPU cloud, not via OpenRouter, so the gateway
+  # captures SpendLogs + langfuse traces for Groq the same as every other backend. The gateway
+  # env must carry GROQ_API_KEY (deploy-litellm.sh injects it from the prod secret store); keep
+  # these aliases mirrored in the homelab sibling config. Groq is dual-use: a chat alias for the
+  # LLM bakeoff (qwen3.6-27b) and an audio_transcription alias for whisper-large-v3-turbo.
+  - model_name: groq-qwen36
+    litellm_params:
+      model: groq/qwen/qwen3.6-27b
+      api_key: os.environ/GROQ_API_KEY
+  - model_name: groq-gpt-oss-120b
+    litellm_params:
+      model: groq/openai/gpt-oss-120b
+      api_key: os.environ/GROQ_API_KEY
+  - model_name: groq-whisper-turbo
+    litellm_params:
+      model: groq/whisper-large-v3-turbo
+      api_key: os.environ/GROQ_API_KEY
+    model_info:
+      mode: audio_transcription
 
 litellm_settings:
   # Full-package observability from day one (operator requirement). On PROD these

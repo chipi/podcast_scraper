@@ -123,7 +123,7 @@ ml = [
   # transformers v5 (#382): pipeline() removed for summarization / text2text-generation /
   # question-answering — call sites rewritten to AutoModel*.from_pretrained + generate() /
   # QA-head forward. Also picks up the CVE-2026-1839 fix (Trainer rng_state / torch.load
-  # weights_only) that shipped in >=5.0.0rc3. See docs/wip/ISSUE-382-*.md + ADR-068 post-impl.
+  # weights_only) that shipped in >=5.0.0rc3. See docs/releases/RELEASE_v2.7.0.md + ADR-068 post-impl.
   # Native-wheel drift guard (2026-07-17): the acceptance job was green on
   # 84b17ab (07-11, transformers 5.13.1 / sentencepiece 0.2.1 / torchcodec
   # 0.14.0) and started SIGSEGV/SIGBUS-ing at ML-stack teardown on 2174be4
@@ -425,6 +425,7 @@ markers = [
     "deepseek: tests that use DeepSeek API specifically (subset of llm marker)",
     "ollama: tests that use Ollama API specifically (subset of llm marker, local/offline)",
     "grok: tests that use Grok API specifically (subset of llm marker)",
+    "groq: tests that use Groq API specifically (subset of llm marker)",
     "golden: golden tests with known stable episodes for regression testing (Issue #379)",
     "chaos: chaos tests for error conditions and edge cases (broken RSS, 404, large files, non-English) (Issue #379)",
     "offline: offline tests with networking disabled (verifies air-gapped operation) (Issue #379)",
@@ -446,6 +447,7 @@ markers = [
     "module_deepseek_providers: tests for providers/deepseek/*.py",
     "module_ollama_providers: tests for providers/ollama/*.py",
     "module_grok_providers: tests for providers/grok/*.py",
+    "module_groq_providers: tests for providers/groq/*.py",
     "module_summarization: tests for summarization/*.py",
     "module_transcription: tests for transcription/*.py",
     "module_speaker_detection: tests for speaker_detectors/*.py",

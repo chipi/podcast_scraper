@@ -31,13 +31,9 @@
 - **Related UX specs**:
   - PRD-028 / PRD-029 cover the viewer Position Tracker + Person Profile surfaces
 - **Related Documents**:
-  - `docs/architecture/corpus/ontology.md` (NEW, lands in chunk 1)
+  - `docs/architecture/corpus/ontology.md` (the live ontology design — shipped in chunk 1)
   - `docs/architecture/kg/ontology.md` (superseded by chunk 1)
   - `docs/architecture/gi/ontology.md` (superseded by chunk 1)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_REVIEW_2026-06-20.md` (round-1 spec, archaeology)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_2026-06-20.md` (round-2 spec, archaeology)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_ROUND3_2026-06-20.md` (round-3 spec, the live design)
-  - `docs/wip/SPEC_KG_GI_ONTOLOGY_V3_WISHLIST_2026-06-20.md` (deferred items + preservation checklist)
 
 ## Abstract
 
@@ -133,8 +129,7 @@ that never made it into a release.
 5. **Ship the two flagship viewer surfaces.** Position Tracker and
    Person Profile. The data foundation is delivered by v2 (chunk 7).
    **Scope-cut 2026-06-21**: the viewer UI for both surfaces is split
-   into follow-up tickets (A/B/C in
-   `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md`); revised chunk 8
+   into follow-up tickets (A/B/C); revised chunk 8
    ships only the two-tier edge contract visual styling so the v2
    foundation PR closes without a multi-week UI build.
 6. **Re-baseline measurement.** Full silver rebuild (`silver_opus47_*`
@@ -566,8 +561,7 @@ one PR at the end):**
   Profile view) are split into follow-up tickets so the v2 foundation
   PR closes cleanly without a multi-week UI build.
   Risk: low. Days: 0.5–1.
-  Follow-up tickets (drafted in
-  `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md`):
+  Follow-up tickets:
   - **Ticket A** — Person Landing shared component (PRD-029 spec)
   - **Ticket B** — Position Tracker view (PRD-028 spec, UXS-009)
   - **Ticket C** — Person Profile view (PRD-029 spec, UXS-010)
@@ -726,11 +720,8 @@ Together they provide:
 - **Related PRDs**: PRD-017, PRD-019, PRD-026 through PRD-029, PRD-031
 - **Related RFCs**: RFC-049, RFC-050, RFC-055, RFC-056, RFC-072,
   RFC-088, RFC-090, RFC-091, RFC-092, RFC-093, RFC-094, RFC-095
-- **Round-1 WIP spec**: `docs/wip/SPEC_KG_GI_ONTOLOGY_REVIEW_2026-06-20.md`
-- **Round-2 WIP spec**: `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_2026-06-20.md`
-- **Round-3 WIP spec (live design)**:
-  `docs/wip/SPEC_KG_GI_ONTOLOGY_V2_ROUND3_2026-06-20.md`
-- **v3 wishlist**: `docs/wip/SPEC_KG_GI_ONTOLOGY_V3_WISHLIST_2026-06-20.md`
+- **Live ontology design**: `docs/architecture/corpus/ontology.md` (shipped in chunk 1). The
+  round-1/2/3 design specs were WIP archaeology and have been removed — their history is in git.
 - **GH anchor**: #1036 (issue body updated to reflect round-3 framing)
 - **Programme epic**: #907 (autoresearch)
 - **Source code touched**: `src/podcast_scraper/{kg,gi}/`,
@@ -960,6 +951,6 @@ Pinned so the chunked execution doesn't accidentally do them:
 9. KG proximity-based retrieval (RFC-091 stays REJECTED)
 
 v3 wishlist with rationale lives at
-`docs/wip/SPEC_KG_GI_ONTOLOGY_V3_WISHLIST_2026-06-20.md` (preserved
+`docs/architecture/corpus/ontology-v3-forward-look.md` (preserved
 through v2 implementation — when v2 ships in production, this
-wishlist + 2–4 weeks of observations become the v3 spec input).
+forward-look + 2–4 weeks of observations become the v3 spec input).

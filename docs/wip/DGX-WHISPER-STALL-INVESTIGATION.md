@@ -33,8 +33,8 @@ So the 900 s is **one continuous ceiling**, *not* five backoffs summed. Each sta
 
 ## Evidence (all from the homelab observability plane)
 
-Observability endpoints: VictoriaMetrics `http://100.87.33.61:8428`,
-VictoriaLogs `http://100.87.33.61:9428`. DGX telemetry reaches VM via the mini's `dgx-scrape`
+Observability endpoints: VictoriaMetrics `http://<HOMELAB_IP>:8428`,
+VictoriaLogs `http://<HOMELAB_IP>:9428`. DGX telemetry reaches VM via the mini's `dgx-scrape`
 launchd pull (`~/agentic-ai-homelab/infra/dgx-scrape/`) — GPU (DCGM) + cadvisor + TCP health only.
 
 ### 1. GPU metrics — server stopped computing, port stayed up

@@ -78,7 +78,7 @@ _FASTER_WHISPER_SRC = _FasterWhisperPath(__file__).resolve().parents[1] / "speac
 # for HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE). Compose injects it
 # via ``env_file:``. The model cache itself is shared with vLLM (also bind-mounts
 # /opt/llm-models/huggingface) so weights aren't duplicated.
-OPERATOR_ENV_FILE = "/home/markodragoljevic/.env"
+OPERATOR_ENV_FILE = "/home/<OPERATOR_USER>/.env"
 HF_CACHE_HOST = "/opt/llm-models/huggingface"
 
 # 1. Install root only — no separate HF cache directory needed; the operator's
@@ -685,7 +685,7 @@ services:
       # Errors -> self-hosted GlitchTip. moss app.py prefers GLITCHTIP_DSN over the
       # env_file's legacy SENTRY_DSN (Cloud); set GLITCHTIP_DSN in the operator .env
       # (tailnet-only). It inits sentry + scrubs secrets (before_send).
-      - SENTRY_ENVIRONMENT=prod
+      - SENTRY_ENVIRONMENT=production
     volumes:
       - /opt/llm-models:/opt/llm-models
     deploy:

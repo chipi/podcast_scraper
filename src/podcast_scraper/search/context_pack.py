@@ -64,8 +64,16 @@ class CorpusBriefingPack:
 
         lines.append("")
         lines.append("[CAVEATS]")
-        lines.append(f"Coverage gaps: {', '.join(self.coverage_gaps) or 'none'}")
-        lines.append(f"Confidence (p50): {self.confidence_p50:.2f}")
+        # The corpus-impact gap surface is not wired yet — an empty list means "not assessed",
+        # NOT "no gaps" (#21: the old "none" read as a trustworthy all-clear when it wasn't).
+        gaps = ", ".join(self.coverage_gaps) if self.coverage_gaps else "not assessed"
+        lines.append(f"Coverage gaps: {gaps}")
+        # Insight confidence isn't scored in the current index (all rows carry 0.0), so a "0.00"
+        # p50 is misleading precision — surface it as n/a until real confidences exist (#21).
+        if self.confidence_p50 and self.confidence_p50 > 0:
+            lines.append(f"Confidence (p50): {self.confidence_p50:.2f}")
+        else:
+            lines.append("Confidence (p50): n/a (insight confidence not scored in this corpus)")
         lines.append(f"Date range: {cov.get('date_range') or 'n/a'}")
         return "\n".join(lines)
 
@@ -74,6 +82,22 @@ def _result_payload(result: Result) -> Dict:
     if isinstance(result, CompoundResult):
         return result.segment.payload or result.insight.payload
     return result.payload
+
+
+def _result_show(result: Result) -> Optional[str]:
+    """Show id for coverage — reads ``show_id`` then ``feed_id``, checking BOTH tiers of a
+    compound (its segment payload may lack the field while the insight carries it, which would
+    otherwise under-count shows). #21/advisor-L2."""
+    payloads = (
+        [result.segment.payload, result.insight.payload]
+        if isinstance(result, CompoundResult)
+        else [result.payload]
+    )
+    for p in payloads:
+        v = (p or {}).get("show_id") or (p or {}).get("feed_id")
+        if v:
+            return str(v)
+    return None
 
 
 def _date_range(results: Sequence[Result]) -> Optional[str]:
@@ -115,9 +139,17 @@ def build_briefing_pack(
         elif result.source_tier == "segment":
             segments.append(result)
 
-    show_ids = sorted({s for r in results if (s := _result_payload(r).get("show_id"))})
+    # Robust show extraction: raw index rows carry ``show_id``; some result shapes carry
+    # ``feed_id`` — read either so coverage can't report 0 shows while counting episodes (#21).
+    show_ids = sorted({s for r in results if (s := _result_show(r))})
     episode_count = len({e for r in results if (e := _result_payload(r).get("episode_id"))})
-    confidences = sorted(c for r in insights if (c := r.payload.get("confidence")) is not None)
+    # Only real (>0) confidences count — the indexer currently hardcodes 0.0 on every insight,
+    # and averaging those produced a fake "0.00" p50 (#21). Empty → 0.0 → rendered as n/a.
+    # TODO(#21): drop the `> 0` filter once the indexer scores real per-insight confidence — until
+    # then a genuine 0.0 can't be distinguished from "unscored", so excluding 0.0 is correct.
+    confidences = sorted(
+        c for r in insights if (c := r.payload.get("confidence")) is not None and c > 0
+    )
     p50 = confidences[len(confidences) // 2] if confidences else 0.0
 
     pack = CorpusBriefingPack(

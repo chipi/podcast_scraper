@@ -125,7 +125,7 @@ Compute-justified only if the chunking-behaviour sweep above showed meaningfully
 
 ## v3 fixtures contribution (#921)
 
-Three findings appended to `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`:
+Three findings appended to `docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`:
 
 1. **v4 over-cleaning evidence** — v3 fixtures should include episodes with content that resembles sponsor patterns but isn't (host-read enthusiasm, native product mentions, off-topic asides) so future profile-selection sweeps can score "preserves real content" precisely. The current v2 fixtures only have clearly-marked sponsor blocks, making over-cleaning hard to measure.
 
@@ -143,7 +143,7 @@ Three findings appended to `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`:
 - [x] Chunking behaviour sweep committed (`data/eval/runs/baseline_chunking_behavior_v1/metrics.json`).
 - [x] Chunking constants: no change indicated; default 900/150 is at a balanced point for BART context window.
 - [x] Eval report (this file).
-- [x] v3 contributions logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`.
+- [x] v3 contributions logged in `docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`.
 - [x] No regression on existing v1-derived golden tests (no production code defaults changed).
 
 ## Out of scope (tracked elsewhere)

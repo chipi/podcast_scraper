@@ -1,0 +1,174 @@
+# Deploy the prod Alloy remote-write endpoints (Level 3 — telemetry over TLS, #1665).
+#
+# WHAT: applies infra/observability/vps-observability.endpoints.env to the prod
+# /opt/vps-observability Alloy container as a docker-compose `environment:` OVERRIDE, then
+# recreates alloy. compose `environment:` wins over the container's `env_file: .env`, so this
+# repoints REMOTE_WRITE_URL/LOGS_WRITE_URL at the TLS caddy-tailscale nodes (vm./vlogs.) WITHOUT
+# touching the root-owned .env (which the deploy@ user cannot write).
+#
+# WHY AN OVERRIDE (not an .env edit): /opt/vps-observability/.env is root:root and carries
+# other bootstrap values incl. GRAFANA_CLOUD_PROM_API_KEY. The deploy@ user (this key) has only
+# scoped, password-gated sudo — it cannot chown or edit that file. An override needs no root.
+#
+# WHY RECREATE (not HUP): the URLs are ENV vars — `docker kill -s HUP alloy` reloads config
+# FILES, not env. Only `docker compose up -d alloy` re-reads the env. (deploy-config.yml's HUP is
+# correct for config.d/*.alloy drop-ins, NOT for this.)
+#
+# CAVEAT (accepted): applied with an explicit `-f`, so a human running a bare
+# `docker compose up -d alloy` in /opt/vps-observability reverts to the raw .env endpoints.
+# Nothing automated does that. The pristine replacement (chown .env → deploy → sed it) needs a
+# one-time root action on the box; this workflow is the no-root GitOps bridge until then.
+
+name: Deploy vps-observability endpoints (prod Alloy → TLS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY_OBS_ENDPOINTS to confirm'
+        required: true
+        default: ''
+      dry_run:
+        description: 'Show the override + target, do NOT recreate alloy'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-vps-obs-endpoints
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: prod
+    steps:
+      - name: Confirm DEPLOY_OBS_ENDPOINTS
+        run: |
+          if [ "${{ inputs.confirm }}" != "DEPLOY_OBS_ENDPOINTS" ]; then
+            echo "::error::Must type DEPLOY_OBS_ENDPOINTS to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/vars
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]  && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]     && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]   && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then echo "::error::Missing prereqs:$MISSING"; exit 1; fi
+
+      - name: Checkout (endpoints file at this ref)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Apply endpoints override + recreate alloy
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+
+          # Load node subdomains + paths (repo-tracked, non-secret; constant path for shellcheck).
+          set -a; . infra/observability/vps-observability.endpoints.env; set +a
+          # Derive the tailnet suffix from the operator var (never committed) — everything after
+          # the first label of the canonical FQDN (e.g. HOST.<TAILNET>.ts.net -> <TAILNET>.ts.net).
+          TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          [ -n "${METRICS_NODE:-}" ] && [ -n "${LOGS_NODE:-}" ] && [ -n "${TAILNET_DOMAIN:-}" ] \
+            || { echo "::error::missing METRICS_NODE/LOGS_NODE or PROD_TAILNET_FQDN"; exit 1; }
+          REMOTE_WRITE_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}${METRICS_PATH}"
+          LOGS_WRITE_URL="https://${LOGS_NODE}.${TAILNET_DOMAIN}${LOGS_PATH}"
+          # Fail loud on a malformed URL (e.g. a dotless PROD_TAILNET_FQDN -> https://vm.localhost,
+          # or an empty *_PATH) BEFORE pushing it into the container — a bad value otherwise lands
+          # silently and Alloy drops telemetry.
+          for u in "$REMOTE_WRITE_URL" "$LOGS_WRITE_URL"; do
+            case "$u" in https://*.*/*) : ;; *) echo "::error::malformed telemetry URL: $u"; exit 1 ;; esac
+          done
+          echo "REMOTE_WRITE_URL=$REMOTE_WRITE_URL"
+          echo "LOGS_WRITE_URL=$LOGS_WRITE_URL"
+          echo "target=$SSH_TARGET"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "DRY_RUN: not recreating alloy."; exit 0
+          fi
+
+          # Write the compose override to a durable, deploy-owned path on the box ($HOME resolved
+          # remotely). `environment:` overrides the container's `env_file: .env`.
+          "${SSH[@]}" "$SSH_TARGET" "cat > \$HOME/.vps-observability-endpoints.override.yml" <<YML
+          services:
+            alloy:
+              environment:
+                REMOTE_WRITE_URL: ${REMOTE_WRITE_URL}
+                LOGS_WRITE_URL: ${LOGS_WRITE_URL}
+          YML
+
+          # Recreate alloy with base + override (env change requires recreate, not HUP).
+          # $HOME must expand on the REMOTE box, not the runner — hence single quotes (SC2016 ok).
+          # shellcheck disable=SC2016
+          "${SSH[@]}" "$SSH_TARGET" 'cd /opt/vps-observability && docker compose -p vps-observability -f docker-compose.yml -f "$HOME/.vps-observability-endpoints.override.yml" up -d alloy'
+
+          echo "--- verify: container env now points at the TLS nodes ---"
+          "${SSH[@]}" "$SSH_TARGET" 'docker inspect alloy --format "{{range .Config.Env}}{{println .}}{{end}}" | grep -E "REMOTE_WRITE_URL|LOGS_WRITE_URL"'
+
+      - name: Verify telemetry lands on the TLS nodes
+        if: ${{ inputs.dry_run == false }}
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          set -a; . infra/observability/vps-observability.endpoints.env; set +a
+          # Derive tailnet suffix + prod instance label from the operator var (never committed):
+          #   HOST.<TAILNET>.ts.net -> INSTANCE=HOST, TAILNET_DOMAIN=<TAILNET>.ts.net
+          TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          INSTANCE="${PROD_TAILNET_FQDN%%.*}"
+          VM_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}"
+          VLOGS_URL="https://${LOGS_NODE}.${TAILNET_DOMAIN}"
+          sleep 30
+          echo "--- alloy logs: no remote_write/TLS errors ---"
+          "${SSH[@]}" "$SSH_TARGET" 'docker logs --since 60s alloy 2>&1 | grep -iE "x509|tls handshake|connection refused|context deadline|401|403|remote write.*error" || echo "(clean)"'
+          echo "--- metrics fresh for instance=$INSTANCE on the TLS metrics node ---"
+          "${SSH[@]}" "$SSH_TARGET" "curl -s --max-time 15 \"${VM_URL}/api/v1/query?query=up%7Binstance%3D%22${INSTANCE}%22%7D\" | grep -oE '\"result\":\[.+\]' | head -c 120; echo"
+          # Logs node too — before, only the metrics node was probed, so a wrong LOGS_NODE or an ACL
+          # gap on the vlogs TLS node passed silently green. Assert the vlogs node answers a LogsQL
+          # query with HTTP 200.
+          echo "--- logs node ${VLOGS_URL} reachable + accepting queries ---"
+          LCODE=$("${SSH[@]}" "$SSH_TARGET" "curl -s -o /dev/null -w '%{http_code}' --max-time 15 -G \"${VLOGS_URL}/select/logsql/query\" --data-urlencode 'query=*' --data-urlencode 'limit=1'")
+          echo "vlogs HTTP $LCODE"
+          [ "$LCODE" = "200" ] || echo "::warning::logs node ${VLOGS_URL} returned HTTP $LCODE (expected 200) — check LOGS_NODE / ACL"

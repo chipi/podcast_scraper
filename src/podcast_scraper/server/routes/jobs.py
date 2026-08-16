@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
@@ -37,7 +38,91 @@ from podcast_scraper.server.schemas import (
     PipelineJobsListResponse,
 )
 
+# Markers that identify a provider-secret error from Config validation.
+# Only these are surfaced as 400; all other validation errors are ignored
+# so a valid-at-runtime config is never wrongly rejected at submit time.
+_PROVIDER_SECRET_RE = re.compile(
+    r"API key required|key required|environment variable", re.IGNORECASE
+)
+
+
+def _check_provider_secrets(operator_yaml: Path) -> None:
+    """Raise ValueError when the operator config is missing a required provider secret.
+
+    Runs Config.model_validate against the resolved operator YAML (including
+    its profile presets) so the same validation the pipeline CLI does at
+    startup fires eagerly at submit time — no container spawned.
+
+    Scoped: only provider-secret ValidationErrors ("API key required", …) are
+    re-raised. Any other validation error is silently swallowed so that a
+    config that is valid at runtime (rss/output_dir supplied by CLI flags,
+    etc.) is never wrongly rejected at submit time.
+    """
+    try:
+        from podcast_scraper.config import Config, load_config_file
+    except ImportError:  # pragma: no cover — always available in api process
+        return
+
+    try:
+        data = load_config_file(str(operator_yaml))
+    except (ValueError, OSError):
+        # Missing file / parse error — not our job to reject here; let the
+        # pipeline CLI handle it with its richer error messages.
+        return
+
+    try:
+        import pydantic
+
+        Config.model_validate(data)
+    except (pydantic.ValidationError, ValueError) as exc:
+        msg = str(exc)
+        if _PROVIDER_SECRET_RE.search(msg):
+            # Extract just the first matching error line to keep the 400 terse.
+            for line in msg.splitlines():
+                if _PROVIDER_SECRET_RE.search(line):
+                    raise ValueError(line.strip()) from exc
+            raise ValueError(msg) from exc
+        # Not a provider-secret error; let the pipeline fail at runtime with
+        # its own clear message (e.g. missing rss_url, which is CLI-injected).
+    except Exception:  # noqa: BLE001 — defensive; unexpected validators must not block submit
+        pass
+
+
 router = APIRouter(tags=["jobs"])
+
+_EPISODE_ORDERS = {"newest", "oldest"}
+
+
+def _resolve_feed_url(corpus: Path, feed: str) -> str:
+    """Resolve a ``feed`` scope (raw URL or stable feed slug) to its RSS URL (P1.4).
+
+    A value containing ``://`` is taken as the URL verbatim; otherwise it's a
+    ``feed_workspace_dirname`` slug matched against the corpus ``feeds.spec.yaml``. 404 if a slug
+    matches no known feed — refuse to silently run the whole batch when one feed was asked for.
+    """
+    raw = feed.strip()
+    if "://" in raw:
+        return raw
+    from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME, load_feeds_spec_file
+    from podcast_scraper.utils.filesystem import feed_workspace_dirname
+
+    spec_path = corpus / FEEDS_SPEC_DEFAULT_BASENAME
+    # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
+    if spec_path.is_file():
+        try:
+            doc = load_feeds_spec_file(spec_path)
+        except Exception as exc:  # noqa: BLE001 — a malformed spec is a 400, not a 500
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not read {FEEDS_SPEC_DEFAULT_BASENAME}: {exc}",
+            ) from exc
+        for entry in doc.feeds:
+            if entry.url == raw or feed_workspace_dirname(entry.url) == raw:
+                return entry.url
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"feed {feed!r} not found in {FEEDS_SPEC_DEFAULT_BASENAME}.",
+    )
 
 
 async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
@@ -90,9 +175,40 @@ async def submit_pipeline_job(
         default=None,
         description="Corpus output directory (same anchor rules as other viewer routes).",
     ),
+    feed: str | None = Query(
+        default=None,
+        description="Scope the run to ONE feed (RSS URL or feed slug); omit for the whole batch.",
+    ),
+    skip_existing: bool = Query(
+        default=False, description="Per-feed only: skip episodes already present (guid-keyed)."
+    ),
+    append: bool = Query(
+        default=False, description="Per-feed only: append mode (episode_id-validated resume)."
+    ),
+    max_episodes: int | None = Query(
+        default=None, ge=1, description="Per-feed only: cap episodes this run (cost guardrail)."
+    ),
+    episode_offset: int | None = Query(
+        default=None, ge=0, description="Per-feed only: skip the newest N before selecting."
+    ),
+    episode_order: str | None = Query(
+        default=None, description="Per-feed only: 'newest' or 'oldest'."
+    ),
 ) -> PipelineJobAccepted:
-    """Queue a pipeline CLI job for the corpus (202 + optional queue position)."""
+    """Queue a pipeline CLI job for the corpus (202 + optional queue position).
+
+    Default: the whole ``feeds.spec.yaml`` batch. With ``feed=`` the run is scoped to that one feed
+    as a single-feed corpus-layout run plus the incremental knobs (P1.4) — cautious per-feed add.
+    """
     corpus, operator_yaml = _corpus_and_operator(request, path)
+    feed_url: str | None = None
+    if feed is not None and feed.strip():
+        feed_url = _resolve_feed_url(corpus, feed)
+    if episode_order is not None and episode_order not in _EPISODE_ORDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"episode_order must be one of {sorted(_EPISODE_ORDERS)}.",
+        )
     # #666 review #8: read exec mode from ``app.state`` (pinned at startup by
     # ``create_app``) instead of re-reading ``PODCAST_PIPELINE_EXEC_MODE`` here.
     # Re-reading would drift if the env is rotated mid-process.
@@ -121,7 +237,26 @@ async def submit_pipeline_job(
         await asyncio.to_thread(validate_operator_profile_allowed, operator_yaml)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    rec = await asyncio.to_thread(enqueue_pipeline_job, corpus, operator_yaml)
+    # Preflight: validate the profile's required provider secrets are present
+    # in the api process env. A missing secret → 400 with the missing key named,
+    # no container spawned. Only provider-secret errors are surfaced (see
+    # _check_provider_secrets); unrelated fields that CLI injects at runtime
+    # (rss_url, output_dir, …) are not checked.
+    try:
+        await asyncio.to_thread(_check_provider_secrets, operator_yaml)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    rec = await asyncio.to_thread(
+        enqueue_pipeline_job,
+        corpus,
+        operator_yaml,
+        feed_url=feed_url,
+        skip_existing=skip_existing,
+        append=append,
+        max_episodes=max_episodes,
+        episode_offset=episode_offset,
+        episode_order=episode_order,
+    )
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None
     if rec.get("status") == "queued":

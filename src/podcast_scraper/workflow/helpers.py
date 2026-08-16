@@ -401,7 +401,7 @@ def _cleaning_model_for_summary_provider(cfg: config.Config) -> Tuple[str, str]:
         "anthropic": "claude-3-5-sonnet-20241022",
         "mistral": "mistral-small",
         "deepseek": "deepseek-chat",
-        "grok": "grok-beta",
+        "grok": "grok-4.3",
         "ollama": "llama3.1:8b",
     }
     attr = attr_by_provider.get(p)
@@ -439,7 +439,7 @@ def _kg_model_for_pricing(cfg: config.Config, kg_provider: str) -> str:
         "anthropic": "claude-3-5-sonnet-20241022",
         "mistral": "mistral-small",
         "deepseek": "deepseek-chat",
-        "grok": "grok-beta",
+        "grok": "grok-4.3",
         "ollama": "llama3.1:8b",
     }
     if not model_attr:
@@ -587,7 +587,7 @@ def _llm_cost_gil_section(
             "anthropic": "claude-3-5-sonnet-20241022",
             "mistral": "mistral-small",
             "deepseek": "deepseek-chat",
-            "grok": "grok-beta",
+            "grok": "grok-4.3",
             "ollama": "llama3.1:8b",
         }
         gi_model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
@@ -766,7 +766,7 @@ def _llm_cost_summary_lines_and_total(
                 "anthropic": "claude-3-5-sonnet-20241022",
                 "mistral": "mistral-small",
                 "deepseek": "deepseek-chat",
-                "grok": "grok-beta",
+                "grok": "grok-4.3",
                 "ollama": "llama3.2",
             }
             model = getattr(cfg, model_attr, default_models.get(llm_speaker_provider, ""))
@@ -821,7 +821,7 @@ def _llm_cost_summary_lines_and_total(
                 "anthropic": "claude-3-5-sonnet-20241022",
                 "mistral": "mistral-small",
                 "deepseek": "deepseek-chat",
-                "grok": "grok-beta",
+                "grok": "grok-4.3",
                 "ollama": "llama3.1:8b",
             }
             model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
@@ -1026,7 +1026,7 @@ def _generate_dry_run_cost_projection(
             "anthropic": "claude-3-5-sonnet-20241022",
             "mistral": "mistral-small",
             "deepseek": "deepseek-chat",
-            "grok": "grok-beta",
+            "grok": "grok-4.3",
             "ollama": "llama3.2",
         }
         model = getattr(cfg, model_attr, default_models.get(llm_speaker_provider, ""))
@@ -1073,7 +1073,7 @@ def _generate_dry_run_cost_projection(
             "anthropic": "claude-3-5-sonnet-20241022",
             "mistral": "mistral-small",
             "deepseek": "deepseek-chat",
-            "grok": "grok-beta",
+            "grok": "grok-4.3",
             "ollama": "llama3.1:8b",
         }
         model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))

@@ -58,6 +58,16 @@ if ! grep -qE '^PODCAST_CORPUS_HOST_PATH=' .env; then
   echo "PODCAST_CORPUS_HOST_PATH=$REPO_DIR/corpus" >> .env
   chmod 600 .env
 fi
+# The jobs API spawns the pipeline as a nested ``docker compose run pipeline-llm``
+# whose ``-f`` list comes from this var (prod.yml default is stack+prod only —
+# codespace-shaped). On the VPS it MUST also include vps-prod so the spawned
+# container inherits ``homelab`` extra_hosts (LiteLLM gateway + o11y DNS) and OTEL
+# trace export. Without it, cloud_balanced runs can't resolve the gateway host.
+# Idempotent + fallback for hand-run deploys; deploy-prod.yml stages it as SSOT.
+if ! grep -qE '^PODCAST_DOCKER_COMPOSE_FILES=' .env; then
+  echo "PODCAST_DOCKER_COMPOSE_FILES=compose/docker-compose.stack.yml,compose/docker-compose.prod.yml,compose/docker-compose.vps-prod.yml" >> .env
+  chmod 600 .env
+fi
 mkdir -p "$REPO_DIR/corpus"
 
 # Resolve the o11y backend (homelab) tailnet IP for the vps-prod `extra_hosts`.
@@ -157,7 +167,15 @@ if ! "${COMPOSE[@]}" "${STACK_FILES[@]}" pull; then
 fi
 
 echo "[$(date -u +%FT%TZ)] rolling stack..."
-if ! "${COMPOSE[@]}" "${STACK_FILES[@]}" up -d --remove-orphans; then
+# ``--force-recreate``: a plain ``up -d`` is a no-op when only a MOUNTED SECRET's *content*
+# changed (compose hashes the service config, not secret file bytes) or on a same-image
+# config-only deploy. That means a rotated ``/dev/shm/podcast-secrets/*`` value never takes
+# effect — the container keeps the secret the shim exported at its last create. That footgun
+# cost a real prod incident (a rotated LiteLLM key stayed stale through a config-only deploy).
+# Force-recreate so every deploy re-reads secrets + config. Trade-off: a few seconds of
+# container churn per deploy (deploys are manual + infrequent). A finer secret-hash-triggered
+# recreate is a possible follow-up if the churn ever matters.
+if ! "${COMPOSE[@]}" "${STACK_FILES[@]}" up -d --force-recreate --remove-orphans; then
   echo "ERROR: docker compose up failed" >&2
   exit 2
 fi

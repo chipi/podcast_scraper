@@ -10,6 +10,7 @@ import copy
 import logging
 import os
 import sys
+import traceback
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
@@ -43,6 +44,16 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 BYTES_PER_KB = 1024
+
+
+def _flush_log_streams() -> None:
+    """Flush all root-logger handlers and stderr so captured streams see the full traceback."""
+    for handler in logging.getLogger().handlers:
+        try:
+            handler.flush()
+        except Exception:  # noqa: BLE001
+            pass
+    sys.stderr.flush()
 
 
 def _cli_iso_date(value: str):
@@ -1147,7 +1158,15 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--transcription-provider",
-        choices=["whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"],
+        choices=[
+            "whisper",
+            "openai",
+            "gemini",
+            "mistral",
+            "deepgram",
+            "groq",
+            "tailnet_dgx_whisper",
+        ],
         default="whisper",
         help=(
             "Transcription provider to use (default: whisper). "
@@ -1975,13 +1994,13 @@ def _add_grok_arguments(parser: argparse.ArgumentParser) -> None:
         "--grok-speaker-model",
         type=str,
         default=None,
-        help="Grok speaker detection model (default: grok-2)",
+        help="Grok speaker detection model (default: grok-4.3)",
     )
     parser.add_argument(
         "--grok-summary-model",
         type=str,
         default=None,
-        help="Grok summarization model (default: grok-2)",
+        help="Grok summarization model (default: grok-4.3)",
     )
     parser.add_argument(
         "--grok-temperature",
@@ -4765,6 +4784,17 @@ def main(  # noqa: C901 - main function handles multiple command paths
     from podcast_scraper.utils.otel_init import init_otel
 
     init_otel()
+    # Metrics push (ADR-119): a bare CLI run has no long-lived FastAPI process, so the in-process
+    # Prometheus registry (notably ``inference_guardrail_violations_total``) would otherwise die on
+    # exit unscraped. Start the same dev pusher the API uses; it registers an atexit final-snapshot
+    # so the last counter state ships to VictoriaMetrics before the process exits. No-op unless
+    # ``PODCAST_METRICS_PUSH_URL`` is set (dev via .env.obs.dev; the image leaves it unset).
+    try:
+        from podcast_scraper.obs.dev_push import start_metrics_pusher
+
+        start_metrics_pusher()
+    except Exception:  # pragma: no cover - o11y must never block the CLI
+        pass
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi/kg subcommands
@@ -5196,11 +5226,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     try:
                         count, summary = run_pipeline_fn(cfg)
                     except Exception as exc:  # pragma: no cover - defensive
-                        log.error(
+                        log.exception(
                             "Feed failed: rss=%s detail=%s",
                             url,
                             format_exception_for_log(exc),
                         )
+                        _flush_log_streams()
                         kind = classify_multi_feed_feed_exception(exc)
                         if kind == "hard":
                             any_hard_failed = True
@@ -5292,7 +5323,15 @@ def main(  # noqa: C901 - main function handles multiple command paths
     try:
         episode_count, summary = run_pipeline_fn(cfg)
     except Exception as exc:  # pragma: no cover - defensive
-        log.error(f"Unexpected failure: {exc}")
+        # log.exception (not log.error) attaches the stack to the structured sink / Sentry.
+        log.exception("Unexpected failure: %s", exc)
+        # AND write the traceback straight to stderr so it lands in the captured
+        # ``docker compose run`` job log — the logging handler can target a file / structured sink
+        # inside the ``--rm`` pipeline container (lost on exit), which is why a failing spawned run
+        # showed an empty job log with the error reachable only via Sentry/GlitchTip.
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        _flush_log_streams()
         return 1
 
     log.info(summary)
@@ -5303,18 +5342,24 @@ def main(  # noqa: C901 - main function handles multiple command paths
             MultiFeedFeedResult,
             upsert_corpus_manifest_feed,
             utc_iso_now,
+            write_corpus_run_summary,
         )
 
-        upsert_corpus_manifest_feed(
-            stamp_parent,
-            MultiFeedFeedResult(
-                feed_url,
-                True,
-                None,
-                int(episode_count),
-                finished_at=utc_iso_now(),
-            ),
+        fr = MultiFeedFeedResult(
+            feed_url,
+            True,
+            None,
+            int(episode_count),
+            finished_at=utc_iso_now(),
         )
+        upsert_corpus_manifest_feed(stamp_parent, fr)
+        # P1.5: single-feed corpus-layout runs also refresh corpus_run_summary.json (previously
+        # written only for --feeds-spec batches) so incremental adds have run-level cost/episode
+        # monitoring parity. cost_rollup is corpus-wide (aggregated from all run metrics on disk).
+        try:
+            write_corpus_run_summary(stamp_parent, [fr], overall_ok=True)
+        except Exception as exc:  # noqa: BLE001 — best-effort summary; never fail a done ingest
+            log.warning("Failed to write corpus_run_summary.json for single-feed run: %s", exc)
     return 0
 
 

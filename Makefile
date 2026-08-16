@@ -359,11 +359,11 @@ lint-search-v3:
 
 # Search v3 quality-eval harness (RFC-107 §T2, PRD-045 FR10; #1230 S0(c)).
 # Default corpus + query set = the v3 synthetic fixture; output the S0 baseline
-# under docs/wip/search-v3/eval/. Override via CORPUS= / QUERIES= / OUT= to
+# under data/eval/search-v3/eval/. Override via CORPUS= / QUERIES= / OUT= to
 # eval against a different corpus / query set.
 CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
 QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
-OUT ?= docs/wip/search-v3/eval/latest.json
+OUT ?= data/eval/search-v3/eval/latest.json
 eval-search:
 	$(PYTHON) scripts/eval/search_quality.py --corpus $(CORPUS) --queries $(QUERIES) --out $(OUT)
 
@@ -521,6 +521,17 @@ quality: complexity deadcode docstrings spelling
 	# TODO(CVE-2025-3000): drop ignore when torch upstream ships a fixed
 	#   version and we bump the pin.
 	#
+	# Ignore PYSEC-2026-3624 (lightning <= 2.6.5, load_from_checkpoint RCE via the
+	#   ``_instantiator`` hyperparameter importing attacker-controlled module names —
+	#   bypasses weights_only=True). Same attacker-supplied-artifact class as the torch
+	#   checkpoint PYSECs above: reached only when deserialising an UNTRUSTED checkpoint.
+	#   We load only pinned HuggingFace pyannote weights (lightning rides in transitively
+	#   via pyannote-audio); no request-time / user-supplied checkpoint loading (D6).
+	#   2.6.5 is the latest release and OSV's "fixed 2022.6.15" is phantom calendar-version
+	#   data — the real fix is unreleased commit d710d68, so there is nothing to bump to.
+	# TODO(PYSEC-2026-3624): drop ignore when lightning ships a release past commit
+	#   d710d68 (PR #21832) and we confirm pip-audit accepts it.
+	#
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
@@ -547,6 +558,7 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2026-139 \
 		--ignore-vuln PYSEC-2026-161 \
 		--ignore-vuln MAL-2026-4750 \
+		--ignore-vuln PYSEC-2026-3624 \
 		--ignore-vuln CVE-2025-3000
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
@@ -1145,11 +1157,27 @@ corpus-compat-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
 
+# Pre-deploy gate (#1494 / #1497): fail if a corpus would silently under-serve the MCP —
+# a stale/absent LanceDB index (every search → no_index) or missing typed edges /
+# enrichments (relational tools → empty). Non-zero exit on a HARD gap; diarization is a
+# soft warn. Run before shipping a corpus (or wire into the deploy). CORPUS_DIR required.
+corpus-completeness-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
+
+# Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
+# so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
+# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). THRESHOLD defaults to 0.75
+# (cloud_balanced's topic_cluster_threshold) — NOT the 0.35 small-fixture override. CORPUS_DIR req'd.
+topic-clusters:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" --threshold "$${THRESHOLD:-0.75}"
 
 # Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
 # Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).
@@ -1453,7 +1481,7 @@ diarization-quality:
 compare-gil-runs:
 	# Compare GIL outcomes between two pipeline run directories (metadata/*.gi.json).
 	# Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run
-	# See scripts/tools/compare_gil_runs.py and docs/wip/gil-ml-vs-openai-outcome-benchmark.md
+	# See scripts/tools/compare_gil_runs.py
 	@if [ -z "$(REF)" ] || [ -z "$(CAND)" ]; then \
 		echo "Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run"; exit 2; \
 	fi
@@ -3650,7 +3678,7 @@ report-multi-run:
 	cmd="$(PYTHON) scripts/eval/compare/multi_run_report.py --reference-id $$REFERENCE_ID"; \
 	if [ -n "$$BASELINE_ID" ]; then cmd="$$cmd --baseline-id $$BASELINE_ID"; fi; \
 	if [ -n "$$RUN_IDS" ]; then cmd="$$cmd --run-ids $$RUN_IDS"; fi; \
-	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; else cmd="$$cmd --output docs/wip/multi_run_comparison.md"; fi; \
+	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; else cmd="$$cmd --output .test_outputs/eval/multi_run_comparison.md"; fi; \
 	if [ -n "$(TITLE)" ]; then cmd="$$cmd --title '$(TITLE)'"; fi; \
 	if [ -n "$(LABELS)" ]; then cmd="$$cmd --labels '$(LABELS)'"; fi; \
 	if [ -n "$(DATASET_ID)" ]; then cmd="$$cmd --dataset-id $(DATASET_ID)"; fi; \

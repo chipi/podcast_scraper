@@ -1,7 +1,7 @@
 {
   "api": "http://localhost:8611",
   "captured_at": "2026-07-24T15:44:30Z",
-  "corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
+  "corpus": "/workspace/Projects/podcast_scraper-FUTURE/.test_outputs/manual/prod-v2/corpus",
   "iterations": 3,
   "label": "2.7.0.dev1-search-api",
   "queries_path": "tests/fixtures/perf/prod-v2-search-queries.json",

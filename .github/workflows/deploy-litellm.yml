@@ -184,6 +184,37 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "LITELLM_IMAGE_TAG='${IMAGE_TAG}' /srv/podcast-scraper/infra/deploy/deploy-litellm.sh"
 
+      - name: Provision the podcast-prod consumer virtual key (idempotent)
+        # deploy-litellm.sh only prints the "mint the app key" hint; do it here so the gateway
+        # deploy leaves a WORKING consumer key. Mints LITELLM_PROJ_PODCAST_PROD_KEY as a fixed
+        # key value (so the podcast side can wire that exact secret). Idempotent: skips if the key
+        # already exists. Runs the curl ON THE BOX (gateway is 127.0.0.1:4001 there); the two
+        # secrets are streamed over SSH via stdin (never argv), and GH masks them in logs.
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          LITELLM_MASTER_KEY: ${{ secrets.LITELLM_MASTER_KEY }}
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${LITELLM_MASTER_KEY:-}" ] || [ -z "${LITELLM_PROJ_PODCAST_PROD_KEY:-}" ]; then
+            echo "::error::LITELLM_MASTER_KEY and LITELLM_PROJ_PODCAST_PROD_KEY must both be set."
+            exit 1
+          fi
+          printf '%s\n%s\n' "$LITELLM_MASTER_KEY" "$LITELLM_PROJ_PODCAST_PROD_KEY" | \
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              'set -eu; read -r MK; read -r VK; \
+               info=$(curl -s -o /dev/null -w "%{http_code}" -G "http://127.0.0.1:4001/key/info" \
+                 -H "Authorization: Bearer $MK" --data-urlencode "key=$VK" || echo 000); \
+               if [ "$info" = "200" ]; then echo "podcast-prod key: already provisioned"; exit 0; fi; \
+               resp=$(curl -s "http://127.0.0.1:4001/key/generate" -H "Authorization: Bearer $MK" \
+                 -H "Content-Type: application/json" \
+                 -d "{\"key\":\"$VK\",\"key_alias\":\"podcast-prod\"}" || true); \
+               if printf "%s" "$resp" | grep -q "\"key\"\|\"token\""; then echo "podcast-prod key: minted"; \
+               elif printf "%s" "$resp" | grep -qi "already"; then echo "podcast-prod key: already exists"; \
+               else echo "podcast-prod key: MINT FAILED"; printf "%s\n" "$resp" | sed "s/$VK/***/g; s/$MK/***/g"; exit 1; fi'
+
       - name: Post-deploy gateway state (log visibility; non-fatal)
         # always() so a health-gate failure still surfaces `compose ps` + container state
         # (a skipped step hid the diagnostic on the first failed run, 2026-08-02).

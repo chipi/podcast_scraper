@@ -186,7 +186,7 @@ CHUNK7_INFERENCE_IMAGE = "nvcr.io/nvidia/vllm:26.05-py3"
 # localhost:8003 (overridden via --vllm-base-url CLI). For these specific
 # candidates, override the inference_target.
 CHUNK7_INFERENCE_TARGET = "dgx-vllm"
-CHUNK7_BASE_URL_ACTUAL = "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+CHUNK7_BASE_URL_ACTUAL = "http://your-dgx.tailnet.ts.net:8003/v1"
 
 
 def _now_utc_iso() -> str:

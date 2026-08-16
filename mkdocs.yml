@@ -15,8 +15,10 @@ nav:
       - Exploring the corpus through MCP: guides/EXPLORATION_MCP.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
+      - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
       - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
+      - "Prod validation & observability quick reference": guides/PROD_VALIDATION_QUICKREF.md
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
       - Tailnet & networking runbook (ACL GitOps, cross-project): guides/TAILNET_AND_NETWORKING.md
       - Edge convergence runbook (apply-edge / verify-edge): guides/EDGE_CONVERGENCE_RUNBOOK.md
@@ -113,6 +115,7 @@ nav:
       - Testing Strategy: architecture/TESTING_STRATEGY.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
       - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
+      - DGX serving (bridge to homelab): architecture/DGX_SERVING.md
       - Corpus artifacts and viewer surfaces: architecture/CORPUS_ARTIFACTS_AND_SURFACES.md
       - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
       - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
@@ -134,6 +137,7 @@ nav:
       - CI ML Stability: rfc/RFC-074-process-safety-ml-workloads-macos.md
       - "Test dashboard (GitHub Pages)": ci/METRICS.md
       - "Code quality trends (wily)": ci/CODE_QUALITY_TRENDS.md
+      - Secret & Identifier Gates: ci/SECRET_AND_IDENTIFIER_GATES.md
   - Product Requirements:
       - prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
@@ -181,6 +185,7 @@ nav:
       - PRD-043 Knowledge Layer: prd/PRD-043-knowledge-layer.md
       - PRD-044 Operator Shows Library: prd/PRD-044-operator-shows-library.md
       - PRD-045 Search v3 — Query Workspace: prd/PRD-045-search-v3-query-workspace.md
+      - PRD-046 Delivery & Curation: prd/PRD-046-delivery-and-curation.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -317,6 +322,12 @@ nav:
       - ADR-141 Operator two-plane clarification (control + public): adr/ADR-141-operator-two-plane-clarification.md
       - ADR-142 LiteLLM prod gateway: adr/ADR-142-litellm-prod-gateway.md
       - ADR-143 Tailscale OAuth migration and tag self-ownership: adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md
+      - ADR-144 Self-hosted delivery queue, outsourced last-mile: adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md
+      - ADR-145 Channel-agnostic outbox seam: adr/ADR-145-channel-agnostic-outbox-seam.md
+      - ADR-146 Your Week in-app surface and scheduling: adr/ADR-146-your-week-in-app-surface-and-scheduling.md
+      - ADR-147 First-class vllm provider — real model ids: adr/ADR-147-first-class-vllm-provider-real-model-ids.md
+      - ADR-148 In-place re-roll for invalid structured responses: adr/ADR-148-structured-response-in-place-reroll-before-fallover.md
+      - ADR-149 Corpus reprocess methodology: adr/ADR-149-corpus-reprocess-methodology.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -428,6 +439,13 @@ nav:
       - RFC-107 Search v3 — Query Workspace: rfc/RFC-107-search-v3-query-workspace.md
       - RFC-108 Operator public gated surface: rfc/RFC-108-operator-public-gated-surface.md
       - RFC-109 Per-Episode Observability Manifest: rfc/RFC-109-per-episode-observability-manifest.md
+      - RFC-110 Outbound Delivery & the App-Infra Seam: rfc/RFC-110-outbound-delivery-and-seam.md
+      - RFC-111 Curation Surfaces: rfc/RFC-111-curation-surfaces.md
+      - RFC-112 Remote MCP Transport & Auth: rfc/RFC-112-remote-mcp-transport-and-auth.md
+      - RFC-113 Graph-Aware PKM Export: rfc/RFC-113-graph-aware-pkm-export.md
+      - RFC-114 Personal Corpus: rfc/RFC-114-personal-corpus.md
+      - RFC-116 Autoresearch-Driven Fixture Corpus: rfc/RFC-116-autoresearch-driven-fixture-corpus.md
+      - RFC-115 Transcript-Prefix Caching for LLM Stages: rfc/RFC-115-transcript-prefix-caching-llm-stages.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -475,7 +493,6 @@ nav:
   - Legal Notice: LEGAL.md
   - Work in Progress:
       - wip/WIP_README.md
-      - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
       - "WIP: Concurrent pipelines + HTTP retry metrics": wip/wip-concurrent-pipeline-http-retry-metrics.md
       - "WIP: Full app-surface observability plan": wip/observability-app-surface-plan.md
 theme:

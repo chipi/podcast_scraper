@@ -42,6 +42,7 @@ metadata:
     deepgram: https://deepgram.com/pricing
     deepseek: https://platform.deepseek.com/pricing
     grok: https://docs.x.ai
+    groq: https://groq.com/pricing
 
 providers:
   openai:
@@ -52,6 +53,11 @@ providers:
       gpt-4o-mini:
         input_cost_per_1m_tokens: 0.15
         output_cost_per_1m_tokens: 0.60
+      # gpt-4.1-mini (bakeoff_openai_gpt reference arm); OpenAI list price (verify on the pricing
+      # page + re-date on update).
+      gpt-4.1-mini:
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 1.60
       gpt-4o:
         input_cost_per_1m_tokens: 2.5
         output_cost_per_1m_tokens: 10.0
@@ -259,7 +265,10 @@ providers:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       grok-4.3:
-        # Judge model (#939); same tier as grok-4.
+        # Judge model (#939) + xAI pipeline default (2026-08-07). Kept at the grok-4 tier
+        # (3.00/15.00); the live xAI /v1/language-models price units suggest it may now be cheaper
+        # (prompt 12500 / completion 25000) — VERIFY the real $/1M against console.x.ai before
+        # trusting cost rollups on the grok arm.
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       grok-4-fast:
@@ -281,8 +290,104 @@ providers:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
 
+  # Groq (ADR-147). Hosts a third-party open-model catalog (Llama, gpt-oss, Qwen3,
+  # DeepSeek-R1-distill) at low latency; rates below are per hosted model, not per vendor. # VERIFY
+  # on groq.com/pricing — ESTIMATE, re-date on update. No `default` row on purpose: an unlisted groq
+  # model returns {} (cost unknown, tokens still captured) rather than a wrong number.
+  groq:
+    text:
+      # Rates below are Groq's own published per-model pricing, read live from the
+      # api.groq.com/openai/v1/models endpoint (authoritative) on 2026-08-08, NOT third-party
+      # estimates. Groq output tokens are expensive (the LPU-throughput premium): qwen3.6-27b bills
+      # $3.00/1M output. Groq also supports prompt caching (input_cache_read below) — cached input
+      # reads are ~half the fresh input rate; the pipeline does not yet split cached vs fresh, so
+      # cost_rollup treats all input as fresh (a conservative OVER-estimate when caching is warm).
+      llama-3.3-70b-versatile:
+        input_cost_per_1m_tokens: 0.59
+        output_cost_per_1m_tokens: 0.79
+      openai/gpt-oss-120b:
+        input_cost_per_1m_tokens: 0.15
+        output_cost_per_1m_tokens: 0.60
+      openai/gpt-oss-20b:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.50
+      qwen/qwen3.6-27b:
+        input_cost_per_1m_tokens: 0.60
+        output_cost_per_1m_tokens: 3.00
+        input_cache_read_cost_per_1m_tokens: 0.30
+    # Groq is dual-use: it also serves OpenAI-compatible Whisper transcription (no diarization).
+    # Rates are Groq's per-hour audio pricing converted to per-minute. # VERIFY on groq.com/pricing.
+    transcription:
+      whisper-large-v3-turbo:  # $0.04/hr
+        cost_per_minute: 0.00067
+      whisper-large-v3:  # $0.111/hr
+        cost_per_minute: 0.00185
+      distil-whisper-large-v3-en:  # $0.02/hr
+        cost_per_minute: 0.00033
+
   ollama:
     text:
       default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+  # DGX-local vLLM (OpenAI-compat path). Real HF model ids on the wire (ADR-147), not a served-name
+  # alias; cost is electricity-only — $0/token at the API layer. `default` covers every local id;
+  # real cost is tracked via DGX power monitoring (#923 / #943).
+  vllm:
+    text:
+      default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+
+  # LiteLLM gateway (#1356). The gateway reports estimated_cost_usd=0 in the app's cost events and
+  # its response_cost is inconsistent, so WITHOUT these rows every litellm-routed call priced to $0
+  # (PA3 gap — the finale had to token×price offline, and it under-counted grounding). The gateway
+  # resolves an ALIAS to an upstream model that the app can't see, so rates are keyed by ALIAS and
+  # mirror the upstream model's rate. ESTIMATES — verify against the upstream provider's pricing
+  # page + re-date on update. An unlisted alias still returns {} (honest), not a wrong number.
+  litellm:
+    text:
+      # deepseek-v4-flash-0731 upstream (DeepSeek direct rate; OpenRouter/Novita may add a margin).
+      podcast-flash-0731:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+      homelab-flash:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+      # qwen3.7-flash / plus upstream.
+      homelab-qwen37-flash:
+        input_cost_per_1m_tokens: 0.05
+        output_cost_per_1m_tokens: 0.40
+      homelab-qwen37-plus:
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 1.20
+      # qwen3.6-35b-a3b upstream (open MoE — rough).
+      homelab-qwen:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.40
+
+  # Native Qwen provider (ADR-147). This namespace spans BOTH the paid OFFICIAL Alibaba Qwen API
+  # (DashScope / Model Studio — the cloud_qwen host) and free DGX-local serving, so rates are
+  # per-model. Cloud: qwen3.7-flash is Alibaba-hosted (source: the official Model Studio pricing
+  # page — ESTIMATE below, verify + re-date on update). DGX-local open weights (native qwen pointed
+  # at the vLLM slot) are electricity-only — $0/token at the API layer, real cost via DGX power
+  # monitoring (#923/#943). No `default` row on purpose: an unlisted qwen model returns {} (cost
+  # unknown, tokens still captured), which stays honest for a mixed cloud+local namespace.
+  qwen:
+    text:
+      # OFFICIAL Alibaba DashScope (cloud_qwen). ESTIMATE — verify on the Model Studio pricing page.
+      qwen3.7-flash:
+        input_cost_per_1m_tokens: 0.05
+        output_cost_per_1m_tokens: 0.40
+      # Reseller/other-host reference (Qwen3-Next-80B on a third-party host, e.g. DeepInfra ~$0.09/
+      # $0.78) — kept for a non-DashScope cloud swap; not used by cloud_qwen.
+      Qwen/Qwen3-Next-80B-A3B-Instruct:
+        input_cost_per_1m_tokens: 0.09
+        output_cost_per_1m_tokens: 0.78
+      # DGX-local open weights (native qwen -> vLLM slot): electricity-only.
+      Qwen/Qwen3-30B-A3B-Instruct-2507:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+      NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0

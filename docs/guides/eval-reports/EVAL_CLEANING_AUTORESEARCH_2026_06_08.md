@@ -101,7 +101,7 @@ Real cleaning failure modes surfaced for #921:
 - **Over-cleaning at higher temps (OpenAI specifically)** — v3 could include episodes where a chunk of substantive content has tone/structure that resembles sponsor copy (e.g. host enthusiastic recommendation that's *content*, not a sponsor). Lets the cleaning-profile selection (#905) score "preserves real content" precisely.
 - **The gpt-4o cleaning regression** is upstream of fixtures — but worth documenting as autoresearch evidence that "bigger model = better cleaning" is not a safe assumption.
 
-Logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`.
+Logged in `docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`.
 
 ## Acceptance
 
@@ -111,7 +111,7 @@ Logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`.
 - [x] Real-prod validation committed (`data/eval/runs/baseline_cleaning_validate_prod_v1/`).
 - [x] Default temperature applied for anthropic + gemini in `src/podcast_scraper/config.py` and provider `__init__` fallback.
 - [x] Eval report (this file).
-- [x] v3 contribution logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`.
+- [x] v3 contribution logged in `docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`.
 - [x] Ollama variants swept (#987, 2026-06-14): no Ollama variant beats the cloud champion — finding documented, no registry change.
 
 ## Ollama variants — added 2026-06-14 (#987)

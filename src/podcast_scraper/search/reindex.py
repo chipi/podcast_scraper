@@ -104,6 +104,7 @@ def _load_cfg(args: argparse.Namespace) -> "config.Config":
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    """CLI entry point: rebuild a corpus's LanceDB search index from on-disk episode metadata."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper.search.reindex",
         description="Rebuild a corpus's LanceDB search index from on-disk episode metadata.",

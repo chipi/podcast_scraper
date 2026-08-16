@@ -10,7 +10,7 @@ Per chunk-1 lock audit §I2: ``error_samples`` is capped at 5 via
 ``__post_init__`` — older samples popped on push to avoid unbounded
 growth on chronically failing enrichers.
 
-See ``docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md``
+See ``docs/rfc/RFC-088-enrichment-layer-architecture.md``
 §"Metrics + observability + analytics" and §"Per-enricher metric
 record".
 """

@@ -29,6 +29,7 @@ import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import QueueButton from '../components/QueueButton.vue'
 import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
+import YourWeek from '../components/YourWeek.vue'
 
 const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 
@@ -193,6 +194,11 @@ onMounted(async () => {
         {{ t('interests.dismiss') }}
       </button>
     </section>
+
+    <!-- Your Week — the personal digest, in-app (#1412). The highlight of the page: the first
+         curated, personalized block, above the editorial/global sections. Self-hides when
+         signed-out or nothing's due. Compact/full is a synced per-user preference. -->
+    <YourWeek />
 
     <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll -->
     <section v-if="wnFeatured" class="mt-7">

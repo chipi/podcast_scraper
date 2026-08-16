@@ -125,7 +125,7 @@ happened to hit. So the loader now refuses segments that do not index the text i
 every arm reported 100% alignment.
 
 Guarded by `tests/unit/scripts/eval/experiment/test_eval_reads_diarized_segments.py`, mutation-tested
-(4 mutations, 4 red). Full write-up: `docs/wip/CORPUS-V4-FIXTURE-LADDER.md` §A/§D.
+(4 mutations, 4 red). Full write-up: issue #1189 (and [ADR-143](../../adr/ADR-149-corpus-reprocess-methodology.md)) §A/§D.
 
 ---
 

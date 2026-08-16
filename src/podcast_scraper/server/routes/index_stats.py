@@ -70,19 +70,33 @@ async def index_stats(
     lance_dir = index_dir / "lance_index"
     from podcast_scraper.search.lance_index_stats import read_lance_index_stats
 
-    raw = read_lance_index_stats(lance_dir)
+    read_error_reason: str | None = None
+    try:
+        raw = read_lance_index_stats(lance_dir)
+    except Exception as exc:  # noqa: BLE001 — a monitoring endpoint must never 500 on an
+        # unreadable index. #1546: LanceDB's Rust layer hit a Permission-denied on a build-time
+        # ``/root/.cargo`` path under the non-root runtime user, crashing /index/stats on every
+        # poll (15 errors in 3 min). Report the index as unavailable instead. The underlying
+        # packaging root cause (why LanceDB reaches a build path at runtime) is tracked separately.
+        logger.warning(
+            "index/stats: LanceDB read failed for %s (%s); reporting index unavailable",
+            lance_dir,
+            exc,
+        )
+        raw, read_error_reason = None, "index_unreadable"
     if raw is None:
+        reason = read_error_reason or "no_index"
         st = compute_index_staleness(
             root,
             index_available=False,
-            index_reason="no_index",
+            index_reason=reason,
             index_last_updated=None,
             index_embedding_model=None,
             embedding_model_query=embedding_model,
         )
         return IndexStatsEnvelope(
             available=False,
-            reason="no_index",
+            reason=reason,
             index_path=str(index_dir),
             reindex_recommended=st.reindex_recommended,
             reindex_reasons=st.reindex_reasons,

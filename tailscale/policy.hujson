@@ -16,6 +16,10 @@
   //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml / drill-e2e
   //   tag:dgx-llm-host → operator DGX Spark (RFC-089); Ollama + embedding shim
   //   tag:homelab-host → homelab Mac mini; self-hosted observability (ADR-0005)
+  //   tag:homelab-svc  → per-service Caddy tailnet nodes on the mini: each obs
+  //                      service is its own node <name>.ts.net with its own
+  //                      Tailscale cert (caddy-tailscale; agentic-ai-homelab
+  //                      docs/wip/mac-mini-headless-server.md)
   //
   // tag:prod / tag:dr-drill are SELF-OWNED (list the tag as its own owner) so the
   // TS_INFRA_OAUTH client — which is bound to BOTH tags — can mint a per-server auth
@@ -32,7 +36,8 @@
     "tag:dr-drill":     ["autogroup:admin", "tag:dr-drill"],
     "tag:gha-deployer": ["autogroup:admin"],
     "tag:dgx-llm-host": ["autogroup:admin"],
-    "tag:homelab-host": ["autogroup:admin"]
+    "tag:homelab-host": ["autogroup:admin"],
+    "tag:homelab-svc":  ["autogroup:admin"]
   },
 
   // Implicit-deny for everything else; only listed traffic is permitted.
@@ -70,6 +75,32 @@
       "dst":    ["tag:prod:22,443,8443"]
     },
 
+    // Delivery worker (#1412 / ADR-145): the homelab delivery worker polls the player-api
+    // outbox (`/internal/outbox/*`, token-gated by INTERNAL_OUTBOX_TOKEN) published on the
+    // prod VPS tailnet IP at :8099 by deploy-player.sh. Tailnet-only seam transport; the
+    // token is the capability, the ACL scopes reachability to just the homelab host.
+    //
+    // :443 = the operator API (tailscale-serve fronts the api on :443, same listener the
+    // admin grant above uses). The homelab drives corpus ingestion against /api/jobs on a
+    // STANDING basis — feed batches are run from here over the coming months, not as a
+    // one-off — so this is a durable grant. Auth remains the operator key
+    // (X-Operator-Key); the ACL scopes reachability to just the homelab host, the same
+    // capability-plus-network pattern as :8099 above.
+    //
+    // :4001 = the prod-local LiteLLM gateway admin API (ADR-130 / ADR-142). The homelab now
+    // owns ingestion, so it also needs to read the spend the ingestion incurs — per-episode
+    // cost, budget headroom against the podcast-prod key's $25 cap, and whether routing is
+    // landing on the prod gateway rather than leaking to homelab (the ADR-142 regression).
+    // Without this the box driving the pipeline is blind to what the pipeline costs, and cost
+    // review needs an admin device every time. Auth is the gateway master key; the ACL scopes
+    // reachability to the homelab host only. Read-only in practice — analysis, not config
+    // changes, which stay with autogroup:admin.
+    {
+      "action": "accept",
+      "src":    ["tag:homelab-host"],
+      "dst":    ["tag:prod:443,4001,8099"]
+    },
+
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.
     // MagicDNS https://<host>.<tailnet>/ requires `tailscale serve` on the
     // node (cloud-init wires ExecStartPost on podcast-scraper.service); ACL
@@ -91,7 +122,7 @@
     //   :8001  = pyannote diarization service (#926; #943 adds /metrics).
     //   :8002  = openai-whisper service (first-party Whisper code; #953).
     //            Runs alongside speaches:8000 until #952 picks the winner.
-    //   :8003  = vLLM autoresearch slot (ADR-144: naming/summary/GI/KG/grounding
+    //   :8003  = vLLM autoresearch slot (ADR-147: naming/summary/GI/KG/grounding
     //            + the in-pipeline value gate; the fully-airgapped DGX profiles).
     //   :8004  = MOSS transcribe-diarize (ASR coverage failover; #1273 / ADR-123).
     // #943 observability sidecars:
@@ -151,10 +182,27 @@
     //   root-absolute assets that 404 under a stripped /path subpath:
     //     :8443 Langfuse   :8444 Umami   :8445 GlitchTip   :10000 LiteLLM admin UI
     //   (:8443 here is independent of tag:prod:8443 = orrery on the VPS.)
+    //   :9443 = TEMPORARY — Caddy reverse-proxy migration (agentic-ai-homelab
+    //           docs/wip/mac-mini-headless-server.md). Parallel TLS-passthrough
+    //           port to validate each service through Caddy over the tailnet,
+    //           service-by-service, before the final :443 flip. REMOVE at cutover.
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,4001,8090,8428,8443,8444,8445,8888,9428,10000,10428"]
+      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,4001,8090,8428,8443,8444,8445,8888,9428,9443,10000,10428"]
+    },
+    // Per-service Caddy tailnet nodes (tag:homelab-svc): each obs service is its own
+    // node <name>.tail6d0ed4.ts.net serving its own Tailscale cert (caddy-tailscale).
+    // Admin devices reach them over HTTPS (dashboards). tag:dgx-llm-host pushes
+    // telemetry over TLS to vm./vlogs. — the durable successor to plaintext pushes at
+    // tag:homelab-host:8428/9428. (The grant also gives DGX netmap visibility, so
+    // MagicDNS resolves the node names.) Durable successor to the port/path serve
+    // grants on tag:homelab-host above — those get trimmed once every service has
+    // moved to its own node. (agentic-ai-homelab docs/wip/mac-mini-headless-server.md)
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin", "tag:dgx-llm-host", "tag:prod"],
+      "dst":    ["tag:homelab-svc:443"]
     },
     {
       // prod (the box) also reaches Umami :3001 — it proxies public analytics
@@ -174,6 +222,20 @@
       "action": "accept",
       "src":    ["tag:gha-deployer"],
       "dst":    ["tag:homelab-host:9428"]
+    },
+
+    // Operator's own devices reach EACH OTHER over the tailnet (phone ↔ laptop ↔
+    // mac mini) for hands-on work — SSH, file share, screen share. `autogroup:self`
+    // scopes the destination to devices owned by the SAME user as the source, so on
+    // this single-operator tailnet it is exactly "my devices talk to my devices" and
+    // exposes nothing cross-user. Without it, UNTAGGED personal devices (a laptop/phone,
+    // which are not tag:* hosts) had zero incoming grant, so e.g. phone→MBP:22 timed out
+    // — the packet filter dropped it before sshd. Tagged hosts (prod/dgx/homelab) are
+    // unaffected; this only adds owner-device-to-owner-device reachability.
+    {
+      "action": "accept",
+      "src":    ["autogroup:member"],
+      "dst":    ["autogroup:self:*"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.
@@ -195,7 +257,7 @@
 
   // Tailscale SSH — narrowly enabled for the DGX host only (RFC-089 / #897
   // post-merge). Operator (autogroup:admin) reaches dgx-llm-host as either
-  // markodragoljevic (the actual login user) or root (emergencies). Tailnet
+  // operator (the actual login user) or root (emergencies). Tailnet
   // identity authenticates; no SSH keys to manage on the operator side.
   //
   // Prod / drill VPSes intentionally NOT covered — they keep classic key-
@@ -207,7 +269,7 @@
       "action": "accept",
       "src":    ["autogroup:admin", "tag:homelab-host"],
       "dst":    ["tag:dgx-llm-host"],
-      "users":  ["markodragoljevic", "ops", "root"]
+      "users":  ["operator", "ops", "root"]
     }
   ]
 }

@@ -11,11 +11,11 @@
 #   kill %1
 #
 # Env vars:
-#   DGX_HOST (default: dgx-llm-1.tail6d0ed4.ts.net)
+#   DGX_HOST (default: your-dgx.tailnet.ts.net)
 #   OLLAMA_MODEL (default: qwen3.5:35b)
 #   LOAD_LOG (default: /tmp/dgx_ollama_load.jsonl) — per-request timing
 set -euo pipefail
-DGX_HOST="${DGX_HOST:-dgx-llm-1.tail6d0ed4.ts.net}"
+DGX_HOST="${DGX_HOST:?set DGX_HOST to the tailnet FQDN of your DGX}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3.5:35b}"
 LOAD_LOG="${LOAD_LOG:-/tmp/dgx_ollama_load.jsonl}"
 

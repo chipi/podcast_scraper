@@ -8,12 +8,21 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { fetchHighlightsExport, getEpisode, highlightsExportUrl } from '../services/api'
+import {
+  addToCollection,
+  exportObsidian,
+  fetchHighlightsExport,
+  getCollections,
+  getEpisode,
+  highlightsExportUrl,
+} from '../services/api'
+import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
+import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
 const capture = useCaptureStore()
@@ -102,8 +111,49 @@ async function exportHighlightsNative(): Promise<void> {
   }
 }
 
+// Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
+// "Add to…" select adds on change then resets to its placeholder.
+const collections = ref<Collection[]>([])
+
+async function addHighlightTo(highlightId: string, collectionId: string): Promise<void> {
+  if (!collectionId) return
+  const updated = await addToCollection(collectionId, highlightId)
+  const i = collections.value.findIndex((c) => c.id === updated.id)
+  if (i >= 0) collections.value[i] = updated
+}
+
+// Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
+async function share(h: Highlight): Promise<void> {
+  await shareHighlightCard(h, titles.value[h.episode_slug] ?? h.episode_slug)
+}
+
+// Graph-aware Obsidian export (#1472). Incremental: the last-applied revision is remembered in
+// localStorage so a repeat click only pulls what changed. First click (or cleared storage) is full.
+const OBSIDIAN_CURSOR_KEY = 'obsidian_export_cursor'
+const exportingObsidian = ref(false)
+const obsidianMsg = ref('')
+
+async function doObsidianExport(): Promise<void> {
+  exportingObsidian.value = true
+  obsidianMsg.value = ''
+  try {
+    const since = Number(localStorage.getItem(OBSIDIAN_CURSOR_KEY) ?? '0') || 0
+    const r = await exportObsidian(since)
+    localStorage.setItem(OBSIDIAN_CURSOR_KEY, String(r.revision))
+    obsidianMsg.value =
+      r.mode === 'incremental'
+        ? t('highlights.obsidianDelta', { written: r.written, removed: r.removed })
+        : t('highlights.obsidianFull', { written: r.written })
+  } catch {
+    obsidianMsg.value = t('highlights.obsidianError')
+  } finally {
+    exportingObsidian.value = false
+  }
+}
+
 onMounted(async () => {
   await capture.ensureLoaded()
+  collections.value = await getCollections().catch(() => [])
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
   await Promise.all(
     slugs.map(async (slug) => {
@@ -132,7 +182,16 @@ onMounted(async () => {
         download="my-highlights.md"
         class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent no-underline transition hover:bg-overlay"
       >{{ t('highlights.export') }}</a>
+      <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
+      <button
+        v-if="!isNative()"
+        type="button"
+        :disabled="exportingObsidian"
+        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+        @click="doObsidianExport"
+      >{{ t('highlights.exportObsidian') }}</button>
     </div>
+    <p v-if="obsidianMsg" class="mb-3 text-xs text-muted">{{ obsidianMsg }}</p>
 
     <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
     <div v-if="capture.count" class="mb-4 flex items-center gap-2">
@@ -178,6 +237,15 @@ onMounted(async () => {
               >{{ h.kind === 'insight' ? t('highlights.insight') : t('highlights.span') }}</span>
               <p class="text-sm font-semibold leading-snug">{{ label(h) }}</p>
               <p v-if="h.speaker" class="lp-speaker mt-0.5 text-xs">{{ h.speaker }}</p>
+              <!-- Graph refs (#1419): the highlight as a node — person/topic it's linked to. -->
+              <div v-if="h.graph_refs?.length" class="mt-1 flex flex-wrap gap-1">
+                <span
+                  v-for="r in h.graph_refs"
+                  :key="r.id"
+                  class="rounded-full bg-overlay px-2 py-0.5 text-xs"
+                  :class="r.kind === 'person' ? 'text-person' : 'text-topic'"
+                >{{ r.label }}</span>
+              </div>
               <span
                 v-if="h.anchor_status === 'drifted'"
                 class="mt-1 inline-block rounded-full bg-overlay px-2 py-0.5 text-xs text-danger"
@@ -190,6 +258,22 @@ onMounted(async () => {
                 :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
                 class="font-mono text-xs text-accent no-underline"
               >▶ {{ formatTime(h.start_ms / 1000) }}</RouterLink>
+              <select
+                v-if="collections.length"
+                class="max-w-[9rem] rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs"
+                :aria-label="t('collections.addTo')"
+                @change="addHighlightTo(h.id, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+              >
+                <option value="">{{ t('collections.addTo') }}</option>
+                <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+              <button
+                type="button"
+                class="rounded-full p-1 text-muted transition hover:text-accent"
+                :aria-label="t('highlights.share')"
+                :title="t('highlights.share')"
+                @click="share(h)"
+              >↗</button>
               <button
                 type="button"
                 class="rounded-full p-1 text-muted transition hover:text-danger"
