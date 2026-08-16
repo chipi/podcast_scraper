@@ -169,16 +169,41 @@ the Hype" — about braking technique. The prompt tells the model "if any of the
 riding, braking … — appears in your output, you have failed", and `_reject_if_prompt_examples_leaked`
 (#1386) drops any summary containing `"braking earlier"`.
 
-On this run the model genuinely copied it — output "Speed comes from braking earlier and smoother
-rather than taking bigger risks — a counterintuitive but reliable principle observed across three
-different teams" against the example's "…for riders at any level" — so the guard was RIGHT and
-`p01_e02` has no summary. But the collision means a *legitimate* summary of a braking episode is
-indistinguishable from a copied one, and it will keep costing this show its summary.
+**Root cause, established 2026-08-16 — the transcript quotes the prompt.** `p01_e02`'s dialogue
+was authored in almost exactly the style example's words. Lines 20, 39 and 53 all read:
 
-**v4 requirement:** decide one of — (a) style examples whose subject matter appears in no corpus
-show, (b) a guard that matches near-verbatim whole sentences rather than two-word fragments, or
-(c) accept that p01 episodes about braking will lose summaries. Do not leave it undecided; it
-silently costs episodes.
+> Sophie Lorenz: "Speed comes from braking earlier and smoother, not from taking bigger risks. …
+> I've watched this pattern hold across three different teams."
+
+So a *correct* summary of this episode necessarily reproduces the example's wording, and the model
+was quoting the transcript, not the prompt. The guard was rejecting a correct summary.
+
+The two effects were separated by running the same episode through the same model with three
+prompts (2 attempts each):
+
+| prompt | result |
+|---|---|
+| as shipped | **copied** both attempts (coverage 1.00, 0.71) |
+| biking example swapped for a neutral subject | **clean** both attempts |
+| all examples reduced to shape-only placeholders | **clean** both attempts |
+
+With the biking example present the model blends transcript and example — it appended "a
+counterintuitive but reliable principle for riders at any level", a tail that appears ONLY in the
+prompt. With a neutral example it stays on the transcript ("a pattern observed across three
+different teams", which is line 20's actual wording).
+
+Half of this is already fixed: the guard no longer rejects on two-word vocabulary, only on a
+contiguous run lifted from an example (`_looks_copied_from_example`), so an episode may share an
+example's subject without being treated as a copy.
+
+**v4 requirement — a fixture rule, not a prompt workaround:** authored transcripts MUST NOT put
+the summarization prompt's style-example sentences into a speaker's mouth. Reword `p01_e02`'s
+recurring line. The three example subjects (riding/braking, architecture tradeoffs, diving
+rehearsal) are all corpus show topics, so this needs checking at generation time — a fixture that
+quotes the prompt makes correct output indistinguishable from copied output for every model.
+
+Separately worth raising upstream, but NOT a fixture decision: the shipped biking example is a
+poor choice for a product that ingests podcasts, since cycling podcasts plainly exist.
 
 ### 9. Episode duration was hardcoded to 1800 (fixed 2026-08-16)
 
