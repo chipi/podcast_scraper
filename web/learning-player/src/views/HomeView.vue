@@ -429,18 +429,26 @@ async function loadContinue(): Promise<void> {
       </RouterLink>
     </nav>
 
-    <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
-    <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
-
     <!-- Storylines (B): theme clusters — topics discussed together. Opens the anchor topic card. -->
     <Storylines @open="cardTarget = { kind: 'topic', id: $event }" />
 
-    <!-- Momentum (RFC-103): read-time "trending now" topics — velocity anchored to today. -->
+    <!--
+      The two topic measures sit TOGETHER, deliberately, with the show measure after them.
+
+      "Rising now" is read-time EWMA anchored to today; "Trending topics" is last month against its
+      own 6-month average. They are independent concepts and both are being kept, but they can
+      disagree sharply on the same topic — 1.78x vs 0.86x for `systems thinking` on the validation
+      corpus. Separated by Storylines, that was impossible to notice; adjacent, one screenshot shows
+      you what each is claiming. To be revisited against a real corpus at scale.
+    -->
     <MomentumRail
       kind="topic"
       :title="t('home.risingNow')"
       @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
     />
+
+    <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
+    <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
 
     <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->

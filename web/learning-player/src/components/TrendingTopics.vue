@@ -90,6 +90,10 @@ function applyEnrichment(s: Awaited<ReturnType<typeof getCorpusEnrichment>>): vo
         ? [...tv.window_months]
         : [...new Set(rows.flatMap((r) => Object.keys(r.monthly_counts ?? {})))].sort()
     months.value = axis
+    // Did we actually get a velocity reading? "Nothing is rising" is only sayable when we HAVE the
+    // measurements and none of them clear the bar. With no enricher there is nothing to conclude,
+    // and claiming quiet would be inventing a result.
+    hasVelocityData.value = rows.length > 0
     topics.value = rows
       .filter((x) => (x.velocity_last_over_6mo ?? 0) >= RISING && (x.total ?? 0) >= MIN_TOTAL)
       .sort((a, b) => (b.velocity_last_over_6mo ?? 0) - (a.velocity_last_over_6mo ?? 0))
@@ -105,12 +109,39 @@ function applyEnrichment(s: Awaited<ReturnType<typeof getCorpusEnrichment>>): vo
 }
 
 const hasAny = computed(() => topics.value.length > 0)
+/** True once the velocity envelope has been read and carried at least one topic. */
+const hasVelocityData = ref(false)
+/** Show the rail when it has something to say — rising topics, a measured quiet, or a failure. */
+const showsSection = computed(
+  () => hasAny.value || hasVelocityData.value || !section.isReady.value,
+)
 </script>
 
 <template>
-  <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="home-trending">
+  <!--
+    Renders even when nothing clears the bar — a deliberate exception to #1591's "hide when the
+    SYSTEM is empty".
+
+    This rail and the momentum rail below it are two independent measures of "what's hot", and they
+    disagree: on the validation corpus `systems thinking` is 0.86x here (last month vs its 6-month
+    average) and 1.78x on the momentum rail (EWMA anchored to today). Because this one hides when
+    its 1.5x gate finds nothing, that disagreement was invisible — the rail has never appeared, so
+    nobody could compare them.
+
+    Keeping it on screen with an honest "nothing clears the bar" line makes the metric observable
+    instead of silent, which is the whole point while both are being evaluated against real data
+    (#1595-followup). It says the system found nothing; it does not pretend to be broken or loading.
+  -->
+  <section v-if="showsSection" class="mt-7" data-testid="home-trending">
     <h2 class="lp-section">{{ t('home.trending') }}</h2>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
+    <p
+      v-if="section.isReady.value && !hasAny && hasVelocityData"
+      class="mt-1 text-sm text-muted"
+      data-testid="home-trending-quiet"
+    >
+      {{ t('home.trendingQuiet') }}
+    </p>
     <template v-if="hasAny">
     <p class="mb-2 text-sm text-muted">{{ t('home.trendingHint') }}</p>
 

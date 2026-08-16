@@ -47,6 +47,7 @@
     "resume": "Resume",
     "trending": "Trending topics",
     "trendingHint": "Heating up lately — “2×” means twice its usual rate of mentions",
+    "trendingQuiet": "Nothing is running above its usual rate right now.",
     "trendingChip": "{topic} — trending at {factor}× its recent average",
     "storylines": "Storylines",
     "storylinesHint": "Topics that keep coming up together",

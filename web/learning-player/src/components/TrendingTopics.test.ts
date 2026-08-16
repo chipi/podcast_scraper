@@ -99,14 +99,21 @@ describe('TrendingTopics container', () => {
     expect(w.findAll('[data-testid="trend-spark-row"]')).toHaveLength(2)
   })
 
-  it('renders nothing when no topic is rising', async () => {
+  it('stays on screen and says so when nothing clears the bar', async () => {
+    // Changed deliberately: this used to hide. Hiding made the metric unobservable — the rail has
+    // never once appeared on the validation corpus (nothing reaches 1.5x), so the fact that it
+    // disagrees with the momentum rail beside it (0.86x vs 1.78x on the same topic) could not be
+    // seen. A measured quiet is a result worth showing while both measures are being evaluated.
     withVelocity({
       window_months: ['2026-01'],
       topics: [{ topic_id: 'topic:flat', topic_label: 'flat', velocity_last_over_6mo: 0.9, total: 50, monthly_counts: { '2026-01': 5 } }],
     })
     const w = mountIt()
     await flushPromises()
-    expect(w.find('[data-testid="home-trending"]').exists()).toBe(false)
+    expect(w.find('[data-testid="home-trending"]').exists()).toBe(true)
+    expect(w.find('[data-testid="home-trending-quiet"]').exists()).toBe(true)
+    // ...and it must not imply there is something to look at.
+    expect(w.find('[data-testid="trending-spark-chip"]').exists()).toBe(false)
   })
 
   it('renders nothing when the velocity enricher is absent', async () => {
