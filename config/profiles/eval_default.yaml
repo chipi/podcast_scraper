@@ -80,7 +80,6 @@ cloud_llm_structured_min_output_tokens: 4096
 
 # --- GI / KG / vector search ---
 generate_gi: true
-gi_insight_source: provider
 # Registry-governed: `make profiles-materialize` writes this from the GI StageOption this
 # profile's preset selects. Do not hand-tune it here — profiles-check will fail you.
 # The cap is deliberately preset-dependent, not one global default: the v2.5 finale lowered

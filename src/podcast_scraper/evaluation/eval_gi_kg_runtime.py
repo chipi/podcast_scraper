@@ -15,16 +15,12 @@ def runtime_config_for_grounded_insights_eval(params: Optional[Dict[str, Any]]) 
     """Build ``Config`` for GIL eval (transcript → ``build_artifact``).
 
     Args:
-        params: Optional ``ExperimentConfig.params`` (e.g. ``gi_insight_source``).
+        params: Optional ``ExperimentConfig.params`` (e.g. ``gi_max_insights``).
 
     Returns:
         Validated ``Config`` with summaries disabled and GIL enabled.
     """
     p = params or {}
-    raw = p.get("gi_insight_source", "stub")
-    if raw not in ("stub", "provider"):
-        raw = "stub"
-    source = cast(Literal["stub", "provider"], raw)
     require_grounding = bool(p.get("gi_require_grounding", False))
     max_insights = int(
         p.get("gi_max_insights", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
@@ -37,7 +33,6 @@ def runtime_config_for_grounded_insights_eval(params: Optional[Dict[str, Any]]) 
             "generate_summaries": False,
             "generate_gi": True,
             "generate_kg": False,
-            "gi_insight_source": source,
             "gi_require_grounding": require_grounding,
             "gi_max_insights": max_insights,
             "transcribe_missing": False,
@@ -97,16 +92,11 @@ def merge_eval_task_into_summarizer_config(
     """
     p = params or {}
     if task == _TASK_GI:
-        raw_src = p.get("gi_insight_source", "provider")
-        if raw_src not in ("stub", "provider"):
-            raw_src = "provider"
-        gi_src = cast(Literal["stub", "provider"], raw_src)
         require = p.get("gi_require_grounding", True)
         max_insights = p.get("gi_max_insights")
         updates: Dict[str, Any] = {
             "generate_gi": True,
             "generate_kg": False,
-            "gi_insight_source": gi_src,
             "gi_require_grounding": bool(require),
         }
         if max_insights is not None:

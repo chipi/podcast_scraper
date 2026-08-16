@@ -1697,7 +1697,7 @@ class Config(BaseModel):
         alias="openai_insight_model",
         description=(
             "Optional OpenAI chat model used only for GIL generate_insights when "
-            "gi_insight_source is provider; when unset, openai_summary_model is used."
+            "insights are generated; when unset, openai_summary_model is used."
         ),
     )
     openai_temperature: float = Field(
@@ -3020,21 +3020,6 @@ class Config(BaseModel):
             "NLI with an API summary (advanced)."
         ),
     )
-    gi_insight_source: Literal["provider", "stub"] = Field(
-        default="stub",
-        alias="gi_insight_source",
-        description=(
-            "Source of insight texts for GIL. "
-            "'provider' = call generate_insights() on the summarization provider "
-            "(LLM only; ML providers return empty). Reads the cleaned transcript "
-            "directly. This is the production code path. "
-            "'stub' = placeholder; no LLM calls. "
-            "See GROUNDED_INSIGHTS_GUIDE.md for details. "
-            "The legacy 'summary_bullets' option was removed in #1034 (per the "
-            "#1033 audit) — it routed extraction through name-stripped summary "
-            "bullets and was empirically lossy."
-        ),
-    )
     gi_max_insights: int = Field(
         # cloud_balanced (the researched no-profile pipeline, see
         # test_the_config_default_is_not_a_trap) generates 12 and lets the value gate trim filler —
@@ -3046,7 +3031,7 @@ class Config(BaseModel):
         le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
         description=(
-            "Ceiling on insights when gi_insight_source is 'provider' — a hard cap, not a target. "
+            "Ceiling on insights — a hard cap, not a target. "
             "The prompt states a substance bar; the count comes from the episode. Size this so it "
             "does not bind."
         ),

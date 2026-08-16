@@ -4133,11 +4133,13 @@ def generate_episode_metadata(  # noqa: C901
                 from ..gi import build_artifact, write_artifact
                 from ..gi.provenance import resolve_gil_artifact_model_version
 
-                gi_source = getattr(cfg, "gi_insight_source", "stub")
+                # The provider IS the source. ``gi_insight_source`` used to gate this and
+                # defaulted to "stub", so a config that never reached the field produced
+                # placeholder insights for the whole run (#1657). The gate is gone: if there is
+                # a provider it is used, and if there is not, the episode honestly has no
+                # insights.
                 insight_texts_arg: Optional[List[str]] = None
-                insight_provider_arg = None
-                if gi_source == "provider" and summary_provider is not None:
-                    insight_provider_arg = summary_provider
+                insight_provider_arg = summary_provider
 
                 gil_evidence_cleanup: list = []
                 _gil_lineage_provider = (
@@ -4207,11 +4209,7 @@ def generate_episode_metadata(  # noqa: C901
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
-                    model_version=resolve_gil_artifact_model_version(
-                        cfg,
-                        _gil_lineage_provider,
-                        gi_insight_source=str(gi_source),
-                    ),
+                    model_version=resolve_gil_artifact_model_version(cfg, _gil_lineage_provider),
                     prompt_version="v1",
                     podcast_id=feed_id,
                     episode_title=episode.title,

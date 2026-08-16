@@ -2007,7 +2007,6 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
     # two different configurations.
-    "gi_insight_source",
     "gi_max_insights",
     "gi_require_grounding",
     "gil_evidence_quote_mode",
@@ -2727,7 +2726,6 @@ def resolve_profile_to_settings(
     # data/eval and then left out of this mapping is a setting production silently does not run —
     # which is exactly how the pipeline came to be evaluated in one configuration and shipped in
     # another. Add the key here when you add it to a StageOption.
-    settings["gi_insight_source"] = gi.provider
 
     # The judge is DERIVED, never copied: it must not share a vendor with the model it grades
     # (#939). A literal in the YAML cannot satisfy that, because the correct judge changes with the

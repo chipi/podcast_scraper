@@ -66,7 +66,6 @@ summary_reduce_params:
 
 # --- GI / KG (identical finale-tuned knobs to the deepseek cloud winner) ---
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled

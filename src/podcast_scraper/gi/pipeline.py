@@ -58,9 +58,6 @@ QUOTE_BUNDLE_CHUNK_SIZE = 10
 # enough that a healthy episode whose bundled call merely omitted a few scores never trips it.
 MAX_PER_PAIR_ENTAILMENT_FALLBACK_CALLS = 200
 
-# Stub insight text used when no real insights (single stub)
-_STUB_INSIGHT_TEXT = "Summary insight (stub)."
-
 
 def _ground_insights_dispatch(
     cfg: Any,
@@ -485,48 +482,47 @@ def _record_stub_fallback(pipeline_metrics: Optional[Any], exc: Exception) -> No
     )
 
 
-def _stub_insight_specs(
+def _no_insights(
     reason: str,
     pipeline_metrics: Optional[Any] = None,
     *,
     exc: Optional[BaseException] = None,
     **detail: Any,
 ) -> List[Tuple[str, str]]:
-    """Fall back to the one-line stub insight, LOUDLY, and say which path got us here.
+    """Return NO insights, loudly, and say which path got us here.
 
-    #9 of the #1657 acceptance: 112 of 678 production episodes (16.5 %) hold exactly one
-    insight, and that insight is the literal string ``"Summary insight (stub)."``. They are not
-    thin episodes — they are episodes where insight generation failed and nobody was told.
+    This used to return one fabricated insight — the literal string "Summary insight (stub)." —
+    so that an episode whose extraction failed still looked like an episode with a finding. It
+    reached production episodes, where nothing downstream could tell the placeholder from real
+    content. The placeholder is gone: an empty list is the truthful answer, and every caller
+    now handles it.
 
-    Every branch that lands here used to be silent. The exception path logged at ``debug``; the
-    rest (no provider, a provider without ``generate_insights``, a non-list return, nothing
-    parseable in the return, dedup collapsing to zero) logged nothing at all and simply fell off
-    the end of the function into the stub return.
+    The volume stays loud. Six branches land here — no provider, a provider without
+    ``generate_insights``, a non-list return, nothing parseable in the return, dedup collapsing
+    to zero, and the provider raising — and before #1657 only the last logged anything at all
+    (at ``debug``). #701 had already diagnosed this shape one path over ("cloud_thin produced
+    1-stub gi.json across 9 real-feed episodes for weeks") and fixed it with a WARNING plus a
+    counter; that fix never reached the path deciding whether an episode has any insights.
 
-    #701 diagnosed this exact anti-pattern one path over — "cloud_thin produced 1-stub gi.json
-    across 9 real-feed episodes for weeks" — and fixed it by promoting the debug call to WARNING
-    plus a metrics counter. That fix was applied to the evidence-stack path only. This is the
-    same treatment for the path that decides whether an episode has any insights at all, with
-    the reason attached so the next occurrence does not need a bisect to explain.
+    Empty is not automatically a failure — a provider can legitimately find nothing in a short
+    or contentless episode. Which it was is recorded by the stage ledger and by ``reason``, not
+    guessed at here.
     """
-    if pipeline_metrics is not None and hasattr(
-        pipeline_metrics, "gi_artifact_stub_fallback_count"
-    ):
+    if pipeline_metrics is not None and hasattr(pipeline_metrics, "gi_empty_extraction_count"):
         try:
-            pipeline_metrics.gi_artifact_stub_fallback_count += 1
+            pipeline_metrics.gi_empty_extraction_count += 1
         except Exception:  # noqa: BLE001 - metrics must never break extraction
             pass
     extra = "".join(f" {k}={v!r}" for k, v in sorted(detail.items()))
     logger.warning(
-        "GI insight generation fell back to the STUB insight (reason=%s%s). This episode will "
-        "carry exactly one placeholder insight, not real content — treat it as a failed episode, "
-        "not a quiet one.%s",
+        "GI insight generation produced NO insights (reason=%s%s). The episode's artifact will "
+        "contain zero Insight nodes — which is the truth, not a placeholder.%s",
         reason,
         extra,
         f" cause: {exc!r}" if exc is not None else "",
         exc_info=exc is not None,
     )
-    return [(_STUB_INSIGHT_TEXT, "unknown")]
+    return []
 
 
 def _apply_gi_insight_filters(
@@ -1302,7 +1298,7 @@ def _position_hint_from_timestamp_starts(
     return value
 
 
-def _build_stub_artifact(
+def _build_empty_artifact(
     episode_id: str,
     transcript_text: str,
     *,
@@ -1316,31 +1312,29 @@ def _build_stub_artifact(
     feed_id: Optional[str] = None,
     transcript_segments: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    """Build minimal stub artifact (one Episode, one Insight, one Quote, one SUPPORTED_BY)."""
-    ep_node_id = episode_node_id(episode_id)
-    stub_insight_text = _STUB_INSIGHT_TEXT
-    insight_id = gil_insight_node_id(episode_id, 0, stub_insight_text)
-    # char offsets must slice the transcript back to ``text`` exactly: char_end is
-    # EXCLUSIVE (contracts.py) and char_start accounts for any leading whitespace the
-    # ``.strip()`` drops — otherwise the Quote violates the offset invariant (Fault A).
-    base_text = transcript_text or "No transcript."
-    text_slice = base_text.strip()[:100]
-    char_start = len(base_text) - len(base_text.lstrip())
-    char_end = char_start + len(text_slice)
-    quote_id = gil_quote_node_id(episode_id, 0, text_slice, char_start, char_end)
-    # #876/#974 Fault B: when diarized segments are available, the stub Quote still carries
-    # the speaker + timing of the segment its char range falls in (parity with the real path).
-    quote_speaker_id: Optional[str] = None
-    ts_start_ms = 0
-    ts_end_ms = 0
-    if transcript_segments:
-        quote_speaker_id = _speaker_id_for_char_range(
-            base_text, char_start, char_end, transcript_segments
-        )
-        ts_start_ms, ts_end_ms = _char_range_to_ms(
-            base_text, char_start, char_end, transcript_segments
-        )
+    """The artifact for an episode that produced NO insights: an Episode node and nothing else.
 
+    This replaces ``_build_stub_artifact``, which invented one Insight reading "Summary insight
+    (stub)." plus a Quote sliced out of the transcript head by byte offset, joined by a
+    SUPPORTED_BY edge. None of it was extracted from anything. It existed because the GI
+    pipeline was written before any provider was wired up and needed *something* to emit; the
+    placeholder then outlived its reason by a long way and reached production episodes, where a
+    reader could not tell it from a finding.
+
+    A provider that returns nothing means the episode has no insights. That is a fact worth
+    recording faithfully, and an empty node list records it exactly.
+
+    THE FILE IS STILL WRITTEN, deliberately. Writing nothing would collapse "GI ran and found
+    nothing" into "GI never ran" — the ambiguity #1647 exists to remove, and the one that let
+    #1646 hide across most of the corpus. The artifact keeps ``episode_id``, ``model_version``
+    and ``prompt_version``, so the corpus can say *which* model looked and came back empty, and
+    a later re-derivation can tell whether it is worth retrying.
+
+    ``transcript_text``/``transcript_segments`` are accepted and unused: the signature matches
+    the populated builder so callers stay symmetric, and quoting a passage that supports no
+    claim is precisely the invention being removed.
+    """
+    ep_node_id = episode_node_id(episode_id)
     ep_props: Dict[str, Any] = {
         "podcast_id": podcast_id,
         "title": episode_title,
@@ -1353,70 +1347,13 @@ def _build_stub_artifact(
     if feed_id is not None:
         ep_props["feed_id"] = str(feed_id).strip()
 
-    nodes: list = [
-        {
-            "id": ep_node_id,
-            "type": "Episode",
-            "properties": ep_props,
-        },
-        {
-            "id": insight_id,
-            "type": "Insight",
-            "properties": {
-                "text": _STUB_INSIGHT_TEXT,
-                "episode_id": episode_id,
-                # A PLACEHOLDER MUST NOT DRESS AS A FINDING.
-                #
-                # This node used to claim grounded=True, tier=3 (CORE) and
-                # routing_tag="surface", salience 1.0 — the exact profile of the best insight
-                # an episode can produce. The text is the literal string "Summary insight
-                # (stub).". So on the 112 of 678 production episodes (16.5 %) that reached this
-                # path, a placeholder was ranked first and shown to readers as a grounded,
-                # core-tier insight. Nothing grounded it: the quote below is a raw slice of the
-                # transcript head, chosen by offset, not because it supports the claim — there
-                # is no claim.
-                #
-                # FILLER routes to "drop" through the standard rule in `_apply_routing`
-                # (tier <= TIER_FILLER), so this now flows to the same place any other
-                # worthless insight does, instead of to the top of the page. The episode reads
-                # as having no insights, which is true, and the WARNING from
-                # `_stub_insight_specs` is what says why.
-                "grounded": False,
-                "insight_type": "unknown",
-                # RFC-097 chunk 9 (ADR-101): required in v3.0 strict.
-                "position_hint": 0.5,
-                "tier": 0,
-                "routing_tag": "drop",
-                "salience": 0.0,
-                "rank": 0,
-            },
-        },
-        {
-            "id": quote_id,
-            "type": "Quote",
-            "properties": {
-                "text": text_slice,
-                "episode_id": episode_id,
-                "speaker_id": quote_speaker_id,
-                "char_start": char_start,
-                "char_end": char_end,
-                "timestamp_start_ms": ts_start_ms,
-                "timestamp_end_ms": ts_end_ms,
-                "transcript_ref": transcript_ref,
-            },
-        },
-    ]
-    edges: list = [
-        {"type": "HAS_INSIGHT", "from": ep_node_id, "to": insight_id},
-        {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id},
-    ]
     return {
         "schema_version": "3.1",  # ADR-135/#1191: Insight rank/tier/routing_tag/salience
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
-        "nodes": nodes,
-        "edges": edges,
+        "nodes": [{"id": ep_node_id, "type": "Episode", "properties": ep_props}],
+        "edges": [],
     }
 
 
@@ -1508,108 +1445,108 @@ def _resolve_insight_specs(
             # meaningful type before the Insight node is built.
             return [(t, _classify_when_unknown(t, k)) for t, k in resolved]
 
-    source = "stub"
-    if cfg is not None:
-        source = getattr(cfg, "gi_insight_source", "stub")
+    # There is ONE source of insights: the provider. ``gi_insight_source`` used to select
+    # between "provider" and "stub", and defaulted to "stub" — so any run whose config did not
+    # reach that field emitted placeholders for the whole run, silently and by design. The knob
+    # is gone; whether an episode gets insights is answered by ``generate_gi``, and whether it
+    # HAS any is answered by what the provider returned.
+    if insight_provider is None:
+        return _no_insights("no_insight_provider", pipeline_metrics)
+    gen = getattr(insight_provider, "generate_insights", None)
+    if not callable(gen):
+        return _no_insights("provider_has_no_generate_insights", pipeline_metrics)
+    try:
+        from .chunked_extraction import generate_chunked
 
-    if source == "provider":
-        if insight_provider is None:
-            return _stub_insight_specs("no_insight_provider", pipeline_metrics)
-        gen = getattr(insight_provider, "generate_insights", None)
-        if not callable(gen):
-            return _stub_insight_specs("provider_has_no_generate_insights", pipeline_metrics)
-        try:
-            from .chunked_extraction import generate_chunked
+        out = generate_chunked(
+            gen,
+            transcript_text or "",
+            episode_title=episode_title,
+            max_insights=max_insights,
+            chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+            dedupe_threshold=float(getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75),
+            pipeline_metrics=pipeline_metrics,
+        )
+        if not isinstance(out, list):
+            return _no_insights("provider_returned_non_list", pipeline_metrics)
 
-            out = generate_chunked(
-                gen,
-                transcript_text or "",
-                episode_title=episode_title,
-                max_insights=max_insights,
-                chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
-                dedupe_threshold=float(getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75),
-                pipeline_metrics=pipeline_metrics,
+        resolved_specs: List[Tuple[str, str]] = []
+        for item in out:
+            p = _parse_insight_item(item)
+            if p:
+                resolved_specs.append(p)
+        if not resolved_specs:
+            # The provider answered, but nothing in the answer parsed as an insight. That is
+            # a provider/contract failure, not an episode with nothing to say — and it used
+            # to fall through to the stub without even a debug line.
+            return _no_insights(
+                "no_parseable_insights_from_provider", pipeline_metrics, items=len(out)
             )
-            if not isinstance(out, list):
-                return _stub_insight_specs("provider_returned_non_list", pipeline_metrics)
+        # The cap is per PASS, not per episode. Truncating the merged list to
+        # gi_max_insights would clip a 3-pass extraction (56 insights) straight back to
+        # 50 and silently erase the whole gain of chunking.
+        from .chunked_extraction import plan_chunks
 
-            resolved_specs: List[Tuple[str, str]] = []
-            for item in out:
-                p = _parse_insight_item(item)
-                if p:
-                    resolved_specs.append(p)
-            if not resolved_specs:
-                # The provider answered, but nothing in the answer parsed as an insight. That is
-                # a provider/contract failure, not an episode with nothing to say — and it used
-                # to fall through to the stub without even a debug line.
-                return _stub_insight_specs(
-                    "no_parseable_insights_from_provider", pipeline_metrics, items=len(out)
-                )
-            # The cap is per PASS, not per episode. Truncating the merged list to
-            # gi_max_insights would clip a 3-pass extraction (56 insights) straight back to
-            # 50 and silently erase the whole gain of chunking.
-            from .chunked_extraction import plan_chunks
+        passes = plan_chunks(
+            transcript_text or "",
+            int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+        )
+        resolved_specs = resolved_specs[: max_insights * passes]
 
-            passes = plan_chunks(
-                transcript_text or "",
-                int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
-            )
-            resolved_specs = resolved_specs[: max_insights * passes]
+        # THE SAME CLAIM, TWICE, IS NOT TWO INSIGHTS.
+        #
+        # `dedupe()` existed but only ever ran inside the CHUNKED path, and a normal
+        # episode does not chunk — so on the path production actually takes there was no
+        # deduplication at all. Measured on 18 episodes, gemini emitted 21.6 surfaceable
+        # insights per episode of which only 14.1 were distinct: **35% redundancy**, and
+        # not the subtle kind —
+        #
+        #   sim 1.00  "Paul Tudor Jones believes the greatest challenge in the coming
+        #              years will be finding significance..."   (emitted verbatim twice)
+        #   sim 0.96  "...the most important thing for young people to focus on is
+        #              communication..." / "...for young people is to focus on..."
+        #
+        # The value gate cannot catch this: it grades each insight in ISOLATION, so both
+        # copies score the same and both survive. An episode holds a finite amount of
+        # knowledge, and emitting it twice does not create more.
+        #
+        # Deduped here, BEFORE grounding, so we do not pay QA+NLI to ground a duplicate.
+        resolved_specs = _dedupe_insight_specs(resolved_specs, cfg, pipeline_metrics)
 
-            # THE SAME CLAIM, TWICE, IS NOT TWO INSIGHTS.
-            #
-            # `dedupe()` existed but only ever ran inside the CHUNKED path, and a normal
-            # episode does not chunk — so on the path production actually takes there was no
-            # deduplication at all. Measured on 18 episodes, gemini emitted 21.6 surfaceable
-            # insights per episode of which only 14.1 were distinct: **35% redundancy**, and
-            # not the subtle kind —
-            #
-            #   sim 1.00  "Paul Tudor Jones believes the greatest challenge in the coming
-            #              years will be finding significance..."   (emitted verbatim twice)
-            #   sim 0.96  "...the most important thing for young people to focus on is
-            #              communication..." / "...for young people is to focus on..."
-            #
-            # The value gate cannot catch this: it grades each insight in ISOLATION, so both
-            # copies score the same and both survive. An episode holds a finite amount of
-            # knowledge, and emitting it twice does not create more.
-            #
-            # Deduped here, BEFORE grounding, so we do not pay QA+NLI to ground a duplicate.
-            resolved_specs = _dedupe_insight_specs(resolved_specs, cfg, pipeline_metrics)
+        if not resolved_specs:
+            # Dedup collapsed everything. Reaching zero from a non-empty list means every
+            # insight was judged a restatement of the first — worth a signal, not a silent
+            # stub, because it is also the shape a degenerate embedding model produces.
+            return _no_insights("all_insights_deduped_away", pipeline_metrics)
 
-            if not resolved_specs:
-                # Dedup collapsed everything. Reaching zero from a non-empty list means every
-                # insight was judged a restatement of the first — worth a signal, not a silent
-                # stub, because it is also the shape a degenerate embedding model produces.
-                return _stub_insight_specs("all_insights_deduped_away", pipeline_metrics)
+        # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
+        # grounding, so the quotes did not exist yet — it graded a bare sentence
+        # while its own rubric asked for "a position a NAMED PERSON took", "a
+        # disagreement BETWEEN SPEAKERS" and "an AD read", none of which it could
+        # see. It now runs in `build_artifact`, after the evidence exists
+        # (ADR-110's lesson, one layer up).
+        #
+        # RFC-097 v3.0 chunk-5: classify any unknown-typed specs (providers
+        # returning ``List[str]`` flow in as ``"unknown"``; structured dict items
+        # keep their provider-supplied type).
+        return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
+    except Exception as e:
+        # WAS ``logger.debug``. That is the whole of #9: a provider failure here produced a
+        # one-insight stub artifact that looked like a finished episode, and the only trace
+        # was a debug line nobody runs at. #701 fixed exactly this anti-pattern for the
+        # evidence-stack path and gave it ``_record_stub_fallback``; this sibling path — the
+        # one that decides whether there are any insights AT ALL — kept the debug call.
+        return _no_insights("generate_insights_raised", pipeline_metrics, exc=e)
 
-            # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
-            # grounding, so the quotes did not exist yet — it graded a bare sentence
-            # while its own rubric asked for "a position a NAMED PERSON took", "a
-            # disagreement BETWEEN SPEAKERS" and "an AD read", none of which it could
-            # see. It now runs in `build_artifact`, after the evidence exists
-            # (ADR-110's lesson, one layer up).
-            #
-            # RFC-097 v3.0 chunk-5: classify any unknown-typed specs (providers
-            # returning ``List[str]`` flow in as ``"unknown"``; structured dict items
-            # keep their provider-supplied type).
-            return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
-        except Exception as e:
-            # WAS ``logger.debug``. That is the whole of #9: a provider failure here produced a
-            # one-insight stub artifact that looked like a finished episode, and the only trace
-            # was a debug line nobody runs at. #701 fixed exactly this anti-pattern for the
-            # evidence-stack path and gave it ``_record_stub_fallback``; this sibling path — the
-            # one that decides whether there are any insights AT ALL — kept the debug call.
-            return _stub_insight_specs("generate_insights_raised", pipeline_metrics, exc=e)
-
-    # Genuinely configured for the stub source: not a failure, and not worth a warning.
-    return [(_STUB_INSIGHT_TEXT, "unknown")]
+    # No provider was supplied at all. Nothing was extracted, so nothing is returned.
+    return _no_insights("no_insight_provider_configured", pipeline_metrics)
 
 
 def build_artifact(
     episode_id: str,
     transcript_text: str,
     *,
-    model_version: str = "stub",
+    model_version: str = "unknown",
     prompt_version: str = "v1",
     podcast_id: Optional[str] = None,
     episode_title: Optional[str] = None,
@@ -1632,7 +1569,7 @@ def build_artifact(
     """Build a GIL artifact for one episode.
 
     Insight texts come from insight_texts (e.g. summary bullets), from
-    insight_provider.generate_insights() when gi_insight_source=provider, or
+    insight_provider.generate_insights(), or
     a single stub. For each insight, provider-based QA + NLI finds grounded
     quotes; artifact has one Insight node per insight and their
     Quote nodes + SUPPORTED_BY edges.
@@ -1646,7 +1583,7 @@ def build_artifact(
             ``episode:`` prefix.
         transcript_text: Full transcript text (used for QA context and quote spans).
         model_version: Fallback model id when ``cfg`` is omitted; when ``cfg`` is set,
-            ``gi.json`` ``model_version`` is derived from ``gi_insight_source`` and the
+            ``gi.json`` ``model_version`` is derived from the
             summarization / insight provider (see ``gi.provenance``).
         prompt_version: Prompt version tag.
         podcast_id: Optional podcast node ID for Episode.podcast_id.
@@ -1711,16 +1648,8 @@ def build_artifact(
 
     artifact_model_version = model_version
     if cfg is not None:
-        raw_gi_src = getattr(cfg, "gi_insight_source", "stub")
-        if isinstance(raw_gi_src, str):
-            gi_src_norm = raw_gi_src.strip().lower() or "stub"
-        else:
-            gi_src_norm = "stub"
-        lineage_provider = summary_provider or insight_provider
         artifact_model_version = resolve_gil_artifact_model_version(
-            cfg,
-            lineage_provider,
-            gi_insight_source=gi_src_norm,
+            cfg, summary_provider or insight_provider
         )
 
     use_evidence_stack = (
@@ -1850,9 +1779,11 @@ def build_artifact(
         except Exception as e:
             _record_stub_fallback(pipeline_metrics, e)
 
-    # Single stub path (no evidence stack or fallback)
-    if len(insight_specs) == 1 and insight_specs[0][0] == _STUB_INSIGHT_TEXT:
-        return _build_stub_artifact(
+    # No insights at all — the provider had nothing to give back, so the artifact says so.
+    # This used to test for the placeholder's literal text, which meant the "empty" case could
+    # only be recognised by recognising a fake string.
+    if not insight_specs:
+        return _build_empty_artifact(
             episode_id=episode_id,
             transcript_text=transcript_text,
             model_version=artifact_model_version,
@@ -1886,7 +1817,10 @@ def build_artifact(
             feed_id=feed_id,
         )
     except Exception:
-        return _build_stub_artifact(
+        # The insights exist but the artifact could not be assembled. Emitting an EMPTY artifact
+        # loses them; that is a real loss and it is recorded as a degraded artifact below rather
+        # than papered over with invented content.
+        return _build_empty_artifact(
             episode_id=episode_id,
             transcript_text=transcript_text,
             model_version=artifact_model_version,

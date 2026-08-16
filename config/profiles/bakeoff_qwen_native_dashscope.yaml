@@ -45,7 +45,6 @@ summary_reduce_params:
 
 # --- GI / KG (identical knobs to the OpenRouter arm — only the route differs) ---
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled

@@ -76,7 +76,6 @@ def test_merge_eval_task_sets_gi_and_kg_flags() -> None:
     )
     assert gi_cfg.generate_gi is True
     assert gi_cfg.generate_kg is False
-    assert gi_cfg.gi_insight_source == "provider"
     assert gi_cfg.gi_require_grounding is False
     kg_cfg = merge_eval_task_into_summarizer_config(base, "knowledge_graph", None)
     assert kg_cfg.generate_kg is True
@@ -100,7 +99,12 @@ def test_merge_eval_task_unsupported_task_raises() -> None:
         merge_eval_task_into_summarizer_config(base, "summarization", None)
 
 
-def test_merge_eval_task_coerces_invalid_gi_insight_source() -> None:
+def test_merge_eval_task_ignores_a_retired_insight_source_param() -> None:
+    """``gi_insight_source`` selected between a real provider and a fabricated placeholder, and
+    defaulted to the placeholder. #1657 deleted it — the provider is the only source. An
+    experiment YAML that still carries the key must not blow up the eval, and must not
+    resurrect the setting either.
+    """
     base = RuntimeConfig.model_validate(
         {
             "rss": "",
@@ -117,7 +121,8 @@ def test_merge_eval_task_coerces_invalid_gi_insight_source() -> None:
         "grounded_insights",
         {"gi_insight_source": "not_valid"},
     )
-    assert gi_cfg.gi_insight_source == "provider"
+    assert gi_cfg.generate_gi is True
+    assert not hasattr(gi_cfg, "gi_insight_source")
 
 
 def test_merge_eval_task_coerces_invalid_kg_extraction_source() -> None:
@@ -255,14 +260,14 @@ def test_merge_eval_task_no_bundling_params_preserves_staged_defaults() -> None:
     cfg = merge_eval_task_into_summarizer_config(
         _gi_base_for_bundling(),
         "grounded_insights",
-        {"gi_insight_source": "provider"},
+        {},
     )
     assert cfg.gil_evidence_quote_mode == _default("gil_evidence_quote_mode")
     assert cfg.gil_evidence_nli_mode == _default("gil_evidence_nli_mode")
 
 
 def test_runtime_config_gi_has_gil_enabled() -> None:
-    cfg = runtime_config_for_grounded_insights_eval({"gi_insight_source": "stub"})
+    cfg = runtime_config_for_grounded_insights_eval({})
     assert cfg.generate_gi is True
     assert cfg.generate_kg is False
     assert cfg.generate_summaries is False

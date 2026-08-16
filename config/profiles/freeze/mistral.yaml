@@ -22,7 +22,6 @@ mistral_summary_model: mistral-large-latest
 
 # Grounded Insights
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 

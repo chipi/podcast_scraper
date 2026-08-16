@@ -28,7 +28,6 @@ summary_reduce_model: long-fast
 # legacy `summary_bullets` route was removed in #1034 per #1033 audit).
 # Freeze artifacts will need regeneration when this profile is exercised.
 generate_gi: true
-gi_insight_source: stub
 gi_max_insights: 12
 gi_require_grounding: true
 

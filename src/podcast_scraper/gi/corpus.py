@@ -37,19 +37,33 @@ def load_gi_artifacts(
     return out
 
 
-#: An artifact carrying ONLY this insight is a placeholder, not a result. Matched on the text
-#: because that is the one field stable across every version of the stub: the properties changed
-#: (#1657 item 9 made it ungrounded / FILLER / ``drop``), so a detector keyed on ``grounded`` or
-#: ``routing_tag`` would miss precisely the older artifacts that need finding.
-STUB_INSIGHT_TEXT = "Summary insight (stub)."
+#: FORENSIC CONSTANT — legacy cleanup only. Nothing in the pipeline produces this any more.
+#:
+#: The GI pipeline used to emit one fabricated insight with this exact text whenever extraction
+#: produced nothing, and that placeholder reached production episodes. #1657 deleted the
+#: placeholder outright: an episode with no insights now gets an artifact with no Insight nodes.
+#: This string survives ONLY so the artifacts written before that change can still be found and
+#: re-derived.
+#:
+#: Matched on the text because it is the one field stable across every version of the old
+#: placeholder — its properties changed twice (grounded/CORE/surface, then ungrounded/FILLER/
+#: drop), so a detector keyed on those would miss exactly the oldest artifacts that most need
+#: finding.
+#:
+#: DELETE THIS, and everything below it, once a corpus scan reports ``legacy_placeholders: 0``.
+#: It is the last thing in the repo that knows the placeholder ever existed.
+LEGACY_PLACEHOLDER_INSIGHT_TEXT = "Summary insight (stub)."
+
+#: Deprecated alias kept for one release so external callers do not break on the rename.
+STUB_INSIGHT_TEXT = LEGACY_PLACEHOLDER_INSIGHT_TEXT
 
 
-def is_stub_artifact(artifact: Dict[str, Any]) -> bool:
-    """True when this ``.gi.json`` holds a placeholder instead of real insights.
+def is_legacy_placeholder_artifact(artifact: Dict[str, Any]) -> bool:
+    """True when this ``.gi.json`` holds a pre-#1657 placeholder instead of real insights.
 
-    The shape is exact: one Insight node whose text is the stub string. An episode that
-    genuinely produced a single real insight is NOT a stub and must not be swept up — the point
-    of re-deriving these is to replace failures, not to redo work that succeeded.
+    The shape is exact: one Insight node whose text is the legacy placeholder string. An episode
+    that genuinely produced a single real insight is NOT a placeholder and must not be swept up
+    — the point of re-deriving these is to replace failures, not to redo work that succeeded.
     """
     insights = [
         n
@@ -58,18 +72,21 @@ def is_stub_artifact(artifact: Dict[str, Any]) -> bool:
     ]
     if len(insights) != 1:
         return False
-    return str((insights[0].get("properties") or {}).get("text", "")).strip() == STUB_INSIGHT_TEXT
+    return (
+        str((insights[0].get("properties") or {}).get("text", "")).strip()
+        == LEGACY_PLACEHOLDER_INSIGHT_TEXT
+    )
 
 
-def find_stub_artifacts(
+def find_legacy_placeholder_artifacts(
     corpus_root: Path,
     *,
     validate: bool = False,
 ) -> List[Tuple[Path, str]]:
-    """Every stub ``.gi.json`` under *corpus_root*, as ``(path, episode_id)``.
+    """Every legacy-placeholder ``.gi.json`` under *corpus_root*, as ``(path, episode_id)``.
 
-    The work-list for corpus repair. 112 of 678 production episodes (16.5 %) reached the stub
-    path while insight generation failed silently; they are indistinguishable from real episodes
+    The work-list for corpus repair. ~112 of 678 production episodes (16.5 %) got a placeholder
+    while insight generation failed silently; they are indistinguishable from real episodes
     to anything that only asks "does this episode have GI?", which is what
     ``episode_complete_for_append_resume`` asks. An append-mode re-run will therefore SKIP them
     forever. Re-deriving them needs an explicit list, and this produces it.
@@ -79,21 +96,21 @@ def find_stub_artifacts(
     paths = sorted(corpus_root.rglob("*.gi.json"))
     out: List[Tuple[Path, str]] = []
     for path, doc in load_gi_artifacts(paths, validate=validate, strict=False):
-        if is_stub_artifact(doc):
+        if is_legacy_placeholder_artifact(doc):
             out.append((path, str(doc.get("episode_id") or "")))
     return out
 
 
-def summarize_stub_artifacts(corpus_root: Path) -> Dict[str, Any]:
+def summarize_legacy_placeholder_artifacts(corpus_root: Path) -> Dict[str, Any]:
     """Counts for an operator deciding whether a repair run is worth starting."""
     total = len(sorted(corpus_root.rglob("*.gi.json")))
-    stubs = find_stub_artifacts(corpus_root)
+    found = find_legacy_placeholder_artifacts(corpus_root)
     return {
         "artifacts_total": total,
-        "stub_artifacts": len(stubs),
-        "stub_share": round(len(stubs) / total, 4) if total else 0.0,
-        "episode_ids": [eid for _, eid in stubs if eid],
-        "paths": [str(p) for p, _ in stubs],
+        "legacy_placeholders": len(found),
+        "legacy_placeholder_share": round(len(found) / total, 4) if total else 0.0,
+        "episode_ids": [eid for _, eid in found if eid],
+        "paths": [str(p) for p, _ in found],
     }
 
 

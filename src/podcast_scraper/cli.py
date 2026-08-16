@@ -979,8 +979,7 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
         "--openai-insight-model",
         default=None,
         help=(
-            "OpenAI model for GIL generate_insights only when gi_insight_source=provider "
-            "(default: same as --openai-summary-model)"
+            "OpenAI model for GIL generate_insights " "(default: same as --openai-summary-model)"
         ),
     )
     parser.add_argument(
@@ -1280,14 +1279,6 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         dest="generate_gi",
         help="Generate Grounded Insight Layer (GIL) artifacts (gi.json) per episode. "
         "Requires generate_metadata. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
-    )
-    parser.add_argument(
-        "--gi-insight-source",
-        choices=["provider", "stub"],
-        default=None,
-        dest="gi_insight_source",
-        help="Source of insight texts: provider (LLM) or stub (default: stub). "
-        "See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
     )
     parser.add_argument(
         "--gi-max-insights",
@@ -4008,7 +3999,6 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "kg_extraction_model": getattr(args, "kg_extraction_model", None),
         "kg_extraction_provider": getattr(args, "kg_extraction_provider", None),
         "kg_merge_pipeline_entities": getattr(args, "kg_merge_pipeline_entities", True),
-        "gi_insight_source": getattr(args, "gi_insight_source", None) or "stub",
         "gi_max_insights": (
             config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
             if getattr(args, "gi_max_insights", None) is None
@@ -4404,17 +4394,10 @@ def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> No
 
 def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logger) -> None:
     """Surface important misconfigurations at WARNING (always, not only in DEBUG detail)."""
-    if (
-        cfg.generate_gi
-        and getattr(cfg, "gi_insight_source", "stub") == "stub"
-        and not config._is_pytest_run()
-    ):
-        logger.warning(
-            "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
-            "For real wording use gi_insight_source: provider with an LLM "
-            "summary_provider. ML providers (transformers, hybrid_ml) do not "
-            "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
-        )
+    # The "insight text is a placeholder" warning is gone with the placeholder itself (#1657):
+    # there is no configuration that produces fabricated insight text any more. An episode with
+    # no usable provider now gets an artifact with no Insight nodes, and `_no_insights` says so
+    # at WARNING with the reason — a per-episode fact, which is more useful than a per-run one.
     _local_gil = frozenset({"transformers", "hybrid_ml"})
     _sp = getattr(cfg, "summary_provider", "transformers")
     _qe = getattr(cfg, "quote_extraction_provider", "transformers")
@@ -4580,7 +4563,6 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
             f"  GI fail on missing grounding: "
             f"{getattr(cfg, 'gi_fail_on_missing_grounding', False)}"
         )
-        d(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
         _gi_max = getattr(
             cfg,
             "gi_max_insights",
