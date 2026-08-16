@@ -140,13 +140,18 @@ async function doObsidianExport(): Promise<void> {
   obsidianMsg.value = ''
   obsidianDone.value = false
   try {
-    const since = Number(localStorage.getItem(OBSIDIAN_CURSOR_KEY) ?? '0') || 0
-    const r = await exportObsidian(since)
+    // ALWAYS a full export from the web. The server's incremental protocol is correct, but it
+    // assumes a client that APPLIES the manifest — writes `written`, deletes `removed`, honours
+    // `replace_namespace`. This button does none of that: it downloads a zip and the user moves
+    // the folder into their vault by hand. Hand-applying a delta is destructive either way —
+    // Finder's default "Replace" drops every unchanged note, and "Merge" silently keeps the
+    // orphans the tombstones exist to remove. A human will not execute a tombstone list.
+    //
+    // Restore the cursor here only alongside a programmatic applier (an Obsidian plugin, or the
+    // native shell writing files itself). Until then `since=0` is the only safe request.
+    const r = await exportObsidian(0)
     localStorage.setItem(OBSIDIAN_CURSOR_KEY, String(r.revision))
-    obsidianMsg.value =
-      r.mode === 'incremental'
-        ? t('highlights.obsidianDelta', { written: r.written, removed: r.removed })
-        : t('highlights.obsidianFull', { written: r.written })
+    obsidianMsg.value = t('highlights.obsidianFull', { written: r.written })
     obsidianDone.value = true
   } catch {
     obsidianMsg.value = t('highlights.obsidianError')
