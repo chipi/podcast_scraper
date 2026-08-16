@@ -216,3 +216,68 @@ describe('PlayerView', () => {
     expect(live.text()).not.toContain('Marked')
   })
 })
+
+describe('PlayerView — the summary is opened, not laid over the artwork', () => {
+  it('shows a labelled control instead of the summary itself', async () => {
+    // The old overlay put the full prose over the hero: hover-revealed on desktop, permanently on
+    // for touch. So on a phone the artwork was covered by default, and the text was clipped to the
+    // hero's fixed square — a real summary ended in an ellipsis you could not read past.
+    const w = await mountPlayer()
+    const opener = w.find('[data-testid="player-open-summary"]')
+    expect(opener.exists()).toBe(true)
+    // The prose is not rendered until asked for. Scoped to the dialog deliberately: the Knowledge
+    // Panel has its own Summary section, so asserting the string is absent from the whole page
+    // would be asserting something this change never claimed.
+    expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
+  })
+
+  it('opens the full summary on demand, with the headline above it', async () => {
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+
+    const body = w.find('[data-testid="episode-summary-text"]')
+    expect(body.exists()).toBe(true)
+    expect(body.text()).toContain('The pull-quote summary prose.')
+    expect(w.find('[data-testid="episode-summary-dialog"]').text()).toContain('A title')
+  })
+
+  it('renders a long summary in full — no truncation, no ellipsis', async () => {
+    // The point of the change: length must stop being a reason the reader cannot finish it.
+    const long = 'Sentence. '.repeat(400).trim()
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ summary_text: long }))
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+
+    const text = w.find('[data-testid="episode-summary-text"]').text()
+    expect(text.length).toBeGreaterThan(3000)
+    expect(text.endsWith('Sentence.')).toBe(true)
+    expect(text).not.toContain('…')
+  })
+
+  it('falls back to the headline when there is no prose body', async () => {
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(
+      detail({ summary_text: '', summary_title: 'Only a headline' }),
+    )
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="episode-summary-text"]').text()).toBe('Only a headline')
+  })
+
+  it('offers no control at all when the episode has no summary', async () => {
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ summary_text: '', summary_title: '' }))
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="player-open-summary"]').exists()).toBe(false)
+  })
+
+  it('closes again', async () => {
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+    await w.find('[data-testid="episode-summary-close"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
+  })
+})

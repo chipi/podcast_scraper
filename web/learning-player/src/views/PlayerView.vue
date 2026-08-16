@@ -163,6 +163,34 @@ const focusInsightId = ref<string | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
 
+/**
+ * The episode summary, opened on request rather than laid over the artwork.
+ *
+ * `summary_text` is the full prose; `summary_title` is the one-line headline and the fallback when
+ * there is no body. Rendering nothing when both are absent is what keeps the control from
+ * appearing on an episode that has no summary to show.
+ */
+const summaryText = computed(() => episode.value?.summary_text || episode.value?.summary_title || '')
+const summaryOpen = ref(false)
+const summaryDialog = ref<HTMLDialogElement | null>(null)
+
+// Modal on every viewport: a summary is short-form reading the reader opted into, so trapping focus
+// and dimming the page is right here — unlike the Knowledge Panel, which is a docked rail on
+// desktop precisely because it is meant to sit alongside the transcript.
+watch(summaryOpen, (open) => {
+  void nextTick(() => {
+    const d = summaryDialog.value
+    if (!d) return
+    if (open && !d.open) d.showModal()
+    else if (!open && d.open) d.close()
+  })
+})
+
+/** A tap on the backdrop lands on the dialog element itself; the inner container stops the rest. */
+function onSummaryBackdropClick(e: MouseEvent): void {
+  if (e.target === summaryDialog.value) summaryOpen.value = false
+}
+
 // Per-episode reach (UXS-014): anonymous cross-user counts + a daily-opens sparkline.
 const stats = ref<EpisodeStats | null>(null)
 const statsSeries = computed(() => stats.value?.daily.map((d) => d.count) ?? [])
@@ -671,17 +699,34 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Bottom: the FULL summary over a legibility gradient. Hidden by default so the artwork
-                 reads clean; slides up + fades in on hover/focus (and is always shown on touch, where
-                 there's no hover). The fixed-square hero means length never shifts the layout. -->
-            <div
-              v-if="episode.summary_text || episode.summary_title"
-              tabindex="0"
-              role="region"
-              :aria-label="t('player.summaryRegion')"
-              class="max-h-[66%] translate-y-full overflow-y-auto bg-gradient-to-t from-black/95 via-black/85 to-black/40 px-5 pb-5 pt-6 opacity-0 backdrop-blur-[2px] transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
-            >
-              <p class="whitespace-pre-line border-l-2 border-accent pl-4 font-display text-base font-semibold leading-snug tracking-tight text-white drop-shadow sm:text-lg">{{ episode.summary_text || episode.summary_title }}</p>
+            <!--
+              Bottom: an explicit way IN to the summary, not the summary itself.
+
+              This used to be the full summary laid over a gradient — hover-revealed on desktop and
+              permanently on for touch, which is most of the time. That meant the artwork was
+              covered by default on phones, and the text was clipped to the hero's fixed square, so
+              a real summary ended in an ellipsis and could not be finished. Prose the reader cannot
+              reach the end of, sitting on top of the picture, is worse than both a clean picture
+              and a readable summary.
+
+              So: the artwork stays clean, and this is a labelled control that opens the summary in
+              a dialog where it can be read in full and scrolled. Explicit, dismissible, and it
+              cannot truncate.
+            -->
+            <div v-if="summaryText" class="flex justify-start p-3">
+              <button
+                type="button"
+                data-testid="player-open-summary"
+                :title="t('player.summaryOpenHint')"
+                :aria-label="t('player.summaryOpenHint')"
+                class="inline-flex items-center gap-1.5 rounded-full bg-canvas/80 px-3 py-1.5 text-xs font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas"
+                @click="summaryOpen = true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true">
+                  <path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" />
+                </svg>
+                {{ t('player.summaryOpen') }}
+              </button>
             </div>
           </div>
         </div>
@@ -870,6 +915,55 @@ onBeforeUnmount(() => {
           @close="panelOpen = false"
         />
       </div>
+      </dialog>
+
+      <!--
+        Episode summary — opened from the control on the artwork, never laid over it.
+
+        A native <dialog> for the same reason the panel above is one: the browser supplies focus
+        trapping, Escape, an inert background and the right accessibility tree. Capped at 80dvh with
+        the prose scrolling INSIDE, so a long summary is reachable to its end — the specific failure
+        of the old overlay, which clipped to the hero's fixed square and trailed off in an ellipsis.
+      -->
+      <dialog
+        ref="summaryDialog"
+        data-testid="episode-summary-dialog"
+        :aria-label="t('player.summaryRegion')"
+        class="m-auto max-h-[80dvh] w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-border bg-canvas p-0 text-canvas-foreground backdrop:bg-black/60"
+        @close="summaryOpen = false"
+        @click="onSummaryBackdropClick"
+      >
+        <!-- Content only while open. A <dialog> renders its children regardless, so without this
+             the whole summary sits in the DOM (and in the accessibility tree) behind a closed
+             dialog — the thing this change exists to stop. -->
+        <div v-if="summaryOpen" class="flex max-h-[80dvh] flex-col">
+          <div class="flex items-baseline justify-between gap-3 border-b border-border px-5 py-4">
+            <h2 class="lp-section">{{ t('player.summaryRegion') }}</h2>
+            <button
+              type="button"
+              data-testid="episode-summary-close"
+              :aria-label="t('player.summaryClose')"
+              class="shrink-0 rounded-full px-2 py-1 text-sm text-muted transition hover:text-canvas-foreground"
+              @click="summaryOpen = false"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            <p
+              v-if="episode?.summary_title && episode.summary_text"
+              class="mb-3 font-display text-lg font-bold leading-snug tracking-tight"
+            >
+              {{ episode.summary_title }}
+            </p>
+            <p
+              class="whitespace-pre-line border-l-2 border-accent pl-4 text-sm leading-relaxed text-canvas-foreground"
+              data-testid="episode-summary-text"
+            >
+              {{ summaryText }}
+            </p>
+          </div>
+        </div>
       </dialog>
     </div>
   </section>

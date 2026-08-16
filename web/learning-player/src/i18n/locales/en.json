@@ -211,6 +211,9 @@
     "syncLater": "Shift transcript later",
     "syncReset": "Reset transcript sync",
     "summaryRegion": "Episode summary",
+    "summaryOpen": "Summary",
+    "summaryOpenHint": "Read this episode's summary",
+    "summaryClose": "Close summary",
     "relatedEpisodes": "More like this"
   },
   "kp": {
