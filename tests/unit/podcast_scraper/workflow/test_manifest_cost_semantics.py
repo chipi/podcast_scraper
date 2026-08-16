@@ -58,14 +58,51 @@ class TestMeasuredOrUnmeasured:
 
 
 class TestTheZeroSurvivesSerialisation:
-    """``stage_block`` drops keys that are ``None``; a measured 0.0 must NOT be dropped."""
+    """Cost has exactly THREE states in a block, and all three must be readable.
+
+    ``stage_block`` drops keys that are ``None`` — deliberate for most fields, where absence
+    honestly means "no stage owns this". Cost is different: 0.0 (measured, free) and null (not
+    measured) are already distinct claims, so dropping the key invented a fourth state that a
+    reader can only guess at, and which reads as "free" to anything summing the blocks. That is
+    how naming's spend stayed invisible on every episode of the acceptance run.
+
+    This class previously asserted the opposite (``test_none_is_omitted``). The behaviour changed
+    on purpose, to the rule the operator set: null = we did not measure, zero = we measured and it
+    was zero.
+    """
 
     def test_zero_is_written_not_omitted(self) -> None:
         blk = pm.stage_block(ran=True, cost_usd=0.0)
         assert "cost_usd" in blk and blk["cost_usd"] == 0.0
 
-    def test_none_is_omitted(self) -> None:
-        assert "cost_usd" not in pm.stage_block(ran=True, cost_usd=None)
+    def test_none_is_written_as_an_explicit_null(self) -> None:
+        blk = pm.stage_block(ran=True, cost_usd=None)
+        assert "cost_usd" in blk, "an absent key is a fourth state that means nothing"
+        assert blk["cost_usd"] is None
+
+    def test_the_three_states_are_distinguishable_after_a_json_round_trip(self) -> None:
+        """The manifest is read back as JSON; the distinction has to survive that, not just
+        live in the dict."""
+        import json
+
+        unmeasured = json.loads(json.dumps(pm.stage_block(ran=True, cost_usd=None)))
+        free = json.loads(json.dumps(pm.stage_block(ran=True, cost_usd=0.0)))
+        paid = json.loads(json.dumps(pm.stage_block(ran=True, cost_usd=0.0123)))
+        assert unmeasured["cost_usd"] is None
+        assert free["cost_usd"] == 0.0
+        assert paid["cost_usd"] == 0.0123
+        assert all("cost_usd" in b for b in (unmeasured, free, paid))
+
+    def test_a_summing_reader_can_tell_free_from_unknown(self) -> None:
+        """The consequence, stated as the reader sees it: totalling costs must be able to
+        exclude unmeasured stages instead of silently counting them as zero."""
+        blocks = [
+            pm.stage_block(ran=True, cost_usd=0.02),
+            pm.stage_block(ran=True, cost_usd=0.0),
+            pm.stage_block(ran=True, cost_usd=None),
+        ]
+        assert sum(b["cost_usd"] for b in blocks if b["cost_usd"] is not None) == 0.02
+        assert any(b["cost_usd"] is None for b in blocks)
 
 
 class TestSpeakerDetectionCostIsCaptured:

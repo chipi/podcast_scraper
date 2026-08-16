@@ -965,6 +965,25 @@ class DetectedSpeakers(NamedTuple):
     stated: List[str]
 
 
+def _record_naming_cost(pipeline_metrics: Any, cost_probe: Any, episode_idx: int) -> None:
+    """Attribute the probe's captured naming cost to this episode.
+
+    Only called once detection has actually run, so a recorded ``0.0`` means measured-and-free
+    (the deterministic detector made no LLM call) — distinct from no entry at all, which means
+    detection never ran and the cost is genuinely unknown. Best-effort: a metrics object without
+    the recorder (older callers pass a plain object) must not fail the episode.
+    """
+    if pipeline_metrics is None or cost_probe is None:
+        return
+    recorder = getattr(pipeline_metrics, "record_speaker_detection_cost", None)
+    if not callable(recorder):
+        return
+    try:
+        recorder(float(cost_probe.speaker_detection_cost_usd), episode_idx)
+    except Exception:  # pragma: no cover - metrics must never break processing
+        logger.debug("[%s] could not record speaker detection cost", episode_idx)
+
+
 def _detect_speakers_for_episode(
     episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1047,6 +1066,16 @@ def _detect_speakers_for_episode(
     )
     import inspect
 
+    # Isolate THIS episode's naming cost. Providers record speaker-detection cost onto a
+    # run-level accumulator shared by parallel episodes, so a delta on it is racy and cannot be
+    # attributed to one episode — which is why naming.cost_usd was absent from every manifest of
+    # the acceptance run while the run total kept climbing. The probe forwards everything to the
+    # real metrics object (run totals stay correct) and captures this episode's share on the side.
+    from ..processing_manifest import EpisodeCostProbe
+
+    cost_probe = EpisodeCostProbe(pipeline_metrics) if pipeline_metrics is not None else None
+    detect_metrics = cost_probe if cost_probe is not None else pipeline_metrics
+
     sig = inspect.signature(speaker_detector.detect_speakers)
     # A raising detector previously recorded NOTHING — no ledger entry at all — so an episode
     # whose speaker detection blew up was indistinguishable from one where it never ran. That
@@ -1061,7 +1090,7 @@ def _detect_speakers_for_episode(
                     episode_title=episode.title,
                     episode_description=episode_description,
                     known_hosts=combined_hosts,
-                    pipeline_metrics=pipeline_metrics,
+                    pipeline_metrics=detect_metrics,
                 )
             )
         else:
@@ -1073,6 +1102,9 @@ def _detect_speakers_for_episode(
                 )
             )
     except Exception as exc:
+        # Cost is recorded even here: a detector that raised after its LLM call still spent the
+        # money, and a manifest that omits it under-reports the episode's true cost.
+        _record_naming_cost(pipeline_metrics, cost_probe, episode.idx)
         _record(
             "failed",
             "detector_raised",
@@ -1084,6 +1116,7 @@ def _detect_speakers_for_episode(
         )
         raise
     elapsed = time.time() - extract_names_start
+    _record_naming_cost(pipeline_metrics, cost_probe, episode.idx)
     if pipeline_metrics is not None:
         pipeline_metrics.record_extract_names_time(elapsed, episode.idx)
     if (

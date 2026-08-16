@@ -212,6 +212,13 @@ def stage_block(
 
     ``ran`` is always present; every other key is included only when the owning stage supplies it,
     so absence is honest (nobody owns it) rather than a config-derived default.
+
+    ``cost_usd`` is the exception and is ALWAYS present, because cost has three states and the
+    other two are already spoken for: ``0.0`` means measured and free, a number means measured,
+    and ``null`` means not measured. Dropping the key added a fourth, silent state that readers
+    could only guess at — and it read as "free" to anyone summing the blocks. That is exactly how
+    naming's cost went unnoticed on every episode of the acceptance run while the run-level
+    counter kept climbing, and how ``cost_usd_total`` inherited the gap.
     """
     block: Dict[str, Any] = {"ran": bool(ran)}
     if method is not None:
@@ -222,8 +229,7 @@ def stage_block(
         block["method_version"] = method_version
     if duration_s is not None:
         block["duration_s"] = round(float(duration_s), 3)
-    if cost_usd is not None:
-        block["cost_usd"] = round(float(cost_usd), 6)
+    block["cost_usd"] = None if cost_usd is None else round(float(cost_usd), 6)
     if metrics:
         block["metrics"] = {k: v for k, v in metrics.items() if v is not None}
     if failover is not None:

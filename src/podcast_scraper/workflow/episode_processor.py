@@ -732,6 +732,20 @@ def _save_asr_provenance_file(
         logger.warning("Could not save ASR provenance %s: %s", asr_path, e)
 
 
+def _episode_naming_cost(pipeline_metrics: Any, job: Any) -> Optional[float]:
+    """This episode's speaker-detection cost, or None when it was never measured.
+
+    None and 0.0 are different claims and the manifest keeps them apart: 0.0 means detection ran
+    and made no priced LLM call; None means detection never ran for this episode (or the caller
+    passed a metrics object that predates the per-episode store), so the cost is unknown.
+    """
+    by_episode = getattr(pipeline_metrics, "speaker_detection_cost_usd_by_episode", None)
+    if not isinstance(by_episode, dict):
+        return None
+    value = by_episode.get(getattr(job, "idx", None))
+    return None if value is None else float(value)
+
+
 def _write_processing_manifest(
     result: Optional[Dict[str, Any]],
     cfg: config.Config,
@@ -861,12 +875,18 @@ def _write_processing_manifest(
         if not host_named and not summary.get("show_centric"):
             name_flags.append("empty_host_anchor")
         # Naming is NOT free by definition: cloud_balanced sets speaker_detector_provider:
-        # litellm, so voice resolution is a real LLM call. An EpisodeCostProbe exposes this
-        # episode's share (0.0 when only the deterministic path ran — measured, and honestly
-        # free). A plain Metrics object has no such attribute, and then the cost is genuinely
-        # unmeasured, which must stay null rather than become a fabricated zero.
-        naming_cost = getattr(pipeline_metrics, "speaker_detection_cost_usd", None)
-        naming_cost = None if naming_cost is None else float(naming_cost)
+        # litellm, so voice resolution is a real LLM call. This reads the PER-EPISODE figure the
+        # detection stage recorded (0.0 when only the deterministic path ran — measured, and
+        # honestly free); no entry means detection never ran for this episode and the cost is
+        # genuinely unmeasured, which stays null rather than becoming a fabricated zero.
+        #
+        # It used to read ``speaker_detection_cost_usd`` straight off ``pipeline_metrics``. That
+        # attribute exists only on an EpisodeCostProbe, and no probe ever wrapped the naming
+        # stage — the probes are built later, for summary/GI/KG — so the getattr returned None on
+        # every episode and the key was dropped from the block entirely. The run-level
+        # ``llm_speaker_detection_cost_usd`` was accruing the whole time; it is shared across
+        # parallel episodes, so it could never have been used here directly.
+        naming_cost = _episode_naming_cost(pipeline_metrics, job)
         naming = pm.stage_block(
             ran=True,
             method_version=pm.METHOD_VERSIONS["naming"],

@@ -224,6 +224,13 @@ class Metrics:
     extract_names_time_by_episode: Dict[int, float] = field(default_factory=dict)
     summarize_time_by_episode: Dict[int, float] = field(default_factory=dict)
     cleaning_time_by_episode: Dict[int, float] = field(default_factory=dict)
+    # Per-episode speaker-detection (naming) COST. ``llm_speaker_detection_cost_usd`` above is a
+    # run-level accumulator shared by parallel episodes, so a before/after delta on it is racy and
+    # cannot be attributed to one episode. The manifest needs the per-episode figure, and had no
+    # source for it: naming.cost_usd was absent on every episode of the acceptance run while the
+    # run-level counter was accruing. Absent from this dict means UNMEASURED (detection never ran);
+    # 0.0 means measured and genuinely free (the deterministic detector made no LLM call).
+    speaker_detection_cost_usd_by_episode: Dict[int, float] = field(default_factory=dict)
     # Per-episode stage OUTCOMES (#1647). The ``*_time_by_episode`` dicts above record
     # duration and nothing else, so a stage that was skipped, a stage that failed and was
     # swallowed, and a stage that was never configured all collapse to the same absence —
@@ -721,6 +728,15 @@ class Metrics:
     def record_extract_names_time(self, duration: float, episode_idx: int) -> None:
         """Record time spent extracting speaker names for an episode (by episode.idx)."""
         self.extract_names_time_by_episode[episode_idx] = duration
+
+    def record_speaker_detection_cost(self, cost_usd: float, episode_idx: int) -> None:
+        """Record what naming cost for ONE episode (by episode.idx).
+
+        Call this whenever speaker detection actually ran, including when it cost nothing —
+        a measured 0.0 (the deterministic detector made no LLM call) is a different fact from
+        no entry at all (detection never ran), and the manifest reports them differently.
+        """
+        self.speaker_detection_cost_usd_by_episode[episode_idx] = float(cost_usd)
 
     def record_stage_outcome(
         self,
