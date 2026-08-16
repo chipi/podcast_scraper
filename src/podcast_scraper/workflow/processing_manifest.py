@@ -179,7 +179,12 @@ def manifest_path(effective_output_dir: str, rel_transcript_path: str) -> str:
 
 
 def git_ground_truth() -> Dict[str, Any]:
-    """The exact-code backstop: short git SHA + dirty flag (ADR-132), via the run-manifest probe."""
+    """The exact-code backstop: short git SHA + dirty flag (ADR-132), via the run-manifest probe.
+
+    The probe captures once per process, so every episode in a run records the commit that was
+    on disk when the process started — not whatever HEAD drifted to by the time this particular
+    manifest got written. See ``_get_git_info`` for why that distinction matters.
+    """
     commit_sha, _branch, dirty = _get_git_info()
     return {"git_sha": (commit_sha[:7] if commit_sha else None), "git_dirty": bool(dirty)}
 

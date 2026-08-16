@@ -14,6 +14,7 @@ import os
 import platform
 import subprocess
 import sys
+import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -110,12 +111,63 @@ class RunManifest:
         logger.info(f"Run manifest saved to: {filepath}")
 
 
+#: Captured ONCE per process, on first use. See ``_get_git_info``.
+_GIT_INFO: Optional[tuple[Optional[str], Optional[str], bool]] = None
+_GIT_INFO_LOCK = threading.Lock()
+
+
 def _get_git_info() -> tuple[Optional[str], Optional[str], bool]:
-    """Get git commit SHA, branch, and dirty status.
+    """Get git commit SHA, branch, and dirty status — captured ONCE per process.
+
+    The capture is process-wide on purpose. This probe answers "which code produced this
+    artifact", and the code executing a run is whatever was on disk when the process started:
+    Python imports its modules once at startup, so an edit or a deploy landing mid-run does not
+    change the running code. Re-reading the working tree later answers a different question —
+    what HEAD is right now — and silently labels the artifact with a commit that never touched
+    it.
+
+    Observed 2026-08-16 in a 14-episode acceptance run, where a commit landed mid-run::
+
+        15:27:17  e055286   NVIDIA
+        15:35:20  e055286   a16z
+        15:40:03  2ceb653   Hard Fork     <- stamped with a commit made mid-run
+
+    All four episodes were executed by e055286's code; the fourth manifest's SHA was false. In
+    production the same thing happens whenever a deploy lands during a corpus pass, which takes
+    hours. ADR-132 makes this THE field you consult when an artifact looks wrong, so it gets
+    read exactly when something is already suspicious — a field that can disagree with reality
+    is worse than no field at all.
+
+    Caching here rather than in each caller also keeps the run manifest and the per-episode
+    manifests consistent with one another; two independent caches could still straddle a commit.
+
+    Thread-safe: episodes are processed concurrently, and racing threads would each shell out to
+    git for a value that must be identical anyway.
 
     Returns:
         Tuple of (commit_sha, branch, dirty)
     """
+    global _GIT_INFO
+    if _GIT_INFO is None:
+        with _GIT_INFO_LOCK:
+            if _GIT_INFO is None:
+                _GIT_INFO = _probe_git_info()
+    return _GIT_INFO
+
+
+def reset_git_info_cache() -> None:
+    """Drop the captured git info (tests only).
+
+    Production never calls this: re-capturing mid-run would reintroduce exactly the drift the
+    cache exists to prevent.
+    """
+    global _GIT_INFO
+    with _GIT_INFO_LOCK:
+        _GIT_INFO = None
+
+
+def _probe_git_info() -> tuple[Optional[str], Optional[str], bool]:
+    """Shell out to git for (commit_sha, branch, dirty). Call ``_get_git_info`` instead."""
     try:
         # Get commit SHA
         commit_sha = (

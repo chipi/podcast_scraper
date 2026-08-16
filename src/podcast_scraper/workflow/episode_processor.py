@@ -1304,6 +1304,44 @@ def _record_preprocessing_degraded(
     )
 
 
+def _preprocessing_cannot_run(
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    temp_media: str,
+    pipeline_metrics: Any,
+) -> bool:
+    """Report why preprocessing will not run, and answer whether that is the case.
+
+    Both branches used to be a single silent ``return`` inside ``_preprocess_audio_if_needed``,
+    so an episode that never preprocessed and one that preprocessed cleanly produced the same
+    manifest — no ``audio_preprocessing`` block at all, which reads as "nothing to report"
+    rather than "skipped, and here is why". That is the ambiguity the stage ledger (#1647)
+    exists to remove.
+
+    Extracted rather than left inline for the same reason ``_record_preprocessing_outcome`` is:
+    the branches belong to reporting, not to the preprocessing decision, and the caller is at
+    its complexity budget.
+    """
+    if not cfg.preprocessing_enabled:
+        _record_preprocessing_outcome(
+            pipeline_metrics, job.idx, "skipped", reason="preprocessing_disabled"
+        )
+        return True
+    if not (temp_media and os.path.exists(temp_media)):
+        # Distinct from disabled: preprocessing was ASKED for and could not run. Still `skipped`
+        # rather than `failed` — the missing download is the upstream stage's failure to report,
+        # and double-reporting it here would inflate the preprocessing failure rate.
+        _record_preprocessing_outcome(
+            pipeline_metrics,
+            job.idx,
+            "skipped",
+            reason="media_file_missing",
+            detail={"path": str(temp_media) if temp_media else ""},
+        )
+        return True
+    return False
+
+
 def _preprocess_audio_if_needed(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1322,7 +1360,11 @@ def _preprocess_audio_if_needed(
         Path to audio file to use for transcription (preprocessed or original)
     """
     media_for_transcription = temp_media
-    if not (cfg.preprocessing_enabled and temp_media and os.path.exists(temp_media)):
+    # Every exit writes exactly one ledger row (#1647). These two returns used to be silent, so
+    # an episode that never preprocessed and an episode whose preprocessing succeeded were
+    # indistinguishable downstream — the manifest simply had no audio_preprocessing block, which
+    # reads as "nothing to report" rather than "we skipped it, here is why".
+    if _preprocessing_cannot_run(cfg, job, temp_media, pipeline_metrics):
         return media_for_transcription
 
     from podcast_scraper.preprocessing.audio import cache as preprocessing_cache
@@ -1348,6 +1390,19 @@ def _preprocess_audio_if_needed(
 
     audio_preprocessor = create_audio_preprocessor(cfg)
     if not audio_preprocessor:
+        # `cfg.preprocessing_enabled` is already known true here, so the factory returning None
+        # leaves exactly one cause: ffmpeg is not on PATH. The operator asked for preprocessing
+        # and the box cannot do it — every episode on this host transcribes from unnormalised,
+        # full-size audio, which costs more and scores worse. It was previously a single WARNING
+        # line at factory level, invisible in the per-episode record. See task #26 for whether
+        # this should escalate to a hard failure rather than a degraded row.
+        _record_preprocessing_outcome(
+            pipeline_metrics,
+            job.idx,
+            "degraded",
+            reason="ffmpeg_unavailable",
+            detail={"fallback": "original_audio"},
+        )
         return media_for_transcription
 
     # Record preprocessing attempt (regardless of cache hit/miss)
@@ -1529,6 +1584,16 @@ def _preprocess_audio_if_needed(
                         preprocessing_wall_elapsed
                     )
                     pipeline_metrics.record_preprocessing_cache_hit_flag(False)
+                    # Preprocessing SUCCEEDED here — only the size stat failed. Omitting the row
+                    # would report a successful stage as if it never ran, which is the same
+                    # ambiguity #1646 hid behind. The byte counts are simply absent.
+                    _record_preprocessing_outcome(
+                        pipeline_metrics,
+                        job.idx,
+                        "ran",
+                        detail={"sizes_unavailable": True},
+                        duration_seconds=preprocessing_wall_elapsed,
+                    )
         else:
             # Preprocessing failed, use original audio
             logger.warning("[%s] Audio preprocessing failed, using original audio", job.idx)
