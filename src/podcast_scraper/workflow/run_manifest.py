@@ -166,8 +166,50 @@ def reset_git_info_cache() -> None:
         _GIT_INFO = None
 
 
+#: Baked into the pipeline image at build time. See ``_git_info_from_env``.
+GIT_SHA_ENV = "PODCAST_GIT_SHA"
+GIT_BRANCH_ENV = "PODCAST_GIT_BRANCH"
+GIT_DIRTY_ENV = "PODCAST_GIT_DIRTY"
+
+
+def _git_info_from_env() -> Optional[tuple[Optional[str], Optional[str], bool]]:
+    """Provenance baked in at image build time, or ``None`` if this is not a built image.
+
+    WHY THIS EXISTS: in the container that production actually runs, shelling out to git returns
+    nothing. ``.dockerignore`` excludes ``.git/`` from the build context and the runtime stage
+    never installs the git binary, so ``git rev-parse`` raises FileNotFoundError and the probe
+    below reports ``(None, None, False)``. Every manifest written by the pipeline image recorded
+    ``git_sha: null``.
+
+    That is worse than it sounds. ADR-132 makes ``git_sha`` the exact-code backstop — THE field
+    you consult when an artifact looks wrong and you need to know which code produced it. It has
+    therefore been absent at exactly the moments it was designed for. The 2026-08-16 acceptance
+    run showed a clean single SHA, which read as proof the provenance chain worked; that run
+    executed from source, where ``.git`` is present, so it proved nothing about the image.
+
+    Fixing it by un-ignoring ``.git/`` would bloat the build context AND still need the git
+    binary in the runtime image. Passing the SHA in as a build arg costs neither.
+
+    A source checkout sets none of these variables and falls through to the git probe, so dev
+    boxes and CI keep working exactly as before.
+    """
+    sha = (os.environ.get(GIT_SHA_ENV) or "").strip()
+    if not sha:
+        return None
+    branch = (os.environ.get(GIT_BRANCH_ENV) or "").strip() or None
+    dirty = (os.environ.get(GIT_DIRTY_ENV) or "").strip().lower() in {"1", "true", "yes"}
+    return sha, branch, dirty
+
+
 def _probe_git_info() -> tuple[Optional[str], Optional[str], bool]:
-    """Shell out to git for (commit_sha, branch, dirty). Call ``_get_git_info`` instead."""
+    """Provenance for (commit_sha, branch, dirty). Call ``_get_git_info`` instead.
+
+    Prefers the build-time environment (a built image), falls back to shelling out to git (a
+    source checkout).
+    """
+    from_env = _git_info_from_env()
+    if from_env is not None:
+        return from_env
     try:
         # Get commit SHA
         commit_sha = (

@@ -714,11 +714,21 @@ REMOVE_VOLUMES ?=
 # inspected after a Playwright run).
 STACK_TEST_EXPORT_DIR ?= $(CURDIR)/.stack-test-corpus
 
+# Provenance for the compose builds. Compose cannot shell out, so the SHA is exported into its
+# environment here and interpolated by ``${GIT_SHA:-}`` in docker-compose.stack.yml. Without
+# this the built image writes git_sha: null into every manifest (ADR-132, #1657).
+# Inner quotes are NOT backslash-escaped — see the note on GIT_BUILD_ARGS; the escaped form
+# reports a dirty tree as clean instead of erroring loudly.
+GIT_BUILD_ENV = \
+	GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+	GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
+	GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
+
 stack-build:
-	@$(STACK_COMPOSE) build
+	@$(GIT_BUILD_ENV) $(STACK_COMPOSE) build
 
 stack-build-llm:
-	@$(STACK_COMPOSE) --profile pipeline-llm build pipeline-llm
+	@$(GIT_BUILD_ENV) $(STACK_COMPOSE) --profile pipeline-llm build pipeline-llm
 
 verify-stack-profiles:
 	@echo "Validating config/profiles/*.yaml minimum Docker tiers..."
@@ -2533,11 +2543,25 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 	@echo ""
 	@echo "✓ Full nightly CI chain completed"
 
+# Provenance for EVERY image build (ADR-132, #1657). The runtime image has no git — the build
+# context excludes .git/ and the binary is never installed — so unless the SHA is passed in,
+# every manifest the image writes records git_sha: null. Falls back to empty outside a repo,
+# which the code treats exactly as it did before (shell out to git, find nothing).
+#
+# Do NOT escape the inner quotes as \" — command substitution restarts the quoting context, so
+# the backslashes reach `test` as literal arguments. That form dies with "test: too many
+# arguments" and, worse, falls through to `echo false`: a dirty tree silently reported clean.
+GIT_BUILD_ARGS = \
+	--build-arg GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+	--build-arg GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
+	--build-arg GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
+
 docker-build:
 	@echo "Building Docker image (ML-enabled variant, production ML preload, default)..."
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test \
 		-f docker/pipeline/Dockerfile .
 
@@ -2547,6 +2571,7 @@ docker-build-llm:
 	@echo ""
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS="" \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test-llm \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -2559,6 +2584,7 @@ docker-build-fast:
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=false \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test-fast \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -2571,6 +2597,7 @@ docker-build-full:
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test \
 		-f docker/pipeline/Dockerfile .
 	@echo ""

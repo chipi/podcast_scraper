@@ -225,7 +225,17 @@ def _create_summarization_provider(
                 )
                 # Don't fail - models will load on first use, just slower
         # RFC-089 #5: wrap with cloud-fallback if degradation_policy declares one.
-        from ..summarization.fallback import wrap_with_fallback_if_configured
+        from ..summarization.fallback import (
+            log_fallback_chain_preflight,
+            wrap_with_fallback_if_configured,
+        )
+
+        # #23: prove the ladder can actually be BUILT, here, once, at the start of the run.
+        # The tiers are constructed lazily on first failure, so without this their health is
+        # only discovered during an outage — the one moment nobody wants to discover it. On
+        # 2026-08-16 an 11-profile ladder pointed entirely at a `deepseek` tier that could not
+        # be built for want of a key; it logged the failure and recovered nothing.
+        log_fallback_chain_preflight(cfg, stage="summary")
 
         provider = wrap_with_fallback_if_configured(provider, cfg)
         return provider

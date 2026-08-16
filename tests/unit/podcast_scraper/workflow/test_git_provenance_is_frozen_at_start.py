@@ -116,6 +116,67 @@ def test_a_repo_less_environment_still_reports_cleanly(monkeypatch):
     assert git_ground_truth() == {"git_sha": None, "git_dirty": False}
 
 
+class TestTheBuiltImageHasProvenanceAtAll:
+    """In the container production runs, shelling out to git returns NOTHING.
+
+    ``.dockerignore`` excludes ``.git/`` from the build context and the runtime stage never
+    installs the git binary, so ``git rev-parse`` raises FileNotFoundError and the probe reports
+    (None, None, False). Every manifest the pipeline image wrote recorded ``git_sha: null`` —
+    ADR-132's exact-code backstop absent from precisely the artifacts it exists to explain.
+
+    The 14-episode acceptance run showed one clean SHA, which looked like proof the chain
+    worked. That run executed from source, where ``.git`` is present. It proved nothing about
+    the image, which is why the SHA is now baked in at build time.
+    """
+
+    def test_the_baked_in_sha_is_used_when_git_is_unavailable(self, monkeypatch):
+        """The container case: no git binary, but the build arg was set."""
+        monkeypatch.setenv(run_manifest.GIT_SHA_ENV, "abc1234def5678")
+        monkeypatch.setenv(run_manifest.GIT_BRANCH_ENV, "main")
+        monkeypatch.setenv(run_manifest.GIT_DIRTY_ENV, "false")
+        monkeypatch.setattr(
+            run_manifest.subprocess,
+            "check_output",
+            _explode_as_if_git_were_missing,
+        )
+
+        assert git_ground_truth() == {"git_sha": "abc1234", "git_dirty": False}
+
+    def test_a_dirty_build_is_reported_dirty(self, monkeypatch):
+        monkeypatch.setenv(run_manifest.GIT_SHA_ENV, "abc1234def5678")
+        monkeypatch.setenv(run_manifest.GIT_DIRTY_ENV, "true")
+
+        assert git_ground_truth()["git_dirty"] is True
+
+    def test_an_empty_build_arg_falls_back_to_git(self, monkeypatch):
+        """An unparameterised ``docker build`` sets GIT_SHA="" — that must not mean "no SHA"."""
+        monkeypatch.setenv(run_manifest.GIT_SHA_ENV, "")
+        monkeypatch.setattr(run_manifest, "_probe_git_info", lambda: ("fa11bac0999", "b", False))
+        run_manifest.reset_git_info_cache()
+
+        assert git_ground_truth()["git_sha"] == "fa11bac"  # short SHA is 7 chars
+
+    def test_a_source_checkout_is_unaffected(self, monkeypatch):
+        """No env vars set — dev boxes and CI keep shelling out to git exactly as before."""
+        monkeypatch.delenv(run_manifest.GIT_SHA_ENV, raising=False)
+        monkeypatch.delenv(run_manifest.GIT_BRANCH_ENV, raising=False)
+        monkeypatch.delenv(run_manifest.GIT_DIRTY_ENV, raising=False)
+
+        assert run_manifest._git_info_from_env() is None
+
+    def test_the_baked_value_is_still_captured_only_once(self, monkeypatch):
+        """The env path must not bypass the freeze — os.environ is mutable at runtime too."""
+        monkeypatch.setenv(run_manifest.GIT_SHA_ENV, "first1234")
+        first = git_ground_truth()
+        monkeypatch.setenv(run_manifest.GIT_SHA_ENV, "second567")
+
+        assert git_ground_truth() == first
+
+
+def _explode_as_if_git_were_missing(*_args, **_kwargs):
+    raise FileNotFoundError("git: command not found")
+
+
 def test_callers_cannot_corrupt_the_shared_capture(monkeypatch):
     """``git_ground_truth`` hands out a fresh dict; mutating it must not poison later writers."""
     monkeypatch.setattr(run_manifest, "_probe_git_info", lambda: ("abc1234def", "main", False))

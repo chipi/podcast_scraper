@@ -190,6 +190,13 @@ services:
       args:
         INSTALL_EXTRAS: llm
         PRELOAD_ML_MODELS: "false"
+        # ADR-132 provenance. The runtime image has no git (.git/ is excluded from the build
+        # context, the binary is never installed), so without these every manifest this image
+        # writes records git_sha: null. Compose cannot shell out — ``make stack-build-llm``
+        # exports them. Empty when built by hand, which falls back to the old behaviour.
+        GIT_SHA: ${GIT_SHA:-}
+        GIT_BRANCH: ${GIT_BRANCH:-}
+        GIT_DIRTY: ${GIT_DIRTY:-}
     image: podcast-scraper-stack-pipeline-llm:latest
     volumes:
       - corpus_data:/app/output

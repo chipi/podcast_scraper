@@ -41,7 +41,7 @@ The wrapper is transparent to callers: pass-through of non-protocol attributes
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, cast, Dict, List, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, cast, Dict, List, Optional, Sequence, Tuple, TypeVar, Union
 
 from .. import config
 from .base import SummarizationProvider
@@ -274,6 +274,75 @@ def _summary_fallback_chain(cfg: config.Config, primary_name: Optional[str] = No
         if legacy:
             chain = [str(legacy).strip().lower()]
     return [name for name in chain if name and name != primary_name]
+
+
+def preflight_fallback_chain(
+    cfg: config.Config,
+    primary_name: Optional[str] = None,
+) -> List[Tuple[str, Optional[str]]]:
+    """Check every declared failover tier can actually be BUILT. Returns the broken ones.
+
+    Each entry is ``(tier_name, error_message)`` for a tier that could not be constructed; an
+    empty list means the ladder is sound.
+
+    WHY THIS EXISTS: a ladder is only worth what it can construct, and the tiers are built
+    LAZILY — ``_get_or_build_fallback`` runs on the first failure, which is the single worst
+    moment to discover a missing credential. Proven live on 2026-08-16, acceptance run feed 1::
+
+        WARNING  Primary provider failed on extract_quotes_bundled(); trying fallback tier
+                 'deepseek'
+        ERROR    Fallback tier 'deepseek' also failed: DeepSeek API key required
+
+    Twice in one episode. 612fd451 had configured a cross-vendor ladder across 11 profiles, all
+    pointing at the ``deepseek`` tier, and none of them could be built. The ladder detected the
+    failure, logged it, and recovered nothing. Nothing before this ever asked whether it could.
+
+    It also answered a question left open by #20: the ladder fires on ORDINARY provider faults
+    (malformed JSON here), not only on budget exhaustion — so a ladder that cannot build is a
+    routine liability, not a doomsday one.
+
+    Construction only. This deliberately does NOT make a network call: it must be cheap enough
+    to run unconditionally at startup and must not spend money or fail on a transient blip. A
+    missing key raises at construction, which is the failure mode actually observed.
+    """
+    chain = _summary_fallback_chain(cfg, primary_name)
+    broken: List[Tuple[str, Optional[str]]] = []
+    for name in chain:
+        try:
+            from .factory import create_summarization_provider
+
+            create_summarization_provider(cfg, provider_type_override=name)
+        except Exception as exc:  # noqa: BLE001 — any construction failure disqualifies the tier
+            broken.append((name, str(exc) or exc.__class__.__name__))
+    return broken
+
+
+def log_fallback_chain_preflight(
+    cfg: config.Config,
+    primary_name: Optional[str] = None,
+    *,
+    stage: str = "summary",
+) -> List[Tuple[str, Optional[str]]]:
+    """Run the pre-flight and say so LOUDLY, at startup, once. Returns the broken tiers.
+
+    Warns rather than exits. A ladder is a safety net: an unbuildable one means the run has no
+    protection, which is bad — but a run that would otherwise succeed on its primary should not
+    be blocked by it. That is the opposite trade-off from ffmpeg (#26), where the missing
+    component breaks every episode outright rather than removing a contingency.
+    """
+    broken = preflight_fallback_chain(cfg, primary_name)
+    if not broken:
+        return broken
+    for name, error in broken:
+        logger.warning(
+            "FAILOVER LADDER BROKEN [%s]: tier '%s' is declared but CANNOT BE BUILT (%s). "
+            "If the primary fails, this tier will recover nothing — the run is unprotected. "
+            "Fix the credential/config now, not during an outage.",
+            stage,
+            name,
+            error,
+        )
+    return broken
 
 
 def wrap_with_fallback_if_configured(
