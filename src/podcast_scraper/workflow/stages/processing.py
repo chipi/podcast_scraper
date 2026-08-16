@@ -110,6 +110,7 @@ from ...speaker_detectors.hosts import (
     detect_hosts_from_feed,
     hosts_from_feed_statement,
     is_network_or_org_author,
+    normalize_host_names,
 )
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
@@ -460,16 +461,12 @@ def _sanitize_detected_hosts(names: set[str]) -> set[str]:
 
     Same conservative contract as ``split_author_names``: an over-eager split degrades to "no
     host", which is the safe direction (#876), never to an invented person.
-    """
-    from ...speaker_detectors.hosts import is_network_or_org_author, split_author_names
 
-    out: set[str] = set()
-    for raw in names or set():
-        for candidate in split_author_names(str(raw or "")):
-            candidate = candidate.strip()
-            if not candidate or is_network_or_org_author(candidate):
-                continue
-            out.add(candidate)
+    The rule itself now lives in :func:`~podcast_scraper.speaker_detectors.hosts.
+    normalize_host_names`, shared with the episode-authors and config paths — fixing it here
+    only, as the first attempt did, left the path that actually fired on a16z untouched.
+    """
+    out = normalize_host_names(names or set())
     if out != set(names or set()):
         logger.info(
             "host detection: provider names %s normalised to %s (split + org-filtered)",
@@ -572,12 +569,13 @@ def _fallback_to_episode_authors(
     # Check first 3 episodes for episode-level authors
     for episode in episodes[:3]:
         episode_author_list = rss_parser.extract_episode_authors(episode.item)
-        for author in episode_author_list:
-            # Use the shared network/org predicate (audit F5) rather than a weaker inline
-            # all-caps/short heuristic — the caller re-filters with this same predicate, so this
-            # only removes a redundant, laxer duplicate.
-            if not is_network_or_org_author(author.strip()):
-                episode_authors.add(author)
+        # normalize_host_names both SPLITS multi-person tags and applies the shared network/org
+        # predicate. Filtering for orgs alone (what this did before) let *The a16z Show*'s
+        # ``<itunes:author>Erik Torenberg, Ben Horowitz, Travis Kalanick</itunes:author>``
+        # through whole — is_network_or_org_author returns False for it, since a three-person
+        # string is neither a mononym nor org-marked — and this is the path that fired on the
+        # acceptance run (#1652).
+        episode_authors |= normalize_host_names(episode_author_list)
 
     return episode_authors
 
@@ -587,6 +585,7 @@ def _log_detected_hosts(
     feed: RssFeed,  # type: ignore[valid-type]
     episode_authors: set[str],
     cfg: config.Config,
+    source: Optional[str] = None,
 ) -> None:
     """Log detected hosts with their source.
 
@@ -595,24 +594,49 @@ def _log_detected_hosts(
         feed: Parsed RssFeed object
         episode_authors: Set of episode-level authors
         cfg: Configuration object
+        source: The branch that actually produced ``cached_hosts``. The caller knows this for
+            certain; when omitted it is inferred, which is strictly a guess (see
+            :func:`_infer_host_source`).
     """
     if not cached_hosts:
-        if cfg.auto_speakers:
+        if getattr(cfg, "auto_speakers", False):
             logger.debug(
                 "No hosts detected from feed metadata, episode-level authors, or config known_hosts"
             )
         return
 
-    # Determine source for logging
-    if feed.authors:
-        source = "RSS author tags"
-    elif episode_authors and cached_hosts == episode_authors:
-        source = "episode-level authors"
-    elif cfg.known_hosts and cached_hosts == set(cfg.known_hosts):
-        source = "config known_hosts (fallback)"
-    else:
-        source = "feed metadata (NER)"
+    if source is None:
+        source = _infer_host_source(cached_hosts, feed, episode_authors, cfg)
     logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+
+
+def _infer_host_source(
+    cached_hosts: set[str],
+    feed: RssFeed,  # type: ignore[valid-type]
+    episode_authors: set[str],
+    cfg: config.Config,
+) -> str:
+    """Best-effort guess at which branch produced ``cached_hosts``.
+
+    Only for callers that cannot say. ``detect_feed_hosts_and_patterns`` passes ``source``
+    explicitly, because inference here got it wrong in the way that costs debugging time:
+    a non-empty ``feed.authors`` does NOT mean the hosts came from it — on an org-authored feed
+    those tags are stripped as publisher metadata and the names arrive from the episode-authors
+    fallback. Testing ``feed.authors`` first labelled exactly that case "RSS author tags", which
+    aimed the a16z composite investigation at the wrong path for a full cycle (#1652).
+
+    So: check the specific sources against what was actually produced, and only then fall back.
+    """
+    known = list(getattr(cfg, "known_hosts", None) or [])
+    if episode_authors and cached_hosts == episode_authors:
+        return "episode-level authors"
+    # Both spellings: ``cached_hosts`` holds NORMALISED names, so a config entry that needed
+    # splitting no longer equals its raw form — comparing only raw would mislabel it.
+    if known and cached_hosts in (set(known), normalize_host_names(known)):
+        return "config known_hosts (fallback)"
+    if feed.authors:
+        return "RSS author tags"
+    return "feed metadata (NER)"
 
 
 def detect_feed_hosts_and_patterns(
@@ -662,7 +686,10 @@ def detect_feed_hosts_and_patterns(
 
     # Priority: Use known_hosts from config if provided (show-level override)
     if cfg.known_hosts:
-        known_hosts_set = set(cfg.known_hosts)
+        # Operator-supplied, but not exempt: a composite entry ("A, B and C") in a show config
+        # is just as unmatchable against a diarized voice as one from a feed, and would mint the
+        # same fake Person. Normalising here keeps every seeding path on one rule (#1652).
+        known_hosts_set = normalize_host_names(cfg.known_hosts)
         logger.info(
             "Using known_hosts from config: %s",
             ", ".join(sorted(known_hosts_set)),
@@ -682,6 +709,11 @@ def detect_feed_hosts_and_patterns(
         feed_hosts, feed, episodes, speaker_detector, pipeline_metrics
     )
 
+    # Track which branch actually produced the hosts, rather than re-deriving it later from
+    # circumstantial evidence — that inference is what mislabelled a16z's episode-author hosts
+    # as "RSS author tags" (#1652).
+    host_source: Optional[str] = None
+
     # Fallback to episode-level authors if no feed-level hosts found (Issue #380)
     episode_authors: set[str] = set()
     if not cached_hosts:
@@ -692,6 +724,7 @@ def detect_feed_hosts_and_patterns(
         }
         if episode_authors:
             cached_hosts = episode_authors
+            host_source = "episode-level authors"
             logger.info(
                 "DETECTED HOSTS (from episode-level authors): %s",
                 ", ".join(sorted(cached_hosts)),
@@ -699,14 +732,15 @@ def detect_feed_hosts_and_patterns(
 
     # Fallback to known_hosts from config if no hosts detected (show-level override)
     if not cached_hosts and cfg.known_hosts:
-        cached_hosts = set(cfg.known_hosts)
+        cached_hosts = normalize_host_names(cfg.known_hosts)
+        host_source = "config known_hosts (fallback)"
         logger.info(
             "DETECTED HOSTS (from config known_hosts fallback): %s",
             ", ".join(sorted(cached_hosts)),
         )
 
     # Log detected hosts with their source
-    _log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
+    _log_detected_hosts(cached_hosts, feed, episode_authors, cfg, source=host_source)
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:
@@ -1005,7 +1039,12 @@ def _detect_speakers_for_episode(
         )
         return None
     cached_hosts = host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
-    combined_hosts = set(cfg.known_hosts) | cached_hosts if cfg.known_hosts else cached_hosts
+    # Per-episode seeding — a FIFTH path into known_hosts, found by the structural test rather
+    # than by reading, and the reason that test exists. An un-normalised composite here reaches
+    # the detector as the roster for every episode, which is where the fake Person is minted.
+    combined_hosts = (
+        normalize_host_names(cfg.known_hosts) | cached_hosts if cfg.known_hosts else cached_hosts
+    )
     import inspect
 
     sig = inspect.signature(speaker_detector.detect_speakers)

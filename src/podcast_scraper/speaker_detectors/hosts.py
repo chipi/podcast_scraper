@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from .entities import extract_person_entities as _extract_person_entities_direct
 
@@ -186,6 +186,45 @@ def split_author_names(author: str) -> list[str]:
             continue
         merged.append(part)
     return merged
+
+
+def normalize_host_names(names: Iterable[str]) -> Set[str]:
+    """The single gate every host-name source must pass through (#1652).
+
+    Four independent code paths can seed ``known_hosts`` — the deterministic feed parse, the
+    LLM provider's ``detect_hosts``, episode-level ``<itunes:author>`` tags, and config
+    ``known_hosts``. Each one had grown its own idea of cleaning, and the two that had none
+    were the two that shipped a composite into the corpus:
+
+    - the provider path returned ``"Erik Torenberg, Ben Horowitz, Travis Kalanick"`` as one
+      string on *The a16z Show*;
+    - the episode-authors fallback returned the same composite from ``<itunes:author>`` — and
+      that is the path that actually fired on the acceptance run, which a fix applied only to
+      the provider path did not touch.
+
+    A composite is worse than no host at all: the roster compares per name, so it can never
+    match a diarized voice (silently disabling the anchor) while still minting a ``Person``
+    node for a human who does not exist. Centralising the rule is the point — a fifth seeding
+    path added later cannot forget to call something it has to go through anyway.
+
+    Conservative in the same direction as :func:`split_author_names`: an over-eager split
+    degrades to "no host" (#876), never to an invented person.
+    """
+    out: Set[str] = set()
+    for raw in names or ():
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        # "Jane Roe <jane@example.com>" — the feed-author path stripped the address, the other
+        # paths did not, so the same person arrived under two different spellings.
+        if "<" in text and ">" in text:
+            text = text.split("<")[0].strip()
+        for candidate in split_author_names(text):
+            candidate = candidate.strip()
+            if not candidate or is_network_or_org_author(candidate):
+                continue
+            out.add(candidate)
+    return out
 
 
 def looks_like_publisher(name: str) -> bool:
