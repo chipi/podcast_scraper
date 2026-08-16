@@ -408,3 +408,58 @@ describe('position persistence', () => {
     vi.useRealTimers()
   })
 })
+
+describe('a refused play() is recorded, not dropped', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  /** onEnded and the play() catch are both async — let their microtasks drain. */
+  const settle = async () => {
+    for (let i = 0; i < 4; i++) await Promise.resolve()
+  }
+
+  it('flags a dead source when auto-advance cannot play it', async () => {
+    // load() clears audioError via resetForLoad, so advancing INTO a broken episode wiped the only
+    // flag and then swallowed the play() rejection. Result: silence, with the mini-player showing
+    // the new title, paused, and nothing anywhere saying why.
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    ;(el as unknown as { play: () => Promise<void> }).play = () =>
+      Promise.reject(new DOMException('no', 'NotSupportedError'))
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' }))
+
+    el.__emit('ended')
+    await settle()
+
+    expect(p.currentSlug).toBe('ep-2')
+    expect(p.audioError).toBe(true)
+  })
+
+  it('flags a dead source when the user presses play', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    ;(el as unknown as { play: () => Promise<void> }).play = () =>
+      Promise.reject(new DOMException('no', 'NotSupportedError'))
+
+    p.toggle()
+    await settle()
+
+    expect(p.audioError).toBe(true)
+  })
+
+  it('does NOT flag the autoplay policy — that is a gesture request, not a broken episode', async () => {
+    // Telling someone their audio is unavailable when the browser is merely asking for a tap would
+    // be a lie, and one that survives until the next load().
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    ;(el as unknown as { play: () => Promise<void> }).play = () =>
+      Promise.reject(new DOMException('gesture required', 'NotAllowedError'))
+
+    p.toggle()
+    await settle()
+
+    expect(p.audioError).toBe(false)
+  })
+})

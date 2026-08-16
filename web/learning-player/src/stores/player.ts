@@ -176,7 +176,27 @@ export const usePlayerStore = defineStore('player', () => {
     const next = await advanceResolvers.next?.()
     if (!next) return
     load(next)
-    void el.value?.play()
+    play()
+  }
+
+  /**
+   * Start playback, recording a refusal instead of dropping it.
+   *
+   * `el.play()` returns a promise that REJECTS on a dead source, and both call sites used to
+   * `void` it. Auto-advancing into a broken episode therefore produced silence with a mini-player
+   * showing the new title, paused, and no explanation anywhere; pressing play on a dead source did
+   * nothing, repeatably, with no feedback. The element's `error` event does not reliably cover
+   * this — a rejected play() is its own signal.
+   *
+   * NotAllowedError is excluded: that is the browser's autoplay policy asking for a gesture, not a
+   * broken episode, and flagging it would tell the user their audio is unavailable when it is fine.
+   */
+  function play(): void {
+    el.value?.play().catch((err: unknown) => {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') return
+      audioError.value = true
+      void stopBackgroundAudio()
+    })
   }
   /** The app shell supplies this; the store must not import the queue or the API itself. */
   function setAdvanceResolver(fn: (() => Promise<NextUp | null>) | undefined): void {
@@ -245,7 +265,7 @@ export const usePlayerStore = defineStore('player', () => {
   function toggle(): void {
     const e = el.value
     if (!e) return
-    if (e.paused) void e.play()
+    if (e.paused) play()
     else e.pause()
   }
   function seek(to: number): void {

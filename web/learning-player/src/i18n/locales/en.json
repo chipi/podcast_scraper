@@ -201,6 +201,7 @@
     "grounded": "Grounded",
     "audioUnavailable": "Audio isn’t available for this episode yet.",
     "audioError": "Couldn’t load the audio from the source. Try again later.",
+    "audioErrorShort": "Audio unavailable",
     "transcriptPending": "Transcript pending — audio still plays.",
     "showTranscript": "Show transcript",
     "hideTranscript": "Hide transcript",
