@@ -46,7 +46,11 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
-from podcast_scraper.server.app_discover_view import _episode_features, rank_discover
+from podcast_scraper.server.app_discover_view import (
+    _episode_features,
+    build_discover_pool,
+    rank_discover,
+)
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
@@ -172,4 +176,60 @@ class TestPickerOffersARealChoice:
         assert distinct > 1, (
             f"all {len(offered)} picker options produce the SAME feed — the choice is decorative. "
             f"Options: {offered}"
+        )
+
+
+class TestPoolPolicyIsExplicit:
+    """The candidate window is a product policy, so it is asserted rather than left implicit.
+
+    /discover ranks only the newest `4 * limit` episodes (build_discover_pool). An episode outside
+    that window cannot be surfaced however well it matches, so at corpus scale discovery is "the
+    newest N, re-ranked" — not "the best match in the corpus".
+
+    This matters because the offline eval used to rank the FULL catalog while the route ranked the
+    window, so the eval scored a system production never runs. Both now call build_discover_pool.
+    On this 36-episode fixture the two coincide (4*10 >= 36), which is exactly why nothing noticed;
+    these tests use a small limit to force the divergence the fixture otherwise hides.
+    """
+
+    def test_pool_is_bounded_to_four_times_the_limit(self, rows) -> None:
+        assert len(build_discover_pool(rows, limit=2)) == 8
+        assert len(build_discover_pool(rows, limit=1)) == 4
+        # Never smaller than the page itself, even if the multiple would round below it.
+        assert len(build_discover_pool(rows[:3], limit=5)) == 3
+
+    def test_a_strong_match_outside_the_window_is_not_surfaced(self, rows) -> None:
+        """Documents the cost of the bound, with a real interest and a real corpus."""
+        topic = "topic:personal-finance"
+        full = [s.slug for s in rank_discover(CORPUS, [topic], rows, limit=3)]
+        assert full, "expected the unbounded ranking to surface something"
+        assert all(s.startswith("p05") for s in full), full
+
+        # The same interest, but only the newest 4*1 episodes are candidates.
+        pool = build_discover_pool(rows, limit=1)
+        bounded = [s.slug for s in rank_discover(CORPUS, [topic], pool, limit=1)]
+        pool_slugs = {slug_for_row(r) for r in pool}
+
+        if not any(s.startswith("p05") for s in pool_slugs):
+            assert not any(s.startswith("p05") for s in bounded), (
+                "a p05 episode was surfaced from a pool that contains none — the pool bound is "
+                "not being applied"
+            )
+        else:
+            # The fixture happens to carry a matching episode in the window; the bound still holds.
+            assert set(bounded) <= pool_slugs
+
+    def test_route_and_eval_share_one_pool_policy(self) -> None:
+        """Guards the specific drift that made the eval reassuring about the wrong thing."""
+        import inspect
+
+        from podcast_scraper.server.routes import app_discover as route_mod
+        from scripts.eval.score import rank_discover_v1 as eval_mod
+
+        route_src = inspect.getsource(route_mod.discover)
+        eval_src = inspect.getsource(eval_mod._score_user)
+        assert "build_discover_pool" in route_src, "the route stopped using the shared pool policy"
+        assert "build_discover_pool" in eval_src, (
+            "the eval stopped using the shared pool policy — it is again scoring a system "
+            "production does not run"
         )

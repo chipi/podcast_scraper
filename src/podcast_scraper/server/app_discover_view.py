@@ -126,6 +126,31 @@ def _episode_features(
     return clusters, topic_ids, {p.id for p in persons}
 
 
+#: How many candidates enter ranking, as a multiple of the requested page size.
+DISCOVER_POOL_MULTIPLE = 4
+
+
+def build_discover_pool(
+    rows: Sequence[CatalogEpisodeRow], *, limit: int
+) -> Sequence[CatalogEpisodeRow]:
+    """The candidate set ``rank_discover`` scores: the newest ``4 * limit`` episodes.
+
+    Ranking is not free — ``_episode_features`` loads one KG artifact per candidate — so the pool
+    is bounded. That bound is a REAL PRODUCT POLICY, not an implementation detail: an episode
+    outside the window cannot be surfaced however well it matches, so at corpus scale discovery is
+    "the newest N, re-ranked" rather than "the best match in the corpus".
+
+    It lives here rather than inline in the route because the offline eval ranked the FULL catalog
+    while the route ranked this slice — so the eval scored a system production never runs. On a
+    36-episode fixture ``4 * 10 >= 36`` and the two coincide by accident; at scale they diverge,
+    and a niche interest matching a handful of older episodes would match none of the newest 40
+    while telemetry still recorded the feed as ``personalized``.
+
+    Callers must share this function, so that whatever the policy is, the eval measures it.
+    """
+    return rows[: max(limit * DISCOVER_POOL_MULTIPLE, limit)]
+
+
 def rank_discover(
     root: Path,
     interests: Iterable[str],

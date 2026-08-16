@@ -42,7 +42,7 @@ from pathlib import Path
 
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_content_source import build_catalog_rows_cumulative
-from podcast_scraper.server.app_discover_view import rank_discover
+from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import derive_interests
 
@@ -125,8 +125,15 @@ def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k
         data_dir = Path(td)
         uid = _seed_user_state(data_dir, user, label_to_slug)
         interests = _interests_for(corpus, data_dir, uid)
-        personalized = rank_discover(corpus, interests, rows, limit=k)
-        recency = rank_discover(corpus, [], rows, limit=k)
+        # Score the pool the ROUTE builds, not the whole catalog. Ranking every row measured a
+        # system production never runs: /discover bounds its candidates to the newest 4*limit
+        # episodes before ranking, so an episode outside that window cannot be surfaced however
+        # well it matches. On this 36-episode corpus the two coincide (4*10 >= 36), which is
+        # exactly why the divergence went unnoticed — at scale this eval would have kept reporting
+        # a healthy uplift for a feed that had quietly stopped personalising.
+        pool = build_discover_pool(rows, limit=k)
+        personalized = rank_discover(corpus, interests, pool, limit=k)
+        recency = rank_discover(corpus, [], pool, limit=k)
     p_shows = [_show_of(s.slug) for s in personalized]
     r_shows = [_show_of(s.slug) for s in recency]
     row = {

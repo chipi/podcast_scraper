@@ -22,7 +22,7 @@ from podcast_scraper.server import (
     app_user_state,
 )
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_discover_view import rank_discover
+from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
 from podcast_scraper.server.app_momentum import MomentumConfig, resolve_as_of_week, trending
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
@@ -154,7 +154,9 @@ def discover(
     )
     rows = build_catalog_rows_cumulative(root)
     rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)
-    pool = rows[: max(limit * 4, limit)]
+    # Shared with the offline eval — see build_discover_pool. Inlining the slice here is what let
+    # the eval score the full catalog while production scored this window.
+    pool = build_discover_pool(rows, limit=limit)
     items = rank_discover(root, interests, pool, limit=limit, config=config)
 
     # #11 telemetry: log what the feed showed (slugs in rank order) + the effective variant, so
