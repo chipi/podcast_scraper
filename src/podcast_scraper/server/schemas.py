@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class TranscriptSegment(BaseModel):
@@ -562,6 +562,22 @@ class HighlightCreate(BaseModel):
         default=None, description="GIL insight id (insight kind)."
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
+
+    @model_validator(mode="after")
+    def _window_must_not_be_inverted(self) -> "HighlightCreate":
+        """``end_ms >= start_ms`` (#34.8). Each field was bounded alone; the PAIR was not.
+
+        An inverted window makes the re-anchor overlap test near-vacuous — the span matches no
+        segment, or matches by accident — and the highlight then re-anchors to nothing while
+        reporting success. Rejecting it at the edge is cheaper than reasoning about what an
+        end-before-start span means at every consumer.
+        """
+        if self.start_ms is not None and self.end_ms is not None and self.end_ms < self.start_ms:
+            raise ValueError(
+                f"end_ms ({self.end_ms}) must be >= start_ms ({self.start_ms}); "
+                "an inverted window cannot anchor to anything"
+            )
+        return self
 
 
 class HighlightUpdate(BaseModel):

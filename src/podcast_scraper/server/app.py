@@ -396,12 +396,20 @@ async def _stop_queue_sweeper_guarded(task: "asyncio.Task | None") -> None:
 
 
 def _json_safe(value: Any) -> Any:
-    """Recursively replace non-finite floats with their repr so the value can be serialised.
+    """Recursively coerce a validation-error payload into something that can be serialised.
 
     ``inf`` / ``-inf`` / ``nan`` are Python floats with no JSON spelling (RFC 8259 has no literal
     for them), and Starlette renders with ``allow_nan=False``. Anywhere one reaches a response body
     it does not produce a wrong number — it produces a ``ValueError`` and a 500. Used on the
     validation-error path, where the offending value is echoed back to the caller by design.
+
+    Non-JSON OBJECTS get the same treatment, and for the same reason. Pydantic puts the raised
+    exception itself into an error's ``ctx`` (``{'error': ValueError(...)}``) whenever a
+    ``model_validator`` rejects a body, so the moment this codebase gained its first cross-field
+    validator (#34.8) the 422 handler started raising while REPORTING a 422 — rejecting the input
+    correctly, then 500ing on the way out. Exactly the failure this function was written for, one
+    type further along: the previous version only knew about floats and passed everything else
+    through untouched.
     """
     if isinstance(value, float) and not math.isfinite(value):
         return repr(value)  # 'inf' / '-inf' / 'nan' — legible, and a string always serialises
@@ -409,7 +417,11 @@ def _json_safe(value: Any) -> Any:
         return {k: _json_safe(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [_json_safe(v) for v in value]
-    return value
+    if isinstance(value, (str, int, bool, type(None))):
+        return value
+    if isinstance(value, float):
+        return value
+    return str(value)  # exceptions, enums, dataclasses — legible beats unserialisable
 
 
 def _install_cors(app: FastAPI) -> None:

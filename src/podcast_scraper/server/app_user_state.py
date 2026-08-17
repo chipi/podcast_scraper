@@ -548,7 +548,19 @@ def reanchor_highlight(highlight: dict[str, Any], segments: list[dict[str, Any]]
 
     A highlight is NEVER dropped. Unresolvable → ``anchor_status="drifted"`` with the stored
     positional fields left untouched, so a later re-anchor can recover it if the text returns.
-    ``insight`` highlights are anchored by ``source_insight_id`` rather than time and pass through.
+    ``insight`` highlights are anchored by ``source_insight_id`` rather than time and pass through,
+    so they receive no ``anchor_status`` at all — a GI re-run that retires an insight leaves the id
+    dangling and nothing flags it.
+
+    That is a deliberate gap, and VERIFIED as low-consequence rather than assumed (#34.7): the only
+    consumers of ``source_insight_id`` are the client's save TOGGLE — ``savedInsightIds`` and the
+    lookup that finds an existing highlight for an insight (``stores/capture.ts``). Nothing renders
+    content through the id, because the quote is stored on the highlight at capture. So a dangling
+    id degrades a toggle (the insight stops showing as already-saved); it never loses the capture.
+
+    Revisit if any surface ever dereferences the id to READ the insight — at that point a stale id
+    becomes a blank or wrong render, and these highlights need a status like the others.
+
     Returns a NEW dict; the input is not mutated.
     """
     result = dict(highlight)

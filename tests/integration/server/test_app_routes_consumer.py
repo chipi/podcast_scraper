@@ -1024,3 +1024,63 @@ def test_a_capture_with_no_graph_appears_on_NONE_of_them(tmp_path: Path) -> None
 
     # It is withheld, not deleted — the capture is still the user's, and still listed as a highlight.
     assert created["id"] in [h["id"] for h in client.get("/api/app/highlights").json()["items"]]
+
+
+def test_an_inverted_window_is_rejected_at_the_edge(tmp_path: Path) -> None:
+    """`end_ms >= start_ms` (#34.8). Each field was bounded alone; the PAIR was not.
+
+    An inverted window makes the re-anchor overlap test near-vacuous — the span matches no segment,
+    or matches by accident — and the highlight then re-anchors to nothing while reporting success.
+    `reanchor_highlight` swaps lo/hi defensively, but a value that cannot mean anything should not
+    reach storage in the first place: rejecting at the edge beats reasoning about it at every
+    consumer downstream.
+    """
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
+    bad = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 9000, "end_ms": 1000},
+    )
+    assert bad.status_code == 422, bad.text
+    assert "end_ms" in bad.text and "start_ms" in bad.text
+
+    # The well-formed neighbours still work, so the guard gates rather than blocks.
+    for payload in (
+        {"episode_slug": slug, "kind": "span", "start_ms": 1000, "end_ms": 9000},
+        {"episode_slug": slug, "kind": "moment", "start_ms": 5000},
+        # A zero-length window is not inverted — a span that starts and ends together is legal.
+        {"episode_slug": slug, "kind": "span", "start_ms": 5000, "end_ms": 5000},
+    ):
+        ok = client.post("/api/app/highlights", json=payload)
+        assert ok.status_code in (200, 201), (payload, ok.text)
+
+
+def test_a_cross_field_rejection_renders_its_own_422(tmp_path: Path) -> None:
+    """The 422 handler must survive the error shapes a model_validator produces.
+
+    Pydantic puts the raised exception ITSELF into an error's ``ctx``
+    (``{'error': ValueError(...)}``), which no JSON encoder can render. The handler added for
+    `Infinity` (#46) knew about non-finite floats and passed every other object through untouched —
+    so the moment this codebase gained its first cross-field validator, the 422 path started
+    raising while reporting a 422: input rejected correctly, then 500 on the way out.
+
+    Found by adding the validator, not by reading the handler. The same shape of bug as the one the
+    handler was written for, one type further along.
+    """
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    resp = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": _real_slug(tmp_path),
+            "kind": "span",
+            "start_ms": 9000,
+            "end_ms": 1000,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    body = resp.json()  # must PARSE — the point is that the report itself is renderable
+    assert isinstance(body["detail"], list) and body["detail"], body
+    # The offending context survived as text rather than exploding the encoder.
+    assert "end_ms" in resp.text
