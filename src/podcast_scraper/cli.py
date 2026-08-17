@@ -694,6 +694,20 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--reprocess-episode-ids",
+        default=None,
+        metavar="PATH",
+        dest="reprocess_episode_ids_file",
+        help=(
+            "Scoped reprocess by EXPLICIT list (#32): a file of episode_ids/guids, one per line "
+            "(blank lines and #-comments ignored), forced back through download+transcribe and "
+            "the GI/KG cascade even under --skip-existing. Use when the episodes needing repair "
+            "cannot be named by transcript_source — e.g. the #18 unpreprocessed-audio set, where "
+            "damaged and healthy episodes share the same source. Produce the list with "
+            "`make corpus-preprocessing-audit`."
+        ),
+    )
+    parser.add_argument(
         "--reprocess-existing-only",
         action="store_true",
         dest="reprocess_existing_only",
@@ -3968,6 +3982,9 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "multi_feed_strict": getattr(args, "multi_feed_strict", False),
         "skip_existing": args.skip_existing,
         "reprocess_source": getattr(args, "reprocess_source", None),
+        "reprocess_episode_ids": _load_reprocess_episode_ids(
+            getattr(args, "reprocess_episode_ids_file", None)
+        ),
         "reprocess_existing_only": getattr(args, "reprocess_existing_only", False),
         "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
@@ -4648,6 +4665,30 @@ def _validate_python_version() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+def _load_reprocess_episode_ids(path: Optional[str]) -> List[str]:
+    """Read a repair work-list: one episode_id/guid per line, ``#`` comments and blanks ignored.
+
+    Fails LOUDLY on a missing or empty file. A silently-empty list would turn a targeted repair
+    into a no-op run that reports success — the same shape as the bugs this whole epic is about.
+    """
+    if not path:
+        return []
+    p = Path(path).expanduser()
+    if not p.is_file():
+        raise SystemExit(f"--reprocess-episode-ids: no such file: {p}")
+    ids: List[str] = []
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            ids.append(line)
+    if not ids:
+        raise SystemExit(
+            f"--reprocess-episode-ids: {p} contains no episode ids — refusing to run a repair "
+            "that would silently select nothing"
+        )
+    return ids
 
 
 def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:

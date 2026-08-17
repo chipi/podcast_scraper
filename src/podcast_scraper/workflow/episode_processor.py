@@ -10,7 +10,7 @@ import queue
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -3079,15 +3079,62 @@ def _force_reprocess_for_source(
     run_suffix: Optional[str],
     cfg: config.Config,
 ) -> bool:
-    """#925: True when ``--reprocess-source`` is set and this episode's existing
-    ``transcript_source`` matches it -- force re-transcription (which re-runs
-    diarization under the profile and cascades GI/KG/CIL), overriding
-    ``--skip-existing`` for this episode only."""
+    """True when this episode must be forced back through download+transcribe, overriding
+    ``--skip-existing`` for it alone (re-runs diarization under the profile and cascades
+    GI/KG/CIL).
+
+    TWO selection modes, checked in order:
+
+    1. ``--reprocess-episode-ids`` (#32) — an EXPLICIT list. Needed because the damage that
+       motivates a re-transcription is usually not expressible as a transcript_source. Measured
+       2026-08-17: every episode in a corpus carrying #18 damage had
+       ``transcript_source: whisper_transcription`` — and so did every HEALTHY one. Selecting by
+       source there would re-transcribe 6 healthy episodes to reach 9 damaged ones. A detector
+       that can only produce a list needs a selector that can consume one.
+    2. ``--reprocess-source`` (#925) — matches the recorded ``transcript_source``. Right tool
+       when the whole class needs redoing (e.g. re-diarizing every whisper-sourced episode).
+    """
+    wanted_ids = getattr(cfg, "reprocess_episode_ids", None) or ()
+    if wanted_ids:
+        for candidate in _episode_identity_candidates(episode, effective_output_dir, cfg):
+            if candidate in wanted_ids:
+                return True
+
     target = getattr(cfg, "reprocess_source", None)
     if not target:
         return False
     existing = _episode_existing_transcript_source(episode, effective_output_dir, run_suffix, cfg)
     return bool(existing == target)
+
+
+def _episode_identity_candidates(
+    episode: Episode,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    cfg: config.Config,
+) -> Set[str]:
+    """Every id this episode could legitimately be named by in a work-list.
+
+    Detectors emit whatever the artifact carries — ``episode_id`` from the metadata, or the RSS
+    ``guid``. Matching on only one of them makes an operator's list silently miss episodes, which
+    for a repair work-list is the worst possible failure: it looks like the episode was already
+    fine.
+    """
+    out: Set[str] = set()
+    for attr in ("episode_id", "guid"):
+        value = getattr(episode, attr, None)
+        if isinstance(value, str) and value.strip():
+            out.add(value.strip())
+
+    from . import run_index
+
+    guid = run_index._episode_guid(episode)
+    if guid:
+        out.add(guid)
+        if cfg.output_dir:
+            entry = run_index.corpus_metadata_index(str(cfg.output_dir))["by_guid"].get(guid)
+            if entry is not None and entry.episode_id:
+                out.add(str(entry.episode_id))
+    return out
 
 
 def _check_existing_transcript(

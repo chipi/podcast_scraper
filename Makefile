@@ -4175,3 +4175,10 @@ delete-drill-hetzner-orphans:
 corpus-preprocessing-audit:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# Emit the #18 repair work-list: the episode_ids to feed --reprocess-episode-ids. Writes
+# <corpus>/preprocessing_repair_worklist.txt (override with WORKLIST=). Re-transcription costs
+# real money — read the list before running it. CORPUS_DIR required.
+corpus-preprocessing-worklist:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; d = Path('$${WORKLIST:-$${CORPUS_DIR}/preprocessing_repair_worklist.txt}'); n = write_work_list(Path('$${CORPUS_DIR}').expanduser(), d); print(f'{n} episode(s) written to {d}')"

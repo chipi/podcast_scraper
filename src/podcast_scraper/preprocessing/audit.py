@@ -128,6 +128,36 @@ def assess_preprocessing(corpus_root: Path) -> List[RunPreprocessing]:
     return runs
 
 
+def damaged_episode_ids(corpus_root: Path) -> List[str]:
+    """The work-list: episode_ids to feed ``--reprocess-episode-ids``.
+
+    Includes episodes from AMBIGUOUS runs (several episodes, one run-level metric). That is
+    deliberate: the run demonstrably transcribed from raw audio and the metric cannot say which
+    episode, so treating every episode in it as suspect over-repairs rather than under-repairs.
+    Re-transcribing a healthy episode wastes money; skipping a damaged one leaves the corpus
+    wrong, and nothing downstream would ever reveal it.
+    """
+    out: List[str] = []
+    for run in assess_preprocessing(corpus_root):
+        if run.damaged:
+            out.extend(run.episode_ids)
+    return sorted(set(out))
+
+
+def write_work_list(corpus_root: Path, destination: Path) -> int:
+    """Write the damaged episode_ids one per line. Returns how many were written."""
+    ids = damaged_episode_ids(corpus_root)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    header = (
+        "# Episodes transcribed from UNPREPROCESSED audio (#18/#558).\n"
+        f"# Corpus: {corpus_root}\n"
+        "# Feed to: podcast-scraper --reprocess-episode-ids <this file>\n"
+        "# This re-runs ASR (cost!) and cascades diarization/GI/KG.\n"
+    )
+    destination.write_text(header + "\n".join(ids) + ("\n" if ids else ""), encoding="utf-8")
+    return len(ids)
+
+
 def check_corpus_preprocessing(corpus_root: Path) -> Tuple[bool, str]:
     """``(ok, report)`` — ``ok`` is False when any run transcribed from unpreprocessed audio.
 

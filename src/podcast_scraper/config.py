@@ -1106,6 +1106,21 @@ class Config(BaseModel):
             "already-diarized ``direct_download`` episodes untouched. None = off."
         ),
     )
+    reprocess_episode_ids: List[str] = Field(
+        default_factory=list,
+        alias="reprocess_episode_ids",
+        description=(
+            "Scoped reprocess by EXPLICIT episode list (#32): force-reprocess exactly these "
+            "episode_ids/guids, overriding ``skip_existing`` for them. Matched against the "
+            "episode's episode_id AND its RSS guid, since detectors emit whichever the artifact "
+            "carries. Exists because the damage that motivates a re-transcription is usually "
+            "not expressible as a ``transcript_source``: every episode in a corpus carrying #18 "
+            "unpreprocessed-audio damage was ``whisper_transcription``, and so was every healthy "
+            "one, so ``reprocess_source`` would have re-transcribed 6 healthy episodes to reach "
+            "9 damaged ones. Feed it the work-list from "
+            "``make corpus-preprocessing-audit``. Empty = off."
+        ),
+    )
     reprocess_existing_only: bool = Field(
         default=False,
         alias="reprocess_existing_only",
