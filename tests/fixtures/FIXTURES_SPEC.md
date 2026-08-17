@@ -216,14 +216,20 @@ half of it that was wrong (rejecting on two-word vocabulary) is already fixed.
    corpus show topics. Whether the production prompts should use less collision-prone subjects is
    a separate call — noted in #1671, not decided here.
 
-### 9. Episode duration was hardcoded to 1800 (fixed 2026-08-16)
+### 9. Episode duration was hardcoded to 1800 (builder fixed 2026-08-17; **v3 data still wrong**)
 
 Every episode in the corpus claimed `"duration_seconds": 1800`. Real durations run from **82s**
 (`p01_e04`) to ~32 minutes — verified three ways (generated feed `00:01:22`, ffmpeg
-`00:01:22.18`, pipeline `82`). The builder now takes the pipeline's measured value.
+`00:01:22.18`, pipeline `82`).
 
-**v4 requirement:** never hardcode a measurable property of a fixture. Anything that can be read
-off the media should be.
+**This entry previously said "fixed". That was wrong, and the way it was wrong is the lesson.**
+The fix landed in `metadata.json` and nowhere else. Two other layers carry a duration and both kept
+the constant — see §13. Nobody noticed because the one layer anyone looked at was correct, and the
+build printed success either way.
+
+**v4 requirement:** never hardcode a measurable property of a fixture. Anything that can be read off
+the media should be. And when a measurable property is fixed, fix it in **every layer that carries
+it** and assert cross-layer agreement — one number, resolved once, before anything that writes it.
 
 ### 10. LLM transcript cleaning can destroy the transcript
 
@@ -322,6 +328,128 @@ deliberate fixture curation and say so in the builder, keeping the framework for
 or (b) run the framework for everything and accept an empty Storylines rail plus a timestamped
 `temporal_velocity`; or (c) grow the corpus until the real enricher finds a theme cluster on its
 own, which is the only option that makes the fixture behave like production without fabricating.
+
+### 13. The v3 fixes each landed in ONE layer, and the corpus reported itself healthy
+
+Found 2026-08-17 by a fable-5 review that counted **distinct values per field across all 36
+episodes** instead of checking that files exist. Both defects §3 and §9 record as "fixed" were fixed
+in `metadata.json` and left untouched everywhere else:
+
+| layer | field | v3 state |
+|---|---|---|
+| `*.metadata.json` | `duration_seconds` | 33 distinct / 36 ✅ |
+| `*.gi.json` Episode node | `duration_ms` | **1 distinct / 36** — all `1800000` |
+| `enrichments/*.insight_density.json` | `duration_seconds` | **1 distinct / 36** — all `1800.0` |
+| `*.metadata.json` | `summary.raw_text` | 1/36 is a greeting (`p01_e02`, §8) ✅ |
+| `*.gi.json` Insight nodes | `text` | **36/36 open with the host's greeting** |
+
+Causes, all removed from the builders on 2026-08-17:
+
+* `build_synthetic_validation_corpus.build_gi` hardcoded `duration_ms: 1800000`.
+* `_insight_density_envelope` hardcoded `duration_seconds: 1800.0`.
+* The duration was resolved **after** the GI and the sidecar were already written, so a fix applied
+  at the resolution point could not reach them. It is now resolved once, before any writer.
+* `_clean_insight_quote_excerpts` took the first 3 substantive utterances, and an episode's first
+  substantive utterance is **always** the host's welcome. Greetings and connective filler are now
+  rejected outright.
+* `_load_pipeline_outputs` dropped an episode from the map entirely when the summary quality guard
+  rejected its summary — discarding the **duration** the pipeline had measured perfectly well. That
+  is why `p01_e02` records 1800s against 360.8s of real audio, the only episode in the corpus that
+  disagrees with its own file. Summary quality and duration measurement are independent facts and
+  are now independent in code.
+
+**How much of this actually matters — measured 2026-08-17, not assumed. Do not re-litigate without
+re-measuring.**
+
+* **The 36 greeting Insights are the only class with user-visible weight.** Insights are the
+  KnowledgePanel content, the "Insight now" card, and 124 indexed search documents. Nothing breaks;
+  every insight surface in the fixture is simply exercised with the host saying hello, so a test
+  asserting "insights render" proves the plumbing and nothing about the surface.
+* **The duration disagreements are inert today.** Nothing under `src/podcast_scraper/server/` or
+  `web/learning-player/src/` reads `duration_ms` at all — its only readers are the GI pipeline's
+  `position_hint` waterfall (step 1) and a migration, and in this fixture `position_hint` is
+  authored directly by the builder, so that waterfall never runs. The density sidecar's `1800.0` is
+  equally unreachable: the route exposes only an availability flag, and the player's density strip
+  computes `pct` from the audio element's real duration. They are a landmine for anything that
+  starts reading them, not a live fault.
+
+**v4 requirement:** assert **content**, not file existence. `_audit_built_corpus()` in
+`build_app_validation_corpus.py` now runs at the end of every build and returns non-zero: durations
+must vary and agree across layers, no summary may be a greeting or a title restatement, no Insight
+or Quote may be a greeting either, and an empty corpus is a failure rather than a pass. The greeting
+rule is ONE function (`is_greeting_or_filler`) shared by the builder and the audit, deliberately —
+the summary version of this bug survived because the rule that filtered and the rule that checked
+were never the same rule.
+
+Run against the committed v3 corpus the audit reports **72 problems**: 36 greeting Insights, 35
+cross-layer duration disagreements, 1 greeting summary. **v3 is NOT being regenerated to clear
+them** (decision 2026-08-17): the builder can no longer produce them, and v4 will start clean.
+
+### 14. Uniformity nobody measured — the fixture cannot discriminate
+
+Same review, same method: count distinct values where 36 episodes should differ. A field with one
+distinct value across the corpus is the shape of "nothing here varies, so nothing here is tested".
+
+* **Every transcript segment is exactly 6.0s** — 1376 of 1376, one distinct value. And segment
+  timelines disagree with the audio for **35/36** episodes (`p01_e01` segments end at 372.0s; the
+  audio and metadata say 488s). Seek-to-segment against the real fixture audio lands in the wrong
+  place for every episode, so nothing consuming segment timing is exercised realistically.
+* **Every episode has the same three insight position hints** — `0.200 / 0.350 / 0.500`, from
+  `0.2 + 0.15 * (i % 5)` — so the Position Tracker timeline looks identical for all 36.
+* **KG shape is near-uniform**: `n_nodes` 2 distinct (7 ×35, 8 ×1), `n_edges` 2 distinct (6 ×35,
+  7 ×1), and a **single edge type** (`MENTIONS`) across all 217 edges.
+* **Topics are per-FEED constants, not per-episode**: 10 labels total, only 7 distinct per-episode
+  topic sets, and `lifelong learning` + `expert interviews` on **36/36**. Measured downstream
+  consequence: `topic_theme_clusters.json` has `cluster_count: 1`, so every theme surface renders
+  exactly one cluster. Same root cause as the picker degeneracy in #1669 — the ranker discriminates,
+  its input does not.
+
+**v4 requirement:** a variance floor, asserted at build time — at least one episode-specific
+(non-feed-constant) topic per episode; more than one theme cluster in the output; segment durations
+that vary, with the last `end` agreeing with the audio within tolerance; position hints derived from
+real quote times rather than from an index. **None of this is in `_audit_built_corpus()` yet.**
+
+### 15. The layers disagree about which episodes exist, and when they were published
+
+* **40 feed items vs 36 corpus episodes.** XML-only: `p02_e05`, `p05_e05`, `p06_e05`, `p06_e06` —
+  all four have audio in `tests/fixtures/audio/v3/`. Cause: `--max-episodes-per-feed` defaults to 4
+  while `build_corpus_feeds.py` lists every transcript+audio episode. The app therefore sees four
+  advertised episodes that resolve to nothing. If that is deliberate unprocessed-episode coverage,
+  no spec line or test says so. (Related to §7, which fixed the opposite direction.)
+* **Publish datetime disagrees between metadata and KG/GI in 36/36**: metadata `T00:00:00`, KG/GI
+  `T12:00:00`. Same calendar date, 12 hours apart. Cosmetic today only because the catalog truncates
+  to the date — and two writers away from a real bug.
+* **`_RUN_TAG` is `run_20260101_000000` (underscore) but `corpus_scope._RUN_TS_RE` expects the dash
+  format** (`run_%Y%m%d-%H%M%S`), so it never matches and run recency silently falls back to file
+  **mtime**. Harmless with one run per feed; any future two-run fixture would be ordered by
+  git-checkout mtimes, which differ per clone. The builder's own comment still describes a
+  lexicographic rule that no longer exists.
+
+**v4 requirement:** feed parity asserted both ways (every guid has an episode and every episode has
+a guid, or an explicit committed allowlist of intentionally-unprocessed guids); one
+`publish_datetime` per episode, byte-equal across metadata/KG/GI/search; and `_RUN_TAG` asserted to
+match `corpus_scope._RUN_TS_RE`.
+
+### 16. The build cannot fail
+
+Every path that degrades quality in `build_app_validation_corpus.py` still returns 0:
+
+* Fabricating fallbacks — `bullets or ["Key point 1..3"]`, `summary_body = raw_text or
+  episode_title`, greeting-as-summary. None reached the committed corpus (`grep -rl "Key point"
+  feeds/` finds nothing), but all three paths exist.
+* The "SYNTHESIZED STAND-IN" report prints clearly and then returns 0 regardless. A CI regeneration
+  that fell back for 20 episodes would commit cleanly.
+* `_load_pipeline_outputs` swallows malformed files, so a corrupted pipeline run degrades to
+  fallbacks rather than failing.
+* `build_corpus_feeds.py` writes `duration = "00:00:00"` when ffmpeg is unavailable — stderr warning
+  only, exit 0. A machine without ffmpeg regenerates all 40 items with a plausible zero. The
+  committed result is caught by `test_corpus_feeds.py::test_every_item_has_a_nonzero_duration` —
+  the right backstop, but the wrong layer to be relying on. Its fallback pubDate is also the source
+  of the corpus's only duplicate publish date (`p06_e05` / `p06_e06`, which lack ground-truth dates).
+
+**v4 requirement:** the build fails on degraded output. `_audit_built_corpus()` now covers the
+content half; the remaining half is failing — or requiring an explicit `--allow-fallback ep1,ep2`
+list — when `summaries_synthesized` is non-empty under `--pipeline-run`.
 
 ---
 
