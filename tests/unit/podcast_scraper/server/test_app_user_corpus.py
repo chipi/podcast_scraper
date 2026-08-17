@@ -450,3 +450,60 @@ class TestDecayDegradesSafely:
         out = dict(uc._decayed([("x", long_ago), ("y", long_ago - 90 * day)]))
         assert out["x"] == pytest.approx(1.0)
         assert out["y"] == pytest.approx(0.5)
+
+
+# --- the recency ordering itself, unstubbed (#18, found unguarded by the #70 sweep) ---------------
+#
+# Every other test in this file STUBS `_most_recently_engaged`, because they are testing what the
+# callers do with its result. That left the function's own behaviour — the thing #18 actually fixed
+# — covered by nothing: reverting it to `sorted(slugs)[:limit]` broke no test at all.
+#
+# The bug it fixes is subtle and permanent. Slugs are `{feed-slug}-{hash}`, so an alphabetical sort
+# groups by SHOW; past the 40-episode bound the profile froze on whichever shows happened to be
+# spelled first, and new listening stopped moving it. Exactly backwards for a signal whose whole
+# job is to track what someone is into lately.
+
+
+def test_most_recently_engaged_orders_by_recency_not_by_slug(tmp_path: Path) -> None:
+    from podcast_scraper.server import app_user_state
+    from podcast_scraper.server.app_user_corpus import _most_recently_engaged
+
+    uid = "u_0123456789abcdef01234567"
+    # Alphabetical order is the REVERSE of engagement order, so the two cannot be confused.
+    # 'aaa' is alphabetically first and heard longest ago; 'zzz' is last and heard most recently.
+    for slug, ts in (("aaa-ep", 1_000), ("mmm-ep", 2_000), ("zzz-ep", 3_000)):
+        app_user_state.set_playback(tmp_path, uid, slug, 10_000.0, ts)
+
+    got = _most_recently_engaged(tmp_path, uid, {"aaa-ep", "mmm-ep", "zzz-ep"}, 3)
+    assert [slug for slug, _ts in got] == ["zzz-ep", "mmm-ep", "aaa-ep"], got
+    assert [ts for _slug, ts in got] == [3_000, 2_000, 1_000], got
+
+
+def test_the_bound_keeps_the_most_RECENT_episodes(tmp_path: Path) -> None:
+    """The half that mattered in production: which episodes survive the 40-episode cap.
+
+    Under the alphabetical sort the cap kept whichever shows sorted first — so a heavy listener's
+    profile was decided by feed-id spelling and then never changed again.
+    """
+    from podcast_scraper.server import app_user_state
+    from podcast_scraper.server.app_user_corpus import _most_recently_engaged
+
+    uid = "u_0123456789abcdef01234567"
+    slugs = {f"{chr(ord('a') + i)}-ep": 1_000 + i for i in range(10)}  # 'a' oldest ... 'j' newest
+    for slug, ts in slugs.items():
+        app_user_state.set_playback(tmp_path, uid, slug, 10_000.0, ts)
+
+    kept = [slug for slug, _ts in _most_recently_engaged(tmp_path, uid, set(slugs), 3)]
+    assert kept == ["j-ep", "i-ep", "h-ep"], kept
+
+
+def test_an_episode_with_no_timestamp_sorts_last_but_stays_eligible(tmp_path: Path) -> None:
+    """A corpus without engagement metadata degrades to "some bounded subset", never to none."""
+    from podcast_scraper.server import app_user_state
+    from podcast_scraper.server.app_user_corpus import _most_recently_engaged
+
+    uid = "u_0123456789abcdef01234567"
+    app_user_state.set_playback(tmp_path, uid, "timed-ep", 10_000.0, 5_000)
+    got = _most_recently_engaged(tmp_path, uid, {"timed-ep", "untimed-ep"}, 5)
+    assert [slug for slug, _ts in got] == ["timed-ep", "untimed-ep"], got
+    assert dict(got)["untimed-ep"] == 0
