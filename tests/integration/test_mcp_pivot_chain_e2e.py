@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.integration.conftest import requires
+
 pytestmark = pytest.mark.integration
 
 _CORPUS = (
@@ -46,6 +48,7 @@ def indexed_corpus() -> Path:
     return _CORPUS
 
 
+@requires("lancedb")  # the pivot chain runs corpus search
 def test_pivot_chain_ids_flow_across_surfaces(indexed_corpus: Path) -> None:
     from podcast_scraper.mcp.context import CorpusContext
     from podcast_scraper.mcp.tools import (
@@ -127,6 +130,7 @@ def test_episode_scoped_tools_return_data(indexed_corpus: Path) -> None:
     assert digest.get("insights") and digest.get("speaker_roster") is not None
 
 
+@requires("lancedb")  # the pivot chain runs corpus search
 def test_search_operators_and_compare(indexed_corpus: Path) -> None:
     """Search result-set operators + two-subject compare — the search-heavy tools that need
     a real index (built at setup) to exercise cluster_hits / consensus / compare_subjects."""

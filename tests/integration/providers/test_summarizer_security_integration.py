@@ -19,6 +19,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from tests.integration.conftest import requires
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -74,6 +76,7 @@ def _clear_transformers_lazy_cache_attrs() -> None:
 @pytest.mark.integration
 @pytest.mark.slow
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@requires("transformers")  # asserts revision pinning / cleanup on the real HF loader
 class TestRevisionPinning(unittest.TestCase):
     """Test revision pinning functionality for security and reproducibility."""
 
@@ -388,6 +391,7 @@ class TestPruneCacheSecurity(unittest.TestCase):
 @pytest.mark.integration
 @pytest.mark.slow
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@requires("transformers")  # asserts revision pinning / cleanup on the real HF loader
 class TestMemoryCleanup(unittest.TestCase):
     """Test memory cleanup and model unloading."""
 
@@ -500,6 +504,7 @@ class TestMemoryCleanup(unittest.TestCase):
 @pytest.mark.integration
 @pytest.mark.slow
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@requires("transformers")  # asserts revision pinning / cleanup on the real HF loader
 class TestModelLoadingFailures(unittest.TestCase):
     """Test error conditions during model loading."""
 

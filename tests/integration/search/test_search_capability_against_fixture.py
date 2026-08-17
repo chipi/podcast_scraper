@@ -33,6 +33,8 @@ from podcast_scraper.search.capability import doc_types_for_tier, structured_cor
 from podcast_scraper.search.compare import compare_subjects, SubjectRef
 from podcast_scraper.search.router import QUERY_TYPES
 
+from tests.integration.conftest import requires
+
 pytestmark = pytest.mark.integration
 
 _CORPUS = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus" / "v3"
@@ -73,6 +75,7 @@ def _search(corpus: Path, query: str, **kw) -> dict:
 class TestStructuredSearchAgainstFixture:
     """Every search surface returns real data for a query that resolves in the corpus."""
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_two_tier_search_stamps_both_tiers(self, corpus: Path) -> None:
         """PRD-033 FR1.1: a ``both``-tier search returns hits from BOTH the insight tier and
         the segment tier, each stamped with its ``source_tier``."""
@@ -85,12 +88,14 @@ class TestStructuredSearchAgainstFixture:
         # every hit carries a known tier stamp (insight / segment / aux kg-surface).
         assert tiers <= {"insight", "segment", "aux"}, f"unexpected tier stamp: {tiers}"
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_insight_tier_filter_returns_only_insights(self, corpus: Path) -> None:
         out = _search(corpus, _Q, doc_types=doc_types_for_tier("insight"), top_k=10)
         res = out["results"]
         assert res, "insight-tier search returned no hits"
         assert {r["source_tier"] for r in res} == {"insight"}
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_segment_tier_filter_returns_only_segments(self, corpus: Path) -> None:
         out = _search(corpus, _Q, doc_types=doc_types_for_tier("segment"), top_k=10)
         res = out["results"]
@@ -102,6 +107,7 @@ class TestStructuredSearchAgainstFixture:
         out = _search(corpus, _Q, top_k=5)
         assert out["query_type"] in QUERY_TYPES
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_lift_stats_are_wellformed(self, corpus: Path) -> None:
         """RFC-061: a two-tier search reports chunk→insight lift stats — present + well-typed
         even when no lift fires (the synthetic corpus doesn't share GIL transcript offsets, so
@@ -113,16 +119,19 @@ class TestStructuredSearchAgainstFixture:
         assert isinstance(stats.get("lift_applied"), int)
         assert stats["transcript_hits_returned"] >= 0 and stats["lift_applied"] >= 0
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_grounded_only_filter_runs_and_returns(self, corpus: Path) -> None:
         out = _search(corpus, _Q, grounded_only=True, top_k=10)
         assert out.get("error") is None
         assert out["results"], "grounded_only search returned no hits on the synthetic corpus"
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_topic_filter_runs_and_returns(self, corpus: Path) -> None:
         out = _search(corpus, _Q2, topic="topic:systems-thinking", top_k=15)
         assert out.get("error") is None
         assert out["results"], "topic-filtered search returned no hits"
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_speaker_filter_runs_and_returns(self, corpus: Path) -> None:
         out = _search(corpus, _Q, speaker="person:maya", top_k=15)
         assert out.get("error") is None
@@ -132,6 +141,7 @@ class TestStructuredSearchAgainstFixture:
 class TestSearchOperatorsAgainstFixture:
     """The result-set operators (cluster / consensus) fold real corpus enrichments over hits."""
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_cluster_hits_forms_a_real_theme_group(self, corpus: Path) -> None:
         out = _search(corpus, _Q, top_k=20)
         hits = out["results"]
@@ -155,6 +165,7 @@ class TestSearchOperatorsAgainstFixture:
         assert p.get("insight_a_text") and p.get("insight_b_text")
 
 
+@requires("lancedb")  # searches the built LanceDB fixture index
 class TestCompareAgainstFixture:
     """Two-subject compare assembles a briefing pack per side + a judge summary."""
 

@@ -48,6 +48,29 @@ def _ensure_multi_run_corpus_fixture() -> None:
 _ensure_multi_run_corpus_fixture()
 
 
+def requires(*modules: str) -> "pytest.MarkDecorator":
+    """Skip ONE test when an optional ML/search module is not importable.
+
+    Integration tests may skip on a missing extra — unlike unit tests, where the same guard is
+    banned (U1), because a unit test must not depend on a non-``[dev]`` extra in the first place.
+
+    Applied per TEST, deliberately, never at module level. Every file that needs this also holds
+    tests that pass without the extra — ``test_e2e_server.py`` is 2 ML-dependent tests beside 26
+    that are not — so a module-level ``importorskip`` would have silenced about a hundred working
+    integration tests to quiet a dozen failures. Skipping more than the thing that is actually
+    unavailable is how a suite stops being evidence.
+
+    Inert in CI: twelve jobs install ``.[dev,ml,llm,search]``, so the modules are present and every
+    guarded test runs. It only bites on a machine that cannot install the ML stack at all — macOS
+    x86_64, where torch/torchcodec publish no wheels.
+    """
+    missing = [m for m in modules if importlib.util.find_spec(m) is None]
+    return pytest.mark.skipif(
+        bool(missing),
+        reason=f"needs the [ml]/[search] extra — not importable: {', '.join(missing)}",
+    )
+
+
 class _NoBackoffSleep:
     """Stand-in for the ``time`` module used by ``retry_with_metrics``: ``sleep`` is a no-op;
     everything else (``time()``, ``monotonic()``, …) delegates to the real module."""
