@@ -104,14 +104,54 @@ def _episode_ids_in_run(run_dir: Path) -> List[str]:
     return out
 
 
-def assess_preprocessing(corpus_root: Path) -> List[RunPreprocessing]:
-    """One record per run that wrote ``metrics.json``."""
+def _current_run_dirs(corpus_root: Path) -> Optional[set]:
+    """Run dirs that hold at least one CURRENT episode, per the corpus membership rule.
+
+    Returns ``None`` when the rule cannot be applied, so callers can fall back to scanning
+    everything and say so.
+    """
+    try:
+        from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+
+        all_meta = sorted(corpus_root.rglob("*.metadata.json"))
+        members = dedupe_metadata_paths_newest_run_per_episode(corpus_root, all_meta)
+        return {str(Path(p).parent.parent) for p in members}
+    except Exception as exc:  # noqa: BLE001 - the gate must still run without the search extra
+        logger.debug("corpus membership rule unavailable (%s); scanning all runs", exc)
+        return None
+
+
+def assess_preprocessing(
+    corpus_root: Path,
+    *,
+    current_only: bool = True,
+) -> List[RunPreprocessing]:
+    """One record per run that wrote ``metrics.json``.
+
+    ``current_only`` (default) restricts to runs holding at least one CURRENT episode.
+
+    WHY THAT DEFAULT — found by an end-to-end repair test 2026-08-17. A run's ``metrics.json`` is
+    immutable history: after an episode is successfully re-transcribed into a NEW run dir, the old
+    run's metrics still read ``attempts=1 completed=0 wall=297183ms`` forever. Counting every run
+    therefore means the audit can NEVER go green after a repair — the identical flaw the
+    placeholder gate had, reintroduced here in a different file.
+
+    Scoping to corpus members asks the question that matters: is the copy of this episode the
+    corpus actually SERVES built from unpreprocessed audio? Superseded runs are history, not
+    damage.
+
+    Pass ``current_only=False`` for a forensic view of every run ever made.
+    """
+    keep = _current_run_dirs(corpus_root) if current_only else None
+
     runs: List[RunPreprocessing] = []
     for metrics_path in sorted(corpus_root.rglob("metrics.json")):
         d = _read_json(metrics_path)
         if d is None:
             continue
         run_dir = metrics_path.parent
+        if keep is not None and str(run_dir) not in keep:
+            continue
         ids = _episode_ids_in_run(run_dir)
         runs.append(
             RunPreprocessing(

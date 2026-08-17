@@ -129,3 +129,31 @@ def test_the_list_forces_even_when_the_source_does_not_match(tmp_path):
     fresh = _corpus(cfg, guid="ep-1", episode_id="ep-1", source="direct_download")
 
     assert _force_reprocess_for_source(_Episode("ep-1"), fresh, None, cfg) is True
+
+
+def test_an_episode_list_implies_existing_only_scope(tmp_path):
+    """The footgun found by the e2e test: the list FORCES episodes but did not RESTRICT the run.
+
+    A one-episode work-list against one feed had preprocessed 12 unrelated episodes before it was
+    killed — the run still walked the feed and treated every item not on disk as new work. Over 14
+    production feeds that is a large unbudgeted ASR bill from a command that promises the opposite.
+    """
+    cfg = _cfg(tmp_path, reprocess_episode_ids=["ep-1"])
+
+    assert (
+        cfg.reprocess_existing_only is True
+    ), "naming explicit episodes must not also pull in whatever else the feed is offering"
+
+
+def test_no_episode_list_leaves_the_scope_alone(tmp_path):
+    """The implication must not silently narrow an ordinary run."""
+    cfg = _cfg(tmp_path)
+
+    assert cfg.reprocess_existing_only is False
+
+
+def test_an_explicit_existing_only_false_is_still_overridden_by_a_list(tmp_path):
+    """Explicitness does not rescue the footgun: a list plus feed-walking is never intended."""
+    cfg = _cfg(tmp_path, reprocess_episode_ids=["ep-1"], reprocess_existing_only=False)
+
+    assert cfg.reprocess_existing_only is True

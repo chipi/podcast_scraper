@@ -118,9 +118,9 @@ def test_evidence_methods_raise_when_uninitialized(module_path, class_name, meth
         EVIDENCE_CALLS[method_name](provider)
 
     message = str(caught.value).lower()
-    assert "initial" in message, (
-        f"the error must name the cause so an operator can act on it; got: {caught.value!r}"
-    )
+    assert (
+        "initial" in message
+    ), f"the error must name the cause so an operator can act on it; got: {caught.value!r}"
 
 
 @pytest.mark.parametrize("module_path,class_name", PROVIDERS, ids=[p[1] for p in PROVIDERS])

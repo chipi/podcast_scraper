@@ -5942,6 +5942,25 @@ class Config(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _scope_explicit_episode_reprocess(self) -> "Config":
+        """``reprocess_episode_ids`` implies ``reprocess_existing_only`` (#32 follow-up).
+
+        The list FORCES the named episodes past ``skip_existing``; on its own it does not RESTRICT
+        which episodes the run considers, so the run still walks the feed and processes every item
+        not already on disk. Proven by an end-to-end repair test 2026-08-17: a one-episode
+        work-list against one feed had preprocessed 12 unrelated episodes before it was killed.
+        Over 14 production feeds that is a large unbudgeted ASR bill attached to a command whose
+        name promises the opposite.
+
+        Naming explicit episodes never means "and also fetch whatever else the feed is offering",
+        so the scope is implied rather than left as a footgun the operator must remember. Runs on
+        every Config construction, so CLI, YAML and programmatic callers all get it.
+        """
+        if self.reprocess_episode_ids and not self.reprocess_existing_only:
+            object.__setattr__(self, "reprocess_existing_only", True)
+        return self
+
+    @model_validator(mode="after")
     def _apply_single_feed_corpus_layout(self) -> "Config":
         """Wrap single-feed ``output_dir`` under ``feeds/<slug>/`` when the opt-in
         flag is set (#644). Runs on every Config construction (CLI, YAML,

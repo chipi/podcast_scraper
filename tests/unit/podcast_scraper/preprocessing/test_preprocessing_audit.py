@@ -160,3 +160,67 @@ def test_the_report_states_that_no_repair_we_have_fixes_this(tmp_path):
 
     assert "gi-repair rebuilds insights FROM the transcript" in report
     assert "only repair is re-transcription" in report
+
+
+def test_a_repaired_episode_stops_being_reported(tmp_path):
+    """THE flaw found by the e2e repair test 2026-08-17.
+
+    A run's metrics.json is immutable history. After an episode is re-transcribed into a NEW run
+    dir, the OLD run still records attempts=1/completed=0 forever. Counting every run means the
+    audit can never go green after a successful repair — the identical flaw the placeholder gate
+    had, reintroduced here in a different file.
+    """
+    _run(
+        tmp_path,
+        run="run_20260815-120000",
+        attempts=1,
+        completed=0,
+        wall_ms=300_500.0,
+        episode_ids=["ep-1"],
+    )
+    _run(
+        tmp_path,
+        run="run_20260817-090000",
+        attempts=1,
+        completed=1,
+        wall_ms=45_000.0,
+        reduction=80.0,
+        saved=50_000_000,
+        episode_ids=["ep-1"],
+    )
+
+    ok, report = check_corpus_preprocessing(tmp_path)
+
+    assert ok is True, f"the episode the corpus SERVES is now healthy\n{report}"
+    assert "runs DAMAGED             : 0" in report
+
+
+def test_the_superseded_run_is_still_visible_forensically(tmp_path):
+    """Scoping is the gate's default, not an erasure — the history stays inspectable."""
+    _run(tmp_path, run="run_20260815-120000", attempts=1, completed=0, episode_ids=["ep-1"])
+    _run(
+        tmp_path,
+        run="run_20260817-090000",
+        attempts=1,
+        completed=1,
+        wall_ms=45_000.0,
+        reduction=80.0,
+        episode_ids=["ep-1"],
+    )
+
+    current = assess_preprocessing(tmp_path)
+    everything = assess_preprocessing(tmp_path, current_only=False)
+
+    assert len(current) == 1, "the gate judges only the served copy"
+    assert len(everything) == 2, "forensics can still see the superseded run"
+    assert any(r.damaged for r in everything)
+
+
+def test_an_episode_never_repaired_is_still_reported(tmp_path):
+    """The scoping must not become a way for real damage to disappear."""
+    _run(tmp_path, run="run_20260815-120000", attempts=1, completed=0, episode_ids=["ep-broken"])
+
+    ok, report = check_corpus_preprocessing(tmp_path)
+
+    assert ok is False
+    assert "ep-broken" in report
