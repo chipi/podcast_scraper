@@ -15,13 +15,35 @@ on:
       confirm:
         description: 'Type "PROD_REPROCESS" to confirm reprocessing the live prod corpus'
         required: true
+      selection:
+        description: "How to choose episodes: a work-list file (targeted repair) or a source (broad)"
+        type: choice
+        options:
+          - episode_ids_worklist
+          - reprocess_source
+        default: episode_ids_worklist
+      episode_ids_file:
+        description: >-
+          Path ON THE BOX to a newline-delimited episode-id work-list, e.g.
+          /app/output/preprocessing_repair_worklist.txt (produced by
+          `make corpus-preprocessing-worklist`). Used when selection=episode_ids_worklist.
+        default: /app/output/preprocessing_repair_worklist.txt
       reprocess_source:
-        description: "Which already-on-disk episodes to reprocess"
+        description: "Which already-on-disk episodes to reprocess (used when selection=reprocess_source)"
         type: choice
         options:
           - whisper_transcription
           - direct_download
         default: whisper_transcription
+      use_transcript_cache:
+        description: >-
+          Leave FALSE for any repair. The transcript cache key is the original media hash plus
+          preprocessing_fingerprint(cfg), and that fingerprint comes from CONFIG — it reads pp=on
+          whether preprocessing succeeded or fell back to raw audio. Neither key component changes
+          between a damaged run and its repair, so a cache hit re-serves the exact transcript the
+          repair was launched to replace.
+        type: boolean
+        default: false
       profile:
         description: "Config profile"
         type: choice
@@ -95,10 +117,39 @@ jobs:
       - name: Reprocess (reads audio from the remote archive; REWRITES artifacts)
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          SELECTION: ${{ github.event.inputs.selection }}
+          EPISODE_IDS_FILE: ${{ github.event.inputs.episode_ids_file }}
           REPROCESS_SOURCE: ${{ github.event.inputs.reprocess_source }}
+          USE_TRANSCRIPT_CACHE: ${{ github.event.inputs.use_transcript_cache }}
           PROFILE: ${{ github.event.inputs.profile }}
         run: |
           set -euo pipefail
+
+          # SELECTION. --reprocess-source cannot express a damage set: on the corpus measured in
+          # #32 all 9 damaged AND all 6 healthy episodes were `whisper_transcription`, so selecting
+          # by source re-transcribes healthy episodes to reach the damaged ones — real ASR spend
+          # for no repair. --reprocess-episode-ids (added by #32) names them exactly, matching on
+          # both episode_id and RSS guid since detectors emit whichever the artifact carries.
+          if [ "${SELECTION}" = "episode_ids_worklist" ]; then
+            SELECT_ARGS="--reprocess-episode-ids '${EPISODE_IDS_FILE}'"
+          else
+            SELECT_ARGS="--reprocess-existing-only --reprocess-source '${REPROCESS_SOURCE}'"
+          fi
+
+          # CACHE. See the input description: without this a repair run scores a cache hit and
+          # re-serves the transcript it exists to replace, and every downstream gate goes green on
+          # unrepaired data. Entries written since #1661 are safe (a fallback-to-raw run no longer
+          # writes one at all); this covers everything written before.
+          if [ "${USE_TRANSCRIPT_CACHE}" = "true" ]; then
+            CACHE_ARGS=""
+            echo "::warning::transcript cache ENABLED — only valid if this is not a repair run"
+          else
+            CACHE_ARGS="--no-transcript-cache"
+          fi
+
+          echo "selection : ${SELECTION}"
+          echo "cache     : ${USE_TRANSCRIPT_CACHE}"
+
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && docker compose \
@@ -110,5 +161,5 @@ jobs:
                  --config '${PROFILE}' \
                  --feeds-spec /app/output/feeds.spec.yaml \
                  --output-dir /app/output \
-                 --reprocess-existing-only \
-                 --reprocess-source '${REPROCESS_SOURCE}'"
+                 ${CACHE_ARGS} \
+                 ${SELECT_ARGS}"
