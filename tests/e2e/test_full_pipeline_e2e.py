@@ -25,6 +25,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import config, workflow
+from tests.e2e.conftest import requires  # noqa: E402
 
 pytestmark = [pytest.mark.e2e, pytest.mark.module_workflow]
 
@@ -943,6 +944,7 @@ class TestFullPipelineE2E:
             workflow.run_pipeline(cfg)
 
     @pytest.mark.critical_path
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_pipeline_handles_transcript_download_404(self):
         """Test that pipeline handles transcript download 404 error."""
         # Create RSS feed with transcript URL that returns 404
@@ -965,6 +967,7 @@ class TestFullPipelineE2E:
         assert count >= 0, "Pipeline should complete even if transcript download fails"
 
     @pytest.mark.critical_path
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_pipeline_handles_transcript_download_500_with_retry(self):
         """Test that pipeline handles transcript download 500 error with retry logic."""
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")

@@ -34,6 +34,9 @@ except ImportError:
     E2EHTTPRequestHandler = None  # type: ignore[assignment,misc]
 
 
+from tests.e2e.conftest import requires  # noqa: E402
+
+
 def _cleanup_errors() -> None:
     if E2EHTTPRequestHandler is not None:
         E2EHTTPRequestHandler.clear_all_error_behaviors()
@@ -92,6 +95,7 @@ def _run_json_skipped_total(run_doc: Dict[str, Any]) -> int:
 class TestMultiFeedCorpusSummaryAndSoftKind:
     """corpus_run_summary + failure_kind; default soft exit vs strict (#559)."""
 
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_rss_500_on_one_feed_default_soft_exit_success(self, e2e_server):
         """Permanent RSS HTTP error: soft failure_kind; default exit-zero policy."""
         assert E2EHTTPRequestHandler is not None
@@ -130,6 +134,7 @@ class TestMultiFeedCorpusSummaryAndSoftKind:
             assert len(ok_rows) == 1
             assert ok_rows[0].get("failure_kind") is None
 
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_rss_500_strict_mode_service_fails(self, e2e_server):
         """multi_feed_strict=True: strict success False on soft RSS failure."""
         assert E2EHTTPRequestHandler is not None
@@ -160,6 +165,7 @@ class TestMultiFeedCorpusSummaryAndSoftKind:
             assert len(failed) == 1
             assert failed[0].get("failure_kind") == "soft"
 
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_unknown_rss_slug_404_is_soft_classified(self, e2e_server):
         """Valid /feeds/<slug>/feed.xml path with unknown slug -> 404 -> soft."""
         assert E2EHTTPRequestHandler is not None
@@ -186,6 +192,7 @@ class TestMultiFeedCorpusSummaryAndSoftKind:
             assert len(failed) == 1
             assert failed[0].get("failure_kind") == "soft"
 
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_second_feed_wrong_xml_path_404_is_soft_classified(self, e2e_server):
         """Known feed slug but not ``.../feed.xml`` -> 404 on e2e_server -> soft row."""
         assert E2EHTTPRequestHandler is not None
@@ -215,6 +222,7 @@ class TestMultiFeedCorpusSummaryAndSoftKind:
             assert failed[0].get("failure_kind") == "soft"
             assert bad_url in (failed[0].get("feed_url") or "")
 
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_cli_multi_feed_default_exits_zero_on_soft_only(self, e2e_server):
         """CLI default: exit 0 when every failed feed is soft-classified."""
         assert E2EHTTPRequestHandler is not None
@@ -387,6 +395,7 @@ class TestMultiFeedMultiEpisodePartialTranscriptFailure:
 class TestMultiFeedTransientRSSRecovery:
     """RSS transient errors on one feed; retries succeed; other feed unaffected."""
 
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_transient_503_on_second_feed_then_both_ok(self, e2e_server):
         """Two RSS 503 responses on podcast2 feed.xml then 200; batch succeeds."""
         assert E2EHTTPRequestHandler is not None
@@ -431,6 +440,7 @@ class TestMultiFeedTransientRSSRecovery:
 class TestMultiFeedCorpusLockContention:
     """Advisory corpus lock: concurrent holder blocks second ``service.run``."""
 
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_service_fails_fast_when_lock_held_elsewhere(self, e2e_server, monkeypatch):
         """Simulate another writer by pre-acquiring the same ``.podcast_scraper.lock``."""
         monkeypatch.setenv("PODCAST_SCRAPER_CORPUS_LOCK", "1")

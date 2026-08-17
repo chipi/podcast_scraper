@@ -33,6 +33,8 @@ from ml_model_cache_helpers import (  # noqa: E402
     require_transformers_model_cached,
 )
 
+from tests.e2e.conftest import requires  # noqa: E402
+
 
 def run_cli_subprocess(
     args: list[str],
@@ -89,6 +91,7 @@ class TestCLISubprocessE2E:
     """True E2E tests using CLI as subprocess (like real user)."""
 
     @pytest.mark.critical_path
+    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_cli_minimal_via_subprocess(self, e2e_server, tmp_path, project_root):
         """Test minimal CLI usage: RSS URL + output dir via subprocess.
 
