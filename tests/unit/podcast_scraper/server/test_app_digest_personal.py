@@ -256,9 +256,9 @@ def test_paused_pacing_suppresses_the_revisit_section(tmp_path: Path) -> None:
     _pause(tmp_path, uid, True)
     payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
     kinds = [s["kind"] for s in (payload or {}).get("sections", [])]
-    assert "revisit" not in kinds, (
-        f"pacing is paused but the digest still carries a revisit section: {kinds}"
-    )
+    assert (
+        "revisit" not in kinds
+    ), f"pacing is paused but the digest still carries a revisit section: {kinds}"
 
 
 def test_unpausing_restores_the_revisit_section(tmp_path: Path) -> None:

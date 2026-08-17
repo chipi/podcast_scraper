@@ -319,7 +319,7 @@ def test_set_interests_is_locked_like_every_other_writer_of_this_file(tmp_path: 
 
 
 def test_resaving_a_favorite_keeps_its_place_and_its_original_added_at(tmp_path: Path) -> None:
-    """"Idempotent on kind+ref" has to mean the list is unchanged, not just un-duplicated.
+    """ "Idempotent on kind+ref" has to mean the list is unchanged, not just un-duplicated.
 
     Re-saving used to remove the row and append the new one, so the item jumped to the end and got
     a fresh added_at (the route always stamps time.time()). The user saw their favorites reorder

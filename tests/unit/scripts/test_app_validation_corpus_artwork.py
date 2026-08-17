@@ -32,7 +32,7 @@ class TestShippedCorpusArtwork:
         covers = sorted(p.name for p in ART_DIR.glob("*.svg"))
         assert covers, f"no cover art in {ART_DIR}"
         feed_ids = {
-            str((json.loads(m.read_text(encoding='utf-8')).get("feed") or {}).get("feed_id") or "")
+            str((json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("feed_id") or "")
             for m in _metadata_files()
         }
         feed_ids.discard("")

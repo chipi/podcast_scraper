@@ -55,9 +55,9 @@ def _items(path: Path) -> list[ET.Element]:
 class TestCoverage:
     def test_one_feed_per_show(self) -> None:
         paths = _corpus_feed_paths()
-        assert len(paths) == CORPUS_SHOWS, (
-            f"expected {CORPUS_SHOWS} corpus feeds, found {[p.name for p in paths]}"
-        )
+        assert (
+            len(paths) == CORPUS_SHOWS
+        ), f"expected {CORPUS_SHOWS} corpus feeds, found {[p.name for p in paths]}"
 
     def test_every_show_covers_the_corpus_depth(self) -> None:
         """The original defect: p07 and p08 advertised ONE episode each."""
@@ -133,14 +133,77 @@ class TestGenerator:
         result = subprocess.run(
             [sys.executable, str(SCRIPT), "--check"], cwd=ROOT, capture_output=True, text=True
         )
-        assert result.returncode == 0, (
-            f"committed corpus feeds are stale:\n{result.stdout}\n{result.stderr}"
-        )
+        assert (
+            result.returncode == 0
+        ), f"committed corpus feeds are stale:\n{result.stdout}\n{result.stderr}"
 
     def test_shows_match_the_corpus_builder(self) -> None:
         """If APP_SHOWS gains a show, these feeds must too — else it silently has no episodes."""
         mod = _load()
         builder = (ROOT / "scripts" / "build_app_validation_corpus.py").read_text(encoding="utf-8")
         for _stem, show in mod.SHOWS:
-            assert f'"{show}"' in builder, f"{show} is in build_corpus_feeds.SHOWS but not the builder"
+            assert (
+                f'"{show}"' in builder
+            ), f"{show} is in build_corpus_feeds.SHOWS but not the builder"
         assert len(mod.SHOWS) == CORPUS_SHOWS
+
+
+_differs_beyond_decoder_rounding = _load()._differs_beyond_decoder_rounding
+
+
+class TestStalenessToleratesDecoderRoundingOnly:
+    """``--check`` must catch a forgotten regeneration without failing on a different ffmpeg.
+
+    A lossy MP3's reported length depends on the decoder: ffmpeg 7.1 and 9.0.1 disagree by up to a
+    frame on the same file, which rounds to a 1-second difference in ``HH:MM:SS``. Observed on
+    p06/p08 purely by changing which ffmpeg was on PATH. The check compared the documents byte for
+    byte, so it failed with no actionable difference — and regenerating to satisfy it would just
+    move the failure to everyone on the other version.
+    """
+
+    ITEM = (
+        "<item><title>Ep {n}</title>"
+        "<itunes:duration>{h}:{m:02d}:{s:02d}</itunes:duration></item>"
+    )
+
+    def _feed(self, *durations: tuple[int, int, int], titles: list[str] | None = None) -> str:
+        names = titles or [f"Ep {i}" for i in range(len(durations))]
+        items = "".join(
+            f"<item><title>{names[i]}</title>"
+            f"<itunes:duration>{h}:{m:02d}:{s:02d}</itunes:duration></item>"
+            for i, (h, m, s) in enumerate(durations)
+        )
+        return f"<rss>{items}</rss>"
+
+    def test_identical_is_not_stale(self) -> None:
+        a = self._feed((0, 4, 9), (0, 4, 16))
+        assert _differs_beyond_decoder_rounding(a, a) is False
+
+    def test_one_second_of_duration_jitter_is_not_stale(self) -> None:
+        # The exact p06 case: 00:04:09 committed, 00:04:08 rendered.
+        committed = self._feed((0, 4, 9), (0, 4, 16), (0, 4, 32))
+        rendered = self._feed((0, 4, 8), (0, 4, 15), (0, 4, 31))
+        assert _differs_beyond_decoder_rounding(committed, rendered) is False
+
+    def test_a_real_duration_change_is_still_stale(self) -> None:
+        """A re-recorded or re-encoded episode moves far more than a frame."""
+        committed = self._feed((0, 4, 9))
+        rendered = self._feed((0, 5, 30))
+        assert _differs_beyond_decoder_rounding(committed, rendered) is True
+
+    def test_an_edited_title_is_still_stale(self) -> None:
+        """Tolerance applies to durations ONLY — everything else stays byte-exact."""
+        committed = self._feed((0, 4, 9), titles=["Ep 0"])
+        rendered = self._feed((0, 4, 9), titles=["Ep 0 (remastered)"])
+        assert _differs_beyond_decoder_rounding(committed, rendered) is True
+
+    def test_a_new_item_is_still_stale(self) -> None:
+        committed = self._feed((0, 4, 9))
+        rendered = self._feed((0, 4, 9), (0, 3, 1))
+        assert _differs_beyond_decoder_rounding(committed, rendered) is True
+
+    def test_jitter_does_not_mask_a_real_change_elsewhere(self) -> None:
+        """The one that matters: rounding on item 1 must not excuse a real change on item 2."""
+        committed = self._feed((0, 4, 9), (0, 4, 16))
+        rendered = self._feed((0, 4, 8), (0, 9, 44))
+        assert _differs_beyond_decoder_rounding(committed, rendered) is True

@@ -124,9 +124,7 @@ class TestMatchesProfileMatrix:
 
         corpus_level = {p.stem for p in ENRICH.iterdir() if p.suffix == ".json"}
         per_episode = {"insight_density", "insight_sentiment"}
-        represented = corpus_level | {
-            k for k in per_episode if any(CORPUS.rglob(f"*.{k}.json"))
-        }
+        represented = corpus_level | {k for k in per_episode if any(CORPUS.rglob(f"*.{k}.json"))}
         unrepresented = sorted(expected - represented)
         assert not unrepresented, (
             f"the profile's enricher set includes {unrepresented}, but the corpus has no artifact "

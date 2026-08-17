@@ -168,8 +168,5 @@ class TestSubjectOverlapIsNotACopy:
     def test_short_incidental_overlap_is_not_a_copy(self) -> None:
         """A stock phrase shorter than the minimum run must not trip the guard on its own."""
         assert (
-            _reject_if_prompt_examples_leaked(
-                1, "Trail Care", ["Braking earlier helps."]
-            )
-            is None
+            _reject_if_prompt_examples_leaked(1, "Trail Care", ["Braking earlier helps."]) is None
         )

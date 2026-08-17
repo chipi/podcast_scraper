@@ -292,20 +292,75 @@ def _render_feed(
     return "\n".join(lines)
 
 
+_DURATION_RE = re.compile(r"<itunes:duration>(\d+):(\d{2}):(\d{2})</itunes:duration>")
+
+#: A lossy MP3's reported length is not a fixed number — it depends on the decoder. ffmpeg 7.1 and
+#: 9.0.1 disagree by up to a frame on the same file, which rounds to a 1-second difference in
+#: ``HH:MM:SS``. Observed on p06/p08 (00:04:09 vs 00:04:08 and two others) purely by switching which
+#: ffmpeg was on PATH.
+_DURATION_TOLERANCE_S = 1
+
+
+def _differs_beyond_decoder_rounding(committed: str, rendered: str) -> bool:
+    """True when the committed feed is genuinely stale, ignoring ±1s duration jitter.
+
+    ``--check`` exists to catch a real omission: someone edits a transcript or replaces an audio
+    file and forgets to regenerate the feeds. It used to compare the two XML documents byte for
+    byte, which also flags a difference that means nothing — a duration measured by a DIFFERENT
+    ffmpeg build. The fixture is then only "up to date" relative to whichever ffmpeg last touched
+    it, and the check fails for the next contributor with no actionable difference to fix. Worse,
+    regenerating to satisfy it just moves the failure to everyone on the other version.
+
+    So: durations may differ by at most a second; everything else must match exactly. A real change
+    — a re-recorded episode, a new item, an edited title — moves things far more than one second,
+    so the check keeps the teeth it was given.
+    """
+    if committed == rendered:
+        return False
+    a, b = _DURATION_RE.split(committed), _DURATION_RE.split(rendered)
+    if len(a) != len(b):
+        return True  # different number of items — a structural change, not rounding
+    for i, (x, y) in enumerate(zip(a, b)):
+        if x == y:
+            continue
+        # The regex split interleaves literal text with (h, m, s) capture triples; a mismatching
+        # literal chunk is always a real difference.
+        if i % 4 == 0:
+            return True
+        return _duration_gap_exceeds_tolerance(a, b)
+    return False
+
+
+def _duration_gap_exceeds_tolerance(a: list[str], b: list[str]) -> bool:
+    """Compare every (h, m, s) triple from the split, allowing ``_DURATION_TOLERANCE_S``."""
+    for i in range(1, len(a), 4):
+        secs_a = int(a[i]) * 3600 + int(a[i + 1]) * 60 + int(a[i + 2])
+        secs_b = int(b[i]) * 3600 + int(b[i + 1]) * 60 + int(b[i + 2])
+        if abs(secs_a - secs_b) > _DURATION_TOLERANCE_S:
+            return True
+    return False
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     version = (ROOT / "tests" / "fixtures" / "FIXTURES_VERSION").read_text(encoding="utf-8").strip()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--rss-dir", type=Path, default=ROOT / "tests" / "fixtures" / "rss")
     ap.add_argument(
-        "--transcripts-dir", type=Path, default=ROOT / "tests" / "fixtures" / "transcripts" / version
+        "--transcripts-dir",
+        type=Path,
+        default=ROOT / "tests" / "fixtures" / "transcripts" / version,
     )
-    ap.add_argument("--audio-dir", type=Path, default=ROOT / "tests" / "fixtures" / "audio" / version)
+    ap.add_argument(
+        "--audio-dir", type=Path, default=ROOT / "tests" / "fixtures" / "audio" / version
+    )
     ap.add_argument(
         "--ground-truth-dir",
         type=Path,
         default=ROOT / "tests" / "fixtures" / "ground-truth" / version / "ground_truth",
     )
-    ap.add_argument("--check", action="store_true", help="verify without writing; non-zero if stale")
+    ap.add_argument(
+        "--check", action="store_true", help="verify without writing; non-zero if stale"
+    )
     args = ap.parse_args(argv)
 
     for label, path in (
@@ -333,7 +388,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         dst = args.rss_dir / f"{show}_corpus.xml"
         total += len(episodes)
         if args.check:
-            if not dst.is_file() or dst.read_text(encoding="utf-8") != xml:
+            if not dst.is_file() or _differs_beyond_decoder_rounding(
+                dst.read_text(encoding="utf-8"), xml
+            ):
                 stale.append(dst.name)
         else:
             dst.write_text(xml, encoding="utf-8")

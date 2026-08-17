@@ -102,9 +102,21 @@ class TestCanonicalizePersonsIn:
     def test_collapses_variant_nodes_onto_one_canonical_id(self) -> None:
         doc = {
             "nodes": [
-                {"id": "person:speaker-01", "type": "Person", "properties": {"name": "Skanda Amarnath"}},
-                {"id": "person:speaker-02", "type": "Person", "properties": {"name": "Skanda Amarnauth"}},
-                {"id": "person:speaker-03", "type": "Person", "properties": {"name": "Skanda Eminas"}},
+                {
+                    "id": "person:speaker-01",
+                    "type": "Person",
+                    "properties": {"name": "Skanda Amarnath"},
+                },
+                {
+                    "id": "person:speaker-02",
+                    "type": "Person",
+                    "properties": {"name": "Skanda Amarnauth"},
+                },
+                {
+                    "id": "person:speaker-03",
+                    "type": "Person",
+                    "properties": {"name": "Skanda Eminas"},
+                },
             ],
             "edges": [{"from": "person:speaker-02", "to": "topic:x"}],
         }
@@ -123,7 +135,11 @@ class TestCanonicalizePersonsIn:
         doc = {
             "nodes": [
                 {"id": "person:speaker-01", "type": "Person", "properties": {"name": "Daniel Cho"}},
-                {"id": "person:speaker-02", "type": "Person", "properties": {"name": "Daniel Olufemi"}},
+                {
+                    "id": "person:speaker-02",
+                    "type": "Person",
+                    "properties": {"name": "Daniel Olufemi"},
+                },
             ],
             "edges": [],
         }
@@ -146,9 +162,7 @@ class TestShippedCorpusIsCanonical:
     """The committed corpus must not carry a garbled person id — that is what the app renders."""
 
     def test_no_authored_garble_survives_as_a_person_id(self) -> None:
-        corpus = (
-            Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus" / "v3"
-        )
+        corpus = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus" / "v3"
         if not corpus.is_dir() or not _MANIFEST.is_file():
             pytest.skip("validation corpus or manifest not present")
         variants = _bavc._load_name_variants(_MANIFEST)

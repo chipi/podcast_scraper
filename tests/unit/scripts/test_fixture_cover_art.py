@@ -99,9 +99,9 @@ class TestGenerator:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, (
-            f"committed cover art is stale or missing:\n{result.stdout}\n{result.stderr}"
-        )
+        assert (
+            result.returncode == 0
+        ), f"committed cover art is stale or missing:\n{result.stdout}\n{result.stderr}"
 
     def test_generator_is_deterministic(self) -> None:
         mod = _load_script()

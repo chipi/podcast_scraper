@@ -146,9 +146,9 @@ def test_reanchor_marks_drift_when_the_timeline_moved_under_the_quote(tmp_path: 
         _seg("n3", 12.0, 20.0, "And now something unrelated."),
     ]
     out = st.reanchor_highlight(_span(), moved)
-    assert out["anchor_status"] == "drifted", (
-        "the quote is absent from the new text, so this anchor was not earned"
-    )
+    assert (
+        out["anchor_status"] == "drifted"
+    ), "the quote is absent from the new text, so this anchor was not earned"
     assert out["quote_text"] == "the stable anchor is the timestamp"  # never dropped
 
 
@@ -304,13 +304,16 @@ class TestMutationsNeverDestroyOtherRows:
         )
 
         st.add_highlight(
-            tmp_path, "u1", {"id": "h_new", "episode_slug": "ep2", "kind": "moment", "created_at": 9}
+            tmp_path,
+            "u1",
+            {"id": "h_new", "episode_slug": "ep2", "kind": "moment", "created_at": 9},
         )
 
         on_disk = json.loads((user_dir / "highlights.json").read_text(encoding="utf-8"))
-        assert {r["id"] for r in on_disk} == {"h_legacy", "h_new"}, (
-            "adding a highlight deleted a row it merely could not render"
-        )
+        assert {r["id"] for r in on_disk} == {
+            "h_legacy",
+            "h_new",
+        }, "adding a highlight deleted a row it merely could not render"
         # The API view still hides it, which is the correct display behaviour.
         assert [h["id"] for h in st.get_highlights(tmp_path, "u1")] == ["h_new"]
 

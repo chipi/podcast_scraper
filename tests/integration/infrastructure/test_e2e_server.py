@@ -618,7 +618,9 @@ class TestE2EServerMultiEpisodeFeed:
             assert len(response.text) > 0
 
     @pytest.mark.critical_path
-    @requires("spacy")  # the workflow preloads the spaCy NER model
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_multi_episode_feed_with_openai_mocks_fast(self, e2e_server):
         """Test that multi-episode feed works correctly with OpenAI mocks (fast: 1 episode).
 
@@ -670,7 +672,9 @@ class TestE2EServerMultiEpisodeFeed:
             ), f"Should have exactly 1 metadata file, got {len(metadata_files)}"
 
     @pytest.mark.slow
-    @requires("spacy")  # the workflow preloads the spaCy NER model
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_multi_episode_feed_with_openai_mocks(self, e2e_server):
         """Test that multi-episode feed works correctly with OpenAI mocks (full: 3 episodes).
 
