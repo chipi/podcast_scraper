@@ -355,7 +355,6 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
         self.assertEqual(call_kwargs["language"], "fr")
 
     def test_transcribe_not_initialized(self):
-        """Test transcribe raises RuntimeError if not initialized."""
         provider = OpenAIProvider(self.cfg)
         # Don't call initialize()
 
@@ -640,7 +639,6 @@ class TestOpenAIProviderSpeakerDetection(unittest.TestCase):
         self.assertTrue(success)
 
     def test_detect_speakers_not_initialized(self):
-        """Test detect_speakers raises RuntimeError if not initialized."""
         provider = OpenAIProvider(self.cfg)
         # Don't call initialize()
 
@@ -737,7 +735,6 @@ class TestOpenAIProviderSummarization(unittest.TestCase):
         self.assertEqual(result["metadata"]["model"], provider.summary_model)
 
     def test_summarize_not_initialized(self):
-        """Test summarize raises RuntimeError if not initialized."""
         provider = OpenAIProvider(self.cfg)
         # Don't call initialize()
 
@@ -993,10 +990,14 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         self.assertTrue(capabilities.supports_transcription)
 
     def test_generate_insights_returns_empty_when_not_initialized(self):
-        """generate_insights returns [] when summarization not initialized."""
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         provider = OpenAIProvider(self.cfg)
-        result = provider.generate_insights("transcript", max_insights=5)
-        self.assertEqual(result, [])
+        with self.assertRaises(RuntimeError):
+            provider.generate_insights("transcript", max_insights=5)
 
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_generate_insights_success_returns_list(self, mock_render_prompt):
@@ -1116,15 +1117,19 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         )
         self.assertIn("LATE_EVIDENCE_MARKER", sent)
 
-    def test_extract_quotes_not_initialized_returns_empty(self):
-        """extract_quotes when not initialized returns empty."""
+    def test_extract_quotes_not_initialized_raises(self):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty quote list is a LEGAL outcome, so it no longer distinguishes
+        "the model found nothing" from "never initialized".
+        """
         provider = OpenAIProvider(self.cfg)
         provider._summarization_initialized = False
-        result = provider.extract_quotes(
-            transcript="Text.",
-            insight_text="Insight.",
-        )
-        self.assertEqual(result, [])
+        with self.assertRaises(RuntimeError):
+            provider.extract_quotes(
+                transcript="Text.",
+                insight_text="Insight.",
+            )
 
     def test_extract_quotes_empty_inputs_returns_empty(self):
         """extract_quotes with empty transcript or insight returns []."""
@@ -1154,12 +1159,16 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         self.assertEqual(result, 0.82)
         mock_client.chat.completions.create.assert_called_once()
 
-    def test_score_entailment_not_initialized_returns_zero(self):
-        """score_entailment when not initialized returns 0.0."""
+    def test_score_entailment_not_initialized_raises(self):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         provider = OpenAIProvider(self.cfg)
         provider._summarization_initialized = False
-        result = provider.score_entailment(premise="P.", hypothesis="H.")
-        self.assertEqual(result, 0.0)
+        with self.assertRaises(RuntimeError):
+            provider.score_entailment(premise="P.", hypothesis="H.")
 
     def test_score_entailment_no_numeric_token_returns_zero(self):
         """score_entailment returns 0.0 when response has no parseable float."""
@@ -1212,10 +1221,16 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         self.assertIsNotNone(kg_kwargs["cost_usd"])
         self.assertGreater(kg_kwargs["cost_usd"], 0)
 
-    def test_extract_kg_graph_not_initialized_returns_none(self):
+    def test_extract_kg_graph_not_initialized_raises(self):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         provider = OpenAIProvider(self.cfg)
         provider._summarization_initialized = False
-        self.assertIsNone(provider.extract_kg_graph("text"))
+        with self.assertRaises(RuntimeError):
+            provider.extract_kg_graph("text")
 
     def test_extract_kg_graph_empty_text_returns_none(self):
         provider = OpenAIProvider(self.cfg)

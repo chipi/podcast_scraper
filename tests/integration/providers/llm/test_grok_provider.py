@@ -249,7 +249,6 @@ class TestGrokProviderSpeakerDetection(unittest.TestCase):
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     def test_detect_speakers_not_initialized(self, mock_openai):
-        """Test detect_speakers raises RuntimeError if not initialized."""
         provider = GrokProvider(self.cfg)
         # Don't call initialize()
 
@@ -342,7 +341,6 @@ class TestGrokProviderSummarization(unittest.TestCase):
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     def test_summarize_not_initialized(self, mock_openai):
-        """Test summarize raises RuntimeError if not initialized."""
         provider = GrokProvider(self.cfg)
         # Don't call initialize()
 
@@ -471,10 +469,16 @@ class TestGrokProviderGIL(unittest.TestCase):
         self.assertEqual(provider.generate_insights("t"), [])
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_generate_insights_not_initialized_returns_empty(self, mock_openai):
+    def test_generate_insights_not_initialized_raises(self, mock_openai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_openai.return_value = Mock()
         provider = GrokProvider(self.cfg)
-        self.assertEqual(provider.generate_insights("t"), [])
+        with self.assertRaises(RuntimeError):
+            provider.generate_insights("t")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
@@ -494,10 +498,16 @@ class TestGrokProviderGIL(unittest.TestCase):
         self.assertIsInstance(r[0], QuoteCandidate)
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_extract_quotes_not_initialized_returns_empty(self, mock_openai):
+    def test_extract_quotes_not_initialized_raises(self, mock_openai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_openai.return_value = Mock()
         provider = GrokProvider(self.cfg)
-        self.assertEqual(provider.extract_quotes("a", "b"), [])
+        with self.assertRaises(RuntimeError):
+            provider.extract_quotes("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
@@ -526,10 +536,16 @@ class TestGrokProviderGIL(unittest.TestCase):
         self.assertEqual(provider.score_entailment("p", "h"), 0.61)
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_score_entailment_not_initialized_returns_zero(self, mock_openai):
+    def test_score_entailment_not_initialized_raises(self, mock_openai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_openai.return_value = Mock()
         provider = GrokProvider(self.cfg)
-        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+        with self.assertRaises(RuntimeError):
+            provider.score_entailment("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
@@ -611,10 +627,16 @@ class TestGrokProviderKG(unittest.TestCase):
         self.assertEqual(out["topics"][0]["label"], "Macro")
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_extract_kg_graph_not_initialized_returns_none(self, mock_openai):
+    def test_extract_kg_graph_not_initialized_raises(self, mock_openai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_openai.return_value = Mock()
         provider = GrokProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_graph("text"))
+        with self.assertRaises(RuntimeError):
+            provider.extract_kg_graph("text")
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     def test_extract_kg_graph_empty_text_returns_none(self, mock_openai):

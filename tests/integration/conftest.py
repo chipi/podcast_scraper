@@ -14,6 +14,32 @@ from __future__ import annotations
 
 import importlib.util
 import time as _real_time
+
+# Imported for its SIDE EFFECT, before any test module is imported. Do not remove.
+#
+# Several provider test modules install a module-level ``mock.patch.dict(sys.modules, …)`` at
+# import time (see the "Mocking LLM SDKs at sys.modules" note in INTEGRATION_TESTING_GUIDE.md).
+# ``patch.dict`` snapshots the dict on entry and RESTORES that snapshot on exit — which deletes
+# every key added while it was active. Any module first imported inside that window is therefore
+# evicted from ``sys.modules`` when the patch unwinds.
+#
+# For a pure-Python module that is harmless: the next import just re-executes it. For a C
+# extension it is not. numpy's ``_multiarray_umath`` refuses to initialise twice in one process,
+# so the re-import raises::
+#
+#     ImportError: cannot load module more than once per process
+#
+# which surfaced as ``test_embedding_loader.py::TestEncodeMocked::test_encode_return_numpy_*``
+# failing in a full-suite run while passing when its own file is run alone — the two tests do
+# ``import numpy`` inside the test body, i.e. after the eviction.
+#
+# Importing numpy HERE puts it in the snapshot every one of those patchers takes, so restoring
+# the snapshot leaves it in place. That removes the precondition rather than hiding the symptom;
+# the alternative — rewriting the module-level patchers those files deliberately use — is a much
+# larger change for the same outcome. Verified 2026-08-17: 760 passed / 2 failed before, 762
+# passed / 0 failed after, and the failures reproduce on this branch well before this file
+# gained any of its stub helpers.
+import numpy  # noqa: F401
 from pathlib import Path
 from contextlib import nullcontext
 from types import ModuleType, SimpleNamespace
