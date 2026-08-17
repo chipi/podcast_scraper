@@ -15,7 +15,10 @@ from __future__ import annotations
 import importlib.util
 import time as _real_time
 from pathlib import Path
-from unittest.mock import patch
+from contextlib import nullcontext
+from types import ModuleType, SimpleNamespace
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -69,6 +72,113 @@ def requires(*modules: str) -> "pytest.MarkDecorator":
         bool(missing),
         reason=f"needs the [ml]/[search] extra — not importable: {', '.join(missing)}",
     )
+
+
+def stub_transformers() -> dict[str, Any]:
+    """A ``sys.modules`` overlay standing in for ``transformers``, or ``{}`` when it is installed.
+
+    Use with ``@patch.dict(sys.modules, stub_transformers())``.
+
+    Several tests need ``transformers`` present but never call it: they exist to assert OUR call
+    shape — that a pinned ``revision`` reaches ``from_pretrained``, that ``unload_model`` is
+    idempotent, that a loader failure surfaces as the right error — and they get there by patching
+    deep library paths like ``transformers.models.auto.tokenization_auto.AutoTokenizer``. The import
+    is required only so ``mock.patch`` can RESOLVE those strings. Patching our own module attribute
+    is not available as an alternative: ``providers/ml/summarizer.py`` does ``from transformers
+    import ...`` inside its methods, so there is nothing bound on our side — the import reads
+    ``sys.modules`` at call time. Hence the overlay, the same technique the unit tier uses for torch.
+
+    **Empty when transformers is genuinely installed**, so CI — where twelve jobs install
+    ``.[dev,ml,llm,search]`` — keeps running these against the real library and this helper changes
+    nothing there. It only fills in on a machine where the ML stack cannot be installed at all.
+    """
+    if importlib.util.find_spec("transformers") is not None:
+        return {}
+
+    def _mod(name: str, **attrs: Any) -> ModuleType:
+        m = ModuleType(name)
+        for k, v in attrs.items():
+            setattr(m, k, v)
+        return m
+
+    # Only the paths the tests actually patch, plus GenerationConfig, which hybrid_ml_provider's
+    # reduce() constructs for real before handing it to a mocked backend. Deliberately NOT a
+    # blanket MagicMock package: a test patching a path this does not model must fail loudly at
+    # patch time, not quietly pass against an auto-created attribute.
+    tokenization_auto = _mod(
+        "transformers.models.auto.tokenization_auto", AutoTokenizer=MagicMock()
+    )
+    modeling_auto = _mod(
+        "transformers.models.auto.modeling_auto", AutoModelForSeq2SeqLM=MagicMock()
+    )
+    modeling_bart = _mod(
+        "transformers.models.bart.modeling_bart", BartForConditionalGeneration=MagicMock()
+    )
+    auto = _mod(
+        "transformers.models.auto", tokenization_auto=tokenization_auto, modeling_auto=modeling_auto
+    )
+    bart = _mod("transformers.models.bart", modeling_bart=modeling_bart)
+    models = _mod("transformers.models", auto=auto, bart=bart)
+    utils_logging = _mod("transformers.utils.logging", set_verbosity_error=lambda *a, **k: None)
+    utils = _mod("transformers.utils", logging=utils_logging)
+    root = _mod("transformers", models=models, utils=utils, GenerationConfig=MagicMock())
+
+    # The root RESOLVES through to the submodules on every access, rather than holding its own
+    # copies. That is what the real package does (``_LazyModule`` re-exports from
+    # ``transformers.models.auto.*``), and it is load-bearing here: the tests patch the SUBMODULE
+    # path, while the code under test does ``from transformers import AutoTokenizer``. Snapshot the
+    # objects onto the root instead and the two would be different mocks — the code would call one,
+    # the test would assert on the other, and it would look like the patch simply did not work.
+    _EXPORTS = {
+        "AutoTokenizer": (tokenization_auto, "AutoTokenizer"),
+        "AutoModelForSeq2SeqLM": (modeling_auto, "AutoModelForSeq2SeqLM"),
+        "BartForConditionalGeneration": (modeling_bart, "BartForConditionalGeneration"),
+    }
+
+    def _root_getattr(name: str) -> Any:
+        if name in _EXPORTS:
+            mod, attr = _EXPORTS[name]
+            return getattr(mod, attr)
+        raise AttributeError(f"stub transformers has no attribute {name!r}")
+
+    root.__getattr__ = _root_getattr  # type: ignore[attr-defined]  # PEP 562
+    return {
+        "transformers": root,
+        "transformers.models": models,
+        "transformers.models.auto": auto,
+        "transformers.models.auto.tokenization_auto": tokenization_auto,
+        "transformers.models.auto.modeling_auto": modeling_auto,
+        "transformers.models.bart": bart,
+        "transformers.models.bart.modeling_bart": modeling_bart,
+        "transformers.utils": utils,
+        "transformers.utils.logging": utils_logging,
+    }
+
+
+def stub_torch(*, cuda: bool = False, mps: bool = False) -> dict[str, Any]:
+    """A ``sys.modules`` overlay standing in for ``torch``, or ``{}`` when it is installed.
+
+    ``summarizer._resolve_device`` documents its own contract: *"Explicit device: no torch import
+    (unit tests and minimal [dev] envs)"* — it only imports torch when asked to AUTO-DETECT. Tests
+    that pass ``device=None`` are therefore choosing the auto-detect path on purpose, and a
+    ``@patch("...summarizer.torch", create=True)`` cannot reach it: the function does a LOCAL
+    ``import torch``, which reads ``sys.modules``, not a module attribute.
+
+    Defaults to no accelerators, i.e. the ``cpu`` branch — the deterministic answer, and the one a
+    CI runner gives anyway.
+
+    Empty when torch is installed, so CI is untouched.
+    """
+    if importlib.util.find_spec("torch") is not None:
+        return {}
+    mod = ModuleType("torch")
+    mod.cuda = SimpleNamespace(is_available=lambda: cuda)  # type: ignore[attr-defined]
+    mod.backends = SimpleNamespace(  # type: ignore[attr-defined]
+        mps=SimpleNamespace(is_available=lambda: mps)
+    )
+    mod.device = lambda name: f"device({name})"  # type: ignore[attr-defined]
+    mod.no_grad = nullcontext  # type: ignore[attr-defined]
+    return {"torch": mod}
 
 
 class _NoBackoffSleep:

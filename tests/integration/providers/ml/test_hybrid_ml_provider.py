@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import types
 import unittest
 from unittest.mock import MagicMock, patch
@@ -17,7 +18,7 @@ from podcast_scraper.providers.ml.hybrid_ml_provider import (
     TransformersReduceBackend,
 )
 
-from tests.integration.conftest import requires
+from tests.integration.conftest import stub_transformers
 
 pytestmark = [pytest.mark.integration]
 
@@ -33,7 +34,7 @@ class TestTransformersReduceBackend(unittest.TestCase):
             backend.reduce("n", "i")
         self.assertIn("initialize()", str(ctx.exception))
 
-    @requires("transformers")  # exercises the transformers REDUCE backend
+    @patch.dict(sys.modules, stub_transformers())
     def test_reduce_calls_backend_generate_and_returns_empty_on_blank(self) -> None:
         backend = TransformersReduceBackend("m", "cpu", None)
         fake_hf = MagicMock()
@@ -44,7 +45,7 @@ class TestTransformersReduceBackend(unittest.TestCase):
         self.assertEqual(out.backend, "transformers")
         fake_hf.generate.assert_called_once()
 
-    @requires("transformers")  # exercises the transformers REDUCE backend
+    @patch.dict(sys.modules, stub_transformers())
     def test_reduce_returns_generated_text(self) -> None:
         backend = TransformersReduceBackend("m", "cpu", None)
         fake_hf = MagicMock()
