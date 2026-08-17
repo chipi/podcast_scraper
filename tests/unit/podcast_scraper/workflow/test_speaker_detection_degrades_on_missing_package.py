@@ -29,6 +29,11 @@ reimplemented here. Two call sites deciding "is this a missing dependency?" by d
 how a codebase ends up needing archaeology.
 """
 
+# mypy: disable-error-code="arg-type"
+# Deliberate: _LedgerSpy is a duck-typed stand-in passed where Metrics is declared. Building a
+# real Metrics would drag in the machinery this test isolates. Same convention as the other
+# test files that pass doubles into production signatures.
+
 from __future__ import annotations
 
 from typing import Any, List, Optional, Tuple
