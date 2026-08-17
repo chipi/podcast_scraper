@@ -69,8 +69,6 @@ def _corpus_root_opt(request: Request) -> Path | None:
 # --- highlights ---------------------------------------------------------------
 
 
-
-
 def _contract_segments(root: Path, slug: str) -> list[dict] | None:
     """The player transcript contract for one episode, or None when unavailable.
 
@@ -135,6 +133,7 @@ def _reanchored(root: Path, rows: list[dict]) -> list[dict]:
     order = {id(r): i for i, r in enumerate(rows)}
     by_id = {str(r.get("id")): r for r in rows}
     return sorted(out, key=lambda r: order.get(id(by_id.get(str(r.get("id")))), 0))
+
 
 @router.get("/highlights", response_model=HighlightsResponse)
 async def list_highlights(
@@ -315,7 +314,9 @@ async def export_highlights_markdown(
 
     highlight_ids = {str(h.get("id")) for h in highlights}
     episode_note_slugs = {
-        str(n.get("target_id")) for n in notes if n.get("target") == "episode" and n.get("target_id")
+        str(n.get("target_id"))
+        for n in notes
+        if n.get("target") == "episode" and n.get("target_id")
     }
     # Every episode that needs a heading: one the user highlighted, or one they only made a note on.
     titles = _episode_titles(
@@ -350,11 +351,7 @@ async def export_highlights_markdown(
     # Whatever is left: a note on a saved insight, whose target id is an insight, not an episode.
     # There is no insight -> episode mapping here, so rather than drop it, it gets its own section.
     placed = highlight_ids | episode_note_slugs
-    orphans = [
-        str(n.get("text", ""))
-        for n in notes
-        if str(n.get("target_id")) not in placed
-    ]
+    orphans = [str(n.get("text", "")) for n in notes if str(n.get("target_id")) not in placed]
 
     markdown = render_highlights_markdown(list(grouped.values()), orphans)
     return PlainTextResponse(

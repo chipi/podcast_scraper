@@ -12,16 +12,9 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 
-from podcast_scraper.server import app_user_state
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
-from podcast_scraper.server.app_resurfacing import (
-    derive_interest_signals,
-    reflection_prompt,
-    select_due,
-)
-from podcast_scraper.server.app_slugs import resolve_slug
-from podcast_scraper.server.app_user_corpus import user_episode_set
+from podcast_scraper.server import app_user_corpus, app_user_state
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_resurfacing import reflection_prompt, select_due
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -93,14 +86,9 @@ async def derived_interests(
 ) -> DerivedInterestsResponse:
     """Implicit interests ranked by occurrence across the user's heard∪captured episodes."""
     root = corpus_root_or_503(request)
-    mine = user_episode_set(root, _data_dir(request), user.user_id)
-    occurrences: list[tuple[str, str, str]] = []
-    for slug in mine:
-        row = resolve_slug(root, slug)
-        if row is None or not row.has_kg:
-            continue
-        persons, _orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
-        occurrences += [("person", p.id, p.name) for p in persons]
-        occurrences += [("topic", t.id, t.label) for t in topics]
-    signals = derive_interest_signals(occurrences)
+    # The ONE definition (app_user_corpus.derived_interest_counts). This used to re-derive them
+    # here over EVERY episode in the user's set — no bound at all, so a heavy listener paid an
+    # unbounded number of KG loads on a page load, and the list was ranked over a different set of
+    # episodes than /discover and /corpus each used. Three implementations, three answers.
+    signals = app_user_corpus.derived_interest_counts(root, _data_dir(request), user.user_id)
     return DerivedInterestsResponse(items=[DerivedInterest(**s) for s in signals])

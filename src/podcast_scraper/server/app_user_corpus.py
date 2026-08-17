@@ -115,41 +115,101 @@ def saved_episode_set(data_dir: Path, user_id: str) -> set[str]:
     return out
 
 
-def derive_interests(
+#: How many of the user's episodes any derived-interest read may load a KG for. One number, because
+#: there is one definition — see :func:`derived_interest_counts`.
+DERIVED_MAX_EPISODES = 40
+#: Default size of a derived-interest list handed to a caller.
+DERIVED_TOP_K = 8
+
+
+def derived_interest_counts(
     root: Path,
     data_dir: Path,
     user_id: str,
     *,
-    k: int = 8,
-    max_episodes: int = 40,
-) -> list[str]:
-    """Interest tokens inferred from the user's episode set — #1139.
+    max_episodes: int = DERIVED_MAX_EPISODES,
+) -> list[dict[str, Any]]:
+    """THE definition of "what this user is into", as ranked ``{token, kind, label, count}``.
 
-    Aggregates the topics + people across the episodes the user has heard/captured
-    (their :func:`user_episode_set`) and returns the top-``k`` by frequency as
-    interest tokens (``topic:…`` / ``person:…``). These feed discovery ranking the
-    same way an explicit follow does, so personalization works from behaviour alone
-    — no picker, no follows needed. Deterministic (frequency desc, id asc as a
-    stable tiebreak); bounded to ``max_episodes`` KG loads to keep ``/discover``
-    snappy. The ids come from the same :func:`entities_from_kg` the ranker reads,
-    so they match its topic/person id space exactly.
+    Every surface that answers that question reads this — ``/discover`` ranking via
+    :func:`derive_interests`, ``GET /corpus``'s top entities, and ``GET /interests/derived``.
+
+    It is one function because it was three, and they disagreed. All three counted person/topic
+    occurrences across the user's heard∪captured episodes, but each chose ITS OWN episodes:
+
+        derive_interests            recency-ranked, 40   (only after #18 fixed it)
+        /corpus  _top_entities      sorted(slugs)[:40]   the alphabetical freeze #18 fixed
+        /interests/derived          every episode        no bound at all
+
+    So the same user could be told they are into three different things depending on which screen
+    they opened, the #18 fix reached one of the three, and a heavy listener's ``/interests/derived``
+    did an unbounded number of KG loads. They also differed in token FORMAT until d390f7b0 (the
+    doubled ``topic:topic:`` prefix) and still differed in shape, bounds and tie-breaks.
+
+    Two sources of truth for one concept is how they drifted apart; the fix is to have one, with
+    the callers projecting from it rather than re-deriving it.
+
+    Ranking is occurrence count descending, token ascending — deterministic, so a tie does not
+    reorder between reads.
     """
     slugs = user_episode_set(root, data_dir, user_id)
     if not slugs:
         return []
     rows_by_slug = {slug_for_row(r): r for r in build_catalog_rows_cumulative(root)}
-    counts: Counter[str] = Counter()
+    counts: Counter[tuple[str, str]] = Counter()
+    labels: dict[tuple[str, str], str] = {}
     for slug in _most_recently_engaged(data_dir, user_id, slugs, max_episodes):
         row = rows_by_slug.get(slug)
-        if row is not None:
-            counts.update(_episode_interest_tokens(root, row))
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [token for token, _count in ranked[:k]]
+        if row is None:
+            continue
+        for kind, ent_id, label in _episode_entities(root, row):
+            key = (kind, ent_id)
+            counts[key] += 1
+            labels.setdefault(key, label or ent_id)
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], interest_token(*kv[0])))
+    return [
+        {
+            "token": interest_token(kind, ent_id),
+            "kind": kind,
+            "label": labels[(kind, ent_id)],
+            "count": n,
+        }
+        for (kind, ent_id), n in ranked
+    ]
 
 
-def _most_recently_engaged(
-    data_dir: Path, user_id: str, slugs: set[str], limit: int
+def derive_interests(
+    root: Path,
+    data_dir: Path,
+    user_id: str,
+    *,
+    k: int = DERIVED_TOP_K,
+    max_episodes: int = DERIVED_MAX_EPISODES,
 ) -> list[str]:
+    """The top-``k`` derived interest tokens — the ``/discover`` ranker's projection of #1139.
+
+    A thin view over :func:`derived_interest_counts`: same episodes, same counts, same order, just
+    tokens. These feed discovery ranking exactly as an explicit follow does, so personalisation
+    works from behaviour alone — no picker, no follows needed. The ids come from the same
+    :func:`entities_from_kg` the ranker reads, so they match its id space exactly.
+    """
+    counts = derived_interest_counts(root, data_dir, user_id, max_episodes=max_episodes)
+    return [row["token"] for row in counts[:k]]
+
+
+def interest_token(kind: str, ent_id: str) -> str:
+    """``kind:id``, without doubling a prefix the id already carries.
+
+    Real ids from :func:`entities_from_kg` already carry ``person:`` / ``topic:``, so prepending
+    unconditionally produced ``topic:topic:systems-thinking`` — a token that can never match
+    anything the ranker holds (d390f7b0). Conditional, so hand-written ids like ``t:ai`` still get
+    a prefix.
+    """
+    prefix = f"{kind}:"
+    return ent_id if ent_id.startswith(prefix) else f"{prefix}{ent_id}"
+
+
+def _most_recently_engaged(data_dir: Path, user_id: str, slugs: set[str], limit: int) -> list[str]:
     """The ``limit`` episodes the user engaged with MOST RECENTLY, newest first.
 
     Derivation has to be bounded — it costs one KG load per episode — but *which* episodes get
@@ -187,12 +247,14 @@ def _most_recently_engaged(
     return sorted(slugs, key=lambda s: (-recency.get(s, 0), s))[:limit]
 
 
-def _episode_interest_tokens(root: Path, row: CatalogEpisodeRow) -> list[str]:
-    """The topic + person ids one episode touches (empty when it has no KG)."""
+def _episode_entities(root: Path, row: CatalogEpisodeRow) -> list[tuple[str, str, str]]:
+    """``(kind, id, label)`` for every topic + person one episode touches; empty without a KG."""
     if not row.has_kg:
         return []
     artifact = load_json_artifact(root, row.kg_relative_path)
     if artifact is None:
         return []
     persons, _orgs, topics = entities_from_kg(artifact)
-    return [t.id for t in topics if t.id] + [p.id for p in persons if p.id]
+    return [("topic", t.id, t.label) for t in topics if t.id] + [
+        ("person", p.id, p.name) for p in persons if p.id
+    ]

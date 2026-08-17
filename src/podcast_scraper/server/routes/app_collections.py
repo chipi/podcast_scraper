@@ -81,9 +81,7 @@ async def collection_detail(
     """A collection + its highlights, hydrated from the capture store (missing ids dropped)."""
     data_dir = _data_dir(request)
     by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user.user_id)}
-    rows = app_collections_store.list_collections(
-        data_dir, user.user_id, live_item_ids=set(by_id)
-    )
+    rows = app_collections_store.list_collections(data_dir, user.user_id, live_item_ids=set(by_id))
     meta = next((c for c in rows if c["id"] == collection_id), None)
     if meta is None:
         raise HTTPException(status_code=404, detail="collection not found")

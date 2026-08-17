@@ -341,9 +341,11 @@ class TestDerivationTracksRecentListening:
         monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
         monkeypatch.setattr(
             uc,
-            "_episode_interest_tokens",
+            "_episode_entities",
             lambda root, row: (
-                ["topic:fresh"] if str(row).startswith(self.NEW_SHOW) else ["topic:legacy"]
+                [("topic", "topic:fresh", "Fresh")]
+                if str(row).startswith(self.NEW_SHOW)
+                else [("topic", "topic:legacy", "Legacy")]
             ),
         )
         return uc, tmp_path, uid
@@ -361,8 +363,8 @@ class TestDerivationTracksRecentListening:
         seen: list[str] = []
         monkeypatch.setattr(
             uc,
-            "_episode_interest_tokens",
-            lambda root, row: (seen.append(str(row)) or ["topic:x"]),
+            "_episode_entities",
+            lambda root, row: (seen.append(str(row)) or [("topic", "topic:x", "X")]),
         )
         uc.derive_interests(data_dir, data_dir, uid, k=8, max_episodes=12)
         assert len(seen) == 12, len(seen)
@@ -388,8 +390,12 @@ class TestDerivationTracksRecentListening:
         monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: heard + [captured])
         monkeypatch.setattr(
             uc,
-            "_episode_interest_tokens",
-            lambda root, row: (["topic:captured"] if row == captured else ["topic:fresh"]),
+            "_episode_entities",
+            lambda root, row: (
+                [("topic", "topic:captured", "Captured")]
+                if row == captured
+                else [("topic", "topic:fresh", "Fresh")]
+            ),
         )
         # Room for all three: the signal-less episode is reached.
         assert "topic:captured" in uc.derive_interests(data_dir, data_dir, uid, k=8)

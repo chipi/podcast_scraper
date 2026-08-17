@@ -7,7 +7,6 @@ and what the user is implicitly **interested in**, computed on each request.
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Iterable
 from typing import Any
 
@@ -65,49 +64,15 @@ def select_due(
     return [h for _, h in scored]
 
 
-def derive_interest_signals(
-    entities_per_episode: Iterable[tuple[str, str, str]],
-    *,
-    min_count: int = 1,
-) -> list[dict[str, Any]]:
-    """Implicit interest tokens from the user's corpus entities (RFC-101 §6).
-
-    ``entities_per_episode`` yields ``(kind, id, label)`` for each person/topic occurrence across
-    the user's heard∪captured episodes (one tuple per episode it appears in). Returns ranked tokens
-    ``{token, kind, label, count}`` — ``person:<id>`` / ``topic:<id>`` — by descending occurrence,
-    so the same guest/topic across several heard episodes ranks highest. These are *implicit*
-    signals, surfaced alongside (never overwriting) the user's explicit follows.
-
-    The token MUST be usable as an interest token, i.e. live in the same id space the ranker
-    matches against (``app_discover_view._episode_features``) and that ``POST /interests/{token}``
-    stores. Both real callers pass ids straight from ``entities_from_kg``, which already carry
-    their ``person:`` / ``topic:`` prefix — so blindly prepending ``kind`` produced
-    ``topic:topic:systems-thinking`` / ``person:person:sam``, tokens that can never match anything.
-    Prefixing is therefore conditional. (This hid because the unit tests passed made-up ids like
-    ``p:jane`` / ``t:ai``, a shape no caller produces; those cases still behave as before.)
-    """
-    counts: Counter[tuple[str, str]] = Counter()
-    labels: dict[tuple[str, str], str] = {}
-    for kind, ent_id, label in entities_per_episode:
-        if kind not in ("person", "topic") or not ent_id:
-            continue
-        key = (kind, str(ent_id))
-        counts[key] += 1
-        labels.setdefault(key, label or str(ent_id))
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [
-        {
-            "token": _interest_token(kind, ent_id),
-            "kind": kind,
-            "label": labels[(kind, ent_id)],
-            "count": n,
-        }
-        for (kind, ent_id), n in ranked
-        if n >= min_count
-    ]
-
-
-def _interest_token(kind: str, ent_id: str) -> str:
-    """``kind:id``, without doubling a prefix the id already carries."""
-    prefix = f"{kind}:"
-    return ent_id if ent_id.startswith(prefix) else f"{prefix}{ent_id}"
+# derive_interest_signals() and _interest_token() lived here until 2026-08-17.
+#
+# They were the SECOND implementation of "what this user is into". The only one now is
+# app_user_corpus.derived_interest_counts(), and the token helper is
+# app_user_corpus.interest_token().
+#
+# Why they went: three surfaces each derived this concept their own way and gave three
+# different answers for the same user — /discover over the 40 most recently engaged episodes,
+# /corpus over sorted(slugs)[:40] (the alphabetical freeze #18 fixed for /discover ONLY), and
+# /interests/derived over every episode with no bound at all. That drift is also what produced
+# the doubled `topic:topic:` prefix (d390f7b0). Deleting the duplicate is the fix; leaving an
+# unused second definition around is how it came back the first time.

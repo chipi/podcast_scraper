@@ -97,11 +97,12 @@ def test_derive_interests_aggregates_and_ranks_top_tokens(
     monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: ["r_s1", "r_s2", "r_s3"])
     monkeypatch.setattr(uc, "slug_for_row", lambda r: r[2:])  # "r_s1" -> "s1"
     per_episode = {
-        "r_s1": ["topic:ai", "person:jane"],
-        "r_s2": ["topic:ai", "topic:vc"],
+        "r_s1": [("topic", "topic:ai", "AI"), ("person", "person:jane", "Jane")],
+        "r_s2": [("topic", "topic:ai", "AI"), ("topic", "topic:vc", "VC")],
         "r_s3": [],  # no KG → contributes nothing
     }
-    monkeypatch.setattr(uc, "_episode_interest_tokens", lambda root, row: per_episode[row])
+    # (kind, id, label) now — one core produces the token, so the test speaks its input shape.
+    monkeypatch.setattr(uc, "_episode_entities", lambda root, row: per_episode[row])
 
     got = uc.derive_interests(tmp_path, tmp_path, "u1", k=3)
     assert got[0] == "topic:ai"  # frequency 2 → leads
@@ -122,7 +123,13 @@ def test_derive_interests_respects_k_and_empty(
     monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: ["r_s1"])
     monkeypatch.setattr(uc, "slug_for_row", lambda r: r[2:])
     monkeypatch.setattr(
-        uc, "_episode_interest_tokens", lambda root, row: ["topic:a", "topic:b", "topic:c"]
+        uc,
+        "_episode_entities",
+        lambda root, row: [
+            ("topic", "topic:a", "A"),
+            ("topic", "topic:b", "B"),
+            ("topic", "topic:c", "C"),
+        ],
     )
     assert uc.derive_interests(tmp_path, tmp_path, "u1", k=2) == ["topic:a", "topic:b"]
 
@@ -167,3 +174,141 @@ def test_highlight_and_note_are_experienced(tmp_path: Path) -> None:
     )
     experienced = app_user_corpus.experienced_episode_set(tmp_path, tmp_path, uid)
     assert "ep-hl" in experienced
+
+
+# --- ONE definition of "what this user is into" (#28) -------------------------------------------
+#
+# There were three. All counted person/topic occurrences across the user's heard∪captured episodes,
+# and each chose ITS OWN episodes:
+#
+#     derive_interests        recency-ranked, 40   (only after #18 fixed it)
+#     /corpus  _top_entities  sorted(slugs)[:40]   the alphabetical freeze, still live there
+#     /interests/derived      every episode        no bound at all
+#
+# So the same user was told they were into three different things depending on which screen they
+# opened, #18's fix reached one of the three, and /interests/derived did an unbounded number of KG
+# loads for a heavy listener. They had already drifted once on token FORMAT — the doubled
+# `topic:topic:` prefix (d390f7b0).
+#
+# These tests exist to keep it at one. The token-format cases moved here from
+# test_app_resurfacing.py when the duplicate was deleted.
+
+
+class TestInterestToken:
+    """The token must be exactly the id the ranker compares against — no more, no less."""
+
+    def test_real_kg_ids_are_not_double_prefixed(self) -> None:
+        from podcast_scraper.server.app_user_corpus import interest_token
+
+        assert interest_token("topic", "topic:systems-thinking") == "topic:systems-thinking"
+        assert interest_token("person", "person:sam") == "person:sam"
+
+    def test_unprefixed_ids_still_get_their_kind(self) -> None:
+        """Back-compat: a hand-written id without the prefix is still namespaced."""
+        from podcast_scraper.server.app_user_corpus import interest_token
+
+        assert interest_token("topic", "ai") == "topic:ai"
+        assert interest_token("person", "jane") == "person:jane"
+
+
+class TestOneDefinitionForEverySurface:
+    """/discover, /corpus and /interests/derived must answer from the same counts.
+
+    Not "the same numbers today" — the same FUNCTION. A test that re-implements the ranking would
+    drift alongside the code, which is the failure being fixed. So: assert the projections agree
+    with the core they project from.
+    """
+
+    @staticmethod
+    def _stub(monkeypatch, per_episode: dict) -> None:
+        import podcast_scraper.server.app_user_corpus as uc
+
+        monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: set(per_episode))
+        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: list(per_episode))
+        monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
+        monkeypatch.setattr(uc, "_most_recently_engaged", lambda d, u, s, n: sorted(s)[:n])
+        monkeypatch.setattr(uc, "_episode_entities", lambda root, row: per_episode[row])
+
+    def test_derive_interests_is_exactly_the_top_k_tokens_of_the_counts(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        import podcast_scraper.server.app_user_corpus as uc
+
+        # Count order must DISAGREE with alphabetical order, or this cannot tell a real projection
+        # from a re-sort. `topic:zzz` is the most-heard and alphabetically last; `topic:aaa` is the
+        # least-heard and alphabetically first. (The first version of this test used data where the
+        # two orders coincided, so it passed against a deliberately broken projection.)
+        self._stub(
+            monkeypatch,
+            {
+                "s1": [("topic", "topic:zzz", "Z"), ("topic", "topic:aaa", "A")],
+                "s2": [("topic", "topic:zzz", "Z"), ("topic", "topic:mmm", "M")],
+                "s3": [("topic", "topic:zzz", "Z"), ("topic", "topic:mmm", "M")],
+            },
+        )
+        counts = uc.derived_interest_counts(tmp_path, tmp_path, "u1")
+        assert [r["token"] for r in counts] == [
+            "topic:zzz",
+            "topic:mmm",
+            "topic:aaa",
+        ], "the core is not ranking by count — the rest of this test proves nothing"
+        for k in (1, 2, 3, 8):
+            assert uc.derive_interests(tmp_path, tmp_path, "u1", k=k) == [
+                row["token"] for row in counts[:k]
+            ], f"the /discover projection diverged from the core at k={k}"
+
+    def test_every_surface_sees_the_same_bound(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """One number, not three: /corpus had its own _MAX_ENTITY_SCAN, /interests/derived none."""
+        import podcast_scraper.server.app_user_corpus as uc
+
+        assert uc.DERIVED_MAX_EPISODES == 40
+        assert uc.DERIVED_TOP_K == 8
+
+        seen: list[str] = []
+        per_episode = {f"s{i:03d}": [("topic", f"topic:t{i}", f"T{i}")] for i in range(60)}
+        self._stub(monkeypatch, per_episode)
+        monkeypatch.setattr(
+            uc,
+            "_episode_entities",
+            lambda root, row: (seen.append(row) or per_episode[row]),
+        )
+        uc.derived_interest_counts(tmp_path, tmp_path, "u1")
+        assert len(seen) == uc.DERIVED_MAX_EPISODES, (
+            "the core loaded a different number of KGs than the shared bound — the unbounded "
+            "/interests/derived scan is exactly what this prevents"
+        )
+
+    def test_counts_carry_what_the_dict_surfaces_need(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """/corpus and /interests/derived render {token, kind, label, count}; the core must supply
+        all four, or those two surfaces would need their own derivation again."""
+        import podcast_scraper.server.app_user_corpus as uc
+
+        self._stub(monkeypatch, {"s1": [("topic", "topic:long-form", "long form")]})
+        row = uc.derived_interest_counts(tmp_path, tmp_path, "u1")[0]
+        assert row == {
+            "token": "topic:long-form",
+            "kind": "topic",
+            "label": "long form",
+            "count": 1,
+        }
+
+    def test_ranking_is_deterministic_across_reads(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Ties must not reorder between reads, or two surfaces rendered moments apart disagree."""
+        import podcast_scraper.server.app_user_corpus as uc
+
+        self._stub(
+            monkeypatch,
+            {
+                "s1": [("topic", "topic:b", "B"), ("topic", "topic:a", "A")],
+                "s2": [("topic", "topic:c", "C")],
+            },
+        )
+        first = uc.derived_interest_counts(tmp_path, tmp_path, "u1")
+        assert all(uc.derived_interest_counts(tmp_path, tmp_path, "u1") == first for _ in range(3))
+        assert [r["token"] for r in first] == ["topic:a", "topic:b", "topic:c"]

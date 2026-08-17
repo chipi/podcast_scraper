@@ -178,9 +178,7 @@ def discover(
 
 
 @router.get("/ranking-config")
-def get_ranking_config(
-    request: Request, _admin: User = Depends(get_admin_user)
-) -> dict[str, Any]:
+def get_ranking_config(request: Request, _admin: User = Depends(get_admin_user)) -> dict[str, Any]:
     """The active discovery ranking-signal config (admin only) — the #11 'manage in one place'."""
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     config = (
