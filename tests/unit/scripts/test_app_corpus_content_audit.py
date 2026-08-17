@@ -27,6 +27,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 
 from build_app_validation_corpus import (  # noqa: E402
+    _feed_parity_problems,
+    _synthesized_fallback_problems,
     _audit_built_corpus,
     is_greeting_or_filler,
 )
@@ -393,3 +395,88 @@ def test_a_run_directory_the_search_layer_cannot_parse_is_caught(tmp_path: Path)
 def test_a_conforming_run_directory_is_not_flagged(tmp_path: Path) -> None:
     problems = _audit_built_corpus(_corpus(tmp_path, episodes=1))
     assert not any("run-recency pattern" in p for p in problems), problems
+
+
+def test_a_feed_item_with_no_built_episode_is_caught(tmp_path: Path) -> None:
+    """v3's feeds advertise 40 items against 36 built episodes (#62.5, #61).
+
+    Nothing errors — the extra four simply describe episodes that do not exist, so anything reading
+    the FEED sees a corpus four episodes larger than the one the app can open. Invisible to both
+    sides alone, which is why the check has to hold them together.
+    """
+    root = _corpus(tmp_path, episodes=2)
+    rss = tmp_path / "rss"
+    rss.mkdir()
+    (rss / "p01_corpus.xml").write_text(
+        "<rss><channel>"
+        "<item><guid>p01_e00</guid></item>"
+        "<item><guid>p01_e01</guid></item>"
+        "<item><guid>p01_e99</guid></item>"  # advertised, never built
+        "</channel></rss>",
+        encoding="utf-8",
+    )
+    problems = _feed_parity_problems(root, rss)
+    assert any("never built" in p and "p01_e99" in p for p in problems), problems
+
+
+def test_a_built_episode_in_no_feed_item_is_caught(tmp_path: Path) -> None:
+    """The other direction: an episode the app can open that no feed advertises."""
+    root = _corpus(tmp_path, episodes=2)
+    rss = tmp_path / "rss"
+    rss.mkdir()
+    (rss / "p01_corpus.xml").write_text(
+        "<rss><channel><item><guid>p01_e00</guid></item></channel></rss>", encoding="utf-8"
+    )
+    problems = _feed_parity_problems(root, rss)
+    assert any("no feed item" in p and "p01_e01" in p for p in problems), problems
+
+
+def test_a_matching_feed_is_not_flagged(tmp_path: Path) -> None:
+    root = _corpus(tmp_path, episodes=2)
+    rss = tmp_path / "rss"
+    rss.mkdir()
+    (rss / "p01_corpus.xml").write_text(
+        "<rss><channel>"
+        "<item><guid>https://example/p01_e00</guid></item>"  # guids may be URLs; the tail is the id
+        "<item><guid>https://example/p01_e01</guid></item>"
+        "</channel></rss>",
+        encoding="utf-8",
+    )
+    assert _feed_parity_problems(root, rss) == []
+
+
+def test_no_feed_directory_means_no_parity_claim(tmp_path: Path) -> None:
+    """Absent input is not evidence of a defect — the feeds are a sibling fixture, not part of
+    the corpus, so a corpus built without them is simply unaudited on this axis."""
+    assert _feed_parity_problems(_corpus(tmp_path, episodes=1), tmp_path / "nope") == []
+
+
+def test_a_pipeline_run_that_silently_fell_back_fails_the_build() -> None:
+    """The report was always explicit and the build still exited 0 (#62.9).
+
+    So "we ran the pipeline" stayed true on paper while a transcript opening line shipped as the
+    summary — the v3 defect exactly, arriving through the door marked "we already report this".
+    """
+    problems = _synthesized_fallback_problems(
+        ran_pipeline=True, synthesized=["p01_e00", "p01_e01"], total=4, allowed=False
+    )
+    assert problems and "fell back" in problems[0], problems
+
+
+def test_the_fallback_can_be_accepted_deliberately() -> None:
+    assert (
+        _synthesized_fallback_problems(
+            ran_pipeline=True, synthesized=["p01_e00"], total=4, allowed=True
+        )
+        == []
+    )
+
+
+def test_without_a_pipeline_run_the_stand_in_is_the_expected_output() -> None:
+    """There is nothing to fall back FROM, so the stand-in is not a defect."""
+    assert (
+        _synthesized_fallback_problems(
+            ran_pipeline=False, synthesized=["p01_e00"], total=1, allowed=False
+        )
+        == []
+    )

@@ -53,6 +53,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -1183,6 +1184,15 @@ def _apply_cover_art(corpus: Path) -> str:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
+    p.add_argument(
+        "--allow-synthesized-summaries",
+        action="store_true",
+        help=(
+            "Accept a --pipeline-run build in which some episodes fell back to the "
+            "synthesized stand-in summary. Without this the build FAILS on a silent "
+            "fallback (#62.9)."
+        ),
+    )
     default_version = Path("tests/fixtures/FIXTURES_VERSION").read_text(encoding="utf-8").strip()
     p.add_argument(
         "--transcripts-dir",
@@ -1223,6 +1233,7 @@ def main() -> int:
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
     # Real pipeline summaries, keyed by episode label; empty when --pipeline-run is not given.
     pipeline_outputs = _load_pipeline_outputs(args.pipeline_run) if args.pipeline_run else {}
+    allow_synthesized = bool(args.allow_synthesized_summaries)
     summaries_from_pipeline: list[str] = []
     summaries_synthesized: list[str] = []
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
@@ -1639,6 +1650,18 @@ def main() -> int:
             print("    ^ no --pipeline-run was supplied, so every summary is the stand-in.")
 
     problems = _audit_built_corpus(out)
+    problems += _feed_parity_problems(out, args.rss_dir)
+    # A --pipeline-run that quietly fell back is a FAILED build, not a caveat (#62.9). The report
+    # above has always been clear, and the build still exited 0 — so "we ran the pipeline" stayed
+    # true on paper while the stand-in (a transcript opening line) shipped as the summary. That is
+    # precisely the v3 defect, arriving through the door marked "we already report this".
+    # --allow-synthesized-summaries is the deliberate escape hatch; there is no accidental one.
+    problems += _synthesized_fallback_problems(
+        ran_pipeline=bool(pipeline_outputs),
+        synthesized=summaries_synthesized,
+        total=total_summaries,
+        allowed=allow_synthesized,
+    )
     if problems:
         print("\n  CORPUS AUDIT FAILED:")
         for line in problems:
@@ -1825,6 +1848,73 @@ def _topic_variance_problems(metas: list[Path], _load) -> list[str]:
             found.append(
                 f"{feed}: {len(flat)}/{len(episodes)} episodes carry only feed-wide topics "
                 f"({', '.join(sorted(flat)[:4])}) — the corpus collapses to one theme cluster"
+            )
+    return found
+
+
+def _synthesized_fallback_problems(
+    *, ran_pipeline: bool, synthesized: list[str], total: int, allowed: bool
+) -> list[str]:
+    """A --pipeline-run that quietly fell back is a FAILED build, not a caveat (#62.9).
+
+    The report above has always been explicit, and the build still exited 0 — so "we ran the
+    pipeline" stayed true on paper while the stand-in (a transcript opening line) shipped as the
+    summary. That is the v3 defect exactly, arriving through the door marked "we already report
+    this". Printing a problem is not the same as refusing to call the build a success.
+
+    ``--allow-synthesized-summaries`` is the deliberate escape hatch; there is no accidental one.
+    Without ``--pipeline-run`` there is nothing to fall back FROM, so the stand-in is the expected
+    output rather than a defect.
+    """
+    if not ran_pipeline or not synthesized or allowed:
+        return []
+    return [
+        f"{len(synthesized)}/{total} summaries fell back to the synthesized stand-in under "
+        "--pipeline-run (pass --allow-synthesized-summaries to accept this deliberately)"
+    ]
+
+
+def _feed_parity_problems(out_root: Path, rss_dir: Path) -> list[str]:
+    """Every feed item must have a built episode, and vice versa (#62.5, #61).
+
+    v3's feeds advertise 40 items against 36 built episodes. Nothing errors: the extra four simply
+    describe episodes that do not exist, so any surface reading the FEED sees a corpus four
+    episodes larger than the one the app can open. It is invisible to both sides on their own,
+    which is why it needs a check that holds them together.
+
+    Lives outside ``_audit_built_corpus`` because it needs an input the corpus root does not
+    contain — the feeds are a sibling fixture directory, passed in by the caller that knows it.
+    """
+    if not rss_dir.is_dir():
+        return []
+    built = {
+        p.name[: -len(".metadata.json")]
+        for p in out_root.glob("feeds/*/*/metadata/*.metadata.json")
+    }
+    if not built:
+        return []
+    found: list[str] = []
+    for xml_path in sorted(rss_dir.glob("*_corpus.xml")):
+        show = xml_path.name.split("_", 1)[0]
+        try:
+            items = re.findall(r"<guid[^>]*>([^<]+)</guid>", xml_path.read_text(encoding="utf-8"))
+        except OSError:
+            continue
+        advertised = {g.strip().rsplit("/", 1)[-1] for g in items}
+        show_built = {stem for stem in built if stem.startswith(f"{show}_")}
+        if not advertised or not show_built:
+            continue
+        phantom = sorted(a for a in advertised if a not in show_built)
+        if phantom:
+            found.append(
+                f"{show}: {len(phantom)} feed item(s) advertise episodes that were never built "
+                f"({', '.join(phantom[:4])})"
+            )
+        unlisted = sorted(b for b in show_built if b not in advertised)
+        if unlisted:
+            found.append(
+                f"{show}: {len(unlisted)} built episode(s) appear in no feed item "
+                f"({', '.join(unlisted[:4])})"
             )
     return found
 
