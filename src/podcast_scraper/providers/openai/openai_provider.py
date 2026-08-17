@@ -1911,8 +1911,9 @@ class OpenAICompatibleProvider:
         Returns empty list on failure; the episode then honestly has no insights.
         """
         if not self._summarization_initialized:
-            logger.warning("OpenAI summarization not initialized for generate_insights")
-            return []
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
 
         from ...prompts.store import render_prompt
 
@@ -2142,8 +2143,9 @@ class OpenAICompatibleProvider:
     ) -> Optional[Dict[str, Any]]:
         """Extract topics and entities as JSON (KG layer). Returns None on failure."""
         if not self._summarization_initialized:
-            logger.warning("OpenAI summarization not initialized for extract_kg_graph")
-            return None
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
@@ -2224,7 +2226,11 @@ class OpenAICompatibleProvider:
         **kwargs: Any,
     ) -> List[Any]:
         """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
-        if not self._summarization_initialized or not (transcript and insight_text):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not (transcript and insight_text):
             return []
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
         from ..common.evidence_prompts import render_extract_quote_prompt
@@ -2326,7 +2332,11 @@ class OpenAICompatibleProvider:
         **kwargs: Any,
     ) -> float:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
-        if not self._summarization_initialized or not (premise and hypothesis):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not (premise and hypothesis):
             return 0.0
         from ..common.evidence_prompts import render_entailment_prompt
 
@@ -2397,7 +2407,11 @@ class OpenAICompatibleProvider:
         parser, same QuoteCandidate output shape — only the SDK glue differs. See
         ``providers/common/bundled_prompts.py`` for the prompt contract.
         """
-        if not self._summarization_initialized or not transcript:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not transcript:
             return {idx: [] for idx in range(len(insight_texts))}
         if not insight_texts:
             return {}
@@ -2539,7 +2553,11 @@ class OpenAICompatibleProvider:
         Mirrors :meth:`GeminiProvider.score_entailment_bundled`. Chunks at
         ``chunk_size`` (default 15) and issues one OpenAI call per chunk.
         """
-        if not self._summarization_initialized or not pairs:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not pairs:
             return {}
         chunk_size = max(1, int(chunk_size))
         out: Dict[int, float] = {}
