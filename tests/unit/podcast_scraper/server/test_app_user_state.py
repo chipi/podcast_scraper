@@ -15,7 +15,7 @@ UID = "u_test"
 def test_playback_roundtrip(tmp_path: Path) -> None:
     assert st.get_playback(tmp_path, UID, "ep") is None
     rec = st.set_playback(tmp_path, UID, "ep", 42.5, 1000)
-    assert rec == {"position_seconds": 42.5, "updated_at": 1000}
+    assert rec == {"position_seconds": 42.5, "updated_at": 1000, "finished": False}
     loaded = st.get_playback(tmp_path, UID, "ep")
     assert loaded is not None and loaded["position_seconds"] == 42.5
     # a second episode coexists without clobbering the first

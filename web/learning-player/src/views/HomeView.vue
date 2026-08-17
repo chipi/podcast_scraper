@@ -221,7 +221,12 @@ async function loadContinue(): Promise<void> {
       // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
       // hero for the discover hero and drops Recommended, with no sign anything went wrong.
       const positions = await getPlaybackList()
-      const inProgress = positions.filter((p) => p.position_seconds > 1).slice(0, 6)
+      // `finished` episodes are not in progress. Without it, an episode you heard to the end sat
+      // here forever — the last cadence save left it parked seconds from its end — and reopening it
+      // resumed at end-epsilon and immediately auto-advanced away again.
+      const inProgress = positions
+        .filter((p) => p.position_seconds > 1 && !p.finished)
+        .slice(0, 6)
       const hydrated = await Promise.all(
         inProgress.map((p) =>
           getEpisode(p.slug)

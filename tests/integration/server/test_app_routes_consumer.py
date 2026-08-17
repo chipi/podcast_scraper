@@ -856,3 +856,35 @@ def test_reanchoring_survives_a_corpus_without_segments(tmp_path: Path) -> None:
     resp = client.get("/api/app/highlights")
     assert resp.status_code == 200
     assert resp.json()["items"][0]["quote_text"] == _QUOTE
+
+
+def test_a_finished_episode_is_recorded_as_finished(tmp_path: Path) -> None:
+    """Nothing used to mark an episode finished, so it never left "Continue listening".
+
+    The last cadence save left it parked seconds from the end, and re-opening it resumed at
+    end-epsilon and instantly re-triggered auto-advance. Kept as a flag rather than by clearing the
+    record, so "I finished this" survives — the client sets it on `ended` or at the completion
+    threshold (skipping the outro is a normal way to finish, and `ended` never fires for it).
+    """
+    client = _authed(tmp_path)
+    client.put("/api/app/playback/ep", json={"position_seconds": 12.0})
+    assert client.get("/api/app/playback/ep").json()["finished"] is False
+
+    client.put("/api/app/playback/ep", json={"position_seconds": 1790.0, "finished": True})
+    assert client.get("/api/app/playback/ep").json()["finished"] is True
+    listed = client.get("/api/app/playback").json()["items"]
+    assert next(i for i in listed if i["slug"] == "ep")["finished"] is True
+
+
+def test_a_record_written_before_the_flag_existed_reads_as_unfinished(tmp_path: Path) -> None:
+    """Absent is not the same as false only if we say so — an old record must not read as finished."""
+    import json as _json
+
+    client = _authed(tmp_path)
+    client.put("/api/app/playback/ep", json={"position_seconds": 12.0})
+    path = tmp_path / "appdata" / "users"
+    rec_file = next(path.glob("*/playback.json"))
+    rec_file.write_text(_json.dumps({"ep": {"position_seconds": 12.0, "updated_at": 1}}))
+
+    assert client.get("/api/app/playback/ep").json()["finished"] is False
+    assert client.get("/api/app/playback").json()["items"][0]["finished"] is False

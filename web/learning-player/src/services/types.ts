@@ -141,6 +141,9 @@ export interface PlaybackPosition {
   slug: string
   position_seconds: number
   updated_at: number | null
+  /** The listener reached the end — set on `ended` or at the completion threshold. Optional so a
+   *  record written before the flag existed still parses; absent means unfinished. */
+  finished?: boolean
 }
 
 /** A distinct show in the corpus (GET /api/app/podcasts) — public, not per-user. */

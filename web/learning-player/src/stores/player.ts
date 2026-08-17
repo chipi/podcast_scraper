@@ -79,7 +79,7 @@ export const usePlayerStore = defineStore('player', () => {
     // Closing the tab is not an unmount: onBeforeUnmount fires on SPA navigation only, so a tab
     // closed mid-episode dropped everything since the last throttled save. `pagehide` is the event
     // that actually covers tab close, back/forward cache and mobile app-switch.
-    if (typeof window !== 'undefined') window.addEventListener('pagehide', savePosition)
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', () => savePosition())
     return audio
   }
 
@@ -173,6 +173,9 @@ export const usePlayerStore = defineStore('player', () => {
   async function onEnded(): Promise<void> {
     playing.value = false
     void stopBackgroundAudio()
+    // Record the finish BEFORE load() overwrites currentSlug — otherwise the episode that just
+    // ended keeps its last cadence save, parked seconds from the end, and stays in Continue.
+    savePosition(true)
     const next = await advanceResolvers.next?.()
     if (!next) return
     load(next)
@@ -226,11 +229,23 @@ export const usePlayerStore = defineStore('player', () => {
   // The store still must not import the API (same rule as the advance resolver), so the shell
   // supplies the writer.
   const SAVE_INTERVAL_MS = 10_000
-  const persisters: { save?: (slug: string, seconds: number) => void } = {}
+  /**
+   * Past this fraction of the episode, it counts as finished.
+   *
+   * `ended` alone is not enough: skipping the last minute of outro is a normal way to finish an
+   * episode, and `ended` never fires for it. Without the threshold those episodes sit in "Continue
+   * listening" forever — which is exactly the state the flag exists to prevent.
+   */
+  const FINISHED_FRACTION = 0.95
+  const persisters: {
+    save?: (slug: string, seconds: number, finished: boolean) => void
+  } = {}
   let lastSavedAt = 0
 
   /** The shell supplies this; without it every save below is a no-op (tests, signed-out). */
-  function setPositionPersister(fn: ((slug: string, seconds: number) => void) | undefined): void {
+  function setPositionPersister(
+    fn: ((slug: string, seconds: number, finished: boolean) => void) | undefined,
+  ): void {
     persisters.save = fn
     lastSavedAt = 0
   }
@@ -241,11 +256,13 @@ export const usePlayerStore = defineStore('player', () => {
    * (~4/s), so a flush triggered by pause or pagehide would otherwise write a slightly stale
    * position — at the two moments the position matters most.
    */
-  function savePosition(): void {
+  function savePosition(finished = false): void {
     const slug = currentSlug.value
     if (!slug || !persisters.save) return
     lastSavedAt = Date.now()
-    persisters.save(slug, el.value?.currentTime ?? currentTime.value)
+    const at = el.value?.currentTime ?? currentTime.value
+    const d = duration.value
+    persisters.save(slug, at, finished || (d > 0 && at / d >= FINISHED_FRACTION))
   }
 
   /** Throttled save for the `timeupdate` firehose (~4/s). */

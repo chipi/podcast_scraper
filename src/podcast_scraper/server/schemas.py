@@ -981,6 +981,11 @@ class PlaybackPosition(BaseModel):
     slug: str = Field(description="Episode slug.")
     position_seconds: float = Field(ge=0, description="Saved playback position in seconds.")
     updated_at: int | None = Field(default=None, description="Unix time of the last save.")
+    #: True once the listener reached the end. Nothing used to record this, so a finished episode
+    #: stayed parked seconds from its end: it sat in "Continue listening" forever, and re-opening it
+    #: resumed at end-epsilon and instantly re-triggered auto-advance. Kept as a flag rather than by
+    #: clearing the record, so "I finished this" survives.
+    finished: bool = Field(default=False, description="The listener reached the end.")
 
 
 class PlaybackUpdate(BaseModel):
@@ -994,6 +999,9 @@ class PlaybackUpdate(BaseModel):
     position_seconds: float = Field(
         ge=0, allow_inf_nan=False, description="Playback position in seconds."
     )
+    #: The client decides this: on `ended`, or at the completion threshold. The threshold matters —
+    #: skipping the outro is the common way to finish an episode, and `ended` never fires for it.
+    finished: bool = Field(default=False, description="The listener reached the end.")
 
 
 class PlaybackListResponse(BaseModel):

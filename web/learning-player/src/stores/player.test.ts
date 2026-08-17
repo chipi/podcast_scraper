@@ -463,3 +463,84 @@ describe('a refused play() is recorded, not dropped', () => {
     expect(p.audioError).toBe(false)
   })
 })
+
+describe('finishing an episode', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  const settle = async () => {
+    for (let i = 0; i < 4; i++) await Promise.resolve()
+  }
+
+  function persisted(p: ReturnType<typeof usePlayerStore>) {
+    const saves: [string, number, boolean][] = []
+    p.setPositionPersister((slug, seconds, finished) => saves.push([slug, seconds, finished]))
+    return saves
+  }
+
+  it('records the finish BEFORE auto-advance overwrites the episode identity', async () => {
+    // Nothing marked an episode finished, so the last cadence save left it parked seconds from the
+    // end: it sat in "Continue listening" forever, and re-opening it resumed at end-epsilon and
+    // instantly auto-advanced away again.
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    const saves = persisted(p)
+    ;(el as unknown as { currentTime: number }).currentTime = 1800
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3' }))
+
+    el.__emit('ended')
+    await settle()
+
+    expect(saves.some(([slug, , finished]) => slug === 'ep-1' && finished)).toBe(true)
+  })
+
+  it('counts a skipped outro as finished — `ended` never fires for it', async () => {
+    // The reason the threshold exists alongside the flag: skipping the last minute is a normal way
+    // to finish an episode, and those would otherwise live in Continue forever.
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    const saves = persisted(p)
+    el.__emit('durationchange')
+    ;(el as unknown as { duration: number }).duration = 1000
+    el.__emit('durationchange')
+    ;(el as unknown as { currentTime: number }).currentTime = 960 // 96%
+    vi.advanceTimersByTime(11_000)
+    el.__emit('timeupdate')
+
+    expect(saves.at(-1)).toEqual(['ep-1', 960, true])
+    vi.useRealTimers()
+  })
+
+  it('does not call an episode finished part-way through', async () => {
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    const saves = persisted(p)
+    ;(el as unknown as { duration: number }).duration = 1000
+    el.__emit('durationchange')
+    ;(el as unknown as { currentTime: number }).currentTime = 700 // 70%
+    vi.advanceTimersByTime(11_000)
+    el.__emit('timeupdate')
+
+    expect(saves.at(-1)).toEqual(['ep-1', 700, false])
+    vi.useRealTimers()
+  })
+
+  it('an unknown duration never reads as finished', async () => {
+    // duration 0 would make at/d NaN or Infinity; neither may be treated as "reached the end".
+    vi.useFakeTimers()
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    const saves = persisted(p)
+    ;(el as unknown as { currentTime: number }).currentTime = 42
+    vi.advanceTimersByTime(11_000)
+    el.__emit('timeupdate')
+
+    expect(saves.at(-1)).toEqual(['ep-1', 42, false])
+    vi.useRealTimers()
+  })
+})

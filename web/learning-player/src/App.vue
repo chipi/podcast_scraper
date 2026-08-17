@@ -75,8 +75,8 @@ player.setAdvanceResolver(resolveNextUp)
  * supplies the writer. A rejected save is swallowed — a lost position is a small, self-correcting
  * annoyance, and a signed-out user 401s on every tick.
  */
-player.setPositionPersister((slug, seconds) => {
-  void putPlayback(slug, seconds).catch(() => {})
+player.setPositionPersister((slug, seconds, finished) => {
+  void putPlayback(slug, seconds, finished).catch(() => {})
 })
 
 onMounted(async () => {

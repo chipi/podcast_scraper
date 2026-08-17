@@ -131,7 +131,12 @@ def get_playback(data_dir: Path, user_id: str, slug: str) -> dict[str, Any] | No
 
 
 def set_playback(
-    data_dir: Path, user_id: str, slug: str, position_seconds: float, updated_at: int
+    data_dir: Path,
+    user_id: str,
+    slug: str,
+    position_seconds: float,
+    updated_at: int,
+    finished: bool = False,
 ) -> dict[str, Any]:
     """Save the playback position for an episode; return the stored record.
 
@@ -142,7 +147,11 @@ def set_playback(
     """
     with _user_lock(data_dir, user_id, "playback"):
         data = _mapping_for_update(data_dir, user_id, "playback")
-        rec = {"position_seconds": position_seconds, "updated_at": updated_at}
+        rec = {
+            "position_seconds": position_seconds,
+            "updated_at": updated_at,
+            "finished": bool(finished),
+        }
         data[slug] = rec
         _write(data_dir, user_id, "playback", data)
         return rec
@@ -161,6 +170,9 @@ def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
                     "slug": str(slug),
                     "position_seconds": float(rec.get("position_seconds", 0.0)),
                     "updated_at": rec.get("updated_at"),
+                    # Absent on records written before the flag existed — an old record is
+                    # unfinished, which is what it always behaved as.
+                    "finished": bool(rec.get("finished", False)),
                 }
             )
     out.sort(key=lambda r: (r.get("updated_at") or 0), reverse=True)

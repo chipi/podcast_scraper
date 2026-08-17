@@ -69,6 +69,7 @@ async def list_playback(
                 slug=r["slug"],
                 position_seconds=float(r["position_seconds"]),
                 updated_at=r.get("updated_at"),
+                finished=bool(r.get("finished", False)),
             )
             for r in rows
         ]
@@ -85,6 +86,7 @@ async def get_playback(
         slug=slug,
         position_seconds=float(rec.get("position_seconds", 0.0)),
         updated_at=rec.get("updated_at"),
+        finished=bool(rec.get("finished", False)),
     )
 
 
@@ -94,10 +96,18 @@ async def put_playback(
 ) -> PlaybackPosition:
     """Save the playback position for an episode."""
     rec = app_user_state.set_playback(
-        _data_dir(request), user.user_id, slug, body.position_seconds, int(time.time())
+        _data_dir(request),
+        user.user_id,
+        slug,
+        body.position_seconds,
+        int(time.time()),
+        finished=body.finished,
     )
     return PlaybackPosition(
-        slug=slug, position_seconds=float(rec["position_seconds"]), updated_at=rec["updated_at"]
+        slug=slug,
+        position_seconds=float(rec["position_seconds"]),
+        updated_at=rec["updated_at"],
+        finished=bool(rec.get("finished", False)),
     )
 
 
