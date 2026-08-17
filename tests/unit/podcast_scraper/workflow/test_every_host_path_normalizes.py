@@ -35,16 +35,16 @@ human who does not exist, which cross-episode queries then happily join on.
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET  # noqa: N817  # Element TYPE only; parsing uses defusedxml
+from pathlib import Path
+from typing import Any, cast, List, Set
+
+import pytest
 
 # defusedxml for the PARSE, matching rss/parser.py and stages/test_scraping.py. Bandit B314
 # blacklists stdlib ElementTree parsing regardless of whether the input is trusted, and this
 # repo answers that with the safe parser rather than a per-line suppression. ``ET`` stays for
 # the ``Element`` type annotation, which B314 does not flag.
 from defusedxml.ElementTree import fromstring as safe_fromstring
-from pathlib import Path
-from typing import Any, List, Set, cast
-
-import pytest
 
 from podcast_scraper.speaker_detectors.hosts import (
     detect_hosts_from_feed,

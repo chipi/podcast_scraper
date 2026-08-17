@@ -17,7 +17,6 @@ from podcast_scraper.providers.ml.hybrid_ml_provider import (
     OllamaReduceBackend,
     TransformersReduceBackend,
 )
-
 from tests.integration.conftest import stub_transformers
 
 pytestmark = [pytest.mark.integration]

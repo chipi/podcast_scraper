@@ -1362,8 +1362,8 @@ def _build_preprocessor_or_report(
     ``_preprocessing_cannot_run`` and ``_record_preprocessing_outcome`` before it.
     """
     from podcast_scraper.preprocessing.audio.factory import (
-        FFmpegUnavailableError,
         create_audio_preprocessor,
+        FFmpegUnavailableError,
     )
 
     try:

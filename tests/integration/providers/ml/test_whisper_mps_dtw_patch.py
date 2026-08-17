@@ -19,7 +19,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from podcast_scraper.providers.ml import ml_provider
-
 from tests.integration.conftest import requires
 
 # Real ``openai-whisper`` import is required (the tests swap symbols on

@@ -20,9 +20,9 @@ from typing import Any, Dict, List
 import pytest
 
 from podcast_scraper.gi.corpus import (
-    LEGACY_PLACEHOLDER_INSIGHT_TEXT,
     find_legacy_placeholder_artifacts,
     is_legacy_placeholder_artifact,
+    LEGACY_PLACEHOLDER_INSIGHT_TEXT,
     summarize_legacy_placeholder_artifacts,
 )
 

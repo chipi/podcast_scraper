@@ -200,8 +200,9 @@ def _preflight() -> str:
     )
 
     assert callable(preflight_fallback_chain) and callable(log_fallback_chain_preflight)
-    from podcast_scraper.workflow import orchestration
     import inspect
+
+    from podcast_scraper.workflow import orchestration
 
     src = inspect.getsource(orchestration)
     assert "log_fallback_chain_preflight" in src, "pre-flight not called from orchestration"

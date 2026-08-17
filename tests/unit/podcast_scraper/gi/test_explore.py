@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from conftest import artifact_with_grounded_insights
 
 from podcast_scraper.gi import (

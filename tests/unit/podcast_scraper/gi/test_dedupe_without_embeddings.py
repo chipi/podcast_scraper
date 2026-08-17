@@ -60,8 +60,8 @@ from typing import List
 import pytest
 
 from podcast_scraper.gi.chunked_extraction import (
-    DEFAULT_LEXICAL_DEDUPE_THRESHOLD,
     dedupe,
+    DEFAULT_LEXICAL_DEDUPE_THRESHOLD,
 )
 
 pytestmark = [pytest.mark.unit]

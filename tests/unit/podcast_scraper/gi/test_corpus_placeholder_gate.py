@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from podcast_scraper.gi.corpus import (
-    LEGACY_PLACEHOLDER_INSIGHT_TEXT,
     check_corpus_for_placeholders,
+    LEGACY_PLACEHOLDER_INSIGHT_TEXT,
 )
 
 

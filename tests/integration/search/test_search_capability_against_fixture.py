@@ -32,7 +32,6 @@ from podcast_scraper.search import operators
 from podcast_scraper.search.capability import doc_types_for_tier, structured_corpus_search
 from podcast_scraper.search.compare import compare_subjects, SubjectRef
 from podcast_scraper.search.router import QUERY_TYPES
-
 from tests.integration.conftest import requires
 
 pytestmark = pytest.mark.integration

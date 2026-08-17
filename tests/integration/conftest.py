@@ -14,6 +14,11 @@ from __future__ import annotations
 
 import importlib.util
 import time as _real_time
+from contextlib import nullcontext
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 # Imported for its SIDE EFFECT, before any test module is imported. Do not remove.
 #
@@ -40,12 +45,6 @@ import time as _real_time
 # passed / 0 failed after, and the failures reproduce on this branch well before this file
 # gained any of its stub helpers.
 import numpy  # noqa: F401
-from pathlib import Path
-from contextlib import nullcontext
-from types import ModuleType, SimpleNamespace
-from typing import Any
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 _REPO_ROOT = Path(__file__).parent.parent.parent

@@ -29,8 +29,7 @@ from typing import Any, Dict, List, Tuple
 
 import pytest
 
-from podcast_scraper.gi import build_artifact
-from podcast_scraper.gi import pipeline as gi_pipeline
+from podcast_scraper.gi import build_artifact, pipeline as gi_pipeline
 
 pytestmark = [pytest.mark.unit]
 

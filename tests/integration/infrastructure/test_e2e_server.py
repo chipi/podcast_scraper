@@ -18,7 +18,6 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import config as config_module  # noqa: E402
-
 from tests.integration.conftest import requires
 
 

@@ -5,7 +5,6 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from conftest import artifact_with_grounded_insights, grounded_quote
 
 from podcast_scraper.evaluation.gi_scorer import compute_gil_prediction_stats
