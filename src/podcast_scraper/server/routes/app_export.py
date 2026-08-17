@@ -26,6 +26,22 @@ def _data_dir(request: Request) -> Path:
     return Path(request.app.state.app_data_dir)
 
 
+#: A fixed timestamp for every zip entry. `zipfile.writestr` stamps WALL-CLOCK time per entry, so
+#: two exports of an identical vault produced different bytes — no ETag or content-addressed
+#: caching is possible, and any test asserting on zip bytes would flake by construction. The
+#: content is already deterministic (#44); this makes the container match it. The value is
+#: arbitrary and only has to be constant and valid for the DOS date format zip uses (>= 1980).
+_ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
+
+
+def _write_entry(zf: zipfile.ZipFile, path: str, content: str) -> None:
+    """Add one entry with a fixed timestamp, so identical vaults zip to identical bytes."""
+    info = zipfile.ZipInfo(path, date_time=_ZIP_EPOCH)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = 0o644 << 16
+    zf.writestr(info, content)
+
+
 @router.get(
     "/export",
     # This returns a zip, and without saying so the generated schema claims application/json —
@@ -90,8 +106,8 @@ async def export_vault(
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for path, content in bundle["files"].items():
-            zf.writestr(path, content)
-        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+            _write_entry(zf, path, content)
+        _write_entry(zf, "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
     return Response(
         content=buf.getvalue(),
         media_type="application/zip",

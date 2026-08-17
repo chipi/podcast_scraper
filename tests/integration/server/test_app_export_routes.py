@@ -199,3 +199,41 @@ def test_a_pre_reset_cursor_gets_a_full_export_over_the_wire(tmp_path: Path) -> 
     manifest = json.loads(zipfile.ZipFile(io.BytesIO(stale.content)).read("manifest.json"))
     assert manifest["replace_namespace"] is True
     assert manifest["epoch"] == rebuilt.headers["x-export-epoch"]
+
+
+def test_the_same_vault_zips_to_identical_bytes(tmp_path: Path) -> None:
+    """`zipfile.writestr` stamps WALL-CLOCK time per entry (#44).
+
+    So two exports of an unchanged vault produced different bytes: no ETag, no content-addressed
+    caching, and any test asserting on zip bytes would flake by construction. The CONTENT was
+    already deterministic — this makes the container match it.
+    """
+    client, root, data_dir, uid = _authed(tmp_path)
+    slug = _corpus(root)
+    app_user_state.add_highlight(
+        data_dir,
+        uid,
+        {
+            "id": "h_1",
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "a line",
+            "created_at": 1,
+            "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}],
+        },
+    )
+    first = client.get("/api/app/export", params={"format": "obsidian"})
+    second = client.get("/api/app/export", params={"format": "obsidian"})
+
+    # Assert the MECHANISM, not just equal bytes. Two exports in one test run land in the same
+    # second, and zip's DOS timestamps have 2-second granularity — so byte-equality passes with the
+    # bug in place almost always, and fails only if the run straddles a boundary. That is a flaky
+    # test that proves nothing; sabotage confirmed it (reverting to `writestr(path, ...)` left it
+    # green). Every entry must carry the FIXED stamp.
+    entries = zipfile.ZipFile(io.BytesIO(first.content)).infolist()
+    assert entries, "empty zip"
+    stamps = {e.date_time for e in entries}
+    assert stamps == {(1980, 1, 1, 0, 0, 0)}, stamps
+
+    assert first.content == second.content, "identical vaults must produce identical zip bytes"

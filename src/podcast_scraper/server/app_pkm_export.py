@@ -25,10 +25,10 @@ from typing import Any
 
 from filelock import FileLock
 
-from podcast_scraper.server import app_user_state
+from podcast_scraper.server import app_graph_refs, app_user_state
 from podcast_scraper.server.app_slugs import slug_for_row
-from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
 _ROOT = "closelistening"
 
@@ -81,13 +81,27 @@ def _fm_list(items: list[str]) -> str:
     return "[" + ", ".join(items) + "]"
 
 
+def _entity_stem(entity_id: str) -> str:
+    """Filename stem for an ENTITY note — ``_safe_id`` plus a case fold (#44).
+
+    ``_safe_id`` preserves case, so ``person:Sam`` and ``person:sam`` are distinct zip entries that
+    COLLIDE on a case-insensitive filesystem — which is the default on macOS and Windows, i.e. most
+    vaults. Worse than a merge: a tombstone for one would delete the file the other is using.
+
+    The KG pipeline lowercases ids at mint, so this is belt-and-braces for pipeline artifacts. It is
+    NOT belt-and-braces for `graph_refs` frozen onto a highlight at capture, which the export trusts
+    verbatim — enforcing it here makes the property structural rather than inherited.
+    """
+    return _safe_id(entity_id).lower()
+
+
 def _entity_dir(kind: str) -> str:
     return {"person": "People", "topic": "Topics"}.get(kind, "Entities")
 
 
 def _entity_link(ref: dict[str, Any]) -> str:
     """A wikilink to an entity note: ``[[closelistening/People/person_x|Label]]``."""
-    stem = _safe_id(str(ref["id"]))
+    stem = _entity_stem(str(ref["id"]))
     label = _wikilink_text(str(ref.get("label") or ref["id"]))
     return f"[[{_ROOT}/{_entity_dir(str(ref['kind']))}/{stem}|{label}]]"
 
@@ -97,7 +111,7 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
     slug = str(h.get("episode_slug") or "")
     t_ms = h.get("start_ms")
     quote = str(h.get("quote_text") or "").strip()
-    ent_ids = [_safe_id(str(r["id"])) for r in refs]
+    ent_ids = [_entity_stem(str(r["id"])) for r in refs]
     alias = _yaml_scalar(quote[:80] if quote else episode_title)
     lines = [
         "---",
@@ -167,6 +181,17 @@ def _title_index(root: Path) -> dict[str, str]:
     }
 
 
+def _with_backfilled_refs(root: Path, highlight: dict[str, Any]) -> dict[str, Any]:
+    """The highlight, with graph refs resolved from the episode KG if it stored none (#44)."""
+    stored = highlight.get("graph_refs")
+    if isinstance(stored, list) and stored:
+        return highlight
+    resolved = app_graph_refs.refs_for_slug(root, str(highlight.get("episode_slug") or ""))
+    if not resolved:
+        return highlight
+    return {**highlight, "graph_refs": resolved}
+
+
 def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
     """The full current vault as ``{path: content}`` — highlight + entity + episode notes."""
     highlights = app_user_state.get_highlights(data_dir, user_id)
@@ -185,14 +210,26 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
                 titles = _title_index(root)
             # An unresolvable slug falls back to itself, exactly as resolve_slug -> None did.
             episode_titles[slug] = titles.get(slug) or slug
+        # Backfill refs frozen EMPTY at capture (#44). Refs are stored on the highlight when it is
+        # captured, so a moment captured while its episode had no KG carried zero entity links —
+        # for ever, even once the KG landed. That is the one case where "the vault mirrors your
+        # graph" was quietly untrue, and it hits early captures hardest.
+        #
+        # Only when the stored list is EMPTY: a non-empty list is what the user actually captured,
+        # and re-resolving it every export would let a later KG rewrite silently restate what an
+        # old highlight was about.
+        h = _with_backfilled_refs(root, h)
         hid = _safe_id(str(h.get("id") or ""))
         files[f"{_ROOT}/Highlights/{hid}.md"] = _highlight_note(h, episode_titles[slug])
         for ref in h.get("graph_refs") or []:
             if isinstance(ref, dict) and ref.get("id"):
+                # Last-write-wins on a repeated id with a different (stale) label. Deterministic:
+                # highlights are read in a stable order, so the entity note and an older link's
+                # display text can disagree, but they disagree the same way on every export.
                 entity_refs[str(ref["id"])] = ref
 
     for ref in entity_refs.values():
-        path = f"{_ROOT}/{_entity_dir(str(ref['kind']))}/{_safe_id(str(ref['id']))}.md"
+        path = f"{_ROOT}/{_entity_dir(str(ref['kind']))}/{_entity_stem(str(ref['id']))}.md"
         files[path] = _entity_note(ref)
     for slug, title in episode_titles.items():
         files[f"{_ROOT}/Episodes/{_safe_id(slug)}.md"] = _episode_note(slug, title)

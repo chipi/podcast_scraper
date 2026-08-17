@@ -400,3 +400,119 @@ def test_no_highlights_costs_no_catalog_walk_at_all(
     _hls(monkeypatch, [])
     ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
     assert calls == []
+
+
+# --- tombstone coverage, refs and filenames (#44) ------------------------------------------------
+#
+# The tombstone CORE is sound and worth stating as such: there is no reference counting to get
+# wrong. Every export rebuilds the whole vault from current highlights and set-diffs content hashes
+# against the snapshot, so edits, shared entities and label renames on stable ids all fall out
+# correctly. These pin the cases that were never tested.
+
+
+def test_deleting_one_of_two_highlights_keeps_their_shared_entity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The case reference counting would get wrong — and which the set-diff gets right for free."""
+    shared = [{"id": "topic:ai", "kind": "topic", "label": "AI"}]
+    a = {**_HL, "id": "h_a", "graph_refs": shared}
+    b = {**_HL, "id": "h_b", "graph_refs": shared}
+    _hls(monkeypatch, [a, b])
+    b1 = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+
+    _hls(monkeypatch, [a])  # delete ONE
+    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"], epoch=b1["epoch"])
+    assert "closelistening/Highlights/h_b.md" in b2["removed"]
+    assert (
+        "closelistening/Topics/topic_ai.md" not in b2["removed"]
+    ), "the surviving highlight still links this entity — tombstoning it would break that link"
+
+
+def test_an_edit_ships_exactly_one_changed_path_and_no_tombstones(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _hls(monkeypatch, [_HL])
+    b1 = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+    _hls(monkeypatch, [{**_HL, "quote_text": "an edited quote"}])
+    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"], epoch=b1["epoch"])
+    assert list(b2["files"]) == ["closelistening/Highlights/h_1.md"]
+    assert b2["removed"] == []
+
+
+def test_a_label_rename_on_a_stable_id_changes_the_note_but_never_tombstones_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Why filenames are ids, not labels: the note survives the rename in place."""
+    _hls(monkeypatch, [{**_HL, "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}]}])
+    b1 = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+    _hls(
+        monkeypatch,
+        [{**_HL, "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "Machine Learning"}]}],
+    )
+    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"], epoch=b1["epoch"])
+    assert "closelistening/Topics/topic_ai.md" in b2["files"]
+    assert b2["removed"] == []
+    assert "Machine Learning" in b2["files"]["closelistening/Topics/topic_ai.md"]
+
+
+def test_entity_ids_differing_only_in_case_share_one_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """macOS and Windows vaults are case-insensitive by default (#44).
+
+    `person:Sam` and `person:sam` used to be two zip entries that collide on extraction — and a
+    tombstone for one would delete the file the other still needs. The KG lowercases ids at mint,
+    so this is speculative for pipeline artifacts, but refs are frozen onto the highlight at
+    capture and the export trusts them verbatim, so nothing structural enforced it.
+    """
+    vault = _vault(
+        monkeypatch,
+        [
+            {
+                **_HL,
+                "id": "h_a",
+                "graph_refs": [{"id": "person:Sam", "kind": "person", "label": "S"}],
+            },
+            {
+                **_HL,
+                "id": "h_b",
+                "graph_refs": [{"id": "person:sam", "kind": "person", "label": "S"}],
+            },
+        ],
+    )
+    entity_paths = [p for p in vault if "/People/" in p]
+    assert entity_paths == ["closelistening/People/person_sam.md"], entity_paths
+    # The STEM is folded; the directory stays "People" on purpose, so this checks the filename
+    # rather than the whole path (the first version asserted the latter and failed on the dir).
+    stems = [path.rsplit("/", 1)[-1] for path in entity_paths]
+    assert all(s == s.lower() for s in stems), stems
+
+
+def test_refs_frozen_empty_at_capture_are_backfilled_on_export(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A moment captured while its episode had no KG exported ZERO entity links, for ever — even
+    after the KG landed. That is the one case where "the vault mirrors your graph" was untrue."""
+    monkeypatch.setattr(
+        ex.app_graph_refs,
+        "refs_for_slug",
+        lambda root, slug, **kw: [{"id": "topic:late", "kind": "topic", "label": "Late"}],
+    )
+    vault = _vault(monkeypatch, [{**_HL, "graph_refs": []}])
+    assert "closelistening/Topics/topic_late.md" in vault
+    assert "topic_late" in vault["closelistening/Highlights/h_1.md"]
+
+
+def test_a_highlight_that_captured_refs_keeps_exactly_those(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Backfill fills a GAP; it does not re-resolve. Otherwise a later KG rewrite would silently
+    restate what an old capture was about."""
+    monkeypatch.setattr(
+        ex.app_graph_refs,
+        "refs_for_slug",
+        lambda root, slug, **kw: [{"id": "topic:rewritten", "kind": "topic", "label": "New"}],
+    )
+    vault = _vault(monkeypatch, [_HL])  # _HL already carries jensen-huang + scaling
+    assert "closelistening/Topics/topic_rewritten.md" not in vault
+    assert "closelistening/Topics/topic_scaling.md" in vault
