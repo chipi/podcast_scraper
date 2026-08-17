@@ -127,7 +127,7 @@ def test_incremental_only_changed(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     # add a second highlight (new episode) → next export returns ONLY the new files
     h2 = {**_HL, "id": "h_2", "episode_slug": "dwarkesh-ep", "graph_refs": []}
     _hls(monkeypatch, [_HL, h2])
-    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"])
+    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"], epoch=b1["epoch"])
     assert b2["mode"] == "incremental"
     assert b2["replace_namespace"] is False  # incremental never wipes the namespace
     assert "closelistening/Highlights/h_2.md" in b2["files"]
@@ -138,7 +138,7 @@ def test_incremental_tombstone_on_delete(tmp_path: Path, monkeypatch: pytest.Mon
     _hls(monkeypatch, [_HL])
     b1 = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
     _hls(monkeypatch, [])  # highlight deleted → all its notes gone
-    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"])
+    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"], epoch=b1["epoch"])
     assert b2["mode"] == "incremental"
     assert "closelistening/Highlights/h_1.md" in b2["removed"]  # tombstone
 
@@ -146,7 +146,9 @@ def test_incremental_tombstone_on_delete(tmp_path: Path, monkeypatch: pytest.Mon
 def test_unchanged_reexport_no_cursor_bump(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _hls(monkeypatch, [_HL])
     b1 = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
-    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"])  # nothing changed
+    b2 = ex.export_bundle(
+        _ROOT, tmp_path, _UID, since=b1["revision"], epoch=b1["epoch"]
+    )  # nothing changed
     assert b2["revision"] == b1["revision"]  # cursor did not advance
     assert b2["files"] == {} and b2["removed"] == []
 
@@ -249,3 +251,84 @@ def test_every_note_in_the_vault_has_parseable_frontmatter(monkeypatch: pytest.M
         frontmatter = text.split("---\n", 2)[1]
         parsed = yaml.safe_load(frontmatter)  # raises → the user's vault has a broken note
         assert isinstance(parsed, dict), (path, parsed)
+
+
+# --- a bare cursor cannot identify a snapshot across a state reset (#41) --------------------------
+#
+# `since == prev_cursor` treated an integer as identifying a snapshot. But the counter restarts at
+# 0 whenever export_state.json is lost — and _load_state ALSO resets on corruption, so this is not
+# limited to restore-from-backup. Sequence: state resets; exports resume and the counter climbs
+# back to N; a device still holding the pre-reset N (whose vault reflects the OLD world) asks for
+# since=N; the server sees a match and computes a delta against ITS OWN snapshot, not against what
+# the client holds. The client applies a nonsense delta, keeps its orphans, and because the cursors
+# now advance in lockstep it NEVER receives a full export again. Silent and permanent.
+
+
+def test_a_cursor_from_before_a_state_reset_gets_a_full_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The headline scenario. Same integer, different world."""
+    _hls(monkeypatch, [_HL])
+    before = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)  # rev 1, epoch A
+
+    # The server loses its export state (restore from backup, wiped volume, fresh container).
+    ex._state_path(tmp_path, _UID).unlink()
+
+    # A different world: the user captured more while the client was away.
+    h2 = {**_HL, "id": "h_2", "episode_slug": "ep2", "graph_refs": []}
+    _hls(monkeypatch, [_HL, h2])
+    ex.export_bundle(_ROOT, tmp_path, _UID, since=0)  # counter climbs back to 1, epoch B
+
+    # The stale device echoes its pre-reset cursor — which now MATCHES the new counter.
+    stale = ex.export_bundle(_ROOT, tmp_path, _UID, since=before["revision"], epoch=before["epoch"])
+    assert stale["mode"] == "full", stale["mode"]
+    assert stale["replace_namespace"] is True
+    assert "closelistening/Highlights/h_1.md" in stale["files"]
+
+
+def test_a_corrupt_state_file_also_re_mints_the_epoch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_load_state resets on OSError/ValueError too, so corruption is the same failure as loss."""
+    _hls(monkeypatch, [_HL])
+    before = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+    ex._state_path(tmp_path, _UID).write_text("{not json", encoding="utf-8")
+
+    after = ex.export_bundle(_ROOT, tmp_path, _UID, since=before["revision"], epoch=before["epoch"])
+    assert after["mode"] == "full"
+    assert after["epoch"] != before["epoch"], "a reset must mint a new vault identity"
+
+
+def test_a_client_that_sends_no_epoch_gets_a_full_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An older client echoes only the revision. Full is the always-valid answer, so it self-heals
+    on its first export instead of silently applying deltas it cannot verify."""
+    _hls(monkeypatch, [_HL])
+    b1 = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+    b2 = ex.export_bundle(_ROOT, tmp_path, _UID, since=b1["revision"])  # no epoch
+    assert b2["mode"] == "full"
+
+
+def test_a_cursor_from_the_future_gets_a_full_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Correct before this change, untested. Pinned so the epoch work cannot regress it."""
+    _hls(monkeypatch, [_HL])
+    b1 = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+    ahead = ex.export_bundle(_ROOT, tmp_path, _UID, since=999, epoch=b1["epoch"])
+    assert ahead["mode"] == "full"
+    assert ahead["replace_namespace"] is True
+
+
+def test_the_epoch_is_stable_while_the_state_file_survives(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """It identifies the VAULT, not the export. Re-minting per call would mean never incremental."""
+    _hls(monkeypatch, [_HL])
+    first = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+    h2 = {**_HL, "id": "h_2", "episode_slug": "ep2", "graph_refs": []}
+    _hls(monkeypatch, [_HL, h2])
+    second = ex.export_bundle(_ROOT, tmp_path, _UID, since=first["revision"], epoch=first["epoch"])
+    assert second["epoch"] == first["epoch"]
+    assert second["mode"] == "incremental"

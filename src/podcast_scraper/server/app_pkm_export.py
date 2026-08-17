@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -193,18 +194,38 @@ def _state_lock(data_dir: Path, user_id: str) -> FileLock:
     return FileLock(str(path.with_name(f".{_STATE_FILE}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
+def _new_epoch() -> str:
+    """A fresh vault identity, minted whenever export state is created from nothing (#41)."""
+    return uuid.uuid4().hex
+
+
+def _blank_state() -> dict[str, Any]:
+    """State for a vault the server has never exported — or can no longer read.
+
+    The epoch is what gives a cursor meaning. A bare integer identifies a snapshot only while the
+    counter it came from still exists, and that counter restarts at 0 whenever
+    ``export_state.json`` is lost OR merely unreadable — then climbs back through values a client
+    may still be holding. Minting a new identity here is what lets the server notice.
+    """
+    return {"cursor": 0, "snapshot": {}, "epoch": _new_epoch()}
+
+
 def _load_state(data_dir: Path, user_id: str) -> dict[str, Any]:
     path = _state_path(data_dir, user_id)
     if not path.is_file():
-        return {"cursor": 0, "snapshot": {}}
+        return _blank_state()
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {"cursor": 0, "snapshot": {}}
+        return _blank_state()
     if not isinstance(doc, dict):
-        return {"cursor": 0, "snapshot": {}}
+        return _blank_state()
     doc.setdefault("cursor", 0)
     doc.setdefault("snapshot", {})
+    # State written before epochs existed gets one now. No client can be holding it, so the next
+    # request echoes nothing, correctly falls back to a full export — once — and is then in sync.
+    if not isinstance(doc.get("epoch"), str) or not doc["epoch"]:
+        doc["epoch"] = _new_epoch()
     return doc
 
 
@@ -212,7 +233,9 @@ def _hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-def export_bundle(root: Path, data_dir: Path, user_id: str, *, since: int) -> dict[str, Any]:
+def export_bundle(
+    root: Path, data_dir: Path, user_id: str, *, since: int, epoch: str | None = None
+) -> dict[str, Any]:
     """Compute the export the client should apply, and advance the server's vault snapshot.
 
     ``since`` is the revision the client last applied (0 = never). When it matches the server's
@@ -232,6 +255,7 @@ def export_bundle(root: Path, data_dir: Path, user_id: str, *, since: int) -> di
         current_hashes = {p: _hash(c) for p, c in current.items()}
         state = _load_state(data_dir, user_id)
         prev_cursor = int(state["cursor"])
+        state_epoch = str(state["epoch"])
         snapshot: dict[str, str] = dict(state["snapshot"])
         changed = {p: c for p, c in current.items() if current_hashes[p] != snapshot.get(p)}
         removed = sorted(p for p in snapshot if p not in current_hashes)
@@ -241,15 +265,25 @@ def export_bundle(root: Path, data_dir: Path, user_id: str, *, since: int) -> di
         atomic_write_text(
             _state_path(data_dir, user_id),
             json.dumps(
-                {"cursor": cursor, "snapshot": current_hashes}, ensure_ascii=False, indent=2
+                {"cursor": cursor, "snapshot": current_hashes, "epoch": state_epoch},
+                ensure_ascii=False,
+                indent=2,
             ),
         )
 
-    incremental = since == prev_cursor and since != 0
+    # The epoch must match too (#41). `since == prev_cursor` alone treats a bare integer as
+    # identifying a snapshot, but the counter restarts at 0 whenever export_state.json is lost or
+    # becomes unreadable, then climbs back through values a client may still hold. On collision the
+    # server served an "incremental" delta computed against ITS OWN snapshot rather than against
+    # what the client actually had: the client applied a nonsense delta, kept its orphans, and —
+    # because the cursors then advanced in lockstep — never asked for a full export again. Silent,
+    # permanent, no self-healing. A client that sends no epoch (older build) simply gets full.
+    incremental = since == prev_cursor and since != 0 and epoch == state_epoch
     files = changed if incremental else current
     return {
         "mode": "incremental" if incremental else "full",
         "revision": cursor,
+        "epoch": state_epoch,
         "namespace": _ROOT,
         "files": files,
         "removed": removed if incremental else [],

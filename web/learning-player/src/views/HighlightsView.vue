@@ -130,6 +130,7 @@ async function share(h: Highlight): Promise<void> {
 // Graph-aware Obsidian export (#1472). Incremental: the last-applied revision is remembered in
 // localStorage so a repeat click only pulls what changed. First click (or cleared storage) is full.
 const OBSIDIAN_CURSOR_KEY = 'obsidian_export_cursor'
+const OBSIDIAN_EPOCH_KEY = 'obsidian_export_epoch'
 const exportingObsidian = ref(false)
 const obsidianMsg = ref('')
 /** True after a SUCCESSFUL export — gates the "what to do with the zip" line (not shown on error). */
@@ -151,6 +152,11 @@ async function doObsidianExport(): Promise<void> {
     // native shell writing files itself). Until then `since=0` is the only safe request.
     const r = await exportObsidian(0)
     localStorage.setItem(OBSIDIAN_CURSOR_KEY, String(r.revision))
+    // Stored beside the cursor, not instead of it. A revision only identifies a snapshot within
+    // one server epoch (#41); persisting the number alone would leave whatever applier arrives
+    // next holding an integer it cannot validate — exactly the collision the epoch exists to
+    // catch. Unused while we always request since=0.
+    localStorage.setItem(OBSIDIAN_EPOCH_KEY, r.epoch)
     obsidianMsg.value = t('highlights.obsidianFull', { written: r.written })
     obsidianDone.value = true
   } catch {

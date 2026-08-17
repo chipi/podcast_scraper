@@ -50,6 +50,13 @@ async def export_vault(
     request: Request,
     format: str = Query(default="obsidian"),
     since: int = Query(default=0, ge=0, description="Last revision the client applied (0 = full)."),
+    epoch: str | None = Query(
+        default=None,
+        description=(
+            "Vault identity from the client's last export (`X-Export-Epoch`). A revision number "
+            "only identifies a snapshot within one epoch; omit it and you get a full export."
+        ),
+    ),
     user: User = Depends(get_current_user),
 ) -> Response:
     """Graph-aware vault export as a zip. Incremental when ``since`` matches the last export.
@@ -61,12 +68,18 @@ async def export_vault(
     if format != "obsidian":
         raise HTTPException(status_code=400, detail="only format=obsidian is supported")
     root = corpus_root_or_503(request)
-    bundle = app_pkm_export.export_bundle(root, _data_dir(request), user.user_id, since=since)
+    bundle = app_pkm_export.export_bundle(
+        root, _data_dir(request), user.user_id, since=since, epoch=epoch
+    )
 
     manifest = {
         "format": "obsidian",
         "mode": bundle["mode"],
         "revision": bundle["revision"],
+        # The revision is only meaningful WITH this (#41): the counter restarts at 0 whenever the
+        # server's export state is lost or unreadable, so a bare integer can collide with one a
+        # client is still holding from before the reset. Echo both back next time.
+        "epoch": bundle["epoch"],
         "namespace": bundle["namespace"],
         "written": bundle["written"],
         "removed": bundle["removed"],
@@ -86,10 +99,12 @@ async def export_vault(
             "Content-Disposition": 'attachment; filename="closelistening-obsidian.zip"',
             "X-Export-Mode": bundle["mode"],
             "X-Export-Revision": str(bundle["revision"]),
+            "X-Export-Epoch": str(bundle["epoch"]),
             "X-Export-Written": str(len(bundle["written"])),
             "X-Export-Removed": str(len(bundle["removed"])),
             "Access-Control-Expose-Headers": (
-                "X-Export-Mode, X-Export-Revision, X-Export-Written, X-Export-Removed"
+                "X-Export-Mode, X-Export-Revision, X-Export-Epoch, "
+                "X-Export-Written, X-Export-Removed"
             ),
         },
     )
