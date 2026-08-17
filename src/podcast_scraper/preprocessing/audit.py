@@ -66,8 +66,32 @@ class RunPreprocessing:
 
     @property
     def damaged(self) -> bool:
-        """Preprocessing was asked for and produced nothing."""
-        return bool(self.attempts and self.attempts >= 1 and self.completed == 0)
+        """Preprocessing was asked for and did not complete for EVERY episode it was asked for.
+
+        ``completed < attempts``, not ``completed == 0``. The original rule only fired when a run
+        preprocessed NOTHING, which is correct on the one-episode-per-run corpora it was written
+        against and silently wrong everywhere else: a production run of 50 episodes where 45
+        preprocessed and 5 hit the wall records attempts=50/completed=45 and read as HEALTHY,
+        hiding all 5.
+
+        That is the same failure I have now made four times — validating a rule only in the
+        degenerate case where one run means one episode. Production runs are batches.
+
+        Cache hits count as completed: ``record_preprocessing_time`` fires on a hit, so a reused
+        preprocessed file is a legitimate completion, not a miss.
+        """
+        if not self.attempts or self.attempts < 1:
+            return False
+        return (self.completed or 0) < self.attempts
+
+    @property
+    def partially_damaged(self) -> bool:
+        """Some episodes in the run preprocessed and some did not — attribution is impossible.
+
+        Distinguished from a total failure because it changes what an operator can conclude:
+        every episode in such a run is a suspect, and none can be cleared.
+        """
+        return self.damaged and (self.completed or 0) > 0
 
     @property
     def hit_legacy_wall(self) -> bool:

@@ -224,3 +224,51 @@ def test_an_episode_never_repaired_is_still_reported(tmp_path):
 
     assert ok is False
     assert "ep-broken" in report
+
+
+def test_a_PARTIALLY_failed_batch_run_is_damage(tmp_path):
+    """The rule was `completed == 0`, which is only correct when one run means one episode.
+
+    A production run of 50 episodes where 45 preprocessed and 5 hit the wall records
+    attempts=50/completed=45 and read as HEALTHY under the old rule — hiding all 5. My local
+    corpora were one-episode-per-run, so the degenerate case was the only one ever validated.
+    """
+    _run(
+        tmp_path,
+        attempts=50,
+        completed=45,
+        wall_ms=120_000.0,
+        episode_ids=[f"ep-{i}" for i in range(50)],
+    )
+
+    ok, report = check_corpus_preprocessing(tmp_path)
+
+    assert ok is False, f"5 of 50 episodes went to the provider unpreprocessed\n{report}"
+    assert "runs DAMAGED             : 1" in report
+
+
+def test_a_fully_successful_batch_run_is_not_damage(tmp_path):
+    _run(
+        tmp_path,
+        attempts=50,
+        completed=50,
+        wall_ms=120_000.0,
+        reduction=75.0,
+        episode_ids=[f"ep-{i}" for i in range(50)],
+    )
+
+    ok, _report = check_corpus_preprocessing(tmp_path)
+
+    assert ok is True
+
+
+def test_partial_damage_is_distinguishable_from_total(tmp_path):
+    """Changes what an operator can conclude: in a partial run NO episode can be cleared."""
+    _run(tmp_path, run="run_a", attempts=10, completed=7, episode_ids=[f"a{i}" for i in range(10)])
+    _run(tmp_path, run="run_b", attempts=3, completed=0, episode_ids=[f"b{i}" for i in range(3)])
+
+    runs = {Path(r.run_dir).name: r for r in assess_preprocessing(tmp_path)}
+
+    assert runs["run_a"].partially_damaged is True
+    assert runs["run_b"].partially_damaged is False, "a total failure is not a partial one"
+    assert runs["run_a"].damaged and runs["run_b"].damaged

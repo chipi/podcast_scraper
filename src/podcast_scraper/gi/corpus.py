@@ -82,6 +82,7 @@ def find_legacy_placeholder_artifacts(
     corpus_root: Path,
     *,
     validate: bool = False,
+    include_superseded: bool = False,
 ) -> List[Tuple[Path, str]]:
     """Every legacy-placeholder ``.gi.json`` under *corpus_root*, as ``(path, episode_id)``.
 
@@ -92,13 +93,70 @@ def find_legacy_placeholder_artifacts(
     forever. Re-deriving them needs an explicit list, and this produces it.
 
     Ordered by path so two runs of the same corpus yield the same work-list.
+
+    SCOPED TO CORPUS MEMBERS by default (newest run per episode). An unscoped rglob also returns
+    placeholders sitting in SUPERSEDED run dirs — artifacts the corpus does not serve. Repairing
+    those spends an LLM call and ~22s each to rewrite history nobody reads, and it inflates the
+    count the operator's go/no-go decision is made on. Pass ``include_superseded=True`` for a
+    forensic sweep.
     """
-    paths = sorted(corpus_root.rglob("*.gi.json"))
+    all_paths = sorted(corpus_root.rglob("*.gi.json"))
+    paths = _member_gi_paths(corpus_root) if not include_superseded else None
+    if not paths and all_paths:
+        # Members resolved to nothing while artifacts DO exist — a corpus whose metadata is
+        # absent or shaped differently (the synthetic p01..p09 fixture is exactly this). Scoping
+        # must never turn "I cannot tell" into "there is nothing to repair": that is the silent
+        # empty result #34 was about, in a work-list instead of a provider.
+        if paths is not None:
+            logger.warning(
+                "gi work-list: corpus membership resolved 0 of %d artifacts under %s; "
+                "falling back to an unscoped scan (superseded run dirs may be included)",
+                len(all_paths),
+                corpus_root,
+            )
+        paths = all_paths
     out: List[Tuple[Path, str]] = []
     for path, doc in load_gi_artifacts(paths, validate=validate, strict=False):
         if is_legacy_placeholder_artifact(doc):
             out.append((path, str(doc.get("episode_id") or "")))
     return out
+
+
+def _member_gi_paths(corpus_root: Path) -> Optional[List[Path]]:
+    """gi.json paths belonging to CURRENT episodes, or ``None`` if the rule is unavailable.
+
+    Resolves each corpus-member metadata file to its declared artifact, falling back to the
+    sibling-name convention search itself uses (``<name>.gi.json`` next to
+    ``<name>.metadata.json``) so an artifact that exists but was never declared is still seen.
+    """
+    try:
+        from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+    except Exception:  # noqa: BLE001 - the work-list must still build without the search extra
+        return None
+
+    all_meta = sorted(corpus_root.rglob("*.metadata.json"))
+    try:
+        members = dedupe_metadata_paths_newest_run_per_episode(corpus_root, all_meta)
+    except Exception:  # noqa: BLE001
+        return None
+
+    out: List[Path] = []
+    for meta_path in members:
+        meta_path = Path(meta_path)
+        declared = None
+        try:
+            doc = json.loads(meta_path.read_text(encoding="utf-8"))
+            block = doc.get("grounded_insights") if isinstance(doc, dict) else None
+            if isinstance(block, dict) and block.get("artifact_path"):
+                declared = (meta_path.parent.parent / str(block["artifact_path"])).resolve()
+        except (OSError, ValueError):
+            declared = None
+        sibling = meta_path.with_name(meta_path.name[: -len(".metadata.json")] + ".gi.json")
+        for candidate in (declared, sibling):
+            if candidate is not None and Path(candidate).is_file():
+                out.append(Path(candidate))
+                break
+    return sorted(set(out))
 
 
 def summarize_legacy_placeholder_artifacts(corpus_root: Path) -> Dict[str, Any]:
