@@ -686,6 +686,17 @@ class DerivedInterest(BaseModel):
     kind: Literal["person", "topic"] = Field(description="Entity kind.")
     label: str = Field(description="Display label.")
     count: int = Field(ge=1, description="How many heard∪captured episodes it occurs in.")
+    weight: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Time-decayed score the RANKING order is built from (#24): each occurrence contributes "
+            "`0.5 ** (age_days / 90)`, aged from the user's own most recent engagement. `count` "
+            "stays the plain episode tally because that is what the UI says out loud; this is what "
+            "decides which tokens make the top-k. Always <= `count`, equal only when every "
+            "engagement landed at the same moment."
+        ),
+    )
 
 
 class DerivedInterestsResponse(BaseModel):

@@ -121,6 +121,38 @@ DERIVED_MAX_EPISODES = 40
 #: Default size of a derived-interest list handed to a caller.
 DERIVED_TOP_K = 8
 
+#: Half-life, in days, of an engagement's contribution to the derived-interest profile (#24).
+#:
+#: MEASURED, not chosen by feel. The case decay exists for is a user whose taste has MOVED: 12
+#: episodes of outdoor shows 180-235 days ago, then 4 investing episodes in the last week. Without
+#: decay their profile is still outdoor — ``topic:personal-finance`` ties the stale tokens at count
+#: 4 and loses the alphabetical tie-break, so it misses the top-8 entirely and only one of the five
+#: investing tokens survives. The profile describes who they used to be.
+#:
+#: Sweeping the half-life over that case and over two steady-taste listeners:
+#:
+#:      half-life   investing tokens in top-8   oldest engagement's weight, light listener
+#:      none                    1                          1.000
+#:       30d                    5                          0.002
+#:       60d                    5                          0.048
+#:       90d                    5                          0.132
+#:      180d                    4                          0.364
+#:      365d                    2                          0.607
+#:
+#: 90 days is the LARGEST value that still fully recovers the shift (5/5); past it responsiveness
+#: falls away (180d -> 4, 365d -> 2). Going lower buys nothing on the shift case and costs the
+#: light listener dearly — at 30 days someone who hears an episode a week has their oldest
+#: engagement weighted 0.002, which is deletion, not decay. So: the most forgiving half-life that
+#: still does the job.
+#:
+#: Age is measured from the user's OWN most recent engagement, not wall-clock. Someone returning
+#: after six months away should find the profile they left, not a flat one — and it keeps this
+#: deterministic for fixtures and tests, the same choice ``_recency_boost`` makes by decaying from
+#: the newest episode in the pool rather than from today.
+DERIVED_HALF_LIFE_DAYS = 90.0
+
+_SECONDS_PER_DAY = 86400.0
+
 
 def derived_interest_counts(
     root: Path,
@@ -149,33 +181,71 @@ def derived_interest_counts(
     Two sources of truth for one concept is how they drifted apart; the fix is to have one, with
     the callers projecting from it rather than re-deriving it.
 
-    Ranking is occurrence count descending, token ascending — deterministic, so a tie does not
-    reorder between reads.
+    Ranking is by TIME-DECAYED weight descending, token ascending — deterministic, so a tie does
+    not reorder between reads. ``count`` stays the raw number of episodes the token occurs in,
+    because that is what the UI says out loud ("in 4 of your episodes"); ``weight`` is what the
+    order is actually built from. Ranking on raw counts alone made this a pure accumulator with no
+    way to ever forget, so a taste the user had moved on from outranked the one they had moved to
+    (#24) — see :data:`DERIVED_HALF_LIFE_DAYS` for the measurement.
     """
     slugs = user_episode_set(root, data_dir, user_id)
     if not slugs:
         return []
     rows_by_slug = {slug_for_row(r): r for r in build_catalog_rows_cumulative(root)}
     counts: Counter[tuple[str, str]] = Counter()
+    weights: dict[tuple[str, str], float] = {}
     labels: dict[tuple[str, str], str] = {}
-    for slug in _most_recently_engaged(data_dir, user_id, slugs, max_episodes):
+    engaged = _most_recently_engaged(data_dir, user_id, slugs, max_episodes)
+    for slug, decay in _decayed(engaged):
         row = rows_by_slug.get(slug)
         if row is None:
             continue
         for kind, ent_id, label in _episode_entities(root, row):
             key = (kind, ent_id)
             counts[key] += 1
+            weights[key] = weights.get(key, 0.0) + decay
             labels.setdefault(key, label or ent_id)
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], interest_token(*kv[0])))
+    ranked = sorted(weights.items(), key=lambda kv: (-kv[1], interest_token(*kv[0])))
     return [
         {
             "token": interest_token(kind, ent_id),
             "kind": kind,
             "label": labels[(kind, ent_id)],
-            "count": n,
+            "count": counts[(kind, ent_id)],
+            "weight": round(weight, 6),
         }
-        for (kind, ent_id), n in ranked
+        for (kind, ent_id), weight in ranked
     ]
+
+
+def _decayed(
+    engaged: list[tuple[str, int]], *, half_life_days: float = DERIVED_HALF_LIFE_DAYS
+) -> list[tuple[str, float]]:
+    """``(slug, decay)`` for each engagement, newest weighted 1.0 and older ones halving.
+
+    Two degenerate inputs matter, because the timestamps come from user files that may predate the
+    fields being written:
+
+    * **no engagement carries a timestamp** — every weight is 1.0, i.e. exactly the old
+      count-ranked behaviour. A corpus without engagement metadata degrades to "unranked by time",
+      never to "empty";
+    * **some do, some do not** — an untimed episode inherits the OLDEST known engagement's decay
+      rather than an age of 55 years off the epoch. It sorts last but stays eligible, which is the
+      promise :func:`_most_recently_engaged` already makes; treating a missing timestamp as
+      infinitely old would silently delete those episodes from the profile instead.
+    """
+    if not engaged or half_life_days <= 0:
+        return [(slug, 1.0) for slug, _ts in engaged]
+    known = [ts for _slug, ts in engaged if ts > 0]
+    if not known:
+        return [(slug, 1.0) for slug, _ts in engaged]
+    newest, oldest = max(known), min(known)
+    out: list[tuple[str, float]] = []
+    for slug, ts in engaged:
+        effective = ts if ts > 0 else oldest
+        age_days = max(0.0, (newest - effective) / _SECONDS_PER_DAY)
+        out.append((slug, float(2.0 ** (-age_days / half_life_days))))
+    return out
 
 
 def derive_interests(
@@ -209,8 +279,15 @@ def interest_token(kind: str, ent_id: str) -> str:
     return ent_id if ent_id.startswith(prefix) else f"{prefix}{ent_id}"
 
 
-def _most_recently_engaged(data_dir: Path, user_id: str, slugs: set[str], limit: int) -> list[str]:
-    """The ``limit`` episodes the user engaged with MOST RECENTLY, newest first.
+def _most_recently_engaged(
+    data_dir: Path, user_id: str, slugs: set[str], limit: int
+) -> list[tuple[str, int]]:
+    """The ``limit`` episodes the user engaged with MOST RECENTLY, newest first, with their times.
+
+    Returns ``(slug, engagement_ts)`` — ``0`` when the records carry no usable timestamp. The
+    timestamp was always computed here and thrown away at the return; #24 needed it to weight each
+    episode's contribution, and re-deriving it in the caller would have been the same two-sources
+    -of-truth mistake #28 collapsed.
 
     Derivation has to be bounded — it costs one KG load per episode — but *which* episodes get
     dropped decides whether the interest profile keeps up with the user. It used to be
@@ -244,7 +321,8 @@ def _most_recently_engaged(data_dir: Path, user_id: str, slugs: set[str], limit:
     for note in app_user_state.get_notes(data_dir, user_id, target="episode"):
         _bump(str(note.get("target_id") or ""), note.get("created_at"))
 
-    return sorted(slugs, key=lambda s: (-recency.get(s, 0), s))[:limit]
+    ordered = sorted(slugs, key=lambda s: (-recency.get(s, 0), s))[:limit]
+    return [(slug, recency.get(slug, 0)) for slug in ordered]
 
 
 def _episode_entities(root: Path, row: CatalogEpisodeRow) -> list[tuple[str, str, str]]:

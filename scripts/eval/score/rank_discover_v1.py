@@ -56,8 +56,10 @@ _USERS_DIR = _ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "seeded_user
 # top-K the /discover feed surfaces; the gate scores the head of the ranking.
 _K = 10
 # A fixed instant for the seeded playback rows (Date.now() is unavailable and
-# would break determinism); only used for recency-of-update ordering, not ranking.
+# would break determinism). Since #24 this DOES reach ranking, via the decay in
+# derived_interest_counts — hence the stagger below.
 _SEED_TS = 1_700_000_000
+_SECONDS_PER_DAY = 86400
 # Personalization must lift relevant episodes at least this much (mean nDCG@K
 # uplift over the personas) to justify flipping APP_PERSONALIZED_RANKING on.
 _UPLIFT_MIN = 0.05
@@ -103,10 +105,23 @@ def _seed_user_state(data_dir: Path, user: dict, label_to_slug: dict[str, str]) 
     """Write the persona's heard playback + captured-topic interests; return user_id."""
     uid = str(user["user_id"])
     # Heard → a playback row past the "heard" threshold (position >> any duration).
+    #
+    # `heard_ages_days` is OPTIONAL and defaults to 0 — every episode heard at the same instant,
+    # which is what the personas written before #24 mean and keeps their scores untouched. A
+    # persona that wants to exercise decay states the ages itself.
+    #
+    # It is opt-in rather than a blanket stagger deliberately. Ageing every persona by list
+    # position reads a listening HISTORY into lists that are merely alphabetical, then penalises
+    # whichever show happened to sort first: measured, that alone took u_field's P@10 from 0.90 to
+    # 0.40 while its gold says all three shows are equally relevant. That is the fixture being
+    # given a fictional past, not personalisation getting worse.
+    ages = user.get("heard_ages_days") or {}
     for label in user.get("heard", []):
         slug = label_to_slug.get(str(label))
         if slug:
-            app_user_state.set_playback(data_dir, uid, slug, 10_000_000.0, _SEED_TS)
+            age_days = float(ages.get(str(label), 0) or 0)
+            ts = _SEED_TS - int(age_days * _SECONDS_PER_DAY)
+            app_user_state.set_playback(data_dir, uid, slug, 10_000_000.0, ts)
     # Captured topics → explicit interests (the picker/entity-card follow surface).
     captured = [str(t) for t in user.get("captured_topics", []) if t]
     if captured:

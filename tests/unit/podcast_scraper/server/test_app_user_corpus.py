@@ -226,7 +226,11 @@ class TestOneDefinitionForEverySurface:
         monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: set(per_episode))
         monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: list(per_episode))
         monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
-        monkeypatch.setattr(uc, "_most_recently_engaged", lambda d, u, s, n: sorted(s)[:n])
+        # (slug, engagement_ts) since #24. Timestamp 0 everywhere means no decay applies, so these
+        # projection assertions keep testing count order and nothing else.
+        monkeypatch.setattr(
+            uc, "_most_recently_engaged", lambda d, u, s, n: [(x, 0) for x in sorted(s)[:n]]
+        )
         monkeypatch.setattr(uc, "_episode_entities", lambda root, row: per_episode[row])
 
     def test_derive_interests_is_exactly_the_top_k_tokens_of_the_counts(
@@ -283,8 +287,12 @@ class TestOneDefinitionForEverySurface:
     def test_counts_carry_what_the_dict_surfaces_need(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """/corpus and /interests/derived render {token, kind, label, count}; the core must supply
-        all four, or those two surfaces would need their own derivation again."""
+        """/corpus and /interests/derived render {token, kind, label, count, weight}; the core must
+        supply all five, or those two surfaces would need their own derivation again.
+
+        Exact-shape rather than subset, because both routes do ``DerivedInterest(**row)`` — an
+        unexpected key is a 500 on a page load, and a missing one is a silently defaulted field.
+        """
         import podcast_scraper.server.app_user_corpus as uc
 
         self._stub(monkeypatch, {"s1": [("topic", "topic:long-form", "long form")]})
@@ -294,6 +302,8 @@ class TestOneDefinitionForEverySurface:
             "kind": "topic",
             "label": "long form",
             "count": 1,
+            # The stub engages every episode at ts 0, so nothing decays: one occurrence, weight 1.0.
+            "weight": 1.0,
         }
 
     def test_ranking_is_deterministic_across_reads(
@@ -312,3 +322,131 @@ class TestOneDefinitionForEverySurface:
         first = uc.derived_interest_counts(tmp_path, tmp_path, "u1")
         assert all(uc.derived_interest_counts(tmp_path, tmp_path, "u1") == first for _ in range(3))
         assert [r["token"] for r in first] == ["topic:a", "topic:b", "topic:c"]
+
+
+# --- the profile must be able to FORGET (#24) -----------------------------------------------------
+#
+# derive_interests was a pure accumulator: every heard episode added 1 to its tokens, for ever,
+# within the 40-episode window. So the only closed loop in the product — heard -> derived interests
+# -> ranked higher -> heard — had no term that could ever shrink. A user whose taste had moved on
+# kept being recommended the taste they left, and the more they had listened before the move, the
+# longer it took to escape.
+
+
+class TestDerivedInterestsDecay:
+    """Time-decay over the engagement that produced each token."""
+
+    @staticmethod
+    def _stub_shifted(monkeypatch, tmp_path) -> None:
+        """12 old episodes on taste A, 4 recent on taste B — the case decay exists for.
+
+        Deliberately the WORSE case for taste B: it is outnumbered 3:1, so raw counting cannot
+        surface it however recent it is.
+        """
+        import podcast_scraper.server.app_user_corpus as uc
+
+        day = 86400
+        now = 1_760_000_000
+        episodes: dict[str, list[tuple[str, str, str]]] = {}
+        engaged: list[tuple[str, int]] = []
+        for i in range(12):
+            slug = f"old{i:02d}"
+            episodes[slug] = [("topic", "topic:a-old", "Old taste")]
+            engaged.append((slug, now - (180 + i * 5) * day))
+        for i in range(4):
+            slug = f"new{i:02d}"
+            episodes[slug] = [("topic", "topic:b-new", "New taste")]
+            engaged.append((slug, now - i * 2 * day))
+
+        monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: set(episodes))
+        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: list(episodes))
+        monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
+        monkeypatch.setattr(uc, "_most_recently_engaged", lambda d, u, s, n: engaged[:n])
+        monkeypatch.setattr(uc, "_episode_entities", lambda root, row: episodes[row])
+
+    def test_a_recent_taste_outranks_a_larger_but_stale_one(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """The headline. Four episodes from last week beat twelve from six months ago."""
+        import podcast_scraper.server.app_user_corpus as uc
+
+        self._stub_shifted(monkeypatch, tmp_path)
+        rows = uc.derived_interest_counts(tmp_path, tmp_path, "u1")
+        by_token = {r["token"]: r for r in rows}
+
+        assert rows[0]["token"] == "topic:b-new", (
+            "the taste the user has actually moved TO must lead the profile; ranked by raw count "
+            f"it never can (12 vs 4). Got: {[(r['token'], r['count'], r['weight']) for r in rows]}"
+        )
+        # count stays the honest episode tally — decay changes the ORDER, not the reported number.
+        assert by_token["topic:a-old"]["count"] == 12
+        assert by_token["topic:b-new"]["count"] == 4
+        assert by_token["topic:a-old"]["weight"] < by_token["topic:b-new"]["weight"]
+
+    def test_the_stale_taste_is_demoted_not_deleted(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Decay, not amnesia. Six months of listening still means something."""
+        import podcast_scraper.server.app_user_corpus as uc
+
+        self._stub_shifted(monkeypatch, tmp_path)
+        stale = next(
+            r
+            for r in uc.derived_interest_counts(tmp_path, tmp_path, "u1")
+            if r["token"] == "topic:a-old"
+        )
+        assert stale["weight"] > 0.0, "an old interest must fade, not vanish"
+
+    def test_weight_never_exceeds_the_episode_count(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """The contract the API field states: weight <= count, always."""
+        import podcast_scraper.server.app_user_corpus as uc
+
+        self._stub_shifted(monkeypatch, tmp_path)
+        for row in uc.derived_interest_counts(tmp_path, tmp_path, "u1"):
+            assert 0.0 < row["weight"] <= row["count"], row
+
+
+class TestDecayDegradesSafely:
+    """``_decayed`` runs on timestamps read from user files, which may simply not be there."""
+
+    def test_no_timestamps_at_all_means_no_decay(self) -> None:
+        """Not "everything is infinitely old". A corpus without engagement metadata must fall back
+        to plain count ranking, which is what the code did before #24 — never to an empty profile.
+        """
+        import podcast_scraper.server.app_user_corpus as uc
+
+        assert uc._decayed([("a", 0), ("b", 0)]) == [("a", 1.0), ("b", 1.0)]
+
+    def test_an_untimed_episode_inherits_the_oldest_known_weight(self) -> None:
+        """It sorts last but stays eligible — the promise `_most_recently_engaged` already makes.
+
+        Read as epoch-0 it would be ~55 years old and weigh 0.0, silently deleting those episodes
+        from the profile rather than ranking them last.
+        """
+        import podcast_scraper.server.app_user_corpus as uc
+
+        day = 86400
+        now = 1_760_000_000
+        out = dict(uc._decayed([("new", now), ("old", now - 90 * day), ("untimed", 0)]))
+        assert out["new"] == pytest.approx(1.0)
+        assert out["old"] == pytest.approx(0.5)  # exactly one half-life
+        assert out["untimed"] == pytest.approx(out["old"])
+        assert out["untimed"] > 0.0
+
+    def test_a_zero_half_life_disables_decay_rather_than_dividing_by_zero(self) -> None:
+        import podcast_scraper.server.app_user_corpus as uc
+
+        assert uc._decayed([("a", 100), ("b", 1)], half_life_days=0) == [("a", 1.0), ("b", 1.0)]
+
+    def test_the_newest_engagement_always_weighs_one(self) -> None:
+        """Ages run from the user's OWN newest engagement, not wall-clock — so someone returning
+        after a year away finds the profile they left, not a uniformly flattened one."""
+        import podcast_scraper.server.app_user_corpus as uc
+
+        long_ago = 1_000_000_000
+        day = 86400
+        out = dict(uc._decayed([("x", long_ago), ("y", long_ago - 90 * day)]))
+        assert out["x"] == pytest.approx(1.0)
+        assert out["y"] == pytest.approx(0.5)

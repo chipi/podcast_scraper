@@ -120,6 +120,44 @@ class TestTheEvalScoresTheConfigThatSHIPS:
         )
 
 
+class TestTheProfileCanForget:
+    """#24 — a persona whose taste MOVED, and whose gold is the taste they moved to.
+
+    Without decay the derived profile is a pure accumulator: 12 outdoor episodes from six months
+    ago outvote 4 investing episodes from last week, for ever, so the feed keeps recommending the
+    taste the user left. ``u_shifted`` is that user, and its gold (p05) is only reachable if the
+    profile can forget.
+
+    Load-bearing, measured by replacing ``_decayed`` with a no-op: nDCG 1.000 -> 0.526. Without a
+    persona like this one the whole of #24 could be deleted and every gate number would hold,
+    because the other personas heard everything at the same instant.
+    """
+
+    def test_the_shifted_persona_is_scored(self) -> None:
+        rows = [r for r in evaluate()["per_user"] if r["user_id"] == "u_shifted"]
+        assert rows, "u_shifted is missing — nothing in the gate exercises interest decay"
+        assert rows[0]["personalized_ndcg"] > rows[0]["recency_ndcg"]
+
+    def test_deleting_decay_costs_the_shifted_persona(self, monkeypatch) -> None:
+        """The sensitivity check. If a no-op ``_decayed`` scored the same, decay would be
+        decorative and this class would be asserting nothing."""
+        from podcast_scraper.server import app_user_corpus
+
+        with_decay = next(r for r in evaluate()["per_user"] if r["user_id"] == "u_shifted")
+
+        monkeypatch.setattr(
+            app_user_corpus,
+            "_decayed",
+            lambda engaged, **kw: [(slug, 1.0) for slug, _ts in engaged],
+        )
+        without = next(r for r in evaluate()["per_user"] if r["user_id"] == "u_shifted")
+
+        assert without["personalized_ndcg"] < with_decay["personalized_ndcg"], (
+            "removing time-decay did not change this persona's score, so the gate cannot tell "
+            f"whether #24 is still there: {without} vs {with_decay}"
+        )
+
+
 class TestTheEvalScoresTheINTERESTSPLITThatSHIPS:
     """#27 — the third divergence of the same kind, after the pool (#17) and the config (#21).
 

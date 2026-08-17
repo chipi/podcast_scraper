@@ -6,11 +6,11 @@
       "uplift_min": 0.05
     },
     "k": 10,
-    "mean_ndcg_uplift": 0.5435,
+    "mean_ndcg_uplift": 0.6348,
     "mean_personalized_ndcg": 1.0,
-    "mean_personalized_precision": 0.775,
-    "mean_recency_ndcg": 0.4565,
-    "n_users": 4
+    "mean_personalized_precision": 0.7,
+    "mean_recency_ndcg": 0.3652,
+    "n_users": 5
   },
   "per_user": [
     {
@@ -77,6 +77,21 @@
       "recency_ndcg": 0.8677,
       "recency_precision": 0.5,
       "user_id": "u_risk"
+    },
+    {
+      "gold_shows": [
+        "p05"
+      ],
+      "n_derived_interests": 8,
+      "n_explicit_interests": 0,
+      "n_interests": 8,
+      "ndcg_uplift": 1.0,
+      "persona": "moved on: outdoor for months, investing this week",
+      "personalized_ndcg": 1.0,
+      "personalized_precision": 0.4,
+      "recency_ndcg": 0.0,
+      "recency_precision": 0.0,
+      "user_id": "u_shifted"
     }
   ]
 }
