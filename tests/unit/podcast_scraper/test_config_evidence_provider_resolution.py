@@ -152,7 +152,7 @@ class TestEvalMatchesProduction:
         cell = base.model_copy(update={"summary_provider": "ollama"})
         assert cell.quote_extraction_provider == "transformers", "model_copy skips validators"
 
-        merged = merge(cell, "grounded_insights", {"gi_insight_source": "provider"})
+        merged = merge(cell, "grounded_insights", {})
         assert merged.summary_provider == "ollama"
         assert merged.quote_extraction_provider == "ollama"
         assert merged.entailment_provider == "ollama"
@@ -163,7 +163,7 @@ class TestEvalMatchesProduction:
         )
 
         prod = Config.model_validate({"profile": "experiment_dgx_only", "generate_gi": True})
-        cell = merge(prod, "grounded_insights", {"gi_insight_source": "provider"})
+        cell = merge(prod, "grounded_insights", {})
 
         assert (cell.quote_extraction_provider, cell.entailment_provider) == (
             prod.quote_extraction_provider,

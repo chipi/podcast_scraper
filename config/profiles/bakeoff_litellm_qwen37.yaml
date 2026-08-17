@@ -39,7 +39,6 @@ summary_reduce_params:
   min_new_tokens: 100
 
 generate_gi: true
-gi_insight_source: provider
 # qwen iter-1: qwen3.7-flash over-generates on dense episodes (43 insights on flightcast at cap 12
 # x ~4 passes) — the judge penalized the noise. Lower the per-pass cap to 8.
 gi_max_insights: 8

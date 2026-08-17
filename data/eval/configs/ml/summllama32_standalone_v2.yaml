@@ -7,7 +7,7 @@ id: "summllama32_standalone_benchmark_v2_paragraph"
 task: "summarization"
 
 backend:
-  type: "eval_stub"  # skip inference; predictions already on disk
+  type: "eval_offline"  # skip inference; predictions already on disk
 
 data:
   dataset_id: "curated_5feeds_benchmark_v2"

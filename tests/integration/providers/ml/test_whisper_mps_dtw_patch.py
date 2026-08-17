@@ -19,6 +19,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from podcast_scraper.providers.ml import ml_provider
+from tests.integration.conftest import requires
 
 # Real ``openai-whisper`` import is required (the tests swap symbols on
 # ``whisper.timing``), so these live in the integration tier where the ML
@@ -32,6 +33,7 @@ def _reset_patch_flag() -> None:
     ml_provider._whisper_dtw_patched = False
 
 
+@requires("whisper")  # patches whisper.timing.dtw itself
 def test_patch_replaces_dtw_with_wrapper() -> None:
     """After ``_patch_whisper_dtw_for_mps``, ``whisper.timing.dtw`` is our
     ``_dtw_mps_safe`` wrapper, not the upstream function.
@@ -50,6 +52,7 @@ def test_patch_replaces_dtw_with_wrapper() -> None:
         _reset_patch_flag()
 
 
+@requires("whisper")  # patches whisper.timing.dtw itself
 def test_patch_is_idempotent() -> None:
     """Calling the patch twice does not re-wrap or otherwise misbehave."""
     _reset_patch_flag()
@@ -67,6 +70,7 @@ def test_patch_is_idempotent() -> None:
         _reset_patch_flag()
 
 
+@requires("whisper")  # patches whisper.timing.dtw itself
 def test_patched_dtw_uses_cpu_then_double_order() -> None:
     """The wrapper must call ``.cpu().double()`` in that order on the
     non-CUDA path — the reordering IS the fix.
@@ -119,6 +123,7 @@ def test_patched_dtw_uses_cpu_then_double_order() -> None:
         _reset_patch_flag()
 
 
+@requires("whisper")  # patches whisper.timing.dtw itself
 def test_patched_dtw_delegates_to_original_for_cuda() -> None:
     """When the tensor lives on CUDA, the wrapper delegates to the original
     ``dtw`` (which routes to Triton). We must not force it through the CPU
@@ -184,6 +189,7 @@ def test_patch_returns_early_when_timing_module_missing() -> None:
     _reset_patch_flag()
 
 
+@requires("whisper")  # patches whisper.timing.dtw itself
 def test_import_helper_patches_even_when_whisper_already_in_sys_modules() -> None:
     """Regression guard (ci-fast, 2026-07-16): when ``whisper`` is already in
     ``sys.modules`` (a common e2e-test setup — fixtures import whisper directly
@@ -219,6 +225,7 @@ def test_import_helper_patches_even_when_whisper_already_in_sys_modules() -> Non
         _reset_patch_flag()
 
 
+@requires("whisper")  # patches whisper.timing.dtw itself
 def test_detect_whisper_device_returns_mps_when_auto_detected() -> None:
     """After the patch, MPS is a valid Whisper device again — ``_detect_whisper_device``
     should return ``mps`` on Apple Silicon under auto-detect (no explicit config).

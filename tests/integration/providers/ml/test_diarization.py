@@ -18,6 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.integration.conftest import requires
+
 pytestmark = [pytest.mark.integration, pytest.mark.diarization]
 
 _PROVIDER_MOD = "podcast_scraper.providers.ml.diarization.pyannote_provider"
@@ -25,6 +27,7 @@ _PROVIDER_MOD = "podcast_scraper.providers.ml.diarization.pyannote_provider"
 
 @patch(f"{_PROVIDER_MOD}._load_waveform")
 @patch(f"{_PROVIDER_MOD}._create_pyannote_pipeline")
+@requires("torch")  # builds a real pyannote pipeline
 def test_factory_builds_local_pyannote_and_maps_two_speakers(
     mock_create_pipeline: MagicMock, mock_load_waveform: MagicMock
 ) -> None:

@@ -87,7 +87,7 @@ def test_the_eval_forwards_the_pin_to_the_run() -> None:
     cfg = merge_eval_task_into_summarizer_config(
         _cfg(summary_provider="gemini"),
         "grounded_insights",
-        {"gi_insight_source": "provider", "gi_insight_temperature": 0.0},
+        {"gi_insight_temperature": 0.0},
     )
     assert insight_salvage.resolve_insight_temperature(cfg, "gemini") == 0.0, (
         "the eval dropped gi_insight_temperature on the floor — an arm cannot pin its sampler, "

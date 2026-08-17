@@ -32,6 +32,10 @@ screenplay: true
 
 # --- LLM stages: ALL via native DeepSeek, direct to api.deepseek.com (finale cloud winner) ---
 summary_provider: deepseek
+# This is the DGX-DOWN profile — it exists BECAUSE something is already broken, so it is the
+# last profile that should have a single point of failure. Its primary is DeepSeek, which is the
+# tier every other cloud profile falls over TO, so its own ladder must name a different vendor.
+summary_fallback_providers: [gemini]
 speaker_detector_provider: deepseek
 quote_extraction_provider: deepseek
 entailment_provider: deepseek
@@ -62,7 +66,6 @@ summary_reduce_params:
 
 # --- GI / KG (identical finale-tuned knobs to the deepseek cloud winner) ---
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled

@@ -116,6 +116,10 @@ def _artifact_for(line: str) -> Dict[str, Any]:
             cfg=_cfg(),
             transcript_segments=segs,
             transcript_ref="transcripts/0001 - ep.txt",
+            # The insight is stated explicitly now. It used to arrive free because the pipeline
+            # manufactured a placeholder when no provider was configured; this fixture is about
+            # the VOICE-TYPE gate, so the insight just has to exist and be real (#1657).
+            insight_texts=["A claim made on tape by someone in this episode."],
         )
 
 

@@ -2,6 +2,13 @@
 .build/
 podcast_scraper.egg-info/
 .wily/
+# setuptools/wheel output. `pip wheel .` and `python -m build` drop these at the repo
+# root; they were untracked-but-not-ignored, so `git status` listed them and `git add -A`
+# would have committed a build tree. The web bundles land in web/*/dist/, which the
+# leading-slash rules below do not cover, hence the unanchored `dist/`.
+build/
+dist/
+*.egg-info/
 
 # LanceDB search index + topic_clusters.json built at CI step 0 for the synthetic
 # validation corpus (GH #774). Binary, embedding-model-hash-keyed — would
@@ -19,7 +26,11 @@ tests/fixtures/multi-run-corpus/
 .lean-ctx/
 
 # Virtual environment
-.venv/
+# No trailing slash: the Makefile resolves $(PYTHON) from .venv/bin/python, so on a box that
+# can only build the dev env (e.g. macOS x86_64, where .[ml] has no torch wheels) .venv is a
+# SYMLINK to .venv-dev. "``.venv/``" matches a directory only, so the symlink showed up as an
+# untracked file.
+.venv
 # Secondary env: ``make venv-dev-init`` (``.[dev]`` only, CI ``test-unit`` parity)
 .venv-dev/
 

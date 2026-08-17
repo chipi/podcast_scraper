@@ -37,7 +37,6 @@ cloud_llm_structured_min_output_tokens: 4096
 
 # --- GI / KG (same knobs as prod_dgx_full) ---
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 50
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled

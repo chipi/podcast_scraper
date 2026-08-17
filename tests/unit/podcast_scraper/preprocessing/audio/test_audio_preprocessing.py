@@ -247,17 +247,43 @@ class TestFactory(unittest.TestCase):
         self.assertIsNone(preprocessor)
 
     @patch("podcast_scraper.preprocessing.audio.ffmpeg_processor._check_ffmpeg_available")
-    def test_create_audio_preprocessor_no_ffmpeg(self, mock_check):
-        """Test factory returns None when ffmpeg is not available."""
+    def test_create_audio_preprocessor_no_ffmpeg_is_fatal(self, mock_check):
+        """Missing ffmpeg with preprocessing ON must RAISE, not silently disable (#26).
+
+        This test previously asserted ``assertIsNone`` — that returning None and carrying on was
+        correct. It is not: the operator asked for preprocessing, so every episode would upload
+        raw, oversized audio behind a single WARNING. The same wrong assumption shipped the
+        pipeline image without ffmpeg twice (5330582a, then again at 7d208f3e), and both times
+        it was a HARD failure that caught it. ``cli._validate_ffmpeg`` already exits at startup;
+        this makes the library path agree with the front door.
+        """
         mock_check.return_value = False
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             preprocessing_enabled=True,
         )
 
-        preprocessor = factory.create_audio_preprocessor(cfg)
+        with self.assertRaises(factory.FFmpegUnavailableError) as caught:
+            factory.create_audio_preprocessor(cfg)
 
-        self.assertIsNone(preprocessor)
+        message = str(caught.exception)
+        self.assertIn("ffmpeg", message.lower())
+        self.assertIn("preprocessing_enabled", message)
+
+    @patch("podcast_scraper.preprocessing.audio.ffmpeg_processor._check_ffmpeg_available")
+    def test_disabled_preprocessing_does_not_need_ffmpeg(self, mock_check):
+        """The one legitimate None: the operator chose not to preprocess.
+
+        Turning preprocessing OFF must not require the tool it would have used, or the escalation
+        above becomes impossible to opt out of on a box that genuinely has no ffmpeg.
+        """
+        mock_check.return_value = False
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            preprocessing_enabled=False,
+        )
+
+        self.assertIsNone(factory.create_audio_preprocessor(cfg))
 
     @patch("podcast_scraper.preprocessing.audio.ffmpeg_processor._check_ffmpeg_available")
     def test_create_audio_preprocessor_enabled(self, mock_check):

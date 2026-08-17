@@ -1554,7 +1554,11 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         call_kw = mock_build_artifact.call_args[1]
         self.assertEqual(len(call_pos), 2, "build_artifact(episode_id, transcript_text)")
         self.assertTrue(call_pos[0].startswith("sha256:") or len(call_pos[0]) > 0)
-        self.assertEqual(call_kw.get("model_version"), "stub")
+        # Provenance names the model that produced the insights. It used to be the literal
+        # "stub" whenever gi_insight_source was not "provider" — and that field defaulted to
+        # "stub", so real artifacts carried a fake lineage (#1657). Now it is the resolved
+        # provider model.
+        self.assertEqual(call_kw.get("model_version"), "bart-small")
 
     @patch("podcast_scraper.workflow.metadata_generation._generate_and_validate_summary")
     @patch("podcast_scraper.gi.write_artifact")

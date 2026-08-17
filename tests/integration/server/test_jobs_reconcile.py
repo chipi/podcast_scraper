@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.server.jobs import (
+    current_boot_id,
     reconcile_jobs_inplace,
     STATUS_FAILED,
     STATUS_RUNNING,
@@ -23,6 +24,11 @@ def test_reconcile_prefers_dead_pid_over_wall_clock_stale() -> None:
             "status": STATUS_RUNNING,
             "started_at": "1999-01-01T00:00:00Z",
             "pid": 9_999_001,
+            # A pid is only evidence for the boot that recorded it (#1653, ADR-152), so the
+            # precedence rule under test here is specifically about a THIS-boot row. Rows from
+            # an earlier boot are judged by a liveness probe instead — covered in
+            # tests/unit/podcast_scraper/server/test_reconcile_boot_scope.py.
+            "boot_id": current_boot_id(),
         }
     ]
     details = reconcile_jobs_inplace(jobs, stale_seconds=60)

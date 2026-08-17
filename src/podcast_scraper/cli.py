@@ -694,6 +694,20 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--reprocess-episode-ids",
+        default=None,
+        metavar="PATH",
+        dest="reprocess_episode_ids_file",
+        help=(
+            "Scoped reprocess by EXPLICIT list (#32): a file of episode_ids/guids, one per line "
+            "(blank lines and #-comments ignored), forced back through download+transcribe and "
+            "the GI/KG cascade even under --skip-existing. Use when the episodes needing repair "
+            "cannot be named by transcript_source — e.g. the #18 unpreprocessed-audio set, where "
+            "damaged and healthy episodes share the same source. Produce the list with "
+            "`make corpus-preprocessing-audit`."
+        ),
+    )
+    parser.add_argument(
         "--reprocess-existing-only",
         action="store_true",
         dest="reprocess_existing_only",
@@ -979,8 +993,7 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
         "--openai-insight-model",
         default=None,
         help=(
-            "OpenAI model for GIL generate_insights only when gi_insight_source=provider "
-            "(default: same as --openai-summary-model)"
+            "OpenAI model for GIL generate_insights " "(default: same as --openai-summary-model)"
         ),
     )
     parser.add_argument(
@@ -1282,14 +1295,6 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "Requires generate_metadata. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
     )
     parser.add_argument(
-        "--gi-insight-source",
-        choices=["provider", "stub"],
-        default=None,
-        dest="gi_insight_source",
-        help="Source of insight texts: provider (LLM) or stub (default: stub). "
-        "See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
-    )
-    parser.add_argument(
         "--gi-max-insights",
         type=int,
         default=None,
@@ -1306,10 +1311,11 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--kg-extraction-source",
-        choices=["stub", "provider"],
+        choices=["metadata_only", "provider"],
         default=None,
         dest="kg_extraction_source",
-        help="KG extraction source: provider (LLM JSON) or stub. "
+        help="KG extraction source: provider (LLM JSON) or metadata_only "
+        "(episode + pipeline hosts/guests, no LLM). "
         "Default: provider. See KNOWLEDGE_GRAPH_GUIDE.md.",
     )
     parser.add_argument(
@@ -1907,6 +1913,28 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
         dest="audio_cache_in_corpus",
         help="Store the audio cache inside the corpus (.podcast_scraper/audio-cache) for a "
         "self-contained snapshot (larger backups)",
+    )
+    # #35: force a genuinely fresh transcription. ``transcript_cache_enabled`` has existed as a
+    # config field since the cache was added, but had no flag — so bypassing the cache meant
+    # editing YAML, and ``config/profiles/*.yaml`` are GENERATED (ADR-112) and must not be
+    # hand-edited. Three reprocess profiles already set it false; this makes the same choice
+    # available with ANY profile, which is what a one-off repair run needs.
+    #
+    # ``default=None``, NOT the ``default=True`` that ``store_false`` would supply on its own.
+    # This field is the one ADR-122 (#1253) names as having shipped un-disable-able: a CLI default
+    # of True beat the config file's False. ``_load_and_merge_config`` does call
+    # ``parser.set_defaults(**config_dump)`` before ``parse_args`` (which overwrites
+    # ``action.default``), so True would in fact work today — but it works only as long as that
+    # ordering holds, whereas None cannot lose to a config file under any ordering. Unset stays
+    # None and is skipped by the carry-list loop, leaving Config's own default (True) to apply.
+    parser.add_argument(
+        "--no-transcript-cache",
+        action="store_false",
+        dest="transcript_cache_enabled",
+        default=None,
+        help="Ignore the transcript cache and re-transcribe even on a cache hit. Required when "
+        "repairing episodes whose cached transcript was built from unpreprocessed audio (#18), "
+        "since the cache key cannot distinguish it from a good one",
     )
 
 
@@ -3745,6 +3773,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         ee_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_enrich_edges_argv(ee_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "gi-repair":
+        gr_argv = list(argv[1:]) if len(argv) > 1 else []
+        return _parse_gi_repair_argv(gr_argv)
+
     if argv and len(argv) > 0 and argv[0] == "cluster-corpus-topics":
         from .search.cli_handlers import parse_cluster_corpus_topics_argv
 
@@ -3972,6 +4004,9 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "multi_feed_strict": getattr(args, "multi_feed_strict", False),
         "skip_existing": args.skip_existing,
         "reprocess_source": getattr(args, "reprocess_source", None),
+        "reprocess_episode_ids": _load_reprocess_episode_ids(
+            getattr(args, "reprocess_episode_ids_file", None)
+        ),
         "reprocess_existing_only": getattr(args, "reprocess_existing_only", False),
         "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
@@ -4008,7 +4043,6 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "kg_extraction_model": getattr(args, "kg_extraction_model", None),
         "kg_extraction_provider": getattr(args, "kg_extraction_provider", None),
         "kg_merge_pipeline_entities": getattr(args, "kg_merge_pipeline_entities", True),
-        "gi_insight_source": getattr(args, "gi_insight_source", None) or "stub",
         "gi_max_insights": (
             config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
             if getattr(args, "gi_max_insights", None) is None
@@ -4404,17 +4438,10 @@ def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> No
 
 def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logger) -> None:
     """Surface important misconfigurations at WARNING (always, not only in DEBUG detail)."""
-    if (
-        cfg.generate_gi
-        and getattr(cfg, "gi_insight_source", "stub") == "stub"
-        and not config._is_pytest_run()
-    ):
-        logger.warning(
-            "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
-            "For real wording use gi_insight_source: provider with an LLM "
-            "summary_provider. ML providers (transformers, hybrid_ml) do not "
-            "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
-        )
+    # The "insight text is a placeholder" warning is gone with the placeholder itself (#1657):
+    # there is no configuration that produces fabricated insight text any more. An episode with
+    # no usable provider now gets an artifact with no Insight nodes, and `_no_insights` says so
+    # at WARNING with the reason — a per-episode fact, which is more useful than a per-run one.
     _local_gil = frozenset({"transformers", "hybrid_ml"})
     _sp = getattr(cfg, "summary_provider", "transformers")
     _qe = getattr(cfg, "quote_extraction_provider", "transformers")
@@ -4580,7 +4607,6 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
             f"  GI fail on missing grounding: "
             f"{getattr(cfg, 'gi_fail_on_missing_grounding', False)}"
         )
-        d(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
         _gi_max = getattr(
             cfg,
             "gi_max_insights",
@@ -4661,6 +4687,90 @@ def _validate_python_version() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+def _load_reprocess_episode_ids(path: Optional[str]) -> List[str]:
+    """Read a repair work-list: one episode_id/guid per line, ``#`` comments and blanks ignored.
+
+    Fails LOUDLY on a missing or empty file. A silently-empty list would turn a targeted repair
+    into a no-op run that reports success — the same shape as the bugs this whole epic is about.
+    """
+    if not path:
+        return []
+    p = Path(path).expanduser()
+    if not p.is_file():
+        raise SystemExit(f"--reprocess-episode-ids: no such file: {p}")
+    ids: List[str] = []
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            ids.append(line)
+    if not ids:
+        raise SystemExit(
+            f"--reprocess-episode-ids: {p} contains no episode ids — refusing to run a repair "
+            "that would silently select nothing"
+        )
+    return ids
+
+
+def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:
+    """``gi-repair`` — re-derive placeholder GI artifacts in place (#1655)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast-scraper gi-repair",
+        description=(
+            "Re-derive GI for episodes carrying a pre-#1657 placeholder insight, rewriting the "
+            "SAME gi.json path. Corpus-driven and standalone: no RSS fetch, no new run dir. "
+            "A per-episode failure leaves that placeholder intact and exits non-zero."
+        ),
+    )
+    parser.add_argument("--output-dir", required=True, help="Corpus parent path")
+    parser.add_argument("--config", default=None, help="Profile/config providing the GI providers")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List what would be repaired and write nothing.",
+    )
+    parser.add_argument(
+        "--audit-file",
+        default=None,
+        help="JSONL audit trail (default: <output-dir>/gi_repair_report.jsonl)",
+    )
+    args = parser.parse_args(argv)
+    args.command = "gi-repair"
+    return args
+
+
+def _run_gi_repair_cli(args: argparse.Namespace, log: logging.Logger) -> int:
+    """Run the repair and return the process exit code (0 only when every episode succeeded)."""
+    from pathlib import Path as _Path
+
+    from .gi.repair import repair_placeholder_artifacts
+
+    corpus_root = _Path(args.output_dir).expanduser()
+    if not corpus_root.is_dir():
+        print(f"Error: --output-dir is not a directory: {corpus_root}", file=sys.stderr)
+        return 2
+
+    cfg = None
+    if getattr(args, "config", None):
+        raw = config.load_config_file(args.config)
+        data = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}))
+        data.setdefault("rss_url", "https://example.invalid/feed.xml")
+        cfg = config.Config(**data)
+
+    audit = _Path(args.audit_file) if args.audit_file else corpus_root / "gi_repair_report.jsonl"
+
+    report = repair_placeholder_artifacts(
+        corpus_root,
+        cfg,
+        dry_run=bool(args.dry_run),
+        audit_path=None if args.dry_run else audit,
+    )
+    print(report.format())
+    if not args.dry_run:
+        print(f"\naudit trail: {audit}")
+    log.info("gi-repair finished: %d repaired, %d failed", len(report.repaired), len(report.failed))
+    return 0 if report.ok else 1
 
 
 def _validate_ffmpeg() -> None:
@@ -4920,6 +5030,9 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_enrich_edges_cli
 
         return run_enrich_edges_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "gi-repair":
+        return _run_gi_repair_cli(args, log)
 
     if hasattr(args, "command") and args.command == "cluster-corpus-topics":
         from .search.cli_handlers import run_cluster_corpus_topics_cli

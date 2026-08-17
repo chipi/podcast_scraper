@@ -17,6 +17,40 @@ from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
 
+# --- FFmpeg wall-clock budget -------------------------------------------------------------
+#
+# A flat 300s was effectively an undeclared file-size limit: a 120 MB episode got the same
+# budget as a 20 MB one, and on a busy host every large episode silently fell back to
+# UNPREPROCESSED audio — which then really does hit the 25 MB upload cap, costs more to
+# transcribe, and degrades quality. Observed on the #1657 acceptance corpus:
+#
+#     30.8 MB -> 136.8s      91.5 MB -> 241.5s      105.6 MB -> 246.0s   (idle host)
+#     30.8 MB -> 202.0s      75-121 MB -> TIMEOUT                        (loaded host)
+#
+# The same 30.8 MB file took 48 % longer under load, so the ceiling has to leave room for a
+# slow host, not just a big file. Least-squares over the idle points gives roughly
+# 92s + 1.5s/MB; the constants below are ~3x that, because this is a HUNG-PROCESS guard, not
+# a performance budget — the cost of being too tight is silent quality loss, the cost of being
+# too loose is noticing a wedged ffmpeg a few minutes later.
+FFMPEG_TIMEOUT_BASE_SECONDS = 300.0
+FFMPEG_TIMEOUT_SECONDS_PER_MB = 5.0
+FFMPEG_TIMEOUT_MAX_SECONDS = 3600.0
+
+
+def ffmpeg_timeout_for(input_path: str) -> float:
+    """Wall-clock budget for one ffmpeg pass over ``input_path``.
+
+    Scales with input size so a long episode is not cut off mid-encode. Falls back to the base
+    budget when the size cannot be read — never returns less than the old flat value, so this
+    can only widen the window, never narrow it.
+    """
+    try:
+        size_mb = os.path.getsize(input_path) / (1024 * 1024)
+    except OSError:
+        return FFMPEG_TIMEOUT_BASE_SECONDS
+    scaled = FFMPEG_TIMEOUT_BASE_SECONDS + (FFMPEG_TIMEOUT_SECONDS_PER_MB * size_mb)
+    return float(min(FFMPEG_TIMEOUT_MAX_SECONDS, max(FFMPEG_TIMEOUT_BASE_SECONDS, scaled)))
+
 
 def _run_text_subprocess(
     cmd: List[str],
@@ -256,7 +290,7 @@ class FFmpegAudioPreprocessor:
         ]
 
         try:
-            _run_text_subprocess(cmd, timeout=300.0, check=True)
+            _run_text_subprocess(cmd, timeout=ffmpeg_timeout_for(input_path), check=True)
             elapsed = time.time() - start_time
             logger.debug("Audio preprocessing completed in %.1fs", elapsed)
             return True, elapsed
@@ -265,7 +299,11 @@ class FFmpegAudioPreprocessor:
             logger.error("FFmpeg preprocessing failed: %s", exc.stderr)
             return False, time.time() - start_time
         except subprocess.TimeoutExpired:
-            logger.error("FFmpeg preprocessing timed out after 300s")
+            logger.error(
+                "FFmpeg preprocessing timed out after %.0fs (input %s)",
+                ffmpeg_timeout_for(input_path),
+                input_path,
+            )
             return False, time.time() - start_time
         except UnicodeDecodeError as exc:
             logger.error(
@@ -314,13 +352,17 @@ class FFmpegAudioPreprocessor:
             output_path,
         ]
         try:
-            _run_text_subprocess(cmd, timeout=300.0, check=True)
+            _run_text_subprocess(cmd, timeout=ffmpeg_timeout_for(input_path), check=True)
             return True, time.time() - start_time
         except subprocess.CalledProcessError as exc:
             logger.error("FFmpeg re-encode failed: %s", exc.stderr)
             return False, time.time() - start_time
         except subprocess.TimeoutExpired:
-            logger.error("FFmpeg re-encode timed out after 300s")
+            logger.error(
+                "FFmpeg re-encode timed out after %.0fs (input %s)",
+                ffmpeg_timeout_for(input_path),
+                input_path,
+            )
             return False, time.time() - start_time
         except UnicodeDecodeError as exc:
             logger.error(

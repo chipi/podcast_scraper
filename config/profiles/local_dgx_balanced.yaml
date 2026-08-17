@@ -58,7 +58,6 @@ ollama_summary_model: qwen3.5:35b
 llm_pipeline_mode: bundled
 
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 50
 gi_require_grounding: true
 

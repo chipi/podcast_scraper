@@ -65,6 +65,9 @@ except ImportError:
 # The e2e_server provides all necessary fixtures and is session-scoped for better performance
 
 
+from podcast_scraper.gi.corpus import LEGACY_PLACEHOLDER_INSIGHT_TEXT
+
+
 @pytest.mark.e2e
 class TestFullPipelineE2E:
     """Test full pipeline with multiple components working together."""
@@ -804,13 +807,29 @@ class TestFullPipelineE2E:
             gi = json.load(f)
         insight_nodes = [n for n in gi.get("nodes", []) if n.get("type") == "Insight"]
         quote_nodes = [n for n in gi.get("nodes", []) if n.get("type") == "Quote"]
-        assert len(insight_nodes) > 0, "GI should have Insight nodes"
-        # Quote nodes require grounding (QA model) — present with summary_bullets/provider
-        # mode but not with stub default. Acceptance configs use provider mode.
-        if quote_nodes:
-            assert len(quote_nodes) >= len(
-                insight_nodes
-            ), "Multi-quote: should have at least 1 quote per insight"
+        # ``assert len(insight_nodes) > 0`` used to live here and passed only because the pipeline
+        # FABRICATED an insight when extraction returned nothing — the placeholder #1657 deleted.
+        # This test drives a real run with the toy summary model, and CI 2026-08-17 recorded
+        # exactly the honest outcome: "GI insight generation produced NO insights
+        # (reason=no_parseable_insights_from_provider items=0)". Zero is now a LEGAL result, so
+        # requiring a non-zero count here would only be requiring the fabrication back.
+        #
+        # What this test is FOR (#598) is the artifact chain — metadata -> GI -> KG topics ->
+        # Person roles -> bridge — and that is asserted below regardless of insight count.
+        assert not any(
+            str((n.get("properties") or {}).get("text", "")).strip()
+            == LEGACY_PLACEHOLDER_INSIGHT_TEXT
+            for n in insight_nodes
+        ), "the pre-#1657 placeholder insight is back in a real pipeline run"
+        if insight_nodes:
+            # Quote nodes require grounding (QA model) — present in provider mode.
+            if quote_nodes:
+                assert len(quote_nodes) >= len(
+                    insight_nodes
+                ), "Multi-quote: should have at least 1 quote per insight"
+        else:
+            # Empty means empty: no insights implies nothing was grounded either.
+            assert quote_nodes == [], "quotes without insights — grounding ran on nothing"
 
         # 3. KG: topics + entities from summary bullets
         kg_files = list(Path(self.output_dir).rglob("*.kg.json"))

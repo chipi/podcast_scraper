@@ -208,6 +208,24 @@ LABEL org.opencontainers.image.title="Podcast Scraper" \
       org.opencontainers.image.vendor="Podcast Scraper Maintainers" \
       org.opencontainers.image.authors="Podcast Scraper Maintainers"
 
+# Provenance, baked in at build time (ADR-132, #1657). The runtime image has NO git: the build
+# context excludes ``.git/`` (.dockerignore) and the git binary is never installed. So
+# ``git rev-parse`` inside the container fails and every manifest recorded ``git_sha: null`` —
+# the exact-code backstop absent from precisely the artifacts it exists to explain.
+#
+# Passing it in costs nothing and needs neither the repo nor the binary. Empty by default, so an
+# unparameterised ``docker build`` still works and the code simply falls back to shelling out to
+# git (which is what a source checkout does anyway).
+#
+# Build with:  --build-arg GIT_SHA=$(git rev-parse HEAD)
+ARG GIT_SHA=""
+ARG GIT_BRANCH=""
+ARG GIT_DIRTY=""
+
+ENV PODCAST_GIT_SHA=${GIT_SHA} \
+    PODCAST_GIT_BRANCH=${GIT_BRANCH} \
+    PODCAST_GIT_DIRTY=${GIT_DIRTY}
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
@@ -296,6 +314,14 @@ COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scrap
 # airgapped_thin`` etc. on disk inside the container.
 COPY --chown=podcast:podcast config/profiles/ /app/config/profiles/
 COPY --chown=podcast:podcast config/pricing_assumptions.yaml /app/config/pricing_assumptions.yaml
+# The model allowlist, at the path ``known_models._resolve_path`` checks FIRST (cwd is /app, so
+# this is the cwd-relative ``config/known_models.yaml``). Its absence here is why the image
+# logged "known_models.yaml not found; model allowlist validation is DISABLED": all three
+# resolution paths missed — this one was never copied, and the wheel-bundled fallback was not in
+# the wheel either (pyproject package-data listed data files one by one and omitted it). The
+# wheel now carries it, so this line is the belt to that braces — and it is also what lets an
+# operator mount their own allowlist over it, the same way pricing_assumptions.yaml works.
+COPY --chown=podcast:podcast config/known_models.yaml /app/config/known_models.yaml
 COPY --chown=podcast:podcast docker/pipeline/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/pipeline/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

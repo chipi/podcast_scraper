@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHE
 from urllib.parse import urlparse
 
 import yaml
-from pydantic import BaseModel, computed_field, Field, field_serializer
+from pydantic import BaseModel, computed_field, Field, field_serializer, ValidationError
 
 from .. import config, config_constants, models
 from ..speaker_detectors.hosts import looks_like_publisher
@@ -518,7 +518,13 @@ class ContentMetadata(BaseModel):
 
 @dataclass
 class EpisodeStageTimings:
-    """Per-episode stage timings for performance analysis (Issue #379)."""
+    """Per-episode stage timings for performance analysis (Issue #379).
+
+    These record DURATION only. ``None`` here is ambiguous by construction — it means
+    "no duration was recorded", which covers a stage that was skipped, one that failed and
+    was swallowed, and one that was never configured. Read ``ProcessingMetadata.stage_ledger``
+    for what actually happened; that is the field with the answer (#1647).
+    """
 
     download_media_time: Optional[float] = None  # Media download time in seconds
     transcribe_time: Optional[float] = None  # Transcription time in seconds
@@ -526,6 +532,35 @@ class EpisodeStageTimings:
     cleaning_time: Optional[float] = None  # Transcript clean before summarize (seconds)
     summarize_time: Optional[float] = None  # Summarization time in seconds
     total_processing_time: Optional[float] = None  # Total processing time in seconds
+
+
+class StageOutcome(BaseModel):
+    """What happened to one pipeline stage for one episode (#1647).
+
+    The pipeline used to record only timings, so "skipped" was indistinguishable from
+    "never ran" — an ambiguity that hid #1646 (speaker detection silently skipped for every
+    episode over 25 MB) across 72 % of the corpus. Every stage now states its outcome
+    explicitly, and ``None`` stops being a legal way to say "nothing happened".
+    """
+
+    outcome: Literal["ran", "skipped", "failed", "degraded"] = Field(
+        description="ran = completed; skipped = deliberately not run; failed = raised; "
+        "degraded = produced output via a fallback path."
+    )
+    reason: Optional[str] = Field(
+        default=None,
+        description="Stable machine-readable slug for grouping (e.g. 'media_over_size_limit'). "
+        "Not prose — prose belongs in the log line.",
+    )
+    detail: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The deciding inputs, so the decision is auditable without the logs "
+        "(e.g. {'published_media_bytes': 95900000, 'limit_bytes': 26214400}). Size keys name "
+        "the PUBLISHED file; the upload cap applies after preprocessing (~90% smaller).",
+    )
+    duration_seconds: Optional[float] = Field(
+        default=None, description="Wall time when the stage actually ran."
+    )
 
 
 class SummaryMetadata(BaseModel):
@@ -580,6 +615,9 @@ class ProcessingMetadata(BaseModel):
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
     stage_timings: Optional[EpisodeStageTimings] = None  # Per-episode stage timings (Issue #379)
+    # Per-stage outcomes (#1647). Answers "did this stage run?", which ``stage_timings``
+    # cannot: a null timing there is ambiguous between skipped / failed / never-configured.
+    stage_ledger: Optional[Dict[str, StageOutcome]] = None
 
     @field_serializer("processing_timestamp")
     def serialize_processing_timestamp(self, value: datetime) -> str:
@@ -2265,6 +2303,44 @@ def _extract_episode_stage_timings(
     return None
 
 
+def _extract_episode_stage_ledger(
+    pipeline_metrics: Any, episode_idx: Optional[int]
+) -> Optional[Dict[str, StageOutcome]]:
+    """Build the per-episode stage ledger from recorded outcomes (#1647).
+
+    Unlike ``_extract_episode_stage_timings`` this is not gated on "did anything take time" —
+    a stage that took no time because it was SKIPPED is precisely what needs recording.
+    Returns None only when nothing was recorded at all, which itself means the run predates
+    the ledger rather than that every stage ran.
+    """
+    if pipeline_metrics is None or episode_idx is None:
+        return None
+
+    outcomes = getattr(pipeline_metrics, "stage_outcomes_by_episode", None)
+    if not isinstance(outcomes, dict):
+        return None
+    episode_outcomes = outcomes.get(episode_idx)
+    if not isinstance(episode_outcomes, dict) or not episode_outcomes:
+        return None
+
+    ledger: Dict[str, StageOutcome] = {}
+    for stage, record in episode_outcomes.items():
+        if not isinstance(record, dict) or "outcome" not in record:
+            continue
+        try:
+            ledger[str(stage)] = StageOutcome(**record)
+        except ValidationError:
+            # A malformed record must not cost us the whole ledger — the other stages'
+            # outcomes are still the signal we came for.
+            logger.warning(
+                "Discarding malformed stage-ledger record for stage %r (episode %s): %r",
+                stage,
+                episode_idx,
+                record,
+            )
+    return ledger or None
+
+
 def _build_processing_metadata(
     cfg: config.Config,
     output_dir: str,
@@ -2327,6 +2403,12 @@ def _build_processing_metadata(
         if episode_idx is not None
         else None
     )
+    # ... and what actually HAPPENED to each stage (#1647), which the timings cannot say.
+    stage_ledger = (
+        _extract_episode_stage_ledger(pipeline_metrics, episode_idx)
+        if episode_idx is not None
+        else None
+    )
 
     return ProcessingMetadata(
         processing_timestamp=datetime.now(),
@@ -2335,6 +2417,7 @@ def _build_processing_metadata(
         config_snapshot=config_snapshot,
         schema_version=SCHEMA_VERSION,
         stage_timings=stage_timings,
+        stage_ledger=stage_ledger,
     )
 
 
@@ -4050,11 +4133,13 @@ def generate_episode_metadata(  # noqa: C901
                 from ..gi import build_artifact, write_artifact
                 from ..gi.provenance import resolve_gil_artifact_model_version
 
-                gi_source = getattr(cfg, "gi_insight_source", "stub")
+                # The provider IS the source. ``gi_insight_source`` used to gate this and
+                # defaulted to the placeholder, so a config that never reached the field produced
+                # placeholder insights for the whole run (#1657). The gate is gone: if there is
+                # a provider it is used, and if there is not, the episode honestly has no
+                # insights.
                 insight_texts_arg: Optional[List[str]] = None
-                insight_provider_arg = None
-                if gi_source == "provider" and summary_provider is not None:
-                    insight_provider_arg = summary_provider
+                insight_provider_arg = summary_provider
 
                 gil_evidence_cleanup: list = []
                 _gil_lineage_provider = (
@@ -4124,11 +4209,7 @@ def generate_episode_metadata(  # noqa: C901
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
-                    model_version=resolve_gil_artifact_model_version(
-                        cfg,
-                        _gil_lineage_provider,
-                        gi_insight_source=str(gi_source),
-                    ),
+                    model_version=resolve_gil_artifact_model_version(cfg, _gil_lineage_provider),
                     prompt_version="v1",
                     podcast_id=feed_id,
                     episode_title=episode.title,
@@ -4486,38 +4567,18 @@ def generate_episode_metadata(  # noqa: C901
     # KG's noun-phrase topic labels so the bridge can merge them by exact ID.
     if bridge_gi_payload is not None and bridge_kg_payload is not None:
         try:
-            from ..gi.pipeline import _dedupe_topic_node_specs
+            # Extracted to ``gi.topic_alignment`` so the corpus repair (``gi.repair``), which
+            # rebuilds artifacts OUTSIDE this function, applies the identical alignment. A
+            # second copy of these lines would drift the first time either changed, and the
+            # symptom would be an episode whose topics silently stop merging in the bridge.
+            from ..gi.topic_alignment import align_gi_topics_with_kg
 
-            kg_topic_labels = [
-                n.get("properties", {}).get("label", "")
-                for n in (bridge_kg_payload.get("nodes") or [])
-                if n.get("type") == "Topic" and n.get("properties", {}).get("label")
-            ]
-            if kg_topic_labels:
-                # Remove old GI topic nodes + ABOUT edges
-                gi_nodes = bridge_gi_payload.get("nodes") or []
-                gi_edges = bridge_gi_payload.get("edges") or []
-                new_nodes = [n for n in gi_nodes if n.get("type") != "Topic"]
-                new_edges = [e for e in gi_edges if e.get("type") != "ABOUT"]
-
-                # Add KG-derived topic nodes
-                topic_specs = _dedupe_topic_node_specs(kg_topic_labels)
-                for tid, label in topic_specs:
-                    new_nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
-
-                # Reconnect ABOUT edges from Insights to KG topics
-                insight_ids = [n["id"] for n in new_nodes if n.get("type") == "Insight"]
-                topic_ids = [tid for tid, _ in topic_specs]
-                for iid in insight_ids:
-                    for tid in topic_ids:
-                        new_edges.append({"type": "ABOUT", "from": iid, "to": tid})
-
-                bridge_gi_payload["nodes"] = new_nodes
-                bridge_gi_payload["edges"] = new_edges
+            aligned_count = align_gi_topics_with_kg(bridge_gi_payload, bridge_kg_payload)
+            if aligned_count:
                 logger.info(
                     "[%s] Aligned %d GI topic nodes with KG labels for CIL bridge",
                     episode.idx if hasattr(episode, "idx") else episode_id,
-                    len(topic_specs),
+                    aligned_count,
                 )
                 # #653 Part D follow-up: gi.json was written at build time (line ~4061) with the
                 # staged-mode bullet-derived Topic nodes. bridge_gi_payload IS that same payload

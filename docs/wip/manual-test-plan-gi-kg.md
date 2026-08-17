@@ -25,7 +25,7 @@ something works while you **run** the steps.
 | **Ontology and JSON Schema** | [GIL ontology](../architecture/gi/ontology.md); [gi.schema.json](../architecture/gi/gi.schema.json); [KG ontology](../architecture/kg/ontology.md); [kg.schema.json](../architecture/kg/kg.schema.json) |
 | **Provider / API setup** | [Provider configuration quick reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
 | **Automated test context (optional)** | [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md); acceptance index at repo root: `config/acceptance/README.md` |
-| **Transcript-only GIL/KG eval (stub, `data/eval`)** | `data/eval/configs/README.md` (repo root); sample YAML: `gil_eval_stub_curated_5feeds_smoke_v1.yaml`, `kg_eval_stub_curated_5feeds_smoke_v1.yaml`; [EXPERIMENT_GUIDE — GIL/KG experiments](../guides/EXPERIMENT_GUIDE.md#grounded-insights-gil-and-knowledge-graph-kg-experiments) |
+| **Transcript-only GIL/KG eval (stub, `data/eval`)** | `data/eval/configs/README.md` (repo root); sample YAML: `gil_eval_offline_curated_5feeds_smoke_v1.yaml`, `kg_eval_offline_curated_5feeds_smoke_v1.yaml`; [EXPERIMENT_GUIDE — GIL/KG experiments](../guides/EXPERIMENT_GUIDE.md#grounded-insights-gil-and-knowledge-graph-kg-experiments) |
 | **Manual GI+KG configs (this workflow)** | Feeds: RFC-077 **`--feeds-spec`** file (shape: **`config/examples/feeds.spec.example.yaml`**); operator YAML: **`profile:`**, **`output_dir`**, etc. |
 
 ---

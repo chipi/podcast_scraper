@@ -115,16 +115,62 @@ def _backend_from_args(args: argparse.Namespace):
         from pathlib import Path
 
         return LocalStorageBackend(Path(args.local_root))
-    raise SystemExit("archive pull: provide a source — --rclone-remote NAME or --local-root PATH")
+    raise SystemExit("archive: provide a backend — --rclone-remote NAME or --local-root PATH")
 
 
 def run_archive(args: argparse.Namespace) -> int:
+    """Dispatch ``archive <subcommand>``."""
+    sub = getattr(args, "archive_subcommand", None)
+    if sub == "backfill":
+        return _run_backfill(args)
+    if sub != "pull":
+        print(f"archive: unsupported subcommand {sub!r} (expected 'pull' or 'backfill')")
+        return 2
+    return _run_pull(args)
+
+
+def _run_backfill(args: argparse.Namespace) -> int:
+    """Execute ``archive backfill``: store audio the archive is missing (#1631).
+
+    Exit code is 0 whenever the pass completed, including when episodes rolled off — those are
+    a normal, reported outcome, not a failure. A non-zero code is reserved for episodes that
+    failed for a retryable reason, so a scheduled re-run has something honest to key on.
+    """
+    from . import backfill as bf
+
+    episodes = _select(_iter_corpus_episodes(args.corpus), args)
+    if not episodes:
+        print("archive backfill: no matching episodes in corpus")
+        return 0
+
+    backend = _backend_from_args(args)
+
+    if args.dry_run:
+        print(bf.format_dry_run(bf.plan_backfill(episodes, backend)))
+        return 0
+
+    limiter = bf.HostRateLimiter(getattr(args, "rate_limit", bf.DEFAULT_RATE_LIMIT_S))
+    report = bf.BackfillReport()
+    for ep in episodes:
+        outcome = bf.backfill_episode(
+            ep,
+            backend,
+            corpus_dir=args.corpus,
+            force=bool(getattr(args, "force", False)),
+            timeout_s=int(getattr(args, "timeout", bf.DEFAULT_TIMEOUT_S)),
+            limiter=limiter,
+        )
+        report.outcomes.append(outcome)
+        # Stream progress: a several-hundred-episode pass must be interruptible with the
+        # operator knowing exactly how far it got, not silent until the summary.
+        print(f"  {outcome.outcome:<15} [{outcome.feed_title[:28]}] {outcome.title[:50]}")
+    print(bf.format_result(report))
+    return 1 if report.counts().get(bf.FETCH_FAILED, 0) else 0
+
+
+def _run_pull(args: argparse.Namespace) -> int:
     """Execute ``archive pull``: select episodes, then fetch each from the backend."""
     from ..utils import audio_cache
-
-    if getattr(args, "archive_subcommand", None) != "pull":
-        print("archive: only 'pull' is supported")
-        return 2
 
     episodes = _select(_iter_corpus_episodes(args.corpus), args)
     if not episodes:
@@ -157,15 +203,9 @@ def run_archive(args: argparse.Namespace) -> int:
     return 0 if miss == 0 else 1
 
 
-def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
-    """Parse ``archive <subcommand> ...`` (only ``pull`` today)."""
-    parser = argparse.ArgumentParser(prog="podcast_scraper archive")
-    sub = parser.add_subparsers(dest="archive_subcommand", required=True)
-
-    pull = sub.add_parser("pull", help="Download archived episode audio to a local directory")
-    pull.add_argument("--corpus", required=True, help="Corpus root (parent of feeds/).")
-    pull.add_argument("--dest", required=True, help="Local output directory for pulled audio.")
-    src = pull.add_argument_group("archive source (one required)")
+def _add_archive_source_args(p: argparse.ArgumentParser, *, label: str) -> None:
+    """The backend selector, shared so ``pull`` and ``backfill`` name it identically."""
+    src = p.add_argument_group(f"archive {label} (one required)")
     src.add_argument(
         "--rclone-remote", dest="rclone_remote", help="rclone remote name (remote archive)."
     )
@@ -177,11 +217,27 @@ def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
     )
     src.add_argument("--rclone-bin", dest="rclone_bin", default="rclone", help="rclone binary.")
     src.add_argument("--local-root", dest="local_root", help="Local archive root (local backend).")
-    sel = pull.add_argument_group("selectors (default: all)")
-    sel.add_argument("--all", action="store_true", help="Pull every episode (default).")
+
+
+def _add_archive_selector_args(p: argparse.ArgumentParser) -> None:
+    """Episode selectors, identical across subcommands so muscle memory transfers."""
+    sel = p.add_argument_group("selectors (default: all)")
+    sel.add_argument("--all", action="store_true", help="Every episode (default).")
     sel.add_argument("--feed", help="Only episodes whose feed title/id contains this.")
     sel.add_argument("--episode", help="Only this episode_id or guid.")
     sel.add_argument("--since", help="Only episodes published on/after YYYY-MM-DD.")
+
+
+def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
+    """Parse ``archive <subcommand> ...`` — ``pull`` (read) and ``backfill`` (write)."""
+    parser = argparse.ArgumentParser(prog="podcast_scraper archive")
+    sub = parser.add_subparsers(dest="archive_subcommand", required=True)
+
+    pull = sub.add_parser("pull", help="Download archived episode audio to a local directory")
+    pull.add_argument("--corpus", required=True, help="Corpus root (parent of feeds/).")
+    pull.add_argument("--dest", required=True, help="Local output directory for pulled audio.")
+    _add_archive_source_args(pull, label="source")
+    _add_archive_selector_args(pull)
     pull.add_argument(
         "--dry-run", action="store_true", help="List what would be pulled + est. size."
     )
@@ -189,6 +245,57 @@ def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
         "--force", action="store_true", help="Re-download even if the dest file exists."
     )
 
+    back = sub.add_parser(
+        "backfill",
+        help="Fetch missing episode audio from publishers and store it in the archive",
+        description=(
+            "Recover audio for episodes ingested before the cache persisted (#1631). Reads the "
+            "enclosure URL from corpus metadata, skips anything already archived, and stores "
+            "the rest under the same sha256(guid) key the pipeline writes. Idempotent: safe to "
+            "interrupt and re-run. Episodes that have aged out of a publisher's feed window are "
+            "reported as 'rolled_off' — a normal outcome, not a failure. Recovered audio is "
+            "re-encoded by dynamic-ad feeds and is NOT byte-identical to the audio that "
+            "produced the existing transcripts; recovered entries are stamped accordingly."
+        ),
+    )
+    back.add_argument("--corpus", required=True, help="Corpus root (parent of feeds/).")
+    _add_archive_source_args(back, label="destination")
+    _add_archive_selector_args(back)
+    back.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report per feed what would be fetched, with an estimated size. Fetches nothing.",
+    )
+    back.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-fetch and overwrite even when the archive already holds the episode.",
+    )
+    back.add_argument(
+        "--rate-limit",
+        dest="rate_limit",
+        type=float,
+        default=None,
+        help=(
+            "Minimum seconds between requests to the SAME host (default 1.0). Backfill walks "
+            "hundreds of episodes concentrated on a few CDNs; do not set this to 0 against a "
+            "live publisher."
+        ),
+    )
+    back.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        help="Per-episode download timeout in seconds (default 300).",
+    )
+
     ns = parser.parse_args(argv)
+    if getattr(ns, "archive_subcommand", None) == "backfill":
+        from .backfill import DEFAULT_RATE_LIMIT_S, DEFAULT_TIMEOUT_S
+
+        if ns.rate_limit is None:
+            ns.rate_limit = DEFAULT_RATE_LIMIT_S
+        if ns.timeout is None:
+            ns.timeout = DEFAULT_TIMEOUT_S
     ns.command = "archive"
     return ns

@@ -24,6 +24,7 @@ from typing import Any, List, Tuple
 import pytest
 
 from podcast_scraper.gi.pipeline import _dedupe_insight_specs
+from tests.integration.conftest import requires
 
 pytestmark = pytest.mark.integration
 
@@ -60,6 +61,7 @@ class TestTheSameClaimTwice:
         specs: List[Tuple[str, str]] = [(PTJ_A, "claim"), (PTJ_B, "claim")]
         assert _dedupe_insight_specs(specs, _cfg()) == [(PTJ_A, "claim")]
 
+    @requires("sentence_transformers")  # dedupe compares claims by embedding similarity
     def test_a_RESTATEMENT_is_dropped(self) -> None:
         """0.96 similar — the same sentence with two words swapped. Two insights, one claim."""
         specs = [(YOUNG_A, "claim"), (YOUNG_B, "claim")]

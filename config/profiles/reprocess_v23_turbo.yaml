@@ -93,6 +93,12 @@ auto_speakers: true
 # #697 circuit breaker. Do not swap without re-running the harness at the
 # target operating point.
 summary_provider: gemini
+# Cross-vendor failover tier. These reprocess profiles are what re-derive an EXISTING corpus,
+# so an LLM outage mid-run does not merely lose new work — it can overwrite good artifacts with
+# degraded ones. Not registry-governed (no `profile:` preset here), so the ladder is set
+# directly; the registry-governed cloud profiles get the same tier via `make
+# profiles-materialize`.
+summary_fallback_providers: [deepseek]
 gemini_summary_model: gemini-2.5-flash-lite
 preprocessing_enabled: true
 
@@ -113,9 +119,17 @@ cloud_llm_structured_min_output_tokens: 4096
 
 # Grounded Insights
 generate_gi: true
-gi_insight_source: provider
-# Generate broadly and let the GATE trim: the cap is not a quality control, it is a truncation.
-# Prod ran 12 while every eval ran 50, so the comparison measured a pipeline production never runs.
+# Registry-governed: `make profiles-materialize` writes this from the GI StageOption this
+# profile's preset selects. Do not hand-tune it here — profiles-check will fail you.
+# The cap is deliberately preset-dependent, not one global default: the v2.5 finale lowered
+# it for the cloud flash summarisers (they saturate earlier than gemini), while the
+# gemini-era v3 tuning keeps the higher one. Both values are measured — see the
+# StageOption's research_ref for the report that justified each.
+# No number is quoted in this comment on purpose. The previous version said prod ran one
+# value while every eval ran another, which had been TRUE of a since-fixed mismatch and
+# read as a live defect long after it was resolved: it sent a reader auditing this file to
+# 'correct' a researched value back into a hand-edit. A value restated in prose beside a
+# machine-owned field is precisely how this one came to have three different answers.
 gi_max_insights: 50
 gi_require_grounding: true
 

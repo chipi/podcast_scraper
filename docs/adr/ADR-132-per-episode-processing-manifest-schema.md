@@ -121,9 +121,11 @@ correct whether a stage runs locally (free) or on a paid cloud provider:
   YAML, per audio-minute). Local DGX/whisper → 0/None; cloud OpenAI/Deepgram → real USD.
 - **Diarization** — a cloud diarizer sets `DiarizationResult.cost_usd`; otherwise it is estimated
   centrally in `apply_diarization_to_result` via the same pricing layer (`capability="diarization"`).
-  Local pyannote/DGX/MOSS have no pricing entry → **None** (a truthful "no billed cost", not a
-  fabricated zero).
-- **Naming** — local heuristic → no cost.
+  Local pyannote/DGX/MOSS → **0.0** (see the `0.0` vs `null` rule below).
+- **Naming** — **not** free by definition. `cloud_balanced` sets `speaker_detector_provider:
+  litellm`, so voice resolution is a real LLM call; `EpisodeCostProbe` captures this episode's
+  share via `record_llm_speaker_detection_call`. A purely deterministic naming pass costs
+  **0.0**.
 - **Summary** — `summary_call_metrics.estimated_cost`.
 - **GI / KG** — captured per-episode by an `EpisodeCostProbe` that wraps the shared
   `pipeline_metrics` around each episode's build. GI/KG cost is recorded by the LLM providers (all of
@@ -134,11 +136,68 @@ correct whether a stage runs locally (free) or on a paid cloud provider:
 
 `cost_usd_total` is the roll-up of the present stage blocks' `cost_usd`.
 
+**`0.0` vs `null` — they are different facts** (corrected 2026-08-15, #1657 acceptance):
+
+| Value | Meaning |
+| --- | --- |
+| `0.0` | The stage ran and its cost is **known to be zero** — a local engine, no invoice. |
+| `null` | **Nobody measured it.** The key is absent from the block. |
+
+This was previously specified the other way round for diarization ("None … not a fabricated
+zero") while the code emitted `0.0`, so the document and the implementation disagreed *and* the
+implementation disagreed with itself: a locally-diarized episode recorded
+`diarization.cost_usd: 0.0` next to `naming.cost_usd: null`, though both ran locally and both
+were free.
+
+The corrected rule prefers the measured zero, because it carries information — and it keeps the
+remaining `null` meaningful. A fabricated zero on an *uninstrumented* stage is how a roll-up
+silently under-reports, which is precisely what `null` must go on protecting.
+`measured_or_unmeasured()` in `workflow/processing_manifest.py` is the single implementation;
+every stage goes through it.
+
 ### `quality_flags` — the rework signal
 
 A flat, corpus-queryable list of the weak-signal conditions each stage emits: `asr_speech_coverage_low`,
 `asr_failover`, `unnamed_dominant_voice`, `guest_in_title_not_placed`, `empty_host_anchor`,
 `gi_all_gated`. The vocabulary is closed (registered in one place) so the ledger can `GROUP BY` them.
+
+## Amendment 2026-08-15 — `stage_ledger` and `input_fingerprint` (#1647, #1649)
+
+Two additive fields landed with epic #1657. Both are recorded here because "which fields does
+a sidecar carry" must be answerable from this document rather than by reading a corpus.
+
+**`processing.stage_ledger`** — per-stage outcome, defined in
+[ADR-151](ADR-151-stage-outcomes-over-stage-timings.md). Shape:
+
+```json
+"stage_ledger": {
+  "speaker_detection": {
+    "outcome": "ran",
+    "reason": null,
+    "detail": {"published_media_bytes": 95900000, "limit_bytes": 26214400,
+               "limit_applies_to": "uploaded_audio_after_preprocessing"},
+    "duration_seconds": 1.6
+  }
+}
+```
+
+`outcome` ∈ `ran | skipped | failed | degraded`. `reason` is a stable slug so a report can
+`GROUP BY` it, matching the closed-vocabulary rule the `qa_flags` list already follows.
+`stage_timings` is retained unchanged: it answers "how long", and it never answered "did it
+happen" — which is exactly how #1646 stayed invisible across 72 % of the corpus.
+
+**`input_fingerprint`** on the enrichment envelope (not this manifest) — a content hash of an
+episode's GI/KG, used as the enrichment staleness key (#1649). Recorded here only so the
+cross-artifact picture is in one place; the envelope owns its own shape.
+
+**`schema_version` deliberately unchanged at `1.0.0`.** Both additions are additive optional
+fields, and the invariant below says the version moves only on a breaking migration. The cost
+of that choice is explicit: a reader cannot tell "this corpus predates the ledger" from the
+version alone and must probe for the field — which is what
+`scripts/tools/corpus_quality_report.py` does, counting ledger-less episodes as *unknown*
+rather than assuming they ran. If that probing becomes load-bearing for more consumers, bump
+to `1.1.0` and let readers gate on the version instead; it is a one-line change and this
+paragraph is the reason it was not made now.
 
 ## Invariants
 

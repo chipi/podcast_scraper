@@ -190,6 +190,12 @@ jobs:
         # key value (so the podcast side can wire that exact secret). Idempotent: skips if the key
         # already exists. Runs the curl ON THE BOX (gateway is 127.0.0.1:4001 there); the two
         # secrets are streamed over SSH via stdin (never argv), and GH masks them in logs.
+        #
+        # #1659: the mint now carries "max_budget": 25.0. It used to mint an UNCAPPED key and
+        # rely on someone remembering a manual /key/update afterwards — which is why D1 existed
+        # as a hand-applied fix in the first place, and why a fresh box would silently lose the
+        # cap. A protection that depends on being reapplied by hand is not a protection; the
+        # first run that exhausted its credit hard-stopped ingestion mid-corpus (#1651).
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
@@ -210,7 +216,7 @@ jobs:
                if [ "$info" = "200" ]; then echo "podcast-prod key: already provisioned"; exit 0; fi; \
                resp=$(curl -s "http://127.0.0.1:4001/key/generate" -H "Authorization: Bearer $MK" \
                  -H "Content-Type: application/json" \
-                 -d "{\"key\":\"$VK\",\"key_alias\":\"podcast-prod\"}" || true); \
+                 -d "{\"key\":\"$VK\",\"key_alias\":\"podcast-prod\",\"max_budget\":25.0}" || true); \
                if printf "%s" "$resp" | grep -q "\"key\"\|\"token\""; then echo "podcast-prod key: minted"; \
                elif printf "%s" "$resp" | grep -qi "already"; then echo "podcast-prod key: already exists"; \
                else echo "podcast-prod key: MINT FAILED"; printf "%s\n" "$resp" | sed "s/$VK/***/g; s/$MK/***/g"; exit 1; fi'

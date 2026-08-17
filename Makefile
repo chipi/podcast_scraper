@@ -714,11 +714,21 @@ REMOVE_VOLUMES ?=
 # inspected after a Playwright run).
 STACK_TEST_EXPORT_DIR ?= $(CURDIR)/.stack-test-corpus
 
+# Provenance for the compose builds. Compose cannot shell out, so the SHA is exported into its
+# environment here and interpolated by ``${GIT_SHA:-}`` in docker-compose.stack.yml. Without
+# this the built image writes git_sha: null into every manifest (ADR-132, #1657).
+# Inner quotes are NOT backslash-escaped — see the note on GIT_BUILD_ARGS; the escaped form
+# reports a dirty tree as clean instead of erroring loudly.
+GIT_BUILD_ENV = \
+	GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+	GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
+	GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
+
 stack-build:
-	@$(STACK_COMPOSE) build
+	@$(GIT_BUILD_ENV) $(STACK_COMPOSE) build
 
 stack-build-llm:
-	@$(STACK_COMPOSE) --profile pipeline-llm build pipeline-llm
+	@$(GIT_BUILD_ENV) $(STACK_COMPOSE) --profile pipeline-llm build pipeline-llm
 
 verify-stack-profiles:
 	@echo "Validating config/profiles/*.yaml minimum Docker tiers..."
@@ -1137,6 +1147,12 @@ import-corpus:
 
 # Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
 # Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).
+# NOTE --single-feed-uses-corpus-layout is REQUIRED here. It gates cross-run transcript
+# resolution (episode_processor.py:360): every run writes a FRESH run_<ts>/, so an
+# already-processed episode's transcript lives in a PRIOR run dir. Without the flag a
+# single-feed corpus reports "no transcript for <episode>" and skips EVERYTHING — verified
+# 2026-08-16. Harmless for multi-feed: `_apply_single_feed_corpus_layout` returns early when
+# rss_urls >= 2, so no double-wrapping occurs.
 reprocess-corpus-from-transcripts:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
@@ -1148,6 +1164,7 @@ reprocess-corpus-from-transcripts:
 	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
 	  --output-dir "$${CORPUS_DIR}" \
 	  --skip-existing \
+	  --single-feed-uses-corpus-layout \
 	  --no-transcribe-missing; \
 	echo "Optional: rebuild topic clusters when search/ index exists:"; \
 	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
@@ -1164,6 +1181,27 @@ corpus-compat-check:
 corpus-completeness-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# Repair gate for #1655: list every episode still carrying a pre-#1657 placeholder insight
+# ("Summary insight (stub).") instead of real GI. Non-zero exit if ANY remain. Run it TWICE —
+# before the repair to size the work-list, and after to prove the repair landed. Those episodes
+# are invisible to any check that only asks "does this episode have GI?", so an append-mode
+# re-run skips them forever; this is the only thing that names them. CORPUS_DIR required.
+corpus-placeholder-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.corpus import check_corpus_for_placeholders; ok, report = check_corpus_for_placeholders(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# THE repair exit criterion (#1655). Asserts, per EPISODE, that declared GI actually exists:
+# artifact resolves + parses, is not a pre-#1657 placeholder, and no episode_id resolves to more
+# than one gi.json (the supersede hazard — corpus_metadata_index keeps the OLDEST, search keeps
+# the NEWEST, so duplicates mean two subsystems disagree on the canonical artifact).
+#
+# Use this, NOT corpus-placeholder-check, to decide whether a repair worked.
+# corpus-placeholder-check only asks "is the bad string absent?", which passes on a corpus whose
+# artifacts were deleted and never regenerated — proven 2026-08-16. CORPUS_DIR required.
+corpus-gi-integrity-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.integrity import check_corpus_gi_integrity; ok, report = check_corpus_gi_integrity(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
@@ -2524,11 +2562,25 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 	@echo ""
 	@echo "✓ Full nightly CI chain completed"
 
+# Provenance for EVERY image build (ADR-132, #1657). The runtime image has no git — the build
+# context excludes .git/ and the binary is never installed — so unless the SHA is passed in,
+# every manifest the image writes records git_sha: null. Falls back to empty outside a repo,
+# which the code treats exactly as it did before (shell out to git, find nothing).
+#
+# Do NOT escape the inner quotes as \" — command substitution restarts the quoting context, so
+# the backslashes reach `test` as literal arguments. That form dies with "test: too many
+# arguments" and, worse, falls through to `echo false`: a dirty tree silently reported clean.
+GIT_BUILD_ARGS = \
+	--build-arg GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+	--build-arg GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
+	--build-arg GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
+
 docker-build:
 	@echo "Building Docker image (ML-enabled variant, production ML preload, default)..."
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test \
 		-f docker/pipeline/Dockerfile .
 
@@ -2538,6 +2590,7 @@ docker-build-llm:
 	@echo ""
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS="" \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test-llm \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -2550,6 +2603,7 @@ docker-build-fast:
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=false \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test-fast \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -2562,6 +2616,7 @@ docker-build-full:
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -4118,3 +4173,19 @@ delete-drill-hetzner-orphans:
 	 fi; \
 	 ./scripts/ops/delete_drill_hetzner_orphans.sh $(if $(filter 1 true yes,$(DRY_RUN)),--check-only,); \
 	 echo "MAKE_EXIT=$$?"
+
+# Which episodes were transcribed from UNPREPROCESSED audio (#18/#558)? Preprocessing used to run
+# under a flat 300s budget; on long episodes it hit that wall, produced nothing, and the ORIGINAL
+# full-size file went to the STT provider. The damage is in the TRANSCRIPT, so neither gi-repair
+# nor reprocess-corpus-from-transcripts (transcribe=off) can fix it — only re-transcription can,
+# which is an explicit cost decision. This makes the number known. CORPUS_DIR required.
+corpus-preprocessing-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# Emit the #18 repair work-list: the episode_ids to feed --reprocess-episode-ids. Writes
+# <corpus>/preprocessing_repair_worklist.txt (override with WORKLIST=). Re-transcription costs
+# real money — read the list before running it. CORPUS_DIR required.
+corpus-preprocessing-worklist:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; d = Path('$${WORKLIST:-$${CORPUS_DIR}/preprocessing_repair_worklist.txt}'); n = write_work_list(Path('$${CORPUS_DIR}').expanduser(), d); print(f'{n} episode(s) written to {d}')"

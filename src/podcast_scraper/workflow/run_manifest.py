@@ -14,6 +14,7 @@ import os
 import platform
 import subprocess
 import sys
+import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -57,7 +58,20 @@ class RunManifest:
     whisper_version: Optional[str] = None
 
     # Models used
-    whisper_model: Optional[str] = None
+    #
+    # A1 (2026-08-12): ``whisper_model`` is a MISNOMER retained for backward compatibility.
+    # It holds the actual transcription model for whichever provider ran — so a Deepgram run
+    # stamps ``whisper_model="nova-3"``. That mislabelling caused a false "wrong profile"
+    # scare during a provenance audit, and makes it impossible to select one engine's
+    # episodes for reprocessing in a mixed corpus.
+    #
+    # Prefer the provider-neutral pair below. Both are populated on every run; the legacy
+    # field is kept so existing readers and on-disk manifests keep working. Do not add new
+    # readers of ``whisper_model``.
+    transcription_provider: Optional[str] = None
+    transcription_model: Optional[str] = None
+
+    whisper_model: Optional[str] = None  # legacy alias of transcription_model — see above
     whisper_model_revision: Optional[str] = None
     summary_model: Optional[str] = None
     summary_model_revision: Optional[str] = None
@@ -97,12 +111,105 @@ class RunManifest:
         logger.info(f"Run manifest saved to: {filepath}")
 
 
+#: Captured ONCE per process, on first use. See ``_get_git_info``.
+_GIT_INFO: Optional[tuple[Optional[str], Optional[str], bool]] = None
+_GIT_INFO_LOCK = threading.Lock()
+
+
 def _get_git_info() -> tuple[Optional[str], Optional[str], bool]:
-    """Get git commit SHA, branch, and dirty status.
+    """Get git commit SHA, branch, and dirty status — captured ONCE per process.
+
+    The capture is process-wide on purpose. This probe answers "which code produced this
+    artifact", and the code executing a run is whatever was on disk when the process started:
+    Python imports its modules once at startup, so an edit or a deploy landing mid-run does not
+    change the running code. Re-reading the working tree later answers a different question —
+    what HEAD is right now — and silently labels the artifact with a commit that never touched
+    it.
+
+    Observed 2026-08-16 in a 14-episode acceptance run, where a commit landed mid-run::
+
+        15:27:17  e055286   NVIDIA
+        15:35:20  e055286   a16z
+        15:40:03  2ceb653   Hard Fork     <- stamped with a commit made mid-run
+
+    All four episodes were executed by e055286's code; the fourth manifest's SHA was false. In
+    production the same thing happens whenever a deploy lands during a corpus pass, which takes
+    hours. ADR-132 makes this THE field you consult when an artifact looks wrong, so it gets
+    read exactly when something is already suspicious — a field that can disagree with reality
+    is worse than no field at all.
+
+    Caching here rather than in each caller also keeps the run manifest and the per-episode
+    manifests consistent with one another; two independent caches could still straddle a commit.
+
+    Thread-safe: episodes are processed concurrently, and racing threads would each shell out to
+    git for a value that must be identical anyway.
 
     Returns:
         Tuple of (commit_sha, branch, dirty)
     """
+    global _GIT_INFO
+    if _GIT_INFO is None:
+        with _GIT_INFO_LOCK:
+            if _GIT_INFO is None:
+                _GIT_INFO = _probe_git_info()
+    return _GIT_INFO
+
+
+def reset_git_info_cache() -> None:
+    """Drop the captured git info (tests only).
+
+    Production never calls this: re-capturing mid-run would reintroduce exactly the drift the
+    cache exists to prevent.
+    """
+    global _GIT_INFO
+    with _GIT_INFO_LOCK:
+        _GIT_INFO = None
+
+
+#: Baked into the pipeline image at build time. See ``_git_info_from_env``.
+GIT_SHA_ENV = "PODCAST_GIT_SHA"
+GIT_BRANCH_ENV = "PODCAST_GIT_BRANCH"
+GIT_DIRTY_ENV = "PODCAST_GIT_DIRTY"
+
+
+def _git_info_from_env() -> Optional[tuple[Optional[str], Optional[str], bool]]:
+    """Provenance baked in at image build time, or ``None`` if this is not a built image.
+
+    WHY THIS EXISTS: in the container that production actually runs, shelling out to git returns
+    nothing. ``.dockerignore`` excludes ``.git/`` from the build context and the runtime stage
+    never installs the git binary, so ``git rev-parse`` raises FileNotFoundError and the probe
+    below reports ``(None, None, False)``. Every manifest written by the pipeline image recorded
+    ``git_sha: null``.
+
+    That is worse than it sounds. ADR-132 makes ``git_sha`` the exact-code backstop — THE field
+    you consult when an artifact looks wrong and you need to know which code produced it. It has
+    therefore been absent at exactly the moments it was designed for. The 2026-08-16 acceptance
+    run showed a clean single SHA, which read as proof the provenance chain worked; that run
+    executed from source, where ``.git`` is present, so it proved nothing about the image.
+
+    Fixing it by un-ignoring ``.git/`` would bloat the build context AND still need the git
+    binary in the runtime image. Passing the SHA in as a build arg costs neither.
+
+    A source checkout sets none of these variables and falls through to the git probe, so dev
+    boxes and CI keep working exactly as before.
+    """
+    sha = (os.environ.get(GIT_SHA_ENV) or "").strip()
+    if not sha:
+        return None
+    branch = (os.environ.get(GIT_BRANCH_ENV) or "").strip() or None
+    dirty = (os.environ.get(GIT_DIRTY_ENV) or "").strip().lower() in {"1", "true", "yes"}
+    return sha, branch, dirty
+
+
+def _probe_git_info() -> tuple[Optional[str], Optional[str], bool]:
+    """Provenance for (commit_sha, branch, dirty). Call ``_get_git_info`` instead.
+
+    Prefers the build-time environment (a built image), falls back to shelling out to git (a
+    source checkout).
+    """
+    from_env = _git_info_from_env()
+    if from_env is not None:
+        return from_env
     try:
         # Get commit SHA
         commit_sha = (
@@ -267,7 +374,14 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     # stamped the unused local default (base.en) on every DGX run.
     from ..utils.provider_metrics import transcription_model_for_cfg
 
-    whisper_model = transcription_model_for_cfg(cfg) or getattr(cfg, "whisper_model", None)
+    # A1: resolve the ACTUAL provider + model, and record them under provider-neutral names.
+    # ``whisper_model`` keeps receiving the same value purely for backward compatibility —
+    # a Deepgram run has always stamped whisper_model="nova-3" there, which is what made
+    # provenance audits misread the engine.
+    transcription_model = transcription_model_for_cfg(cfg) or getattr(cfg, "whisper_model", None)
+    transcription_provider = getattr(cfg, "transcription_provider", None)
+    transcription_provider = str(transcription_provider) if transcription_provider else None
+    whisper_model = transcription_model
     summary_model = getattr(cfg, "summary_model", None)
     reduce_model = getattr(cfg, "summary_reduce_model", None)
 
@@ -306,6 +420,8 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
         torch_version=torch_version,
         transformers_version=transformers_version,
         whisper_version=whisper_version,
+        transcription_provider=transcription_provider,
+        transcription_model=transcription_model,
         whisper_model=whisper_model,
         whisper_model_revision=whisper_model_revision,
         summary_model=summary_model,

@@ -387,15 +387,29 @@ def _topic_row(
     alpha: float,
     effective_idx: int,
 ) -> dict[str, Any]:
-    """One topic's envelope row: monthly counts + EWMA + scalar velocity + weekly series."""
+    """One topic's envelope row: monthly counts + EWMA + scalar velocity + weekly series.
+
+    ``velocity_last_over_6mo`` is retained for ordering and back-compat but must NOT be read
+    as "trending" (#1650). Measured over the full 678-episode corpus it is effectively a
+    two-valued function: **5,632 of 5,918 topics scored 0.0 and 256 scored exactly 6.0**, with
+    only 30 taking any other value. Nothing normalises by episodes-per-month, so it ranks by
+    "published recently" against a backfill-shaped denominator, and 95 % of topics appear in
+    exactly one episode anyway. ``weekly_counts`` — and ``content_series`` at the envelope
+    level — carry the real signal.
+    """
     series = [monthly.get(m, 0) for m in months]
     weekly_series = [weekly.get(w, 0) for w in weeks]
+    velocity = _velocity(series, last_idx=effective_idx)
     return {
         "topic_id": tid,
         "topic_label": label,
         "monthly_counts": dict(zip(months, series)),
         "ewma": dict(zip(months, _ewma(series, alpha))),
-        "velocity_last_over_6mo": _velocity(series, last_idx=effective_idx),
+        "velocity_last_over_6mo": velocity,
+        # Explicit, machine-readable warning travelling WITH the value (#1650). A consumer
+        # reaching for a field called "velocity" has no way to know it is degenerate; a note
+        # in an issue does not reach them, and silently deleting the field breaks back-compat.
+        "velocity_is_indicative_only": True,
         "weekly_counts": dict(zip(weeks, weekly_series)),
         "weekly_velocity": dict(zip(weeks, _velocity_series(weekly_series))),
         "total": sum(series),

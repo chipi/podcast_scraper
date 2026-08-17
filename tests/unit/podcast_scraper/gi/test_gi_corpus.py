@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from conftest import artifact_with_grounded_insights
 
 from podcast_scraper.gi import build_artifact, write_artifact
 from podcast_scraper.gi.contracts import build_gi_corpus_bundle_output
@@ -17,7 +18,7 @@ class TestGiCorpusExport:
         """Merged bundle lists artifacts and insight/quote totals."""
         (tmp_path / "metadata").mkdir()
         for i, eid in enumerate(("ep:a", "ep:b"), start=1):
-            art = build_artifact(eid, f"Transcript {i} body here.", prompt_version="v1")
+            art = artifact_with_grounded_insights(eid, f"Transcript {i} body here.")
             write_artifact(tmp_path / "metadata" / f"{i}.gi.json", art, validate=True)
         paths = sorted((tmp_path / "metadata").glob("*.gi.json"))
         loaded = load_gi_artifacts(paths, validate=True, strict=False)
@@ -32,7 +33,12 @@ class TestGiCorpusExport:
         (tmp_path / "metadata").mkdir()
         write_artifact(
             tmp_path / "metadata" / "one.gi.json",
-            build_artifact("ep:1", "Text.", prompt_version="v1"),
+            build_artifact(
+                "ep:1",
+                "Text.",
+                prompt_version="v1",
+                insight_texts=["A real insight extracted from the transcript."],
+            ),
             validate=True,
         )
         paths = list((tmp_path / "metadata").glob("*.gi.json"))

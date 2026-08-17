@@ -1005,14 +1005,23 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.stages.processing.http_head")
     @patch("podcast_scraper.workflow.stages.processing.create_speaker_detector")
-    def test_skip_speaker_detection_when_file_too_large_for_openai(
+    def test_speaker_detection_still_runs_when_media_exceeds_the_upload_limit(
         self, mock_create_detector, mock_http_head
     ):
-        """Test that speaker detection is skipped when file exceeds OpenAI 25MB limit.
+        """Oversize media must NOT disable speaker detection (#1646).
 
-        This test verifies the fix for issue #327: Speaker detection should not run
-        for episodes that will be skipped due to file size limits when using OpenAI
-        transcription provider.
+        This test previously asserted the opposite, pinning #327's guard: "skip speaker
+        detection when transcription will be skipped due to file size limits". That premise
+        is gone — transcription is no longer skipped for oversize media, it is chunked after
+        preprocess — but the speaker-detection half of the decision kept firing.
+
+        The consequence was severe and measured: speaker detection reads the episode TITLE and
+        DESCRIPTION (``detect_speaker_names``) and never opens the media file, so gating it on
+        audio size disabled it for 488 of 678 episodes (72 %). Those episodes could name no
+        voice, GI marked their insights ``surfaceable: false``, and 2,112 insights (23.6 %)
+        became unreachable by any surface.
+
+        The inverted assertion is deliberate: the old expectation encoded the bug.
         """
         from podcast_scraper.workflow.stages import processing
         from podcast_scraper.workflow.types import HostDetectionResult, TranscriptionResources
@@ -1049,8 +1058,9 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_response.headers = {"Content-Length": str(30 * 1024 * 1024)}  # 30 MB
         mock_http_head.return_value = mock_response
 
-        # Mock speaker detector (should NOT be called)
+        # Speaker detection MUST run despite the oversize media (#1646).
         mock_detector = Mock()
+        mock_detector.detect_speakers.return_value = (["Simon Last"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         # Create minimal resources
@@ -1061,11 +1071,13 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
             transcription_jobs_lock=threading.Lock(),
             saved_counter_lock=threading.Lock(),
         )
-        # Don't provide speaker_detector - it should not be created when skipping
+        # The detector is built once per run and carried on the result — supplying it here
+        # matches the real path and keeps the test off the provider SDKs (which live in
+        # ``[llm]``, not ``[dev]``, so a unit test must never construct one).
         host_detection_result = HostDetectionResult(
             cached_hosts=set(),
             heuristics=None,
-            speaker_detector=None,  # Should not be created when skipping
+            speaker_detector=mock_detector,
         )
         pipeline_metrics = metrics.Metrics()
 
@@ -1080,18 +1092,19 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
             pipeline_metrics=pipeline_metrics,
         )
 
-        # Verify HTTP HEAD was called to check file size
+        # The size probe still runs — an operator wants to know chunking is coming (#557).
         mock_http_head.assert_called_once_with(episode.media_url, cfg.user_agent, cfg.timeout)
 
-        # Verify speaker detector was NOT created or called
-        mock_create_detector.assert_not_called()
-        mock_detector.detect_speakers.assert_not_called()
+        # ...but it is advisory now: the detector IS asked for names on an oversize episode.
+        mock_detector.detect_speakers.assert_called_once()
 
-        # Verify download args were still created (episode processing continues)
+        # Episode processing continues, as it always did.
         self.assertEqual(len(download_args), 1)
 
-        # Verify detected_speaker_names is None (speaker detection was skipped)
-        _ = download_args[0]  # Verify args were created
+        # And the ledger records that the stage ran, rather than leaving a null that cannot be
+        # told apart from "never configured" (#1647).
+        ledger = pipeline_metrics.stage_outcomes_by_episode[episode.idx]
+        self.assertEqual(ledger["speaker_detection"]["outcome"], "ran")
 
     @patch("podcast_scraper.workflow.stages.processing.http_head")
     @patch("podcast_scraper.workflow.stages.processing.create_speaker_detector")

@@ -333,7 +333,6 @@ class TestGeminiProviderTranscription(unittest.TestCase):
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_transcribe_not_initialized(self, mock_genai):
-        """Test transcribe raises RuntimeError if not initialized."""
         provider = GeminiProvider(self.cfg)
         # Don't call initialize()
 
@@ -630,7 +629,6 @@ class TestGeminiProviderSpeakerDetection(unittest.TestCase):
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_detect_speakers_not_initialized(self, mock_genai):
-        """Test detect_speakers raises RuntimeError if not initialized."""
         provider = GeminiProvider(self.cfg)
         # Don't call initialize()
 
@@ -759,7 +757,6 @@ class TestGeminiProviderSummarization(unittest.TestCase):
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_summarize_not_initialized(self, mock_genai):
-        """Test summarize raises RuntimeError if not initialized."""
         provider = GeminiProvider(self.cfg)
         # Don't call initialize()
 
@@ -976,10 +973,16 @@ class TestGeminiProviderGIL(unittest.TestCase):
         self.assertEqual(provider.generate_insights("t"), [])
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_generate_insights_not_initialized_returns_empty(self, mock_genai):
+    def test_generate_insights_not_initialized_raises(self, mock_genai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_genai.Client.return_value = Mock()
         provider = GeminiProvider(self.cfg)
-        self.assertEqual(provider.generate_insights("t"), [])
+        with self.assertRaises(RuntimeError):
+            provider.generate_insights("t")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
@@ -1022,10 +1025,16 @@ class TestGeminiProviderGIL(unittest.TestCase):
         self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_extract_quotes_not_initialized_returns_empty(self, mock_genai):
+    def test_extract_quotes_not_initialized_raises(self, mock_genai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_genai.Client.return_value = Mock()
         provider = GeminiProvider(self.cfg)
-        self.assertEqual(provider.extract_quotes("a", "b"), [])
+        with self.assertRaises(RuntimeError):
+            provider.extract_quotes("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
@@ -1077,10 +1086,16 @@ class TestGeminiProviderGIL(unittest.TestCase):
         self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_score_entailment_not_initialized_returns_zero(self, mock_genai):
+    def test_score_entailment_not_initialized_raises(self, mock_genai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_genai.Client.return_value = Mock()
         provider = GeminiProvider(self.cfg)
-        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+        with self.assertRaises(RuntimeError):
+            provider.score_entailment("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
@@ -1162,10 +1177,16 @@ class TestGeminiProviderKG(unittest.TestCase):
         self.assertEqual(out["topics"][0]["label"], "Asia")
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_extract_kg_graph_not_initialized_returns_none(self, mock_genai):
+    def test_extract_kg_graph_not_initialized_raises(self, mock_genai):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_genai.Client.return_value = Mock()
         provider = GeminiProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_graph("t"))
+        with self.assertRaises(RuntimeError):
+            provider.extract_kg_graph("t")
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_extract_kg_graph_empty_text_returns_none(self, mock_genai):

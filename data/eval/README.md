@@ -9,9 +9,9 @@ The evaluation system supports these task types:
 - **summarization** - Text summarization tasks (e.g., episode summaries)
 - **ner_entities** - Named Entity Recognition tasks (e.g., extracting host/guest names, show titles)
 - **grounded_insights** - Grounded Insight Layer (GIL) artifacts per episode (`output.gil` in
-  `predictions.jsonl`). Currently **`eval_stub` backend only** (stub pipeline; no LLM).
+  `predictions.jsonl`). Currently **`eval_offline` backend only** (stub pipeline; no LLM).
 - **knowledge_graph** - Knowledge graph artifacts per episode (`output.kg`). Currently
-  **`eval_stub` backend only** (stub extraction; no LLM).
+  **`eval_offline` backend only** (stub extraction; no LLM).
 
 GIL and KG are **separate** experiment configs and runs (not combined in one run).
 

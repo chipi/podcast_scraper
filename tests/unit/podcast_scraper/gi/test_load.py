@@ -59,13 +59,22 @@ class TestGILLoad:
 
     def test_build_inspect_output_from_artifact(self):
         """build_inspect_output produces InspectOutput with insights and stats."""
-        artifact = build_artifact("ep:1", "Some transcript.", prompt_version="v1")
+        artifact = build_artifact(
+            "ep:1",
+            "Some transcript.",
+            prompt_version="v1",
+            insight_texts=["A real insight extracted from the transcript."],
+        )
         out = build_inspect_output(artifact, "Some transcript.")
         assert out.episode_id == "ep:1"
         assert len(out.insights) == 1
-        assert out.insights[0].grounded is True
+        # Ungrounded because no evidence provider is wired in this test — grounding is the
+        # subject of the evidence-stack tests, not of build_inspect_output's shape. There is no
+        # Quote either: quotes come from grounding, and the placeholder that used to manufacture
+        # one from a transcript slice is gone (#1657).
+        assert out.insights[0].grounded is False
         assert out.stats["insight_count"] == 1
-        assert out.stats["quote_count"] >= 1
+        assert out.stats["quote_count"] == 0
 
     def test_build_inspect_output_episode_title_and_publish_date(self):
         """Episode node title/publish_date propagate to each InsightSummary."""
@@ -75,6 +84,7 @@ class TestGILLoad:
             prompt_version="v1",
             episode_title="My Episode",
             publish_date="2024-06-01T12:00:00Z",
+            insight_texts=["A real insight extracted from the transcript."],
         )
         out = build_inspect_output(artifact, "Some transcript.")
         assert out.insights[0].episode_title == "My Episode"
@@ -82,7 +92,12 @@ class TestGILLoad:
 
     def test_load_artifact_and_transcript_roundtrip(self, tmp_path):
         """Load artifact from path; transcript optional."""
-        payload = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
+        payload = build_artifact(
+            "ep:1",
+            "Evidence here.",
+            prompt_version="v1",
+            insight_texts=["A real insight extracted from the transcript."],
+        )
         gi_path = tmp_path / "metadata" / "1_ep.gi.json"
         gi_path.parent.mkdir(parents=True)
         with open(gi_path, "w", encoding="utf-8") as f:
@@ -98,7 +113,12 @@ class TestGILLoad:
 
     def test_find_artifact_by_insight_id(self, tmp_path):
         """find_artifact_by_insight_id returns path to artifact containing insight."""
-        payload = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
+        payload = build_artifact(
+            "ep:1",
+            "Evidence here.",
+            prompt_version="v1",
+            insight_texts=["A real insight extracted from the transcript."],
+        )
         insight_id = next(n["id"] for n in payload["nodes"] if n.get("type") == "Insight")
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         gi_path.parent.mkdir(parents=True)
@@ -110,7 +130,12 @@ class TestGILLoad:
 
     def test_find_artifact_by_episode_id(self, tmp_path):
         """find_artifact_by_episode_id returns path to artifact with given episode_id."""
-        payload = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
+        payload = build_artifact(
+            "ep:1",
+            "Evidence here.",
+            prompt_version="v1",
+            insight_texts=["A real insight extracted from the transcript."],
+        )
         metadata = tmp_path / "metadata"
         metadata.mkdir(parents=True)
         gi_path = metadata / "ep1.gi.json"
@@ -137,7 +162,12 @@ class TestGILLoad:
                 json_mod.dumps(meta_doc),
                 encoding="utf-8",
             )
-            payload = build_artifact("dup", "t", prompt_version="v1")
+            payload = build_artifact(
+                "dup",
+                "t",
+                prompt_version="v1",
+                insight_texts=["A real insight extracted from the transcript."],
+            )
             with open(mdir / "ep.gi.json", "w", encoding="utf-8") as handle:
                 json_mod.dump(payload, handle)
 

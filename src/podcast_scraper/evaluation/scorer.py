@@ -64,14 +64,33 @@ try:
     from nltk.tokenize import word_tokenize
     from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
-    # Ensure required NLTK data is available (punkt_tab needed for word_tokenize in NLTK 3.8+)
+    # Ensure required NLTK data is available (punkt_tab needed for word_tokenize in NLTK 3.8+).
+    #
+    # CHECK BEFORE DOWNLOADING. This used to call ``nltk.download()`` unconditionally at MODULE
+    # IMPORT, which reaches the network on every single import even when the data is already on
+    # disk — ``download()`` still contacts the index to check for updates. The surrounding
+    # ``except Exception`` catches a download that FAILS; it cannot catch one that HANGS, and a
+    # hang is what a blocked or rate-limited network produces.
+    #
+    # Measured 2026-08-17: this killed a unit test. ``score.py --help`` costs 1.4 s on a quiet
+    # machine, but during the full parallel suite the subprocess sat on
+    # ``[nltk_data] Error loading punkt: HTTP Error 503: Timed out while waiting``, blew the
+    # test's 180 s ceiling and was SIGKILLed (``Popen: returncode: -9``). Both packages were
+    # present on disk the whole time — every byte of that wait bought nothing.
+    #
+    # It also meant importing this module did blocking network I/O in an air-gapped deployment,
+    # which is the sort of thing that is only ever discovered at the worst moment.
     try:
         import nltk
 
-        nltk.download("punkt", quiet=True)
-        nltk.download("punkt_tab", quiet=True)
+        for _pkg, _path in (("punkt", "tokenizers/punkt"), ("punkt_tab", "tokenizers/punkt_tab")):
+            try:
+                nltk.data.find(_path)
+            except LookupError:
+                nltk.download(_pkg, quiet=True)
     except Exception:
-        # If download fails, word_tokenize will fail later - that's OK
+        # If the data is genuinely missing and the download fails, word_tokenize fails later —
+        # that is the pre-existing contract and it is unchanged.
         pass
 except ImportError:
     sentence_bleu = None

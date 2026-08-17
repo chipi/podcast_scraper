@@ -610,6 +610,21 @@ class Config(BaseModel):
         - API Reference: https://chipi.github.io/podcast_scraper/api/configuration/
     """
 
+    profile: Optional[str] = Field(
+        default=None,
+        description=(
+            "The deployment profile this Config was resolved from (cloud_balanced, local, …). "
+            "Set by ``_resolve_profile`` after merging; not something a caller supplies as a "
+            "field (pass ``profile=`` to the constructor and it is consumed as the meta-key, "
+            "then written back here). "
+            "#1648: this field did not exist, so the profile NAME was popped during resolution "
+            "and lost. ``orchestration.py`` reads ``getattr(cfg, 'profile', None)`` to decide "
+            "which enricher set to run and to pass ``--profile`` across the enrichment "
+            "subprocess boundary; with no field it always saw None, resolved an EMPTY enricher "
+            "set, and reported success. Every enrichment run in the corpus's life was a 3 ms "
+            "no-op because of this one missing field."
+        ),
+    )
     rss_url: Optional[str] = Field(default=None, alias="rss")
     rss_urls: Optional[List[RssFeedEntry]] = Field(
         default=None,
@@ -1089,6 +1104,21 @@ class Config(BaseModel):
             "``skip_existing`` for them. Used to re-diarize the Whisper-sourced "
             "episodes (#876) under a diarization-enabled profile while leaving the "
             "already-diarized ``direct_download`` episodes untouched. None = off."
+        ),
+    )
+    reprocess_episode_ids: List[str] = Field(
+        default_factory=list,
+        alias="reprocess_episode_ids",
+        description=(
+            "Scoped reprocess by EXPLICIT episode list (#32): force-reprocess exactly these "
+            "episode_ids/guids, overriding ``skip_existing`` for them. Matched against the "
+            "episode's episode_id AND its RSS guid, since detectors emit whichever the artifact "
+            "carries. Exists because the damage that motivates a re-transcription is usually "
+            "not expressible as a ``transcript_source``: every episode in a corpus carrying #18 "
+            "unpreprocessed-audio damage was ``whisper_transcription``, and so was every healthy "
+            "one, so ``reprocess_source`` would have re-transcribed 6 healthy episodes to reach "
+            "9 damaged ones. Feed it the work-list from "
+            "``make corpus-preprocessing-audit``. Empty = off."
         ),
     )
     reprocess_existing_only: bool = Field(
@@ -1682,7 +1712,7 @@ class Config(BaseModel):
         alias="openai_insight_model",
         description=(
             "Optional OpenAI chat model used only for GIL generate_insights when "
-            "gi_insight_source is provider; when unset, openai_summary_model is used."
+            "insights are generated; when unset, openai_summary_model is used."
         ),
     )
     openai_temperature: float = Field(
@@ -3005,21 +3035,6 @@ class Config(BaseModel):
             "NLI with an API summary (advanced)."
         ),
     )
-    gi_insight_source: Literal["provider", "stub"] = Field(
-        default="stub",
-        alias="gi_insight_source",
-        description=(
-            "Source of insight texts for GIL. "
-            "'provider' = call generate_insights() on the summarization provider "
-            "(LLM only; ML providers return empty). Reads the cleaned transcript "
-            "directly. This is the production code path. "
-            "'stub' = placeholder; no LLM calls. "
-            "See GROUNDED_INSIGHTS_GUIDE.md for details. "
-            "The legacy 'summary_bullets' option was removed in #1034 (per the "
-            "#1033 audit) — it routed extraction through name-stripped summary "
-            "bullets and was empirically lossy."
-        ),
-    )
     gi_max_insights: int = Field(
         # cloud_balanced (the researched no-profile pipeline, see
         # test_the_config_default_is_not_a_trap) generates 12 and lets the value gate trim filler —
@@ -3031,7 +3046,7 @@ class Config(BaseModel):
         le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
         description=(
-            "Ceiling on insights when gi_insight_source is 'provider' — a hard cap, not a target. "
+            "Ceiling on insights — a hard cap, not a target. "
             "The prompt states a substance bar; the count comes from the episode. Size this so it "
             "does not bind."
         ),
@@ -3344,7 +3359,7 @@ class Config(BaseModel):
         ),
     )
 
-    kg_extraction_source: Literal["stub", "provider"] = Field(
+    kg_extraction_source: Literal["metadata_only", "provider"] = Field(
         default="provider",
         alias="kg_extraction_source",
         description=(
@@ -3353,7 +3368,10 @@ class Config(BaseModel):
             "transcript directly (see kg_extraction_provider; default uses "
             "summary_provider; ML providers no-op). This is the production code "
             "path. "
-            "'stub' = episode + pipeline hosts/guests only (no summary topics). "
+            "'metadata_only' = episode + pipeline hosts/guests only, no LLM call and no "
+            "summary topics. This is a REAL reduced mode that emits real nodes — it was called "
+            "renamed in #1657, because the old name kept being mistaken for the fabricated GI "
+            "placeholder it has nothing to do with. "
             "The legacy 'summary_bullets' option was removed in #1034 (per the "
             "#1033 audit) — it routed extraction through name-stripped summary "
             "bullets and was empirically lossy. CI guard: "
@@ -4178,6 +4196,13 @@ class Config(BaseModel):
                 "Profile '%s' not found in registry or config/profiles/; ignoring",
                 profile_name,
             )
+            # Keep the NAME even though nothing resolved from it (#1648). This is the case an
+            # operator most needs to debug — they named a profile and nothing happened — and
+            # dropping it here reproduces the original defect in miniature. Downstream,
+            # ``enricher_set_for_profile`` will return the empty set for an unknown name and
+            # the executor now raises on that, so the mistake surfaces instead of no-opping.
+            data = dict(data)
+            data["profile"] = profile_name
             return cls._merge_audio_preprocessing_preset(data)
 
         # Merge derived-run-context < registry < YAML < explicit data.
@@ -4185,6 +4210,17 @@ class Config(BaseModel):
         merged.update(registry_settings)
         merged.update(profile_dict)
         merged.update(data)  # explicit fields win
+        # Write the resolved profile NAME back as a real field (#1648).
+        #
+        # It was popped from ``data`` above and popped again from ``profile_dict`` (Config is
+        # ``extra="forbid"``, so the meta-key could not be passed through as-is) — and then it
+        # was simply gone. Downstream, ``orchestration.py`` needs it twice: to choose the
+        # enricher set, and to put ``--profile`` on the argv of the enrichment child process,
+        # which is the only way the name crosses that boundary. Both silently got None.
+        #
+        # Set AFTER the updates so it reflects what was actually resolved, not what some layer
+        # happened to carry.
+        merged["profile"] = profile_name
 
         # ADR-122: the failure STRATEGY defaults from the *effective* run context (serve ->
         # failover, reprocess -> hold) but is a first-class, overridable knob. If no layer set it
@@ -5903,6 +5939,25 @@ class Config(BaseModel):
                 "When rss_urls has two or more feeds (GitHub #440), output_dir is required "
                 "as the corpus parent directory (set output_dir or OUTPUT_DIR)."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _scope_explicit_episode_reprocess(self) -> "Config":
+        """``reprocess_episode_ids`` implies ``reprocess_existing_only`` (#32 follow-up).
+
+        The list FORCES the named episodes past ``skip_existing``; on its own it does not RESTRICT
+        which episodes the run considers, so the run still walks the feed and processes every item
+        not already on disk. Proven by an end-to-end repair test 2026-08-17: a one-episode
+        work-list against one feed had preprocessed 12 unrelated episodes before it was killed.
+        Over 14 production feeds that is a large unbudgeted ASR bill attached to a command whose
+        name promises the opposite.
+
+        Naming explicit episodes never means "and also fetch whatever else the feed is offering",
+        so the scope is implied rather than left as a footgun the operator must remember. Runs on
+        every Config construction, so CLI, YAML and programmatic callers all get it.
+        """
+        if self.reprocess_episode_ids and not self.reprocess_existing_only:
+            object.__setattr__(self, "reprocess_existing_only", True)
         return self
 
     @model_validator(mode="after")

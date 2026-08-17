@@ -101,11 +101,16 @@ def _patch_gemini_tokens(in_tok: int = 100, out_tok: int = 50):
 
 
 class TestExtractQuotesBundledEarlyReturn:
-    def test_returns_empty_dict_for_each_insight_when_not_initialized(self) -> None:
+    def test_raises_when_not_initialized(self) -> None:
+        """#34: an unusable provider must SAY SO, not return a well-formed empty result.
+
+        Post-#1657 an empty quote set is a LEGAL outcome, so an empty dict no longer
+        distinguishes "the model found nothing" from "the provider was never initialized".
+        """
         provider = _make_provider()
         provider._summarization_initialized = False
-        out = provider.extract_quotes_bundled("transcript", ["i1", "i2", "i3"])
-        assert out == {0: [], 1: [], 2: []}
+        with pytest.raises(RuntimeError, match="initial"):
+            provider.extract_quotes_bundled("transcript", ["i1", "i2", "i3"])
 
     def test_returns_empty_dict_for_each_insight_when_transcript_empty(self) -> None:
         provider = _make_provider()
@@ -213,11 +218,12 @@ class TestExtractQuotesBundledErrors:
 
 
 class TestScoreEntailmentBundled:
-    def test_returns_empty_dict_when_not_initialized(self) -> None:
+    def test_raises_when_not_initialized(self) -> None:
+        """#34: see the note on extract_quotes_bundled — an empty score set is legal."""
         provider = _make_provider()
         provider._summarization_initialized = False
-        out = provider.score_entailment_bundled([("p", "h")])
-        assert out == {}
+        with pytest.raises(RuntimeError, match="initial"):
+            provider.score_entailment_bundled([("p", "h")])
 
     def test_returns_empty_dict_for_no_pairs(self) -> None:
         provider = _make_provider()

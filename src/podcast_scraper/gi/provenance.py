@@ -44,7 +44,7 @@ def _insight_lineage_model_id(cfg: Any, summary_provider: Optional[Any]) -> str:
 
 
 def _provider_insight_lineage_model_id(cfg: Any, provider: Optional[Any]) -> str:
-    """Model id for gi_insight_source=provider (generate_insights), when distinct from summary."""
+    """Model id for the insight provider (generate_insights), when distinct from summary."""
     if provider is not None:
         im = getattr(provider, "insight_model", None)
         if isinstance(im, str) and im.strip():
@@ -55,24 +55,24 @@ def _provider_insight_lineage_model_id(cfg: Any, provider: Optional[Any]) -> str
 def resolve_gil_artifact_model_version(
     cfg: Any,
     lineage_provider: Optional[Any],
-    *,
-    gi_insight_source: str,
 ) -> str:
     """Return gi.json ``model_version`` from pipeline state (no duplicate config field).
 
+    There is one source of insights — the provider — so the model identifier is the provider's,
+    or ``"unknown"`` when it cannot be determined.
+
+    This used to take a ``gi_insight_source`` argument and return a fixed placeholder label when it
+    was anything other than ``"provider"``. That stamped a fake lineage onto real artifacts: the
+    field defaulted to that placeholder, so an episode could carry a fabricated lineage in its
+    provenance while the corpus counted it as processed (#1657). Both the argument and that
+    return value are gone.
+
     Args:
         cfg: Resolved ``Config``.
-        lineage_provider: Summarization provider instance, used for ``provider``
-            source when insights come from ``generate_insights``.
-        gi_insight_source: ``stub`` | ``provider``.
+        lineage_provider: Summarization/insight provider instance.
 
     Returns:
         Non-empty model identifier string for artifact provenance.
     """
-    source = (gi_insight_source or "stub").strip().lower()
-    if source == "stub":
-        return "stub"
-    if source == "provider":
-        mid = _provider_insight_lineage_model_id(cfg, lineage_provider)
-        return mid if mid and mid != "unknown" else "unknown"
-    return "stub"
+    mid = _provider_insight_lineage_model_id(cfg, lineage_provider)
+    return mid if mid and mid != "unknown" else "unknown"

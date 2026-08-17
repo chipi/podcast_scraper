@@ -1,10 +1,24 @@
-"""Mode B integration: the pipeline spawns enrichment in the background.
+"""The post-pipeline enrichment chain ENQUEUES a job; it does not spawn a process (#1653).
 
-RFC-088 chunk-9 follow-up. The pipeline finalize step calls
-``_maybe_spawn_enrichment_after_pipeline()`` which detaches a subprocess
-running ``python -m podcast_scraper.cli enrich`` (#1069 consistency). Tests stub
-``subprocess.Popen`` so we never actually fork — we only assert the
-gate (cfg.enrichment.enabled) + argv shape + log redirection.
+This file previously asserted the opposite — that the chain fired a detached
+``subprocess.Popen`` with ``stdin=DEVNULL`` and ``start_new_session=True``, logging to
+``.viewer/enrichment_pipeline_spawn.log``. That behaviour was real, and it was the problem:
+
+* no row in ``GET /api/jobs`` — it could not be listed, cancelled, or reconciled;
+* not serialised against ``max_concurrent_jobs`` — free to run alongside an ingest;
+* argv omitted ``--config`` — the child silently used a different operator YAML.
+
+The jobs registry holds exactly zero auto-spawned ``corpus_enrichment`` rows across the whole
+life of the corpus (H7): every run it ever had was operator-queued. The old tests passed
+throughout, because they asserted the mechanism rather than the outcome.
+
+It became urgent rather than merely untidy once #1648 landed: with the profile finally
+reaching the child, that same path stopped being a 3 ms no-op and started doing a full corpus
+pass — unqueued, uncancellable, and potentially concurrent with the repair rewriting its
+inputs.
+
+So these tests now assert the *outcome* — a queued job with the right argv — and deliberately
+not how the API server later runs it.
 """
 
 from __future__ import annotations
@@ -15,26 +29,25 @@ from typing import Any
 
 import pytest
 
-from podcast_scraper.workflow.orchestration import (
-    _maybe_spawn_enrichment_after_pipeline,
-)
+from podcast_scraper.workflow.orchestration import _maybe_spawn_enrichment_after_pipeline
 
 
-class _PopenSpy:
-    """Drop-in stub for subprocess.Popen — records every invocation."""
+class _EnqueueSpy:
+    """Records every enqueue call in place of the real registry write."""
 
     calls: list[dict[str, Any]] = []
 
-    def __init__(self, argv: list[str], **kwargs: Any) -> None:
-        _PopenSpy.calls.append({"argv": list(argv), "kwargs": dict(kwargs)})
+    @classmethod
+    def install(cls, monkeypatch: pytest.MonkeyPatch) -> None:
+        cls.calls = []
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
+        def _fake(corpus_root: Path, **kwargs: Any) -> dict[str, Any]:
+            cls.calls.append({"corpus_root": Path(corpus_root), **kwargs})
+            return {"job_id": "job-under-test", "status": "queued"}
 
+        import podcast_scraper.server.jobs as jobs_mod
 
-@pytest.fixture(autouse=True)
-def _reset_calls() -> None:
-    _PopenSpy.calls.clear()
+        monkeypatch.setattr(jobs_mod, "enqueue_enrichment_job", _fake)
 
 
 def _cfg(**overrides: Any) -> Any:
@@ -46,185 +59,135 @@ def _cfg(**overrides: Any) -> Any:
     return SimpleNamespace(**base)
 
 
-def test_spawn_skipped_when_enrichment_block_absent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """cfg.enrichment unset → no Popen call."""
-    import subprocess
+class TestTheGate:
+    def test_nothing_is_enqueued_when_the_block_is_absent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment=None), str(tmp_path))
+        assert _EnqueueSpy.calls == []
 
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment=None), str(tmp_path))
-    assert _PopenSpy.calls == []
-
-
-def test_spawn_skipped_when_enabled_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """cfg.enrichment.enabled = false → no Popen call."""
-    import subprocess
-
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": False}), str(tmp_path))
-    assert _PopenSpy.calls == []
+    def test_nothing_is_enqueued_when_disabled(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": False}), str(tmp_path))
+        assert _EnqueueSpy.calls == []
 
 
-def test_spawn_fires_when_enabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """cfg.enrichment.enabled = true → Popen invoked with the CLI argv."""
-    import subprocess
+class TestItEnqueuesRatherThanSpawning:
+    def test_enabled_enqueues_exactly_one_job(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
+        assert len(_EnqueueSpy.calls) == 1
+        assert _EnqueueSpy.calls[0]["corpus_root"] == tmp_path
 
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(
-        _cfg(enrichment={"enabled": True}, profile="airgapped_thin"), str(tmp_path)
-    )
-    assert len(_PopenSpy.calls) == 1
-    argv = _PopenSpy.calls[0]["argv"]
-    # #1069 consistency: the auto ingest->enrich chain uses the `enrich` main-CLI verb.
-    assert argv[1:4] == ["-m", "podcast_scraper.cli", "enrich"]
-    assert "--output-dir" in argv
-    assert str(tmp_path) in argv
-    assert "--profile" in argv
-    assert "airgapped_thin" in argv
+    def test_it_lands_as_queued_never_running(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """RUNNING is a promise that a process was started, and this process cannot keep it.
 
+        Only the API server can spawn (``start_job_if_running_record`` needs the app), so a
+        pipeline-side enqueue that marked itself running would leave a phantom row for a
+        process nobody ever started — worse than the detached spawn it replaced.
+        """
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
+        assert _EnqueueSpy.calls[0]["force_queued"] is True
 
-def test_spawn_is_detached_with_devnull_stdin_and_new_session(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The subprocess must be detached so SIGINT to the parent pipeline
-    doesn't kill enrichment, and stdin is closed so it can't block."""
-    import subprocess
+    def test_no_detached_process_is_started(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The regression that matters: any Popen here is the old defect returning."""
+        import subprocess
 
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
-    kwargs = _PopenSpy.calls[0]["kwargs"]
-    assert kwargs.get("stdin") == subprocess.DEVNULL
-    assert kwargs.get("start_new_session") is True
-    assert kwargs.get("close_fds") is True
+        started: list[Any] = []
 
+        def _spy_popen(*args: Any, **kwargs: Any) -> SimpleNamespace:
+            """Record the call instead of spawning; a real Popen here IS the defect."""
+            started.append(args)
+            return SimpleNamespace(pid=1)
 
-def test_spawn_redirects_output_to_viewer_log(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The log file must land under .viewer/ so operators can tail it."""
-    import subprocess
+        monkeypatch.setattr(subprocess, "Popen", _spy_popen)
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
+        assert started == []
 
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
-    log_path = tmp_path / ".viewer" / "enrichment_pipeline_spawn.log"
-    assert log_path.is_file()  # opened for append by the helper
+    def test_a_registry_failure_never_breaks_the_pipeline(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The follow-up pass is best-effort; the ingest that just succeeded must still return."""
+        import podcast_scraper.server.jobs as jobs_mod
 
+        def _boom(*_a: Any, **_k: Any) -> dict[str, Any]:
+            raise OSError("registry locked")
 
-def test_spawn_failure_does_not_raise(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """OSError from Popen must not propagate — the pipeline keeps going."""
-    import subprocess
-
-    def boom(*a: Any, **kw: Any) -> None:
-        raise OSError("simulated PATH issue")
-
-    monkeypatch.setattr(subprocess, "Popen", boom)
-    # No exception expected:
-    _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
+        monkeypatch.setattr(jobs_mod, "enqueue_enrichment_job", _boom)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
 
 
-def test_spawn_threads_profile_from_block_when_top_level_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """If cfg.profile is unset but the enrichment block carries a
-    profile name, that one wins."""
-    import subprocess
+class TestArgvInputs:
+    def test_top_level_profile_is_passed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(
+            _cfg(enrichment={"enabled": True}, profile="cloud_balanced"), str(tmp_path)
+        )
+        assert _EnqueueSpy.calls[0]["profile"] == "cloud_balanced"
 
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(
-        _cfg(enrichment={"enabled": True, "profile": "cloud_balanced"}),
-        str(tmp_path),
-    )
-    argv = _PopenSpy.calls[0]["argv"]
-    assert "cloud_balanced" in argv
+    def test_profile_falls_back_to_the_block(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(
+            _cfg(enrichment={"enabled": True, "profile": "cloud_thin"}, profile=None),
+            str(tmp_path),
+        )
+        assert _EnqueueSpy.calls[0]["profile"] == "cloud_thin"
 
+    def test_the_operator_yaml_is_passed_when_it_exists(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Closes the ``--config`` gap: the old spawn omitted it, so the child silently used a
+        different operator YAML than the parent was running with."""
+        (tmp_path / "viewer_operator.yaml").write_text("enrichment: {}\n", encoding="utf-8")
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
+        assert _EnqueueSpy.calls[0]["operator_yaml"] == tmp_path / "viewer_operator.yaml"
 
-def test_spawn_does_not_pass_with_ml_for_deterministic_only_yaml(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """No enricher has a ``provider`` block → no --with-ml passed.
+    def test_no_operator_yaml_is_passed_when_absent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Better None than a path that does not exist — the child has its own default."""
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
+        assert _EnqueueSpy.calls[0]["operator_yaml"] is None
 
-    Keeps the spawn log honest about what the subprocess will wire.
-    """
-    import subprocess
+    def test_with_ml_is_off_for_a_deterministic_only_block(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(
+            _cfg(enrichment={"enabled": True, "enrichers": {"insight_density": {}}}),
+            str(tmp_path),
+        )
+        assert _EnqueueSpy.calls[0]["with_ml"] is False
 
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(
-        _cfg(
-            enrichment={
-                "enabled": True,
-                "enrichers": {"temporal_velocity": {}, "grounding_rate": {}},
-            }
-        ),
-        str(tmp_path),
-    )
-    argv = _PopenSpy.calls[0]["argv"]
-    assert "--with-ml" not in argv
-
-
-def test_spawn_passes_with_ml_when_any_enricher_has_a_provider_block(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Any ``provider:`` block under ``enrichers.<id>.provider`` → --with-ml
-    is passed so the spawned CLI wires the ML enricher via the
-    provider-type registry."""
-    import subprocess
-
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(
-        _cfg(
-            enrichment={
-                "enabled": True,
-                "enrichers": {
-                    "temporal_velocity": {},
-                    "topic_similarity": {
-                        "provider": {
-                            "type": "sentence_transformer_local",
-                            "model": "all-MiniLM-L6-v2",
-                        },
-                    },
-                },
-            }
-        ),
-        str(tmp_path),
-    )
-    argv = _PopenSpy.calls[0]["argv"]
-    assert "--with-ml" in argv
-
-
-def test_spawn_passes_with_ml_for_profile_only_when_profile_enables_ml_enrichers(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Profile-only path: operator sets ``profile: cloud_thin`` (which
-    enables topic_similarity + topic_consensus by default) but provides
-    no operator-side ``provider:`` blocks. Pre-fix: the spawn helper
-    only checked operator YAML providers and missed --with-ml entirely,
-    leaving the ML enrichers silently warned-skipped. Post-fix:
-    auto-detects the manifest's ``provider_requirement`` on the
-    profile-resolved EnricherSet.
-    """
-    import subprocess
-
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(
-        _cfg(enrichment={"enabled": True}, profile="cloud_thin"),
-        str(tmp_path),
-    )
-    argv = _PopenSpy.calls[0]["argv"]
-    assert "--with-ml" in argv
-
-
-def test_spawn_does_not_pass_with_ml_for_deterministic_only_profile(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Profile-only deterministic profile (airgapped_thin) — no ML enricher
-    enabled by the profile → spawn should NOT carry --with-ml."""
-    import subprocess
-
-    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
-    _maybe_spawn_enrichment_after_pipeline(
-        _cfg(enrichment={"enabled": True}, profile="airgapped_thin"),
-        str(tmp_path),
-    )
-    argv = _PopenSpy.calls[0]["argv"]
-    assert "--with-ml" not in argv
+    def test_with_ml_is_on_when_an_enricher_declares_a_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Without it those enrichers are warned-and-skipped, which reads as "ran, no output"."""
+        _EnqueueSpy.install(monkeypatch)
+        _maybe_spawn_enrichment_after_pipeline(
+            _cfg(
+                enrichment={
+                    "enabled": True,
+                    "enrichers": {"topic_similarity": {"provider": {"type": "embedding"}}},
+                }
+            ),
+            str(tmp_path),
+        )
+        assert _EnqueueSpy.calls[0]["with_ml"] is True

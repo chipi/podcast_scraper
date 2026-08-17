@@ -466,6 +466,7 @@ def apply_diarization_to_result(
     bypass_cache_read: bool = False,
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
+    detection_ran: Optional[bool] = None,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
 
@@ -480,6 +481,11 @@ def apply_diarization_to_result(
     ``feed_hosts`` are the host names the feed's own blurb states (via
     ``detect_hosts_from_feed``); merged with ``cfg.known_hosts`` to anchor the roster and
     canonicalize ASR-garbled host surnames.
+
+    ``detection_ran`` reports whether the speaker-detection stage executed for this episode
+    (#1647). It is passed straight to the diagnostics: an unnamed voice reads as "nobody names
+    them" only if detection looked, and as an unmeasured gap if it did not. ``None`` = caller
+    did not say.
     """
     segments = result.get("segments")
     if not isinstance(segments, list) or not segments:
@@ -674,6 +680,7 @@ def apply_diarization_to_result(
         metadata_named=list(metadata_named or ()),
         show_centric=bool(getattr(cfg, "show_centric", False)),
         profile=_labeling_profile,
+        detection_ran=detection_ran,
     )
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution

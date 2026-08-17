@@ -3299,7 +3299,6 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
                     rss_url="https://example.com/feed.xml",
                     generate_metadata=True,
                     generate_gi=True,
-                    gi_insight_source="provider",
                     gi_require_grounding=True,
                     summary_provider="openai",
                     openai_api_key="sk-test-key-for-unit-tests",
@@ -3321,7 +3320,6 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
                     rss_url="https://example.com/feed.xml",
                     generate_metadata=True,
                     generate_gi=True,
-                    gi_insight_source="provider",
                     gi_require_grounding=True,
                     summary_provider="hybrid_ml",
                     quote_extraction_provider="transformers",
@@ -3341,7 +3339,6 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
                     rss_url="https://example.com/feed.xml",
                     generate_metadata=True,
                     generate_gi=True,
-                    gi_insight_source="provider",
                     gi_require_grounding=True,
                     summary_provider="openai",
                     openai_api_key="sk-test-key-for-unit-tests",
@@ -3355,36 +3352,42 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
                 self.assertEqual(hybrid_calls, [])
 
 
-class TestLogConfigurationGiStubWarning(unittest.TestCase):
-    """_log_configuration warns when GIL uses stub insights outside test env (Issue #460)."""
+class TestThereIsNoPlaceholderInsightWarningAnyMore(unittest.TestCase):
+    """The warning this replaces told operators their insight text was a placeholder.
 
-    def test_warns_when_generate_gi_stub_and_not_test_env(self):
-        log = logging.getLogger("test_gil_stub_warn")
+    That warning existed because ``gi_insight_source`` defaulted to ``"stub"``, so a run could
+    silently produce fabricated insight text for every episode and the only signal was one line
+    at startup. #1657 deleted the placeholder and the switch: there is no longer any
+    configuration that produces fake insight text, so there is nothing to warn about.
+
+    What replaced it is better — a PER-EPISODE warning from ``_no_insights`` naming the reason
+    that episode produced nothing, instead of one per-run warning about a config value.
+    """
+
+    def test_the_retired_config_field_is_rejected(self):
+        """Config forbids extra inputs, so a stale profile or script fails loudly rather than
+        silently carrying a setting nothing reads."""
+        with self.assertRaises(Exception):
+            config.Config(
+                rss_url="https://example.com/feed.xml",
+                generate_metadata=True,
+                generate_gi=True,
+                gi_insight_source="stub",
+            )
+
+    def test_a_normal_gi_config_logs_no_placeholder_warning(self):
+        log = logging.getLogger("test_gi_no_placeholder_warn")
         with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            with self.assertLogs(log, level="WARNING") as cm:
-                cfg = config.Config(
-                    rss_url="https://example.com/feed.xml",
-                    generate_metadata=True,
-                    generate_gi=True,
-                    gi_insight_source="stub",
-                )
-                cli._log_configuration(cfg, log)
-        messages = " ".join(r.getMessage() for r in cm.records)
-        self.assertIn("gi_insight_source", messages)
-        self.assertIn("stub", messages)
-
-    def test_no_stub_warning_when_test_environment(self):
-        log = logging.getLogger("test_gil_stub_no_warn")
-        with patch("podcast_scraper.config._is_pytest_run", return_value=True):
+            cfg = config.Config(
+                rss_url="https://example.com/feed.xml",
+                generate_metadata=True,
+                generate_gi=True,
+            )
             with patch.object(log, "warning") as mock_warn:
-                cfg = config.Config(
-                    rss_url="https://example.com/feed.xml",
-                    generate_metadata=True,
-                    generate_gi=True,
-                    gi_insight_source="stub",
-                )
                 cli._log_configuration(cfg, log)
-                mock_warn.assert_not_called()
+        messages = " ".join(str(c) for c in mock_warn.call_args_list)
+        self.assertNotIn("placeholder", messages.lower())
+        self.assertNotIn("stub", messages.lower())
 
 
 class TestGiValidateAndExportCli(unittest.TestCase):

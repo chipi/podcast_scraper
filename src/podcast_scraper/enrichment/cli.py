@@ -38,6 +38,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.enrichment.config_schema import EnrichmentConfigurationError
 from podcast_scraper.enrichment.enrichers import register_deterministic_enrichers
 from podcast_scraper.enrichment.executor import (
     EnrichmentExecutor,
@@ -88,6 +89,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--corpus-only",
         action="store_true",
         help="Skip the episode-scope phase; run only corpus-scope enrichers.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Re-enrich every episode, ignoring staleness. An OVERRIDE, not the mechanism: "
+            "enrichment already re-runs automatically when an episode's GI/KG change, so this "
+            "is for re-running at an unchanged enricher version (e.g. the corpus repair). "
+            "If correctness ever depends on remembering this flag, the staleness key is wrong."
+        ),
     )
     parser.add_argument(
         "--re-enable",
@@ -308,6 +319,7 @@ async def run_cli(args: argparse.Namespace) -> int:
         skip=parse_id_list(args.skip),
         corpus_only=bool(args.corpus_only),
         profile=args.profile,
+        force=bool(getattr(args, "force", False)),
     )
     # Discover episode bundles unless --corpus-only is set (corpus-scope
     # enrichers still need them as ``all_bundles``, but --corpus-only
@@ -318,10 +330,19 @@ async def run_cli(args: argparse.Namespace) -> int:
         len(episode_bundles),
         corpus_root,
     )
-    result: EnrichmentRunResult = await executor.run(
-        episode_bundles=episode_bundles,
-        options=options,
-    )
+    try:
+        result: EnrichmentRunResult = await executor.run(
+            episode_bundles=episode_bundles,
+            options=options,
+        )
+    except EnrichmentConfigurationError as exc:
+        # A run that resolved zero enrichers must not exit 0 (#1648). Exiting 0 is precisely
+        # how the production no-op stayed invisible: the queued job recorded ``succeeded``,
+        # the operator API showed a green run, and nothing anywhere said that nothing ran.
+        # Printed, not raised, so the operator gets the reason rather than a traceback.
+        logger.error("enrichment: %s", exc)
+        print(f"enrichment: FAILED — {exc}")
+        return 3
     print(
         f"enrichment: run_id={result.run_id} status={result.status} "
         f"duration_ms={result.duration_ms}"

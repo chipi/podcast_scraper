@@ -82,35 +82,93 @@ def list_corpus_enrichments(
 ) -> dict[str, Any]:
     """List every corpus-scope envelope present under ``enrichments/``.
 
-    Compact catalog — returns ``{enricher_id, file, size_bytes,
-    schema_version, enricher_version}`` per envelope. The viewer uses
+    Compact catalog — returns ``{enricher_id, file, size_bytes, schema_version,
+    enricher_version, computed_at, produced_by_latest_run}`` per envelope. The viewer uses
     this to render availability badges before a drill-down click.
+
+    ``produced_by_latest_run`` exists because presence on disk is not freshness (#1650). A
+    DISABLED enricher's output stays in the directory forever and was indistinguishable from
+    one produced seconds ago: ``topic_cooccurrence_corpus.json`` was listed here for days
+    after that enricher stopped running, still 1.5 MB, still looking live. Silent staleness is
+    the same failure mode that let a 3 ms enrichment no-op pass for a working pass.
     """
     root = _resolve_corpus(request, path)
     enrichments_dir = root / "enrichments"
     if not enrichments_dir.is_dir():
         return {"enrichments": []}
-    items: list[dict[str, Any]] = []
+
+    # One directory walk, read fully before anything is decided.
+    #
+    # The run summary is taken from this SAME glob rather than by joining
+    # ``enrichments_dir / "run_summary.json"``. ``enrichments_dir`` derives from the ``path``
+    # query parameter, so that join is a path-traversal sink — CodeQL flagged it high severity
+    # and was right. Sourcing it from the glob removes the sink instead of sanitising it, costs
+    # one fewer directory read, and matches how every other file here is reached.
+    #
+    # Two passes and not one: ``produced_by_latest_run`` needs the summary for EVERY row, and
+    # ``run_summary.json`` sorts in the middle of the listing — deciding as we went would leave
+    # alphabetically-earlier enrichers marked "unknown" purely because of their name.
+    #
+    # The loop variable keeps its original name deliberately. CodeQL carries a pre-existing
+    # alert on this glob (``enrichments_dir`` descends from the ``path`` query parameter), and
+    # renaming the variable re-attributed that alert to this PR as if it were new. The path IS
+    # validated — ``resolve_corpus_path_param`` normalises against the trusted server anchor
+    # and RAISES when the result escapes it — so the finding is a false positive that CodeQL's
+    # taint model cannot see through. Fighting that model inside a shared resolver is not this
+    # PR's business; touching the line only to rename a variable was.
+    envelopes: list[tuple[Path, dict[str, Any]]] = []
+    latest_run_ids: set[str] | None = None
     for envelope_path in sorted(enrichments_dir.glob("*.json")):
-        # Skip the executor's own bookkeeping outputs.
-        if envelope_path.name in ("run_summary.json",):
-            continue
         try:
             parsed = json.loads(envelope_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
         if not isinstance(parsed, dict):
             continue
+        if envelope_path.name == "run_summary.json":
+            # The executor's own bookkeeping output — not an envelope, but it is what records
+            # which enrichers the last run produced.
+            latest_run_ids = _enricher_ids_from_summary(parsed)
+            continue
+        envelopes.append((envelope_path, parsed))
+
+    items: list[dict[str, Any]] = []
+    for envelope, parsed in envelopes:
+        enricher_id = parsed.get("enricher_id") or envelope.stem
         items.append(
             {
-                "enricher_id": parsed.get("enricher_id") or envelope_path.stem,
+                "enricher_id": enricher_id,
                 "enricher_version": parsed.get("enricher_version"),
                 "schema_version": parsed.get("schema_version"),
-                "file": envelope_path.name,
-                "size_bytes": envelope_path.stat().st_size,
+                "file": envelope.name,
+                "size_bytes": envelope.stat().st_size,
+                # When this artifact was computed — the field that makes staleness legible.
+                "computed_at": parsed.get("computed_at"),
+                # True / False / None (unknown: no run summary to compare against).
+                "produced_by_latest_run": (
+                    None if latest_run_ids is None else enricher_id in latest_run_ids
+                ),
             }
         )
     return {"enrichments": items}
+
+
+def _enricher_ids_from_summary(summary: dict[str, Any]) -> set[str] | None:
+    """Enricher ids recorded in an already-parsed run summary; None when it says nothing.
+
+    Takes the PARSED payload, not a path. The caller reads it from the directory glob it is
+    already walking, so no path is constructed from the user-supplied ``path`` parameter — the
+    traversal sink is absent rather than sanitised.
+
+    None is deliberately distinct from an empty set: "we do not know what the last run did"
+    must not render as "the last run produced nothing", or every artifact on a corpus that
+    predates run summaries would be badged stale — noise that trains an operator to ignore the
+    badge, which is worse than not having one.
+    """
+    per_enricher = summary.get("per_enricher")
+    if not isinstance(per_enricher, dict):
+        return None
+    return set(per_enricher)
 
 
 @router.get("/corpus/enrichments/{enricher_id}")
