@@ -76,7 +76,8 @@ def test_highlight_note_wikilinks_and_deep_link(monkeypatch: pytest.MonkeyPatch)
     assert "[[closelistening/People/person_jensen-huang|Jensen Huang]]" in note
     assert "[[closelistening/Topics/topic_scaling|Scaling]]" in note
     assert "/player/acquired-nvidia?t=3921" in note  # deep-link with jump
-    assert "source: user" in note
+    # Quoted since #43 — YAML-equivalent, and consistent with every other string field.
+    assert 'source: "user"' in note
 
 
 def test_entity_and_episode_notes_emitted(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -159,3 +160,92 @@ def test_stale_cursor_falls_back_to_full(tmp_path: Path, monkeypatch: pytest.Mon
     b = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
     assert b["mode"] == "full"
     assert "closelistening/Highlights/h_1.md" in b["files"]
+
+
+# --- the LINK BODY was never escaped, only the frontmatter (#43) ----------------------------------
+#
+# _yaml_scalar is applied carefully everywhere a title/quote/label enters frontmatter. The wikilink
+# display text after `|` was emitted raw — and `]]` ends the link while `|` starts a new field, so
+# either one truncates the link mid-note and spills the remainder as literal text. Podcast titles
+# really do contain brackets. This is a vault the user opens in Obsidian, where a broken note is
+# not an error message, just a note that quietly does not work.
+
+
+def test_a_label_containing_link_syntax_cannot_truncate_the_link(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hl = {
+        **_HL,
+        "graph_refs": [{"id": "topic:x", "kind": "topic", "label": "Weird ]]title|x"}],
+    }
+    note = _vault(monkeypatch, [hl])["closelistening/Highlights/h_1.md"]
+    line = next(ln for ln in note.splitlines() if ln.startswith("Discusses "))
+    body = line[len("Discusses [[") : line.rindex("]]")]
+    assert "]]" not in body, line
+    assert "|" not in body.split("|", 1)[1] if "|" in body else True
+    # The link still resolves to the right note, and the label is still readable.
+    assert "closelistening/Topics/topic_x|" in line
+    assert "Weird" in line and "title" in line
+
+
+def test_an_episode_title_containing_link_syntax_cannot_truncate_the_link(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        ex, "resolve_slug", lambda root, slug: SimpleNamespace(episode_title="Ep ]] two|three")
+    )
+    note = _vault(monkeypatch, [{**_HL, "graph_refs": []}])["closelistening/Highlights/h_1.md"]
+    line = next(ln for ln in note.splitlines() if ln.startswith("— [["))
+    # Count over the WHOLE line. The first version sliced to the first "]]" and asserted the
+    # fragment was well-formed — but under a raw title that first "]]" IS the injected one, so it
+    # measured the truncation and pronounced it healthy. Sabotage caught it: reverting the fix left
+    # this test green. One wikilink on this line means exactly one "[[" and one "]]".
+    assert line.count("[[") == 1, line
+    assert line.count("]]") == 1, line
+    assert "closelistening/Episodes/acquired-nvidia|" in line
+    assert "[▶ jump](/player/acquired-nvidia" in line  # the rest of the line survived intact
+
+
+def test_a_multi_line_quote_stays_inside_the_blockquote(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Markdown ends a blockquote at the first unprefixed line.
+
+    A two-line capture rendered its opening line as a quote and the rest as body text attributed to
+    nobody — the note said something the speaker did not.
+    """
+    hl = {**_HL, "quote_text": "first line\nsecond line", "graph_refs": []}
+    note = _vault(monkeypatch, [hl])["closelistening/Highlights/h_1.md"]
+    body = note.split("---\n", 2)[2]
+    quoted = [ln for ln in body.splitlines() if ln.startswith("> ")]
+    assert len(quoted) == 2, body
+    assert "second line" in quoted[1]
+
+
+def test_every_note_in_the_vault_has_parseable_frontmatter(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The check the string asserts above could never make: run a YAML parser over ALL of it.
+
+    Asserting `'\\\\"' in alias_line` proves an escape was emitted, not that the result parses.
+    Includes the shapes that break YAML rather than merely look odd — a ": " (which turns a scalar
+    into a mapping if unquoted), a leading "-", a tab, and a raw \\x07 control character, which is
+    illegal inside a double-quoted scalar and made exactly one note unopenable.
+    """
+    yaml = pytest.importorskip("yaml")
+    monkeypatch.setattr(
+        ex,
+        "resolve_slug",
+        lambda root, slug: SimpleNamespace(episode_title='- Title: with "colon"\tand \x07 bell'),
+    )
+    hl = {
+        **_HL,
+        "quote_text": "- leading dash: and a colon\ttab \x07 bell \\ backslash",
+        "graph_refs": [
+            {"id": "person:a", "kind": "person", "label": '- Name: "quoted"\x01'},
+            {"id": "topic:b", "kind": "topic", "label": "]]weird|label"},
+        ],
+    }
+    vault = _vault(monkeypatch, [hl])
+    assert vault, "no notes were produced, so this test asserts nothing"
+    for path, text in vault.items():
+        assert text.startswith("---\n"), path
+        frontmatter = text.split("---\n", 2)[1]
+        parsed = yaml.safe_load(frontmatter)  # raises → the user's vault has a broken note
+        assert isinstance(parsed, dict), (path, parsed)

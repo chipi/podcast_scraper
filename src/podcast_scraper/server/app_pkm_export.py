@@ -42,13 +42,36 @@ def _safe_id(entity_id: str) -> str:
 
 
 def _yaml_scalar(value: str) -> str:
-    """A safe double-quoted YAML scalar — escapes ``\\``/``"`` and flattens newlines.
+    """A safe double-quoted YAML scalar — escapes ``\\``/``"``, flattens newlines, drops controls.
 
     Real titles/quotes routinely contain quotes and line breaks, which would otherwise produce
     invalid frontmatter (review M7).
+
+    Control characters go too (#43). YAML forbids raw C0 controls other than tab/newline inside a
+    double-quoted scalar, so a single ``\\x07`` pasted into a quote makes that note's frontmatter
+    unparseable — and this is a vault the user opens in Obsidian, where a broken note is not an
+    error message but a note that quietly does not work. Escaping ``\\`` and ``"`` only defends
+    against the characters people type on purpose.
     """
     flat = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ")
+    flat = "".join(" " if (ord(c) < 0x20 or ord(c) == 0x7F) else c for c in flat)
     return f'"{flat}"'
+
+
+def _wikilink_text(value: str) -> str:
+    """Display text safe to put after ``|`` inside ``[[…|…]]`` (#43).
+
+    ``]]`` ends the link and ``|`` starts a new field, so either one inside a label or an episode
+    title truncates the link mid-note and spills the rest as literal text. Podcast titles really do
+    contain brackets and pipes. The frontmatter path was already careful (:func:`_yaml_scalar`);
+    the link BODY was emitted raw, which is the half nobody looked at.
+
+    Replaced rather than dropped, so the reader still sees roughly the original string instead of
+    two words silently fused.
+    """
+    flat = value.replace("\n", " ").replace("\r", " ")
+    flat = "".join(" " if (ord(c) < 0x20 or ord(c) == 0x7F) else c for c in flat)
+    return flat.replace("]]", "] ]").replace("[[", "[ [").replace("|", "/").strip()
 
 
 def _fm_list(items: list[str]) -> str:
@@ -63,7 +86,8 @@ def _entity_dir(kind: str) -> str:
 def _entity_link(ref: dict[str, Any]) -> str:
     """A wikilink to an entity note: ``[[closelistening/People/person_x|Label]]``."""
     stem = _safe_id(str(ref["id"]))
-    return f"[[{_ROOT}/{_entity_dir(str(ref['kind']))}/{stem}|{ref.get('label', ref['id'])}]]"
+    label = _wikilink_text(str(ref.get("label") or ref["id"]))
+    return f"[[{_ROOT}/{_entity_dir(str(ref['kind']))}/{stem}|{label}]]"
 
 
 def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
@@ -81,12 +105,18 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
     if isinstance(t_ms, int):
         lines.append(f"t_ms: {t_ms}")
     lines.append(f"entities: {_fm_list(ent_ids)}")
-    lines.append(f"source: {h.get('source') or 'user'}")
+    # Quoted like every other string field. No client path can set `source` today (HighlightCreate
+    # has no such field, so it is always "user"), which is exactly why it is worth doing now —
+    # latent, free, and the sort of thing that stops being latent without anyone revisiting it.
+    lines.append(f"source: {_yaml_scalar(str(h.get('source') or 'user'))}")
     lines.append(f"aliases: [{alias}]")
     lines.append("---")
     if quote:
-        lines.append(f"> {quote}")
-    ep_link = f"[[{_ROOT}/Episodes/{_safe_id(slug)}|{episode_title}]]"
+        # Every line prefixed, not just the first. Markdown ends a blockquote at the first
+        # unprefixed line, so a captured passage spanning two lines rendered its opening line as a
+        # quote and the remainder as body text attributed to nobody.
+        lines.append("\n".join(f"> {line}" for line in quote.splitlines() or [quote]))
+    ep_link = f"[[{_ROOT}/Episodes/{_safe_id(slug)}|{_wikilink_text(episode_title)}]]"
     deep = f"/player/{slug}" + (f"?t={t_ms // 1000}" if isinstance(t_ms, int) else "")
     lines.append(f"— {ep_link} · [▶ jump]({deep})")
     if refs:
