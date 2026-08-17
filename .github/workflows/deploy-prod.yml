@@ -82,6 +82,13 @@ jobs:
           TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           PROD_SSH_PRIVATE_KEY:     ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          # Provider keys — checked below so an unstaged one fails HERE, not 500 episodes in.
+          PROD_DEEPGRAM_API_KEY:         ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          PROD_DEEPSEEK_API_KEY:         ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          PROD_OPENAI_API_KEY:           ${{ secrets.PROD_OPENAI_API_KEY }}
+          PROD_GEMINI_API_KEY:           ${{ secrets.PROD_GEMINI_API_KEY }}
+          PROD_ANTHROPIC_API_KEY:        ${{ secrets.PROD_ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
@@ -98,6 +105,41 @@ jobs:
             echo "::error::Missing required prereqs:$MISSING — stage them per #714 then re-run."
             exit 1
           fi
+
+          # Provider keys. Until 2026-08-17 NOT ONE of these was checked here: an unstaged
+          # or misspelled secret rendered ``DEEPSEEK_API_KEY=`` (empty) at the env-staging
+          # step below and this deploy still reported SUCCESS — the same green-on-empty
+          # class of defect epic #1657 spent its whole length removing from the pipeline.
+          # Runtime does eventually catch it (summarization/fallback.py
+          # log_fallback_chain_preflight logs "FAILOVER LADDER BROKEN"), but that is one
+          # 500-episode reprocess too late to be a useful signal.
+          #
+          # FATAL = what PODCAST_DEFAULT_PROFILE (cloud_balanced) actually routes to:
+          #   transcription_provider: deepgram                       -> DEEPGRAM
+          #   summary/speaker/quote/entailment/value-gate: litellm    -> LITELLM
+          #   RFC-106 ordered failover tier ``deepseek_native_flash`` -> DEEPSEEK
+          BLANK=""
+          [ -z "${PROD_DEEPGRAM_API_KEY:-}" ]         && BLANK="$BLANK PROD_DEEPGRAM_API_KEY"
+          [ -z "${LITELLM_PROJ_PODCAST_PROD_KEY:-}" ] && BLANK="$BLANK LITELLM_PROJ_PODCAST_PROD_KEY"
+          [ -z "${PROD_DEEPSEEK_API_KEY:-}" ]         && BLANK="$BLANK PROD_DEEPSEEK_API_KEY"
+          if [ -n "$BLANK" ]; then
+            echo "::error::cloud_balanced cannot run — these resolve EMPTY:$BLANK"
+            echo "::error::If you staged it as an ENVIRONMENT secret, it is only visible to a job declaring environment:prod — this job does, so re-check the exact NAME (and that it is on the 'prod' environment or repo-level)."
+            exit 1
+          fi
+
+          # cloud_thin is an ALLOWED profile (PODCAST_AVAILABLE_PROFILES) with a DISJOINT
+          # provider set — openai / gemini / anthropic. Warn, never fail: hard-failing the
+          # deploy over a key the default profile never touches would block prod for
+          # nothing. This only bites an operator who switches profile at runtime.
+          SOFT=""
+          [ -z "${PROD_OPENAI_API_KEY:-}" ]    && SOFT="$SOFT PROD_OPENAI_API_KEY"
+          [ -z "${PROD_GEMINI_API_KEY:-}" ]    && SOFT="$SOFT PROD_GEMINI_API_KEY"
+          [ -z "${PROD_ANTHROPIC_API_KEY:-}" ] && SOFT="$SOFT PROD_ANTHROPIC_API_KEY"
+          if [ -n "$SOFT" ]; then
+            echo "::warning::cloud_thin would FAIL if selected — empty:$SOFT (cloud_balanced unaffected)"
+          fi
+
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Checkout (resolver script; GH-744)
