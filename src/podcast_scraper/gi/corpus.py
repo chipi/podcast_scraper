@@ -101,19 +101,24 @@ def find_legacy_placeholder_artifacts(
     forensic sweep.
     """
     all_paths = sorted(corpus_root.rglob("*.gi.json"))
-    paths = _member_gi_paths(corpus_root) if not include_superseded else None
-    if not paths and all_paths:
+    scoped: Optional[List[Path]] = None if include_superseded else _member_gi_paths(corpus_root)
+    if scoped:
+        paths: List[Path] = scoped
+    else:
         # Members resolved to nothing while artifacts DO exist — a corpus whose metadata is
         # absent or shaped differently (the synthetic p01..p09 fixture is exactly this). Scoping
         # must never turn "I cannot tell" into "there is nothing to repair": that is the silent
         # empty result #34 was about, in a work-list instead of a provider.
-        if paths is not None:
+        if scoped is not None and all_paths:
             logger.warning(
                 "gi work-list: corpus membership resolved 0 of %d artifacts under %s; "
                 "falling back to an unscoped scan (superseded run dirs may be included)",
                 len(all_paths),
                 corpus_root,
             )
+        # Unconditional, so an empty corpus yields an empty list rather than ``None``. The old
+        # form only assigned inside ``if not paths and all_paths``, so a corpus with zero
+        # artifacts passed ``None`` straight into ``load_gi_artifacts``.
         paths = all_paths
     out: List[Tuple[Path, str]] = []
     for path, doc in load_gi_artifacts(paths, validate=validate, strict=False):
@@ -122,12 +127,55 @@ def find_legacy_placeholder_artifacts(
     return out
 
 
+def resolve_episode_gi_path(meta_path: Path) -> Tuple[Optional[Path], str]:
+    """The artifact an episode's metadata resolves to, and HOW — mirroring the serving path.
+
+    Returns ``(path, how)`` with *how* one of ``"declared"``, ``"sibling"``, ``"none"``.
+
+    THE PRECEDENCE IS NOT A CHOICE. ``search.cli_handlers._episode_to_gi_path_from_discovered``
+    tries ``grounded_insights.artifact_path`` first and, when that is absent or does not resolve
+    to a file, falls back to ``_determine_gi_path`` — the sibling-name convention,
+    ``<name>.gi.json`` beside ``<name>.metadata.json`` — and SERVES whatever it finds. Any
+    resolver that disagrees is judging a different file from the one users query.
+
+    ``"sibling"`` is therefore not a curiosity: it means the corpus is serving an artifact that
+    its own metadata never declared. That artifact is real, indexed, and returned in search
+    results, while a gate keyed only on the declaration records the episode as having no GI at
+    all. Existing separately from ``_member_gi_paths`` so the integrity gate and the repair
+    work-list share ONE answer rather than each growing their own.
+    """
+    meta_path = Path(meta_path)
+    declared: Optional[Path] = None
+    try:
+        doc = json.loads(meta_path.read_text(encoding="utf-8"))
+        block = doc.get("grounded_insights") if isinstance(doc, dict) else None
+        if isinstance(block, dict) and block.get("artifact_path"):
+            # artifact_path is recorded relative to the RUN dir and metadata lives in
+            # <run>/metadata/, so resolve against the run dir.
+            declared = (meta_path.parent.parent / str(block["artifact_path"])).resolve()
+    except (OSError, ValueError):
+        declared = None
+
+    if declared is not None and declared.is_file():
+        return declared, "declared"
+
+    name = meta_path.name
+    for suffix in (".metadata.json", ".metadata.yaml"):
+        if name.endswith(suffix):
+            sibling = meta_path.with_name(name[: -len(suffix)] + ".gi.json")
+            break
+    else:
+        sibling = meta_path.with_suffix(".gi.json")
+    if sibling.is_file():
+        return sibling, "sibling"
+    return None, "none"
+
+
 def _member_gi_paths(corpus_root: Path) -> Optional[List[Path]]:
     """gi.json paths belonging to CURRENT episodes, or ``None`` if the rule is unavailable.
 
-    Resolves each corpus-member metadata file to its declared artifact, falling back to the
-    sibling-name convention search itself uses (``<name>.gi.json`` next to
-    ``<name>.metadata.json``) so an artifact that exists but was never declared is still seen.
+    Resolves each corpus-member metadata file via ``resolve_episode_gi_path``, so an artifact
+    that exists but was never declared is still seen — the same precedence search uses.
     """
     try:
         from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
@@ -142,20 +190,9 @@ def _member_gi_paths(corpus_root: Path) -> Optional[List[Path]]:
 
     out: List[Path] = []
     for meta_path in members:
-        meta_path = Path(meta_path)
-        declared = None
-        try:
-            doc = json.loads(meta_path.read_text(encoding="utf-8"))
-            block = doc.get("grounded_insights") if isinstance(doc, dict) else None
-            if isinstance(block, dict) and block.get("artifact_path"):
-                declared = (meta_path.parent.parent / str(block["artifact_path"])).resolve()
-        except (OSError, ValueError):
-            declared = None
-        sibling = meta_path.with_name(meta_path.name[: -len(".metadata.json")] + ".gi.json")
-        for candidate in (declared, sibling):
-            if candidate is not None and Path(candidate).is_file():
-                out.append(Path(candidate))
-                break
+        artifact, _how = resolve_episode_gi_path(Path(meta_path))
+        if artifact is not None:
+            out.append(artifact)
     return sorted(set(out))
 
 

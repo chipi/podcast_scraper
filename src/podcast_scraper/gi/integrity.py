@@ -20,7 +20,15 @@ So this module asserts the POSITIVE, keyed on episodes rather than on artifacts 
   3. zero-insight artifacts are LEGAL after #1657 — "nothing extracted means nothing returned" —
      so they must not fail, but they are counted and listed. 112 placeholders quietly becoming
      112 empty artifacts would satisfy a naive gate while having re-derived nothing, and that
-     number being visible is what prevents declaring victory over an empty corpus.
+     number being visible is what prevents declaring victory over an empty corpus;
+  4. artifacts are resolved the way the SERVING path resolves them — declared ``artifact_path``
+     first, then the sibling-name convention. Search's ``_episode_to_gi_path_from_discovered``
+     falls back to ``<name>.gi.json`` beside ``<name>.metadata.json`` and serves whatever it
+     finds, so an episode with no ``grounded_insights`` block but an artifact on disk IS being
+     served. Judging only the declaration meant a placeholder in that position was filed as
+     "GI never ran for this episode" and the gate returned PASS — the same false green as the
+     ``rm``-and-pass failure above, reached from the opposite direction. An undeclared artifact
+     fails the gate when its CONTENT is bad, and is reported (not failed) when it is fine.
 
 Deliberately no schema validation here beyond "it parses and has the shape we read": this gate
 runs before and after a repair on a production corpus and must not fail for reasons unrelated to
@@ -35,7 +43,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .corpus import is_legacy_placeholder_artifact
+from .corpus import is_legacy_placeholder_artifact, resolve_episode_gi_path
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +112,7 @@ def assess_gi_integrity(corpus_root: Path) -> Dict[str, Any]:
     unreadable_artifact: List[Dict[str, str]] = []
     placeholders: List[Dict[str, str]] = []
     empty_artifacts: List[Dict[str, str]] = []
+    undeclared_artifact: List[Dict[str, str]] = []
     healthy: List[Dict[str, Any]] = []
     by_episode: Dict[str, List[str]] = defaultdict(list)
 
@@ -115,20 +124,41 @@ def assess_gi_integrity(corpus_root: Path) -> Dict[str, Any]:
 
         episode_id = _episode_id_of(meta)
         gi_block = meta.get("grounded_insights")
-        if not isinstance(gi_block, dict) or not gi_block.get("artifact_path"):
-            # GI was never enabled for this episode, or the run predates the block. Not a
-            # failure: the corpus legitimately contains episodes without insights.
-            no_gi_block.append(episode_id or str(meta_path))
+        declared_rel = (
+            str(gi_block["artifact_path"])
+            if isinstance(gi_block, dict) and gi_block.get("artifact_path")
+            else ""
+        )
+
+        # Resolved the way the SERVING path resolves it: declared first, else the sibling-name
+        # convention. A gate that only honoured the declaration would clear a corpus that is not
+        # the corpus users query — an undeclared artifact is still indexed and still returned.
+        artifact, how = resolve_episode_gi_path(meta_path)
+
+        if artifact is None:
+            if declared_rel:
+                # Metadata claims GI that is not on disk under EITHER resolution.
+                claimed = (meta_path.parent.parent / declared_rel).resolve()
+                missing_artifact.append(
+                    {
+                        "episode_id": episode_id,
+                        "path": str(claimed),
+                        "metadata": str(meta_path),
+                    }
+                )
+            else:
+                # GI was never enabled for this episode, or the run predates the block. Not a
+                # failure: the corpus legitimately contains episodes without insights.
+                no_gi_block.append(episode_id or str(meta_path))
             continue
 
-        # artifact_path is recorded relative to the RUN dir (metadata/<name>.gi.json), and the
-        # metadata itself lives in <run>/metadata/, so resolve against the run dir.
-        artifact = (meta_path.parent.parent / str(gi_block["artifact_path"])).resolve()
         entry = {"episode_id": episode_id, "path": str(artifact), "metadata": str(meta_path)}
 
-        if not artifact.is_file():
-            missing_artifact.append(entry)
-            continue
+        if how == "sibling":
+            # Served, but undeclared. Recorded whatever its contents, because this is the state
+            # in which a placeholder hides from a declaration-keyed gate. Severity comes from the
+            # CONTENT below: bad => hard failure (it is being served), good => provenance gap.
+            undeclared_artifact.append(entry)
 
         by_episode[episode_id or str(artifact)].append(str(artifact))
 
@@ -166,6 +196,7 @@ def assess_gi_integrity(corpus_root: Path) -> Dict[str, Any]:
         "unreadable_artifact": unreadable_artifact,
         "legacy_placeholders": placeholders,
         "empty_artifacts": empty_artifacts,
+        "undeclared_artifact": undeclared_artifact,
         "healthy": healthy,
         "duplicate_episode_ids": duplicates,
     }
@@ -178,9 +209,12 @@ def check_corpus_gi_integrity(corpus_root: Path) -> Tuple[bool, str]:
     a declared-but-missing artifact, an unreadable artifact, or two artifacts for one episode
     that the membership rule could not arbitrate.
 
-    PASSES (but reports) on: episodes with no GI block at all, and artifacts with zero insights —
-    both legal states. They appear in the NOT-COVERED section so a "clean" verdict cannot hide
-    them.
+    PASSES (but reports) on: episodes with no GI block at all, artifacts with zero insights, and
+    healthy artifacts that exist without being declared — all legal states. They appear in the
+    NOT-COVERED section so a "clean" verdict cannot hide them.
+
+    An UNDECLARED artifact whose content is bad still fails, because search serves it regardless
+    of what the metadata says.
     """
     r = assess_gi_integrity(corpus_root)
 
@@ -245,6 +279,13 @@ def check_corpus_gi_integrity(corpus_root: Path) -> Tuple[bool, str]:
         f"    episodes with no GI block : {len(r['episodes_without_gi_block'])} "
         "(GI never ran for them)"
     )
+    lines.append(
+        f"    served but NOT declared   : {len(r['undeclared_artifact'])}  "
+        "(no grounded_insights block, but a sibling <name>.gi.json exists — search resolves and "
+        "SERVES it, so its contents are judged above; the missing declaration is a provenance gap)"
+    )
+    for e in r["undeclared_artifact"]:
+        lines.append(f"      {e.get('episode_id') or '(no episode_id)'}  {e['path']}")
     lines.append(f"    unreadable metadata       : {len(r['unreadable_metadata'])}")
     for p in r["unreadable_metadata"]:
         lines.append(f"      {p}")
