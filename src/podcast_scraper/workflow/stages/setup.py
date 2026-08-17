@@ -11,6 +11,8 @@ import os
 import shutil
 from typing import Any, Optional, Tuple
 
+from podcast_scraper.utils.optional_deps import caused_by_missing_import
+
 from ... import config
 from ...exceptions import ProviderDependencyError
 from ...utils import filesystem
@@ -395,40 +397,10 @@ def _configs_match_for_ml_preload(left: config.Config, right: config.Config) -> 
     return all(getattr(left, f) == getattr(right, f) for f in fields)
 
 
-def _caused_by_missing_import(exc: BaseException, *, max_depth: int = 10) -> bool:
-    """True when an ``ImportError`` sits anywhere behind ``exc``.
-
-    Two things this has to get right, both learned by measuring the real exception rather than
-    reading the raise sites:
-
-    * **Walk the whole chain, not one link.** The providers re-wrap, so a missing ``openai-whisper``
-      arrives as ``ProviderDependencyError("Failed to preload Whisper model: …")`` wrapping
-      ``ProviderDependencyError("openai-whisper library not installed")`` wrapping ``ImportError``.
-      Checking only the first link calls that a hard failure.
-    * **Follow ``__context__`` as well as ``__cause__``.** The raise sites are NOT consistent:
-      ``MLProvider.preload`` uses ``raise … from e``, but ``_initialize_whisper`` uses a bare
-      ``raise`` inside ``except ImportError``, which records the ImportError as ``__context__``
-      only — ``__cause__`` is ``None`` there. Implicit chaining is still the cause; a check that
-      trusts explicit chaining alone silently mis-classifies whichever sites happen to omit
-      ``from``.
-
-    ``max_depth`` and the seen-set guard against cycles; a real chain is two or three links.
-    """
-    seen: set[int] = set()
-    queue: list[BaseException | None] = [exc.__cause__, exc.__context__]
-    for _ in range(max_depth):
-        nxt: list[BaseException | None] = []
-        for cur in queue:
-            if cur is None or id(cur) in seen:
-                continue
-            if isinstance(cur, ImportError):
-                return True
-            seen.add(id(cur))
-            nxt.extend((cur.__cause__, cur.__context__))
-        if not nxt:
-            return False
-        queue = nxt
-    return False
+#: Promoted to ``utils.optional_deps`` so speaker detection answers the missing-dependency
+#: question by the SAME rule this path does. Two call sites with two rules is how the
+#: pipeline ended up degrading here and dying there for one identical cause.
+_caused_by_missing_import = caused_by_missing_import
 
 
 def preload_ml_models_if_needed(cfg: config.Config) -> None:

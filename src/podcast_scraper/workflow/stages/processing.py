@@ -22,6 +22,7 @@ else:
     RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
+from ...utils.optional_deps import caused_by_missing_import
 from .. import metrics
 from ..episode_processor import process_episode_download as factory_process_episode_download
 
@@ -744,9 +745,35 @@ def detect_feed_hosts_and_patterns(
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:
-        heuristics_dict = speaker_detector.analyze_patterns(
-            episodes=episodes, known_hosts=cached_hosts
-        )
+        try:
+            heuristics_dict = speaker_detector.analyze_patterns(
+                episodes=episodes, known_hosts=cached_hosts
+            )
+        except Exception as exc:
+            if not caused_by_missing_import(exc):
+                raise
+            # A missing optional PACKAGE degrades; it does not end the run. THIS is the site that
+            # actually killed things: `analyze_patterns` -> `_initialize_spacy` -> `import spacy`
+            # runs once per FEED, before any episode is processed, so a missing spaCy took down
+            # the whole run here — several stages before per-episode speaker detection could even
+            # be reached.
+            #
+            # Building the detector already tolerated this and logged "speaker detection will be
+            # unavailable"; this call then contradicted it. Unlike ffmpeg (#26, deliberately FATAL
+            # because preprocessing decides whether a transcript is correct at all), pattern
+            # analysis only produces title/description HEURISTICS — the pipeline runs without them
+            # and `auto_speakers=False` skips them entirely by design.
+            #
+            # Loud, not silent: heuristics stay None and the run continues with metadata-stated
+            # names only.
+            logger.error(
+                "Speaker pattern analysis UNAVAILABLE — an optional dependency is not installed "
+                "(%s: %s). Continuing without title/description heuristics; episodes keep the "
+                "names their metadata states. Install the [ml] extra to enable it.",
+                type(exc).__name__,
+                exc,
+            )
+            heuristics_dict = None
         if heuristics_dict:
             heuristics = heuristics_dict
             if heuristics.get("title_position_preference"):
@@ -1213,6 +1240,43 @@ def _detect_speakers_for_episode(
         # Cost is recorded even here: a detector that raised after its LLM call still spent the
         # money, and a manifest that omits it under-reports the episode's true cost.
         _record_naming_cost(pipeline_metrics, cost_probe, episode.idx)
+        if caused_by_missing_import(exc):
+            # A missing optional PACKAGE degrades; it does not end the run.
+            #
+            # The pipeline already builds the detector defensively — a missing spaCy is caught
+            # there and logged as "speaker detection will be unavailable" — and then this path
+            # killed the run anyway, several stages later. The code announced a degrade it did
+            # not perform. That was never a decision: unlike ffmpeg (#26, deliberately FATAL
+            # because preprocessing decides whether a transcript is correct at all), speaker
+            # detection is an enhancement over episode metadata and the pipeline already has a
+            # no-detector path — ``auto_speakers=False`` returns immediately.
+            #
+            # LOUDLY, though. `degraded`, not `ran`, and its own reason slug: an episode whose
+            # speakers were never detected must stay distinguishable from one where the detector
+            # ran and honestly found nobody. That distinction is the whole point of #1647, and a
+            # silent skip would destroy it as surely as a crash.
+            #
+            # ``caused_by_missing_import`` is the SAME walker preload uses (95be1ec1) — see
+            # utils.optional_deps. Only a missing package qualifies; a missing model file, a
+            # gated token, a timeout or a bug still raises below.
+            logger.error(
+                "[%s] Speaker detection UNAVAILABLE — an optional dependency is not installed "
+                "(%s: %s). The episode keeps whatever names its metadata states; no speaker was "
+                "inferred. Install the [ml] extra to enable it.",
+                episode.idx,
+                type(exc).__name__,
+                exc,
+            )
+            _record(
+                "degraded",
+                "speaker_detector_package_missing",
+                detail={
+                    "exception": type(exc).__name__,
+                    "speaker_detector_provider": getattr(cfg, "speaker_detector_provider", None),
+                },
+                duration_seconds=time.time() - extract_names_start,
+            )
+            return None
         _record(
             "failed",
             "detector_raised",

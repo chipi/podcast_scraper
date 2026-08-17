@@ -35,9 +35,6 @@ except ImportError:
     E2EHTTPRequestHandler = None  # type: ignore[assignment,misc]
 
 
-from tests.e2e.conftest import requires  # noqa: E402
-
-
 def _cleanup_transient_errors():
     """Reset transient and permanent error behaviors."""
     if E2EHTTPRequestHandler is not None:
@@ -98,7 +95,6 @@ class TestTransientHTTPErrors:
 class TestConfigurableRetryValues:
     """Configurable HTTP retry policy via Config."""
 
-    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_custom_retry_values_in_pipeline(self, e2e_server):
         """Pipeline respects custom http_retry_total from Config."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -122,7 +118,6 @@ class TestConfigurableRetryValues:
 class TestPipelineTransientRecovery:
     """Full pipeline recovers from transient transcript errors."""
 
-    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_pipeline_recovers_from_transient_503(self, e2e_server):
         """Pipeline downloads transcript after transient 503s."""
         E2EHTTPRequestHandler.set_transient_error(
@@ -154,7 +149,6 @@ class TestPipelineTransientRecovery:
 class TestMultiFeedIsolation:
     """Multi-feed runs isolate per-feed failures."""
 
-    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_one_feed_down_others_continue(self, e2e_server):
         """When one RSS feed returns 500, other feeds still succeed."""
         E2EHTTPRequestHandler.set_error_behavior("/feeds/podcast2/feed.xml", status=500)
@@ -189,7 +183,6 @@ class TestMultiFeedIsolation:
 class TestFailureSummaryInRunJson:
     """run.json includes failure_summary when episodes fail."""
 
-    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_partial_failure_produces_summary(self, e2e_server):
         """Pipeline with partial failures writes failure_summary."""
         E2EHTTPRequestHandler.set_error_behavior("/transcripts/p01_multi_e03.txt", status=404)
@@ -212,7 +205,6 @@ class TestFailureSummaryInRunJson:
             run_data = json.loads(run_json_candidates[0].read_text(encoding="utf-8"))
             assert "schema_version" in run_data
 
-    @requires("spacy")  # full pipeline: host detection loads a spaCy model
     def test_all_success_no_failure_summary(self, e2e_server):
         """Pipeline with all successes has no failure_summary."""
         with tempfile.TemporaryDirectory() as tmpdir:
