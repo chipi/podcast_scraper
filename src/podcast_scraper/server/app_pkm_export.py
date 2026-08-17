@@ -26,7 +26,8 @@ from typing import Any
 from filelock import FileLock
 
 from podcast_scraper.server import app_user_state
-from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.server.atomic_write import atomic_write_text
 
 _ROOT = "closelistening"
@@ -150,20 +151,40 @@ def _episode_note(slug: str, title: str) -> str:
     )
 
 
+def _title_index(root: Path) -> dict[str, str]:
+    """``slug -> episode title``, from ONE catalog walk (#42).
+
+    This replaced a ``resolve_slug`` call per unique highlighted episode. That helper documents
+    itself as O(episodes) *per call*, but each call runs ``build_catalog_rows_cumulative``, which
+    walks every ``run_*/metadata/*.metadata.json`` and JSON-parses all of them — with no caching
+    anywhere in that module. Highlights across 300 episodes of a 1000-episode corpus meant ~300
+    full catalog walks, ~300k JSON loads, all while HOLDING the export lock, whose timeout is 5s.
+    A concurrent export — the web + native-shell case that lock exists for — then raised
+    ``filelock.Timeout`` and 500'd. One walk, one dict.
+    """
+    return {
+        slug_for_row(row): (row.episode_title or "") for row in build_catalog_rows_cumulative(root)
+    }
+
+
 def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
     """The full current vault as ``{path: content}`` — highlight + entity + episode notes."""
     highlights = app_user_state.get_highlights(data_dir, user_id)
     files: dict[str, str] = {}
     entity_refs: dict[str, dict[str, Any]] = {}
     episode_titles: dict[str, str] = {}
+    # Built on first need, so a user with no highlights still costs zero catalog walks.
+    titles: dict[str, str] | None = None
 
     for h in highlights:
         slug = str(h.get("episode_slug") or "")
         if not slug:
             continue
         if slug not in episode_titles:
-            row = resolve_slug(root, slug)
-            episode_titles[slug] = row.episode_title if row is not None else slug
+            if titles is None:
+                titles = _title_index(root)
+            # An unresolvable slug falls back to itself, exactly as resolve_slug -> None did.
+            episode_titles[slug] = titles.get(slug) or slug
         hid = _safe_id(str(h.get("id") or ""))
         files[f"{_ROOT}/Highlights/{hid}.md"] = _highlight_note(h, episode_titles[slug])
         for ref in h.get("graph_refs") or []:

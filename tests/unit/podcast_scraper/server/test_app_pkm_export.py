@@ -12,6 +12,9 @@ from podcast_scraper.server import app_pkm_export as ex
 pytestmark = pytest.mark.unit
 
 _UID = "u_0123456789abcdef01234567"
+#: The real indexed catalog walk, grabbed before the autouse stub replaces it — the #42
+#: counter test needs the genuine implementation, not the fixture's stand-in.
+_REAL_TITLE_INDEX = ex._title_index
 _ROOT = Path("/unused")
 
 _HL = {
@@ -28,11 +31,25 @@ _HL = {
 }
 
 
+class _AnyTitle(dict):
+    """A slug -> title index that answers the same title for every slug.
+
+    The export used to call ``resolve_slug`` once per highlighted episode; since #42 it builds ONE
+    indexed catalog walk instead, so the stub is now a mapping rather than a function. Answering
+    any slug keeps each test asserting what it always asserted.
+    """
+
+    def __init__(self, title: str) -> None:
+        super().__init__()
+        self._title = title
+
+    def get(self, key, default=None):  # noqa: D102 - dict protocol
+        return self._title
+
+
 @pytest.fixture(autouse=True)
 def _stub(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(
-        ex, "resolve_slug", lambda root, slug: SimpleNamespace(episode_title="NVIDIA")
-    )
+    monkeypatch.setattr(ex, "_title_index", lambda root: _AnyTitle("NVIDIA"))
 
 
 def _vault(monkeypatch, highlights) -> dict[str, str]:
@@ -54,9 +71,7 @@ def test_yaml_scalar_escapes_quotes_and_newlines() -> None:
 
 
 def test_frontmatter_survives_quotes_in_title_and_quote(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        ex, "resolve_slug", lambda root, slug: SimpleNamespace(episode_title='The "Real" Show')
-    )
+    monkeypatch.setattr(ex, "_title_index", lambda root: _AnyTitle('The "Real" Show'))
     hl = {**_HL, "quote_text": 'a quote with "quotes" and\na newline', "graph_refs": []}
     note = _vault(monkeypatch, [hl])["closelistening/Highlights/h_1.md"]
     # The alias line must be valid single-line double-quoted YAML (escaped quotes, no newline).
@@ -193,9 +208,7 @@ def test_a_label_containing_link_syntax_cannot_truncate_the_link(
 def test_an_episode_title_containing_link_syntax_cannot_truncate_the_link(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        ex, "resolve_slug", lambda root, slug: SimpleNamespace(episode_title="Ep ]] two|three")
-    )
+    monkeypatch.setattr(ex, "_title_index", lambda root: _AnyTitle("Ep ]] two|three"))
     note = _vault(monkeypatch, [{**_HL, "graph_refs": []}])["closelistening/Highlights/h_1.md"]
     line = next(ln for ln in note.splitlines() if ln.startswith("— [["))
     # Count over the WHOLE line. The first version sliced to the first "]]" and asserted the
@@ -233,8 +246,8 @@ def test_every_note_in_the_vault_has_parseable_frontmatter(monkeypatch: pytest.M
     yaml = pytest.importorskip("yaml")
     monkeypatch.setattr(
         ex,
-        "resolve_slug",
-        lambda root, slug: SimpleNamespace(episode_title='- Title: with "colon"\tand \x07 bell'),
+        "_title_index",
+        lambda root: _AnyTitle('- Title: with "colon"\tand \x07 bell'),
     )
     hl = {
         **_HL,
@@ -332,3 +345,58 @@ def test_the_epoch_is_stable_while_the_state_file_survives(
     second = ex.export_bundle(_ROOT, tmp_path, _UID, since=first["revision"], epoch=first["epoch"])
     assert second["epoch"] == first["epoch"]
     assert second["mode"] == "incremental"
+
+
+# --- one catalog walk per export, not one per episode (#42) ---------------------------------------
+
+
+def test_the_catalog_is_walked_once_per_export_not_once_per_episode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`resolve_slug` documented itself as O(episodes) per CALL — but each call rebuilt the whole
+    catalog, walking every run's metadata and JSON-parsing all of it, uncached.
+
+    Highlights across 300 episodes of a 1000-episode corpus meant ~300 full walks and ~300k JSON
+    loads, all INSIDE the export lock, whose timeout is 5s. A concurrent export — web plus native
+    shell, the very case that lock exists for — then raised filelock.Timeout and 500'd.
+    """
+    calls: list[str] = []
+
+    def counting_walk(root: Path):
+        calls.append("walk")
+        return [SimpleNamespace(slug=f"slug-{i}", episode_title=f"Ep {i}") for i in range(10)]
+
+    monkeypatch.setattr(ex, "_title_index", _REAL_TITLE_INDEX)  # the real one, not the stub
+    monkeypatch.setattr(ex, "build_catalog_rows_cumulative", counting_walk)
+    monkeypatch.setattr(ex, "slug_for_row", lambda row: row.slug)
+
+    # 50 highlights spread over 10 distinct episodes: 10 walks before, 1 after.
+    _hls(
+        monkeypatch,
+        [
+            {**_HL, "id": f"h_{i}", "episode_slug": f"slug-{i % 10}", "graph_refs": []}
+            for i in range(50)
+        ],
+    )
+    bundle = ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+
+    assert len(calls) == 1, f"the catalog was walked {len(calls)} times for 10 episodes"
+    # And the titles still landed, so this measures a hoist rather than a lost lookup.
+    assert "closelistening/Episodes/slug-0.md" in bundle["files"]
+    assert "Ep 0" in bundle["files"]["closelistening/Episodes/slug-0.md"]
+
+
+def test_no_highlights_costs_no_catalog_walk_at_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The index is built on first need. Hoisting it to the top of the function would have made an
+    empty vault pay for a full corpus scan — a regression for every user who has captured nothing.
+    """
+    calls: list[str] = []
+    monkeypatch.setattr(ex, "_title_index", _REAL_TITLE_INDEX)
+    monkeypatch.setattr(
+        ex, "build_catalog_rows_cumulative", lambda root: calls.append("walk") or []
+    )
+    _hls(monkeypatch, [])
+    ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
+    assert calls == []
