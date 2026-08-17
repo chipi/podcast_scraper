@@ -26,6 +26,8 @@ import pytest
 from podcast_scraper.gi.pipeline import _dedupe_insight_specs
 from tests.integration.conftest import requires
 
+from tests.integration.conftest import requires
+
 pytestmark = pytest.mark.integration
 
 

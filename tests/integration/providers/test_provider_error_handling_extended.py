@@ -21,6 +21,8 @@ from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 from tests.integration.conftest import requires
 
+from tests.integration.conftest import requires
+
 
 @pytest.mark.integration
 @pytest.mark.slow

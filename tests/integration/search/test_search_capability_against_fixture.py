@@ -34,6 +34,8 @@ from podcast_scraper.search.compare import compare_subjects, SubjectRef
 from podcast_scraper.search.router import QUERY_TYPES
 from tests.integration.conftest import requires
 
+from tests.integration.conftest import requires
+
 pytestmark = pytest.mark.integration
 
 _CORPUS = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus" / "v3"
