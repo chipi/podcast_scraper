@@ -43,6 +43,7 @@ nav:
       - DGX model catalog (RFC-089 / ADR-098): operations/DGX_MODEL_CATALOG.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
+      - How we decide what you should listen to next: guides/RECOMMENDATION_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md
       - Audio Pipeline Guide (transcription, diarization, chunking): guides/AUDIO_PIPELINE_GUIDE.md
       - RSS and feed ingestion: guides/RSS_GUIDE.md
