@@ -807,11 +807,12 @@ def run_experiment(  # noqa: C901
                     f"Got: {cfg.backend.type}"
                 )
         elif (
-            cfg.task in ("grounded_insights", "knowledge_graph") and cfg.backend.type == "eval_stub"
+            cfg.task in ("grounded_insights", "knowledge_graph")
+            and cfg.backend.type == "eval_offline"
         ):
-            logger.info("Eval stub backend: skipping summarization provider (GIL/KG eval).")
+            logger.info("Offline eval backend: skipping summarization provider (GIL/KG eval).")
             provider = None
-            model_name = "eval_stub"
+            model_name = "eval_offline"
             params_dict = {"eval_task": cfg.task, **(cfg.params or {})}
         elif cfg.backend.type == "openai":
             from podcast_scraper import config
@@ -1373,7 +1374,10 @@ def run_experiment(  # noqa: C901
         else:
             raise ValueError(f"Unsupported backend type: {cfg.backend.type}")
 
-        if cfg.task in ("grounded_insights", "knowledge_graph") and cfg.backend.type != "eval_stub":
+        if (
+            cfg.task in ("grounded_insights", "knowledge_graph")
+            and cfg.backend.type != "eval_offline"
+        ):
             if cfg_obj is None:
                 raise RuntimeError(
                     "Internal error: GI/KG experiment with non-stub backend did not set cfg_obj."
@@ -1729,7 +1733,7 @@ def run_experiment(  # noqa: C901
                             path, _raw_text_for_gi, text
                         )
 
-                        if cfg.backend.type == "eval_stub":
+                        if cfg.backend.type == "eval_offline":
                             rt_cfg = runtime_config_for_grounded_insights_eval(cfg.params)
                             gil_payload = build_artifact(
                                 episode_id,
@@ -1860,7 +1864,7 @@ def run_experiment(  # noqa: C901
                         )
                         from podcast_scraper.schemas.summary_schema import parse_summary_output
 
-                        if cfg.backend.type == "eval_stub":
+                        if cfg.backend.type == "eval_offline":
                             rt_kg = runtime_config_for_knowledge_graph_eval(cfg.params)
                             kg_payload = kg_build_artifact(
                                 episode_id,

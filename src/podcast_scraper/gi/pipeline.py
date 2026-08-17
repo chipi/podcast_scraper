@@ -1541,9 +1541,6 @@ def _resolve_insight_specs(
         # one that decides whether there are any insights AT ALL — kept the debug call.
         return _no_insights("generate_insights_raised", pipeline_metrics, exc=e)
 
-    # No provider was supplied at all. Nothing was extracted, so nothing is returned.
-    return _no_insights("no_insight_provider_configured", pipeline_metrics)
-
 
 def build_artifact(
     episode_id: str,

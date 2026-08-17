@@ -984,7 +984,7 @@ def generate_enhanced_fingerprint(  # noqa: C901
             generation_params = {k: v for k, v in generation_params.items() if v is not None}
             map_generation_params = {}
             reduce_generation_params = {}
-        elif experiment_config.backend.type == "eval_stub":
+        elif experiment_config.backend.type == "eval_offline":
             generation_params = {}
             map_generation_params = {}
             reduce_generation_params = {}

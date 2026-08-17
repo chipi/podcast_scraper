@@ -1187,7 +1187,7 @@ def _detect_speakers_for_episode(
     sig = inspect.signature(speaker_detector.detect_speakers)
     # A raising detector previously recorded NOTHING — no ledger entry at all — so an episode
     # whose speaker detection blew up was indistinguishable from one where it never ran. That
-    # silence is the #1646 shape, and it is also why ``failed`` ended up being (mis)used for the
+    # silence is the #1646 shape, and it is also why ``failed`` ended up being misused for the
     # empty-result path below: there was no real failure path competing for the word.
     #
     # Control flow is deliberately unchanged: record, then re-raise.

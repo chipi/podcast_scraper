@@ -12,7 +12,12 @@ exactly the gap that made the placeholder gate a dead end until ``gi-repair`` ex
 from __future__ import annotations
 
 import json
-import xml.etree.ElementTree as ET
+
+# defusedxml for the PARSE, matching rss/parser.py and stages/test_scraping.py. Bandit B314
+# blacklists stdlib ElementTree parsing regardless of whether the input is trusted, and this
+# repo answers that with the safe parser rather than a per-line suppression. ``ET`` stays for
+# the ``Element`` type annotation, which B314 does not flag.
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +31,7 @@ pytestmark = [pytest.mark.unit]
 
 class _Episode:
     def __init__(self, guid: str, episode_id: str | None = None) -> None:
-        self.item = ET.fromstring(f"<item><guid>{guid}</guid></item>")
+        self.item = safe_fromstring(f"<item><guid>{guid}</guid></item>")
         self.guid = guid
         self.episode_id = episode_id or guid
         self.title = "An Episode"

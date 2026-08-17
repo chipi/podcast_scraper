@@ -32,7 +32,7 @@ Two of those need spelling out, because both were verified the hard way.
 Rehearsed 2026-08-16 on a copy of a real corpus. Four flag combinations, none reprocessed a
 placeholder episode:
 
-```
+```text
 --skip-existing                                    -> "no transcript for ..."
 --skip-existing --single-feed-uses-corpus-layout   -> transcript found, still skipped, GI:0
 --reprocess-existing-only                          -> "no transcript for ..."

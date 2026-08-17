@@ -27,7 +27,13 @@ human who does not exist, which cross-episode queries then happily join on.
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: N817  # Element TYPE only; parsing uses defusedxml
+
+# defusedxml for the PARSE, matching rss/parser.py and stages/test_scraping.py. Bandit B314
+# blacklists stdlib ElementTree parsing regardless of whether the input is trusted, and this
+# repo answers that with the safe parser rather than a per-line suppression. ``ET`` stays for
+# the ``Element`` type annotation, which B314 does not flag.
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from pathlib import Path
 from typing import Any, List, Set
 
@@ -47,7 +53,7 @@ EXPECTED = {"Erik Torenberg", "Ben Horowitz", "Travis Kalanick"}
 
 
 def _item(author: str) -> ET.Element:
-    return ET.fromstring(
+    return safe_fromstring(
         '<item xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">'
         f"<title>Ep</title><itunes:author>{author}</itunes:author></item>"
     )

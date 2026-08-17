@@ -24,7 +24,12 @@ metadata lookup did not get the same treatment. These tests hold both halves tog
 from __future__ import annotations
 
 import json
-import xml.etree.ElementTree as ET
+
+# defusedxml for the PARSE, matching rss/parser.py and stages/test_scraping.py. Bandit B314
+# blacklists stdlib ElementTree parsing regardless of whether the input is trusted, and this
+# repo answers that with the safe parser rather than a per-line suppression. ``ET`` stays for
+# the ``Element`` type annotation, which B314 does not flag.
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +53,7 @@ class _Episode:
     """
 
     def __init__(self, guid: str, title: str = "An Episode", idx: int = 1) -> None:
-        self.item = ET.fromstring(f"<item><guid>{guid}</guid></item>")
+        self.item = safe_fromstring(f"<item><guid>{guid}</guid></item>")
         self.guid = guid
         self.title = title
         self.title_safe = title  # _determine_metadata_path (legacy, same-run path)

@@ -55,6 +55,13 @@ LEGACY_FLAT_BUDGET_MS = 300_000
 
 @dataclass
 class RunPreprocessing:
+    """One run's preprocessing metrics, plus the episode ids that run wrote.
+
+    Carries ``episode_ids`` alongside the counters because ``metrics.json`` is RUN-level: the
+    counters say how many episodes were attempted and completed, and only the id list can say
+    WHICH — and then only when the run held exactly one episode (``attribution_is_exact``).
+    """
+
     run_dir: str
     attempts: Optional[int]
     completed: Optional[int]

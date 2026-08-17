@@ -59,6 +59,13 @@ class EpisodeRepair:
 
 @dataclass
 class RepairReport:
+    """Outcome of one ``gi-repair`` run, split so a partial repair cannot read as a success.
+
+    ``failed`` is kept separate from ``repaired`` rather than folded into a single count because
+    the exit code is derived from it: any failure leaves that episode's placeholder byte-identical
+    on disk, so it must still appear on the integrity gate's red list afterwards.
+    """
+
     repaired: List[EpisodeRepair] = field(default_factory=list)
     failed: List[EpisodeRepair] = field(default_factory=list)
     skipped_dry_run: List[str] = field(default_factory=list)
@@ -68,6 +75,7 @@ class RepairReport:
         return not self.failed
 
     def format(self) -> str:
+        """Operator-facing summary: counts first, then every failure named individually."""
         lines = [
             "GI REPAIR",
             f"  repaired : {len(self.repaired)}",

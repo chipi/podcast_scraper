@@ -81,12 +81,18 @@ class BackfillReport:
     estimated_bytes: int = 0
 
     def counts(self) -> Dict[str, int]:
+        """Outcome slug -> how many episodes ended in it, across every feed."""
         out: Dict[str, int] = {}
         for o in self.outcomes:
             out[o.outcome] = out.get(o.outcome, 0) + 1
         return out
 
     def by_feed(self) -> Dict[str, Dict[str, int]]:
+        """Feed title -> its own outcome counts.
+
+        The per-feed split is the operator-facing view: a single failing host shows up here as
+        one feed's column going red, which a corpus-wide total would average away.
+        """
         feeds: Dict[str, Dict[str, int]] = {}
         for o in self.outcomes:
             feeds.setdefault(o.feed_title, {})
@@ -118,6 +124,7 @@ class HostRateLimiter:
         self._last: Dict[str, float] = {}
 
     def wait(self, url: str) -> None:
+        """Block until this URL's host may be hit again; returns immediately for a new host."""
         if self.min_interval_s <= 0:
             return
         host = (urlsplit(url).hostname or "").lower()
