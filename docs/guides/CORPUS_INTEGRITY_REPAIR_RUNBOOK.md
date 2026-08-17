@@ -139,6 +139,14 @@ is on **both** `episode_id` and RSS `guid`, since detectors emit whichever the a
 `--single-feed-uses-corpus-layout` is required for a single-feed corpus, or cross-run resolution
 does not fire and every episode reports "no transcript".
 
+**Scope is handled for you.** `reprocess_episode_ids` implies `reprocess_existing_only`, so the
+run considers only episodes already on disk. Before that implication existed, a one-episode
+work-list against one feed had preprocessed **12 unrelated episodes** before it was killed — the
+run walked the feed and treated every item not on disk as new work. Across 14 production feeds
+that would have been a large unbudgeted ASR bill.
+
+Still pass `--max-episodes` if you want a hard ceiling on a first cautious run.
+
 ### 7. Corpus-level passes (these are NOT part of any reprocess)
 
 ```bash

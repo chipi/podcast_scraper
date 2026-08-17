@@ -1147,6 +1147,12 @@ import-corpus:
 
 # Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
 # Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).
+# NOTE --single-feed-uses-corpus-layout is REQUIRED here. It gates cross-run transcript
+# resolution (episode_processor.py:360): every run writes a FRESH run_<ts>/, so an
+# already-processed episode's transcript lives in a PRIOR run dir. Without the flag a
+# single-feed corpus reports "no transcript for <episode>" and skips EVERYTHING — verified
+# 2026-08-16. Harmless for multi-feed: `_apply_single_feed_corpus_layout` returns early when
+# rss_urls >= 2, so no double-wrapping occurs.
 reprocess-corpus-from-transcripts:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
@@ -1158,6 +1164,7 @@ reprocess-corpus-from-transcripts:
 	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
 	  --output-dir "$${CORPUS_DIR}" \
 	  --skip-existing \
+	  --single-feed-uses-corpus-layout \
 	  --no-transcribe-missing; \
 	echo "Optional: rebuild topic clusters when search/ index exists:"; \
 	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
