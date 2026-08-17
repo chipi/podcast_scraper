@@ -118,3 +118,89 @@ class TestTheEvalScoresTheConfigThatSHIPS:
             "a stored config that breaks personalisation must fail the gate when scored — that is "
             "the whole point of --data-dir"
         )
+
+
+class TestTheEvalScoresTheINTERESTSPLITThatSHIPS:
+    """#27 — the third divergence of the same kind, after the pool (#17) and the config (#21).
+
+    ``/discover`` hands ``rank_discover`` explicit follows and derived interests SEPARATELY, and
+    since #19 they carry different weight (an inference counts ``derived_ratio``, currently half).
+    The eval merged them into one list and passed it as the EXPLICIT argument, so every inferred
+    topic scored as a stated follow and the gate reported on a strictly more personalised system
+    than the route runs. Once ranking learned to tell the two apart, the eval had to as well.
+    """
+
+    def test_the_scorer_passes_the_two_kinds_to_the_two_arguments(self, monkeypatch) -> None:
+        """Pins the WIRING, because the reported counts do not.
+
+        Written after its own sabotage: reverting ``_score_user`` to the merged
+        ``rank_discover(corpus, interests, ...)`` call left the split-reporting test below and the
+        derived-only test above **both green** (6 passed) — they observe the row dict, not the
+        call. And the merged form cannot be caught by score alone: for a derived-only persona,
+        weighting every token at 1.0 instead of 0.5 is a monotone transform of the same matched
+        count, so the ranking is IDENTICAL and no metric moves. The divergence only shows on mixed
+        personas, and only as a re-weighting between kinds.
+
+        So this asserts the contract at the call boundary: whatever reaches the ``interests``
+        argument is the user's stated follows, and derived tokens arrive through
+        ``derived_interests=`` — the same shape ``routes/app_discover.py`` uses.
+        """
+        from scripts.eval.score import rank_discover_v1 as module
+
+        calls: list[tuple[tuple, dict]] = []
+        real = module.rank_discover
+
+        def spy(*args, **kwargs):
+            calls.append((args, kwargs))
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(module, "rank_discover", spy)
+        module.evaluate()
+
+        # The personalized arm of every persona; the recency arm passes [] and is skipped.
+        personalized = [(a, k) for a, k in calls if a[1]]
+        assert personalized, "no personalized ranking call was made"
+        mixed_seen = False
+        for args, kwargs in personalized:
+            explicit = list(args[1])
+            derived = list(kwargs.get("derived_interests", []))
+            assert "derived_interests" in kwargs, (
+                "derived tokens must arrive through derived_interests=, not folded into the "
+                "explicit argument — that is the merge this class exists to prevent"
+            )
+            assert not (set(explicit) & set(derived)), "a token cannot be both stated and inferred"
+            if explicit and derived:
+                mixed_seen = True
+        assert mixed_seen, (
+            "no persona carries BOTH stated and inferred interests, so this run cannot observe "
+            "the two being weighted differently at all"
+        )
+
+    def test_every_persona_reports_its_interest_split(self) -> None:
+        for row in evaluate()["per_user"]:
+            assert row["n_explicit_interests"] + row["n_derived_interests"] == row["n_interests"], (
+                f"{row['user_id']}: the split must account for every interest, or the report "
+                "hides which path the persona exercised"
+            )
+
+    def test_a_derived_only_persona_is_actually_scored(self) -> None:
+        """The coverage this class exists for: at least one persona reaches ``/discover``'s
+        behaviour-only path — no picker, no follows, ranking driven purely by what they heard.
+
+        With only explicit-follow personas the gate could stay green while derivation returned
+        nothing at all, because no scored user depended on it. ``u_implicit`` is that user; its
+        gold shows (p06, p08) are also the two no other persona covers, so it widens the corpus
+        slice the gate touches rather than re-weighting the slice already covered.
+        """
+        rows = evaluate()["per_user"]
+        derived_only = [r for r in rows if r["n_explicit_interests"] == 0]
+        assert derived_only, (
+            "no persona exercises the derived-interests-only path — #1139's whole premise is that "
+            "a user who never opens the picker still gets personalised"
+        )
+        for row in derived_only:
+            assert row["n_derived_interests"] > 0, f"{row['user_id']}: derivation produced nothing"
+            assert row["personalized_ndcg"] > row["recency_ndcg"], (
+                f"{row['user_id']}: behaviour-derived interests did not beat plain recency — "
+                "personalisation for picker-less users is not working"
+            )

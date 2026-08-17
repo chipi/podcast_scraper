@@ -1,0 +1,20 @@
+{
+  "captured_topics": [],
+  "expected_interests": [
+    "topic:long-form",
+    "topic:public-radio",
+    "person:cam",
+    "person:jordan-park"
+  ],
+  "expected_relevant_shows": [
+    "p06",
+    "p08"
+  ],
+  "heard": [
+    "p06_e01",
+    "p06_e02",
+    "p08_e01"
+  ],
+  "persona": "never opened the picker (derived-only)",
+  "user_id": "u_implicit"
+}

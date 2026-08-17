@@ -114,11 +114,19 @@ def _seed_user_state(data_dir: Path, user: dict, label_to_slug: dict[str, str]) 
     return uid
 
 
-def _interests_for(root: Path, data_dir: Path, uid: str) -> list[str]:
-    """Explicit ∪ derived, exactly as the /discover route folds them (#1139)."""
-    interests = list(app_user_state.get_interests(data_dir, uid))
-    derived = derive_interests(root, data_dir, uid)
-    return list(dict.fromkeys([*interests, *derived]))
+def _interests_for(root: Path, data_dir: Path, uid: str) -> tuple[list[str], list[str]]:
+    """``(explicit, derived)`` — kept APART, exactly as the /discover route holds them (#1139).
+
+    This returned a single merged list until #19 gave the two kinds different weight. Merging here
+    then handed every derived token to ``rank_discover``'s EXPLICIT argument, so the eval scored a
+    strictly more personalized system than the route runs: an inference counted as a stated follow
+    (ratio 1.0 instead of 0.5). Same defect class as the pool and config divergences above — the
+    gate reporting on a system nobody runs — and it appeared the moment ranking learned to tell the
+    two apart, which is exactly when the eval had to learn it too.
+    """
+    explicit = list(app_user_state.get_interests(data_dir, uid))
+    derived = [t for t in derive_interests(root, data_dir, uid) if t not in set(explicit)]
+    return explicit, derived
 
 
 def _score_user(
@@ -134,7 +142,8 @@ def _score_user(
     with tempfile.TemporaryDirectory() as td:
         data_dir = Path(td)
         uid = _seed_user_state(data_dir, user, label_to_slug)
-        interests = _interests_for(corpus, data_dir, uid)
+        explicit, derived = _interests_for(corpus, data_dir, uid)
+        interests = [*explicit, *derived]
         # Score the pool the ROUTE builds, not the whole catalog. Ranking every row measured a
         # system production never runs: /discover bounds its candidates to the newest 4*limit
         # episodes before ranking, so an episode outside that window cannot be surfaced however
@@ -152,7 +161,12 @@ def _score_user(
         # an admin PUT /ranking-config zeroing interest_affinity would have shipped in silence —
         # the gate would still have reported a healthy uplift for a feed that had stopped
         # personalising. The eval must score the system that runs.
-        personalized = rank_discover(corpus, interests, p_pool, limit=k, config=config)
+        # `derived_interests=` matches routes/app_discover.py: the pool considers both kinds, the
+        # SCORING weights a stated follow above an inferred one (#19). Passing the merged list as
+        # `interests` would silently promote every inference to a follow.
+        personalized = rank_discover(
+            corpus, explicit, p_pool, limit=k, config=config, derived_interests=derived
+        )
         recency = rank_discover(corpus, [], r_pool, limit=k, config=config)
     p_shows = [_show_of(s.slug) for s in personalized]
     r_shows = [_show_of(s.slug) for s in recency]
@@ -161,6 +175,11 @@ def _score_user(
         "persona": user.get("persona", ""),
         "gold_shows": sorted(gold_shows),
         "n_interests": len(interests),
+        # Split out so the report shows WHICH path a persona exercises. A run where every persona
+        # has explicit follows never touches the derived-only path, and the aggregate cannot tell
+        # you that — it just reports a healthy uplift for a feature it never ran (#27).
+        "n_explicit_interests": len(explicit),
+        "n_derived_interests": len(derived),
         "personalized_ndcg": round(_ndcg_at_k(p_shows, gold_shows, k), 4),
         "recency_ndcg": round(_ndcg_at_k(r_shows, gold_shows, k), 4),
         "personalized_precision": round(_precision_at_k(p_shows, gold_shows, k), 4),
