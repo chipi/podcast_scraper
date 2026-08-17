@@ -59,13 +59,7 @@ from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 
 pytestmark = [pytest.mark.integration]
 
-CORPUS = (
-    Path(__file__).resolve().parents[3]
-    / "tests"
-    / "fixtures"
-    / "app-validation-corpus"
-    / "v3"
-)
+CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 
 # Each of these is the lead topic of exactly one show, so following it should surface that show.
 NICHE_TOPIC_TO_SHOW = {
@@ -141,9 +135,9 @@ class TestRankerDiscriminates:
         )
 
     def test_following_something_changes_the_feed(self, rows) -> None:
-        assert feed(rows, ["topic:personal-finance"]) != feed(rows, []), (
-            "a followed interest left the feed identical to recency"
-        )
+        assert feed(rows, ["topic:personal-finance"]) != feed(
+            rows, []
+        ), "a followed interest left the feed identical to recency"
 
 
 @pytest.mark.xfail(
@@ -275,11 +269,17 @@ class TestPoolIsInterestAware:
 
     def test_the_union_actually_changes_what_is_surfaced(self, rows) -> None:
         topic = "topic:personal-finance"
-        bounded = [s.slug for s in rank_discover(CORPUS, [topic], build_discover_pool(rows, limit=1), limit=3)]
+        bounded = [
+            s.slug
+            for s in rank_discover(CORPUS, [topic], build_discover_pool(rows, limit=1), limit=3)
+        ]
         union = [
             s.slug
             for s in rank_discover(
-                CORPUS, [topic], build_discover_pool(rows, limit=1, interests=[topic], root=CORPUS), limit=3
+                CORPUS,
+                [topic],
+                build_discover_pool(rows, limit=1, interests=[topic], root=CORPUS),
+                limit=3,
             )
         ]
         assert any(s.startswith("p05") for s in union), union
@@ -287,7 +287,9 @@ class TestPoolIsInterestAware:
 
     def test_both_legs_stay_bounded(self, rows) -> None:
         """Cost control: the union is at most two windows, never the whole catalog."""
-        union = build_discover_pool(rows, limit=2, interests=["topic:expert-interviews"], root=CORPUS)
+        union = build_discover_pool(
+            rows, limit=2, interests=["topic:expert-interviews"], root=CORPUS
+        )
         assert len(union) <= 2 * 8
         assert len(union) < len(rows), "the pool grew to the entire corpus"
 
@@ -378,9 +380,7 @@ class TestDerivationTracksRecentListening:
         from podcast_scraper.server import app_user_state
 
         captured = "mmm-saved-insight-0001"
-        uc, data_dir, uid = self._persona(
-            monkeypatch, tmp_path, old_episodes=0, new_episodes=2
-        )
+        uc, data_dir, uid = self._persona(monkeypatch, tmp_path, old_episodes=0, new_episodes=2)
         app_user_state.add_favorite(
             data_dir, uid, {"kind": "insight", "ref": "ins-1", "slug": captured}
         )
