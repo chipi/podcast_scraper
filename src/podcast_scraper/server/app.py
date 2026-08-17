@@ -412,6 +412,110 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _install_cors(app: FastAPI) -> None:
+    """CORS allowlist: env-pinned web origins plus the fixed native-shell origins.
+
+    Extracted from ``create_app``, which was over the complexity ceiling at 30. Self-contained
+    configuration with its own branching and no coupling to the rest of the factory.
+    """
+    # CORS origins: default to the local Vue dev-server ports, but let prod pin
+    # the real public hostname(s) via PODCAST_SERVE_CORS_ORIGINS (comma-separated)
+    # — auth is cookie-based, so credentialed localhost origins must not be the
+    # only allowlist on a public box (review 2026-07-17 M11).
+    _default_cors = [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
+    ]
+    _cors_env = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
+    _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _default_cors
+    # The Capacitor native shell's WebView serves the app from a FIXED local origin (not a network
+    # host), so its cross-origin calls to this API need explicit CORS allowance (#1310). These are
+    # constant app origins — safe to always allow, even when prod pins the web hostname above. Auth
+    # rides a Bearer token on native (not the cookie), but allow_credentials stays on for the web.
+    _native_origins = [
+        "capacitor://localhost",  # iOS default
+        "https://localhost",  # Android (androidScheme: https, our default)
+        "http://localhost",  # Android (http scheme) / fallback
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[*_cors_origins, *_native_origins],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+def _install_metrics(app: FastAPI) -> None:
+    """Optional Prometheus instrumentation; a no-op unless ``PODCAST_METRICS_ENABLED``.
+
+    Extracted from ``create_app`` for the same reason as :func:`_install_cors`.
+    """
+    # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
+    # so the default behaviour (no Grafana account, no agent running)
+    # stays a no-op. Wired for the Grafana Cloud free-tier sink in
+    # pre-prod (RFC-081, Phase 1B). The instrumentator emits the
+    # standard FastAPI metrics: http_requests_total{method,route,status}
+    # + http_request_duration_seconds histogram.
+    if _env_truthy("PODCAST_METRICS_ENABLED"):
+        try:
+            from prometheus_fastapi_instrumentator import Instrumentator
+
+            # ``should_group_status_codes=False`` keeps 2xx/4xx/5xx
+            # distinguishable in dashboards. ``excluded_handlers`` keeps
+            # the /metrics endpoint itself out of the request counter
+            # (otherwise a Prometheus scrape inflates the count).
+            Instrumentator(
+                should_group_status_codes=False,
+                excluded_handlers=["/metrics"],
+            ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+        except Exception:  # noqa: BLE001 — telemetry must never break the app
+            # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
+            # A missing package (or any instrument/expose failure) must NOT down
+            # the app — log LOUDLY (an error surfaces in Sentry now) and run
+            # WITHOUT metrics. Telemetry never breaks the app (ADR-120); an
+            # app-up-without-metrics beats app-down. Was a fail-loud RuntimeError.
+            logger.exception(
+                "PODCAST_METRICS_ENABLED is set but metrics instrumentation failed "
+                "— continuing WITHOUT metrics. If the package is missing, install "
+                "via ``pip install -e '.[dev]'`` (or add it to the image)."
+            )
+
+        # Dev-only: push the metrics registry straight to VictoriaMetrics when
+        # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
+        # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.
+        _start_dev_metrics_pusher()
+
+
+def _install_exception_handlers(app: FastAPI) -> None:
+    """App-wide error handlers: corpus-path failures, and a 422 body that can be serialised.
+
+    Extracted from ``create_app`` alongside :func:`_install_cors` to bring the factory back
+    under the complexity ceiling.
+    """
+
+    @app.exception_handler(CorpusPathRequestError)
+    async def _corpus_path_errors(
+        _request: Request,
+        exc: CorpusPathRequestError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_errors(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        """FastAPI's default 422, but with a body that can actually be serialised.
+
+        The default handler echoes the offending value back as ``input``. Starlette renders with
+        ``allow_nan=False``, so a request carrying ``Infinity`` or ``NaN`` — non-standard tokens
+        Python's ``json.loads`` accepts and RFC 8259 does not — made the 422 itself unrenderable:
+        rejecting the value correctly, then 500ing while saying so. The rejection is the point, so
+        the report has to survive being written.
+        """
+        return JSONResponse(status_code=422, content={"detail": _json_safe(exc.errors())})
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -506,53 +610,9 @@ def create_app(
 
     app = FastAPI(title="podcast_scraper", version=__version__, lifespan=_lifespan)
 
-    @app.exception_handler(CorpusPathRequestError)
-    async def _corpus_path_errors(
-        _request: Request,
-        exc: CorpusPathRequestError,
-    ) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    _install_exception_handlers(app)
 
-    @app.exception_handler(RequestValidationError)
-    async def _validation_errors(_request: Request, exc: RequestValidationError) -> JSONResponse:
-        """FastAPI's default 422, but with a body that can actually be serialised.
-
-        The default handler echoes the offending value back as ``input``. Starlette renders with
-        ``allow_nan=False``, so a request carrying ``Infinity`` or ``NaN`` — non-standard tokens
-        Python's ``json.loads`` accepts and RFC 8259 does not — made the 422 itself unrenderable:
-        rejecting the value correctly, then 500ing while saying so. The rejection is the point, so
-        the report has to survive being written.
-        """
-        return JSONResponse(status_code=422, content={"detail": _json_safe(exc.errors())})
-
-    # CORS origins: default to the local Vue dev-server ports, but let prod pin
-    # the real public hostname(s) via PODCAST_SERVE_CORS_ORIGINS (comma-separated)
-    # — auth is cookie-based, so credentialed localhost origins must not be the
-    # only allowlist on a public box (review 2026-07-17 M11).
-    _default_cors = [
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:5174",
-        "http://localhost:5174",
-    ]
-    _cors_env = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
-    _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _default_cors
-    # The Capacitor native shell's WebView serves the app from a FIXED local origin (not a network
-    # host), so its cross-origin calls to this API need explicit CORS allowance (#1310). These are
-    # constant app origins — safe to always allow, even when prod pins the web hostname above. Auth
-    # rides a Bearer token on native (not the cookie), but allow_credentials stays on for the web.
-    _native_origins = [
-        "capacitor://localhost",  # iOS default
-        "https://localhost",  # Android (androidScheme: https, our default)
-        "http://localhost",  # Android (http scheme) / fallback
-    ]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[*_cors_origins, *_native_origins],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    _install_cors(app)
 
     # Operator write-path authz (optional API key) + audit trail (#1071). Inert unless
     # APP_OPERATOR_API_KEY is set; consumer /api/app routes are never gated here.
@@ -561,40 +621,7 @@ def create_app(
     # Request access log with trace correlation (ADR-119, G1). See _install_access_logging.
     _install_access_logging(app)
 
-    # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
-    # so the default behaviour (no Grafana account, no agent running)
-    # stays a no-op. Wired for the Grafana Cloud free-tier sink in
-    # pre-prod (RFC-081, Phase 1B). The instrumentator emits the
-    # standard FastAPI metrics: http_requests_total{method,route,status}
-    # + http_request_duration_seconds histogram.
-    if _env_truthy("PODCAST_METRICS_ENABLED"):
-        try:
-            from prometheus_fastapi_instrumentator import Instrumentator
-
-            # ``should_group_status_codes=False`` keeps 2xx/4xx/5xx
-            # distinguishable in dashboards. ``excluded_handlers`` keeps
-            # the /metrics endpoint itself out of the request counter
-            # (otherwise a Prometheus scrape inflates the count).
-            Instrumentator(
-                should_group_status_codes=False,
-                excluded_handlers=["/metrics"],
-            ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-        except Exception:  # noqa: BLE001 — telemetry must never break the app
-            # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
-            # A missing package (or any instrument/expose failure) must NOT down
-            # the app — log LOUDLY (an error surfaces in Sentry now) and run
-            # WITHOUT metrics. Telemetry never breaks the app (ADR-120); an
-            # app-up-without-metrics beats app-down. Was a fail-loud RuntimeError.
-            logger.exception(
-                "PODCAST_METRICS_ENABLED is set but metrics instrumentation failed "
-                "— continuing WITHOUT metrics. If the package is missing, install "
-                "via ``pip install -e '.[dev]'`` (or add it to the image)."
-            )
-
-        # Dev-only: push the metrics registry straight to VictoriaMetrics when
-        # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
-        # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.
-        _start_dev_metrics_pusher()
+    _install_metrics(app)
 
     # #1163 / ADR-116: app-only public serve mode. When ``PODCAST_SERVE_APP_ONLY``
     # is set, mount ONLY health + the consumer ``/api/app/*`` plane — none of the

@@ -125,8 +125,7 @@ _ICON_PATHS: dict[str, str] = {
         '<path d="M8 78 q14 -14 28 0 t28 0 t28 0"/>'
     ),
     "horizon": (
-        '<circle cx="70" cy="30" r="13"/>'
-        '<path d="M6 82 L34 40 L54 68 L68 52 L94 82 Z"/>'
+        '<circle cx="70" cy="30" r="13"/>' '<path d="M6 82 L34 40 L54 68 L68 52 L94 82 Z"/>'
     ),
     "mic": (
         '<rect x="38" y="10" width="24" height="44" rx="12"/>'
@@ -137,9 +136,7 @@ _ICON_PATHS: dict[str, str] = {
         '<path d="M78 64 a30 30 0 0 1 -52 6"/><path d="M22 66 h14 v14"/>'
         '<circle cx="50" cy="50" r="7"/>'
     ),
-    "default": (
-        '<path d="M14 50 h10 l8 -22 l10 44 l10 -32 l8 20 h26"/>'
-    ),
+    "default": ('<path d="M14 50 h10 l8 -22 l10 44 l10 -32 l8 20 h26"/>'),
 }
 
 #: description keyword → icon key. First match wins, so order matters.
@@ -231,7 +228,13 @@ def render_cover(
         for i, line in enumerate(lines)
     )
 
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="{_esc(title)}">
+    # Source-wrapped with adjacent literals, NOT reflowed: the emitted bytes are compared
+    # byte-for-byte by `--check` against the committed covers, so a newline inside this tag would
+    # mark every one of them stale.
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" '
+        f'height="600" role="img" aria-label="{_esc(title)}">\n'
+        f"""\
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="{c_from}"/>
@@ -269,12 +272,11 @@ def render_cover(
         font-weight="700" letter-spacing="2">{_esc(_initials(title))}</text>
 </svg>
 """
+    )
 
 
 def _esc(s: str) -> str:
-    return (
-        s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-    )
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def _feed_titles(corpus: Path) -> dict[str, tuple[str, str]]:
@@ -303,7 +305,9 @@ def _feed_titles(corpus: Path) -> dict[str, tuple[str, str]]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--corpus", default="tests/fixtures/app-validation-corpus/v3")
-    ap.add_argument("--check", action="store_true", help="verify without writing; non-zero if stale")
+    ap.add_argument(
+        "--check", action="store_true", help="verify without writing; non-zero if stale"
+    )
     args = ap.parse_args()
 
     corpus = Path(args.corpus).resolve()
@@ -365,7 +369,10 @@ def main() -> int:
         print(f"artwork up to date for {len(titles)} shows")
         return 0
 
-    print(f"wrote {len(titles)} covers to {art_dir.relative_to(corpus)}; patched {patched} metadata files")
+    print(
+        f"wrote {len(titles)} covers to {art_dir.relative_to(corpus)}; "
+        f"patched {patched} metadata files"
+    )
     return 0
 
 

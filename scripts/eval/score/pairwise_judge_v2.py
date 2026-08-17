@@ -500,7 +500,7 @@ def main() -> int:
             }
         )
         judge_summary = " ".join(
-            f"{k.split(':',1)[1][:18]}={v}" for k, v in per_judge_consensus_map.items()
+            f"{k.split(':', 1)[1][:18]}={v}" for k, v in per_judge_consensus_map.items()
         )
         print(f"  {item_id}: {judge_summary} → {final}", file=sys.stderr)
 

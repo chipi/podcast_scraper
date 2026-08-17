@@ -39,7 +39,9 @@ def _lock(data_dir: Path, user_id: str) -> FileLock:
 
 
 def _read(data_dir: Path, user_id: str, *, strict: bool = False) -> dict[str, Any]:
-    """The user's collections doc, or the empty doc. With ``strict``, an unusable EXISTING file raises.
+    """The user's collections doc, or the empty doc.
+
+    With ``strict``, an unusable EXISTING file raises.
 
     Readers stay lenient — a browsable UI over a temporarily bad file beats a 500. Writers must not
     be: every mutator here persists what it just read, so answering a bad read with the empty doc

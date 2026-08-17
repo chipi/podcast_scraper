@@ -27,10 +27,6 @@ from podcast_scraper.server.app_corpus_access import (
     safe_relpath_under_corpus_root,
 )
 from podcast_scraper.server.app_slugs import resolve_slug
-from podcast_scraper.server.segments_view import (
-    segments_relpaths_for_transcript,
-    to_contract_segments,
-)
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -42,6 +38,10 @@ from podcast_scraper.server.schemas import (
     NoteCreate,
     NotesResponse,
     NoteUpdate,
+)
+from podcast_scraper.server.segments_view import (
+    segments_relpaths_for_transcript,
+    to_contract_segments,
 )
 
 logger = logging.getLogger(__name__)
@@ -203,6 +203,11 @@ async def delete_highlight(
     data_dir = _data_dir(request)
     rows = app_user_state.remove_highlight(data_dir, user.user_id, highlight_id)
     app_user_state.remove_notes_for_target(data_dir, user.user_id, "highlight", highlight_id)
+    # The resurfacing schedule goes too (#39). Nothing reads an orphaned entry — select_due
+    # iterates highlights and looks state up — so this is unbounded growth, not a wrong answer:
+    # one dead key per deleted capture, for ever. It also left resurfacing.json as the one
+    # per-user file where a deleted capture still had a trace.
+    app_user_state.remove_resurfacing_state(data_dir, user.user_id, highlight_id)
     return HighlightsResponse(items=[Highlight(**r) for r in rows])
 
 

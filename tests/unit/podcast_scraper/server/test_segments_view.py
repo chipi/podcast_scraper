@@ -170,7 +170,8 @@ def test_equal_starts_keep_their_file_order() -> None:
 
 
 def test_non_finite_times_are_dropped_like_any_other_malformed_entry() -> None:
-    """One NaN makes the ENTIRE response unserialisable, which the player calls "Transcript pending".
+    """One NaN makes the ENTIRE response unserialisable, which the player calls
+    "Transcript pending".
 
     json.loads accepts the non-standard NaN / Infinity tokens, and Starlette renders with
     allow_nan=False — so a single bad number in one segment reads to the user as a permanently

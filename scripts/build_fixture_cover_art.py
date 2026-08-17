@@ -106,7 +106,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         default=None,
         help="default: tests/fixtures/images/<FIXTURES_VERSION>",
     )
-    ap.add_argument("--check", action="store_true", help="verify without writing; non-zero if stale")
+    ap.add_argument(
+        "--check", action="store_true", help="verify without writing; non-zero if stale"
+    )
     args = ap.parse_args(argv)
 
     if not args.rss_dir.is_dir():
@@ -115,9 +117,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     out_dir = args.out_dir
     if out_dir is None:
-        version = (repo_root / "tests" / "fixtures" / "FIXTURES_VERSION").read_text(
-            encoding="utf-8"
-        ).strip()
+        version = (
+            (repo_root / "tests" / "fixtures" / "FIXTURES_VERSION")
+            .read_text(encoding="utf-8")
+            .strip()
+        )
         out_dir = repo_root / "tests" / "fixtures" / "images" / version
 
     targets = _feed_art_targets(args.rss_dir)

@@ -278,7 +278,8 @@ def test_a_mutation_does_not_purge_rows_the_getter_filters_out(
 
 
 def test_set_interests_is_locked_like_every_other_writer_of_this_file(tmp_path: Path) -> None:
-    """An unlocked replace over a file that ALSO has read-modify-write writers is not last-write-wins.
+    """An unlocked replace over a file that ALSO has read-modify-write writers is not
+    last-write-wins.
 
     add_interest reads under the lock; a PUT /interests landing between that read and its write used
     to make add_interest persist a list derived from the PRE-PUT state, silently discarding the

@@ -95,7 +95,10 @@ _PROMPT_EXAMPLE_COPY_MIN_RUN = 5  # words, so short incidental overlaps don't co
 
 
 def _normalized_words(text: str) -> list[str]:
-    """Lowercased word tokens, punctuation dropped — so em-dash and comma edits don't hide a copy."""
+    """Lowercased word tokens, punctuation dropped.
+
+    So em-dash and comma edits do not hide a copy.
+    """
     return re.findall(r"[a-z0-9']+", str(text).lower())
 
 

@@ -107,7 +107,10 @@ class TestCardLede:
         assert _card_lede(r) is None
 
     def test_a_lede_that_merely_contains_the_title_is_kept(self) -> None:
-        """Only a full restatement is dropped; a sentence that expands on the title still informs."""
+        """Only a full restatement is dropped.
+
+        A sentence that expands on the title still informs.
+        """
         r = _row(
             episode_title="Risk",
             summary_title="Risk, and why couplings matter more than components",

@@ -68,5 +68,12 @@ def test_resurfacing_settings_pause_and_empty_feed(tmp_path: Path) -> None:
     assert body["paused"] is True
     assert body["items"] == []
 
-    # Marking an absent highlight surfaced is an idempotent 204 no-op.
-    assert client.post("/api/app/resurfacing/h_absent/surfaced").status_code == 204
+    # Marking an absent highlight is a 404, NOT the "idempotent 204 no-op" this used to assert.
+    #
+    # That phrasing dressed up a gap as a feature: the route wrote whatever key it was handed, with
+    # no existence or ownership check, so resurfacing.json accumulated an entry per call, for ever
+    # (#39). Nothing read those keys back — select_due iterates highlights — so it was unbounded
+    # growth rather than a wrong answer, and a 204 made it look deliberate. It stopped being merely
+    # untidy when #35 wired the mark to a `?revisit=` query parameter, i.e. to any string a user can
+    # type into their address bar.
+    assert client.post("/api/app/resurfacing/h_absent/surfaced").status_code == 404

@@ -1289,9 +1289,7 @@ def main() -> int:
             # layer of three and the corpus reported itself fixed. Every writer below reads this.
             pipeline_row = pipeline_outputs.get(ep_label) or {}
             raw_duration = pipeline_row.get("duration_seconds")
-            duration_seconds = (
-                int(raw_duration) if isinstance(raw_duration, (int, float)) else 1800
-            )
+            duration_seconds = int(raw_duration) if isinstance(raw_duration, (int, float)) else 1800
 
             # Artifact relpaths (corpus-root-relative). The catalog derives gi/kg
             # as siblings of the metadata file; transcript_file_path is RUN-relative.
@@ -1413,9 +1411,7 @@ def main() -> int:
             # silently for "we ran the pipeline".
             pipeline_summary = pipeline_outputs.get(ep_label)
             if pipeline_summary and pipeline_summary.get("has_summary"):
-                bullets = pipeline_summary["bullets"] or [
-                    f"Key point {n + 1}" for n in range(3)
-                ]
+                bullets = pipeline_summary["bullets"] or [f"Key point {n + 1}" for n in range(3)]
                 summary_body = pipeline_summary["raw_text"] or episode_title
                 summary_title = pipeline_summary["title"] or episode_title
                 summaries_from_pipeline.append(ep_label)
@@ -1648,7 +1644,8 @@ def main() -> int:
         for line in problems:
             print(f"      {line}")
         print(
-            "\n  Refusing to report success. Two defects shipped in v3 because the build only ever\n"
+            "\n  Refusing to report success. Two defects shipped in v3 because the build\n"
+            "  only ever\n"
             "  checked that files EXIST: 36/36 summaries were the transcript's opening greeting,\n"
             "  and every duration was the same 1800s default. Neither is visible to a file count.\n"
         )

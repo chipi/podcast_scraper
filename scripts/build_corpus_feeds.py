@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate RSS feeds that actually DESCRIBE the app-validation corpus, so the real pipeline can build it.
+"""Generate RSS feeds that actually DESCRIBE the app-validation corpus, so the real pipeline
+can build it.
 
 Why this exists (2026-08-16)
 ----------------------------
@@ -53,8 +54,8 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
-from email.utils import format_datetime
 from datetime import datetime, timezone
+from email.utils import format_datetime
 from pathlib import Path
 from typing import Optional
 
@@ -104,7 +105,10 @@ def _esc(text: str) -> str:
 
 
 def _audio_duration_seconds(path: Path) -> Optional[float]:
-    """Duration via ffmpeg's own report. None when ffmpeg is unavailable or the file is unreadable."""
+    """Duration via ffmpeg's own report.
+
+    None when ffmpeg is unavailable or the file is unreadable.
+    """
     try:
         proc = subprocess.run(
             ["ffmpeg", "-i", str(path)], capture_output=True, text=True, timeout=60

@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from podcast_scraper.server import app_user_corpus, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
@@ -55,8 +55,25 @@ async def resurfacing(
 async def mark_surfaced(
     request: Request, highlight_id: str, user: User = Depends(get_current_user)
 ) -> None:
-    """Record that the user has just seen a resurfaced highlight (advances its ladder step)."""
-    app_user_state.mark_surfaced(_data_dir(request), user.user_id, highlight_id, int(time.time()))
+    """Record that the user has just seen a resurfaced highlight (advances its ladder step).
+
+    404s on an id the caller does not own. This route used to write whatever key it was handed
+    (#39): the id was never checked for existence or ownership, so ``resurfacing.json`` accumulated
+    arbitrary entries. ``select_due`` iterates HIGHLIGHTS and looks state up, so junk keys were
+    never read back — the file simply grew, unboundedly, at the caller's discretion.
+
+    Cheap hygiene before; load-bearing now. Since #35 the mark is triggered by a ``?revisit=``
+    query parameter on the player URL, so any string a user can type into their address bar reaches
+    this handler.
+    """
+    data_dir = _data_dir(request)
+    owned = any(
+        h.get("id") == highlight_id for h in app_user_state.get_highlights(data_dir, user.user_id)
+    )
+    if not owned:
+        # 404 rather than 403: whether some other user holds this id is not this caller's business.
+        raise HTTPException(status_code=404, detail="highlight not found")
+    app_user_state.mark_surfaced(data_dir, user.user_id, highlight_id, int(time.time()))
 
 
 @router.get("/resurfacing/settings", response_model=ResurfacingSettings)

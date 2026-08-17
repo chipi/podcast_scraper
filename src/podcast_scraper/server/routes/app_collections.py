@@ -99,7 +99,9 @@ async def add_item(
     body: CollectionItemBody,
     user: User = Depends(get_current_user),
 ) -> Collection:
-    """Add a highlight to a collection (idempotent). 404 when the collection or highlight is unknown.
+    """Add a highlight to a collection (idempotent).
+
+    404 when the collection or highlight is unknown.
 
     The highlight has to exist. The store accepts any string — membership is an opaque id list —
     so an unknown id used to be stored forever, uncountable and unrenderable. Checking here rather

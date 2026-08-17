@@ -167,5 +167,8 @@ def test_a_greeting_INSIGHT_is_caught(tmp_path: Path) -> None:
 
 
 def test_an_empty_corpus_is_a_failure_not_a_pass(tmp_path: Path) -> None:
-    """A build that wrote nothing must not audit clean — that is the loudest possible false green."""
+    """A build that wrote nothing must not audit clean.
+
+    That is the loudest possible false green.
+    """
     assert _audit_built_corpus(tmp_path / "nothing-here") != []

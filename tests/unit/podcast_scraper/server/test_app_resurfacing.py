@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from podcast_scraper.server.app_resurfacing import (
     DAY,
     LADDER_SECONDS,
@@ -61,3 +60,53 @@ def test_ladder_caps_at_last_step() -> None:
 def test_reflection_prompt_is_stable() -> None:
     assert reflection_prompt("h1") == reflection_prompt("h1")
     assert reflection_prompt("h1") in REFLECTION_PROMPTS
+
+
+# --- select_due must survive the state it READS, not just the state it writes (#39) ------------
+#
+# `state` is a per-user JSON file on disk: hand-editable, possibly half-written, possibly left by
+# an older build. `mark_surfaced` clamps what it writes, but the clamp on the WRITE side does
+# nothing for a value that is already there.
+
+
+def test_a_non_numeric_count_does_not_take_down_the_route() -> None:
+    """A string count raised ValueError out of select_due — a 500 on /resurfacing AND /your-week.
+
+    Two whole surfaces down because one key in one user's file was the wrong type.
+    """
+    hl = _hl("h1", NOW - 3 * DAY)
+    got = select_due([hl], {"h1": {"count": "many", "last_surfaced": NOW - 3 * DAY}}, NOW)
+    assert [h["id"] for h in got] == ["h1"]  # treated as never surfaced, still due
+
+
+def test_a_negative_count_does_not_index_the_ladder_backwards() -> None:
+    """The quiet one, and the worse one. `ladder[-1]` is the 90-DAY step, so a negative count
+    silently scheduled a brand-new highlight on the longest rung — no error, no log, just a
+    capture that stops resurfacing for three months."""
+    hl = _hl("h1", NOW - 3 * DAY)  # 3 days old: due on the 2-day step, NOT on the 90-day one
+    got = select_due([hl], {"h1": {"count": -1, "last_surfaced": NOW - 3 * DAY}}, NOW)
+    assert [h["id"] for h in got] == [
+        "h1"
+    ], "a negative count indexed the ladder from the end and picked the 90-day interval"
+
+
+def test_a_non_numeric_last_surfaced_falls_back_to_created_at() -> None:
+    hl = _hl("h1", NOW - 3 * DAY)
+    got = select_due([hl], {"h1": {"count": 0, "last_surfaced": "yesterday"}}, NOW)
+    assert [h["id"] for h in got] == ["h1"]
+
+
+def test_a_non_mapping_state_entry_is_ignored_rather_than_fatal() -> None:
+    hl = _hl("h1", NOW - 3 * DAY)
+    assert [h["id"] for h in select_due([hl], {"h1": "corrupt"}, NOW)] == ["h1"]
+
+
+def test_an_orphan_state_entry_changes_nothing() -> None:
+    """Selection iterates HIGHLIGHTS, so a schedule entry for a deleted capture is inert.
+
+    That is precisely why the missing delete-cascade was growth and not a wrong answer — worth
+    pinning, because a future rewrite that iterated `state` instead would resurrect dead captures.
+    """
+    hl = _hl("h1", NOW - 3 * DAY)
+    state = {"h1": {"count": 0, "last_surfaced": NOW - 3 * DAY}, "h_deleted": {"count": 0}}
+    assert [h["id"] for h in select_due([hl], state, NOW)] == ["h1"]

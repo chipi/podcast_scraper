@@ -54,8 +54,22 @@ def select_due(
         if not hid or not created:
             continue
         st = state.get(hid, {})
-        count = int(st.get("count", 0))
-        last_seen = int(st.get("last_surfaced") or created)
+        # Defensive: `state` comes off disk, so it may be hand-edited, half-written, or left by an
+        # older build. `mark_surfaced` clamps what IT writes, but this is the function that READS,
+        # and it trusted the value outright — a non-numeric count raised ValueError and 500'd both
+        # /resurfacing and /your-week, while a NEGATIVE one indexed the ladder from the END (Python
+        # negative indexing) and silently scheduled on the wrong rung. The quiet wrong answer is
+        # the worse of the two: nothing anywhere would have reported it.
+        if not isinstance(st, dict):
+            st = {}
+        try:
+            count = max(0, int(st.get("count", 0)))
+        except (TypeError, ValueError):
+            count = 0
+        try:
+            last_seen = int(st.get("last_surfaced") or created)
+        except (TypeError, ValueError):
+            last_seen = created
         interval = ladder[min(count, len(ladder) - 1)]
         overdue = (now - last_seen) - interval
         if overdue >= 0:

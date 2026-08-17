@@ -20,8 +20,6 @@ if PACKAGE_ROOT not in sys.path:
 from podcast_scraper import config as config_module  # noqa: E402
 from tests.integration.conftest import requires
 
-from tests.integration.conftest import requires
-
 
 @pytest.mark.integration
 class TestE2EServer:

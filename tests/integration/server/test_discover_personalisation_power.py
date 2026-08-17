@@ -45,7 +45,11 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
+from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
+from podcast_scraper.search.topic_clusters import (
+    consumer_topic_cluster_map,
+    top_clusters_by_member_count,
+)
 from podcast_scraper.server.app_discover_view import (
     _episode_features,
     build_discover_pool,
@@ -54,8 +58,6 @@ from podcast_scraper.server.app_discover_view import (
 )
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
-from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
-from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 
 pytestmark = [pytest.mark.integration]
 
@@ -325,8 +327,7 @@ class TestDerivationTracksRecentListening:
         self, monkeypatch, tmp_path: Path, *, old_episodes: int = 40, new_episodes: int = 5
     ):
         """N old episodes on an alphabetically-early show + M recent ones on a late-sorting show."""
-        from podcast_scraper.server import app_user_corpus as uc
-        from podcast_scraper.server import app_user_state
+        from podcast_scraper.server import app_user_corpus as uc, app_user_state
 
         uid = "u_0123456789abcdef01234567"
         old = [f"{self.OLD_SHOW}-{i:04d}" for i in range(old_episodes)]

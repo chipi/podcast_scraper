@@ -706,6 +706,62 @@ def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
     assert state[old["id"]]["count"] == 1
 
 
+def test_marking_an_id_you_do_not_own_is_a_404(tmp_path: Path) -> None:
+    """The route wrote whatever key it was handed — no existence check, no ownership check (#39).
+
+    Junk keys are never READ back (select_due iterates highlights), so this was unbounded growth
+    rather than a wrong answer: resurfacing.json accumulated one entry per call, for ever, at the
+    caller's discretion. It stopped being merely untidy with #35, which made the mark fire from a
+    `?revisit=` query parameter — i.e. from any string a user can type into the address bar.
+    """
+    import json as _json
+
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    real = client.post(
+        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+    ).json()
+
+    assert client.post("/api/app/resurfacing/h_not_mine/surfaced").status_code == 404
+    assert client.post("/api/app/resurfacing/..%2Fetc%2Fpasswd/surfaced").status_code == 404
+
+    user_dir = next((tmp_path / "appdata" / "users").iterdir())
+    state_file = user_dir / "resurfacing.json"
+    # Nothing was written at all — not even an empty file.
+    assert not state_file.exists() or _json.loads(state_file.read_text()) == {}
+
+    # The real one still works, so the check gates rather than blocks.
+    assert client.post(f"/api/app/resurfacing/{real['id']}/surfaced").status_code == 204
+    assert list(_json.loads(state_file.read_text())) == [real["id"]]
+
+
+def test_deleting_a_highlight_takes_its_schedule_with_it(tmp_path: Path) -> None:
+    """The delete cascade (#39). resurfacing.json was the one per-user file where a deleted
+    capture still left a trace — one dead key each, growing without bound."""
+    import json as _json
+
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    keep = client.post(
+        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+    ).json()
+    doomed = client.post(
+        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 60}
+    ).json()
+    for hid in (keep["id"], doomed["id"]):
+        assert client.post(f"/api/app/resurfacing/{hid}/surfaced").status_code == 204
+
+    user_dir = next((tmp_path / "appdata" / "users").iterdir())
+    state_file = user_dir / "resurfacing.json"
+    assert set(_json.loads(state_file.read_text())) == {keep["id"], doomed["id"]}
+
+    assert client.delete(f"/api/app/highlights/{doomed['id']}").status_code == 200
+    # The deleted one's entry is gone; the survivor's is untouched, not collaterally wiped.
+    remaining = _json.loads(state_file.read_text())
+    assert set(remaining) == {keep["id"]}
+    assert remaining[keep["id"]]["count"] == 1
+
+
 def test_derived_interests_rank_corpus_entities(tmp_path: Path) -> None:
     _corpus(tmp_path)  # ep1 + ep2 both feature person:jane-doe; ep1 also bob; topics ai/ml
     client = _authed(tmp_path)

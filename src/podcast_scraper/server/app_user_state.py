@@ -296,10 +296,10 @@ def get_favorites(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
 def add_favorite(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
     """Add/replace a favorite (idempotent on ``kind``+``ref``); appended newest-last.
 
-    Raw rows, not :func:`get_favorites`: that getter both swallows an unreadable file AND drops rows
-    missing ``kind``/``ref``, so reading through it meant one bad read wiped the list and one ordinary
-    save silently purged any row a different schema version wrote. Returns the getter view, so the
-    API still sees only rows it can render.
+    Raw rows, not :func:`get_favorites`: that getter both swallows an unreadable file AND drops
+    rows missing ``kind``/``ref``, so reading through it meant one bad read wiped the list and one
+    ordinary save silently purged any row a different schema version wrote. Returns the getter
+    view, so the API still sees only rows it can render.
     """
     kind, ref = item.get("kind"), item.get("ref")
     with _user_lock(data_dir, user_id, "favorites"):
@@ -353,8 +353,9 @@ def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[
 
     Locked, unlike the queue's equally-replacing ``set_queue``, and the difference matters: this
     file also has read-modify-write writers. ``add_interest`` reads under the lock, so an unlocked
-    PUT /interests landing between that read and its write was not last-write-wins — ``add_interest``
-    then persisted a list derived from the PRE-PUT state and the replacement vanished silently.
+    PUT /interests landing between that read and its write was not last-write-wins —
+    ``add_interest`` then persisted a list derived from the PRE-PUT state and the replacement
+    vanished silently.
     Symptom: saving the interest picker in one tab while following a person from an entity card in
     another, and watching the picker save revert.
     """
@@ -735,6 +736,22 @@ def mark_surfaced(data_dir: Path, user_id: str, highlight_id: str, ts: int) -> d
         data[highlight_id] = rec
         _write(data_dir, user_id, "resurfacing", data)
         return rec
+
+
+def remove_resurfacing_state(data_dir: Path, user_id: str, highlight_id: str) -> None:
+    """Drop a highlight's schedule entry (no-op if absent) — the delete cascade for #39.
+
+    ``select_due`` iterates HIGHLIGHTS and looks their state up, so an orphaned entry is never
+    read and nothing misbehaves; the file simply grows for ever, one dead key per deleted capture.
+    It is also the only per-user file that had no cascade at all, so it was the one place a
+    "deleted" thing left a trace — the same shape of promise-vs-reality gap the note cascade fixed.
+    """
+    with _user_lock(data_dir, user_id, "resurfacing"):
+        data = _mapping_for_update(data_dir, user_id, "resurfacing")
+        if highlight_id not in data:
+            return  # nothing to write — do not rewrite the file for a no-op delete
+        data.pop(highlight_id, None)
+        _write(data_dir, user_id, "resurfacing", data)
 
 
 def get_resurfacing_settings(data_dir: Path, user_id: str) -> dict[str, Any]:

@@ -378,7 +378,7 @@ class TestMultiFeedMultiEpisodePartialTranscriptFailure:
             )
             assert without_skips, (
                 "the other feed's run.json should have no skipped episodes "
-                f"(got skipped totals {[ _run_json_skipped_total(s) for s in run_summaries ]})"
+                f"(got skipped totals {[_run_json_skipped_total(s) for s in run_summaries]})"
             )
 
 

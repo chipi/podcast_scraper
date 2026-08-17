@@ -34,7 +34,10 @@ _MAX_CARD_BULLETS = 8
 
 
 def _lede_key(s: str) -> str:
-    """Comparison key for "is this just the title again?" — ignores case, spacing, edge punctuation."""
+    """Comparison key for "is this just the title again?".
+
+    Ignores case, spacing and edge punctuation.
+    """
     return " ".join(s.lower().split()).strip(" .,:;!?-–—\"'")
 
 

@@ -787,8 +787,13 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split("?")[0]  # Remove query string
         self._dispatch_http_get(path, head_only=True)
 
-    def _dispatch_http_get(self, path: str, head_only: bool) -> None:
-        """Handle GET or HEAD for RSS, static fixtures, and Ollama discovery routes."""
+    def _serve_injected_error(self, path: str) -> bool:
+        """Serve a test-injected transient/permanent error for ``path``; True if it responded.
+
+        Split out of ``_dispatch_http_get`` (which was over the complexity ceiling at 26). These
+        two checks are error INJECTION for the tests, not routing — the rest of the dispatcher is a
+        route table, and mixing the two made one function do both jobs.
+        """
         # Check transient errors first (fail N times, then fall through)
         with self._transient_errors_lock:
             transient = self._transient_errors.get(path)
@@ -808,7 +813,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         f"Transient {status} (hit "
                         f"{transient['hits']}/{transient['fail_count']})",
                     )
-                    return
+                    return True
                 # Past fail_count: fall through to normal serving
 
         # Check for permanent error behavior
@@ -823,6 +828,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 error_behavior["status"],
                 f"Simulated {error_behavior['status']} error",
             )
+            return True
+        return False
+
+    def _dispatch_http_get(self, path: str, head_only: bool) -> None:
+        """Handle GET or HEAD for RSS, static fixtures, and Ollama discovery routes."""
+        # Test-injected failures come first: a transient error fails N times and then falls
+        # through to normal serving; a permanent one always answers.
+        if self._serve_injected_error(path):
             return
 
         # Route 1: RSS feeds
