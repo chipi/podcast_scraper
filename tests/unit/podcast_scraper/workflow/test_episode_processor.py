@@ -2426,6 +2426,14 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
         with open(self.temp_media, "w") as f:
             f.write("test audio")
 
+        # What preprocessing produced. A DIFFERENT path from temp_media is the signal that
+        # preprocessing actually ran (#35) — ``preprocessing_enabled`` defaults to True, so
+        # passing temp_media here would (correctly) suppress the cache write and these cases
+        # would silently become tests of the guard instead of tests of the save.
+        self.preprocessed_media = os.path.join(self.temp_dir, "temp.preprocessed.mp3")
+        with open(self.preprocessed_media, "w") as f:
+            f.write("preprocessed test audio")
+
         self.job = Mock()
         self.job.idx = 1
 
@@ -2449,7 +2457,12 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
         cfg = create_test_config(transcript_cache_enabled=True)
 
         episode_processor._save_transcript_to_cache_if_needed(
-            self.job, cfg, self.temp_media, "Transcript text", Mock()
+            self.job,
+            cfg,
+            self.temp_media,
+            "Transcript text",
+            Mock(),
+            media_for_transcription=self.preprocessed_media,
         )
 
         mock_save.assert_called_once()
@@ -2461,7 +2474,12 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
 
         with patch("podcast_scraper.cache.transcript_cache.save_transcript_to_cache") as mock_save:
             episode_processor._save_transcript_to_cache_if_needed(
-                self.job, cfg, self.temp_media, "Transcript text", Mock()
+                self.job,
+                cfg,
+                self.temp_media,
+                "Transcript text",
+                Mock(),
+                media_for_transcription=self.preprocessed_media,
             )
 
             mock_save.assert_not_called()
@@ -2482,7 +2500,12 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
 
         # Should not raise
         episode_processor._save_transcript_to_cache_if_needed(
-            self.job, cfg, self.temp_media, "Transcript text", Mock()
+            self.job,
+            cfg,
+            self.temp_media,
+            "Transcript text",
+            Mock(),
+            media_for_transcription=self.preprocessed_media,
         )
 
         mock_logger.warning.assert_called()
@@ -2500,7 +2523,13 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
         segs = [{"start": 0.0, "end": 0.5, "text": "Hi"}]
 
         episode_processor._save_transcript_to_cache_if_needed(
-            self.job, cfg, self.temp_media, "Transcript text", Mock(), segments=segs
+            self.job,
+            cfg,
+            self.temp_media,
+            "Transcript text",
+            Mock(),
+            segments=segs,
+            media_for_transcription=self.preprocessed_media,
         )
 
         mock_save.assert_called_once()

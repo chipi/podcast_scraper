@@ -1718,6 +1718,41 @@ def _get_provider_model_name(transcription_provider: Any, cfg: config.Config) ->
     return None
 
 
+def _preprocessing_fingerprint_would_lie(
+    cfg: config.Config,
+    temp_media: str,
+    media_for_transcription: Optional[str],
+) -> bool:
+    """True when the cache key would claim preprocessed audio the transcriber never saw (#35).
+
+    ``preprocessing_fingerprint(cfg)`` is computed from CONFIG and its docstring calls itself
+    "identity of the audio the transcriber will actually see". Those agree only when preprocessing
+    was enabled AND actually produced a file. When it was enabled and fell back to the original —
+    the #18/#558 failure, where a flat 300 s budget killed preprocessing on long episodes — the
+    key says ``pp=on|…`` over a transcript built from RAW audio.
+
+    Three cases, and only one is a lie:
+
+    * preprocessing disabled   -> key is ``pp=off``, audio was raw          -> HONEST, cache it
+    * preprocessing produced a file (path differs) -> key is ``pp=on|…``    -> HONEST, cache it
+    * preprocessing enabled, path unchanged (fell back)                     -> LIE, do not cache
+
+    Compared on ``realpath`` so a symlinked or non-normalised temp dir cannot make one file look
+    like two and turn the lie back on.
+    """
+    if not getattr(cfg, "preprocessing_enabled", False):
+        return False
+    if not media_for_transcription:
+        # Nothing to compare against. Treat as a fallback rather than assume success: a wrongly
+        # skipped cache write costs one re-transcription, a wrongly kept one silently defeats the
+        # repair this whole epic exists for.
+        return True
+    try:
+        return os.path.realpath(media_for_transcription) == os.path.realpath(temp_media)
+    except OSError:
+        return True
+
+
 def _save_transcript_to_cache_if_needed(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1725,18 +1760,36 @@ def _save_transcript_to_cache_if_needed(
     text: str,
     transcription_provider: Any,
     segments: Optional[List[Dict[str, Any]]] = None,
+    *,
+    media_for_transcription: Optional[str],
 ) -> None:
-    """Save transcript to cache if caching is enabled.
+    """Save transcript to cache if caching is enabled AND the cache key would be honest (#35).
 
     Args:
         job: TranscriptionJob with episode info
         cfg: Configuration object
-        temp_media: Path to temporary media file
+        temp_media: Path to temporary media file (the ORIGINAL download)
         text: Transcribed text
         transcription_provider: Transcription provider instance
         segments: Optional provider segments for GI ``.segments.json`` parity on cache hit
+        media_for_transcription: The file the provider ACTUALLY received. Keyword-only and
+            required — no default — because a default is exactly how this bug got here: the
+            helper was handed ``temp_media`` and had no way to know whether that was what the
+            provider saw. A new call site must state it.
     """
     if not (cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media)):
+        return
+    if _preprocessing_fingerprint_would_lie(cfg, temp_media, media_for_transcription):
+        # The transcript is fine and this run uses it. It just must not be REPLAYED under a key
+        # claiming preprocessed audio, or the #18 repair run scores a cache hit on the very
+        # transcript it was launched to replace.
+        logger.warning(
+            "[%s] Not caching transcript: preprocessing was enabled but fell back to raw audio, "
+            "so the cache key (%s) would misdescribe what was transcribed. "
+            "The transcript is still used for this run.",
+            job.idx,
+            preprocessing_fingerprint(cfg),
+        )
         return
 
     from podcast_scraper.cache import transcript_cache
@@ -2920,6 +2973,9 @@ def transcribe_media_to_text(
             text,
             transcription_provider,
             segments=segments if isinstance(segments, list) else None,
+            # What the provider ACTUALLY received, which is not always what preprocessing was
+            # asked to produce (#35).
+            media_for_transcription=media_for_transcription,
         )
 
         # Record transcription time if metrics available

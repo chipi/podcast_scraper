@@ -279,6 +279,20 @@ def check_corpus_preprocessing(corpus_root: Path) -> Tuple[bool, str]:
         f"    runs with no preprocessing metrics at all: {len(no_metrics)} "
         "(cannot be judged either way)"
     )
+    idle = [r for r in runs if not r.attempts and r.episodes_in_run]
+    lines.append(
+        f"    runs that attempted NO preprocessing at all: {len(idle)} (reported as not damaged,"
+    )
+    lines.append(
+        "      because a run that never preprocessed damaged nothing — but a repair run served"
+    )
+    lines.append(
+        "      entirely from the transcript cache looks identical here, having repaired nothing."
+    )
+    lines.append(
+        "      After a repair, assert positively that attempts >= 1 (runbook step 8), and pass"
+    )
+    lines.append("      --no-transcript-cache so the cache cannot replay the damaged transcript.")
 
     lines.append("")
     lines.append(f"VERDICT: {'PASS' if not damaged else 'FAIL'}")

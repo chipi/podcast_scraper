@@ -128,8 +128,28 @@ gap persist because nobody looked.
 ```bash
 podcast-scraper --config <profile> --feeds-spec <corpus>/feeds.spec.yaml \
   --output-dir <corpus> --skip-existing --single-feed-uses-corpus-layout \
+  --no-transcript-cache \
   --reprocess-episode-ids <corpus>/preprocessing_repair_worklist.txt
 ```
+
+`--no-transcript-cache` is **not optional here**, and it is the difference between this step
+working and silently doing nothing. The transcript cache is keyed on the hash of the *original*
+media plus `preprocessing_fingerprint(cfg)` — and that fingerprint is computed from **config**, so
+it reads `pp=on|…` whether preprocessing succeeded or fell back to raw audio. Neither key
+component changes between the damaged run and this repair run: the audio is the same file, and the
+config always said `pp=on` — it was the *run* that failed. So without the flag this step scores a
+cache hit and re-serves the exact transcript it was launched to replace, and every gate in step 8
+then goes green on unrepaired data.
+
+Three reprocess profiles (`reprocess_dgx_no_llm`, `reprocess_dgx_turbo`, `reprocess_v23_turbo`)
+already set `transcript_cache_enabled: false`, so with those the flag is redundant. Pass it anyway
+— it makes the command correct on its face rather than correct-if-you-picked-the-right-profile,
+and `config/profiles/*.yaml` are generated (ADR-112) so the profile's value is not yours to fix.
+
+New entries written *by* this run are unaffected: since #35, a run that asks for preprocessing and
+falls back to raw audio no longer writes a cache entry at all, because the key it would write
+under would misdescribe the audio. The flag covers entries written *before* that fix — which is
+every entry behind the damage this step repairs.
 
 `--reprocess-episode-ids` exists because `--reprocess-source` **cannot** express this set: on the
 measured corpus all 9 damaged episodes were `whisper_transcription` and so were all 6 healthy
@@ -169,6 +189,25 @@ make corpus-completeness-check    CORPUS_DIR=<corpus>
 
 Compare against the step-1/2 baselines. A count that did not move means the repair did not run —
 which is exactly the failure mode this whole runbook exists to prevent.
+
+**A green preprocessing audit is NOT sufficient on its own after step 6.** The audit's damage rule
+is `preprocessing_count < preprocessing_attempts`, and it returns "not damaged" when `attempts`
+is 0 — correctly, since a run that never attempted preprocessing has not damaged anything. But a
+step-6 run that served every episode from the transcript cache also records `attempts: 0`, because
+preprocessing lives inside the transcription path it skipped. That run is indistinguishable from
+healthy to this gate while having repaired nothing.
+
+So assert positively that work happened, against the run dirs step 6 created:
+
+```bash
+# every NEW run dir must show preprocessing actually attempted AND completed
+find <corpus> -name metrics.json -newermt '-1 hour' -exec sh -c '
+  echo "$1: $(jq -c "{attempts: .preprocessing_attempts, completed: .preprocessing_count,
+                       transcribed: .transcribe_count}" "$1")"' _ {} \;
+```
+
+Expected on a real repair: `attempts >= 1`, `completed == attempts`, `transcribed >= 1`. All
+zeros means the cache served it — go back to step 6 and check `--no-transcript-cache` is present.
 
 ### 9. Record what was decided
 

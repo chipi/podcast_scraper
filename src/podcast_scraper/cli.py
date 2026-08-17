@@ -1914,6 +1914,28 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
         help="Store the audio cache inside the corpus (.podcast_scraper/audio-cache) for a "
         "self-contained snapshot (larger backups)",
     )
+    # #35: force a genuinely fresh transcription. ``transcript_cache_enabled`` has existed as a
+    # config field since the cache was added, but had no flag — so bypassing the cache meant
+    # editing YAML, and ``config/profiles/*.yaml`` are GENERATED (ADR-112) and must not be
+    # hand-edited. Three reprocess profiles already set it false; this makes the same choice
+    # available with ANY profile, which is what a one-off repair run needs.
+    #
+    # ``default=None``, NOT the ``default=True`` that ``store_false`` would supply on its own.
+    # This field is the one ADR-122 (#1253) names as having shipped un-disable-able: a CLI default
+    # of True beat the config file's False. ``_load_and_merge_config`` does call
+    # ``parser.set_defaults(**config_dump)`` before ``parse_args`` (which overwrites
+    # ``action.default``), so True would in fact work today — but it works only as long as that
+    # ordering holds, whereas None cannot lose to a config file under any ordering. Unset stays
+    # None and is skipped by the carry-list loop, leaving Config's own default (True) to apply.
+    parser.add_argument(
+        "--no-transcript-cache",
+        action="store_false",
+        dest="transcript_cache_enabled",
+        default=None,
+        help="Ignore the transcript cache and re-transcribe even on a cache hit. Required when "
+        "repairing episodes whose cached transcript was built from unpreprocessed audio (#18), "
+        "since the cache key cannot distinguish it from a good one",
+    )
 
 
 def _add_deepseek_arguments(parser: argparse.ArgumentParser) -> None:
