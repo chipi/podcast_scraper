@@ -6,9 +6,9 @@
       "uplift_min": 0.05
     },
     "k": 10,
-    "mean_ndcg_uplift": 0.6104,
-    "mean_personalized_ndcg": 1.0,
-    "mean_personalized_precision": 0.8,
+    "mean_ndcg_uplift": 0.5939,
+    "mean_personalized_ndcg": 0.9835,
+    "mean_personalized_precision": 0.7333,
     "mean_recency_ndcg": 0.3896,
     "n_users": 3
   },
@@ -20,10 +20,10 @@
         "p04"
       ],
       "n_interests": 10,
-      "ndcg_uplift": 0.699,
+      "ndcg_uplift": 0.6494,
       "persona": "outdoor / hands-on",
-      "personalized_ndcg": 1.0,
-      "personalized_precision": 1.0,
+      "personalized_ndcg": 0.9504,
+      "personalized_precision": 0.9,
       "recency_ndcg": 0.301,
       "recency_precision": 0.1,
       "user_id": "u_field"
@@ -51,7 +51,7 @@
       "ndcg_uplift": 0.1323,
       "persona": "risk-and-systems generalist",
       "personalized_ndcg": 1.0,
-      "personalized_precision": 1.0,
+      "personalized_precision": 0.9,
       "recency_ndcg": 0.8677,
       "recency_precision": 0.5,
       "user_id": "u_risk"

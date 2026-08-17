@@ -71,7 +71,35 @@ DEFAULT_RANKING_CONFIG = RankingConfig(
             weight=1.0,
             params={"gi_bonus": 2.0, "kg_bonus": 1.0, "bullet_step": 0.2, "bullet_cap": 5},
         ),
-        RankingSignal(SIGNAL_INTEREST_AFFINITY, enabled=True, weight=2.0),
+        # Affinity SATURATES per matched token; it is no longer matched/len(interests) (#19).
+        #
+        # That denominator punished engagement: one match was worth x2.0 with two follows and x1.1
+        # with twenty, so personalisation faded for the users who had told the product the most
+        # about themselves. Following one more show is not a statement that everything else matters
+        # less. The boost now depends on HOW MANY of your interests an episode matches, never on
+        # how many you hold.
+        #
+        # derived_ratio 0.5 — an explicit follow is a stated preference, a derived token is an
+        # inference, so an inference is worth about half a statement. They are counted separately
+        # (see rank_discover): pooled into one denominator, enabling APP_DERIVED_INTERESTS dropped a
+        # 2-follow user's per-match affinity from 0.5 to 0.2, i.e. switching implicit
+        # personalisation ON made the user's own follows count for LESS. Separate weights mean it
+        # can only ever add.
+        #
+        # cap 1.0 — the saturation ceiling, so a broad episode matching six interests cannot run
+        # away with the feed: 1 match -> half the cap, 2 -> three quarters, never beyond it.
+        # weight 4.0, NOT the 2.0 it was before saturation. Measured, not guessed: saturation makes
+        # one match worth `weight * (1 - 0.5^1)` = half the weight, so 2.0 would have HALVED the
+        # boost a single-interest user gets and the eval fell 0.981 -> 0.835. 4.0 restores a
+        # one-match boost of exactly 2.0 — the value everything else was tuned against — and scores
+        # 0.984. Higher keeps climbing (6.0 -> 0.999) only by letting affinity swamp recency and
+        # significance, which would quietly undo #22 and #23.
+        RankingSignal(
+            SIGNAL_INTEREST_AFFINITY,
+            enabled=True,
+            weight=4.0,
+            params={"derived_ratio": 0.5, "cap": 1.0},
+        ),
         # Trend defaults OFF until tuned on real engagement — like the whole personalization path.
         RankingSignal(SIGNAL_TREND_VELOCITY, enabled=False, weight=0.4, params={"cap": 1.5}),
         # Recency is a GRADED boost, not just the newest-first tie-break it used to be (#22).

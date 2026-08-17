@@ -53,6 +53,39 @@ def _significance(row: CatalogEpisodeRow, params: dict[str, Any] | None = None) 
     return score
 
 
+def _affinity_boost(
+    matched_explicit: int,
+    matched_derived: int,
+    *,
+    weight: float,
+    derived_ratio: float,
+    cap: float,
+) -> float:
+    """How much a matching episode is lifted — SATURATING, and never divided by how much you follow.
+
+    It used to be ``weight * (matched / len(interests))``, and that denominator punished engagement:
+    with two follows a single match was worth x2.0, with twenty it was worth x1.1. Personalisation
+    faded precisely for the users who had told the product the most about themselves. Following one
+    more show is not a statement that everything else matters less.
+
+    Now each MATCH contributes, and the sum saturates at ``cap`` so a broad-interest episode cannot
+    run away with the feed. Matching two of your interests is worth more than matching one; matching
+    six is not worth six times as much.
+
+    ``derived_ratio`` is what an INFERRED interest is worth against a stated one. Derived tokens
+    used to share the explicit denominator, so turning them on actively weakened explicit follows;
+    counted separately at a fraction of the weight, they can only ever add.
+    """
+    if weight <= 0:
+        return 0.0
+    contribution = matched_explicit + derived_ratio * matched_derived
+    if contribution <= 0:
+        return 0.0
+    # 1 - 0.5**n : one match gives half the cap, two gives three quarters, and it never exceeds it.
+    saturated = 1.0 - 0.5**contribution
+    return weight * min(saturated, cap)
+
+
 def _feed_significance_means(
     rows: Sequence[CatalogEpisodeRow], params: dict[str, Any] | None
 ) -> dict[str, float]:
@@ -306,6 +339,7 @@ def rank_discover(
     *,
     limit: int,
     config: RankingConfig = DEFAULT_RANKING_CONFIG,
+    derived_interests: Iterable[str] = (),
 ) -> list[AppEpisodeSummary]:
     """Rank ``rows`` by the enabled ranking signals; recency when interests are empty.
 
@@ -321,18 +355,33 @@ def rank_discover(
     effect, so the
     default config reproduces the prior significance × affinity behaviour exactly.
     """
-    interest_set = {str(i) for i in interests if str(i)}
+    explicit_set = {str(i) for i in interests if str(i)}
+    # Derived tokens are kept SEPARATE, not merged into one set (#19). Pooled, they shared the
+    # `matched / len(interests)` denominator, so switching APP_DERIVED_INTERESTS on dropped a
+    # 2-follow user's per-match affinity from 0.5 to 0.2 — enabling implicit personalisation
+    # WEAKENED the follows the user had explicitly chosen. An explicit follow is a stated
+    # preference; a derived token is an inference, and the two do not deserve the same vote.
+    derived_set = {str(i) for i in derived_interests if str(i)} - explicit_set
+    interest_set = explicit_set | derived_set
     if not interest_set:
         return [row_to_summary(root, r) for r in rows[:limit]]
+
     # Only `tc:` / `thc:` / `topic:` / `person:` tokens are honored; any other prefix lands in
     # `cluster_interests`, never matches an episode, and just dilutes the affinity denominator.
-    person_interests = {t for t in interest_set if t.startswith("person:")}
-    topic_interests = {t for t in interest_set if t.startswith("topic:")}
-    cluster_interests = interest_set - person_interests - topic_interests
+    def _split(tokens: set[str]) -> tuple[set[str], set[str], set[str]]:
+        persons = {t for t in tokens if t.startswith("person:")}
+        topics = {t for t in tokens if t.startswith("topic:")}
+        return persons, topics, tokens - persons - topics
+
+    explicit_persons, explicit_topics, explicit_clusters = _split(explicit_set)
+    derived_persons, derived_topics, derived_clusters = _split(derived_set)
     cluster_map = consumer_topic_cluster_map(root)
     theme_map = consumer_theme_cluster_map(root)
     sig_params = config.params_of(SIGNAL_SIGNIFICANCE)
     affinity_weight = config.weight_of(SIGNAL_INTEREST_AFFINITY)
+    affinity_params = config.params_of(SIGNAL_INTEREST_AFFINITY)
+    derived_ratio = float(affinity_params.get("derived_ratio", 0.5))
+    affinity_cap = float(affinity_params.get("cap", 1.0))
     trend_weight = config.weight_of(SIGNAL_TREND_VELOCITY)
     trend_cap = float(config.params_of(SIGNAL_TREND_VELOCITY).get("cap", 1.5))
     velocities = _topic_velocities(root) if trend_weight > 0 else {}
@@ -348,12 +397,23 @@ def rank_discover(
     scored: list[tuple[float, int, CatalogEpisodeRow]] = []
     for idx, row in enumerate(rows):
         clusters, topics, persons = _episode_features(root, row, cluster_map, theme_map)
-        matched = (
-            len(clusters & cluster_interests)
-            + len(topics & topic_interests)
-            + len(persons & person_interests)
+        matched_explicit = (
+            len(clusters & explicit_clusters)
+            + len(topics & explicit_topics)
+            + len(persons & explicit_persons)
         )
-        multiplier = 1.0 + affinity_weight * (matched / len(interest_set))
+        matched_derived = (
+            len(clusters & derived_clusters)
+            + len(topics & derived_topics)
+            + len(persons & derived_persons)
+        )
+        multiplier = 1.0 + _affinity_boost(
+            matched_explicit,
+            matched_derived,
+            weight=affinity_weight,
+            derived_ratio=derived_ratio,
+            cap=affinity_cap,
+        )
         if trend_weight > 0:
             multiplier += trend_weight * _trend_boost(topics, velocities, trend_cap)
         if recency_weight > 0:

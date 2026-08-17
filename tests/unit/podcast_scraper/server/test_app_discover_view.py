@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server.app_discover_view import (
+    _affinity_boost,
     _newest_publish_date,
     _recency_boost,
     _significance,
@@ -292,10 +293,17 @@ def test_trend_velocity_signal_boosts_hot_topic_episode(tmp_path: Path) -> None:
     assert [s.title for s in default_out] == ["Episode old", "Episode new"]
 
     # Trend ON with a strong weight: the hot-topic episode flips to the top.
+    #
+    # 10.0, not the 5.0 this used to need. Affinity saturating (#19) roughly doubled its
+    # contribution to the multiplier, and trend is an ADDITIVE term inside that same multiplier
+    # applied to differing significance bases — so a fixed trend term has proportionally less power
+    # to overcome a significance gap once affinity contributes more. Arithmetic, not a regression:
+    # 8.0 already flips it. The property under test is unchanged — a strong enough trend signal
+    # outranks depth.
     cfg = ranking_config_from_dict(
         {
             "signals": [
-                {"name": "trend_velocity", "enabled": True, "weight": 5.0, "params": {"cap": 1.5}}
+                {"name": "trend_velocity", "enabled": True, "weight": 10.0, "params": {"cap": 1.5}}
             ]
         }
     )
@@ -370,15 +378,30 @@ def test_limit_truncates_after_ranking(tmp_path: Path) -> None:
     assert [s.title for s in out] == ["Episode old"]  # top-ranked survives the cap
 
 
-def test_default_affinity_weight_is_two() -> None:
-    # Guards the documented "fully on-interest episode → (1 + affinity_weight)x" contract, now
-    # sourced from the tunable ranking-signal registry rather than a module constant.
+def test_one_matched_interest_is_worth_a_2x_boost() -> None:
+    """Pins the CONTRACT, not the constant: a single matched interest lifts an episode x2.
+
+    This used to assert `weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0`, which stopped being the right
+    question when affinity started saturating (#19). The weight is now 4.0 and one match is worth
+    `4.0 * (1 - 0.5**1)` = 2.0 — the same lift as before, expressed through a curve instead of a
+    fraction. Asserting the raw weight would have failed for a change that preserved the behaviour
+    exactly, and would have passed if someone kept the weight while breaking the curve.
+    """
+    from podcast_scraper.server.app_discover_view import _affinity_boost
     from podcast_scraper.server.app_ranking_config import (
         DEFAULT_RANKING_CONFIG,
         SIGNAL_INTEREST_AFFINITY,
     )
 
-    assert DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0
+    params = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_INTEREST_AFFINITY)
+    boost = _affinity_boost(
+        1,
+        0,
+        weight=DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY),
+        derived_ratio=float(params.get("derived_ratio", 0.5)),
+        cap=float(params.get("cap", 1.0)),
+    )
+    assert boost == pytest.approx(2.0), boost
 
 
 # --- recency as a graded signal, not just the tie-break (#22) ------------------------------------
@@ -493,3 +516,73 @@ class TestTheDefaultConfigShipsRecencyOn:
         cosmetic — a fresh episode you have no interest in should not beat one you follow."""
         affinity = DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY)
         assert affinity > DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_RECENCY)
+
+
+# --- affinity must not punish engagement (#19) ----------------------------------------------------
+#
+# It was `weight * (matched / len(interests))`. That denominator meant every extra follow shrank
+# every other follow's boost — one match was worth x2.0 with two follows and x1.1 with twenty — so
+# personalisation faded precisely for the users who had told the product the most about themselves.
+# Following one more show is not a statement that everything else matters less.
+
+
+class TestAffinityDoesNotFadeAsYouFollowMore:
+    W = 4.0
+    RATIO = 0.5
+    CAP = 1.0
+
+    def _boost(self, explicit: int, derived: int = 0) -> float:
+        return _affinity_boost(
+            explicit, derived, weight=self.W, derived_ratio=self.RATIO, cap=self.CAP
+        )
+
+    def test_one_match_is_worth_the_same_however_much_you_follow(self) -> None:
+        """The headline regression. The old formula divided by len(interests); this must not."""
+        assert self._boost(1) == self._boost(1)  # identity, stated for the reader
+        # The function does not take the follow COUNT at all — that is the fix, structurally.
+        import inspect
+
+        assert "interest_set" not in inspect.signature(_affinity_boost).parameters
+        assert "len" not in inspect.getsource(_affinity_boost).split("def ")[1].split("\n")[0]
+
+    def test_more_matches_are_worth_more_but_saturate(self) -> None:
+        one, two, three, six = (self._boost(n) for n in (1, 2, 3, 6))
+        assert one < two < three < six, "matching more interests must rank higher"
+        assert six <= self.W * self.CAP, "a broad episode must not run away with the feed"
+        assert (two - one) > (three - two) > (six - three), "returns must diminish"
+
+    def test_no_match_is_no_boost(self) -> None:
+        assert self._boost(0, 0) == 0.0
+
+    def test_a_disabled_signal_contributes_nothing(self) -> None:
+        assert _affinity_boost(3, 3, weight=0.0, derived_ratio=self.RATIO, cap=self.CAP) == 0.0
+
+
+class TestDerivedInterestsCanOnlyAdd:
+    """Enabling implicit personalisation must never weaken what the user explicitly chose.
+
+    Pooled into one denominator, turning APP_DERIVED_INTERESTS on dropped a 2-follow user's
+    per-match affinity from 0.5 to 0.2 — the flag actively made their own follows count for less.
+    """
+
+    W, RATIO, CAP = 4.0, 0.5, 1.0
+
+    def _boost(self, explicit: int, derived: int = 0) -> float:
+        return _affinity_boost(
+            explicit, derived, weight=self.W, derived_ratio=self.RATIO, cap=self.CAP
+        )
+
+    def test_adding_derived_tokens_never_lowers_an_explicit_match(self) -> None:
+        explicit_only = self._boost(1, 0)
+        for n_derived in range(0, 9):  # derive_interests caps at k=8
+            assert self._boost(1, n_derived) >= explicit_only, (
+                f"{n_derived} derived tokens LOWERED an explicit follow's boost — enabling "
+                "implicit personalisation must not penalise the user's own choices"
+            )
+
+    def test_an_inference_counts_less_than_a_statement(self) -> None:
+        assert self._boost(0, 1) < self._boost(1, 0)
+
+    def test_two_inferences_are_worth_about_one_statement(self) -> None:
+        """derived_ratio 0.5 — stated so the ratio is visible, not buried in a curve."""
+        assert self._boost(0, 2) == pytest.approx(self._boost(1, 0), abs=1e-9)

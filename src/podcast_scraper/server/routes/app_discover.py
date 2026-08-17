@@ -136,15 +136,19 @@ def discover(
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     data_dir = Path(raw_dir) if raw_dir is not None else None
     interests: list[str] = []
+    derived: list[str] = []
     personalized = bool(getattr(request.app.state, "personalized_ranking", False))
     if personalized and user is not None and data_dir is not None:
         interests = app_user_state.get_interests(data_dir, user.user_id)
         # #1139: also fold in interests derived from what the user has heard/captured, so a user
         # who never used the picker still gets personalized discovery. Explicit follows lead;
         # derived tokens fill in behind them.
+        # Kept SEPARATE from explicit follows, not merged (#19). Merging pooled them into one
+        # affinity denominator, so enabling this flag DROPPED a 2-follow user's per-match boost
+        # from 0.5 to 0.2 — switching implicit personalisation on made the user's own follows
+        # count for less. The ranker now weights an inference below a stated preference.
         if bool(getattr(request.app.state, "derived_interests", False)):
             derived = derive_interests(root, data_dir, user.user_id)
-            interests = list(dict.fromkeys([*interests, *derived]))
 
     # B2 — the active ranking config (operator-tuned via the admin endpoint), else the default.
     config = (
@@ -158,8 +162,10 @@ def discover(
     # the eval score the full catalog while production scored this window. `interests` + `root`
     # let the pool include older episodes that MATCH, so a niche follow is not starved out by
     # recency on a large corpus.
-    pool = build_discover_pool(rows, limit=limit, interests=interests, root=root)
-    items = rank_discover(root, interests, pool, limit=limit, config=config)
+    pool = build_discover_pool(rows, limit=limit, interests=[*interests, *derived], root=root)
+    items = rank_discover(
+        root, interests, pool, limit=limit, config=config, derived_interests=derived
+    )
 
     # #11 telemetry: log what the feed showed (slugs in rank order) + the effective variant, so
     # clicks can later be compared against the configured rank. Signed-in only; best-effort.
