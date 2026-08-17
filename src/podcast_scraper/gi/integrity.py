@@ -59,14 +59,44 @@ def _episode_id_of(meta: Dict[str, Any]) -> str:
     return eid.strip() if isinstance(eid, str) and eid.strip() else ""
 
 
+def _corpus_member_metadata(corpus_root: Path) -> Tuple[List[Path], bool]:
+    """The metadata files that ARE the corpus, per the project's own membership rule.
+
+    ``dedupe_metadata_paths_newest_run_per_episode`` is the single documented rule for
+    "which copy of a reprocessed episode counts" — newest ``run_*`` wins per
+    ``(feed_id, episode_id)``, with disjoint episodes across runs all surviving. Indexing,
+    digest, topic-clusters, enrichment, catalog and staleness all share it specifically so they
+    cannot diverge (the 94-vs-106 split-brain).
+
+    A gate that invented its own answer would be the next thing to diverge. This one asks.
+
+    Returns ``(paths, used_canonical_rule)``; the flag lets the report say so, and lets a corpus
+    the rule cannot be applied to fall back to a plain scan rather than failing.
+    """
+    all_paths = sorted(corpus_root.rglob("*.metadata.json"))
+    try:
+        from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+
+        return list(dedupe_metadata_paths_newest_run_per_episode(corpus_root, all_paths)), True
+    except Exception as exc:  # noqa: BLE001 - a gate must still run without the search extra
+        logger.debug("corpus membership rule unavailable (%s); scanning all metadata", exc)
+        return all_paths, False
+
+
 def assess_gi_integrity(corpus_root: Path) -> Dict[str, Any]:
-    """Walk every ``*.metadata.json`` and check the GI it claims actually exists.
+    """Check that the GI each corpus-member episode declares actually exists.
 
     Metadata-first, not artifact-first: an episode that lost its artifact is invisible to any
     scan that starts from ``rglob("*.gi.json")``, and that invisibility is exactly the hole this
     module closes.
+
+    Scoped to corpus MEMBERS. An episode reprocessed into a newer run dir legitimately leaves an
+    older copy on disk — that is the supported incremental-add / reprocess shape, not a defect —
+    so superseded copies are excluded here rather than reported as duplicates. An earlier version
+    of this gate failed on them and would have failed on any corpus where anything was ever
+    reprocessed.
     """
-    metadata_paths = sorted(corpus_root.rglob("*.metadata.json"))
+    metadata_paths, used_rule = _corpus_member_metadata(corpus_root)
 
     unreadable_metadata: List[str] = []
     no_gi_block: List[str] = []
@@ -121,10 +151,15 @@ def assess_gi_integrity(corpus_root: Path) -> Dict[str, Any]:
         else:
             healthy.append({**entry, "insight_count": len(insights)})
 
+    # Only meaningful when the canonical membership rule could NOT be applied. With the rule on,
+    # a reprocessed episode's older copy is already excluded, so a survivor here means two
+    # artifacts inside the SAME run dir — which the layout does not produce and which no
+    # resolver can arbitrate.
     duplicates = {eid: paths for eid, paths in by_episode.items() if len(paths) > 1}
 
     return {
         "metadata_scanned": len(metadata_paths),
+        "membership_rule_applied": used_rule,
         "unreadable_metadata": unreadable_metadata,
         "episodes_without_gi_block": no_gi_block,
         "missing_artifact": missing_artifact,
@@ -139,8 +174,9 @@ def assess_gi_integrity(corpus_root: Path) -> Dict[str, Any]:
 def check_corpus_gi_integrity(corpus_root: Path) -> Tuple[bool, str]:
     """``(ok, formatted_report)`` — the repair's real exit criterion.
 
-    FAILS on: a surviving legacy placeholder, a declared-but-missing artifact, an unreadable
-    artifact, or one episode_id resolving to several artifacts.
+    Scoped to corpus MEMBERS (newest run per episode). FAILS on: a surviving legacy placeholder,
+    a declared-but-missing artifact, an unreadable artifact, or two artifacts for one episode
+    that the membership rule could not arbitrate.
 
     PASSES (but reports) on: episodes with no GI block at all, and artifacts with zero insights —
     both legal states. They appear in the NOT-COVERED section so a "clean" verdict cannot hide
@@ -156,8 +192,14 @@ def check_corpus_gi_integrity(corpus_root: Path) -> Tuple[bool, str]:
     )
     ok = hard_failures == 0
 
+    scope = (
+        "corpus members (newest run per episode)"
+        if r["membership_rule_applied"]
+        else "ALL metadata — membership rule unavailable, superseded copies included"
+    )
     lines = [
         f"Corpus: {corpus_root}",
+        f"  scope                       : {scope}",
         f"  metadata files scanned      : {r['metadata_scanned']}",
         f"  episodes with healthy GI    : {len(r['healthy'])}",
         "",
@@ -165,7 +207,7 @@ def check_corpus_gi_integrity(corpus_root: Path) -> Tuple[bool, str]:
         f"    legacy placeholders       : {len(r['legacy_placeholders'])}",
         f"    declared but MISSING      : {len(r['missing_artifact'])}",
         f"    unreadable artifact       : {len(r['unreadable_artifact'])}",
-        f"    duplicate episode_id      : {len(r['duplicate_episode_ids'])}",
+        f"    unarbitrated duplicates   : {len(r['duplicate_episode_ids'])}",
     ]
 
     def _list(title: str, entries: List[Dict[str, str]]) -> None:
@@ -182,8 +224,8 @@ def check_corpus_gi_integrity(corpus_root: Path) -> Tuple[bool, str]:
 
     if r["duplicate_episode_ids"]:
         lines.append("")
-        lines.append("  Duplicate episode_id -> several artifacts (supersede hazard;")
-        lines.append("  corpus_metadata_index keeps the OLDEST, search keeps the NEWEST):")
+        lines.append("  One episode -> several artifacts the membership rule could not arbitrate")
+        lines.append("  (same run dir, or unreadable run segment) — no resolver can pick a winner:")
         for eid, paths in r["duplicate_episode_ids"].items():
             lines.append(f"    {eid}")
             for p in paths:

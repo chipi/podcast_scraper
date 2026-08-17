@@ -117,26 +117,57 @@ def test_a_surviving_placeholder_FAILS(tmp_path):
     assert "ep-stub" in report
 
 
-def test_one_episode_with_two_artifacts_FAILS(tmp_path):
-    """The supersede hazard — observed for real in the acceptance corpus, not hypothetical.
+def test_an_episode_reprocessed_into_a_newer_run_is_NOT_a_failure(tmp_path):
+    """CORRECTED 2026-08-17. This test previously asserted the opposite, and was wrong.
 
-    A pipeline re-run writes its output into a FRESH ``run_<ts>/`` dir and leaves the previous
-    artifact on disk. Two subsystems then disagree about which is canonical:
-    ``_scan_corpus_metadata_index`` is first-writer-wins (OLDEST), while search's
-    ``merged_episode_gi_paths`` takes the NEWEST.
+    An earlier version of the gate treated "one episode_id, two run dirs" as a HARD FAILURE, on
+    the theory that ``_scan_corpus_metadata_index`` (oldest-wins) and search's
+    ``merged_episode_gi_paths`` (newest-wins) disagree. But the project HAS a single documented
+    membership rule — ``dedupe_metadata_paths_newest_run_per_episode``: newest ``run_*`` wins per
+    ``(feed_id, episode_id)``, shared by indexing, digest, topic-clusters, enrichment, catalog and
+    staleness precisely so they cannot diverge.
+
+    Reprocessing an episode into a newer run is therefore a SUPPORTED shape, not a defect, and
+    the old rule would have failed on any corpus where anything was ever reprocessed — including
+    the acceptance corpus, where it fired on a real episode that was simply re-derived 4 hours
+    later. The gate now asks the canonical rule instead of inventing an answer.
     """
     _write_episode(
         tmp_path, run="run_20260815-120000", episode_id="ep-dup", insight_texts=["First pass."]
     )
     _write_episode(
-        tmp_path, run="run_20260816-090000", episode_id="ep-dup", insight_texts=["Second pass."]
+        tmp_path,
+        run="run_20260816-090000",
+        episode_id="ep-dup",
+        insight_texts=["Second pass.", "And more."],
     )
 
     ok, report = check_corpus_gi_integrity(tmp_path)
 
-    assert ok is False, "one episode resolving to two artifacts must fail"
-    assert "duplicate episode_id      : 1" in report
-    assert "ep-dup" in report
+    assert ok is True, f"a reprocessed episode is a supported corpus shape\n{report}"
+    assert "episodes with healthy GI    : 1" in report, "only the NEWEST run counts as the member"
+
+
+def test_the_newest_run_is_the_one_judged(tmp_path):
+    """Membership is not just counting — the gate must judge the copy the corpus actually serves.
+
+    Older run healthy, newer run holds the placeholder: the corpus is BROKEN and must fail, even
+    though a scan that stopped at the first healthy artifact would pass.
+    """
+    _write_episode(
+        tmp_path, run="run_20260815-120000", episode_id="ep-x", insight_texts=["Real insight."]
+    )
+    _write_episode(
+        tmp_path,
+        run="run_20260816-090000",
+        episode_id="ep-x",
+        insight_texts=[LEGACY_PLACEHOLDER_INSIGHT_TEXT],
+    )
+
+    ok, report = check_corpus_gi_integrity(tmp_path)
+
+    assert ok is False, f"the served copy carries a placeholder\n{report}"
+    assert "legacy placeholders       : 1" in report
 
 
 def test_a_zero_insight_artifact_PASSES_but_is_counted(tmp_path):
