@@ -2061,6 +2061,31 @@ def _add_grok_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_litellm_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add LiteLLM gateway arguments to parser.
+
+    LiteLLM was the ONE provider namespace with no ``--*-api-base`` flag while eight
+    siblings had one (openai / gemini / anthropic / mistral / deepgram / deepseek / grok /
+    ollama). That gap was load-bearing rather than cosmetic: ``litellm_api_base`` is set by
+    the PROFILE (``cloud_balanced.yaml`` pins the homelab gateway) and its only override
+    layer was the box's ``viewer_operator.yaml`` — which ``reprocess-prod.yml`` bypasses
+    entirely by passing ``--config <profile>``. A prod reprocess therefore had NO way to
+    reach the prod-VPS gateway (ADR-142) and would silently bill the homelab one.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--litellm-api-base",
+        type=str,
+        default=None,
+        help=(
+            "LiteLLM gateway base URL, overriding the profile's value "
+            "(e.g. the prod-VPS gateway per ADR-142, instead of the homelab gateway)"
+        ),
+    )
+
+
 def _add_ollama_arguments(parser: argparse.ArgumentParser) -> None:
     """Add Ollama API-related arguments to parser.
 
@@ -3697,6 +3722,7 @@ def _parse_pipeline_argv(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     _add_pipeline_stage_arguments(parser)
     _add_deepseek_arguments(parser)
     _add_grok_arguments(parser)
+    _add_litellm_arguments(parser)
     _add_ollama_arguments(parser)
     _add_cache_arguments(parser)
 
@@ -4252,6 +4278,21 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # The field validator will load it from DEEPSEEK_API_KEY env var if available
     # But allow CLI override if provided
     payload["deepseek_api_key"] = getattr(args, "deepseek_api_key", None)
+    # LiteLLM gateway base override (ADR-142: prod runs its own gateway; the profile pins
+    # homelab). Guarded on ``is not None`` so the payload never carries an explicit None.
+    #
+    # NOT because the unguarded ``ollama_api_base`` write below is broken — it is not, and that
+    # was measured before this comment was written: ``_load_and_merge_config`` calls
+    # ``parser.set_defaults(**config_dump)`` BEFORE ``parse_args`` (see the note at
+    # ``--no-transcript-cache``), so a config-file value is already on ``args`` and the unguarded
+    # write stores that value, not None. A profile's ollama_api_base survives today.
+    #
+    # The guard buys ordering-independence, which is the same reasoning ``--no-transcript-cache``
+    # records for its ``default=None``: a key that is never written cannot lose to a config file
+    # under ANY future ordering of merge-then-parse, whereas the unguarded form is correct only
+    # while that ordering holds.
+    if getattr(args, "litellm_api_base", None) is not None:
+        payload["litellm_api_base"] = args.litellm_api_base
     # Add Ollama API configuration
     payload["ollama_api_base"] = getattr(args, "ollama_api_base", None)
     if hasattr(args, "ollama_speaker_model") and args.ollama_speaker_model is not None:

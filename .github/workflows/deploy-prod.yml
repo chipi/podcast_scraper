@@ -437,6 +437,52 @@ jobs:
             echo "- Container \`PODCAST_DEFAULT_CORPUS_PATH\` (smoke \`path=\`): \`$CONTAINER_CORPUS\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Pin litellm_api_base into the corpus operator YAML (D4, #1676)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_LITELLM_API_BASE: ${{ vars.PROD_LITELLM_API_BASE }}
+        run: |
+          set -euo pipefail
+          # D4: prod runs its OWN LiteLLM gateway (ADR-142) while the profile pins the HOMELAB one
+          # (cloud_balanced.yaml). The override lived ONLY in the box's viewer_operator.yaml, on a
+          # volume — it survived deploys, but a DR or volume rebuild lost it and silently reverted
+          # prod to homelab. Re-rendering every deploy makes the override deploy-managed, so the
+          # repo is the source of truth for it rather than surviving state on a disk.
+          #
+          # NOTE this covers viewer/API-spawned jobs only. reprocess-prod.yml runs the CLI as
+          # `--config <profile>`, which never reads this file — that path uses the
+          # --litellm-api-base flag (#1676) instead.
+          if [ -z "${PROD_LITELLM_API_BASE:-}" ]; then
+            echo "::warning::vars.PROD_LITELLM_API_BASE unset — the box's viewer_operator.yaml is left untouched, so prod keeps whatever gateway is on the volume and a DR would silently revert it to the profile's homelab pin (D4). Set it with: gh variable set PROD_LITELLM_API_BASE --repo chipi/podcast_scraper"
+            exit 0
+          fi
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "VALUE='${PROD_LITELLM_API_BASE}' bash -s" <<'REMOTE'
+          set -euo pipefail
+          CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-)
+          F="$CORPUS/viewer_operator.yaml"
+
+          # Never CREATE this file. The api seeds it from the packaged example on first GET; a
+          # file containing only our one key would strip pipeline_install_extras and every other
+          # operator default, which is a worse failure than the one being fixed.
+          if [ ! -f "$F" ]; then
+            echo "::warning::$F does not exist — not creating it. Open the viewer once to seed it, then re-run this deploy."
+            exit 0
+          fi
+
+          cp -p "$F" "$F.bak"
+          if grep -qE '^[[:space:]]*litellm_api_base:' "$F"; then
+            sed -i -E "s|^[[:space:]]*litellm_api_base:.*|litellm_api_base: ${VALUE}|" "$F"
+          else
+            printf '\n# Pinned by deploy-prod (D4/#1676): prod uses its OWN gateway (ADR-142),\n# not the homelab gateway the profile pins. Re-rendered on every deploy.\nlitellm_api_base: %s\n' "${VALUE}" >> "$F"
+          fi
+
+          echo "pinned -> $(grep -E '^[[:space:]]*litellm_api_base:' "$F")"
+          REMOTE
+
       - name: Record deploy start time (#803 D1)
         id: deploy_t0
         if: steps.preflight.outputs.skip != 'true'
@@ -528,6 +574,41 @@ jobs:
             echo "- Smoke probe \`path=\`: \`$CONTAINER_CORPUS\`"
           } >> "$GITHUB_STEP_SUMMARY"
           bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CONTAINER_CORPUS"
+
+      - name: Post-deploy — the gateway key authenticates against the CONFIGURED base (D5)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_LITELLM_API_BASE: ${{ vars.PROD_LITELLM_API_BASE }}
+        run: |
+          set -euo pipefail
+          # D5: "the prod gateway never had the app key until this session; the app 'worked' only
+          # by way of homelab." Staging a key and pointing at a base are two facts; that the key
+          # authenticates AT that base is a third, and it is the one that was never checked.
+          # Runs from inside pipeline-llm so it exercises the container's actual network path —
+          # a host-side curl would prove nothing about what the container can reach.
+          if [ -z "${PROD_LITELLM_API_BASE:-}" ]; then
+            echo "::warning::vars.PROD_LITELLM_API_BASE unset — cannot verify the gateway key against a configured base (D5)."
+            exit 0
+          fi
+
+          CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && docker compose \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               run --rm --entrypoint sh pipeline-llm -c \
+               'curl -s -o /dev/null -m 20 -w \"%{http_code}\" -H \"Authorization: Bearer \$LITELLM_API_KEY\" ${PROD_LITELLM_API_BASE}/models'" \
+            | tr -d '[:space:]')
+
+          echo "configured base : ${PROD_LITELLM_API_BASE}"
+          echo "HTTP            : ${CODE}"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::the pipeline container could not authenticate against ${PROD_LITELLM_API_BASE} (HTTP ${CODE}). 000 = unreachable from inside the container (a loopback-bound gateway is NOT reachable as 127.0.0.1 from a bridge network); 401 = key not valid at THIS gateway (it may only be valid at homelab's)."
+            exit 1
+          fi
+          echo "### Gateway auth (D5): HTTP 200 at \`${PROD_LITELLM_API_BASE}\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
         # Self-hosted sink over the tailnet (homelab VictoriaLogs :9428) — the runner is

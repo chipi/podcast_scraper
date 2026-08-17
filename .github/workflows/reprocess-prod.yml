@@ -51,6 +51,15 @@ on:
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
+      litellm_api_base:
+        description: >-
+          LiteLLM gateway for this run. Leave EMPTY to use the profile's value, which pins the
+          HOMELAB gateway (cloud_balanced.yaml). Prod runs its own gateway (ADR-142) and this
+          workflow passes --config <profile>, which bypasses the box's viewer_operator.yaml
+          override entirely — so without this input a prod reprocess bills homelab. Set it to
+          the prod gateway's base URL, e.g. http://127.0.0.1:4001/v1 if the container can
+          reach host loopback, otherwise the box's tailnet address.
+        default: ""
 
 permissions:
   actions: read
@@ -122,6 +131,7 @@ jobs:
           REPROCESS_SOURCE: ${{ github.event.inputs.reprocess_source }}
           USE_TRANSCRIPT_CACHE: ${{ github.event.inputs.use_transcript_cache }}
           PROFILE: ${{ github.event.inputs.profile }}
+          LITELLM_API_BASE_INPUT: ${{ github.event.inputs.litellm_api_base }}
         run: |
           set -euo pipefail
 
@@ -147,8 +157,21 @@ jobs:
             CACHE_ARGS="--no-transcript-cache"
           fi
 
+          # GATEWAY. This workflow runs the CLI as `--config <profile>`, which does NOT read the
+          # box's viewer_operator.yaml — the only place prod's gateway override lived (D4). So the
+          # profile's homelab pin applied to prod reprocesses unless overridden here. --litellm-api-base
+          # (#1676) is the override; LiteLLM was the one provider namespace lacking the --*-api-base
+          # flag its eight siblings have.
+          if [ -n "${LITELLM_API_BASE_INPUT}" ]; then
+            GATEWAY_ARGS="--litellm-api-base '${LITELLM_API_BASE_INPUT}'"
+          else
+            GATEWAY_ARGS=""
+            echo "::warning::no litellm_api_base given — using the PROFILE's gateway (homelab for cloud_balanced), not the prod gateway (ADR-142)"
+          fi
+
           echo "selection : ${SELECTION}"
           echo "cache     : ${USE_TRANSCRIPT_CACHE}"
+          echo "gateway   : ${LITELLM_API_BASE_INPUT:-<profile default>}"
 
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
@@ -162,4 +185,5 @@ jobs:
                  --feeds-spec /app/output/feeds.spec.yaml \
                  --output-dir /app/output \
                  ${CACHE_ARGS} \
+                 ${GATEWAY_ARGS} \
                  ${SELECT_ARGS}"
