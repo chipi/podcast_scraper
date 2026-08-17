@@ -100,6 +100,20 @@ pipeline output, committed as data. Regeneration needs an LLM; consumers do not 
 they read the committed artifacts, so tests stay fast, deterministic and offline.
 Never hand-author summary text.
 
+**Now gated at build time (#58).** `_audit_built_corpus` refuses to report success when
+any episode's summary repeats its transcript's opening 60 characters (normalised for
+case and whitespace). This is a STRUCTURAL question — "is the summary just the top of
+the transcript?" — deliberately not a phrase list: an echo that opens *"So the thing
+about enduro racing is…"* carries no greeting words and is invisible to the
+`is_greeting_or_filler` check beside it.
+
+It is also the only layer where the question can be asked. By the time text reaches the
+player's summary dialog there is nothing left to compare it against, which is why the
+gate is here and not in the UI — guessing "is this junk" client-side is unwinnable.
+
+Measured on v3 today: the echo check flags `p01_e02`, and finds no episode the greeting
+check misses. Its value is that it does not depend on knowing what junk looks like.
+
 ### 4. ASR round-trip is measurable — use it as a quality gate
 
 v3 audio is TTS generated FROM the authored transcripts, so re-transcribing round-trips

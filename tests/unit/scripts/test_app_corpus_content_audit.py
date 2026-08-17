@@ -216,3 +216,98 @@ def test_the_kg_check_counts_and_names_the_offenders(tmp_path: Path) -> None:
     kg = next(p for p in problems if "no knowledge graph" in p)
     assert "1/24" in kg, kg
     assert "p01_e07" in kg, kg
+
+
+# --- the summary must not be the transcript's opening (#58) --------------------------------------
+#
+# Check 2 pattern-matches greeting PHRASES — a guess about what junk looks like. This asks the
+# structural question instead: is the summary just the top of the transcript? That is the shape v3
+# shipped in 36/36 episodes, and it is what no client-side heuristic could catch: by the time the
+# text reaches the player's reading dialog there is nothing left to compare it against.
+#
+# Honest scope: on the committed v3 corpus this finds no episode check 2 misses. Its value is that
+# it does not depend on a phrase list — an echo that opens "So the thing about enduro racing is…"
+# is invisible to check 2 and obvious to this one.
+
+
+def _corpus_with_transcript(tmp_path: Path, *, summary: str, opening: str) -> Path:
+    root = _corpus(tmp_path, episodes=1, summary=summary)
+    meta_dir = root / "feeds" / "p01" / "run_20260101-000000" / "metadata"
+    tx_dir = meta_dir.parent / "transcripts"
+    tx_dir.mkdir(parents=True, exist_ok=True)
+    (tx_dir / "p01_e00.segments.json").write_text(
+        json.dumps([{"id": 0, "start": 0.0, "end": 6.0, "text": opening}]), encoding="utf-8"
+    )
+    return root
+
+
+def test_a_summary_that_is_the_transcript_opening_is_caught(tmp_path: Path) -> None:
+    opening = (
+        "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm "
+        "joined by Sophie Lorenz."
+    )
+    problems = _audit_built_corpus(
+        _corpus_with_transcript(tmp_path, summary=opening, opening=opening)
+    )
+    assert any("repeats the transcript's opening" in p for p in problems), problems
+
+
+def test_an_echo_that_does_not_look_like_a_greeting_is_still_caught(tmp_path: Path) -> None:
+    """The case check 2 cannot see. No "welcome", no "thanks for joining" — just the transcript."""
+    opening = (
+        "So the thing about enduro racing that nobody mentions is the descent, which is where the "
+        "whole race is actually decided by tyre choice."
+    )
+    problems = _audit_built_corpus(
+        _corpus_with_transcript(tmp_path, summary=opening, opening=opening)
+    )
+    assert any("repeats the transcript's opening" in p for p in problems), problems
+
+
+def test_a_real_summary_beside_a_greeting_transcript_is_not_flagged(tmp_path: Path) -> None:
+    """The false-positive guard. Every episode's transcript opens with a greeting; only a summary
+    that COPIES it is a defect."""
+    problems = _audit_built_corpus(
+        _corpus_with_transcript(
+            tmp_path,
+            summary=_REAL_SUMMARY,
+            opening="Welcome back to Singletrack Sessions. Today we talk enduro racing.",
+        )
+    )
+    assert not any("repeats the transcript's opening" in p for p in problems), problems
+
+
+def test_an_episode_with_no_transcript_is_not_flagged(tmp_path: Path) -> None:
+    """Nothing to compare against is not evidence of junk."""
+    problems = _audit_built_corpus(_corpus(tmp_path, episodes=1))
+    assert not any("repeats the transcript's opening" in p for p in problems), problems
+
+
+def test_an_echo_is_caught_through_case_and_whitespace_differences(tmp_path: Path) -> None:
+    """Comparison is normalised, so a re-cased or re-spaced copy is still a copy.
+
+    Without this the earlier echo tests could not tell: they use the SAME string for summary and
+    transcript, so a raw `in` comparison passes them too. Sabotage confirmed it — dropping
+    `_norm_text` from both sides left them green.
+    """
+    opening = "Welcome back to Singletrack Sessions. Today we're talking about enduro racing."
+    reshaped = "welcome back    to Singletrack SESSIONS.\n Today we're talking about enduro racing."
+    problems = _audit_built_corpus(
+        _corpus_with_transcript(tmp_path, summary=reshaped, opening=opening)
+    )
+    assert any("repeats the transcript's opening" in p for p in problems), problems
+
+
+def test_a_short_shared_phrase_is_not_enough_to_flag(tmp_path: Path) -> None:
+    """The threshold does real work: a summary may legitimately open on the same few words.
+
+    Pinned explicitly because the false-positive test above cannot see it — its summary happens to
+    share no leading character with the transcript, so even a degenerate 1-character prefix fails
+    to match it. That is an accident of the fixture text, not a property of the check.
+    """
+    opening = "Enduro racing is decided on the descent, and tyre choice is most of it."
+    summary = "Enduro racing rewards preparation over talent — " + _REAL_SUMMARY
+    problems = _audit_built_corpus(
+        _corpus_with_transcript(tmp_path, summary=summary, opening=opening)
+    )
+    assert not any("repeats the transcript's opening" in p for p in problems), problems

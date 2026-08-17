@@ -1654,6 +1654,79 @@ def main() -> int:
     return 0
 
 
+#: How much of the transcript's opening must appear in a summary before we call it an echo. Long
+#: enough that a summary legitimately quoting the first line is not flagged for a stray phrase.
+_ECHO_PREFIX_CHARS = 60
+
+
+def _norm_text(value: str) -> str:
+    """Lowercased, whitespace-collapsed — so punctuation-only edits cannot hide an echo."""
+    return " ".join(value.lower().split())
+
+
+def _first_segment_text(metadata_path: Path, stem: str) -> str:
+    """The first transcript segment's text for an episode, or "" when there is no transcript."""
+    seg_path = metadata_path.parent.parent / "transcripts" / f"{stem}.segments.json"
+    try:
+        doc = json.loads(seg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    segments = doc.get("segments") if isinstance(doc, dict) else doc
+    if not isinstance(segments, list) or not segments:
+        return ""
+    first = segments[0]
+    return str(first.get("text") or "") if isinstance(first, dict) else ""
+
+
+def _summary_echo_problems(metas: list[Path], _load) -> list[str]:
+    """Episodes whose summary repeats the transcript's opening (#58)."""
+    found: list[str] = []
+    # 5. No summary may be the transcript's OPENING, verbatim (#58).
+    #
+    #    Check 2 pattern-matches greeting PHRASES, which is a guess about what junk looks like.
+    #    This asks the structural question instead: is the summary just the top of the transcript?
+    #    That is the shape v3 actually shipped in 36/36 episodes, and it is what a client-side
+    #    heuristic could never catch — by the time text reaches the player's reading dialog there
+    #    is nothing left to compare it against. The gate belongs here, where both halves exist.
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        opening = _first_segment_text(path, stem)
+        summary = str(((_load(path).get("summary") or {}).get("raw_text")) or "")
+        if not opening or not summary:
+            continue
+        head = _norm_text(opening)[:_ECHO_PREFIX_CHARS]
+        if len(head) >= _ECHO_PREFIX_CHARS and head in _norm_text(summary):
+            found.append(f"{stem}: summary repeats the transcript's opening — {head[:60]!r}")
+    return found
+
+
+def _missing_kg_problems(metas: list[Path], _load) -> list[str]:
+    """Episodes with no knowledge graph (#38)."""
+    found: list[str] = []
+    # 4. EVERY episode must carry a knowledge graph (#38).
+    #
+    #    The KG is not decoration — it is what a captured moment resolves TO. An episode without
+    #    one makes `refs_for_highlight` return [], and every revisit surface then WITHHOLDS that
+    #    capture: the user's own highlight disappears from the Revisit tab, from Your Week and from
+    #    the digest email, silently, because our pipeline missed a step. That is a build defect,
+    #    not a content variation, and it belongs here rather than surfacing later as an
+    #    inexplicably empty Your Week that nobody can account for.
+    kg_missing = []
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        kg = _load(path.with_name(f"{stem}.kg.json"))
+        if not (kg.get("data") or kg).get("nodes"):
+            kg_missing.append(stem)
+    if kg_missing:
+        shown = ", ".join(sorted(kg_missing)[:8])
+        more = f" (+{len(kg_missing) - 8} more)" if len(kg_missing) > 8 else ""
+        found.append(
+            f"{len(kg_missing)}/{len(metas)} episodes have no knowledge graph: {shown}{more}. "
+            "Captures on these are withheld from every revisit surface."
+        )
+    return found
+
+
 def _audit_built_corpus(out_root: Path) -> list[str]:
     """Check the corpus that was just written for the defect shapes v3 shipped with.
 
@@ -1728,27 +1801,8 @@ def _audit_built_corpus(out_root: Path) -> list[str]:
                 problems.append(f"{stem}: {node.get('type')} is a greeting/filler — {text[:60]!r}")
                 break  # one report per episode is enough to fail the build
 
-    # 4. EVERY episode must carry a knowledge graph (#38).
-    #
-    #    The KG is not decoration — it is what a captured moment resolves TO. An episode without
-    #    one makes `refs_for_highlight` return [], and every revisit surface then WITHHOLDS that
-    #    capture: the user's own highlight disappears from the Revisit tab, from Your Week and from
-    #    the digest email, silently, because our pipeline missed a step. That is a build defect,
-    #    not a content variation, and it belongs here rather than surfacing later as an
-    #    inexplicably empty Your Week that nobody can account for.
-    kg_missing = []
-    for path in metas:
-        stem = path.name[: -len(".metadata.json")]
-        kg = _load(path.with_name(f"{stem}.kg.json"))
-        if not (kg.get("data") or kg).get("nodes"):
-            kg_missing.append(stem)
-    if kg_missing:
-        shown = ", ".join(sorted(kg_missing)[:8])
-        more = f" (+{len(kg_missing) - 8} more)" if len(kg_missing) > 8 else ""
-        problems.append(
-            f"{len(kg_missing)}/{len(metas)} episodes have no knowledge graph: {shown}{more}. "
-            "Captures on these are withheld from every revisit surface."
-        )
+    problems += _summary_echo_problems(metas, _load)
+    problems += _missing_kg_problems(metas, _load)
 
     return problems
 
