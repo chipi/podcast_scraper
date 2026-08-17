@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+from podcast_scraper.utils.atomic_io import write_json_atomic
 
 PIPELINE_STATUS_FILENAME = ".pipeline_status.json"
 
@@ -31,27 +32,13 @@ def read_pipeline_status(output_dir: str | os.PathLike[str]) -> Optional[Dict[st
 
 
 def write_pipeline_status_atomic(path: Path, payload: Dict[str, Any]) -> None:
-    """Write JSON atomically (temp + ``os.replace``)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent),
-        prefix=".pipeline_status_",
-        suffix=".tmp",
-    )
-    tmp_path = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2, sort_keys=True)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            if tmp_path.is_file():
-                tmp_path.unlink()
-        except OSError:
-            pass
-        raise
+    """Write JSON atomically (temp + ``os.replace``).
+
+    The implementation this function used to carry inline is now ``utils.atomic_io`` — it was one
+    of six independent copies in this repo, and the GI/KG artifact writers that needed it most had
+    none. Kept as a named function because callers read better for it.
+    """
+    write_json_atomic(path, payload, indent=2, sort_keys=True)
 
 
 def maybe_update_pipeline_status(
