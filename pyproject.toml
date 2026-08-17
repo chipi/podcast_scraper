@@ -297,7 +297,13 @@ package-dir = {"" = "src"}
 podcast_scraper = [
     "prompts/**/*.j2",
     "prompts/**/*.md",
-    "data/pricing_assumptions.yaml",
+    # Glob, not a file list. ``data/known_models.yaml`` was added to the source tree as the
+    # wheel-bundled fallback for containers — and was never added HERE, so it was not in the
+    # wheel. The container then logged "known_models.yaml not found; model allowlist validation
+    # is DISABLED" and ran every cloud call with no allowlist: an unknown or typo'd model id
+    # reached the provider and spent money instead of being rejected before the request. The
+    # per-file list is what let that happen quietly, so it is a glob now.
+    "data/*.yaml",
     "enrichment/_schema/*.json",
 ]
 

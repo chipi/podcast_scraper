@@ -12,6 +12,7 @@ import shutil
 from typing import Any, Optional, Tuple
 
 from ... import config
+from ...exceptions import ProviderDependencyError
 from ...utils import filesystem
 from ...utils.log_redaction import format_exception_for_log
 
@@ -394,6 +395,42 @@ def _configs_match_for_ml_preload(left: config.Config, right: config.Config) -> 
     return all(getattr(left, f) == getattr(right, f) for f in fields)
 
 
+def _caused_by_missing_import(exc: BaseException, *, max_depth: int = 10) -> bool:
+    """True when an ``ImportError`` sits anywhere behind ``exc``.
+
+    Two things this has to get right, both learned by measuring the real exception rather than
+    reading the raise sites:
+
+    * **Walk the whole chain, not one link.** The providers re-wrap, so a missing ``openai-whisper``
+      arrives as ``ProviderDependencyError("Failed to preload Whisper model: …")`` wrapping
+      ``ProviderDependencyError("openai-whisper library not installed")`` wrapping ``ImportError``.
+      Checking only the first link calls that a hard failure.
+    * **Follow ``__context__`` as well as ``__cause__``.** The raise sites are NOT consistent:
+      ``MLProvider.preload`` uses ``raise … from e``, but ``_initialize_whisper`` uses a bare
+      ``raise`` inside ``except ImportError``, which records the ImportError as ``__context__``
+      only — ``__cause__`` is ``None`` there. Implicit chaining is still the cause; a check that
+      trusts explicit chaining alone silently mis-classifies whichever sites happen to omit
+      ``from``.
+
+    ``max_depth`` and the seen-set guard against cycles; a real chain is two or three links.
+    """
+    seen: set[int] = set()
+    queue: list[BaseException | None] = [exc.__cause__, exc.__context__]
+    for _ in range(max_depth):
+        nxt: list[BaseException | None] = []
+        for cur in queue:
+            if cur is None or id(cur) in seen:
+                continue
+            if isinstance(cur, ImportError):
+                return True
+            seen.add(id(cur))
+            nxt.extend((cur.__cause__, cur.__context__))
+        if not nxt:
+            return False
+        queue = nxt
+    return False
+
+
 def preload_ml_models_if_needed(cfg: config.Config) -> None:
     """Preload ML models early in the pipeline if configured to use them.
 
@@ -470,6 +507,35 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
             )
         _preloaded_ml_provider = None
         orchestration._preloaded_ml_provider = None
+    except ProviderDependencyError as e:
+        # A MISSING PACKAGE is the ImportError case wearing a different coat.
+        #
+        # MLProvider.preload() wraps whatever went wrong in ProviderDependencyError, and that one
+        # type covers two very different situations — its own docstring lists both: "Python package
+        # not installed (whisper, spacy, transformers)" AND "ML model not downloaded or cached".
+        # Because it is a ProviderError rather than an ImportError, BOTH used to fall through to the
+        # generic handler below and kill the run — including the case the handler above exists to
+        # tolerate. This function's docstring has always promised the split (ImportError: deps not
+        # installed / RuntimeError: required model cannot be loaded); it just was not honoured once
+        # the provider layer started translating the exception.
+        #
+        # Split on the CAUSE, which every raise site chains with `from e`: a missing package
+        # degrades to on-demand loading, exactly as documented; a missing MODEL file, a gated token,
+        # or anything else still fails fast, which is what "required models" in the comment below
+        # was protecting.
+        if _caused_by_missing_import(e):
+            logger.warning(
+                "ML dependencies not available, skipping model preloading: %s. "
+                "This is a non-fatal warning - ML models will be loaded on-demand.",
+                e,
+            )
+            _preloaded_ml_provider = None
+            orchestration._preloaded_ml_provider = None
+        else:
+            logger.error("Failed to preload ML models: %s", format_exception_for_log(e))
+            _preloaded_ml_provider = None
+            orchestration._preloaded_ml_provider = None
+            raise
     except Exception as e:
         logger.error("Failed to preload ML models: %s", format_exception_for_log(e))
         _preloaded_ml_provider = None
