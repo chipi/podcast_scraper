@@ -43,7 +43,7 @@ def test_a_response_cut_off_mid_string_is_diagnosed_as_truncation():
 
     exc = caught.value
     assert exc.truncation_suspected is True
-    assert "TRUNCATED_LIKELY_OUTPUT_BUDGET" in str(exc)
+    assert "DOCUMENT_ENDED_EARLY" in str(exc)
     assert exc.content_length == len(cut_off)
     assert exc.error_position is not None
 
@@ -60,7 +60,7 @@ def test_structurally_malformed_json_is_not_blamed_on_the_budget():
         "raising max_tokens would not fix this, and saying so would send the operator "
         "chasing the wrong fix"
     )
-    assert "MALFORMED" in str(exc)
+    assert "MALFORMED_MID_DOCUMENT" in str(exc)
 
 
 def test_the_message_carries_the_numbers_needed_to_act():

@@ -28,9 +28,19 @@ class BundleExtractParseError(Exception):
     """Raised when the bundled extract response is unparsable as JSON.
 
     Carries structured diagnostics because "the model emitted malformed JSON" and "the response
-    was cut off mid-write because it hit the output budget" are different faults with different
-    fixes — raise max_tokens for the second, change the prompt or the strategy for the first —
-    and the bare ``json.JSONDecodeError`` message reads identically for both.
+    was cut off mid-write" are different faults with different fixes, and the bare
+    ``json.JSONDecodeError`` message reads identically for both.
+
+    ``truncation_suspected`` means only THE DOCUMENT ENDED EARLY — it does NOT name the cause.
+    The parser cannot know why: it never sees ``finish_reason``. Only the call site can pair the
+    two, which is why the provider logs them together.
+
+    MEASURED 2026-08-17, 15 episodes, live provider: ``finish_reason`` was ``stop`` on every
+    single call, with responses up to 33,626 chars against an 8,192-token budget, and zero parse
+    failures. The production failures were at ~10.6k chars — a third of a response that succeeds
+    here. So an early-ending document on this stack is the MODEL emitting bad JSON, not the
+    budget running out, and raising ``max_tokens`` would not have fixed it. An earlier version of
+    this docstring assumed the opposite.
     """
 
     def __init__(
@@ -165,9 +175,11 @@ def parse_bundled_extract_response(
         # surfaces it as "Primary error: ...". Putting it here upgrades all of those call sites
         # at once, without six identical edits that could drift apart.
         raise BundleExtractParseError(
-            f"invalid JSON: {exc} "
-            f"[chars={len(text)} fail_at={exc.pos} "
-            f"diagnosis={'TRUNCATED_LIKELY_OUTPUT_BUDGET' if truncated else 'MALFORMED'}]",
+            f"invalid JSON: {exc} " f"[chars={len(text)} fail_at={exc.pos} "
+            # Names the SHAPE, not the cause: pair with finish_reason at the call site.
+            # "length" -> budget cutoff, raise max_tokens. "stop" -> the model emitted bad JSON,
+            # and on this stack that is what 15/15 measured calls showed.
+            f"diagnosis={'DOCUMENT_ENDED_EARLY' if truncated else 'MALFORMED_MID_DOCUMENT'}]",
             content_length=len(text),
             error_position=exc.pos,
             truncation_suspected=truncated,

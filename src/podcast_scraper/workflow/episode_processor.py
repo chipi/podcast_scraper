@@ -3029,11 +3029,36 @@ def _episode_existing_transcript_source(
     """Return the episode's existing ``content.transcript_source`` from its on-disk
     metadata, or None if absent/unreadable (#925). Handles both JSON and YAML
     metadata (``_determine_metadata_path`` returns ``.metadata.yaml`` when
-    ``metadata_format == 'yaml'``)."""
+    ``metadata_format == 'yaml'``).
+
+    RESOLVES CORPUS-WIDE under corpus layout. ``_determine_metadata_path`` builds a path inside
+    THIS run's directory, and under ``--single-feed-uses-corpus-layout`` every run gets a fresh
+    ``run_<ts>/`` — so the prior metadata lives in a different run dir, the open raises, this
+    returns None, and ``_force_reprocess_for_source`` concludes the episode does not match.
+
+    The effect was that ``--reprocess-source`` NEVER FIRED on a corpus: the "#925 forcing
+    re-transcription" branch is unreachable and every episode falls through to the ordinary
+    "transcript already exists; skipping" path. ``make redo-diarization`` is built entirely on
+    that flag, so it reported success and re-diarized nothing. Verified 2026-08-16 on a corpus
+    copy whose metadata declared ``transcript_source: whisper_transcription`` while
+    ``--reprocess-source whisper_transcription`` was passed: the forcing log line never appeared.
+
+    This is the same defect the TRANSCRIPT lookup already fixed (see the D7 note above
+    ``existing_transcript_path_in_corpus``); the metadata lookup never got the same treatment.
+    """
     from .metadata_generation import _determine_metadata_path  # local: avoid import cycle
 
+    metadata_path: Optional[str] = None
+    if getattr(cfg, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
+        from . import run_index
+
+        meta_rel = run_index.episode_metadata_rel_in_corpus(episode, str(cfg.output_dir))
+        if meta_rel:
+            metadata_path = os.path.join(str(cfg.output_dir), meta_rel)
+
     try:
-        metadata_path = _determine_metadata_path(episode, effective_output_dir, run_suffix, cfg)
+        if metadata_path is None:
+            metadata_path = _determine_metadata_path(episode, effective_output_dir, run_suffix, cfg)
         with open(metadata_path, "r", encoding="utf-8") as fh:
             if metadata_path.endswith((".yaml", ".yml")):
                 import yaml
