@@ -34,6 +34,7 @@ Run::
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import re
@@ -43,6 +44,8 @@ from pathlib import Path
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_content_source import build_catalog_rows_cumulative
 from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
+from podcast_scraper.server.app_ranking_config import DEFAULT_RANKING_CONFIG, RankingConfig
+from podcast_scraper.server.app_ranking_config_store import load_ranking_config
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import derive_interests
 
@@ -118,7 +121,14 @@ def _interests_for(root: Path, data_dir: Path, uid: str) -> list[str]:
     return list(dict.fromkeys([*interests, *derived]))
 
 
-def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k: int) -> dict:
+def _score_user(
+    corpus: Path,
+    user: dict,
+    rows,
+    label_to_slug: dict[str, str],
+    k: int,
+    config: RankingConfig = DEFAULT_RANKING_CONFIG,
+) -> dict:
     """One persona's personalized-vs-recency scores against its gold shows."""
     gold_shows = {str(s) for s in user.get("expected_relevant_shows", [])}
     with tempfile.TemporaryDirectory() as td:
@@ -137,8 +147,13 @@ def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k
         # the union was introduced to help.
         p_pool = build_discover_pool(rows, limit=k, interests=interests, root=corpus)
         r_pool = build_discover_pool(rows, limit=k)
-        personalized = rank_discover(corpus, interests, p_pool, limit=k)
-        recency = rank_discover(corpus, [], r_pool, limit=k)
+        # `config=` is load-bearing. Without it this scored DEFAULT_RANKING_CONFIG while /discover
+        # scored whatever an operator had stored (routes/app_discover.py loads it per request), so
+        # an admin PUT /ranking-config zeroing interest_affinity would have shipped in silence —
+        # the gate would still have reported a healthy uplift for a feed that had stopped
+        # personalising. The eval must score the system that runs.
+        personalized = rank_discover(corpus, interests, p_pool, limit=k, config=config)
+        recency = rank_discover(corpus, [], r_pool, limit=k, config=config)
     p_shows = [_show_of(s.slug) for s in personalized]
     r_shows = [_show_of(s.slug) for s in recency]
     row = {
@@ -155,17 +170,27 @@ def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k
     return row
 
 
-def evaluate(corpus: Path = _CORPUS, users_dir: Path = _USERS_DIR, k: int = _K) -> dict:
+def evaluate(
+    corpus: Path = _CORPUS,
+    users_dir: Path = _USERS_DIR,
+    k: int = _K,
+    config: RankingConfig = DEFAULT_RANKING_CONFIG,
+) -> dict:
     """Pure eval: score every seeded persona and return ``{metrics, per_user}``.
 
     No printing, no file writes — the reusable core the CLI and the CI gate test
     both call. ``metrics.gate.pass`` is the flip-the-flag verdict.
+
+    ``config`` is the ranking config to score. It defaults to the shipped default, but
+    ``/discover`` uses the OPERATOR-STORED one, so a deployment must run this against its own
+    stored config — see ``--data-dir`` on the CLI. Scoring the default and shipping something else
+    is how a tuning change reaches users without any gate noticing.
     """
     rows = build_catalog_rows_cumulative(corpus)
     label_to_slug = _label_to_slug(rows)
     users = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(users_dir.glob("*.json"))]
     per_user = [
-        _score_user(corpus, u, rows, label_to_slug, k)
+        _score_user(corpus, u, rows, label_to_slug, k, config)
         for u in users
         if u.get("expected_relevant_shows")
     ]
@@ -191,9 +216,31 @@ def evaluate(corpus: Path = _CORPUS, users_dir: Path = _USERS_DIR, k: int = _K) 
 
 
 def main() -> int:
-    result = evaluate()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=None,
+        help=(
+            "An APP_DATA_DIR whose STORED ranking config should be scored. Omit to score the "
+            "shipped default. /discover loads the stored config per request, so a deployment that "
+            "has tuned it must pass this — otherwise the gate is scoring a system nobody runs."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.data_dir is not None:
+        config = load_ranking_config(args.data_dir)
+        source = f"stored config from {args.data_dir}"
+    else:
+        config = DEFAULT_RANKING_CONFIG
+        source = "shipped default (DEFAULT_RANKING_CONFIG)"
+
+    result = evaluate(config=config)
     agg, per_user = result["metrics"], result["per_user"]
     print(f"=== rank_discover eval (K={_K}) — personalized vs recency ===")
+    # Say WHICH config was scored, every run. A gate result is meaningless without it.
+    print(f"    ranking config: {source}")
     for row in per_user:
         print(
             f"  {row['user_id']:9} {row['persona']:28} gold={row['gold_shows']} "

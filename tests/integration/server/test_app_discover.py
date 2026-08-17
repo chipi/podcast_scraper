@@ -468,3 +468,96 @@ def test_click_without_a_preceding_impression_still_logs(tmp_path: Path) -> None
     client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
     _imps, clicks = _variants(tmp_path)
     assert clicks == ["personalized"], clicks
+
+
+# --- the stored ranking config must reach RANKING, not just the store (#21) ----------------------
+#
+# The pre-existing tests prove PUT /ranking-config round-trips through GET. Neither they nor the
+# offline eval proved it reached the FEED — the eval hardcoded DEFAULT_RANKING_CONFIG — so an admin
+# tuning change could ship while every check went on measuring a system nobody ran.
+#
+# These need a corpus the shared `_corpus` cannot provide. Scoring is
+# `significance x (1 + SUM weight_i * signal_i)`: significance is the BASE, not one of the weighted
+# boosts, so its weight cannot silence it. And in `_corpus` significance and affinity both favour
+# the same episode ("old" has a GI and matches the interest), so they never disagree and no weight
+# change can flip the order. Both facts cost me a wrong test first — asserting a flip that the
+# fixture makes impossible looks like a product bug and is not one.
+#
+# `_affinity_decides_corpus` gives both episodes an EQUAL base (neither has a GI) and lets only the
+# interest differ, on the OLDER one. Affinity is then the sole thing standing between the feed and
+# recency order, so turning it down has an unambiguous, attributable effect.
+
+
+def _affinity_decides_corpus(root: Path) -> None:
+    """Two episodes, equal significance, only the OLDER matching the user's interest."""
+    _write_episode(
+        root,
+        stem="0001-old",
+        episode_id="old",
+        topics=[("topic:ai", "AI")],
+        published="2024-01-01T00:00:00",
+    )
+    _write_episode(
+        root,
+        stem="0002-new",
+        episode_id="new",
+        topics=[("topic:health", "Health")],
+        published="2024-06-01T00:00:00",
+    )
+
+
+def test_turning_affinity_down_reaches_the_feed(tmp_path: Path) -> None:
+    _affinity_decides_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    assert [e["title"] for e in client.get("/api/app/discover").json()["items"]] == [
+        "Episode old",
+        "Episode new",
+    ], "affinity is not lifting the matching episode — the premise of this test is broken"
+
+    _sign_in_admin(client, tmp_path)
+    put = client.put(
+        "/api/app/ranking-config",
+        json={"signals": [{"name": "interest_affinity", "enabled": True, "weight": 0.0}]},
+    )
+    assert put.status_code == 200, put.text
+
+    _sign_in(client, tmp_path, ["topic:ai"])  # same user, same interest, same corpus
+    after = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert after == ["Episode new", "Episode old"], (
+        f"the feed ignored the stored ranking config ({after}) — an operator tuning change would "
+        "be invisible in production"
+    )
+
+
+def test_disabling_affinity_reaches_the_feed_too(tmp_path: Path) -> None:
+    """`enabled: false` is the other way an operator silences a signal; same effect required."""
+    _affinity_decides_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in_admin(client, tmp_path)
+    client.put(
+        "/api/app/ranking-config",
+        json={"signals": [{"name": "interest_affinity", "enabled": False, "weight": 2.0}]},
+    )
+    _sign_in(client, tmp_path, ["topic:ai"])
+    assert [e["title"] for e in client.get("/api/app/discover").json()["items"]] == [
+        "Episode new",
+        "Episode old",
+    ]
+
+
+def test_an_untouched_config_still_personalises(tmp_path: Path) -> None:
+    """The control: writing a config that does NOT touch affinity must leave the feed alone, or the
+    two tests above would pass for any config write at all."""
+    _affinity_decides_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in_admin(client, tmp_path)
+    client.put(
+        "/api/app/ranking-config",
+        json={"signals": [{"name": "trend_velocity", "enabled": False, "weight": 0.4}]},
+    )
+    _sign_in(client, tmp_path, ["topic:ai"])
+    assert [e["title"] for e in client.get("/api/app/discover").json()["items"]] == [
+        "Episode old",
+        "Episode new",
+    ]
