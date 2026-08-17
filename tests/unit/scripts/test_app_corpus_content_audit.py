@@ -131,7 +131,16 @@ def _corpus(
                                 "type": "Person",
                                 "properties": {"name": "Jane"},
                             },
+                            # One feed-wide topic AND one episode-specific one. A healthy corpus
+                            # has both: shared topics are what make a show coherent, episode
+                            # topics are what stop every show collapsing into a single theme
+                            # cluster (#62.6). The fixture used to carry only the former.
                             {"id": "topic:ai", "type": "Topic", "properties": {"label": "AI"}},
+                            {
+                                "id": f"topic:ep-{i}",
+                                "type": "Topic",
+                                "properties": {"label": f"Theme {i}"},
+                            },
                         ],
                     }
                 ),
@@ -311,3 +320,76 @@ def test_a_short_shared_phrase_is_not_enough_to_flag(tmp_path: Path) -> None:
         _corpus_with_transcript(tmp_path, summary=summary, opening=opening)
     )
     assert not any("repeats the transcript's opening" in p for p in problems), problems
+
+
+# --- corpus-level checks: defects no per-episode assertion can see (#62) ------------------------
+#
+# Each of these lives in the RELATIONSHIP between artifacts or between episodes. Every single-file
+# assertion passes on a corpus carrying all three, which is how v3 shipped with them.
+
+
+def test_every_episode_carrying_only_feed_wide_topics_is_caught(tmp_path: Path) -> None:
+    """v3's topics are per-FEED constants, so the corpus collapses to one theme cluster and
+    Storylines degenerates to a single blob — while every episode does technically have topics."""
+    root = _corpus(tmp_path, episodes=4)
+    meta_dir = root / "feeds" / "p01" / "run_20260101-000000" / "metadata"
+    for kg in meta_dir.glob("*.kg.json"):
+        doc = json.loads(kg.read_text())
+        doc["nodes"] = [n for n in doc["nodes"] if not str(n.get("id", "")).startswith("topic:ep-")]
+        kg.write_text(json.dumps(doc), encoding="utf-8")
+    problems = _audit_built_corpus(root)
+    assert any("only feed-wide topics" in p for p in problems), problems
+
+
+def test_a_publish_time_that_disagrees_across_layers_is_caught(tmp_path: Path) -> None:
+    """v3 carried midnight in metadata and midday in the KG for the same episode.
+
+    Nothing crashes on a 12-hour skew — "newest first" just means two different orders depending
+    on which artifact a surface happens to read.
+    """
+    root = _corpus(tmp_path, episodes=1)
+    meta_dir = root / "feeds" / "p01" / "run_20260101-000000" / "metadata"
+    meta = json.loads((meta_dir / "p01_e00.metadata.json").read_text())
+    meta.setdefault("episode", {})["published_date"] = "2024-10-21T00:00:00"
+    (meta_dir / "p01_e00.metadata.json").write_text(json.dumps(meta), encoding="utf-8")
+    kg = json.loads((meta_dir / "p01_e00.kg.json").read_text())
+    kg["publish_date"] = "2024-10-21T12:00:00"  # the skew, in the KG's own spelling
+    (meta_dir / "p01_e00.kg.json").write_text(json.dumps(kg), encoding="utf-8")
+
+    problems = _audit_built_corpus(root)
+    assert any("publish time" in p and "disagrees" in p for p in problems), problems
+
+
+def test_the_skew_check_finds_a_nested_stamp_under_any_publish_key(tmp_path: Path) -> None:
+    """Searched by SHAPE, not by one known key — the layers disagree on the name AND the nesting.
+
+    The first version looked for `published_datetime` at the top level, found it nowhere in the
+    real corpus, and would have shipped as a permanently silent no-op. A check that cannot fail is
+    worse than no check: it reads as coverage.
+    """
+    root = _corpus(tmp_path, episodes=1)
+    meta_dir = root / "feeds" / "p01" / "run_20260101-000000" / "metadata"
+    meta = json.loads((meta_dir / "p01_e00.metadata.json").read_text())
+    meta.setdefault("episode", {})["published_date"] = "2024-10-21T00:00:00"
+    (meta_dir / "p01_e00.metadata.json").write_text(json.dumps(meta), encoding="utf-8")
+    gi = json.loads((meta_dir / "p01_e00.gi.json").read_text())
+    gi["data"] = {"episode": {"deeply": {"publish_datetime": "2024-10-21T12:00:00"}}}
+    (meta_dir / "p01_e00.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+
+    assert any("publish time" in p for p in _audit_built_corpus(root))
+
+
+def test_a_run_directory_the_search_layer_cannot_parse_is_caught(tmp_path: Path) -> None:
+    """`corpus_scope._RUN_TS_RE` wants `run_YYYYMMDD-HHMMSS`. The builder writes an UNDERSCORE
+    before the time, so nothing matches and run-recency ordering falls back to file mtime — a
+    property of the checkout rather than of the corpus (#63)."""
+    root = _corpus(tmp_path, episodes=1)
+    bad = root / "feeds" / "p01" / "run_20260101_000000"
+    (root / "feeds" / "p01" / "run_20260101-000000").rename(bad)
+    problems = _audit_built_corpus(root)
+    assert any("run-recency pattern" in p for p in problems), problems
+
+
+def test_a_conforming_run_directory_is_not_flagged(tmp_path: Path) -> None:
+    problems = _audit_built_corpus(_corpus(tmp_path, episodes=1))
+    assert not any("run-recency pattern" in p for p in problems), problems

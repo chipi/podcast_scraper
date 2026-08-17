@@ -1727,6 +1727,108 @@ def _missing_kg_problems(metas: list[Path], _load) -> list[str]:
     return found
 
 
+def _run_tag_problems(out_root: Path) -> list[str]:
+    """Run directories must match the recency regex the SEARCH layer parses (#62.8, #63).
+
+    ``corpus_scope._RUN_TS_RE`` is ``^run_(\\d{8}-\\d{6})`` — a DASH before the time. The builder
+    writes ``run_20260101_000000`` with an underscore, so nothing matches, and run-recency ordering
+    silently falls back to file mtime: a property of the checkout, not of the corpus. That makes
+    ordering differ between a fresh clone and a working copy, which is the worst kind of test
+    fixture — one whose behaviour depends on how you obtained it.
+    """
+    from podcast_scraper.search.corpus_scope import _RUN_TS_RE
+
+    bad = sorted({d.name for d in out_root.glob("feeds/*/run_*") if not _RUN_TS_RE.match(d.name)})
+    if not bad:
+        return []
+    return [
+        f"run directory {name!r} does not match the run-recency pattern "
+        f"{_RUN_TS_RE.pattern!r} — ordering falls back to file mtime"
+        for name in bad
+    ]
+
+
+def _publish_skew_problems(metas: list[Path], _load) -> list[str]:
+    """One publish instant per episode, identical across every layer that records one (#62.7).
+
+    v3 carried midnight in metadata and midday in the KG for the same episode. Nothing crashes on
+    a 12-hour skew; it just makes "newest first" mean two different orders depending on which
+    artifact a surface happens to read, and no single-layer test can see it.
+    """
+    found: list[str] = []
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        meta_ts = str((_load(path).get("episode") or {}).get("published_date") or "")
+        if not meta_ts:
+            continue
+        for suffix, label in ((".kg.json", "kg"), (".gi.json", "gi")):
+            for other in _publish_stamps(_load(path.with_name(f"{stem}{suffix}"))):
+                if other != meta_ts:
+                    found.append(
+                        f"{stem}: {label} publish time {other!r} disagrees with metadata "
+                        f"{meta_ts!r}"
+                    )
+                    break  # one report per layer is enough to fail the build
+    return found
+
+
+def _publish_stamps(doc: Any) -> list[str]:
+    """Every publish-ish timestamp anywhere in an artifact, at any depth.
+
+    Searched by SHAPE rather than by one known key, because the layers do not agree on the name:
+    metadata says ``published_date``, the KG says ``publish_date``, and both are nested differently.
+    The first version of this check looked for ``published_datetime`` at the top level, found it
+    nowhere, and would have shipped as a permanently silent no-op — a check that cannot fail is
+    worse than no check, because it reads as coverage.
+    """
+    out: list[str] = []
+    stack: list[Any] = [doc]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if isinstance(value, str) and "publish" in str(key).lower() and value:
+                    out.append(value)
+                elif isinstance(value, (dict, list)):
+                    stack.append(value)
+        elif isinstance(node, list):
+            stack.extend(node)
+    return out
+
+
+def _topic_variance_problems(metas: list[Path], _load) -> list[str]:
+    """Every episode needs at least one topic that is NOT shared by its whole feed (#62.6).
+
+    v3's topics are per-FEED constants, so every episode of a show carries the same labels. The
+    corpus therefore collapses to a single theme cluster and Storylines degenerates to one blob —
+    while every per-episode assertion passes, because each episode does have topics. The defect
+    only exists in the RELATIONSHIP between episodes, which is why it needs a corpus-level check.
+    """
+    by_feed: dict[str, list[tuple[str, set[str]]]] = {}
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        kg = _load(path.with_name(f"{stem}.kg.json"))
+        topics = {
+            str(n.get("id"))
+            for n in (kg.get("data") or kg).get("nodes", []) or []
+            if isinstance(n, dict) and str(n.get("type", "")).lower() == "topic" and n.get("id")
+        }
+        by_feed.setdefault(stem.split("_")[0], []).append((stem, topics))
+
+    found: list[str] = []
+    for feed, episodes in sorted(by_feed.items()):
+        if len(episodes) < 2:
+            continue  # a one-episode feed has no shared-vs-specific distinction to make
+        shared = set.intersection(*(t for _stem, t in episodes)) if episodes else set()
+        flat = [stem for stem, topics in episodes if topics and not (topics - shared)]
+        if flat:
+            found.append(
+                f"{feed}: {len(flat)}/{len(episodes)} episodes carry only feed-wide topics "
+                f"({', '.join(sorted(flat)[:4])}) — the corpus collapses to one theme cluster"
+            )
+    return found
+
+
 def _audit_built_corpus(out_root: Path) -> list[str]:
     """Check the corpus that was just written for the defect shapes v3 shipped with.
 
@@ -1802,6 +1904,9 @@ def _audit_built_corpus(out_root: Path) -> list[str]:
                 break  # one report per episode is enough to fail the build
 
     problems += _summary_echo_problems(metas, _load)
+    problems += _publish_skew_problems(metas, _load)
+    problems += _topic_variance_problems(metas, _load)
+    problems += _run_tag_problems(out_root)
     problems += _missing_kg_problems(metas, _load)
 
     return problems
