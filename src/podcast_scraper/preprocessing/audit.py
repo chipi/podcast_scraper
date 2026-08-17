@@ -1,0 +1,194 @@
+"""Which episodes were transcribed from UNPREPROCESSED audio? (#18 / #558)
+
+THE DAMAGE
+Audio preprocessing used to run under a flat 300-second budget regardless of input size. On a
+long episode it hit that wall, produced nothing, and the pipeline fell back to uploading the
+ORIGINAL file — unnormalised, un-trimmed, full-size — to the STT provider. The transcript that
+came back is the artifact, and every downstream artifact derives from it.
+
+WHY THIS NEEDS A DETECTOR
+The GI repair (``gi.repair``) rebuilds insights from the transcript. It cannot fix a transcript.
+``reprocess-corpus-from-transcripts`` runs with ``transcribe=off`` by design. So transcript-layer
+damage survives every repair we have, and until something can NAME the affected episodes,
+"should we re-transcribe?" is unanswerable — which is how it stays unfixed.
+
+THE SIGNATURE, from run-level ``metrics.json`` that every run already writes:
+
+    preprocessing_attempts >= 1  AND  preprocessing_count == 0
+
+Preprocessing was asked for and produced nothing, so the original file is what went to the
+provider. Corroborated by ``avg_preprocessing_wall_ms`` sitting at the old flat budget and by
+zero size reduction.
+
+MEASURED 2026-08-17 on two local corpora, and the split is stark:
+
+    pre-#558  (2026-08-15, 15 runs)   9 DAMAGED (60 %), wall_ms 297,064-300,845
+    post-#558 (2026-08-16, 14 runs)   0 damaged, reductions 50-90 %
+
+One post-fix run took 324,114 ms — it would have been killed outright by the old flat 300 s
+budget. That is the fix working, and it is also why the pre-fix episodes cluster so tightly at
+the wall.
+
+SCOPE LIMIT — READ BEFORE TRUSTING A COUNT
+``metrics.json`` is RUN-level, not per-episode. A run that processed ONE episode attributes
+exactly; a run that processed several reports only how many attempted versus completed, so it
+can say "this run has N damaged episodes" but not always WHICH. Per-episode attribution needs
+the ``audio_preprocessing`` stage-ledger row added in #22, which by construction only exists on
+runs made after that change — i.e. never on the damaged ones. The report states which runs are
+ambiguous rather than guessing.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+
+#: The flat budget #558 replaced. A wall time within ~10 % of it is the fingerprint of the old
+#: timeout rather than a coincidental slow run.
+LEGACY_FLAT_BUDGET_MS = 300_000
+
+
+@dataclass
+class RunPreprocessing:
+    run_dir: str
+    attempts: Optional[int]
+    completed: Optional[int]
+    wall_ms: Optional[float]
+    size_reduction_pct: Optional[float]
+    saved_bytes: Optional[int]
+    episodes_in_run: int
+    episode_ids: List[str] = field(default_factory=list)
+
+    @property
+    def damaged(self) -> bool:
+        """Preprocessing was asked for and produced nothing."""
+        return bool(self.attempts and self.attempts >= 1 and self.completed == 0)
+
+    @property
+    def hit_legacy_wall(self) -> bool:
+        """Wall time sits at the old flat 300 s budget — the #558 fingerprint."""
+        if self.wall_ms is None:
+            return False
+        return abs(self.wall_ms - LEGACY_FLAT_BUDGET_MS) <= LEGACY_FLAT_BUDGET_MS * 0.10
+
+    @property
+    def attribution_is_exact(self) -> bool:
+        """One episode in the run means the run-level metric names that episode exactly."""
+        return self.episodes_in_run == 1
+
+
+def _read_json(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def _episode_ids_in_run(run_dir: Path) -> List[str]:
+    out: List[str] = []
+    for meta in sorted((run_dir / "metadata").glob("*.metadata.json")):
+        doc = _read_json(meta)
+        if not doc:
+            continue
+        ep = doc.get("episode") or {}
+        eid = ep.get("episode_id") or doc.get("episode_id")
+        if isinstance(eid, str) and eid.strip():
+            out.append(eid.strip())
+    return out
+
+
+def assess_preprocessing(corpus_root: Path) -> List[RunPreprocessing]:
+    """One record per run that wrote ``metrics.json``."""
+    runs: List[RunPreprocessing] = []
+    for metrics_path in sorted(corpus_root.rglob("metrics.json")):
+        d = _read_json(metrics_path)
+        if d is None:
+            continue
+        run_dir = metrics_path.parent
+        ids = _episode_ids_in_run(run_dir)
+        runs.append(
+            RunPreprocessing(
+                run_dir=str(run_dir),
+                attempts=d.get("preprocessing_attempts"),
+                completed=d.get("preprocessing_count"),
+                wall_ms=d.get("avg_preprocessing_wall_ms"),
+                size_reduction_pct=d.get("avg_preprocessing_size_reduction_percent"),
+                saved_bytes=d.get("total_preprocessing_saved_bytes"),
+                episodes_in_run=len(ids),
+                episode_ids=ids,
+            )
+        )
+    return runs
+
+
+def check_corpus_preprocessing(corpus_root: Path) -> Tuple[bool, str]:
+    """``(ok, report)`` — ``ok`` is False when any run transcribed from unpreprocessed audio.
+
+    Reports rather than repairs: the fix is re-transcription, which is expensive and is the
+    operator's call. The point is to make the number KNOWN.
+    """
+    runs = assess_preprocessing(corpus_root)
+    damaged = [r for r in runs if r.damaged]
+    exact = [r for r in damaged if r.attribution_is_exact]
+    ambiguous = [r for r in damaged if not r.attribution_is_exact]
+    at_wall = [r for r in damaged if r.hit_legacy_wall]
+
+    lines = [
+        f"Corpus: {corpus_root}",
+        f"  runs with metrics        : {len(runs)}",
+        f"  runs DAMAGED             : {len(damaged)}",
+        f"    of which at the 300s wall: {len(at_wall)}  (the #558 flat-budget fingerprint)",
+        "",
+    ]
+
+    if damaged:
+        lines.append("  Episodes transcribed from UNPREPROCESSED audio:")
+        for r in exact:
+            eid = r.episode_ids[0] if r.episode_ids else "(no episode_id)"
+            wall = f"{r.wall_ms:.0f}ms" if r.wall_ms is not None else "-"
+            lines.append(f"    {eid}   wall={wall}   {r.run_dir}")
+        if ambiguous:
+            lines.append("")
+            lines.append(
+                "  Runs where preprocessing failed but the run held SEVERAL episodes — the"
+            )
+            lines.append(
+                "  run-level metric cannot say which. Treat every episode in these as suspect:"
+            )
+            for r in ambiguous:
+                lines.append(
+                    f"    {r.run_dir}  episodes={r.episodes_in_run} "
+                    f"attempts={r.attempts} completed={r.completed}"
+                )
+
+    lines.append("")
+    lines.append("  NOT COVERED BY THIS VERDICT")
+    lines.append(
+        "    Damage is in the TRANSCRIPT. gi-repair rebuilds insights FROM the transcript and"
+    )
+    lines.append(
+        "    cannot fix it; reprocess-corpus-from-transcripts runs transcribe=off by design."
+    )
+    lines.append(
+        "    The only repair is re-transcription (make redo-diarization / --reprocess-source),"
+    )
+    lines.append("    which re-runs ASR and cascades GI/KG. That is an explicit cost decision.")
+    no_metrics = [r for r in runs if r.attempts is None]
+    lines.append(
+        f"    runs with no preprocessing metrics at all: {len(no_metrics)} "
+        "(cannot be judged either way)"
+    )
+
+    lines.append("")
+    lines.append(f"VERDICT: {'PASS' if not damaged else 'FAIL'}")
+    if not runs:
+        lines.append("  NOTE: no metrics.json found — check CORPUS_DIR points at a corpus.")
+
+    return (not damaged), "\n".join(lines)

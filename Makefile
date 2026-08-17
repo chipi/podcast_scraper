@@ -4166,3 +4166,12 @@ delete-drill-hetzner-orphans:
 	 fi; \
 	 ./scripts/ops/delete_drill_hetzner_orphans.sh $(if $(filter 1 true yes,$(DRY_RUN)),--check-only,); \
 	 echo "MAKE_EXIT=$$?"
+
+# Which episodes were transcribed from UNPREPROCESSED audio (#18/#558)? Preprocessing used to run
+# under a flat 300s budget; on long episodes it hit that wall, produced nothing, and the ORIGINAL
+# full-size file went to the STT provider. The damage is in the TRANSCRIPT, so neither gi-repair
+# nor reprocess-corpus-from-transcripts (transcribe=off) can fix it — only re-transcription can,
+# which is an explicit cost decision. This makes the number known. CORPUS_DIR required.
+corpus-preprocessing-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
