@@ -499,13 +499,41 @@ class AppCorpusTrendingResponse(BaseModel):
     kinds: dict[str, list[AppTrendingEntity]] = Field(default_factory=dict)
 
 
+# --- generous caps on per-user state (#51) --------------------------------------------------------
+#
+# Nothing was capped except a collection NAME, so a runaway client loop or a stray script could
+# grow one account's files until that account's own reads degraded. Self-inflicted only — no
+# cross-user blast radius — which is why the numbers are set high enough that no real user reaches
+# one, not low enough to be "safe".
+#
+# Enforced in the REQUEST MODELS, so a violation is a 422 at the boundary. Truncating text somebody
+# wrote, without telling them, would be the worse failure of the two.
+#
+# Applies to new writes only. Nothing already stored is trimmed: a cap that deletes what someone
+# already wrote is a data-loss bug wearing a safety hat.
+_MAX_NOTE_CHARS = 32_000
+_MAX_QUOTE_CHARS = 8_000
+_MAX_LABEL_CHARS = 500
+_MAX_QUEUE_ITEMS = 500
+_MAX_COLLECTION_ITEMS = 1_000
+_MAX_COLLECTIONS = 200
+
+
 class FavoriteAdd(BaseModel):
     """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
 
     kind: Literal["episode", "insight", "person", "topic"] = Field(description="Saveable kind.")
     ref: str = Field(description="Stable id within the kind (episode→slug; insight→slug#id).")
-    label: str | None = Field(default=None, description="Display label (title / insight text).")
-    sublabel: str | None = Field(default=None, description="Secondary label (show / episode).")
+    label: str | None = Field(
+        default=None,
+        max_length=_MAX_LABEL_CHARS,
+        description="Display label (title / insight text).",
+    )
+    sublabel: str | None = Field(
+        default=None,
+        max_length=_MAX_LABEL_CHARS,
+        description="Secondary label (show / episode).",
+    )
     slug: str | None = Field(default=None, description="Episode slug to open (episode/insight).")
     start_ms: int | None = Field(default=None, description="Jump target for an insight (ms).")
 
@@ -556,7 +584,9 @@ class HighlightCreate(BaseModel):
     char_start: int | None = Field(default=None, ge=0, description="Transcript char offset start.")
     char_end: int | None = Field(default=None, ge=0, description="Transcript char offset end.")
     segment_ids: list[str] = Field(default_factory=list, description="Overlapping segment ids.")
-    quote_text: str | None = Field(default=None, description="Captured verbatim text (spans).")
+    quote_text: str | None = Field(
+        default=None, max_length=_MAX_QUOTE_CHARS, description="Captured verbatim text (spans)."
+    )
     speaker: str | None = Field(default=None, description="Speaker label when known.")
     source_insight_id: str | None = Field(
         default=None, description="GIL insight id (insight kind)."
@@ -584,7 +614,9 @@ class HighlightUpdate(BaseModel):
     """Body for PATCH /api/app/highlights/{id} — edit colour / captured text (all optional)."""
 
     color: str | None = Field(default=None, description="New colour/label token.")
-    quote_text: str | None = Field(default=None, description="Edited captured text.")
+    quote_text: str | None = Field(
+        default=None, max_length=_MAX_QUOTE_CHARS, description="Edited captured text."
+    )
 
 
 class Highlight(BaseModel):
@@ -625,13 +657,13 @@ class NoteCreate(BaseModel):
 
     target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
-    text: str = Field(min_length=1, description="Note body.")
+    text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
 
 
 class NoteUpdate(BaseModel):
     """Body for PATCH /api/app/notes/{id}."""
 
-    text: str = Field(min_length=1, description="Edited note body.")
+    text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Edited note body.")
 
 
 class Note(BaseModel):
@@ -1121,7 +1153,11 @@ class QueueResponse(BaseModel):
 class QueueUpdate(BaseModel):
     """Body for PUT /api/app/queue."""
 
-    items: list[str] = Field(default_factory=list, description="Ordered episode slugs.")
+    items: list[str] = Field(
+        default_factory=list,
+        max_length=_MAX_QUEUE_ITEMS,
+        description="Ordered episode slugs.",
+    )
 
 
 class LibraryItem(BaseModel):

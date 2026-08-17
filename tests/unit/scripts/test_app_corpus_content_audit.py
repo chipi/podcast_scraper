@@ -27,9 +27,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 
 from build_app_validation_corpus import (  # noqa: E402
+    _audit_built_corpus,
     _feed_parity_problems,
     _synthesized_fallback_problems,
-    _audit_built_corpus,
     is_greeting_or_filler,
 )
 

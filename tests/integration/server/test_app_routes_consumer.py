@@ -1084,3 +1084,74 @@ def test_a_cross_field_rejection_renders_its_own_422(tmp_path: Path) -> None:
     assert isinstance(body["detail"], list) and body["detail"], body
     # The offending context survived as text rather than exploding the encoder.
     assert "end_ms" in resp.text
+
+
+# --- generous caps on per-user state (#51) ---------------------------------------------------------
+#
+# Nothing was capped except a collection NAME, so a runaway client loop could grow one account's
+# files until that account's own reads degraded. Self-inflicted only — no cross-user blast radius —
+# so the numbers are set high enough that no real user reaches one. Each cap REJECTS at the
+# boundary rather than truncating: silently trimming text somebody wrote is the worse failure.
+
+
+def test_an_over_long_note_is_rejected_not_truncated(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    hl = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": _real_slug(tmp_path), "kind": "moment", "start_ms": 0},
+    ).json()
+
+    ok = client.post(
+        "/api/app/notes", json={"target": "highlight", "target_id": hl["id"], "text": "x" * 32_000}
+    )
+    assert ok.status_code in (200, 201), ok.text  # exactly at the cap is fine
+
+    too_long = client.post(
+        "/api/app/notes",
+        json={"target": "highlight", "target_id": hl["id"], "text": "x" * 32_001},
+    )
+    assert too_long.status_code == 422, too_long.text
+    # Nothing was stored under a truncated body — the user keeps their text, we keep our word.
+    bodies = [n["text"] for n in client.get("/api/app/notes").json()["items"]]
+    assert all(len(b) <= 32_000 for b in bodies)
+    assert len(bodies) == 1
+
+
+def test_an_over_long_quote_is_rejected(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
+    over = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 0, "quote_text": "q" * 8_001},
+    )
+    assert over.status_code == 422, over.text
+    at_cap = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 0, "quote_text": "q" * 8_000},
+    )
+    assert at_cap.status_code in (200, 201), at_cap.text
+
+
+def test_an_over_long_favorite_label_is_rejected(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    over = client.put(
+        "/api/app/favorites",
+        json={"kind": "episode", "ref": "ep-1", "label": "L" * 501},
+    )
+    assert over.status_code == 422, over.text
+
+
+def test_an_over_long_queue_is_rejected(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    assert client.put(
+        "/api/app/queue", json={"items": [f"s{i}" for i in range(500)]}
+    ).status_code in (
+        200,
+        201,
+    )
+    over = client.put("/api/app/queue", json={"items": [f"s{i}" for i in range(501)]})
+    assert over.status_code == 422, over.text

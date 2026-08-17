@@ -117,3 +117,36 @@ def test_readers_still_degrade_instead_of_raising(tmp_path: Path, payload: str) 
     _write_raw(tmp_path, payload)
     assert cs.list_collections(tmp_path, _UID) == []
     assert cs.get_items(tmp_path, _UID, "col_x") == []
+
+
+# --- generous count caps (#51) ------------------------------------------------------------------
+
+
+def test_the_collection_count_is_capped(tmp_path: Path) -> None:
+    uid = "u_0123456789abcdef01234567"
+    for i in range(cs._MAX_COLLECTIONS):
+        cs.create_collection(tmp_path, uid, f"c{i}")
+    with pytest.raises(ValueError, match="at most"):
+        cs.create_collection(tmp_path, uid, "one too many")
+    # The cap rejects the NEW write; everything already stored still reads.
+    assert len(cs.list_collections(tmp_path, uid)) == cs._MAX_COLLECTIONS
+
+
+def test_items_per_collection_are_capped(tmp_path: Path) -> None:
+    uid = "u_0123456789abcdef01234567"
+    col = cs.create_collection(tmp_path, uid, "c")["id"]
+    for i in range(cs._MAX_ITEMS_PER_COLLECTION):
+        cs.add_item(tmp_path, uid, col, f"h_{i}")
+    with pytest.raises(ValueError, match="at most"):
+        cs.add_item(tmp_path, uid, col, "h_overflow")
+
+
+def test_re_adding_an_existing_member_still_works_at_the_cap(tmp_path: Path) -> None:
+    """Idempotent re-add must keep working at the cap, or a full collection could never be tidied
+    — the check belongs on the APPEND, not on the call."""
+    uid = "u_0123456789abcdef01234567"
+    col = cs.create_collection(tmp_path, uid, "c")["id"]
+    for i in range(cs._MAX_ITEMS_PER_COLLECTION):
+        cs.add_item(tmp_path, uid, col, f"h_{i}")
+    members = cs.add_item(tmp_path, uid, col, "h_0")  # already a member
+    assert len(members) == cs._MAX_ITEMS_PER_COLLECTION

@@ -59,8 +59,15 @@ async def list_collections(
 async def create_collection(
     request: Request, body: CollectionCreate, user: User = Depends(get_current_user)
 ) -> Collection:
-    """Create a named collection."""
-    created = app_collections_store.create_collection(_data_dir(request), user.user_id, body.name)
+    """Create a named collection. 422 when the per-user collection cap is reached (#51)."""
+    try:
+        created = app_collections_store.create_collection(
+            _data_dir(request), user.user_id, body.name
+        )
+    except ValueError as exc:
+        # The store raises for a bad name or a breached cap. Both are the caller's input, so 422 —
+        # unmapped, a ValueError from the store surfaces as a 500 and reads like our bug.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return Collection(**created)
 
 
@@ -121,6 +128,8 @@ async def add_item(
         app_collections_store.add_item(data_dir, user.user_id, collection_id, body.highlight_id)
     except KeyError as exc:  # lost a race with a concurrent delete
         raise HTTPException(status_code=404, detail="collection not found") from exc
+    except ValueError as exc:  # the per-collection item cap (#51)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     rows = app_collections_store.list_collections(data_dir, user.user_id, live_item_ids=live)
     return Collection(**next(c for c in rows if c["id"] == collection_id))
 

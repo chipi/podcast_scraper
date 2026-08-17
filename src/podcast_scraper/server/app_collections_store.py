@@ -26,6 +26,12 @@ from podcast_scraper.server.atomic_write import atomic_write_text
 _LOCK_TIMEOUT_S = 5.0
 _FILE_NAME = "collections.json"
 _MAX_NAME_LEN = 120
+#: Generous count caps (#51). High enough that no real user reaches one, low enough that a
+#: runaway client loop cannot grow this account's own files until its own reads degrade.
+#: Enforced on the WRITE, so a violation is an error rather than a silent no-op, and applied
+#: to new writes only — nothing already stored is trimmed.
+_MAX_COLLECTIONS = 200
+_MAX_ITEMS_PER_COLLECTION = 1_000
 
 
 def _path(data_dir: Path, user_id: str) -> Path:
@@ -117,6 +123,8 @@ def create_collection(data_dir: Path, user_id: str, name: str) -> dict[str, Any]
         raise ValueError("collection name must be 1..%d chars" % _MAX_NAME_LEN)
     with _lock(data_dir, user_id):
         doc = _read(data_dir, user_id, strict=True)
+        if len(doc["collections"]) >= _MAX_COLLECTIONS:
+            raise ValueError(f"at most {_MAX_COLLECTIONS} collections per user")
         collection = {
             "id": f"col_{uuid.uuid4().hex[:12]}",
             "name": clean,
@@ -159,6 +167,10 @@ def add_item(data_dir: Path, user_id: str, collection_id: str, highlight_id: str
             raise KeyError(collection_id)
         members = doc["items"].setdefault(collection_id, [])
         if highlight_id not in members:
+            # Checked only when actually appending: re-adding an existing member is idempotent and
+            # must keep working at the cap, or a full collection could never be tidied.
+            if len(members) >= _MAX_ITEMS_PER_COLLECTION:
+                raise ValueError(f"at most {_MAX_ITEMS_PER_COLLECTION} items per collection")
             members.append(highlight_id)
         _write(data_dir, user_id, doc)
         return list(members)
