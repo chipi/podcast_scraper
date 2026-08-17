@@ -80,6 +80,7 @@ def _corpus(
     insight: str = _REAL_INSIGHT,
     duration_of: Callable[[int], float] | None = None,
     gi_ms_of: Callable[[int, float], float] | None = None,
+    with_kg: bool = True,
 ) -> Path:
     """Write a small structurally-real corpus; every knob defaults to a HEALTHY value."""
     root = tmp_path / "v9"
@@ -115,6 +116,27 @@ def _corpus(
             ),
             encoding="utf-8",
         )
+        if with_kg:
+            # A KG per episode is part of being HEALTHY, not an extra (#38). Without one, every
+            # capture on that episode is withheld from the Revisit tab, Your Week and the digest —
+            # so a corpus missing them is broken in a way no file count reveals. This fixture
+            # claimed to be healthy while shipping none, and the new check caught it.
+            (meta_dir / f"{stem}.kg.json").write_text(
+                json.dumps(
+                    {
+                        "episode_id": stem,
+                        "nodes": [
+                            {
+                                "id": "person:jane-doe",
+                                "type": "Person",
+                                "properties": {"name": "Jane"},
+                            },
+                            {"id": "topic:ai", "type": "Topic", "properties": {"label": "AI"}},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
     return root
 
 
@@ -172,3 +194,25 @@ def test_an_empty_corpus_is_a_failure_not_a_pass(tmp_path: Path) -> None:
     That is the loudest possible false green.
     """
     assert _audit_built_corpus(tmp_path / "nothing-here") != []
+
+
+def test_an_episode_with_no_knowledge_graph_is_caught(tmp_path: Path) -> None:
+    """The KG is what a captured moment RESOLVES to (#38).
+
+    Without one, `refs_for_highlight` returns [] and every revisit surface withholds the user's own
+    capture — silently, because our pipeline missed a step. That is a build defect, and the loudest
+    place to catch it is here rather than as an inexplicably empty Your Week weeks later.
+    """
+    problems = _audit_built_corpus(_corpus(tmp_path, with_kg=False))
+    assert any("no knowledge graph" in p for p in problems), problems
+
+
+def test_the_kg_check_counts_and_names_the_offenders(tmp_path: Path) -> None:
+    """A bare "some episodes are broken" sends the reader back to the filesystem to work out
+    WHICH — so the message carries the count and names the offenders."""
+    root = _corpus(tmp_path, episodes=24)
+    (root / "feeds" / "p01" / "run_20260101-000000" / "metadata" / "p01_e07.kg.json").unlink()
+    problems = _audit_built_corpus(root)
+    kg = next(p for p in problems if "no knowledge graph" in p)
+    assert "1/24" in kg, kg
+    assert "p01_e07" in kg, kg

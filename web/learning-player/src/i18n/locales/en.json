@@ -61,8 +61,8 @@
     "showLess": "Show less",
     "yourWeekFirstRun": {
       "new_in_follows": "New episodes from shows you follow will land here.",
-      "revisit": "Moments you capture come back here to review, spaced out over time.",
-      "trending_in_your_corpus": "Once you've listened to a few episodes, what's heating up across them shows here."
+      "revisit": "Capture a moment and it comes back here a couple of days later, then at widening intervals.",
+      "trending_in_your_corpus": "When topics start recurring across the episodes you've heard, they show up here."
     },
     "yourWeekFindShows": "Find shows →",
     "momentumHint": "Momentum right now — “↑ 2×” means twice as often as in recent weeks"

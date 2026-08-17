@@ -1728,6 +1728,28 @@ def _audit_built_corpus(out_root: Path) -> list[str]:
                 problems.append(f"{stem}: {node.get('type')} is a greeting/filler — {text[:60]!r}")
                 break  # one report per episode is enough to fail the build
 
+    # 4. EVERY episode must carry a knowledge graph (#38).
+    #
+    #    The KG is not decoration — it is what a captured moment resolves TO. An episode without
+    #    one makes `refs_for_highlight` return [], and every revisit surface then WITHHOLDS that
+    #    capture: the user's own highlight disappears from the Revisit tab, from Your Week and from
+    #    the digest email, silently, because our pipeline missed a step. That is a build defect,
+    #    not a content variation, and it belongs here rather than surfacing later as an
+    #    inexplicably empty Your Week that nobody can account for.
+    kg_missing = []
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        kg = _load(path.with_name(f"{stem}.kg.json"))
+        if not (kg.get("data") or kg).get("nodes"):
+            kg_missing.append(stem)
+    if kg_missing:
+        shown = ", ".join(sorted(kg_missing)[:8])
+        more = f" (+{len(kg_missing) - 8} more)" if len(kg_missing) > 8 else ""
+        problems.append(
+            f"{len(kg_missing)}/{len(metas)} episodes have no knowledge graph: {shown}{more}. "
+            "Captures on these are withheld from every revisit surface."
+        )
+
     return problems
 
 

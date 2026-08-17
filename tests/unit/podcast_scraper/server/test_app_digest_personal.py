@@ -35,7 +35,14 @@ _REFS = [{"id": "person:jane-doe", "kind": "person", "label": "Jane Doe"}]
 @pytest.fixture(autouse=True)
 def _stub_kg(monkeypatch: pytest.MonkeyPatch) -> None:
     # Episodes carry graph refs; a slug ending in "-bare" has none (to test the flat-clip drop).
+    #
+    # The empty-slug case mirrors the real `refs_for_slug`, which returns [] before touching the
+    # corpus. Without that line the stub answered a blank slug with refs — more generous than
+    # production — and the gate-equivalence test below read that as the two gates disagreeing.
+    # A stub that is kinder than the real thing manufactures failures as readily as it hides them.
     def fake_refs(_root: Path, slug: str, *, limit: int = 3) -> list[dict[str, str]]:
+        if not slug:
+            return []
         return [] if slug.endswith("-bare") else list(_REFS)
 
     monkeypatch.setattr(app_graph_refs, "refs_for_slug", fake_refs)
@@ -360,3 +367,35 @@ def test_push_nudge_selects_the_revisit_section_by_kind(
     # With no revisit content there is nothing to nudge about, so no envelope is enqueued —
     # rather than a "resurface-nudge" built from follow items.
     assert app_digest_personal.enqueue_push_for_user(_ROOT, tmp_path, uid, now=10**9) == []
+
+
+def test_the_two_gates_agree_for_every_shape_of_highlight(tmp_path: Path) -> None:
+    """`carries_the_graph` and `_digest_item`'s drop must be the SAME condition (#38).
+
+    The assembler cannot call the predicate — it needs the refs themselves — so the two express one
+    rule in two places. That is precisely the arrangement that let the three revisit surfaces
+    disagree in the first place, so it gets pinned rather than trusted.
+    """
+    from podcast_scraper.server import app_graph_refs
+
+    shapes = [
+        {"id": "h1", "episode_slug": "ep-one", "created_at": 1},  # resolves via episode KG
+        {"id": "h2", "episode_slug": "ep-bare", "created_at": 1},  # stubbed to no refs
+        {"id": "h3", "episode_slug": "", "created_at": 1},  # no slug at all
+        {"id": "h4", "episode_slug": "ep-one", "graph_refs": _REFS, "created_at": 1},  # stored refs
+        {"id": "h5", "episode_slug": "ep-bare", "graph_refs": _REFS, "created_at": 1},  # stored win
+        {
+            "id": "h6",
+            "episode_slug": "ep-one",
+            "graph_refs": [],
+            "created_at": 1,
+        },  # empty → resolve
+        {"id": "h7", "episode_slug": "ep-bare", "graph_refs": [{"no": "id"}], "created_at": 1},
+    ]
+    for h in shapes:
+        predicate = app_graph_refs.carries_the_graph(_ROOT, h)
+        assembled = app_digest_personal._digest_item(_ROOT, h) is not None
+        assert predicate == assembled, (
+            f"{h['id']}: carries_the_graph={predicate} but the assembler "
+            f"{'kept' if assembled else 'dropped'} it — the two gates have drifted"
+        )

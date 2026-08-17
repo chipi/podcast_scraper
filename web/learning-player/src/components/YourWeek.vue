@@ -51,6 +51,15 @@ const hasContent = computed(() => nonEmptySections.value.length > 0)
  * The first-run rows. `new_in_follows` is USER-empty — it is blank because you follow nothing, an
  * action you can take — so it carries a link to do it. The other two are SYSTEM-empty: they fill as
  * you listen, with nothing to click today, so they explain rather than prompt.
+ *
+ * The copy has to describe what the system ACTUALLY does, because this is the screen a user reads
+ * when nothing has appeared yet — the moment they are deciding whether the feature is broken (#38):
+ *
+ *   - revisit said "Moments you capture come back here" with no hint of the 2-day first rung, so a
+ *     user who captured something and looked immediately was told a promise the ladder had not
+ *     broken yet;
+ *   - trending said "what's heating up across them shows here", which is unconditionally false on a
+ *     corpus that never ships the temporal-velocity enrichment — no amount of listening fills it.
  */
 const FIRST_RUN: { kind: YourWeekSectionKind; actionable: boolean }[] = [
   { kind: 'new_in_follows', actionable: true },

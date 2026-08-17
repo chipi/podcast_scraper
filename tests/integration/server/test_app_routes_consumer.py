@@ -96,6 +96,23 @@ def _corpus(root: Path) -> None:
     )
 
 
+def _real_slug(root: Path, episode_id: str = "ep1") -> str:
+    """The slug of an episode that actually exists in the fixture corpus — and so has a KG.
+
+    The resurfacing tests used to capture against a made-up ``show-ep01``. That is an episode with
+    no KG, which #38 now treats as the pipeline defect it is: every revisit surface withholds a
+    capture that cannot carry the graph. Testing the ladder against a non-existent episode meant
+    testing it in a state the product is not supposed to reach.
+    """
+    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+    for row in build_catalog_rows_cumulative(root):
+        if row.episode_id == episode_id:
+            return slug_for_row(row)
+    raise AssertionError(f"{episode_id} not in the fixture corpus")
+
+
 def _write_clusters(root: Path) -> None:
     (root / "search").mkdir(parents=True, exist_ok=True)
     payload = {
@@ -675,8 +692,9 @@ def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
     _corpus(tmp_path)
     client = _authed(tmp_path)
     # An old highlight (created well in the past) is due; a brand-new one is not.
+    slug = _real_slug(tmp_path)
     old = client.post(
-        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
     ).json()
     # Backdate the highlight's created_at so it clears the 2-day first step.
     import json as _json
@@ -719,7 +737,8 @@ def test_marking_an_id_you_do_not_own_is_a_404(tmp_path: Path) -> None:
     _corpus(tmp_path)
     client = _authed(tmp_path)
     real = client.post(
-        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+        "/api/app/highlights",
+        json={"episode_slug": _real_slug(tmp_path), "kind": "moment", "start_ms": 0},
     ).json()
 
     assert client.post("/api/app/resurfacing/h_not_mine/surfaced").status_code == 404
@@ -742,11 +761,12 @@ def test_deleting_a_highlight_takes_its_schedule_with_it(tmp_path: Path) -> None
 
     _corpus(tmp_path)
     client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
     keep = client.post(
-        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
     ).json()
     doomed = client.post(
-        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 60}
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 60}
     ).json()
     for hid in (keep["id"], doomed["id"]):
         assert client.post(f"/api/app/resurfacing/{hid}/surfaced").status_code == 204
@@ -944,3 +964,63 @@ def test_a_record_written_before_the_flag_existed_reads_as_unfinished(tmp_path: 
 
     assert client.get("/api/app/playback/ep").json()["finished"] is False
     assert client.get("/api/app/playback").json()["items"][0]["finished"] is False
+
+
+# --- one gate for all three revisit surfaces (#38) ------------------------------------------------
+#
+# The email is a REMINDER of the page you would see anyway (product call, 2026-08-17), so Your Week
+# and the digest must agree by construction — they do, both built by assemble_digest_payload. The
+# Revisit tab was the odd one out: a different code path (select_due) with NO graph requirement, so
+# it listed captures the other two silently withheld. Same user, same highlight, two answers, and
+# an empty Your Week beside a populated Revisit tab that read as a bug.
+
+
+def _due_capture(client, tmp_path: Path, slug: str) -> dict:
+    """Capture a moment on ``slug`` and backdate it past the ladder's 2-day first rung."""
+    import json as _json
+
+    created = client.post(
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
+    ).json()
+    hl_file = next((tmp_path / "appdata" / "users").iterdir()) / "highlights.json"
+    rows = _json.loads(hl_file.read_text())
+    for row in rows:
+        if row["id"] == created["id"]:
+            row["created_at"] = 1  # epoch → long overdue
+    hl_file.write_text(_json.dumps(rows))
+    return created
+
+
+def test_a_capture_with_a_graph_appears_on_every_revisit_surface(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    created = _due_capture(client, tmp_path, _real_slug(tmp_path, "ep1"))
+
+    tab = client.get("/api/app/resurfacing").json()
+    assert [i["highlight"]["id"] for i in tab["items"]] == [created["id"]]
+
+    week = client.get("/api/app/your-week").json()
+    revisit = next((s for s in week["sections"] if s["kind"] == "revisit"), None)
+    assert revisit is not None
+    assert created["id"] in [i.get("highlight_id") for i in revisit["items"]]
+
+
+def test_a_capture_with_no_graph_appears_on_NONE_of_them(tmp_path: Path) -> None:
+    """The divergence this closes: the tab used to list it while Your Week withheld it.
+
+    An episode with no KG is a pipeline defect — corpus validation now fails the build on it — but
+    while one exists, the three surfaces must at least agree about it. Disagreeing is what made an
+    empty Your Week impossible to explain from the app.
+    """
+    _write_episode(tmp_path, stem="0003-c", episode_id="ep3", persons=[], topics=[])
+    client = _authed(tmp_path)
+    created = _due_capture(client, tmp_path, _real_slug(tmp_path, "ep3"))
+
+    tab = client.get("/api/app/resurfacing").json()
+    assert tab["items"] == [], f"the Revisit tab still lists a graphless capture: {tab}"
+
+    week = client.get("/api/app/your-week").json()
+    assert not any(s["kind"] == "revisit" for s in week["sections"])
+
+    # It is withheld, not deleted — the capture is still the user's, and still listed as a highlight.
+    assert created["id"] in [h["id"] for h in client.get("/api/app/highlights").json()["items"]]

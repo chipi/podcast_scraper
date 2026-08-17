@@ -1,8 +1,10 @@
 """Integration tests for the P3 Consolidation resurfacing routes (#1123).
 
-The resurfacing feed + pacing settings only need a signed-in user + the app data
-dir (no corpus), so they cover the auth-gated read/write endpoints without the
-KG-backed ``/interests/derived`` path.
+Pacing settings need only a signed-in user + the app data dir. The resurfacing
+FEED now also needs a corpus root: since #38 it resolves each due highlight's
+graph refs so that it withholds exactly what Your Week and the digest email
+withhold. Before that it answered from per-user files alone, and could list
+captures the other two surfaces silently dropped.
 """
 
 from __future__ import annotations

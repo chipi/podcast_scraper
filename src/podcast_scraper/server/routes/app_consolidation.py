@@ -7,12 +7,13 @@ heard∪captured corpus as *implicit* signals beside their explicit follows.
 
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from podcast_scraper.server import app_user_corpus, app_user_state
+from podcast_scraper.server import app_graph_refs, app_user_corpus, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_resurfacing import reflection_prompt, select_due
 from podcast_scraper.server.app_user_store import User
@@ -26,6 +27,8 @@ from podcast_scraper.server.schemas import (
     ResurfacingSettings,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["app"])
 
 
@@ -37,17 +40,49 @@ def _data_dir(request: Request) -> Path:
 async def resurfacing(
     request: Request, user: User = Depends(get_current_user)
 ) -> ResurfacingResponse:
-    """Highlights due to resurface (most-overdue first) + a reflection prompt; honours pacing."""
+    """Highlights due to resurface (most-overdue first) + a reflection prompt; honours pacing.
+
+    Graph-gated, exactly like Your Week and the digest email (#38). Until now this route had NO
+    such requirement while the digest assembler dropped refless items, so the Revisit tab listed
+    moments the other two silently withheld — the same capture, present on one surface and absent
+    from the other two. The email is meant to be a reminder of the page you would see anyway; three
+    surfaces answering one question three ways is the opposite of that.
+    """
     data_dir = _data_dir(request)
+    root = corpus_root_or_503(request)
     settings = app_user_state.get_resurfacing_settings(data_dir, user.user_id)
     paused = bool(settings["paused"])
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
     state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
     due = select_due(highlights, state, int(time.time()), paused=paused)
-    items = [
-        ResurfacingItem(highlight=Highlight(**h), reflection_prompt=reflection_prompt(str(h["id"])))
-        for h in due
-    ]
+
+    items: list[ResurfacingItem] = []
+    withheld = 0
+    for h in due:
+        if not app_graph_refs.carries_the_graph(root, h):
+            # An episode with no KG is a PIPELINE defect, not a normal state — corpus validation
+            # fails the build on it. Logged per occurrence so it is visible in a running system
+            # too: the silent drop is precisely why an empty Your Week went unexplained.
+            withheld += 1
+            logger.warning(
+                "resurfacing: withholding highlight %s (episode %s) — no graph refs; "
+                "the episode is missing its KG artifact",
+                h.get("id"),
+                h.get("episode_slug"),
+            )
+            continue
+        items.append(
+            ResurfacingItem(
+                highlight=Highlight(**h), reflection_prompt=reflection_prompt(str(h["id"]))
+            )
+        )
+    if withheld:
+        logger.warning(
+            "resurfacing: %d of %d due highlights withheld for missing graph refs (user %s)",
+            withheld,
+            len(due),
+            user.user_id,
+        )
     return ResurfacingResponse(items=items, paused=paused)
 
 
