@@ -586,3 +586,63 @@ class TestDerivedInterestsCanOnlyAdd:
     def test_two_inferences_are_worth_about_one_statement(self) -> None:
         """derived_ratio 0.5 — stated so the ratio is visible, not buried in a curve."""
         assert self._boost(0, 2) == pytest.approx(self._boost(1, 0), abs=1e-9)
+
+
+class TestTheSHIPPEDAffinityTuningHoldsItsProperties:
+    """The same properties, asserted against ``DEFAULT_RANKING_CONFIG`` rather than local constants.
+
+    The classes above pass ``W``/``RATIO``/``CAP`` in by hand, so they prove the *function* is
+    correct and say nothing about the numbers the product actually ships. Measured, not assumed:
+    with those classes green, editing the default ``derived_ratio`` 0.5 → 1.0 kept **559 passed** —
+    an inference silently gaining the weight of a stated follow, which is #19's whole complaint,
+    and no test noticed.
+
+    So each guard here reads its number out of the config. They fail on a tuning change that breaks
+    a property and stay green on one that preserves it — the split the old
+    ``weight_of(...) == 2.0`` assertion got backwards.
+    """
+
+    @staticmethod
+    def _shipped() -> tuple[float, float, float]:
+        params = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_INTEREST_AFFINITY)
+        return (
+            DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY),
+            float(params.get("derived_ratio", 0.5)),
+            float(params.get("cap", 1.0)),
+        )
+
+    def _boost(self, explicit: int, derived: int = 0) -> float:
+        weight, ratio, cap = self._shipped()
+        return _affinity_boost(explicit, derived, weight=weight, derived_ratio=ratio, cap=cap)
+
+    def test_a_stated_follow_outweighs_an_inference(self) -> None:
+        """``derived_ratio`` must stay < 1. At 1.0 the picker and the inference are the same vote.
+
+        The user filled the picker in on purpose; a topic we guessed from listening history cannot
+        be allowed to count for as much, or "personalisation" quietly stops being about what they
+        asked for.
+        """
+        _, ratio, _ = self._shipped()
+        assert 0.0 < ratio < 1.0, f"shipped derived_ratio={ratio} — an inference must count LESS"
+        assert self._boost(0, 1) < self._boost(1, 0)
+
+    def test_derived_tokens_still_cannot_subtract(self) -> None:
+        base = self._boost(1, 0)
+        assert all(self._boost(1, n) >= base for n in range(9))
+
+    def test_the_cap_is_not_silently_throttling_the_curve(self) -> None:
+        """At the shipped ``cap`` the SATURATION decides the ceiling, not the cap.
+
+        ``1 - 0.5**n`` is strictly below 1.0 for every n, so a cap of 1.0 can never bind — raising
+        it to 99.0 changes no test and no ranking. That is intentional (the curve is the limiter),
+        but it means the cap is inert at its default, so this pins the intent rather than pretending
+        the number is load-bearing: a cap BELOW full saturation would be a second, hidden ceiling.
+        """
+        _, _, cap = self._shipped()
+        assert cap >= 1.0, f"cap={cap} would clamp the saturation curve below its own asymptote"
+
+    def test_the_cap_still_binds_when_it_is_lowered(self) -> None:
+        """The mechanism works — needed because the shipped value never exercises it."""
+        weight, ratio, _ = self._shipped()
+        clamped = _affinity_boost(6, 0, weight=weight, derived_ratio=ratio, cap=0.25)
+        assert clamped == pytest.approx(weight * 0.25)
