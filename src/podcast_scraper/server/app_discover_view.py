@@ -15,6 +15,7 @@ caller so the per-episode KG loads stay cheap.
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -27,6 +28,7 @@ from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
     RankingConfig,
     SIGNAL_INTEREST_AFFINITY,
+    SIGNAL_RECENCY,
     SIGNAL_SIGNIFICANCE,
     SIGNAL_TREND_VELOCITY,
 )
@@ -49,6 +51,28 @@ def _significance(row: CatalogEpisodeRow, params: dict[str, Any] | None = None) 
     cap = int(params.get("bullet_cap", 5))
     score += min(len(row.summary_bullets), cap) * step
     return score
+
+
+def _feed_significance_means(
+    rows: Sequence[CatalogEpisodeRow], params: dict[str, Any] | None
+) -> dict[str, float]:
+    """Mean raw significance per feed — the denominator that stops COVERAGE outranking INTEREST.
+
+    ``_significance`` scores ``has_gi`` / ``has_kg`` / bullet count: whether ENRICHMENT RAN, not how
+    good the episode is. On a uniformly-enriched corpus that is harmless, and ours is uniformly
+    enriched — which is exactly why the fixture cannot reveal the problem. The moment coverage is
+    uneven, a well-processed show outranks every episode of a sparsely-processed one in EVERY user's
+    feed, regardless of what they actually follow. "More enriched" would beat "this is what you
+    asked for".
+
+    Normalising each episode against its own feed's mean removes that: a show is compared with its
+    own siblings, so depth still orders episodes WITHIN a show while a pipeline artefact cannot
+    reorder shows against each other.
+    """
+    totals: dict[str, list[float]] = {}
+    for row in rows:
+        totals.setdefault(row.feed_id or "", []).append(_significance(row, params))
+    return {feed: (sum(vals) / len(vals)) for feed, vals in totals.items() if vals}
 
 
 def _topic_velocities(root: Path) -> dict[str, float]:
@@ -238,6 +262,43 @@ def build_discover_pool(
     return [*window, *extra]
 
 
+def _recency_boost(publish_date: str | None, newest: date | None, half_life_days: float) -> float:
+    """How fresh this episode is RELATIVE TO THE FRESHEST in the pool — 1.0 down towards 0.0.
+
+    Decay is measured against the newest candidate rather than wall-clock ``now``, deliberately:
+
+    * it is deterministic, so the eval and the tests do not drift as the calendar moves;
+    * it says the useful thing. Against wall-clock, a corpus that stopped updating a year ago has
+      every episode decayed to ~0 and the signal silently stops discriminating — exactly when a
+      user most needs "what is newest here". Relative decay keeps ranking the shelf you have.
+
+    ``half_life_days`` is the age at which the boost halves: 0 days -> 1.0, one half-life -> 0.5.
+    """
+    if newest is None or not publish_date or half_life_days <= 0:
+        return 0.0
+    try:
+        published = date.fromisoformat(str(publish_date)[:10])
+    except ValueError:
+        return 0.0
+    age_days = max(0, (newest - published).days)
+    return float(2.0 ** (-age_days / half_life_days))
+
+
+def _newest_publish_date(rows: Sequence[CatalogEpisodeRow]) -> date | None:
+    """The most recent parseable publish date in the pool — the origin recency decays from."""
+    best: date | None = None
+    for row in rows:
+        if not row.publish_date:
+            continue
+        try:
+            d = date.fromisoformat(str(row.publish_date)[:10])
+        except ValueError:
+            continue
+        if best is None or d > best:
+            best = d
+    return best
+
+
 def rank_discover(
     root: Path,
     interests: Iterable[str],
@@ -275,6 +336,15 @@ def rank_discover(
     trend_weight = config.weight_of(SIGNAL_TREND_VELOCITY)
     trend_cap = float(config.params_of(SIGNAL_TREND_VELOCITY).get("cap", 1.5))
     velocities = _topic_velocities(root) if trend_weight > 0 else {}
+    feed_means = _feed_significance_means(rows, sig_params)
+    # Recency as a GRADED signal, not just the tie-break below. Before this, any non-empty interest
+    # set sorted the whole pool by score and recency survived only as `-idx` — so following one
+    # topic reshuffled even the 90% of the feed unrelated to it, newest-first becoming
+    # enrichment-depth-first. A decaying boost lets a follow re-rank without the feed losing its
+    # sense of time, and smooths the hard pool-boundary cliff from #17 at the same time.
+    recency_weight = config.weight_of(SIGNAL_RECENCY)
+    recency_half_life = float(config.params_of(SIGNAL_RECENCY).get("half_life_days", 30.0))
+    newest = _newest_publish_date(rows) if recency_weight > 0 else None
     scored: list[tuple[float, int, CatalogEpisodeRow]] = []
     for idx, row in enumerate(rows):
         clusters, topics, persons = _episode_features(root, row, cluster_map, theme_map)
@@ -286,7 +356,16 @@ def rank_discover(
         multiplier = 1.0 + affinity_weight * (matched / len(interest_set))
         if trend_weight > 0:
             multiplier += trend_weight * _trend_boost(topics, velocities, trend_cap)
-        score = _significance(row, sig_params) * multiplier
+        if recency_weight > 0:
+            multiplier += recency_weight * _recency_boost(
+                row.publish_date, newest, recency_half_life
+            )
+        # Normalised against the episode's OWN FEED, so enrichment coverage cannot outrank
+        # interest across shows (see _feed_significance_means). Falls back to the raw score when a
+        # feed somehow has no mean, which keeps behaviour defined rather than dividing by zero.
+        feed_mean = feed_means.get(row.feed_id or "", 0.0)
+        base = _significance(row, sig_params)
+        score = (base / feed_mean if feed_mean > 0 else base) * multiplier
         scored.append((score, -idx, row))  # -idx → earlier (newer) wins score ties
     scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
     return [row_to_summary(root, r) for _score, _neg_idx, r in scored[:limit]]

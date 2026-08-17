@@ -116,7 +116,9 @@ class TestRankerDiscriminates:
         feeds = {t: tuple(feed(rows, [t])) for t in NICHE_TOPIC_TO_SHOW}
         assert len(set(feeds.values())) == len(NICHE_TOPIC_TO_SHOW), (
             "different niche interests produced the same feed — personalisation is not "
-            f"distinguishing between them: { {k: v[:2] for k, v in feeds.items()} }"
+            # noqa: E201,E202 — the spaces inside `{ {` are load-bearing: without them the
+            # f-string reads `{{` as an escaped literal brace, not a nested comprehension.
+            f"distinguishing between them: { {k: v[:2] for k, v in feeds.items()} }"  # noqa: E201,E202
         )
 
     def test_no_interests_is_recency(self, rows) -> None:
@@ -406,3 +408,88 @@ class TestDerivationTracksRecentListening:
         uc, data_dir, uid = self._persona(monkeypatch, tmp_path)
         first = uc.derive_interests(data_dir, data_dir, uid, k=8)
         assert all(uc.derive_interests(data_dir, data_dir, uid, k=8) == first for _ in range(3))
+
+
+class TestAFollowDoesNotFlattenTheFeedsSenseOfTime:
+    """Following one topic must not reshuffle the episodes that have nothing to do with it (#22).
+
+    Before recency became a graded signal, any non-empty interest set sorted the WHOLE pool by
+    score, with recency surviving only as the `-idx` tie-break. So a single follow turned the
+    other ~90% of the feed from newest-first into enrichment-depth-first — an old episode could
+    lead today's purely because it carried a richer KG.
+
+    Measured here rather than asserted by feel: take the episodes that do NOT match the interest
+    and count how many pairs are still in publish order.
+    """
+
+    TOPIC = "topic:personal-finance"
+    SHOW = "p05"
+
+    @staticmethod
+    def _config(recency_weight: float):
+        from podcast_scraper.server.app_ranking_config import (
+            DEFAULT_RANKING_CONFIG,
+            RankingSignal,
+            SIGNAL_RECENCY,
+        )
+
+        return DEFAULT_RANKING_CONFIG.__class__(
+            signals=tuple(
+                (
+                    RankingSignal(
+                        SIGNAL_RECENCY,
+                        enabled=recency_weight > 0,
+                        weight=recency_weight,
+                        params=DEFAULT_RANKING_CONFIG.params_of(SIGNAL_RECENCY),
+                    )
+                    if s.name == SIGNAL_RECENCY
+                    else s
+                )
+                for s in DEFAULT_RANKING_CONFIG.signals
+            )
+        )
+
+    def _time_order_agreement(self, rows, config) -> float:
+        """Fraction of non-matching episode PAIRS still in publish order (1.0 = perfect)."""
+        pool = build_discover_pool(rows, limit=10, interests=[self.TOPIC], root=CORPUS)
+        got = [s.slug for s in rank_discover(CORPUS, [self.TOPIC], pool, limit=36, config=config)]
+        by_recency = [slug_for_row(r) for r in rows]
+        unrelated = [s for s in got if not s.startswith(self.SHOW)]
+        ideal = [s for s in by_recency if s in set(unrelated)]
+        pos = {s: i for i, s in enumerate(ideal)}
+        pairs = [(i, j) for i in range(len(unrelated)) for j in range(i + 1, len(unrelated))]
+        if not pairs:
+            pytest.skip("corpus too small to measure pairwise order")
+        ordered = sum(1 for i, j in pairs if pos[unrelated[i]] < pos[unrelated[j]])
+        return ordered / len(pairs)
+
+    def test_recency_restores_time_order_among_unrelated_episodes(self, rows) -> None:
+        off = self._time_order_agreement(rows, self._config(0.0))
+        on = self._time_order_agreement(rows, self._config(0.5))
+        assert on > off, (
+            f"the recency signal changed nothing ({on:.1%} vs {off:.1%}). On this corpus a 30-day "
+            "half-life produced exactly this — the second-newest episode is already months old, so "
+            "its boost rounds to zero and the signal is inert. Re-measure the half-life against "
+            "the corpus span before assuming it works."
+        )
+        # Measured on the committed corpus WITH per-feed normalisation (#23): 76.0% off -> 96.2%
+        # on. Normalisation made this signal matter far MORE, not less: un-normalised, significance
+        # correlated incidentally with recency and propped the baseline up to 94.4%, so recency
+        # looked like it was worth ~4 points. Once coverage bias stopped ordering the feed, the
+        # real number showed up — recency is doing ~20 points of work.
+        assert on >= 0.95, f"unrelated episodes are only {on:.1%} in publish order"
+
+    def test_the_interest_still_wins_the_top_slots(self, rows) -> None:
+        """Recency must not buy freshness at the cost of personalisation — affinity outranks it."""
+        pool = build_discover_pool(rows, limit=10, interests=[self.TOPIC], root=CORPUS)
+        top3 = [
+            s.slug
+            for s in rank_discover(CORPUS, [self.TOPIC], pool, limit=3, config=self._config(0.5))
+        ]
+        assert all(s.startswith(self.SHOW) for s in top3), top3
+
+    def test_the_shipped_default_is_the_measured_one(self, rows) -> None:
+        """Guards the config values themselves: the default must behave like the tuned setting."""
+        from podcast_scraper.server.app_ranking_config import DEFAULT_RANKING_CONFIG
+
+        assert self._time_order_agreement(rows, DEFAULT_RANKING_CONFIG) >= 0.95

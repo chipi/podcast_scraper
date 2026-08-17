@@ -13,11 +13,22 @@ Covers the two pure-ish pieces of the personalized-discovery ranker:
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server.app_discover_view import _significance, rank_discover
+from podcast_scraper.server.app_discover_view import (
+    _newest_publish_date,
+    _recency_boost,
+    _significance,
+    rank_discover,
+)
+from podcast_scraper.server.app_ranking_config import (
+    DEFAULT_RANKING_CONFIG,
+    SIGNAL_INTEREST_AFFINITY,
+    SIGNAL_RECENCY,
+)
 from podcast_scraper.server.corpus_catalog import (
     build_catalog_rows_cumulative,
     CatalogEpisodeRow,
@@ -368,3 +379,117 @@ def test_default_affinity_weight_is_two() -> None:
     )
 
     assert DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0
+
+
+# --- recency as a graded signal, not just the tie-break (#22) ------------------------------------
+#
+# Any non-empty interest set used to sort the whole pool by score, with recency surviving only as
+# the `-idx` tie-break and SIGNAL_RECENCY carrying weight 0.0. So following ONE topic reshuffled
+# even the episodes that had nothing to do with it — newest-first became enrichment-depth-first.
+
+
+class TestRecencyBoost:
+    """The decay curve itself."""
+
+    def test_the_newest_episode_gets_the_full_boost(self) -> None:
+        assert _recency_boost("2026-07-16", date(2026, 7, 16), 365.0) == 1.0
+
+    def test_one_half_life_halves_it(self) -> None:
+        assert _recency_boost("2025-07-16", date(2026, 7, 16), 365.0) == pytest.approx(
+            0.5, abs=0.01
+        )
+
+    def test_two_half_lives_quarter_it(self) -> None:
+        assert _recency_boost("2024-07-16", date(2026, 7, 16), 365.0) == pytest.approx(
+            0.25, abs=0.01
+        )
+
+    def test_it_decays_from_the_pool_not_the_wall_clock(self) -> None:
+        """A corpus that stopped updating must still rank its own shelf.
+
+        Against wall-clock `now`, every episode in an archive decays to ~0 together and the signal
+        silently stops discriminating — exactly when "what is newest here" matters most. Relative
+        decay keeps the newest thing available at 1.0 however old the archive is.
+        """
+        assert _recency_boost("1999-01-01", date(1999, 1, 1), 365.0) == 1.0
+
+    @pytest.mark.parametrize(
+        ("published", "newest", "half_life"),
+        [
+            (None, date(2026, 7, 16), 365.0),  # no date
+            ("not-a-date", date(2026, 7, 16), 365.0),  # unparseable
+            ("2026-07-16", None, 365.0),  # empty pool
+            ("2026-07-16", date(2026, 7, 16), 0.0),  # half-life disabled
+            ("2026-07-16", date(2026, 7, 16), -5.0),  # nonsense half-life
+        ],
+    )
+    def test_degenerate_inputs_contribute_nothing(self, published, newest, half_life) -> None:
+        """A missing or broken date must not become a BOOST — it must be inert."""
+        assert _recency_boost(published, newest, half_life) == 0.0
+
+    def test_an_episode_newer_than_the_newest_is_clamped(self) -> None:
+        """Negative age would give a boost above 1.0 and let a stray future date dominate."""
+        assert _recency_boost("2030-01-01", date(2026, 7, 16), 365.0) == 1.0
+
+
+def _dated_row(publish_date: str | None) -> CatalogEpisodeRow:
+    """A row carrying only the field ``_newest_publish_date`` reads."""
+    return CatalogEpisodeRow(
+        metadata_relative_path="metadata/x.metadata.json",
+        feed_id="f",
+        feed_title=None,
+        episode_id="e",
+        episode_title="E",
+        publish_date=publish_date,
+        summary_title=None,
+        summary_bullets=(),
+        summary_text=None,
+        gi_relative_path=None,
+        kg_relative_path=None,
+        bridge_relative_path=None,
+        has_gi=False,
+        has_kg=False,
+        has_bridge=False,
+    )
+
+
+class TestNewestPublishDate:
+    def test_picks_the_maximum(self) -> None:
+        rows = [_dated_row(d) for d in ("2024-01-01", "2026-07-16", "2025-05-05")]
+        assert _newest_publish_date(rows) == date(2026, 7, 16)
+
+    def test_ignores_unparseable_and_missing(self) -> None:
+        rows = [_dated_row(d) for d in (None, "garbage", "2025-05-05")]
+        assert _newest_publish_date(rows) == date(2025, 5, 5)
+
+    def test_none_when_nothing_is_dated(self) -> None:
+        assert _newest_publish_date([_dated_row(None)]) is None
+
+
+class TestTheDefaultConfigShipsRecencyOn:
+    """The whole point of #22 was that the slot existed and was switched off.
+
+    Pinned so it cannot quietly go back to weight 0.0 — that would restore the original bug with
+    no test failing, since every other assertion here passes a config explicitly.
+    """
+
+    def test_recency_is_enabled_with_a_real_weight(self) -> None:
+        signal = DEFAULT_RANKING_CONFIG.get(SIGNAL_RECENCY)
+        assert signal is not None
+        assert signal.enabled is True
+        assert signal.weight > 0.0, "recency is back to being a tie-break only"
+
+    def test_the_half_life_is_measured_not_intuitive(self) -> None:
+        """30 days is DEAD on a corpus this sparse (2nd-newest boost 0.014); the value must be
+        chosen against the eval, not against intuition about when an episode feels stale."""
+        half_life = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_RECENCY).get("half_life_days")
+        assert half_life is not None and float(half_life) >= 90.0, (
+            "a short half-life silently does nothing on a sparsely-published corpus — re-measure "
+            "against scripts/eval/score/rank_discover_v1.py before lowering this"
+        )
+
+    def test_affinity_still_outranks_freshness(self) -> None:
+        """Following something must mean more than "this is new", or personalisation is
+        cosmetic — a fresh episode you have no interest in should not beat one you follow."""
+        affinity = DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY)
+        assert affinity > DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_RECENCY)

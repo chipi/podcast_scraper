@@ -74,8 +74,36 @@ DEFAULT_RANKING_CONFIG = RankingConfig(
         RankingSignal(SIGNAL_INTEREST_AFFINITY, enabled=True, weight=2.0),
         # Trend defaults OFF until tuned on real engagement — like the whole personalization path.
         RankingSignal(SIGNAL_TREND_VELOCITY, enabled=False, weight=0.4, params={"cap": 1.5}),
-        # Recency: the stable newest-first tie-break / no-interest fallback (weight unused today).
-        RankingSignal(SIGNAL_RECENCY, enabled=True, weight=0.0),
+        # Recency is a GRADED boost, not just the newest-first tie-break it used to be (#22).
+        #
+        # weight 0.5 against affinity's 2.0: a real interest match should still outrank pure
+        # freshness — following something has to mean more than "this is new" — but an unrelated
+        # older episode should no longer leapfrog today's just because it happens to carry a richer
+        # KG. Decay runs from the NEWEST episode in the pool, not wall-clock (see _recency_boost).
+        #
+        # BOTH NUMBERS ARE MEASURED, not chosen by feel, against
+        # scripts/eval/score/rank_discover_v1.py — which now scores the config that actually ships
+        # (#21). On the committed 36-episode corpus (span 2024-01-02 -> 2026-07-16, ~925 days),
+        # following one topic and looking at the episodes that do NOT match it:
+        #
+        #   half-life  w=0.5 unrelated-in-time-order   interest still top-3
+        #        30d              94.4%  (unchanged)          yes
+        #       365d              98.4%                       yes
+        #       730d              97.2%                       yes
+        #
+        # 30 days is DEAD on a corpus this sparse: the second-newest episode is already months old,
+        # so its boost is 0.014 and everything below it is 0. That is the trap — a half-life that
+        # sounds right for "when does an episode stop feeling current" silently does nothing when
+        # the corpus does not publish that often.
+        #
+        # So the right value scales with PUBLISHING CADENCE, not with intuition about freshness. A
+        # corpus that ships weekly wants a far shorter half-life than this one; re-run the eval
+        # against your own corpus (--data-dir) rather than inheriting 365 because it is written
+        # here. Gate at these values: mean nDCG 0.390 -> 0.978, uplift +0.588 (floor 0.5 / 0.05).
+        # For reference: recency OFF scores 1.000/+0.610 and 30d scores 0.944/+0.555 — so the
+        # measured half-life costs LESS personalisation quality than the intuitive one, while
+        # being the only one that does anything at all.
+        RankingSignal(SIGNAL_RECENCY, enabled=True, weight=0.5, params={"half_life_days": 365.0}),
     )
 )
 

@@ -34,18 +34,25 @@ def _write_episode(
     published: str,
     with_gi: bool = False,
     persons: list[tuple[str, str]] | None = None,
+    feed_id: str = "myfeed",
+    with_kg: bool = True,
+    bullets: list[str] | None = None,
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
     doc = {
-        "feed": {"feed_id": "myfeed", "title": "My Show", "url": "https://pod.example/feed.xml"},
+        "feed": {
+            "feed_id": feed_id,
+            "title": f"Show {feed_id}",
+            "url": f"https://pod.example/{feed_id}.xml",
+        },
         "episode": {
             "episode_id": episode_id,
             "title": f"Episode {episode_id}",
             "published_date": published,
             "duration_seconds": 1000,
         },
-        "summary": {"title": "Sum", "bullets": ["a"]},
+        "summary": {"title": "Sum", "bullets": list(bullets if bullets is not None else ["a"])},
         "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
     }
     (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
@@ -54,9 +61,10 @@ def _write_episode(
     nodes += [
         {"id": pid, "type": "Person", "properties": {"name": name}} for pid, name in (persons or [])
     ]
-    (root / "metadata" / f"{stem}.kg.json").write_text(
-        json.dumps({"episode_id": episode_id, "nodes": nodes}), encoding="utf-8"
-    )
+    if with_kg:
+        (root / "metadata" / f"{stem}.kg.json").write_text(
+            json.dumps({"episode_id": episode_id, "nodes": nodes}), encoding="utf-8"
+        )
     if with_gi:
         gi = {"episode_id": episode_id, "nodes": [], "edges": []}
         (root / "metadata" / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
@@ -561,3 +569,91 @@ def test_an_untouched_config_still_personalises(tmp_path: Path) -> None:
         "Episode old",
         "Episode new",
     ]
+
+
+# --- enrichment COVERAGE must not outrank INTEREST (#23) ------------------------------------------
+#
+# `_significance` scores has_gi / has_kg / bullet count — whether ENRICHMENT RAN, not how good the
+# episode is. That is harmless on a uniformly-enriched corpus, and the committed fixture IS
+# uniformly enriched, which is precisely why it cannot reveal the problem. This corpus is built
+# uneven on purpose: without per-feed normalisation, the dense show's OFF-interest episodes outscore
+# the sparse show's ON-interest one, and every user's feed is led by whichever show the pipeline
+# happened to process more thoroughly.
+
+
+def _uneven_coverage_corpus(root: Path) -> None:
+    """Two shows: one fully enriched and irrelevant, one bare and exactly what the user follows."""
+    for i in range(3):
+        _write_episode(
+            root,
+            stem=f"010{i}-dense",
+            episode_id=f"dense{i}",
+            topics=[("topic:health", "Health")],
+            published=f"2024-0{i + 1}-01T00:00:00",
+            with_gi=True,
+            with_kg=True,
+            bullets=["a", "b", "c", "d", "e"],  # everything the pipeline can add: sig 5.0
+            feed_id="dense",
+            persons=[("person:pat", "Pat")],
+        )
+    _write_episode(
+        root,
+        stem="0200-sparse",
+        episode_id="sparse0",
+        topics=[("topic:ai", "AI")],  # the user's actual interest
+        published="2024-01-15T00:00:00",
+        # KEEPS its KG — that is where the topic lives, so dropping it to lower significance
+        # would also drop the interest match and the scenario would be about something else
+        # entirely (the first attempt did exactly that, and the episode simply stopped matching).
+        # Depth is lowered the only way that leaves the match intact: no GI, no bullets.
+        with_kg=True,
+        bullets=[],
+        feed_id="sparse",
+    )
+
+
+def test_a_sparsely_enriched_show_still_wins_on_interest(tmp_path: Path) -> None:
+    """The user follows AI. Only the bare show covers AI. It must lead anyway.
+
+    The coverage gap has to EXCEED what affinity can absorb, or the scenario never bites — the
+    first version of this test used a 4.2-vs-2.2 gap and passed with normalisation switched off,
+    proving nothing. Measured values now: dense 5.0 (GI + KG + 5 bullets), sparse 1.0 (neither, no
+    bullets), a 5x gap against affinity's 3x multiplier.
+    """
+    _uneven_coverage_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    # TWO follows, one of which this corpus covers. Affinity is matched/len(interests), so a user
+    # with more than one interest gets a SMALLER boost per match — which is the realistic case and
+    # the one where a coverage gap can actually overpower the follow.
+    _sign_in(client, tmp_path, ["topic:ai", "topic:quantum"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles[0] == "Episode sparse0", (
+        f"the feed led with {titles[0]!r} — a show is outranking the user's interest because the "
+        "pipeline enriched it more thoroughly, not because it is more relevant"
+    )
+
+
+def test_depth_still_orders_episodes_WITHIN_a_show(tmp_path: Path) -> None:
+    """Normalisation must not flatten significance away — it only stops it crossing show
+    boundaries. Inside one feed, the richer episode still ranks above the barer one."""
+    _write_episode(
+        root=tmp_path,
+        stem="0001-thin",
+        episode_id="thin",
+        topics=[("topic:ai", "AI")],
+        published="2024-06-01T00:00:00",
+        feed_id="solo",
+    )
+    _write_episode(
+        root=tmp_path,
+        stem="0002-rich",
+        episode_id="rich",
+        topics=[("topic:ai", "AI")],
+        published="2024-01-01T00:00:00",  # older, so only depth can lift it
+        with_gi=True,
+        feed_id="solo",
+    )
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles[0] == "Episode rich", titles
