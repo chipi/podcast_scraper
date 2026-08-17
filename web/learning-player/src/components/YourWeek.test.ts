@@ -30,7 +30,9 @@ const RESP: YourWeekResponse = {
         {
           episode_slug: 'ep-a',
           episode_title: 'Episode A',
-          deep_link: '/episode/ep-a?t=10',
+          // source='user' capture → carries the id that advances its spaced ladder (#35).
+          highlight_id: 'h-a',
+          deep_link: '/episode/ep-a?t=10&revisit=h-a',
           quote: 'A memorable line.',
           t_ms: 10000,
           image_url: 'https://img.example/ep-a.jpg',
@@ -178,5 +180,33 @@ describe('YourWeek section', () => {
     await wrapper.get('[data-testid="yourweek-toggle"]').trigger('click')
     expect(setSpy).toHaveBeenCalledWith('lp.yourweek.layout', 'full')
     expect(wrapper.text()).toContain(en.home.yourWeekSection.new_in_follows)
+  })
+})
+
+describe('Your Week links advance the spaced ladder (#35)', () => {
+  // Consuming revisit through Your Week used to advance nothing — the only advance path in the
+  // product was the inbox's dismiss button — so the same cards came back every week. The card now
+  // carries ?revisit=<id> and the PLAYER marks on arrival, the same mechanism the digest email and
+  // the inbox jump link use.
+
+  it("a user's own capture links with ?revisit", async () => {
+    const { wrapper } = mountIt({ signedIn: true, resp: RESP })
+    await flushPromises()
+    const href =
+      wrapper.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/ep-a'))
+        ?.attributes('href') ?? ''
+    expect(href).toContain('revisit=h-a')
+    expect(href).toContain('t=10')
+  })
+
+  it('an item with no highlight_id links without one', async () => {
+    // Auto-picks and the follows/trending rows have no ladder behind them; a marker there would
+    // record a review against a highlight that does not exist.
+    const { wrapper } = mountIt({ signedIn: true, resp: RESP })
+    await flushPromises()
+    const href =
+      wrapper.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/ep-b'))
+        ?.attributes('href') ?? ''
+    expect(href).not.toContain('revisit')
   })
 })

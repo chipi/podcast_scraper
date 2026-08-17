@@ -77,8 +77,45 @@ def test_payload_carries_the_graph(tmp_path: Path) -> None:
     assert payload is not None
     item = payload["sections"][0]["items"][0]
     assert item["graph_refs"] == _REFS
-    assert item["deep_link"] == "/player/ep-one?t=60"
+    assert item["deep_link"] == "/player/ep-one?t=60&revisit=h1"
     assert item["source"] == "user"
+
+
+# --- the digest must be able to ADVANCE the ladder it reads from (#35) --------------------------
+#
+# `revisit` on the link is the whole mechanism: arriving at the player carrying it marks the
+# highlight surfaced. Without it the digest was write-only — it selected due items every week and
+# nothing it produced could ever mark one reviewed, so an email-only reader received the same five
+# items indefinitely. The one advance path in the product was a dismiss button in a tab they may
+# never open.
+
+
+def test_a_revisit_item_carries_what_advances_it(tmp_path: Path) -> None:
+    uid = _user(tmp_path)
+    _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    assert payload is not None
+    item = payload["sections"][0]["items"][0]
+    # As DATA for the in-app card (it builds its own route rather than parsing the link)...
+    assert item["highlight_id"] == "h1"
+    # ...and in the LINK for the email, which has only a URL to work with.
+    assert "revisit=h1" in item["deep_link"]
+
+
+def test_a_highlight_id_needing_escaping_survives_the_link(tmp_path: Path) -> None:
+    """Ids are server-generated today; this pins the encoding before that stops being true.
+
+    An unescaped ``&`` or ``=`` in an id would silently truncate the query and mark the WRONG
+    highlight — or none — with no error raised anywhere.
+    """
+    uid = _user(tmp_path)
+    _add_highlight(tmp_path, uid, "ep-one", hid="h&1=x", created_at=1000)
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    assert payload is not None
+    item = payload["sections"][0]["items"][0]
+    assert item["highlight_id"] == "h&1=x"
+    assert "revisit=h%261%3Dx" in item["deep_link"]
+    assert item["deep_link"].count("&") == 1  # the separator only, not the id's own
 
 
 def test_flat_clip_is_dropped(tmp_path: Path) -> None:

@@ -161,7 +161,9 @@ async function doObsidianExport(): Promise<void> {
 }
 
 onMounted(async () => {
-  await capture.ensureLoaded()
+  // Tolerated, not awaited blindly: this view's whole job is to show captures, so a load failure
+  // renders the empty state rather than tearing down the rest of the mount (collections, titles).
+  await capture.ensureLoaded().catch(() => {})
   collections.value = await getCollections().catch(() => [])
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
   await Promise.all(

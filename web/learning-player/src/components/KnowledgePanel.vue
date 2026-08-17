@@ -274,17 +274,18 @@ async function loadRelated(slug: string): Promise<void> {
     related.value = []
   }
 }
+// Same floating-promise leak as PlayerView's: a failing GET /highlights became an unhandled
+// rejection in the browser. Nothing here awaits it — the panel renders from an empty store — so
+// catch and leave it un-loaded, which lets the next call retry.
+const loadCaptures = (): void => {
+  if (auth.isAuthenticated) void capture.ensureLoaded().catch(() => {})
+}
 onMounted(() => {
   loadRelated(props.slug)
-  if (auth.isAuthenticated) void capture.ensureLoaded()
+  loadCaptures()
 })
 watch(() => props.slug, (s) => loadRelated(s))
-watch(
-  () => auth.isAuthenticated,
-  (yes) => {
-    if (yes) void capture.ensureLoaded()
-  },
-)
+watch(() => auth.isAuthenticated, loadCaptures)
 </script>
 
 <template>

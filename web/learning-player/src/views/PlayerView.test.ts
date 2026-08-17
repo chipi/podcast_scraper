@@ -37,6 +37,20 @@ function epStats(over: Partial<EpisodeStats> = {}): EpisodeStats {
   }
 }
 
+/**
+ * Every PlayerView mounted by this file, torn down after each test.
+ *
+ * Not tidiness — correctness. A wrapper that is never unmounted keeps its watchers alive AND keeps
+ * the pinia it was mounted with, so a later test's `router.push` fires the dead component's
+ * route watchers against a stale (often signed-in) auth store. That surfaced as a signed-out test
+ * seeing `markSurfaced` called twice by components belonging to two entirely different describe
+ * blocks. Any test asserting "this was NOT called" is unreliable while zombies are listening.
+ */
+const mountedPlayers: Array<{ unmount: () => void }> = []
+afterEach(() => {
+  while (mountedPlayers.length) mountedPlayers.pop()!.unmount()
+})
+
 async function mountPlayer(slug = 'ep-1') {
   setActivePinia(createPinia())
   await router.push({ name: 'player', params: { slug } })
@@ -45,6 +59,7 @@ async function mountPlayer(slug = 'ep-1') {
     props: { slug },
     global: { plugins: [i18n, router], stubs: { teleport: true } },
   })
+  mountedPlayers.push(w)
   await flushPromises()
   return w
 }
@@ -325,5 +340,88 @@ describe('a failure must not be reported as an absence (Player #6)', () => {
     expect(w.find('[data-testid="player-transcript-empty"]').text()).toBe(
       en.player.transcriptBroken,
     )
+  })
+})
+
+describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
+  // Marking on ARRIVAL rather than on click is what lets one mechanism serve all three surfaces:
+  // the inbox jump link, the Your Week card and the digest email all just carry the marker. Before
+  // this the only advance path in the product was the inbox's dismiss button, so anyone who
+  // consumed revisit through Your Week or the email was re-sent the same five items every week.
+
+  // Every mount is tracked and torn down. Not tidiness — the first version of these tests leaked
+  // mounted PlayerViews, and a leaked instance still holds a `route.query.revisit` watcher plus
+  // its OWN (signed-in) pinia. A later test's router.push then fired the dead component's watcher,
+  // so "marks nothing when signed out" saw markSurfaced called once and the async-auth test saw it
+  // four times — failures that had nothing to do with the code under test.
+  async function mountAt(query: Record<string, string>, signedIn: boolean) {
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    if (signedIn) {
+      auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+      auth.loaded = true
+    }
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query })
+    await router.isReady()
+    const w = mount(PlayerView, {
+      props: { slug: 'ep-1' },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+    return w
+  }
+
+  it('marks the highlight surfaced when the player is reached with ?revisit', async () => {
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h1' }, true)
+    expect(mark).toHaveBeenCalledWith('h1')
+  })
+
+  it('marks nothing on an ordinary visit', async () => {
+    // Otherwise every episode open would consume a repetition of something.
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({}, true)
+    expect(mark).not.toHaveBeenCalled()
+  })
+
+  it('marks nothing when signed out', async () => {
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h1' }, false)
+    expect(mark).not.toHaveBeenCalled() // a 401 is not a review
+  })
+
+  it('still marks when auth resolves AFTER mount', async () => {
+    // Auth hydration is async, so checking only at mount would silently drop the revisit of a user
+    // who IS signed in but whose session had not loaded yet — the common case on a cold open from
+    // an email link, which is exactly the path this feature exists to serve.
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h9' }, false)
+    expect(mark).not.toHaveBeenCalled()
+
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
+    await flushPromises()
+    expect(mark).toHaveBeenCalledWith('h9')
+  })
+
+  it('consumes one repetition per arrival, not one per auth change', async () => {
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h1' }, true)
+    const auth = useAuthStore()
+    auth.user = null
+    await flushPromises()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    await flushPromises()
+    expect(mark).toHaveBeenCalledTimes(1)
+  })
+
+  it('a failed mark never surfaces as a player error', async () => {
+    // Bookkeeping must not break playback. Failing to record just leaves the item due, which is
+    // the safe direction: the user sees it again rather than losing it.
+    vi.spyOn(api, 'markSurfaced').mockRejectedValue(new api.ApiError(500, 'nope'))
+    const w = await mountAt({ revisit: 'h1' }, true)
+    expect(w.text()).not.toContain(en.player.loadFailed)
   })
 })

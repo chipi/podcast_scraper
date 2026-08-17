@@ -49,7 +49,19 @@ export function useSignInGate() {
           await action()
           return
         }
-        await router.push({ name: 'login', query: { redirect: route.fullPath } })
+        // A navigation can legitimately fail — a guard redirects, the user navigates away
+        // mid-flight, or the route is not registered. Unhandled it becomes an unhandled promise
+        // rejection: console noise in the browser, and in Vitest an "unhandled error" that can
+        // fail an unrelated test file. Staying put is already the right fallback.
+        //
+        // try/catch rather than `.catch()`: an unmatched route makes `router.push` throw
+        // SYNCHRONOUSLY from `resolve()`, before it ever returns a promise, so a `.catch()` on its
+        // result is never reached. Measured — adding one left the rejection count unchanged at 1.
+        try {
+          await router.push({ name: 'login', query: { redirect: route.fullPath } })
+        } catch {
+          /* stayed put */
+        }
       })()
     }
   }

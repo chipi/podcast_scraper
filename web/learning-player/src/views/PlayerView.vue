@@ -41,6 +41,7 @@ import {
   getRelated,
   getSegments,
   logListen,
+  markSurfaced,
 } from '../services/api'
 import type {
   EpisodeDetail,
@@ -501,12 +502,47 @@ const onCaptureParagraph = (span: ParagraphSpan) =>
   })()
 
 function ensureCaptureLoaded(): void {
-  if (auth.isAuthenticated) void capture.ensureLoaded()
+  if (!auth.isAuthenticated) return
+  // `void capture.ensureLoaded()` floated the promise: a failing GET /highlights (503, offline,
+  // expired session) became an UNHANDLED rejection in the browser, not only in tests. Nothing
+  // depends on this resolving — the capture controls render from an empty store and the page is
+  // fully usable — so a failure is caught and left un-loaded, which lets the next call retry.
+  void capture.ensureLoaded().catch(() => {})
+}
+
+/**
+ * Arriving with `?revisit=<highlight_id>` IS the review — advance that highlight's spaced ladder
+ * (#35).
+ *
+ * The inbox's "▶ jump", the Your Week card and the digest email all carry the marker, so all three
+ * advance through this one path. Previously the ONLY advance path was the inbox's dismiss button,
+ * so a user who actually went back and listened never progressed, and the digest re-sent the same
+ * five items indefinitely — "spaced" repetition that never spaced.
+ *
+ * Fire-and-forget by design: this is bookkeeping, not something the page waits on or reports.
+ * Signed-out arrivals are skipped rather than 401-ing, and a rejected call is swallowed — a
+ * revisit that fails to record shows up again later, which is the safe direction to fail.
+ */
+const markedRevisits = new Set<string>()
+
+function markRevisitFromQuery(): void {
+  const id = route.query.revisit
+  if (typeof id !== 'string' || !id) return
+  // Auth hydrates asynchronously, so at mount a genuinely signed-in user can still read as signed
+  // out. Bailing permanently here would drop their revisit; the watch below re-runs this the
+  // moment auth resolves. The Set makes that idempotent — one repetition consumed per arrival,
+  // however many times the trigger fires.
+  if (!auth.isAuthenticated || markedRevisits.has(id)) return
+  markedRevisits.add(id)
+  void markSurfaced(id).catch(() => {
+    /* the item stays due and resurfaces later — never block the player on bookkeeping */
+  })
 }
 
 onMounted(() => {
   load(props.slug)
   ensureCaptureLoaded()
+  markRevisitFromQuery()
   // MediaSession prev/next → the queue (#1308). Handlers read props.slug at call time.
   player.setSkipHandlers({
     next: () => {
@@ -520,7 +556,13 @@ onMounted(() => {
   })
 })
 watch(() => props.slug, (s) => load(s))
-watch(() => auth.isAuthenticated, ensureCaptureLoaded)
+watch(() => auth.isAuthenticated, () => {
+  ensureCaptureLoaded()
+  markRevisitFromQuery() // auth resolved after mount — the arrival still counts
+})
+// Navigating between revisit items without unmounting the player (Your Week → card → card) changes
+// only the query, so the mount hook never re-runs. Each new id is its own arrival.
+watch(() => route.query.revisit, markRevisitFromQuery)
 /**
  * Track the breakpoint live: a phone rotating into landscape, or a desktop window dragged across
  * 1024px, must switch the panel between modal sheet and docked rail. Reading matchMedia once at

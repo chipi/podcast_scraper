@@ -23,6 +23,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 from podcast_scraper.server import (
     app_auto_picks,
@@ -63,13 +64,28 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
         return None  # no graph → drop rather than ship a flat clip (moat rule)
     start_ms = highlight.get("start_ms")
     t_ms = int(start_ms) if isinstance(start_ms, int) else None
+    # `revisit` on the link is what lets a ladder ADVANCE from outside the inbox (#35). Arriving at
+    # the player carrying it marks the highlight surfaced, so a user who consumes revisit through
+    # Your Week or the digest email progresses exactly like one who uses the inbox. Without it, the
+    # only advance path in the product was the inbox's dismiss button — so an email-only reader was
+    # sent the same five items every week, for ever, and "spaced" repetition never spaced.
+    highlight_id = str(highlight.get("id") or "")
+    params = []
+    if t_ms is not None:
+        params.append(f"t={t_ms // 1000}")
+    if highlight_id:
+        params.append(f"revisit={quote_plus(highlight_id)}")
     item: dict[str, Any] = {
         "episode_slug": slug,
         "graph_refs": refs,
-        "deep_link": f"/player/{slug}" + (f"?t={t_ms // 1000}" if t_ms is not None else ""),
+        "deep_link": f"/player/{slug}" + (f"?{'&'.join(params)}" if params else ""),
         "t_ms": t_ms,
         "source": "user",
     }
+    if highlight_id:
+        # The in-app card builds its own route object rather than parsing deep_link, so it needs
+        # the id as data. Auto-picks deliberately carry none: there is no ladder to advance.
+        item["highlight_id"] = highlight_id
     quote = highlight.get("quote_text")
     if isinstance(quote, str) and quote:
         item["quote"] = quote

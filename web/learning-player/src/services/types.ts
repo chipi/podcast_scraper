@@ -446,6 +446,10 @@ export interface YourWeekItem {
   t_ms?: number
   graph_refs?: YourWeekGraphRef[]
   source?: string
+  /** The user's own highlight behind this item — present only for `source: 'user'` captures.
+   *  Carried into the player as `?revisit=` so arriving advances its spaced ladder (#35);
+   *  auto-picks have no ladder and so no id. */
+  highlight_id?: string
   /** Episode/show artwork used as the card backdrop (in-app enrichment; absent → flat card). */
   image_url?: string | null
 }
