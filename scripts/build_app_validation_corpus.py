@@ -171,13 +171,20 @@ def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
         # order here rather than committing a null body.
         body = summary.get("raw_text") or summary.get("short_summary")
         bullets = [str(b).strip() for b in (summary.get("bullets") or []) if str(b).strip()]
-        if not body and not bullets:
-            continue  # summary dropped (poisoned / unusable) — leave it to the fallback
+        # A REJECTED SUMMARY MUST NOT DISCARD THE MEASURED DURATION. This used to `continue`, so an
+        # episode whose summary the quality guard dropped fell out of the map entirely — and the
+        # duration the pipeline had measured perfectly well went with it, silently reverting that
+        # episode to the 1800s default. p01_e02 in the committed fixture is exactly this: 1800s
+        # recorded against 360.8s of real audio, the only episode in the corpus that disagrees with
+        # its own file. Summary quality and duration measurement are independent facts.
         out[guid] = {
             "title": (summary.get("title") or "").strip() or None,
             "bullets": bullets,
             "raw_text": body,
             "duration_seconds": episode.get("duration_seconds"),
+            #: False when the guard dropped the summary. The caller falls back for the summary and
+            #: counts it in the stand-in report, while still taking the duration.
+            "has_summary": bool(body or bullets),
         }
     return out
 
@@ -560,6 +567,44 @@ def _stable_episode_id(show_dir: str, ep_label: str) -> str:
     return "ep-" + hashlib.sha256(f"{show_dir}:{ep_label}".encode()).hexdigest()[:16]
 
 
+#: Openings and connective filler that read as content but say nothing about the episode.
+#: Matched case-insensitively against the START of an utterance, except the filler lines, which
+#: are matched anywhere because they arrive mid-sentence.
+_GREETING_PREFIXES = (
+    "welcome back to",
+    "welcome to",
+    "hello and welcome",
+    "hi and welcome",
+    "thanks for joining",
+    "thanks for listening",
+    "you're listening to",
+    "i'm your host",
+    "before we get started",
+    "in today's episode",
+    "on today's episode",
+    "today we're talking about",
+)
+_FILLER_MARKERS = (
+    "yeah, exactly. and it ties into what we're covering today",
+    "that's a great question",
+    "let's dive in",
+    "more on that after the break",
+)
+
+
+def is_greeting_or_filler(text: str) -> bool:
+    """True when an utterance is an opening or connective filler rather than substance.
+
+    Used by the builder to keep greetings out of Insights/Quotes, and available to the fixture
+    guard so the rule the builder applies and the rule the tests assert are the SAME rule — the
+    greeting-summary bug survived because the two were never connected.
+    """
+    low = " ".join(str(text or "").split()).lower().lstrip("\"'“‘")
+    if any(low.startswith(p) for p in _GREETING_PREFIXES):
+        return True
+    return any(m in low for m in _FILLER_MARKERS)
+
+
 def _clean_insight_quote_excerpts(
     diar_segments: list[dict[str, Any]],
     topics: list[str],
@@ -571,6 +616,14 @@ def _clean_insight_quote_excerpts(
     Player insights surface. The diarized segments already drop that header and the speaker
     prefixes, so picking clean utterance sentences from them yields readable, grounded
     insights/quotes. Topics come from the umbrella list we injected (caller-supplied).
+
+    GREETINGS AND FILLER ARE REJECTED. The length + sponsor filters were not enough: an episode's
+    first substantive utterance is ALWAYS the host's welcome, so all 36 committed episodes shipped
+    "Welcome back to …" as their lead Insight — the greeting-summary defect one layer down, and
+    equally invisible because nothing asserted anything about fixture CONTENT. These are indexed
+    (search reports 124 insight docs, exactly the GI total), so they surface everywhere insights do
+    and a fixture built this way cannot exercise an insight surface with anything an insight
+    surface is for.
     """
     sentences: list[str] = []
     for seg in diar_segments:
@@ -578,6 +631,8 @@ def _clean_insight_quote_excerpts(
         # Skip ad-read / sponsor utterances and very short interjections; keep substantive
         # sentences so insights read as real takeaways.
         if not txt or len(txt) < 40:
+            continue
+        if is_greeting_or_filler(txt):
             continue
         low = txt.lower()
         if "sponsor" in low or "use code pod" in low or "brought to you by" in low:
@@ -692,7 +747,9 @@ def _insight_sentiment_envelope(gi: dict[str, Any], episode_id: str) -> dict[str
     )
 
 
-def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
+def _insight_density_envelope(
+    gi: dict[str, Any], episode_id: str, duration_seconds: float = 1800.0
+) -> dict[str, Any]:
     """An ``insight_density`` envelope: this episode's insights bucketed early/mid/late.
 
     Round-robins the GI's Insight nodes across the three thirds (no timing) so the
@@ -716,7 +773,8 @@ def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, 
         {
             "insight_segments": insight_segments,
             "episode_id": episode_id,
-            "duration_seconds": 1800.0,
+            # Was hardcoded 1800.0 — the third layer that kept the uniform-duration defect.
+            "duration_seconds": float(duration_seconds),
             "has_timing": False,
             "counts": counts,
             "total_insights": len(insight_segments),
@@ -1225,6 +1283,16 @@ def main() -> int:
             # Insights/quotes from CLEAN diarized utterances (not the raw header block).
             excerpts = _clean_insight_quote_excerpts(diar_segments, topics)
 
+            # ONE duration, resolved ONCE, before anything that carries it is built. It used to be
+            # resolved after the GI and the density sidecar were already written, so those two kept
+            # a hardcoded 1800 while metadata.json got the measured value — the fix landed in one
+            # layer of three and the corpus reported itself fixed. Every writer below reads this.
+            pipeline_row = pipeline_outputs.get(ep_label) or {}
+            raw_duration = pipeline_row.get("duration_seconds")
+            duration_seconds = (
+                int(raw_duration) if isinstance(raw_duration, (int, float)) else 1800
+            )
+
             # Artifact relpaths (corpus-root-relative). The catalog derives gi/kg
             # as siblings of the metadata file; transcript_file_path is RUN-relative.
             base = f"feeds/{show_dir}/{_RUN_TAG}/metadata/{ep_label}"
@@ -1241,6 +1309,7 @@ def main() -> int:
                 roster=roster,
                 transcript_ref=transcript_run_rel,
                 metadata_relative_path=metadata_rel,
+                duration_seconds=duration_seconds,
             )
             kg = build_kg(
                 episode_id,
@@ -1288,7 +1357,11 @@ def main() -> int:
             enrich_dir = run_meta_dir / "enrichments"
             enrich_dir.mkdir(parents=True, exist_ok=True)
             (enrich_dir / f"{ep_label}.insight_density.json").write_text(
-                json.dumps(_insight_density_envelope(gi, episode_id), indent=2, sort_keys=True)
+                json.dumps(
+                    _insight_density_envelope(gi, episode_id, duration_seconds),
+                    indent=2,
+                    sort_keys=True,
+                )
                 + "\n",
                 encoding="utf-8",
             )
@@ -1339,15 +1412,12 @@ def main() -> int:
             # so its use is counted and reported at the end of the build rather than passing
             # silently for "we ran the pipeline".
             pipeline_summary = pipeline_outputs.get(ep_label)
-            duration_seconds = 1800
-            if pipeline_summary:
+            if pipeline_summary and pipeline_summary.get("has_summary"):
                 bullets = pipeline_summary["bullets"] or [
                     f"Key point {n + 1}" for n in range(3)
                 ]
                 summary_body = pipeline_summary["raw_text"] or episode_title
                 summary_title = pipeline_summary["title"] or episode_title
-                if isinstance(pipeline_summary.get("duration_seconds"), (int, float)):
-                    duration_seconds = int(pipeline_summary["duration_seconds"])
                 summaries_from_pipeline.append(ep_label)
             else:
                 bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
@@ -1571,7 +1641,97 @@ def main() -> int:
             )
         else:
             print("    ^ no --pipeline-run was supplied, so every summary is the stand-in.")
+
+    problems = _audit_built_corpus(out)
+    if problems:
+        print("\n  CORPUS AUDIT FAILED:")
+        for line in problems:
+            print(f"      {line}")
+        print(
+            "\n  Refusing to report success. Two defects shipped in v3 because the build only ever\n"
+            "  checked that files EXIST: 36/36 summaries were the transcript's opening greeting,\n"
+            "  and every duration was the same 1800s default. Neither is visible to a file count.\n"
+        )
+        return 1
+    print("\n  corpus audit: OK")
     return 0
+
+
+def _audit_built_corpus(out_root: Path) -> list[str]:
+    """Check the corpus that was just written for the defect shapes v3 shipped with.
+
+    Returns human-readable problems; empty means clean. Deliberately reads the WRITTEN ARTIFACTS
+    back rather than checking in-memory values — the v3 duration fix was applied to one writer while
+    two other layers kept the old constant, and only reading the output can catch that.
+    """
+    problems: list[str] = []
+
+    metas = sorted(out_root.glob("feeds/*/*/metadata/*.metadata.json"))
+    if not metas:
+        return ["no metadata artifacts were written"]
+
+    def _load(path: Path) -> dict[str, Any]:
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    # 1. Durations must VARY, and must agree across every layer that carries one. A single distinct
+    #    value across the corpus is the signature of a hardcoded default, not a measurement.
+    durations: dict[str, float] = {}
+    for path in metas:
+        raw = (_load(path).get("episode") or {}).get("duration_seconds")
+        if isinstance(raw, (int, float)):
+            durations[path.name] = float(raw)
+    distinct = len(set(durations.values()))
+    if durations and distinct <= max(1, len(durations) // 12):
+        problems.append(
+            f"duration_seconds has {distinct} distinct value(s) across {len(durations)} episodes "
+            "— that is a default, not a measurement"
+        )
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        want = durations.get(path.name)
+        if want is None:
+            continue
+        gi = _load(path.with_name(f"{stem}.gi.json"))
+        for node in (gi.get("data") or gi).get("nodes", []) or []:
+            if isinstance(node, dict) and node.get("type") == "Episode":
+                got_ms = (node.get("properties") or {}).get("duration_ms")
+                if isinstance(got_ms, (int, float)) and abs(float(got_ms) / 1000 - want) > 2:
+                    problems.append(
+                        f"{stem}: gi Episode duration_ms {float(got_ms) / 1000:.0f}s disagrees "
+                        f"with metadata {want:.0f}s"
+                    )
+
+    # 2. No summary may be the transcript's opening greeting, or a restatement of the title.
+    for path in metas:
+        doc = _load(path)
+        stem = path.name[: -len(".metadata.json")]
+        title = str((doc.get("episode") or {}).get("title") or "").strip().lower()
+        body = " ".join(str((doc.get("summary") or {}).get("raw_text") or "").split())
+        if not body:
+            continue
+        if is_greeting_or_filler(body):
+            problems.append(f"{stem}: summary is a greeting, not a summary — {body[:60]!r}")
+        elif body.strip().lower() == title:
+            problems.append(f"{stem}: summary merely restates the episode title")
+
+    # 3. Nor may any Insight or Quote — the same defect one layer down, and the one that survived
+    #    the v3 summary fix untouched in all 36 episodes.
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        gi = _load(path.with_name(f"{stem}.gi.json"))
+        for node in (gi.get("data") or gi).get("nodes", []) or []:
+            if not isinstance(node, dict) or node.get("type") not in {"Insight", "Quote"}:
+                continue
+            props = node.get("properties") or {}
+            text = str(props.get("text") or props.get("claim") or props.get("quote") or "")
+            if text and is_greeting_or_filler(text):
+                problems.append(f"{stem}: {node.get('type')} is a greeting/filler — {text[:60]!r}")
+                break  # one report per episode is enough to fail the build
+
+    return problems
 
 
 if __name__ == "__main__":
