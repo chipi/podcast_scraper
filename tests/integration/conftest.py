@@ -167,7 +167,7 @@ def stub_transformers() -> dict[str, Any]:
             return getattr(mod, attr)
         raise AttributeError(f"stub transformers has no attribute {name!r}")
 
-    root.__getattr__ = _root_getattr  # type: ignore[attr-defined]  # PEP 562
+    root.__getattr__ = _root_getattr  # type: ignore[method-assign]  # PEP 562
     return {
         "transformers": root,
         "transformers.models": models,

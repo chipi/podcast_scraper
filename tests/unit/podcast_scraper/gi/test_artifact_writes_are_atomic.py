@@ -69,7 +69,7 @@ def _good_kg_payload() -> Dict[str, Any]:
 
 def _poisoned(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Same payload with a NaN deep inside — serializes partway, then raises."""
-    poisoned = json.loads(json.dumps(payload))
+    poisoned: Dict[str, Any] = json.loads(json.dumps(payload))
     poisoned["nodes"][0]["properties"]["score"] = float("nan")
     return poisoned
 

@@ -16,6 +16,13 @@ These tests pin the properties that make the tool safe to point at live publishe
   and those bytes are not the ones that produced the existing transcript.
 """
 
+# mypy: disable-error-code="arg-type"
+# Deliberate in this file: lightweight duck-typed doubles passed where the production type is
+# declared.
+# Constructing the real types would pull in the machinery these tests isolate. The
+# annotations on the helpers here are what make mypy check these bodies at all — most
+# older test files are unannotated and therefore unchecked.
+
 from __future__ import annotations
 
 import json
@@ -29,6 +36,20 @@ import pytest
 from podcast_scraper.archive import backfill as bf
 
 pytestmark = [pytest.mark.unit]
+
+
+def _key(guid: str, ext: str) -> str:
+    """``rel_key_for_guid`` is Optional — a guid that will not digest returns None.
+
+    None is a real outcome worth failing on rather than silently using as a dict key, which is
+    what these tests did before: ``{None: b"..."}`` is a perfectly valid dict and the archive
+    lookup would simply never match it, so the test would pass for the wrong reason.
+    """
+    from podcast_scraper.utils.audio_cache import rel_key_for_guid
+
+    key = rel_key_for_guid(guid, ext)
+    assert key is not None, f"no archive key for {guid!r}"
+    return key
 
 
 class _FakeBackend:
@@ -106,9 +127,7 @@ class TestIdempotence:
     """Re-running must not re-download. The fetch is the expensive and impolite part."""
 
     def test_an_already_archived_episode_is_not_fetched(self, tmp_path: Path) -> None:
-        from podcast_scraper.utils.audio_cache import rel_key_for_guid
-
-        key = rel_key_for_guid("guid-abc", ".mp3")
+        key = _key("guid-abc", ".mp3")
         backend = _FakeBackend({key: b"already-here"})
 
         def _explode(*_a: Any, **_k: Any):
@@ -128,20 +147,17 @@ class TestIdempotence:
         assert len(backend.uploads) == 1
 
     def test_force_refetches_a_present_episode(self, tmp_path: Path) -> None:
-        from podcast_scraper.utils.audio_cache import rel_key_for_guid
-
-        backend = _FakeBackend({rel_key_for_guid("guid-abc", ".mp3"): b"old"})
+        backend = _FakeBackend({_key("guid-abc", ".mp3"): b"old"})
         out = bf.backfill_episode(
             _ep(), backend, corpus_dir=str(tmp_path), force=True, opener=_opener(b"new")
         )
         assert out.outcome == bf.STORED
+        assert out.rel_key is not None, "a STORED outcome must carry the key it stored under"
         assert backend.store[out.rel_key] == b"new"
 
     def test_the_archived_extension_is_honoured_not_guessed(self, tmp_path: Path) -> None:
         """Archived as .m4a; the URL says .mp3. Guessing from the URL would re-download it."""
-        from podcast_scraper.utils.audio_cache import rel_key_for_guid
-
-        backend = _FakeBackend({rel_key_for_guid("guid-abc", ".m4a"): b"present"})
+        backend = _FakeBackend({_key("guid-abc", ".m4a"): b"present"})
         out = bf.backfill_episode(
             _ep(media_url="https://cdn.example.com/ep1.mp3"),
             backend,
@@ -211,9 +227,7 @@ class TestProvenance:
         assert row["source_url"] == "https://cdn.example.com/ep1.mp3"
 
     def test_nothing_is_stamped_when_nothing_was_fetched(self, tmp_path: Path) -> None:
-        from podcast_scraper.utils.audio_cache import rel_key_for_guid
-
-        backend = _FakeBackend({rel_key_for_guid("guid-abc", ".mp3"): b"x"})
+        backend = _FakeBackend({_key("guid-abc", ".mp3"): b"x"})
         bf.backfill_episode(
             _ep(), backend, corpus_dir=str(tmp_path), opener=_raising_opener(AssertionError())
         )
@@ -224,9 +238,15 @@ class TestPoliteClient:
     def test_repeated_hits_on_one_host_are_spaced(self) -> None:
         slept: List[float] = []
         now = [0.0]
+
+        def _record_sleep(seconds: float) -> None:
+            """Record the sleep and advance the fake clock by it."""
+            slept.append(seconds)
+            now[0] += seconds
+
         lim = bf.HostRateLimiter(
             2.0,
-            sleep=lambda s: (slept.append(s), now.__setitem__(0, now[0] + s)),
+            sleep=_record_sleep,
             clock=lambda: now[0],
         )
         lim.wait("https://cdn.example.com/a.mp3")
@@ -268,9 +288,7 @@ class TestDryRun:
         assert backend.uploads == []
 
     def test_it_separates_already_archived_from_recoverable(self) -> None:
-        from podcast_scraper.utils.audio_cache import rel_key_for_guid
-
-        backend = _FakeBackend({rel_key_for_guid("have", ".mp3"): b"x"})
+        backend = _FakeBackend({_key("have", ".mp3"): b"x"})
         report = bf.plan_backfill([_ep(guid="have"), _ep(guid="need")], backend)
         counts = report.counts()
         assert counts[bf.ALREADY_PRESENT] == 1

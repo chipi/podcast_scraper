@@ -19,7 +19,7 @@ opposite trade-off from ffmpeg (#26), where the missing component breaks every e
 from __future__ import annotations
 
 import logging
-from typing import Any, List
+from typing import Any, Dict, List
 
 import pytest
 
@@ -34,7 +34,7 @@ class _Cfg:
     def __init__(self, primary: str = "openai", chain: List[str] | None = None) -> None:
         self.summary_provider = primary
         self.summary_fallback_providers = chain or []
-        self.degradation_policy = {}
+        self.degradation_policy: Dict[str, Any] = {}
 
 
 def _factory_where(broken: dict):

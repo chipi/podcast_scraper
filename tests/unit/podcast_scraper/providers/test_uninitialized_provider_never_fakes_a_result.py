@@ -25,6 +25,14 @@ builds, so the main pipeline path never reaches these guards. This closes a trap
 callers — of which ``gi.repair`` is now one.
 """
 
+# mypy: disable-error-code="call-arg"
+# Deliberate in this file: Config(rss_url=...) — the field declares alias="rss", so mypy's pydantic
+# plugin
+# only knows the alias while populate-by-name accepts either at runtime.
+# Constructing the real types would pull in the machinery these tests isolate. The
+# annotations on the helpers here are what make mypy check these bodies at all — most
+# older test files are unannotated and therefore unchecked.
+
 from __future__ import annotations
 
 import importlib

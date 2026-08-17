@@ -33,6 +33,13 @@ real quota failure to be meaningful, so it cannot run in CI and would give false
 The layers above pin the behaviour, the surface and the wiring without a network.
 """
 
+# mypy: disable-error-code="arg-type"
+# Deliberate in this file: lightweight duck-typed doubles passed where the production type is
+# declared.
+# Constructing the real types would pull in the machinery these tests isolate. The
+# annotations on the helpers here are what make mypy check these bodies at all — most
+# older test files are unannotated and therefore unchecked.
+
 from __future__ import annotations
 
 import inspect

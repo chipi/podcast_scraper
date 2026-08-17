@@ -104,9 +104,13 @@ class TestItEnqueuesRatherThanSpawning:
         import subprocess
 
         started: list[Any] = []
-        monkeypatch.setattr(
-            subprocess, "Popen", lambda *a, **k: started.append(a) or SimpleNamespace(pid=1)
-        )
+
+        def _spy_popen(*args: Any, **kwargs: Any) -> SimpleNamespace:
+            """Record the call instead of spawning; a real Popen here IS the defect."""
+            started.append(args)
+            return SimpleNamespace(pid=1)
+
+        monkeypatch.setattr(subprocess, "Popen", _spy_popen)
         _EnqueueSpy.install(monkeypatch)
         _maybe_spawn_enrichment_after_pipeline(_cfg(enrichment={"enabled": True}), str(tmp_path))
         assert started == []

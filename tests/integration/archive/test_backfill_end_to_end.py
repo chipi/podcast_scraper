@@ -109,6 +109,7 @@ class TestRealRun:
         assert _run(corpus, archive) == 0
         for guid in ("guid-1", "guid-2"):
             key = rel_key_for_guid(guid, ".mp3")
+            assert key is not None, f"no archive key for {guid}"
             stored = archive / key
             assert stored.is_file(), f"missing {key}"
             assert stored.read_bytes() == _AUDIO
@@ -160,8 +161,11 @@ class TestRealRun:
     def test_a_feed_selector_scopes_the_pass(self, corpus: Path, tmp_path: Path) -> None:
         archive = tmp_path / "archive"
         assert _run(corpus, archive, "--feed", "Hard Fork") == 0
-        assert (archive / rel_key_for_guid("guid-1", ".mp3")).is_file()
-        assert not (archive / rel_key_for_guid("guid-2", ".mp3")).exists()
+        key1 = rel_key_for_guid("guid-1", ".mp3")
+        key2 = rel_key_for_guid("guid-2", ".mp3")
+        assert key1 is not None and key2 is not None
+        assert (archive / key1).is_file()
+        assert not (archive / key2).exists()
 
 
 class TestBackendContract:

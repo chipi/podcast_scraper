@@ -91,9 +91,15 @@ class TestCancelSignalling:
         stopped: list[str] = []
         monkeypatch.setattr(jobs_mod.os, "kill", lambda pid, _sig: killed.append(pid))
         monkeypatch.setattr(jobs_mod, "docker_exec_mode", lambda: True)
+
+        def _spy_docker_stop(job_id: str) -> bool:
+            """Record the stop and report success, without touching Docker."""
+            stopped.append(job_id)
+            return True
+
         monkeypatch.setattr(
             "podcast_scraper.server.pipeline_docker_factory.docker_stop_job",
-            lambda job_id: bool(stopped.append(job_id)) or True,
+            _spy_docker_stop,
         )
         _seed(tmp_path, boot_id="a-previous-boot")
         cancel_job(tmp_path, "cancel-me")

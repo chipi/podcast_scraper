@@ -25,6 +25,13 @@ diarized voice — it silently disables the known-hosts anchor *and* mints a Per
 human who does not exist, which cross-episode queries then happily join on.
 """
 
+# mypy: disable-error-code="arg-type,list-item"
+# Deliberate in this file: lightweight duck-typed doubles passed where the production type is
+# declared; same, inside a list argument.
+# Constructing the real types would pull in the machinery these tests isolate. The
+# annotations on the helpers here are what make mypy check these bodies at all — most
+# older test files are unannotated and therefore unchecked.
+
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET  # noqa: N817  # Element TYPE only; parsing uses defusedxml
@@ -35,7 +42,7 @@ import xml.etree.ElementTree as ET  # noqa: N817  # Element TYPE only; parsing u
 # the ``Element`` type annotation, which B314 does not flag.
 from defusedxml.ElementTree import fromstring as safe_fromstring
 from pathlib import Path
-from typing import Any, List, Set
+from typing import Any, List, Set, cast
 
 import pytest
 
@@ -53,9 +60,13 @@ EXPECTED = {"Erik Torenberg", "Ben Horowitz", "Travis Kalanick"}
 
 
 def _item(author: str) -> ET.Element:
-    return safe_fromstring(
-        '<item xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">'
-        f"<title>Ep</title><itunes:author>{author}</itunes:author></item>"
+    # defusedxml has no stubs, so this is Any to mypy; the runtime type is a real Element.
+    return cast(
+        ET.Element,
+        safe_fromstring(
+            '<item xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">'
+            f"<title>Ep</title><itunes:author>{author}</itunes:author></item>"
+        ),
     )
 
 
