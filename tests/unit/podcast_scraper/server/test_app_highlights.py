@@ -357,3 +357,59 @@ class TestMutationsNeverDestroyOtherRows:
                 "u1",
                 {"id": "n1", "target": "highlight", "target_id": "h1", "text": "x"},
             )
+
+
+def test_deleting_a_highlight_takes_its_notes_with_it(tmp_path: Path) -> None:
+    """A note that LOOKS deleted and then comes back is worse than either outcome alone.
+
+    Notes on a deleted highlight used to survive server-side while the client pruned them locally
+    (capture.ts), so the user was shown the note was gone — and it reappeared on the next full load.
+    The client's own filter was the intent the server had never implemented.
+    """
+    from podcast_scraper.server import app_user_state as st
+
+    uid = "u_0123456789abcdef01234567"
+    st.add_highlight(
+        tmp_path, uid, {"id": "h1", "episode_slug": "ep", "kind": "span", "created_at": 1}
+    )
+    st.add_highlight(
+        tmp_path, uid, {"id": "h2", "episode_slug": "ep", "kind": "span", "created_at": 2}
+    )
+    for nid, target_id in (("n1", "h1"), ("n2", "h1"), ("n3", "h2")):
+        st.add_note(
+            tmp_path,
+            uid,
+            {
+                "id": nid,
+                "target": "highlight",
+                "target_id": target_id,
+                "text": "t",
+                "created_at": 1,
+                "updated_at": 1,
+            },
+        )
+
+    assert st.remove_notes_for_target(tmp_path, uid, "highlight", "h1") == 2
+    remaining = st.get_notes(tmp_path, uid)
+    assert [n["id"] for n in remaining] == ["n3"], "only h1's notes go"
+
+
+def test_the_sweep_is_a_no_op_when_nothing_matches(tmp_path: Path) -> None:
+    from podcast_scraper.server import app_user_state as st
+
+    uid = "u_0123456789abcdef01234567"
+    st.add_note(
+        tmp_path,
+        uid,
+        {
+            "id": "n1",
+            "target": "episode",
+            "target_id": "ep",
+            "text": "t",
+            "created_at": 1,
+            "updated_at": 1,
+        },
+    )
+    # Same id, different target kind — a highlight sweep must not take an episode note.
+    assert st.remove_notes_for_target(tmp_path, uid, "highlight", "ep") == 0
+    assert len(st.get_notes(tmp_path, uid)) == 1

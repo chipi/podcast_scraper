@@ -193,8 +193,17 @@ async def patch_highlight(
 async def delete_highlight(
     request: Request, highlight_id: str, user: User = Depends(get_current_user)
 ) -> HighlightsResponse:
-    """Remove a highlight by id (no-op if absent); returns the remaining list."""
-    rows = app_user_state.remove_highlight(_data_dir(request), user.user_id, highlight_id)
+    """Remove a highlight by id (no-op if absent), WITH its notes; returns the remaining list.
+
+    The notes go too. They used to survive server-side while the client pruned them locally, so
+    they looked deleted and then resurrected on the next full load — the user is told the note is
+    gone and it is not. A note on a highlight is an annotation of that anchor; once the anchor is
+    gone there is nothing for it to annotate, and the client's existing local filter is the
+    intent this now implements for real.
+    """
+    data_dir = _data_dir(request)
+    rows = app_user_state.remove_highlight(data_dir, user.user_id, highlight_id)
+    app_user_state.remove_notes_for_target(data_dir, user.user_id, "highlight", highlight_id)
     return HighlightsResponse(items=[Highlight(**r) for r in rows])
 
 
@@ -289,7 +298,14 @@ class MarkdownResponse(PlainTextResponse):
 async def export_highlights_markdown(
     request: Request, user: User = Depends(get_current_user)
 ) -> PlainTextResponse:
-    """Export all of the user's highlights (with attached notes) as a Markdown document."""
+    """Export all of the user's highlights AND every note, as a Markdown document.
+
+    "With attached notes" used to mean only notes on a highlight: ``notes_by_target`` was consumed
+    solely by highlight id, so a note the user wrote on an EPISODE or on a saved INSIGHT was
+    silently absent from their export. An export that quietly drops the user's own writing is worse
+    than one that never offered it — episode notes now sit under their episode's heading, and
+    anything whose target this renderer cannot place goes to a trailing "Other notes" section.
+    """
     data_dir = _data_dir(request)
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
     notes = app_user_state.get_notes(data_dir, user.user_id)
@@ -297,15 +313,25 @@ async def export_highlights_markdown(
     for n in notes:
         notes_by_target.setdefault(str(n.get("target_id")), []).append(str(n.get("text", "")))
 
-    titles = _episode_titles(request, {str(h.get("episode_slug")) for h in highlights})
+    highlight_ids = {str(h.get("id")) for h in highlights}
+    episode_note_slugs = {
+        str(n.get("target_id")) for n in notes if n.get("target") == "episode" and n.get("target_id")
+    }
+    # Every episode that needs a heading: one the user highlighted, or one they only made a note on.
+    titles = _episode_titles(
+        request, {str(h.get("episode_slug")) for h in highlights} | episode_note_slugs
+    )
 
     grouped: "OrderedDict[str, EpisodeHighlights]" = OrderedDict()
-    for h in highlights:
-        slug = str(h.get("episode_slug"))
+
+    def _episode(slug: str) -> EpisodeHighlights:
         if slug not in grouped:
             title, show = titles.get(slug, (None, None))
             grouped[slug] = EpisodeHighlights(slug=slug, title=title, show=show)
-        grouped[slug].highlights.append(
+        return grouped[slug]
+
+    for h in highlights:
+        _episode(str(h.get("episode_slug"))).highlights.append(
             HighlightLine(
                 kind=str(h.get("kind", "span")),
                 start_ms=h.get("start_ms"),
@@ -318,7 +344,19 @@ async def export_highlights_markdown(
             )
         )
 
-    markdown = render_highlights_markdown(list(grouped.values()))
+    for slug in episode_note_slugs:
+        _episode(slug).episode_notes.extend(notes_by_target.get(slug, []))
+
+    # Whatever is left: a note on a saved insight, whose target id is an insight, not an episode.
+    # There is no insight -> episode mapping here, so rather than drop it, it gets its own section.
+    placed = highlight_ids | episode_note_slugs
+    orphans = [
+        str(n.get("text", ""))
+        for n in notes
+        if str(n.get("target_id")) not in placed
+    ]
+
+    markdown = render_highlights_markdown(list(grouped.values()), orphans)
     return PlainTextResponse(
         markdown,
         media_type="text/markdown; charset=utf-8",

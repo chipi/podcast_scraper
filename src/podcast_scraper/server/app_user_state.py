@@ -681,6 +681,29 @@ def remove_note(data_dir: Path, user_id: str, note_id: str) -> list[dict[str, An
         return get_notes(data_dir, user_id)
 
 
+def remove_notes_for_target(data_dir: Path, user_id: str, target: str, target_id: str) -> int:
+    """Drop every note attached to one target; return how many went.
+
+    Notes on a deleted highlight used to survive it server-side. The client pruned them LOCALLY
+    (``capture.ts``), so they looked deleted and then RESURRECTED on the next full load — the worst
+    of both: the user is told the note is gone, and it is not. The client's own filter is the intent
+    the server was failing to implement, so the server implements it.
+
+    Separate from :func:`remove_note` so the sweep takes the notes lock once, not once per note.
+    """
+    with _user_lock(data_dir, user_id, "notes"):
+        rows = _rows_for_update(data_dir, user_id, "notes")
+        keep = [
+            x
+            for x in rows
+            if not (x.get("target") == target and str(x.get("target_id")) == str(target_id))
+        ]
+        if len(keep) == len(rows):
+            return 0
+        _write(data_dir, user_id, "notes", keep)
+        return len(rows) - len(keep)
+
+
 # --- resurfacing state (P3 #1123): per-highlight {last_surfaced, count} + pacing settings ---
 #
 # Read-time spaced resurfacing (RFC-101 §5) needs only to remember, per highlight, when it was last
