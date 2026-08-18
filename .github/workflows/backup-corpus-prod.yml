@@ -47,7 +47,12 @@ jobs:
     # are all REPO-level — none are prod-env-scoped — so nothing is lost (verified
     # 2026-07-26). Read-only tarball pull; matches backup-player-appdata-prod.yml.
     environment: prod-backup
-    timeout-minutes: 30
+    # Raised 30 -> 120 on 2026-08-18. Every scheduled run from 2026-08-13 to 2026-08-18
+    # was CANCELLED at exactly 30m20s mid-way through the corpus pull — six consecutive
+    # silent failures, because a timeout cancel is not a red X and pages nobody. Nobody
+    # knew how long the pull actually needs, because it has never been allowed to finish.
+    # 120 is headroom to MEASURE, not a considered budget; retune once a run completes.
+    timeout-minutes: 120
     steps:
       - name: Pre-flight — required secrets/variables present?
         id: preflight
@@ -111,12 +116,46 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.PROD_TAILNET_FQDN ($WANT). Using $R for SSH. See PROD_RUNBOOK (suffix drift)."
           fi
 
+      - name: Measure the corpus before pulling it (read-only)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # WHY: the pull is a single opaque `tar -czf -` over SSH, so a timeout tells you
+          # nothing about WHERE the bytes are. The corpus holds transcripts + metadata
+          # (small, irreplaceable) alongside media/ (audio, possibly also in the remote
+          # archive) and search/ (a LanceDB index that `make index-two-tier` regenerates).
+          # If the bulk is media or search, the fix is an exclude, not a bigger timeout.
+          # Read-only: du and find only.
+          REPORT=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'cd /srv/podcast-scraper/corpus 2>/dev/null || exit 0
+             echo "TOTAL: $(du -sh . 2>/dev/null | cut -f1)"
+             for d in media search transcripts metadata; do
+               sz=$(find . -type d -name "$d" -prune -exec du -sh {} + 2>/dev/null \
+                    | awk "{s+=\$1} END {print NR\" dirs\"}")
+               by=$(find . -type d -name "$d" -prune -exec du -sk {} + 2>/dev/null \
+                    | awk "{s+=\$1} END {printf \"%.1f GB\", s/1048576}")
+               echo "$d: $by across $sz"
+             done
+             echo "episodes: $(find . -name "*.metadata.json" 2>/dev/null | wc -l | tr -d " ")"' 2>&1)
+
+          echo "$REPORT"
+          {
+            echo "### Corpus size before pull"
+            echo '```'
+            echo "$REPORT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Pull corpus from VPS over Tailscale
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
+          PULL_T0=$(date -u +%s)
           # Stream the corpus dir as a tarball over SSH. Unlike `gh codespace cp`
           # this is a single-file streaming operation; if SSH cuts mid-stream the
           # exit code propagates and we fail fast (no half-tarball that passes
@@ -126,7 +165,12 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             'tar -czf - -C /srv/podcast-scraper corpus' > snapshot.tgz
 
-          echo "Tarball created: $(du -h snapshot.tgz | cut -f1)"
+          PULL_MIN=$(( ( $(date -u +%s) - PULL_T0 ) / 60 ))
+          echo "Tarball created: $(du -h snapshot.tgz | cut -f1) in ${PULL_MIN} min"
+          {
+            echo "### Pull"
+            echo "size: $(du -h snapshot.tgz | cut -f1), duration: ${PULL_MIN} min (timeout-minutes: 120)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # Sanity: refuse empty / suspiciously small.
           size=$(stat -c%s snapshot.tgz)
