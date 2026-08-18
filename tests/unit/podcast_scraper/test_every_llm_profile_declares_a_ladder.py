@@ -18,6 +18,14 @@ deliberate exception: profiles that exist to MEASURE a single provider must not 
 * ``freeze/*`` pins a released configuration for reproducibility. A fallback would make a frozen
   run non-deterministic, which defeats the freeze.
 
+A third exemption exists for a different reason: a profile whose ENVIRONMENT has no second
+vendor it can authenticate against. A ladder is worth only what it can CONSTRUCT — 612fd451
+declared a ``deepseek`` tier across 11 profiles and not one of them could be built, so every
+failover logged "DeepSeek API key required" and recovered nothing (the incident that produced
+``summarization.fallback.preflight_fallback_chain``). Declaring a tier for such a profile does
+not add failover; it trades a clear "the gateway is down" error for a confusing auth error at
+the worst moment.
+
 Those are the only exemptions, and they are matched by path so a new production profile cannot
 accidentally inherit the exemption by being named carelessly.
 """
@@ -53,6 +61,18 @@ def _is_measurement_profile(path: Path) -> bool:
     return rel.name.startswith("bakeoff_") or rel.parts[0] == "freeze"
 
 
+#: Profiles whose environment cannot authenticate a SECOND vendor, so no declarable tier could be
+#: built. Listed BY PATH, one entry at a time, so the exemption cannot be inherited by naming and
+#: cannot quietly grow — ``test_the_no_second_vendor_exemption_stays_narrow`` pins the contents.
+#:
+#: ``homelab_balanced`` reaches its models through the homelab LiteLLM gateway, whose virtual key
+#: resolves ``homelab-flash-0731`` and nothing else; the direct-DeepSeek tier cloud_balanced falls
+#: back to needs a DEEPSEEK_API_KEY that does not exist in that environment. Vendor-level outage IS
+#: still covered one layer down, by the gateway's own ``provider.order`` chain. What is not covered
+#: is the gateway itself going down, and the profile says so in as many words.
+_NO_AUTHENTICABLE_SECOND_VENDOR = frozenset({"homelab_balanced.yaml"})
+
+
 def _makes_cloud_llm_calls(doc: Dict[str, Any]) -> bool:
     if not (doc.get("generate_summaries", True) or doc.get("generate_gi", False)):
         return False
@@ -68,6 +88,7 @@ class TestEveryOperationalProfileCanFailOver:
             for p, doc in _profiles()
             if _makes_cloud_llm_calls(doc)
             and not _is_measurement_profile(p)
+            and str(p.relative_to(PROFILE_DIR)) not in _NO_AUTHENTICABLE_SECOND_VENDOR
             and not doc.get("summary_fallback_providers")
         ]
         assert not missing, (
@@ -76,6 +97,27 @@ class TestEveryOperationalProfileCanFailOver:
             "registry-governed set it on its ProfilePreset and run `make profiles-materialize`; "
             "hand-maintained profiles set it directly in the YAML."
         )
+
+    def test_the_no_second_vendor_exemption_stays_narrow(self) -> None:
+        """The exemption above is the dangerous kind: it makes a profile invisible to the rule.
+
+        So pin it. The contents are asserted exactly, the profiles the rule exists FOR are asserted
+        out of it, and the exempt profile must carry an EMPTY ladder rather than a partial one — an
+        empty list is a decision, a half-declared ladder is an oversight, and only the first earns
+        the exemption.
+        """
+        assert _NO_AUTHENTICABLE_SECOND_VENDOR == {"homelab_balanced.yaml"}
+        for name in (
+            "cloud_balanced.yaml",
+            "cloud_openrouter.yaml",
+            "reprocess_v22_community1.yaml",
+            "reprocess_v23_turbo.yaml",
+        ):
+            assert name not in _NO_AUTHENTICABLE_SECOND_VENDOR, name
+        doc = yaml.safe_load((PROFILE_DIR / "homelab_balanced.yaml").read_text(encoding="utf-8"))
+        assert (
+            doc.get("summary_fallback_providers") == []
+        ), "the exempt profile must declare an empty ladder deliberately, not omit the key"
 
     def test_the_corpus_repair_profiles_have_one(self) -> None:
         """Called out separately because these re-derive an EXISTING corpus. An outage mid-run

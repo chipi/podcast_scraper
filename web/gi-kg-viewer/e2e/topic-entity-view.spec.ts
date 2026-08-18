@@ -19,10 +19,32 @@
  *     when empty: ``topic-entity-view-empty`` placeholder
  *   - Action buttons ``topic-entity-view-go-graph`` /
  *     ``topic-entity-view-prefill-search`` present
+ *
+ * #1619 — split. The panel-contract test runs live (bottom of this file, driving a REAL corpus
+ * topic through the DEV ``focusTopic`` hook). The two relational tests keep their stubs, and the
+ * reason is measured rather than assumed — probed against the live backend on 2026-08-14:
+ *
+ * | endpoint                            | topic:systems-thinking | topic:risk-management |
+ * | ----------------------------------- | ---------------------- | --------------------- |
+ * | ``/api/relational/who-said``        | 9 people               | 10 people             |
+ * | ``/api/relational/topic-entities``  | 9 entities             | 10 entities           |
+ * | ``/api/relational/cross-show``      | **0 shows**            | **0 shows**           |
+ * | ``/api/relational/related-topics``  | **0 topics**           | **0 topics**          |
+ *
+ * So "key voices" would migrate today, but the surfaces those two tests are actually named for —
+ * cross-show coverage (FR4.2) and adjacent themes (#1055) — return empty for every topic in the
+ * corpus. v4 requirement: a topic discussed on more than one show, and topics with genuine
+ * adjacency. Recorded in docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
+import {
+  liveCorpusRoot,
+  mainViewsNav,
+  SHELL_HEADING_RE,
+  statusBarCorpusPathInput,
+  mockSignIn,
+} from './helpers'
 
 const TOPIC_LABEL = 'Mock TEV Topic'
 const GRAPH_TOPIC_ID = 'topic:mock-tev'
@@ -193,61 +215,6 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
     })
   })
 
-  test('TEV renders the contract surface for a focused topic', async ({ page }) => {
-    // ENTRY POINT NOTE — The original spec drove this through the digest
-    // topic-band-title click affordance. That click handler was removed
-    // in the V2 architectural change (``DEFAULT_DIGEST_TOPICS`` editorial
-    // labels don't correspond to KG nodes in arbitrary corpora — see the
-    // headline ``<span>`` in ``DigestView.vue`` and the comment in
-    // ``digest.spec.ts``). TEV is still reachable from other surfaces:
-    //
-    //   - Dashboard topic-cluster chip → ``activateGraphTab(topic:…)`` →
-    //     ``subject.focusTopic`` (App.vue:150)
-    //   - ``@go-graph`` emit with a ``topic:…`` target id from any surface
-    //
-    // The valuable assertion set is the TEV contract surface itself
-    // (data-testids per E2E_SURFACE_MAP §224). Drive ``subject.focusTopic``
-    // directly via the DEV-only ``__GIKG_SUBJECT__`` hook so this spec
-    // verifies the panel contract without coupling to whichever entry
-    // point happens to be wired today.
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('digest-root')).toBeVisible()
-
-    // Open the Graph workspace so the artifact slice loads and TEV can
-    // resolve the topic node when ``subject.focusTopic`` fires.
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    // Drive TEV via the DEV hook (DEV-only mutator on ``__GIKG_SUBJECT__``).
-    await page.evaluate((id) => {
-      const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
-        .__GIKG_SUBJECT__
-      if (!subj?.focusTopic) {
-        throw new Error('__GIKG_SUBJECT__.focusTopic not exposed; DEV-only hook missing')
-      }
-      subj.focusTopic(id)
-    }, GRAPH_TOPIC_ID)
-
-    // TEV contract surface (E2E_SURFACE_MAP §224). Post node-view unification
-    // TEV is folded ``embedded`` into NodeDetail's Details rail tab, which owns
-    // the header + actions — so TEV's own kind/name header + action buttons
-    // (all ``v-if="!embedded"``) are hidden; the rail supplies them.
-    const rail = page.getByTestId('graph-node-detail-rail')
-    const view = page.getByTestId('topic-entity-view')
-    await expect(view).toBeVisible({ timeout: 10_000 })
-
-    // The rail (not TEV) owns the header; an off-slice ``topic:`` id titles it
-    // "Topic" via NodeDetail's inferredKindFromId. (The standalone TEV's own
-    // kind/name/stats/empty/mentions sections were retired in the fold — the
-    // corpus-wide mentions timeline now lives in the rail's Timeline tab.)
-    await expect(rail.getByRole('heading').first()).toContainText('Topic')
-
-    // TEV does not launch the legacy topic timeline popup.
-    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
-  })
-
   test('FR4.2: TEV shows cross-show coverage and key voices (relational layer)', async ({
     page,
   }) => {
@@ -383,5 +350,61 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
     await expect(related).toBeVisible()
     await expect(related.getByTestId('tev-related-topic-chip')).toHaveCount(2)
     await expect(related).toContainText('Bond markets')
+  })
+})
+
+/**
+ * #1619 — the TEV panel contract, live.
+ *
+ * ENTRY POINT NOTE (unchanged from the original): the digest topic-band-title click affordance was
+ * removed in the V2 architectural change, so TEV is reached via the Dashboard topic-cluster chip
+ * or a `@go-graph` emit carrying a `topic:…` id. The valuable assertion set is the panel contract
+ * itself, so this drives `subject.focusTopic` through the DEV-only `__GIKG_SUBJECT__` hook rather
+ * than coupling to whichever entry point happens to be wired today.
+ *
+ * What changed: the topic is a REAL one from the corpus's topic clusters, and the graph loads from
+ * the corpus's own artifacts — no stubbed GI body, no fabricated topic id.
+ */
+test.describe('Topic / Entity rail panel (TEV) — live', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator', { liveApi: true })
+  })
+
+  test('TEV renders the contract surface for a focused topic', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
+    await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 30_000 })
+
+    /* Pick a topic the corpus actually clusters, so `focusTopic` lands on a node that exists. */
+    const clusters = (await (
+      await page.request.get('/api/corpus/topic-clusters')
+    ).json()) as { clusters: { members: { topic_id: string }[] }[] }
+    const topicId = clusters.clusters.flatMap((c) => c.members ?? [])[0]?.topic_id
+    expect(topicId, 'expected the corpus to expose at least one clustered topic').toBeTruthy()
+
+    // Open the Graph workspace so the artifact slice loads and TEV can resolve the topic node.
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+
+    // Drive TEV via the DEV hook (DEV-only mutator on ``__GIKG_SUBJECT__``).
+    await page.evaluate((id) => {
+      const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
+        .__GIKG_SUBJECT__
+      if (!subj?.focusTopic) {
+        throw new Error('__GIKG_SUBJECT__.focusTopic not exposed; DEV-only hook missing')
+      }
+      subj.focusTopic(id)
+    }, topicId!)
+
+    // TEV contract surface (E2E_SURFACE_MAP §224). Post node-view unification TEV is folded
+    // ``embedded`` into NodeDetail's Details rail tab, which owns the header + actions.
+    const rail = page.getByTestId('graph-node-detail-rail')
+    await expect(page.getByTestId('topic-entity-view')).toBeVisible({ timeout: 15_000 })
+    // The rail (not TEV) owns the header; a ``topic:`` id titles it "Topic" via
+    // NodeDetail's inferredKindFromId.
+    await expect(rail.getByRole('heading').first()).toContainText('Topic')
+    // TEV does not launch the legacy topic timeline popup.
+    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
   })
 })

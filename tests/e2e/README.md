@@ -47,3 +47,21 @@ ps -eo pid,%cpu,stat,command | grep '[p]ytest'
 
 The ~50% slow band and whether the simulated delays can be shortened under test (without losing
 coverage of the backoff logic) is tracked in **#1354**.
+
+## What this suite runs against
+
+No cloud, no network, no real podcast audio. The pipeline fetches feeds, audio and transcripts from
+a **local mock host** that simulates a podcast server — `make serve-e2e-mock` (port `18765`), backed
+by [`fixtures/e2e_http_server.py`](fixtures/e2e_http_server.py), which also stubs the LLM provider
+APIs. `--disable-socket` enforces that nothing escapes to the internet.
+
+The fixtures it serves are committed and **versioned** — a fixture path without a version is wrong.
+See [`../fixtures/README.md`](../fixtures/README.md), and
+[`../fixtures/audio/README.md`](../fixtures/audio/README.md) for the audio specifically.
+
+## Related
+
+- [`../README.md`](../README.md) — the whole test tree: tiers, commands, where data lives
+- [`../../docs/guides/E2E_TESTING_GUIDE.md`](../../docs/guides/E2E_TESTING_GUIDE.md) — how the tiers fit together, and the browser suites
+- [`../stack-test/README.md`](../stack-test/README.md) — the containers-together tier above this one
+- [`../../docker/mock-feeds/README.md`](../../docker/mock-feeds/README.md) — the same fixtures over nginx, for stack-test

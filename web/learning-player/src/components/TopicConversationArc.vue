@@ -9,30 +9,39 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import SectionStatus from './SectionStatus.vue'
+import { useSectionState } from '../composables/useSectionState'
 import { getTopicConversationArc } from '../services/api'
 import type { TopicConversationArcWeek } from '../services/types'
 
 const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
 const { t } = useI18n()
 
-const weeks = ref<TopicConversationArcWeek[]>([])
-watch(
-  [() => props.id, () => props.scope],
-  () => {
-    weeks.value = []
-    // The arc is a corpus-wide aggregate with no per-user cut, so under "My corpus" it
-    // clears (renders nothing) like the rest of the card rather than showing all-corpus data.
-    if (props.scope === 'mine') return
-    void getTopicConversationArc(props.id)
-      .then((r) => {
-        weeks.value = r.weeks
-      })
-      .catch(() => {
-        weeks.value = []
-      })
-  },
-  { immediate: true },
-)
+/**
+ * `useSectionState` so a failed fetch is not indistinguishable from a topic with no dated
+ * insights. This section previously caught into `[]` and hid itself when empty — #1591's defect,
+ * fixed there for the Home sections but never carried to the topic card.
+ */
+const section = useSectionState<TopicConversationArcWeek[]>([])
+const weeks = computed(() => section.data.value)
+/** Drops a slow reply for a topic (or scope) the reader has already moved off. */
+const requestSeq = ref(0)
+
+async function load(): Promise<void> {
+  // The arc is a corpus-wide aggregate with no per-user cut, so under "My corpus" it renders
+  // nothing like the rest of the card rather than showing all-corpus data. That is a deliberate
+  // empty, not a failure — so it resolves to `[]` through the ready path, never `error`.
+  const mine = requestSeq.value + 1
+  requestSeq.value = mine
+  await section.load(async () => {
+    if (props.scope === 'mine') return []
+    const r = await getTopicConversationArc(props.id)
+    if (mine !== requestSeq.value) throw new Error('superseded')
+    return r.weeks
+  })
+}
+
+watch([() => props.id, () => props.scope], () => void load(), { immediate: true })
 
 const maxVolume = computed(() => Math.max(1, ...weeks.value.map((w) => w.volume)))
 const totalInsights = computed(() => weeks.value.reduce((n, w) => n + w.volume, 0))
@@ -45,7 +54,11 @@ const SENT_CLASS: Record<'negative' | 'neutral' | 'positive', string> = {
 </script>
 
 <template>
-  <section v-if="weeks.length" class="mb-4" data-testid="topic-conversation-arc">
+  <!-- Error says so and offers retry; a genuinely arc-less topic still renders nothing. No
+       skeleton — this sits inside an already-loading card. -->
+  <SectionStatus v-if="section.isError.value" :phase="section.phase.value" @retry="load()" />
+
+  <section v-else-if="weeks.length" class="mb-4" data-testid="topic-conversation-arc">
     <div class="mb-2 flex items-baseline justify-between gap-2">
       <h3 class="lp-section">{{ t('ec.conversationArc') }}</h3>
       <span class="text-xs text-muted">

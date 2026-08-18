@@ -61,8 +61,38 @@ failure-mode analysis lives in
   6. Marko asked "why"? First sentence = ugliest true reason? (T5)
   7. Applying existing pattern to new symptom? CAUSE vs SYMPTOM? (T7)
   8. Any short phrasing driven by "finish the turn"? (T10)
+  9. Search returned nothing and I'm about to treat it as fact? Re-run
+     at repo root. (T16)
+  10. About to build something surprising-to-need (codec, parser, shim
+     for a "missing" tool)? Verify it's missing, then ASK. (T15)
   Fail = rewrite, not send-with-hedge. No exceptions I may choose to
   make.
+
+- **T15 — A workaround's weirdness is evidence against my premise, not a
+  challenge to rise to.** T14 catches "I can't → someone else should"; this
+  catches "I can't → I'll build it myself", which looks like initiative and
+  trips none of T14's tells. Before building anything a competent engineer
+  would be SURPRISED to need — a codec, parser, protocol, binary format, a
+  shim for a "missing" tool, fixture data that surely already exists — I
+  STOP: what did I conclude was unavailable, and did I VERIFY it? Re-check
+  at repo root; try the one-command install. A workaround this size is a
+  SCOPE decision, not a method choice, so "choosing how is fine" does not
+  license it — say in one line what I'm building and why, and ask. Rigor
+  downstream of a bad premise is not rigor: carefully testing an artifact
+  that should not exist makes bad work survive review. The tell: I notice
+  "it's odd that I have to build this", or I'm about to write "X isn't
+  available, so I'll…". Incident 2026-08-13 (#1618): concluded the repo had
+  no fixture audio and no ffmpeg, hand-built MPEG-2 Layer III frames and
+  rewrote 36 fixture files; `tests/fixtures/audio/v3/` covered all 36
+  corpus episodes one directory up, and `pip install imageio-ffmpeg` worked
+  first try. All reverted.
+- **T16 — A zero-result search is evidence about the SEARCH, not the
+  world.** Before "there is no X" becomes a premise, re-run at repo root
+  with a repo-rooted tool (`ctx_glob`/`ctx_search`, not a hand-scoped
+  `find`). "Not in `<path>`" is a result; "the repo has no X" is a claim.
+  Zero results while I hold a hypothesis is the danger case — it feels like
+  confirmation and is usually a scope error. The tell: a search returned
+  nothing and I felt confirmed rather than suspicious.
 
 ---
 

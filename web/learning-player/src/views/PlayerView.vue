@@ -16,6 +16,8 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { usePlayerStore } from '../stores/player'
 import { useQueueStore } from '../stores/queue'
 import { useAuthStore } from '../stores/auth'
+import { useSignInGate } from '../composables/useSignInGate'
+import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
@@ -29,6 +31,7 @@ import { insightScrubberMarkers } from '../player/insightMarkers'
 import { activeSegmentIndex } from '../player/transcriptSync'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
+  ApiError,
   getAudioSource,
   getEntities,
   getEpisode,
@@ -38,7 +41,7 @@ import {
   getRelated,
   getSegments,
   logListen,
-  putPlayback,
+  markSurfaced,
 } from '../services/api'
 import type {
   EpisodeDetail,
@@ -67,6 +70,7 @@ function goBack(): void {
 }
 const queue = useQueueStore()
 const auth = useAuthStore()
+const { isGated, gated } = useSignInGate()
 const capture = useCaptureStore()
 const userPrefs = useUserPreferencesStore()
 
@@ -95,11 +99,6 @@ function writeRemoteOffset(slug: string, value: number | null): void {
   void userPrefs.set(AUDIO_SYNC_OFFSETS_PREF_KEY, next)
 }
 
-async function onEnded(): Promise<void> {
-  playing.value = false
-  const next = queue.nextAfter(props.slug)
-  if (next) await router.push({ name: 'player', params: { slug: next } })
-}
 
 const episode = ref<EpisodeDetail | null>(null)
 const segments = ref<Segment[]>([])
@@ -111,9 +110,91 @@ const persons = ref<Entity[]>([])
 // when this one ends. Silent no-op on error/empty; endpoint already existed.
 const relatedEpisodes = ref<EpisodeSummary[]>([])
 const panelOpen = ref(false)
+const panelDialog = ref<HTMLDialogElement | null>(null)
+const insightsOpener = ref<HTMLButtonElement | null>(null)
+
+/**
+ * Drive the dialog's MODE from the viewport (S9).
+ *
+ * `showModal()` gives the mobile sheet what it needs — top layer, focus trap, Escape, inert
+ * background. At lg the same panel is a docked rail beside the player, where trapping focus would
+ * be wrong: nothing is covered, and the user must be able to Tab back to the transcript.
+ */
+const DESKTOP_QUERY = '(min-width: 1024px)'
+const isDesktop = ref(
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(DESKTOP_QUERY).matches
+    : false,
+)
+
+function syncPanelDialog(): void {
+  const d = panelDialog.value
+  if (!d) return
+  if (!panelOpen.value) {
+    if (d.open) d.close()
+    return
+  }
+  // Re-opening in the other mode requires a close first: showModal() on an already-open dialog
+  // throws InvalidStateError.
+  if (d.open) d.close()
+  if (isDesktop.value) d.show()
+  else d.showModal()
+}
+
+watch([panelOpen, isDesktop], () => void nextTick(syncPanelDialog))
+
+/**
+ * Close came from anywhere — the ✕, Escape, or a backdrop tap. Restore focus to the control that
+ * opened it: the opener is `v-if="!panelOpen"`, so it does not exist at the moment the browser
+ * would restore focus itself, and focus would otherwise land on <body> and lose the user's place.
+ */
+function onPanelClose(): void {
+  panelOpen.value = false
+  void nextTick(() => insightsOpener.value?.focus())
+}
+
+/**
+ * A modal dialog fills the screen, so a tap on the ::backdrop lands on the dialog element itself —
+ * the inner container stops anything inside it from reaching here.
+ */
+function onPanelBackdropClick(e: MouseEvent): void {
+  if (e.target === panelDialog.value) panelOpen.value = false
+}
 const focusInsightId = ref<string | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
+/** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */
+const loadFailed = ref(false)
+/** The transcript artifact is unreadable, as opposed to not written yet. */
+const transcriptBroken = ref(false)
+
+/**
+ * The episode summary, opened on request rather than laid over the artwork.
+ *
+ * `summary_text` is the full prose; `summary_title` is the one-line headline and the fallback when
+ * there is no body. Rendering nothing when both are absent is what keeps the control from
+ * appearing on an episode that has no summary to show.
+ */
+const summaryText = computed(() => episode.value?.summary_text || episode.value?.summary_title || '')
+const summaryOpen = ref(false)
+const summaryDialog = ref<HTMLDialogElement | null>(null)
+
+// Modal on every viewport: a summary is short-form reading the reader opted into, so trapping focus
+// and dimming the page is right here — unlike the Knowledge Panel, which is a docked rail on
+// desktop precisely because it is meant to sit alongside the transcript.
+watch(summaryOpen, (open) => {
+  void nextTick(() => {
+    const d = summaryDialog.value
+    if (!d) return
+    if (open && !d.open) d.showModal()
+    else if (!open && d.open) d.close()
+  })
+})
+
+/** A tap on the backdrop lands on the dialog element itself; the inner container stops the rest. */
+function onSummaryBackdropClick(e: MouseEvent): void {
+  if (e.target === summaryDialog.value) summaryOpen.value = false
+}
 
 // Per-episode reach (UXS-014): anonymous cross-user counts + a daily-opens sparkline.
 const stats = ref<EpisodeStats | null>(null)
@@ -136,13 +217,14 @@ function openInsight(insightId: string): void {
 }
 
 // Playback state + transport live in the player store (single source of truth for the UI,
-// MediaSession, and native controls — #1307). The <audio> element is still rendered by this view
-// and registered into the store via bind(); view-specific glue (deep-link/resume, persistence,
-// queue-advance, transcript sync-offset) stays here and drives the store.
+// MediaSession, and native controls — #1307). What is left here is genuinely view-shaped:
+// deep-link/resume seeking and the transcript sync-offset. Queue-advance and position PERSISTENCE
+// both moved out, for the same reason: they must keep working when no player view is mounted, and
+// persistence additionally has to pair the slug and the time from one object (see the store).
 const player = usePlayerStore()
 const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
-const audioEl = ref<HTMLAudioElement | null>(null)
-watch(audioEl, (el) => player.bind(el), { immediate: true })
+// No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
+// and resume still happen here — they are episode/route concerns — but through the store's element.
 
 // Manual sync-nudge UI is HIDDEN for now (not deleted): a better synchronization fix is coming,
 // so the listener-facing nudge control is temporarily off. The offset machinery below still
@@ -178,7 +260,6 @@ function resetSync(): void {
 }
 
 let resumeSeconds = 0
-let lastSaved = 0
 
 // Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
 const contentTime = computed(() => currentTime.value - syncOffset.value)
@@ -212,7 +293,14 @@ const speakingNow = computed(() =>
 async function load(slug: string): Promise<void> {
   loading.value = true
   notFound.value = false
-  player.resetForLoad() // clear playback state for the new episode (playing/time/duration/error)
+  loadFailed.value = false
+  transcriptBroken.value = false
+  // Only for a DIFFERENT episode. Returning to the one already playing (tapping the mini-player)
+  // must not touch transport state: the store's load() no-ops for the same slug, so nothing would
+  // restore what we wiped — the element keeps playing while the UI shows Play at 0:00, the first
+  // tap of Play pauses, and stopBackgroundAudio() kills the Android keep-alive service mid-listen,
+  // which is exactly what #1310 exists to prevent. Left over from when the view owned the element.
+  if (player.currentSlug !== slug) player.resetForLoad()
   transcriptOpen.value = false // new episode → transcript starts closed (opt-in per episode)
   segments.value = []
   audioUrl.value = null
@@ -241,21 +329,52 @@ async function load(slug: string): Promise<void> {
   // slug. Reading is synchronous; server value wins.
   const remote = readRemoteOffset(slug)
   if (remote !== null) syncOffset.value = remote
+  // "More like this" is a secondary rail at the bottom of the page, and it is by far the slowest
+  // call on this route: /related embeds the episode text and searches the vector index, measured at
+  // ~12 s warm against the fixture corpus (~46 s cold, while MiniLM loads). Inside the Promise.all
+  // below it gated EVERYTHING on that — `loading` stayed true, the episode body did not render, and
+  // `audioUrl` was not set, so the player could not even begin buffering until the peer rail was
+  // ready. A rail nobody has scrolled to yet was holding up playback.
+  //
+  // Fire it alongside instead, exactly like the reach stats above: the page renders from the six
+  // calls it actually needs, and the rail fills in when it arrives (it is `v-if`'d on being
+  // non-empty, so there is nothing to lay out until then). The slug guard drops a late response
+  // for an episode the user has already navigated away from — `relatedEpisodes` was reset above,
+  // and without the check a slow reply would repopulate the previous episode's peers.
+  getRelated(slug, 6)
+    .then((r) => {
+      if (props.slug === slug) relatedEpisodes.value = r.items
+    })
+    .catch(() => {
+      if (props.slug === slug) relatedEpisodes.value = []
+    })
   try {
-    const [detail, segs, audio, playback, ins, ents, related] = await Promise.all([
+    const [detail, segs, audio, playback, ins, ents] = await Promise.all([
       getEpisode(slug),
-      getSegments(slug).catch(() => null),
+      // A 404 means "no transcript yet"; anything else means the artifact is BROKEN (the route
+      // 500s on an unreadable segments file). Collapsing both into null told the user "Transcript
+      // pending" forever for a file that will never fix itself, and nobody is prompted to look.
+      getSegments(slug).catch((err: unknown) => {
+        transcriptBroken.value = !(err instanceof ApiError && err.status === 404)
+        return null
+      }),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
       getInsights(slug).catch(() => null),
       getEntities(slug).catch(() => null),
-      getRelated(slug, 6).catch(() => null),
     ])
     episode.value = detail
     segments.value = segs?.segments ?? []
     audioUrl.value = audio?.url ?? null
+    if (audio?.url) {
+      player.load({
+        slug: props.slug,
+        url: audio.url,
+        title: episode.value?.title ?? null,
+        artwork: artwork.value ?? null,
+      })
+    }
     insights.value = ins?.insights ?? []
-    relatedEpisodes.value = related?.items ?? []
     topics.value = ents?.topics ?? []
     persons.value = ents?.persons ?? []
     resumeSeconds = playback?.position_seconds ?? 0
@@ -265,17 +384,19 @@ async function load(slug: string): Promise<void> {
       artist: detail.podcast_title ?? undefined,
       artworkUrl: episodeArtwork(detail) ?? undefined,
     })
-  } catch {
-    notFound.value = true
+  } catch (err: unknown) {
+    // "Not found" has to MEAN not found. Any failure used to land here, so a dropped connection
+    // told the user an episode that exists does not — and no reload prompt with it.
+    if (err instanceof ApiError && err.status === 404) notFound.value = true
+    else loadFailed.value = true
   } finally {
     loading.value = false
   }
 }
 
-function onLoadedMetadata(): void {
-  const el = audioEl.value
+function applyStartPosition(): void {
+  const el = player.el
   if (!el) return
-  player.onDurationChange()
   // A ?t= deep-link (jump-to-moment from search) wins over the saved resume position.
   const deepLink = Number(route.query.t)
   if (Number.isFinite(deepLink) && deepLink > 0) {
@@ -287,18 +408,24 @@ function onLoadedMetadata(): void {
   el.playbackRate = rate.value
 }
 
-function persist(): void {
-  if (props.slug) void putPlayback(props.slug, currentTime.value)
-}
-
-function onTimeUpdate(): void {
-  player.onTimeUpdate()
-  const now = Date.now()
-  if (now - lastSaved > 10_000) {
-    lastSaved = now
-    persist()
-  }
-}
+// Duration lands asynchronously after `load()`. Apply the deep-link / resume position exactly once
+// per episode, the first time a real duration appears — the view no longer receives the element's
+// loadedmetadata event, since the element is not in this template any more.
+let startApplied: string | null = null
+watch(
+  () => [player.currentSlug, duration.value] as const,
+  ([slug, d]) => {
+    if (!slug || !d || startApplied === slug) return
+    // The loaded episode must be THIS view's episode. Deep-linking to Y with ?t= while X is still
+    // playing fires this immediately against X — seeking the wrong episode to Y's timestamp, an
+    // audible jump in something the user is still listening to. The element outlives the view now,
+    // so "whatever is loaded" and "what this page is about" are no longer the same thing.
+    if (slug !== props.slug) return
+    startApplied = slug
+    applyStartPosition()
+  },
+  { immediate: true },
+)
 
 // Transcript is OPTIONAL and closed by default (mobile): pressing play should NOT jump the
 // listener into the transcript. A Show/Hide toggle reveals it; opening scrolls it into view.
@@ -310,7 +437,7 @@ function toggleTranscript(): void {
   transcriptOpen.value = !transcriptOpen.value
   if (transcriptOpen.value) {
     void nextTick(() =>
-      transcriptEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      transcriptEl.value?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }),
     )
   }
 }
@@ -339,29 +466,83 @@ function announceCapture(message: string): void {
 }
 
 /** One-tap "mark this moment" at the current content-time, tagged with who's speaking. */
-async function markMoment(): Promise<void> {
-  const speaker = activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
-  await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
-  momentFlash.value = true
-  announceCapture(t('capture.marked'))
-  if (flashTimer) clearTimeout(flashTimer)
-  flashTimer = setTimeout(() => {
-    momentFlash.value = false
-  }, 1500)
-}
+/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
+const markMoment = () =>
+  gated(async () => {
+    const speaker =
+      activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
+    // Announce what ACTUALLY happened. The store swallows write failures, so this used to tell a
+    // screen-reader user "Marked" — and flash the confirmation — when the POST had failed and
+    // nothing was stored (S8). A confirmation of something that did not happen is worse than
+    // silence: it stops the user retrying.
+    const ok = await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
+    if (!ok) {
+      announceCapture(t('capture.saveFailed'))
+      return
+    }
+    momentFlash.value = true
+    announceCapture(t('capture.marked'))
+    if (flashTimer) clearTimeout(flashTimer)
+    flashTimer = setTimeout(() => {
+      momentFlash.value = false
+    }, 1500)
+  })()
 
-async function onCaptureParagraph(span: ParagraphSpan): Promise<void> {
-  await capture.captureSpan(props.slug, span)
-  announceCapture(t('capture.savedHighlight'))
-}
+/**
+ * Capture is auth-gated, so a signed-out tap routes to sign-in (#1590).
+ *
+ * #1592 made this control permanently visible on touch — before that it was hover-only, so a
+ * signed-out visitor could barely reach it. Now they can, and an ungated tap would POST a 401 and
+ * announce nothing: the highlight appears to vanish.
+ */
+const onCaptureParagraph = (span: ParagraphSpan) =>
+  gated(async () => {
+    const ok = await capture.captureSpan(props.slug, span)
+    announceCapture(ok ? t('capture.savedHighlight') : t('capture.saveFailed'))
+  })()
 
 function ensureCaptureLoaded(): void {
-  if (auth.isAuthenticated) void capture.ensureLoaded()
+  if (!auth.isAuthenticated) return
+  // `void capture.ensureLoaded()` floated the promise: a failing GET /highlights (503, offline,
+  // expired session) became an UNHANDLED rejection in the browser, not only in tests. Nothing
+  // depends on this resolving — the capture controls render from an empty store and the page is
+  // fully usable — so a failure is caught and left un-loaded, which lets the next call retry.
+  void capture.ensureLoaded().catch(() => {})
+}
+
+/**
+ * Arriving with `?revisit=<highlight_id>` IS the review — advance that highlight's spaced ladder
+ * (#35).
+ *
+ * The inbox's "▶ jump", the Your Week card and the digest email all carry the marker, so all three
+ * advance through this one path. Previously the ONLY advance path was the inbox's dismiss button,
+ * so a user who actually went back and listened never progressed, and the digest re-sent the same
+ * five items indefinitely — "spaced" repetition that never spaced.
+ *
+ * Fire-and-forget by design: this is bookkeeping, not something the page waits on or reports.
+ * Signed-out arrivals are skipped rather than 401-ing, and a rejected call is swallowed — a
+ * revisit that fails to record shows up again later, which is the safe direction to fail.
+ */
+const markedRevisits = new Set<string>()
+
+function markRevisitFromQuery(): void {
+  const id = route.query.revisit
+  if (typeof id !== 'string' || !id) return
+  // Auth hydrates asynchronously, so at mount a genuinely signed-in user can still read as signed
+  // out. Bailing permanently here would drop their revisit; the watch below re-runs this the
+  // moment auth resolves. The Set makes that idempotent — one repetition consumed per arrival,
+  // however many times the trigger fires.
+  if (!auth.isAuthenticated || markedRevisits.has(id)) return
+  markedRevisits.add(id)
+  void markSurfaced(id).catch(() => {
+    /* the item stays due and resurfaces later — never block the player on bookkeeping */
+  })
 }
 
 onMounted(() => {
   load(props.slug)
   ensureCaptureLoaded()
+  markRevisitFromQuery()
   // MediaSession prev/next → the queue (#1308). Handlers read props.slug at call time.
   player.setSkipHandlers({
     next: () => {
@@ -375,10 +556,37 @@ onMounted(() => {
   })
 })
 watch(() => props.slug, (s) => load(s))
-watch(() => auth.isAuthenticated, ensureCaptureLoaded)
+watch(() => auth.isAuthenticated, () => {
+  ensureCaptureLoaded()
+  markRevisitFromQuery() // auth resolved after mount — the arrival still counts
+})
+// Navigating between revisit items without unmounting the player (Your Week → card → card) changes
+// only the query, so the mount hook never re-runs. Each new id is its own arrival.
+watch(() => route.query.revisit, markRevisitFromQuery)
+/**
+ * Track the breakpoint live: a phone rotating into landscape, or a desktop window dragged across
+ * 1024px, must switch the panel between modal sheet and docked rail. Reading matchMedia once at
+ * setup would strand it in whichever mode the page happened to load in.
+ */
+let desktopMql: MediaQueryList | null = null
+const onDesktopChange = (e: MediaQueryListEvent): void => {
+  isDesktop.value = e.matches
+}
+onMounted(() => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+  desktopMql = window.matchMedia(DESKTOP_QUERY)
+  isDesktop.value = desktopMql.matches
+  desktopMql.addEventListener('change', onDesktopChange)
+})
+
 onBeforeUnmount(() => {
-  persist()
+  // No persist() here any more: the store saves on pause, on episode switch, on pagehide and on a
+  // 10s cadence, keyed on what is actually PLAYING. Saving from here paired this page's slug with
+  // the store's time, which is exactly the pair that could disagree.
   if (flashTimer) clearTimeout(flashTimer)
+  desktopMql?.removeEventListener('change', onDesktopChange)
+  // A dialog left open while its view unmounts keeps the top layer and the inert background.
+  if (panelDialog.value?.open) panelDialog.value.close()
 })
 </script>
 
@@ -390,6 +598,12 @@ onBeforeUnmount(() => {
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
+    <p v-else-if="loadFailed" class="mt-4 text-danger">
+      {{ t('player.loadFailed') }}
+      <button type="button" class="ml-2 underline" data-testid="player-retry" @click="load(props.slug)">
+        {{ t('player.retry') }}
+      </button>
+    </p>
 
     <div
       v-else-if="episode"
@@ -416,13 +630,13 @@ onBeforeUnmount(() => {
           </RouterLink>
           <span v-else />
           <div class="flex shrink-0 items-center gap-2">
-            <!-- Mark this moment (P2 capture; auth-gated). Brief "saved" flash on tap. -->
+            <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
+                 this is the cheapest entry to the learning loop, so hiding it hid the loop. -->
             <button
-              v-if="auth.isAuthenticated"
               type="button"
               class="rounded-full p-1 text-xl transition"
               :class="momentFlash ? 'text-accent' : 'text-muted hover:text-accent'"
-              :aria-label="momentFlash ? t('capture.marked') : t('capture.markMoment')"
+              :aria-label="isGated ? t('auth.signInToCapture') : momentFlash ? t('capture.marked') : t('capture.markMoment')"
               :title="momentFlash ? t('capture.marked') : t('capture.markMoment')"
               @click="markMoment"
             >
@@ -456,8 +670,20 @@ onBeforeUnmount(() => {
           />
           <div class="absolute inset-0 flex flex-col justify-between">
             <!-- Top: live intelligence (left) + Ask/Insights pull-out actions (right) -->
-            <div class="flex items-start justify-between gap-2 p-3">
-              <div class="min-w-0">
+            <!--
+              Three things compete for this row: the live insight, the Insights opener, and the
+              reach stats. Both controls are `shrink-0`, so on a phone they took 236px of 348px and
+              the insight card was left with **48px of text width** — three characters a line, with
+              the rigid siblings running over the label. The product's headline feature, squeezed
+              to nothing by a listener count.
+
+              So the controls are grouped and stay pinned top-right, and the insight takes a
+              full-width line of its own beneath them on mobile (`basis-full`), going back inline
+              from `sm` where there is room for all three. `order` is visual only — DOM order keeps
+              the insight first, so it is still what a screen reader reaches first.
+            -->
+            <div class="flex flex-wrap items-start justify-between gap-2 p-3">
+              <div class="order-2 min-w-0 basis-full sm:order-1 sm:basis-auto sm:flex-1">
                 <div
                   v-if="activeInsight"
                   class="rounded-xl bg-canvas/80 px-3 py-2 backdrop-blur"
@@ -473,20 +699,68 @@ onBeforeUnmount(() => {
                   <span class="text-sm font-semibold">{{ speakingNow }}</span>
                 </div>
               </div>
+              <!--
+                ONE control cluster, pinned right, in one row: Summary, Insights, reach.
+
+                These were scattered — Insights mid-top, reach top-right, Summary alone at the
+                bottom of the artwork — so three unrelated-looking chrome elements sat on three
+                edges of the picture. Together they read as one toolbar and leave the rest of the
+                artwork alone.
+
+                Compactness comes from the padding, the type scale and a much smaller sparkline,
+                NOT from shortening the Insights label. That control reads "N insights" on purpose:
+                #1595 replaced "💡 3", which was "the least legible control on the page, styled
+                like a statistic, for the product's central feature". Returning it to a bare count
+                to save 40px would undo that for the sake of tidiness.
+              -->
+              <div class="order-1 ml-auto flex shrink-0 items-center gap-1.5 sm:order-2 sm:ml-0">
               <!-- Per-episode reach (UXS-014): listeners · opens · insights, with a tiny opens-over-time
                    sparkline. The insights score opens the Knowledge panel. -->
+              <!-- Insights: the reason to choose this over a normal podcast app, so it is a
+                   LABELLED control, not a 💡 emoji tucked into the stats cluster next to
+                   listener/open counts (#1595). It used to read "💡 3" — the least legible control
+                   on the page, styled like a statistic, for the product's central feature. -->
+              <!-- Summary — sits WITH the other controls now, not alone at the foot of the art. -->
+              <button
+                v-if="summaryText && !panelOpen"
+                type="button"
+                data-testid="player-open-summary"
+                :title="t('player.summaryOpenHint')"
+                :aria-label="t('player.summaryOpenHint')"
+                class="inline-flex shrink-0 items-center gap-1 rounded-full bg-canvas/55 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas/80"
+                @click="summaryOpen = true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3" aria-hidden="true">
+                  <path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" />
+                </svg>
+                {{ t('player.summaryOpen') }}
+              </button>
+              <button
+                v-if="!panelOpen && insights.length"
+                ref="insightsOpener"
+                type="button"
+                data-testid="player-open-insights"
+                class="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
+                @click="panelOpen = true"
+              >
+                ✦ {{ t('card.insightCount', { count: insights.length }, insights.length) }}
+              </button>
+              <!-- Reach: a quieter scrim than the actions beside it — it is context, not a control
+                   you act on, so it should not compete with them for the eye. The sparkline drops
+                   from 116px to 44px; at this size it reads as a shape, which is all it ever
+                   communicated. -->
               <div
                 v-if="!panelOpen"
-                class="shrink-0 rounded-xl bg-canvas/80 px-3 py-2 text-right backdrop-blur"
+                class="flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/40 px-2.5 py-1 backdrop-blur"
               >
-                <div class="flex items-center justify-end gap-3 text-xs font-bold leading-none">
+                <div class="flex items-center gap-2 text-[11px] font-bold leading-none">
                   <span
                     v-if="stats && stats.listeners > 0"
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
                     :title="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
                     {{ compact(stats.listeners) }}
                   </span>
                   <span
@@ -495,50 +769,24 @@ onBeforeUnmount(() => {
                     :aria-label="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                     :title="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                   >▶ {{ compact(stats.opens) }}</span>
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 text-accent transition hover:opacity-80"
-                    :aria-label="t('kp.insights')"
-                    @click="panelOpen = true"
-                  >💡 {{ insights.length }}</button>
                 </div>
                 <Sparkline
                   v-if="stats && statsSeries.some((n) => n > 0)"
                   :values="statsSeries"
-                  :width="116"
-                  :height="22"
-                  class="mt-1.5 block text-accent"
+                  :width="44"
+                  :height="14"
+                  class="block text-accent"
                 />
+              </div>
               </div>
             </div>
 
-            <!-- Bottom: the FULL summary over a legibility gradient. Hidden by default so the artwork
-                 reads clean; slides up + fades in on hover/focus (and is always shown on touch, where
-                 there's no hover). The fixed-square hero means length never shifts the layout. -->
-            <div
-              v-if="episode.summary_text || episode.summary_title"
-              tabindex="0"
-              role="region"
-              :aria-label="t('player.summaryRegion')"
-              class="max-h-[66%] translate-y-full overflow-y-auto bg-gradient-to-t from-black/95 via-black/85 to-black/40 px-5 pb-5 pt-6 opacity-0 backdrop-blur-[2px] transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
-            >
-              <p class="whitespace-pre-line border-l-2 border-accent pl-4 font-display text-base font-semibold leading-snug tracking-tight text-white drop-shadow sm:text-lg">{{ episode.summary_text || episode.summary_title }}</p>
-            </div>
+            <!-- Nothing at the foot of the artwork: the Summary control moved up into the toolbar
+                 with Insights and reach, so the lower two-thirds of the picture stays picture. -->
+            <span />
           </div>
         </div>
 
-        <audio
-          ref="audioEl"
-          :src="audioUrl ?? undefined"
-          preload="metadata"
-          class="hidden"
-          @loadedmetadata="onLoadedMetadata"
-          @timeupdate="onTimeUpdate"
-          @play="player.onPlay"
-          @pause="player.onPause"
-          @ended="onEnded"
-          @error="player.onError"
-        />
 
         <!-- Mobile: the controls float (sticky) at the top so they stay reachable while the
              transcript scrolls underneath. The wrapper carries an opaque page background + a
@@ -641,15 +889,21 @@ onBeforeUnmount(() => {
             :segments="segments"
             :active-index="activeIndex"
             :grounded="groundedSpans"
-            :can-capture="auth.isAuthenticated"
+            :can-capture="true"
+            :gated="!auth.isAuthenticated"
             :saved-segment-ids="savedSegmentIds"
             class="min-h-0 lg:flex-1"
             @seek="seekContent"
             @insight="openInsight"
             @capture="onCaptureParagraph"
           />
-          <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
-            {{ t('player.transcriptPending') }}
+          <p
+            v-else
+            data-testid="player-transcript-empty"
+            class="rounded-2xl border border-border bg-surface p-4"
+            :class="transcriptBroken ? 'text-danger' : 'text-muted'"
+          >
+            {{ transcriptBroken ? t('player.transcriptBroken') : t('player.transcriptPending') }}
           </p>
         </div>
 
@@ -676,10 +930,38 @@ onBeforeUnmount(() => {
         </section>
       </div>
 
-      <!-- Knowledge Panel: persistent rail on desktop, overlay sheet on mobile. -->
+      <!--
+        Knowledge Panel: persistent rail on desktop, MODAL sheet on mobile.
+
+        A native <dialog>, so the browser supplies focus trapping, Escape-to-close, an inert
+        background and the correct accessibility tree. Hand-rolling those is ~60 lines of code whose
+        bugs are silent and land on keyboard and screen-reader users; this shipped as a plain <div>
+        that covered the screen without declaring itself a dialog, so Tab walked into the hidden page
+        behind it and Escape did nothing.
+
+        ONE element, two modes — `showModal()` on mobile, `show()` (non-modal, in normal flow) at lg.
+        Rendering the panel twice would be simpler markup and would double every request it makes on
+        mount, so the mode switch lives in script instead.
+
+        The dialog element itself carries only the UA-style reset and positioning; the visual
+        container stays an inner div, because `border-0` and `border-t` on one element resolve by
+        stylesheet order rather than attribute order.
+
+        The explicit height is not decoration: the UA stylesheet sets `height: fit-content` on
+        <dialog>, which beats a top/bottom stretch, so the sheet sized itself to its content and ran
+        off the bottom of the screen — entity-card controls ended up unclickable at "outside of the
+        viewport". A plain <div> had no such rule, which is why this only appeared on conversion.
+      -->
+      <dialog
+        ref="panelDialog"
+        data-testid="knowledge-panel"
+        :aria-label="t('kp.title')"
+        class="m-0 h-[calc(100dvh-2rem)] max-h-none max-w-none border-0 bg-transparent p-0 text-canvas-foreground backdrop:bg-black/50 fixed inset-x-0 bottom-0 top-8 z-40 w-full lg:static lg:top-auto lg:z-auto lg:h-auto lg:w-auto lg:backdrop:bg-transparent"
+        @close="onPanelClose"
+        @click="onPanelBackdropClick"
+      >
       <div
-        v-if="panelOpen"
-        class="fixed inset-x-0 bottom-0 top-8 z-40 overflow-hidden rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] lg:static lg:top-auto lg:z-auto lg:mt-0 lg:max-h-[70dvh] lg:rounded-2xl lg:border lg:pb-0"
+        class="h-full overflow-hidden rounded-t-2xl border-t border-border bg-canvas pb-[env(safe-area-inset-bottom)] lg:max-h-[70dvh] lg:rounded-2xl lg:border lg:pb-0"
       >
         <KnowledgePanel
           :episode="episode"
@@ -690,15 +972,68 @@ onBeforeUnmount(() => {
           :active-insight-id="activeInsight?.id ?? null"
           :focus-insight-id="focusInsightId"
           @seek="seekContent"
+          @announce="announceCapture"
           @close="panelOpen = false"
         />
       </div>
-      <!-- Mobile backdrop -->
-      <div
-        v-if="panelOpen"
-        class="fixed inset-0 z-30 bg-black/50 lg:hidden"
-        @click="panelOpen = false"
-      />
+      </dialog>
+
+      <!--
+        Episode summary — opened from the control on the artwork, never laid over it.
+
+        A native <dialog> for the same reason the panel above is one: the browser supplies focus
+        trapping, Escape, an inert background and the right accessibility tree. Capped at 80dvh with
+        the prose scrolling INSIDE, so a long summary is reachable to its end — the specific failure
+        of the old overlay, which clipped to the hero's fixed square and trailed off in an ellipsis.
+      -->
+      <dialog
+        ref="summaryDialog"
+        data-testid="episode-summary-dialog"
+        :aria-label="t('player.summaryRegion')"
+        class="m-auto max-h-[80dvh] w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-border bg-canvas p-0 text-canvas-foreground backdrop:bg-black/60"
+        @close="summaryOpen = false"
+        @click="onSummaryBackdropClick"
+      >
+        <!-- Content only while open. A <dialog> renders its children regardless, so without this
+             the whole summary sits in the DOM (and in the accessibility tree) behind a closed
+             dialog — the thing this change exists to stop. -->
+        <!--
+          No title bar. "Episode summary" over a rule, above the episode's own headline, was two
+          headings and a border spent saying what the content already says — real estate on a
+          phone, where the dialog is capped at 80dvh and every row costs prose.
+
+          The close sits on the headline's line instead, and that row is `sticky` inside the
+          scroller: dropping the bar must not put the only way out at the top of text the reader
+          has scrolled past. `aria-label` on the <dialog> still names the region for assistive
+          tech, so removing the visible <h2> costs nothing there.
+        -->
+        <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
+          <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
+            <p
+              v-if="episode?.summary_title && episode.summary_text"
+              class="min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
+            >
+              {{ episode.summary_title }}
+            </p>
+            <span v-else class="min-w-0" />
+            <button
+              type="button"
+              data-testid="episode-summary-close"
+              :aria-label="t('player.summaryClose')"
+              class="-mr-1 -mt-1 shrink-0 rounded-full px-2 py-1 text-sm text-muted transition hover:text-canvas-foreground"
+              @click="summaryOpen = false"
+            >
+              ✕
+            </button>
+          </div>
+          <p
+            class="whitespace-pre-line border-l-2 border-accent pl-4 text-sm leading-relaxed text-canvas-foreground"
+            data-testid="episode-summary-text"
+          >
+            {{ summaryText }}
+          </p>
+        </div>
+      </dialog>
     </div>
   </section>
 </template>

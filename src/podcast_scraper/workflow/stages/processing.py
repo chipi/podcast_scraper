@@ -438,11 +438,38 @@ def _detect_hosts_from_feed(
     stated = detect_hosts_from_feed(feed.title, feed.description, feed.authors or [])
     if stated:
         return stated
-    feed_hosts = speaker_detector.detect_hosts(
-        feed_title=feed.title,
-        feed_description=feed.description,  # show blurb usually names the host (#1169)
-        feed_authors=feed.authors if feed.authors else None,
-    )
+    try:
+        feed_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=feed.description,  # show blurb usually names the host (#1169)
+            feed_authors=feed.authors if feed.authors else None,
+        )
+    except Exception as exc:
+        if not caused_by_missing_import(exc):
+            raise
+        # A missing optional PACKAGE degrades; it does not end the run — the same rule the two
+        # sites below already apply (utils.optional_deps). This one was missed, and it is reached
+        # EARLIER than either: `_setup_pipeline_resources` calls it before any episode is touched,
+        # so a box without the [ml] extra died at pipeline startup with a bare
+        # ``ModuleNotFoundError: No module named 'spacy'`` out of ``run_pipeline`` — 12 e2e tests,
+        # all of them describing error-recovery behaviour, none of them about spaCy.
+        #
+        # The deterministic parse above already ran and found nothing stated, so the honest result
+        # is "no host inferred": whatever the episode metadata states is what it keeps. Host
+        # detection is an enhancement, and the pipeline has a no-detector path
+        # (``_create_speaker_detector_if_needed`` returning None takes it) — this is that path,
+        # reached one step later.
+        #
+        # LOUDLY, per #1647: a feed whose hosts were never looked for must stay distinguishable
+        # from one where the detector ran and honestly found nobody.
+        logger.error(
+            "Feed host detection UNAVAILABLE — an optional dependency is not installed (%s: %s). "
+            "No host was inferred from the feed; the show keeps whatever its metadata states. "
+            "Install the [ml] extra to enable it.",
+            type(exc).__name__,
+            exc,
+        )
+        return set()
     return _sanitize_detected_hosts(cast("set[str]", feed_hosts))
 
 

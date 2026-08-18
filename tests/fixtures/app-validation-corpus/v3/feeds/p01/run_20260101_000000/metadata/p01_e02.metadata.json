@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p01-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p01_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -34,13 +34,15 @@
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "p01",
     "title": "Singletrack Sessions",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.svg",
+    "image_url": "http://localhost/images/p01.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here.",
-      "Before we get into it \u2014 Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.",
+      "Before we get into it — Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.",
       "Yeah, exactly. And it ties into what we're covering today."
     ],
     "raw_text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here.",

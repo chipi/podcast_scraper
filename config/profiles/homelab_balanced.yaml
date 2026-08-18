@@ -1,0 +1,192 @@
+# Profile: homelab_balanced — cloud_balanced, pointed at the HOMELAB environment.
+#
+# Same pipeline, same upstream model, different environment. The LiteLLM gateway exposes one
+# alias per environment and issues one virtual key per environment: production keys resolve
+# `podcast-flash-0731`, homelab/dev keys resolve `homelab-flash-0731`. Both aliases route to the
+# same upstream (deepseek-v4-flash) at the same rate — see config/pricing_assumptions.yaml, where
+# `homelab-flash` and `podcast-flash-0731` carry identical input/output costs.
+#
+# So this file is NOT a different configuration of the pipeline. It is cloud_balanced with the
+# environment's own alias, so that a dev-key run never touches the production alias. Using a
+# homelab key against `podcast-flash-0731` fails closed:
+#   403 key_model_access_denied — "This key can only access models=['homelab-flash-0731']"
+#
+# NO `profile:` key, deliberately — same rationale as reprocess_dgx_no_llm. Declaring `profile:`
+# opts a YAML into the registry drift check (tests/integration/providers/ml/
+# test_profile_yaml_registry_drift.py), which asserts the YAML's routing matches a ModelRegistry
+# preset. This file's whole purpose is to carry a different alias than the preset pins, so it
+# stays opted out rather than being force-fitted into the registry.
+#
+# Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. It pins an environment alias, not a
+# researched model choice, so there is nothing for the registry to govern: promoting it would mean
+# claiming `homelab-flash-0731` is a distinct model rather than the same upstream behind a
+# different key. The enricher tier IS registered (profile_sets.py, on cloud_balanced's branch),
+# because that is a real policy the profile must not silently diverge from.
+#
+# Usage:
+#   podcast-scraper --config config/profiles/homelab_balanced.yaml \
+#     --rss <feed_url> --output-dir <output>
+#   LITELLM_API_KEY + DEEPGRAM_API_KEY must be in the environment.
+
+# ---------------------------------------------------------------------------
+# Transcription — unchanged from cloud_balanced.
+# ---------------------------------------------------------------------------
+transcription_provider: deepgram
+deepgram_model: nova-3
+# nova-3 self-diarizes on the transcription call, so no second billed diarization pass.
+diarize: false
+screenplay: true
+
+audio_preprocessing_profile: speech_optimal_v1
+preprocessing_enabled: true
+
+speaker_detector_provider: litellm
+auto_speakers: true
+
+# ---------------------------------------------------------------------------
+# Summarization — the gateway, with THIS environment's alias.
+# ---------------------------------------------------------------------------
+summary_provider: litellm
+litellm_api_base: http://homelab:4001/v1
+litellm_temperature: 0.3
+litellm_verify_served_model: true
+litellm_extra_body:
+  reasoning:
+    enabled: false
+  provider:
+    order:
+      - novita
+      - deepinfra
+    allow_fallbacks: true
+
+# RFC-111 gateway resilience — HOLD only. cloud_balanced follows the hold with a FAILOVER to
+# direct DeepSeek (api.deepseek.com), which needs DEEPSEEK_API_KEY. No such key exists in this
+# environment, so the failover tier is removed rather than left declared-but-dead: a configured
+# fallback that cannot authenticate turns a clear gateway error into a confusing auth error.
+# If the gateway is down, this profile fails — which is the honest outcome here.
+llm_retry_max_retries: 12
+llm_retry_initial_delay_seconds: 2.0
+llm_retry_max_delay_seconds: 120.0
+summary_fallback_providers: []
+
+llm_pipeline_mode: staged
+cloud_llm_structured_min_output_tokens: 4096
+
+# ---------------------------------------------------------------------------
+# Grounded Insights — unchanged from cloud_balanced.
+# ---------------------------------------------------------------------------
+generate_gi: true
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+gi_value_gate_enabled: true
+gi_value_gate_provider: litellm
+gi_value_gate_min_tier: 3
+gi_insight_dedupe_threshold: 0.72
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+
+quote_extraction_provider: litellm
+entailment_provider: litellm
+
+# ---------------------------------------------------------------------------
+# Knowledge Graph — unchanged from cloud_balanced.
+# ---------------------------------------------------------------------------
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# ---------------------------------------------------------------------------
+# Vector search — the one real behavioural delta from cloud_balanced.
+# ---------------------------------------------------------------------------
+# cloud_balanced sets `vector_search: true` with `vector_embedding_provider: sentence_transformers`.
+# That is the [search] extra — torch, transformers, sentence-transformers, lancedb — and torch
+# publishes no macOS x86_64 wheels, so on an Intel Mac it cannot be installed at all
+# ("no wheels with a matching platform tag (macosx_15_0_x86_64)"). Left on, the vector pass fails
+# INSIDE the run, after the LLM stages have already been paid for.
+#
+# It is off here because it is a derived layer, not episode content: nothing in it feeds summary /
+# GI / KG text, which is what this profile exists to produce. The search index is built separately
+# and out-of-band by `make index-two-tier-docker`, which runs in a container where those wheels do
+# exist. Turn this back on when running the profile somewhere [search] installs.
+vector_search: false
+
+# ---------------------------------------------------------------------------
+# Enrichment — mirrors cloud_balanced exactly. Do not trim it to suit a host.
+# ---------------------------------------------------------------------------
+# This block is the operator-facing MIRROR of the Python matrix in
+# src/podcast_scraper/enrichment/profile_sets.py (the source of truth), and
+# test_yaml_enrichment_block_matches_python_matrix asserts the two agree. homelab_balanced is
+# registered on cloud_balanced's branch there, so it must declare cloud_balanced's set.
+#
+# An earlier version of this file set `enabled: false` because topic_similarity / topic_consensus
+# need all-MiniLM-L6-v2 and this host cannot install it. That was the wrong lever: it made the
+# profile quietly MEAN something different from the profile it claims to mirror, and the drift test
+# caught it. Where a profile can run is a property of the host, not of the profile.
+#
+# The pipeline spawns enrichment as a BACKGROUND job after the run
+# (_maybe_spawn_enrichment_after_pipeline) and does not wait on it, so on a host without the ML
+# extra the run still completes — the enrichment job is what fails, loudly and separately. To
+# produce the sidecars, run `make enrich CORPUS=<corpus> WITH_ML=1` in a container.
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
+
+llm_circuit_breaker_enabled: true
+
+# ---------------------------------------------------------------------------
+# General
+# ---------------------------------------------------------------------------
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+
+# Raised from cloud_balanced's 5.0. Measured 2026-08-16 on p01_e03: $0.139136 for one episode,
+# of which $0.1365 is Deepgram ASR (1905s of audio) — the LLM stages are ~$0.0026. The app
+# validation corpus is 36 episodes, so a whole-corpus run lands at ~$5.01 and would trip a 5.0
+# cap with `abort` on the very last episodes, after paying for all the earlier ones. 25.0 leaves
+# room for retries and the longer episodes without disabling the guardrail.
+cost_soft_cap_usd_per_run: 25.0
+cost_soft_cap_action: abort
+cost_daily_alert_usd: 30.0
+
+# --- model pins: the homelab alias everywhere cloud_balanced pins the production one ---
+summary_model: homelab-flash-0731
+litellm_summary_model: homelab-flash-0731
+litellm_insight_model: homelab-flash-0731
+litellm_speaker_model: homelab-flash-0731
+gi_value_gate_model: homelab-flash-0731
+
+# --- values mirrored from cloud_balanced's registry-materialized block ---
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+gil_evidence_match_summary_provider: true
+resilience_run_context: serve
+resilience_failure_strategy: failover
+transcription_coverage_min: 0.0
+enforce_model_governance: false
+transcription_coverage_failover_model: null
+transcription_coverage_failover_provider: null
+transcription_speech_coverage_min: 0.0

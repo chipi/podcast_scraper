@@ -28,8 +28,9 @@ Behaviour (the adaptive switch logic, debounce, endpoints) lives in RFC-099.
   not "here are all episodes" (that's `/catalog`).
 - **The corpus is queryable — make that visible.** "Ask your library" is always one glance away;
   it is the consumer face of the moat (a growing, searchable knowledge corpus).
-- **Adaptive, graceful.** The hero adapts to state; every section hides cleanly when empty,
-  signed-out, or its index/artifact is absent. No empty panels.
+- **Adaptive, graceful.** The hero adapts to state. Sections hide when signed-out or when their
+  index/artifact is absent — but see the state contract below: "hides cleanly when empty" was too
+  blunt a rule and is superseded (#1591).
 - **Inherits UXS-011.** No new tokens or type scale — Editorial Bold, dark-primary, per-show
   adaptive accent (the resume hero borrows the player's artwork-derived accent).
 
@@ -94,8 +95,38 @@ In both states the search entry is visually prominent (in or immediately under t
   hero+rows, Recommended is a responsive grid* (the earlier horizontal-rail/`CardRail` direction
   was dropped on Home; `CardRail` remains available for future Catalog use). Hover → `overlay`.
 - **Loading:** skeleton hero + skeleton rail cards (`surface`/`border`).
-- **Empty/degraded:** sections with no data are omitted; a fully-empty signed-out Home still
-  shows the discover hero (search) + What's new.
+- **Empty/degraded:** see the state contract below (#1591) — this previously said "sections with no
+  data are omitted", which conflated three different situations. A fully-empty signed-out Home
+  still shows the discover hero (search) + What's new.
+
+### Section state contract (#1591)
+
+Every data-backed section distinguishes **three** states. Collapsing them is what made a cold
+corpus, a brand-new account and **a total API outage** render the same page.
+
+| State | Behaviour |
+| ----- | --------- |
+| **loading** | Skeleton, in the section's own shape. The header renders — it is what tells the user this content exists before it arrives. |
+| **error** | A message plus a **retry**. Never silently equal to empty. Styled once, via `SectionStatus.vue`, so the same class of failure stops looking different in different views. |
+| **ready + empty** | Depends on *why* it is empty — see below. |
+
+**The rule for empty: hide when the SYSTEM is empty, render when the USER is.**
+
+- **System-empty** — nothing to show because the corpus or the user's history has nothing yet, and
+  there is no action available. Hide; an empty shell is noise. *Storylines, Trending topics,
+  Trending shows, Momentum, Recommended.*
+- **User-empty** — empty because of an action the user has not taken yet. **Render, and the empty
+  state must carry that action** — not a description of it, the action itself. *"Your shows" shows
+  followable suggestions; "Your Week" shows a first-run row per digest section, with the
+  `new_in_follows` row linking out because that one is fixable today.*
+
+A section that merely *describes* what the user could do is the failure mode this rule exists to
+prevent: it makes the reader go and find the control it is telling them about.
+
+**Known gap:** user-empty states currently render indefinitely, so someone who deliberately follows
+nothing sees the prompt forever. The intended fix is to stop after the first success (first follow,
+first capture), which needs a per-user preference flag. Not yet built.
+
 - **Search result active/jump:** the `▶ mm:ss` uses `--lp-accent`; focus ring per UXS-011.
 
 ## Components

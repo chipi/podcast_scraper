@@ -4,7 +4,7 @@
  * Header derives the show title + total from the first page (no separate feed endpoint in
  * the MVP). Cards reuse EpisodeCard.
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import EntityCard from '../components/EntityCard.vue'
@@ -12,6 +12,9 @@ import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
+import { useAuthStore } from '../stores/auth'
+import { useLibraryStore } from '../stores/library'
+import { useSignInGate } from '../composables/useSignInGate'
 import { showArtwork } from '../utils/episode'
 import type { EpisodeSummary, Podcast } from '../services/types'
 
@@ -30,10 +33,53 @@ const descExpanded = ref(false)
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
 const showArt = showArtwork
+/**
+ * Has the show lookup finished? Drives the title fallback.
+ *
+ * The heading used to fall straight through to the raw `feedId`, so the page painted "p05" as its
+ * title for as long as the lookup took — an internal identifier presented to a listener as the name
+ * of the show. It is only an acceptable last resort once we KNOW no name is coming.
+ */
+const showResolved = ref(false)
 async function loadShow(): Promise<void> {
-  const all = await getPodcasts().catch(() => [] as Podcast[])
-  show.value = all.find((p) => p.feed_id === props.feedId) ?? null
+  try {
+    const all = await getPodcasts().catch(() => [] as Podcast[])
+    show.value = all.find((p) => p.feed_id === props.feedId) ?? null
+  } finally {
+    showResolved.value = true
+  }
 }
+
+/** The show's name, or null while we are still finding out (never the raw feed id mid-flight). */
+const showTitle = computed(
+  () => show.value?.title ?? episodes.value[0]?.podcast_title ?? (showResolved.value ? props.feedId : null),
+)
+
+// Follow this show → a feed subscription (/api/app/library), which is what fills the "new in your
+// follows" section of Your Week. Distinct from the interest tokens followed on entity cards.
+const auth = useAuthStore()
+const library = useLibraryStore()
+const { isGated, gated } = useSignInGate()
+// Auth may resolve after this mounts, so load follow-state on the transition, not just onMounted.
+watch(
+  () => auth.isAuthenticated,
+  (authed) => {
+    if (authed) void library.ensureLoaded().catch(() => {})
+  },
+  { immediate: true },
+)
+
+const following = computed(() => library.has(props.feedId))
+const togglingFollow = ref(false)
+/** Signed-out follows route to sign-in rather than firing a 401 the store silently reverts (#1590). */
+const toggleFollow = gated(async () => {
+  togglingFollow.value = true
+  try {
+    await library.toggle(props.feedId, { title: show.value?.title ?? episodes.value[0]?.podcast_title })
+  } finally {
+    togglingFollow.value = false
+  }
+})
 
 async function loadMore(): Promise<void> {
   loading.value = true
@@ -83,7 +129,15 @@ watch(() => props.feedId, reset)
       />
       <div class="min-w-0 flex-1">
         <h1 class="font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-          {{ show?.title ?? episodes[0]?.podcast_title ?? feedId }}
+          <template v-if="showTitle">{{ showTitle }}</template>
+          <!-- Placeholder, not the feed id: same height as the real heading so nothing jumps when
+               the name lands. `aria-hidden` keeps a screen reader from announcing a shimmer bar. -->
+          <span
+            v-else
+            class="block h-7 w-2/3 animate-pulse rounded bg-elevated sm:h-9"
+            aria-hidden="true"
+            data-testid="podcast-title-skeleton"
+          />
         </h1>
         <p v-if="total" class="mt-1 text-sm text-muted">
           {{ t('podcast.episodeCount', { count: total }, total) }}
@@ -102,6 +156,26 @@ watch(() => props.feedId, reset)
           @click="descExpanded = !descExpanded"
         >
           {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
+        </button>
+
+        <!-- Follow → feed subscription; its unheard episodes surface in Your Week. Rendered for
+             signed-out visitors too (#1590) — the tap routes to sign-in. This is the primary follow
+             surface, so hiding it hid the capability from everyone deciding whether to sign up. -->
+        <button
+          type="button"
+          data-testid="follow-show"
+          class="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"
+          :class="
+            following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+          "
+          :aria-pressed="isGated ? undefined : following"
+          :disabled="togglingFollow"
+          :title="isGated ? t('auth.signInToFollow') : t('podcast.followHint')"
+          :aria-label="isGated ? t('auth.signInToFollow') : undefined"
+          @click="toggleFollow"
+        >
+          <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+          {{ following ? t('podcast.following') : t('podcast.follow') }}
         </button>
       </div>
     </header>

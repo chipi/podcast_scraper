@@ -8,6 +8,26 @@ const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 const TRANSCRIPT_BODY =
   'Hello world transcript sample for CI quality metrics fixture.\nExtra line for scroll.'
 
+/**
+ * #1619 — partially blocked; measured against the live backend 2026-08-14.
+ *
+ * What WOULD work live: `/api/corpus/text-file` serves the corpus's real transcripts and segment
+ * files (`feeds/<feed>/<run>/transcripts/<ep>.txt` → 200 with real dialogue;
+ * `<ep>.segments.json` → 200), so the transcript body and the segment-timing panel have real data
+ * behind them.
+ *
+ * What blocks it: **the corpus contains no audio.** `find … -name '*.mp3'` over
+ * `app-validation-corpus/v3` returns nothing, and `/api/corpus/media` answers 400 — so the
+ * player half of this dialog (audio element, seek-to-timestamp) has nothing to load. Real MP3s do
+ * exist in the repo at `tests/fixtures/audio/v3/`, but they are outside the corpus and
+ * `/api/corpus/media` resolves relative to the corpus root.
+ *
+ * The rest of the file is also anchored to `GI_SAMPLE_FIXTURE` (`ci_sample`) for the same reason
+ * as `search-to-graph-mocks.spec.ts`: it drives a designed graph, not corpus content.
+ *
+ * v4 requirement: audio inside the corpus tree, so `/api/corpus/media` can serve it. Recorded in
+ * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ */
 test.describe('Transcript viewer dialog (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
     await mockSignIn(page, 'creator')

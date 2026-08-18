@@ -25,7 +25,7 @@ file remains **pytest** E2E.
 | **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** with **`reuseExistingServer: true`** so a dev server already bound to that port is reused (helps when **`CI=true`** is set locally and would otherwise force a second **strictPort** bind) |
 | **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
 | **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
-| **Consumer player** | The learning player has its own parallel e2e (`web/learning-player/e2e/*.spec.ts`, mobile+desktop Chrome, **real API over the committed `app-validation-corpus/v3`** — no route mocks) and surface map: [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/e2e/E2E_SURFACE_MAP.md). Run with `cd web/learning-player && npm run test:e2e`. |
+| **Consumer player** | The learning player has its own parallel e2e (`web/learning-player/e2e/*.spec.ts`, mobile+desktop **Chrome** — note the viewer suite uses Firefox), running against a **real API over the committed `app-validation-corpus/v3`**. Surface map: [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/e2e/E2E_SURFACE_MAP.md). Run with `cd web/learning-player && npm run test:e2e`. **Mocks:** the suite is *nearly* mock-free — one audio route stub (`routeLoadableAudio`, tracked by [#1618](https://github.com/chipi/podcast_scraper/issues/1618)) plus 5 data-shape stubs in 3 specs for states the corpus cannot yet produce. Do not add more; add fixtures instead. |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
 | **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
 | **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
@@ -36,6 +36,22 @@ file remains **pytest** E2E.
 real-corpus validation walk** `make ci-ui-validation` against a live `make serve`
 stack): see **[`web/gi-kg-viewer/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/TESTING.md)**
 and the local **[`e2e/validation/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/validation/README.md)**.
+
+### Where browser-E2E data comes from {#browser-e2e-data}
+
+Both browser suites read the **same** committed fixtures as the pytest suite. Nothing is invented
+per-spec, and nothing needs to be generated:
+
+| What | Where |
+| --- | --- |
+| Corpus the API boots against | [`tests/fixtures/app-validation-corpus/v3`](https://github.com/chipi/podcast_scraper/blob/main/tests/fixtures/app-validation-corpus/README.md) |
+| **Episode audio** | `tests/fixtures/audio/<FIXTURES_VERSION>/<episode_id>.mp3` — **versioned**, currently `v3/`. Check [`tests/fixtures/FIXTURES_VERSION`](https://github.com/chipi/podcast_scraper/blob/main/tests/fixtures/FIXTURES_VERSION) before assuming a path. |
+| RSS + transcripts | `tests/fixtures/{rss,transcripts}/` — see [`tests/fixtures/README.md`](https://github.com/chipi/podcast_scraper/blob/main/tests/fixtures/README.md) |
+| Mock podcast host | `make serve-e2e-mock` → `127.0.0.1:18765` serving `/audio/<episode_id>.mp3`, RSS, transcripts (loopback) · [`docker/mock-feeds/`](https://github.com/chipi/podcast_scraper/blob/main/docker/mock-feeds/README.md) nginx sidecar (compose network) |
+
+> **A fixture that looks missing is almost always a wrong-tree search.** The fixture trees live in
+> the Python half of the repo; the browser suites live in `web/`, and nothing in `web/` links back
+> by default. Search from the repo root before concluding an asset does not exist.
 
 ### Debugging UI issues and interpreting failures
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * Library hub (this session): the Saved tab shows per-kind sections (Episodes, Insights) instead of
@@ -26,7 +26,6 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
 test('favouriting an episode + an insight fills the Saved per-kind sections', async ({
   page,
 }, testInfo) => {
-  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'library-fill', testInfo)
 
   // Favourite the episode from its player screen (the heart). Guarded: only ever ADD.
@@ -39,22 +38,24 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   if (await epFav.isVisible().catch(() => false)) await epFav.click()
   await expect(page.getByRole('button', { name: 'Remove from favorites' }).first()).toBeVisible()
 
-  // Favourite an insight from the Knowledge Panel (a different favourite KIND → its own section).
-  // Scope to the insights section: the "More like this" related-episode cards render their own
-  // "Save to favorites" buttons once the corpus has a real search index, so a page-wide .first()
-  // would favourite a related EPISODE instead of an insight (→ no Insights section in Saved).
+  // #1593 — an insight has exactly ONE save, and it goes to Highlights. The favourite heart used to
+  // sit alongside it, writing the SAME insight to a SECOND list (Saved › Insights); this spec used
+  // to exercise that duplicate path. Insight favourites are now legacy read-only: nothing writes
+  // them, so there is no heart on an insight row to click.
   await page.getByRole('button', { name: 'Insights' }).first().click()
-  const insFav = page
-    .getByTestId('kp-insights')
-    .getByRole('button', { name: 'Save to favorites' })
-    .first()
-  await expect(insFav).toBeVisible()
-  await insFav.click()
+  const kp = page.getByTestId('kp-insights')
+  await expect(kp).toBeVisible()
+  await expect(kp.getByRole('button', { name: 'Save to favorites' })).toHaveCount(0)
 
-  // The Saved tab now shows BOTH per-kind sections, and the empty state is gone.
+  // The bookmark is the one save, and it lands in Highlights.
+  await kp.getByRole('button', { name: 'Save to highlights' }).first().click()
+
+  // Saved holds the favourited EPISODE; the insight went to Highlights, not here.
   await page.goto('/library')
   await page.getByRole('button', { name: 'Saved' }).click()
   await expect(page.getByRole('heading', { name: 'Episodes' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Insights' })).toBeVisible()
   await expect(page.getByText('Nothing saved yet.', { exact: false })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Highlights' }).click()
+  await expect(page.getByText('No highlights yet.', { exact: false })).toHaveCount(0)
 })

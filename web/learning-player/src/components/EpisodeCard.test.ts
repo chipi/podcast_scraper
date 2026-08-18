@@ -51,16 +51,12 @@ function mountCard(ep: EpisodeSummary) {
 }
 
 describe('EpisodeCard', () => {
-  it('renders title, podcast, clean lede, duration, and the full-summary insights popover', () => {
+  it('renders title, podcast, clean lede and duration', () => {
     const w = mountCard(makeEpisode())
     expect(w.text()).toContain('A Great Episode')
     expect(w.text()).toContain('The Show')
-    expect(w.text()).toContain('A crisp recap.') // clean one-line lede (not the bullets jammed)
+    expect(w.text()).toContain('A crisp recap.') // clean lede, not the bullets jammed together
     expect(w.text()).toContain('48 min')
-    // The insights affordance exposes the FULL summary bullets (a labelled disclosure group — not a
-    // modal dialog: it's a hover/focus popover with no focus trap).
-    expect(w.find('[role="group"]').exists()).toBe(true)
-    expect(w.text()).toContain('Deep sleep consolidates memory.')
   })
 
   it('links to the player and to the podcast view', () => {
@@ -110,22 +106,77 @@ describe('EpisodeCard', () => {
     expect(w.find('img').attributes('src')).toBe('https://remote/feed.jpg')
   })
 
-  it('renders the whole-card hover summary overlay from summary_text', () => {
+  // --- insights disclosure (#1583) ---
+  //
+  // These replace the tests that pinned the whole-card hover overlay and the sparkle popover. Both
+  // mechanisms were deleted; see the component docblock for why. The assertions below encode the
+  // properties that made them wrong, so a reintroduction fails here.
+
+  it('keeps insights collapsed until asked, and out of the accessibility tree', () => {
+    const w = mountCard(makeEpisode())
+    const toggle = w.get('[aria-expanded]')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    // NOT merely visually hidden: the old overlay used opacity-0, which leaves text in the a11y
+    // tree, so every card in a 20-card list read its entire summary to a screen reader.
+    expect(w.text()).not.toContain('Deep sleep consolidates memory.')
+  })
+
+  it('expands the bullets in place on click — the same gesture on touch and pointer', async () => {
+    const w = mountCard(makeEpisode())
+    await w.get('[aria-expanded]').trigger('click')
+    expect(w.get('[aria-expanded]').attributes('aria-expanded')).toBe('true')
+    expect(w.text()).toContain('Deep sleep consolidates memory.')
+  })
+
+  it('collapses again on a second click', async () => {
+    const w = mountCard(makeEpisode())
+    await w.get('[aria-expanded]').trigger('click')
+    await w.get('[aria-expanded]').trigger('click')
+    expect(w.get('[aria-expanded]').attributes('aria-expanded')).toBe('false')
+    expect(w.text()).not.toContain('Deep sleep consolidates memory.')
+  })
+
+  it('never renders summary_text — unbounded prose belongs on the player page', () => {
+    // The overlay's core defect: it rendered the FULL summary into a fixed-height, overflow-hidden
+    // box, slicing long text mid-sentence with no ellipsis and no scroll.
     const w = mountCard(
-      makeEpisode({ summary_text: 'A full editorial pull-quote.', summary_preview: 'short lede' }),
+      makeEpisode({ summary_text: 'A very long unbounded editorial pull-quote.'.repeat(20) }),
     )
-    // The overlay carries the full prose summary as the pull-quote.
-    expect(w.text()).toContain('A full editorial pull-quote.')
+    expect(w.text()).not.toContain('A very long unbounded editorial pull-quote.')
   })
 
-  it('falls back to summary_preview for the overlay when summary_text is null', () => {
-    const w = mountCard(makeEpisode({ summary_text: null, summary_preview: 'Only the preview.' }))
-    expect(w.text()).toContain('Only the preview.')
+  it('has no hover-triggered reveal anywhere on the card', () => {
+    // group-hover is not a gesture on touch, and with no hover intent it strobed every card as the
+    // pointer passed down a list.
+    expect(mountCard(makeEpisode()).html()).not.toContain('group-hover:opacity')
   })
 
-  it('omits the hover summary overlay when both summary fields are null', () => {
-    const w = mountCard(makeEpisode({ summary_text: null, summary_preview: null }))
-    // No pull-quote overlay; the accent border-left wrapper isn't present.
-    expect(w.find('.border-l-2').exists()).toBe(false)
+  it('caps how many bullets a card shows, and links out for the rest', async () => {
+    // Sized against production, not the fixtures: real bullets run ~207 chars median with 7.9 per
+    // episode (measured over 393 bullets, 2026-08-13), so rendering all of them would put ~1,600
+    // characters in a list card — the same "doesn't fit" failure as the old overlay, just opt-in.
+    const many = Array.from({ length: 9 }, (_, i) => `Grounded claim number ${i} about the topic.`)
+    const w = mountCard(makeEpisode({ summary_bullets: many, has_gi: true }))
+    await w.get('[aria-expanded]').trigger('click')
+
+    expect(w.findAll('li').length).toBe(4)
+    expect(w.text()).toContain('Grounded claim number 3')
+    expect(w.text()).not.toContain('Grounded claim number 4')
+    expect(w.text()).toContain('+5 more insights')
+  })
+
+  it('does not truncate the bullets it does show', async () => {
+    // The old overlay sliced prose mid-sentence. A bullet the user explicitly expanded must be
+    // readable end to end — length is bounded by the cap above, not by clamping each claim.
+    const long = 'A'.repeat(380) // production max
+    const w = mountCard(makeEpisode({ summary_bullets: [long], has_gi: true }))
+    await w.get('[aria-expanded]').trigger('click')
+    expect(w.get('li span:last-child').classes().join(' ')).not.toContain('line-clamp')
+    expect(w.text()).toContain(long)
+  })
+
+  it('omits the insights affordance when there are no grounded bullets', () => {
+    const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: false }))
+    expect(w.find('[aria-expanded]').exists()).toBe(false)
   })
 })

@@ -78,3 +78,35 @@ def test_span_without_quote_degrades_cleanly() -> None:
     )
     assert "- Highlighted span" in md
     assert md.endswith("\n")
+
+
+def test_a_note_on_the_episode_itself_is_exported() -> None:
+    """The export matched notes ONLY by highlight id, so episode notes were silently absent.
+
+    The endpoint described itself as exporting highlights "with attached notes" while dropping a
+    whole class of the user's writing.
+    """
+    md = render_highlights_markdown(
+        [
+            EpisodeHighlights(
+                slug="ep-1",
+                title="An Episode",
+                highlights=[HighlightLine(kind="moment", start_ms=1000)],
+                episode_notes=["a thought about the whole episode"],
+            )
+        ]
+    )
+    assert "a thought about the whole episode" in md
+    assert "## An Episode" in md
+
+
+def test_notes_with_nowhere_tidy_to_go_get_a_section_rather_than_the_bin() -> None:
+    """A note on a saved insight has no episode heading to sit under — it must still be exported."""
+    md = render_highlights_markdown([], ["a note on a saved insight"])
+    assert "## Other notes" in md
+    assert "a note on a saved insight" in md
+    assert "_No highlights captured yet._" not in md, "there IS something to show"
+
+
+def test_genuinely_empty_still_says_so() -> None:
+    assert "_No highlights captured yet._" in render_highlights_markdown([], [])

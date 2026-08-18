@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p05-e03",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p05_e03.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 364,
     "episode_id": "ep-8aa4d883afa10fa4",
     "published_date": "2025-02-28T00:00:00",
     "title": "The Bessent Tape"
@@ -34,16 +34,22 @@
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.svg",
+    "image_url": "http://localhost/images/p05.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here.",
-      "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Macro is mostly about not being on the wrong side of a regime change — the second order effect is the part most people miss.",
+      "Risk you can articulate is risk you can manage; once internalized, the rest of the decisions get easier.",
+      "Reliability of expectations is the underrated piece of macro analysis — it determines which trade offs you're making.",
+      "The dollar is a system, not a price — ignoring that leads to rebuilding it from scratch a year later.",
+      "Outside of Vanguard-class tooling, the failure mode is harder to spot, making the framing matter because it tells you which trade offs you're making.",
+      "Systems thinking applies to macro policy — the trade offs around it crosscut everything covered in the conversation.",
+      "A practical next step is to pick one of the covered ideas and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here.",
-    "title": "The Bessent Tape"
+    "raw_text": "Macro is mostly about not being on the wrong side of a regime change — the second order effect is the part most people miss. Risk you can articulate is risk you can manage; once internalized, the rest of the decisions get easier.",
+    "title": "Risk, Regime Change, and the Underrated Role of Expectations in Macro"
   }
 }

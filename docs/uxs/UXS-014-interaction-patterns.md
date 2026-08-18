@@ -67,8 +67,23 @@ hand-rolled on each page. Adding a one-off `class="text-muted …"` for one of t
 When a new recurring treatment appears, add one class and reuse it — do not copy styles between
 pages.
 
-**Show names never truncate.** A podcast/show name is never `truncate`d to an ellipsis — when it's
-too long it **wraps to the next line**. (Episode titles may still clamp; show names do not.)
+**Show names never truncate — where the layout has room.** In a full-width row, a list item, or a
+header, a podcast/show name **wraps to the next line** rather than ellipsising. (Episode titles may
+still clamp; show names do not.)
+
+> **Scoped #1604.** The rule as originally written was unqualified, and it is **incompatible with
+> uniform grid rows**: in a fixed-width tile, a name that wraps freely makes the row as tall as its
+> longest member, which is the exact defect #1584 was filed to fix. Something has to bound the
+> label.
+>
+> So the rule now holds where width is elastic, and in **fixed-width grid or rail tiles** a show
+> name may clamp — but only with a **reserved height** (so rows stay uniform) and a `title`
+> attribute (so the full name stays reachable). See `ShowTile.vue`.
+>
+> This is recorded because I broke the rule before scoping it: #1584 added `truncate` to
+> Recommended's show kicker to stop it wrapping and undoing the reserved height, resolving the
+> conflict silently in the code. That is the behaviour the drift audit exists to prevent, so the
+> conflict is written down here instead.
 
 ## Drill-in navigation
 
@@ -99,19 +114,35 @@ constant regardless of content length.
 
 ## Saved & Library
 
-- Per-user collections live in **one "Library" hub** (page) with tabs **Saved · Knowledge · Queue ·
-  Recent**. ("Shows" returns only once subscriptions are user-curated — we don't show the whole
-  corpus as "your shows".) **Recent** is playback history (newest-played); the player auto-resumes
-  from the saved position, so the card needs no separate "resume at" affordance.
+- Per-user collections live in **one "Library" hub** (page) with tabs **Saved · Highlights ·
+  Collections · Revisit · Queue · Recent**. **Recent** is playback history (newest-played); the
+  player auto-resumes from the saved position, so the card needs no separate "resume at" affordance.
+
+  > **Amended #1599.** This said **Saved · Knowledge · Queue · Recent** for six weeks after it
+  > stopped being true. `b3cd95d1` (2026-06-28) added a Knowledge tab and this wording together;
+  > `a9705819` (#1141, 2026-07-05) deliberately removed the tab and merged insights back into Saved
+  > — without touching this spec. The only written record of that decision was a trailing comment in
+  > `LibraryView.test.ts:83`, which *asserts the tab's absence*, so CI actively defended the
+  > undocumented state against the documented one.
+  >
+  > The merge is kept: it shipped, stuck, and is defended by a test. `Collections` and `Revisit`
+  > arrived later and were never documented here at all. See #1604 — a decision recorded only in a
+  > test comment is a decision that gets lost.
+
+  ("Shows" returned once subscriptions became user-curated — see #1585; Home's "Your shows" now
+  means followed shows, and the Library needs a Shows tab to match. **Not yet built.**)
 - **One card, every surface.** Catalog, Saved, Queue and Recent all showcase an episode through the
   shared `EpisodeCard` (Queue keeps a slim ↑/↓ reorder rail beside it; the card's own queue toggle
   removes). Hydrated `EpisodeDetail`s are adapted via `summaryFromDetail` so they never drift.
-- **Saved** holds favorited **episodes**; **Knowledge** holds saved **insights** (snapshot text +
-  jump-to-moment) — its own tab, no longer an "Insights" group inside Saved. The backend favorites
-  bucket is still polymorphic (grouped by kind in `AppFavoritesResponse`: `episodes`, `insights`),
-  but the UI splits the two kinds across tabs rather than showing "Episodes"/"Insights" group
-  headings. Saving is the shared `.lp-fav` heart on the item (episode cards, the player masthead,
-  each insight).
+- **Saved** holds favorited **episodes**, plus a **legacy, read-only** Insights section. The backend
+  favorites bucket is polymorphic (`AppFavoritesResponse`: `episodes`, `insights`) and both still
+  render, but since **#1593 nothing writes insight favourites any more**: an insight had BOTH a
+  bookmark (→ Highlights) and a heart (→ Saved › Insights) — same text, two destinations, two places
+  to look for it later. **Highlights is the single destination** for insights; it carries colours,
+  notes and export. Existing saves stay readable and removable, and that section disappears on its
+  own as each user clears theirs. Do not add a new write path.
+- Saving is the shared `.lp-fav` heart on **episodes** (episode cards, the player masthead). It is
+  no longer on insights.
 - Favorites / queue / interests / playback are **per-user files** (no DB). Interests are viewable +
   editable on the **Profile** page (header → user icon).
 - **Following an interest** is a one-tap toggle on a person/topic **entity card** (`Follow` /

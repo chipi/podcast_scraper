@@ -9,7 +9,7 @@
     <language>en-us</language>
     <itunes:author>Test Fixture</itunes:author>
     <itunes:explicit>no</itunes:explicit>
-    <itunes:image href="/images/p01_cover.jpg"/>
+    <itunes:image href="/images/p01_cover.svg"/>
 
     <!-- Document order: newest first (typical RSS). Reuses p01_multi audio/transcript assets. -->
     <item>

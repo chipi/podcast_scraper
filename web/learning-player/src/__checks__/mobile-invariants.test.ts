@@ -146,4 +146,50 @@ describe('native-shell invariants (guardrail #1310)', () => {
     // Telemetry follows the tier (Sentry), Umami stays prod (unified) — main switches Sentry by tier.
     expect(mainSrc).toMatch(/nativeDevTier/)
   })
+
+  it('the bottom nav clears the home indicator and does not trap page content (#1594)', () => {
+    const nav = components['../components/BottomNav.vue'] ?? ''
+    expect(nav, 'BottomNav.vue must exist').not.toBe('')
+
+    // Fixed to the bottom, so it MUST respect the iOS home indicator or the last tab sits under it.
+    expect(nav).toContain('safe-area-inset-bottom')
+    // Mobile only — the desktop header nav already covers those widths.
+    expect(nav).toContain('sm:hidden')
+
+    // A fixed bar covers page content unless the scroll container reserves room for it. Without
+    // this, the last item of every list is unreachable on a phone — the classic bottom-nav bug.
+    //
+    // This used to assert the literal strings `pb-24` and `sm:pb-6`, which is precisely why the
+    // geometry could be wrong while the check stayed green: 96px of mobile padding against a ~52px
+    // tab bar PLUS a ~62px mini-player, and 24px on desktop against that same mini-player. The
+    // classes were present and the content was still covered. Assert the two properties that
+    // actually matter instead — the reservation accounts for the safe-area inset, and it RESPONDS
+    // to whether the mini-player is on screen rather than being a constant.
+    const app = components['../App.vue'] ?? ''
+    expect(app, 'App.vue must exist').not.toBe('')
+    expect(app, 'main must reserve space for the fixed bars').toMatch(
+      /:class="mainBottomPadding"/,
+    )
+    expect(app, 'the reservation must clear the home indicator').toMatch(
+      /mainBottomPadding[\s\S]{0,400}safe-area-inset-bottom/,
+    )
+    expect(app, 'the reservation must depend on whether the mini-player is showing').toMatch(
+      /mainBottomPadding[\s\S]{0,200}player\.currentSlug/,
+    )
+  })
+
+  it('a phone shows exactly ONE navigation system (#1594 follow-up)', () => {
+    // The bottom tab bar shipped without hiding the header icon links, so mobile carried both at
+    // once: Search twice, Library and Profile at the top AND bottom of the same screen. Two navs
+    // read as two designs stacked, and they spend the scarcest space on a phone twice over.
+    const app = components['../App.vue'] ?? ''
+    expect(app, 'App.vue must exist').not.toBe('')
+
+    // The icon-link group is desktop-only...
+    expect(app, 'the header icon links must be hidden below sm').toMatch(
+      /class="hidden items-center gap-1\.5 sm:flex"/,
+    )
+    // ...and the tab bar is mobile-only, so the two never coexist.
+    expect(components['../components/BottomNav.vue'] ?? '').toContain('sm:hidden')
+  })
 })

@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p08-e01",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p08_e01.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 272,
     "episode_id": "ep-efc13989b676df9d",
     "published_date": "2025-03-11T00:00:00",
     "title": "Public Radio Format Conventions"
@@ -34,16 +34,22 @@
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
     "title": "Public Hour",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.svg",
+    "image_url": "http://localhost/images/p08.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-      "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot.",
-      "I want to dig into that. What's something you used to believe about this that you've revised?"
+      "Public radio voice is a deliberate style, not an accident — it shapes how listeners perceive reliability before they engage with content.",
+      "Listeners trust the format before they trust the content; the framing of a story tells you which tradeoffs are being made.",
+      "Reliability of pronunciation matters more than people think, and the second-order effect of that reliability is the part most people miss.",
+      "The version of the question that actually matters comes down to whether the deliberate style of public radio voice is serving the story's trustworthiness.",
+      "Teams using BBC or NPR show how the format's conventions play out — the framing matters because it dictates which tradeoffs you're making.",
+      "The failure mode is harder to spot outside of BBC-style tooling, making it more difficult to identify when the format is undermining the message.",
+      "A practical heuristic: pick one of the covered ideas and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-    "title": "Public Radio Format Conventions"
+    "raw_text": "Public radio voice is a deliberate style, not an accident — it shapes how listeners perceive reliability before they engage with content. Listeners trust the format before they trust the content; the framing of a story tells you which tradeoffs are being made.",
+    "title": "Public Radio Voice: Format Trust and Tradeoffs"
   }
 }

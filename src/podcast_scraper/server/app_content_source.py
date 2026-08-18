@@ -33,28 +33,49 @@ from podcast_scraper.server.schemas import AppEpisodeSummary
 _MAX_CARD_BULLETS = 8
 
 
+def _lede_key(s: str) -> str:
+    """Comparison key for "is this just the title again?".
+
+    Ignores case, spacing and edge punctuation.
+    """
+    return " ".join(s.lower().split()).strip(" .,:;!?-–—\"'")
+
+
 def _card_lede(row: CatalogEpisodeRow, *, max_len: int = 150) -> str | None:
     """A short, clean one-line lede for the card — NEVER the bullets jammed together.
 
     Prefers the summary title (a crisp human-written headline); falls back to the first
     summary bullet, then the prose body's first sentence. The full bullets are surfaced
     separately (``summary_bullets``) so the card stays compact and readable.
+
+    A candidate that merely restates the episode title is SKIPPED rather than returned. The card
+    renders the episode title directly above this line, so echoing it prints the same sentence
+    twice and spends the card's only descriptive line saying nothing new. Summarisers land here
+    routinely — asked for a headline, they hand back the headline the episode already has; every
+    episode in the validation corpus does exactly this. Comparison ignores case, spacing and edge
+    punctuation, so "Risk Is a Systems Property." still counts as a restatement.
     """
-    title = (row.summary_title or "").strip()
-    if title:
-        lede = title
-    else:
-        bullets = [str(b).strip() for b in row.summary_bullets if str(b).strip()]
-        if bullets:
-            lede = bullets[0]
-        else:
-            body = (row.summary_text or "").strip()
-            if not body:
-                return None
-            # First sentence (or the head) of the prose body.
-            cut = body.find(". ")
-            lede = body[: cut + 1] if cut != -1 else body
-    return lede if len(lede) <= max_len else lede[: max_len - 1].rstrip() + "…"
+    ep_key = _lede_key(row.episode_title or "")
+
+    def _usable(candidate: str) -> str | None:
+        c = candidate.strip()
+        if not c or (ep_key and _lede_key(c) == ep_key):
+            return None
+        return c
+
+    candidates: list[str] = [row.summary_title or ""]
+    candidates.extend(str(b) for b in row.summary_bullets)
+    body = (row.summary_text or "").strip()
+    if body:
+        # First sentence (or the head) of the prose body.
+        cut = body.find(". ")
+        candidates.append(body[: cut + 1] if cut != -1 else body)
+
+    for candidate in candidates:
+        lede = _usable(candidate)
+        if lede is not None:
+            return lede if len(lede) <= max_len else lede[: max_len - 1].rstrip() + "…"
+    return None
 
 
 def _card_bullets(row: CatalogEpisodeRow) -> list[str]:

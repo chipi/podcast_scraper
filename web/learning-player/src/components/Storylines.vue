@@ -6,7 +6,9 @@
  * cluster (thc:…) to your interests — the same store the entity-card + trending follows use, so a
  * storyline re-ranks discovery. Reads /api/app/theme-clusters; hides when the corpus has none.
  */
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useSectionState } from '../composables/useSectionState'
+import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { getStorylines } from '../services/api'
@@ -29,22 +31,36 @@ function onFollow(id: string): void {
   void interests.toggle(id)
 }
 
-const storylines = ref<Storyline[]>([])
-void getStorylines(12)
-  .then((s) => (storylines.value = s))
-  .catch(() => (storylines.value = []))
+const section = useSectionState<Storyline[]>([])
+const storylines = computed(() => section.data.value)
+/** #1591 — a rejection lands in the error phase instead of collapsing into empty. */
+function load(): Promise<void> {
+  return section.load(() => getStorylines(12))
+}
+void load()
 const hasAny = computed(() => storylines.value.length > 0)
 </script>
 
 <template>
-  <section v-if="hasAny" class="mt-7" data-testid="home-storylines">
+  <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="home-storylines">
     <h2 class="lp-section">{{ t('home.storylines') }}</h2>
+    <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
+    <template v-if="hasAny">
     <p class="mb-2 text-sm text-muted">{{ t('home.storylinesHint') }}</p>
     <div class="flex flex-wrap gap-1.5">
+      <!--
+        No 50% cap on phones. The cap existed to fit two chips per row, but a chip also carries its
+        "· N topics" count and a follow control, and those are `shrink-0` — so the label got
+        whatever was left. Measured at 390px: "Managing risk across domains" needed 204px and was
+        given 61px, rendering as "Manag…". A chip whose label is 30% visible is not a chip.
+
+        A storyline's label is the only thing that identifies it, so it gets the row it needs and
+        wraps to the next line when there is no room. Two-up returns from `sm`, where labels fit.
+      -->
       <div
         v-for="s in storylines"
         :key="s.id"
-        class="lp-theme-chip inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full text-sm text-surface-foreground transition sm:max-w-none"
+        class="lp-theme-chip inline-flex min-w-0 max-w-full items-center rounded-full text-sm text-surface-foreground transition sm:max-w-none"
         data-testid="storyline-chip"
       >
         <button
@@ -75,5 +91,6 @@ const hasAny = computed(() => storylines.value.length > 0)
         >{{ isFollowed(s.id) ? '✓' : '＋' }}</button>
       </div>
     </div>
+    </template>
   </section>
 </template>

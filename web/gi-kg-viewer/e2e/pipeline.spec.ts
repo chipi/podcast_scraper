@@ -14,6 +14,15 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } 
  *
  * All four read from ``GET /api/corpus/runs/summary``. This spec drives
  * the surface end-to-end against mocked runs data.
+ *
+ * #1619 category B — stays mocked, and needs a v4 fixture rather than a rewrite.
+ *
+ * The v3 fixture corpus contains **no per-run ``run.json``** (only
+ * ``enrichments/run_summary.json``), so a live ``GET /api/corpus/runs/summary`` answers
+ * ``{"runs": []}`` and all four panels correctly render nothing. Beyond that, three of these
+ * tests are a **state matrix** — multi-feed, single-feed, and legacy (``feed_id: null``) — which
+ * one committed corpus cannot express simultaneously no matter how it is built. Recorded in
+ * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
  */
 
 async function mockRunSummary(

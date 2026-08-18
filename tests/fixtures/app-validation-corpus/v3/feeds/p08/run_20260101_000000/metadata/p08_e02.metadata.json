@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p08-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p08_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 200,
     "episode_id": "ep-64ef09a7ee543045",
     "published_date": "2025-04-25T00:00:00",
     "title": "Pronunciation as a Reliability Signal"
@@ -34,16 +34,21 @@
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
     "title": "Public Hour",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.svg",
+    "image_url": "http://localhost/images/p08.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here.",
-      "Thanks, A. correspondent. Great to be back.",
-      "Before we get into it \u2014 Renee was on last week walking through public-radio voice conventions."
+      "Mispronunciation is a high-signal mistake that tells listeners the person isn't paying attention — a failure mode observed across teams using BBC and NPR.",
+      "Reliability of voice is partly preparation and partly humility; the second-order effect of ignoring it is rebuilding the system from scratch a year later.",
+      "The framing of the question matters because it determines which tradeoffs are being made — push back on conventional wisdom to surface the version that actually matters.",
+      "The most underrated piece of public radio is reliability, which crosscuts everything else and is where the conversation gets interesting.",
+      "The intersection of journalism and public radio comes down to mispronunciation as a high-signal mistake, with the second-order effect being the part most people miss.",
+      "A practical takeaway is to pick one idea from the discussion and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here.",
-    "title": "Pronunciation as a Reliability Signal"
+    "raw_text": "Mispronunciation is a high-signal mistake that tells listeners the person isn't paying attention — a failure mode observed across teams using BBC and NPR. Reliability of voice is partly preparation and partly humility; the second-order effect of ignoring it is rebuilding the system from scratch a year later.",
+    "title": "Mispronunciation as a High-Signal Mistake in Public Radio"
   }
 }

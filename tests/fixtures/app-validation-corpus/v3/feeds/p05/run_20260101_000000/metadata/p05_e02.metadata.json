@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p05-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p05_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 365,
     "episode_id": "ep-1e526e495918fb27",
     "published_date": "2024-10-21T00:00:00",
     "title": "Nickname Variance: A Fed Vice Chair Reflects"
@@ -34,16 +34,22 @@
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.svg",
+    "image_url": "http://localhost/images/p05.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Long Horizon Notes. Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair. Rich Clarida, thanks for being here.",
-      "Before we get into it \u2014 Daniel Choh was on episode 1 making the case for behavioral discipline.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Policy decisions look obvious in hindsight and impossible in real time — a framing that clarifies which tradeoffs are being made.",
+      "Forward guidance only works if the market believes you will follow through; the second-order effect is the part most people miss.",
+      "Risk management at the Fed is mostly about not breaking the institution — a pattern observed across three different teams.",
+      "Reliability of policy signal matters more than the policy itself; once internalized, the rest of the decisions get easier.",
+      "The failure mode of policy signal reliability is harder to spot outside of Morningstar class tooling — Bloomberg is one platform where it shows up cleanly.",
+      "The tradeoffs around reliability crosscut everything covered in the conversation, making it the central lens for evaluating policy decisions.",
+      "A concrete next step is to pick one of the covered ideas and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to Long Horizon Notes. Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair. Rich Clarida, thanks for being here.",
-    "title": "Nickname Variance: A Fed Vice Chair Reflects"
+    "raw_text": "Policy decisions look obvious in hindsight and impossible in real time — a framing that clarifies which tradeoffs are being made. Forward guidance only works if the market believes you will follow through; the second-order effect is the part most people miss.",
+    "title": "Reliability of Policy Signal in Monetary Policy"
   }
 }

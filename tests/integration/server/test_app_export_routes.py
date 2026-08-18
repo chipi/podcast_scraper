@@ -86,6 +86,11 @@ def test_export_zip_contains_notes_and_manifest(tmp_path: Path) -> None:
     assert resp.headers["content-type"] == "application/zip"
     assert resp.headers["x-export-mode"] == "full"
     rev = int(resp.headers["x-export-revision"])
+    # A client echoes the vault identity alongside the revision (#41). A bare number cannot
+    # identify a snapshot across a server-side state reset, so an epoch-less request is
+    # answered with a full export by design.
+    ep = resp.headers["x-export-epoch"]
+    assert ep
 
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
     names = set(zf.namelist())
@@ -97,7 +102,7 @@ def test_export_zip_contains_notes_and_manifest(tmp_path: Path) -> None:
     assert manifest["format"] == "obsidian" and manifest["namespace"] == "closelistening"
 
     # incremental: nothing changed → empty delta, same revision
-    r2 = client.get("/api/app/export", params={"format": "obsidian", "since": rev})
+    r2 = client.get("/api/app/export", params={"format": "obsidian", "since": rev, "epoch": ep})
     assert r2.headers["x-export-mode"] == "incremental"
     assert int(r2.headers["x-export-written"]) == 0
     assert int(r2.headers["x-export-revision"]) == rev
@@ -116,7 +121,7 @@ def test_export_zip_contains_notes_and_manifest(tmp_path: Path) -> None:
             "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}],
         },
     )
-    r3 = client.get("/api/app/export", params={"format": "obsidian", "since": rev})
+    r3 = client.get("/api/app/export", params={"format": "obsidian", "since": rev, "epoch": ep})
     assert r3.headers["x-export-mode"] == "incremental"
     names3 = set(zipfile.ZipFile(io.BytesIO(r3.content)).namelist())
     assert "closelistening/Highlights/h_2.md" in names3
@@ -140,3 +145,95 @@ def test_requires_auth(tmp_path: Path) -> None:
         401,
         403,
     )
+
+
+def test_a_pre_reset_cursor_gets_a_full_export_over_the_wire(tmp_path: Path) -> None:
+    """The collision, end to end through the route (#41).
+
+    The server's cursor restarts at 0 whenever its export state is lost or unreadable, then climbs
+    back through values a client may still hold. Matching integers used to mean "incremental", so
+    the server computed a delta against ITS OWN snapshot rather than against the client's actual
+    vault — and because the cursors then advanced in lockstep, that client never asked for a full
+    export again.
+    """
+    client, root, data_dir, uid = _authed(tmp_path)
+    slug = _corpus(root)
+    app_user_state.add_highlight(
+        data_dir,
+        uid,
+        {
+            "id": "h_1",
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "a line",
+            "created_at": 1,
+            "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}],
+        },
+    )
+    first = client.get("/api/app/export", params={"format": "obsidian"})
+    rev, epoch = int(first.headers["x-export-revision"]), first.headers["x-export-epoch"]
+
+    # The server loses its export state; exports resume and the counter climbs back through `rev`.
+    (data_dir / "users" / uid / "export_state.json").unlink()
+    app_user_state.add_highlight(
+        data_dir,
+        uid,
+        {
+            "id": "h_2",
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 2000,
+            "created_at": 2,
+            "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}],
+        },
+    )
+    rebuilt = client.get("/api/app/export", params={"format": "obsidian"})
+    assert int(rebuilt.headers["x-export-revision"]) == rev  # the integers collide
+    assert rebuilt.headers["x-export-epoch"] != epoch  # the identities do not
+
+    stale = client.get(
+        "/api/app/export", params={"format": "obsidian", "since": rev, "epoch": epoch}
+    )
+    assert stale.headers["x-export-mode"] == "full"
+    manifest = json.loads(zipfile.ZipFile(io.BytesIO(stale.content)).read("manifest.json"))
+    assert manifest["replace_namespace"] is True
+    assert manifest["epoch"] == rebuilt.headers["x-export-epoch"]
+
+
+def test_the_same_vault_zips_to_identical_bytes(tmp_path: Path) -> None:
+    """`zipfile.writestr` stamps WALL-CLOCK time per entry (#44).
+
+    So two exports of an unchanged vault produced different bytes: no ETag, no content-addressed
+    caching, and any test asserting on zip bytes would flake by construction. The CONTENT was
+    already deterministic — this makes the container match it.
+    """
+    client, root, data_dir, uid = _authed(tmp_path)
+    slug = _corpus(root)
+    app_user_state.add_highlight(
+        data_dir,
+        uid,
+        {
+            "id": "h_1",
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "a line",
+            "created_at": 1,
+            "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}],
+        },
+    )
+    first = client.get("/api/app/export", params={"format": "obsidian"})
+    second = client.get("/api/app/export", params={"format": "obsidian"})
+
+    # Assert the MECHANISM, not just equal bytes. Two exports in one test run land in the same
+    # second, and zip's DOS timestamps have 2-second granularity — so byte-equality passes with the
+    # bug in place almost always, and fails only if the run straddles a boundary. That is a flaky
+    # test that proves nothing; sabotage confirmed it (reverting to `writestr(path, ...)` left it
+    # green). Every entry must carry the FIXED stamp.
+    entries = zipfile.ZipFile(io.BytesIO(first.content)).infolist()
+    assert entries, "empty zip"
+    stamps = {e.date_time for e in entries}
+    assert stamps == {(1980, 1, 1, 0, 0, 0)}, stamps
+
+    assert first.content == second.content, "identical vaults must produce identical zip bytes"

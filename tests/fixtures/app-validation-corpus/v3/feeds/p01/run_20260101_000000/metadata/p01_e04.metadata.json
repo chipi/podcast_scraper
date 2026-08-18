@@ -3,7 +3,7 @@
     "diarization_num_speakers": 2,
     "media_id": "sha256:p01-e04",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p01_e04.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -20,7 +20,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 82,
     "episode_id": "ep-de59d003651d9e5d",
     "published_date": "2024-12-17T00:00:00",
     "title": "The Risk You Didn't Name"
@@ -29,16 +29,20 @@
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "p01",
     "title": "Singletrack Sessions",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.svg",
+    "image_url": "http://localhost/images/p01.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you.",
-      "Thanks, Maya. Always happy to talk shop.",
-      "People think racing is about nerve. You say it's about risk."
+      "Racing is fundamentally about risk management rather than nerve — the crash that ends a season is almost never the scary-looking one but the boring risk that wasn't named.",
+      "Naming a risk before it names you removes half the danger — the risk you can describe is the one you can design around.",
+      "A race run must be ridden as a system rather than a list of corners — mistakes come from how one section sets up the next.",
+      "A full season of logged crashes revealed that causes were always two turns upstream from the actual crash point.",
+      "Race lines and financial portfolios are both systems of correlated bets — the same discipline of managing interactions applies to both."
     ],
-    "raw_text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you.",
-    "title": "The Risk You Didn't Name"
+    "raw_text": "Racing is fundamentally about risk management rather than nerve — the crash that ends a season is almost never the scary-looking one but the boring risk that wasn't named. Naming a risk before it names you removes half the danger — the risk you can describe is the one you can design around.",
+    "title": "Risk Management in Enduro Racing"
   }
 }

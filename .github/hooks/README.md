@@ -65,4 +65,4 @@ If the hook fails:
 3. Fix any remaining linting/type errors manually
 4. Try committing again
 
-For more information, see the [CI/CD documentation](../../docs/CI_CD.md#automatic-pre-commit-checks).
+For more information, see the [DEVELOPMENT_GUIDE](../../docs/guides/DEVELOPMENT_GUIDE.md) (CI/CD section).

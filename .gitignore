@@ -316,8 +316,19 @@ docs/wip/search-v3/eval/latest.json
 # test setup (offline, cached MiniLM) — not committed, to avoid a binary lance blob +
 # lance-format-version coupling. See tests/integration/test_mcp_pivot_chain_e2e.py.
 tests/fixtures/app-validation-corpus/v3/search/lance_index/
+# Sidecar of the same index build (incremental-skip fingerprints). The rule above covered only the
+# lance_index/ dir, so this artifact showed up as untracked the first time the index was built
+# locally — see docs/wip/2026-08-13-e2e-on-intel-mac.md.
+tests/fixtures/app-validation-corpus/v3/search/episode_fingerprints.json
 tests/fixtures/app-validation-corpus/v3/search/metadata.json
 
 # Upgrade migration lock (runtime, never committed)
 tests/fixtures/**/upgrade_ledger.json.lock
 scripts/eval/rolling_cache_*.json
+
+# Disposable corpus copy the viewer e2e stack serves from (#1619). The operator plane WRITES into
+# whatever corpus it is given — `GET /api/operator-config` creates `viewer_operator.yaml`, the jobs
+# API creates `.viewer/jobs.jsonl.lock` — so `e2e/run-local-stack.sh` copies the fixture here and
+# mounts the copy, leaving the tracked corpus (force-included at line 82) pristine. Re-seeded on
+# every run; safe to delete.
+web/gi-kg-viewer/.e2e-corpus/

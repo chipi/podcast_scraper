@@ -110,3 +110,65 @@ describe('TopicPerspectives', () => {
     expect(spy).toHaveBeenLastCalledWith('topic:ai', 'mine')
   })
 })
+
+describe('TopicPerspectives — a failed load must not look like an empty topic', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('retries once before giving up, so a single blip does not blank the section', async () => {
+    // `serve` is one process: a concurrent search is enough to time this request out. The old
+    // code caught that into an empty array, and the section is v-if'd on being non-empty — so a
+    // transient failure rendered as "nobody had a perspective on this topic", permanently.
+    const spy = vi
+      .spyOn(api, 'getTopicPerspectives')
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValueOnce(RESP)
+
+    const w = mountIt('topic:ai')
+    await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(2), { timeout: 3000 })
+    await flushPromises()
+
+    expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+    expect(w.text()).toContain('Jack Clark')
+  })
+
+  it('surfaces an error with a retry when both attempts fail', async () => {
+    vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new Error('down'))
+    const w = mountIt('topic:ai')
+    await vi.waitFor(
+      () => expect(w.find('[data-testid="section-error"]').exists()).toBe(true),
+      { timeout: 3000 },
+    )
+    // The reader is told it failed rather than being shown a confident, silent nothing.
+    expect(w.text()).toContain(en.section.error)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+    expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
+  })
+
+  it('the retry button recovers the section', async () => {
+    const spy = vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new Error('down'))
+    const w = mountIt('topic:ai')
+    await vi.waitFor(
+      () => expect(w.find('[data-testid="section-retry"]').exists()).toBe(true),
+      { timeout: 3000 },
+    )
+
+    spy.mockResolvedValue(RESP)
+    await w.find('[data-testid="section-retry"]').trigger('click')
+    await vi.waitFor(
+      () => expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(true),
+      { timeout: 3000 },
+    )
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+  })
+
+  it('a genuinely empty topic still renders nothing at all', async () => {
+    vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue({
+      ...RESP, perspective_count: 0, perspectives: [],
+    })
+    const w = mountIt('topic:quiet')
+    await flushPromises()
+    expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+  })
+})

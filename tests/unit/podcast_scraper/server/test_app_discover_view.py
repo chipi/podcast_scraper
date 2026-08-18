@@ -13,11 +13,23 @@ Covers the two pure-ish pieces of the personalized-discovery ranker:
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server.app_discover_view import _significance, rank_discover
+from podcast_scraper.server.app_discover_view import (
+    _affinity_boost,
+    _newest_publish_date,
+    _recency_boost,
+    _significance,
+    rank_discover,
+)
+from podcast_scraper.server.app_ranking_config import (
+    DEFAULT_RANKING_CONFIG,
+    SIGNAL_INTEREST_AFFINITY,
+    SIGNAL_RECENCY,
+)
 from podcast_scraper.server.corpus_catalog import (
     build_catalog_rows_cumulative,
     CatalogEpisodeRow,
@@ -281,10 +293,17 @@ def test_trend_velocity_signal_boosts_hot_topic_episode(tmp_path: Path) -> None:
     assert [s.title for s in default_out] == ["Episode old", "Episode new"]
 
     # Trend ON with a strong weight: the hot-topic episode flips to the top.
+    #
+    # 10.0, not the 5.0 this used to need. Affinity saturating (#19) roughly doubled its
+    # contribution to the multiplier, and trend is an ADDITIVE term inside that same multiplier
+    # applied to differing significance bases — so a fixed trend term has proportionally less power
+    # to overcome a significance gap once affinity contributes more. Arithmetic, not a regression:
+    # 8.0 already flips it. The property under test is unchanged — a strong enough trend signal
+    # outranks depth.
     cfg = ranking_config_from_dict(
         {
             "signals": [
-                {"name": "trend_velocity", "enabled": True, "weight": 5.0, "params": {"cap": 1.5}}
+                {"name": "trend_velocity", "enabled": True, "weight": 10.0, "params": {"cap": 1.5}}
             ]
         }
     )
@@ -359,12 +378,271 @@ def test_limit_truncates_after_ranking(tmp_path: Path) -> None:
     assert [s.title for s in out] == ["Episode old"]  # top-ranked survives the cap
 
 
-def test_default_affinity_weight_is_two() -> None:
-    # Guards the documented "fully on-interest episode → (1 + affinity_weight)x" contract, now
-    # sourced from the tunable ranking-signal registry rather than a module constant.
+def test_one_matched_interest_is_worth_a_2x_boost() -> None:
+    """Pins the CONTRACT, not the constant: a single matched interest lifts an episode x2.
+
+    This used to assert `weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0`, which stopped being the right
+    question when affinity started saturating (#19). The weight is now 4.0 and one match is worth
+    `4.0 * (1 - 0.5**1)` = 2.0 — the same lift as before, expressed through a curve instead of a
+    fraction. Asserting the raw weight would have failed for a change that preserved the behaviour
+    exactly, and would have passed if someone kept the weight while breaking the curve.
+    """
+    from podcast_scraper.server.app_discover_view import _affinity_boost
     from podcast_scraper.server.app_ranking_config import (
         DEFAULT_RANKING_CONFIG,
         SIGNAL_INTEREST_AFFINITY,
     )
 
-    assert DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0
+    params = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_INTEREST_AFFINITY)
+    boost = _affinity_boost(
+        1,
+        0,
+        weight=DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY),
+        derived_ratio=float(params.get("derived_ratio", 0.5)),
+        cap=float(params.get("cap", 1.0)),
+    )
+    assert boost == pytest.approx(2.0), boost
+
+
+# --- recency as a graded signal, not just the tie-break (#22) ------------------------------------
+#
+# Any non-empty interest set used to sort the whole pool by score, with recency surviving only as
+# the `-idx` tie-break and SIGNAL_RECENCY carrying weight 0.0. So following ONE topic reshuffled
+# even the episodes that had nothing to do with it — newest-first became enrichment-depth-first.
+
+
+class TestRecencyBoost:
+    """The decay curve itself."""
+
+    def test_the_newest_episode_gets_the_full_boost(self) -> None:
+        assert _recency_boost("2026-07-16", date(2026, 7, 16), 365.0) == 1.0
+
+    def test_one_half_life_halves_it(self) -> None:
+        assert _recency_boost("2025-07-16", date(2026, 7, 16), 365.0) == pytest.approx(
+            0.5, abs=0.01
+        )
+
+    def test_two_half_lives_quarter_it(self) -> None:
+        assert _recency_boost("2024-07-16", date(2026, 7, 16), 365.0) == pytest.approx(
+            0.25, abs=0.01
+        )
+
+    def test_it_decays_from_the_pool_not_the_wall_clock(self) -> None:
+        """A corpus that stopped updating must still rank its own shelf.
+
+        Against wall-clock `now`, every episode in an archive decays to ~0 together and the signal
+        silently stops discriminating — exactly when "what is newest here" matters most. Relative
+        decay keeps the newest thing available at 1.0 however old the archive is.
+        """
+        assert _recency_boost("1999-01-01", date(1999, 1, 1), 365.0) == 1.0
+
+    @pytest.mark.parametrize(
+        ("published", "newest", "half_life"),
+        [
+            (None, date(2026, 7, 16), 365.0),  # no date
+            ("not-a-date", date(2026, 7, 16), 365.0),  # unparseable
+            ("2026-07-16", None, 365.0),  # empty pool
+            ("2026-07-16", date(2026, 7, 16), 0.0),  # half-life disabled
+            ("2026-07-16", date(2026, 7, 16), -5.0),  # nonsense half-life
+        ],
+    )
+    def test_degenerate_inputs_contribute_nothing(self, published, newest, half_life) -> None:
+        """A missing or broken date must not become a BOOST — it must be inert."""
+        assert _recency_boost(published, newest, half_life) == 0.0
+
+    def test_an_episode_newer_than_the_newest_is_clamped(self) -> None:
+        """Negative age would give a boost above 1.0 and let a stray future date dominate."""
+        assert _recency_boost("2030-01-01", date(2026, 7, 16), 365.0) == 1.0
+
+
+def _dated_row(publish_date: str | None) -> CatalogEpisodeRow:
+    """A row carrying only the field ``_newest_publish_date`` reads."""
+    return CatalogEpisodeRow(
+        metadata_relative_path="metadata/x.metadata.json",
+        feed_id="f",
+        feed_title=None,
+        episode_id="e",
+        episode_title="E",
+        publish_date=publish_date,
+        summary_title=None,
+        summary_bullets=(),
+        summary_text=None,
+        gi_relative_path="",
+        kg_relative_path="",
+        bridge_relative_path="",
+        has_gi=False,
+        has_kg=False,
+        has_bridge=False,
+    )
+
+
+class TestNewestPublishDate:
+    def test_picks_the_maximum(self) -> None:
+        rows = [_dated_row(d) for d in ("2024-01-01", "2026-07-16", "2025-05-05")]
+        assert _newest_publish_date(rows) == date(2026, 7, 16)
+
+    def test_ignores_unparseable_and_missing(self) -> None:
+        rows = [_dated_row(d) for d in (None, "garbage", "2025-05-05")]
+        assert _newest_publish_date(rows) == date(2025, 5, 5)
+
+    def test_none_when_nothing_is_dated(self) -> None:
+        assert _newest_publish_date([_dated_row(None)]) is None
+
+
+class TestTheDefaultConfigShipsRecencyOn:
+    """The whole point of #22 was that the slot existed and was switched off.
+
+    Pinned so it cannot quietly go back to weight 0.0 — that would restore the original bug with
+    no test failing, since every other assertion here passes a config explicitly.
+    """
+
+    def test_recency_is_enabled_with_a_real_weight(self) -> None:
+        signal = DEFAULT_RANKING_CONFIG.get(SIGNAL_RECENCY)
+        assert signal is not None
+        assert signal.enabled is True
+        assert signal.weight > 0.0, "recency is back to being a tie-break only"
+
+    def test_the_half_life_is_measured_not_intuitive(self) -> None:
+        """30 days is DEAD on a corpus this sparse (2nd-newest boost 0.014); the value must be
+        chosen against the eval, not against intuition about when an episode feels stale."""
+        half_life = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_RECENCY).get("half_life_days")
+        assert half_life is not None and float(half_life) >= 90.0, (
+            "a short half-life silently does nothing on a sparsely-published corpus — re-measure "
+            "against scripts/eval/score/rank_discover_v1.py before lowering this"
+        )
+
+    def test_affinity_still_outranks_freshness(self) -> None:
+        """Following something must mean more than "this is new", or personalisation is
+        cosmetic — a fresh episode you have no interest in should not beat one you follow."""
+        affinity = DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY)
+        assert affinity > DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_RECENCY)
+
+
+# --- affinity must not punish engagement (#19) ----------------------------------------------------
+#
+# It was `weight * (matched / len(interests))`. That denominator meant every extra follow shrank
+# every other follow's boost — one match was worth x2.0 with two follows and x1.1 with twenty — so
+# personalisation faded precisely for the users who had told the product the most about themselves.
+# Following one more show is not a statement that everything else matters less.
+
+
+class TestAffinityDoesNotFadeAsYouFollowMore:
+    W = 4.0
+    RATIO = 0.5
+    CAP = 1.0
+
+    def _boost(self, explicit: int, derived: int = 0) -> float:
+        return _affinity_boost(
+            explicit, derived, weight=self.W, derived_ratio=self.RATIO, cap=self.CAP
+        )
+
+    def test_one_match_is_worth_the_same_however_much_you_follow(self) -> None:
+        """The headline regression. The old formula divided by len(interests); this must not."""
+        assert self._boost(1) == self._boost(1)  # identity, stated for the reader
+        # The function does not take the follow COUNT at all — that is the fix, structurally.
+        import inspect
+
+        assert "interest_set" not in inspect.signature(_affinity_boost).parameters
+        assert "len" not in inspect.getsource(_affinity_boost).split("def ")[1].split("\n")[0]
+
+    def test_more_matches_are_worth_more_but_saturate(self) -> None:
+        one, two, three, six = (self._boost(n) for n in (1, 2, 3, 6))
+        assert one < two < three < six, "matching more interests must rank higher"
+        assert six <= self.W * self.CAP, "a broad episode must not run away with the feed"
+        assert (two - one) > (three - two) > (six - three), "returns must diminish"
+
+    def test_no_match_is_no_boost(self) -> None:
+        assert self._boost(0, 0) == 0.0
+
+    def test_a_disabled_signal_contributes_nothing(self) -> None:
+        assert _affinity_boost(3, 3, weight=0.0, derived_ratio=self.RATIO, cap=self.CAP) == 0.0
+
+
+class TestDerivedInterestsCanOnlyAdd:
+    """Enabling implicit personalisation must never weaken what the user explicitly chose.
+
+    Pooled into one denominator, turning APP_DERIVED_INTERESTS on dropped a 2-follow user's
+    per-match affinity from 0.5 to 0.2 — the flag actively made their own follows count for less.
+    """
+
+    W, RATIO, CAP = 4.0, 0.5, 1.0
+
+    def _boost(self, explicit: int, derived: int = 0) -> float:
+        return _affinity_boost(
+            explicit, derived, weight=self.W, derived_ratio=self.RATIO, cap=self.CAP
+        )
+
+    def test_adding_derived_tokens_never_lowers_an_explicit_match(self) -> None:
+        explicit_only = self._boost(1, 0)
+        for n_derived in range(0, 9):  # derive_interests caps at k=8
+            assert self._boost(1, n_derived) >= explicit_only, (
+                f"{n_derived} derived tokens LOWERED an explicit follow's boost — enabling "
+                "implicit personalisation must not penalise the user's own choices"
+            )
+
+    def test_an_inference_counts_less_than_a_statement(self) -> None:
+        assert self._boost(0, 1) < self._boost(1, 0)
+
+    def test_two_inferences_are_worth_about_one_statement(self) -> None:
+        """derived_ratio 0.5 — stated so the ratio is visible, not buried in a curve."""
+        assert self._boost(0, 2) == pytest.approx(self._boost(1, 0), abs=1e-9)
+
+
+class TestTheSHIPPEDAffinityTuningHoldsItsProperties:
+    """The same properties, asserted against ``DEFAULT_RANKING_CONFIG`` rather than local constants.
+
+    The classes above pass ``W``/``RATIO``/``CAP`` in by hand, so they prove the *function* is
+    correct and say nothing about the numbers the product actually ships. Measured, not assumed:
+    with those classes green, editing the default ``derived_ratio`` 0.5 → 1.0 kept **559 passed** —
+    an inference silently gaining the weight of a stated follow, which is #19's whole complaint,
+    and no test noticed.
+
+    So each guard here reads its number out of the config. They fail on a tuning change that breaks
+    a property and stay green on one that preserves it — the split the old
+    ``weight_of(...) == 2.0`` assertion got backwards.
+    """
+
+    @staticmethod
+    def _shipped() -> tuple[float, float, float]:
+        params = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_INTEREST_AFFINITY)
+        return (
+            DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY),
+            float(params.get("derived_ratio", 0.5)),
+            float(params.get("cap", 1.0)),
+        )
+
+    def _boost(self, explicit: int, derived: int = 0) -> float:
+        weight, ratio, cap = self._shipped()
+        return _affinity_boost(explicit, derived, weight=weight, derived_ratio=ratio, cap=cap)
+
+    def test_a_stated_follow_outweighs_an_inference(self) -> None:
+        """``derived_ratio`` must stay < 1. At 1.0 the picker and the inference are the same vote.
+
+        The user filled the picker in on purpose; a topic we guessed from listening history cannot
+        be allowed to count for as much, or "personalisation" quietly stops being about what they
+        asked for.
+        """
+        _, ratio, _ = self._shipped()
+        assert 0.0 < ratio < 1.0, f"shipped derived_ratio={ratio} — an inference must count LESS"
+        assert self._boost(0, 1) < self._boost(1, 0)
+
+    def test_derived_tokens_still_cannot_subtract(self) -> None:
+        base = self._boost(1, 0)
+        assert all(self._boost(1, n) >= base for n in range(9))
+
+    def test_the_cap_is_not_silently_throttling_the_curve(self) -> None:
+        """At the shipped ``cap`` the SATURATION decides the ceiling, not the cap.
+
+        ``1 - 0.5**n`` is strictly below 1.0 for every n, so a cap of 1.0 can never bind — raising
+        it to 99.0 changes no test and no ranking. That is intentional (the curve is the limiter),
+        but it means the cap is inert at its default, so this pins the intent rather than pretending
+        the number is load-bearing: a cap BELOW full saturation would be a second, hidden ceiling.
+        """
+        _, _, cap = self._shipped()
+        assert cap >= 1.0, f"cap={cap} would clamp the saturation curve below its own asymptote"
+
+    def test_the_cap_still_binds_when_it_is_lowered(self) -> None:
+        """The mechanism works — needed because the shipped value never exercises it."""
+        weight, ratio, _ = self._shipped()
+        clamped = _affinity_boost(6, 0, weight=weight, derived_ratio=ratio, cap=0.25)
+        assert clamped == pytest.approx(weight * 0.25)

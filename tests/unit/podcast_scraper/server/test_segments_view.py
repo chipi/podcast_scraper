@@ -136,3 +136,51 @@ class TestToContractSegments:
     def test_non_list_returns_empty(self) -> None:
         assert to_contract_segments({"start": 0}) == []
         assert to_contract_segments(None) == []
+
+
+def test_segments_come_back_sorted_by_start() -> None:
+    """The client binary-searches these. Unsorted input returns a plausible WRONG answer, silently.
+
+    `activeSegmentIndex` (web/learning-player/src/player/transcriptSync.ts) is a binary search whose
+    comment says "the contract guarantees this" — a guarantee nothing enforced. An out-of-order
+    artifact made highlight-follow track the wrong paragraph and tap-to-seek jump to the wrong
+    moment, with no error to notice.
+    """
+    raw = [
+        {"id": 2, "start": 30.0, "end": 35.0, "text": "third"},
+        {"id": 0, "start": 0.0, "end": 5.0, "text": "first"},
+        {"id": 1, "start": 10.0, "end": 15.0, "text": "second"},
+    ]
+    out = to_contract_segments(raw)
+    assert [s.text for s in out] == ["first", "second", "third"]
+    assert [s.start for s in out] == sorted(s.start for s in out)
+    # Ids are the artifact's own, NOT re-derived from the new position — a re-sort must not
+    # renumber, or every stored highlight anchor would point somewhere else.
+    assert [s.id for s in out] == ["seg_0000", "seg_0001", "seg_0002"]
+
+
+def test_equal_starts_keep_their_file_order() -> None:
+    """Stable sort: identical starts must not shuffle, or the output stops being deterministic."""
+    raw = [
+        {"start": 5.0, "end": 6.0, "text": "a"},
+        {"start": 5.0, "end": 6.0, "text": "b"},
+        {"start": 5.0, "end": 6.0, "text": "c"},
+    ]
+    assert [s.text for s in to_contract_segments(raw)] == ["a", "b", "c"]
+
+
+def test_non_finite_times_are_dropped_like_any_other_malformed_entry() -> None:
+    """One NaN makes the ENTIRE response unserialisable, which the player calls
+    "Transcript pending".
+
+    json.loads accepts the non-standard NaN / Infinity tokens, and Starlette renders with
+    allow_nan=False — so a single bad number in one segment reads to the user as a permanently
+    missing transcript rather than as one skipped line.
+    """
+    raw = [
+        {"start": 0.0, "end": 5.0, "text": "good"},
+        {"start": float("nan"), "end": 5.0, "text": "nan start"},
+        {"start": 10.0, "end": float("inf"), "text": "inf end"},
+        {"start": 20.0, "end": 25.0, "text": "also good"},
+    ]
+    assert [s.text for s in to_contract_segments(raw)] == ["good", "also good"]

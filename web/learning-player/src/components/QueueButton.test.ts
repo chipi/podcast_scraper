@@ -22,8 +22,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('QueueButton', () => {
-  it('is hidden when signed out (auth-gated)', () => {
-    expect(mountBtn().find('button').exists()).toBe(false)
+  it('renders signed out as a sign-in teaser, not hidden (#1590)', async () => {
+    // It used to be v-if="auth.isAuthenticated". A signed-out listener therefore saw no evidence
+    // the queue existed — the capability was invisible to exactly the people deciding whether to
+    // sign up. It renders now; the tap explains the requirement.
+    const w = mountBtn()
+    const btn = w.find('button')
+    expect(btn.exists()).toBe(true)
+    expect(btn.attributes('aria-label')).toContain('Sign in')
+    // No aria-pressed when signed out: there is no per-user state to report yet.
+    expect(btn.attributes('aria-pressed')).toBeUndefined()
   })
 
   it('signed in: toggles the queue and reflects state via aria-pressed', async () => {

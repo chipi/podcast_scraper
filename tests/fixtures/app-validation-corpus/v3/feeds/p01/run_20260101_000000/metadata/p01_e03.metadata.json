@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p01-e03",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p01_e03.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 348,
     "episode_id": "ep-0d9100843ee555f8",
     "published_date": "2024-07-30T00:00:00",
     "title": "The Mechanics of a Quiet, Fast Bike"
@@ -34,16 +34,22 @@
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "p01",
     "title": "Singletrack Sessions",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.svg",
+    "image_url": "http://localhost/images/p01.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here.",
-      "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Chain wear is the single best leading indicator of how soon you'll be replacing cassettes — a pattern that holds across multiple teams.",
+      "Most mystery creaks are solved by cleaning contact surfaces and retorquing to spec, not by replacing parts.",
+      "A bike should feel quiet and predictable so your attention stays on the trail — once internalized, the rest of the decisions get easier.",
+      "Suspension service intervals are a risk management decision; ignoring them leads to rebuilding from scratch a year later.",
+      "The framing matters because it tells you which tradeoffs you're making — the second-order effect is the part most people miss.",
+      "Adopting a platform like Spok and Wrench makes the tradeoff visible in the flow of maintenance decisions.",
+      "The one heuristic to try this week: pick one of the covered ideas and run it for two weeks; the rest is iteration."
     ],
-    "raw_text": "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here.",
-    "title": "The Mechanics of a Quiet, Fast Bike"
+    "raw_text": "Chain wear is the single best leading indicator of how soon you'll be replacing cassettes — a pattern that holds across multiple teams. Most mystery creaks are solved by cleaning contact surfaces and retorquing to spec, not by replacing parts.",
+    "title": "Drivetrain Mechanics: Chain Wear, Creaks, and Risk Management"
   }
 }

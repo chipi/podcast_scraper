@@ -52,7 +52,7 @@ function signIn(): void {
 }
 
 describe('HomeView (discover state, signed out)', () => {
-  it('renders the ask hero, What\'s new and Your shows', async () => {
+  it('renders the ask hero and What\'s new, but no shows section', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
     })
@@ -66,8 +66,10 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.text()).toContain("Find any moment you've heard.") // discover hero
     expect(w.text()).toContain("What's new")
     expect(w.text()).toContain('First Ep')
-    expect(w.text()).toContain('All shows')
-    expect(w.text()).toContain('Show A')
+    // "Your shows" is per-user (#1585): signed out there are no follows, so no section — and
+    // crucially it must NOT fall back to showing the whole catalogue, which is what it used to do.
+    expect(w.text()).not.toContain('Your shows')
+    expect(w.text()).not.toContain('Show A')
   })
 
   it('submitting the search navigates to /search', async () => {
@@ -80,6 +82,125 @@ describe('HomeView (discover state, signed out)', () => {
     await w.find('input#home-search').setValue('memory')
     await w.find('form').trigger('submit')
     expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
+  })
+})
+
+describe('HomeView distinguishes empty from broken (#1591)', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+  })
+
+  it('renders an error with a retry when the fetch fails', async () => {
+    // The defect: every section did `.catch(() => [])` and then hid itself when empty, so a total
+    // API outage rendered the same page as a brand-new account — a hero, a search box, two chips.
+    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('boom'))
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+    // The section header still renders — it is what tells you this content exists at all.
+    expect(w.text()).toContain("What's new")
+  })
+
+  it('retry re-fetches and recovers', async () => {
+    // No error state anywhere in the app previously offered a retry: the only move was a reload.
+    const spy = vi.spyOn(api, 'getDiscover').mockRejectedValueOnce(new Error('boom'))
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+
+    spy.mockResolvedValueOnce({
+      items: [ep('a-1', 'Recovered Ep')], page: 1, page_size: 8, total: 1, has_more: false,
+    })
+    await w.get('[data-testid="section-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+    expect(w.text()).toContain('Recovered Ep')
+  })
+
+  it('a successful-but-empty load still hides the section', async () => {
+    // Hide when the SYSTEM is empty — there is no action the user can take, so an empty shell is
+    // noise. Contrast "Your shows", which is empty because of a user action not yet taken.
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+    expect(w.text()).not.toContain("What's new")
+  })
+})
+
+describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () => {
+  const catalogue = [
+    { feed_id: 'showa', title: 'Show A', artwork_url: null, image_url: null, episode_count: 2 } as Podcast,
+    { feed_id: 'showb', title: 'Show B', artwork_url: null, image_url: null, episode_count: 5 } as Podcast,
+  ]
+
+  beforeEach(() => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue(catalogue)
+  })
+
+  it('renders only the followed shows, joined to catalogue artwork', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([
+      { feed_id: 'showb', feed_url: null, title: 'Show B', added_at: 1 },
+    ])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).toContain('Your shows')
+    expect(w.text()).toContain('Show B')
+    // Show A is in the corpus but NOT followed. Before #1585 this section rendered the whole
+    // catalogue while calling itself "Your shows".
+    expect(w.text()).not.toContain('Show A')
+  })
+
+  it('offers the action, not just a description of it, when you follow nothing', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    // A section that silently self-hides can't tell a new user the feature exists — but an empty
+    // state that only *describes* following is barely better, since it sends you off to a show page
+    // to find the control. Suggested shows carry the follow control itself.
+    expect(w.text()).toContain('Your shows')
+    expect(w.text()).toContain('Follow a show')
+    expect(w.findAll('[aria-pressed]').length).toBeGreaterThan(0)
+  })
+
+  it('following from the empty state moves the show into the grid, in place', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    vi.spyOn(api, 'followShow').mockResolvedValue([
+      { feed_id: 'showa', feed_url: null, title: 'Show A', added_at: 1 },
+    ])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).toContain('Follow a show') // empty state
+
+    await w.get('[aria-pressed]').trigger('click')
+    await flushPromises()
+
+    // The whole point of putting the control here: no navigation, no reload.
+    expect(w.text()).not.toContain('Follow a show')
+    expect(w.text()).toContain('Show A')
+  })
+
+  it('still renders a followed feed that is absent from the catalogue', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([
+      { feed_id: 'gone', feed_url: null, title: 'Departed Show', added_at: 1 },
+    ])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).toContain('Departed Show')
   })
 })
 
@@ -128,5 +249,79 @@ describe('HomeView interests card (3.5)', () => {
     expect(hrefs).toContain('/browse/people')
     expect(nav.text()).toContain('Browse topics')
     expect(nav.text()).toContain('Browse people')
+  })
+
+  it('resolves trending-show artwork from the catalogue, not from your follows (#1585 regression)', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    // #1585 repurposed `shows` from "the whole catalogue" to "shows you follow" and left the
+    // trending rail reading it. Trending shows are mostly ones you DON'T follow, so their artwork
+    // silently fell back to a generated gradient — a valid render, so no test noticed.
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      { feed_id: 'p01', title: 'Acquired', artwork_url: 'https://x/art.png', image_url: null, description: null, episode_count: 3 },
+    ])
+    // The rail joins artwork by entity_id → feed_id against the catalogue it is handed.
+    vi.spyOn(api, 'getTrending').mockResolvedValue([
+      {
+        entity_id: 'p01',
+        kind: 'show',
+        label: 'Acquired',
+        velocity: 2,
+        volume: 5,
+        heating_up: true,
+        total: 5,
+        series: [1, 2, 3],
+      },
+    ])
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    // Signed out, with zero follows: the art must still resolve.
+    expect(w.html()).toContain('https://x/art.png')
+  })
+
+  // --- an outage must not look like a new account (#1591, S7) ---
+  //
+  // These were the last two sections on `.catch(() => [])`, and the two most personal on the page.
+  // #1591 fixed the sections around them and missed these.
+
+  it('a library outage says so instead of claiming you follow nothing', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    // The library itself succeeds and is EMPTY — so the only thing standing between the user and
+    // the "follow something" prompt is the catalogue fetch. Without this the test passes on an
+    // unmocked getLibrary rejecting, which is not the failure being described.
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockRejectedValue(new Error('502'))
+    signIn()
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    // The "follow something to get started" prompt would be a lie to someone with 30 follows.
+    expect(w.text()).not.toContain('Follow a show')
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+  })
+
+  it('a playback outage does not silently swap the resume hero for the discover hero', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('502'))
+    signIn()
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    // Telling a user mid-episode to go explore is how their place looks lost.
+    expect(w.text()).not.toContain("Find any moment you've heard.")
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
   })
 })

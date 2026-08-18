@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-60d667843dc40fca",
-      "to": "person:sophie-lorenz",
+      "to": "person:sophie-laurent",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:sophie-lorenz",
+      "id": "person:sophie-laurent",
       "properties": {
-        "name": "Sophie Lorenz",
+        "name": "Sophie Laurent",
         "role": "guest"
       },
       "type": "Person"

@@ -13,10 +13,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Query, Request
 
 from podcast_scraper.server import app_corpus_revision, app_corpus_strength, app_user_corpus
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
-from podcast_scraper.server.app_resurfacing import derive_interest_signals
-from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -31,25 +28,25 @@ from podcast_scraper.server.schemas import (
 router = APIRouter(tags=["app"])
 
 _TOP_ENTITIES = 8
-_MAX_ENTITY_SCAN = 40
 
 
 def _data_dir(request: Request) -> Path:
     return Path(request.app.state.app_data_dir)
 
 
-def _top_entities(root: Path, slugs: set[str]) -> list[DerivedInterest]:
-    """Rank person/topic occurrences across the experienced episodes (bounded scan)."""
-    occurrences: list[tuple[str, str, str]] = []
-    for slug in sorted(slugs)[:_MAX_ENTITY_SCAN]:
-        row = resolve_slug(root, slug)
-        if row is None or not row.has_kg:
-            continue
-        persons, _orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
-        occurrences += [("person", p.id, p.name) for p in persons]
-        occurrences += [("topic", t.id, t.label) for t in topics]
-    signals = derive_interest_signals(occurrences)[:_TOP_ENTITIES]
-    return [DerivedInterest(**s) for s in signals]
+def _top_entities(root: Path, data_dir: Path, user_id: str) -> list[DerivedInterest]:
+    """The user's top derived interests, from the ONE definition (app_user_corpus).
+
+    This used to re-derive them here over ``sorted(slugs)[:_MAX_ENTITY_SCAN]`` — the alphabetical
+    freeze #18 fixed for ``/discover`` and nowhere else. Slugs are ``{feed-slug}-{hash}``, so that
+    sort grouped by SHOW: past 40 episodes this screen only ever read the alphabetically-first
+    shows, and told the user they were into whatever those happened to cover. Same concept, second
+    implementation, second answer.
+    """
+    return [
+        DerivedInterest(**row)
+        for row in app_user_corpus.derived_interest_counts(root, data_dir, user_id)[:_TOP_ENTITIES]
+    ]
 
 
 @router.get("/corpus", response_model=CorpusSummary)
@@ -64,7 +61,7 @@ async def corpus_summary(request: Request, user: User = Depends(get_current_user
         revision=revision,
         experienced_count=len(experienced),
         saved_count=len(saved),
-        top_entities=_top_entities(root, experienced),
+        top_entities=_top_entities(root, data_dir, user.user_id),
     )
 
 

@@ -108,7 +108,7 @@ def _episodes_page(
 
 
 @router.get("/episodes", response_model=AppEpisodesResponse)
-async def episodes_list(
+def episodes_list(
     request: Request,
     page: int = Query(default=1, ge=1, description="1-based page index."),
     page_size: int = Query(default=20, ge=1, le=100, description="Episodes per page."),
@@ -126,7 +126,7 @@ async def episodes_list(
 
 
 @router.get("/podcasts", response_model=AppPodcastsResponse)
-async def podcasts_list(request: Request) -> AppPodcastsResponse:
+def podcasts_list(request: Request) -> AppPodcastsResponse:
     """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
     root = corpus_root_or_503(request)
     feeds = aggregate_feeds(build_catalog_rows_cumulative(root))
@@ -146,7 +146,7 @@ async def podcasts_list(request: Request) -> AppPodcastsResponse:
 
 
 @router.get("/podcasts/{feed_id}/episodes", response_model=AppEpisodesResponse)
-async def podcast_episodes_list(
+def podcast_episodes_list(
     request: Request,
     feed_id: str,
     page: int = Query(default=1, ge=1, description="1-based page index."),
@@ -160,7 +160,7 @@ async def podcast_episodes_list(
 
 
 @router.get("/podcasts/{feed_id}/signals", response_model=AppPodcastSignalsResponse)
-async def podcast_signals(
+def podcast_signals(
     request: Request,
     feed_id: str,
     top_k: int = Query(default=8, ge=1, le=25),
@@ -185,7 +185,7 @@ async def podcast_signals(
 
 
 @router.get("/episodes/{slug}", response_model=AppEpisodeDetail)
-async def episode_detail(request: Request, slug: str) -> AppEpisodeDetail:
+def episode_detail(request: Request, slug: str) -> AppEpisodeDetail:
     """Consumer episode detail (metadata + summary + artifact-availability flags)."""
     root, row = _resolve(request, slug)
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
@@ -257,7 +257,7 @@ async def episode_related(
 
 
 @router.get("/episodes/{slug}/insights", response_model=AppInsightsResponse)
-async def episode_insights(
+def episode_insights(
     request: Request,
     slug: str,
     limit: int | None = Query(
@@ -301,7 +301,7 @@ def _episode_reach(app_data_dir: object, slug: str) -> dict:
 
 
 @router.get("/episodes/{slug}/stats", response_model=EpisodeStatsResponse)
-async def episode_stats(request: Request, slug: str) -> EpisodeStatsResponse:
+def episode_stats(request: Request, slug: str) -> EpisodeStatsResponse:
     """Cross-user reach for one episode: distinct listeners, opens, daily sparkline + insight count.
 
     Public (no auth) — returns only anonymous aggregate counts (no user identity crosses the
@@ -318,7 +318,7 @@ async def episode_stats(request: Request, slug: str) -> EpisodeStatsResponse:
 
 
 @router.get("/episodes/{slug}/entities", response_model=AppEntitiesResponse)
-async def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
+def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
     """KG persons, organisations, and topics for one episode (empty when no KG)."""
     root, row = _resolve(request, slug)
     if not row.has_kg:
@@ -343,7 +343,7 @@ async def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
 
 
 @router.get("/episodes/{slug}/segments", response_model=SegmentsResponse)
-async def episode_segments(request: Request, slug: str) -> SegmentsResponse:
+def episode_segments(request: Request, slug: str) -> SegmentsResponse:
     """Serve the transcript ``segments.json`` contract for one episode (by slug)."""
     root, row = _resolve(request, slug)
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
@@ -372,7 +372,7 @@ async def episode_segments(request: Request, slug: str) -> SegmentsResponse:
 
 
 @router.get("/episodes/{slug}/audio-source", response_model=AudioSourceResponse)
-async def episode_audio_source(
+def episode_audio_source(
     request: Request,
     slug: str,
     validate: bool = Query(

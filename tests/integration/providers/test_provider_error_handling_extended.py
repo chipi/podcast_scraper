@@ -131,7 +131,9 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 detector.initialize()
 
-    @requires("spacy")  # the local speaker detector loads a spaCy model
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_detect_speakers_before_initialization(self):
         """Test that detect_speakers() auto-initializes if needed."""
         cfg = config.Config(

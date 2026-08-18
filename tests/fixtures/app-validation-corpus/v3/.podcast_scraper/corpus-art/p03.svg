@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Below the Surface">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C2417A"/>
+      <stop offset="55%" stop-color="#C2417A" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#3A1250"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.72" cy="0.22" r="0.75">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="45%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.55"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="600" height="600" fill="#3A1250"/>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <rect width="600" height="600" fill="url(#glow)"/>
+
+  <!-- Subject mark: the part that still reads at 120px. -->
+  <g transform="translate(300 34) scale(2.32)" fill="none" stroke="#FFFFFF" stroke-opacity="0.92"
+     stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" color="#FFFFFF">
+    <g transform="translate(-50 0)"><path d="M18 42 a32 26 0 0 1 64 0 v10 a14 14 0 0 1 -14 14 h-8 l-8 10 l-8 -10 h-8 a14 14 0 0 1 -14 -14 z"/><path d="M50 20 v22"/><circle cx="78" cy="20" r="6"/><circle cx="90" cy="34" r="3.5"/></g>
+  </g>
+
+  <!-- Bottom scrim keeps the title legible over any part of the gradient. -->
+  <rect width="600" height="600" fill="url(#shade)"/>
+
+  <text fill="#FFFFFF" font-family="Inter, Helvetica, Arial, system-ui, sans-serif" font-size="96"
+        font-weight="800" letter-spacing="-1.5"><tspan x="52" y="407">Below the</tspan><tspan x="52" y="508">Surface</tspan></text>
+  <rect x="52" y="538" width="88" height="7" rx="3.5" fill="#FFFFFF" opacity="0.9"/>
+  <text x="548" y="544" fill="#FFFFFF" opacity="0.55" text-anchor="end"
+        font-family="Inter, Helvetica, Arial, system-ui, sans-serif" font-size="26"
+        font-weight="700" letter-spacing="2">BS</text>
+</svg>

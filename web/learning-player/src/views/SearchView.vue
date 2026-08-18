@@ -23,14 +23,14 @@ import {
 } from '../utils/collapseFoldableHits'
 import { summarizeMatchedFields } from '../utils/matchedFields'
 import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
-import { useAuthStore } from '../stores/auth'
+import { useSignInGate } from '../composables/useSignInGate'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const auth = useAuthStore()
+const { isGated, gated } = useSignInGate()
 const savedQueries = useSavedQueriesStore()
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
@@ -211,6 +211,11 @@ async function run(q: string): Promise<void> {
 }
 
 function setScope(s: 'all' | 'mine'): void {
+  // "my corpus" needs an account; signed-out it is a teaser that routes to sign-in (#1590).
+  if (s === 'mine' && isGated.value) {
+    gated(() => {})()
+    return
+  }
   if (scope.value === s) return
   scope.value = s
   void router.replace({ name: 'search', query: { q: query.value.trim() || undefined, scope: s } })
@@ -278,9 +283,12 @@ const showEmpty = computed(
       </button>
     </form>
 
-    <!-- Recall scope (P3 #1124): search everything, or just your corpus. Auth-gated. -->
+    <!-- Recall scope (P3 #1124): search everything, or just your corpus. Auth-gated, which since
+         #1590 means deferred rather than hidden: the tablist renders for everyone, "all" works, and
+         "my corpus" routes to sign-in. Search-your-own-corpus is a differentiator neither Spotify
+         nor Apple Podcasts has — hiding it from signed-out visitors hid it from precisely the
+         people deciding whether an account is worth making. -->
     <div
-      v-if="auth.isAuthenticated"
       role="tablist"
       :aria-label="t('search.scopeLabel')"
       class="mt-3 inline-flex gap-1 rounded-full border border-border bg-surface p-0.5 text-sm"
@@ -291,6 +299,7 @@ const showEmpty = computed(
         type="button"
         role="tab"
         :aria-selected="scope === opt"
+        :aria-label="isGated && opt === 'mine' ? t('auth.signInToSearchMine') : undefined"
         class="rounded-full px-3 py-1 font-semibold transition"
         :class="scope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
         @click="setScope(opt)"

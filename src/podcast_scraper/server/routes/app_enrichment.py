@@ -53,7 +53,7 @@ def _envelope_data(path: Path) -> Any | None:
 
 
 @router.get("/episodes/{slug}/enrichment", response_model=AppEpisodeEnrichmentResponse)
-async def episode_enrichment(request: Request, slug: str) -> AppEpisodeEnrichmentResponse:
+def episode_enrichment(request: Request, slug: str) -> AppEpisodeEnrichmentResponse:
     """Per-episode enrichment signals for the episode the user is viewing (404 if no such slug).
 
     Episode-scope envelopes live at ``<metadata_dir>/enrichments/<stem>.<enricher_id>.json``.
@@ -80,7 +80,7 @@ async def episode_enrichment(request: Request, slug: str) -> AppEpisodeEnrichmen
 
 
 @router.get("/corpus/enrichment", response_model=AppCorpusEnrichmentResponse)
-async def corpus_enrichment(request: Request) -> AppCorpusEnrichmentResponse:
+def corpus_enrichment(request: Request) -> AppCorpusEnrichmentResponse:
     """Corpus-scope enrichment signals (temporal velocity, topic similarity, …) for the consumer."""
     root = corpus_root_or_503(request)
     enrich_dir = root / "enrichments"

@@ -80,7 +80,11 @@ describe('LibraryView', () => {
     expect(labels).toContain('Revisit')
     expect(labels).toContain('Queue')
     expect(labels).toContain('Recent')
-    expect(labels).not.toContain('Knowledge') // merged into Saved as a section
+    // Merged back into Saved by #1141. This assertion was for six weeks the ONLY written record of
+    // that decision, while UXS-014 still specified a Knowledge tab — so CI defended the
+    // undocumented state against the documented one. The spec is now amended (#1599); this comment
+    // points there rather than being the source of truth.
+    expect(labels).not.toContain('Knowledge')
   })
 
   it('Highlights tab shows the captured highlights (grouped) with an export link', async () => {

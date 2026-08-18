@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:2a4f0e5dd3e8121f",
-      "to": "person:hanna-krebohticker",
+      "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:f63658cf1005dc9e",
-      "to": "person:hanna-krebohticker",
+      "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:dc5e6437623bc58f",
-      "to": "person:hanna-krebohticker",
+      "to": "person:hanna-crebo-rediker",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:hanna-krebohticker",
+      "id": "person:hanna-crebo-rediker",
       "properties": {
-        "name": "Hanna Krebohticker"
+        "name": "Hanna Crebo-Rediker"
       },
       "type": "Person"
     },

@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: profiles-materialize profiles-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -583,7 +583,7 @@ quality: complexity deadcode docstrings spelling
 docs:
 	$(PYTHON) -m mkdocs build --strict
 
-docs-check: lint-markdown-docs spelling-docs docs
+docs-check: lint-markdown-docs check-doc-structure spelling-docs docs
 	@echo ""
 	@echo "✓ Documentation validation complete (linting + spelling + build)"
 
@@ -608,6 +608,13 @@ check-test-policy:
 	# Run this when: adding/moving tests, before commit, or debugging CI skip issues
 	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
 	$(PYTHON) scripts/tools/check_self_hosted_runner_allowlist.py
+
+check-doc-structure:
+	# Enforce the documentation STRUCTURE: required READMEs exist at the tree roots people land in,
+	# none of them are stubs, and every relative markdown link in the repo resolves.
+	# Complements ``lint-markdown`` (style/format) — this one is about pointers being true.
+	# Run this when: adding/moving/renaming any doc or directory, or before commit.
+	$(PYTHON) scripts/tools/check_doc_structure.py
 
 profile-drift-check:
 	# #907 Option B: every config/profiles/*.yaml that declares a `profile:` field
@@ -655,7 +662,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1209,6 +1216,67 @@ index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
 
+# Same build, in a container — for hosts where the [search] extra CANNOT be installed.
+#
+# torch and lancedb publish no macOS x86_64 wheels ("no wheels with a matching platform tag
+# (macosx_15_0_x86_64)"), so on an Intel Mac the target above cannot run at all and every search
+# returns `no_index`. The same wheels DO exist for manylinux_2_28_x86_64 — which is what the local
+# Docker VM runs — so the index builds fine one layer down.
+#
+# Bind mounts are not usable: Colima mounts the host read-only, so the corpus is staged into a
+# named volume, indexed there, and copied back out. The REPO's src is mounted and put on
+# PYTHONPATH so the index is built by the working tree's code, not whatever the image baked in.
+#
+# Deleting episode_fingerprints.json alongside lance_index is NOT optional: the indexer skips
+# episodes whose fingerprint is unchanged, so leaving it behind yields a SILENTLY EMPTY index
+# ("episodes=36 segments=0 insights=0 aux=0") that still exits 0. The per-tier counts are checked
+# below rather than trusted.
+#
+#   make index-two-tier-docker CORPUS_DIR=tests/fixtures/app-validation-corpus/v3
+INDEX_DOCKER_IMAGE ?= podcast-scraper-stack-pipeline-llm:latest
+index-two-tier-docker:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	test -d "$${CORPUS_DIR}" || (echo "CORPUS_DIR does not exist: $${CORPUS_DIR}"; exit 1); \
+	set -e; \
+	VOL=podcast-index-$$$$; CT=podcast-index-ct-$$$$; LOG=/tmp/podcast-index-$$$$.log; \
+	trap 'docker rm -f $$CT >/dev/null 2>&1 || true; docker volume rm $$VOL >/dev/null 2>&1 || true' EXIT INT TERM; \
+	docker volume create $$VOL >/dev/null; \
+	docker run -d --name $$CT --user root -v $$VOL:/w -v "$(CURDIR)":/repo:ro \
+		--entrypoint sleep $(INDEX_DOCKER_IMAGE) 7200 >/dev/null; \
+	docker exec $$CT sh -c 'mkdir -p /w/corpus'; \
+	docker cp "$${CORPUS_DIR}/." $$CT:/w/corpus; \
+	echo "--> dropping stale index + fingerprint sidecar (else the rebuild indexes nothing)"; \
+	docker exec $$CT sh -c 'rm -rf /w/corpus/search/lance_index /w/corpus/search/episode_fingerprints.json /w/corpus/search/metadata.json'; \
+	echo "--> building index in $(INDEX_DOCKER_IMAGE) (detached; polling)"; \
+	docker exec -d $$CT sh -c 'PYTHONPATH=/repo/src python -u -m podcast_scraper.cli index-two-tier --output-dir /w/corpus --allow-download > /w/idx.log 2>&1; echo "rc=$$?" >> /w/idx.log; echo BUILD_DONE >> /w/idx.log'; \
+	i=0; \
+	while [ $$i -lt 120 ]; do \
+		docker cp $$CT:/w/idx.log $$LOG 2>/dev/null || true; \
+		if grep -q "^BUILD_DONE" $$LOG 2>/dev/null; then break; fi; \
+		i=$$((i+1)); sleep 10; \
+	done; \
+	grep -q "^BUILD_DONE" $$LOG 2>/dev/null || (echo "index build did not finish in 20min; log:"; cat $$LOG 2>/dev/null; exit 1); \
+	grep -q "^rc=0" $$LOG || (echo "index build FAILED; log:"; cat $$LOG; exit 1); \
+	grep -E "Two-tier index built" $$LOG || (echo "no index summary line; log:"; cat $$LOG; exit 1); \
+	grep -E "Two-tier index built" $$LOG | grep -qE "segments=[1-9]" \
+		|| (echo "EMPTY INDEX — segments=0. Was the fingerprint sidecar left in place?"; exit 1); \
+	echo "--> copying index back to $${CORPUS_DIR}/search/"; \
+	if [ -e "$${CORPUS_DIR}/search/lance_index" ] && ! rm -rf "$${CORPUS_DIR}/search/lance_index" 2>/dev/null; then \
+		echo ""; \
+		echo "CANNOT REPLACE the existing index — it is not writable by $$(id -un):"; \
+		ls -ld "$${CORPUS_DIR}/search/lance_index"; \
+		echo ""; \
+		echo "The index BUILT fine; only the copy-back is blocked. Have its owner remove it:"; \
+		echo "    rm -rf $(CURDIR)/$${CORPUS_DIR}/search/lance_index"; \
+		echo "then re-run this target. (lance_index is gitignored, so nothing is lost.)"; \
+		exit 1; \
+	fi; \
+	rm -f "$${CORPUS_DIR}/search/episode_fingerprints.json" 2>/dev/null || true; \
+	docker cp $$CT:/w/corpus/search/lance_index "$${CORPUS_DIR}/search/lance_index"; \
+	docker cp $$CT:/w/corpus/search/episode_fingerprints.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
+	docker cp $$CT:/w/corpus/search/metadata.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
+	echo "index written to $${CORPUS_DIR}/search/lance_index"
+
 # Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
 # so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
 # (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). THRESHOLD defaults to 0.75
@@ -1401,6 +1469,26 @@ test-perf-agg:
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
+
+# API image the e2e run-local-stack scripts expect (#1619). Nothing built this before, so
+# ``e2e/run-local-stack.sh`` failed on a fresh machine with an image-not-found that read like a
+# docker problem. Built from docker/api/Dockerfile, which carries CPU torch + lancedb +
+# sentence-transformers AND pre-caches all-MiniLM-L6-v2 — that is what makes /api/search work
+# offline, and with it the topic bands, enriched hero and every search-* spec.
+# ~705 MB, a few minutes cold; layer-cached afterwards.
+e2e-api-image:
+	@echo "Building podcast-api:e2e-local (viewer + player e2e backend)..."
+	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile .
+	@echo ""
+	@echo "✓ podcast-api:e2e-local ready — run: $(WEB_VIEWER_DIR)/e2e/run-local-stack.sh"
+
+# The viewer e2e suite against the real backend, image included. The stack script serves from a
+# DISPOSABLE COPY of the fixture corpus (the operator plane writes into whatever corpus it is
+# given), so this leaves the tracked fixture untouched.
+test-ui-e2e-live: e2e-api-image
+	@echo "Playwright E2E (gi-kg-viewer) against the fixture-bootstrapped API..."
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox
+	@$(WEB_VIEWER_DIR)/e2e/run-local-stack.sh
 
 # Production viewer bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS
 # errors that ``vitest`` / ``playwright`` skip). Wired into every CI target so a
@@ -2373,7 +2461,7 @@ ci: cleanup-processes
 # Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
 # The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
-_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
+_ci_body: format-check lint lint-markdown check-doc-structure type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
 	# Final gate is ``stack-test-ml-ci`` (build → up → seed → Playwright →
 	# always-teardown). ml pipeline only — ~5-10 min, no API keys, no cloud
 	# cost. Cloud-thin variant (``stack-test-cloud-thin``) is a separate
@@ -2389,6 +2477,7 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] format-check ==="; $(MAKE) format-check; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-doc-structure ==="; $(MAKE) check-doc-structure; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \

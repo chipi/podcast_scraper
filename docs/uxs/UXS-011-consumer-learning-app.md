@@ -89,10 +89,27 @@ Use **semantic names** in code (CSS custom properties / Tailwind theme keys). No
 components except in the single token layer (`web/learning-player/src/styles/tokens.css`). Every surface token has a
 matching `-foreground` so contrast is validated at the token level.
 
-The **accent is per-show adaptive**: `--accent` is a runtime variable set from the episode/show
-artwork (with a brand default — "Ember"). Components reference `--accent`; they never hard-code the
-show colour. A guardrail clamps the derived accent to a minimum contrast against `surface` (see
-Accessibility).
+> **Not universally true (#1604).** `canvas` and `surface` have `-foreground` pairs; **`elevated`
+> and `overlay` do not** — they are backgrounds for text that inherits from `canvas`. The prose
+> above overclaims, and the token table below never listed pairs for them either. Corrected here
+> rather than pretending: a claim that contrast is "validated at the token level" is only as true
+> as the pairs that exist.
+
+The accent is a **single brand constant** — "Ember" (`--lp-brand-default`). Components reference
+`--accent` and never hard-code the colour, so the indirection is real and useful, but nothing varies
+it at runtime today.
+
+> **NOT SHIPPED — per-show adaptive accent (#1598).** This section previously described `--accent`
+> as derived per show from artwork and contrast-clamped, and the tunables table below marked the
+> mechanism **Frozen**. It does not run. `setShowAccent()` exists in `src/theme/theme.ts` with
+> **zero call sites** — its own docstring says "a real contrast-clamp + artwork extraction lands
+> with the Player surface (#1083); this is the wiring seam", and #1083 never landed the wiring.
+> No test references it.
+>
+> Retracted rather than implemented, deliberately: a defining principle of the design system
+> documented as shipped-and-frozen while absent is worse than an acknowledged gap, because
+> everything reasoning from this spec — including future design work — reasons from a false premise.
+> If it is built later, restore this text **with** the call site.
 
 ### Surface tokens
 
@@ -227,13 +244,13 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 
 ## Tunable parameters (optional)
 
-| Parameter                        | Current value                                | Status                                | Notes                                                              |
-| -------------------------------- | -------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------ |
-| Display font family              | Inter 800, tight                             | Open                                  | Upgrade to a licensed grotesque considered; must cover i18n glyphs |
-| `brand-default` accent ("Ember") | `#FF6A3D`                                    | Open                                  | Brand colour pending; used only when no show colour                |
-| Per-show accent derivation       | from artwork, contrast-clamped               | Frozen (mechanism) / Open (algorithm) | The *clamp contract* is frozen; the extraction algorithm is open   |
-| Token names                      | `canvas`, `surface`, `accent`, domain tokens | Frozen                                | API — do not rename                                                |
-| Dark-only (MVP)                  | dark baseline                                | Open                                  | Light theme is a post-MVP fast-follow                              |
+| Parameter                        | Current value                                | Status            | Notes                                                                               |
+| -------------------------------- | -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
+| Display font family              | Inter 800, tight                             | Open              | Upgrade to a licensed grotesque considered; must cover i18n glyphs                  |
+| `brand-default` accent ("Ember") | `#FF6A3D`                                    | Open              | Brand colour pending; used only when no show colour                                 |
+| Per-show accent derivation       | NOT BUILT — accent is the brand constant     | Retracted (#1598) | `setShowAccent()` has zero call sites; restore this row with the wiring, not before |
+| Token names                      | `canvas`, `surface`, `accent`, domain tokens | Frozen            | API — do not rename                                                                 |
+| Dark-only (MVP)                  | dark baseline                                | Open              | Light theme is a post-MVP fast-follow                                               |
 
 ### How to experiment
 
@@ -244,8 +261,25 @@ values and the extraction algorithm are open until promoted.
 ## Capture & Consolidation surfaces (P2 + P3 — shipped)
 
 The "Remember" half of the app (PRD-040 Capture, PRD-041 Consolidation). All affordances below are
-**auth-gated** — signed-out users see the app exactly as before (no capture controls, no scope
-toggles). Everything is grounded (slug + timestamp) and extractive (**no request-time LLM**).
+**auth-gated**, and since #1590 "gated" means *deferred, not hidden*: the control **renders for
+signed-out visitors** and its tap routes to sign-in with a redirect back to where they were.
+
+> **Amended 2026-08-13 (#1590).** This paragraph previously read "signed-out users see the app
+> exactly as before (no capture controls, no scope toggles)". That was the shipped behaviour and it
+> was wrong: it hid the capabilities that differentiate this product from precisely the visitors who
+> had not yet decided to sign up, and the only prompts left were the two header buttons. Hiding is
+> also the wrong shape of honesty — the control is not unavailable, it is deferred.
+>
+> The rule now: **a gated control renders, states its requirement in its accessible name
+> (`auth.signInTo*`), claims no toggle state (`aria-pressed` is omitted, since nothing is toggled),
+> and routes to sign-in on tap.** It must never call the API — the stores swallow write failures, so
+> an ungated click flips optimistically, takes a 401, and silently reverts, which reads to the user
+> as their own action failing.
+>
+> Enforced by `src/__checks__/auth-gate.test.ts`, which fails on any component performing a per-user
+> write without the gate. That guard exists because I wired two call sites and missed four.
+
+Everything is grounded (slug + timestamp) and extractive (**no request-time LLM**).
 
 ### Capture affordances (inline actions, never overlays)
 
@@ -316,8 +350,8 @@ Direction C. These are design aids (WIP), not shipped assets.
 ## Acceptance criteria (for issues / review)
 
 - [ ] New UI uses semantic tokens only (no one-off hex in components; single token layer)
-- [ ] Every surface uses its matching `-foreground` for text
-- [ ] Per-show `--accent` is contrast-clamped; falls back to `brand-default` when it fails AA
+- [ ] Every surface that HAS a `-foreground` uses it for text (`canvas`, `surface`; `elevated` and `overlay` inherit — see the token section)
+- [x] `--accent` is the brand constant. *(The per-show contrast-clamp criterion was retracted in #1598 — it described unbuilt behaviour.)*
 - [ ] Intent tokens for UI feedback; domain tokens (`grounded`/`topic`/`person`/`insight`) for
       knowledge-layer identity only
 - [ ] Dark baseline matches this spec; token names allow a future light theme without renames

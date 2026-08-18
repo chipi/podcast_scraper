@@ -127,7 +127,12 @@ onMounted(async () => {
             <EpisodeCard v-for="e in favorites.episodes" :key="e.slug" :episode="e" />
           </div>
         </section>
-        <!-- Insights (snapshot text + jump-to-moment) -->
+        <!-- Insights (snapshot text + jump-to-moment).
+             LEGACY, read-only since #1593: insights used to be savable BOTH here (heart) and to
+             Highlights (bookmark) — same text, two lists. The heart was removed from the Knowledge
+             Panel, so nothing writes here any more. Existing saves stay readable and removable, and
+             this section disappears on its own once a user's are gone. Do not add a new write path;
+             Highlights is the destination. -->
         <section v-if="favorites.insights.length">
           <h2 class="lp-section mb-2">{{ t('library.savedInsights') }}</h2>
           <ul class="flex flex-col">

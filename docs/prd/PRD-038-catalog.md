@@ -82,10 +82,42 @@ and the **global catalog** (all episodes across the user's library, newest first
 
 - **FR3.1**: A clean one-line **lede** — the summary title / first sentence (`summary_preview`),
   **never** the bullets joined together.
-- **FR3.2** _(shipped)_: A grounded **✦ insights icon** (shown when `has_gi` + bullets exist) reveals
-  a popover with the **full summary bullets** (`summary_bullets[]`) on hover/tap — so the card stays
-  compact while the complete summary is one interaction away. **Topic pills were dropped from the
-  card** (topic discovery happens via the Insights panel / corpus search).
+- **FR3.2** _(revised #1583, 2026-08-13)_: A grounded **✦ N insights** disclosure (shown when
+  `has_gi` + bullets exist) expands **in place**, in flow, on click — the same gesture on touch and
+  pointer. It shows the **first 4** `summary_bullets[]` unclamped, then links to the player for the
+  rest. **Topic pills stay dropped** from the card (topic discovery happens via the Insights panel /
+  corpus search).
+  - Supersedes the hover/tap **popover**, and the whole-card hover overlay that shipped alongside
+    it. Both are deleted. The reasons are recorded in `EpisodeCard.vue`'s docblock and should not be
+    re-litigated casually: unbounded text in a fixed box, card identity erased on hover,
+    `group-hover` is not a gesture on touch, no hover intent, two affordances with mismatched gates
+    that stacked, and `opacity-0` leaving every card's full summary in the accessibility tree.
+  - **The 4-bullet cap is derived from production, not chosen.** See the sizing note below.
+
+> **Sizing note — measure against production, not the fixtures (#1586, 2026-08-13).**
+> Both synthetic corpora are unrepresentative of real summaries in exactly the dimension that
+> decides this layout. Measured over **393 bullets from 50 live episodes** (441 in the corpus):
+>
+> | | fixtures | production |
+> | --- | --- | --- |
+> | median bullet | 85 chars | **207 chars** |
+> | p25 / p75 / max | — | 185 / 241 / 380 |
+> | bullets per episode | 3 | **7.9** |
+> | fit one mobile line (≤60 ch) | most | **0 of 393** |
+> | fit two lines (≤120 ch) | most | **3 of 393** |
+>
+> Production bullets are genuinely **distilled claims** — 0/393 contain conversational markers,
+> 0 are questions, 0 use first/second person. The dialogue-fragment "bullets" in
+> `app-validation-corpus` and `viewer-validation-corpus` are an artefact of
+> `scripts/build_synthetic_validation_corpus.py`, whose `read_transcript_excerpts()` splits the
+> transcript on sentence boundaries and labels the first three "insights". **Neither fixture builder
+> runs GI extraction**, so neither says anything about real summary quality or length.
+>
+> Consequences for anyone changing this card:
+> - do **not** clamp individual bullets — at 207 chars a 3-line clamp truncates the majority mid-claim
+> - do **not** render all of them — 7.9 × 207 ≈ 1,600 characters is the "doesn't fit" failure again
+> - **always-visible insights on the card is not viable with this field.** That idea assumes short
+>   one-line claims; 0/393 fit. It would need a separate short-form summary from the pipeline.
 - **FR3.3** _(superseded)_: Speaker count is not surfaced on the card.
 - **FR3.4** _(superseded)_: Insight _count_ is not surfaced on the card; `has_gi`/`has_kg` are the
   cheap depth signal (they gate the insights affordance), not a displayed number.

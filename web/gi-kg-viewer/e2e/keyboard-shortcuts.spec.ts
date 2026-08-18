@@ -7,17 +7,6 @@ test.describe('Keyboard shortcuts', () => {
   })
 
   test('/ opens the command palette (Search v3 §S3 + §S4-shell)', async ({ page }) => {
-    await page.route('**/api/health**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          status: 'ok',
-          corpus_library_api: true,
-          corpus_digest_api: true,
-        }),
-      })
-    })
 
     await page.goto('/')
     await statusBarCorpusPathInput(page).fill('/mock/corpus')

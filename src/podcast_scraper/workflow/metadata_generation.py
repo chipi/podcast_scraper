@@ -9,6 +9,7 @@ Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import logging
@@ -44,17 +45,24 @@ from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
-# Distinctive fragments of the few-shot *style examples* carried in the summarization prompts.
-# They are about motorcycling, software architecture and scuba diving — subjects no podcast episode
-# we ingest is about — so if one appears in a generated summary, the model copied the prompt's
-# example instead of summarizing the transcript.
+# Detection for a model that copies the few-shot *style examples* carried in the summarization
+# prompts (all eight of them ship the same three sentences) instead of summarizing the transcript.
 #
 # This is not theoretical: qwen3.5:35b did exactly that on the DGX pilot, and an episode about Tim
 # Cook's retirement was summarized as "Speed gains come from braking earlier...". The prompts say
 # in plain English that the examples are style references only; Gemini obeys, a 35B local model
-# does not. The prompts are hardened, but they live in eight files and any future local model can
-# fall into the same trap — so the leak is *detected* here rather than trusted not to happen. A
-# silent success with fabricated content is far more dangerous than a loud failure.
+# does not. A silent success with fabricated content is far more dangerous than a loud failure.
+#
+# 2026-08-16 — this used to reject on a two-word FRAGMENT ("braking earlier"), justified by the
+# assumption that the examples "are about motorcycling, software architecture and scuba diving —
+# subjects no podcast episode we ingest is about". That assumption is simply wrong. The app
+# validation corpus alone has a mountain-biking show, a software-engineering show and a scuba show;
+# a cycling or SRE podcast in production is entirely ordinary. Under the fragment rule, a CORRECT
+# summary of an episode about braking technique was indistinguishable from a copied one, and
+# p01_e02 ("Enduro Skills Without the Hype") lost its summary on every attempt.
+#
+# So match what we actually care about — near-verbatim reuse of a whole example SENTENCE — instead
+# of its vocabulary. The fragments stay as a cheap pre-filter: no fragment, no similarity work.
 _PROMPT_EXAMPLE_FRAGMENTS: tuple[str, ...] = (
     "braking earlier",
     "riders at any level",
@@ -62,6 +70,60 @@ _PROMPT_EXAMPLE_FRAGMENTS: tuple[str, ...] = (
     "lack of rehearsal",
     "cost vs. reliability, speed vs. correctness",
 )
+
+# The full style-example sentences, verbatim from the prompts (identical across all eight files).
+_PROMPT_EXAMPLE_SENTENCES: tuple[str, ...] = (
+    "Speed gains come from braking earlier and smoother rather than taking bigger risks — a "
+    "counterintuitive but reliable principle for riders at any level.",
+    "Architecture decisions are fundamentally tradeoffs — cost vs. reliability, speed vs. "
+    "correctness, autonomy vs. consistency — and should be evaluated explicitly rather than "
+    "defaulted into.",
+    "Most underwater stress stems from surprise combined with lack of rehearsal, not from the "
+    "inherent difficulty of the problem — practice transforms alarming situations into "
+    "manageable ones.",
+)
+
+# A copy is measured as "how much of THIS line is one contiguous run lifted from an example",
+# not as whole-sentence similarity. Whole-sentence similarity misses a truncated copy — a model
+# that emits only "Speed gains come from braking earlier and smoother" has still copied, but the
+# line is a third of the example's length so the ratio stays low.
+#
+# Both bounds are needed. Coverage alone would flag a two-word title; run length alone would flag
+# a long genuine bullet that happens to contain a stock five-word phrase.
+_PROMPT_EXAMPLE_COPY_COVERAGE = 0.50  # fraction of the line that is lifted
+_PROMPT_EXAMPLE_COPY_MIN_RUN = 5  # words, so short incidental overlaps don't count
+
+
+def _normalized_words(text: str) -> list[str]:
+    """Lowercased word tokens, punctuation dropped.
+
+    So em-dash and comma edits do not hide a copy.
+    """
+    return re.findall(r"[a-z0-9']+", str(text).lower())
+
+
+def _looks_copied_from_example(text: str) -> Optional[tuple[str, float]]:
+    """(example, coverage) when ``text`` is largely lifted from a style example, else None.
+
+    Measured on the real cases: the p01_e02 leak covers 0.65 of its line and the two historic
+    verbatim copies cover 1.00, while genuine bullets from the same braking / diving / reliability
+    episodes stay at or below 0.17 — they share vocabulary, never a run.
+    """
+    words = _normalized_words(text)
+    if not words:
+        return None
+    best: Optional[tuple[str, float]] = None
+    for example in _PROMPT_EXAMPLE_SENTENCES:
+        example_words = _normalized_words(example)
+        match = difflib.SequenceMatcher(None, words, example_words).find_longest_match(
+            0, len(words), 0, len(example_words)
+        )
+        if match.size < _PROMPT_EXAMPLE_COPY_MIN_RUN:
+            continue
+        coverage = match.size / len(words)
+        if coverage >= _PROMPT_EXAMPLE_COPY_COVERAGE and (best is None or coverage > best[1]):
+            best = (example, coverage)
+    return best
 
 
 def _reject_if_prompt_examples_leaked(
@@ -75,20 +137,40 @@ def _reject_if_prompt_examples_leaked(
     (the episode keeps its transcript / GI / KG) — the same terminal-but-graceful path as any other
     unusable summary (#1496). The prompts are already hardened; this is the enforcement.
     """
-    haystack = " ".join([str(title or "")] + [str(b) for b in (bullets or [])]).lower()
-    leaked = [f for f in _PROMPT_EXAMPLE_FRAGMENTS if f in haystack]
-    if leaked:
+    candidates = [str(title or "")] + [str(b) for b in (bullets or [])]
+    haystack = " ".join(candidates).lower()
+    # Cheap pre-filter: none of the example vocabulary anywhere means nothing was copied.
+    if not any(f in haystack for f in _PROMPT_EXAMPLE_FRAGMENTS):
+        return
+
+    # Vocabulary alone is not evidence — an episode about braking technique will legitimately say
+    # "braking earlier". Only a line that reproduces an example SENTENCE is a copy.
+    copied = [
+        (line, match)
+        for line in candidates
+        if line.strip() and (match := _looks_copied_from_example(line)) is not None
+    ]
+    if copied:
+        detail = "; ".join(f"{ratio:.2f} similar to {example!r}" for _, (example, ratio) in copied)
         logger.error(
-            "[%s] SUMMARY POISONED: the model copied the prompt's style examples verbatim (%s). "
+            "[%s] SUMMARY POISONED: %d line(s) reproduce the prompt's style examples (%s). "
             "This summary is about the example's subject, not the episode — dropping it as "
             "fabricated. Check the summarization prompt for the model in use.",
             episode_idx,
-            ", ".join(repr(f) for f in leaked),
+            len(copied),
+            detail,
         )
         raise RecoverableSummarizationError(
             episode_idx=episode_idx,
-            reason=("summary poisoned — copied prompt example(s) verbatim: " + ", ".join(leaked)),
+            reason=f"summary poisoned — {len(copied)} line(s) copied a prompt style example",
         )
+
+    logger.debug(
+        "[%s] summary shares vocabulary with a prompt style example but reproduces none of them "
+        "(max similarity below %.2f) — keeping it; the episode's subject overlaps the example's.",
+        episode_idx,
+        _PROMPT_EXAMPLE_COPY_COVERAGE,
+    )
 
 
 def _recoverable_summary_content_reason(exc: BaseException) -> Optional[str]:

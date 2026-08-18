@@ -31,8 +31,439 @@ unversioned — only the filesystem layout carries the version segment.
   (per-episode ground-truth sidecars). Adds `#fixture-v3:` failure-mode
   annotations, cross-show guests, and the enriched reality-check sidecars.
 
+- **v4** (**not started** — this is the specification, gathered as defects are
+  found). Everything under "Known defects to fix in v4" below is a REQUIREMENT
+  for the next regeneration, not a wishlist. Each entry states what is wrong in
+  v3, how it was found, and what v4 must do instead.
+
 Tests that must pin to a specific version pass `version=` explicitly to
 `fixtures_dir()`; everything else picks up the current default.
+
+---
+
+## Known defects to fix in v4
+
+Found 2026-08-16 by running the REAL pipeline (`config/profiles/homelab_balanced.yaml`
+— Deepgram ASR + LiteLLM gateway summary/GI/KG) over the v3 fixtures for the first
+time, instead of synthesizing corpus content offline. Running the actual pipeline is
+what surfaced all of these; none were visible from the corpus builder's own output.
+
+### 1. Guest name disagrees between the feed and the transcript
+
+`p01_e03`'s RSS title says **"Noah Prins"**; the transcript says **"Noah Bryer"**.
+The pipeline caught this itself and raised `quality_flags: ["guest_in_title_not_placed"]`
+with `"unbound_names": ["Noah Prins"]` — i.e. a guest named in the title never appears
+in the conversation, so the speaker never gets bound to a person.
+
+**v4 requirement:** the guest name in the RSS title, the transcript, and the
+ground-truth sidecar must be generated from ONE source. A name that appears in a
+title must be a speaker in that episode. This should be asserted at generation time,
+not discovered by the pipeline.
+
+### 2. Cover art was advertised but never existed (fixed 2026-08-16, keep it fixed)
+
+Every feed carried `<itunes:image href="/images/pNN_cover.jpg">`, no such file was
+ever produced, and the E2E mock server had no `/images/` route — so a real pipeline
+run 404'd on artwork for every show:
+
+    Failed to fetch http://127.0.0.1:18765/images/p01_cover.jpg: 404 File not found
+
+The corpus only had pictures because `scripts/build_corpus_artwork.py` wrote them
+into a *built* corpus and patched the metadata afterwards. That post-hoc repair is
+why the corpus silently lost every image once: a rebuild regenerated metadata and
+there was no feed-side source to restore from.
+
+Now fixed: `scripts/build_fixture_cover_art.py` renders art from the FEEDS into
+`tests/fixtures/images/<version>/`, and the mock server serves `/images/`. Artwork
+now arrives the way it does in production — over HTTP, during the run.
+
+**v4 requirement:** keep artwork feed-sourced. Do not reintroduce a post-hoc metadata
+patch as the only source of images. Extension is `.svg` (no Pillow dependency, and a
+committed fixture that is text reviews as a readable diff).
+
+### 3. Summaries in the committed corpus were never pipeline output
+
+`scripts/build_app_validation_corpus.py` set `summary_body = excerpts["insights"][0]`,
+which is the transcript's opening line — so every committed summary was the episode's
+greeting ("Welcome back to Singletrack Sessions. Today we're talking about…") rather
+than a summary. The corpus README described this as building "offline, with no pipeline
+and no ML", so the fixture and the product were never exercising the same code.
+
+For contrast, the same episode through the real pipeline:
+
+> Chain wear is the single best leading indicator of how soon cassettes will need
+> replacing… Most mystery creaks are solved by cleaning contact surfaces and
+> retorquing to spec rather than replacing parts.
+
+**v4 requirement:** summaries, insights and KG in the committed corpus must be REAL
+pipeline output, committed as data. Regeneration needs an LLM; consumers do not —
+they read the committed artifacts, so tests stay fast, deterministic and offline.
+Never hand-author summary text.
+
+**Now gated at build time (#58).** `_audit_built_corpus` refuses to report success when
+any episode's summary repeats its transcript's opening 60 characters (normalised for
+case and whitespace). This is a STRUCTURAL question — "is the summary just the top of
+the transcript?" — deliberately not a phrase list: an echo that opens *"So the thing
+about enduro racing is…"* carries no greeting words and is invisible to the
+`is_greeting_or_filler` check beside it.
+
+It is also the only layer where the question can be asked. By the time text reaches the
+player's summary dialog there is nothing left to compare it against, which is why the
+gate is here and not in the UI — guessing "is this junk" client-side is unwinnable.
+
+Measured on v3 today: the echo check flags `p01_e02`, and finds no episode the greeting
+check misses. Its value is that it does not depend on knowing what junk looks like.
+
+### 4. ASR round-trip is measurable — use it as a quality gate
+
+v3 audio is TTS generated FROM the authored transcripts, so re-transcribing round-trips
+the loop and every difference is ASR error. Measured on `p01_e03`, Deepgram nova-3
+against `transcripts/v3`: **94.84% word-level similarity (~5.2% WER proxy)**. Errors
+concentrate in proper nouns and jargon — `bryer→breyer`, `spoke wrench→spokanewrench`,
+`lorent→laurent`, `re torquing→retorking`.
+
+**v4 requirement:** make this a checked number, not an observation. Pick names and
+product nouns that survive TTS→ASR, or accept the drift deliberately and record the
+expected similarity per episode so a regression in ASR or audio generation is visible.
+
+Note when comparing: `transcripts/v1` is a much longer earlier generation (5066 words
+vs v3's 1008 for `p01_e03`). Comparing ASR output against the wrong version measures
+the version gap, not ASR error.
+
+### 5. Insight dedupe cannot run on macOS x86_64
+
+`gi_insight_dedupe_threshold` needs `sentence-transformers`/`torch`, and torch dropped
+macOS x86_64 wheels, so on an Intel Mac the pipeline logs
+`insight dedup unavailable (ModuleNotFoundError); keeping all 10` and every near-duplicate
+insight survives. This is a HOST limitation, not a config choice — dedupe runs normally
+in the `podcast-scraper-stack-pipeline-llm` image or on Linux/ARM.
+
+**v4 requirement:** generate the corpus where dedupe can actually run, or record in the
+corpus manifest that dedupe was skipped, so nobody reads an undeduped insight list as
+the pipeline's real output.
+
+### 6. `summary.raw_text` is null in staged mode
+
+The real run populated `short_summary` and `bullets` but left `raw_text: null`. Consumers
+survive because `corpus_catalog._summary_body_text` reads `raw_text` then falls back to
+`short_summary`, matching production's `summary_schema.py`.
+
+**Open question for v4 — not yet decided:** is a null `raw_text` correct for
+`llm_pipeline_mode: staged`, or is it a gap that happens to be masked by the fallback?
+Resolve before v4 is generated, because the corpus will bake in whichever answer is true.
+
+### 7. The feeds did not describe the corpus (fixed 2026-08-16, keep it fixed)
+
+`build_app_validation_corpus.py` builds episodes from `transcripts/<ver>/` and reads RSS only for
+feed-level metadata, so nothing ever checked that the feeds listed the corpus's episodes:
+
+    corpus:         9 shows x 4 episodes = 36
+    RSS advertised: p01-p05: 3 each, p06: 6, p07: 1, p08: 1, p09: 3 = 26
+
+A pipeline run can only process what a feed advertises, so p07 and p08 would have produced ONE
+episode each — the corpus was not buildable by the pipeline that is supposed to build it.
+
+Fixed by `scripts/build_corpus_feeds.py`, which generates one feed per show (`pNN_corpus.xml`,
+slugs `corpus_p01..corpus_p09`, served with `--corpus`) listing every episode that has both a
+transcript and audio — 40 across 9 shows. The pre-existing `rss/*.xml` are deliberately NOT
+rewritten: they are an e2e test surface with fixed shapes.
+
+**v4 requirement:** whatever generates episodes must also generate the feed that advertises them.
+A feed and a corpus that disagree is the defect; one generator, one source.
+
+### 8. The summarization prompt's style example collides with p01's subject
+
+The bullets prompt (`prompts/shared/summarization/system_bullets_v1.j2`) carries this style example:
+
+> "Speed gains come from braking earlier and smoother rather than taking bigger risks — a
+> counterintuitive but reliable principle for riders at any level."
+
+`p01` is *Singletrack Sessions*, a mountain-biking show, and `p01_e02` is "Enduro Skills Without
+the Hype" — about braking technique. The prompt tells the model "if any of their subject matter —
+riding, braking … — appears in your output, you have failed", and `_reject_if_prompt_examples_leaked`
+(#1386) drops any summary containing `"braking earlier"`.
+
+**Root cause, established 2026-08-16 — the transcript quotes the prompt.** `p01_e02`'s dialogue
+was authored in almost exactly the style example's words. Lines 20, 39 and 53 all read:
+
+> Sophie Lorenz: "Speed comes from braking earlier and smoother, not from taking bigger risks. …
+> I've watched this pattern hold across three different teams."
+
+So a *correct* summary of this episode necessarily reproduces the example's wording, and the model
+was quoting the transcript, not the prompt. The guard was rejecting a correct summary.
+
+The two effects were separated by running the same episode through the same model with three
+prompts (2 attempts each):
+
+| prompt | result |
+|---|---|
+| as shipped | **copied** both attempts (coverage 1.00, 0.71) |
+| biking example swapped for a neutral subject | **clean** both attempts |
+| all examples reduced to shape-only placeholders | **clean** both attempts |
+
+With the biking example present the model blends transcript and example — it appended "a
+counterintuitive but reliable principle for riders at any level", a tail that appears ONLY in the
+prompt. With a neutral example it stays on the transcript ("a pattern observed across three
+different teams", which is line 20's actual wording).
+
+Half of this is already fixed: the guard no longer rejects on two-word vocabulary, only on a
+contiguous run lifted from an example (`_looks_copied_from_example`), so an episode may share an
+example's subject without being treated as a copy.
+
+**ACCEPTED GAP in v3 — deliberately not fixed.** `p01_e02` keeps a synthesized stand-in summary;
+the other 35 of 36 episodes carry real pipeline output. Reworking a v3 transcript means
+regenerating its TTS audio too, which is not worth doing for one episode when v4 will regenerate
+everything anyway. Do not "fix" this by loosening the runtime guard — the guard is correct, and the
+half of it that was wrong (rejecting on two-word vocabulary) is already fixed.
+
+**v4 requirement — a fixture rule, not a prompt workaround.** Tracked as
+[#1671](https://github.com/chipi/podcast_scraper/issues/1671):
+
+1. Authored transcripts MUST NOT put a prompt style-example sentence into a speaker's mouth, and
+   generation should REFUSE to emit one — sharing the runtime guard's threshold, so a fixture
+   cannot be authored into a state the pipeline will reject.
+2. Assert summaries are *genuine*, not merely present. The same check catches the defect this
+   corpus shipped with until 2026-08-16, when every `summary.raw_text` was the transcript's
+   opening greeting: no summary may be a prefix of its transcript, a near-copy of a style example,
+   or a restatement of the episode title.
+3. The three example subjects (riding/braking, architecture tradeoffs, diving rehearsal) are all
+   corpus show topics. Whether the production prompts should use less collision-prone subjects is
+   a separate call — noted in #1671, not decided here.
+
+### 9. Episode duration was hardcoded to 1800 (builder fixed 2026-08-17; **v3 data still wrong**)
+
+Every episode in the corpus claimed `"duration_seconds": 1800`. Real durations run from **82s**
+(`p01_e04`) to ~32 minutes — verified three ways (generated feed `00:01:22`, ffmpeg
+`00:01:22.18`, pipeline `82`).
+
+**This entry previously said "fixed". That was wrong, and the way it was wrong is the lesson.**
+The fix landed in `metadata.json` and nowhere else. Two other layers carry a duration and both kept
+the constant — see §13. Nobody noticed because the one layer anyone looked at was correct, and the
+build printed success either way.
+
+**v4 requirement:** never hardcode a measurable property of a fixture. Anything that can be read off
+the media should be. And when a measurable property is fixed, fix it in **every layer that carries
+it** and assert cross-layer agreement — one number, resolved once, before anything that writes it.
+
+### 10. LLM transcript cleaning can destroy the transcript
+
+Twice in the 36-episode run:
+
+    CLEANING DESTROYED THE TRANSCRIPT: 3353 chars -> 419 (12.5%). A cleaner removes ads, not the
+    episode. Falling back to the RAW transcript.
+
+The guard caught it and fell back, so no episode was lost — but on this model the LLM cleaning pass
+is unreliable on short fixture transcripts, where an ad block is a large fraction of the text.
+
+**v4 requirement:** either make fixture episodes long enough that ad removal is a small fraction,
+or pin `transcript_cleaning_strategy: pattern` (deterministic, and per the guard's own message it
+"cannot do this") for corpus generation.
+
+### 11. The search index must be rebuilt whenever summaries change
+
+`search/lance_index` is derived from the corpus — the two-tier indexer ingests `summary` and
+`summary_short` — so regenerating summaries without rebuilding it leaves search answering from the
+old text. It is **gitignored** (`.gitignore:307`), so it is a local artifact, never committed, and
+every checkout builds its own.
+
+`make index-two-tier` cannot run on macOS x86_64: torch and lancedb publish no wheels for that
+platform (`uv pip install lancedb` → "no wheels with a matching platform tag
+(macosx_15_0_x86_64)"), which is why search returns `no_index` there. The same wheels exist for
+`manylinux_2_28_x86_64`, so **`make index-two-tier-docker`** builds it one layer down, in the
+container, against the repo's own `src/` rather than the image's baked copy.
+
+Two traps that target now guards:
+
+* **Delete `episode_fingerprints.json` with the index.** The indexer skips episodes whose
+  fingerprint is unchanged, so leaving the sidecar behind yields a silently EMPTY index —
+  `episodes=36 segments=0 insights=0 aux=0` — that still exits 0. This has happened once already.
+  Always read the per-tier counts; a healthy rebuild of this corpus prints
+  `episodes=36 segments=131 insights=124 aux=716`.
+* **Colima mounts the host read-only**, so the corpus is staged into a named volume and copied
+  back, not bind-mounted.
+
+Serving it has the same constraint, and it fails in a misleading way. Bind-mounting the corpus
+read-only into an API container makes every search report `no_index`, with a lance error naming a
+file that is not missing:
+
+    WARN lance_index::scalar::inverted::index] loading legacy FTS index
+    hybrid_search retrieve failed (lance error: Not found:
+      /corpus/search/lance_index/segments.lance/_indices/<uuid>/tokens.lance); reporting no_index
+
+The index is intact — the identical directory answers all queries when staged into a volume
+first. Lance needs write access to open its FTS index, and a read-only mount denies it. So: copy
+the corpus into a volume to serve it, and never conclude "the index is broken" from `no_index`
+alone; check whether the corpus is on a writable filesystem first.
+
+**v4 requirement:** whatever regenerates summaries must rebuild the index in the same step, and
+that step must assert non-zero per-tier counts rather than trusting the exit code.
+
+### 12. `enrichments/` has two writers, and they disagree
+
+Nobody owns the enrichment directory:
+
+* `build_app_validation_corpus.py` authors **four** files itself — `temporal_velocity`,
+  `topic_theme_clusters`, `topic_similarity`, `topic_consensus`.
+* The enrichment **framework** (`cli enrich`) produces **nine**, including those four plus
+  `grounding_rate`, `guest_coappearance`, `topic_cooccurrence_corpus` and the executor's own
+  `run.jsonl` / `run_summary.json`, and 36+36 per-episode `insight_density` /
+  `insight_sentiment` sidecars.
+
+A normal rebuild is safe: the builder overwrites its four and leaves the rest untouched (verified
+by seeding a corpus with all nine and rebuilding — all nine survived). The dangerous operation is
+a rebuild that REPLACES the directory instead of writing into it; the five framework-only files
+then vanish and nothing complains, because no consumer errors on a missing enrichment — the
+surfaces just render empty. That happened once during the pipeline migration.
+`tests/unit/scripts/test_app_corpus_enrichment_complete.py` now guards it.
+
+Where the two writers disagree, measured on the 2026-08-16 corpus:
+
+| file | builder | framework |
+|---|---|---|
+| `grounding_rate` | *(not written)* | 5063 B |
+| `guest_coappearance` | *(not written)* | 6599 B |
+| `topic_cooccurrence_corpus` | *(not written)* | 8605 B |
+| `temporal_velocity` | 20547 B | 29420 B |
+| `topic_similarity` | 7609 B, `top_k: 5` | 12507 B, `top_k: 7` |
+| `topic_consensus` | 8715 B | 2289 B |
+| `topic_theme_clusters` | **`cluster_count: 1`** | **`cluster_count: 0`** |
+
+Two of those differences are substantive, and both explain why the builder authors its own:
+
+* **`topic_theme_clusters`** — the real enricher finds NO theme clusters in this corpus. The
+  Storylines rail's only chip ("Managing risk across domains", 3 members) exists solely because the
+  builder authors it. Swap in the framework's output and Storylines renders empty.
+* **`temporal_velocity`** — the framework's payload embeds `now: <wall-clock timestamp>` and
+  derives velocity relative to it, so committing it makes the corpus non-deterministic and
+  time-dependent. The builder's version is derived from the authored publish dates instead.
+
+**v4 decision required — do not leave this implicit.** Either (a) accept the authored four as
+deliberate fixture curation and say so in the builder, keeping the framework for the other five;
+or (b) run the framework for everything and accept an empty Storylines rail plus a timestamped
+`temporal_velocity`; or (c) grow the corpus until the real enricher finds a theme cluster on its
+own, which is the only option that makes the fixture behave like production without fabricating.
+
+### 13. The v3 fixes each landed in ONE layer, and the corpus reported itself healthy
+
+Found 2026-08-17 by a fable-5 review that counted **distinct values per field across all 36
+episodes** instead of checking that files exist. Both defects §3 and §9 record as "fixed" were fixed
+in `metadata.json` and left untouched everywhere else:
+
+| layer | field | v3 state |
+|---|---|---|
+| `*.metadata.json` | `duration_seconds` | 33 distinct / 36 ✅ |
+| `*.gi.json` Episode node | `duration_ms` | **1 distinct / 36** — all `1800000` |
+| `enrichments/*.insight_density.json` | `duration_seconds` | **1 distinct / 36** — all `1800.0` |
+| `*.metadata.json` | `summary.raw_text` | 1/36 is a greeting (`p01_e02`, §8) ✅ |
+| `*.gi.json` Insight nodes | `text` | **36/36 open with the host's greeting** |
+
+Causes, all removed from the builders on 2026-08-17:
+
+* `build_synthetic_validation_corpus.build_gi` hardcoded `duration_ms: 1800000`.
+* `_insight_density_envelope` hardcoded `duration_seconds: 1800.0`.
+* The duration was resolved **after** the GI and the sidecar were already written, so a fix applied
+  at the resolution point could not reach them. It is now resolved once, before any writer.
+* `_clean_insight_quote_excerpts` took the first 3 substantive utterances, and an episode's first
+  substantive utterance is **always** the host's welcome. Greetings and connective filler are now
+  rejected outright.
+* `_load_pipeline_outputs` dropped an episode from the map entirely when the summary quality guard
+  rejected its summary — discarding the **duration** the pipeline had measured perfectly well. That
+  is why `p01_e02` records 1800s against 360.8s of real audio, the only episode in the corpus that
+  disagrees with its own file. Summary quality and duration measurement are independent facts and
+  are now independent in code.
+
+**How much of this actually matters — measured 2026-08-17, not assumed. Do not re-litigate without
+re-measuring.**
+
+* **The 36 greeting Insights are the only class with user-visible weight.** Insights are the
+  KnowledgePanel content, the "Insight now" card, and 124 indexed search documents. Nothing breaks;
+  every insight surface in the fixture is simply exercised with the host saying hello, so a test
+  asserting "insights render" proves the plumbing and nothing about the surface.
+* **The duration disagreements are inert today.** Nothing under `src/podcast_scraper/server/` or
+  `web/learning-player/src/` reads `duration_ms` at all — its only readers are the GI pipeline's
+  `position_hint` waterfall (step 1) and a migration, and in this fixture `position_hint` is
+  authored directly by the builder, so that waterfall never runs. The density sidecar's `1800.0` is
+  equally unreachable: the route exposes only an availability flag, and the player's density strip
+  computes `pct` from the audio element's real duration. They are a landmine for anything that
+  starts reading them, not a live fault.
+
+**v4 requirement:** assert **content**, not file existence. `_audit_built_corpus()` in
+`build_app_validation_corpus.py` now runs at the end of every build and returns non-zero: durations
+must vary and agree across layers, no summary may be a greeting or a title restatement, no Insight
+or Quote may be a greeting either, and an empty corpus is a failure rather than a pass. The greeting
+rule is ONE function (`is_greeting_or_filler`) shared by the builder and the audit, deliberately —
+the summary version of this bug survived because the rule that filtered and the rule that checked
+were never the same rule.
+
+Run against the committed v3 corpus the audit reports **72 problems**: 36 greeting Insights, 35
+cross-layer duration disagreements, 1 greeting summary. **v3 is NOT being regenerated to clear
+them** (decision 2026-08-17): the builder can no longer produce them, and v4 will start clean.
+
+### 14. Uniformity nobody measured — the fixture cannot discriminate
+
+Same review, same method: count distinct values where 36 episodes should differ. A field with one
+distinct value across the corpus is the shape of "nothing here varies, so nothing here is tested".
+
+* **Every transcript segment is exactly 6.0s** — 1376 of 1376, one distinct value. And segment
+  timelines disagree with the audio for **35/36** episodes (`p01_e01` segments end at 372.0s; the
+  audio and metadata say 488s). Seek-to-segment against the real fixture audio lands in the wrong
+  place for every episode, so nothing consuming segment timing is exercised realistically.
+* **Every episode has the same three insight position hints** — `0.200 / 0.350 / 0.500`, from
+  `0.2 + 0.15 * (i % 5)` — so the Position Tracker timeline looks identical for all 36.
+* **KG shape is near-uniform**: `n_nodes` 2 distinct (7 ×35, 8 ×1), `n_edges` 2 distinct (6 ×35,
+  7 ×1), and a **single edge type** (`MENTIONS`) across all 217 edges.
+* **Topics are per-FEED constants, not per-episode**: 10 labels total, only 7 distinct per-episode
+  topic sets, and `lifelong learning` + `expert interviews` on **36/36**. Measured downstream
+  consequence: `topic_theme_clusters.json` has `cluster_count: 1`, so every theme surface renders
+  exactly one cluster. Same root cause as the picker degeneracy in #1669 — the ranker discriminates,
+  its input does not.
+
+**v4 requirement:** a variance floor, asserted at build time — at least one episode-specific
+(non-feed-constant) topic per episode; more than one theme cluster in the output; segment durations
+that vary, with the last `end` agreeing with the audio within tolerance; position hints derived from
+real quote times rather than from an index. **None of this is in `_audit_built_corpus()` yet.**
+
+### 15. The layers disagree about which episodes exist, and when they were published
+
+* **40 feed items vs 36 corpus episodes.** XML-only: `p02_e05`, `p05_e05`, `p06_e05`, `p06_e06` —
+  all four have audio in `tests/fixtures/audio/v3/`. Cause: `--max-episodes-per-feed` defaults to 4
+  while `build_corpus_feeds.py` lists every transcript+audio episode. The app therefore sees four
+  advertised episodes that resolve to nothing. If that is deliberate unprocessed-episode coverage,
+  no spec line or test says so. (Related to §7, which fixed the opposite direction.)
+* **Publish datetime disagrees between metadata and KG/GI in 36/36**: metadata `T00:00:00`, KG/GI
+  `T12:00:00`. Same calendar date, 12 hours apart. Cosmetic today only because the catalog truncates
+  to the date — and two writers away from a real bug.
+* **`_RUN_TAG` is `run_20260101_000000` (underscore) but `corpus_scope._RUN_TS_RE` expects the dash
+  format** (`run_%Y%m%d-%H%M%S`), so it never matches and run recency silently falls back to file
+  **mtime**. Harmless with one run per feed; any future two-run fixture would be ordered by
+  git-checkout mtimes, which differ per clone. The builder's own comment still describes a
+  lexicographic rule that no longer exists.
+
+**v4 requirement:** feed parity asserted both ways (every guid has an episode and every episode has
+a guid, or an explicit committed allowlist of intentionally-unprocessed guids); one
+`publish_datetime` per episode, byte-equal across metadata/KG/GI/search; and `_RUN_TAG` asserted to
+match `corpus_scope._RUN_TS_RE`.
+
+### 16. The build cannot fail
+
+Every path that degrades quality in `build_app_validation_corpus.py` still returns 0:
+
+* Fabricating fallbacks — `bullets or ["Key point 1..3"]`, `summary_body = raw_text or
+  episode_title`, greeting-as-summary. None reached the committed corpus (`grep -rl "Key point"
+  feeds/` finds nothing), but all three paths exist.
+* The "SYNTHESIZED STAND-IN" report prints clearly and then returns 0 regardless. A CI regeneration
+  that fell back for 20 episodes would commit cleanly.
+* `_load_pipeline_outputs` swallows malformed files, so a corrupted pipeline run degrades to
+  fallbacks rather than failing.
+* `build_corpus_feeds.py` writes `duration = "00:00:00"` when ffmpeg is unavailable — stderr warning
+  only, exit 0. A machine without ffmpeg regenerates all 40 items with a plausible zero. The
+  committed result is caught by `test_corpus_feeds.py::test_every_item_has_a_nonzero_duration` —
+  the right backstop, but the wrong layer to be relying on. Its fallback pubDate is also the source
+  of the corpus's only duplicate publish date (`p06_e05` / `p06_e06`, which lack ground-truth dates).
+
+**v4 requirement:** the build fails on degraded output. `_audit_built_corpus()` now covers the
+content half; the remaining half is failing — or requiring an explicit `--allow-fallback ep1,ep2`
+list — when `summaries_synthesized` is non-empty under `--pipeline-run`.
 
 ---
 

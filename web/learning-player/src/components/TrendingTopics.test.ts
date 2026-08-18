@@ -87,49 +87,33 @@ describe('TrendingTopics container', () => {
     expect(first.text()).toBe('✓')
   })
 
-  it('switches to the Pills view with a chip per rising topic', async () => {
+  it('offers exactly one view — the A/B switcher is gone (#1589)', async () => {
+    // This section shipped with a four-way view switcher whose own comment admitted it existed so
+    // "the operator can flip between to decide what to keep". That decision was never made, so an
+    // internal experiment reached users. Sparklines won; the control and the other three views are
+    // deleted. A reintroduced switcher fails here.
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    await w.get('[data-testid="trend-view-chips"]').trigger('click')
-    const chips = w.findAll('[data-testid="trend-chip"]')
-    expect(chips).toHaveLength(2)
-    expect(chips[0].text()).toContain('foreign policy')
-    expect(chips[0].text()).toContain('4×')
+    expect(w.find('[role="tablist"]').exists()).toBe(false)
+    expect(w.findAll('[data-testid="trend-spark-row"]')).toHaveLength(2)
   })
 
-  it('switches to the Over-time (stream) view with one band per rising topic', async () => {
-    withVelocity()
-    const w = mountIt()
-    await flushPromises()
-    await w.get('[data-testid="trend-view-stream"]').trigger('click')
-    expect(w.find('[data-testid="trend-stream"]').exists()).toBe(true)
-    expect(w.findAll('[data-testid="trend-stream-band"]')).toHaveLength(2)
-    // A legend chip opens the topic card.
-    await w.findAll('[data-testid="trend-stream-legend"]')[0].trigger('click')
-    expect(w.emitted('open')).toBeTruthy()
-  })
-
-  it('switches to the Momentum view with one point per rising topic', async () => {
-    withVelocity()
-    const w = mountIt()
-    await flushPromises()
-    await w.get('[data-testid="trend-view-momentum"]').trigger('click')
-    expect(w.find('[data-testid="trend-momentum"]').exists()).toBe(true)
-    const pts = w.findAll('[data-testid="trend-momentum-point"]')
-    expect(pts).toHaveLength(2)
-    await pts[0].trigger('click')
-    expect(w.emitted('open')![0]).toEqual(['topic:policy'])
-  })
-
-  it('renders nothing when no topic is rising', async () => {
+  it('stays on screen and says so when nothing clears the bar', async () => {
+    // Changed deliberately: this used to hide. Hiding made the metric unobservable — the rail has
+    // never once appeared on the validation corpus (nothing reaches 1.5x), so the fact that it
+    // disagrees with the momentum rail beside it (0.86x vs 1.78x on the same topic) could not be
+    // seen. A measured quiet is a result worth showing while both measures are being evaluated.
     withVelocity({
       window_months: ['2026-01'],
       topics: [{ topic_id: 'topic:flat', topic_label: 'flat', velocity_last_over_6mo: 0.9, total: 50, monthly_counts: { '2026-01': 5 } }],
     })
     const w = mountIt()
     await flushPromises()
-    expect(w.find('[data-testid="home-trending"]').exists()).toBe(false)
+    expect(w.find('[data-testid="home-trending"]').exists()).toBe(true)
+    expect(w.find('[data-testid="home-trending-quiet"]').exists()).toBe(true)
+    // ...and it must not imply there is something to look at.
+    expect(w.find('[data-testid="trending-spark-chip"]').exists()).toBe(false)
   })
 
   it('renders nothing when the velocity enricher is absent', async () => {

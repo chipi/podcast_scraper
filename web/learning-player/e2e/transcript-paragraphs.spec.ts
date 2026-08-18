@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * Regression guard for the paragraph-transcript rewrite (this session). Segments are grouped into
@@ -13,7 +13,6 @@ import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
 test('transcript renders as flowing paragraphs with per-paragraph capture', async ({
   page,
 }, testInfo) => {
-  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'paragraphs', testInfo)
   await page.goto('/')
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)

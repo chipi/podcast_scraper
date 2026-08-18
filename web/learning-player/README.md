@@ -6,12 +6,12 @@ the existing grounded intelligence. A **separate** app from the operator viewer
 (`web/gi-kg-viewer`) with its own design system (Editorial Bold — UXS-011), its own build,
 and its own Docker image.
 
-- **Spec:** [PRD-035](../docs/prd/PRD-035-learning-platform.md) ·
-  [PRD-038 Catalog](../docs/prd/PRD-038-catalog.md) ·
-  [PRD-039 Player](../docs/prd/PRD-039-player.md) ·
-  [RFC-099](../docs/rfc/RFC-099-learning-platform-consumer-client.md) ·
-  [UXS-011](../docs/uxs/UXS-011-consumer-learning-app.md)
-- **API:** thin client of `/api/app/*` (RFC-098) — see [PLATFORM_API](../docs/api/PLATFORM_API.md).
+- **Spec:** [PRD-035](../../docs/prd/PRD-035-learning-platform.md) ·
+  [PRD-038 Catalog](../../docs/prd/PRD-038-catalog.md) ·
+  [PRD-039 Player](../../docs/prd/PRD-039-player.md) ·
+  [RFC-099](../../docs/rfc/RFC-099-learning-platform-consumer-client.md) ·
+  [UXS-011](../../docs/uxs/UXS-011-consumer-learning-app.md)
+- **API:** thin client of `/api/app/*` (RFC-098) — see [PLATFORM_API](../../docs/api/PLATFORM_API.md).
   The same API supports a future native mobile client (RFC-099 §10).
 
 ## Stack

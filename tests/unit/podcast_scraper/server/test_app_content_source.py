@@ -27,13 +27,14 @@ def _row(
     summary_title: str | None = None,
     summary_bullets: tuple[str, ...] = (),
     summary_text: str | None = None,
+    episode_title: str = "Ep",
 ) -> CatalogEpisodeRow:
     return CatalogEpisodeRow(
         metadata_relative_path="m.json",
         feed_id="f",
         feed_title=None,
         episode_id="e",
-        episode_title="Ep",
+        episode_title=episode_title,
         publish_date=None,
         summary_title=summary_title,
         summary_bullets=summary_bullets,
@@ -69,6 +70,52 @@ class TestCardLede:
     def test_truncates_long_lede_with_ellipsis(self) -> None:
         out = _card_lede(_row(summary_title="x" * 200), max_len=10)
         assert out is not None and len(out) == 10 and out.endswith("…")
+
+    def test_skips_a_summary_title_that_just_restates_the_episode_title(self) -> None:
+        """The card prints the episode title directly above the lede — echoing it says nothing.
+
+        Summarisers land here routinely: asked for a headline, they return the headline the
+        episode already has. Every episode in the validation corpus did exactly this, so the
+        catalog rendered the same sentence twice on every row.
+        """
+        r = _row(
+            episode_title="Risk Is a Systems Property",
+            summary_title="Risk Is a Systems Property",
+            summary_bullets=("Something the title does not say.",),
+        )
+        assert _card_lede(r) == "Something the title does not say."
+
+    def test_restatement_check_ignores_case_spacing_and_edge_punctuation(self) -> None:
+        r = _row(
+            episode_title="Risk Is a Systems Property",
+            summary_title="  risk is a   systems property.  ",
+            summary_bullets=("Real lede.",),
+        )
+        assert _card_lede(r) == "Real lede."
+
+    def test_skips_a_restating_bullet_too_and_falls_through_to_the_body(self) -> None:
+        r = _row(
+            episode_title="Ep",
+            summary_bullets=("Ep", "  "),
+            summary_text="Body sentence. Second.",
+        )
+        assert _card_lede(r) == "Body sentence."
+
+    def test_returns_none_when_every_candidate_is_the_title(self) -> None:
+        """Better an empty lede than the title twice — the card drops the line entirely."""
+        r = _row(episode_title="Ep", summary_title="Ep", summary_bullets=("Ep",), summary_text="Ep")
+        assert _card_lede(r) is None
+
+    def test_a_lede_that_merely_contains_the_title_is_kept(self) -> None:
+        """Only a full restatement is dropped.
+
+        A sentence that expands on the title still informs.
+        """
+        r = _row(
+            episode_title="Risk",
+            summary_title="Risk, and why couplings matter more than components",
+        )
+        assert _card_lede(r) == "Risk, and why couplings matter more than components"
 
 
 class TestCardBullets:

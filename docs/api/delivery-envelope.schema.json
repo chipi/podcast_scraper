@@ -132,10 +132,15 @@
           "description": "MUST be non-empty — an item carries the graph, never a flat clip (moat rule).",
           "items": { "$ref": "#/$defs/graphRef" }
         },
+        "highlight_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The user's own capture behind this item; present only when source='user'. An auto-pick has no highlight and so no id — marking one would write resurfacing state against something that does not exist. Carried so an in-app renderer can advance the spaced ladder without parsing deep_link."
+        },
         "deep_link": {
           "type": "string",
           "minLength": 1,
-          "description": "Relative in-app link with jump-to-moment, e.g. /player/{slug}?t={sec}."
+          "description": "Relative in-app link with jump-to-moment, e.g. /player/{slug}?t={sec}. For source='user' items it also carries &revisit={highlight_id} (url-encoded): arriving at the player with that marker records the review, which is how an EMAIL reader advances the spaced ladder at all. Without it the digest was write-only — it selected due items every week and nothing it sent could mark one reviewed, so the same five items were re-sent indefinitely."
         },
         "source": {
           "enum": ["user", "auto"],

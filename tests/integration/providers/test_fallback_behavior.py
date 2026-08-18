@@ -96,7 +96,9 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
         self.assertTrue(hasattr(detector, "detect_hosts"))
         self.assertTrue(hasattr(detector, "clear_cache"))
 
-    @requires("spacy")  # the local speaker detector loads a spaCy model
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_detect_hosts_no_fallback(self):
         """Test that detect_hosts() doesn't use fallback."""
         # Ensure auto_speakers is enabled for speaker detection
@@ -257,7 +259,9 @@ class TestFallbackRemovalImpact(unittest.TestCase):
         self.assertTrue(hasattr(speaker_detector, "clear_cache"))
         self.assertTrue(hasattr(summarization_provider, "summarize"))
 
-    @requires("spacy")  # the local speaker detector loads a spaCy model
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_protocol_methods_always_available(self):
         """Test that protocol methods are always available (no hasattr checks needed)."""
         cfg = config.Config(

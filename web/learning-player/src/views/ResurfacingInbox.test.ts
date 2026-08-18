@@ -58,6 +58,37 @@ describe('ResurfacingInbox', () => {
     expect(w.text()).not.toContain('What still resonates about this?')
   })
 
+  // --- what advances the spaced ladder, and what must not (#35) ---
+
+  it('does NOT advance the ladder just because the tab was opened', async () => {
+    // The conservative half of the contract, locked in. onMounted only GETs /resurfacing; if
+    // rendering ever started marking, merely glancing at the Revisit tab would count as reviewing
+    // every due item at once and the schedule would collapse on first open.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [item(), item({ highlight: hl({ id: 'h2' }) })],
+      paused: false,
+    })
+    mountInbox()
+    await flushPromises()
+    expect(api.markSurfaced).not.toHaveBeenCalled()
+  })
+
+  it('the jump link carries ?revisit=<id> so arriving at the player advances the ladder', async () => {
+    // Following the jump IS reviewing (product call, 2026-08-17) — but it is marked on ARRIVAL,
+    // not on click, so a cancelled navigation does not consume a repetition. Before this the only
+    // advance path was the dismiss button, so a user who genuinely revisited never progressed and
+    // the digest re-sent the same five items indefinitely.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    const w = mountInbox()
+    await flushPromises()
+    const href =
+      w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/show-ep01'))
+        ?.attributes('href') ?? ''
+    expect(href).toContain('revisit=h1')
+    expect(href).toContain('t=65')
+    expect(api.markSurfaced).not.toHaveBeenCalled() // rendering the link marks nothing
+  })
+
   it('pause toggles the pacing setting and reloads', async () => {
     const get = vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
     const w = mountInbox()

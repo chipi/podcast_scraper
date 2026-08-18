@@ -103,3 +103,71 @@ class TestCleaningDestructionGuard:
 
         assert result == cleaned
         assert "DESTROYED" not in caplog.text
+
+
+# --- 2026-08-16: the guard used to reject on VOCABULARY, which broke real episodes -------------
+#
+# The original rule matched two-word fragments ("braking earlier"), justified by the claim that the
+# examples are "about motorcycling, software architecture and scuba diving — subjects no podcast
+# episode we ingest is about". That is false. The app-validation corpus has a mountain-biking show,
+# a software show and a scuba show; p01_e02 ("Enduro Skills Without the Hype") is literally about
+# braking technique and lost its summary on every attempt, on every retry.
+#
+# The guard now measures how much of a line is one contiguous run lifted from an example, so a
+# summary may share an example's subject without being treated as a copy of it.
+
+
+class TestSubjectOverlapIsNotACopy:
+    """Genuine summaries whose episode is ABOUT the example's subject must survive."""
+
+    @pytest.mark.parametrize(
+        "bullet",
+        [
+            # The p01_e02 case: an episode about braking technique.
+            "Braking earlier into a corner preserves grip on loose surfaces, which matters more "
+            "on off-camber trails than raw suspension travel.",
+            "Riders at any level benefit from setting tire pressure before touching suspension "
+            "clickers.",
+            # p03, scuba — collides with the diving example.
+            "Most underwater stress comes from task loading on the first dive of a trip, not "
+            "from depth.",
+            "Rehearsal of valve drills is what separates a manageable failure from a panicked "
+            "ascent.",
+            # p02, software — collides with the architecture example.
+            "Reliability is a property of the whole system rather than any single component — "
+            "perfect services still compose into an unreliable whole.",
+        ],
+    )
+    def test_genuine_bullet_sharing_example_vocabulary_is_kept(self, bullet: str, caplog) -> None:
+        with caplog.at_level(logging.ERROR):
+            # The contract is "does not raise". Asserting `is None` proved nothing: the function
+            # is declared `-> None`, so that comparison holds however it behaves.
+            _reject_if_prompt_examples_leaked(1, "A real episode title", [bullet])
+        assert "SUMMARY POISONED" not in caplog.text
+
+    def test_the_actual_p01_e02_leak_is_still_rejected(self, caplog) -> None:
+        """What homelab-flash-0731 really returned — reworded tail, lifted body. Still a copy."""
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(RecoverableSummarizationError):
+                _reject_if_prompt_examples_leaked(
+                    1,
+                    "Enduro Skills Without the Hype",
+                    [
+                        "Speed comes from braking earlier and smoother rather than taking bigger "
+                        "risks — a counterintuitive but reliable principle observed across three "
+                        "different teams."
+                    ],
+                )
+        assert "SUMMARY POISONED" in caplog.text
+
+    def test_a_truncated_copy_is_still_rejected(self) -> None:
+        """A model that emits only the example's opening has still copied it."""
+        with pytest.raises(RecoverableSummarizationError):
+            _reject_if_prompt_examples_leaked(
+                1, "Ep", ["Speed gains come from braking earlier and smoother"]
+            )
+
+    def test_short_incidental_overlap_is_not_a_copy(self) -> None:
+        """A stock phrase shorter than the minimum run must not trip the guard on its own."""
+        # Must not raise — see the note above on why `is None` asserted nothing.
+        _reject_if_prompt_examples_leaked(1, "Trail Care", ["Braking earlier helps."])

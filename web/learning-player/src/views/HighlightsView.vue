@@ -130,20 +130,35 @@ async function share(h: Highlight): Promise<void> {
 // Graph-aware Obsidian export (#1472). Incremental: the last-applied revision is remembered in
 // localStorage so a repeat click only pulls what changed. First click (or cleared storage) is full.
 const OBSIDIAN_CURSOR_KEY = 'obsidian_export_cursor'
+const OBSIDIAN_EPOCH_KEY = 'obsidian_export_epoch'
 const exportingObsidian = ref(false)
 const obsidianMsg = ref('')
+/** True after a SUCCESSFUL export — gates the "what to do with the zip" line (not shown on error). */
+const obsidianDone = ref(false)
 
 async function doObsidianExport(): Promise<void> {
   exportingObsidian.value = true
   obsidianMsg.value = ''
+  obsidianDone.value = false
   try {
-    const since = Number(localStorage.getItem(OBSIDIAN_CURSOR_KEY) ?? '0') || 0
-    const r = await exportObsidian(since)
+    // ALWAYS a full export from the web. The server's incremental protocol is correct, but it
+    // assumes a client that APPLIES the manifest — writes `written`, deletes `removed`, honours
+    // `replace_namespace`. This button does none of that: it downloads a zip and the user moves
+    // the folder into their vault by hand. Hand-applying a delta is destructive either way —
+    // Finder's default "Replace" drops every unchanged note, and "Merge" silently keeps the
+    // orphans the tombstones exist to remove. A human will not execute a tombstone list.
+    //
+    // Restore the cursor here only alongside a programmatic applier (an Obsidian plugin, or the
+    // native shell writing files itself). Until then `since=0` is the only safe request.
+    const r = await exportObsidian(0)
     localStorage.setItem(OBSIDIAN_CURSOR_KEY, String(r.revision))
-    obsidianMsg.value =
-      r.mode === 'incremental'
-        ? t('highlights.obsidianDelta', { written: r.written, removed: r.removed })
-        : t('highlights.obsidianFull', { written: r.written })
+    // Stored beside the cursor, not instead of it. A revision only identifies a snapshot within
+    // one server epoch (#41); persisting the number alone would leave whatever applier arrives
+    // next holding an integer it cannot validate — exactly the collision the epoch exists to
+    // catch. Unused while we always request since=0.
+    localStorage.setItem(OBSIDIAN_EPOCH_KEY, r.epoch)
+    obsidianMsg.value = t('highlights.obsidianFull', { written: r.written })
+    obsidianDone.value = true
   } catch {
     obsidianMsg.value = t('highlights.obsidianError')
   } finally {
@@ -152,7 +167,9 @@ async function doObsidianExport(): Promise<void> {
 }
 
 onMounted(async () => {
-  await capture.ensureLoaded()
+  // Tolerated, not awaited blindly: this view's whole job is to show captures, so a load failure
+  // renders the empty state rather than tearing down the rest of the mount (collections, titles).
+  await capture.ensureLoaded().catch(() => {})
   collections.value = await getCollections().catch(() => [])
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
   await Promise.all(
@@ -191,7 +208,13 @@ onMounted(async () => {
         @click="doObsidianExport"
       >{{ t('highlights.exportObsidian') }}</button>
     </div>
-    <p v-if="obsidianMsg" class="mb-3 text-xs text-muted">{{ obsidianMsg }}</p>
+    <p v-if="obsidianMsg" class="mb-1 text-xs text-muted">{{ obsidianMsg }}</p>
+    <!--
+      Obsidian has no import format to target — a vault IS a folder of Markdown files, so the only
+      way in is to put the folder there. Without saying so, the export ends at "here is a zip" and
+      the user has to go and find out what to do with it, which is exactly what happened in review.
+    -->
+    <p v-if="obsidianDone" class="mb-3 text-xs text-muted">{{ t('highlights.obsidianNext') }}</p>
 
     <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
     <div v-if="capture.count" class="mb-4 flex items-center gap-2">

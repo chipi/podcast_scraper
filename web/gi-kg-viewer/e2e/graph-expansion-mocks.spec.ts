@@ -4,6 +4,25 @@ import { GRAPH_NODE_EPISODES_EXPAND_MAX } from '../src/api/corpusLibraryApi'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
 import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
+/**
+ * #1619 — stays fixture-driven, deliberately. Assessed 2026-08-14 against the live backend.
+ *
+ * The endpoints are NOT the blocker: `POST /api/corpus/node-episodes` and
+ * `POST /api/corpus/resolve-episode-artifacts` both answer for real against the v3 corpus. What
+ * this file needs is a graph of a **specific topology** — `giJsonTopicDegreeAtLeastTwo()` below
+ * literally edits `GI_SAMPLE_FIXTURE` to add a second `ABOUT` edge so a topic reaches
+ * `degree() > 1`, because that is the cross-episode expand gate under test. Other tests need a
+ * second artifact (`gxexp_second`) to expand into.
+ *
+ * Those are constructed topologies, not corpus data. Driving them from real GI artifacts would
+ * mean re-deriving every expected expansion from whatever the corpus happens to contain — a large
+ * rewrite that makes the assertions weaker and ranking-dependent, in order to test graph mechanics
+ * that have nothing to do with the corpus.
+ *
+ * If revisited: the live endpoints work, so a corpus-driven variant is possible. It would want a
+ * fixture corpus containing a known-degree topic, rather than an ad-hoc edit at test time.
+ */
+
 /** Every expand ``POST`` must send the viewer max-episodes cap (``GraphCanvas`` passes this to ``fetchNodeEpisodes``). */
 function assertNodeEpisodesExpandPostHasMaxEpisodes(route: Route): void {
   const body = route.request().postDataJSON() as { max_episodes?: number }

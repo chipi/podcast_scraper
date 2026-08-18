@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p03-e03",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p03_e03.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 283,
     "episode_id": "ep-a884b153355070f0",
     "published_date": "2024-12-31T00:00:00",
     "title": "Severe Surname Garbles: A Marine Biologist's Return"
@@ -34,16 +34,21 @@
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
     "title": "Below the Surface",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.svg",
+    "image_url": "http://localhost/images/p03.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here.",
-      "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Reef conservation policy is a systems problem at planetary scale — the framing determines which tradeoffs are being made, and ignoring that leads to rebuilding the system from scratch a year later.",
+      "Most operational dive safety is about not pushing tired teams; the framing matters because it reveals which tradeoffs are in play.",
+      "Risk management on extended dives is mostly about exit planning — a pattern that holds across three different teams.",
+      "Adopting tools like GoPro or Suunto in a workflow makes the tradeoff visible, and the second-order effect is the part most people miss.",
+      "The failure mode in risk management crosscuts everything covered — the tradeoffs around it are where the conversation gets interesting.",
+      "A practical next step is to pick one idea covered and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here.",
-    "title": "Severe Surname Garbles: A Marine Biologist's Return"
+    "raw_text": "Reef conservation policy is a systems problem at planetary scale — the framing determines which tradeoffs are being made, and ignoring that leads to rebuilding the system from scratch a year later. Most operational dive safety is about not pushing tired teams; the framing matters because it reveals which tradeoffs are in play.",
+    "title": "Reef Conservation as a Systems Problem: Dive Safety, Tradeoffs, and Iteration"
   }
 }

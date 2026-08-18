@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p01-e01",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p01_e01.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 488,
     "episode_id": "ep-db8f44d2e07a22bd",
     "published_date": "2024-01-02T00:00:00",
     "title": "Building Trails That Last"
@@ -34,16 +34,23 @@
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "p01",
     "title": "Singletrack Sessions",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.svg",
+    "image_url": "http://localhost/images/p01.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here.",
-      "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot.",
-      "Take me through the decision. How does RockShox fit into this picture?"
+      "Drainage is the single highest leverage design choice on any trail; ignoring it leads to rebuilding from scratch a year later.",
+      "The most common mistake new builders make is grading too aggressively; once internalized, the rest of the decisions get easier.",
+      "Land stewardship conversations have to happen before the first dig, especially on platforms like Spok and Wrench and Cascadia Alliance.",
+      "Bench cuts on hillsides aren't optional — the shortcut on day one becomes the washout on year three.",
+      "Soil structure matters more than people think, and it's a key factor in trail durability and erosion control.",
+      "Machine built versus hand built rails is a revised belief; the framing matters because it tells you which trade offs you're making.",
+      "The second order effect is the part most people miss when evaluating trail building failures.",
+      "A practical takeaway is to pick one of the covered ideas and run it for two weeks to test its impact."
     ],
-    "raw_text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here.",
-    "title": "Building Trails That Last"
+    "raw_text": "Drainage is the single highest leverage design choice on any trail; ignoring it leads to rebuilding from scratch a year later. The most common mistake new builders make is grading too aggressively; once internalized, the rest of the decisions get easier.",
+    "title": "Trail Building, Drainage, and Land Stewardship"
   }
 }

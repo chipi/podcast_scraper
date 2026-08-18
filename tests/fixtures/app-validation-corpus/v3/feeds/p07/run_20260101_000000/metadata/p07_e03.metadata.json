@@ -3,7 +3,7 @@
     "diarization_num_speakers": 2,
     "media_id": "sha256:p07-e03",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p07_e03.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -20,7 +20,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 88,
     "episode_id": "ep-a86da8f148d3bf29",
     "published_date": "2025-08-06T00:00:00",
     "title": "Sustainability Is a Systems Problem"
@@ -29,16 +29,20 @@
     "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
     "feed_id": "p07",
     "title": "The Long View",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p07.svg",
+    "image_url": "http://localhost/images/p07.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena Fischer, a sustainability researcher and systems thinker. Elena, welcome.",
-      "You resist the word 'sustainability'. Why?",
-      "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or t\u2026"
+      "Sustainability resists the word because it hides the hard part — it is a systems problem, not a list of parts; optimizing one component in isolation pushes cost into water, land, or the grid.",
+      "The core principle is to manage the couplings, not the components — interventions must be modulated across the whole system rather than treated as discrete fixes.",
+      "Fixing emissions in isolation is a trap; the interactions between subsystems form the whole story, so risk sits inside that interconnected picture.",
+      "Risk management in this context is a discipline of portfolio-level oversight — dangerous risks get discounted when treated as separate parts rather than as coupled dynamics.",
+      "The dangerous risk is discounting — overlooking how risks compound across system boundaries, which is where the real exposure emerges."
     ],
-    "raw_text": "Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena Fischer, a sustainability researcher and systems thinker. Elena, welcome.",
-    "title": "Sustainability Is a Systems Problem"
+    "raw_text": "Sustainability resists the word because it hides the hard part — it is a systems problem, not a list of parts; optimizing one component in isolation pushes cost into water, land, or the grid. The core principle is to manage the couplings, not the components — interventions must be modulated across the whole system rather than treated as discrete fixes.",
+    "title": "Sustainability as Systems Thinking: Managing Couplings, Not Components"
   }
 }

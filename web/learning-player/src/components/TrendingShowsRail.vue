@@ -11,7 +11,9 @@
  * Cover art joins from the loaded podcasts list by feed_id (trending show entity_id == feed_id) —
  * no back-end change. Each band links to the show page.
  */
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useSectionState } from '../composables/useSectionState'
+import SectionStatus from './SectionStatus.vue'
 import { getTrending } from '../services/api'
 import type { Podcast, TrendingEntity } from '../services/types'
 import { showArtwork } from '../utils/episode'
@@ -22,11 +24,14 @@ const props = withDefaults(
   { scope: 'corpus', top: 5 },
 )
 
-const items = ref<TrendingEntity[]>([])
-void getTrending('show', props.scope, 12)
-  .then((rows) => (items.value = rows))
-  .catch(() => (items.value = []))
-const shown = computed(() => items.value.slice(0, props.top))
+// #1591 — a rejection lands in the error phase rather than collapsing into empty, so an outage
+// stops rendering identically to "the corpus has no trending shows".
+const section = useSectionState<TrendingEntity[]>([])
+function load(): Promise<void> {
+  return section.load(() => getTrending('show', props.scope, 12))
+}
+void load()
+const shown = computed(() => section.data.value.slice(0, props.top))
 const hasAny = computed(() => shown.value.length > 0)
 
 const artById = computed<Record<string, string | null>>(() => {
@@ -72,9 +77,10 @@ function spark(series: number[]): { line: string; area: string } {
 </script>
 
 <template>
-  <section v-if="hasAny" class="mt-7" data-testid="trending-shows-rail">
+  <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="trending-shows-rail">
     <h2 class="lp-section mb-3">{{ title }}</h2>
-    <div class="overflow-hidden rounded-2xl border border-border">
+    <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
+    <div v-if="hasAny" class="overflow-hidden rounded-2xl border border-border">
       <RouterLink
         v-for="(e, i) in shown"
         :key="e.entity_id"

@@ -16,8 +16,12 @@ beforeEach(() => setActivePinia(createPinia()))
 afterEach(() => vi.restoreAllMocks())
 
 describe('FavoriteButton', () => {
-  it('does not render when signed out (favorites require auth)', () => {
-    expect(mountBtn().find('button').exists()).toBe(false)
+  it('renders signed out as a sign-in teaser, not hidden (#1590)', () => {
+    const w = mountBtn()
+    const btn = w.find('button')
+    expect(btn.exists()).toBe(true)
+    expect(btn.attributes('aria-label')).toContain('Sign in')
+    expect(btn.attributes('aria-pressed')).toBeUndefined()
   })
 
   it('renders and toggles via the favorites store when signed in', async () => {

@@ -8,6 +8,14 @@ import { openCorpusDataWorkspace, SHELL_HEADING_RE, statusBarCorpusPathInput, mo
  * end-to-end in the browser against a mocked API: GET returns 404 (missing) → the button shows →
  * clicking fires POST /api/corpus/topic-clusters/rebuild → the poll then sees clusters and the card
  * flips to Loaded.
+ *
+ * #1619 category C — permanently mocked, and correctly so.
+ *
+ * Live, the click triggers a **real** topic-cluster rebuild: an embedding pass that regenerates
+ * `search/topic_clusters.json` inside the corpus. An e2e test must not do that — slow, needs the
+ * ML stack, and overwrites a committed fixture artifact. The starting state is unreachable too:
+ * the test needs clusters *missing* (GET → 404) and the v3 corpus ships them. The rebuild itself
+ * belongs to the Python tests.
  */
 test.describe('Topic-clusters rebuild button (mocked API)', () => {
   test.beforeEach(async ({ page }) => {

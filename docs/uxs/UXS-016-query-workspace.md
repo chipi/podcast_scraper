@@ -74,7 +74,16 @@ The **Enriched answers** toggle previously in the Advanced dialog (UXS-005) is r
 
 `EnrichedAnswerHero.vue` sits between the header and the operator bar. Visible when `enriched_search_available: true` from `/api/health` AND the request was made with `enrich_results=true` (shipped in RFC-088 chunk 5).
 
-Contract inherits [UXS-008](UXS-008-enriched-search.md) in full: `gi` domain token border/tint, "AI-generated / grounded" badge, synthesized answer with clickable speaker names (opening Person Landing) + topic tags (opening Topic Entity View), Sources section (collapsible, default 3, "Show all N" toggle), grounded source count indicator ("Based on N grounded insights"), provider attribution ("Synthesised by … "), source-to-result linking (`Used in answer` chip on the matching hit card).
+**As shipped**, the hero renders `gi` domain-token border/tint, a **"Deterministic"** provenance
+badge (`enriched-answer-provenance`), and aggregated **related topics** as chips that open the Topic
+subject rail — sourced from `query_topic_relatedness`, deterministic, no LLM.
+
+It does **not** inherit [UXS-008](UXS-008-enriched-search.md) in full, contrary to what this line
+previously claimed. UXS-008's synthesized answer, clickable speaker names, Sources section, grounded
+source count, provider attribution and `Used in answer` source-to-result linking were **never
+built** — see the implementation-status note at the top of UXS-008 and
+[#1597](https://github.com/chipi/podcast_scraper/issues/1597). Only the clickable topic tags carried
+over.
 
 Degradation follows UXS-008: hidden when no grounded insights lifted; muted error state on provider failure; skeleton on latency > 5 s; hidden entirely when enrichment not configured. The hero is **not** rendered by the Cmd-K palette or the LeftPanel launcher (bounded cost).
 

@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p03-e01",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p03_e01.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 332,
     "episode_id": "ep-2a703b6f57d9020f",
     "published_date": "2024-05-05T00:00:00",
     "title": "Wreck Diving Fundamentals"
@@ -34,16 +34,21 @@
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
     "title": "Below the Surface",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.svg",
+    "image_url": "http://localhost/images/p03.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
-      "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
-      "What does the failure mode look like? What's something you used to believe about this that you've revised?"
+      "Wreck diving and dive planning intersect around anticipating failure modes — the key question is what the failure mode looks like before entering the wreck environment.",
+      "Technical diving and underwater archaeology converge on wreck sites, where planning discipline determines whether exploration stays within safety margins.",
+      "A revised belief about wreck diving emerges from experience — earlier assumptions give way to more nuanced understanding of risk and preparation.",
+      "The conversation centers on how planning frameworks apply specifically to wreck penetration, where overhead environments change the calculus of gas management and exit strategy.",
+      "Wreck diving demands a shift from reactive to proactive thinking — failure modes must be identified and mitigated before they manifest rather than managed after the fact.",
+      "The episode's core tension is between exploration ambition and planning rigor — the former drives the dive, the latter keeps it survivable."
     ],
-    "raw_text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
-    "title": "Wreck Diving Fundamentals"
+    "raw_text": "Wreck diving and dive planning intersect around anticipating failure modes — the key question is what the failure mode looks like before entering the wreck environment. Technical diving and underwater archaeology converge on wreck sites, where planning discipline determines whether exploration stays within safety margins.",
+    "title": "Wreck Diving: Planning, Failure Modes, and Revised Beliefs"
   }
 }

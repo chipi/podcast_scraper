@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p04-e01",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p04_e01.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 325,
     "episode_id": "ep-febd9a8f53bf3a3a",
     "published_date": "2024-07-06T00:00:00",
     "title": "Underwater Images That Feel Alive"
@@ -34,16 +34,23 @@
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
     "title": "Frame & Light",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.svg",
+    "image_url": "http://localhost/images/p04.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
-      "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
-      "Let's start there. What's the structural angle most listeners don't have access to?"
+      "The structural angle most listeners don't have access to is management of the four composition elements — the failure mode is to spot the framing because it tells you which tradeoff you were making.",
+      "The frame should reward the eye in the first two to three seconds; the second effect of the frame is the part most people miss.",
+      "Strobe lighting is a key area where frame and underwater photography intersect — starting point, not the destination.",
+      "A concrete example of how the frame should reward the eye in the first two to three seconds illustrates the principle in practice.",
+      "The contrarian angle most listeners don't have access to is that the starting point is not the destination — a revised belief about the craft.",
+      "One heuristic to keep coming back to is the second effect of the frame, which most people miss.",
+      "A concrete example shows how the frame should reward the eye in the first two to three seconds, reinforcing the tradeoff between framing and composition.",
+      "A practical takeaway for listeners is to pick one of the four composition elements to focus on for two weeks, letting the rest follow."
     ],
-    "raw_text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
-    "title": "Underwater Images That Feel Alive"
+    "raw_text": "The structural angle most listeners don't have access to is management of the four composition elements — the failure mode is to spot the framing because it tells you which tradeoff you were making. The frame should reward the eye in the first two to three seconds; the second effect of the frame is the part most people miss.",
+    "title": "Underwater Photography: Framing, Strobe Lighting, and the Tradeoffs"
   }
 }

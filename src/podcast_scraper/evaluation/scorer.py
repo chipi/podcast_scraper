@@ -60,44 +60,73 @@ try:
 except ImportError:
     pass
 
+logger = logging.getLogger(__name__)
+
 try:
     from nltk.tokenize import word_tokenize
     from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-
-    # Ensure required NLTK data is available (punkt_tab needed for word_tokenize in NLTK 3.8+).
-    #
-    # CHECK BEFORE DOWNLOADING. This used to call ``nltk.download()`` unconditionally at MODULE
-    # IMPORT, which reaches the network on every single import even when the data is already on
-    # disk — ``download()`` still contacts the index to check for updates. The surrounding
-    # ``except Exception`` catches a download that FAILS; it cannot catch one that HANGS, and a
-    # hang is what a blocked or rate-limited network produces.
-    #
-    # Measured 2026-08-17: this killed a unit test. ``score.py --help`` costs 1.4 s on a quiet
-    # machine, but during the full parallel suite the subprocess sat on
-    # ``[nltk_data] Error loading punkt: HTTP Error 503: Timed out while waiting``, blew the
-    # test's 180 s ceiling and was SIGKILLed (``Popen: returncode: -9``). Both packages were
-    # present on disk the whole time — every byte of that wait bought nothing.
-    #
-    # It also meant importing this module did blocking network I/O in an air-gapped deployment,
-    # which is the sort of thing that is only ever discovered at the worst moment.
-    try:
-        import nltk
-
-        for _pkg, _path in (("punkt", "tokenizers/punkt"), ("punkt_tab", "tokenizers/punkt_tab")):
-            try:
-                nltk.data.find(_path)
-            except LookupError:
-                nltk.download(_pkg, quiet=True)
-    except Exception:
-        # If the data is genuinely missing and the download fails, word_tokenize fails later —
-        # that is the pre-existing contract and it is unchanged.
-        pass
 except ImportError:
     sentence_bleu = None
     SmoothingFunction = None
     word_tokenize = None
 
-logger = logging.getLogger(__name__)
+
+#: punkt_tab is what ``word_tokenize`` needs from NLTK 3.8 on; punkt covers older installs.
+_NLTK_TOKENIZER_DATA = (("punkt_tab", "tokenizers/punkt_tab"), ("punkt", "tokenizers/punkt"))
+#: Cap on a single NLTK download. Its server is a third party we do not control.
+_NLTK_DOWNLOAD_TIMEOUT_SECONDS = 15
+_nltk_data_checked = False
+
+
+def _ensure_nltk_tokenizer_data() -> None:
+    """Make the tokenizer corpora available — locally first, over the network only if we must.
+
+    This used to be two bare ``nltk.download()`` calls at MODULE IMPORT, wrapped in a
+    ``try/except`` that swallowed failures. It swallowed the error but not the WAIT: importing
+    ``podcast_scraper.evaluation`` at all made two blocking HTTP requests to nltk.org, so anything
+    that touched the evaluation package paid for them whether or not it ever computed BLEU.
+
+    Measured: `python .../eval/score.py --rejudge --dry-run` took **1m35s at 1% CPU** and then
+    printed the argument error it could have printed immediately — the process spent its life in
+    ``ssl.read`` inside ``nltk.downloader``, because the server was answering 429. Two tests in
+    ``tests/unit/podcast_scraper/evaluation/test_score_rejudge.py`` shell out to that script with a
+    180s timeout and failed when the machine was busy enough to push it over. `pytest-socket` did
+    not catch this: the network call happens in a SUBPROCESS, outside the ban.
+
+    So: check ``nltk.data.find`` first (already-installed data means no request at all), download
+    only what is genuinely missing, bound the attempt so a slow or hostile server cannot hang the
+    caller, and do all of it lazily — at the one call site that needs a tokenizer, once.
+    """
+    global _nltk_data_checked
+    if _nltk_data_checked:
+        return
+    _nltk_data_checked = True  # set first: one attempt per process, even if it fails
+    try:
+        import nltk
+    except ImportError:
+        return
+
+    missing = []
+    for resource, path in _NLTK_TOKENIZER_DATA:
+        try:
+            nltk.data.find(path)
+        except LookupError:
+            missing.append(resource)
+    if not missing:
+        return
+
+    import socket
+
+    previous = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(_NLTK_DOWNLOAD_TIMEOUT_SECONDS)
+    try:
+        for resource in missing:
+            try:
+                nltk.download(resource, quiet=True)
+            except Exception:  # network, disk, server error — BLEU degrades, nothing else breaks
+                logger.warning("NLTK resource %r unavailable; BLEU may be skipped", resource)
+    finally:
+        socket.setdefaulttimeout(previous)
 
 
 def load_predictions(predictions_path: Path) -> List[Dict[str, Any]]:
@@ -526,6 +555,9 @@ def compute_bleu_vs_reference(
             "nltk library is required for BLEU computation. "
             "Install with: pip install 'nltk>=3.8.0'"
         )
+
+    # The one place a tokenizer corpus is actually needed — so the one place that may fetch it.
+    _ensure_nltk_tokenizer_data()
 
     # Match predictions by episode_id
     pred_by_id = {p.get("episode_id"): p for p in predictions}

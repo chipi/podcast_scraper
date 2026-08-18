@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p03-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p03_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 307,
     "episode_id": "ep-a0a7f86b34a4de26",
     "published_date": "2024-09-12T00:00:00",
     "title": "Marine Biology for Divers"
@@ -34,16 +34,21 @@
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
     "title": "Below the Surface",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.svg",
+    "image_url": "http://localhost/images/p03.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems. Hanna Crebo Rediker, thanks for being h\u2026",
-      "Before we get into it \u2014 Marco Sylva was on last week talking about wreck planning.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Coral bleaching events are not random — recognizing their pattern is the foundational insight that makes subsequent conservation decisions easier.",
+      "Most reef damage from divers isn't fin contact but anchor strikes — a counterintuitive finding that shifts where conservation effort should focus.",
+      "Erosion in coastal areas drives sediment plumes, which crosscut reef conservation and marine biology — the framing matters because it reveals which tradeoffs are being made.",
+      "The second-order effects of adopting tools like PADI in reef management flows are the part most people miss — ignoring them leads to rebuilding systems from scratch a year later.",
+      "Outside of Suunto-class tooling, the failure mode in reef monitoring is harder to spot, making early detection of problems more difficult.",
+      "A practical heuristic for listeners: pick one idea from the conversation and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems. Hanna Crebo Rediker, thanks for being h\u2026",
-    "title": "Marine Biology for Divers"
+    "raw_text": "Coral bleaching events are not random — recognizing their pattern is the foundational insight that makes subsequent conservation decisions easier. Most reef damage from divers isn't fin contact but anchor strikes — a counterintuitive finding that shifts where conservation effort should focus.",
+    "title": "Marine Biology, Reef Conservation, and the Hidden Drivers of Reef Damage"
   }
 }

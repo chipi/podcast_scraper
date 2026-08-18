@@ -1060,6 +1060,33 @@ describe('rankedPersonOrganizations', () => {
 })
 
 describe('personTopicPositionArc (#1049)', () => {
+  it('orders the arc OLDEST-FIRST across dates (#1600)', () => {
+    // The direction had no comment, no test, and contradicts UXS-009 (":63-64, :186-187 — most
+    // recent first"). The existing sort test uses two SAME-DATE rows, so it pins only the
+    // within-date tiebreak and passes under either direction — the direction itself was unpinned.
+    //
+    // Oldest-first is kept: the panel answers "how did this position EVOLVE", and an arc reads
+    // forwards. Reverse-chronological shows the conclusion before the reasoning. The spec is stale.
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'ep:2', type: 'Episode', properties: { publish_date: '2025-06-01' } },
+        { id: 'ep:1', type: 'Episode', properties: { publish_date: '2024-01-01' } },
+        { id: 'i:late', type: 'Insight', properties: { text: 'Later stance.', episode_id: 'ep:2' } },
+        { id: 'i:early', type: 'Insight', properties: { text: 'Earlier stance.', episode_id: 'ep:1' } },
+        { id: 'p1', type: 'Person', properties: { name: 'A' } },
+        { id: 't1', type: 'Topic', properties: { label: 'T' } },
+      ],
+      edges: [
+        { from: 'i:late', to: 'p1', type: 'MENTIONS_PERSON' },
+        { from: 'i:early', to: 'p1', type: 'MENTIONS_PERSON' },
+        { from: 'i:late', to: 't1', type: 'ABOUT' },
+        { from: 'i:early', to: 't1', type: 'ABOUT' },
+      ],
+    })
+    const rows = personTopicPositionArc(art, 'p1', 't1')
+    expect(rows.map((r) => r.insightId)).toEqual(['i:early', 'i:late'])
+  })
+
   it('returns [] for missing inputs', () => {
     expect(personTopicPositionArc(null, 'p1', 't1')).toEqual([])
     const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })

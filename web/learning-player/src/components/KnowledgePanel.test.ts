@@ -146,8 +146,8 @@ describe('KnowledgePanel', () => {
       { id: 'topic:ml', label: 'ml', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
     ]
     const w = mountPanel({ topics, persons: [] })
-    // Dominant semantic-cluster label surfaces as the "Similar ·" lead-in
-    // (renamed from "Theme ·" — "Theme" is now reserved for co-occurrence clusters).
+    // Dominant SEMANTIC cluster surfaces as "Similar ·"; co-occurrence clusters are "Storyline ·"
+    // (#1603 — one consumer word, matching Home's "Storylines" rail).
     expect(w.text()).toContain('Similar · machine learning')
     // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
     const chips = w.findAll('button').filter((b) => ['ai', 'ml', 'zulu'].includes(b.text()))
@@ -157,7 +157,7 @@ describe('KnowledgePanel', () => {
     expect(chips[2].classes()).not.toContain('ring-topic')
   })
 
-  it('marks theme-cluster topics with a "Theme ·" lead-in and theme ring (co-occurrence)', () => {
+  it('marks co-occurrence topics with a "Storyline ·" lead-in and theme ring', () => {
     const topics: Topic[] = [
       {
         id: 'topic:oil',
@@ -183,7 +183,7 @@ describe('KnowledgePanel', () => {
     ]
     const w = mountPanel({ topics, persons: [] })
     // Dominant theme (co-occurrence) surfaces as the "Theme ·" lead-in — distinct from "Similar ·".
-    expect(w.text()).toContain('Theme · sanctions')
+    expect(w.text()).toContain('Storyline · sanctions')
     // Theme-member chips carry the teal fill (lp-theme-chip); the non-member does not.
     const oil = w.findAll('button').find((b) => b.text() === 'oil')!
     const zulu = w.findAll('button').find((b) => b.text() === 'zulu')!
@@ -265,9 +265,43 @@ describe('KnowledgePanel', () => {
     const save = w.find('[aria-label="Save to highlights"]')
     expect(save.exists()).toBe(true)
     await save.trigger('click')
+    await flushPromises() // the gate resolves the session before acting (#1590)
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'insight', source_insight_id: 'i1', start_ms: 12000 }),
     )
+  })
+
+  it('offers the insight save to signed-out visitors as a teaser (#1590)', async () => {
+    // It used to be `v-if="auth.isAuthenticated"`. Saving an insight is the learning loop's payoff;
+    // hiding it left signed-out readers with no evidence the product does this at all.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    const create = vi.spyOn(api, 'createHighlight')
+    const w = mountPanel()
+    await flushPromises()
+
+    const save = w.find('[aria-label="Sign in to mark this moment"]')
+    expect(save.exists()).toBe(true)
+    await save.trigger('click')
+    await flushPromises()
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('offers exactly ONE save per insight (#1593)', async () => {
+    // An insight used to carry a bookmark (→ Highlights) AND a heart (→ Saved › Insights): same
+    // text, two icons, two destinations, two places to look for it later. The heart is gone.
+    // Highlights is the destination — it carries colours, notes and export.
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    const w = mountPanel()
+    await flushPromises()
+
+    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(true)
+    // The favourite heart is `.lp-fav` — the one shared affordance, and it must not be on an
+    // insight row any more.
+    expect(w.find('.lp-fav').exists()).toBe(false)
   })
 })
 

@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p09-e01",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p09_e01.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 214,
     "episode_id": "ep-1abf911df5bea2c3",
     "published_date": "2025-05-12T00:00:00",
     "title": "Systems Thinking, Two Years Later"
@@ -34,16 +34,22 @@
     "description": "Recurring guests from other shows revisit their positions.",
     "feed_id": "p09",
     "title": "Cross-Show",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.svg",
+    "image_url": "http://localhost/images/p09.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
-      "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot.",
-      "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams."
+      "Ignoring the 'tat' in systems thinking forces a rebuild from scratch a year later — the failure mode of skipping foundational details.",
+      "Two years of systems thinking work sharpens focus on leverage points — the highest-impact places to intervene in a system.",
+      "Reliability and sustainability are intertwined, not separate concerns — the second-order effects of decisions are where most people miss the real impact.",
+      "Sustainability and systems thinking intersect through second-order effects — the part most people overlook when evaluating tradeoffs.",
+      "Reliability crosscuts everything in systems design — tradeoffs around it are not isolated but pervasive across all system aspects.",
+      "A practical starting point is to pick one of the EDSV cover rates and run it for two weeks — a concrete experiment to internalize systems thinking principles.",
+      "Once you internalize the top-level framing, the rest of the decisions get easier — a cascading simplification effect from core principles."
     ],
-    "raw_text": "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
-    "title": "Systems Thinking, Two Years Later"
+    "raw_text": "Ignoring the 'tat' in systems thinking forces a rebuild from scratch a year later — the failure mode of skipping foundational details. Two years of systems thinking work sharpens focus on leverage points — the highest-impact places to intervene in a system.",
+    "title": "Systems Thinking, Reliability, and Sustainability"
   }
 }
