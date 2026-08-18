@@ -44,6 +44,13 @@ on:
       key_alias:
         description: "Virtual key alias on the gateway"
         default: proj-podcast-prod
+      delete_alias:
+        description: >-
+          Delete every key with this alias BEFORE minting. Leave empty to delete nothing.
+          Deletion runs first on purpose: the new key reuses the alias, so deleting after
+          would remove the key just created. Deletes by resolved token HASH, not by alias,
+          so it cannot match something minted in between.
+        default: ''
       max_budget_usd:
         description: >-
           Hard budget ceiling for this key, in USD. The gateway REFUSES calls past it — a
@@ -122,13 +129,14 @@ jobs:
           KEY_ALIAS: ${{ inputs.key_alias }}
           MAX_BUDGET: ${{ inputs.max_budget_usd }}
           DO_ACTION: ${{ inputs.action }}
+          DELETE_ALIAS: ${{ inputs.delete_alias }}
         run: |
           set -euo pipefail
           # Everything below runs ON the box, fed over stdin so no value is interpolated into
           # a command line the runner can see. bash -s (not sh) for ${VAR: -4}-style builtins.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "KEY_ALIAS='${KEY_ALIAS}' MAX_BUDGET='${MAX_BUDGET}' DO_ACTION='${DO_ACTION}' bash -s" <<'REMOTE'
+            "KEY_ALIAS='${KEY_ALIAS}' MAX_BUDGET='${MAX_BUDGET}' DO_ACTION='${DO_ACTION}' DELETE_ALIAS='${DELETE_ALIAS}' bash -s" <<'REMOTE'
           set -euo pipefail
           LLENV=/srv/podcast-scraper/infra/litellm/.env
           APPENV=/srv/podcast-scraper/.env
@@ -153,6 +161,26 @@ jobs:
             echo "NOTE: LiteLLM stores only key HASHES. An existing key's plaintext cannot be"
             echo "recovered, so if none of the above is in the app's .env, minting is the only route."
             exit 0
+          fi
+
+          # Delete BEFORE minting: the new key reuses KEY_ALIAS, so an alias-based delete
+          # afterwards would remove what we just created. Resolve to token hashes first so the
+          # delete targets exactly the keys seen in the inventory above.
+          if [ -n "${DELETE_ALIAS:-}" ]; then
+            HASHES=$(curl -sS -m 30 "http://127.0.0.1:4001/key/list?return_full_object=true&size=100" \
+              -H "Authorization: Bearer $MK" 2>/dev/null \
+              | jq -r --arg a "$DELETE_ALIAS" '(.keys // .data // [])[] | select(.key_alias==$a) | .token' \
+              | grep -v '^$' || true)
+            if [ -z "$HASHES" ]; then
+              echo "no key with alias=${DELETE_ALIAS} — nothing to delete"
+            else
+              N=$(printf '%s\n' "$HASHES" | wc -l | tr -d ' ')
+              PAYLOAD=$(printf '%s\n' "$HASHES" | jq -R . | jq -sc '{keys: .}')
+              DRESP=$(curl -sS -m 30 -X POST http://127.0.0.1:4001/key/delete \
+                -H "Authorization: Bearer $MK" -H 'Content-Type: application/json' \
+                -d "$PAYLOAD")
+              echo "deleted ${N} key(s) with alias=${DELETE_ALIAS}: $(printf '%s' "$DRESP" | head -c 200)"
+            fi
           fi
 
           RESP=$(curl -sS -m 30 http://127.0.0.1:4001/key/generate \
