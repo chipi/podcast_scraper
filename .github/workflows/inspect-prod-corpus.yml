@@ -150,20 +150,26 @@ jobs:
           fi
 
           if [ "${WRITE_WORKLIST}" = "true" ]; then
-            echo "### Repair work-list" >> "$SUMMARY"
-            echo '```' >> "$SUMMARY"
+            {
+              echo "### Repair work-list"
+              echo '```'
+            } >> "$SUMMARY"
             remote "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; n = write_work_list(Path('/app/output'), Path('/app/output/preprocessing_repair_worklist.txt')); print(f'{n} episode(s) written to /app/output/preprocessing_repair_worklist.txt')" \
               2>&1 | tee -a "$SUMMARY"
-            echo '```' >> "$SUMMARY"
-            echo "" >> "$SUMMARY"
-            echo "Feed this to reprocess-prod.yml — it is that workflow's default episode_ids_file." >> "$SUMMARY"
-            echo "" >> "$SUMMARY"
+            {
+              echo '```'
+              echo ""
+              echo "Feed this to reprocess-prod.yml — it is that workflow's default episode_ids_file."
+              echo ""
+            } >> "$SUMMARY"
           fi
 
           if [ "${VERIFY_RECENT}" = "true" ]; then
-            echo "### Recent run metrics (positive assertion)" >> "$SUMMARY"
-            echo "attempts>=1 and completed==attempts. All zeros means the transcript cache served it and nothing was repaired." >> "$SUMMARY"
-            echo '```' >> "$SUMMARY"
+            {
+              echo "### Recent run metrics (positive assertion)"
+              echo "attempts>=1 and completed==attempts. All zeros means the transcript cache served it and nothing was repaired."
+              echo '```'
+            } >> "$SUMMARY"
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
               "find /srv/podcast-scraper/corpus -name metrics.json -newermt '-6 hours' \
