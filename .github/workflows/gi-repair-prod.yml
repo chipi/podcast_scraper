@@ -51,9 +51,10 @@ permissions:
   contents: read
 
 concurrency:
-  # Never two writers in one corpus. Shares nothing with reprocess-prod deliberately — that is
-  # a separate group, and the two must not be run concurrently by hand either.
-  group: gi-repair-prod
+  # ONE toucher of the prod corpus at a time — shared with backup / inspect / reprocess.
+  # An earlier comment here claimed a separate group was deliberate; that was wrong, and a
+  # backup/inspect overlap on 2026-08-18 proved why (tar: "file changed as we read it").
+  group: prod-corpus
   cancel-in-progress: false
 
 jobs:

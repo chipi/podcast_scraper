@@ -33,6 +33,16 @@ on:
     # schedule.)
     - cron: "37 5 * * *"
 
+concurrency:
+  # ONE toucher of the prod corpus at a time. 2026-08-18: a backup and an
+  # inspect-prod-corpus run (write_worklist=true) were dispatched together; the work-list
+  # landed in /app/output at 10:22:42, inside the backup's 10:18-10:32 window, and tar died
+  # with "corpus: file changed as we read it". Nothing prevented the overlap — these
+  # workflows had no shared group. cancel-in-progress:false because cancelling a repair or a
+  # backup midway is worse than queueing behind it.
+  group: prod-corpus
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -176,9 +186,14 @@ jobs:
           #
           # Keeping -z: what remains is transcripts and JSON, which compress well. (Gzipping
           # 30 GB of mp3 was pure CPU burn for ~0 gain, which is part of why it was so slow.)
+          # PRUNE, don't just exclude. `tar --exclude` still walks and stats every excluded
+          # file: the first run with excludes took 14 minutes for ~0.4 GB of payload because
+          # it traversed all 30.5 GB of media to skip it. `find -prune` never descends, so
+          # the walk is proportional to what is actually archived — and a shorter read is a
+          # shorter window for a concurrent write to break the stream.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'tar --exclude="*/media" --exclude="*/search" -czf - -C /srv/podcast-scraper corpus' \
+            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
             > snapshot.tgz
 
           PULL_MIN=$(( ( $(date -u +%s) - PULL_T0 ) / 60 ))

@@ -47,6 +47,16 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  # ONE toucher of the prod corpus at a time. 2026-08-18: a backup and an
+  # inspect-prod-corpus run (write_worklist=true) were dispatched together; the work-list
+  # landed in /app/output at 10:22:42, inside the backup's 10:18-10:32 window, and tar died
+  # with "corpus: file changed as we read it". Nothing prevented the overlap — these
+  # workflows had no shared group. cancel-in-progress:false because cancelling a repair or a
+  # backup midway is worse than queueing behind it.
+  group: prod-corpus
+  cancel-in-progress: false
+
 permissions:
   actions: read
   contents: read
