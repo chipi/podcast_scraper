@@ -592,15 +592,22 @@ jobs:
             exit 0
           fi
 
+          # The pipeline image has NO curl — the first real run of this check died with
+          # "sh: 1: curl: not found" (exit 127). It does have python; it IS the pipeline.
+          # http.client is used rather than urllib because it returns 401 as a normal
+          # response instead of raising, so the status code we care about survives without
+          # a try/except that would not fit on one line. Connection failures fall through
+          # to the shell's `|| echo 000`.
           CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
-               run --rm --entrypoint sh pipeline-llm -c \
-               'curl -s -o /dev/null -m 20 -w \"%{http_code}\" -H \"Authorization: Bearer \$LITELLM_API_KEY\" ${PROD_LITELLM_API_BASE}/models'" \
-            | tr -d '[:space:]')
+               run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
+               'import os,urllib.parse as p,http.client as h; u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+os.environ.get(\"LITELLM_API_KEY\",\"\")}); print(c.getresponse().status)'" \
+            2>/dev/null | tr -d '[:space:]' || echo 000)
+          CODE="${CODE:-000}"
 
           echo "configured base : ${PROD_LITELLM_API_BASE}"
           echo "HTTP            : ${CODE}"
