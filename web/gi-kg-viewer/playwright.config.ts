@@ -35,7 +35,19 @@ export default defineConfig({
   // contention. CI gets 2 retries (3 attempts) so timing-sensitive specs like the
   // 15s stuck-handoff (H6.3) survive transient runner contention; local keeps 1.
   retries: process.env.CI ? 2 : 1,
-  workers: process.env.CI ? 2 : undefined,
+  /**
+   * ONE worker, everywhere. Four operator specs (cron-preview, feed-overrides, scheduled-jobs,
+   * status-bar-feeds-operator) write to the SHARED corpus the API serves, so two of them running
+   * in different workers overwrite each other's seeded state. Since #1619 gave the suite a real
+   * backend that stopped being theoretical: at 2 workers CI failed exactly those four, with the
+   * guard they carry — "writes to the shared corpus and cannot run with 2 workers … re-run with
+   * --workers=1" — which is also the default `e2e/run-local-stack.sh` has always used.
+   *
+   * The cost is wall-clock, not coverage: 218 passed in 7.7m at 2 workers, so expect roughly
+   * double, comfortably inside this job's 45m budget. Parallelism here would have to be bought by
+   * giving each worker its own corpus and API, which is a bigger change than the time is worth.
+   */
+  workers: 1,
   reporter: [
     ['list'],
     ['html', { open: 'never', outputFolder: 'playwright-report' }],
