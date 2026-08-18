@@ -14,10 +14,11 @@ import importlib.util
 import re
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 — Element/ParseError typing only
 from pathlib import Path
 
 import pytest
+from defusedxml.ElementTree import parse as safe_parse
 
 pytestmark = [pytest.mark.unit]
 
@@ -48,7 +49,7 @@ def _corpus_feed_paths() -> list[Path]:
 
 
 def _items(path: Path) -> list[ET.Element]:
-    channel = ET.parse(path).getroot().find("channel")
+    channel = safe_parse(path).getroot().find("channel")
     return [] if channel is None else channel.findall("item")
 
 
@@ -118,7 +119,7 @@ class TestMeasuredNotAsserted:
         images = ROOT / "tests" / "fixtures" / "images" / _version()
         missing: list[str] = []
         for path in _corpus_feed_paths():
-            channel = ET.parse(path).getroot().find("channel")
+            channel = safe_parse(path).getroot().find("channel")
             assert channel is not None
             image = channel.find(f"{_ITUNES_NS}image")
             href = "" if image is None else str(image.get("href") or "")

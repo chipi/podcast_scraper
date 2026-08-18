@@ -21,10 +21,10 @@ import importlib.util
 import re
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
+from defusedxml.ElementTree import parse as safe_parse
 
 pytestmark = [pytest.mark.unit]
 
@@ -47,7 +47,7 @@ def _advertised() -> list[tuple[str, str, str]]:
     """(feed filename, cover stem, extension) for every feed that advertises artwork."""
     out: list[tuple[str, str, str]] = []
     for xml_path in sorted(RSS_DIR.glob("*.xml")):
-        channel = ET.parse(xml_path).getroot().find("channel")
+        channel = safe_parse(xml_path).getroot().find("channel")
         if channel is None:
             continue
         image = channel.find(f"{_ITUNES_NS}image")

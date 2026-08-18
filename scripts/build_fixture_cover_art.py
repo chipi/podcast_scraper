@@ -41,9 +41,11 @@ import argparse
 import importlib.util
 import re
 import sys
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 — Element/ParseError typing only
 from pathlib import Path
 from typing import Optional
+
+from defusedxml.ElementTree import parse as safe_parse, ParseError as DefusedParseError
 
 _ITUNES_NS = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
 # href="/images/p01_cover.svg" -> stem "p01_cover", feed id "p01"
@@ -73,8 +75,8 @@ def _feed_art_targets(rss_dir: Path) -> dict[str, tuple[str, str, str]]:
     out: dict[str, tuple[str, str, str]] = {}
     for xml_path in sorted(rss_dir.glob("*.xml")):
         try:
-            channel = ET.parse(xml_path).getroot().find("channel")
-        except ET.ParseError as exc:
+            channel = safe_parse(xml_path).getroot().find("channel")
+        except (ET.ParseError, DefusedParseError) as exc:
             print(f"  skip {xml_path.name}: unparseable ({exc})", file=sys.stderr)
             continue
         if channel is None:

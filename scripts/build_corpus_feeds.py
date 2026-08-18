@@ -53,11 +53,13 @@ import argparse
 import re
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 — Element/ParseError typing only
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from typing import Optional
+
+from defusedxml.ElementTree import parse as safe_parse, ParseError as DefusedParseError
 
 ROOT = Path(__file__).resolve().parents[1]
 _ITUNES_NS = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
@@ -164,8 +166,8 @@ def _existing_feed(rss_dir: Path, stem: str) -> tuple[dict[str, str], dict[str, 
     if not path.is_file():
         return meta, descriptions
     try:
-        channel = ET.parse(path).getroot().find("channel")
-    except ET.ParseError:
+        channel = safe_parse(path).getroot().find("channel")
+    except (ET.ParseError, DefusedParseError):
         return meta, descriptions
     if channel is None:
         return meta, descriptions
