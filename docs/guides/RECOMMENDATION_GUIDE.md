@@ -35,7 +35,7 @@ already did. Everything below is about **Discover** unless a section says otherw
 
 ## The pipeline, end to end
 
-```
+```text
   corpus on disk
         │        pipeline output: metadata + transcripts + KG + GI per episode
         ▼
@@ -68,7 +68,7 @@ stay small, and it is the main scaling constraint in this area today.
 
 For each candidate episode:
 
-```
+```text
     score = (significance / feed_mean) × (1 + affinity + trend + recency)
 ```
 
@@ -77,7 +77,7 @@ particular person should care.**
 
 Written out:
 
-```
+```text
     base        = significance(episode)              # how much we know about this episode
     normalised  = base / mean(significance of that FEED's episodes)
     affinity    = w_a × (1 − 0.5 ^ (explicit + 0.5 × derived))

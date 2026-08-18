@@ -68,7 +68,7 @@ and `globalSetup` skips its index build because the index now exists.
 ## Two gotchas that cost real time
 
 **1. The container writes as the Docker daemon's user, not yours.** OrbStack runs as
-`markodragoljevic`; this checkout is owned by `claude` at mode 755. So a container write into the
+the host desktop user; this checkout is owned by the agent user `claude` at mode 755. So a container write into the
 repo is denied *regardless of the container's own uid* — `--user $(id -u)` does not help, because
 the identity that matters is host-side. Hence the `chmod 777` on the corpus `search/` dir.
 
