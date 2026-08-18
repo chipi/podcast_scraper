@@ -53,12 +53,12 @@ on:
         default: config/profiles/cloud_balanced.yaml
       litellm_api_base:
         description: >-
-          LiteLLM gateway for this run. Leave EMPTY to use the profile's value, which pins the
-          HOMELAB gateway (cloud_balanced.yaml). Prod runs its own gateway (ADR-142) and this
-          workflow passes --config <profile>, which bypasses the box's viewer_operator.yaml
-          override entirely — so without this input a prod reprocess bills homelab. Set it to
-          the prod gateway's base URL, e.g. http://127.0.0.1:4001/v1 if the container can
-          reach host loopback, otherwise the box's tailnet address.
+          LiteLLM gateway for this run. Leave EMPTY to use vars.PROD_LITELLM_API_BASE (the
+          configured prod gateway); set it only to override for one run. If NEITHER is set the
+          run falls back to the profile's value, which pins the HOMELAB gateway
+          (cloud_balanced.yaml) — and it warns loudly when that happens. This matters because
+          the workflow passes --config <profile>, which bypasses the box's viewer_operator.yaml
+          override entirely (ADR-142 / D4), so the profile pin is what would otherwise apply.
         default: ""
 
 permissions:
@@ -131,7 +131,10 @@ jobs:
           REPROCESS_SOURCE: ${{ github.event.inputs.reprocess_source }}
           USE_TRANSCRIPT_CACHE: ${{ github.event.inputs.use_transcript_cache }}
           PROFILE: ${{ github.event.inputs.profile }}
-          LITELLM_API_BASE_INPUT: ${{ github.event.inputs.litellm_api_base }}
+          # Input OVERRIDES; vars.PROD_LITELLM_API_BASE is the configured default. Without the
+          # fallback the gateway had to be retyped at every dispatch, and forgetting it billed
+          # homelab silently — the expensive outcome as the default, which is backwards.
+          LITELLM_API_BASE_INPUT: ${{ github.event.inputs.litellm_api_base || vars.PROD_LITELLM_API_BASE }}
         run: |
           set -euo pipefail
 
@@ -166,7 +169,7 @@ jobs:
             GATEWAY_ARGS="--litellm-api-base '${LITELLM_API_BASE_INPUT}'"
           else
             GATEWAY_ARGS=""
-            echo "::warning::no litellm_api_base given — using the PROFILE's gateway (homelab for cloud_balanced), not the prod gateway (ADR-142)"
+            echo "::warning::neither the litellm_api_base input nor vars.PROD_LITELLM_API_BASE is set — this run uses the PROFILE gateway (homelab for cloud_balanced), NOT prod's own (ADR-142). Set the repo/environment variable so this is not a per-run decision."
           fi
 
           echo "selection : ${SELECTION}"
