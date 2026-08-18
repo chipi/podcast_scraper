@@ -271,6 +271,10 @@ jobs:
           PROD_DEEPGRAM_API_KEY:        ${{ secrets.PROD_DEEPGRAM_API_KEY }}
           # LiteLLM gateway virtual key (proj-podcast-prod) -> LITELLM_API_KEY in-container.
           LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          # Needed by the prove-before-promote gate below: the gateway the staged key must
+          # authenticate against. Same value D5 checks after the deploy — the gate just asks
+          # the question BEFORE the working key is overwritten instead of after.
+          PROD_LITELLM_API_BASE:        ${{ vars.PROD_LITELLM_API_BASE }}
           # Sentry DSNs (one per project)
           PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
@@ -342,9 +346,51 @@ jobs:
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
             "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.deploy-staged"
+          # PROVE BEFORE PROMOTE (#1676 follow-up, 2026-08-18 incident).
+          #
+          # This step already staged-then-promoted, so a partial file could never be seen. It
+          # could still promote a COMPLETE file holding a WRONG gateway key, and on 2026-08-18
+          # it did: the render replaced a working LITELLM_API_KEY with a secret value that is
+          # not valid at the prod gateway, D5 caught it one minute later at HTTP 401, and prod
+          # was left unable to reach its own gateway. D5 is a post-mortem — by the time it
+          # speaks, the working key is already gone and only a re-mint brings it back.
+          #
+          # Nothing could have caught it earlier, because nothing anywhere had an observable
+          # identity for that key: not the render, not D5, not the secret. `action=verify` on
+          # mint-prod-gateway-key.yml probes the BOX's .env, so it can only ever confirm what is
+          # already installed — never what is about to be.
+          #
+          # So: test the staged key against the gateway BEFORE the mv. A key that cannot
+          # authenticate never replaces one that can. The check runs ON THE BOX because the
+          # ephemeral runner cannot reach :4001 — the ACL grants tag:gha-deployer only
+          # tag:prod:22,443,8443 — and it reuses the file already staged here, so the secret is
+          # not sent anywhere it was not already going.
+          #
+          # Fail-closed on ANY non-200, including 000/unreachable: "we could not prove this key
+          # works" and "this key does not work" both mean we must not overwrite one that does.
+          # Two exemptions, both cases where there is nothing to protect: no live .env yet
+          # (first deploy / bootstrap), and no LITELLM_API_KEY line in the staged file (the
+          # ADR-115 tmpfs overlay delivers it as a file instead).
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
+             GW='${PROD_LITELLM_API_BASE}'; \
+             NEWKEY=\$(sed -n 's/^LITELLM_API_KEY=//p' .env.deploy-staged | head -1); \
+             if [ -z \"\$NEWKEY\" ] || [ ! -f .env ] || [ -z \"\$GW\" ]; then \
+               echo 'gateway-key gate: SKIPPED (no staged key, no live .env, or no base) — nothing to protect'; \
+             else \
+               CODE=\$(curl -s -o /dev/null -w '%{http_code}' -m 20 \
+                 \"\${GW%/}/models\" -H \"Authorization: Bearer \$NEWKEY\") || true; \
+               CODE=\${CODE:-000}; \
+               echo \"gateway-key gate: HTTP \$CODE at \${GW%/}/models\"; \
+               if [ \"\$CODE\" != 200 ]; then \
+                 rm -f .env.deploy-staged; \
+                 echo 'REFUSING to promote: the staged LITELLM_API_KEY does not authenticate at the prod gateway.' >&2; \
+                 echo 'The live .env is UNTOUCHED — prod keeps the key it had. Nothing was broken by this run.' >&2; \
+                 echo 'Fix the LITELLM_PROJ_PODCAST_PROD_KEY secret (it must be a key minted at THIS gateway, not homelab, and must have no trailing whitespace), then re-run.' >&2; \
+                 exit 1; \
+               fi; \
+             fi; \
              mv .env.deploy-staged .env; \
              chmod 600 .env; \
              chown deploy:deploy .env; \
