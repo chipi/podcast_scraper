@@ -27,7 +27,7 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO_ROOT / "scripts" / "eval" / "score"))
 
-from rank_scenarios_v1 import CONFIGS, SCENARIOS, observe, write_corpus  # noqa: E402
+from rank_scenarios_v1 import CONFIGS, observe, SCENARIOS, write_corpus  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 

@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 from podcast_scraper.server import app_pkm_export as ex
 
@@ -243,7 +244,6 @@ def test_every_note_in_the_vault_has_parseable_frontmatter(monkeypatch: pytest.M
     into a mapping if unquoted), a leading "-", a tab, and a raw \\x07 control character, which is
     illegal inside a double-quoted scalar and made exactly one note unopenable.
     """
-    yaml = pytest.importorskip("yaml")
     monkeypatch.setattr(
         ex,
         "_title_index",

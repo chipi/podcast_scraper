@@ -21,7 +21,6 @@ import pytest
 from podcast_scraper.providers.ml import ml_provider
 from tests.integration.conftest import requires
 
-
 # Real ``openai-whisper`` import is required (the tests swap symbols on
 # ``whisper.timing``), so these live in the integration tier where the ML
 # extra is installed. Unit-tier CI intentionally omits ML packages

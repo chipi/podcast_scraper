@@ -76,7 +76,6 @@ cloud_llm_structured_min_output_tokens: 4096
 # Grounded Insights — unchanged from cloud_balanced.
 # ---------------------------------------------------------------------------
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled
