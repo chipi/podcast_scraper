@@ -103,8 +103,17 @@
     // The actual cause: the mini is a TAGGED node (tag:homelab-host), and a tagged device has
     // no user owner, so the `autogroup:admin -> tag:prod:22,80,443,4001,8443` rule above never
     // matched it. It kept exactly the ports granted here — 443 and 4001 answered while 22 and
-    // 80 timed out — which is the signature of an ACL scope miss, not a host problem. Tagging
-    // the mini for the per-service Caddy work silently revoked its prod SSH.
+    // 80 timed out — which is the signature of an ACL scope miss, not a host problem.
+    //
+    // This GRANTS access the mini never had; it does not restore something lost. An earlier
+    // draft of this note claimed the Caddy-era tagging had revoked prod SSH — wrong, and worth
+    // recording so the next reader does not inherit it. The mini has carried tag:homelab-host
+    // since 2026-07-22 (83369885), and its tag:prod grants (fd337a17 :443, cc813f0d :4001,
+    // both 2026-08-12) never included :22. Tailscale SSH does not cover it either — the ssh
+    // block's only dst has ever been tag:dgx-llm-host. Operator recollection of "SSH to prod
+    // from the mini" was almost certainly the :443 HTTPS API granted the day before the first
+    // prod corpus load, or a session from the untagged admin laptop (the Hetzner key is named
+    // operator-laptop, and no id_ed25519 exists on the mini).
     //
     // This DOES widen a server tag to interactive SSH, which cuts against the Level-3 trim
     // (#1665/#1670) that removed closed raw ports. Accepted deliberately: the operator shell
