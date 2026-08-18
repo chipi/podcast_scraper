@@ -120,7 +120,7 @@ def main() -> int:
                 f"dies on a missing provider key.\n"
                 f"    Fix: add a conditional overlay to the compose invocation:\n"
                 f"        SEC=''; if [ -d /dev/shm/podcast-secrets ] && "
-                f"[ -n \"$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then "
+                f'[ -n "$(ls -A /dev/shm/podcast-secrets 2>/dev/null)" ]; then '
                 f"SEC='-f compose/docker-compose.secrets.yml'; fi\n"
                 f"    ...then pass $SEC to `docker compose`, as deploy.sh:38 does."
             )
