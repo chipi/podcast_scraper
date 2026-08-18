@@ -27,13 +27,33 @@ Written after #1661 merged (`f6c77fcd`) + hotfix `7127e396`.
 
 | Precondition | Status |
 | --- | --- |
-| `DEEPSEEK_API_KEY` staged for prod | **DONE** — set as a `prod` ENVIRONMENT secret |
+| `DEEPSEEK_API_KEY` staged for prod | **DONE** — verified non-empty by deploy-prod's pre-flight |
 | `PROD_LITELLM_API_BASE` set | **DONE** — `prod` env var, `http://100.124.111.115:4001/v1` |
-| Read-only measurement path on prod | **DONE** — `inspect-prod-corpus.yml` |
-| Merged code deployed to production | **OPEN** — blocked until images exist (see below) |
-| Container images published to GHCR | **OPEN** — none since 2026-08-11; building now |
-| Image carries `git_sha` | **OPEN, and prod currently says `unknown`** |
-| Corpus snapshot/backup taken | **OPEN** — `backup-corpus-prod.yml` |
+| Read-only measurement path on prod | **DONE** — `inspect-prod-corpus.yml` (never yet run against prod) |
+| Container images published to GHCR | **DONE** — `sha-62cc3a4`, api + viewer + pipeline-llm |
+| Merged code deployed to production | **DONE** — prod runs `sha-62cc3a4` |
+| Gateway ROUTING (D4) | **DONE** — deploy pins the override onto the box each run |
+| Gateway AUTH (D5) | **DONE** — container -> prod gateway returns **HTTP 200** |
+| Corpus snapshot/backup taken | **OPEN** — workflow fixed, no successful snapshot yet |
+| Image carries `git_sha` | **UNKNOWN** — see below; not disproved, not shown |
+
+### The one thing that will silently undo the above
+
+`LITELLM_PROJ_PODCAST_PROD_KEY` (GH secret) still holds the OLD homelab key. The working key
+was minted on the gateway and written to `/srv/podcast-scraper/.env` directly, because CI
+cannot write a GitHub secret and the repo is PUBLIC — printing a live credential would
+publish it in an Actions log.
+
+**Therefore: do not run `deploy-prod` until that secret is updated.** `deploy-prod` renders
+`.env` from it and would revert the key, putting D5 back to 401. Update it with the value of
+`LITELLM_API_KEY` in `/srv/podcast-scraper/.env`, from a shell.
+
+### On `git_sha`
+
+`/api/health` reports `git_sha: "unknown"`, but that field sits inside `corpus_produced_by`
+next to `produced_at: 2026-08-14` — it describes the CORPUS, not the running image, and has
+not changed because no pipeline run has happened since the deploy. It says nothing about #30
+either way. The real test is a pipeline run's manifest.
 
 
 - [ ] **The merged code is deployed to production.** `f6c77fcd` + `7127e396` are on `main` but a
