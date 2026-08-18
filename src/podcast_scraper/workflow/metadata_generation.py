@@ -3589,7 +3589,13 @@ def _generate_and_validate_summary(
             episode.idx,
             format_exception_for_log(e),
         )
-        _capture_stage_exception(e, stage="summary")  # advisor #5: summary was Sentry-dark
+        # advisor #5: summary was Sentry-dark. #1632: report it as a WARNING — this branch is
+        # the DESIGNED recovery (#1496), not a crash. At Sentry's default `error` severity an
+        # episode that degraded exactly as intended was indistinguishable from a broken run, and
+        # got filed as a bug. The event is still captured; the stage ledger still records the
+        # degradation. GI/KG keep the default severity: a missing insight artifact is the
+        # placeholder failure the corpus-integrity epic exists to catch.
+        _capture_stage_exception(e, stage="summary", level="warning")
         summary_metadata = None
         recoverable_error_occurred = True
     summary_elapsed = time.time() - summary_start
@@ -3796,12 +3802,18 @@ def _reconcile_entities_in_summary(
     return summary_text, corrected_entities
 
 
-def _capture_stage_exception(exc: BaseException, *, stage: str) -> None:
-    """Best-effort Sentry capture for a swallowed GI/KG failure (o11y P1). Never raises."""
+def _capture_stage_exception(
+    exc: BaseException, *, stage: str, level: Optional[str] = None
+) -> None:
+    """Best-effort Sentry capture for a swallowed GI/KG failure (o11y P1). Never raises.
+
+    ``level`` is forwarded so a by-design degradation can be reported as a warning rather than an
+    error — see ``capture_stage_exception`` and #1632.
+    """
     try:
         from ..utils.sentry_init import capture_stage_exception
 
-        capture_stage_exception(exc, stage=stage)
+        capture_stage_exception(exc, stage=stage, level=level)
     except Exception:  # pragma: no cover - telemetry must never break metadata generation
         pass
 
