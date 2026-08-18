@@ -161,9 +161,25 @@ jobs:
           # exit code propagates and we fail fast (no half-tarball that passes
           # naive size checks). The VPS bind-mount path is /srv/podcast-scraper/corpus
           # per RFC-082 Decision 4.
+          # EXCLUDES, added 2026-08-18 after the first measurement of the live corpus:
+          #     TOTAL 48 GB — media 30.5 GB, search 0.4 GB, transcripts 0.3 GB, metadata 0.1 GB
+          # The irreplaceable half of that is 0.4 GB. Backing up all 48 GB took 57 minutes and
+          # still failed ("tar: corpus: file changed as we read it") because the pipeline writes
+          # into the corpus while tar reads it — an hour-long window for a collision.
+          #
+          #   media/  — audio. Excluded deliberately: audio belongs to the remote archive
+          #             (docs/recipes/prod-audio-archive.md, #1631/#1199, tracked in #1679),
+          #             not to a corpus snapshot. A restore therefore returns transcripts,
+          #             metadata and GI/KG artifacts WITHOUT audio; re-obtaining audio is the
+          #             archive's job. That is the operator's explicit call, 2026-08-18.
+          #   search/ — the LanceDB index, regenerable with `make index-two-tier`.
+          #
+          # Keeping -z: what remains is transcripts and JSON, which compress well. (Gzipping
+          # 30 GB of mp3 was pure CPU burn for ~0 gain, which is part of why it was so slow.)
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'tar -czf - -C /srv/podcast-scraper corpus' > snapshot.tgz
+            'tar --exclude="*/media" --exclude="*/search" -czf - -C /srv/podcast-scraper corpus' \
+            > snapshot.tgz
 
           PULL_MIN=$(( ( $(date -u +%s) - PULL_T0 ) / 60 ))
           echo "Tarball created: $(du -h snapshot.tgz | cut -f1) in ${PULL_MIN} min"
