@@ -35,6 +35,7 @@ on:
         type: choice
         options:
           - list
+          - verify
           - mint
         default: list
       confirm:
@@ -130,13 +131,14 @@ jobs:
           MAX_BUDGET: ${{ inputs.max_budget_usd }}
           DO_ACTION: ${{ inputs.action }}
           DELETE_ALIAS: ${{ inputs.delete_alias }}
+          GW_BASE_OVERRIDE: ${{ vars.PROD_LITELLM_API_BASE }}
         run: |
           set -euo pipefail
           # Everything below runs ON the box, fed over stdin so no value is interpolated into
           # a command line the runner can see. bash -s (not sh) for ${VAR: -4}-style builtins.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "KEY_ALIAS='${KEY_ALIAS}' MAX_BUDGET='${MAX_BUDGET}' DO_ACTION='${DO_ACTION}' DELETE_ALIAS='${DELETE_ALIAS}' bash -s" <<'REMOTE'
+            "KEY_ALIAS='${KEY_ALIAS}' MAX_BUDGET='${MAX_BUDGET}' DO_ACTION='${DO_ACTION}' DELETE_ALIAS='${DELETE_ALIAS}' GW_BASE_OVERRIDE='${GW_BASE_OVERRIDE}' bash -s" <<'REMOTE'
           set -euo pipefail
           LLENV=/srv/podcast-scraper/infra/litellm/.env
           APPENV=/srv/podcast-scraper/.env
@@ -154,6 +156,32 @@ jobs:
             -H "Authorization: Bearer $MK" 2>/dev/null \
             | jq -r '(.keys // .data // [])[] | "  alias=\(.key_alias) spend=\(.spend) budget=\(.max_budget) hash=\(.token // "" | .[0:12])"' \
             || echo "  (key listing unavailable on this gateway version)"
+
+          if [ "${DO_ACTION}" = "verify" ]; then
+            # Exactly what deploy-prod's D5 step does, minus the deploy. Runs INSIDE
+            # pipeline-llm so it tests the container's own network path and the
+            # LITELLM_API_KEY the container actually receives — a host-side curl proves
+            # neither. Mutates nothing.
+            BASE=$(grep -m1 '^LITELLM_API_KEY=' "$APPENV" >/dev/null 2>&1 && \
+                   grep -m1 '^PODCAST_LITELLM_BASE=' "$APPENV" | cut -d= -f2- || true)
+            GW="${GW_BASE_OVERRIDE:-http://127.0.0.1:4001/v1}"
+            cd /srv/podcast-scraper
+            CODE=$(docker compose --env-file .env \
+              -f compose/docker-compose.stack.yml \
+              -f compose/docker-compose.prod.yml \
+              -f compose/docker-compose.vps-prod.yml \
+              run --rm -T -e GW_BASE="$GW" --entrypoint python pipeline-llm -c \
+              'import os,urllib.parse as p,http.client as h; u=p.urlparse(os.environ["GW_BASE"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request("GET",(u.path or "").rstrip("/")+"/models",headers={"Authorization":"Bearer "+os.environ.get("LITELLM_API_KEY","")}); print(c.getresponse().status)' \
+              2>/dev/null | tr -d '[:space:]' || echo 000)
+            echo "container -> ${GW} : HTTP ${CODE:-000}"
+            if [ "${CODE:-000}" = "200" ]; then
+              echo "D5 equivalent: PASS"
+            else
+              echo "::error::D5 equivalent FAILED (HTTP ${CODE:-000})"
+              exit 1
+            fi
+            exit 0
+          fi
 
           if [ "${DO_ACTION}" != "mint" ]; then
             echo ""
