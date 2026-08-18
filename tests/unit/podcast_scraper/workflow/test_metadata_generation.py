@@ -35,10 +35,6 @@ with patch.dict("sys.modules", {"spacy": MagicMock()}):
 
 # Import from parent conftest explicitly to avoid conflicts
 
-parent_tests_dir = Path(__file__).parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
-
 # Import directly from tests.conftest (works with pytest-xdist)
 from tests.conftest import (  # noqa: E402
     create_test_config,

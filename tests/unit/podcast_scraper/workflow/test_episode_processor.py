@@ -24,10 +24,6 @@ if PROJECT_ROOT not in sys.path:
 
 # Import from parent conftest explicitly to avoid conflicts
 
-parent_tests_dir = Path(__file__).parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
-
 # Mock openai for workflow imports; unit-only pytest (``make test-ci-fast``).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
