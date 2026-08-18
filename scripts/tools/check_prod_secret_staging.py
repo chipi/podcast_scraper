@@ -68,6 +68,14 @@ CREATES_CONTAINER = re.compile(
 # Delivers the tmpfs secrets — the shared action, or the inline equivalent.
 STAGES_SECRETS = re.compile(r"stage-prod-secrets|podcast-secrets\.staged", re.I)
 
+# MOUNTS them into the container. Delivery is only HALF the job: compose reads the files
+# through docker-compose.secrets.yml, and docker/secrets-shim.sh (the entrypoint) exports them.
+# A workflow that stages but never joins the overlay ships a container with the files on the
+# HOST and nothing in the container — gi-repair-prod did exactly that on 2026-08-18 and died on
+# "Deepgram API key required", one layer past the 401 it had just stopped producing. Checking
+# only for staging let that pass, so the gate checks both halves now.
+MOUNTS_SECRETS = re.compile(r"docker-compose\.secrets\.yml", re.I)
+
 # Workflows that reach prod but deliberately never create a container (pure file/API work).
 # Listing one here is a claim that it cannot need credentials — keep it short and justified.
 EXEMPT = {
@@ -104,6 +112,18 @@ def main() -> int:
         if not CREATES_CONTAINER.search(text):
             continue
         checked += 1
+        if not MOUNTS_SECRETS.search(text):
+            problems.append(
+                f"{wf.relative_to(REPO_ROOT)} creates a container on prod but never joins "
+                f"compose/docker-compose.secrets.yml.\n"
+                f"    The files land on the HOST and nothing reaches the container — the run "
+                f"dies on a missing provider key.\n"
+                f"    Fix: add a conditional overlay to the compose invocation:\n"
+                f"        SEC=''; if [ -d /dev/shm/podcast-secrets ] && "
+                f"[ -n \"$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then "
+                f"SEC='-f compose/docker-compose.secrets.yml'; fi\n"
+                f"    ...then pass $SEC to `docker compose`, as deploy.sh:38 does."
+            )
         if not STAGES_SECRETS.search(text):
             problems.append(
                 f"{wf.relative_to(REPO_ROOT)} creates a container on prod but never stages the "
@@ -130,7 +150,7 @@ def main() -> int:
 
     print(
         f"PROD SECRET STAGING: OK — {checked} prod workflow(s) create containers, "
-        f"all stage the tmpfs secrets first."
+        f"all stage the tmpfs secrets AND mount them via the secrets overlay."
     )
     return 0
 
