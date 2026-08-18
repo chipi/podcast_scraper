@@ -9,6 +9,21 @@ import pytest
 from podcast_scraper.server.app_user_corpus import derive_episode_set
 
 
+def _recording(seen: list, per_episode: dict):
+    """Stand in for ``_episode_entities``, recording which rows it was asked about.
+
+    Was ``lambda root, row: seen.append(row) or per_episode[row]`` — that uses ``append``'s
+    return value (always None) to sequence two statements inside an expression. It works by
+    accident of ``or``, and it hides the recording behind a trick.
+    """
+
+    def _episode_entities(root, row):
+        seen.append(row)
+        return per_episode[row]
+
+    return _episode_entities
+
+
 def test_heard_requires_threshold_of_known_duration() -> None:
     playback = [
         {"slug": "ep-30pct", "position_seconds": 300},  # 300/1000 = 30% → heard
@@ -276,7 +291,7 @@ class TestOneDefinitionForEverySurface:
         monkeypatch.setattr(
             uc,
             "_episode_entities",
-            lambda root, row: (seen.append(row) or per_episode[row]),
+            _recording(seen, per_episode),
         )
         uc.derived_interest_counts(tmp_path, tmp_path, "u1")
         assert len(seen) == uc.DERIVED_MAX_EPISODES, (

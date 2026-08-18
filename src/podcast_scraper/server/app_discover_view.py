@@ -83,7 +83,9 @@ def _affinity_boost(
         return 0.0
     # 1 - 0.5**n : one match gives half the cap, two gives three quarters, and it never exceeds it.
     saturated = 1.0 - 0.5**contribution
-    return weight * min(saturated, cap)
+    # float(): weight/cap come out of the ranking config as Any, so returning the product
+    # unconverted made the declared -> float unenforced.
+    return float(weight * min(saturated, cap))
 
 
 def _feed_significance_means(

@@ -12,6 +12,21 @@ from podcast_scraper.server import app_pkm_export as ex
 
 pytestmark = pytest.mark.unit
 
+
+def _recording_walk(calls: list):
+    """Stand in for ``build_catalog_rows_cumulative``, recording that it walked the catalog.
+
+    The point of the test is that the walk happens ONCE, so the recording is the assertion —
+    it should not be tucked inside an ``append(...) or []`` expression.
+    """
+
+    def _walk(root):
+        calls.append("walk")
+        return []
+
+    return _walk
+
+
 _UID = "u_0123456789abcdef01234567"
 #: The real indexed catalog walk, grabbed before the autouse stub replaces it — the #42
 #: counter test needs the genuine implementation, not the fixture's stand-in.
@@ -394,9 +409,7 @@ def test_no_highlights_costs_no_catalog_walk_at_all(
     """
     calls: list[str] = []
     monkeypatch.setattr(ex, "_title_index", _REAL_TITLE_INDEX)
-    monkeypatch.setattr(
-        ex, "build_catalog_rows_cumulative", lambda root: calls.append("walk") or []
-    )
+    monkeypatch.setattr(ex, "build_catalog_rows_cumulative", _recording_walk(calls))
     _hls(monkeypatch, [])
     ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
     assert calls == []

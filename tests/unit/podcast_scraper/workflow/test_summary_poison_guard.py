@@ -140,7 +140,9 @@ class TestSubjectOverlapIsNotACopy:
     )
     def test_genuine_bullet_sharing_example_vocabulary_is_kept(self, bullet: str, caplog) -> None:
         with caplog.at_level(logging.ERROR):
-            assert _reject_if_prompt_examples_leaked(1, "A real episode title", [bullet]) is None
+            # The contract is "does not raise". Asserting `is None` proved nothing: the function
+            # is declared `-> None`, so that comparison holds however it behaves.
+            _reject_if_prompt_examples_leaked(1, "A real episode title", [bullet])
         assert "SUMMARY POISONED" not in caplog.text
 
     def test_the_actual_p01_e02_leak_is_still_rejected(self, caplog) -> None:
@@ -167,6 +169,5 @@ class TestSubjectOverlapIsNotACopy:
 
     def test_short_incidental_overlap_is_not_a_copy(self) -> None:
         """A stock phrase shorter than the minimum run must not trip the guard on its own."""
-        assert (
-            _reject_if_prompt_examples_leaked(1, "Trail Care", ["Braking earlier helps."]) is None
-        )
+        # Must not raise — see the note above on why `is None` asserted nothing.
+        _reject_if_prompt_examples_leaked(1, "Trail Care", ["Braking earlier helps."])

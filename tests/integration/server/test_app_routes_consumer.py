@@ -852,7 +852,7 @@ def _capture_span(client: TestClient, slug: str) -> str:
         },
     )
     assert resp.status_code == 201, resp.text
-    return resp.json()["id"]
+    return str(resp.json()["id"])
 
 
 def test_highlights_are_reanchored_against_the_current_transcript(tmp_path: Path) -> None:
@@ -979,7 +979,7 @@ def _due_capture(client, tmp_path: Path, slug: str) -> dict:
     """Capture a moment on ``slug`` and backdate it past the ladder's 2-day first rung."""
     import json as _json
 
-    created = client.post(
+    created: dict = client.post(
         "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
     ).json()
     hl_file = next((tmp_path / "appdata" / "users").iterdir()) / "highlights.json"

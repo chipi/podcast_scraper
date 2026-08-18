@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from podcast_scraper.server.app_resurfacing import (
     DAY,
     LADDER_SECONDS,
@@ -98,7 +100,8 @@ def test_a_non_numeric_last_surfaced_falls_back_to_created_at() -> None:
 
 def test_a_non_mapping_state_entry_is_ignored_rather_than_fatal() -> None:
     hl = _hl("h1", NOW - 3 * DAY)
-    assert [h["id"] for h in select_due([hl], {"h1": "corrupt"}, NOW)] == ["h1"]
+    corrupt: dict[str, Any] = {"h1": "corrupt"}  # deliberately the wrong shape
+    assert [h["id"] for h in select_due([hl], corrupt, NOW)] == ["h1"]
 
 
 def test_an_orphan_state_entry_changes_nothing() -> None:

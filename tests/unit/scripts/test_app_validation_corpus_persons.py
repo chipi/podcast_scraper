@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -100,7 +101,7 @@ class TestLoadNameVariants:
 
 class TestCanonicalizePersonsIn:
     def test_collapses_variant_nodes_onto_one_canonical_id(self) -> None:
-        doc = {
+        doc: dict[str, Any] = {
             "nodes": [
                 {
                     "id": "person:speaker-01",
@@ -132,7 +133,7 @@ class TestCanonicalizePersonsIn:
 
     def test_never_merges_two_different_guests_sharing_a_first_name(self) -> None:
         """The safety property. #876: a wrong name is worse than a garble left alone."""
-        doc = {
+        doc: dict[str, Any] = {
             "nodes": [
                 {"id": "person:speaker-01", "type": "Person", "properties": {"name": "Daniel Cho"}},
                 {
@@ -148,7 +149,7 @@ class TestCanonicalizePersonsIn:
         assert ids == ["person:daniel-cho", "person:daniel-olufemi"]
 
     def test_no_variant_map_behaves_as_before(self) -> None:
-        doc = {
+        doc: dict[str, Any] = {
             "nodes": [
                 {"id": "person:speaker-01", "type": "Person", "properties": {"name": "Jordan Park"}}
             ],

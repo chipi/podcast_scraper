@@ -61,6 +61,17 @@ from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
 pytestmark = [pytest.mark.integration]
 
+
+def _recording(seen: list):
+    """Stand in for ``_episode_entities``, recording which rows the deriver visited."""
+
+    def _episode_entities(root, row):
+        seen.append(str(row))
+        return [("topic", "topic:x", "X")]
+
+    return _episode_entities
+
+
 CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 
 # Each of these is the lead topic of exactly one show, so following it should surface that show.
@@ -367,7 +378,7 @@ class TestDerivationTracksRecentListening:
         monkeypatch.setattr(
             uc,
             "_episode_entities",
-            lambda root, row: (seen.append(str(row)) or [("topic", "topic:x", "X")]),
+            _recording(seen),
         )
         uc.derive_interests(data_dir, data_dir, uid, k=8, max_episodes=12)
         assert len(seen) == 12, len(seen)

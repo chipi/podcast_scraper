@@ -35,7 +35,7 @@ pytestmark = [pytest.mark.integration]
 @pytest.fixture(scope="module")
 def observations(tmp_path_factory) -> list[dict]:
     root = write_corpus(tmp_path_factory.mktemp("ranking-scenarios") / "corpus")
-    return observe(root)
+    return list(observe(root))
 
 
 def _order(observations: list[dict], scenario: str, config: str) -> list[str]:
