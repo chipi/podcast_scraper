@@ -594,7 +594,7 @@ jobs:
 
           CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "cd /srv/podcast-scraper && docker compose \
+            "cd /srv/podcast-scraper && docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
