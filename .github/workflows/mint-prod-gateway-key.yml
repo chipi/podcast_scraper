@@ -235,12 +235,24 @@ jobs:
                    grep -m1 '^PODCAST_LITELLM_BASE=' "$APPENV" | cut -d= -f2- || true)
             GW="${GW_BASE_OVERRIDE:-http://127.0.0.1:4001/v1}"
             cd /srv/podcast-scraper
+            # Same two fixes as deploy-prod's D5 (7cae2aa6, c0d73ea1), which were applied
+            # there and NOT here — which is why this probe kept saying 401 while step 0 above
+            # proved the key authenticates:
+            #   1. join the secrets overlay, or the key is never MOUNTED
+            #   2. read /run/secrets directly, because --entrypoint replaces the shim that
+            #      EXPORTS it, so $LITELLM_API_KEY is unset even when mounted
+            SEC=""
+            if [ -d /dev/shm/podcast-secrets ] && [ -n "$(ls -A /dev/shm/podcast-secrets 2>/dev/null)" ]; then
+              SEC="-f compose/docker-compose.secrets.yml"
+            fi
+            # shellcheck disable=SC2086  # $SEC is an intentional 0-or-2 word flag pair
             CODE=$(docker compose --env-file .env \
               -f compose/docker-compose.stack.yml \
               -f compose/docker-compose.prod.yml \
               -f compose/docker-compose.vps-prod.yml \
+              $SEC \
               run --rm -T -e GW_BASE="$GW" --entrypoint python pipeline-llm -c \
-              'import os,urllib.parse as p,http.client as h; u=p.urlparse(os.environ["GW_BASE"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request("GET",(u.path or "").rstrip("/")+"/models",headers={"Authorization":"Bearer "+os.environ.get("LITELLM_API_KEY","")}); print(c.getresponse().status)' \
+              'import os,urllib.parse as p,http.client as h; f="/run/secrets/litellm_api_key"; k=os.environ.get("LITELLM_API_KEY") or (open(f).read().strip() if os.path.exists(f) else ""); u=p.urlparse(os.environ["GW_BASE"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request("GET",(u.path or "").rstrip("/")+"/models",headers={"Authorization":"Bearer "+k}); print(c.getresponse().status)' \
               2>/dev/null | tr -d '[:space:]' || echo 000)
             echo "container -> ${GW} : HTTP ${CODE:-000}"
             if [ "${CODE:-000}" = "200" ]; then
