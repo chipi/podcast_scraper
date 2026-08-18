@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server.queue_sweeper import PAUSE_FLAG_RELPATH, drain_is_paused
+from podcast_scraper.server.queue_sweeper import drain_is_paused, PAUSE_FLAG_RELPATH
 
 pytestmark = [pytest.mark.e2e]
 
