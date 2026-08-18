@@ -208,17 +208,24 @@ test.describe("Stack smoke test", () => {
 
     // -- insight_type classifier (3.2): every Insight node must carry a
     //    VALID insight_type from the enum (durable, all-profile contract).
-    //    ``unknown`` is the correct, EXPECTED type on this profile:
     //    airgapped_thin has GI generation disabled (BART/SummLlama is
     //    summary-only, NO cloud LLM/Ollama; the lossy ``summary_bullets``
-    //    GI route was removed in #1033/#1034), so the pipeline emits the
-    //    single stub Insight ("Summary insight (stub).") typed ``unknown``
-    //    per episode. The ≥1-non-unknown + diversity assertions therefore
-    //    fire only when the corpus actually contains real (non-stub)
-    //    insights — full teeth on profiles that run a real GI provider
-    //    (cloud_thin / cloud_balanced / local_dgx_*), no-op here. This
-    //    matches this file's "assert what the profile DOES produce; richer
-    //    output asserted elsewhere" split (see header). --
+    //    GI route was removed in #1033/#1034).
+    //
+    //    UPDATED 2026-08-18 (#1661 "empty means empty"): this profile now
+    //    produces ZERO Insight nodes. It used to emit one stub Insight
+    //    ("Summary insight (stub).") typed ``unknown`` per episode, and
+    //    this block asserted totalInsights > 0 — an assertion satisfied
+    //    ENTIRELY by that fabricated node. #1661 deleted it, because an
+    //    artifact that reports insights it never derived is the exact
+    //    defect the corpus-integrity epic existed to remove.
+    //
+    //    So the contract inverts: on a GI-disabled profile zero insights is
+    //    CORRECT, and the load-bearing assertion is that the stub has NOT
+    //    come back. The richer classifier assertions still fire with full
+    //    teeth on profiles that run a real GI provider (cloud_thin /
+    //    cloud_balanced / local_dgx_*). This matches this file's "assert
+    //    what the profile DOES produce" split (see header). --
     const STUB_INSIGHT_TEXT = "Summary insight (stub)."
     const allowedInsightTypes = new Set([
       "claim",
@@ -254,7 +261,14 @@ test.describe("Stack smoke test", () => {
         }
       }
     }
-    expect(totalInsights, "at least one Insight produced by pipeline").toBeGreaterThan(0)
+    // THE regression guard, and the one that must never be relaxed: the deleted
+    // placeholder must not reappear. Asserted unconditionally — on every profile,
+    // whether or not a real GI provider ran.
+    expect(
+      stubInsights,
+      `the pre-#1661 placeholder insight ("${STUB_INSIGHT_TEXT}") is back — ` +
+        "an artifact claiming insights it never derived",
+    ).toBe(0)
 
     const realInsights = totalInsights - stubInsights
     if (realInsights > 0) {
@@ -276,14 +290,20 @@ test.describe("Stack smoke test", () => {
         ).toBeGreaterThanOrEqual(2)
       }
     } else {
-      // GI-disabled profile (airgapped_thin): the corpus is exactly the
-      // per-episode stub insight. Assert that explicitly so a real future
-      // GI break on a profile that SHOULD generate insights is not masked
-      // by silently passing on an all-unknown corpus.
+      // GI-disabled profile (airgapped_thin): zero insights is the CORRECT
+      // outcome post-#1661 — no provider ran, so nothing was derived, so
+      // nothing is claimed. Previously this branch required the stub to be
+      // present, which is why deleting the stub broke this test.
+      //
+      // NOT COVERED HERE, and a real gap rather than one to paper over: this
+      // profile cannot detect a GI break, because it produces nothing to
+      // check either way. That coverage belongs to the profiles that DO run
+      // a provider (cloud_thin / cloud_balanced / local_dgx_*), which is
+      // where the realInsights branch above has teeth.
       expect(
-        stubInsights,
-        "GI-disabled profile must emit the stub insight per episode",
-      ).toBeGreaterThan(0)
+        totalInsights,
+        "GI-disabled profile must emit NO insights (empty means empty, #1661)",
+      ).toBe(0)
     }
 
     // -- position_hint waterfall (3.3): with RSS itunes:duration set
@@ -305,10 +325,17 @@ test.describe("Stack smoke test", () => {
         }
       }
     }
-    expect(
-      numericPositionHints,
-      "position_hint waterfall must produce ≥1 numeric value (step 1 from RSS itunes:duration)",
-    ).toBeGreaterThan(0)
+    // Guarded on insights existing: this waterfall reads Insight nodes, so on a
+    // GI-disabled profile there is nothing to hint at. It too was satisfied by the
+    // #1661 stub, which carried a position_hint — the same way the Python stub
+    // carried char_start to satisfy the offset invariant. Full teeth wherever a real
+    // provider runs; vacuous, and honestly so, where none does.
+    if (totalInsights > 0) {
+      expect(
+        numericPositionHints,
+        "position_hint waterfall must produce ≥1 numeric value (step 1 from RSS itunes:duration)",
+      ).toBeGreaterThan(0)
+    }
 
     // -- Typed MENTIONS family (3.1): when a GI MENTIONS edge points at a
     //    Person/Organization KG node, the typed-MENTIONS post-pass MUST
