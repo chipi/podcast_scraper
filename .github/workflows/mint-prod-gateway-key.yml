@@ -175,6 +175,18 @@ jobs:
             # ---------------------------------------------------------------------------
             GW_D="${GW_BASE_OVERRIDE:-http://127.0.0.1:4001/v1}"
             echo "=== step 0: does the DELIVERED key work, ignoring all container plumbing? ==="
+            # SHOW the directory before drawing any conclusion from a failed read. The first
+            # version of this check reported "ABSENT" for both sources, which is what a
+            # permission-denied on a mode-400 root-owned file looks like when the error is
+            # swallowed — the exact defect this whole evening was spent chasing in D5. Sizes,
+            # owners and modes distinguish "missing", "empty" and "not readable by deploy".
+            echo "--- ls -la /dev/shm/podcast-secrets/ ---"
+            ls -la /dev/shm/podcast-secrets/ 2>&1 | sed 's/^/    /' || echo "    (cannot list)"
+            echo "--- read attempt, error NOT swallowed ---"
+            cat /dev/shm/podcast-secrets/litellm_api_key >/dev/null 2>/tmp/_k.err \
+              && echo "    read OK" \
+              || echo "    read FAILED: $(cat /tmp/_k.err)"
+            rm -f /tmp/_k.err
             for SRC in /dev/shm/podcast-secrets/litellm_api_key ENV; do
               if [ "$SRC" = "ENV" ]; then
                 LABEL=".env LITELLM_API_KEY"
